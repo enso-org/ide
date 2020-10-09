@@ -214,7 +214,7 @@ macro_rules! define_endpoints {
             pub fn new_network() -> Self {
                 let network       = frp::Network::new();
                 let frp_inputs    = FrpInputs::new(&network);
-                let frp_endpoints = FrpEndpoints::new(&network,frp_inputs.clone_ref());
+                let frp_endpoints = FrpEndpoints::new(&network,frp_inputs);
                 Self::new(network,frp_endpoints)
             }
         }

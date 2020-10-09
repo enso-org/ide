@@ -54,39 +54,6 @@ pub fn sort_hack(scene:&Scene) {
 }
 
 
-ensogl::define_endpoints! {
-    Input {
-        start_edit_mode (),
-        stop_edit_mode  (),
-    }
-
-    Output {
-        cursor_style (cursor::Style),
-        press        (span_tree::Crumbs),
-        hover        (Option<span_tree::Crumbs>),
-        width        (f32),
-        expression   (Text),
-        editing      (bool),
-    }
-}
-
-#[derive(Debug,Clone,CloneRef)]
-pub struct Events {
-    pub network         : frp::Network,
-    pub cursor_style    : frp::Stream<cursor::Style>,
-    pub press           : frp::Stream<span_tree::Crumbs>,
-    pub hover           : frp::Stream<Option<span_tree::Crumbs>>,
-    pub start_edit_mode : frp::Source,
-    pub stop_edit_mode  : frp::Source,
-    pub width           : frp::Stream<f32>,
-    pub expression      : frp::Stream<Text>,
-    editing             : frp::nodes::Sampler<bool>,
-    press_source        : frp::Source<span_tree::Crumbs>,
-    hover_source        : frp::Source<Option<span_tree::Crumbs>>,
-    cursor_style_source : frp::Any<cursor::Style>,
-}
-
-
 
 // ==================
 // === Expression ===
@@ -132,6 +99,28 @@ impl From<&Expression> for Expression {
 
 
 
+// ===========
+// === FRP ===
+// ===========
+
+ensogl::define_endpoints! {
+    Input {
+        start_edit_mode (),
+        stop_edit_mode  (),
+    }
+
+    Output {
+        cursor_style (cursor::Style),
+        press        (span_tree::Crumbs),
+        hover        (Option<span_tree::Crumbs>),
+        width        (f32),
+        expression   (Text),
+        editing      (bool),
+    }
+}
+
+
+
 // ===============
 // === Manager ===
 // ===============
@@ -147,7 +136,7 @@ pub struct Manager {
     width          : Rc<Cell<f32>>,
     port_networks  : Rc<RefCell<Vec<frp::Network>>>,
     type_color_map : TypeColorMap,
-    pub frp        : Events,
+    pub frp        : Frp,
 }
 
 impl Manager {
@@ -160,42 +149,27 @@ impl Manager {
         let label          = app.new_view::<text::Area>();
         let ports          = default();
 
-        frp::new_network! { network
-            cursor_style_source <- any_mut::<cursor::Style>();
-            press_source        <- source::<span_tree::Crumbs>();
-            hover_source        <- source::<Option<span_tree::Crumbs>>();
-            start_edit_mode     <- source();
-            stop_edit_mode      <- source();
-            editing             <- label.active.sampler();
 
-            eval_ start_edit_mode ([label] {
+        let frp = Frp::new_network();
+        let network = &frp.network;
+
+        frp::extend! { network
+            eval_ frp.input.start_edit_mode ([label] {
                 label.set_active(true);
                 label.set_cursor_at_mouse_position();
             });
 
-            eval_ stop_edit_mode ([label] {
+            eval_ frp.input.stop_edit_mode ([label] {
                 label.set_active(false);
                 label.remove_all_cursors();
             });
 
-            width <- label.width.map(|w|*w);
-
-            expression <- label.changed.map(|t|t.clone_ref());
+            frp.output.source.width      <+ label.width;
+            frp.output.source.expression <+ label.changed;
         }
 
-        let cursor_style   = (&cursor_style_source).into();
-        let press          = (&press_source).into();
-        let hover          = (&hover_source).into();
-        let frp            = Events
-            {network,cursor_style,press,hover,cursor_style_source,press_source,hover_source
-            ,start_edit_mode,stop_edit_mode,width,expression,editing};
-
         label.mod_position(|t| t.y += 6.0);
-
         display_object.add_child(&label);
-
-        label.set_cursor(&default());
-        label.insert("HELLO\nHELLO2\nHELLO3\nHELLO4".to_string());
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles     = StyleWatch::new(&app.display.scene().style_sheet);
@@ -215,7 +189,7 @@ impl Manager {
     }
 
     pub(crate) fn set_expression(&self, expression:impl Into<Expression>) {
-        let     expression    = expression.into();
+        let expression = expression.into();
 
         self.label.set_cursor(&default());
         self.label.select_all();
@@ -225,11 +199,9 @@ impl Manager {
             self.label.set_cursor_at_end();
         }
 
-
         let glyph_width = 7.224_609_4; // FIXME hardcoded literal
         let width       = expression.code.len() as f32 * glyph_width;
         self.width.set(width);
-
 
         let mut to_visit      = vec![expression.input_span_tree.root_ref()];
         let mut ports         = vec![];
@@ -267,27 +239,26 @@ impl Manager {
                         let color  = ast_id.and_then(|id|type_map.type_color(id,styles.clone_ref()));
                         let color  = color.unwrap_or(missing_type_color);
 
+                        let highlight = cursor::Style::new_highlight(&port,size,Some(color));
+
                         frp::new_network! { port_network
-                            edit_mode <- bool(&self.frp.stop_edit_mode,&self.frp.start_edit_mode);
-                            out  <- port.events.mouse_out.constant(default());
-                            over <- port.events.mouse_over.map(f_!([port]{
-                                cursor::Style::new_highlight(&port,size,Some(color))
-                            }));
-                            empty <- self.frp.start_edit_mode.map(|_|default());
-                            cursor_style <- any(out,over).gate_not(&edit_mode);
-                            cursor_style <- any(cursor_style,empty);
-                            // FIXME[WD]: the following lines leak memory in the current FRP
-                            // implementation because self.frp does not belong to this network and
-                            // we are attaching node there. Nothing bad should happen though.
-                            self.frp.cursor_style_source.attach(&cursor_style);
+                            edit_mode        <- bool(&self.frp.stop_edit_mode,&self.frp.start_edit_mode);
+                            mouse_out        <- port.events.mouse_out.gate_not(&edit_mode);
+                            mouse_over       <- port.events.mouse_over.gate_not(&edit_mode);
+                            mouse_down       <- port.events.mouse_down.gate_not(&edit_mode);
+                            mouse_style_edit <- self.frp.start_edit_mode.map(|_|default());
+                            mouse_style_out  <- mouse_out.constant(default());
+                            mouse_style_over <- mouse_over.map(move |_| highlight.clone());
+                            mouse_style      <- any(mouse_style_out,mouse_style_over,mouse_style_edit);
+                            self.frp.output.source.cursor_style <+ mouse_style;
 
                             let crumbs_down  = crumbs.clone();
                             let crumbs_over  = crumbs.clone();
-                            let press_source = &self.frp.press_source;
-                            let hover_source = &self.frp.hover_source;
-                            eval_ port.events.mouse_down (press_source.emit(&crumbs_down));
-                            eval_ port.events.mouse_over (hover_source.emit(&Some(crumbs_over.clone())));
-                            eval_ port.events.mouse_out  (hover_source.emit(&None));
+                            let press_source = &self.frp.output.source.press;
+                            let hover_source = &self.frp.output.source.hover;
+                            eval_ mouse_down (press_source.emit(&crumbs_down));
+                            eval_ mouse_over (hover_source.emit(&Some(crumbs_over.clone())));
+                            eval_ mouse_out  (hover_source.emit(&None));
                         }
                         ports.push(port);
                         port_networks.push(port_network);
