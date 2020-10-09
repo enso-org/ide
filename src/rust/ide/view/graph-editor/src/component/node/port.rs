@@ -36,7 +36,7 @@ pub mod shape {
     use super::*;
 
     ensogl::define_shape_system! {
-        (style:Style, hover:f32) {
+        (style:Style) {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
             let radius = 6.px();
@@ -53,6 +53,22 @@ pub fn sort_hack(scene:&Scene) {
     component::ShapeView::<shape::Shape>::new(&logger,scene);
 }
 
+
+ensogl::define_endpoints! {
+    Input {
+        start_edit_mode (),
+        stop_edit_mode  (),
+    }
+
+    Output {
+        cursor_style (cursor::Style),
+        press        (span_tree::Crumbs),
+        hover        (Option<span_tree::Crumbs>),
+        width        (f32),
+        expression   (Text),
+        editing      (bool),
+    }
+}
 
 #[derive(Debug,Clone,CloneRef)]
 pub struct Events {
@@ -236,37 +252,34 @@ impl Manager {
                         let width2      = width + 8.0;
                         let node_height = 28.0;
                         let height      = 18.0;
+                        let size        = Vector2::new(width2,height);
                         port.shape.sprite.size.set(Vector2::new(width2,node_height));
                         let x = width/2.0 + unit * span.index.value as f32;
                         port.mod_position(|t| t.x = x);
                         self.add_child(&port);
 
-                        let hover   = &port.shape.hover;
-                        let crumbs  = node.crumbs.clone();
-                        let ast_id  = get_id_for_crumbs(&expression.input_span_tree,&crumbs);
-
                         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
                         let styles             = StyleWatch::new(&self.app.display.scene().style_sheet);
                         let missing_type_color = styles.get_color(theme::vars::graph_editor::edge::_type::missing::color);
 
-                        frp::new_network! { port_network
-                            def _foo = port.events.mouse_over . map(f_!(hover.set(1.0);));
-                            def _foo = port.events.mouse_out  . map(f_!(hover.set(0.0);));
+                        let crumbs = node.crumbs.clone();
+                        let ast_id = get_id_for_crumbs(&expression.input_span_tree,&crumbs);
+                        let color  = ast_id.and_then(|id|type_map.type_color(id,styles.clone_ref()));
+                        let color  = color.unwrap_or(missing_type_color);
 
-                            def out  = port.events.mouse_out.constant(cursor::Style::default());
-                            def over = port.events.mouse_over.map(f_!([type_map,port]{
-                                if let Some(ast_id) = ast_id {
-                                    if let Some(port_color) = type_map.type_color(ast_id,styles.clone_ref()) {
-                                        return cursor::Style::new_highlight(&port,Vector2::new(width2,height),Some(port_color))
-                                    }
-                                }
-                                cursor::Style::new_highlight(&port,Vector2::new(width2,height),Some(missing_type_color))
+                        frp::new_network! { port_network
+                            edit_mode <- bool(&self.frp.stop_edit_mode,&self.frp.start_edit_mode);
+                            out  <- port.events.mouse_out.constant(default());
+                            over <- port.events.mouse_over.map(f_!([port]{
+                                cursor::Style::new_highlight(&port,size,Some(color))
                             }));
+                            empty <- self.frp.start_edit_mode.map(|_|default());
+                            cursor_style <- any(out,over).gate_not(&edit_mode);
+                            cursor_style <- any(cursor_style,empty);
                             // FIXME[WD]: the following lines leak memory in the current FRP
                             // implementation because self.frp does not belong to this network and
                             // we are attaching node there. Nothing bad should happen though.
-                            self.frp.cursor_style_source.attach(&over);
-                            self.frp.cursor_style_source.attach(&out);
+                            self.frp.cursor_style_source.attach(&cursor_style);
 
                             let crumbs_down  = crumbs.clone();
                             let crumbs_over  = crumbs.clone();

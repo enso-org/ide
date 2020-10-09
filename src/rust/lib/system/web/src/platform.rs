@@ -60,6 +60,7 @@ pub fn current() -> Platform {
 #[cfg(target_os="windows")] fn target_os() -> Platform { Windows }
 
 #[cfg(not(any(
+    target_arch="wasm32",
     target_os="android",
     target_os="ios",
     target_os="linux",
