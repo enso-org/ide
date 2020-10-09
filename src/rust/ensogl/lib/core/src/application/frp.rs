@@ -1,3 +1,5 @@
+//! FRP utilities for defining application components.
+
 /// Generate a set of structures allowing for nice management of FRP inputs, outputs, and commands.
 ///
 /// Given the definition:
@@ -310,7 +312,7 @@ macro_rules! define_endpoints {
     };
 }
 
-
+/// Internal helper of `define_endpoints` macro.
 #[macro_export]
 macro_rules! build_status_map {
     ($map:ident $field:ident (bool) $frp:expr) => {
@@ -319,6 +321,7 @@ macro_rules! build_status_map {
     ($($ts:tt)*) => {}
 }
 
+/// Internal helper of `define_endpoints` macro.
 #[macro_export]
 macro_rules! build_command_map {
     ($map:ident $field:ident () $frp:expr) => {
@@ -326,7 +329,6 @@ macro_rules! build_command_map {
     };
     ($($ts:tt)*) => {}
 }
-
 
 /// Defines a method which is an alias to FRP emit method. Used internally by the `define_endpoints`
 /// macro.
