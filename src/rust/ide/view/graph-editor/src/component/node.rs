@@ -161,8 +161,8 @@ ensogl::define_endpoints! {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Node {
-    pub model       : Rc<NodeModel>,
-    pub frp_network : frp::Network,
+    pub model : Rc<NodeModel>,
+    pub frp   : Frp,
 }
 
 impl AsRef<Node> for Node {
@@ -173,9 +173,9 @@ impl AsRef<Node> for Node {
 
 
 impl Deref for Node {
-    type Target = NodeModel;
+    type Target = Frp;
     fn deref(&self) -> &Self::Target {
-        &self.model
+        &self.frp
     }
 }
 
@@ -186,7 +186,6 @@ pub struct NodeModel {
     pub app            : Application,
     pub display_object : display::object::Instance,
     pub logger         : Logger,
-    pub frp            : FrpEndpoints,
     pub main_area      : component::ShapeView<shape::Shape>,
     pub drag_area      : component::ShapeView<drag_area::Shape>,
     pub ports          : port::Manager,
@@ -225,9 +224,6 @@ impl NodeModel {
 
         let ports = port::Manager::new(&logger,app,active_sampler);
         let scene = scene.clone_ref();
-        let input = FrpInputs::new(&network);
-        let frp   = FrpEndpoints::new(&network,input);
-
         let visualization = visualization::Container::new(&logger,&app,registry);
         visualization.mod_position(|t| {
             t.x = 60.0;
@@ -248,7 +244,7 @@ impl NodeModel {
         display_object.add_child(&output_ports);
 
         let app = app.clone_ref();
-        Self {app,display_object,logger,frp,main_area,drag_area,output_ports,ports
+        Self {app,display_object,logger,main_area,drag_area,output_ports,ports
              ,visualization} . init()
     }
 
@@ -299,13 +295,16 @@ impl Node {
     , registry       : visualization::Registry
     , active_sampler : &frp::Sampler<bool>
     ) -> Self {
-        let frp_network = frp::Network::new();
-        let model       = Rc::new(NodeModel::new(app,&frp_network,registry,active_sampler));
-        let inputs      = &model.frp.input;
-        let out     = &model.frp;
-        let selection   = Animation::<f32>::new(&frp_network);
+        let frp    = Frp::new_network();
 
-        frp::extend! { frp_network
+        let network = &frp.network;
+        let inputs      = &frp.input;
+        let out     = &frp.output;
+        let model       = Rc::new(NodeModel::new(app,network,registry,active_sampler));
+
+        let selection   = Animation::<f32>::new(network);
+
+        frp::extend! { network
             eval  selection.value ((v) model.main_area.shape.selection.set(*v));
             eval_ inputs.select   (selection.set_target_value(1.0));
             eval_ inputs.deselect (selection.set_target_value(0.0));
@@ -325,15 +324,15 @@ impl Node {
             out.source.background_press <+ model.drag_area.events.mouse_down;
             out.source.background_press <+ model.ports.frp.background_press;
 
-            model.frp.source.expression <+ model.ports.frp.expression.map(|t|t.clone_ref());
+            out.source.expression <+ model.ports.frp.expression.map(|t|t.clone_ref());
         }
 
-        Self {frp_network,model}
+        Self {frp,model}
     }
 }
 
 impl display::Object for Node {
     fn display_object(&self) -> &display::object::Instance {
-        &self.display_object
+        &self.model.display_object
     }
 }

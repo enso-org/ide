@@ -875,30 +875,31 @@ impl GraphEditorModelWithNetwork {
         let touch = &self.touch_state;
         let model = &self.model;
 
-        frp::new_bridge_network! { [self.network, node.main_area.events.network]
+        frp::new_bridge_network! { [self.network, node.model.main_area.events.network]
             eval_ node.frp.background_press(touch.nodes.down.emit(node_id));
-            eval node.ports.frp.cursor_style ((style) cursor_style.emit(style));
-            eval node.view.output_ports.frp.port_mouse_down ([output_press](crumbs){
+            let node_model = &node.model;
+            eval node.model.ports.frp.cursor_style ((style) cursor_style.emit(style));
+            eval node.model.output_ports.frp.port_mouse_down ([output_press](crumbs){
                 let target = EdgeTarget::new(node_id,crumbs.clone());
                 output_press.emit(target);
             });
 
-            eval node.ports.frp.press ([input_press](crumbs)
+            eval node.model.ports.frp.press ([input_press](crumbs)
                 let target = EdgeTarget::new(node_id,crumbs.clone());
                 input_press.emit(target);
             );
 
-            eval node.ports.frp.hover ([model](crumbs) {
+            eval node.model.ports.frp.hover ([model](crumbs) {
                 let target = crumbs.as_ref().map(|c| EdgeTarget::new(node_id,c.clone()));
                 model.frp.hover_node_input.emit(target);
             });
 
-            eval node.view.output_ports.frp.port_mouse_over ([model](crumbs) {
+            eval node.model.output_ports.frp.port_mouse_over ([model](crumbs) {
                let target = EdgeTarget::new(node_id,crumbs.clone());
                model.frp.hover_node_output.emit(Some(target));
             });
 
-            eval_ node.view.output_ports.frp.port_mouse_out (
+            eval_ node.model.output_ports.frp.port_mouse_out (
                 model.frp.hover_node_output.emit(None)
             );
 
@@ -1097,7 +1098,7 @@ impl GraphEditorModel {
     fn enable_visualization(&self, node_id:impl Into<NodeId>) {
         let node_id = node_id.into();
         if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
-            node.visualization.frp.set_visibility.emit(true);
+            node.model.visualization.frp.set_visibility.emit(true);
         }
     }
 
@@ -1105,14 +1106,14 @@ impl GraphEditorModel {
     fn disable_visualization(&self, node_id:impl Into<NodeId>) {
         let node_id = node_id.into();
         if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
-            node.visualization.frp.set_visibility.emit(false);
+            node.model.visualization.frp.set_visibility.emit(false);
         }
     }
 
     fn enable_visualization_fullscreen(&self, node_id:impl Into<NodeId>) {
         let node_id = node_id.into();
         if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
-            node.visualization.frp.enable_fullscreen.emit(());
+            node.model.visualization.frp.enable_fullscreen.emit(());
         }
     }
 
@@ -1345,8 +1346,8 @@ impl GraphEditorModel {
         if let Some(edge) = self.edges.get_cloned_ref(&edge_id) {
             if let Some(edge_source) = edge.source() {
                 if let Some(node) = self.nodes.get_cloned_ref(&edge_source.node_id) {
-                    edge.view.frp.source_width.emit(node.width());
-                    edge.view.frp.source_height.emit(node.height());
+                    edge.view.frp.source_width.emit(node.model.width());
+                    edge.view.frp.source_height.emit(node.model.height());
                     edge.view.frp.redraw.emit(());
                 }
             }
@@ -1365,7 +1366,7 @@ impl GraphEditorModel {
             if let Some(edge_source) = edge.source() {
                 if let Some(node) = self.nodes.get_cloned_ref(&edge_source.node_id) {
                     edge.mod_position(|p| {
-                        p.x = node.position().x + node.width()/2.0;
+                        p.x = node.position().x + node.model.width()/2.0;
                         p.y = node.position().y + node::NODE_HEIGHT/2.0;
                     });
                 }
@@ -1377,7 +1378,7 @@ impl GraphEditorModel {
         if let Some(edge) = self.edges.get_cloned_ref(&edge_id) {
             if let Some(edge_target) = edge.target() {
                 if let Some(node) = self.nodes.get_cloned_ref(&edge_target.node_id) {
-                    let offset = node.ports.get_port_offset(&edge_target.port).unwrap_or_default();
+                    let offset = node.model.ports.get_port_offset(&edge_target.port).unwrap_or_default();
                     let pos = node.position().xy() + offset;
                     edge.view.frp.target_position.emit(pos);
                     edge.view.frp.redraw.emit(());
@@ -1390,8 +1391,8 @@ impl GraphEditorModel {
     /// with the target port.
     fn try_get_edge_target_color(&self, edge_target:EdgeTarget) -> Option<color::Lcha> {
         let node              = self.nodes.get_cloned_ref(&edge_target.node_id)?;
-        let input_port_color  = node.view.ports.get_port_color(&edge_target.port);
-        let output_port_color = || node.view.output_ports.get_port_color(&edge_target.port);
+        let input_port_color  = node.model.ports.get_port_color(&edge_target.port);
+        let output_port_color = || node.model.output_ports.get_port_color(&edge_target.port);
         input_port_color.or_else(output_port_color)
     }
 
@@ -1673,12 +1674,12 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
         eval out.node_editing_started ([model] (id) {
             if let Some(node) = model.nodes.get_cloned_ref(&id) {
-                node.ports.frp.edit_mode.emit(true);
+                node.model.ports.frp.edit_mode.emit(true);
             }
         });
         eval out.node_editing_finished ([model](id) {
             if let Some(node) = model.nodes.get_cloned_ref(&id) {
-                node.ports.frp.edit_mode.emit(false);
+                node.model.ports.frp.edit_mode.emit(false);
             }
         });
     }
@@ -2173,9 +2174,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
        match (&nodes.get_cloned_ref(node_id), vis_path) {
             (Some(node), Some(vis_path)) => {
                 let vis_definition = visualizations.definition_from_path(vis_path);
-                node.visualization.frp.set_visualization.emit(vis_definition);
+                node.model.visualization.frp.set_visualization.emit(vis_definition);
             },
-            (Some(node), None) => node.visualization.frp.set_visualization.emit(None),
+            (Some(node), None) => node.model.visualization.frp.set_visualization.emit(None),
              _                 => logger.warning(|| format!("Failed to get node: {:?}",node_id)),
 
        }
@@ -2197,7 +2198,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     def _set_data = inputs.set_visualization_data.map(f!([nodes]((node_id,data)) {
          if let Some(node) = nodes.get_cloned(node_id) {
-             node.visualization.frp.set_data.emit(data);
+             node.model.visualization.frp.set_data.emit(data);
          }
      }));
 
@@ -2212,7 +2213,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         let node = nodes.get_cloned_ref(node_id);
         match (vis, node) {
             (Some(vis), Some(node))  => {
-                node.visualization.frp.set_visualization.emit(vis.clone());
+                node.model.visualization.frp.set_visualization.emit(vis.clone());
             },
             (None, _) => logger.warning(|| "Failed to get visualization while cycling.".to_string()),
             _         => {}
@@ -2244,7 +2245,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     viz_tgt_nodes_off    <- viz_tgt_nodes.map(f!([model](node_ids) {
         node_ids.iter().cloned().filter(|node_id| {
             model.nodes.get_cloned_ref(node_id)
-                .map(|node| !node.visualization.is_active())
+                .map(|node| !node.model.visualization.is_active())
                 .unwrap_or_default()
         }).collect_vec()
     }));
