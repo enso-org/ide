@@ -105,17 +105,17 @@ impl From<&Expression> for Expression {
 
 ensogl::define_endpoints! {
     Input {
-        start_edit_mode (),
-        stop_edit_mode  (),
+        edit_mode (bool),
     }
 
     Output {
-        cursor_style (cursor::Style),
-        press        (span_tree::Crumbs),
-        hover        (Option<span_tree::Crumbs>),
-        width        (f32),
-        expression   (Text),
-        editing      (bool),
+        cursor_style     (cursor::Style),
+        background_press (),
+        press            (span_tree::Crumbs),
+        hover            (Option<span_tree::Crumbs>),
+        width            (f32),
+        expression       (Text),
+        editing          (bool),
     }
 }
 
@@ -136,11 +136,16 @@ pub struct Manager {
     width          : Rc<Cell<f32>>,
     port_networks  : Rc<RefCell<Vec<frp::Network>>>,
     type_color_map : TypeColorMap,
+    active_sampler : frp::Sampler<bool>,
     pub frp        : Frp,
 }
 
 impl Manager {
-    pub fn new(logger:impl AnyLogger, app:&Application) -> Self {
+    pub fn new
+    ( logger         : impl AnyLogger
+    , app            : &Application
+    , active_sampler : &frp::Sampler<bool>
+    ) -> Self {
         let logger         = Logger::sub(logger,"port_manager");
         let display_object = display::object::Instance::new(&logger);
         let app            = app.clone_ref();
@@ -148,20 +153,15 @@ impl Manager {
         let type_color_map = default();
         let label          = app.new_view::<text::Area>();
         let ports          = default();
-
-
-        let frp = Frp::new_network();
-        let network = &frp.network;
+        let active_sampler = active_sampler.clone_ref();
+        let frp            = Frp::new_network();
+        let network        = &frp.network;
 
         frp::extend! { network
-            eval_ frp.input.start_edit_mode ([label] {
-                label.set_active(true);
-                label.set_cursor_at_mouse_position();
-            });
-
-            eval_ frp.input.stop_edit_mode ([label] {
-                label.set_active(false);
-                label.remove_all_cursors();
+            eval frp.input.edit_mode ([label](enabled) {
+                label.set_active(enabled);
+                if *enabled { label.set_cursor_at_mouse_position() }
+                else        { label.remove_all_cursors() }
             });
 
             frp.output.source.width      <+ label.width;
@@ -181,7 +181,8 @@ impl Manager {
         let expression = default();
         let width      = default();
 
-        Self {logger,display_object,frp,label,ports,width,app,expression,port_networks,type_color_map}
+        Self {logger,display_object,frp,label,ports,width,app,expression,port_networks
+             ,type_color_map,active_sampler}
     }
 
     fn scene(&self) -> &Scene {
@@ -242,11 +243,21 @@ impl Manager {
                         let highlight = cursor::Style::new_highlight(&port,size,Some(color));
 
                         frp::new_network! { port_network
-                            edit_mode        <- bool(&self.frp.stop_edit_mode,&self.frp.start_edit_mode);
-                            mouse_out        <- port.events.mouse_out.gate_not(&edit_mode);
-                            mouse_over       <- port.events.mouse_over.gate_not(&edit_mode);
-                            mouse_down       <- port.events.mouse_down.gate_not(&edit_mode);
-                            mouse_style_edit <- self.frp.start_edit_mode.map(|_|default());
+                            let edit_mode      = &self.frp.edit_mode;
+                            let active_sampler = &self.active_sampler;
+
+                            any_event <- any_(port.events.mouse_out,port.events.mouse_over,port.events.mouse_down);
+                            active    <- any_event.map2(edit_mode,f!([active_sampler] (_,e) {
+                                println!(">> {} {}", !active_sampler.value(), !e);
+                                !active_sampler.value() && !e
+                            }));
+                            trace active;
+                            mouse_out        <- port.events.mouse_out.gate(&active);
+                            mouse_over       <- port.events.mouse_over.gate(&active);
+                            mouse_down       <- port.events.mouse_down.gate(&active);
+                            mouse_bg_down    <- port.events.mouse_down.gate_not(&active);
+                            trace mouse_bg_down;
+                            mouse_style_edit <- self.frp.edit_mode.map(|_| default());
                             mouse_style_out  <- mouse_out.constant(default());
                             mouse_style_over <- mouse_over.map(move |_| highlight.clone());
                             mouse_style      <- any(mouse_style_out,mouse_style_over,mouse_style_edit);
@@ -254,8 +265,11 @@ impl Manager {
 
                             let crumbs_down  = crumbs.clone();
                             let crumbs_over  = crumbs.clone();
+                            let press_bg_source = &self.frp.output.source.background_press;
                             let press_source = &self.frp.output.source.press;
                             let hover_source = &self.frp.output.source.hover;
+                            trace mouse_down;
+                            eval_ mouse_bg_down (press_bg_source.emit(()));
                             eval_ mouse_down (press_source.emit(&crumbs_down));
                             eval_ mouse_over (hover_source.emit(&Some(crumbs_over.clone())));
                             eval_ mouse_out  (hover_source.emit(&None));

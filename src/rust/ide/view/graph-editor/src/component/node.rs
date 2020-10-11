@@ -143,6 +143,9 @@ ensogl::define_endpoints! {
         set_visualization   (Option<visualization::Definition>),
     }
     Output {
+        /// Press event. Emitted when user clicks on non-active part of the node, like its
+        /// background. In edit mode, the whole node area is considered non-active.
+        background_press (),
         expression (Text)
     }
 }
@@ -194,7 +197,11 @@ pub struct NodeModel {
 
 impl NodeModel {
     /// Constructor.
-    pub fn new(app:&Application, network:&frp::Network,registry:visualization::Registry) -> Self {
+    pub fn new
+    ( app            : &Application, network:&frp::Network
+    , registry       : visualization::Registry
+    , active_sampler : &frp::Sampler<bool>
+    ) -> Self {
         let scene  = app.display.scene();
         let logger = Logger::new("node");
         edge::sort_hack_1(scene);
@@ -216,7 +223,7 @@ impl NodeModel {
         let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
         shape_system.shape_system.set_pointer_events(false);
 
-        let ports = port::Manager::new(&logger,app);
+        let ports = port::Manager::new(&logger,app,active_sampler);
         let scene = scene.clone_ref();
         let input = FrpInputs::new(&network);
         let frp   = FrpEndpoints::new(&network,input);
@@ -287,11 +294,16 @@ impl NodeModel {
 }
 
 impl Node {
-    pub fn new(app:&Application,registry:visualization::Registry) -> Self {
-        let frp_network      = frp::Network::new();
-        let model            = Rc::new(NodeModel::new(app,&frp_network,registry));
-        let inputs           = &model.frp.input;
-        let selection        = Animation::<f32>::new(&frp_network);
+    pub fn new
+    ( app            : &Application
+    , registry       : visualization::Registry
+    , active_sampler : &frp::Sampler<bool>
+    ) -> Self {
+        let frp_network = frp::Network::new();
+        let model       = Rc::new(NodeModel::new(app,&frp_network,registry,active_sampler));
+        let inputs      = &model.frp.input;
+        let out     = &model.frp;
+        let selection   = Animation::<f32>::new(&frp_network);
 
         frp::extend! { frp_network
             eval  selection.value ((v) model.main_area.shape.selection.set(*v));
@@ -309,6 +321,9 @@ impl Node {
             );
 
             eval model.ports.frp.width ((w) model.set_width(*w));
+
+            out.source.background_press <+ model.drag_area.events.mouse_down;
+            out.source.background_press <+ model.ports.frp.background_press;
 
             model.frp.source.expression <+ model.ports.frp.expression.map(|t|t.clone_ref());
         }

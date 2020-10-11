@@ -865,8 +865,9 @@ impl GraphEditorModelWithNetwork {
     , output_press   : &frp::Source<EdgeTarget>
     , input_press    : &frp::Source<EdgeTarget>
     , expression_set : &frp::Source<(NodeId,String)>
+    , active_sampler : &frp::Sampler<bool>
     ) -> NodeId {
-        let view    = component::Node::new(&self.app,self.visualizations.clone_ref());
+        let view    = component::Node::new(&self.app,self.visualizations.clone_ref(),active_sampler);
         let node    = Node::new(view);
         let node_id = node.id();
         self.add_child(&node);
@@ -875,7 +876,7 @@ impl GraphEditorModelWithNetwork {
         let model = &self.model;
 
         frp::new_bridge_network! { [self.network, node.main_area.events.network]
-            eval_ node.drag_area.events.mouse_down(touch.nodes.down.emit(node_id));
+            eval_ node.frp.background_press(touch.nodes.down.emit(node_id));
             eval node.ports.frp.cursor_style ((style) cursor_style.emit(style));
             eval node.view.output_ports.frp.port_mouse_down ([output_press](crumbs){
                 let target = EdgeTarget::new(node_id,crumbs.clone());
@@ -1493,6 +1494,9 @@ impl application::View for GraphEditor {
           , (Press       , "meta"              , "edit_mode_on")
           , (Release     , "meta"              , "edit_mode_off")
           , (Release     , "enter"             , "stop_editing")
+
+          , (Press       , "meta left-mouse-button" , "edit_mode_on")
+          , (Release     , "meta left-mouse-button" , "edit_mode_off")
           // FIXME[WD] We need to add something like that to debug shapes.
           , // (Press       , "ctrl n"           , "add_node_at_cursor")
         ]).iter().map(|(a,b,c)|Self::self_shortcut(*a,*b,*c)).collect()
@@ -1646,7 +1650,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     frp::extend! { network
         node_edit_mode           <- out.edited_node.map(|n| n.is_some());
         edit_mode                <- bool(&inputs.edit_mode_off,&inputs.edit_mode_on);
+        trace edit_mode;
         node_edited_in_edit_mode <- touch.nodes.selected.gate(&edit_mode);
+        trace node_edited_in_edit_mode;
         start_editing            <- any(&node_edited_in_edit_mode,&inputs.edit_node);
          // FIXME: add other cases like node select.
         stop_editing_by_bg_click <- touch.background.selected.gate(&node_edit_mode);
@@ -1667,12 +1673,12 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
         eval out.node_editing_started ([model] (id) {
             if let Some(node) = model.nodes.get_cloned_ref(&id) {
-                node.ports.frp.start_edit_mode.emit(());
+                node.ports.frp.edit_mode.emit(true);
             }
         });
         eval out.node_editing_finished ([model](id) {
             if let Some(node) = model.nodes.get_cloned_ref(&id) {
-                node.ports.frp.stop_edit_mode.emit(());
+                node.ports.frp.edit_mode.emit(false);
             }
         });
     }
@@ -1901,8 +1907,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     out.source.edge_target_set <+ new_edge_target;
 
     let add_node_at_cursor = inputs.add_node_at_cursor.clone_ref();
+    xxx <- edit_mode.sampler();
     add_node           <- any (inputs.add_node,add_node_at_cursor);
-    new_node           <- add_node.map(f_!([model,node_cursor_style] model.new_node(&node_cursor_style,&node_output_touch.down,&node_input_touch.down,&node_expression_set)));
+    new_node           <- add_node.map(f_!([model,node_cursor_style] model.new_node(&node_cursor_style,&node_output_touch.down,&node_input_touch.down,&node_expression_set,&xxx)));
     out.source.node_added <+ new_node;
 
     node_with_position <- add_node_at_cursor.map3(&new_node,&mouse.position,|_,id,pos| (*id,*pos));
