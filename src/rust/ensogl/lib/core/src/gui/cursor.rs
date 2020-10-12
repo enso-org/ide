@@ -490,12 +490,12 @@ impl Cursor {
 
             // === Fade-out when not active ===
 
-            active_event         <- any_(&mouse.position,&input.set_style);
-            active_time          <- scene.frp.frame_time.sample(&active_event);
-            time_since_last_move <- scene.frp.frame_time.map2(&active_time,|t,s|t-s);
-            check_fade_time      <- time_since_last_move.gate(&mouse.ever_moved);
-            _eval <- check_fade_time.map2(&is_not_hosted, f!([inactive_fade](time,not_hosted) {
-                if *time > FADE_OUT_TIME && *not_hosted {
+            action_event           <- any_(&mouse.position,&input.set_style);
+            action_time            <- scene.frp.frame_time.sample(&action_event);
+            time_since_last_action <- scene.frp.frame_time.map2(&action_time,|t,s|t-s);
+            check_fade_time        <- time_since_last_action.gate(&mouse.ever_moved);
+            _eval <- check_fade_time.map2(&input.set_style, f!([inactive_fade](time,style) {
+                if *time > FADE_OUT_TIME && style.is_default() {
                     inactive_fade.set_spring(fade_out_spring);
                     inactive_fade.set_target_value(0.0)
                 } else {

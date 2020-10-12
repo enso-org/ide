@@ -1869,25 +1869,33 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     }
 
     // === Edge creation  ===
+
     frp::extend! { network
 
-    on_node_output_touch <- node_output_touch.down.constant(());
-    on_node_input_touch  <- node_input_touch.down.constant(());
+    output_down <- node_output_touch.down.constant(());
+    input_down  <- node_input_touch.down.constant(());
 
-    has_detached_on_output_down <- has_detached_edge.sample(&inputs.hover_node_output);
+    trace output_down;
+    trace input_down;
+
+    has_detached_edge_on_output_down <- has_detached_edge.sample(&inputs.hover_node_output);
 
     port_input_mouse_up  <- inputs.hover_node_input.sample(&mouse.up).unwrap();
     port_output_mouse_up <- inputs.hover_node_output.sample(&mouse.up).unwrap();
 
+    trace port_input_mouse_up;
+    trace port_output_mouse_up;
+
     attach_all_edge_inputs  <- any (port_input_mouse_up, inputs.press_node_input, inputs.set_detached_edge_targets);
     attach_all_edge_outputs <- any (port_output_mouse_up, inputs.press_node_output, inputs.set_detached_edge_sources);
 
-    create_edge_from_output <- node_output_touch.down.gate_not(&has_detached_on_output_down);
+    create_edge_from_output <- node_output_touch.down.gate_not(&has_detached_edge_on_output_down);
     create_edge_from_input  <- node_input_touch.down.map(|value| value.clone());
+
 
     // === Edge creation  ===
 
-    on_new_edge    <- any(&on_node_output_touch,&on_node_input_touch);
+    on_new_edge    <- any(&output_down,&input_down);
     deselect_edges <- on_new_edge.gate_not(&keep_selection);
     eval_ deselect_edges ( model.clear_all_detached_edges() );
 
