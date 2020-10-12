@@ -126,7 +126,8 @@ class ScatterPlot extends Visualization {
 
             if (points.labels === "visible") {
                 scatter.selectAll("text")
-                    .attr('transform', d => "translate(" + new_xScale(d.x) + 15 + "," + new_yScale(d.y) + ")")
+                    .attr("x", d => new_xScale(d.x) + 7)
+                    .attr("y", d => new_yScale(d.y) + 2)
             }
         }
 
@@ -194,7 +195,8 @@ class ScatterPlot extends Visualization {
                 .enter()
                 .append("text")
                 .text(d => d.label)
-                .attr('transform', d => "translate(" + scaleAndAxis.xScale(d.x) + 150 + "," + scaleAndAxis.yScale(d.y) + ")")
+                .attr("x", d => scaleAndAxis.xScale(d.x) + 7)
+                .attr("y", d => scaleAndAxis.yScale(d.y) + 2)
                 .attr("style", label_style)
                 .attr("fill", "black");
         }
@@ -365,7 +367,8 @@ class ScatterPlot extends Visualization {
             if (points.labels === "visible") {
                 scatter.selectAll("text")
                     .transition().duration(1000)
-                    .attr('transform', d => "translate(" + scaleAndAxis.xScale(d.x) + 15 + "," + scaleAndAxis.yScale(d.y) + ")")
+                    .attr("x", d => scaleAndAxis.xScale(d.x) + 7)
+                    .attr("y", d => scaleAndAxis.yScale(d.y) + 2)
             }
         }
 
