@@ -18,7 +18,7 @@ function loadStyle(url) {
 loadScript('https://d3js.org/d3.v4.min.js');
 loadStyle('https://fontlibrary.org/face/dejavu-sans-mono')
 
-const label_style = "font-family: DejaVuSansMono; font-size: 11px;";
+const label_style = "font-family: DejaVuSansMonoBook; font-size: 10px;";
 
 /**
  * A d3.js ScatterPlot visualization.
@@ -93,7 +93,7 @@ class ScatterPlot extends Visualization {
         let zoom = this.addPanAndZoom(box_width, box_height, svg, margin, scaleAndAxis, scatter, points);
 
         // TODO: Visualization selector obfuscates button, so it is now on the bottom, should be on top.
-        this.createButtonFitAll(scaleAndAxis, scatter, points, extremesAndDeltas, zoom);
+        this.createButtonFitAll(scaleAndAxis, scatter, points, extremesAndDeltas, zoom, box_width);
     }
 
     addPanAndZoom(box_width, box_height, svg, margin, scaleAndAxis, scatter, points) {
@@ -119,14 +119,14 @@ class ScatterPlot extends Visualization {
             let new_xScale = d3.event.transform.rescaleX(scaleAndAxis.xScale);
             let new_yScale = d3.event.transform.rescaleY(scaleAndAxis.yScale);
 
-            scaleAndAxis.xAxis.call(d3.axisBottom(new_xScale).ticks(7));
-            scaleAndAxis.yAxis.call(d3.axisLeft(new_yScale).ticks(7));
+            scaleAndAxis.xAxis.call(d3.axisBottom(new_xScale).ticks(box_width/30));
+            scaleAndAxis.yAxis.call(d3.axisLeft(new_yScale));
             scatter.selectAll("path")
                 .attr('transform', d => "translate(" + new_xScale(d.x) + "," + new_yScale(d.y) + ")")
 
             if (points.labels === "visible") {
                 scatter.selectAll("text")
-                    .attr('transform', d => "translate(" + new_xScale(d.x) + "," + new_yScale(d.y) + ")")
+                    .attr('transform', d => "translate(" + new_xScale(d.x) + 15 + "," + new_yScale(d.y) + ")")
             }
         }
 
@@ -187,7 +187,7 @@ class ScatterPlot extends Visualization {
             .attr('transform', d => "translate(" + scaleAndAxis.xScale(d.x) + "," + scaleAndAxis.yScale(d.y) + ")")
             .style("fill", d => "#" + (d.color || "000000"))
             .style("opacity", 0.5)
-            .size(d => 10 * d.size)
+            .size(d => 100 * d.size)
 
         if (points.labels === "visible") {
             scatter.selectAll("dataPoint")
@@ -195,7 +195,7 @@ class ScatterPlot extends Visualization {
                 .enter()
                 .append("text")
                 .text(d => d.label)
-                .attr('transform', d => "translate(" + scaleAndAxis.xScale(d.x) + 5 + "," + scaleAndAxis.yScale(d.y) + ")")
+                .attr('transform', d => "translate(" + scaleAndAxis.xScale(d.x) + 150 + "," + scaleAndAxis.yScale(d.y) + ")")
                 .attr("style", label_style)
                 .attr("fill", "black");
         }
@@ -216,7 +216,7 @@ class ScatterPlot extends Visualization {
 
         if (axis.y.label !== undefined) {
             let padding_x = 30;
-            let padding_y = 10;
+            let padding_y = 15;
             svg.append("text")
                 .attr("text-anchor", "end")
                 .attr("style", label_style)
@@ -236,13 +236,15 @@ class ScatterPlot extends Visualization {
         xScale.domain(domain_x).range([0, box_width]);
         let xAxis = svg.append("g")
             .attr("transform", "translate(0," + box_height + ")")
-            .call(d3.axisBottom(xScale).ticks(7))
+            .attr("style", label_style)
+            .call(d3.axisBottom(xScale).ticks(box_width/30))
 
         let yScale = d3.scaleLinear()
         if (axis.y.scale !== "linear") { yScale = d3.scaleLog(); }
 
         yScale.domain(domain_y).range([box_height, 0]);
         let yAxis = svg.append("g")
+            .attr("style", label_style)
             .call(d3.axisLeft(yScale));
         return {xScale: xScale, yScale: yScale, xAxis: xAxis, yAxis: yAxis};
     }
@@ -288,13 +290,13 @@ class ScatterPlot extends Visualization {
 
     getMargins(axis) {
         if (axis.x.label === undefined && axis.y.label === undefined) {
-            return {top: 20, right: 20, bottom: 20, left: 30};
+            return {top: 20, right: 20, bottom: 20, left: 45};
         } else if (axis.x.label === undefined) {
-            return {top: 10, right: 20, bottom: 35, left: 20};
+            return {top: 10, right: 20, bottom: 35, left: 35};
         } else if (axis.y.label === undefined) {
-            return {top: 20, right: 10, bottom: 20, left: 40};
+            return {top: 20, right: 10, bottom: 20, left: 60};
         }
-        return {top: 10, right: 10, bottom: 35, left: 40};
+        return {top: 10, right: 10, bottom: 35, left: 60};
     }
 
     createDivElem(width, height) {
@@ -308,7 +310,7 @@ class ScatterPlot extends Visualization {
         return divElem;
     }
 
-    createButtonFitAll(scaleAndAxis, scatter, points, extremesAndDeltas, zoom) {
+    createButtonFitAll(scaleAndAxis, scatter, points, extremesAndDeltas, zoom, box_width) {
         const btn = document.createElement("button");
         const style = `
             margin-left: 5px; 
@@ -353,7 +355,7 @@ class ScatterPlot extends Visualization {
             scaleAndAxis.yScale.domain(domain_y);
 
             scaleAndAxis.xAxis.transition().duration(1000)
-                .call(d3.axisBottom(scaleAndAxis.xScale).ticks(7));
+                .call(d3.axisBottom(scaleAndAxis.xScale).ticks(box_width/30));
             scaleAndAxis.yAxis.transition().duration(1000)
                 .call(d3.axisLeft(scaleAndAxis.yScale));
 
@@ -364,7 +366,7 @@ class ScatterPlot extends Visualization {
             if (points.labels === "visible") {
                 scatter.selectAll("text")
                     .transition().duration(1000)
-                    .attr('transform', d => "translate(" + scaleAndAxis.xScale(d.x) + "," + scaleAndAxis.yScale(d.y) + ")")
+                    .attr('transform', d => "translate(" + scaleAndAxis.xScale(d.x) + 15 + "," + scaleAndAxis.yScale(d.y) + ")")
             }
         }
 
