@@ -34,7 +34,8 @@ pub struct EventDispatcher<T> {
 
 impl<T> EventDispatcher<T> {
     /// Adds a new callback.
-    pub fn add<F:FnMut(&T)+'static>(&self, f:F) -> callback::Handle {
+    pub fn add<F>(&self, f:F) -> callback::Handle
+    where for <'x> F : FnMut(&'x T) + 'static {
         self.rc.borrow_mut().add(f)
     }
 
