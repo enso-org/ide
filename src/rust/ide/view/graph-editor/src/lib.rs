@@ -865,9 +865,9 @@ impl GraphEditorModelWithNetwork {
     , output_press   : &frp::Source<EdgeTarget>
     , input_press    : &frp::Source<EdgeTarget>
     , expression_set : &frp::Source<(NodeId,String)>
-    , active_sampler : &frp::Sampler<bool>
+    , edit_mode_ready         : &frp::Stream<bool>
     ) -> NodeId {
-        let view    = component::Node::new(&self.app,self.visualizations.clone_ref(),active_sampler);
+        let view    = component::Node::new(&self.app,self.visualizations.clone_ref());
         let node    = Node::new(view);
         let node_id = node.id();
         self.add_child(&node);
@@ -877,7 +877,9 @@ impl GraphEditorModelWithNetwork {
 
         frp::new_bridge_network! { [self.network, node.model.main_area.events.network]
             eval_ node.frp.background_press(touch.nodes.down.emit(node_id));
-            let node_model = &node.model;
+            let ports_frp = &node.model.ports.frp;
+            let edit_mode_ready = edit_mode_ready.clone_ref();
+            eval edit_mode_ready ((t) ports_frp.input.edit_mode_ready.emit(t));
             eval node.model.ports.frp.cursor_style ((style) cursor_style.emit(style));
             eval node.model.output_ports.frp.port_mouse_down ([output_press](crumbs){
                 let target = EdgeTarget::new(node_id,crumbs.clone());
@@ -1908,9 +1910,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     out.source.edge_target_set <+ new_edge_target;
 
     let add_node_at_cursor = inputs.add_node_at_cursor.clone_ref();
-    xxx <- edit_mode.sampler();
     add_node           <- any (inputs.add_node,add_node_at_cursor);
-    new_node           <- add_node.map(f_!([model,node_cursor_style] model.new_node(&node_cursor_style,&node_output_touch.down,&node_input_touch.down,&node_expression_set,&xxx)));
+    new_node           <- add_node.map(f_!([model,node_cursor_style] model.new_node(&node_cursor_style,&node_output_touch.down,&node_input_touch.down,&node_expression_set,&edit_mode)));
     out.source.node_added <+ new_node;
 
     node_with_position <- add_node_at_cursor.map3(&new_node,&mouse.position,|_,id,pos| (*id,*pos));

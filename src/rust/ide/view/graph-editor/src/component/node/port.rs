@@ -105,7 +105,8 @@ impl From<&Expression> for Expression {
 
 ensogl::define_endpoints! {
     Input {
-        edit_mode (bool),
+        edit_mode_ready (bool),
+        edit_mode       (bool),
     }
 
     Output {
@@ -136,7 +137,6 @@ pub struct Manager {
     width          : Rc<Cell<f32>>,
     port_networks  : Rc<RefCell<Vec<frp::Network>>>,
     type_color_map : TypeColorMap,
-    active_sampler : frp::Sampler<bool>,
     pub frp        : Frp,
 }
 
@@ -144,7 +144,6 @@ impl Manager {
     pub fn new
     ( logger         : impl AnyLogger
     , app            : &Application
-    , active_sampler : &frp::Sampler<bool>
     ) -> Self {
         let logger         = Logger::sub(logger,"port_manager");
         let display_object = display::object::Instance::new(&logger);
@@ -153,7 +152,6 @@ impl Manager {
         let type_color_map = default();
         let label          = app.new_view::<text::Area>();
         let ports          = default();
-        let active_sampler = active_sampler.clone_ref();
         let frp            = Frp::new_network();
         let network        = &frp.network;
 
@@ -182,7 +180,7 @@ impl Manager {
         let width      = default();
 
         Self {logger,display_object,frp,label,ports,width,app,expression,port_networks
-             ,type_color_map,active_sampler}
+             ,type_color_map}
     }
 
     fn scene(&self) -> &Scene {
@@ -243,36 +241,54 @@ impl Manager {
                         let highlight = cursor::Style::new_highlight(&port,size,Some(color));
 
                         frp::new_network! { port_network
-                            let edit_mode      = &self.frp.edit_mode;
-                            let active_sampler = &self.active_sampler;
+                            let edit_mode       = self.frp.edit_mode.clone_ref();
+                            let edit_mode_ready = self.frp.input.edit_mode_ready.clone_ref();
+                            let mouse_over      = port.events.mouse_over.clone_ref();
+                            let mouse_out       = port.events.mouse_out.clone_ref();
 
-                            any_event <- any_(port.events.mouse_out,port.events.mouse_over,port.events.mouse_down);
-                            active    <- any_event.map2(edit_mode,f!([active_sampler] (_,e) {
-                                println!(">> {} {}", !active_sampler.value(), !e);
-                                !active_sampler.value() && !e
-                            }));
-                            trace active;
-                            mouse_out        <- port.events.mouse_out.gate(&active);
-                            mouse_over       <- port.events.mouse_over.gate(&active);
-                            mouse_down       <- port.events.mouse_down.gate(&active);
-                            mouse_bg_down    <- port.events.mouse_down.gate_not(&active);
-                            trace mouse_bg_down;
-                            mouse_style_edit <- self.frp.edit_mode.map(|_| default());
-                            mouse_style_out  <- mouse_out.constant(default());
-                            mouse_style_over <- mouse_over.map(move |_| highlight.clone());
-                            mouse_style      <- any(mouse_style_out,mouse_style_over,mouse_style_edit);
+
+                            // === Mouse Style ===
+
+                            edit_ignore_events  <- all_with(&edit_mode,&edit_mode_ready,|a,b|*a||*b);
+                            disable_mouse_style <- edit_ignore_events.gate(&edit_ignore_events);
+                            enable_mouse_style  <- edit_ignore_events.gate_not(&edit_ignore_events);
+                            mouse_style_over    <- mouse_over.map(move |_| highlight.clone());
+                            mouse_style_out     <- mouse_out.map(|_| default());
+                            mouse_style_event   <- any(mouse_style_over,mouse_style_out);
+                            mouse_style1        <- mouse_style_event.map2(&edit_ignore_events,
+                                |style,ignore| if *ignore { default() } else { style.clone() }
+                            );
+                            mouse_style2 <= disable_mouse_style.map2(&mouse_style_event,
+                                |_,style| (!style.is_default()).as_some(default())
+                            );
+                            mouse_style3 <= enable_mouse_style.map2(&mouse_style_event,
+                                |_,style| (!style.is_default()).as_some(style.clone())
+                            );
+                            mouse_style <- any(mouse_style1,mouse_style2,mouse_style3);
                             self.frp.output.source.cursor_style <+ mouse_style;
 
-                            let crumbs_down  = crumbs.clone();
+
+                            // === Hover ===
+
                             let crumbs_over  = crumbs.clone();
-                            let press_bg_source = &self.frp.output.source.background_press;
-                            let press_source = &self.frp.output.source.press;
                             let hover_source = &self.frp.output.source.hover;
-                            trace mouse_down;
-                            eval_ mouse_bg_down (press_bg_source.emit(()));
-                            eval_ mouse_down (press_source.emit(&crumbs_down));
-                            eval_ mouse_over (hover_source.emit(&Some(crumbs_over.clone())));
-                            eval_ mouse_out  (hover_source.emit(&None));
+                            mouse_over_non_edit <- mouse_over.gate_not(&edit_ignore_events);
+                            mouse_out_non_edit  <- mouse_out.gate_not(&edit_ignore_events);
+                            eval_ mouse_over_non_edit (hover_source.emit(&Some(crumbs_over.clone())));
+                            eval_ mouse_out_non_edit  (hover_source.emit(&None));
+
+
+                            // === Port / Background Press ===
+
+                            mouse_down_non_edit <- port.events.mouse_down.gate_not(&edit_ignore_events);
+                            mouse_down_edit     <- port.events.mouse_down.gate(&edit_ignore_events);
+
+                            let crumbs_down     = crumbs.clone();
+                            let press_bg_source = &self.frp.output.source.background_press;
+                            let press_source    = &self.frp.output.source.press;
+                            eval_ mouse_down_edit     (press_bg_source.emit(()));
+                            eval_ mouse_down_non_edit (press_source.emit(&crumbs_down));
+
                         }
                         ports.push(port);
                         port_networks.push(port_network);

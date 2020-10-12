@@ -199,7 +199,6 @@ impl NodeModel {
     pub fn new
     ( app            : &Application, network:&frp::Network
     , registry       : visualization::Registry
-    , active_sampler : &frp::Sampler<bool>
     ) -> Self {
         let scene  = app.display.scene();
         let logger = Logger::new("node");
@@ -222,7 +221,7 @@ impl NodeModel {
         let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
         shape_system.shape_system.set_pointer_events(false);
 
-        let ports = port::Manager::new(&logger,app,active_sampler);
+        let ports = port::Manager::new(&logger,app);
         let scene = scene.clone_ref();
         let visualization = visualization::Container::new(&logger,&app,registry);
         visualization.mod_position(|t| {
@@ -293,14 +292,13 @@ impl Node {
     pub fn new
     ( app            : &Application
     , registry       : visualization::Registry
-    , active_sampler : &frp::Sampler<bool>
     ) -> Self {
         let frp    = Frp::new_network();
 
         let network = &frp.network;
         let inputs      = &frp.input;
         let out     = &frp.output;
-        let model       = Rc::new(NodeModel::new(app,network,registry,active_sampler));
+        let model       = Rc::new(NodeModel::new(app,network,registry));
 
         let selection   = Animation::<f32>::new(network);
 
