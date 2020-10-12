@@ -94,6 +94,8 @@ class ScatterPlot extends Visualization {
 
         // TODO: Visualization selector obfuscates button, so it is now on the bottom, should be on top.
         this.createButtonFitAll(scaleAndAxis, scatter, points, extremesAndDeltas, zoom, box_width);
+
+        let selectedZoomBtn = this.createButtonScaleToPoints(scaleAndAxis, scatter, points, extremesAndDeltas, zoom, box_width);
     }
 
     addPanAndZoom(box_width, box_height, svg, margin, scaleAndAxis, scatter, points) {
@@ -210,7 +212,7 @@ class ScatterPlot extends Visualization {
             svg.append("text")
                 .attr("text-anchor", "end")
                 .attr("style", label_style)
-                .attr("x", box_width / 2 + margin.left)
+                .attr("x", margin.left + (this.getTextWidth(axis.x.label, "10px DejaVuSansMonoBook") / 2))
                 .attr("y", box_height + margin.top + padding_y)
                 .text(axis.x.label);
         }
@@ -223,9 +225,17 @@ class ScatterPlot extends Visualization {
                 .attr("style", label_style)
                 .attr("transform", "rotate(-90)")
                 .attr("y", -margin.left + padding_y)
-                .attr("x", -margin.top - box_height / 2 + padding_x)
+                .attr("x", -margin.top - (box_height/2) + (this.getTextWidth(axis.y.label, "10px DejaVuSansMonoBook") / 2))
                 .text(axis.y.label);
         }
+    }
+
+    getTextWidth(text, font) {
+        var canvas   = document.createElement("canvas");
+        var context  = canvas.getContext("2d");
+        context.font = font;
+        var metrics  = context.measureText("  " + text);
+        return metrics.width;
     }
 
     createAxes(axis, extremesAndDeltas, box_width, box_height, svg, focus) {
@@ -311,7 +321,7 @@ class ScatterPlot extends Visualization {
         return divElem;
     }
 
-    createButtonFitAll(scaleAndAxis, scatter, points, extremesAndDeltas, zoom, box_width) {
+    createBtnHelper() {
         const btn = document.createElement("button");
         const style = `
             margin-left: 5px; 
@@ -340,6 +350,12 @@ class ScatterPlot extends Visualization {
             btn.style.backgroundColor = "transparent";
             btn.style.color = "#333";
         }
+
+        return btn
+    }
+
+    createButtonFitAll(scaleAndAxis, scatter, points, extremesAndDeltas, zoom, box_width) {
+        const btn = this.createBtnHelper()
 
         var text = document.createTextNode("Fit all");
         btn.appendChild(text);
@@ -374,6 +390,22 @@ class ScatterPlot extends Visualization {
 
         btn.addEventListener("click",unzoom)
         this.dom.appendChild(btn);
+    }
+
+    createButtonScaleToPoints(scaleAndAxis, scatter, points, extremesAndDeltas, zoom, box_width) {
+        const btn = this.createBtnHelper()
+
+        var text = document.createTextNode("Zoom to selected");
+        btn.appendChild(text);
+        btn.setAttribute("width", "120px");
+        btn.style("display","none");
+
+        function zoomin(){}
+
+        btn.addEventListener("click",zoomin)
+        this.dom.appendChild(btn);
+
+        return btn;
     }
 
     setSize(size) {
