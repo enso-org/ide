@@ -183,11 +183,10 @@ class ScatterPlot extends Visualization {
                 else if (d.shape === "star")     { return d3.symbolStar     }
                 else if (d.shape === "triangle") { return d3.symbolTriangle }
                 else                             { return d3.symbolCircle   }
-            }))
+            }).size(d => (d.size || 1.0) * 100))
             .attr('transform', d => "translate(" + scaleAndAxis.xScale(d.x) + "," + scaleAndAxis.yScale(d.y) + ")")
             .style("fill", d => "#" + (d.color || "000000"))
             .style("opacity", 0.5)
-            .size(d => 100 * d.size)
 
         if (points.labels === "visible") {
             scatter.selectAll("dataPoint")
