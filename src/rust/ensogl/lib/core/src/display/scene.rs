@@ -805,6 +805,7 @@ pub struct SceneData {
     pub context          : Context,
     pub symbols          : SymbolRegistry,
     pub variables        : UniformScope,
+    pub current_js_event : CurrentJsEvent,
     pub mouse            : Mouse,
     pub keyboard         : Keyboard,
     pub uniforms         : Uniforms,
@@ -820,7 +821,6 @@ pub struct SceneData {
     pub fonts            : font::SharedRegistry,
     pub frp              : Frp,
     extensions           : Extensions,
-    current_js_event     : CurrentJsEvent,
     disable_context_menu : Rc<IgnoreContextMenuHandle>,
 }
 

@@ -348,10 +348,10 @@ impl DomBindings {
     /// Create new Keyboard and Frp bindings.
     pub fn new(logger:impl AnyLogger, keyboard:&Keyboard, current_event:&CurrentJsEvent) -> Self {
         let key_down = Listener::new_key_down(&logger,current_event.make_event_handler(
-            f!((event:KeyboardEvent) keyboard.source.down.emit(Key::new(event.key(),event.code()))
+            f!((event:&KeyboardEvent) keyboard.source.down.emit(Key::new(event.key(),event.code()))
         )));
         let key_up = Listener::new_key_up(&logger,current_event.make_event_handler(
-            f!((event:KeyboardEvent) keyboard.source.up.emit(Key::new(event.key(),event.code()))
+            f!((event:&KeyboardEvent) keyboard.source.up.emit(Key::new(event.key(),event.code()))
         )));
         let blur = Listener::new_blur(&logger,current_event.make_event_handler(
             f_!(keyboard.source.window_defocused.emit(())

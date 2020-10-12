@@ -15,9 +15,9 @@ use wasm_bindgen::prelude::*;
 // ================
 
 /// Callback for keyboard events.
-pub trait KeyboardEventCallback = FnMut(web_sys::KeyboardEvent) + 'static;
+pub trait KeyboardEventCallback = FnMut(&web_sys::KeyboardEvent) + 'static;
 
-pub trait BlurEventCallback = FnMut(web_sys::Event) + 'static;
+pub trait BlurEventCallback = FnMut(&web_sys::Event) + 'static;
 
 /// Keyboard event listener which calls the callback function as long it lives.
 #[derive(Derivative)]
@@ -107,6 +107,7 @@ fn event_listener_options() -> web_sys::AddEventListenerOptions {
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct CurrentJsEvent {
+    /// Currently handled js event.
     pub event       : frp::Stream<Option<web_sys::Event>>,
     /// Emitting this signal while handling js event (`current_js_event` is Some) makes this event
     /// pass to the DOM elements. Otherwise the js event propagation will be stopped.
@@ -140,10 +141,9 @@ impl CurrentJsEvent {
     ///
     /// This wraps the `processing_fn` so before processing the current js event is
     /// set to the received js event, and after processing it is set back to `None`.
-    pub fn make_event_handler<Event,F>
-    (&self, mut processing_fn:F) -> impl FnMut(Event)
-    where F     : FnMut(Event),
-          Event : AsRef<web_sys::Event> {
+    pub fn make_event_handler<Event>
+    (&self, mut processing_fn:impl FnMut(&Event)) -> impl FnMut(&Event)
+    where Event : AsRef<web_sys::Event> {
         let event_source = self.event_source.clone_ref();
         move |event| {
             event_source.emit(Some(event.as_ref().clone()));
