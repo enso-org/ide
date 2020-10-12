@@ -155,15 +155,21 @@ impl Manager {
         let frp            = Frp::new_network();
         let network        = &frp.network;
 
+        // FIXME[WD]: Depth sorting of labels to in front of the mouse pointer. Temporary solution.
+        // It needs to be more flexible once we have proper depth management.
+        let scene = app.display.scene();
+        label.remove_from_view(&scene.views.main);
+        label.add_to_view(&scene.views.label);
+
         frp::extend! { network
             eval frp.input.edit_mode ([label](enabled) {
                 label.set_active(enabled);
-                if *enabled { label.set_cursor_at_mouse_position() }
-                else        { label.remove_all_cursors() }
+                if *enabled { label.set_cursor_at_mouse_position(); }
+                else        { label.remove_all_cursors(); }
             });
 
             frp.output.source.width      <+ label.width;
-            frp.output.source.expression <+ label.changed;
+            frp.output.source.expression <+ label.content.map(|t| t.clone_ref());
         }
 
         label.mod_position(|t| t.y += 6.0);

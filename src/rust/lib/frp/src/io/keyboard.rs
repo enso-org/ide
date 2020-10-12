@@ -3,13 +3,14 @@
 use crate::prelude::*;
 
 use crate as frp;
+
 use ensogl_system_web as web;
+use inflector::Inflector;
+use unicode_segmentation::UnicodeSegmentation;
 use web_sys::KeyboardEvent;
 use wasm_bindgen::prelude::*;
-use web_sys::HtmlElement;
 use wasm_bindgen::JsCast;
-use unicode_segmentation::UnicodeSegmentation;
-use inflector::Inflector;
+use web_sys::Window;
 
 
 
@@ -101,7 +102,11 @@ impl Key {
     pub fn new(key:String, code:String) -> Self {
         let label_ref : &str = &key;
         let code_ref  : &str = &code;
-        if key.graphemes(true).count() == 1 { Self::Character(key) } else {
+        // Space is very special case. It has key value being a character, but we don't want to
+        // interpret is as a Key::Character.
+        if      key == " "                       { Self::Space          }
+        else if key.graphemes(true).count() == 1 { Self::Character(key) }
+        else {
             let key = KEY_NAME_MAP.get(label_ref).cloned().unwrap_or(Self::Other(key));
             match (key,code_ref) {
                 (Self::Alt      (_), "AltRight")     => Self::Alt      (Side::Right),
@@ -191,6 +196,16 @@ impl KeyboardModel {
         self.is_down(&Key::Meta(Side::Left)) || self.is_down(&Key::Meta(Side::Right))
     }
 
+    /// Check whether the control key is currently pressed.
+    pub fn is_control_down(&self) -> bool {
+        self.is_down(&Key::Control(Side::Left)) || self.is_down(&Key::Control(Side::Right))
+    }
+
+    /// Check whether the alt key is currently pressed.
+    pub fn is_alt_down(&self) -> bool {
+        self.is_down(&Key::Alt(Side::Left)) || self.is_down(&Key::Alt(Side::Right))
+    }
+
     /// Checks whether the provided key is currently pressed.
     pub fn is_down(&self, key:&Key) -> bool {
         self.set.borrow().contains(key)
@@ -222,6 +237,11 @@ impl KeyboardModel {
         *self.set.borrow_mut() = new_set;
         to_release
     }
+
+    /// Release all keys and return list of keys released.
+    pub fn release_all(&self) -> HashSet<Key> {
+        std::mem::take(&mut *self.set.borrow_mut())
+    }
 }
 
 
@@ -234,18 +254,20 @@ impl KeyboardModel {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct KeyboardSource {
-    pub up   : frp::Source<Key>,
-    pub down : frp::Source<Key>,
+    pub up               : frp::Source<Key>,
+    pub down             : frp::Source<Key>,
+    pub window_defocused : frp::Source,
 }
 
 impl KeyboardSource {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
-            down <- source();
-            up   <- source();
+            down             <- source();
+            up               <- source();
+            window_defocused <- source();
         }
-        Self {up,down}
+        Self {up,down,window_defocused}
     }
 }
 
@@ -259,11 +281,15 @@ impl KeyboardSource {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Keyboard {
-    model       : KeyboardModel,
-    pub network : frp::Network,
-    pub source  : KeyboardSource,
-    pub down    : frp::Stream<Key>,
-    pub up      : frp::Stream<Key>,
+    model                : KeyboardModel,
+    pub network          : frp::Network,
+    pub source           : KeyboardSource,
+    pub down             : frp::Stream<Key>,
+    pub up               : frp::Stream<Key>,
+    pub is_meta_down     : frp::Stream<bool>,
+    pub is_control_down  : frp::Stream<bool>,
+    pub is_alt_down      : frp::Stream<bool>,
+    pub is_modifier_down : frp::Stream<bool>,
 }
 
 impl Keyboard {
@@ -275,12 +301,22 @@ impl Keyboard {
         frp::extend! { network
             eval source.down ((key) model.press(key));
             eval source.up   ((key) model.release(key));
-            down         <- source.down.map(|t|t.clone());
-            meta_down    <- source.down.map(f_!(model.is_meta_down()));
-            meta_release <= source.down.gate(&meta_down).map(f_!(model.release_meta_dependent()));
-            up           <- any(&source.up,&meta_release);
+            down             <- source.down.map(|t|t.clone());
+            is_meta_down     <- any(&source.down,&source.up).map(f_!(model.is_meta_down()));
+            meta_release     <= source.down.gate(&is_meta_down).map(
+                f_!(model.release_meta_dependent())
+            );
+            defocus_release  <= source.window_defocused.map(f_!(model.release_all()));
+            up               <- any3(&source.up,&meta_release,&defocus_release);
+            change           <- any(&down,&up).constant(());
+            is_control_down  <- change.map(f_!(model.is_control_down()));
+            is_alt_down      <- change.map(f_!(model.is_alt_down()));
+            is_modifier_down <- all_with3(&is_meta_down,&is_control_down,&is_alt_down,
+                |m,c,a| *m || *c || *a
+            );
         }
-        Keyboard {network,model,source,down,up}
+        Keyboard {network,model,source,down,up,is_meta_down,is_control_down,is_alt_down
+            ,is_modifier_down}
     }
 }
 
@@ -299,23 +335,20 @@ impl Default for Keyboard {
 /// Callback for keyboard events.
 pub trait ListenerCallback = FnMut(KeyboardEvent) + 'static;
 
-type ListenerClosure = Closure<dyn ListenerCallback>;
-
 /// Keyboard event listener which calls the callback function as long it lives.
-#[derive(Debug)]
-pub struct Listener {
+#[derive(Derivative)]
+#[derivative(Debug(bound=""))]
+pub struct Listener<Callback:?Sized> {
     logger     : Logger,
-    callback   : ListenerClosure,
-    element    : HtmlElement,
+    callback   : Closure<Callback>,
+    element    : Window,
     event_type : String
 }
 
-impl Listener {
+impl<Callback:?Sized> Listener<Callback> {
     /// Constructor.
-    pub fn new<F:ListenerCallback>(logger:impl AnyLogger,event_type:impl Str, f:F) -> Self {
-        let closure     = Box::new(f);
-        let callback    = ListenerClosure::wrap(closure);
-        let element     = web::body();
+    pub fn new(logger:impl AnyLogger,event_type:impl Str, callback:Closure<Callback>) -> Self {
+        let element     = web::window();
         let js_function = callback.as_ref().unchecked_ref();
         let logger      = Logger::sub(logger,"Listener");
         let event_type  = event_type.as_ref();
@@ -325,19 +358,37 @@ impl Listener {
         let event_type = event_type.into();
         Self {callback,element,event_type,logger}
     }
+}
 
+impl Listener<dyn ListenerCallback> {
     /// Creates a new key down event listener.
-    pub fn new_key_down<F:ListenerCallback>(logger:impl AnyLogger, f:F) -> Self {
-        Self::new(logger,"keydown",f)
+    pub fn new_key_down<F>(logger:impl AnyLogger, f:F) -> Self
+    where F : ListenerCallback {
+        let boxed   = Box::new(f);
+        let closure = Closure::<dyn ListenerCallback>::wrap(boxed);
+        Self::new(logger,"keydown",closure)
     }
 
     /// Creates a new key up event listener.
-    pub fn new_key_up<F:ListenerCallback>(logger:impl AnyLogger, f:F) -> Self {
-        Self::new(logger,"keyup",f)
+    pub fn new_key_up<F>(logger:impl AnyLogger, f:F) -> Self
+    where F : ListenerCallback {
+        let boxed   = Box::new(f);
+        let closure = Closure::<dyn ListenerCallback>::wrap(boxed);
+        Self::new(logger,"keyup",closure)
     }
 }
 
-impl Drop for Listener {
+impl Listener<dyn FnMut() + 'static> {
+    /// Creates a blur event listener.
+    pub fn new_blur<F>(logger:impl AnyLogger, f:F) -> Self
+    where F : FnMut() + 'static {
+        let boxed   = Box::new(f);
+        let closure = Closure::<dyn FnMut() + 'static>::wrap(boxed);
+        Self::new(logger,"blur",closure)
+    }
+}
+
+impl<Callback:?Sized> Drop for Listener<Callback> {
     fn drop(&mut self) {
         let callback = self.callback.as_ref().unchecked_ref();
         if self.element.remove_event_listener_with_callback(&self.event_type, callback).is_err() {
@@ -349,8 +400,9 @@ impl Drop for Listener {
 /// A handle of listener emitting events on bound FRP graph.
 #[derive(Debug)]
 pub struct DomBindings {
-    key_down : Listener,
-    key_up   : Listener
+    key_down : Listener<dyn ListenerCallback>,
+    key_up   : Listener<dyn ListenerCallback>,
+    blur     : Listener<dyn FnMut() + 'static>,
 }
 
 impl DomBindings {
@@ -362,6 +414,9 @@ impl DomBindings {
         let key_up = Listener::new_key_up(&logger,f!((event:KeyboardEvent)
             keyboard.source.up.emit(Key::new(event.key(),event.code()))
         ));
-        Self {key_down,key_up}
+        let blur = Listener::new_blur(&logger,f!(()
+            keyboard.source.window_defocused.emit(())
+        ));
+        Self {key_down,key_up,blur}
     }
 }
