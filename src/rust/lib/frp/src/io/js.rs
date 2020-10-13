@@ -105,6 +105,13 @@ fn event_listener_options() -> web_sys::AddEventListenerOptions {
 // === JsEventHandler ===
 // ======================
 
+/// Handler of currently processed js event.
+///
+/// Managed js event by this structure will be NOT propagated further to DOM elements, unless the
+/// `pass_to_dom` event will be emitted.
+///
+/// To make this class manage js event, you should wrap the closure passed as event listener using
+/// `make_event_handler` function.
 #[derive(Clone,CloneRef,Debug)]
 pub struct CurrentJsEvent {
     /// Currently handled js event.

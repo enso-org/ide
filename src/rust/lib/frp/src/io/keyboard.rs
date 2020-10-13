@@ -8,13 +8,9 @@ use crate::io::js::CurrentJsEvent;
 use crate::io::js::KeyboardEventCallback;
 use crate::io::js::Listener;
 
-use ensogl_system_web as web;
 use inflector::Inflector;
 use unicode_segmentation::UnicodeSegmentation;
 use web_sys::KeyboardEvent;
-use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsCast;
-use web_sys::Window;
 
 
 
