@@ -5,7 +5,6 @@ use crate::prelude::*;
 use crate::component::node;
 
 use enso_frp as frp;
-use enso_frp;
 use ensogl::application::Application;
 use ensogl::display::style;
 use ensogl::display::shape::*;
