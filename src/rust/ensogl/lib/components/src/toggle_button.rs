@@ -69,9 +69,9 @@ impl<Shape:ColorableShape+'static> Model<Shape> {
 /// that acts as button and changes color depending on the toggle state.
 #[derive(Clone,CloneRef,Debug)]
 pub struct ToggleButton<Shape> {
-         model : Rc<Model<Shape>>,
+    model:Rc<Model<Shape>>,
     /// Public FRP api.
-    pub frp    : Frp
+    pub frp:Frp
 }
 
 impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
