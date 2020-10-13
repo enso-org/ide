@@ -1015,7 +1015,8 @@ impl application::View for Area {
 //        , Self::self_shortcut(Release (&[Key::Meta,Key::Shift,Key::Character("z".into())],&[])           , "redo"),
 //        , Self::self_shortcut(Press   (&[Key::Escape]                          , shortcut::Pattern::Any) , "undo"),
           ]).iter().map(|(action,rule,command)| {
-              let condition = if *action == Release { "focused" } else { "focused & hovered" };
+              let only_hovered = *action != Release && rule.contains("left-mouse-button");
+              let condition = if only_hovered { "focused & hovered" } else { "focused" };
               Self::self_shortcut_when(*action,*rule,*command,condition)
           }).collect()
     }
