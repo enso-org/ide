@@ -34,8 +34,12 @@ fn constructor_graph() -> visualization::java_script::Definition {
             onDataReceived(data) {
                 if (!this.canvas) {
                     this.canvas  = document.createElement("canvas");
+                    this.canvas.setAttribute("tabindex","0");
                     this.context = this.canvas.getContext("2d");
                     this.dom.appendChild(this.canvas);
+                    this.dom.addEventListener("keydown", function(e) {
+                        console.log("pressed",e);
+                    })
                 }
 
                 let first = data.shift();
@@ -99,8 +103,9 @@ fn init(app:&Application) {
         &*class.signature.name == "Graph"
     }).expect("Couldn't find Graph class.");
     let visualization = vis_class.new_instance(&scene).expect("Couldn't create visualiser.");
+    visualization.activate.emit(());
 
-    let mut was_rendered = false;
+    let mut was_rendered  = false;
     let mut loader_hidden = false;
     world.on_frame(move |time_info| {
         let _keep_alive = &navigator;
