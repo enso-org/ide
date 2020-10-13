@@ -1,7 +1,9 @@
 //! Definition of the Edge component.
 
-
 use crate::prelude::*;
+
+use crate::component::node::NODE_HEIGHT;
+use crate::component::node;
 
 use enso_frp as frp;
 use enso_frp;
@@ -18,8 +20,6 @@ use ensogl_shape_utils::dynamic_color::DynamicColor;
 use ensogl_shape_utils::dynamic_color;
 use ensogl_theme as theme;
 
-use crate::component::node::NODE_HEIGHT;
-use super::node;
 
 
 // =================
