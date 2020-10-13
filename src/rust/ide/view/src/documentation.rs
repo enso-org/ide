@@ -171,19 +171,19 @@ impl ViewModel {
         let import_css = r#"<link rel="stylesheet" href="style.css" />"#;
         let html       = html.replace(import_css, "");
 
-        self.push_to_dom(html);
+        // self.push_to_dom(html);
     }
 
     /// Load an HTML file into the documentation view when user is waiting for data to be received.
     /// TODO [MM] : This should be replaced with a EnsoGL spinner in the next PR.
     fn load_waiting_screen(&self) {
         let spinner = r#"
-        <div>
+        <div style="display:flex; width:100%; height:100%">
         <style>
         .spinner {
-          margin: 40vh auto;
-          width: 70px;
+          width: 100%;
           text-align: center;
+          align-self: center;
         }
 
         .spinner > div {
@@ -219,7 +219,7 @@ impl ViewModel {
         </div>
         </div>
         "#;
-        self.push_to_dom(String::from(spinner))
+        self.dom.dom().set_inner_html(&spinner)
     }
 
     fn reload_style(&self) {
