@@ -429,6 +429,10 @@ ensogl_core::define_endpoints! {
         /// Paste selected text from clipboard.
         paste(),
 
+        hover(),
+        unhover(),
+        set_hover(bool),
+
         set_cursor            (Location),
         add_cursor            (Location),
         paste_string          (String),
@@ -443,6 +447,7 @@ ensogl_core::define_endpoints! {
         width              (f32),
         changed            (Vec<buffer::view::Change>),
         content            (Text),
+        hovered            (bool),
     }
 }
 
@@ -473,10 +478,8 @@ impl Deref for Area {
 impl Area {
     /// Constructor.
     pub fn new(app:&Application) -> Self {
-        let network = frp::Network::new();
-        let data    = AreaData::new(app,&network);
-        let output  = data.frp_endpoints.clone_ref();
-        let frp     = Frp::new(network,output);
+        let frp  = Frp::new_network();
+        let data = AreaData::new(app,&frp.output);
         Self {data,frp} . init()
     }
 
@@ -484,7 +487,8 @@ impl Area {
         let network  = &self.frp.network;
         let model    = &self.data;
         let mouse    = &model.scene.mouse.frp;
-        let input    = &model.frp_endpoints.input;
+        let input    = &self.frp.input;
+        let out      = &self.frp.output;
         let pos      = Animation :: <Vector2> :: new(&network);
         let keyboard = &model.scene.keyboard;
         let m        = &model;
@@ -492,28 +496,21 @@ impl Area {
 
         frp::extend! { network
 
-            // FIXME[WD]: Commented for now. We need to consider how to handle background with active state.
-            // This should be resolved together with the https://github.com/enso-org/ide/issues/670 PR.
 
-            // cursor_over  <- bg.events.mouse_over.constant(gui::cursor::Style::new_text_cursor());
-            // cursor_out   <- bg.events.mouse_out.constant(gui::cursor::Style::default());
-            // mouse_cursor <- any(cursor_over,cursor_out);
-            // self.frp.source.mouse_cursor_style <+ mouse_cursor;
+            // === Hover ===
+
+            hover_events <- bool(&input.unhover,&input.hover);
+            hovered      <- any(&input.set_hover,&hover_events);
+            out.source.hovered <+ hovered;
 
 
             // === Set / Add cursor ===
 
-            // FIXME[WD]: These frp nodes are simulating active state management. To be removed
-            // as part of https://github.com/enso-org/ide/issues/670
-            set_cursor_at_mouse_position <- input.set_cursor_at_mouse_position.gate(&input.set_active);
-            set_cursor_at_end            <- input.set_cursor_at_end           .gate(&input.set_active);
-            add_cursor_at_mouse_position <- input.add_cursor_at_mouse_position.gate(&input.set_active);
-
-            mouse_on_set_cursor      <- mouse.position.sample(&set_cursor_at_mouse_position);
-            mouse_on_add_cursor      <- mouse.position.sample(&add_cursor_at_mouse_position);
+            mouse_on_set_cursor      <- mouse.position.sample(&input.set_cursor_at_mouse_position);
+            mouse_on_add_cursor      <- mouse.position.sample(&input.add_cursor_at_mouse_position);
             loc_on_set_cursor_mouse  <- mouse_on_set_cursor.map(f!((p) m.get_in_text_location(*p)));
             loc_on_add_cursor_mouse  <- mouse_on_add_cursor.map(f!((p) m.get_in_text_location(*p)));
-            loc_on_set_cursor_at_end <- set_cursor_at_end.map(f_!(model.buffer.text().location_of_text_end()));
+            loc_on_set_cursor_at_end <- input.set_cursor_at_end.map(f_!(model.buffer.text().location_of_text_end()));
             loc_on_set_cursor        <- any(input.set_cursor,loc_on_set_cursor_mouse,loc_on_set_cursor_at_end);
             loc_on_add_cursor        <- any(&input.add_cursor,&loc_on_add_cursor_mouse);
 
@@ -688,11 +685,10 @@ pub struct AreaData {
 
 impl AreaData {
     /// Constructor.
-    pub fn new(app:&Application, network:&frp::Network) -> Self {
-        let scene          = app.display.scene().clone_ref();
-        let logger         = Logger::new("text_area");
-        let _bg_logger     = Logger::sub(&logger,"background");
-        let selection_map  = default();
+    pub fn new(app:&Application, frp_endpoints:&FrpEndpoints) -> Self {
+        let scene         = app.display.scene().clone_ref();
+        let logger        = Logger::new("text_area");
+        let selection_map = default();
 
         // FIXME[WD]: Commented for now. We need to consider how to handle background with active state.
         // This should be resolved together with the https://github.com/enso-org/ide/issues/670 PR.
@@ -707,8 +703,8 @@ impl AreaData {
         let display_object = display::object::Instance::new(&logger);
         let buffer         = default();
         let lines          = default();
-        let frp_inputs     = FrpInputs::new(network);
-        let frp_endpoints  = FrpEndpoints::new(&network,frp_inputs.clone_ref());
+        // let frp_inputs     = FrpInputs::new(network);
+        // let frp_endpoints  = FrpEndpoints::new(&network,frp_inputs.clone_ref());
         let camera         = Rc::new(CloneRefCell::new(scene.camera().clone_ref()));
 
         // FIXME[WD]: These settings should be managed wiser. They should be set up during
@@ -723,8 +719,10 @@ impl AreaData {
         scene.views.main.remove(symbol);
         scene.views.label.add(symbol);
 
-        Self {scene,logger,frp_endpoints,display_object,glyph_system,buffer,lines,selection_map
-            ,camera}.init()
+        let frp_endpoints = frp_endpoints.clone_ref();
+
+        Self {scene,logger,display_object,glyph_system,buffer,lines,selection_map,camera
+             ,frp_endpoints}.init()
     }
 
     fn on_modified_selection(&self, selections:&buffer::selection::Group, time:f32, do_edit:bool) {
@@ -1008,7 +1006,10 @@ impl application::View for Area {
 //        , Self::self_shortcut(Release (&[Key::Meta,Key::Character("y".into())],&[])                      , "redo"),
 //        , Self::self_shortcut(Release (&[Key::Meta,Key::Shift,Key::Character("z".into())],&[])           , "redo"),
 //        , Self::self_shortcut(Press   (&[Key::Escape]                          , shortcut::Pattern::Any) , "undo"),
-          ]).iter().map(|(a,b,c)|Self::self_shortcut_when(*a,*b,*c,"active")).collect()
+          ]).iter().map(|(action,rule,command)| {
+              let condition = if *action == Release { "focused" } else { "focused & hovered" };
+              Self::self_shortcut_when(*action,*rule,*command,condition)
+          }).collect()
     }
 }
 

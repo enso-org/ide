@@ -107,11 +107,12 @@ ensogl::define_endpoints! {
     Input {
         edit_mode_ready (bool),
         edit_mode       (bool),
+        hover           (),
+        unhover         (),
     }
 
     Output {
         cursor_style     (cursor::Style),
-        background_press (),
         press            (span_tree::Crumbs),
         hover            (Option<span_tree::Crumbs>),
         width            (f32),
@@ -130,6 +131,7 @@ ensogl::define_endpoints! {
 pub struct Manager {
     logger         : Logger,
     display_object : display::object::Instance,
+    ports_group    : display::object::Instance,
     app            : Application,
     expression     : Rc<RefCell<Expression>>,
     label          : text::Area,
@@ -140,13 +142,21 @@ pub struct Manager {
     pub frp        : Frp,
 }
 
+impl Deref for Manager {
+    type Target = Frp;
+    fn deref(&self) -> &Self::Target {
+        &self.frp
+    }
+}
+
 impl Manager {
     pub fn new
-    ( logger         : impl AnyLogger
-    , app            : &Application
+    ( logger : impl AnyLogger
+    , app    : &Application
     ) -> Self {
-        let logger         = Logger::sub(logger,"port_manager");
+        let logger         = Logger::sub(&logger,"port_manager");
         let display_object = display::object::Instance::new(&logger);
+        let ports_group    = display::object::Instance::new(&Logger::sub(&logger,"ports"));
         let app            = app.clone_ref();
         let port_networks  = default();
         let type_color_map = default();
@@ -163,9 +173,23 @@ impl Manager {
 
         frp::extend! { network
             eval frp.input.edit_mode ([label](enabled) {
-                label.set_active(enabled);
+                label.set_focus(enabled);
                 if *enabled { label.set_cursor_at_mouse_position(); }
                 else        { label.remove_all_cursors(); }
+            });
+
+            eval_ frp.input.hover   (label.hover());
+            eval_ frp.input.unhover (label.unhover());
+
+            hidden_ports <- all_with(&frp.input.edit_mode,&frp.input.edit_mode_ready,|a,b|*a||*b);
+            eval hidden_ports ([frp,display_object,ports_group](hidden) {
+                if *hidden {
+                    display_object.remove_child(&ports_group)
+                    }
+                else {
+                    display_object.add_child(&ports_group);
+                    frp.output.source.hover.emit(&None);
+                }
             });
 
             frp.output.source.width      <+ label.width;
@@ -174,6 +198,7 @@ impl Manager {
 
         label.mod_position(|t| t.y += 6.0);
         display_object.add_child(&label);
+        display_object.add_child(&ports_group);
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles     = StyleWatch::new(&app.display.scene().style_sheet);
@@ -185,7 +210,7 @@ impl Manager {
         let expression = default();
         let width      = default();
 
-        Self {logger,display_object,frp,label,ports,width,app,expression,port_networks
+        Self {logger,display_object,ports_group,frp,label,ports,width,app,expression,port_networks
              ,type_color_map}
     }
 
@@ -233,7 +258,7 @@ impl Manager {
                         port.shape.sprite.size.set(Vector2::new(width2,node_height));
                         let x = width/2.0 + unit * span.index.value as f32;
                         port.mod_position(|t| t.x = x);
-                        self.add_child(&port);
+                        self.ports_group.add_child(&port);
 
                         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
                         let styles             = StyleWatch::new(&self.app.display.scene().style_sheet);
@@ -255,46 +280,25 @@ impl Manager {
 
                             // === Mouse Style ===
 
-                            edit_ignore_events  <- all_with(&edit_mode,&edit_mode_ready,|a,b|*a||*b);
-                            disable_mouse_style <- edit_ignore_events.gate(&edit_ignore_events);
-                            enable_mouse_style  <- edit_ignore_events.gate_not(&edit_ignore_events);
-                            mouse_style_over    <- mouse_over.map(move |_| highlight.clone());
-                            mouse_style_out     <- mouse_out.map(|_| default());
-                            mouse_style_event   <- any(mouse_style_over,mouse_style_out);
-                            mouse_style1        <- mouse_style_event.map2(&edit_ignore_events,
-                                |style,ignore| if *ignore { default() } else { style.clone() }
-                            );
-                            mouse_style2 <= disable_mouse_style.map2(&mouse_style_event,
-                                |_,style| (!style.is_default()).as_some(default())
-                            );
-                            mouse_style3 <= enable_mouse_style.map2(&mouse_style_event,
-                                |_,style| (!style.is_default()).as_some(style.clone())
-                            );
-                            mouse_style <- any(mouse_style1,mouse_style2,mouse_style3);
-                            self.frp.output.source.cursor_style <+ mouse_style;
+                            mouse_style_over  <- mouse_over.map(move |_| highlight.clone());
+                            mouse_style_out   <- mouse_out.map(|_| default());
+                            mouse_style_event <- any(mouse_style_over,mouse_style_out);
+                            self.frp.output.source.cursor_style <+ mouse_style_event;
 
 
-                            // === Hover ===
+                            // === Port Hover ===
 
                             let crumbs_over  = crumbs.clone();
                             let hover_source = &self.frp.output.source.hover;
-                            mouse_over_non_edit <- mouse_over.gate_not(&edit_ignore_events);
-                            mouse_out_non_edit  <- mouse_out.gate_not(&edit_ignore_events);
-                            eval_ mouse_over_non_edit (hover_source.emit(&Some(crumbs_over.clone())));
-                            eval_ mouse_out_non_edit  (hover_source.emit(&None));
+                            eval_ mouse_over (hover_source.emit(&Some(crumbs_over.clone())));
+                            eval_ mouse_out  (hover_source.emit(&None));
 
 
                             // === Port / Background Press ===
 
-                            mouse_down_non_edit <- port.events.mouse_down.gate_not(&edit_ignore_events);
-                            mouse_down_edit     <- port.events.mouse_down.gate(&edit_ignore_events);
-
-                            let crumbs_down     = crumbs.clone();
-                            let press_bg_source = &self.frp.output.source.background_press;
-                            let press_source    = &self.frp.output.source.press;
-                            eval_ mouse_down_edit     (press_bg_source.emit(()));
-                            eval_ mouse_down_non_edit (press_source.emit(&crumbs_down));
-
+                            let crumbs_down  = crumbs.clone();
+                            let press_source = &self.frp.output.source.press;
+                            eval_ port.events.mouse_down (press_source.emit(&crumbs_down));
                         }
                         ports.push(port);
                         port_networks.push(port_network);

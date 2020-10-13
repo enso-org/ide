@@ -290,17 +290,15 @@ impl NodeModel {
 
 impl Node {
     pub fn new
-    ( app            : &Application
-    , registry       : visualization::Registry
+    ( app      : &Application
+    , registry : visualization::Registry
     ) -> Self {
-        let frp    = Frp::new_network();
-
-        let network = &frp.network;
-        let inputs      = &frp.input;
-        let out     = &frp.output;
-        let model       = Rc::new(NodeModel::new(app,network,registry));
-
-        let selection   = Animation::<f32>::new(network);
+        let frp       = Frp::new_network();
+        let network   = &frp.network;
+        let inputs    = &frp.input;
+        let out       = &frp.output;
+        let model     = Rc::new(NodeModel::new(app,network,registry));
+        let selection = Animation::<f32>::new(network);
 
         frp::extend! { network
             eval  selection.value ((v) model.main_area.shape.selection.set(*v));
@@ -320,7 +318,9 @@ impl Node {
             eval model.ports.frp.width ((w) model.set_width(*w));
 
             out.source.background_press <+ model.drag_area.events.mouse_down;
-            out.source.background_press <+ model.ports.frp.background_press;
+
+            eval_ model.drag_area.events.mouse_over (model.ports.hover());
+            eval_ model.drag_area.events.mouse_out  (model.ports.unhover());
 
             out.source.expression <+ model.ports.frp.expression.map(|t|t.clone_ref());
         }

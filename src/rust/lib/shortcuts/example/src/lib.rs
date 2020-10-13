@@ -39,8 +39,6 @@ pub fn main() {
     frp::new_network! { network
         on_down <- kb.down.map (move |t| shortcut_registry2.on_press(t.simple_name()));
         on_up   <- kb.up.map   (move |t| shortcut_registry3.on_release(t.simple_name()));
-        trace on_down;
-        trace on_up;
     }
     mem::forget(network);
     mem::forget(bindings);

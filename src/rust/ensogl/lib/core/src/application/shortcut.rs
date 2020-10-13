@@ -61,21 +61,49 @@ impl From<&str> for Command {
 // === Condition ===
 // =================
 
-// TODO[WD]: Uncomment and handle more complex cases. Left commented to show the direction of future
-//           development.
 /// Condition expression.
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 #[allow(missing_docs)]
 pub enum Condition {
     Always,
-    Simple (String),
-    // Or  (Box<Condition>, Box<Condition>),
-    // And (Box<Condition>, Box<Condition>),
+    Never,
+    When (String),
+    Or  (Box<Condition>, Box<Condition>),
+    And (Box<Condition>, Box<Condition>),
+}
+
+impl Condition {
+    fn when(t:impl Into<String>) -> Self {
+        Self::When(t.into())
+    }
+
+    fn and(a:Self, b:Self) -> Self {
+        Self::And(Box::new(a),Box::new(b))
+    }
+
+    fn or(a:Self, b:Self) -> Self {
+        Self::Or(Box::new(a),Box::new(b))
+    }
+
+    /// Split the input on the provided `separator`, process each chunk with `f`, and fold results
+    /// using the `cons`.
+    fn split_parse
+    ( input     : &str
+    , separator : char
+    , cons      : impl Fn(Self,Self) -> Self
+    , f         : impl Fn(&str) -> Self
+    ) -> Self {
+        input.split(separator).map(|t|t.trim()).map(f).fold1(cons).unwrap_or(Self::Never)
+    }
 }
 
 impl From<&str> for Condition {
     fn from(input:&str) -> Self {
-        if input.is_empty() { Self::Always } else { Self::Simple(input.into()) }
+        let input = input.trim();
+        if input.is_empty() { Self::Always } else {
+            Self::split_parse(input,'|',Self::or,|chunk|
+                Self::split_parse(chunk,'&',Self::and,|t|Self::when(t)))
+        }
     }
 }
 
@@ -250,10 +278,14 @@ impl RegistryModel {
     }
 
     fn condition_checker
-    (condition:&Condition, status_map:&Rc<RefCell<HashMap<String,frp::Sampler<bool>>>>) -> bool {
+    (condition:&Condition, status:&Rc<RefCell<HashMap<String,frp::Sampler<bool>>>>) -> bool {
+        use Condition::*;
         match condition {
-            Condition::Always       => true,
-            Condition::Simple(name) => status_map.borrow().get(name).map(|t| t.value()).unwrap_or(false)
+            Always     => true,
+            Never      => false,
+            When(name) => status.borrow().get(name).map(|t| t.value()).unwrap_or(false),
+            Or(a,b)    => Self::condition_checker(a,status) || Self::condition_checker(b,status),
+            And(a,b)   => Self::condition_checker(a,status) && Self::condition_checker(b,status),
         }
     }
 }

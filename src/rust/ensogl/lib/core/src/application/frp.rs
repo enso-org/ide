@@ -165,16 +165,20 @@ macro_rules! define_endpoints {
             NORMALIZED
 
             Input  {
-                /// Active state setter. You should not need to call it directly. It is meant to be
-                /// controlled by the focus manager.
-                set_active(bool),
+                /// Focus the element. Focused elements are meant to receive shortcut events.
+                focus(),
+                /// Defocus the element. Non-focused elements are meant to be inactive and don't
+                /// receive shortcut events.
+                defocus(),
+                /// Wrapper for `focus` and `defocus`.
+                set_focus(bool),
                 $($($(#[doc=$($in_doc )*])*
                 $in_field ($($in_field_type )*)),*)?
             }
 
             Output {
-                /// Active state checker.
-                active(bool),
+                /// Focus state checker.
+                focused(bool),
                 $($($(#[doc=$($out_doc)*])*
                 $out_field ($($out_field_type)*)),*)?
             }
@@ -273,7 +277,9 @@ macro_rules! define_endpoints {
                 let mut command_map : HashMap<String,frp::Source<()>> = default();
                 frp::extend! { network
                     $($out_field <- source.$out_field.sampler();)*
-                    source.active <+ input.set_active;
+                    focus_events   <- bool(&input.defocus,&input.focus);
+                    focused        <- any(&input.set_focus,&focus_events);
+                    source.focused <+ focused;
                 }
                 //$(let $out_field : frp::Stream<$($out_field_type)*> = source.$out_field.clone_ref().into();)*
                 $($crate::build_status_map!{status_map $out_field ($($out_field_type)*) $out_field })*
