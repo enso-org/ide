@@ -4,7 +4,6 @@ use ensogl_core::prelude::*;
 use crate::list_view;
 use crate::list_view::entry::ModelProvider;
 
-
 use enso_frp as frp;
 use enso_frp;
 use ensogl_core::gui::component::Animation;
