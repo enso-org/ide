@@ -861,7 +861,7 @@ impl GraphEditorModelWithNetwork {
 
     fn new_node
     ( &self
-    , cursor_style   : &frp::Source<cursor::Style>
+    , pointer_style  : &frp::Source<cursor::Style>
     , output_press   : &frp::Source<EdgeTarget>
     , input_press    : &frp::Source<EdgeTarget>
     , expression_set : &frp::Source<(NodeId,String)>
@@ -880,7 +880,7 @@ impl GraphEditorModelWithNetwork {
             let ports_frp = &node.model.ports.frp;
             let edit_mode_ready = edit_mode_ready.clone_ref();
             eval edit_mode_ready ((t) ports_frp.input.edit_mode_ready.emit(t));
-            eval node.model.ports.frp.cursor_style ((style) cursor_style.emit(style));
+            eval node.model.ports.frp.pointer_style ((style) pointer_style.emit(style));
             eval node.model.output_ports.frp.port_mouse_down ([output_press](crumbs){
                 let target = EdgeTarget::new(node_id,crumbs.clone());
                 output_press.emit(target);
@@ -1795,7 +1795,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
 
 
-    node_cursor_style <- source::<cursor::Style>();
+    node_pointer_style <- source::<cursor::Style>();
 
     let node_input_touch  = TouchNetwork::<EdgeTarget>::new(&network,&mouse);
     let node_output_touch = TouchNetwork::<EdgeTarget>::new(&network,&mouse);
@@ -1919,7 +1919,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     let add_node_at_cursor = inputs.add_node_at_cursor.clone_ref();
     add_node           <- any (inputs.add_node,add_node_at_cursor);
-    new_node           <- add_node.map(f_!([model,node_cursor_style] model.new_node(&node_cursor_style,&node_output_touch.down,&node_input_touch.down,&node_expression_set,&edit_mode)));
+    new_node           <- add_node.map(f_!([model,node_pointer_style] model.new_node(&node_pointer_style,&node_output_touch.down,&node_input_touch.down,&node_expression_set,&edit_mode)));
     out.source.node_added <+ new_node;
 
     node_with_position <- add_node_at_cursor.map3(&new_node,&mouse.position,|_,id,pos| (*id,*pos));
@@ -2335,9 +2335,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
 
 
-    // ====================
-    // === Cursor Style ===
-    // ====================
+    // =====================
+    // === Pointer Style ===
+    // =====================
 
     frp::extend! { network
 
@@ -2352,15 +2352,15 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     cursor_style_edge_drag         <- any (cursor_style_edge_drag,cursor_style_on_edge_drag_stop);
 
 
-    cursor_style <- all
-        [ cursor_on_drag
+    pointer_style <- all
+        [ node_pointer_style,cursor_on_drag
         , cursor_selection
         , cursor_press
-        , node_cursor_style
+
         , cursor_style_edge_drag
         ].fold();
 
-    eval cursor_style ((style) cursor.frp.set_style.emit(style));
+    eval pointer_style ((style) cursor.frp.set_style.emit(style));
 
     }
 

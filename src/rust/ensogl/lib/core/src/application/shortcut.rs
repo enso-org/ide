@@ -98,6 +98,7 @@ impl Condition {
 }
 
 impl From<&str> for Condition {
+    #[allow(clippy::redundant_closure)] // Rust TC does not agree.
     fn from(input:&str) -> Self {
         let input = input.trim();
         if input.is_empty() { Self::Always } else {

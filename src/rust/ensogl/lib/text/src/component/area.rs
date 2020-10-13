@@ -24,9 +24,10 @@ use ensogl_core::display::shape::*;
 use ensogl_core::display;
 use ensogl_core::gui::component::Animation;
 use ensogl_core::gui::component;
+use ensogl_core::gui::cursor;
 use ensogl_core::gui;
-use ensogl_core::system::web::clipboard;
 use ensogl_core::system::gpu::shader::glsl::traits::IntoGlsl;
+use ensogl_core::system::web::clipboard;
 use ensogl_theme;
 
 
@@ -443,11 +444,11 @@ ensogl_core::define_endpoints! {
         set_content           (String),
     }
     Output {
-        mouse_cursor_style (gui::cursor::Style),
-        width              (f32),
-        changed            (Vec<buffer::view::Change>),
-        content            (Text),
-        hovered            (bool),
+        pointer_style (cursor::Style),
+        width         (f32),
+        changed       (Vec<buffer::view::Change>),
+        content       (Text),
+        hovered       (bool),
     }
 }
 
@@ -496,12 +497,19 @@ impl Area {
 
         frp::extend! { network
 
-
             // === Hover ===
 
-            hover_events <- bool(&input.unhover,&input.hover);
-            hovered      <- any(&input.set_hover,&hover_events);
+            hover_events  <- bool(&input.unhover,&input.hover);
+            hovered       <- any(&input.set_hover,&hover_events);
             out.source.hovered <+ hovered;
+
+
+            // === Pointer Style ===
+
+            pointer_style <- hovered.map(|hovered| {
+                if *hovered { cursor::Style::new_text_cursor() } else { cursor::Style::default() }
+            });
+            out.source.pointer_style <+ pointer_style;
 
 
             // === Set / Add cursor ===
