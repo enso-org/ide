@@ -2018,7 +2018,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     tgts_if_sel       <- node_down.map(f_!(model.nodes.selected.items())).gate(&node_was_selected);
     tgts_if_non_edit  <- any(tgts_if_non_sel,tgts_if_sel).gate_not(&node_in_edit_mode);
     tgts_if_edit      <- node_down.map(|_|default()).gate(&node_in_edit_mode);
-    tgts              <- any(tgts_if_non_edit,tgts_if_edit);
+    drag_tgts         <- any(tgts_if_non_edit,tgts_if_edit);
+    any_drag_tgt      <- drag_tgts.map(|t|!t.is_empty());
     node_pos_on_down  <- node_down.map(f!((id) model.node_position(id)));
     mouse_pos_on_down <- mouse_pos.sample(&node_down);
     mouse_pos_diff    <- mouse_pos.map2(&mouse_pos_on_down,|t,s|t-s).gate(&node_is_down);
@@ -2029,7 +2030,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Snapping ===
 
-    eval tgts ((ids) model.disable_grid_snapping_for(ids));
+    eval drag_tgts ((ids) model.disable_grid_snapping_for(ids));
     let node_tgt_pos_anim = Animation::<Vector2<f32>>::new(&network);
     let x_snap_strength   = Tween::new(&network);
     let y_snap_strength   = Tween::new(&network);
@@ -2068,24 +2069,25 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     main_tgt_pos_prev <- node_tgt_pos.previous();
     main_tgt_pos_diff <- node_tgt_pos.map2(&main_tgt_pos_prev,|t,s|t-s).gate_not(&just_pressed);
-    tgt               <= tgts.sample(&main_tgt_pos_diff);
-    tgt_new_pos       <- tgt.map2(&main_tgt_pos_diff,f!((id,tx) model.node_pos_mod(id,*tx)));
+    drag_tgt          <= drag_tgts.sample(&main_tgt_pos_diff);
+    tgt_new_pos       <- drag_tgt.map2(&main_tgt_pos_diff,f!((id,tx) model.node_pos_mod(id,*tx)));
     out.source.node_position_set <+ tgt_new_pos;
 
 
     // === Batch Update ===
 
     after_drag             <- touch.nodes.up.gate_not(&just_pressed);
-    tgt_after_drag         <= tgts.sample(&after_drag);
+    tgt_after_drag         <= drag_tgts.sample(&after_drag);
     tgt_after_drag_new_pos <- tgt_after_drag.map(f!([model](id)(*id,model.node_position(id))));
     out.source.node_position_set_batched <+ tgt_after_drag_new_pos;
 
 
     // === Mouse style ===
 
-    cursor_on_drag_down <- node_down.map(|_| cursor::Style::new_with_all_fields_default().press());
+    node_down_on_drag   <- node_down.gate(&any_drag_tgt);
+    cursor_on_drag_down <- node_down_on_drag.map(|_| cursor::Style::new_with_all_fields_default().press());
     cursor_on_drag_up   <- touch.nodes.up.map(|_| cursor::Style::default());
-    cursor_on_drag      <- any (&cursor_on_drag_down,&cursor_on_drag_up);
+    pointer_on_drag     <- any (&cursor_on_drag_down,&cursor_on_drag_up);
 
 
     // === Set Node Position ===
@@ -2353,10 +2355,10 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
 
     pointer_style <- all
-        [ node_pointer_style,cursor_on_drag
+        [ pointer_on_drag
         , cursor_selection
         , cursor_press
-
+        , node_pointer_style
         , cursor_style_edge_drag
         ].fold();
 
