@@ -3,7 +3,9 @@
 #![allow(missing_docs)]
 // WARNING! UNDER HEAVY DEVELOPMENT. EXPECT DRASTIC CHANGES.
 
+#[deny(missing_docs)]
 pub mod action_bar;
+#[deny(missing_docs)]
 pub mod icon;
 pub mod port;
 

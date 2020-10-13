@@ -181,6 +181,7 @@ impl display::Object for Model {
 #[derive(Clone,CloneRef,Debug)]
 pub struct ActionBar {
          model : Rc<Model>,
+    /// Public FRp api.
     pub frp    : Frp
 }
 

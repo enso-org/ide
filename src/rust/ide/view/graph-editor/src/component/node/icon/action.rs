@@ -1,3 +1,4 @@
+//! Icons to be used of the action bar of a node.
 use crate::prelude::*;
 
 use ensogl::data::color;
@@ -6,7 +7,7 @@ use ensogl_gui_components::toggle_button::ColorableShape;
 use ensogl_shape_utils::constants::HOVER_COLOR;
 
 
-
+/// Icon for the visibility button. Looks like an open eye.
 pub mod visibility {
     use super::*;
 
@@ -50,7 +51,8 @@ pub mod visibility {
     }
 }
 
-/// Alternative version of the visibility icon. Not currently used.
+/// Alternative version of the icon for the visibility button. Looks like a ring with three gaps.
+/// Not currently used.
 pub mod visibility2 {
     use super::*;
 
@@ -95,6 +97,7 @@ fn make_ring<T:Into<Var<Pixels>>,U:Into<Var<Pixels>>>(outer_radius:T, inner_radi
     ring.into()
 }
 
+/// Icon for the freeze / lock button. Looks like a padlock.
 pub mod freeze {
     use super::*;
 
@@ -139,7 +142,7 @@ pub mod freeze {
     }
 }
 
-
+/// Icon for the skip button. Looks like a circle with a right facing arrow.
 pub mod skip {
     use super::*;
 
