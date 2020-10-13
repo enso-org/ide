@@ -1,7 +1,7 @@
 //! Select List Component
 use crate::prelude::*;
 
-use super::entry;
+use crate::list_view::entry;
 
 use enso_frp as frp;
 use ensogl_core::application;

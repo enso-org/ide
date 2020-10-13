@@ -1,6 +1,6 @@
 //! ListView EnsoGL Component.
 //!
-//! ListView a displayed list of entries with possibility of selecting one and "chosing" by
+//! ListView a displayed list of entries with possibility of selecting one and "choosing" by
 //! clicking or pressing enter - similar to the HTML `<select>`.
 
 pub mod component;

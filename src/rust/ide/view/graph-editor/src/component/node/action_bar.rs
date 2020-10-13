@@ -11,11 +11,11 @@ use ensogl::display::style;
 use ensogl::display::shape::*;
 use ensogl::display;
 use ensogl::gui::component;
-use ensogl_theme as theme;
 use ensogl_gui_components::toggle_button::ToggleButton;
 use ensogl_shape_utils::dynamic_color;
 use ensogl_shape_utils::compound_shape;
 use ensogl_shape_utils::constants::HOVER_COLOR;
+use ensogl_theme as theme;
 
 
 
@@ -31,9 +31,9 @@ mod hover_rect {
         (corner_radius:f32) {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
-            let rect           = Rect((&width,&height));
-            let rect_rounded   = rect.corners_radius(corner_radius);
-            let rect_filled    = rect_rounded.fill(HOVER_COLOR);
+            let rect                 = Rect((&width,&height));
+            let rect_rounded         = rect.corners_radius(corner_radius);
+            let rect_filled          = rect_rounded.fill(HOVER_COLOR);
             rect_filled.into()
         }
     }
@@ -175,7 +175,7 @@ impl display::Object for Model {
 /// ------
 /// ```text
 ///    / ----------------------------- \
-///    | <icon1> <icon2> <icon3>          |
+///    | <icon1> <icon2> <icon3>       |
 ///    \ ----------------------------- /
 ///
 /// ```

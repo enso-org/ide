@@ -9,11 +9,8 @@ use ensogl_core::gui::component::ShapeView;
 // === Compound Shape ===
 // ======================
 
-// FIXME `_dummy` input is needed as the input section can not be omitted.
 ensogl_text::define_endpoints! {
-    Input {
-        _dummy ()
-    }
+    Input {}
     Output {
         mouse_over (),
         mouse_out  (),
@@ -22,7 +19,7 @@ ensogl_text::define_endpoints! {
 
 /// `Events` defines a common FRP api that handles mouse over/out events for  multiple
 /// sub-shapes. It avoids boilerplate of setting up FRP bindings for every single shape,
-///instead the `Shape` frp endpoints can be used.
+/// instead the `Shape` frp endpoints can be used.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Events {
     /// Frp API.
