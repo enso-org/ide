@@ -50,7 +50,7 @@ pub mod visibility {
     }
 }
 
-
+/// Alternative version of the visibility icon. Not currently used.
 pub mod visibility2 {
     use super::*;
 
