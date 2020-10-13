@@ -1,8 +1,6 @@
-//! ListView EnsoGL Component.
+//! EnsoGL Components.
 //!
-//! ListView a displayed list of entries with possibility of selecting one and "choosing" by
-//! clicking or pressing enter - similar to the HTML `<select>`.
-
+//! A collection of useful standard UI components for EnsoGL.
 #![feature(option_result_contains)]
 #![feature(trait_alias)]
 
