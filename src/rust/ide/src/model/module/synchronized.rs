@@ -341,25 +341,23 @@ pub mod test {
 
     use data::text::TextChange;
     use data::text;
-    use enso_protocol::language_server::{CapabilityRegistration, MockClient, FileEdit, TextRange, Position};
+    use enso_protocol::language_server::{MockClient, FileEdit, TextRange, Position};
     use json_rpc::error::RpcError;
-    use json_rpc::expect_call;
     use utils::test::ExpectTuple;
     use utils::test::traits::*;
     use wasm_bindgen_test::wasm_bindgen_test;
-    use enso_frp::data::bitfield::BitField128;
-    use enso_frp::data::bitfield::BitField;
+    use crate::test::Runner;
 
     // Ensures that subsequent operations form a consistent series of versions.
     #[derive(Clone,Debug)]
     struct LsClientSetup {
-        path               : model::module::Path,
+        path               : Path,
         current_ls_code    : Rc<CloneCell<String>>,
         current_ls_version : Rc<CloneCell<Sha3_224>>,
     }
 
     impl LsClientSetup {
-        fn new(path:model::module::Path, initial_code:impl Into<String>) -> Self {
+        fn new(path:Path, initial_code:impl Into<String>) -> Self {
             let current_ls_code    = initial_code.into();
             let current_ls_version = Sha3_224::new(current_ls_code.as_bytes());
             Self {
@@ -411,6 +409,8 @@ pub mod test {
             self.expect_some_edit(client, move |edit| {
                 if let [_edit_metadata,edit_code] = edit.edits.as_slice() {
                     // TODO assert that first edit actually does touch only metadata
+                    //  should parser the LS code and check the range of meteadata
+                    //  or keep this info all along
 
                     // assert_eq!(edit_code.range, TextRange {
                     //     start : Position {line:1, character:13},
@@ -441,17 +441,17 @@ pub mod test {
             });
         }
 
-        fn whole_document_range(&self) -> language_server::TextRange {
+        fn whole_document_range(&self) -> TextRange {
             let code_so_far = self.current_ls_code.get();
             let end_of_file = TextLocation::at_document_end(&code_so_far);
-            language_server::TextRange {
-                start : language_server::types::Position { line:0,character:0  },
+            TextRange {
+                start : Position { line:0,character:0  },
                 end   : end_of_file.into(),
             }
         }
     }
 
-    fn apply_edit(code:&str, edit:&language_server::TextEdit) -> String {
+    fn apply_edit(code:&str, edit:&TextEdit) -> String {
         let start = TextLocation::from(edit.range.start.into()).to_index(code);
         let end = TextLocation::from(edit.range.end.into()).to_index(code);
         data::text::TextChange::replace(start..end,edit.text.clone()).applied(code)
@@ -479,7 +479,6 @@ pub mod test {
             });
         });
 
-        let module = fixture.module.clone();
         let parser = data.parser.clone();
 
         let path = data.module_path.clone();
@@ -494,52 +493,6 @@ pub mod test {
         fixture.run_until_stalled();
         module.apply_code_change(change.clone(),&Parser::new_or_panic(),default()).unwrap();
         fixture.run_until_stalled();
-    }
-
-    /// Helper structure that runs given test multiple times.
-    ///
-    /// The test when run is given a handle to the runner object that
-    #[derive(Clone,Copy,Debug,Default)]
-    pub struct Runner {
-        /// Incremented each time when the runnee calls an interruption point.
-        /// Reset to 0 after each run.
-        current   : u32,
-        /// Number of iterations already done.
-        /// Used as a seed for the current iteration behavior.
-        /// (subsequent bits from the least significant encode whether the n-th interruption point
-        /// should actually pass control to the executor).
-        iteration : BitField128,
-    }
-
-    impl Runner {
-        fn run_internal(&mut self, mut f:impl FnMut(&mut Runner)) {
-            assert_eq!(self.iteration.raw,0,"Runner object must not be reused.");
-            assert_eq!(self.current,0,"Runner object must not be reused.");
-            println!("Iteration #{}",0);
-            f(self);
-            let possibilities_count = 2u128.pow(self.current);
-            for i in 1 ..possibilities_count {
-                println!("Iteration #{}",i);
-                self.iteration.raw = i;
-                self.current = 0;
-                f(self);
-            }
-        }
-
-        pub fn perhaps_run_until_stalled(&mut self, fixture:&mut crate::test::mock::Fixture) {
-            let index     = self.current;
-            self.current += 1;
-            let should_run = self.iteration.get_bit(index as usize);
-            println!("Should run #{}? {}",index,should_run);
-            if should_run {
-                fixture.run_until_stalled();
-            }
-        }
-
-        pub fn run(mut f:impl FnMut(&mut Runner)) {
-            let mut runner = Runner::default();
-            runner.run_internal(f);
-        }
     }
 
     #[test]
@@ -595,32 +548,36 @@ pub mod test {
     println "Hello World!""#;
         let mut data = crate::test::mock::Unified::new();
         data.set_code(initial_code);
-        let edit_handler = LsClientSetup::new_for_mock_data(&data);
-        let mut fixture = data.fixture_customize(|data, client| {
-            data.expect_opening_the_module(client);
-            data.expect_closing_the_module(client);
-            // Opening module and metadata generation.
-            edit_handler.expect_full_invalidation(client);
-            // Applying code update.
-            edit_handler.expect_edit_w_metadata(client,|edit| {
-                assert_eq!(edit.text, "Test 2");
-                assert_eq!(edit.range, TextRange {
-                    start : Position {line:1, character:13},
-                    end   : Position {line:1, character:17},
-                });
-                Err(RpcError::LostConnection)
-            });
-            // Full synchronization due to failed update in previous edit.
-            edit_handler.expect_full_invalidation(client);
-        });
 
-        let (module,controller) = fixture.synchronized_module_w_controller();
-        fixture.run_until_stalled();
-        let change = TextChange {
-            replaced : text::Index::new(20)..text::Index::new(24),
-            inserted : "Test 2".to_string(),
+        let test = |runner:&mut Runner| {
+            let edit_handler = LsClientSetup::new_for_mock_data(&data);
+            let mut fixture = data.fixture_customize(|data, client| {
+                data.expect_opening_the_module(client);
+                data.expect_closing_the_module(client);
+                // Opening module and metadata generation.
+                edit_handler.expect_full_invalidation(client);
+                // Applying code update.
+                edit_handler.expect_edit_w_metadata(client, |edit| {
+                    assert_eq!(edit.text, "Test 2");
+                    assert_eq!(edit.range, TextRange {
+                        start: Position { line: 1, character: 13 },
+                        end: Position { line: 1, character: 17 },
+                    });
+                    Err(RpcError::LostConnection)
+                });
+                // Full synchronization due to failed update in previous edit.
+                edit_handler.expect_full_invalidation(client);
+            });
+
+            let (_module, controller) = fixture.synchronized_module_w_controller();
+            runner.perhaps_run_until_stalled(&mut fixture);
+            let change = TextChange {
+                replaced: text::Index::new(20)..text::Index::new(24),
+                inserted: "Test 2".to_string(),
+            };
+            controller.apply_code_change(change).unwrap();
+            runner.perhaps_run_until_stalled(&mut fixture);
         };
-        controller.apply_code_change(change).unwrap();
-        fixture.run_until_stalled();
+        Runner::run(test);
     }
 }

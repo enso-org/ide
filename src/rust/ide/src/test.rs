@@ -9,6 +9,8 @@ use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
 use enso_protocol::language_server;
 use utils::test::traits::*;
+use enso_frp::data::bitfield::BitField;
+use enso_frp::data::bitfield::BitField128;
 
 /// Utilities for mocking IDE components.
 pub mod mock {
@@ -311,7 +313,7 @@ pub mod mock {
         /// Create a synchronized module model.
         ///
         /// For this to work, some earlier customizations are needed, at least
-        /// [Unified::expect_opening_the_module], as the synchronized model makes calls to the
+        /// `[Unified::expect_opening_the_module]`, as the synchronized model makes calls to the
         /// language server API. Most likely also closing and initial edit (that adds metadata)
         /// should be expected. See usage for examples.
         pub fn synchronized_module(&self) -> Rc<model::module::Synchronized> {
@@ -324,6 +326,9 @@ pub mod mock {
             module_fut.boxed_local().expect_ready().unwrap()
         }
 
+        /// Create a synchronized module model and a module controller paired with it.
+        ///
+        /// Same considerations need to be made as with `[synchronized_module]`.
         pub fn synchronized_module_w_controller(&self) -> (Rc<model::module::Synchronized>,controller::Module) {
             let parser = self.data.parser.clone();
             let path   = self.data.module_path.clone();
@@ -367,5 +372,89 @@ pub fn assert_call_info
     for (encountered,expected) in info.parameters.iter().zip(entry.arguments.iter()) {
         let expected_info = model::suggestion_database::to_span_tree_param(expected);
         assert_eq!(encountered,&expected_info);
+    }
+}
+
+
+
+// ==============
+// === Runner ===
+// ==============
+
+/// Helper that runs given test multiple times simulating different executor interleaving.
+/// The `Runner` can be used to write tests against the race conditions dependent on whether some
+/// code path gets interrupted by executor's run or not.
+///
+/// Typical use-case is to call `Runner::run(|runner| { …test code… })`.
+/// For testing a single, specific iteration `run_with` or `run_nth` should be used.
+///
+/// The test when run is given a handle to the runner object that offers `perhaps_run_until_stalled`
+/// method. It should be invoked (with a fixture object) in places where typically the test code
+/// would use the fixture's `run_until_stalled`. The runner will then either call the
+/// `run_until_stalled` or do nothing.
+///
+/// The `run` method will run test multiple times, to cover all possible combinations.
+/// The test should call `perhaps_run_until_stalled` the same number of times on each iteration.
+/// Otherwise, the `perhaps_run_until_stalled` behavior is unspecified (but still well-formed).
+#[derive(Clone,Copy,Debug,Default)]
+pub struct Runner {
+    /// Incremented each time when the runnee calls an interruption point.
+    /// Reset to 0 after each run.
+    current : u32,
+    /// Bitmap that encodes behavior of subsequent `run_until_stalled` calls. True means running.
+    seed : BitField128,
+}
+
+impl Runner {
+    fn new(seed:BitField128) -> Self {
+        let current = 0;
+        Self {current,seed}
+    }
+
+    /// Call's the fixture's `run_until_stalled`. Or does not call. Depends on the current seed
+    /// (defined by the iteration number) and the number of previous calls to this method.
+    ///
+    /// See the `[Runner]` documentation.
+    pub fn perhaps_run_until_stalled(&mut self, fixture:&mut crate::test::mock::Fixture) {
+        let index     = self.current;
+        self.current += 1;
+        if dbg!(self.seed.get_bit(index as usize)) {
+            fixture.run_until_stalled();
+        }
+    }
+
+    /// Calls the `test` function multiple times, to cover all possible combinations of
+    /// `run_until_stalled` method's behavior.
+    ///
+    /// The number of runs is determined by the number of calls to the method in the first
+    /// iteration.
+    ///
+    /// NOTE: The number of runs will grow *exponentially* with the `run_until_stalled` methods!
+    /// Be certain to use it sparingly, to cover really specific scenarios. It is not meant for
+    /// general usage in big tests in multiple places.
+    pub fn run(mut f:impl FnMut(&mut Runner)) {
+        let count         = Self::run_nth(0,&mut f);
+        let possibilities = 2u128.pow(count);
+        // Just to prevent accidentally generating too many runs.
+        assert!(count < 5, "Consider reducing number of calls to `run_until_stalled` or bump this \
+        limit if it doesn't cause slowdowns during the testing.");
+        for i in 1 ..possibilities {
+            Self::run_nth(i,&mut f);
+        }
+    }
+
+    /// Calls the `test` function once. The executor behavior is defined by the `seed`.
+    /// Returns the number of calls made to `perhaps_run_until_stalled`.
+    pub fn run_with(seed:BitField128, mut f:impl FnMut(&mut Runner)) -> u32 {
+        let mut runner = Runner::new(seed);
+        f(&mut runner);
+        runner.current
+    }
+
+    /// Calls the `test` function once. The executor behavior is defined by the `n` parameter.
+    /// Returns the number of calls made to `perhaps_run_until_stalled`.
+    pub fn run_nth(n:u128, test:impl FnMut(&mut Runner)) -> u32 {
+        println!("Runner: Iteration {}",n);
+        Self::run_with(BitField128 {raw:n}, test)
     }
 }
