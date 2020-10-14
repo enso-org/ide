@@ -22,8 +22,8 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component;
-use ensogl_shape_utils::dynamic_color::DynamicColor;
-use ensogl_shape_utils::dynamic_color;
+use ensogl_shape_utils::component_color::ComponentColor;
+use ensogl_shape_utils::component_color;
 use ensogl_text::Text;
 use ensogl_theme;
 
@@ -202,7 +202,7 @@ pub struct NodeModel {
     pub action_bar     : action_bar::ActionBar,
     pub output_ports   : OutputPorts,
 
-    main_color         : DynamicColor,
+    main_color         : ComponentColor,
 }
 
 
@@ -217,7 +217,7 @@ impl NodeModel {
         let main_logger = Logger::sub(&logger,"main_area");
         let drag_logger = Logger::sub(&logger,"drag_area");
         let main_area   = component::ShapeView::<shape::Shape>::new(&main_logger,scene);
-        let main_color  = DynamicColor::new(app);
+        let main_color  = ComponentColor::new(app);
         let drag_area   = component::ShapeView::<drag_area::Shape>::new(&drag_logger,scene);
         edge::sort_hack_2(scene);
 
@@ -316,7 +316,7 @@ impl Node {
         let inputs           = &model.frp.input;
         let selection        = Animation::<f32>::new(&frp_network);
 
-        let background_color = DynamicColor::new(&app);
+        let background_color = ComponentColor::new(&app);
 
         let actions          = &model.action_bar.frp;
         frp::extend! { frp_network
@@ -348,16 +348,17 @@ impl Node {
 
             // === Color Handling ===
 
-            eval background_color.frp.color ((color) {
+            eval background_color.frp.color ([model](color) {
+                println!("BG {:?}", color);
                 model.main_area.shape.bg_color.set(color.into())
             });
 
             eval inputs.set_dimmed ([model,background_color](should_dim) {
                 model.ports.frp.set_dimmed.emit(*should_dim);
                 if *should_dim {
-                   background_color.frp.set_state(dynamic_color::State::Dim);
+                   background_color.frp.set_state(component_color::State::Dim);
                  } else {
-                   background_color.frp.set_state(dynamic_color::State::Base);
+                   background_color.frp.set_state(component_color::State::Base);
                  }
             });
 
@@ -378,8 +379,8 @@ impl Node {
 
         let background_color_path    = ensogl_theme::vars::graph_editor::node::background::color;
         let background_color_path    = display::style::Path::from(background_color_path);
-        let background_dynamic_color = dynamic_color::Source::from(background_color_path);
-        background_color.frp.set_source(background_dynamic_color);
+        let background_component_color = component_color::Source::from(background_color_path);
+        background_color.frp.set_source(background_component_color);
 
         model.action_bar.frp.hide_icons.emit(());
 

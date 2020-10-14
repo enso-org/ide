@@ -7,8 +7,8 @@ use ensogl_core::data::color;
 use ensogl_core::display;
 use ensogl_core::display::shape::*;
 use ensogl_core::gui::component::ShapeView;
-use ensogl_shape_utils::dynamic_color::DynamicColor;
-use ensogl_shape_utils::dynamic_color;
+use ensogl_shape_utils::component_color::ComponentColor;
+use ensogl_shape_utils::component_color;
 
 
 // =================
@@ -31,7 +31,7 @@ pub trait ColorableShape : system::Shape {
 ensogl_text::define_endpoints! {
     Input {
         set_visibility (bool),
-        set_base_color (dynamic_color::Source),
+        set_base_color (component_color::Source),
         set_size       (Vector2),
     }
     Output {
@@ -87,9 +87,9 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
         let frp     = &self.frp;
         let model   = &self.model;
 
-        let dynamic_color = DynamicColor::new(&app);
-        let color_frp     = dynamic_color.frp;
-        let icon          = &model.icon.events;
+        let component_color = ComponentColor::new(&app);
+        let color_frp       = component_color.frp;
+        let icon            = &model.icon.events;
 
         frp::extend! { network
 
@@ -107,7 +107,7 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
              frp.source.mouse_out  <+ icon.mouse_out;
 
              eval_ icon.mouse_over ({
-                 color_frp.set_state(dynamic_color::State::Base)
+                 color_frp.set_state(component_color::State::Base)
             });
 
             frp.source.toggle_state <+ icon.mouse_down.toggle();
@@ -116,7 +116,7 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
             // === Color ===
 
             invisible <- frp.set_visibility.gate_not(&frp.set_visibility);
-            eval_ invisible (color_frp.set_state(dynamic_color::State::Transparent ));
+            eval_ invisible (color_frp.set_state(component_color::State::Transparent ));
 
             visible    <- frp.set_visibility.gate(&frp.set_visibility);
             is_hovered <- bool(&icon.mouse_out,&icon.mouse_over);
@@ -125,17 +125,17 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
 
             eval button_state ([color_frp]((visible,hovered,toggle_state)) {
                 match(*visible,*hovered,*toggle_state) {
-                    (false,_,_)        => color_frp.set_state(dynamic_color::State::Transparent ),
-                    (true,true,_)      => color_frp.set_state(dynamic_color::State::Base ),
-                    (true,false,true)  => color_frp.set_state(dynamic_color::State::Base ),
-                    (true,false,false) => color_frp.set_state(dynamic_color::State::Dim ),
+                    (false,_,_)        => color_frp.set_state(component_color::State::Transparent ),
+                    (true,true,_)      => color_frp.set_state(component_color::State::Base ),
+                    (true,false,true)  => color_frp.set_state(component_color::State::Base ),
+                    (true,false,false) => color_frp.set_state(component_color::State::Dim ),
                 }
             });
 
             eval color_frp.color ((color) model.icon.shape.set_color(color.into()));
         }
 
-        color_frp.set_state(dynamic_color::State::Dim);
+        color_frp.set_state(component_color::State::Dim);
 
         self
     }

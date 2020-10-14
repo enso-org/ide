@@ -561,3 +561,24 @@ where Cb : Callback<T> {
         }
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_simulator_vec4() {
+        let start = Vector4::new(0.1,0.0,0.0,0.0);
+        let end   = Vector4::new(1.0,5.0,0.0,0.0);
+
+        let simulation = Simulation::new();
+        simulation.set_value(start);
+        simulation.set_target_value(end);
+
+        simulation.step(0.01);
+        assert_eq!(simulation.value(), Vector4::new(0.01,0.5,0.0,0.0));
+
+
+    }
+}

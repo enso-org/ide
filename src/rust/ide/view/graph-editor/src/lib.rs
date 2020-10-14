@@ -45,7 +45,7 @@ use ensogl::data::color;
 use ensogl::display;
 use ensogl::display::object::Id;
 use ensogl::display::Scene;
-use ensogl::display::shape::primitive::system::StyleWatch;
+use ensogl::display::shape::StyleWatch;
 use ensogl::display::shape::text::text_field::FocusManager;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component::Tween;
