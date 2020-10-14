@@ -20,6 +20,10 @@
     padding: 0;
 }
 
+.dark .docVis {
+    color: #fafafa;
+}
+
 .docVis p {
     display: block;
     margin-block-start: 1em;
@@ -41,6 +45,14 @@
     transition: all 0.3s ease;
 }
 
+.dark .docVis a:hover {
+    color: #438ac4 !important;
+}
+
+.dark .docVis a {
+    color: #fafafa;
+}
+
 .docVis img {
     display: block;
 }
@@ -53,6 +65,10 @@
     line-height: inherit;
     display: inline-block;
     white-space: pre-wrap;
+}
+
+.dark .docVis code {
+    color: #438ac4;
 }
 
 .docVis button {
@@ -72,6 +88,16 @@
 .docVis button:hover {
     background-color: #333333;
     color: #e5e5e5;
+}
+
+.dark .docVis button {
+    border: 1px solid #e5e5e5;
+    color: #e5e5e5;
+}
+
+.dark .docVis button:hover {
+    background-color: #e5e5e5;
+    color: #333333;
 }
 
 .docVis b {
@@ -180,6 +206,29 @@
     color: #999999;
 }
 
+.dark .Tags .DEPRECATED {
+    border: 1px solid #df5555;
+    color: #df5555;
+}
+.dark .Tags .MODIFIED {
+    border: 1px solid #3e69c5;
+    color: #3e69c5;
+}
+.dark .Tags .ADDED {
+    border: 1px solid #90af52;
+    color: #90af52;
+}
+.dark .Tags .UPCOMING,
+.dark .Tags .REMOVED,
+.dark .Tags .UNRECOGNIZED {
+    border: 1px solid #acaaaa;
+    color: #acaaaa;
+}
+
+.ExtForTagDetails {
+    color: #c4c3c3;
+}
+
 .Raw,
 .Important,
 .Info,
@@ -201,6 +250,10 @@
     font-family: "SF Pro Text", "SF Pro Icons", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
     color: #333333;
     font-style: normal;
+}
+
+.dark .Body .Raw {
+    color: #fafafa;
 }
 
 .Important,
@@ -231,6 +284,23 @@
     margin: 10px 20px;
     display: none;
 }
+
+.dark.Important {
+    background-color: #8d8368;
+}
+
+.dark .Info {
+    background-color: #5e7546;
+}
+
+.dark .Example {
+    background-color: #212121;
+}
+
+.dark .CodeBlock {
+    background-color: #2f2f2f;
+}
+
 .CodeBlock code {
     font-family: monospace;
 }
@@ -240,6 +310,7 @@
     padding: 0 5px;
     text-decoration: inherit;
 }
+
 .Def .Synopsis,
 .Def .Body,
 .Def .Tags,
@@ -247,6 +318,7 @@
     padding-left: 0;
     text-decoration: inherit;
 }
+
 .Def .Synopsis {
     margin-top: 10px;
     padding: 0;
@@ -256,6 +328,11 @@
     color: #333333;
     font-style: normal;
 }
+
+.dark .Def .Synopsis {
+    color: #fafafa;
+}
+
 .Def .constr {
     padding: 25px 0 0 0;
     margin: 0;
@@ -311,6 +388,10 @@
     color: #0070c9;
 }
 
+.dark .DefArgs {
+    color: #3e69c5;
+}
+
 .Synopsis,
 .Body {
     margin: 0 auto;
@@ -330,18 +411,13 @@
 }
 .Documentation .ASTData {
     width: 100%;
-    /*background-color: #fafafa;*/
 }
 .Documentation .ASTHead {
     margin: 20px auto 5px;
-    /*background-color: #fafafa;*/
 }
 .Documentation .ASTHead .DefTitle {
     font-size: 34px;
     margin: 0;
-}
-.Documentation .ASTData .ASTHead {
-    /*background-color: #fafafa;*/
 }
 .Documentation .ASTData .ASTHead .DefTitle {
     font-size: large;
@@ -350,6 +426,9 @@
     margin: 0;
     width: 100%;
     background-color: #ffffff;
+}
+.dark .Documentation .Documented {
+    background-color: #212121;
 }
 .Documentation .DefNoBody {
     text-decoration: inherit;
