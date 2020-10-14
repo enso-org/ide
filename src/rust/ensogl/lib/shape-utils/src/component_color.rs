@@ -1,10 +1,10 @@
-//! `ComponentColor` is an FRP based wrapper around colors that can change their state. Updates and
-//! transitions of the color are emitted as FRP events nd make it easy to show animations of color
-//! transitions. `ComponentColor` works both for static colors, as well as colors derived from a
-//! theme.
+//! `ComponentColor` is a thin FRP based wrapper around animated colors that can change their state.
+//! Updates and transitions of the color are emitted as FRP events.
 //!
-//! The `ComponentColor` keeps track of the original color and manages the querying of the style
-//! and thus avoid boiler plate wherever we need to have colors that change between states.
+//! Using the `ComponentColor` instead of the animation directly reduces boilerplate
+//! (for example to keep track of the original color) and make it easy to show pleasant animations
+//! of color transitions. `ComponentColor` works both for static colors, as well as colors derived
+//! from a theme.
 
 use crate::prelude::*;
 
@@ -23,7 +23,7 @@ use ensogl_text;
 // === Constants ===
 // =================
 
-const DEFAULT_COLOR    : color::Rgba = color::Rgba::new(1.0, 0.0, 0.0, 0.5);
+const DEFAULT_COLOR : color::Rgba = color::Rgba::new(1.0, 0.0, 0.0, 0.5);
 
 
 
