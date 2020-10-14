@@ -137,7 +137,7 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
             eval color_frp.color ((color) model.icon.shape.set_color(color.into()));
         }
 
-        color_frp.state(component_color::State::Dim);
+        color_frp.state(component_color::State::Transparent);
 
         self
     }

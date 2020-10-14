@@ -112,7 +112,7 @@ ensogl_text::define_endpoints! {
 
 #[derive(Clone,Debug)]
 struct Model {
-    color_source : RefCell<Source>,
+    color_source : RefCell<Option<Source>>,
     // FIXME[MM] : Replace style watch when #795 is resolved with whatever replaces it.
     styles       : StyleWatch
 }
@@ -125,25 +125,27 @@ impl Model {
     }
 
     fn set_source(&self, source:Source) {
-        self.color_source.replace(source);
+        self.color_source.replace(Some(source));
     }
 
     fn get_base_color(&self) -> color::Lcha {
         match self.color_source.borrow().clone() {
-            Source::Static{color} => color.into(),
-            Source::Theme{path}   => self.styles.get_color(path),
+            Some(Source::Static{color}) => color.into(),
+            Some(Source::Theme{path})   => self.styles.get_color(path),
+            None                        => DEFAULT_COLOR.into()
         }
     }
 
     /// Return the modified version of the base color.
     fn get_color_dim(&self) -> color::Lcha {
         match self.color_source.borrow().clone() {
-            Source::Static{color} => {
+            Some(Source::Static{color}) => {
                 self.styles.make_color_dim(color).into()
             },
-            Source::Theme{path}   => {
+            Some(Source::Theme{path})   => {
                 self.styles.get_color_dim(path)
             },
+            None => DEFAULT_COLOR.into(),
         }
     }
 
@@ -187,9 +189,21 @@ impl ComponentColor {
         let color = Animation::<color::Lcha>::new(&network);
 
         frp::extend! { network
-            color_parameters <- all(frp.input.source,frp.input.state);
-            eval color_parameters ([model,color]((source,state)){
-                model.set_source(source.clone());
+
+            source_update <- frp.input.source.map(f!([model,color](source) {
+                // Init color right away to avoid a "from black" animation on startup.
+                if model.color_source.borrow().is_none() {
+                    model.set_source(source.clone());
+                    color.set_value(model.get_base_color());
+                } else {
+                    // Update source
+                    model.set_source(source.clone());
+                }
+            }));
+
+            color_parameters <- all(source_update,frp.input.state);
+            eval color_parameters ([model,color]((_,state)){
+                // Set up animation
                 let target_color = match *state {
                     State::Base => {
                         model.get_base_color()
@@ -209,7 +223,7 @@ impl ComponentColor {
             });
         }
 
-        frp.state.emit(State::Base);
+        // frp.state.emit(State::Base);
 
         self
     }
