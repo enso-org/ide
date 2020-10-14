@@ -1664,23 +1664,19 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Node Editing ===
 
     frp::extend! { network
-        node_edit_mode           <- out.edited_node.map(|n| n.is_some());
-        edit_mode                <- bool(&inputs.edit_mode_off,&inputs.edit_mode_on);
-        trace edit_mode;
-        node_edited_in_edit_mode <- touch.nodes.selected.gate(&edit_mode);
-        trace node_edited_in_edit_mode;
-        start_editing            <- any(&node_edited_in_edit_mode,&inputs.edit_node);
-         // FIXME: add other cases like node select.
-        stop_editing_by_bg_click <- touch.background.selected.gate(&node_edit_mode);
-        stop_editing             <- any(&stop_editing_by_bg_click,&inputs.stop_editing);
-
-        switched    <- start_editing.gate(&node_edit_mode);
-        edited_node <- out.edited_node.map(|n| n.unwrap_or_default());
+        node_edit_mode        <- out.edited_node.map(|n| n.is_some());
+        edit_mode             <- bool(&inputs.edit_mode_off,&inputs.edit_mode_on);
+        node_to_edit          <- touch.nodes.down.gate(&edit_mode);
+        edit_node             <- any(&node_to_edit,&inputs.edit_node);
+        stop_edit_on_bg_click <- touch.background.selected.gate(&node_edit_mode);
+        stop_edit             <- any(&stop_edit_on_bg_click,&inputs.stop_editing);
+        edit_switch           <- edit_node.gate(&node_edit_mode);
+        edited_node           <- out.edited_node.map(|n| n.unwrap_or_default());
 
         // The "finish" events must be emitted before "start", to properly cover the "switch" case.
-        out.source.node_editing_finished <+ edited_node.sample(&stop_editing);
-        out.source.node_editing_finished <+ edited_node.sample(&switched);
-        out.source.node_editing_started  <+ start_editing;
+        out.source.node_editing_finished <+ edited_node.sample(&stop_edit);
+        out.source.node_editing_finished <+ edited_node.sample(&edit_switch);
+        out.source.node_editing_started  <+ edit_node;
 
         out.source.edited_node <+ out.node_editing_started.map(|n| Some(*n));;
         out.source.edited_node <+ out.node_editing_finished.constant(None);
@@ -1774,20 +1770,21 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         }
     );
 
-    let node_pressed = touch.nodes.selected.clone_ref();
+    node_to_select_non_edit <- touch.nodes.selected.gate_not(&out.node_edit_mode);
+    node_to_select_edit     <- touch.nodes.down.gate(&out.node_edit_mode);
+    node_to_select          <- any(&node_to_select_non_edit,&node_to_select_edit);
+    node_was_selected       <- node_to_select.map(f!((id) model.nodes.selected.contains(id)));
 
-    node_was_selected <- node_pressed.map(f!((id) model.nodes.selected.contains(id)));
-
-    should_select <- node_pressed.map3(&selection_mode,&node_was_selected,
+    should_select <- node_to_select.map3(&selection_mode,&node_was_selected,
         |_,mode,was_selected| mode.single_should_select(*was_selected)
     );
 
-    should_deselect <- node_pressed.map3(&selection_mode,&node_was_selected,
+    should_deselect <- node_to_select.map3(&selection_mode,&node_was_selected,
         |_,mode,was_selected| mode.single_should_deselect(*was_selected)
     );
 
     keep_selection          <- selection_mode.map(|t| *t != SelectionMode::Normal);
-    deselect_on_select      <- node_pressed.gate_not(&keep_selection);
+    deselect_on_select      <- node_to_select.gate_not(&keep_selection);
     deselect_all_nodes      <+ deselect_on_select;
     deselect_all_nodes      <+ inputs.deselect_all_nodes;
 
@@ -1796,8 +1793,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     all_nodes_to_deselect   <= deselect_all_nodes.map(f_!(model.nodes.selected.mem_take()));
     out.source.node_deselected <+ all_nodes_to_deselect;
 
-    node_selected           <- node_pressed.gate(&should_select);
-    node_deselected         <- node_pressed.gate(&should_deselect);
+    node_selected           <- node_to_select.gate(&should_select);
+    node_deselected         <- node_to_select.gate(&should_deselect);
     out.source.node_selected   <+ node_selected;
     out.source.node_deselected <+ node_deselected;
     }
