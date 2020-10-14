@@ -160,8 +160,8 @@ impl Selection {
         let edit_mode      = Rc::new(Cell::new(edit_mode));
         let debug          = false; // Change to true to slow-down movement for debug purposes.
         let spring_factor  = if debug { 0.1 } else { 1.5 };
-        position . update_spring (|spring| spring * spring_factor);
-        width    . update_spring (|spring| spring * spring_factor);
+        position.simulator.update_spring (|spring| spring * spring_factor);
+        width.simulator.update_spring (|spring| spring * spring_factor);
 
         Self {logger,display_object,right_side,shape_view,network,position,width,edit_mode} . init()
     }
@@ -474,7 +474,7 @@ impl Area {
         let pos      = Animation :: <Vector2> :: new(&network);
         let keyboard = &scene.keyboard;
         let m        = &model;
-        pos.update_spring(|spring| spring*2.0);
+        pos.simulator.update_spring(|spring| spring*2.0);
 
         frp::extend! { network
 
