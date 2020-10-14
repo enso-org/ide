@@ -136,7 +136,11 @@ define_theme! { dark
             shadow {
                 color        = color::Lcha::new(0.0,0.0,0.0,0.20);
                 fading_color = color::Lcha::new(0.0,0.0,0.0,0.0);
-                exponent     = 2.0
+                exponent     = 2.0;
+                html {
+                    alpha = 0.16;
+                    size  = 16;
+                }
             }
             text {
                 color = color::Lcha::new(1.0,0.0,0.0,0.7);
@@ -262,7 +266,11 @@ define_default_theme! { light
             shadow {
                 color        = color::Lcha::new(0.0,0.0,0.0,0.20);
                 fading_color = color::Lcha::new(0.0,0.0,0.0,0.0);
-                exponent     = 2.0
+                exponent     = 2.0;
+                html {
+                    alpha = 0.16;
+                    size  = 16;
+                }
             }
             text {
                 color = color::Lcha::new(0.0,0.0,0.0,0.7);

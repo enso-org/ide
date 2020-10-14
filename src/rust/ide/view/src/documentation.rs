@@ -86,15 +86,19 @@ impl ViewModel {
         let bg_color = color::Rgba::from(bg_color);
         let bg_hex   = format!("rgba({},{},{},{})",bg_color.red*255.0,bg_color.green*255.0,bg_color.blue*255.0,bg_color.alpha);
 
-        dom.dom().set_attribute_or_warn("class","scrollable",&logger);
-        dom.dom().set_style_or_warn("white-space"     ,"normal"                      ,&logger);
-        dom.dom().set_style_or_warn("overflow-y"      ,"auto"                        ,&logger);
-        dom.dom().set_style_or_warn("overflow-x"      ,"auto"                        ,&logger);
-        dom.dom().set_style_or_warn("background-color",bg_hex                        ,&logger);
-        dom.dom().set_style_or_warn("padding"         ,format!("{}px",PADDING)       ,&logger);
-        dom.dom().set_style_or_warn("pointer-events"  ,"auto"                        ,&logger);
-        dom.dom().set_style_or_warn("border-radius"   ,format!("{}px",CORNER_RADIUS) ,&logger);
-        dom.dom().set_style_or_warn("box-shadow"      ,"0 0 16px rgba(0, 0, 0, 0.16)",&logger);
+        let shadow_alpha = styles.get_number_or(ensogl_theme::vars::graph_editor::visualization::shadow::html::alpha,0.16);
+        let shadow_size  = styles.get_number_or(ensogl_theme::vars::graph_editor::visualization::shadow::html::size,16);
+        let shadow       = format!("0 0 {}px rgba(0, 0, 0, {})",shadow_size,shadow_alpha);
+
+        dom.dom().set_attribute_or_warn("class"       ,"scrollable"                 ,&logger);
+        dom.dom().set_style_or_warn("white-space"     ,"normal"                     ,&logger);
+        dom.dom().set_style_or_warn("overflow-y"      ,"auto"                       ,&logger);
+        dom.dom().set_style_or_warn("overflow-x"      ,"auto"                       ,&logger);
+        dom.dom().set_style_or_warn("background-color",bg_hex                       ,&logger);
+        dom.dom().set_style_or_warn("padding"         ,format!("{}px",PADDING)      ,&logger);
+        dom.dom().set_style_or_warn("pointer-events"  ,"auto"                       ,&logger);
+        dom.dom().set_style_or_warn("border-radius"   ,format!("{}px",CORNER_RADIUS),&logger);
+        dom.dom().set_style_or_warn("box-shadow"      ,shadow                       ,&logger);
 
         overlay.shape.roundness.set(1.0);
         overlay.shape.radius.set(CORNER_RADIUS);
