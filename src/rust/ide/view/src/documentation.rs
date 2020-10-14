@@ -132,7 +132,7 @@ impl ViewModel {
     }
 
     /// Create a container for generated content and embed it with stylesheet.
-    fn _push_to_dom(&self, content:String) {
+    fn push_to_dom(&self, content:String) {
         let data_str = format!(r#"<div class="docVis">{}{}</div>"#,documentation_style(),content);
         self.dom.dom().set_inner_html(&data_str)
     }
@@ -172,7 +172,7 @@ impl ViewModel {
         let import_css = r#"<link rel="stylesheet" href="style.css" />"#;
         let _html      = html.replace(import_css, "");
 
-        // self.push_to_dom(html);
+        self.push_to_dom(html);
     }
 
     /// Load an HTML file into the documentation view when user is waiting for data to be received.

@@ -9,7 +9,7 @@ tags: [product,ui]
 
 #### The <kbd>meta</kbd> key.
 The <kbd>meta</kbd> key was introduced to make the shortcuts consistent across platforms. 
-It is defined as <kbd>command</kbd> on macOS, and as <kbd>ctlr</kbd> on Windows and Linux.
+It is defined as <kbd>command</kbd> on macOS, and as <kbd>ctrl</kbd> on Windows and Linux.
 
 #### Keyboard-only Workflow
 The GUI and all shortcuts were designed in a way to allow both efficient mouse-only as well as
@@ -61,24 +61,24 @@ further investigation.
 | --- | --- |
 | <kbd>LMB</kbd> click node name                                                       | Deselect all nodes. Select the target node. |
 | <kbd>LMB</kbd> click background                                                      | Deselect all nodes. |
-| <kbd>LMB</kbd> drag background                                                       | Select nodes using selection-box (not working now). |
+| :warning: <kbd>LMB</kbd> drag background                                             | Select nodes using selection-box. |
 | <kbd>shift</kbd> + <kbd>LMB</kbd> click node name                                    | Add / remove node to the selection group. |
-| <kbd>shift</kbd> + <kbd>LMB</kbd> drag background                                    | Add / remove nodes to the selection group (not working now. |
+| :warning: <kbd>shift</kbd> + <kbd>LMB</kbd> drag background                          | Add / remove nodes to the selection group. |
 | :warning: <kbd>*-arrow</kbd>                                                         | Select node on the right side of the newest selected node. |
 | :warning: <kbd>cmd</kbd> + <kbd>a</kbd>                                              | Select all nodes. |
 | :warning: <kbd>escape</kbd>                                                          | Deselect all nodes (if not in a mode, like edit mode). |
 | <kbd>shift</kbd> + <kbd>ctrl</kbd> + <kbd>LMB</kbd> click node name                  | Add node to the selection group. |
-| <kbd>shift</kbd> + <kbd>ctrl</kbd> + <kbd>LMB</kbd> drag background                  | Add nodes to the selection group (not working now. |
+| :warning: <kbd>shift</kbd> + <kbd>ctrl</kbd> + <kbd>LMB</kbd> drag background        | Add nodes to the selection group. |
 | <kbd>shift</kbd> + <kbd>alt</kbd> + <kbd>LMB</kbd> click node name                   | Remove node to the selection group. |
-| <kbd>shift</kbd> + <kbd>alt</kbd> + <kbd>LMB</kbd> drag background                   | Remove nodes to the selection group (not working now. |
+| :warning: <kbd>shift</kbd> + <kbd>alt</kbd> + <kbd>LMB</kbd> drag background         | Remove nodes to the selection group. |
 | <kbd>shift</kbd> + <kbd>ctrl</kbd> + <kbd>alt</kbd> + <kbd>LMB</kbd> click node name | Inverse node selection. |
-| <kbd>shift</kbd> + <kbd>ctrl</kbd> + <kbd>alt</kbd> + <kbd>LMB</kbd> drag background | Inverse nodes selection (not working now. |
+| :warning: <kbd>shift</kbd> + <kbd>ctrl</kbd> + <kbd>alt</kbd> + <kbd>LMB</kbd> drag background | Inverse nodes selection. |
 
 
 #### Node Editing
 | Shortcut | Action |
 | -------- | ------ |
-| <kbd>shift</kbd>+<kbd>tab</kbd>                  | Show / hide node searcher. |
+| <kbd>tab</kbd>                                   | Show / hide node searcher. |
 | <kbd>backspace</kbd>                             | Remove selected nodes. |
 | <kbd>cmd</kbd>+<kbd>g</kbd>                      | Collapse (group) selected nodes. |
 | <kbd>meta</kbd>+<kbd>LMB</kbd>                   | Start editing node expression. |

@@ -220,8 +220,8 @@ impl Manager {
             // === Show / Hide Phantom Ports ===
 
             edit_mode <- all_with(&frp.input.edit_mode,&frp.input.edit_mode_ready,|a,b|*a||*b);
-            eval edit_mode ([frp,model](hidden) {
-                if *hidden {
+            eval edit_mode ([frp,model](edit_mode) {
+                if *edit_mode {
                     model.display_object.remove_child(&model.ports_group)
                 }
                 else {

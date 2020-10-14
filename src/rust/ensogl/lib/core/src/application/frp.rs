@@ -18,7 +18,10 @@
 ///     }
 /// ```
 ///
-/// The following code will be generated:
+/// The code presented below will be generated. Please note that additional fields are added
+/// automatically. In particular, an output `focused(bool)`, and inputs `focus()`, `defocus()`,
+/// and `set_focus(bool)` are always defined and connected. They are mainly used for shortcut
+/// manager to send commands only to focused GUI elements.
 ///
 /// ```compile_fail
 ///     /// Frp network and endpoints.
@@ -320,7 +323,7 @@ macro_rules! define_endpoints {
                 //$(let $out_field : frp::Stream<$($out_field_type)*> = source.$out_field.clone_ref().into();)*
                 $($crate::build_status_map!{status_map $out_field ($($out_field_type)*) $out_field })*
                 $($crate::build_command_map!{command_map $in_field ($($in_field_type)*) input.$in_field })*
-                let status_map = Rc::new(RefCell::new(status_map));
+                let status_map  = Rc::new(RefCell::new(status_map));
                 let command_map = Rc::new(RefCell::new(command_map));
                 Self {source,input,status_map,command_map,$($out_field),*}
             }

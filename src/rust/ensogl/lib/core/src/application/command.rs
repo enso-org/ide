@@ -4,15 +4,15 @@
 use crate::prelude::*;
 use crate::frp;
 
-use super::shortcut;
-use super::shortcut::Shortcut;
-use super::Application;
+use crate::application::shortcut;
+use crate::application::shortcut::Shortcut;
+use crate::application::Application;
 
 
 
-// ================
-// === Provider ===
-// ================
+// ============
+// === View ===
+// ============
 
 /// All view components should deref to their FRP definitions, which should implement
 /// the `CommandApi`. Please note that it is automatically derived if you use the
@@ -121,8 +121,8 @@ pub trait CommandApi : Sized {
 // === ProviderInstance ===
 // ========================
 
-/// Instance of command `Provider`. It contains bindings to all FRP endpoints defined by the
-/// `Provider`. See the docs of `Provider` to learn more.
+/// Generic interface to an instance of a component. It contains bindings to all FRP endpoints
+/// defined by the component (often by using the `define_endpoints!` macro).
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct ProviderInstance {
@@ -149,8 +149,8 @@ impl ProviderInstance {
 // === Registry ===
 // ================
 
-/// A command registry. Allows registering command `Providers` and corresponding
-/// `ProviderInstance`s. See docs of `Provider` to learn more.
+/// A command registry. Allows registering command providers (gui components) and corresponding
+/// `ProviderInstance`s.
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct Registry {
@@ -168,7 +168,7 @@ impl Registry {
         Self {logger,name_map,id_map}
     }
 
-    /// Registers the command `Provider`.
+    /// Registers a gui component as a command provider.
     pub fn register<V:View>(&self) {
         let label  = V::label();
         let exists = self.name_map.borrow().get(label).is_some();
@@ -210,9 +210,9 @@ impl Registry {
         let name = name.as_ref();
         let id   = T::network(target).id();
         match self.id_map.borrow_mut().get(&id) {
-            None => warning!(&self.logger,"The provided component ID is invalid {id}."),
+            None           => warning!(&self.logger,"The provided component ID is invalid {id}."),
             Some(instance) => match instance.command_map.borrow_mut().get_mut(name) {
-                None => warning!(&self.logger,"The command name {name} is invalid."),
+                None          => warning!(&self.logger,"The command name {name} is invalid."),
                 Some(command) => f(command)
             }
         }

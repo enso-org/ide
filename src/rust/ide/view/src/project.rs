@@ -256,7 +256,7 @@ impl application::View for View {
 
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use shortcut::ActionType::*;
-        (&[ (Press   , "shift tab"    , "add_new_node")
+        (&[ (Press   , "tab"          , "add_new_node")
           , (Press   , "escape"       , "abort_node_editing")
           , (Press   , "ctrl shift s" , "toggle_style")
           , (Release , "ctrl shift s" , "toggle_style")
