@@ -211,14 +211,6 @@ define_theme! { dark
                 }
             }
         }
-        colors {
-            default {
-                dimming {
-                    lightness_factor = 0.8;
-                    chroma_factor    = 0.2
-                }
-            }
-        }
     }
     widget {
         list_view {
@@ -242,6 +234,17 @@ define_theme! { dark
                     color = color::Lcha::new(0.7,0.0,0.125,0.7)
                 }
             }
+        }
+    }
+    shadow {
+        color        = color::Lcha::new(0.0,0.0,0.0,0.20);
+        fading_color = color::Lcha::new(0.0,0.0,0.0,0.0);
+        exponent     = 2.0
+    }
+    colors {
+        dimming {
+            lightness_factor = 0.8;
+            chroma_factor    = 0.2
         }
     }
 }
@@ -363,14 +366,6 @@ define_default_theme! { light
                 }
             }
         }
-        colors {
-            default {
-                dimming {
-                    lightness_factor = 1.1;
-                    chroma_factor    = 0.2
-                }
-            }
-        }
     }
     widget {
         list_view {
@@ -394,6 +389,12 @@ define_default_theme! { light
                     color = color::Lcha::new(0.7,0.0,0.125,0.7)
                 }
             }
+        }
+    }
+    colors {
+        dimming {
+            lightness_factor = 1.1;
+            chroma_factor    = 0.2
         }
     }
 }

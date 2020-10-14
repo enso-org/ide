@@ -15,8 +15,8 @@ use crate::display::style;
 // =================
 
 /// Key that is used to look for a dim variant of a color in the theme.
-const THEME_KEY_DIMMED            : &str = " dimmed";
-const VARIANT_PATH_PREFIX         : &str = " variant ";
+const THEME_KEY_DIMMED            : &str = "dimmed";
+const VARIANT_PATH_PREFIX         : &str = "variant";
 const COLOR_LIGHTNESS_FACTOR_PATH : &str = "theme.vars.colors.dimming.lightness_factor";
 const COLOR_CHROMA_FACTOR_PATH    : &str = "theme.vars.colors.dimming.chroma_factor";
 
