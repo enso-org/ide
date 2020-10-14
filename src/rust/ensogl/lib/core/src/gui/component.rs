@@ -189,30 +189,90 @@ impl<T> display::Object for ShapeView<T> {
 
 
 
+// ==================
+// === Animatable ===
+// ==================
+
+/// Trait that needs to be implemented to animate a struct.
+pub trait Animatable<T>: Debug+Clone+Default+'static {
+    /// State vector. For nice animations a continuous change in state space needs to be reflected
+    /// in a continuous state in the `Animatable` struct. (There should be no discontinuities).
+    type State: inertia::Value;
+    /// Create the entity from the given state vector.
+    fn from_state(state:Self::State) -> T;
+    /// Get the state vector for the given entity.
+    fn to_state(entity:T) -> Self::State;
+}
+
+macro_rules! define_self_animatable {
+    ($type:ty ) => {
+        impl Animatable<$type> for $type {
+            type  State = $type;
+
+            fn from_state(state:Self::State) -> $type {
+                state
+            }
+
+            fn to_state(entity:$type) -> Self::State {
+                entity
+            }
+        }
+    }
+}
+
+define_self_animatable!(f32);
+define_self_animatable!(Vector2);
+define_self_animatable!(Vector3);
+define_self_animatable!(Vector4);
+
+
+
 // =================
 // === Animation ===
 // =================
 
 /// Smart animation handler. Contains of dynamic simulation and frp endpoint. Whenever a new value
 /// is computed, it is emitted via the endpoint.
-#[derive(CloneRef,Derivative,Debug,Shrinkwrap)]
+#[derive(CloneRef,Derivative,Debug)]
 #[derivative(Clone(bound=""))]
 #[allow(missing_docs)]
-pub struct Animation<T> {
-    #[shrinkwrap(main_field)]
-    pub simulator : DynSimulator<T>,
+pub struct Animation<T:Animatable<T>> {
+    pub simulator : DynSimulator<T::State>,
     pub value     : frp::Stream<T>,
 }
 
-impl<T:inertia::Value> Animation<T> {
+#[allow(missing_docs)]
+impl<T:Animatable<T>> Animation<T> {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
             def target = source::<T>();
         }
-        let simulator = DynSimulator::<T>::new(Box::new(f!((t) target.emit(t))));
+        let simulator = DynSimulator::<T::State>::new(Box::new(f!((t) target.emit(T::from_state(t)))));
         let value     = target.into();
         Self {simulator,value}
+    }
+
+    pub fn set_value(&self, value:T) {
+        let state = T::to_state(value);
+        self.simulator.set_value(state);
+    }
+
+    pub fn value(&self) -> T {
+        T::from_state(self.simulator.value())
+    }
+
+    pub fn set_target_value(&self, target_value:T) {
+        let state = T::to_state(target_value);
+        self.simulator.set_target_value(state);
+    }
+
+    pub fn skip(&self) {
+        self.simulator.skip();
+    }
+
+    pub fn target_value(&self) -> T {
+        T::from_state(self.simulator.target_value())
     }
 }
 

@@ -367,8 +367,8 @@ impl Cursor {
         radius.set_target_value(DEFAULT_RADIUS);
         size.set_target_value(DEFAULT_SIZE());
 
-        let fade_out_spring = inactive_fade.spring() * 0.2;
-        let fade_in_spring  = inactive_fade.spring();
+        let fade_out_spring = inactive_fade.simulator.spring() * 0.2;
+        let fade_in_spring  = inactive_fade.simulator.spring();
 
         frp::extend! { network
             eval press.value  ((v) model.view.shape.press.set(*v));
@@ -490,10 +490,10 @@ impl Cursor {
             check_fade_time      <- time_since_last_move.gate(&is_not_hosted).gate(&mouse.ever_moved);
             eval check_fade_time ([inactive_fade](time) {
                 if *time > FADE_OUT_TIME {
-                    inactive_fade.set_spring(fade_out_spring);
+                    inactive_fade.simulator.set_spring(fade_out_spring);
                     inactive_fade.set_target_value(0.0)
                 } else {
-                    inactive_fade.set_spring(fade_in_spring);
+                    inactive_fade.simulator.set_spring(fade_in_spring);
                     inactive_fade.set_target_value(1.0)
                 }
             });
