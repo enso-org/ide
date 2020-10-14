@@ -49,8 +49,10 @@ impl Default for Source {
     }
 }
 
-impl From<color::Rgba> for Source {
-    fn from(color:color::Rgba) -> Self {
+impl<C> From<color::Color<C>> for Source
+    where color::Color<C> : Into<color::Rgba> {
+    fn from(color:color::Color<C>) -> Source {
+        let color = color.into();
         Source::Static {color}
     }
 }
