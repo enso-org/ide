@@ -139,7 +139,7 @@ define_theme! { dark
                 exponent     = 2.0;
                 html {
                     alpha = 0.16;
-                    size  = 16;
+                    size  = 16.0
                 }
             }
             text {
@@ -269,7 +269,7 @@ define_default_theme! { light
                 exponent     = 2.0;
                 html {
                     alpha = 0.16;
-                    size  = 16;
+                    size  = 16.0
                 }
             }
             text {
