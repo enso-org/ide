@@ -349,7 +349,6 @@ impl Node {
             // === Color Handling ===
 
             eval background_color.frp.color ([model](color) {
-                println!("BG {:?}", color);
                 model.main_area.shape.bg_color.set(color.into())
             });
 
