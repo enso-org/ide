@@ -276,7 +276,7 @@ impl Integration {
             _action <- editor_outs.visualization_disabled   .map2(&is_hold,visualization_disabled);
             _action <- editor_outs.connection_removed       .map2(&is_hold,connection_removed);
             _action <- editor_outs.node_position_set_batched.map2(&is_hold,node_moved);
-            _action <- editor_outs.edited_node              .map2(&is_hold,node_editing);
+            _action <- editor_outs.node_being_edited        .map2(&is_hold,node_editing);
             _action <- editor_outs.node_expression_set      .map2(&is_hold,node_expression_set);
             _action <- searcher_frp.picked_entry            .map2(&is_hold,suggestion_picked);
             _action <- project_frp.editing_committed        .map2(&is_hold,node_editing_committed);
@@ -852,7 +852,7 @@ impl Model {
             let error          = || MissingSearcherController;
             let searcher       = self.searcher.borrow().clone().ok_or_else(error)?;
             let error          = || GraphEditorInconsistency;
-            let edited_node    = graph_frp.output.edited_node.value().ok_or_else(error)?;
+            let edited_node    = graph_frp.output.node_being_edited.value().ok_or_else(error)?;
             let new_code       = searcher.pick_completion_by_index(*entry)?;
             let code_and_trees = graph_editor::component::node::port::Expression {
                 code             : new_code,

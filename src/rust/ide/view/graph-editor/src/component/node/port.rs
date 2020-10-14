@@ -153,6 +153,7 @@ impl Model {
         let label          = app.new_view::<text::Area>();
         let ports          = default();
 
+        label.single_line(true);
         label.disable_command("cursor_move_up");
         label.disable_command("cursor_move_down");
 
@@ -310,10 +311,8 @@ impl Manager {
                         let highlight = cursor::Style::new_highlight(&port,size,Some(color));
 
                         frp::new_network! { port_network
-                            let edit_mode       = self.frp.edit_mode.clone_ref();
-                            let edit_mode_ready = self.frp.input.edit_mode_ready.clone_ref();
-                            let mouse_over      = port.events.mouse_over.clone_ref();
-                            let mouse_out       = port.events.mouse_out.clone_ref();
+                            let mouse_over = port.events.mouse_over.clone_ref();
+                            let mouse_out  = port.events.mouse_out.clone_ref();
 
 
                             // === Mouse Style ===

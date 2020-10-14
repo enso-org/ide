@@ -14,6 +14,9 @@ use super::Application;
 // === Provider ===
 // ================
 
+/// All view components should deref to their FRP definitions, which should implement
+/// the `CommandApi`. Please note that it is automatically derived if you use the
+/// `define_endpoints!` macro.
 pub trait DerefToCommandApi = Deref where <Self as Deref>::Target : CommandApi;
 
 /// A visual component of an application.
@@ -34,13 +37,20 @@ pub trait View : FrpNetworkProvider + DerefToCommandApi {
 
     /// Add a new shortcut targeting the self object.
     fn self_shortcut
-    (action_type:shortcut::ActionType, pattern:impl Into<String>, command:impl Into<shortcut::Command>) -> Shortcut {
+    ( action_type : shortcut::ActionType
+    , pattern     : impl Into<String>
+    , command     : impl Into<shortcut::Command>
+    ) -> Shortcut {
         Shortcut::new(shortcut::Rule::new(action_type,pattern),Self::label(),command)
     }
 
     /// Add a new shortcut targeting the self object.
     fn self_shortcut_when
-    (action_type:shortcut::ActionType, pattern:impl Into<String>, command:impl Into<shortcut::Command>, condition:impl Into<shortcut::Condition>) -> Shortcut {
+    ( action_type : shortcut::ActionType
+    , pattern     : impl Into<String>
+    , command     : impl Into<shortcut::Command>
+    , condition   : impl Into<shortcut::Condition>
+    ) -> Shortcut {
         Shortcut::new_when(shortcut::Rule::new(action_type,pattern),Self::label(),command,condition)
     }
 
@@ -63,22 +73,25 @@ pub trait FrpNetworkProvider {
 
 
 
-// ======================
-// === API Definition ===
-// ======================
+// ===============
+// === Command ===
+// ===============
 
+/// Abstraction for a command. Includes an frp endpoint which should be called to evaluate the
+/// action and information whether this command was disabled in a particular component view.
 #[derive(Debug)]
+#[allow(missing_docs)]
 pub struct Command {
     pub frp     : frp::Source,
     pub enabled : bool,
 }
 
-// impl Deref for Command {
-//     type Target = frp::Source;
-//     fn deref(&self) -> &Self::Target {
-//         &self.frp
-//     }
-// }
+impl Deref for Command {
+    type Target = frp::Source;
+    fn deref(&self) -> &Self::Target {
+        &self.frp
+    }
+}
 
 impl Command {
     /// Constructor.
@@ -88,6 +101,14 @@ impl Command {
     }
 }
 
+
+
+// ==================
+// === CommandApi ===
+// ==================
+
+/// The API for a command provider. This trait should not be provided manually.
+/// Use the `define_endpoints!` macro to auto-derive it.
 #[allow(missing_docs)]
 pub trait CommandApi : Sized {
     fn command_api(&self) -> Rc<RefCell<HashMap<String,Command>>> { default() }

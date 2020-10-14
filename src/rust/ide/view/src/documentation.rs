@@ -36,6 +36,7 @@ const PADDING         : f32  = 5.0;
 ///             be included in a codebase, so it will be moved to rust-based generator to achieve
 ///             compatibility with IDE's theme manager.
 ///             Expect them to land with https://github.com/enso-org/ide/issues/709
+#[allow(dead_code)] // Invalid warning
 fn documentation_style() -> String {
     format!("<style>{}</style>", include_str!("documentation/style.css"))
 }
@@ -131,7 +132,7 @@ impl ViewModel {
     }
 
     /// Create a container for generated content and embed it with stylesheet.
-    fn push_to_dom(&self, content:String) {
+    fn _push_to_dom(&self, content:String) {
         let data_str = format!(r#"<div class="docVis">{}{}</div>"#,documentation_style(),content);
         self.dom.dom().set_inner_html(&data_str)
     }
@@ -169,7 +170,7 @@ impl ViewModel {
         //              This hack will be removed when https://github.com/enso-org/enso/issues/1063
         //              will land in Engine's repo, also fixing non-existent character bug.
         let import_css = r#"<link rel="stylesheet" href="style.css" />"#;
-        let html       = html.replace(import_css, "");
+        let _html      = html.replace(import_css, "");
 
         // self.push_to_dom(html);
     }

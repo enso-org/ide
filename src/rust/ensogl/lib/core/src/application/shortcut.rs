@@ -68,6 +68,7 @@ pub enum Condition {
     Always,
     Never,
     When (String),
+    Not (Box<Condition>),
     Or  (Box<Condition>, Box<Condition>),
     And (Box<Condition>, Box<Condition>),
 }
@@ -75,6 +76,10 @@ pub enum Condition {
 impl Condition {
     fn when(t:impl Into<String>) -> Self {
         Self::When(t.into())
+    }
+
+    fn not(a:Self) -> Self {
+        Self::Not(Box::new(a))
     }
 
     fn and(a:Self, b:Self) -> Self {
@@ -99,11 +104,18 @@ impl Condition {
 
 impl From<&str> for Condition {
     #[allow(clippy::redundant_closure)] // Rust TC does not agree.
-    fn from(input:&str) -> Self {
-        let input = input.trim();
-        if input.is_empty() { Self::Always } else {
-            Self::split_parse(input,'|',Self::or,|chunk|
-                Self::split_parse(chunk,'&',Self::and,|t|Self::when(t)))
+    fn from(s:&str) -> Self {
+        let s = s.trim();
+        if s.is_empty() { Self::Always } else {
+            Self::split_parse(s,'|',Self::or,|s|
+                Self::split_parse(s,'&',Self::and,|s|{
+                    if s.starts_with('!') {
+                        Self::not(Self::when(s[1..].trim()))
+                    } else {
+                        Self::when(s)
+                    }
+                })
+            )
         }
     }
 }
@@ -285,6 +297,7 @@ impl RegistryModel {
             Always     => true,
             Never      => false,
             When(name) => status.borrow().get(name).map(|t| t.value()).unwrap_or(false),
+            Not(a)     => !Self::condition_checker(a,status),
             Or(a,b)    => Self::condition_checker(a,status) || Self::condition_checker(b,status),
             And(a,b)   => Self::condition_checker(a,status) && Self::condition_checker(b,status),
         }

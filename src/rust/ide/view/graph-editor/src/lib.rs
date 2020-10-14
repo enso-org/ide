@@ -286,57 +286,26 @@ impl<K,V,S> SharedHashMap<K,V,S> {
 
 ensogl::define_endpoints! {
     Input {
+        // === General ===
+        /// Cancel the operation being currently performed. Often mapped to the escape key.
+        cancel(),
+
+
+        // === Node Selection ===
+
         /// Node press event
         node_press(),
         /// Node press event
         node_release(),
-        /// Push a hardcoded breadcrumb without notifying the controller.
-        debug_push_breadcrumb(),
-        /// Pop a breadcrumb without notifying the controller.
-        debug_pop_breadcrumb(),
-        /// Cancel project name editing, restablishing the old name.
-        cancel_project_name_editing(),
-        /// Add a new node and place it in the origin of the workspace.
-        add_node(),
-        /// Add a new node and place it at the mouse cursor position.
-        add_node_at_cursor(),
-        /// Remove all selected nodes from the graph.
-        remove_selected_nodes(),
-        /// Remove all nodes from the graph.
-        remove_all_nodes(),
-        /// Remove all nodes from the graph.
-        collapse_selected_nodes(),
-        /// Toggle the visibility of the selected visualizations.
-        toggle_visualization_visibility(),
-        /// Simulates a visualization open press event. In case the event will be shortly followed by `release_visualization_visibility`, the visualization will be shown permanently. In other case, it will be disabled as soon as the `release_visualization_visibility` is emitted.
-        press_visualization_visibility(),
-        /// Simulates a visualization open double press event. This event toggles the visualization fullscreen mode.
-        double_press_visualization_visibility(),
-        /// Simulates a visualization open release event. See `press_visualization_visibility` to learn more.
-        release_visualization_visibility(),
-        /// Set a test visualization data for the selected nodes. Useful for testing visualizations during their development.
-        debug_set_test_visualization_data_for_selected_node(),
-        /// Cycle the visualization for the selected nodes.
-        cycle_visualization_for_selected_node(),
-        /// Enter the last selected node.
-        enter_selected_node(),
-        /// Steps out of the current node, popping the topmost stack frame from the crumb list.
-        exit_node(),
-        /// Enable mode in which the pressed node will be edited.
-        edit_mode_on(),
-        /// Disable mode in which the pressed node will be edited.
-        edit_mode_off(),
-        /// Stop node editing, whatever node is currently edited.
-        stop_editing(),
-
-
-        /// Enable nodes multi selection mode. It works like inverse mode for single node selection and like merge mode for multi node selection mode.
+        /// Enable nodes multi selection mode. It works like inverse mode for single node selection
+        /// and like merge mode for multi node selection mode.
         enable_node_multi_select(),
-        /// Disable nodes multi selection mode. It works like inverse mode for single node selection and like merge mode for multi node selection mode.
+        /// Disable nodes multi selection mode. It works like inverse mode for single node selection
+        /// and like merge mode for multi node selection mode.
         disable_node_multi_select(),
-        /// Toggle nodes multi selection mode. It works like inverse mode for single node selection and like merge mode for multi node selection mode.
+        /// Toggle nodes multi selection mode. It works like inverse mode for single node selection
+        /// and like merge mode for multi node selection mode.
         toggle_node_multi_select(),
-
 
         /// Enable nodes merge selection mode.
         enable_node_merge_select(),
@@ -345,14 +314,12 @@ ensogl::define_endpoints! {
         /// Toggles nodes merge selection mode.
         toggle_node_merge_select(),
 
-
         /// Enable nodes subtract selection mode.
         enable_node_subtract_select(),
         /// Disable nodes subtract selection mode.
         disable_node_subtract_select(),
         /// Toggle nodes subtract selection mode.
         toggle_node_subtract_select(),
-
 
         /// Enable nodes inverse selection mode.
         enable_node_inverse_select(),
@@ -361,11 +328,65 @@ ensogl::define_endpoints! {
         /// Toggle nodes inverse selection mode.
         toggle_node_inverse_select(),
 
+
+        // === Navigation ===
+
+        /// Enter the last selected node.
+        enter_selected_node(),
+        /// Steps out of the current node, popping the topmost stack frame from the crumb list.
+        exit_node(),
+
+
+        // === Node Editing ===
+
+        /// Add a new node and place it in the origin of the workspace.
+        add_node(),
+        /// Add a new node and place it at the mouse cursor position.
+        add_node_at_cursor(),
+        /// Remove all selected nodes from the graph.
+        remove_selected_nodes(),
+        /// Remove all nodes from the graph.
+        remove_all_nodes(),
+        /// Enable mode in which the pressed node will be edited.
+        edit_mode_on(),
+        /// Disable mode in which the pressed node will be edited.
+        edit_mode_off(),
+        /// Stop node editing, whatever node is currently edited.
+        stop_editing(),
+        /// Remove all nodes from the graph.
+        collapse_selected_nodes(),
+
+
+        // === Visualization ===
+
+        /// Toggle the visibility of the selected visualizations.
+        toggle_visualization_visibility(),
+        /// Simulates a visualization open press event. In case the event will be shortly followed by `release_visualization_visibility`, the visualization will be shown permanently. In other case, it will be disabled as soon as the `release_visualization_visibility` is emitted.
+        press_visualization_visibility(),
+        /// Simulates a visualization open double press event. This event toggles the visualization fullscreen mode.
+        double_press_visualization_visibility(),
+        /// Simulates a visualization open release event. See `press_visualization_visibility` to learn more.
+        release_visualization_visibility(),
+        /// Cycle the visualization for the selected nodes.
+        cycle_visualization_for_selected_node(),
         /// Switches the selected visualisation to/from fullscreen mode.
         toggle_fullscreen_for_selected_visualization(),
 
-        /// Cancel the operation being currently performed. Often mapped to the escape key.
-        cancel(),
+
+        // === Project Management ===
+
+        /// Cancel project name editing, restablishing the old name.
+        cancel_project_name_editing(),
+
+
+        // === Debug ===
+
+        /// Push a hardcoded breadcrumb without notifying the controller.
+        debug_push_breadcrumb(),
+        /// Pop a breadcrumb without notifying the controller.
+        debug_pop_breadcrumb(),
+        /// Set a test visualization data for the selected nodes. Useful for testing visualizations during their development.
+        debug_set_test_visualization_data_for_selected_node(),
 
 
         set_detached_edge_targets    (EdgeTarget),
@@ -397,6 +418,9 @@ ensogl::define_endpoints! {
 
         hover_node_input            (Option<EdgeTarget>),
         hover_node_output           (Option<EdgeTarget>),
+
+        // FIXME[WD]: These FRP endpoints look like output endpoints, but are used in some strange
+        //            cyclic way. To be refactored / removed.
         some_edge_targets_detached  (),
         some_edge_sources_detached  (),
         all_edge_targets_attached   (),
@@ -440,11 +464,8 @@ ensogl::define_endpoints! {
         visualization_enable_fullscreen (NodeId),
         visualization_set_preprocessor  ((NodeId,data::EnsoCode)),
 
-        edited_node (Option<NodeId>),
-        /// Checks whether this graph editor instance is active.
-        is_active(bool),
-        /// Checks whether this graph editor instance is empty.
-        is_empty(bool),
+        node_being_edited (Option<NodeId>),
+        node_editing (bool)
     }
 }
 
@@ -1487,49 +1508,48 @@ impl application::View for GraphEditor {
         use shortcut::ActionType::*;
         (&[
           // === Drag ===
-            (Press   , "left-mouse-button" , "node_press")
-          , (Release , "left-mouse-button" , "node_release")
-          , (Press   , "escape"            , "cancel_project_name_editing")
-          , (Press   , "backspace"         , "remove_selected_nodes")
-          , (Press   , "cmd g"             , "collapse_selected_nodes")
+            (Press   , ""              , "left-mouse-button" , "node_press")
+          , (Release , ""              , "left-mouse-button" , "node_release")
+          , (Press   , "!node_editing" , "escape"            , "cancel_project_name_editing")
+          , (Press   , "!node_editing" , "backspace"         , "remove_selected_nodes")
+          , (Press   , ""              , "cmd g"             , "collapse_selected_nodes")
 
           // === Visualization ===
-          , (Press       , "space" , "press_visualization_visibility")
-          , (DoublePress , "space" , "double_press_visualization_visibility")
-          , (Release     , "space" , "release_visualization_visibility")
+          , (Press       , "!node_editing" , "space" , "press_visualization_visibility")
+          , (DoublePress , "!node_editing" , "space" , "double_press_visualization_visibility")
+          , (Release     , "!node_editing" , "space" , "release_visualization_visibility")
 
           // === Selection ===
-          , (Press   , "shift"          , "toggle_node_multi_select")
-          , (Release , "shift"          , "toggle_node_multi_select")
-          , (Press   , "shift ctrl"     , "toggle_node_merge_select")
-          , (Release , "shift ctrl"     , "toggle_node_merge_select")
-          , (Press   , "shift alt"      , "toggle_node_subtract_select")
-          , (Release , "shift alt"      , "toggle_node_subtract_select")
-          , (Press   , "shift ctrl alt" , "toggle_node_inverse_select")
-          , (Release , "shift ctrl alt" , "toggle_node_inverse_select")
+          , (Press   , "" , "shift"          , "toggle_node_multi_select")
+          , (Release , "" , "shift"          , "toggle_node_multi_select")
+          , (Press   , "" , "shift ctrl"     , "toggle_node_merge_select")
+          , (Release , "" , "shift ctrl"     , "toggle_node_merge_select")
+          , (Press   , "" , "shift alt"      , "toggle_node_subtract_select")
+          , (Release , "" , "shift alt"      , "toggle_node_subtract_select")
+          , (Press   , "" , "shift ctrl alt" , "toggle_node_inverse_select")
+          , (Release , "" , "shift ctrl alt" , "toggle_node_inverse_select")
 
           // === Navigation ===
-          , (Press       , "ctrl space"        , "cycle_visualization_for_selected_node")
-          , (DoublePress , "left-mouse-button" , "enter_selected_node")
-          , (Press       , "enter"             , "enter_selected_node")
-          , (Press       , "alt enter"         , "exit_node")
+          , (Press       , "" , "ctrl space"        , "cycle_visualization_for_selected_node")
+          , (DoublePress , "" , "left-mouse-button" , "enter_selected_node")
+          , (Press       , "" , "enter"             , "enter_selected_node")
+          , (Press       , "" , "alt enter"         , "exit_node")
 
           // === Node Editing ===
-          , (Press   , "cmd"                   , "edit_mode_on")
-          , (Release , "cmd"                   , "edit_mode_off")
-          , (Press   , "cmd enter"             , "edit_selected_node")
-          , (Press   , "cmd left-mouse-button" , "edit_mode_on")
-          , (Release , "cmd left-mouse-button" , "edit_mode_off")
-          , (Release , "enter"                 , "stop_editing")
+          , (Press   , "" , "cmd"                   , "edit_mode_on")
+          , (Release , "" , "cmd"                   , "edit_mode_off")
+          , (Press   , "" , "cmd enter"             , "edit_selected_node")
+          , (Press   , "" , "cmd left-mouse-button" , "edit_mode_on")
+          , (Release , "" , "cmd left-mouse-button" , "edit_mode_off")
+          , (Release , "" , "enter"                 , "stop_editing")
 
           // === Debug ===
-          , (Press , "ctrl d"           , "debug_set_test_visualization_data_for_selected_node")
-          , (Press , "ctrl shift enter" , "debug_push_breadcrumb")
-          , (Press , "ctrl shift up"    , "debug_pop_breadcrumb")
+          , (Press , "debug_mode" , "ctrl d"           , "debug_set_test_visualization_data_for_selected_node")
+          , (Press , "debug_mode" , "ctrl shift enter" , "debug_push_breadcrumb")
+          , (Press , "debug_mode" , "ctrl shift up"    , "debug_pop_breadcrumb")
+          , (Press , "debug_mode" , "ctrl n"           , "add_node_at_cursor")
 
-          // FIXME[WD] We need to add something like that to debug shapes.
-          , // (Press       , "ctrl n"           , "add_node_at_cursor")
-        ]).iter().map(|(a,b,c)|Self::self_shortcut(*a,*b,*c)).collect()
+        ]).iter().map(|(a,b,c,d)|Self::self_shortcut_when(*a,*c,*d,*b)).collect()
 
     }
 }
@@ -1678,22 +1698,23 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Node Editing ===
 
     frp::extend! { network
-        node_edit_mode        <- out.edited_node.map(|n| n.is_some());
+        node_edit_mode        <- out.node_being_edited.map(|n| n.is_some());
         edit_mode             <- bool(&inputs.edit_mode_off,&inputs.edit_mode_on);
         node_to_edit          <- touch.nodes.down.gate(&edit_mode);
         edit_node             <- any(&node_to_edit,&inputs.edit_node);
         stop_edit_on_bg_click <- touch.background.selected.gate(&node_edit_mode);
         stop_edit             <- any(&stop_edit_on_bg_click,&inputs.stop_editing);
         edit_switch           <- edit_node.gate(&node_edit_mode);
-        edited_node           <- out.edited_node.map(|n| n.unwrap_or_default());
+        node_being_edited     <- out.node_being_edited.map(|n| n.unwrap_or_default());
 
         // The "finish" events must be emitted before "start", to properly cover the "switch" case.
-        out.source.node_editing_finished <+ edited_node.sample(&stop_edit);
-        out.source.node_editing_finished <+ edited_node.sample(&edit_switch);
+        out.source.node_editing_finished <+ node_being_edited.sample(&stop_edit);
+        out.source.node_editing_finished <+ node_being_edited.sample(&edit_switch);
         out.source.node_editing_started  <+ edit_node;
 
-        out.source.edited_node <+ out.node_editing_started.map(|n| Some(*n));;
-        out.source.edited_node <+ out.node_editing_finished.constant(None);
+        out.source.node_being_edited <+ out.node_editing_started.map(|n| Some(*n));;
+        out.source.node_being_edited <+ out.node_editing_finished.constant(None);
+        out.source.node_editing      <+ out.node_being_edited.map(|t|t.is_some());
 
         out.source.node_edit_mode <+ node_edit_mode;
 
@@ -2037,7 +2058,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     let node_down      = touch.nodes.down.clone_ref();
     let node_is_down   = touch.nodes.is_down.clone_ref();
-    node_in_edit_mode <- node_down.map2(&out.edited_node,|t,s| Some(*t) == *s);
+    node_in_edit_mode <- node_down.map2(&out.node_being_edited,|t,s| Some(*t) == *s);
     node_was_selected <- node_down.map(f!((id) model.nodes.selected.contains(id)));
     tgts_if_non_sel   <- node_down.map(|id|vec![*id]).gate_not(&node_was_selected);
     tgts_if_sel       <- node_down.map(f_!(model.nodes.selected.items())).gate(&node_was_selected);

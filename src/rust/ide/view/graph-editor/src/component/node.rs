@@ -196,10 +196,7 @@ pub struct NodeModel {
 
 impl NodeModel {
     /// Constructor.
-    pub fn new
-    ( app            : &Application, network:&frp::Network
-    , registry       : visualization::Registry
-    ) -> Self {
+    pub fn new(app:&Application, registry:visualization::Registry) -> Self {
         let scene  = app.display.scene();
         let logger = Logger::new("node");
         edge::sort_hack_1(scene);
@@ -289,15 +286,12 @@ impl NodeModel {
 }
 
 impl Node {
-    pub fn new
-    ( app      : &Application
-    , registry : visualization::Registry
-    ) -> Self {
+    pub fn new(app:&Application, registry:visualization::Registry) -> Self {
         let frp       = Frp::new_network();
         let network   = &frp.network;
         let inputs    = &frp.input;
         let out       = &frp.output;
-        let model     = Rc::new(NodeModel::new(app,network,registry));
+        let model     = Rc::new(NodeModel::new(app,registry));
         let selection = Animation::<f32>::new(network);
 
         frp::extend! { network

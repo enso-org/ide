@@ -9,7 +9,6 @@ use ensogl_core::application::Application;
 use ensogl_core::application::shortcut;
 use ensogl_core::data::color;
 use ensogl_core::display;
-use ensogl_core::display::Scene;
 use ensogl_core::display::shape::*;
 use ensogl_core::gui::component;
 use ensogl_core::gui::component::Animation;

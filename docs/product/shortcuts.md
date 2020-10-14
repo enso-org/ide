@@ -7,17 +7,17 @@ tags: [product,ui]
 
 ## General Assumptions
 
-### The <kbd>meta</kbd> key.
+#### The <kbd>meta</kbd> key.
 The <kbd>meta</kbd> key was introduced to make the shortcuts consistent across platforms. 
 It is defined as <kbd>command</kbd> on macOS, and as <kbd>ctlr</kbd> on Windows and Linux.
 
-### Keyboard-only Workflow
+#### Keyboard-only Workflow
 The GUI and all shortcuts were designed in a way to allow both efficient mouse-only as well as
 keyboard-only workflows. In most cases, there is a relation between mouse and keyboard shortcuts,
 namely, the `left-mouse-button` corresponds to `enter`. For example, stepping into a node is done
 by either double clicking the node, or just pressing the enter key.
 
-### Missing / not working shortcuts
+#### Missing / not working shortcuts
 Some of the shortcuts presented below are marked with the :warning: icon, which means, that they are
 planned, but not yet implemented. Feel free to contribute and help us implement them!
 

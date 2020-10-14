@@ -179,7 +179,7 @@ impl View {
             should_finish_editing <-
                 any(frp.abort_node_editing,searcher.editing_committed,frp.add_new_node);
             eval should_finish_editing ((()) graph.input.stop_editing.emit(()));
-            _eval <- graph.output.edited_node.map2(&searcher.is_visible,
+            _eval <- graph.output.node_being_edited.map2(&searcher.is_visible,
                 f!([model,searcher_left_top_position](edited_node_id,is_visible) {
                     model.update_searcher_view(*edited_node_id,&searcher_left_top_position);
                     if !is_visible {
@@ -188,7 +188,7 @@ impl View {
                     }
                 })
             );
-            _eval <- graph.output.node_position_set.map2(&graph.output.edited_node,
+            _eval <- graph.output.node_position_set.map2(&graph.output.node_being_edited,
                 f!([searcher_left_top_position]((node_id,position),edited_node_id) {
                     if edited_node_id.contains(node_id) {
                         let new = Model::searcher_left_top_position_when_under_node_at(*position);
@@ -200,7 +200,7 @@ impl View {
             let editing_finished         =  graph.output.node_editing_finished.clone_ref();
             frp.source.editing_committed <+ editing_finished.gate(&editing_not_aborted);
             frp.source.editing_aborted   <+ editing_finished.gate(&editing_aborted);
-            editing_aborted              <+ graph.output.edited_node.constant(false);
+            editing_aborted              <+ graph.output.node_being_edited.constant(false);
 
 
             // === Adding New Node ===

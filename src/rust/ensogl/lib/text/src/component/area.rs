@@ -25,11 +25,10 @@ use ensogl_core::display;
 use ensogl_core::gui::component::Animation;
 use ensogl_core::gui::component;
 use ensogl_core::gui::cursor;
-use ensogl_core::gui;
 use ensogl_core::system::gpu::shader::glsl::traits::IntoGlsl;
 use ensogl_core::system::web::clipboard;
 use ensogl_theme;
-
+use std::ops::Not;
 
 
 // =================
@@ -411,6 +410,7 @@ ensogl_core::define_endpoints! {
 
         hover(),
         unhover(),
+        single_line(bool),
         set_hover(bool),
 
         set_cursor            (Location),
@@ -476,6 +476,11 @@ impl Area {
         pos.update_spring(|spring| spring*2.0);
 
         frp::extend! { network
+
+            // === Multi / Single Line ===
+
+            eval input.single_line((t) m.single_line.set(*t));
+
 
             // === Hover ===
 
@@ -665,6 +670,7 @@ pub struct AreaModel {
     display_object : display::object::Instance,
     glyph_system   : glyph::System,
     lines          : Lines,
+    single_line    : Rc<Cell<bool>>,
     selection_map  : Rc<RefCell<SelectionMap>>,
 }
 
@@ -681,6 +687,7 @@ impl AreaModel {
         let display_object = display::object::Instance::new(&logger);
         let buffer         = default();
         let lines          = default();
+        let single_line    = default();
         let camera         = Rc::new(CloneRefCell::new(scene.camera().clone_ref()));
 
         // FIXME[WD]: These settings should be managed wiser. They should be set up during
@@ -698,7 +705,7 @@ impl AreaModel {
         let frp_endpoints = frp_endpoints.clone_ref();
 
         Self {app,logger,display_object,glyph_system,buffer,lines,selection_map,camera
-             ,frp_endpoints}.init()
+             ,single_line,frp_endpoints}.init()
     }
 
     fn on_modified_selection(&self, selections:&buffer::selection::Group, time:f32, do_edit:bool) {
@@ -903,7 +910,7 @@ impl AreaModel {
     fn key_to_string(&self, key:&Key) -> Option<String> {
         match key {
             Key::Character(s) => Some(s.clone()),
-            Key::Enter        => Some("\n".into()),
+            Key::Enter        => self.single_line.get().not().as_some("\n".into()),
             Key::Space        => Some(" ".into()),
             _                 => None
         }
