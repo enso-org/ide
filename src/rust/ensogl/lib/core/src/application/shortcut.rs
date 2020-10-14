@@ -297,29 +297,3 @@ impl Add<Shortcut> for &Registry {
         self.model.shortcuts_registry.add(shortcut.rule.tp,&shortcut.rule.pattern,shortcut.clone());
     }
 }
-
-
-
-// ===============================
-// === DefaultShortcutProvider ===
-// ===============================
-
-// /// Trait allowing providing default set of shortcuts exposed by an object.
-// pub trait DefaultShortcutProvider : command::View {
-//     /// Set of default shortcuts.
-//     fn default_shortcuts() -> Vec<Shortcut> {
-//         default()
-//     }
-//
-//     /// Helper for defining shortcut targeting this object.
-//     fn self_shortcut_when
-//     (action:impl Into<Rule>, command:impl Into<Command>, condition:Condition) -> Shortcut {
-//         Shortcut::new_when(action,Self::label(),command,condition)
-//     }
-//
-//     /// Add a new shortcut targetting the self object.
-//     fn self_shortcut
-//     (action_type:ActionType, pattern:impl Into<String>, command:impl Into<Command>) -> Shortcut {
-//         Shortcut::new(Rule::new(action_type,pattern),Self::label(),command)
-//     }
-// }

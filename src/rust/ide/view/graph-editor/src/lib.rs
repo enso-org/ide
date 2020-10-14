@@ -315,7 +315,7 @@ ensogl::define_endpoints! {
         /// Simulates a visualization open release event. See `press_visualization_visibility` to learn more.
         release_visualization_visibility(),
         /// Set a test visualization data for the selected nodes. Useful for testing visualizations during their development.
-        set_test_visualization_data_for_selected_node(),
+        debug_set_test_visualization_data_for_selected_node(),
         /// Cycle the visualization for the selected nodes.
         cycle_visualization_for_selected_node(),
         /// Enter the last selected node.
@@ -1485,34 +1485,48 @@ impl application::View for GraphEditor {
 
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use shortcut::ActionType::*;
-        (&[ (Press       , "left-mouse-button" , "node_press")
-          , (Release     , "left-mouse-button" , "node_release")
-          , (Press       , "ctrl shift enter"  , "debug_push_breadcrumb")
-          , (Press       , "ctrl shift up"     , "debug_pop_breadcrumb")
-          , (Press       , "escape"            , "cancel_project_name_editing")
-          , (Press       , "ctrl backspace"    , "remove_selected_nodes")
-          , (Press       , "ctrl g"            , "collapse_selected_nodes")
-          , (Press       , "ctrl space"        , "press_visualization_visibility")
-          , (DoublePress , "ctrl space"        , "double_press_visualization_visibility")
-          , (Release     , "ctrl space"        , "release_visualization_visibility")
-          , (Press       , "cmd"               , "toggle_node_multi_select")
-          , (Release     , "cmd"               , "toggle_node_multi_select")
-          , (Press       , "shift"             , "toggle_node_merge_select")
-          , (Release     , "shift"             , "toggle_node_merge_select")
-          , (Press       , "alt"               , "toggle_node_subtract_select")
-          , (Release     , "alt"               , "toggle_node_subtract_select")
-          , (Press       , "shift alt"         , "toggle_node_inverse_select")
-          , (Release     , "shift alt"         , "toggle_node_inverse_select")
-          , (Press       , "ctrl d"            , "set_test_visualization_data_for_selected_node")
-          , (Press       , "ctrl f"            , "cycle_visualization_for_selected_node")
-          , (Release     , "ctrl enter"        , "enter_selected_node")
-          , (Release     , "ctrl up"           , "exit_node")
-          , (Press       , "cmd"               , "edit_mode_on")
-          , (Release     , "cmd"               , "edit_mode_off")
-          , (Release     , "enter"             , "stop_editing")
+        (&[
+          // === Drag ===
+            (Press   , "left-mouse-button" , "node_press")
+          , (Release , "left-mouse-button" , "node_release")
+          , (Press   , "escape"            , "cancel_project_name_editing")
+          , (Press   , "backspace"         , "remove_selected_nodes")
+          , (Press   , "cmd g"             , "collapse_selected_nodes")
 
-          , (Press       , "cmd left-mouse-button" , "edit_mode_on")
-          , (Release     , "cmd left-mouse-button" , "edit_mode_off")
+          // === Visualization ===
+          , (Press       , "space" , "press_visualization_visibility")
+          , (DoublePress , "space" , "double_press_visualization_visibility")
+          , (Release     , "space" , "release_visualization_visibility")
+
+          // === Selection ===
+          , (Press   , "shift"          , "toggle_node_multi_select")
+          , (Release , "shift"          , "toggle_node_multi_select")
+          , (Press   , "shift ctrl"     , "toggle_node_merge_select")
+          , (Release , "shift ctrl"     , "toggle_node_merge_select")
+          , (Press   , "shift alt"      , "toggle_node_subtract_select")
+          , (Release , "shift alt"      , "toggle_node_subtract_select")
+          , (Press   , "shift ctrl alt" , "toggle_node_inverse_select")
+          , (Release , "shift ctrl alt" , "toggle_node_inverse_select")
+
+          // === Navigation ===
+          , (Press       , "ctrl space"        , "cycle_visualization_for_selected_node")
+          , (DoublePress , "left-mouse-button" , "enter_selected_node")
+          , (Press       , "enter"             , "enter_selected_node")
+          , (Press       , "alt enter"         , "exit_node")
+
+          // === Node Editing ===
+          , (Press   , "cmd"                   , "edit_mode_on")
+          , (Release , "cmd"                   , "edit_mode_off")
+          , (Press   , "cmd enter"             , "edit_selected_node")
+          , (Press   , "cmd left-mouse-button" , "edit_mode_on")
+          , (Release , "cmd left-mouse-button" , "edit_mode_off")
+          , (Release , "enter"                 , "stop_editing")
+
+          // === Debug ===
+          , (Press , "ctrl d"           , "debug_set_test_visualization_data_for_selected_node")
+          , (Press , "ctrl shift enter" , "debug_push_breadcrumb")
+          , (Press , "ctrl shift up"    , "debug_pop_breadcrumb")
+
           // FIXME[WD] We need to add something like that to debug shapes.
           , // (Press       , "ctrl n"           , "add_node_at_cursor")
         ]).iter().map(|(a,b,c)|Self::self_shortcut(*a,*b,*c)).collect()
@@ -1770,8 +1784,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         }
     );
 
-    node_to_select_non_edit <- touch.nodes.selected.gate_not(&out.node_edit_mode);
-    node_to_select_edit     <- touch.nodes.down.gate(&out.node_edit_mode);
+    edit_mode               <- bool(&inputs.edit_mode_off,&inputs.edit_mode_on);
+    node_to_select_non_edit <- touch.nodes.selected.gate_not(&edit_mode);
+    node_to_select_edit     <- touch.nodes.down.gate(&edit_mode);
     node_to_select          <- any(&node_to_select_non_edit,&node_to_select_edit);
     node_was_selected       <- node_to_select.map(f!((id) model.nodes.selected.contains(id)));
 
@@ -2208,7 +2223,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // TODO remove this once real data is available.
     let sample_data_generator = MockDataGenerator3D::default();
-    def _set_dumy_data = inputs.set_test_visualization_data_for_selected_node.map(f!([nodes,inputs](_) {
+    def _set_dumy_data = inputs.debug_set_test_visualization_data_for_selected_node.map(f!([nodes,inputs](_) {
         for node_id in &*nodes.selected.raw.borrow() {
             let data    = Rc::new(sample_data_generator.generate_data()); // FIXME: why rc?
             let content = serde_json::to_value(data).unwrap();
@@ -2294,7 +2309,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Entering and Exiting Nodes ===
 
-    node_to_enter        <= inputs.enter_selected_node.map(f_!(model.last_selected_node()));
+    node_to_enter           <= inputs.enter_selected_node.map(f_!(model.last_selected_node()));
     out.source.node_entered <+ node_to_enter;
     out.source.node_exited  <+ inputs.exit_node;
 
