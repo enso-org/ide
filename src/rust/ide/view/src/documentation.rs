@@ -7,9 +7,11 @@ use crate::graph_editor::component::visualization;
 
 use ast::prelude::FallibleResult;
 use enso_frp as frp;
+use ensogl::data::color;
 use ensogl::display;
 use ensogl::display::DomSymbol;
 use ensogl::display::scene::Scene;
+use ensogl::display::shape::primitive::StyleWatch;
 use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
 use ensogl::system::web::AttributeSetter;
@@ -79,15 +81,25 @@ impl ViewModel {
         let size           = Rc::new(Cell::new(Vector2(VIEW_WIDTH,VIEW_HEIGHT)));
         let overlay        = component::ShapeView::<overlay::Shape>::new(&logger,scene);
 
-        dom.dom().set_attribute_or_warn("class","scrollable",&logger);
-        dom.dom().set_style_or_warn("white-space"     ,"normal"                      ,&logger);
-        dom.dom().set_style_or_warn("overflow-y"      ,"auto"                        ,&logger);
-        dom.dom().set_style_or_warn("overflow-x"      ,"auto"                        ,&logger);
-        dom.dom().set_style_or_warn("background-color","#FAF8F4"                     ,&logger);
-        dom.dom().set_style_or_warn("padding"         ,format!("{}px",PADDING)       ,&logger);
-        dom.dom().set_style_or_warn("pointer-events"  ,"auto"                        ,&logger);
-        dom.dom().set_style_or_warn("border-radius"   ,format!("{}px",CORNER_RADIUS) ,&logger);
-        dom.dom().set_style_or_warn("box-shadow"      ,"0 0 16px rgba(0, 0, 0, 0.06)",&logger);
+        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
+        let styles   = StyleWatch::new(&scene.style_sheet);
+        let bg_color = styles.get_color(ensogl_theme::vars::graph_editor::visualization::background::color);
+        let bg_color = color::Rgba::from(bg_color);
+        let bg_hex   = format!("rgba({},{},{},{})",bg_color.red*255.0,bg_color.green*255.0,bg_color.blue*255.0,bg_color.alpha);
+
+        let shadow_alpha = styles.get_number_or(ensogl_theme::vars::graph_editor::visualization::shadow::html::alpha,0.16);
+        let shadow_size  = styles.get_number_or(ensogl_theme::vars::graph_editor::visualization::shadow::html::size,16.0);
+        let shadow       = format!("0 0 {}px rgba(0, 0, 0, {})",shadow_size,shadow_alpha);
+
+        dom.dom().set_attribute_or_warn("class"       ,"scrollable"                 ,&logger);
+        dom.dom().set_style_or_warn("white-space"     ,"normal"                     ,&logger);
+        dom.dom().set_style_or_warn("overflow-y"      ,"auto"                       ,&logger);
+        dom.dom().set_style_or_warn("overflow-x"      ,"auto"                       ,&logger);
+        dom.dom().set_style_or_warn("background-color",bg_hex                       ,&logger);
+        dom.dom().set_style_or_warn("padding"         ,format!("{}px",PADDING)      ,&logger);
+        dom.dom().set_style_or_warn("pointer-events"  ,"auto"                       ,&logger);
+        dom.dom().set_style_or_warn("border-radius"   ,format!("{}px",CORNER_RADIUS),&logger);
+        dom.dom().set_style_or_warn("box-shadow"      ,shadow                       ,&logger);
 
         overlay.shape.roundness.set(1.0);
         overlay.shape.radius.set(CORNER_RADIUS);
@@ -163,64 +175,14 @@ impl ViewModel {
             }
         };
 
-        // FIXME [MM] : Because of how Doc Parser was implemented in Engine repo, there is need to
-        //              remove stylesheet link from generated code, that would otherwise point to
-        //              non-existing file, as now stylesheet is connected by include_str! macro, and
-        //              soon will be replaced by a style generator.
-        //              This hack will be removed when https://github.com/enso-org/enso/issues/1063
-        //              will land in Engine's repo, also fixing non-existent character bug.
-        let import_css = r#"<link rel="stylesheet" href="style.css" />"#;
-        let _html      = html.replace(import_css, "");
-
         self.push_to_dom(html);
     }
 
     /// Load an HTML file into the documentation view when user is waiting for data to be received.
     /// TODO [MM] : This should be replaced with a EnsoGL spinner in the next PR.
     fn load_waiting_screen(&self) {
-        let spinner = r#"
-        <div style="display:flex; width:100%; height:100%">
-        <style>
-        .spinner {
-          width: 100%;
-          text-align: center;
-          align-self: center;
-        }
-
-        .spinner > div {
-          width: 18px;
-          height: 18px;
-          background-color: rgb(50, 48, 47);
-
-          border-radius: 100%;
-          display: inline-block;
-          animation: sk-bouncedelay 1.4s infinite ease-in-out both;
-        }
-
-        .spinner .bounce1 {
-          animation-delay: -0.32s;
-        }
-
-        .spinner .bounce2 {
-          animation-delay: -0.16s;
-        }
-
-        @keyframes sk-bouncedelay {
-          0%, 80%, 100% {
-            transform: scale(0);
-          } 40% {
-            transform: scale(1.0);
-          }
-        }
-        </style>
-        <div class="spinner">
-            <div class="bounce1"></div>
-            <div class="bounce2"></div>
-            <div class="bounce3"></div>
-        </div>
-        </div>
-        "#;
-        self.dom.dom().set_inner_html(&spinner)
+        let spinner = include_str!("documentation/spinner.html");
+        self.push_to_dom(String::from(spinner))
     }
 
     fn reload_style(&self) {
