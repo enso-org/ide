@@ -60,6 +60,7 @@ use ensogl_theme;
 // === Prelude ===
 // ===============
 
+/// Commonly used utilities.
 pub mod prelude {
     pub use ensogl::application::command::View;
     pub use ensogl::prelude::*;
@@ -891,11 +892,11 @@ impl GraphEditorModelWithNetwork {
 
     fn new_node
     ( &self
-    , pointer_style  : &frp::Source<cursor::Style>
-    , output_press   : &frp::Source<EdgeTarget>
-    , input_press    : &frp::Source<EdgeTarget>
-    , expression_set : &frp::Source<(NodeId,String)>
-    , edit_mode_ready         : &frp::Stream<bool>
+    , pointer_style   : &frp::Source<cursor::Style>
+    , output_press    : &frp::Source<EdgeTarget>
+    , input_press     : &frp::Source<EdgeTarget>
+    , expression_set  : &frp::Source<(NodeId,String)>
+    , edit_mode_ready : &frp::Stream<bool>
     ) -> NodeId {
         let view    = component::Node::new(&self.app,self.visualizations.clone_ref());
         let node    = Node::new(view);
@@ -1620,10 +1621,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     let touch          = &model.touch_state;
     let visualizations = &model.visualizations;
     let logger         = &model.logger;
-    let out        = FrpEndpoints::new(&network,inputs.clone_ref());
-
-    // let out        = UnsealedFrpOutputs::new();
-    // let sealed_outputs = out.seal(); // Done here to keep right eval order.
+    let out            = FrpEndpoints::new(&network,inputs.clone_ref());
 
     // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
     let styles             = StyleWatch::new(&scene.style_sheet);
@@ -1921,16 +1919,10 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     output_down <- node_output_touch.down.constant(());
     input_down  <- node_input_touch.down.constant(());
 
-    trace output_down;
-    trace input_down;
-
     has_detached_edge_on_output_down <- has_detached_edge.sample(&inputs.hover_node_output);
 
     port_input_mouse_up  <- inputs.hover_node_input.sample(&mouse.up).unwrap();
     port_output_mouse_up <- inputs.hover_node_output.sample(&mouse.up).unwrap();
-
-    trace port_input_mouse_up;
-    trace port_output_mouse_up;
 
     attach_all_edge_inputs  <- any (port_input_mouse_up, inputs.press_node_input, inputs.set_detached_edge_targets);
     attach_all_edge_outputs <- any (port_output_mouse_up, inputs.press_node_output, inputs.set_detached_edge_sources);

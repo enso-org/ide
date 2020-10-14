@@ -199,6 +199,8 @@ impl Registry {
         self.id_map.borrow_mut().insert(id,instance);
     }
 
+    /// Queries the command map by command name and applies the provided function to the result.
+    /// Emits warnings in case the command could not be found.
     fn with_command_mut<T:View>
     ( &self
     , target : &T
@@ -216,11 +218,13 @@ impl Registry {
         }
     }
 
-    fn disable_command<T:View>(&self, target:&T, name:impl AsRef<str>) {
-        self.with_command_mut(target,name,|command| command.enabled = false)
+    /// Disables the command for the provided component instance.
+    fn disable_command<T:View>(&self, instance:&T, name:impl AsRef<str>) {
+        self.with_command_mut(instance,name,|command| command.enabled = false)
     }
 
-    fn enable_command<T:View>(&self, target:&T, name:impl AsRef<str>) {
-        self.with_command_mut(target,name,|command| command.enabled = true)
+    /// Enables the command for the provided component instance.
+    fn enable_command<T:View>(&self, instance:&T, name:impl AsRef<str>) {
+        self.with_command_mut(instance,name,|command| command.enabled = true)
     }
 }

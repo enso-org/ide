@@ -39,7 +39,7 @@ ensogl::define_endpoints! {
     }
 
     Output {
-        is_shown (bool),
+        is_visible (bool),
     }
 }
 
@@ -78,9 +78,9 @@ impl View {
 
         frp::extend!{ network
             trace frp.input.toggle;
-            let is_shown      =  frp.output.is_shown.clone_ref();
-            show_after_toggle <- frp.toggle.gate_not(&is_shown);
-            hide_after_toggle <- frp.toggle.gate    (&is_shown);
+            let is_visible     =  frp.output.is_visible.clone_ref();
+            show_after_toggle <- frp.toggle.gate_not(&is_visible);
+            hide_after_toggle <- frp.toggle.gate    (&is_visible);
             show              <- any(frp.input.show,show_after_toggle);
             hide              <- any(frp.input.hide,hide_after_toggle);
 
@@ -92,8 +92,8 @@ impl View {
                 model.defocus();
             });
 
-            frp.source.is_shown <+ bool(&frp.input.hide,&frp.input.show);
-            frp.source.is_shown <+ frp.toggle.map2(&is_shown, |(),b| !b);
+            frp.source.is_visible <+ bool(&frp.input.hide,&frp.input.show);
+            frp.source.is_visible <+ frp.toggle.map2(&is_visible, |(),b| !b);
 
             let shape  = app.display.scene().shape();
             position <- all_with(&height_fraction.value,shape, |height_f,scene_size| {

@@ -223,7 +223,7 @@ impl Manager {
             eval edit_mode ([frp,model](hidden) {
                 if *hidden {
                     model.display_object.remove_child(&model.ports_group)
-                    }
+                }
                 else {
                     model.display_object.add_child(&model.ports_group);
                     frp.output.source.hover.emit(&None);
@@ -335,7 +335,7 @@ impl Manager {
                             eval_ mouse_out  (hover_source.emit(&None));
 
 
-                            // === Port / Background Press ===
+                            // === Port Press ===
 
                             let crumbs_down  = crumbs.clone();
                             let press_source = &self.frp.output.source.press;

@@ -100,12 +100,14 @@ impl Condition {
     ) -> Self {
         input.split(separator).map(|t|t.trim()).map(f).fold1(cons).unwrap_or(Self::Never)
     }
-}
 
-impl From<&str> for Condition {
+    /// Parses the provided input expression. The currently recognizable symbols are (sorted by
+    /// precedence - high to low): negations(!), conjunctions (&), alternatives (|), and variables.
+    /// For example, it parses the following expression: "a & b | !c". Parentheses are not supported
+    /// yet.
     #[allow(clippy::redundant_closure)] // Rust TC does not agree.
-    fn from(s:&str) -> Self {
-        let s = s.trim();
+    fn parse(s:impl AsRef<str>) -> Self {
+        let s = s.as_ref().trim();
         if s.is_empty() { Self::Always } else {
             Self::split_parse(s,'|',Self::or,|s|
                 Self::split_parse(s,'&',Self::and,|s|{
@@ -117,6 +119,12 @@ impl From<&str> for Condition {
                 })
             )
         }
+    }
+}
+
+impl From<&str> for Condition {
+    fn from(s:&str) -> Self {
+        Self::parse(s)
     }
 }
 
