@@ -356,9 +356,9 @@ impl Node {
             eval inputs.set_dimmed ([model,background_color](should_dim) {
                 model.ports.frp.set_dimmed.emit(*should_dim);
                 if *should_dim {
-                   background_color.frp.set_state(component_color::State::Dim);
+                   background_color.frp.state(component_color::State::Dim);
                  } else {
-                   background_color.frp.set_state(component_color::State::Base);
+                   background_color.frp.state(component_color::State::Base);
                  }
             });
 
@@ -380,7 +380,7 @@ impl Node {
         let background_color_path    = ensogl_theme::vars::graph_editor::node::background::color;
         let background_color_path    = display::style::Path::from(background_color_path);
         let background_component_color = component_color::Source::from(background_color_path);
-        background_color.frp.set_source(background_component_color);
+        background_color.frp.source(background_component_color);
 
         model.action_bar.frp.hide_icons.emit(());
 

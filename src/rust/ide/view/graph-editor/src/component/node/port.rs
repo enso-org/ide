@@ -191,9 +191,9 @@ impl Manager {
 
             eval set_dimmed ([text_color](should_dim) {
                 if *should_dim {
-                   text_color.frp.set_state(component_color::State::Dim);
+                   text_color.frp.state(component_color::State::Dim);
                  } else {
-                   text_color.frp.set_state(component_color::State::Base);
+                   text_color.frp.state(component_color::State::Base);
                  }
             });
         }
@@ -215,7 +215,7 @@ impl Manager {
         let text_color_path    = theme::vars::graph_editor::node::text::color;
         let text_color_path    = display::style::Path::from(text_color_path);
         let text_dynamic_color = component_color::Source::from(text_color_path);
-        text_color.frp.set_source(text_dynamic_color);
+        text_color.frp.source(text_dynamic_color);
 
         label.set_default_text_size(text::Size(12.0));
         label.remove_all_cursors();

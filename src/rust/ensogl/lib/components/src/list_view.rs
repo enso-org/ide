@@ -452,12 +452,12 @@ impl application::shortcut::DefaultShortcutProvider for ListView {
     fn default_shortcuts() -> Vec<shortcut::Shortcut> {
         use shortcut::ActionType::*;
         (&[ (Press, "up"        , "move_selection_up")
-            , (Press, "down"      , "move_selection_down")
-            , (Press, "page-up"   , "move_selection_page_up")
-            , (Press, "page-down" , "move_selection_page_down")
-            , (Press, "home"      , "move_selection_to_first")
-            , (Press, "end"       , "move_selection_to_last")
-            , (Press, "enter"     , "chose_selected_entry")
+          , (Press, "down"      , "move_selection_down")
+          , (Press, "page-up"   , "move_selection_page_up")
+          , (Press, "page-down" , "move_selection_page_down")
+          , (Press, "home"      , "move_selection_to_first")
+          , (Press, "end"       , "move_selection_to_last")
+          , (Press, "enter"     , "chose_selected_entry")
         ]).iter().map(|(a,b,c)|Self::self_shortcut(*a,*b,*c)).collect()
     }
 }

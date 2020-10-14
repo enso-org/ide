@@ -16,6 +16,7 @@ use crate::display::style;
 
 /// Key that is used to look for a dim variant of a color in the theme.
 const THEME_KEY_DIMMED            : &str = " dimmed";
+const VARIANT_PATH_PREFIX         : &str = " variant ";
 const COLOR_LIGHTNESS_FACTOR_PATH : &str = "theme.vars.colors.dimming.lightness_factor";
 const COLOR_CHROMA_FACTOR_PATH    : &str = "theme.vars.colors.dimming.chroma_factor";
 
@@ -116,12 +117,13 @@ impl StyleWatch {
         color.into()
     }
 
-    /// Return the path where we look for variant colors in the theme.
+    /// Return the path where we look for alternative shades or scheme variants of a color in the
+    /// theme (for example, "dimmed").
     fn color_variant_path(path:Path, extension:String) -> Path {
         let segments_rev = path.rev_segments;
         let mut segments = segments_rev.into_iter().rev().collect_vec();
         segments.pop();
-        segments.push(" variant ".to_string());
+        segments.push(VARIANT_PATH_PREFIX.to_string());
         segments.push(extension);
         Path::from_segments(segments)
     }

@@ -1,7 +1,10 @@
-//! `DynamicColor` is a FRP based wrapper around colors that can change their state. Updates and
+//! `ComponentColor` is an FRP based wrapper around colors that can change their state. Updates and
 //! transitions of the color are emitted as FRP events nd make it easy to show animations of color
-//! transitions. `DynamicColor` works both for static colors, as well as colors derived from a
+//! transitions. `ComponentColor` works both for static colors, as well as colors derived from a
 //! theme.
+//!
+//! The `ComponentColor` keeps track of the original color and manages the querying of the style
+//! and thus avoid boiler plate wherever we need to have colors that change between states.
 
 use crate::prelude::*;
 
@@ -34,10 +37,10 @@ const DEFAULT_COLOR    : color::Rgba = color::Rgba::new(1.0, 0.0, 0.0, 0.5);
 #[allow(missing_docs)]
 pub enum Source {
     /// A constant color value.
-    Static { color : color::Rgba},
+    Static { color : color::Rgba },
     /// A color derived from the current theme.
     /// Should update automatically once #795 is resolved.
-    Theme  { path  : Path}
+    Theme  { path  : Path }
 }
 
 impl Default for Source {
@@ -66,7 +69,7 @@ impl From<Path> for Source {
 
 /// Indicates which state of the color should be displayed.
 ///
-/// Note: ca be extended with new states in the future, for example, "Highlight" or "Achromatic"
+/// Note: Can be extended with new states in the future, for example, "Highlight" or "Achromatic".
 #[derive(Clone,Copy,Debug)]
 pub enum State {
     /// The default color state.
@@ -89,14 +92,13 @@ impl Default for State {
 // === Frp ===
 // ===========
 
-
 ensogl_text::define_endpoints! {
     Input {
-        set_source (Source),
-        set_state  (State),
+        source (Source),
+        state  (State),
     }
     Output {
-        color      (color::Rgba),
+        color  (color::Rgba),
     }
 }
 
@@ -108,16 +110,16 @@ ensogl_text::define_endpoints! {
 
 #[derive(Clone,Debug)]
 struct Model {
-    color_source:  RefCell<Source>,
-    // FIXME : Replace style watch when #795 is resolved with whatever replaces it.
+    color_source : RefCell<Source>,
+    // FIXME[MM] : Replace style watch when #795 is resolved with whatever replaces it.
     styles       : StyleWatch
 }
 
 impl Model {
     fn new(app:&Application) -> Self {
-        let color_path  = default();
-        let styles      = StyleWatch::new(&app.display.scene().style_sheet);
-        Self{ color_source: color_path,styles}
+        let color_source = default();
+        let styles       = StyleWatch::new(&app.display.scene().style_sheet);
+        Self{color_source,styles}
     }
 
     fn set_source(&self, source:Source) {
@@ -144,7 +146,7 @@ impl Model {
     }
 
     fn get_color_transparent(&self) -> color::Lcha {
-        let mut base = self.get_base_color();
+        let mut base    = self.get_base_color();
         base.data.alpha = 0.0;
         base
     }
@@ -181,8 +183,9 @@ impl ComponentColor {
         let model   = &self.model;
 
         let color = Animation::<color::Lcha>::new(&network);
+
         frp::extend! { network
-            color_parameters <- all(frp.set_source,frp.set_state);
+            color_parameters <- all(frp.input.source,frp.input.state);
             eval color_parameters ([model,color]((source,state)){
                 model.set_source(source.clone());
                 let target_color = match *state {
@@ -204,7 +207,7 @@ impl ComponentColor {
             });
         }
 
-        frp.set_state(State::Base);
+        frp.state.emit(State::Base);
 
         self
     }

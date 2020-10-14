@@ -11,6 +11,7 @@ use ensogl_shape_utils::component_color::ComponentColor;
 use ensogl_shape_utils::component_color;
 
 
+
 // =================
 // === Colorable ===
 // =================
@@ -40,6 +41,7 @@ ensogl_text::define_endpoints! {
         mouse_out    (),
     }
 }
+
 
 
 // =============
@@ -96,7 +98,7 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
 
              // === Input Processing ===
 
-            eval frp.set_base_color ((color_source) color_frp.set_source(color_source.clone()) );
+            eval frp.set_base_color ((color_source) color_frp.source(color_source.clone()) );
             eval frp.set_size ((size) {
                 model.icon.shape.sprites().iter().for_each(|sprite| sprite.size.set(*size))
             });
@@ -107,7 +109,7 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
              frp.source.mouse_out  <+ icon.mouse_out;
 
              eval_ icon.mouse_over ({
-                 color_frp.set_state(component_color::State::Base)
+                 color_frp.state(component_color::State::Base)
             });
 
             frp.source.toggle_state <+ icon.mouse_down.toggle();
@@ -116,7 +118,7 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
             // === Color ===
 
             invisible <- frp.set_visibility.gate_not(&frp.set_visibility);
-            eval_ invisible (color_frp.set_state(component_color::State::Transparent ));
+            eval_ invisible (color_frp.state(component_color::State::Transparent ));
 
             visible    <- frp.set_visibility.gate(&frp.set_visibility);
             is_hovered <- bool(&icon.mouse_out,&icon.mouse_over);
@@ -125,17 +127,17 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
 
             eval button_state ([color_frp]((visible,hovered,toggle_state)) {
                 match(*visible,*hovered,*toggle_state) {
-                    (false,_,_)        => color_frp.set_state(component_color::State::Transparent ),
-                    (true,true,_)      => color_frp.set_state(component_color::State::Base ),
-                    (true,false,true)  => color_frp.set_state(component_color::State::Base ),
-                    (true,false,false) => color_frp.set_state(component_color::State::Dim ),
+                    (false,_,_)        => color_frp.state(component_color::State::Transparent ),
+                    (true,true,_)      => color_frp.state(component_color::State::Base ),
+                    (true,false,true)  => color_frp.state(component_color::State::Base ),
+                    (true,false,false) => color_frp.state(component_color::State::Dim ),
                 }
             });
 
             eval color_frp.color ((color) model.icon.shape.set_color(color.into()));
         }
 
-        color_frp.set_state(component_color::State::Dim);
+        color_frp.state(component_color::State::Dim);
 
         self
     }

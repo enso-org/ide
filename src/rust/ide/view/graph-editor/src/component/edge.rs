@@ -1209,13 +1209,13 @@ impl Edge {
             edge_color_source <- input.set_color.map(|&color| {
                 component_color::Source::Static{color}
             });
-            eval edge_color_source ((source) edge_color.frp.set_source(source.clone()));
+            eval edge_color_source ((source) edge_color.frp.source(source.clone()));
 
             eval input.set_dimmed ([edge_color](should_dim) {
                 if *should_dim {
-                   edge_color.frp.set_state(component_color::State::Dim);
+                   edge_color.frp.state(component_color::State::Dim);
                  } else {
-                   edge_color.frp.set_state(component_color::State::Base);
+                   edge_color.frp.state(component_color::State::Base);
                  }
             });
 
