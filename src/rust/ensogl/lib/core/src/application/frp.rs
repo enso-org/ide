@@ -258,7 +258,7 @@ macro_rules! define_endpoints {
             pub input         : FrpInputs,
             pub(crate) source : FrpOutputsSource,
             pub status_map    : Rc<RefCell<HashMap<String,frp::Sampler<bool>>>>,
-            pub command_map   : Rc<RefCell<HashMap<String,frp::Source<()>>>>,
+            pub command_map   : Rc<RefCell<HashMap<String,$crate::application::command::Command>>>,
             $($(#[doc=$($out_doc)*])* pub $out_field  : frp::Sampler<$($out_field_type)*>),*
         }
 
@@ -272,9 +272,10 @@ macro_rules! define_endpoints {
         impl FrpEndpoints {
             /// Constructor.
             pub fn new(network:&frp::Network, input:FrpInputs) -> Self {
+                use $crate::application::command::*;
                 let source = FrpOutputsSource::new(network);
                 let mut status_map  : HashMap<String,frp::Sampler<bool>> = default();
-                let mut command_map : HashMap<String,frp::Source<()>> = default();
+                let mut command_map : HashMap<String,Command> = default();
                 frp::extend! { network
                     $($out_field <- source.$out_field.sampler();)*
                     focus_events   <- bool(&input.defocus,&input.focus);
@@ -307,7 +308,7 @@ macro_rules! define_endpoints {
         }
 
         impl $crate::application::command::CommandApi for Frp {
-            fn command_api(&self) -> Rc<RefCell<HashMap<String,frp::Source<()>>>> {
+            fn command_api(&self) -> Rc<RefCell<HashMap<String,$crate::application::command::Command>>> {
                 self.command_map.clone()
             }
 
@@ -331,7 +332,7 @@ macro_rules! build_status_map {
 #[macro_export]
 macro_rules! build_command_map {
     ($map:ident $field:ident () $frp:expr) => {
-        $map.insert(stringify!($field).into(),$frp.clone_ref());
+        $map.insert(stringify!($field).into(),Command::new($frp.clone_ref()));
     };
     ($($ts:tt)*) => {}
 }

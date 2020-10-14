@@ -54,7 +54,16 @@ use ensogl::prelude::*;
 use ensogl::system::web;
 use ensogl_theme;
 
-pub use ensogl::prelude;
+
+
+// ===============
+// === Prelude ===
+// ===============
+
+pub mod prelude {
+    pub use ensogl::application::command::View;
+    pub use ensogl::prelude::*;
+}
 
 
 
@@ -1468,6 +1477,10 @@ impl application::View for GraphEditor {
 
     fn new(app:&Application) -> Self {
         new_graph_editor(app)
+    }
+
+    fn app(&self) -> &Application {
+        &self.model.app
     }
 
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {

@@ -42,27 +42,6 @@ pub const RECORD_SEPARATOR : &str = "\x1E";
 
 
 
-// ==================
-// === Background ===
-// ==================
-
-// FIXME[WD]: Commented for now. We need to consider how to handle background with active state.
-// This should be resolved together with the https://github.com/enso-org/ide/issues/670 PR.
-
-// /// Canvas node shape definition.
-// pub mod background {
-//     use super::*;
-//
-//     ensogl::define_shape_system! {
-//         (style:Style, selection:f32) {
-//             let out = Rect((1000.px(),1000.px())).fill(color::Rgba::new(1.0,1.0,1.0,0.05));
-//             out.into()
-//         }
-//     }
-// }
-
-
-
 // ==============
 // === Cursor ===
 // ==============
@@ -465,7 +444,7 @@ pub const LINE_HEIGHT : f32 = 14.0;
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Area {
-    data    : AreaData,
+    data    : AreaModel,
     pub frp : Frp,
 }
 
@@ -480,18 +459,19 @@ impl Area {
     /// Constructor.
     pub fn new(app:&Application) -> Self {
         let frp  = Frp::new_network();
-        let data = AreaData::new(app,&frp.output);
+        let data = AreaModel::new(app,&frp.output);
         Self {data,frp} . init()
     }
 
     fn init(self) -> Self {
         let network  = &self.frp.network;
         let model    = &self.data;
-        let mouse    = &model.scene.mouse.frp;
+        let scene    = model.app.display.scene();
+        let mouse    = &scene.mouse.frp;
         let input    = &self.frp.input;
         let out      = &self.frp.output;
         let pos      = Animation :: <Vector2> :: new(&network);
-        let keyboard = &model.scene.keyboard;
+        let keyboard = &scene.keyboard;
         let m        = &model;
         pos.update_spring(|spring| spring*2.0);
 
@@ -526,14 +506,14 @@ impl Area {
             eval loc_on_add_cursor ((loc) m.buffer.frp.add_cursor(loc));
 
             _eval <- m.buffer.frp.selection_edit_mode.map2
-                (&m.scene.frp.frame_time,f!([m](selections,time) {
+                (&scene.frp.frame_time,f!([m](selections,time) {
                         m.redraw(); // FIXME: added for undo redo. Should not be needed.
                         m.on_modified_selection(selections,*time,true)
                     }
             ));
 
             _eval <- m.buffer.frp.selection_non_edit_mode.map2
-                (&m.scene.frp.frame_time,f!([m](selections,time) {
+                (&scene.frp.frame_time,f!([m](selections,time) {
                     m.redraw(); // FIXME: added for undo redo. Should not be needed.
                     m.on_modified_selection(selections,*time,false)
                 }
@@ -659,7 +639,7 @@ impl Area {
 
     fn symbols(&self) -> SmallVec<[display::Symbol;1]> {
         let text_symbol       = self.data.glyph_system.sprite_system().symbol.clone_ref();
-        let selection_system  = self.data.scene.shapes.shape_system(PhantomData::<selection::Shape>);
+        let selection_system  = self.data.app.display.scene().shapes.shape_system(PhantomData::<selection::Shape>);
         let _selection_symbol = selection_system.shape_system.symbol.clone_ref();
         //TODO[ao] we cannot move selection symbol, as it is global for all the text areas.
         SmallVec::from_buf([text_symbol,/*selection_symbol*/])
@@ -668,14 +648,14 @@ impl Area {
 
 
 
-// ================
-// === AreaData ===
-// ================
+// =================
+// === AreaModel ===
+// =================
 
 /// Internal representation of `Area`.
 #[derive(Clone,CloneRef,Debug)]
-pub struct AreaData {
-    scene          : Scene,
+pub struct AreaModel {
+    app            : Application,
     // FIXME[ao]: this is a temporary solution to handle properly areas in different views. Should
     //            be replaced with proper object management.
     camera         : Rc<CloneRefCell<display::camera::Camera2d>>,
@@ -686,33 +666,21 @@ pub struct AreaData {
     glyph_system   : glyph::System,
     lines          : Lines,
     selection_map  : Rc<RefCell<SelectionMap>>,
-    // FIXME[WD]: Commented for now. We need to consider how to handle background with active state.
-    // This should be resolved together with the https://github.com/enso-org/ide/issues/670 PR.
-    //background     : component::ShapeView<background::Shape>,
 }
 
-impl AreaData {
+impl AreaModel {
     /// Constructor.
     pub fn new(app:&Application, frp_endpoints:&FrpEndpoints) -> Self {
-        let scene         = app.display.scene().clone_ref();
-        let logger        = Logger::new("text_area");
-        let selection_map = default();
-
-        // FIXME[WD]: Commented for now. We need to consider how to handle background with active state.
-        // This should be resolved together with the https://github.com/enso-org/ide/issues/670 PR.
-        // let background     = component::ShapeView::<background::Shape>::new(&bg_logger,&scene);
-        // display_object.add_child(&background);
-        // background.shape.sprite.size.set(Vector2(150.0,100.0));
-        // background.mod_position(|p| p.x += 50.0);
-
+        let app            = app.clone_ref();
+        let scene          = app.display.scene();
+        let logger         = Logger::new("text_area");
+        let selection_map  = default();
         let fonts          = scene.extension::<typeface::font::Registry>();
         let font           = fonts.load("DejaVuSansMono");
         let glyph_system   = typeface::glyph::System::new(&scene,font);
         let display_object = display::object::Instance::new(&logger);
         let buffer         = default();
         let lines          = default();
-        // let frp_inputs     = FrpInputs::new(network);
-        // let frp_endpoints  = FrpEndpoints::new(&network,frp_inputs.clone_ref());
         let camera         = Rc::new(CloneRefCell::new(scene.camera().clone_ref()));
 
         // FIXME[WD]: These settings should be managed wiser. They should be set up during
@@ -729,7 +697,7 @@ impl AreaData {
 
         let frp_endpoints = frp_endpoints.clone_ref();
 
-        Self {scene,logger,display_object,glyph_system,buffer,lines,selection_map,camera
+        Self {app,logger,display_object,glyph_system,buffer,lines,selection_map,camera
              ,frp_endpoints}.init()
     }
 
@@ -768,7 +736,7 @@ impl AreaData {
                         selection
                     }
                     None => {
-                        let selection = Selection::new(&logger,&self.scene,do_edit);
+                        let selection = Selection::new(&logger,&self.app.display.scene(),do_edit);
                         selection.shape.letter_width.set(7.0); // FIXME hardcoded values
                         self.add_child(&selection);
                         selection.position.set_target_value(pos);
@@ -804,7 +772,7 @@ impl AreaData {
         let origin_clip_space  = camera.view_projection_matrix() * origin_world_space;
         let inv_object_matrix  = self.transform_matrix().try_inverse().unwrap();
 
-        let shape        = self.scene.frp.shape.value();
+        let shape        = self.app.display.scene().frp.shape.value();
         let clip_space_z = origin_clip_space.z;
         let clip_space_x = origin_clip_space.w * 2.0 * screen_pos.x / shape.width;
         let clip_space_y = origin_clip_space.w * 2.0 * screen_pos.y / shape.height;
@@ -942,7 +910,7 @@ impl AreaData {
     }
 }
 
-impl display::Object for AreaData {
+impl display::Object for AreaModel {
     fn display_object(&self) -> &display::object::Instance {
         &self.display_object
     }
@@ -960,12 +928,6 @@ impl application::command::FrpNetworkProvider for Area {
     }
 }
 
-
-// FIXME[WD]: Some of the shortcuts are commented out and some are assigned to strange key bindings
-//            because the shortcut manager is broken. To be fixed after fixing the shortcut manager.
-//            Moreover, the lines should fit 100 chars after introducing the new cmd engine.
-//            Should be resolved as part of https://github.com/enso-org/ide/issues/713
-
 impl application::View for Area {
     fn label() -> &'static str {
         "TextArea"
@@ -973,6 +935,10 @@ impl application::View for Area {
 
     fn new(app:&Application) -> Self {
         Area::new(app)
+    }
+
+    fn app(&self) -> &Application {
+        &self.data.app
     }
 
     fn default_shortcuts() -> Vec<shortcut::Shortcut> {
@@ -1008,12 +974,7 @@ impl application::View for Area {
           , (Press       , "cmd a"                   , "select_all")
           , (Press       , "cmd c"                   , "copy")
           , (Press       , "cmd v"                   , "paste")
-//        , Self::self_shortcut(Press   (&[Key::Escape]                          , shortcut::Pattern::Any) , "keep_oldest_cursor_only"),
-//        , Self::self_shortcut(Press   (shortcut::Pattern::Any,&[])                                       , "insert_char_of_last_pressed_key"),
-//        , Self::self_shortcut(Release (&[Key::Meta,Key::Character("z".into())],&[])                      , "undo"),
-//        , Self::self_shortcut(Release (&[Key::Meta,Key::Character("y".into())],&[])                      , "redo"),
-//        , Self::self_shortcut(Release (&[Key::Meta,Key::Shift,Key::Character("z".into())],&[])           , "redo"),
-//        , Self::self_shortcut(Press   (&[Key::Escape]                          , shortcut::Pattern::Any) , "undo"),
+          , (Press       , "escape"                  , "keep_oldest_cursor_only")
           ]).iter().map(|(action,rule,command)| {
               let only_hovered = *action != Release && rule.contains("left-mouse-button");
               let condition = if only_hovered { "focused & hovered" } else { "focused" };

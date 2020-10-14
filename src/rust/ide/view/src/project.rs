@@ -250,6 +250,10 @@ impl application::View for View {
 
     fn new(app:&Application) -> Self { View::new(app) }
 
+    fn app(&self) -> &Application {
+        &self.model.app
+    }
+
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use shortcut::ActionType::*;
         (&[ (Press   , "shift tab"    , "add_new_node")

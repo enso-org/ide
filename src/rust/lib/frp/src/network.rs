@@ -8,6 +8,16 @@ use crate::debug;
 
 
 
+// ==========
+// === Id ===
+// ==========
+
+/// Globally unique identifier of an frp network.
+#[derive(Clone,CloneRef,Copy,Debug,Default,Display,Eq,From,Hash,Into,PartialEq)]
+pub struct NetworkId(usize);
+
+
+
 // ===============
 // === Network ===
 // ===============
@@ -71,6 +81,11 @@ impl Network {
         WeakNetwork {data:Rc::downgrade(&self.data)}
     }
 
+    /// ID getter of this network.
+    pub fn id(&self) -> NetworkId {
+        self.downgrade().id()
+    }
+
     /// Register the node and return it's weak reference.
     pub fn register_raw<T:HasOutputStatic>(&self, node:stream::Node<T>) -> stream::WeakNode<T> {
         let weak = node.downgrade();
@@ -111,6 +126,11 @@ impl WeakNetwork {
     /// Upgrade to strong reference.
     pub fn upgrade(&self) -> Option<Network> {
         self.data.upgrade().map(|data| Network {data})
+    }
+
+    /// ID getter of this network.
+    pub fn id(&self) -> NetworkId {
+        NetworkId(self.data.as_raw() as *const() as usize)
     }
 }
 

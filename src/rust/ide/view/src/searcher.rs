@@ -85,6 +85,7 @@ impl<T:DocumentationProvider + 'static> From<Rc<T>> for AnyDocumentationProvider
 
 #[derive(Clone,CloneRef,Debug)]
 struct Model {
+    app            : Application,
     logger         : Logger,
     display_object : display::object::Instance,
     list           : ListView,
@@ -94,6 +95,7 @@ struct Model {
 
 impl Model {
     fn new(app:&Application) -> Self {
+        let app            = app.clone_ref();
         let logger         = Logger::new("SearcherView");
         let scene          = app.display.scene();
         let display_object = display::object::Instance::new(&logger);
@@ -104,7 +106,7 @@ impl Model {
         display_object.add_child(&list);
         list.set_position_x(SUGGESTION_LIST_X);
         documentation.set_position_x(DOCUMENTATION_X);
-        Self{logger,display_object,list,documentation,doc_provider}
+        Self{app,logger,display_object,list,documentation,doc_provider}
     }
 
     fn documentation_for_entry(&self, id:Option<entry::Id>) -> String {
@@ -249,6 +251,10 @@ impl application::View for View {
     fn label() -> &'static str { "Searcher" }
 
     fn new(app: &Application) -> Self { Self::new(app) }
+    fn app(&self) -> &Application {
+        &self.model.app
+    }
+
     fn default_shortcuts() -> Vec<shortcut::Shortcut> {
         use shortcut::ActionType::*;
         (&[ (Press , "tab" , "pick_suggestion"),

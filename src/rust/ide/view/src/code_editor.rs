@@ -125,6 +125,10 @@ impl application::View for View {
 
     fn new(app: &Application) -> Self { Self::new(app) }
 
+    fn app(&self) -> &Application {
+        &self.model.app()
+    }
+
     fn default_shortcuts() -> Vec<shortcut::Shortcut> {
         use shortcut::ActionType::*;
         (&[ (Press, "ctrl `" , "toggle")

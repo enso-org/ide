@@ -153,6 +153,9 @@ impl Model {
         let label          = app.new_view::<text::Area>();
         let ports          = default();
 
+        label.disable_command("cursor_move_up");
+        label.disable_command("cursor_move_down");
+
         // FIXME[WD]: Depth sorting of labels to in front of the mouse pointer. Temporary solution.
         // It needs to be more flexible once we have proper depth management.
         let scene = app.display.scene();

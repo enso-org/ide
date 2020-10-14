@@ -107,7 +107,7 @@ struct View {
 /// The Model of Select Component.
 #[derive(Clone,CloneRef,Debug)]
 struct Model {
-    scene          : Scene,
+    app            : Application,
     entries        : entry::List,
     selection      : component::ShapeView<selection::Shape>,
     background     : component::ShapeView<background::Shape>,
@@ -117,18 +117,19 @@ struct Model {
 
 impl Model {
     fn new(app:&Application) -> Self {
+        let app            = app.clone_ref();
         let scene          = app.display.scene().clone_ref();
         let logger         = Logger::new("SelectionContainer");
         let display_object = display::object::Instance::new(&logger);
         let scrolled_area  = display::object::Instance::new(&logger);
-        let entries        = entry::List::new(&logger, app);
+        let entries        = entry::List::new(&logger,&app);
         let background     = component::ShapeView::<background::Shape>::new(&logger,&scene);
         let selection      = component::ShapeView::<selection::Shape>::new(&logger,&scene);
         display_object.add_child(&background);
         display_object.add_child(&scrolled_area);
         scrolled_area.add_child(&entries);
         scrolled_area.add_child(&selection);
-        Model{scene,entries,selection,background,display_object,scrolled_area}
+        Model{app,entries,selection,background,display_object,scrolled_area}
     }
 
     /// Update the displayed entries list when _view_ has changed - the list was scrolled or
@@ -167,7 +168,7 @@ impl Model {
 
     /// Check if the `point` is inside component assuming that it have given `size`.
     fn is_inside(&self, point:Vector2<f32>, size:Vector2<f32>) -> bool {
-        let pos_obj_space = self.scene.screen_to_object_space(&self.background,point);
+        let pos_obj_space = self.app.display.scene().screen_to_object_space(&self.background,point);
         let x_range       = (-size.x / 2.0)..=(size.x / 2.0);
         let y_range       = (-size.y / 2.0)..=(size.y / 2.0);
         x_range.contains(&pos_obj_space.x) && y_range.contains(&pos_obj_space.y)
@@ -427,6 +428,8 @@ impl application::View for ListView {
     fn label() -> &'static str { "ListView" }
 
     fn new(app:&Application) -> Self { ListView::new(app) }
+
+    fn app(&self) -> &Application { &self.model.app }
 
     fn default_shortcuts() -> Vec<shortcut::Shortcut> {
         use shortcut::ActionType::*;

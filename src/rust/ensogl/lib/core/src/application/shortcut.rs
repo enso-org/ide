@@ -256,7 +256,7 @@ impl RegistryModel {
     fn process_rules(&self, rules:&[Shortcut]) {
         let mut targets = Vec::new();
         {
-            let borrowed_command_map = self.command_registry.instances.borrow();
+            let borrowed_command_map = self.command_registry.name_map.borrow();
             for rule in rules {
                 let target = &rule.action.target;
                 borrowed_command_map.get(target).for_each(|instances| {
@@ -264,9 +264,9 @@ impl RegistryModel {
                         if Self::condition_checker(&rule.condition,&instance.status_map) {
                             let command_name = &rule.command.name;
                             match instance.command_map.borrow().get(command_name){
-                                Some(t) => targets.push(t.clone_ref()),
-                                None    => warning!(&self.logger,
-                                        "Command {command_name} was not found on {target}."),
+                                Some(cmd) => if cmd.enabled { targets.push(cmd.frp.clone_ref()) },
+                                None      => warning!(&self.logger,
+                                    "Command {command_name} was not found on {target}."),
                             }
                         }
                     }
