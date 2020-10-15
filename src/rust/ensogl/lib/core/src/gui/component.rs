@@ -291,10 +291,6 @@ impl<T:Animatable+Debug+Default+Clone+'static> Animation<T> {
         self.simulator.set_target_value(state.value);
     }
 
-    pub fn skip(&self) {
-        self.simulator.skip();
-    }
-
     pub fn target_value(&self) -> T {
         let value =  self.simulator.target_value();
         AnimationLinearSpace{value}.into()
