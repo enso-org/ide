@@ -93,7 +93,6 @@ fn init(app:&Application) {
     let scene     = world.scene();
     let camera    = scene.camera();
     let navigator = Navigator::new(&scene,&camera);
-    // let registry  = Registry::with_default_visualizations();
     let registry  = Registry::new();
 
     registry.add(constructor_graph());

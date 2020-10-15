@@ -17,7 +17,8 @@ use wasm_bindgen::prelude::*;
 /// Callback for keyboard events.
 pub trait KeyboardEventCallback = FnMut(&web_sys::KeyboardEvent) + 'static;
 
-pub trait BlurEventCallback = FnMut(&web_sys::Event) + 'static;
+/// Callback for js events.
+pub trait EventCallback = FnMut(&web_sys::Event) + 'static;
 
 /// Keyboard event listener which calls the callback function as long it lives.
 #[derive(Derivative)]
@@ -65,12 +66,12 @@ impl Listener<dyn KeyboardEventCallback> {
     }
 }
 
-impl Listener<dyn BlurEventCallback> {
+impl Listener<dyn EventCallback> {
     /// Creates a blur event listener.
     pub fn new_blur<F>(logger:impl AnyLogger, f:F) -> Self
-    where F : BlurEventCallback {
+    where F : EventCallback {
         let boxed   = Box::new(f);
-        let closure = Closure::<dyn BlurEventCallback>::wrap(boxed);
+        let closure = Closure::<dyn EventCallback>::wrap(boxed);
         Self::new(logger,"blur",closure)
     }
 }

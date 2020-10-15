@@ -3,8 +3,8 @@
 use crate::prelude::*;
 
 use crate as frp;
-use crate::io::js::BlurEventCallback;
 use crate::io::js::CurrentJsEvent;
+use crate::io::js::EventCallback;
 use crate::io::js::KeyboardEventCallback;
 use crate::io::js::Listener;
 
@@ -337,7 +337,7 @@ impl Default for Keyboard {
 pub struct DomBindings {
     key_down : Listener<dyn KeyboardEventCallback>,
     key_up   : Listener<dyn KeyboardEventCallback>,
-    blur     : Listener<dyn BlurEventCallback>,
+    blur     : Listener<dyn EventCallback>,
 }
 
 impl DomBindings {

@@ -37,9 +37,10 @@ use crate::system::web::StyleSetter;
 use crate::system::web::IgnoreContextMenuHandle;
 
 use enso_frp as frp;
+use enso_frp::io::js::CurrentJsEvent;
 use std::any::TypeId;
 use web_sys::HtmlElement;
-use enso_frp::io::js::CurrentJsEvent;
+
 
 
 pub trait MouseTarget : Debug + 'static {
@@ -311,7 +312,7 @@ impl Mouse {
         let body            = web::dom::WithKnownShape::new(&web::document().body().unwrap());
         let mouse_manager   = MouseManager::new_separated(&body.into(),&web::window());
         let frp             = frp::io::Mouse::new();
-        let handler = current_js_event.make_event_handler(
+        let on_move         = mouse_manager.on_move.add(current_js_event.make_event_handler(
             f!([frp,scene_frp,position,last_position] (event:&mouse::OnMove) {
                 let shape       = scene_frp.shape.value();
                 let pixel_ratio = shape.pixel_ratio as i32;
@@ -328,12 +329,11 @@ impl Mouse {
                     frp.position.emit(position);
                 }
             }
-        ));
-        let on_move         = mouse_manager.on_move.add(handler);
+        )));
         let on_down = mouse_manager.on_down.add(current_js_event.make_event_handler(
             f!((event:&mouse::OnDown) frp.down.emit(event.button())))
         );
-        let on_up   = mouse_manager.on_up.add(current_js_event.make_event_handler(
+        let on_up = mouse_manager.on_up.add(current_js_event.make_event_handler(
             f!((event:&mouse::OnUp) frp.up.emit(event.button())))
         );
         let handles = Rc::new([on_move,on_down,on_up]);
