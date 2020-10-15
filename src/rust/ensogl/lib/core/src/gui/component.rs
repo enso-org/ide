@@ -196,25 +196,31 @@ impl<T:Shape> display::Object for ShapeView<T> {
 // === Animatable ===
 // ==================
 
+/// Indicate what datatype to use in the animation space representation.
 pub trait HasAnimationSpaceRepr {
+    /// Representation in animation space. Needs to support linear interpolation and all
+    /// pre-requisites of `inertia::Value`.
     type AnimationSpaceRepr: inertia::Value;
 }
 
-pub struct AnimationLinearSpace<T>{
-    pub(crate) value: T
+/// Newtype that indicates that the wrapped value is valid to be used in animations.
+#[derive(Debug)]
+pub struct AnimationLinearSpace<T> {
+    /// Wrapped value representing the animation space value.
+    pub value: T
 }
 
+/// Shorthand for a  HasAnimationSpaceRepr::AnimationSpaceRepr wrapped in a `AnimationLinearSpace`.
 pub type AnimationSpaceRepr<T> = AnimationLinearSpace<<T as HasAnimationSpaceRepr>::AnimationSpaceRepr>;
 
-// This is used to make type inference better on usage places - without it,
-// Rust would force you to write the where part EVERYWHERE in use places.
+/// This is used to make type inference better on usage places - without it,
+/// Rust would force one to write the where part EVERYWHERE in use places.
 pub trait FromAsInto<T> = Sized where T:Into<Self>;
 
-// This should actually go to Prelude.
-pub trait Iso<T> = Sized + Into<T> + FromAsInto<T>;
+/// Can be transformed from and into.
+pub trait FromInto<T> = Sized + Into<T> + FromAsInto<T>;
 
-// I don't like to keep Clone or 'static here tbh.
-pub trait Animatable = Debug + HasAnimationSpaceRepr + Iso<AnimationSpaceRepr<Self>>;
+pub trait Animatable = HasAnimationSpaceRepr + FromInto<AnimationSpaceRepr<Self>>;
 
 macro_rules! define_self_animatable {
     ($type:ty ) => {
@@ -257,7 +263,7 @@ pub struct Animation<T:Animatable> {
 }
 
 #[allow(missing_docs)]
-impl<T:Animatable+Default+Clone+'static> Animation<T> {
+impl<T:Animatable+Debug+Default+Clone+'static> Animation<T> {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
