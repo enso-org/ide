@@ -204,7 +204,8 @@ impl NodeModel {
         OutputPorts::order_hack(&scene);
         let main_logger = Logger::sub(&logger,"main_area");
         let drag_logger = Logger::sub(&logger,"drag_area");
-        let main_area   = component::ShapeView::<shape::Shape>::new(&main_logger,scene);
+        let main_area   = component::ShapeView::<shape::Shape>::new_special(&main_logger,scene);
+        // main_area.events.network.trace_copies("MainArea".to_owned());
         let drag_area   = component::ShapeView::<drag_area::Shape>::new(&drag_logger,scene);
         edge::sort_hack_2(scene);
 
@@ -285,6 +286,13 @@ impl NodeModel {
     }
 }
 
+impl Drop for NodeModel {
+    fn drop(&mut self) {
+        iprintln!("Drop NodeModel");
+        self.main_area.events.network.trace_bridges();
+    }
+}
+
 impl Node {
     pub fn new(app:&Application, registry:visualization::Registry) -> Self {
         let frp       = Frp::new_network();
@@ -317,6 +325,8 @@ impl Node {
             eval_ model.drag_area.events.mouse_out  (model.ports.unhover());
 
             out.source.expression <+ model.ports.frp.expression.map(|t|t.clone_ref());
+
+            trace model.main_area.events.on_drop;
         }
 
         Self {frp,model}

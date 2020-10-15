@@ -883,6 +883,14 @@ impl Deref for GraphEditorModelWithNetwork {
     }
 }
 
+struct Guard<T>(pub T);
+
+impl<T> Drop for Guard<T> {
+    fn drop(&mut self) {
+        println!("Dopping...");
+    }
+}
+
 impl GraphEditorModelWithNetwork {
     pub fn new(app:&Application, cursor:cursor::Cursor, focus_manager:&FocusManager) -> Self {
         let network = frp::Network::new();
@@ -906,10 +914,11 @@ impl GraphEditorModelWithNetwork {
         let touch = &self.touch_state;
         let model = &self.model;
 
-        frp::new_bridge_network! { [self.network, node.model.main_area.events.network]
+        frp::new_bridge_network! { [self.network, node.frp.network, node.model.main_area.events.network]
             eval_ node.frp.background_press(touch.nodes.down.emit(node_id));
-            let ports_frp = &node.model.ports.frp;
+            let ports_frp       = &node.model.ports.frp;
             let edit_mode_ready = edit_mode_ready.clone_ref();
+
             eval edit_mode_ready ((t) ports_frp.input.edit_mode_ready.emit(t));
             eval node.model.ports.frp.pointer_style ((style) pointer_style.emit(style));
             eval node.model.output_ports.frp.port_mouse_down ([output_press](crumbs){

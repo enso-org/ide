@@ -22,6 +22,7 @@ pub struct NetworkId(usize);
 // === Network ===
 // ===============
 
+
 // === Definition ===
 
 /// Network manages lifetime of set of FRP nodes. FRP networks are designed to be static. You can
@@ -29,13 +30,17 @@ pub struct NetworkId(usize);
 /// Moreover, you should not grow the FRP network after it is constructed.
 #[derive(Clone,CloneRef,Debug,Default,)]
 pub struct Network {
-    data : Rc<NetworkData>
+    data      : Rc<NetworkData>,
+    pub trace : TraceCopies,
 }
+
+
 
 /// Weak version of `Network`.
 #[derive(Clone,CloneRef,Debug)]
 pub struct WeakNetwork {
-    data : Weak<NetworkData>
+    data : Weak<NetworkData>,
+    trace : TraceCopies
 }
 
 /// Network item.
@@ -65,20 +70,18 @@ impl NetworkData {
 
 impl Drop for NetworkData {
     fn drop(&mut self) {
+        iprintln!("Destroing bridges: {self.bridges:?}");
         self.bridges.borrow().iter().for_each(|subnetwork| subnetwork.destroy())
     }
 }
 
 impl Network {
     /// Constructor.
-    pub fn new() -> Self {
-        let data = Rc::new(NetworkData::new());
-        Self {data}
-    }
+    pub fn new() -> Self { default() }
 
     /// Get the weak version.
     pub fn downgrade(&self) -> WeakNetwork {
-        WeakNetwork {data:Rc::downgrade(&self.data)}
+        WeakNetwork {data:Rc::downgrade(&self.data),trace:self.trace.clone_ref()}
     }
 
     /// ID getter of this network.
@@ -109,7 +112,16 @@ impl Network {
 
     /// Registers the provided bridge network as child of this network.
     pub fn register_bridge_network(&self, sub_network:&BridgeNetwork) {
-        self.data.bridges.borrow_mut().push(sub_network.clone_ref())
+        self.data.bridges.borrow_mut().push(sub_network.clone_ref());
+        self.trace_bridges();
+    }
+
+    pub fn trace_bridges(&self) {
+        iprintln!("Registered bridge: {self.data.bridges:?}");
+    }
+
+    pub fn trace_copies(&self, name:String) {
+        self.trace.enable(name);
     }
 
     /// Draw the network using GraphViz.
@@ -125,7 +137,7 @@ impl Network {
 impl WeakNetwork {
     /// Upgrade to strong reference.
     pub fn upgrade(&self) -> Option<Network> {
-        self.data.upgrade().map(|data| Network {data})
+        self.data.upgrade().map(|data| Network {data, trace:self.trace.clone_ref()})
     }
 
     /// ID getter of this network.

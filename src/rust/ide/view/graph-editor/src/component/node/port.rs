@@ -182,6 +182,12 @@ impl Model {
     }
 }
 
+impl Drop for Model {
+    fn drop(&mut self) {
+        iprintln!("Dropping ManagerModel");
+    }
+}
+
 
 
 // ===============
@@ -190,8 +196,8 @@ impl Model {
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct Manager {
-    pub model : Rc<Model>,
-    pub frp   : Frp,
+    model   : Rc<Model>,
+    pub frp : Frp,
 }
 
 impl Deref for Manager {
@@ -223,8 +229,7 @@ impl Manager {
             eval edit_mode ([frp,model](edit_mode) {
                 if *edit_mode {
                     model.display_object.remove_child(&model.ports_group)
-                }
-                else {
+                } else {
                     model.display_object.add_child(&model.ports_group);
                     frp.output.source.hover.emit(&None);
                 }

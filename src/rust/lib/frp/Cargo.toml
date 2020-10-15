@@ -9,14 +9,15 @@ edition = "2018"
 [dependencies]
 enso-callback        = { version = "0.1.0" , path = "../../lib/callback" }
 enso-generics        = { version = "0.1.1"                               }
-enso-logger          = { version = "0.1.1"                               }
-enso-prelude         = { version = "0.1.2"                               }
+enso-logger          = { version = "0.1.2"                               }
+enso-prelude         = { version = "0.1.4"                               }
 ensogl-system-web    = { version = "0.1.0" , path = "../system/web"      }
 Inflector            = { version = "0.11.4"                              }
 keyboard-types       = { version = "0.5.0"                               }
 nalgebra             = { version = "0.21.1"                              }
 percent-encoding     = { version = "2.1.0"                               }
 unicode-segmentation = { version = "1.6.0"                               }
+uuid                 = "0.8.1"
 
 # We require exact version of wasm-bindgen because we do patching final js in our build process,
 # and this is vulnerable to any wasm-bindgen version change.
