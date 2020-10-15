@@ -38,7 +38,6 @@ const PADDING         : f32  = 5.0;
 ///             be included in a codebase, so it will be moved to rust-based generator to achieve
 ///             compatibility with IDE's theme manager.
 ///             Expect them to land with https://github.com/enso-org/ide/issues/709
-#[allow(dead_code)] // Invalid warning
 fn documentation_style() -> String {
     format!("<style>{}</style>", include_str!("documentation/style.css"))
 }
