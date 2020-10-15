@@ -27,6 +27,8 @@ const label_style = "font-family: DejaVuSansMonoBook; font-size: 10px;";
  * To select click and swipe with LMB
  * To deselect click outside of selection with LMB
  * To pan click and swipe with RMB
+ * To zoom out click "Fit all" or use key combination "ctrl+a"
+ * To zoom into selection click appropriate button or use key combination "ctrl+s"
  *
  * Data format (json):
  * {
@@ -88,14 +90,14 @@ class ScatterPlot extends Visualization {
 
         let scatter = this.createScatter(svg, box_width, box_height, points, dataPoints, scaleAndAxis);
 
-        this.addBrushing(box_width, box_height, scatter, scaleAndAxis);
-
         let zoom = this.addPanAndZoom(box_width, box_height, svg, margin, scaleAndAxis, scatter, points);
 
         // TODO: Visualization selector obfuscates button, so it is now on the bottom, should be on top.
         this.createButtonFitAll(scaleAndAxis, scatter, points, extremesAndDeltas, zoom, box_width);
 
-        let selectedZoomBtn = this.createButtonScaleToPoints(scaleAndAxis, scatter, points, extremesAndDeltas, zoom, box_width);
+        let selectedZoomBtn = this.createButtonScaleToPoints();
+
+        this.addBrushing(box_width, box_height, scatter, scaleAndAxis, selectedZoomBtn, points);
     }
 
     addPanAndZoom(box_width, box_height, svg, margin, scaleAndAxis, scatter, points) {
@@ -136,27 +138,60 @@ class ScatterPlot extends Visualization {
         return {zoomElem: zoomElem, zoom: zoom};
     }
 
-    addBrushing(box_width, box_height, scatter, scaleAndAxis) {
+    addBrushing(box_width, box_height, scatter, scaleAndAxis, selectedZoomBtn, points) {
         let brush = d3.brush()
             .extent([[0, 0], [box_width, box_height]])
             .on("start brush", updateChart)
 
-        scatter.append("g")
+        let brushElem = scatter.append("g")
             .attr("class", "brush")
             .call(brush)
 
-        function updateChart() {
-            let extent = d3.event.selection
-            scatter.classed("selected", d => isBrushed(extent, scaleAndAxis.xScale(d.x), scaleAndAxis.yScale(d.y) ))
+        function zoomin() {
+            scaleAndAxis.xScale.domain([scaleAndAxis.xScale.invert(extent[0][0]), scaleAndAxis.xScale.invert(extent[1][0])]);
+            scaleAndAxis.yScale.domain([scaleAndAxis.yScale.invert(extent[1][1]), scaleAndAxis.yScale.invert(extent[0][1])]);
+
+            scaleAndAxis.xAxis.transition().duration(1000)
+                .call(d3.axisBottom(scaleAndAxis.xScale).ticks(box_width/30));
+            scaleAndAxis.yAxis.transition().duration(1000)
+                .call(d3.axisLeft(scaleAndAxis.yScale));
+
+            scatter.selectAll("path")
+                .transition().duration(1000)
+                .attr('transform', d => "translate(" + scaleAndAxis.xScale(d.x) + "," + scaleAndAxis.yScale(d.y) + ")")
+
+            if (points.labels === "visible") {
+                scatter.selectAll("text")
+                    .transition().duration(1000)
+                    .attr("x", d => scaleAndAxis.xScale(d.x) + 7)
+                    .attr("y", d => scaleAndAxis.yScale(d.y) + 2)
+            }
+
+            brushElem.call(brush.move, null);
         }
 
-        function isBrushed(brush_coords, cx, cy) {
-            var x0 = brush_coords[0][0],
-                x1 = brush_coords[1][0],
-                y0 = brush_coords[0][1],
-                y1 = brush_coords[1][1];
-            return x0 <= cx && cx <= x1 && y0 <= cy && cy <= y1;
+        const zoomInKeyEvent = function (event) {
+            if (event.ctrlKey && event.key === 's') {
+                zoomin();
+                selectedZoomBtn.style.display = "none";
+            }
+        };
+
+        var extent;
+
+        function updateChart() {
+            let s = d3.event.selection;
+            selectedZoomBtn.style.display = "inline-block";
+            selectedZoomBtn.addEventListener("click",zoomin,true)
+            document.addEventListener('keydown', zoomInKeyEvent,true);
+            extent = s;
         }
+
+        document.addEventListener('click', function(_) {
+            selectedZoomBtn.style.display = "none";
+            selectedZoomBtn.removeEventListener("click",zoomin,true)
+            document.removeEventListener('keydown', zoomInKeyEvent,true);
+        },false);
     }
 
     createScatter(svg, box_width, box_height, points, dataPoints, scaleAndAxis) {
@@ -398,21 +433,13 @@ class ScatterPlot extends Visualization {
         this.dom.appendChild(btn);
     }
 
-    createButtonScaleToPoints(scaleAndAxis, scatter, points, extremesAndDeltas, zoom, box_width) {
+    createButtonScaleToPoints() {
         const btn = this.createBtnHelper()
-
         var text = document.createTextNode("Zoom to selected");
         btn.appendChild(text);
         btn.setAttribute("width", "120px");
-        // btn.style("display","none");
-
-        function zoomin() {
-
-        }
-
-        btn.addEventListener("click",zoomin)
+        btn.style.display = "none";
         this.dom.appendChild(btn);
-
         return btn;
     }
 
