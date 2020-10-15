@@ -95,8 +95,9 @@ impl View {
         let camera        = scene.camera();
         let navigator     = Navigator::new(&scene,&camera);
 
-        ensogl_theme::dark::setup(&application);
+        // ensogl_theme::dark::setup(&application);
         ensogl_theme::light::setup(&application);
+        ensogl_theme::dark::setup(&application);
         let view = application.new_view::<ide_view::project::View>();
         application.display.add_child(&view);
 
