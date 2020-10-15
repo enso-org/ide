@@ -388,6 +388,12 @@ class ScatterPlot extends Visualization {
             }
         }
 
+        document.addEventListener('keydown', function(event) {
+            if (event.ctrlKey && event.key === 'a') {
+                unzoom()
+            }
+        });
+
         btn.addEventListener("click",unzoom)
         this.dom.appendChild(btn);
     }
@@ -398,9 +404,11 @@ class ScatterPlot extends Visualization {
         var text = document.createTextNode("Zoom to selected");
         btn.appendChild(text);
         btn.setAttribute("width", "120px");
-        btn.style("display","none");
+        // btn.style("display","none");
 
-        function zoomin(){}
+        function zoomin() {
+
+        }
 
         btn.addEventListener("click",zoomin)
         this.dom.appendChild(btn);
