@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 use crate::double_representation::definition::DefinitionInfo;
 use crate::double_representation::graph::Id;
-use crate::model::module::API;
+use crate::model::module::{API, NotificationKind};
 use crate::model::module::Content;
 use crate::model::module::Notification;
 use crate::model::module::NodeMetadata;
@@ -73,7 +73,7 @@ impl ParsedContentSummary {
 enum LanguageServerContent {
     /// The content is synchronized with our module state after last fully handled notification.
     Synchronized(ParsedContentSummary),
-    /// The content is not synchronized with our module state after last fully handled notificaiton,
+    /// The content is not synchronized with our module state after last fully handled notification,
     /// probably due to connection error when sending update.
     Desynchronized(ContentSummary)
 }
@@ -133,7 +133,9 @@ impl Module {
         let summary = ContentSummary {digest,end_of_file};
         let model   = model::module::Plain::new(path,source.ast,source.metadata);
         let this    = Rc::new(Module {model,language_server,logger});
-        executor::global::spawn(Self::runner(this.clone_ref(),summary));
+        let content = this.model.serialized_content()?;
+        let first_invalidation = this.clone_ref().full_invalidation(&summary,content);
+        executor::global::spawn(Self::runner(this.clone_ref(),summary,first_invalidation));
         Ok(this)
     }
 
@@ -173,11 +175,11 @@ impl API for Module {
         self.model.node_metadata(id)
     }
 
-    fn update_whole(&self, content:Content) {
+    fn update_whole(&self, content:Content) -> FallibleResult<()> {
         self.model.update_whole(content)
     }
 
-    fn update_ast(&self, ast: ast::known::Module) {
+    fn update_ast(&self, ast: ast::known::Module) -> FallibleResult<()> {
         self.model.update_ast(ast)
     }
 
@@ -186,7 +188,7 @@ impl API for Module {
         self.model.apply_code_change(change,parser,new_id_map)
     }
 
-    fn set_node_metadata(&self, id:ast::Id, data:NodeMetadata) {
+    fn set_node_metadata(&self, id:ast::Id, data:NodeMetadata) -> FallibleResult<()> {
         self.model.set_node_metadata(id,data)
     }
 
@@ -194,7 +196,8 @@ impl API for Module {
         self.model.remove_node_metadata(id)
     }
 
-    fn with_node_metadata(&self, id:ast::Id, fun:Box<dyn FnOnce(&mut NodeMetadata) + '_>) {
+    fn with_node_metadata
+    (&self, id:ast::Id, fun:Box<dyn FnOnce(&mut NodeMetadata) + '_>) -> FallibleResult<()> {
         self.model.with_node_metadata(id,fun)
     }
 }
@@ -205,9 +208,9 @@ impl API for Module {
 impl Module {
     /// The asynchronous task scheduled during struct creation which listens for all module changes
     /// and send proper updates to Language Server.
-    async fn runner(self:Rc<Self>, initial_ls_content: ContentSummary) {
-        let first_invalidation = self.full_invalidation(&initial_ls_content).await;
-        let mut ls_content     = self.new_ls_content_info(initial_ls_content, first_invalidation);
+    async fn runner(self:Rc<Self>, initial_ls_content:ContentSummary, first_invalidation:impl Future<Output=FallibleResult<ParsedContentSummary>>) {
+        let first_invalidation = first_invalidation.await;
+        let mut ls_content     = self.new_ls_content_info(initial_ls_content,first_invalidation);
         let mut subscriber     = self.model.subscribe();
         let weak               = Rc::downgrade(&self);
         drop(self);
@@ -234,7 +237,10 @@ impl Module {
     (&self, old_content:ContentSummary, new_content:FallibleResult<ParsedContentSummary>)
     -> LanguageServerContent {
         match new_content {
-            Ok(new_content) => LanguageServerContent::Synchronized(new_content),
+            Ok(new_content) => {
+                debug!(self.logger,"Initial invalidation done, LS digest: {new_content.summary:?}");
+                LanguageServerContent::Synchronized(new_content)
+            },
             Err(err)        => {
                 error!(self.logger,"Error during sending text change to Language Server: {err}");
                 LanguageServerContent::Desynchronized(old_content)
@@ -247,63 +253,71 @@ impl Module {
     async fn handle_notification
     (&self, content:&LanguageServerContent, notification:Notification)
     -> FallibleResult<ParsedContentSummary> {
+        let Notification{new_file,kind} = notification;
         debug!(self.logger,"Handling notification: {content:?}.");
         match content {
-            LanguageServerContent::Desynchronized(summary) => self.full_invalidation(summary).await,
-            LanguageServerContent::Synchronized(summary)   => match notification {
-                Notification::Invalidate => self.full_invalidation(&summary.summary).await,
-                Notification::CodeChanged{change,replaced_location} =>
-                    self.notify_language_server(&summary.summary, |content| {
-                        let code_change = TextEdit {
-                            range : replaced_location.into(),
-                            text  : change.inserted,
-                        };
-                        let id_map_change = TextEdit {
-                            range : summary.id_map.clone().into(),
-                            text  : content.id_map_slice().to_string(),
-                        };
-                        //id_map goes first, because code change may alter it's position.
-                        vec![id_map_change,code_change]
-                    }).await,
-                Notification::MetadataChanged =>
-                    self.notify_language_server(&summary.summary, |content| vec![TextEdit {
-                        range : summary.metadata.clone().into(),
-                        text  : content.metadata_slice().to_string(),
-                    }]).await,
+            LanguageServerContent::Desynchronized(summary) => self.full_invalidation(summary,new_file).await,
+            LanguageServerContent::Synchronized(summary)   => match kind {
+                NotificationKind::Invalidate => self.full_invalidation(&summary.summary,new_file).await,
+                NotificationKind::CodeChanged{change,replaced_location} => {
+                    let code_change = TextEdit {
+                        range: replaced_location.into(),
+                        text: change.inserted,
+                    };
+                    let id_map_change = TextEdit {
+                        range: summary.id_map.clone().into(),
+                        text: new_file.id_map_slice().to_string(),
+                    };
+                    //id_map goes first, because code change may alter it's position.
+                    let edits = vec![id_map_change, code_change];
+                    self.notify_language_server(&summary.summary,&new_file,edits).await
+                }
+                NotificationKind::MetadataChanged => {
+                    let edits = vec![TextEdit {
+                        range: summary.metadata.clone().into(),
+                        text: new_file.metadata_slice().to_string(),
+                    }];
+                    self.notify_language_server(&summary.summary,&new_file,edits).await
+                }
             },
         }
     }
 
     /// Send update to Language Server with the entire file content. Returns the new content summary
     /// of Language Server state.
-    async fn full_invalidation
-    (&self, ls_content:&ContentSummary) -> FallibleResult<ParsedContentSummary> {
+    fn full_invalidation
+    (&self, ls_content:&ContentSummary, new_file:SourceFile)
+    -> impl Future<Output=FallibleResult<ParsedContentSummary>> + 'static {
         debug!(self.logger,"Handling full invalidation: {ls_content:?}.");
         let range = TextLocation::at_document_begin()..ls_content.end_of_file;
-        self.notify_language_server(ls_content,|content| vec![TextEdit {
+        let edits = vec![TextEdit {
             range : range.into(),
-            text  : content.content
-        }]).await
+            text  : new_file.content.clone(),
+        }];
+        self.notify_language_server(ls_content,&new_file,edits)
     }
 
     /// This is a helper function with all common logic regarding sending the update to
     /// Language Server. Returns the new summary of Language Server state.
-    async fn notify_language_server
+    fn notify_language_server
     ( &self
     , ls_content        : &ContentSummary
-    , edits_constructor : impl FnOnce(SourceFile) -> Vec<TextEdit>
-    ) -> FallibleResult<ParsedContentSummary> {
-        let content = self.model.serialized_content()?;
-        let summary = ParsedContentSummary::from_source(&content);
+    , new_file          : &SourceFile
+    , edits             : Vec<TextEdit>
+    ) -> impl Future<Output=FallibleResult<ParsedContentSummary>> + 'static  {
+        let summary = ParsedContentSummary::from_source(&new_file);
         let edit    = language_server::types::FileEdit {
+            edits,
             path        : self.path().file_path().clone(),
-            edits       : edits_constructor(content),
             old_version : ls_content.digest.clone(),
-            new_version : summary.digest.clone()
+            new_version : Sha3_224::new(new_file.content.as_bytes()),
         };
-        debug!(self.logger,"Notifying LS with edit: {edit:?}.");
-        self.language_server.client.apply_text_file_edit(&edit).await?;
-        Ok(summary)
+        debug!(self.logger,"Notifying LS with edit: {edit:#?}.");
+        let ls_future_reply = self.language_server.client.apply_text_file_edit(&edit);
+        async {
+            ls_future_reply.await?;
+            Ok(summary)
+        }
     }
 }
 
@@ -409,7 +423,7 @@ pub mod test {
             self.expect_some_edit(client, move |edit| {
                 if let [_edit_metadata,edit_code] = edit.edits.as_slice() {
                     // TODO assert that first edit actually does touch only metadata
-                    //  should parser the LS code and check the range of meteadata
+                    //  should parse the LS code and check the range of meteadata
                     //  or keep this info all along
 
                     // assert_eq!(edit_code.range, TextRange {
@@ -578,6 +592,6 @@ pub mod test {
             controller.apply_code_change(change).unwrap();
             runner.perhaps_run_until_stalled(&mut fixture);
         };
-        Runner::run(test);
+        Runner::run_nth(2,test);
     }
 }

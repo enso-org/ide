@@ -70,7 +70,7 @@ impl Handle {
     /// May return Error when new code causes parsing errors, or when parsed code does not produce
     /// Module ast.
     pub fn apply_code_change(&self,change:TextChange) -> FallibleResult<()> {
-        let mut id_map    = self.model.ast().id_map();
+        let mut id_map = self.model.ast().id_map();
         apply_code_change_to_id_map(&mut id_map,&change,&self.model.ast().repr());
         self.model.apply_code_change(change,&self.parser,id_map)
     }
@@ -88,7 +88,7 @@ impl Handle {
             error!(self.logger,"The module controller ast was not synchronized with text editor \
                 content!\n >>> Module: {my_code}\n >>> Editor: {code}");
             let actual_ast = self.parser.parse(code,default())?.try_into()?;
-            self.model.update_ast(actual_ast);
+            self.model.update_ast(actual_ast)?;
         }
         Ok(())
     }
@@ -142,11 +142,11 @@ impl Handle {
 
     /// Modify module by modifying its `Info` description (which is a wrapper directly over module's
     /// AST).
-    pub fn modify<R>(&self, f:impl FnOnce(&mut module::Info) -> R) -> R {
+    pub fn modify<R>(&self, f:impl FnOnce(&mut module::Info) -> R) -> FallibleResult<R> {
         let mut module = self.module_info();
         let ret        = f(&mut module);
-        self.model.update_ast(module.ast);
-        ret
+        self.model.update_ast(module.ast)?;
+        Ok(ret)
     }
 
     /// Obtains the `Info` value describing this module's AST.
@@ -158,9 +158,10 @@ impl Handle {
     /// Adds a new import to the module.
     ///
     /// May create duplicate entries if such import was already present.
-    pub fn add_import(&self, target:&module::QualifiedName) {
+    pub fn add_import(&self, target:&module::QualifiedName) -> FallibleResult<()> {
         let import = module::ImportInfo::from_qualified_name(target);
-        self.modify(|info| info.add_import(&self.parser, import));
+        self.modify(|info| info.add_import(&self.parser, import))?;
+        Ok(())
     }
 
     /// Removes an import declaration that brings given target.
@@ -168,7 +169,7 @@ impl Handle {
     /// Fails, if there was no such declaration found.
     pub fn remove_import(&self, target:&module::QualifiedName) -> FallibleResult<()> {
         let import = module::ImportInfo::from_qualified_name(target);
-        self.modify(|info| info.remove_import(&import))
+        self.modify(|info| info.remove_import(&import))?
     }
 
     /// Retrieve a vector describing all import declarations currently present in the module.

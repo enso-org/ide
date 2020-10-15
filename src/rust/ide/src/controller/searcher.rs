@@ -574,7 +574,7 @@ impl Searcher {
                 self.graph.graph().set_expression(node_id,expression)?;
                 self.graph.graph().module.with_node_metadata(node_id,Box::new(|md| {
                     md.intended_method = intended_method
-                }));
+                }))?;
                 node_id
             }
         };
@@ -592,7 +592,7 @@ impl Searcher {
         });
     }
 
-    fn add_required_imports(&self) {
+    fn add_required_imports(&self) -> FallibleResult<()> {
         let data_borrowed = self.data.borrow();
         let fragments     = data_borrowed.fragments_added_by_picking.iter();
         let imports       = fragments.map(|frag| &frag.picked_suggestion.module);
@@ -606,7 +606,7 @@ impl Searcher {
                 module.add_import(&self.parser,import);
             }
         }
-        self.graph.graph().module.update_ast(module.ast);
+        self.graph.graph().module.update_ast(module.ast)
     }
 
     /// Reload Suggestion List.

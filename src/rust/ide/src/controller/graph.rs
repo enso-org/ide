@@ -680,8 +680,7 @@ impl Handle {
         info!(self.logger, "Applying graph changes onto definition");
         let new_ast    = new_definition.ast.into();
         let new_module = ast_so_far.set_traversing(&definition.crumbs,new_ast)?;
-        self.module.update_ast(new_module);
-        Ok(())
+        self.module.update_ast(new_module)
     }
 
     /// Parses given text as a node expression.
@@ -712,7 +711,7 @@ impl Handle {
         })?;
 
         if let Some(initial_metadata) = node.metadata {
-            self.module.set_node_metadata(node_info.id(),initial_metadata);
+            self.module.set_node_metadata(node_info.id(),initial_metadata)?;
         }
 
         Ok(node_info.id())
@@ -774,11 +773,11 @@ impl Handle {
         let graph   = self.graph_info()?;
         let my_name = graph.source.name.item;
         module.add_method(new_method,module::Placement::Before(my_name),&self.parser)?;
-        self.module.update_ast(module.ast);
+        self.module.update_ast(module.ast)?;
         self.update_definition_ast(|_| Ok(updated_definition))?;
         let position = Some(model::module::Position::mean(collapsed_positions));
         let metadata = NodeMetadata {position,..default()};
-        self.module.set_node_metadata(collapsed_node,metadata);
+        self.module.set_node_metadata(collapsed_node,metadata)?;
         Ok(collapsed_node)
     }
 
@@ -802,10 +801,10 @@ impl Handle {
     /// Subscribe to updates about changes in this graph.
     pub fn subscribe(&self) -> impl Stream<Item=Notification> {
         let module_sub = self.module.subscribe().map(|notification| {
-            match notification {
-                model::module::Notification::Invalidate      |
-                model::module::Notification::CodeChanged{..} |
-                model::module::Notification::MetadataChanged => Notification::Invalidate,
+            match notification.kind {
+                model::module::NotificationKind::Invalidate      |
+                model::module::NotificationKind::CodeChanged{..} |
+                model::module::NotificationKind::MetadataChanged => Notification::Invalidate,
             }
         });
         let db_sub = self.suggestion_db.subscribe().map(|notification| {

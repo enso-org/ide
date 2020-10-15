@@ -134,10 +134,10 @@ impl Handle {
 
     async fn map_module_notification
     (notification:model::module::Notification) -> Option<Notification> {
-        match notification {
-            model::module::Notification::Invalidate      |
-            model::module::Notification::CodeChanged{..} => Some(Notification::Invalidate),
-            model::module::Notification::MetadataChanged => None,
+        match notification.kind {
+            model::module::NotificationKind::Invalidate      |
+            model::module::NotificationKind::CodeChanged{..} => Some(Notification::Invalidate),
+            model::module::NotificationKind::MetadataChanged => None,
         }
     }
 }
