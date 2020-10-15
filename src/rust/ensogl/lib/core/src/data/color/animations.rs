@@ -5,48 +5,68 @@
 
 use super::*;
 
-use crate::gui::component::Animatable;
+use crate::gui::component::*;
 
 use nalgebra::Vector4;
 
 
 
-// ==================
-// === Animatable ===
-// ==================
+// =======================
+// === Animatable Lcha ===
+// =======================
 
-impl Animatable<Lcha> for Lcha {
-    type State = Vector4<f32>;
+impl HasAnimationSpaceRepr for Lcha { type AnimationSpaceRepr = Vector4<f32>; }
 
-    fn from_state(state:Self::State) -> Self {
-        Laba::from(state).into()
+impl From<Lcha> for AnimationLinearSpace<Vector4<f32>> {
+    fn from(value:Lcha) -> AnimationLinearSpace<Vector4<f32>> {
+        let value = Laba::from(value).into();
+        AnimationLinearSpace { value }
     }
-
-    fn to_state(entity:Self) -> Self::State {
-        Laba::from(entity).into()
+}
+impl Into<Lcha> for AnimationLinearSpace<Vector4<f32>> {
+    fn into(self) -> Lcha {
+        Laba::from(self.value).into()
     }
 }
 
-impl Animatable<Rgba> for Rgba {
-    type State = Vector4<f32>;
 
-    fn from_state(state:Self::State) -> Self {
-        Laba::from(state).into()
-    }
 
-    fn to_state(entity:Self) -> Self::State {
-        Laba::from(entity).into()
+// =======================
+// === Animatable Rgba ===
+// =======================
+
+impl HasAnimationSpaceRepr for Rgba { type AnimationSpaceRepr = Vector4<f32>; }
+
+impl From<Rgba> for AnimationLinearSpace<Vector4<f32>> {
+    fn from(value:Rgba) -> AnimationLinearSpace<Vector4<f32>> {
+        let value = Laba::from(value).into();
+        AnimationLinearSpace { value }
     }
 }
 
-impl Animatable<Laba> for Laba {
-    type State = Vector4<f32>;
-
-    fn from_state(state:Self::State) -> Self {
-        state.into()
+impl Into<Rgba> for AnimationLinearSpace<Vector4<f32>> {
+    fn into(self) -> Rgba {
+        Laba::from(self.value).into()
     }
+}
 
-    fn to_state(entity:Self) -> Self::State {
-        entity.into()
+
+
+// =======================
+// === Animatable Laba ===
+// =======================
+
+impl HasAnimationSpaceRepr for Laba { type AnimationSpaceRepr = Vector4<f32>; }
+
+impl From<Laba> for AnimationLinearSpace<Vector4<f32>> {
+    fn from(value:Laba) -> AnimationLinearSpace<Vector4<f32>> {
+        let value = value.into();
+        AnimationLinearSpace { value }
+    }
+}
+
+impl Into<Laba> for AnimationLinearSpace<Vector4<f32>> {
+    fn into(self) -> Laba {
+        self.value.into()
     }
 }

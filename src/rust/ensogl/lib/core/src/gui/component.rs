@@ -196,28 +196,39 @@ impl<T:Shape> display::Object for ShapeView<T> {
 // === Animatable ===
 // ==================
 
-/// Trait that needs to be implemented to animate a struct.
-pub trait Animatable<T>: Debug+Clone+Default+'static {
-    /// State vector. For nice animations a continuous change in state space needs to be reflected
-    /// in a continuous state in the `Animatable` struct. (There should be no discontinuities).
-    type State: inertia::Value;
-    /// Create the entity from the given state vector.
-    fn from_state(state:Self::State) -> T;
-    /// Get the state vector for the given entity.
-    fn to_state(entity:T) -> Self::State;
+pub trait HasAnimationSpaceRepr {
+    type AnimationSpaceRepr: inertia::Value;
 }
+
+pub struct AnimationLinearSpace<T>{
+    pub(crate) value: T
+}
+
+pub type AnimationSpaceRepr<T> = AnimationLinearSpace<<T as HasAnimationSpaceRepr>::AnimationSpaceRepr>;
+
+// This is used to make type inference better on usage places - without it,
+// Rust would force you to write the where part EVERYWHERE in use places.
+pub trait FromAsInto<T> = Sized where T:Into<Self>;
+
+// This should actually go to Prelude.
+pub trait Iso<T> = Sized + Into<T> + FromAsInto<T>;
+
+// I don't like to keep Clone or 'static here tbh.
+pub trait Animatable = Debug + HasAnimationSpaceRepr + Iso<AnimationSpaceRepr<Self>>;
 
 macro_rules! define_self_animatable {
     ($type:ty ) => {
-        impl Animatable<$type> for $type {
-            type  State = $type;
+        impl HasAnimationSpaceRepr for $type { type AnimationSpaceRepr = $type; }
 
-            fn from_state(state:Self::State) -> $type {
-                state
+        impl From<$type> for AnimationLinearSpace<$type> {
+            fn from(value:$type) -> AnimationLinearSpace<$type> {
+                 AnimationLinearSpace{value}
             }
+        }
 
-            fn to_state(entity:$type) -> Self::State {
-                entity
+        impl Into<$type> for AnimationLinearSpace<$type> {
+            fn into(self) -> $type {
+                self.value
             }
         }
     }
@@ -239,35 +250,38 @@ define_self_animatable!(Vector4);
 #[derive(CloneRef,Derivative,Debug)]
 #[derivative(Clone(bound=""))]
 #[allow(missing_docs)]
-pub struct Animation<T:Animatable<T>> {
-    pub simulator : DynSimulator<T::State>,
+pub struct Animation<T:Animatable> {
+    pub simulator : DynSimulator<T::AnimationSpaceRepr>,
     pub value     : frp::Stream<T>,
 }
 
 #[allow(missing_docs)]
-impl<T:Animatable<T>> Animation<T> {
+impl<T:Animatable+Default+Clone+'static> Animation<T> {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
             def target = source::<T>();
         }
-        let simulator = DynSimulator::<T::State>::new(Box::new(f!((t) target.emit(T::from_state(t)))));
+        let simulator = DynSimulator::<T::AnimationSpaceRepr>::new(Box::new(f!((t) {
+             target.emit(AnimationLinearSpace{value:t}.into())
+        })));
         let value     = target.into();
         Self {simulator,value}
     }
 
     pub fn set_value(&self, value:T) {
-        let state = T::to_state(value);
-        self.simulator.set_value(state);
+        let animation_space_repr = value.into();
+        self.simulator.set_value(animation_space_repr.value);
     }
 
     pub fn value(&self) -> T {
-        T::from_state(self.simulator.value())
+        let value = self.simulator.value();
+        AnimationLinearSpace{value}.into()
     }
 
     pub fn set_target_value(&self, target_value:T) {
-        let state = T::to_state(target_value);
-        self.simulator.set_target_value(state);
+        let state:AnimationLinearSpace<_> = target_value.into();
+        self.simulator.set_target_value(state.value);
     }
 
     pub fn skip(&self) {
@@ -275,7 +289,8 @@ impl<T:Animatable<T>> Animation<T> {
     }
 
     pub fn target_value(&self) -> T {
-        T::from_state(self.simulator.target_value())
+        let value =  self.simulator.target_value();
+        AnimationLinearSpace{value}.into()
     }
 }
 
