@@ -73,7 +73,7 @@ impl MouseTarget for ShapeViewEvents {
 #[clone_ref(bound="S:CloneRef")]
 #[allow(missing_docs)]
 pub struct ShapeView<S:Shape> {
-    model : Rc<ShapeViewModel<S >>
+    model : Rc<ShapeViewModel<S>>
 }
 
 #[derive(Debug)]
@@ -116,26 +116,6 @@ impl<S:Shape> ShapeView<S> {
         let registry       = scene.shapes.clone_ref();
         let shape          = registry.new_instance::<S>();
         let events         = ShapeViewEvents::new();
-        display_object.add_child(&shape);
-        for sprite in shape.sprites() {
-            let events      = events.clone_ref();
-            let symbol_id   = sprite.symbol_id();
-            let instance_id = *sprite.instance_id;
-            registry.insert_mouse_target(symbol_id,instance_id,events);
-        }
-
-        let model = Rc::new(ShapeViewModel {registry,display_object,events,shape});
-        Self {model}
-    }
-
-    /// Constructor.
-    pub fn new_special(logger:impl AnyLogger, scene:&Scene) -> Self {
-        let logger         = Logger::sub(logger,"shape_view");
-        let display_object = display::object::Instance::new(logger);
-        let registry       = scene.shapes.clone_ref();
-        let shape          = registry.new_instance::<S>();
-        let events         = ShapeViewEvents::new();
-        events.network.trace_copies("MainArea".to_owned());
         display_object.add_child(&shape);
         for sprite in shape.sprites() {
             let events      = events.clone_ref();

@@ -182,12 +182,6 @@ impl Model {
     }
 }
 
-impl Drop for Model {
-    fn drop(&mut self) {
-        iprintln!("Dropping ManagerModel");
-    }
-}
-
 
 
 // ===============
@@ -226,14 +220,15 @@ impl Manager {
             // === Show / Hide Phantom Ports ===
 
             edit_mode <- all_with(&frp.input.edit_mode,&frp.input.edit_mode_ready,|a,b|*a||*b);
-            eval edit_mode ([frp,model](edit_mode) {
+            eval edit_mode ([model](edit_mode) {
                 if *edit_mode {
                     model.display_object.remove_child(&model.ports_group)
                 } else {
                     model.display_object.add_child(&model.ports_group);
-                    frp.output.source.hover.emit(&None);
                 }
             });
+
+            frp.output.source.hover <+ edit_mode.gate_not(&edit_mode).constant(None);
 
 
             // === Label Hover ===
