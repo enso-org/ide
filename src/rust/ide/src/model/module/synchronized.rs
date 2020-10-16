@@ -361,6 +361,9 @@ pub mod test {
     use wasm_bindgen_test::wasm_bindgen_test;
     use crate::test::Runner;
 
+
+    // === LsClientSetup ===
+
     // Ensures that subsequent LS text operations form a consistent series of versions.
     #[derive(Clone,Debug)]
     struct LsClientSetup {
@@ -413,23 +416,22 @@ pub mod test {
             });
         }
 
-        /// The single text edit with accompanying metadata changes.
+        /// The single text edit with accompanying metadata idmap changes.
         fn expect_edit_w_metadata
         (&self, client:&mut MockClient, f:impl FnOnce(&TextEdit) -> json_rpc::Result<()> + 'static) {
             let this = self.clone();
             self.expect_some_edit(client, move |edit| {
-                if let [_edit_metadata,edit_code] = edit.edits.as_slice() {
+                if let [edit_idmap,edit_code] = edit.edits.as_slice() {
                     let code_so_far = this.current_ls_code.get();
                     let file_so_far = SourceFile::new(code_so_far);
                     // TODO [mwu]
-                    //  Currently this assumes that whole idmap is replaced at each edit.
-                    //  The tests should be adjusted, if partial metadata updates are implemented.
+                    //  Currently this assumes that the whole idmap is replaced at each edit.
+                    //  This code should be adjusted, if partial metadata updates are implemented.
                     let idmap_range = TextLocation::convert_byte_range(&file_so_far.content,
                         &file_so_far.id_map);
                     let idmap_range = TextRange::from(idmap_range);
-                    assert_eq!(_edit_metadata.range,idmap_range);
-                    assert!(SourceFile::looks_like_idmap(&_edit_metadata.text));
-                    assert_eq!(edit_code.text, "Test 2");
+                    assert_eq!(edit_idmap.range, idmap_range);
+                    assert!(SourceFile::looks_like_idmap(&edit_idmap.text));
                     f(edit_code)
                 } else {
                     panic!("Expected exactly two edits");
@@ -471,6 +473,9 @@ pub mod test {
         file_edit.edits.iter().fold(initial, |contents,edit| apply_edit(&contents,edit))
     }
 
+
+    // === Test cases ===
+
     #[wasm_bindgen_test]
     fn handling_notifications() {
         // The test starts with code as below. Then it replaces the whole AST to print "Test".
@@ -496,7 +501,12 @@ pub mod test {
                 edit_handler.expect_full_invalidation(client);
                 // Replacing `Test` with `Test 2`
                 edit_handler.expect_some_edit(client, |edits| {
-                    println!("!!!!!!!!!, {:#?}", edits);
+                    let edit_code = &edits.edits[1];
+                    assert_eq!(edit_code.text, "Test 2");
+                    assert_eq!(edit_code.range, TextRange {
+                        start : Position { line: 1, character: 13 },
+                        end   : Position { line: 1, character: 17 },
+                    });
                     Ok(())
                 });
             });
@@ -537,8 +547,8 @@ pub mod test {
                 edit_handler.expect_edit_w_metadata(client, |edit| {
                     assert_eq!(edit.text, "Test 2");
                     assert_eq!(edit.range, TextRange {
-                        start: Position { line: 1, character: 13 },
-                        end: Position { line: 1, character: 17 },
+                        start : Position { line: 1, character: 13 },
+                        end   : Position { line: 1, character: 17 },
                     });
                     Err(RpcError::LostConnection)
                 });

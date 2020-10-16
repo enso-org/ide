@@ -58,20 +58,22 @@ impl SourceFile {
                 // metadata tag.
                 // We check that tag matches and that trailing lines looks like JSON list/object
                 // respectively.
-                let tag_range         = two_before_last +1..*before_last;
-                let id_map_range      = before_last + 1   .. *last;
-                let metadata_range    = last + 1          .. content.len();
+                let code_length       = *two_before_last + 1 - NEWLINES_BEFORE_TAG;
+                let code_range        = 0                   .. code_length;
+                let tag_range         = two_before_last + 1 .. *before_last;
+                let id_map_range      = before_last + 1     ..  *last;
+                let metadata_range    = last + 1            ..  content.len();
                 let tag               = &content[tag_range];
-                let idmap             = &content[id_map_range];
-                let metadata          = &content[metadata_range];
+                let idmap             = &content[id_map_range.clone()];
+                let metadata          = &content[metadata_range.clone()];
                 let tag_matching      = tag == METADATA_TAG;
                 let idmap_matching    = Self::looks_like_idmap(idmap);
                 let metadata_matching = Self::looks_like_metadata(metadata);
                 if tag_matching && idmap_matching && metadata_matching {
                     SourceFile {
-                        code     : ByteIndex::new_range(0               .. *two_before_last),
-                        id_map   : ByteIndex::new_range(before_last + 1 .. *last),
-                        metadata : ByteIndex::new_range(last + 1        .. content.len()),
+                        code     : ByteIndex::new_range(code_range),
+                        id_map   : ByteIndex::new_range(id_map_range),
+                        metadata : ByteIndex::new_range(metadata_range),
                         content,
                     }
                 } else {
@@ -106,7 +108,7 @@ impl SourceFile {
     fn is_enclosed(text:&str, first_char:char, last_char:char) -> bool {
         if first_char.is_ascii() && last_char.is_ascii() {
             let bytes = text.as_bytes();
-            bytes.first() == Some(&(first_char as u8)) && bytes.last() == Some(&(first_char as u8))
+            bytes.first() == Some(&(first_char as u8)) && bytes.last() == Some(&(last_char as u8))
         } else {
             let mut chars = text.chars();
             chars.next() == Some(first_char) && chars.last() == Some(last_char)
@@ -259,21 +261,10 @@ mod test {
         assert_eq!(serialized.content         , expected_content.to_string());
         assert_eq!(serialized.code_slice()    , "main = 2 + 2");
         assert_eq!(serialized.id_map_slice()  , expected_id_map.as_str());
-        assert_eq!(serialized.metadata_slice(), expected_metadata.as_str())
-    }
+        assert_eq!(serialized.metadata_slice(), expected_metadata.as_str());
 
-    #[test]
-    fn source_file_from_contents() {
-        let contents = r#"main = "Hello, World!!!"
-
-
-#### METADATA ####
-[[{"index":{"value":0},"size":{"value":4}},"9eab034b-e28e-47fb-afff-f1d61612b680"],[{"index":{"value":5},"size":{"value":1}},"b809d19c-29f9-4864-afc6-e2891be0b636"],[{"index":{"value":7},"size":{"value":17}},"3c169135-bff1-4c7c-b60b-b3148e06091c"],[{"index":{"value":0},"size":{"value":24}},"ef08f11d-b22d-45b0-98d3-1d70ff759564"]]
-{"ide":{"node":{"3c169135-bff1-4c7c-b60b-b3148e06091c":{"position":{"vector":[-113.0,226.0]},"intended_method":null}}}}"#;
-        let sf = SourceFile::new(contents.to_owned());
-        dbg!(&sf);
-        dbg!(&sf.code_slice());
-        dbg!(&sf.id_map_slice());
-        dbg!(&sf.metadata_slice());
+        // Check that SourceFile round-trips.
+        let source_file = SourceFile::new(serialized.content.clone());
+        assert_eq!(source_file,serialized);
     }
 }

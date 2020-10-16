@@ -429,6 +429,9 @@ impl Runner {
     /// The number of runs is determined by the number of calls to the method in the first
     /// iteration.
     ///
+    /// If this function fails only on a specific iteration, replacing it with `run_nth` might be
+    /// helpful in debugging the issue.
+    ///
     /// NOTE: The number of runs will grow *exponentially* with the `run_until_stalled` methods!
     /// Be certain to use it sparingly, to cover really specific scenarios. It is not meant for
     /// general usage in big tests in multiple places.
