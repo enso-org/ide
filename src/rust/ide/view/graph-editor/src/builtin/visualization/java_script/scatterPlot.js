@@ -139,6 +139,7 @@ class ScatterPlot extends Visualization {
     }
 
     addBrushing(box_width, box_height, scatter, scaleAndAxis, selectedZoomBtn, points) {
+        let extent;
         let brush = d3.brush()
             .extent([[0, 0], [box_width, box_height]])
             .on("start brush", updateChart)
@@ -177,7 +178,6 @@ class ScatterPlot extends Visualization {
             }
         };
 
-        var extent;
 
         function updateChart() {
             let s = d3.event.selection;
@@ -187,11 +187,17 @@ class ScatterPlot extends Visualization {
             extent = s;
         }
 
-        document.addEventListener('click', function(_) {
+        const endBrushing = function (_) {
             selectedZoomBtn.style.display = "none";
             selectedZoomBtn.removeEventListener("click",zoomin,true)
             document.removeEventListener('keydown', zoomInKeyEvent,true);
-        },false);
+            brushElem.call(brush.move, null);
+        };
+
+        document.addEventListener('click'      , endBrushing,false);
+        document.addEventListener('auxclick'   , endBrushing,false);
+        document.addEventListener('contextmenu', endBrushing,false);
+        document.addEventListener('scroll'     , endBrushing,false);
     }
 
     createScatter(svg, box_width, box_height, points, dataPoints, scaleAndAxis) {
@@ -266,10 +272,10 @@ class ScatterPlot extends Visualization {
     }
 
     getTextWidth(text, font) {
-        var canvas   = document.createElement("canvas");
-        var context  = canvas.getContext("2d");
-        context.font = font;
-        var metrics  = context.measureText("  " + text);
+        const canvas  = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        context.font  = font;
+        const metrics = context.measureText("  " + text);
         return metrics.width;
     }
 
@@ -392,7 +398,7 @@ class ScatterPlot extends Visualization {
     createButtonFitAll(scaleAndAxis, scatter, points, extremesAndDeltas, zoom, box_width) {
         const btn = this.createBtnHelper()
 
-        var text = document.createTextNode("Fit all");
+        let text = document.createTextNode("Fit all");
         btn.appendChild(text);
 
         function unzoom() {
@@ -435,7 +441,7 @@ class ScatterPlot extends Visualization {
 
     createButtonScaleToPoints() {
         const btn = this.createBtnHelper()
-        var text = document.createTextNode("Zoom to selected");
+        let text  = document.createTextNode("Zoom to selected");
         btn.appendChild(text);
         btn.setAttribute("width", "120px");
         btn.style.display = "none";
