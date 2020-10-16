@@ -152,7 +152,7 @@ class ScatterPlot extends Visualization {
             .attr("class", "brush")
             .call(brush)
 
-        function zoomin() {
+        function zoomIn() {
             let xMin = scaleAndAxis.xScale.invert(extent[0][0]);
             let xMax = scaleAndAxis.xScale.invert(extent[1][0]);
             let yMin = scaleAndAxis.yScale.invert(extent[1][1]);
@@ -161,32 +161,15 @@ class ScatterPlot extends Visualization {
             scaleAndAxis.xScale.domain([xMin, xMax]);
             scaleAndAxis.yScale.domain([yMin, yMax]);
 
-            let num_width    = 30
-            let lbl_padding_x = 7
-            let lbl_paddiny_y = 2
-
-            scaleAndAxis.xAxis.transition().duration(1000)
-                .call(d3.axisBottom(scaleAndAxis.xScale).ticks(box_width/num_width));
-            scaleAndAxis.yAxis.transition().duration(1000)
-                .call(d3.axisLeft(scaleAndAxis.yScale));
-
-            scatter.selectAll("path")
-                .transition().duration(1000)
-                .attr('transform', d => "translate(" + scaleAndAxis.xScale(d.x) + "," + scaleAndAxis.yScale(d.y) + ")")
-
-            if (points.labels === "visible") {
-                scatter.selectAll("text")
-                    .transition().duration(1000)
-                    .attr("x", d => scaleAndAxis.xScale(d.x) + lbl_padding_x)
-                    .attr("y", d => scaleAndAxis.yScale(d.y) + lbl_paddiny_y)
-            }
+            let self = this;
+            self.zoomingHelper(scaleAndAxis, box_width, scatter, points);
 
             brushElem.call(brush.move, null);
         }
 
         const zoomInKeyEvent = function (event) {
             if (event.ctrlKey && event.key === 's') {
-                zoomin();
+                zoomIn();
                 selectedZoomBtn.style.display = "none";
             }
         };
@@ -194,7 +177,7 @@ class ScatterPlot extends Visualization {
         function updateChart() {
             let s = d3.event.selection;
             selectedZoomBtn.style.display = "inline-block";
-            selectedZoomBtn.addEventListener("click",zoomin,true)
+            selectedZoomBtn.addEventListener("click",zoomIn,true)
             document.addEventListener('keydown', zoomInKeyEvent,true);
             extent = s;
         }
@@ -202,7 +185,7 @@ class ScatterPlot extends Visualization {
         const endBrushing = function (_) {
             brushElem.call(brush.move, null);
             selectedZoomBtn.style.display = "none";
-            selectedZoomBtn.removeEventListener("click",zoomin,true)
+            selectedZoomBtn.removeEventListener("click",zoomIn,true)
             document.removeEventListener('keydown', zoomInKeyEvent,true);
         };
 
@@ -210,6 +193,28 @@ class ScatterPlot extends Visualization {
         document.addEventListener('auxclick'   , endBrushing,false);
         document.addEventListener('contextmenu', endBrushing,false);
         document.addEventListener('scroll'     , endBrushing,false);
+    }
+
+    zoomingHelper(scaleAndAxis, box_width, scatter, points) {
+        let num_width = 30
+        let lbl_padding_x = 7
+        let lbl_paddiny_y = 2
+
+        scaleAndAxis.xAxis.transition().duration(1000)
+            .call(d3.axisBottom(scaleAndAxis.xScale).ticks(box_width / num_width));
+        scaleAndAxis.yAxis.transition().duration(1000)
+            .call(d3.axisLeft(scaleAndAxis.yScale));
+
+        scatter.selectAll("path")
+            .transition().duration(1000)
+            .attr('transform', d => "translate(" + scaleAndAxis.xScale(d.x) + "," + scaleAndAxis.yScale(d.y) + ")")
+
+        if (points.labels === "visible") {
+            scatter.selectAll("text")
+                .transition().duration(1000)
+                .attr("x", d => scaleAndAxis.xScale(d.x) + lbl_padding_x)
+                .attr("y", d => scaleAndAxis.yScale(d.y) + lbl_paddiny_y)
+        }
     }
 
     createScatter(svg, box_width, box_height, points, dataPoints, scaleAndAxis) {
@@ -262,12 +267,13 @@ class ScatterPlot extends Visualization {
     }
 
     createLabels(axis, svg, box_width, margin, box_height) {
+        let fontStyle = "10px DejaVuSansMonoBook";
         if (axis.x.label !== undefined) {
             let padding_y = 20;
             svg.append("text")
                 .attr("text-anchor", "end")
                 .attr("style", label_style)
-                .attr("x", margin.left + (this.getTextWidth(axis.x.label, "10px DejaVuSansMonoBook") / 2))
+                .attr("x", margin.left + (this.getTextWidth(axis.x.label, fontStyle) / 2))
                 .attr("y", box_height + margin.top + padding_y)
                 .text(axis.x.label);
         }
@@ -280,7 +286,7 @@ class ScatterPlot extends Visualization {
                 .attr("style", label_style)
                 .attr("transform", "rotate(-90)")
                 .attr("y", -margin.left + padding_y)
-                .attr("x", -margin.top - (box_height/2) + (this.getTextWidth(axis.y.label, "10px DejaVuSansMonoBook") / 2))
+                .attr("x", -margin.top - (box_height/2) + (this.getTextWidth(axis.y.label, fontStyle) / 2))
                 .text(axis.y.label);
         }
     }
@@ -428,25 +434,8 @@ class ScatterPlot extends Visualization {
             scaleAndAxis.xScale.domain(domain_x);
             scaleAndAxis.yScale.domain(domain_y);
 
-            let num_width    = 30
-            let lbl_padding_x = 7
-            let lbl_padding_y = 2
-
-            scaleAndAxis.xAxis.transition().duration(1000)
-                .call(d3.axisBottom(scaleAndAxis.xScale).ticks(box_width/num_width));
-            scaleAndAxis.yAxis.transition().duration(1000)
-                .call(d3.axisLeft(scaleAndAxis.yScale));
-
-            scatter.selectAll("path")
-                .transition().duration(1000)
-                .attr('transform', d => "translate(" + scaleAndAxis.xScale(d.x) + "," + scaleAndAxis.yScale(d.y) + ")")
-
-            if (points.labels === "visible") {
-                scatter.selectAll("text")
-                    .transition().duration(1000)
-                    .attr("x", d => scaleAndAxis.xScale(d.x) + lbl_padding_x)
-                    .attr("y", d => scaleAndAxis.yScale(d.y) + lbl_padding_y)
-            }
+            let self = this;
+            self.zoomingHelper(scaleAndAxis, box_width, scatter, points);
         }
 
         document.addEventListener('keydown', function(event) {
