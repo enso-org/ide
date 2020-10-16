@@ -63,6 +63,13 @@ impl ByteIndex {
     pub fn new(value:usize) -> Self {
         ByteIndex {value}
     }
+    /// Initializes Index with given value.
+    pub fn new_range(value:Range<usize>) -> Range<Self> {
+        Range {
+            start : ByteIndex::new(value.start),
+            end   : ByteIndex::new(value.end),
+        }
+    }
 
     /// Index of the next byte.
     pub fn next(self) -> Self {

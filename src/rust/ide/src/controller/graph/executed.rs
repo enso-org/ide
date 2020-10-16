@@ -401,7 +401,7 @@ pub mod tests {
         module.set_node_metadata(id,NodeMetadata {
             position        : None,
             intended_method : entry1.method_id(),
-        });
+        }).unwrap();
         let info = get_invocation_info().unwrap();
         assert_call_info(info,&entry1);
 

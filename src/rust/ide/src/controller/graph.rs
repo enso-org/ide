@@ -967,9 +967,10 @@ pub mod tests {
     #[wasm_bindgen_test]
     fn node_operations() {
         Fixture::set_up().run(|graph| async move {
-            let uid = graph.all_node_infos().unwrap()[0].id();
-            let pos = Position {vector:Vector2::new(0.0,0.0)};
-            graph.module.with_node_metadata(uid, Box::new(|data| data.position = Some(pos)));
+            let uid     = graph.all_node_infos().unwrap()[0].id();
+            let pos     = Position {vector:Vector2::new(0.0,0.0)};
+            let updater = Box::new(|data:&mut NodeMetadata| data.position = Some(pos));
+            graph.module.with_node_metadata(uid,updater).unwrap();
             assert_eq!(graph.module.node_metadata(uid).unwrap().position, Some(pos));
         })
     }
@@ -1055,7 +1056,7 @@ main =
             graph.module.set_node_metadata(id,NodeMetadata {
                 position        : None,
                 intended_method : entry.method_id(),
-            });
+            }).unwrap();
 
             let get_invocation_info = || {
                 let node = &graph.nodes().unwrap()[0];
@@ -1172,11 +1173,11 @@ main =
             graph.module.set_node_metadata(nodes[0].info.id(), NodeMetadata {
                 position : Some(Position::new(100.0,200.0)),
                 ..default()
-            });
+            }).unwrap();
             graph.module.set_node_metadata(nodes[1].info.id(), NodeMetadata {
                 position : Some(Position::new(150.0,300.0)),
                 ..default()
-            });
+            }).unwrap();
 
             let selected_nodes = nodes[0..2].iter().map(|node| node.info.id());
             let collapsed_node = graph.collapse(selected_nodes,"func").unwrap();

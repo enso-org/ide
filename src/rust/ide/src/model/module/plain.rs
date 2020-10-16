@@ -161,21 +161,27 @@ mod test {
         assert_eq!("2 - abc",module.ast().repr());
     }
 
-    #[test] // TODO
+    #[wasm_bindgen_test]
     fn notifying() {
         let mut test         = TestWithLocalPoolExecutor::set_up();
         let module           = model::module::test::plain_from_code("");
         let mut subscription = module.subscribe().boxed_local();
         subscription.expect_pending();
 
+        let mut expect_notification = |kind:NotificationKind| {
+            let notification = test.expect_completion(subscription.next()).unwrap();
+            assert_eq!(kind,notification.kind);
+            assert_eq!(module.serialized_content().unwrap(), notification.new_file);
+            // We expect exactly one notification. There should be no more.
+            subscription.expect_pending();
+        };
+
         // Ast update
         let new_line       = Ast::infix_var("a","+","b");
         let new_module_ast = Ast::one_line_module(new_line);
         let new_module_ast = ast::known::Module::try_new(new_module_ast).unwrap();
-        module.update_ast(new_module_ast.clone_ref());
-        test.run_until_stalled();
-        //assert_eq!(Some(Notification::Invalidate), test.expect_completion(subscription.next()));
-        subscription.expect_pending();
+        module.update_ast(new_module_ast.clone_ref()).unwrap();
+        expect_notification(NotificationKind::Invalidate);
 
         // Code change
         let change = TextChange {
@@ -183,31 +189,26 @@ mod test {
             inserted: "foo".to_string(),
         };
         module.apply_code_change(change.clone(),&Parser::new_or_panic(),default()).unwrap();
-        test.run_until_stalled();
         let replaced_location = TextLocation{line:0, column:0}..TextLocation{line:0, column:1};
-        //let notification      = Notification::CodeChanged {change,replaced_location,new_file:todo!()};
-        //assert_eq!(Some(notification),test.expect_completion(subscription.next()));
-        subscription.expect_pending();
+        expect_notification(NotificationKind::CodeChanged {change,replaced_location});
 
         // Metadata update
         let id            = Uuid::new_v4();
         let node_metadata = NodeMetadata {position:Some(Position::new(1.0, 2.0)),..default()};
-        module.set_node_metadata(id.clone(),node_metadata.clone());
-        //assert_eq!(Some(Notification::MetadataChanged),test.expect_completion(subscription.next()));
-        subscription.expect_pending();
+        module.set_node_metadata(id.clone(),node_metadata.clone()).unwrap();
+        expect_notification(NotificationKind::MetadataChanged);
+
         module.remove_node_metadata(id.clone()).unwrap();
-        //assert_eq!(Some(Notification::MetadataChanged),test.expect_completion(subscription.next()));
-        subscription.expect_pending();
-        module.with_node_metadata(id.clone(),Box::new(|md| *md = node_metadata.clone()));
-        //assert_eq!(Some(Notification::MetadataChanged),test.expect_completion(subscription.next()));
-        subscription.expect_pending();
+        expect_notification(NotificationKind::MetadataChanged);
+
+        module.with_node_metadata(id.clone(),Box::new(|md| *md = node_metadata.clone())).unwrap();
+        expect_notification(NotificationKind::MetadataChanged);
 
         // Whole update
         let mut metadata = Metadata::default();
         metadata.ide.node.insert(id,node_metadata);
-        module.update_whole(ParsedSourceFile{ast:new_module_ast, metadata});
-        //assert_eq!(Some(Notification::Invalidate), test.expect_completion(subscription.next()));
-        subscription.expect_pending();
+        module.update_whole(ParsedSourceFile{ast:new_module_ast, metadata}).unwrap();
+        expect_notification(NotificationKind::Invalidate);
 
         // No more notifications emitted
         drop(module);
@@ -224,14 +225,14 @@ mod test {
         assert!(initial_md.is_err());
 
         let md_to_set = NodeMetadata {position:Some(Position::new(1.0, 2.0)),..default()};
-        module.set_node_metadata(id.clone(),md_to_set.clone());
+        module.set_node_metadata(id.clone(),md_to_set.clone()).unwrap();
         assert_eq!(md_to_set.position, module.node_metadata(id.clone()).unwrap().position);
 
         let new_pos = Position::new(4.0, 5.0);
         module.with_node_metadata(id.clone(), Box::new(|md| {
             assert_eq!(md_to_set.position, md.position);
             md.position = Some(new_pos);
-        }));
+        })).unwrap();
         assert_eq!(Some(new_pos), module.node_metadata(id).unwrap().position);
     }
 }

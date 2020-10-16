@@ -578,7 +578,7 @@ impl Searcher {
                 node_id
             }
         };
-        self.add_required_imports();
+        self.add_required_imports()?;
         Ok(id)
     }
 
@@ -1444,7 +1444,7 @@ pub mod test {
         };
         graph.module.with_node_metadata(node_id, Box::new(|md| {
             md.intended_method = Some(intended_method);
-        }));
+        })).unwrap();
         let searcher_data = Data::new_with_edited_node(&graph,&database,node_id).unwrap();
         assert_eq!(searcher_data.input.repr(), node.info.expression().repr());
         assert!(searcher_data.fragments_added_by_picking.is_empty());

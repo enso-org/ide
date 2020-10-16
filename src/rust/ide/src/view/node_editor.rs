@@ -697,7 +697,7 @@ impl GraphEditorIntegratedWithControllerModel {
         if let Ok(id) = self.get_controller_node_id(*displayed_id) {
             self.controller.graph().module.with_node_metadata(id, Box::new(|md| {
                 md.position = Some(model::module::Position::new(pos.x,pos.y));
-            }));
+            }))?;
         }
         Ok(())
     }

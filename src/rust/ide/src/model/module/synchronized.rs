@@ -358,57 +358,56 @@ pub mod test {
     use enso_protocol::language_server::{MockClient, FileEdit, TextRange, Position};
     use json_rpc::error::RpcError;
     use utils::test::ExpectTuple;
-    use utils::test::traits::*;
     use wasm_bindgen_test::wasm_bindgen_test;
     use crate::test::Runner;
 
-    // Ensures that subsequent operations form a consistent series of versions.
+    // Ensures that subsequent LS text operations form a consistent series of versions.
     #[derive(Clone,Debug)]
     struct LsClientSetup {
+        logger             : Logger,
         path               : Path,
         current_ls_code    : Rc<CloneCell<String>>,
         current_ls_version : Rc<CloneCell<Sha3_224>>,
     }
 
     impl LsClientSetup {
-        fn new(path:Path, initial_code:impl Into<String>) -> Self {
+        fn new(parent:impl AnyLogger, path:Path, initial_code:impl Into<String>) -> Self {
             let current_ls_code    = initial_code.into();
             let current_ls_version = Sha3_224::new(current_ls_code.as_bytes());
+            let logger             = Logger::sub(parent,"LsClientSetup");
+            debug!(logger,"Initial contents:\n===\n{current_ls_code}\n===");
             Self {
-                path,
+                path,logger,
                 current_ls_code    : Rc::new(CloneCell::new(current_ls_code)),
                 current_ls_version : Rc::new(CloneCell::new(current_ls_version)),
             }
         }
 
         fn new_for_mock_data(data:&crate::test::mock::Unified) -> Self {
-            Self::new(data.module_path.clone(),data.get_code())
+            Self::new(&data.logger,data.module_path.clone(),data.get_code())
         }
 
         fn expect_some_edit
         (&self, client:&mut MockClient, f:impl FnOnce(&FileEdit) -> json_rpc::Result<()> + 'static) {
             let this = self.clone();
             client.expect.apply_text_file_edit(move |edits| {
-                let code_so_far = this.current_ls_code.get();
-                let ret = f(edits);
-                let mut new_contents = code_so_far;
-                for edit in &edits.edits {
-                    new_contents = apply_edit(&new_contents,edit)
-                }
-
-                let new_version  = Sha3_224::new(new_contents.as_bytes());
-                println!("Internal Version {} => {}", this.current_ls_version.get(),new_version);
-                println!("Declared Version {} => {}", edits.old_version,edits.new_version);
-                println!("New contents:\n===\n{}\n===",new_contents);
+                let code_so_far  = this.current_ls_code.get();
+                let ret          = f(edits);
+                let new_contents = apply_edits(code_so_far,&edits);
+                let actual_old   = this.current_ls_version.get();
+                let actual_new   = Sha3_224::new(new_contents.as_bytes());
+                debug!(this.logger,"Actual digest:   {actual_old} => {actual_new}");
+                debug!(this.logger,"Declared digest: {edits.old_version} => {edits.new_version}");
+                debug!(this.logger,"New contents:\n===\n{new_contents}\n===");
                 assert_eq!(&edits.path,this.path.file_path());
-                assert_eq!(edits.old_version,this.current_ls_version.get());
-                assert_eq!(edits.new_version,new_version);
+                assert_eq!(edits.old_version,actual_old);
+                assert_eq!(edits.new_version,actual_new);
                 if ret.is_ok() {
                     this.current_ls_code.set(new_contents);
-                    this.current_ls_version.set(new_version);
-                    println!("Accepted!");
+                    this.current_ls_version.set(actual_new);
+                    debug!(this.logger,"Accepted!");
                 } else {
-                    println!("Rejected!");
+                    debug!(this.logger,"Rejected!");
                 }
                 ret
             });
@@ -417,19 +416,19 @@ pub mod test {
         /// The single text edit with accompanying metadata changes.
         fn expect_edit_w_metadata
         (&self, client:&mut MockClient, f:impl FnOnce(&TextEdit) -> json_rpc::Result<()> + 'static) {
-            // let parser : Parser = todo!();
-            // let this = self.clone();
-            //
+            let this = self.clone();
             self.expect_some_edit(client, move |edit| {
                 if let [_edit_metadata,edit_code] = edit.edits.as_slice() {
-                    // TODO assert that first edit actually does touch only metadata
-                    //  should parse the LS code and check the range of meteadata
-                    //  or keep this info all along
-
-                    // assert_eq!(edit_code.range, TextRange {
-                    //     start : Position {line:1, character:13},
-                    //     end   : Position {line:1, character:17},
-                    // });
+                    let code_so_far = this.current_ls_code.get();
+                    let file_so_far = SourceFile::new(code_so_far);
+                    // TODO [mwu]
+                    //  Currently this assumes that whole idmap is replaced at each edit.
+                    //  The tests should be adjusted, if partial metadata updates are implemented.
+                    let idmap_range = TextLocation::convert_byte_range(&file_so_far.content,
+                        &file_so_far.id_map);
+                    let idmap_range = TextRange::from(idmap_range);
+                    assert_eq!(_edit_metadata.range,idmap_range);
+                    assert!(SourceFile::looks_like_idmap(&_edit_metadata.text));
                     assert_eq!(edit_code.text, "Test 2");
                     f(edit_code)
                 } else {
@@ -440,10 +439,6 @@ pub mod test {
 
         fn expect_full_invalidation(&self, client:&mut MockClient) {
             self.expect_full_invalidation_result(client,Ok(()))
-        }
-
-        fn expect_full_invalidation_err(&self, client:&mut MockClient, error:RpcError) {
-            self.expect_full_invalidation_result(client,Err(error))
         }
 
         fn expect_full_invalidation_result(&self, client:&mut MockClient, result:json_rpc::Result<()>) {
@@ -471,42 +466,48 @@ pub mod test {
         data::text::TextChange::replace(start..end,edit.text.clone()).applied(code)
     }
 
+    fn apply_edits(code:impl Into<String>, file_edit:&FileEdit) -> String {
+        let initial = code.into();
+        file_edit.edits.iter().fold(initial, |contents,edit| apply_edit(&contents,edit))
+    }
 
     #[test]
-    fn handling_fast_edits() {
+    fn internal_workings() {
         let initial_code = "main =\n    println \"Hello World!\"";
         let mut data = crate::test::mock::Unified::new();
         data.set_code(initial_code);
-        let edit_handler = Rc::new(LsClientSetup::new(data.module_path.clone(), initial_code));
-        let mut fixture  = data.fixture_customize(|data,client| {
+        // We do actually care about sharing `data` between `test` invocations, as it stores the
+        // Parser which is time-consuming to construct. Hence the setup.
+        let module_path = data.module_path.clone();
+        let edit_handler = Rc::new(LsClientSetup::new(&data.logger,module_path,initial_code));
+        let mut fixture = data.fixture_customize(|data, client| {
             data.expect_opening_the_module(client);
             data.expect_closing_the_module(client);
+            // Opening module and metadata generation.
             edit_handler.expect_full_invalidation(client);
-            edit_handler.expect_some_edit(client, |edit| {
-                println!("checking {:?}",edit);
-                Ok(())
-            });
-
-            edit_handler.expect_some_edit(client, |edit| {
-                println!("checking {:?}",edit);
+            // Explicit AST update.
+            edit_handler.expect_full_invalidation(client);
+            // Replacing `Test` with `Test 2`
+            edit_handler.expect_some_edit(client, |edits| {
+                println!("!!!!!!!!!, {:#?}", edits);
                 Ok(())
             });
         });
 
         let parser = data.parser.clone();
+        let module = fixture.synchronized_module();
 
-        let path = data.module_path.clone();
-        let ls   = fixture.project.json_rpc().clone();
-        let module = Module::open(path,ls,parser.clone()).boxed_local().expect_ready().unwrap();
-
+        let new_content = "main =\n    println \"Test\"".to_string();
+        let new_ast = parser.parse_module(new_content.clone(), default()).unwrap();
+        module.update_ast(new_ast).unwrap();
+        fixture.run_until_stalled();
         let change = TextChange {
-            replaced : text::Index::new(20)..text::Index::new(20),
-            inserted : "a".to_string(),
+            replaced : text::Index::new(20)..text::Index::new(24),
+            inserted : "Test 2".to_string(),
         };
-        module.apply_code_change(change.clone(),&Parser::new_or_panic(),default()).unwrap();
+        module.apply_code_change(change, &Parser::new_or_panic(), default()).unwrap();
         fixture.run_until_stalled();
-        module.apply_code_change(change.clone(),&Parser::new_or_panic(),default()).unwrap();
-        fixture.run_until_stalled();
+
     }
 
     #[test]
@@ -523,7 +524,8 @@ pub mod test {
         // We do actually care about sharing `data` between `test` invocations, as it stores the
         // Parser which is time-consuming to construct.
         let test = |runner:&mut Runner| {
-            let edit_handler = Rc::new(LsClientSetup::new(data.module_path.clone(), initial_code));
+            let module_path = data.module_path.clone();
+            let edit_handler = Rc::new(LsClientSetup::new(&data.logger,module_path,initial_code));
             let mut fixture = data.fixture_customize(|data, client| {
                 data.expect_opening_the_module(client);
                 data.expect_closing_the_module(client);
@@ -543,7 +545,7 @@ pub mod test {
 
             let new_content = "main =\n    println \"Test\"".to_string();
             let new_ast = parser.parse_module(new_content.clone(), default()).unwrap();
-            module.update_ast(new_ast);
+            module.update_ast(new_ast).unwrap();
             runner.perhaps_run_until_stalled(&mut fixture);
             let change = TextChange {
                 replaced : text::Index::new(20)..text::Index::new(24),
@@ -557,6 +559,7 @@ pub mod test {
     }
 
     #[test]
+    //#[wasm_bindgen_test]
     fn handling_notification_after_failure() {
         let initial_code = r#"main =
     println "Hello World!""#;
@@ -592,6 +595,6 @@ pub mod test {
             controller.apply_code_change(change).unwrap();
             runner.perhaps_run_until_stalled(&mut fixture);
         };
-        Runner::run_nth(2,test);
+        Runner::run(test);
     }
 }
