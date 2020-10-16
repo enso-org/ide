@@ -471,46 +471,7 @@ pub mod test {
         file_edit.edits.iter().fold(initial, |contents,edit| apply_edit(&contents,edit))
     }
 
-    #[test]
-    fn internal_workings() {
-        let initial_code = "main =\n    println \"Hello World!\"";
-        let mut data = crate::test::mock::Unified::new();
-        data.set_code(initial_code);
-        // We do actually care about sharing `data` between `test` invocations, as it stores the
-        // Parser which is time-consuming to construct. Hence the setup.
-        let module_path = data.module_path.clone();
-        let edit_handler = Rc::new(LsClientSetup::new(&data.logger,module_path,initial_code));
-        let mut fixture = data.fixture_customize(|data, client| {
-            data.expect_opening_the_module(client);
-            data.expect_closing_the_module(client);
-            // Opening module and metadata generation.
-            edit_handler.expect_full_invalidation(client);
-            // Explicit AST update.
-            edit_handler.expect_full_invalidation(client);
-            // Replacing `Test` with `Test 2`
-            edit_handler.expect_some_edit(client, |edits| {
-                println!("!!!!!!!!!, {:#?}", edits);
-                Ok(())
-            });
-        });
-
-        let parser = data.parser.clone();
-        let module = fixture.synchronized_module();
-
-        let new_content = "main =\n    println \"Test\"".to_string();
-        let new_ast = parser.parse_module(new_content.clone(), default()).unwrap();
-        module.update_ast(new_ast).unwrap();
-        fixture.run_until_stalled();
-        let change = TextChange {
-            replaced : text::Index::new(20)..text::Index::new(24),
-            inserted : "Test 2".to_string(),
-        };
-        module.apply_code_change(change, &Parser::new_or_panic(), default()).unwrap();
-        fixture.run_until_stalled();
-
-    }
-
-    #[test]
+    #[wasm_bindgen_test]
     fn handling_notifications() {
         // The test starts with code as below. Then it replaces the whole AST to print "Test".
         // Then partial edit happens to change Test into Test 2.
@@ -558,8 +519,7 @@ pub mod test {
         Runner::run(test);
     }
 
-    #[test]
-    //#[wasm_bindgen_test]
+    #[wasm_bindgen_test]
     fn handling_notification_after_failure() {
         let initial_code = r#"main =
     println "Hello World!""#;
