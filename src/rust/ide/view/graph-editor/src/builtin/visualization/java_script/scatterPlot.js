@@ -178,7 +178,6 @@ class ScatterPlot extends Visualization {
             }
         };
 
-
         function updateChart() {
             let s = d3.event.selection;
             selectedZoomBtn.style.display = "inline-block";
@@ -188,10 +187,10 @@ class ScatterPlot extends Visualization {
         }
 
         const endBrushing = function (_) {
+            brushElem.call(brush.move, null);
             selectedZoomBtn.style.display = "none";
             selectedZoomBtn.removeEventListener("click",zoomin,true)
             document.removeEventListener('keydown', zoomInKeyEvent,true);
-            brushElem.call(brush.move, null);
         };
 
         document.addEventListener('click'      , endBrushing,false);
