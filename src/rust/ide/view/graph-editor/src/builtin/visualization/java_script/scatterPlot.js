@@ -123,15 +123,19 @@ class ScatterPlot extends Visualization {
             let new_xScale = d3.event.transform.rescaleX(scaleAndAxis.xScale);
             let new_yScale = d3.event.transform.rescaleY(scaleAndAxis.yScale);
 
-            scaleAndAxis.xAxis.call(d3.axisBottom(new_xScale).ticks(box_width/30));
+            let num_width    = 30
+            let lbl_padding_x = 7
+            let lbl_paddiny_y = 2
+
+            scaleAndAxis.xAxis.call(d3.axisBottom(new_xScale).ticks(box_width/num_width));
             scaleAndAxis.yAxis.call(d3.axisLeft(new_yScale));
             scatter.selectAll("path")
                 .attr('transform', d => "translate(" + new_xScale(d.x) + "," + new_yScale(d.y) + ")")
 
             if (points.labels === "visible") {
                 scatter.selectAll("text")
-                    .attr("x", d => new_xScale(d.x) + 7)
-                    .attr("y", d => new_yScale(d.y) + 2)
+                    .attr("x", d => new_xScale(d.x) + lbl_padding_x)
+                    .attr("y", d => new_yScale(d.y) + lbl_paddiny_y)
             }
         }
 
@@ -149,11 +153,20 @@ class ScatterPlot extends Visualization {
             .call(brush)
 
         function zoomin() {
-            scaleAndAxis.xScale.domain([scaleAndAxis.xScale.invert(extent[0][0]), scaleAndAxis.xScale.invert(extent[1][0])]);
-            scaleAndAxis.yScale.domain([scaleAndAxis.yScale.invert(extent[1][1]), scaleAndAxis.yScale.invert(extent[0][1])]);
+            let xMin = scaleAndAxis.xScale.invert(extent[0][0]);
+            let xMax = scaleAndAxis.xScale.invert(extent[1][0]);
+            let yMin = scaleAndAxis.yScale.invert(extent[1][1]);
+            let yMax = scaleAndAxis.yScale.invert(extent[0][1]);
+
+            scaleAndAxis.xScale.domain([xMin, xMax]);
+            scaleAndAxis.yScale.domain([yMin, yMax]);
+
+            let num_width    = 30
+            let lbl_padding_x = 7
+            let lbl_paddiny_y = 2
 
             scaleAndAxis.xAxis.transition().duration(1000)
-                .call(d3.axisBottom(scaleAndAxis.xScale).ticks(box_width/30));
+                .call(d3.axisBottom(scaleAndAxis.xScale).ticks(box_width/num_width));
             scaleAndAxis.yAxis.transition().duration(1000)
                 .call(d3.axisLeft(scaleAndAxis.yScale));
 
@@ -164,8 +177,8 @@ class ScatterPlot extends Visualization {
             if (points.labels === "visible") {
                 scatter.selectAll("text")
                     .transition().duration(1000)
-                    .attr("x", d => scaleAndAxis.xScale(d.x) + 7)
-                    .attr("y", d => scaleAndAxis.yScale(d.y) + 2)
+                    .attr("x", d => scaleAndAxis.xScale(d.x) + lbl_padding_x)
+                    .attr("y", d => scaleAndAxis.yScale(d.y) + lbl_paddiny_y)
             }
 
             brushElem.call(brush.move, null);
@@ -213,6 +226,8 @@ class ScatterPlot extends Visualization {
         let scatter = svg.append('g')
             .attr("clip-path", "url(#clip)")
 
+        let size_scale = 100
+
         scatter
             .selectAll("dataPoint")
             .data(dataPoints)
@@ -226,7 +241,7 @@ class ScatterPlot extends Visualization {
                 else if (d.shape === "star")     { return d3.symbolStar     }
                 else if (d.shape === "triangle") { return d3.symbolTriangle }
                 else                             { return d3.symbolCircle   }
-            }).size(d => (d.size || 1.0) * 100))
+            }).size(d => (d.size || 1.0) * size_scale))
             .attr('transform', d => "translate(" + scaleAndAxis.xScale(d.x) + "," + scaleAndAxis.yScale(d.y) + ")")
             .style("fill", d => "#" + (d.color || "000000"))
             .style("opacity", 0.5)
@@ -284,11 +299,13 @@ class ScatterPlot extends Visualization {
         let xScale = d3.scaleLinear();
         if (axis.x.scale !== "linear") { xScale = d3.scaleLog(); }
 
+        let num_width    = 30
+
         xScale.domain(domain_x).range([0, box_width]);
         let xAxis = svg.append("g")
             .attr("transform", "translate(0," + box_height + ")")
             .attr("style", label_style)
-            .call(d3.axisBottom(xScale).ticks(box_width/30))
+            .call(d3.axisBottom(xScale).ticks(box_width/num_width))
 
         let yScale = d3.scaleLinear()
         if (axis.y.scale !== "linear") { yScale = d3.scaleLog(); }
@@ -411,8 +428,12 @@ class ScatterPlot extends Visualization {
             scaleAndAxis.xScale.domain(domain_x);
             scaleAndAxis.yScale.domain(domain_y);
 
+            let num_width    = 30
+            let lbl_padding_x = 7
+            let lbl_padding_y = 2
+
             scaleAndAxis.xAxis.transition().duration(1000)
-                .call(d3.axisBottom(scaleAndAxis.xScale).ticks(box_width/30));
+                .call(d3.axisBottom(scaleAndAxis.xScale).ticks(box_width/num_width));
             scaleAndAxis.yAxis.transition().duration(1000)
                 .call(d3.axisLeft(scaleAndAxis.yScale));
 
@@ -423,8 +444,8 @@ class ScatterPlot extends Visualization {
             if (points.labels === "visible") {
                 scatter.selectAll("text")
                     .transition().duration(1000)
-                    .attr("x", d => scaleAndAxis.xScale(d.x) + 7)
-                    .attr("y", d => scaleAndAxis.yScale(d.y) + 2)
+                    .attr("x", d => scaleAndAxis.xScale(d.x) + lbl_padding_x)
+                    .attr("y", d => scaleAndAxis.yScale(d.y) + lbl_padding_y)
             }
         }
 
