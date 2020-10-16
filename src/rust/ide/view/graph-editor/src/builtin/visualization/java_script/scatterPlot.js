@@ -125,7 +125,7 @@ class ScatterPlot extends Visualization {
 
             let num_width    = 30
             let lbl_padding_x = 7
-            let lbl_paddiny_y = 2
+            let lbl_padding_y = 2
 
             scaleAndAxis.xAxis.call(d3.axisBottom(new_xScale).ticks(box_width/num_width));
             scaleAndAxis.yAxis.call(d3.axisLeft(new_yScale));
@@ -135,7 +135,7 @@ class ScatterPlot extends Visualization {
             if (points.labels === "visible") {
                 scatter.selectAll("text")
                     .attr("x", d => new_xScale(d.x) + lbl_padding_x)
-                    .attr("y", d => new_yScale(d.y) + lbl_paddiny_y)
+                    .attr("y", d => new_yScale(d.y) + lbl_padding_y)
             }
         }
 
@@ -198,7 +198,7 @@ class ScatterPlot extends Visualization {
     zoomingHelper(scaleAndAxis, box_width, scatter, points) {
         let num_width = 30
         let lbl_padding_x = 7
-        let lbl_paddiny_y = 2
+        let lbl_padding_y = 2
 
         scaleAndAxis.xAxis.transition().duration(1000)
             .call(d3.axisBottom(scaleAndAxis.xScale).ticks(box_width / num_width));
@@ -213,7 +213,7 @@ class ScatterPlot extends Visualization {
             scatter.selectAll("text")
                 .transition().duration(1000)
                 .attr("x", d => scaleAndAxis.xScale(d.x) + lbl_padding_x)
-                .attr("y", d => scaleAndAxis.yScale(d.y) + lbl_paddiny_y)
+                .attr("y", d => scaleAndAxis.yScale(d.y) + lbl_padding_y)
         }
     }
 
@@ -252,13 +252,16 @@ class ScatterPlot extends Visualization {
             .style("opacity", 0.5)
 
         if (points.labels === "visible") {
+            let lbl_padding_x = 7
+            let lbl_padding_y = 2
+
             scatter.selectAll("dataPoint")
                 .data(dataPoints)
                 .enter()
                 .append("text")
                 .text(d => d.label)
-                .attr("x", d => scaleAndAxis.xScale(d.x) + 7)
-                .attr("y", d => scaleAndAxis.yScale(d.y) + 2)
+                .attr("x", d => scaleAndAxis.xScale(d.x) + lbl_padding_x)
+                .attr("y", d => scaleAndAxis.yScale(d.y) + lbl_padding_y)
                 .attr("style", label_style)
                 .attr("fill", "black");
         }
