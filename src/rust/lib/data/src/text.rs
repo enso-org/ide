@@ -406,9 +406,8 @@ impl TextLocation {
         let line_index = match self.line {
             0 => 0,
             _ => {
-                let newlines = content.as_ref().chars().enumerate().filter(|(_,c)| *c == '\n');
-                let mut newlines_indices = newlines.map(|(i,_)| i);
-                newlines_indices.nth(self.line.saturating_sub(1)).map_or(0, |i| i + 1)
+                let content = content.as_ref();
+                newline_indices(content).nth(self.line.saturating_sub(1)).map_or(0, |i| i + 1)
             }
         };
         Index::new(line_index + self.column)
@@ -549,6 +548,25 @@ impl<Index,Content:Default> TextChangeTemplate<Index,Content> {
 // === Utilities ===
 // =================
 
+/// Get indices (char-counting) of the new line characters.
+pub fn newline_indices(text:&str) -> impl Iterator<Item=usize> + '_ {
+    text.chars().enumerate().filter_map(|(ix,c)| (c == '\n').as_some(ix))
+}
+
+/// Get indices (byte-counting) of the new line characters.
+pub fn newline_byte_indices(text:&str) -> impl Iterator<Item=usize> + '_ {
+    text.as_bytes().iter().enumerate().filter_map(|(ix,c)| {
+        (*c == '\n' as u8).as_some(ix)
+    })
+}
+
+/// Get indices (byte-counting) of the new line characters, beginning from the text end.
+pub fn rev_newline_byte_indices(text:&str) -> impl Iterator<Item=usize> + '_ {
+    text.as_bytes().iter().enumerate().rev().filter_map(|(ix,c)| {
+        (*c == '\n' as u8).as_some(ix)
+    })
+}
+
 /// Split text to lines handling both CR and CRLF line endings.
 pub fn split_to_lines(text:&str) -> impl Iterator<Item=String> + '_ {
     text.split('\n').map(cut_cr_at_end_of_line).map(|s| s.to_string())
@@ -583,7 +601,7 @@ mod test {
     #[test]
     fn converting_index_to_location() {
         let str = "first\nsecond\nthird";
-        assert_round_trip(str, Index::new(0), TextLocation {line:0, column:0});
+        assert_round_trip(str,Index::new(0),  TextLocation {line:0, column:0});
         assert_round_trip(str,Index::new(5),  TextLocation {line:0, column:5});
         assert_round_trip(str,Index::new(6),  TextLocation {line:1, column:0});
         assert_round_trip(str,Index::new(9),  TextLocation {line:1, column:3});

@@ -45,13 +45,13 @@ pub struct SourceFile {
 
 impl SourceFile {
     /// Describe source file contents. Uses heuristics to locate the metadata section.
+    ///
+    /// Method investigates the last three lines of content to check for metadata tag and whether
+    /// idmap and metadata looks "reasonable enough".
+    /// If proper metadata is not recognized, the whole contents is treated as the code.
     pub fn new(content:String) -> Self {
-        let newline_indices_from_end = content.as_bytes()
-            .iter()
-            .enumerate()
-            .rev()
-            .filter_map(|(ix,c)| { (*c as char == '\n').as_some(ix) });
-        let three_newline_indices_from_end = newline_indices_from_end.take(3).collect_vec();
+        let newline_indices                = data::text::rev_newline_byte_indices(&content);
+        let three_newline_indices_from_end = newline_indices.take(3).collect_vec();
         match three_newline_indices_from_end.as_slice() {
             [last, before_last, two_before_last] => {
                 // Last line should be metadata. Line before should be id map. Line before is the

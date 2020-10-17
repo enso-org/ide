@@ -7,17 +7,17 @@ use crate::double_representation::module;
 use crate::model::suggestion_database;
 use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
-use enso_protocol::language_server;
-use utils::test::traits::*;
 use enso_frp::data::bitfield::BitField;
 use enso_frp::data::bitfield::BitField128;
+use enso_protocol::types::Sha3_224;
+use enso_protocol::language_server;
+use enso_protocol::language_server::CapabilityRegistration;
+use json_rpc::expect_call;
+use utils::test::traits::*;
 
 /// Utilities for mocking IDE components.
 pub mod mock {
     use super::*;
-    use enso_protocol::types::Sha3_224;
-    use enso_protocol::language_server::CapabilityRegistration;
-    use json_rpc::expect_call;
 
     /// Data used to create mock IDE components.
     ///
@@ -55,14 +55,6 @@ pub mod mock {
         pub fn graph_id() -> crate::double_representation::graph::Id {
             crate::double_representation::graph::Id::new_plain_name(DEFINITION_NAME)
         }
-
-        // pub fn suggestion_db() -> crate::model::SuggestionDatabase {
-        //     let entry1  = suggestion_entry_foo();
-        //     let entry2  = suggestion_entry_bar();
-        //     let entries = vec![(&1,&entry1),(&2,&entry2)];
-        //     let logger  = logger::enabled::Logger::default();
-        //     crate::model::SuggestionDatabase::new_from_entries(logger,entries)
-        // }
 
         pub fn foo_method_parameter() -> suggestion_database::Argument {
             suggestion_database::Argument {
@@ -268,6 +260,7 @@ pub mod mock {
             }
         }
 
+        /// Register an expectation that the module described by this mock data will be opened.
         pub fn expect_opening_the_module
         (&self, client:&mut enso_protocol::language_server::MockClient) {
             let content          = self.code.clone();
@@ -284,9 +277,10 @@ pub mod mock {
             expect_call!(client.open_text_file(path=path) => Ok(open_resp));
         }
 
+        /// Register an expectation that the module described by this mock data will be closed.
         pub fn expect_closing_the_module
         (&self, client:&mut enso_protocol::language_server::MockClient) {
-            let path             = self.module_path.file_path().clone();
+            let path = self.module_path.file_path().clone();
             expect_call!(client.close_text_file(path=path) => Ok(()));
         }
     }
@@ -317,13 +311,13 @@ pub mod mock {
         /// language server API. Most likely also closing and initial edit (that adds metadata)
         /// should be expected. See usage for examples.
         pub fn synchronized_module(&self) -> Rc<model::module::Synchronized> {
-            let parser = self.data.parser.clone();
-            let path   = self.data.module_path.clone();
-            let ls     = self.project.json_rpc().clone();
-            let module_fut = model::module::Synchronized::open(path,ls,parser);
-            // We can `expect_ready`, because in fact this is synchronous.
+            let parser        = self.data.parser.clone();
+            let path          = self.data.module_path.clone();
+            let ls            = self.project.json_rpc().clone();
+            let module_future = model::module::Synchronized::open(path,ls,parser);
+            // We can `expect_ready`, because in fact this is synchronous in test conditions.
             // (there's no real asynchronous connection beneath, just the `MockClient`)
-            module_fut.boxed_local().expect_ready().unwrap()
+            module_future.boxed_local().expect_ready().unwrap()
         }
 
         /// Create a synchronized module model and a module controller paired with it.
@@ -435,22 +429,22 @@ impl Runner {
     /// NOTE: The number of runs will grow *exponentially* with the `run_until_stalled` methods!
     /// Be certain to use it sparingly, to cover really specific scenarios. It is not meant for
     /// general usage in big tests in multiple places.
-    pub fn run(mut f:impl FnMut(&mut Runner)) {
-        let count         = Self::run_nth(0,&mut f);
+    pub fn run(mut test:impl FnMut(&mut Runner)) {
+        let count         = Self::run_nth(0,&mut test);
         let possibilities = 2u128.pow(count);
         // Just to prevent accidentally generating too many runs.
         assert!(count < 5, "Consider reducing number of calls to `run_until_stalled` or bump this \
         limit if it doesn't cause slowdowns during the testing.");
         for i in 1 ..possibilities {
-            Self::run_nth(i,&mut f);
+            Self::run_nth(i,&mut test);
         }
     }
 
     /// Calls the `test` function once. The executor behavior is defined by the `seed`.
     /// Returns the number of calls made to `perhaps_run_until_stalled`.
-    pub fn run_with(seed:BitField128, mut f:impl FnMut(&mut Runner)) -> u32 {
+    pub fn run_with(seed:BitField128, mut test:impl FnMut(&mut Runner)) -> u32 {
         let mut runner = Runner::new(seed);
-        f(&mut runner);
+        test(&mut runner);
         runner.current
     }
 

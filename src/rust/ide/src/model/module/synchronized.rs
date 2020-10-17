@@ -4,7 +4,8 @@ use crate::prelude::*;
 
 use crate::double_representation::definition::DefinitionInfo;
 use crate::double_representation::graph::Id;
-use crate::model::module::{API, NotificationKind};
+use crate::model::module::API;
+use crate::model::module::NotificationKind;
 use crate::model::module::Content;
 use crate::model::module::Notification;
 use crate::model::module::NodeMetadata;
@@ -42,7 +43,6 @@ impl ContentSummary {
         }
     }
 }
-
 
 /// The information about module's content. In addition to minimal summery defined in
 /// `ContentSummary` it adds information about sections, what enables efficient updates after code
@@ -208,7 +208,10 @@ impl API for Module {
 impl Module {
     /// The asynchronous task scheduled during struct creation which listens for all module changes
     /// and send proper updates to Language Server.
-    async fn runner(self:Rc<Self>, initial_ls_content:ContentSummary, first_invalidation:impl Future<Output=FallibleResult<ParsedContentSummary>>) {
+    async fn runner
+    ( self               : Rc<Self>
+    , initial_ls_content : ContentSummary
+    , first_invalidation : impl Future<Output=FallibleResult<ParsedContentSummary>>) {
         let first_invalidation = first_invalidation.await;
         let mut ls_content     = self.new_ls_content_info(initial_ls_content,first_invalidation);
         let mut subscriber     = self.model.subscribe();
@@ -256,9 +259,11 @@ impl Module {
         let Notification{new_file,kind} = notification;
         debug!(self.logger,"Handling notification: {content:?}.");
         match content {
-            LanguageServerContent::Desynchronized(summary) => self.full_invalidation(summary,new_file).await,
-            LanguageServerContent::Synchronized(summary)   => match kind {
-                NotificationKind::Invalidate => self.full_invalidation(&summary.summary,new_file).await,
+            LanguageServerContent::Desynchronized(summary) =>
+                self.full_invalidation(summary,new_file).await,
+            LanguageServerContent::Synchronized(summary) => match kind {
+                NotificationKind::Invalidate =>
+                    self.full_invalidation(&summary.summary,new_file).await,
                 NotificationKind::CodeChanged{change,replaced_location} => {
                     let code_change = TextEdit {
                         range: replaced_location.into(),
@@ -353,13 +358,17 @@ impl Deref for Module {
 pub mod test {
     use super::*;
 
-    use data::text::TextChange;
+    use crate::test::Runner;
+
     use data::text;
-    use enso_protocol::language_server::{MockClient, FileEdit, TextRange, Position};
+    use data::text::TextChange;
+    use enso_protocol::language_server::FileEdit;
+    use enso_protocol::language_server::MockClient;
+    use enso_protocol::language_server::Position;
+    use enso_protocol::language_server::TextRange;
     use json_rpc::error::RpcError;
     use utils::test::ExpectTuple;
     use wasm_bindgen_test::wasm_bindgen_test;
-    use crate::test::Runner;
 
 
     // === LsClientSetup ===
@@ -367,38 +376,44 @@ pub mod test {
     // Ensures that subsequent LS text operations form a consistent series of versions.
     #[derive(Clone,Debug)]
     struct LsClientSetup {
-        logger             : Logger,
-        path               : Path,
-        current_ls_code    : Rc<CloneCell<String>>,
-        current_ls_version : Rc<CloneCell<Sha3_224>>,
+        logger              : Logger,
+        path                : Path,
+        current_ls_contents : Rc<CloneCell<String>>,
+        current_ls_version  : Rc<CloneCell<Sha3_224>>,
     }
 
     impl LsClientSetup {
-        fn new(parent:impl AnyLogger, path:Path, initial_code:impl Into<String>) -> Self {
-            let current_ls_code    = initial_code.into();
-            let current_ls_version = Sha3_224::new(current_ls_code.as_bytes());
-            let logger             = Logger::sub(parent,"LsClientSetup");
-            debug!(logger,"Initial contents:\n===\n{current_ls_code}\n===");
+        fn new(parent:impl AnyLogger, path:Path, initial_contents:impl Into<String>) -> Self {
+            let current_ls_contents = initial_contents.into();
+            let current_ls_version  = Sha3_224::new(current_ls_contents.as_bytes());
+            let logger              = Logger::sub(parent,"LsClientSetup");
+            debug!(logger,"Initial contents:\n===\n{current_ls_contents}\n===");
             Self {
                 path,logger,
-                current_ls_code    : Rc::new(CloneCell::new(current_ls_code)),
+                current_ls_contents: Rc::new(CloneCell::new(current_ls_contents)),
                 current_ls_version : Rc::new(CloneCell::new(current_ls_version)),
             }
         }
 
+        /// Create a setup initialized with the data from the given mock description.
         fn new_for_mock_data(data:&crate::test::mock::Unified) -> Self {
             Self::new(&data.logger,data.module_path.clone(),data.get_code())
         }
 
+        /// Set up general text edit expectation in the mock client.
+        ///
+        /// This edit can be anything (full invalidation, code or metadata edit). The given function
+        /// should perform any necessary assertions on the `FileEdit` and provide the result that
+        /// the mock client will reply with.
         fn expect_some_edit
         (&self, client:&mut MockClient, f:impl FnOnce(&FileEdit) -> json_rpc::Result<()> + 'static) {
             let this = self.clone();
             client.expect.apply_text_file_edit(move |edits| {
-                let code_so_far  = this.current_ls_code.get();
-                let ret          = f(edits);
-                let new_contents = apply_edits(code_so_far,&edits);
-                let actual_old   = this.current_ls_version.get();
-                let actual_new   = Sha3_224::new(new_contents.as_bytes());
+                let contents_so_far = this.current_ls_contents.get();
+                let ret             = f(edits);
+                let new_contents    = apply_edits(contents_so_far, &edits);
+                let actual_old      = this.current_ls_version.get();
+                let actual_new      = Sha3_224::new(new_contents.as_bytes());
                 debug!(this.logger,"Actual digest:   {actual_old} => {actual_new}");
                 debug!(this.logger,"Declared digest: {edits.old_version} => {edits.new_version}");
                 debug!(this.logger,"New contents:\n===\n{new_contents}\n===");
@@ -406,7 +421,7 @@ pub mod test {
                 assert_eq!(edits.old_version,actual_old);
                 assert_eq!(edits.new_version,actual_new);
                 if ret.is_ok() {
-                    this.current_ls_code.set(new_contents);
+                    this.current_ls_contents.set(new_contents);
                     this.current_ls_version.set(actual_new);
                     debug!(this.logger,"Accepted!");
                 } else {
@@ -422,7 +437,7 @@ pub mod test {
             let this = self.clone();
             self.expect_some_edit(client, move |edit| {
                 if let [edit_idmap,edit_code] = edit.edits.as_slice() {
-                    let code_so_far = this.current_ls_code.get();
+                    let code_so_far = this.current_ls_contents.get();
                     let file_so_far = SourceFile::new(code_so_far);
                     // TODO [mwu]
                     //  Currently this assumes that the whole idmap is replaced at each edit.
@@ -434,16 +449,23 @@ pub mod test {
                     assert!(SourceFile::looks_like_idmap(&edit_idmap.text));
                     f(edit_code)
                 } else {
-                    panic!("Expected exactly two edits");
+                    // This test assumes that expected single file edit consists from two text
+                    // edits: first for idmap adjustment and the second for the actual code edit.
+                    panic!("Expected exactly two edits.");
                 }
             });
         }
 
+        /// Set up expectation that the contents will be fully invalidated. The mock client will
+        /// report a success.
         fn expect_full_invalidation(&self, client:&mut MockClient) {
             self.expect_full_invalidation_result(client,Ok(()))
         }
 
-        fn expect_full_invalidation_result(&self, client:&mut MockClient, result:json_rpc::Result<()>) {
+        /// Set up expectation that the contents will be fully invalidated. The mock client will
+        /// report a given result.
+        fn expect_full_invalidation_result
+        (&self, client:&mut MockClient, result:json_rpc::Result<()>) {
             let this = self.clone();
             self.expect_some_edit(client, move |edits| {
                 let (edit,) = edits.edits.iter().expect_tuple();
@@ -453,7 +475,7 @@ pub mod test {
         }
 
         fn whole_document_range(&self) -> TextRange {
-            let code_so_far = self.current_ls_code.get();
+            let code_so_far = self.current_ls_contents.get();
             let end_of_file = TextLocation::at_document_end(&code_so_far);
             TextRange {
                 start : Position { line:0,character:0  },
@@ -464,7 +486,7 @@ pub mod test {
 
     fn apply_edit(code:&str, edit:&TextEdit) -> String {
         let start = TextLocation::from(edit.range.start.into()).to_index(code);
-        let end = TextLocation::from(edit.range.end.into()).to_index(code);
+        let end   = TextLocation::from(edit.range.end.into()).to_index(code);
         data::text::TextChange::replace(start..end,edit.text.clone()).applied(code)
     }
 
@@ -490,9 +512,9 @@ pub mod test {
         // We do actually care about sharing `data` between `test` invocations, as it stores the
         // Parser which is time-consuming to construct.
         let test = |runner:&mut Runner| {
-            let module_path = data.module_path.clone();
+            let module_path  = data.module_path.clone();
             let edit_handler = Rc::new(LsClientSetup::new(&data.logger,module_path,initial_code));
-            let mut fixture = data.fixture_customize(|data, client| {
+            let mut fixture  = data.fixture_customize(|data, client| {
                 data.expect_opening_the_module(client);
                 data.expect_closing_the_module(client);
                 // Opening module and metadata generation.
@@ -515,7 +537,7 @@ pub mod test {
             let module = fixture.synchronized_module();
 
             let new_content = "main =\n    println \"Test\"".to_string();
-            let new_ast = parser.parse_module(new_content.clone(), default()).unwrap();
+            let new_ast     = parser.parse_module(new_content.clone(), default()).unwrap();
             module.update_ast(new_ast).unwrap();
             runner.perhaps_run_until_stalled(&mut fixture);
             let change = TextChange {
@@ -531,14 +553,13 @@ pub mod test {
 
     #[wasm_bindgen_test]
     fn handling_notification_after_failure() {
-        let initial_code = r#"main =
-    println "Hello World!""#;
-        let mut data = crate::test::mock::Unified::new();
+        let initial_code = "main =\n    println \"Hello World!\"";
+        let mut data     = crate::test::mock::Unified::new();
         data.set_code(initial_code);
 
         let test = |runner:&mut Runner| {
             let edit_handler = LsClientSetup::new_for_mock_data(&data);
-            let mut fixture = data.fixture_customize(|data, client| {
+            let mut fixture  = data.fixture_customize(|data, client| {
                 data.expect_opening_the_module(client);
                 data.expect_closing_the_module(client);
                 // Opening module and metadata generation.

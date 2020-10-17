@@ -2,15 +2,22 @@
 
 use crate::prelude::*;
 
-use parser::api::{ParsedSourceFile, SourceFile};
-use crate::model::module::{Metadata, NodeMetadata, NodeMetadataNotFound, Path, NotificationKind};
+use crate::model::module::Metadata;
+use crate::model::module::NodeMetadata;
+use crate::model::module::NodeMetadataNotFound;
+use crate::model::module::Path;
+use crate::model::module::NotificationKind;
 use crate::model::module::Notification;
 use crate::notification;
-use flo_stream::Subscriber;
 use crate::double_representation::definition::DefinitionInfo;
 use crate::model::module::Content;
-use data::text::{TextChange, TextLocation};
+
+use data::text::TextChange;
+use data::text::TextLocation;
+use flo_stream::Subscriber;
 use parser::Parser;
+use parser::api::ParsedSourceFile;
+use parser::api::SourceFile;
 
 /// A structure describing the module.
 ///
@@ -34,28 +41,45 @@ impl Module {
         }
     }
 
-    fn emit_notification(&self, new_file:SourceFile, kind:NotificationKind) {
-        let notification = Notification {new_file,kind};
-        self.notifications.notify(notification);
-    }
-
+    /// Replace the module's content with the new value and emit notification of given kind.
+    ///
+    /// Fails if the `new_content` is so broken that it cannot be serialized to text. In such case
+    /// the module's state is guaranteed to remain unmodified and the notification will not be
+    /// emitted.
     fn set_content(&self, new_content:Content, kind:NotificationKind) -> FallibleResult<()> {
-        // Note: We want the line below to fail before changing state, so we don't store something
-        // utterly broken.
-        let new_file = new_content.serialize()?;
+        // We want the line below to fail before changing state.
+        let new_file     = new_content.serialize()?;
+        let notification = Notification {new_file,kind};
         self.content.replace(new_content);
-        self.emit_notification(new_file,kind);
+        self.notifications.notify(notification);
         Ok(())
     }
 
-    fn update_content<R>(&self, kind:NotificationKind, f:impl FnOnce(&mut Content) -> R) -> FallibleResult<R> {
+    /// Use `f` to update the module's content.
+    ///
+    /// # Panics
+    ///
+    ///  This method is intended as internal implementation helper.
+    /// `f` gets the borrowed `content`, so any attempt to borrow it directly or transitively from
+    /// `self.content` again will panic.
+    fn update_content<R>
+    (&self, kind:NotificationKind, f:impl FnOnce(&mut Content) -> R) -> FallibleResult<R> {
         let mut content = self.content.borrow().clone();
         let ret         = f(&mut content);
         self.set_content(content,kind)?;
         Ok(ret)
     }
 
-    fn update_content2<R>(&self, kind:NotificationKind, f:impl FnOnce(&mut Content) -> FallibleResult<R>) -> FallibleResult<R> {
+    /// Use `f` to update the module's content.
+    ///
+    /// # Panics
+    ///
+    ///  This method is intended as internal implementation helper.
+    /// `f` gets the borrowed `content`, so any attempt to borrow it directly or transitively from
+    /// `self.content` again will panic.
+    fn try_updating_content<R>
+    (&self, kind:NotificationKind, f:impl FnOnce(&mut Content) -> FallibleResult<R>)
+    -> FallibleResult<R> {
         let mut content = self.content.borrow().clone();
         let ret         = f(&mut content)?;
         self.set_content(content,kind)?;
@@ -116,7 +140,7 @@ impl model::module::API for Module {
     }
 
     fn remove_node_metadata(&self, id:ast::Id) -> FallibleResult<NodeMetadata> {
-        self.update_content2(NotificationKind::MetadataChanged, |content| {
+        self.try_updating_content(NotificationKind::MetadataChanged, |content| {
             let lookup = content.metadata.ide.node.remove(&id);
             lookup.ok_or_else(|| NodeMetadataNotFound(id).into())
         })
