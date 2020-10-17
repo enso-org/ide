@@ -555,16 +555,12 @@ pub fn newline_indices(text:&str) -> impl Iterator<Item=usize> + '_ {
 
 /// Get indices (byte-counting) of the new line characters.
 pub fn newline_byte_indices(text:&str) -> impl Iterator<Item=usize> + '_ {
-    text.as_bytes().iter().enumerate().filter_map(|(ix,c)| {
-        (*c == '\n' as u8).as_some(ix)
-    })
+    text.as_bytes().iter().enumerate().filter_map(|(ix,c)|(*c == b'\n').as_some(ix))
 }
 
 /// Get indices (byte-counting) of the new line characters, beginning from the text end.
 pub fn rev_newline_byte_indices(text:&str) -> impl Iterator<Item=usize> + '_ {
-    text.as_bytes().iter().enumerate().rev().filter_map(|(ix,c)| {
-        (*c == '\n' as u8).as_some(ix)
-    })
+    text.as_bytes().iter().enumerate().rev().filter_map(|(ix,c)| (*c == b'\n').as_some(ix))
 }
 
 /// Split text to lines handling both CR and CRLF line endings.
