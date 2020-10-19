@@ -8,7 +8,7 @@ use crate::model::suggestion_database;
 use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
 use enso_frp::data::bitfield::BitField;
-use enso_frp::data::bitfield::BitField128;
+use enso_frp::data::bitfield::BitField32;
 use enso_protocol::types::Sha3_224;
 use enso_protocol::language_server;
 use enso_protocol::language_server::CapabilityRegistration;
@@ -396,11 +396,11 @@ pub struct Runner {
     /// Reset to 0 after each run.
     current : u32,
     /// Bitmap that encodes behavior of subsequent `run_until_stalled` calls. True means running.
-    seed : BitField128,
+    seed : BitField32,
 }
 
 impl Runner {
-    fn new(seed:BitField128) -> Self {
+    fn new(seed:BitField32) -> Self {
         let current = 0;
         Self {current,seed}
     }
@@ -431,7 +431,7 @@ impl Runner {
     /// general usage in big tests in multiple places.
     pub fn run(mut test:impl FnMut(&mut Runner)) {
         let count         = Self::run_nth(0,&mut test);
-        let possibilities = 2u128.pow(count);
+        let possibilities = 2u32.pow(count);
         // Just to prevent accidentally generating too many runs.
         assert!(count < 5, "Consider reducing number of calls to `run_until_stalled` or bump this \
         limit if it doesn't cause slowdowns during the testing.");
@@ -442,7 +442,7 @@ impl Runner {
 
     /// Calls the `test` function once. The executor behavior is defined by the `seed`.
     /// Returns the number of calls made to `perhaps_run_until_stalled`.
-    pub fn run_with(seed:BitField128, mut test:impl FnMut(&mut Runner)) -> u32 {
+    pub fn run_with(seed:BitField32, mut test:impl FnMut(&mut Runner)) -> u32 {
         let mut runner = Runner::new(seed);
         test(&mut runner);
         runner.current
@@ -450,8 +450,8 @@ impl Runner {
 
     /// Calls the `test` function once. The executor behavior is defined by the `n` parameter.
     /// Returns the number of calls made to `perhaps_run_until_stalled`.
-    pub fn run_nth(n:u128, test:impl FnMut(&mut Runner)) -> u32 {
+    pub fn run_nth(n:u32, test:impl FnMut(&mut Runner)) -> u32 {
         println!("Runner: Iteration {}",n);
-        Self::run_with(BitField128 {raw:n}, test)
+        Self::run_with(BitField32 {raw:n}, test)
     }
 }
