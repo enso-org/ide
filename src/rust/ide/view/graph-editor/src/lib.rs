@@ -1912,8 +1912,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     eval edge_source_click (((edge_id, _)) model.remove_edge_source(*edge_id));
     eval edge_target_click (((edge_id, _)) model.remove_edge_target(*edge_id));
 
-    outputs.edge_source_unset <+ edge_source_click.map(|(edge_id,_)| *edge_id);
-    outputs.edge_target_unset <+ edge_target_click.map(|(edge_id,_)| *edge_id);
+    out.edge_source_unset <+ edge_source_click.map(|(edge_id,_)| *edge_id);
+    out.edge_target_unset <+ edge_target_click.map(|(edge_id,_)| *edge_id);
 
     }
 
@@ -2358,10 +2358,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     edge_endpoint_set          <- any (out.edge_source_set, out.edge_target_set)._0();
     both_endpoints_set         <- edge_endpoint_set.map(f!((id) model.is_connection(id)));
     new_connection             <- edge_endpoint_set.gate(&both_endpoints_set);
-    out.source.connection_added   <+ new_connection;
-    out.source.connection_removed <+ out.edge_removed;
-    outputs.source.connection_removed <+ any
-        (outputs.edge_removed,outputs.edge_source_unset,outputs.edge_target_unset);
+    out.source.connection_added       <+ new_connection;
+    out.source.connection_removed     <+ out.edge_removed;
+    outputs.source.connection_removed <+ any(out.edge_removed,out.edge_source_unset,out.edge_target_unset);
 
 
     // === Remove implementation ===
