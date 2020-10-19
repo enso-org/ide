@@ -769,53 +769,93 @@ mod test {
         assert_eq!(expected,tree);
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn generating_span_tree_for_unfinished_call() {
         let parser     = Parser::new_or_panic();
-        let this_param = ParameterInfo {
+        let this_param = ParameterInfo{
             name     : Some("this".to_owned()),
-            typename : Some("Image".to_owned()),
+            typename : Some("Any".to_owned()),
         };
-        let param0 = ParameterInfo {
-            name     : Some("radius".to_owned()),
+        let param1 = ParameterInfo{
+            name     : Some("arg1".to_owned()),
             typename : Some("Number".to_owned()),
         };
-        let param1 = ParameterInfo {
-            name     : Some("foo".to_owned()),
-            typename : Some("Number".to_owned()),
+        let param2 = ParameterInfo{
+            name     : Some("arg2".to_owned()),
+            typename : None,
         };
-        let param2 = ParameterInfo {
-            name     : Some("bar".to_owned()),
-            typename : Some("Number".to_owned()),
+
+
+        // === Single function name ===
+
+        let ast = parser.parse_line("foo").unwrap();
+        let invocation_info = CalledMethodInfo {
+            parameters : vec![this_param.clone()]
         };
-        let parameters      = vec![this_param, param0, param1, param2];
-        let ast             = parser.parse_line("image.blur 15").unwrap();
-        let invocation_info = CalledMethodInfo {parameters};
-        let ctx             = MockContext::new_single(ast.id.unwrap(),invocation_info);
-        let tree            = SpanTree::new(&ast,&ctx).unwrap();
-        println!("===\n{:#?}\n===", tree);
-        //     match tree.root_ref().leaf_iter().collect_vec().as_slice() {
-        //         [_func,this_arg,arg0,arg1,arg2] => {
-        //             assert_eq!(this_arg.parameter_info.as_ref(),Some(&this_param));
-        //             assert_eq!(arg0.parameter_info.as_ref(),Some(&param0));
-        //             assert_eq!(arg1.parameter_info.as_ref(),Some(&param1));
-        //             assert_eq!(arg2.parameter_info.as_ref(),Some(&param2));
-        //         }
-        //         sth_else => panic!("There should be 5 leaves, found: {}: {:#?}",sth_else.len(),sth_else),
-        //     }
-        //     let expected = TreeBuilder::new(8)
-        //         .add_child(0,8,Chained  ,Crumbs::default())
-        //             .add_child(0,8,Chained  ,Crumbs::default())
-        //                 .add_leaf(0,3,Operation,PrefixCrumb::Func)
-        //                 .add_leaf(4,4,Target {is_removable:false},PrefixCrumb::Arg)
-        //                 .done()
-        //             .add_empty_child(8,ExpectedArgument(1))
-        //             .done()
-        //         .add_empty_child(8,ExpectedArgument(2))
-        //         .build();
-        //     clear_expression_ids(&mut tree.root);
-        //     clear_parameter_infos(&mut tree.root);
-        //     assert_eq!(tree,expected);
-        // }
+        let ctx      = MockContext::new_single(ast.id.unwrap(),invocation_info);
+        let mut tree = SpanTree::new(&ast,&ctx).unwrap();
+        match tree.root_ref().leaf_iter().collect_vec().as_slice() {
+            [_func,arg0] => assert_eq!(arg0.parameter_info.as_ref(),Some(&this_param)),
+            sth_else     => panic!("There should be 2 leaves, found: {}",sth_else.len()),
+        }
+        let expected = TreeBuilder::new(3)
+            .add_leaf(0,3,Operation,Crumbs::default())
+            .add_empty_child(3,ExpectedArgument(0))
+            .build();
+        clear_expression_ids(&mut tree.root);
+        clear_parameter_infos(&mut tree.root);
+        assert_eq!(tree,expected);
+
+
+        // === Complete application chain ===
+
+        let ast = parser.parse_line("foo here").unwrap();
+        let invocation_info = CalledMethodInfo {
+            parameters : vec![this_param.clone()]
+        };
+        let ctx      = MockContext::new_single(ast.id.unwrap(),invocation_info);
+        let mut tree = SpanTree::new(&ast,&ctx).unwrap();
+        match tree.root_ref().leaf_iter().collect_vec().as_slice() {
+            [_func,arg0] => assert_eq!(arg0.parameter_info.as_ref(),Some(&this_param)),
+            sth_else     => panic!("There should be 2 leaves, found: {}",sth_else.len()),
+        }
+        let expected = TreeBuilder::new(8)
+            .add_leaf(0,3,Operation,PrefixCrumb::Func)
+            .add_leaf(4,4,Target {is_removable:false},PrefixCrumb::Arg)
+            .build();
+        clear_expression_ids(&mut tree.root);
+        clear_parameter_infos(&mut tree.root);
+        assert_eq!(tree,expected);
+
+
+        // === Partial application chain ===
+
+        let ast = parser.parse_line("foo here").unwrap();
+        let invocation_info = CalledMethodInfo {
+            parameters : vec![this_param.clone(), param1.clone(), param2.clone()]
+        };
+        let ctx = MockContext::new_single(ast.id.unwrap(),invocation_info);
+        let mut tree = SpanTree::new(&ast,&ctx).unwrap();
+        match tree.root_ref().leaf_iter().collect_vec().as_slice() {
+            [_func,arg0,arg1,arg2] => {
+                assert_eq!(arg0.parameter_info.as_ref(),Some(&this_param));
+                assert_eq!(arg1.parameter_info.as_ref(),Some(&param1));
+                assert_eq!(arg2.parameter_info.as_ref(),Some(&param2));
+            },
+            sth_else => panic!("There should be 4 leaves, found: {}",sth_else.len()),
+        }
+        let expected = TreeBuilder::new(8)
+            .add_child(0,8,Chained  ,Crumbs::default())
+                .add_child(0,8,Chained  ,Crumbs::default())
+                    .add_leaf(0,3,Operation,PrefixCrumb::Func)
+                    .add_leaf(4,4,Target {is_removable:false},PrefixCrumb::Arg)
+                    .done()
+                .add_empty_child(8,ExpectedArgument(1))
+                .done()
+            .add_empty_child(8,ExpectedArgument(2))
+            .build();
+        clear_expression_ids(&mut tree.root);
+        clear_parameter_infos(&mut tree.root);
+        assert_eq!(tree,expected);
     }
 }
