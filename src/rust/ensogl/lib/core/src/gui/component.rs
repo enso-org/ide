@@ -222,6 +222,11 @@ pub trait FromInto<T> = Sized + Into<T> + FromAsInto<T>;
 
 pub trait Animatable = HasAnimationSpaceRepr + FromInto<AnimationSpaceRepr<Self>>;
 
+/// Convert the animation space value to the respective `Animatable`.
+pub fn from_animation_space<T:Animatable>(value:T::AnimationSpaceRepr) -> T {
+    AnimationLinearSpace{value}.into()
+}
+
 macro_rules! define_self_animatable {
     ($type:ty ) => {
         impl HasAnimationSpaceRepr for $type { type AnimationSpaceRepr = $type; }
@@ -270,7 +275,7 @@ impl<T:Animatable+Debug+Default+Clone+'static> Animation<T> {
             def target = source::<T>();
         }
         let simulator = DynSimulator::<T::AnimationSpaceRepr>::new(Box::new(f!((t) {
-             target.emit(AnimationLinearSpace{value:t}.into())
+             target.emit(from_animation_space::<T>(t))
         })));
         let value     = target.into();
         Self {simulator,value}
@@ -283,7 +288,7 @@ impl<T:Animatable+Debug+Default+Clone+'static> Animation<T> {
 
     pub fn value(&self) -> T {
         let value = self.simulator.value();
-        AnimationLinearSpace{value}.into()
+        from_animation_space(value)
     }
 
     pub fn set_target_value(&self, target_value:T) {
@@ -293,7 +298,7 @@ impl<T:Animatable+Debug+Default+Clone+'static> Animation<T> {
 
     pub fn target_value(&self) -> T {
         let value =  self.simulator.target_value();
-        AnimationLinearSpace{value}.into()
+        from_animation_space(value)
     }
 }
 
