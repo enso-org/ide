@@ -173,7 +173,8 @@ impl<M:Metadata> ParsedSourceFile<M> {
         let id_map_start    = code.len() + before_tag.len() + METADATA_TAG.len() + before_idmap.len();
         let metadata_start  = id_map_start + id_map.len() + before_metadata.len();
         Ok(SourceFile {
-            content  : iformat!("{code}{before_tag}{METADATA_TAG}{before_idmap}{id_map}{before_metadata}{metadata}"),
+            content  : iformat!("{code}{before_tag}{METADATA_TAG}{before_idmap}{id_map}\
+                                 {before_metadata}{metadata}"),
             code     : ByteIndex::new_range(0              .. code.len()                     ),
             id_map   : ByteIndex::new_range(id_map_start   .. id_map_start   + id_map.len()  ),
             metadata : ByteIndex::new_range(metadata_start .. metadata_start + metadata.len()),

@@ -134,7 +134,7 @@ impl Module {
         let model   = model::module::Plain::new(path,source.ast,source.metadata);
         let this    = Rc::new(Module {model,language_server,logger});
         let content = this.model.serialized_content()?;
-        let first_invalidation = this.clone_ref().full_invalidation(&summary,content);
+        let first_invalidation = this.full_invalidation(&summary,content);
         executor::global::spawn(Self::runner(this.clone_ref(),summary,first_invalidation));
         Ok(this)
     }
