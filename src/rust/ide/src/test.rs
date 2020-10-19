@@ -261,7 +261,7 @@ pub mod mock {
         }
 
         /// Register an expectation that the module described by this mock data will be opened.
-        pub fn expect_opening_the_module
+        pub fn expect_opening_module
         (&self, client:&mut enso_protocol::language_server::MockClient) {
             let content          = self.code.clone();
             let current_version  = Sha3_224::new(content.as_bytes());
@@ -278,7 +278,7 @@ pub mod mock {
         }
 
         /// Register an expectation that the module described by this mock data will be closed.
-        pub fn expect_closing_the_module
+        pub fn expect_closing_module
         (&self, client:&mut enso_protocol::language_server::MockClient) {
             let path = self.module_path.file_path().clone();
             expect_call!(client.close_text_file(path=path) => Ok(()));
