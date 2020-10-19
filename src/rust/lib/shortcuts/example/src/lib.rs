@@ -32,7 +32,7 @@ pub fn main() {
 
     let logger   = Logger::new("kb");
     let kb       = Keyboard::new();
-    let bindings = keyboard::DomBindings::new(&logger,&kb);
+    let bindings = keyboard::DomBindings::new(&logger,&kb,&default());
 
     frp::new_network! { network
         eval kb.down ((t)shortcut_registry.on_press(t.simple_name()));

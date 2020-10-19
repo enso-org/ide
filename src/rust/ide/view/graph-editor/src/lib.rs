@@ -1216,6 +1216,7 @@ impl GraphEditorModel {
                 self.refresh_edge_position(edge_id);
                 self.refresh_edge_source_size(edge_id);
             }
+
         }
     }
 
@@ -1911,6 +1912,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     eval edge_source_click (((edge_id, _)) model.remove_edge_source(*edge_id));
     eval edge_target_click (((edge_id, _)) model.remove_edge_target(*edge_id));
 
+    outputs.edge_source_unset <+ edge_source_click.map(|(edge_id,_)| *edge_id);
+    outputs.edge_target_unset <+ edge_target_click.map(|(edge_id,_)| *edge_id);
+
     }
 
     // === Edge creation  ===
@@ -2356,6 +2360,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     new_connection             <- edge_endpoint_set.gate(&both_endpoints_set);
     out.source.connection_added   <+ new_connection;
     out.source.connection_removed <+ out.edge_removed;
+    outputs.source.connection_removed <+ any
+        (outputs.edge_removed,outputs.edge_source_unset,outputs.edge_target_unset);
 
 
     // === Remove implementation ===
