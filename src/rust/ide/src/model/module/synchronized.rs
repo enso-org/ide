@@ -241,7 +241,7 @@ impl Module {
     -> LanguageServerContent {
         match new_content {
             Ok(new_content) => {
-                debug!(self.logger,"Initial invalidation done, LS digest: {new_content.summary:?}");
+                debug!(self.logger,"Updating the LS content digest to: {new_content.summary:?}");
                 LanguageServerContent::Synchronized(new_content)
             },
             Err(err)        => {
