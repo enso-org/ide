@@ -268,7 +268,7 @@ pub struct Animation<T:Animatable> {
 }
 
 #[allow(missing_docs)]
-impl<T:Animatable+Debug+Default+Clone+'static> Animation<T> {
+impl<T:Animatable+frp::Data> Animation<T> {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
