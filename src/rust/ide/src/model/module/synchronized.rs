@@ -378,19 +378,19 @@ pub mod test {
     struct LsClientSetup {
         logger              : Logger,
         path                : Path,
-        current_ls_contents : Rc<CloneCell<String>>,
+        current_ls_content  : Rc<CloneCell<String>>,
         current_ls_version  : Rc<CloneCell<Sha3_224>>,
     }
 
     impl LsClientSetup {
-        fn new(parent:impl AnyLogger, path:Path, initial_contents:impl Into<String>) -> Self {
-            let current_ls_contents = initial_contents.into();
-            let current_ls_version  = Sha3_224::new(current_ls_contents.as_bytes());
-            let logger              = Logger::sub(parent,"LsClientSetup");
-            debug!(logger,"Initial contents:\n===\n{current_ls_contents}\n===");
+        fn new(parent:impl AnyLogger, path:Path, initial_content:impl Into<String>) -> Self {
+            let current_ls_content = initial_content.into();
+            let current_ls_version = Sha3_224::new(current_ls_content.as_bytes());
+            let logger             = Logger::sub(parent,"LsClientSetup");
+            debug!(logger,"Initial content:\n===\n{current_ls_content}\n===");
             Self {
                 path,logger,
-                current_ls_contents: Rc::new(CloneCell::new(current_ls_contents)),
+                current_ls_content : Rc::new(CloneCell::new(current_ls_content)),
                 current_ls_version : Rc::new(CloneCell::new(current_ls_version)),
             }
         }
@@ -409,19 +409,19 @@ pub mod test {
         (&self, client:&mut MockClient, f:impl FnOnce(&FileEdit) -> json_rpc::Result<()> + 'static) {
             let this = self.clone();
             client.expect.apply_text_file_edit(move |edits| {
-                let contents_so_far = this.current_ls_contents.get();
-                let ret             = f(edits);
-                let new_contents    = apply_edits(contents_so_far, &edits);
-                let actual_old      = this.current_ls_version.get();
-                let actual_new      = Sha3_224::new(new_contents.as_bytes());
+                let content_so_far = this.current_ls_content.get();
+                let ret            = f(edits);
+                let new_content    = apply_edits(content_so_far, &edits);
+                let actual_old     = this.current_ls_version.get();
+                let actual_new     = Sha3_224::new(new_content.as_bytes());
                 debug!(this.logger,"Actual digest:   {actual_old} => {actual_new}");
                 debug!(this.logger,"Declared digest: {edits.old_version} => {edits.new_version}");
-                debug!(this.logger,"New contents:\n===\n{new_contents}\n===");
+                debug!(this.logger,"New content:\n===\n{new_content}\n===");
                 assert_eq!(&edits.path,this.path.file_path());
                 assert_eq!(edits.old_version,actual_old);
                 assert_eq!(edits.new_version,actual_new);
                 if ret.is_ok() {
-                    this.current_ls_contents.set(new_contents);
+                    this.current_ls_content.set(new_content);
                     this.current_ls_version.set(actual_new);
                     debug!(this.logger,"Accepted!");
                 } else {
@@ -437,7 +437,7 @@ pub mod test {
             let this = self.clone();
             self.expect_some_edit(client, move |edit| {
                 if let [edit_idmap,edit_code] = edit.edits.as_slice() {
-                    let code_so_far = this.current_ls_contents.get();
+                    let code_so_far = this.current_ls_content.get();
                     let file_so_far = SourceFile::new(code_so_far);
                     // TODO [mwu]
                     //  Currently this assumes that the whole idmap is replaced at each edit.
@@ -456,13 +456,13 @@ pub mod test {
             });
         }
 
-        /// Set up expectation that the contents will be fully invalidated. The mock client will
+        /// Set up expectation that the content will be fully invalidated. The mock client will
         /// report a success.
         fn expect_full_invalidation(&self, client:&mut MockClient) {
             self.expect_full_invalidation_result(client,Ok(()))
         }
 
-        /// Set up expectation that the contents will be fully invalidated. The mock client will
+        /// Set up expectation that the content will be fully invalidated. The mock client will
         /// report a given result.
         fn expect_full_invalidation_result
         (&self, client:&mut MockClient, result:json_rpc::Result<()>) {
@@ -475,7 +475,7 @@ pub mod test {
         }
 
         fn whole_document_range(&self) -> TextRange {
-            let code_so_far = self.current_ls_contents.get();
+            let code_so_far = self.current_ls_content.get();
             let end_of_file = TextLocation::at_document_end(&code_so_far);
             TextRange {
                 start : Position { line:0,character:0  },
@@ -492,7 +492,7 @@ pub mod test {
 
     fn apply_edits(code:impl Into<String>, file_edit:&FileEdit) -> String {
         let initial = code.into();
-        file_edit.edits.iter().fold(initial, |contents,edit| apply_edit(&contents,edit))
+        file_edit.edits.iter().fold(initial, |content,edit| apply_edit(&content,edit))
     }
 
 
