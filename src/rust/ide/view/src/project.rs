@@ -107,7 +107,8 @@ ensogl::define_endpoints! {
 
     Output {
         adding_new_node               (bool),
-        edited_node                   (Option<NodeId>),
+        node_being_edited             (Option<NodeId>),
+        editing_node                  (bool),
         old_expression_of_edited_node (Expression),
         editing_aborted               (NodeId),
         editing_committed             (NodeId),
@@ -173,7 +174,7 @@ impl View {
             // committing and aborting node editing.
 
             // This node is false when received "abort_node_editing" signal, and should get true
-            // once processing of "edited_node" event from graph is performed.
+            // once processing of "node_being_edited" event from graph is performed.
             editing_aborted <- any(...);
             editing_aborted <+ frp.abort_node_editing.constant(true);
             should_finish_editing_if_any <-
@@ -181,8 +182,8 @@ impl View {
             should_finish_editing <- should_finish_editing_if_any.gate(&graph.output.node_editing);
             eval should_finish_editing ((()) graph.input.stop_editing.emit(()));
             _eval <- graph.output.node_being_edited.map2(&searcher.is_visible,
-                f!([model,searcher_left_top_position](edited_node_id,is_visible) {
-                    model.update_searcher_view(*edited_node_id,&searcher_left_top_position);
+                f!([model,searcher_left_top_position](node_id,is_visible) {
+                    model.update_searcher_view(*node_id,&searcher_left_top_position);
                     if !is_visible {
                         // Do not animate
                         searcher_left_top_position.skip();
@@ -203,6 +204,8 @@ impl View {
             frp.source.editing_aborted   <+ editing_finished.gate(&editing_aborted);
             editing_aborted              <+ graph.output.node_being_edited.constant(false);
 
+            frp.source.node_being_edited <+ graph.output.node_being_edited;
+            frp.source.editing_node      <+ frp.node_being_edited.map(|n| n.is_some());
 
             // === Adding New Node ===
 
@@ -257,11 +260,11 @@ impl application::View for View {
 
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use shortcut::ActionType::*;
-        (&[ (Press   , "tab"          , "add_new_node")
-          , (Press   , "escape"       , "abort_node_editing")
-          , (Press   , "ctrl shift s" , "toggle_style")
-          , (Release , "ctrl shift s" , "toggle_style")
-          , (Press   , "cmd s"        , "save_module")
-          ]).iter().map(|(a,b,c)|Self::self_shortcut(*a,*b,*c)).collect()
+        (&[ (Press   , "!editing_node" , "tab"          , "add_new_node")
+          , (Press   , ""              , "escape"       , "abort_node_editing")
+          , (Press   , ""              , "ctrl shift s" , "toggle_style")
+          , (Release , ""              , "ctrl shift s" , "toggle_style")
+          , (Press   , ""              , "cmd s"        , "save_module")
+          ]).iter().map(|(a,b,c,d)|Self::self_shortcut_when(*a,*c,*d,*b)).collect()
     }
 }
