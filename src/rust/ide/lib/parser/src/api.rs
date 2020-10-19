@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 use ast::HasRepr;
 use ast::HasIdMap;
-use data::text::ByteIndex;
+use enso_data::text::ByteIndex;
 
 pub use ast::Ast;
 
@@ -50,7 +50,7 @@ impl SourceFile {
     /// idmap and metadata looks "reasonable enough".
     /// If proper metadata is not recognized, the whole contents is treated as the code.
     pub fn new(content:String) -> Self {
-        let newline_indices                = data::text::rev_newline_byte_indices(&content);
+        let newline_indices                = enso_data::text::rev_newline_byte_indices(&content);
         let three_newline_indices_from_end = newline_indices.take(3).collect_vec();
         match three_newline_indices_from_end.as_slice() {
             [last, before_last, two_before_last] => {

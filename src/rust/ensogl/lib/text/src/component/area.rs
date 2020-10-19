@@ -349,8 +349,12 @@ ensogl_core::def_command_api! { Commands
     decrease_indentation,
     /// Removes the character on the left of every cursor.
     delete_left,
+    /// Removes the character on the right of every cursor.
+    delete_right,
     /// Removes the word on the left of every cursor.
     delete_word_left,
+    /// Removes the word on the right of every cursor.
+    delete_word_right,
     /// Set the text cursor at the mouse cursor position.
     set_cursor_at_mouse_position,
     /// Set the text cursor at the end of text.
@@ -371,6 +375,10 @@ ensogl_core::def_command_api! { Commands
     cursor_move_left_word,
     /// Move the cursor to the right by one word.
     cursor_move_right_word,
+    /// Move the cursor to the beginning of the line.
+    cursor_move_left_of_line,
+    /// Move the cursor to the end of the line.
+    cursor_move_right_of_line,
     /// Move the cursor down one line.
     cursor_move_down,
     /// Move the cursor up one line.
@@ -451,7 +459,8 @@ crate::define_endpoints! {
         mouse_cursor_style (gui::cursor::Style),
         active             (bool),
         width              (f32),
-        changed            (Text),
+        changed            (Vec<buffer::view::Change>),
+        content            (Text),
     }
 }
 
@@ -534,7 +543,6 @@ impl Area {
             loc_on_set_cursor        <- any(input.set_cursor,loc_on_set_cursor_mouse,loc_on_set_cursor_at_end);
             loc_on_add_cursor        <- any(&input.add_cursor,&loc_on_add_cursor_mouse);
 
-
             eval loc_on_set_cursor ((loc) m.buffer.frp.set_cursor(loc));
             eval loc_on_add_cursor ((loc) m.buffer.frp.add_cursor(loc));
 
@@ -582,7 +590,7 @@ impl Area {
             eval input.paste_string ((s) m.buffer.frp.paste(m.decode_paste(s)));
 
 
-            eval_ m.buffer.frp.text_changed (m.redraw());
+            eval_ m.buffer.frp.text_change (m.redraw());
 
             eval_ cmd.remove_all_cursors (m.buffer.frp.remove_all_cursors());
 
@@ -604,6 +612,9 @@ impl Area {
             eval_ cmd.cursor_move_left_word  (m.buffer.frp.cursors_move(Transform::LeftWord));
             eval_ cmd.cursor_move_right_word (m.buffer.frp.cursors_move(Transform::RightWord));
 
+            eval_ cmd.cursor_move_left_of_line  (m.buffer.frp.cursors_move(Transform::LeftOfLine));
+            eval_ cmd.cursor_move_right_of_line (m.buffer.frp.cursors_move(Transform::RightOfLine));
+
             eval_ cmd.cursor_select_left  (m.buffer.frp.cursors_select(Transform::Left));
             eval_ cmd.cursor_select_right (m.buffer.frp.cursors_select(Transform::Right));
             eval_ cmd.cursor_select_up    (m.buffer.frp.cursors_select(Transform::Up));
@@ -615,8 +626,10 @@ impl Area {
             eval_ cmd.select_all            (m.buffer.frp.cursors_select(Transform::All));
             eval_ cmd.select_word_at_cursor (m.buffer.frp.cursors_select(Transform::Word));
 
-            eval_ cmd.delete_left      (m.buffer.frp.delete_left());
-            eval_ cmd.delete_word_left (m.buffer.frp.delete_word_left());
+            eval_ cmd.delete_left       (m.buffer.frp.delete_left());
+            eval_ cmd.delete_right      (m.buffer.frp.delete_right());
+            eval_ cmd.delete_word_left  (m.buffer.frp.delete_word_left());
+            eval_ cmd.delete_word_right (m.buffer.frp.delete_word_right());
 
             eval_ cmd.undo (m.buffer.frp.undo());
             eval_ cmd.redo (m.buffer.frp.redo());
@@ -624,8 +637,8 @@ impl Area {
 
             // === Insert ===
 
-            key_to_insert <- keyboard.frp.on_pressed.sample(&cmd.insert_char_of_last_pressed_key);
-            key_to_insert <= key_to_insert.map(f!((key) m.key_to_string(key)));
+            key_inserted  <- keyboard.frp.down.gate_not(&keyboard.frp.is_modifier_down);
+            key_to_insert <= key_inserted.map(f!((key) m.key_to_string(key)));
             str_to_insert <- any(&input.insert,&key_to_insert);
             eval str_to_insert ((s) m.buffer.frp.insert(s));
             eval input.set_content ([input,cmd](s) {
@@ -646,9 +659,31 @@ impl Area {
 
             // === Changes ===
 
-            self.frp.source.changed <+ m.buffer.frp.text_changed.map(f_!(m.buffer.text()));
+            self.frp.source.changed <+ m.buffer.frp.text_change;
+            self.frp.source.content <+ m.buffer.frp.text_change.map(f_!(m.buffer.text()));
         }
         self
+    }
+
+    /// Add the text area to a specific view. The mouse event positions will be mapped to this view
+    /// regardless the previous views this component could be added to.
+    //TODO[ao] it will not move selection, see todo in `symbols` function.
+    pub fn add_to_view(&self, view:&display::scene::View) {
+        for symbol in self.symbols() { view.add(&symbol); }
+        self.data.camera.set(view.camera.clone_ref());
+    }
+
+    /// Remove this component from view.
+    pub fn remove_from_view(&self, view:&display::scene::View) {
+        for symbol in self.symbols() { view.remove(&symbol); }
+    }
+
+    fn symbols(&self) -> SmallVec<[display::Symbol;1]> {
+        let text_symbol       = self.data.glyph_system.sprite_system().symbol.clone_ref();
+        let selection_system  = self.data.scene.shapes.shape_system(PhantomData::<selection::Shape>);
+        let _selection_symbol = selection_system.shape_system.symbol.clone_ref();
+        //TODO[ao] we cannot move selection symbol, as it is global for all the text areas.
+        SmallVec::from_buf([text_symbol,/*selection_symbol*/])
     }
 }
 
@@ -662,6 +697,9 @@ impl Area {
 #[derive(Clone,CloneRef,Debug)]
 pub struct AreaData {
     scene          : Scene,
+    // FIXME[ao]: this is a temporary solution to handle properly areas in different views. Should
+    //            be replaced with proper object management.
+    camera         : Rc<CloneRefCell<display::camera::Camera2d>>,
     logger         : Logger,
     frp_endpoints  : FrpEndpoints,
     buffer         : buffer::View,
@@ -693,11 +731,11 @@ impl AreaData {
         let font           = fonts.load("DejaVuSansMono");
         let glyph_system   = typeface::glyph::System::new(&scene,font);
         let display_object = display::object::Instance::new(&logger);
-        let glyph_system   = glyph_system.clone_ref();
         let buffer         = default();
         let lines          = default();
         let frp_inputs     = FrpInputs::new(network);
         let frp_endpoints  = FrpEndpoints::new(&network,frp_inputs.clone_ref());
+        let camera         = Rc::new(CloneRefCell::new(scene.camera().clone_ref()));
 
         // FIXME[WD]: These settings should be managed wiser. They should be set up during
         // initialization of the shape system, not for every area creation. To be improved during
@@ -707,73 +745,83 @@ impl AreaData {
         shape_system.shape_system.set_pointer_events(false);
 
         // FIXME[WD]: This is temporary sorting utility, which places the cursor in front of mouse
-        // pointer. Should be refactored when proper sorting mechanisms are in place.
+        // pointer and nodes. Should be refactored when proper sorting mechanisms are in place.
         scene.views.main.remove(symbol);
         scene.views.label.add(symbol);
-        Self {scene,logger,frp_endpoints,display_object,glyph_system,buffer,lines,selection_map}.init()
+
+        Self {scene,logger,frp_endpoints,display_object,glyph_system,buffer,lines,selection_map
+            ,camera}.init()
     }
 
     fn on_modified_selection(&self, selections:&buffer::selection::Group, time:f32, do_edit:bool) {
         {
-        let mut selection_map     = self.selection_map.borrow_mut();
-        let mut new_selection_map = SelectionMap::default();
-        for sel in selections {
-            let sel        = self.buffer.snap_selection(*sel);
-            let id         = sel.id;
-            let start_line = sel.start.line.as_usize();
-            let end_line   = sel.end.line.as_usize();
-            let min_pos_x  = self.lines.rc.borrow()[start_line].div_by_column(sel.start.column);
-            let max_pos_x  = self.lines.rc.borrow()[end_line].div_by_column(sel.end.column);
-            let logger     = Logger::sub(&self.logger,"cursor");
-            let min_pos_y  = -LINE_HEIGHT/2.0 - LINE_HEIGHT * start_line as f32;
-            let pos        = Vector2(min_pos_x,min_pos_y);
-            let width      = max_pos_x - min_pos_x;
-            let selection  = match selection_map.id_map.remove(&id) {
-                Some(selection) => {
-                    let select_left  = selection.width.simulator.target_value() < 0.0;
-                    let select_right = selection.width.simulator.target_value() > 0.0;
-                    let tgt_pos_x    = selection.position.simulator.target_value().x;
-                    let tgt_width    = selection.width.simulator.target_value();
-                    let mid_point    = tgt_pos_x + tgt_width / 2.0;
-                    let go_left      = pos.x < mid_point;
-                    let go_right     = pos.x > mid_point;
-                    let need_flip    = (select_left && go_left) || (select_right && go_right);
-                    if width == 0.0 && need_flip { selection.flip_sides() }
-                    selection.position.set_target_value(pos);
-                    selection
-                }
-                None => {
-                    let selection = Selection::new(&logger,&self.scene,do_edit);
-                    selection.shape.letter_width.set(7.0); // FIXME hardcoded values
-                    self.add_child(&selection);
-                    selection.position.set_target_value(pos);
-                    selection.position.skip();
-                    let selection_network = &selection.network;
-                    let model = self.clone_ref(); // FIXME: memory leak. To be fixed with the below note.
-                    frp::extend! { selection_network
-                        // FIXME[WD]: This is ultra-slow. Redrawing all glyphs on each
-                        //            animation frame. Multiple times, once per cursor.
-                        eval_ selection.position.value (model.redraw());
+            let mut selection_map     = self.selection_map.borrow_mut();
+            let mut new_selection_map = SelectionMap::default();
+            for sel in selections {
+                let sel        = self.buffer.snap_selection(*sel);
+                let id         = sel.id;
+                let start_line = sel.start.line.as_usize();
+                let end_line   = sel.end.line.as_usize();
+                let pos_x      = |line:usize, column:Column| if line >= self.lines.count() {
+                    self.lines.rc.borrow().last().and_then(|l| l.divs.last().cloned()).unwrap_or(0.0)
+                } else {
+                    self.lines.rc.borrow()[line].div_by_column(column)
+                };
+                let min_pos_x  = pos_x(start_line,sel.start.column);
+                let max_pos_x  = pos_x(end_line  ,sel.end  .column);
+                let logger     = Logger::sub(&self.logger,"cursor");
+                let min_pos_y  = -LINE_HEIGHT/2.0 - LINE_HEIGHT * start_line as f32;
+                let pos        = Vector2(min_pos_x,min_pos_y);
+                let width      = max_pos_x - min_pos_x;
+                let selection  = match selection_map.id_map.remove(&id) {
+                    Some(selection) => {
+                        let select_left  = selection.width.simulator.target_value() < 0.0;
+                        let select_right = selection.width.simulator.target_value() > 0.0;
+                        let tgt_pos_x    = selection.position.simulator.target_value().x;
+                        let tgt_width    = selection.width.simulator.target_value();
+                        let mid_point    = tgt_pos_x + tgt_width / 2.0;
+                        let go_left      = pos.x < mid_point;
+                        let go_right     = pos.x > mid_point;
+                        let need_flip    = (select_left && go_left) || (select_right && go_right);
+                        if width == 0.0 && need_flip { selection.flip_sides() }
+                        selection.position.set_target_value(pos);
+                        selection
                     }
-                    selection
-                }
-            };
-
-            selection.width.set_target_value(width);
-            selection.edit_mode.set(do_edit);
-            selection.shape.start_time.set(time);
-            new_selection_map.id_map.insert(id,selection);
-            new_selection_map.location_map.entry(start_line).or_default().insert(sel.start.column,id);
-        }
-        *selection_map = new_selection_map;
+                    None => {
+                        let selection = Selection::new(&logger,&self.scene,do_edit);
+                        selection.shape.letter_width.set(7.0); // FIXME hardcoded values
+                        self.add_child(&selection);
+                        selection.position.set_target_value(pos);
+                        selection.position.skip();
+                        let selection_network = &selection.network;
+                        // FIXME[wd]: memory leak. To be fixed with the below note as a part of
+                        //            https://github.com/enso-org/ide/issues/670 . Once fixed,
+                        //            delete code removing all cursors on Area drop.
+                        let model = self.clone_ref();
+                        frp::extend! { selection_network
+                            // FIXME[WD]: This is ultra-slow. Redrawing all glyphs on each
+                            //            animation frame. Multiple times, once per cursor.
+                            eval_ selection.position.value (model.redraw());
+                        }
+                        selection
+                    }
+                };
+                selection.width.set_target_value(width);
+                selection.edit_mode.set(do_edit);
+                selection.shape.start_time.set(time);
+                new_selection_map.id_map.insert(id,selection);
+                new_selection_map.location_map.entry(start_line).or_default().insert(sel.start.column,id);
+            }
+            *selection_map = new_selection_map;
         }
         self.redraw()
     }
 
     /// Transforms screen position to the object (display object) coordinate system.
     fn to_object_space(&self, screen_pos:Vector2) -> Vector2 {
+        let camera             = self.camera.get();
         let origin_world_space = Vector4(0.0,0.0,0.0,1.0);
-        let origin_clip_space  = self.scene.camera().view_projection_matrix() * origin_world_space;
+        let origin_clip_space  = camera.view_projection_matrix() * origin_world_space;
         let inv_object_matrix  = self.transform_matrix().try_inverse().unwrap();
 
         let shape        = self.scene.frp.shape.value();
@@ -781,7 +829,7 @@ impl AreaData {
         let clip_space_x = origin_clip_space.w * 2.0 * screen_pos.x / shape.width;
         let clip_space_y = origin_clip_space.w * 2.0 * screen_pos.y / shape.height;
         let clip_space   = Vector4(clip_space_x,clip_space_y,clip_space_z,origin_clip_space.w);
-        let world_space  = self.scene.camera().inversed_view_projection_matrix() * clip_space;
+        let world_space  = camera.inversed_view_projection_matrix() * clip_space;
         (inv_object_matrix * world_space).xy()
     }
 
@@ -908,6 +956,7 @@ impl AreaData {
         match key {
             Key::Character(s) => Some(s.clone()),
             Key::Enter        => Some("\n".into()),
+            Key::Space        => Some(" ".into()),
             _                 => None
         }
     }
@@ -949,45 +998,53 @@ impl application::View for Area {
 //            Should be resolved as part of https://github.com/enso-org/ide/issues/713
 impl application::shortcut::DefaultShortcutProvider for Area {
     fn default_shortcuts() -> Vec<shortcut::Shortcut> {
-        use enso_frp::io::mouse;
-//        vec! [ Self::self_shortcut(shortcut::Action::press (&[],&[mouse::PrimaryButton]), "set_cursor_at_mouse_position")
-//        ]
-        vec! [ Self::self_shortcut(shortcut::Action::press   (&[Key::ArrowLeft]                       , shortcut::Pattern::Any) , "cursor_move_left"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::ArrowRight]                      , shortcut::Pattern::Any) , "cursor_move_right"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::ArrowUp]                         , shortcut::Pattern::Any) , "cursor_move_up"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::ArrowDown]                       , shortcut::Pattern::Any) , "cursor_move_down"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Meta,Key::ArrowLeft]             , shortcut::Pattern::Any) , "cursor_move_left_word"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Meta,Key::ArrowRight]            , shortcut::Pattern::Any) , "cursor_move_right_word"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::ArrowLeft]            , shortcut::Pattern::Any) , "cursor_select_left"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::ArrowRight]           , shortcut::Pattern::Any) , "cursor_select_right"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Meta,Key::Shift,Key::ArrowLeft]  , shortcut::Pattern::Any) , "cursor_select_left_word"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Meta,Key::Shift,Key::ArrowRight] , shortcut::Pattern::Any) , "cursor_select_right_word"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::ArrowUp]              , shortcut::Pattern::Any) , "cursor_select_up"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::ArrowDown]            , shortcut::Pattern::Any) , "cursor_select_down"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Backspace]                       , shortcut::Pattern::Any) , "delete_left"),
-//               Self::self_shortcut(shortcut::Action::press   (&[Key::Tab]                             , shortcut::Pattern::Any) , "increase_indentation"),
-//               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift,Key::Tab]                  , shortcut::Pattern::Any) , "decrease_indentation"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Meta,Key::Backspace]             , shortcut::Pattern::Any) , "delete_word_left"),
-//               Self::self_shortcut(shortcut::Action::press   (&[Key::Escape]                          , shortcut::Pattern::Any) , "keep_oldest_cursor_only"),
-               Self::self_shortcut(shortcut::Action::press   (shortcut::Pattern::Any,&[])                                       , "insert_char_of_last_pressed_key"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Shift],&[mouse::PrimaryButton])                            , "set_newest_selection_end_to_mouse_position"),
-               Self::self_shortcut(shortcut::Action::double_press (&[],&[mouse::PrimaryButton])                                 , "select_word_at_cursor"),
-               Self::self_shortcut(shortcut::Action::press   (&[],&[mouse::PrimaryButton])                                      , "set_cursor_at_mouse_position"),
-               Self::self_shortcut(shortcut::Action::press   (&[],&[mouse::PrimaryButton])                                      , "start_newest_selection_end_follow_mouse"),
-               Self::self_shortcut(shortcut::Action::release (&[],&[mouse::PrimaryButton])                                      , "stop_newest_selection_end_follow_mouse"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Meta],&[mouse::PrimaryButton])                             , "add_cursor_at_mouse_position"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Meta],&[mouse::PrimaryButton])                             , "start_newest_selection_end_follow_mouse"),
-               Self::self_shortcut(shortcut::Action::release (&[Key::Meta],&[mouse::PrimaryButton])                             , "stop_newest_selection_end_follow_mouse"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Meta,Key::Character("a".into())],&[])                      , "select_all"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Meta,Key::Character("c".into())],&[])                      , "copy"),
-               Self::self_shortcut(shortcut::Action::press   (&[Key::Meta,Key::Character("v".into())],&[])                      , "paste"),
-//               Self::self_shortcut(shortcut::Action::release (&[Key::Meta,Key::Character("z".into())],&[])                      , "undo"),
-//               Self::self_shortcut(shortcut::Action::release (&[Key::Meta,Key::Character("y".into())],&[])                      , "redo"),
-//               Self::self_shortcut(shortcut::Action::release (&[Key::Meta,Key::Shift,Key::Character("z".into())],&[])           , "redo"),
-//                Self::self_shortcut(shortcut::Action::press   (&[Key::Escape]                          , shortcut::Pattern::Any) , "undo"),
-        ]
+        use shortcut::ActionType::*;
+        (&[ (Press       , "left"                    , "cursor_move_left")
+          , (Press       , "right"                   , "cursor_move_right")
+          , (Press       , "up"                      , "cursor_move_up")
+          , (Press       , "down"                    , "cursor_move_down")
+          , (Press       , "cmd left"                , "cursor_move_left_word")
+          , (Press       , "cmd right"               , "cursor_move_right_word")
+          , (Press       , "cmd alt left"            , "cursor_move_left_of_line")
+          , (Press       , "cmd alt right"           , "cursor_move_right_of_line")
+          , (Press       , "home"                    , "cursor_move_left_of_line")
+          , (Press       , "end"                     , "cursor_move_right_of_line")
+          , (Press       , "shift left"              , "cursor_select_left")
+          , (Press       , "shift right"             , "cursor_select_right")
+          , (Press       , "cmd shift left"          , "cursor_select_left_word")
+          , (Press       , "cmd shift right"         , "cursor_select_right_word")
+          , (Press       , "shift up"                , "cursor_select_up")
+          , (Press       , "shift down"              , "cursor_select_down")
+          , (Press       , "backspace"               , "delete_left")
+          , (Press       , "delete"                  , "delete_right")
+          , (Press       , "cmd backspace"           , "delete_word_left")
+          , (Press       , "cmd delete"              , "delete_word_right")
+          , (Press       , "shift left-mouse-button" , "set_newest_selection_end_to_mouse_position")
+          , (DoublePress , "left-mouse-button"       , "select_word_at_cursor")
+          , (Press       , "left-mouse-button"       , "set_cursor_at_mouse_position")
+          , (Press       , "left-mouse-button"       , "start_newest_selection_end_follow_mouse")
+          , (Release     , "left-mouse-button"       , "stop_newest_selection_end_follow_mouse")
+          , (Press       , "cmd left-mouse-button"   , "add_cursor_at_mouse_position")
+          , (Press       , "cmd left-mouse-button"   , "start_newest_selection_end_follow_mouse")
+          , (Release     , "cmd left-mouse-button"   , "stop_newest_selection_end_follow_mouse")
+          , (Press       , "cmd a"                   , "select_all")
+          , (Press       , "cmd c"                   , "copy")
+          , (Press       , "cmd v"                   , "paste")
+//        , Self::self_shortcut(Press   (&[Key::Escape]                          , shortcut::Pattern::Any) , "keep_oldest_cursor_only"),
+//        , Self::self_shortcut(Press   (shortcut::Pattern::Any,&[])                                       , "insert_char_of_last_pressed_key"),
+//        , Self::self_shortcut(Release (&[Key::Meta,Key::Character("z".into())],&[])                      , "undo"),
+//        , Self::self_shortcut(Release (&[Key::Meta,Key::Character("y".into())],&[])                      , "redo"),
+//        , Self::self_shortcut(Release (&[Key::Meta,Key::Shift,Key::Character("z".into())],&[])           , "redo"),
+//        , Self::self_shortcut(Press   (&[Key::Escape]                          , shortcut::Pattern::Any) , "undo"),
+          ]).iter().map(|(a,b,c)|Self::self_shortcut(*a,*b,*c)).collect()
     }
 }
 
-// TODO[WD]: The following shortcuts are missing and its worth adding them in the future:
-// undo, redo, multicursor up/down, check with different views, scrolling, parens, lines indent
+impl Drop for Area {
+    fn drop(&mut self) {
+        // TODO[ao]: This is workaround for memory leak causing text to stay even when component
+        //           is deleted. See "FIXME: memory leak." comment above.
+        self.remove_all_cursors();
+    }
+}
+

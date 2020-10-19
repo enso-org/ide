@@ -53,7 +53,6 @@ use ensogl::gui::cursor;
 use ensogl::prelude::*;
 use ensogl::system::web;
 use ensogl_theme;
-use frp::io::keyboard;
 
 pub use ensogl::prelude;
 
@@ -1315,6 +1314,7 @@ impl GraphEditorModel {
                 self.refresh_edge_position(edge_id);
                 self.refresh_edge_source_size(edge_id);
             }
+
         }
     }
 
@@ -1600,31 +1600,34 @@ impl application::command::Provider for GraphEditor {
 
 impl application::shortcut::DefaultShortcutProvider for GraphEditor {
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
-        use keyboard::Key;
-        vec! [ Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Shift,Key::Enter],&[])       , "debug_push_breadcrumb")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Shift,Key::ArrowUp],&[])     , "debug_pop_breadcrumb")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Escape],&[])                              , "cancel_project_name_editing")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Backspace],&[])              , "remove_selected_nodes")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("g".into())],&[])  , "collapse_selected_nodes")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character(" ".into())],&[])  , "press_visualization_visibility")
-             , Self::self_shortcut(shortcut::Action::double_press (&[Key::Control,Key::Character(" ".into())],&[])  , "double_press_visualization_visibility")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Character(" ".into())],&[])  , "release_visualization_visibility")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Meta],&[])                                , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Meta],&[])                                , "toggle_node_multi_select")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Shift],&[])                               , "toggle_node_merge_select")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Shift],&[])                               , "toggle_node_merge_select")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Alt],&[])                                 , "toggle_node_subtract_select")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Alt],&[])                                 , "toggle_node_subtract_select")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Shift,Key::Alt],&[])                      , "toggle_node_inverse_select")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Shift,Key::Alt],&[])                      , "toggle_node_inverse_select")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("d".into())],&[])  , "set_test_visualization_data_for_selected_node")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control,Key::Character("f".into())],&[])  , "cycle_visualization_for_selected_node")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::Enter],&[])                  , "enter_selected_node")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control,Key::ArrowUp],&[])                , "exit_node")
-             , Self::self_shortcut(shortcut::Action::press        (&[Key::Control],&[])                             , "edit_mode_on")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Control],&[])                             , "edit_mode_off")
-             , Self::self_shortcut(shortcut::Action::release      (&[Key::Enter],&[])                               , "stop_editing")
-             ]
+        use shortcut::ActionType::*;
+        (&[ (Press       , "ctrl shift enter" , "debug_push_breadcrumb")
+          , (Press       , "ctrl shift up"    , "debug_pop_breadcrumb")
+          , (Press       , "escape"           , "cancel_project_name_editing")
+          , (Press       , "ctrl backspace"   , "remove_selected_nodes")
+          , (Press       , "ctrl g"           , "collapse_selected_nodes")
+          , (Press       , "ctrl space"       , "press_visualization_visibility")
+          , (DoublePress , "ctrl space"       , "double_press_visualization_visibility")
+          , (Release     , "ctrl space"       , "release_visualization_visibility")
+          , (Press       , "cmd"              , "toggle_node_multi_select")
+          , (Release     , "cmd"              , "toggle_node_multi_select")
+          , (Press       , "shift"            , "toggle_node_merge_select")
+          , (Release     , "shift"            , "toggle_node_merge_select")
+          , (Press       , "alt"              , "toggle_node_subtract_select")
+          , (Release     , "alt"              , "toggle_node_subtract_select")
+          , (Press       , "shift alt"        , "toggle_node_inverse_select")
+          , (Release     , "shift alt"        , "toggle_node_inverse_select")
+          , (Press       , "ctrl d"           , "set_test_visualization_data_for_selected_node")
+          , (Press       , "ctrl f"           , "cycle_visualization_for_selected_node")
+          , (Release     , "ctrl enter"       , "enter_selected_node")
+          , (Release     , "ctrl up"          , "exit_node")
+          , (Press       , "cmd"              , "edit_mode_on")
+          , (Release     , "cmd"              , "edit_mode_off")
+          , (Release     , "enter"            , "stop_editing")
+          // FIXME[WD] We need to add something like that to debug shapes.
+          , // (Press       , "ctrl n"           , "add_node_at_cursor")
+          ]).iter().map(|(a,b,c)|Self::self_shortcut(*a,*b,*c)).collect()
+
     }
 }
 
@@ -1985,9 +1988,13 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     eval edge_source_click (((edge_id, _)) model.remove_edge_source(*edge_id));
     eval edge_target_click (((edge_id, _)) model.remove_edge_target(*edge_id));
 
+    outputs.edge_source_unset <+ edge_source_click.map(|(edge_id,_)| *edge_id);
+    outputs.edge_target_unset <+ edge_target_click.map(|(edge_id,_)| *edge_id);
+
     }
 
     // === Edge creation  ===
+
     frp::extend! { network
 
     on_node_output_touch <- node_output_touch.down.constant(());
@@ -2430,7 +2437,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     both_endpoints_set         <- edge_endpoint_set.map(f!((id) model.is_connection(id)));
     new_connection             <- edge_endpoint_set.gate(&both_endpoints_set);
     outputs.connection_added   <+ new_connection;
-    outputs.connection_removed <+ outputs.edge_removed;
+    outputs.connection_removed <+ any
+        (outputs.edge_removed,outputs.edge_source_unset,outputs.edge_target_unset);
+    trace outputs.connection_removed;
 
 
     // === Status ===
