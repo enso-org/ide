@@ -228,7 +228,8 @@ impl Manager {
                 }
             });
 
-            frp.output.source.hover <+ edit_mode.gate_not(&edit_mode).constant(None);
+            frp.output.source.hover   <+ edit_mode.gate_not(&edit_mode).constant(None);
+            frp.output.source.editing <+ edit_mode.sampler();
 
 
             // === Label Hover ===
