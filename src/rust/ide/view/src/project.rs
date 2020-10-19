@@ -176,8 +176,9 @@ impl View {
             // once processing of "edited_node" event from graph is performed.
             editing_aborted <- any(...);
             editing_aborted <+ frp.abort_node_editing.constant(true);
-            should_finish_editing <-
+            should_finish_editing_if_any <-
                 any(frp.abort_node_editing,searcher.editing_committed,frp.add_new_node);
+            should_finish_editing <- should_finish_editing_if_any.gate(&graph.output.node_editing);
             eval should_finish_editing ((()) graph.input.stop_editing.emit(()));
             _eval <- graph.output.node_being_edited.map2(&searcher.is_visible,
                 f!([model,searcher_left_top_position](edited_node_id,is_visible) {

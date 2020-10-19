@@ -773,6 +773,7 @@ impl Model {
 #[allow(clippy::ptr_arg)]
 impl Model {
     fn node_removed_in_ui(&self, node:&graph_editor::NodeId) -> FallibleResult<()> {
+        debug!(self.logger, "Removing node.");
         let id = self.get_controller_node_id(*node)?;
         self.node_views.borrow_mut().remove_by_left(&id);
         self.graph.graph().remove_node(id)?;
@@ -781,6 +782,7 @@ impl Model {
 
     fn node_moved_in_ui
     (&self, (displayed_id,pos):&(graph_editor::NodeId,Vector2)) -> FallibleResult<()> {
+        debug!(self.logger, "Moving node.");
         if let Ok(id) = self.get_controller_node_id(*displayed_id) {
             self.graph.graph().module.with_node_metadata(id, Box::new(|md| {
                 md.position = Some(model::module::Position::new(pos.x,pos.y));
@@ -792,6 +794,7 @@ impl Model {
     fn nodes_collapsed_in_ui
     (&self, (collapsed,_new_node_view_id):&(Vec<graph_editor::NodeId>,graph_editor::NodeId))
     -> FallibleResult<()> {
+        debug!(self.logger, "Collapsing node.");
         let ids          = self.get_controller_node_ids(collapsed)?;
         let _new_node_id = self.graph.graph().collapse(ids,COLLAPSED_FUNCTION_NAME)?;
         // TODO [mwu] https://github.com/enso-org/ide/issues/760
@@ -802,6 +805,7 @@ impl Model {
 
     fn node_expression_set_in_ui
     (&self, (displayed_id,expression):&(graph_editor::NodeId,String)) -> FallibleResult<()> {
+        debug!(self.logger, "Setting node expression.");
         let searcher = self.searcher.borrow();
         self.expression_views.borrow_mut().insert(*displayed_id,expression.clone());
         if let Some(searcher) = searcher.as_ref() {
@@ -814,6 +818,7 @@ impl Model {
     -> impl Fn(&Self,&Option<graph_editor::NodeId>) -> FallibleResult<()> {
         move |this,displayed_id| {
             if let Some(displayed_id) = displayed_id {
+                debug!(this.logger, "Starting node editing.");
                 let id   = this.get_controller_node_id(*displayed_id);
                 let mode = match id {
                     Ok(node_id) => controller::searcher::Mode::EditNode {node_id},
@@ -839,7 +844,7 @@ impl Model {
                 })));
                 *this.searcher.borrow_mut() = Some(searcher);
             } else {
-                *this.searcher.borrow_mut() = None;
+                debug!(this.logger, "Finishing node editing.");
             }
             Ok(())
         }
@@ -847,6 +852,7 @@ impl Model {
 
     fn suggestion_picked_in_ui
     (&self, entry:&Option<ide_view::searcher::entry::Id>) -> FallibleResult<()> {
+        debug!(self.logger, "Picking suggestion.");
         if let Some(entry) = entry {
             let graph_frp      = &self.view.graph().frp;
             let error          = || MissingSearcherController;
@@ -866,6 +872,7 @@ impl Model {
 
     fn node_editing_committed_in_ui
     (&self, displayed_id:&graph_editor::NodeId) -> FallibleResult<()> {
+        debug!(self.logger, "Committing node expression.");
         let error = || MissingSearcherController;
         let searcher = self.searcher.borrow().clone().ok_or_else(error)?;
         *self.searcher.borrow_mut() = None;
@@ -882,6 +889,7 @@ impl Model {
     }
 
     fn connection_created_in_ui(&self, edge_id:&graph_editor::EdgeId) -> FallibleResult<()> {
+        debug!(self.logger, "Creating connection.");
         let displayed = self.view.graph().model.edges.get_cloned(&edge_id).ok_or(GraphEditorInconsistency)?;
         let con       = self.controller_connection_from_displayed(&displayed)?;
         let inserting = self.connection_views.borrow_mut().insert(con.clone(), *edge_id);
@@ -894,6 +902,7 @@ impl Model {
     }
 
     fn connection_removed_in_ui(&self, edge_id:&graph_editor::EdgeId) -> FallibleResult<()> {
+        debug!(self.logger, "Removing connection.");
         let connection = self.get_controller_connection(*edge_id)?;
         self.connection_views.borrow_mut().remove_by_left(&connection);
         self.graph.disconnect(&connection)?;
