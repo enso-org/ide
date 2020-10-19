@@ -213,15 +213,6 @@ pub struct AnimationLinearSpace<T> {
 /// Shorthand for a  HasAnimationSpaceRepr::AnimationSpaceRepr wrapped in a `AnimationLinearSpace`.
 pub type AnimationSpaceRepr<T> = AnimationLinearSpace<<T as HasAnimationSpaceRepr>::AnimationSpaceRepr>;
 
-/// This is used to make type inference better on usage places - without it,
-/// Rust would force one to write the where part EVERYWHERE in use places.
-/// FIXME[MM] replace with version from prelude.
-pub trait FromAsInto<T> = Sized where T:Into<Self>;
-
-/// Can be transformed from and into.
-/// FIXME[MM] replace with version from prelude.
-pub trait BiInto<T> = Sized + Into<T> + FromAsInto<T>;
-
 pub trait Animatable = HasAnimationSpaceRepr + BiInto<AnimationSpaceRepr<Self>>;
 
 /// Convert the animation space value to the respective `Animatable`.
