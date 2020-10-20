@@ -290,7 +290,7 @@ impl<T:Animatable+frp::Data> Animation<T> {
     }
 
     pub fn target_value(&self) -> T {
-        let value =  self.simulator.target_value();
+        let value = self.simulator.target_value();
         from_animation_space(value)
     }
 }
