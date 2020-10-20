@@ -6,11 +6,11 @@ use ast::HasRepr;
 use ast::HasIdMap;
 use enso_data::text::ByteIndex;
 
-pub use ast::Ast;
-
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde::Serialize;
+
+pub use ast::Ast;
 
 
 
@@ -96,23 +96,12 @@ impl SourceFile {
 
     /// Checks if given line might be an ID map.
     pub fn looks_like_idmap(line:&str) -> bool {
-        Self::is_enclosed(line,'[', ']')
+        line.is_enclosed('[', ']')
     }
 
     /// Checks if given line might be a metadata map.
     pub fn looks_like_metadata(line:&str) -> bool {
-        Self::is_enclosed(line,'{', '}')
-    }
-
-    /// Check if given string starts and ends with given characters.
-    fn is_enclosed(text:&str, first_char:char, last_char:char) -> bool {
-        if first_char.is_ascii() && last_char.is_ascii() {
-            let bytes = text.as_bytes();
-            bytes.first() == Some(&(first_char as u8)) && bytes.last() == Some(&(last_char as u8))
-        } else {
-            let mut chars = text.chars();
-            chars.next() == Some(first_char) && chars.last() == Some(last_char)
-        }
+        line.is_enclosed('{', '}')
     }
 
     /// Get fragment of serialized string with code.
