@@ -19,7 +19,7 @@ pub mod component;
 pub mod data;
 pub mod gradient;
 pub mod space;
-pub mod animations;
+pub mod animation;
 
 pub use component::*;
 pub use self::data::*;

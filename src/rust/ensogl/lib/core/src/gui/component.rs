@@ -33,7 +33,7 @@ pub struct ShapeViewEvents {
     pub mouse_down : frp::Source,
     pub mouse_over : frp::Source,
     pub mouse_out  : frp::Source,
-    on_drop        : frp::Source,
+    pub on_drop    : frp::Source,
 }
 
 impl ShapeViewEvents {
@@ -70,22 +70,28 @@ impl MouseTarget for ShapeViewEvents {
 /// reference to an existing `Shape` as soon as it is placed on the scene and the scene is updated.
 /// As soon as it is removed from the scene, the shape is freed.
 #[derive(Clone,CloneRef,Debug,Deref)]
-#[clone_ref(bound="Shape:CloneRef")]
+#[clone_ref(bound="S:CloneRef")]
 #[allow(missing_docs)]
-pub struct ShapeView<Shape> {
-    model : Rc<ShapeViewModel<Shape>>
+pub struct ShapeView<S:Shape> {
+    model : Rc<ShapeViewModel<S>>
 }
 
 #[derive(Debug)]
 #[allow(missing_docs)]
-pub struct ShapeViewModel<Shape> {
-    pub shape          : Shape,
+pub struct ShapeViewModel<S:Shape> {
+    pub registry       : ShapeRegistry,
+    pub shape          : S,
     pub display_object : display::object::Instance,
     pub events         : ShapeViewEvents,
 }
 
-impl<Shape> Drop for ShapeViewModel<Shape> {
+impl<S:Shape> Drop for ShapeViewModel<S> {
     fn drop(&mut self) {
+        for sprite in self.shape.sprites() {
+            let symbol_id   = sprite.symbol_id();
+            let instance_id = *sprite.instance_id;
+            self.registry.remove_mouse_target(symbol_id,instance_id);
+        }
         self.events.on_drop.emit(());
     }
 }
@@ -107,22 +113,19 @@ impl<S:Shape> ShapeView<S> {
     pub fn new(logger:impl AnyLogger, scene:&Scene) -> Self {
         let logger         = Logger::sub(logger,"shape_view");
         let display_object = display::object::Instance::new(logger);
-//        let data           = default();
-        let shape_registry: &ShapeRegistry = &scene.shapes;
-        let shape          = shape_registry.new_instance::<S>();
+        let registry       = scene.shapes.clone_ref();
+        let shape          = registry.new_instance::<S>();
         let events         = ShapeViewEvents::new();
         display_object.add_child(&shape);
         for sprite in shape.sprites() {
             let events      = events.clone_ref();
             let symbol_id   = sprite.symbol_id();
             let instance_id = *sprite.instance_id;
-            shape_registry.insert_mouse_target(symbol_id,instance_id,events);
+            registry.insert_mouse_target(symbol_id,instance_id,events);
         }
-//        let data = T::new(&shape,scene,shape_registry);
 
-        let model = Rc::new(ShapeViewModel {display_object,events,shape});
+        let model = Rc::new(ShapeViewModel {registry,display_object,events,shape});
         Self {model}
-
     }
 
 //    fn init(self) -> Self {
@@ -173,7 +176,7 @@ impl<S:Shape> ShapeView<S> {
 //    }
 }
 
-impl<T> display::Object for ShapeView<T> {
+impl<T:Shape> display::Object for ShapeView<T> {
     fn display_object(&self) -> &display::object::Instance {
         &self.display_object
     }
@@ -193,28 +196,43 @@ impl<T> display::Object for ShapeView<T> {
 // === Animatable ===
 // ==================
 
-/// Trait that needs to be implemented to animate a struct.
-pub trait Animatable<T>: Debug+Clone+Default+'static {
-    /// State vector. For nice animations a continuous change in state space needs to be reflected
-    /// in a continuous state in the `Animatable` struct. (There should be no discontinuities).
-    type State: inertia::Value;
-    /// Create the entity from the given state vector.
-    fn from_state(state:Self::State) -> T;
-    /// Get the state vector for the given entity.
-    fn to_state(entity:T) -> Self::State;
+/// Indicate what datatype to use in the animation space representation.
+pub trait HasAnimationSpaceRepr {
+    /// Representation in animation space. Needs to support linear interpolation and all
+    /// pre-requisites of `inertia::Value`.
+    type AnimationSpaceRepr: inertia::Value;
+}
+
+/// Newtype that indicates that the wrapped value is valid to be used in animations.
+#[derive(Debug)]
+pub struct AnimationLinearSpace<T> {
+    /// Wrapped value representing the animation space value.
+    pub value: T
+}
+
+/// Shorthand for a  HasAnimationSpaceRepr::AnimationSpaceRepr wrapped in a `AnimationLinearSpace`.
+pub type AnimationSpaceRepr<T> = AnimationLinearSpace<<T as HasAnimationSpaceRepr>::AnimationSpaceRepr>;
+
+pub trait Animatable = HasAnimationSpaceRepr + BiInto<AnimationSpaceRepr<Self>>;
+
+/// Convert the animation space value to the respective `Animatable`.
+pub fn from_animation_space<T:Animatable>(value:T::AnimationSpaceRepr) -> T {
+    AnimationLinearSpace{value}.into()
 }
 
 macro_rules! define_self_animatable {
     ($type:ty ) => {
-        impl Animatable<$type> for $type {
-            type  State = $type;
+        impl HasAnimationSpaceRepr for $type { type AnimationSpaceRepr = $type; }
 
-            fn from_state(state:Self::State) -> $type {
-                state
+        impl From<$type> for AnimationLinearSpace<$type> {
+            fn from(value:$type) -> AnimationLinearSpace<$type> {
+                 AnimationLinearSpace{value}
             }
+        }
 
-            fn to_state(entity:$type) -> Self::State {
-                entity
+        impl Into<$type> for AnimationLinearSpace<$type> {
+            fn into(self) -> $type {
+                self.value
             }
         }
     }
@@ -236,43 +254,44 @@ define_self_animatable!(Vector4);
 #[derive(CloneRef,Derivative,Debug)]
 #[derivative(Clone(bound=""))]
 #[allow(missing_docs)]
-pub struct Animation<T:Animatable<T>> {
-    pub simulator : DynSimulator<T::State>,
+pub struct Animation<T:Animatable> {
+    #[shrinkwrap(main_field)]
+    pub simulator : DynSimulator<T::AnimationSpaceRepr>,
     pub value     : frp::Stream<T>,
 }
 
 #[allow(missing_docs)]
-impl<T:Animatable<T>> Animation<T> {
+impl<T:Animatable+frp::Data> Animation<T> {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
             def target = source::<T>();
         }
-        let simulator = DynSimulator::<T::State>::new(Box::new(f!((t) target.emit(T::from_state(t)))));
+        let simulator = DynSimulator::<T::AnimationSpaceRepr>::new(Box::new(f!((t) {
+             target.emit(from_animation_space::<T>(t))
+        })));
         let value     = target.into();
         Self {simulator,value}
     }
 
     pub fn set_value(&self, value:T) {
-        let state = T::to_state(value);
-        self.simulator.set_value(state);
+        let animation_space_repr = value.into();
+        self.simulator.set_value(animation_space_repr.value);
     }
 
     pub fn value(&self) -> T {
-        T::from_state(self.simulator.value())
+        let value = self.simulator.value();
+        from_animation_space(value)
     }
 
     pub fn set_target_value(&self, target_value:T) {
-        let state = T::to_state(target_value);
-        self.simulator.set_target_value(state);
-    }
-
-    pub fn skip(&self) {
-        self.simulator.skip();
+        let state:AnimationLinearSpace<_> = target_value.into();
+        self.simulator.set_target_value(state.value);
     }
 
     pub fn target_value(&self) -> T {
-        T::from_state(self.simulator.target_value())
+        let value = self.simulator.target_value();
+        from_animation_space(value)
     }
 }
 
