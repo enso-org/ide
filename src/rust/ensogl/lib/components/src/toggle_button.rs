@@ -5,7 +5,7 @@ use enso_frp as frp;
 use ensogl_core::application::Application;
 use ensogl_core::data::color;
 use ensogl_core::display;
-use ensogl_core::display::shape::*;
+use ensogl_core::display::shape::primitive::system;
 use ensogl_core::gui::component::ShapeView;
 use ensogl_shape_utils::component_color::ComponentColor;
 use ensogl_shape_utils::component_color;
@@ -29,7 +29,7 @@ pub trait ColorableShape : system::Shape {
 // === Frp ===
 // ===========
 
-ensogl_text::define_endpoints! {
+ensogl_core::define_endpoints! {
     Input {
         set_visibility (bool),
         set_base_color (component_color::Source),
@@ -49,7 +49,7 @@ ensogl_text::define_endpoints! {
 // =============
 
 #[derive(Clone,Debug)]
-struct Model<Shape> {
+struct Model<Shape:system::Shape> {
     icon : ShapeView<Shape>,
 }
 
@@ -70,7 +70,7 @@ impl<Shape:ColorableShape+'static> Model<Shape> {
 /// A UI component that acts as a toggle which can be toggled on and of. Has a visible shape
 /// that acts as button and changes color depending on the toggle state.
 #[derive(Clone,CloneRef,Debug)]
-pub struct ToggleButton<Shape> {
+pub struct ToggleButton<Shape:ColorableShape> {
     model:Rc<Model<Shape>>,
     /// Public FRP api.
     pub frp:Frp
@@ -149,7 +149,7 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
     }
 }
 
-impl<T> display::Object for ToggleButton<T> {
+impl<T:ColorableShape> display::Object for ToggleButton<T> {
     fn display_object(&self) -> &display::object::Instance {
         &self.model.icon.display_object()
     }

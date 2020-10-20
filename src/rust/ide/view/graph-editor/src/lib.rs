@@ -443,8 +443,8 @@ ensogl::define_endpoints! {
         node_edit_mode            (bool),
         node_editing_started      (NodeId),
         node_editing_finished     (NodeId),
-        node_action_freeze        (NodeId,bool),
-        node_action_skip          (NodeId,bool),
+        node_action_freeze        ((NodeId,bool)),
+        node_action_skip          ((NodeId,bool)),
 
         edge_added         (EdgeId),
         edge_removed       (EdgeId),
@@ -892,6 +892,7 @@ impl GraphEditorModelWithNetwork {
         Self {model,network}
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn new_node
     ( &self
     , pointer_style   : &frp::Source<cursor::Style>
@@ -899,8 +900,8 @@ impl GraphEditorModelWithNetwork {
     , input_press     : &frp::Source<EdgeTarget>
     , expression_set  : &frp::Source<(NodeId,String)>
     , edit_mode_ready : &frp::Stream<bool>
-    , action_freeze  : &frp::Source<(NodeId,bool)>
-    , action_skip    : &frp::Source<(NodeId,bool)>
+    , action_freeze   : &frp::Source<(NodeId,bool)>
+    , action_skip     : &frp::Source<(NodeId,bool)>
     ) -> NodeId {
         let view    = component::Node::new(&self.app,self.visualizations.clone_ref());
         let node    = Node::new(view);
@@ -1992,12 +1993,13 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     node_action_freeze <- source::<(NodeId,bool)>();
     node_action_skip   <- source::<(NodeId,bool)>();
-    outputs.node_action_freeze <+ node_action_freeze;
-    outputs.node_action_skip   <+ node_action_skip;
+    out.source.node_action_freeze <+ node_action_freeze;
+    out.source.node_action_skip   <+ node_action_skip;
 
-    new_node           <- add_node.map(f_!([model,node_pointer_style,node_action_freeze,node_action_skip] {
+    new_node           <- add_node.map(f_!([model,node_pointer_style,edit_mode,node_action_freeze,
+                                            node_action_skip] {
         model.new_node(&node_pointer_style,&node_output_touch.down,&node_input_touch.down,
-                       &node_expression_set,&node_action_freeze,&node_action_skip)
+                       &node_expression_set,&edit_mode,&node_action_freeze,&node_action_skip)
     }));
     out.source.node_added <+ new_node;
 
@@ -2013,7 +2015,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     frp::extend! { network
 
-        freeze_edges <= outputs.node_action_freeze.map (f!([model]((node_id,is_frozen)) {
+        freeze_edges <= out.node_action_freeze.map (f!([model]((node_id,is_frozen)) {
             let edges = model.node_in_edges(node_id);
             edges.into_iter().map(|edge_id| (edge_id,*is_frozen)).collect_vec()
         }));

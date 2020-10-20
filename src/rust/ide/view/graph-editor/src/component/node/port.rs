@@ -212,9 +212,10 @@ impl Deref for Manager {
 
 impl Manager {
     pub fn new(logger:impl AnyLogger, app:&Application) -> Self {
-        let model   = Rc::new(Model::new(logger,app));
-        let frp     = Frp::new_network();
-        let network = &frp.network;
+        let model      = Rc::new(Model::new(logger,app));
+        let frp        = Frp::new_network();
+        let network    = &frp.network;
+        let text_color = ComponentColor::new(&app);
 
         frp::extend! { network
             // === Cursor setup ===
@@ -261,13 +262,13 @@ impl Manager {
 
             // === Color Handling ===
 
-            eval text_color.frp.color ([label](color) {
+            eval text_color.frp.color ([model](color) {
                 // TODO: Make const once all the components can be made const.
                 let all_bytes = buffer::Range::from(Bytes::from(0)..Bytes(i32::max_value()));
-                label.set_color_bytes(all_bytes,*color);
+                model.label.set_color_bytes(all_bytes,*color);
             });
 
-            eval set_dimmed ([text_color](should_dim) {
+            eval frp.set_dimmed ([text_color](should_dim) {
                 if *should_dim {
                    text_color.frp.state(component_color::State::Dim);
                  } else {
@@ -275,6 +276,11 @@ impl Manager {
                  }
             });
         }
+
+        let text_color_path    = theme::vars::graph_editor::node::text::color;
+        let text_color_path    = display::style::Path::from(text_color_path);
+        let text_dynamic_color = component_color::Source::from(text_color_path);
+        text_color.frp.source(text_dynamic_color);
 
         Self {model,frp}
     }

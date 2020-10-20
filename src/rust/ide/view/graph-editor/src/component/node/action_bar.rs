@@ -10,7 +10,7 @@ use ensogl::display::style;
 use ensogl::display::shape::*;
 use ensogl::display;
 use ensogl::gui::component;
-use ensogl_gui_components::toggle_button::ToggleButton;
+use ensogl_gui_components::toggle_button::{ToggleButton, ColorableShape};
 use ensogl_shape_utils::component_color;
 use ensogl_shape_utils::compound_shape;
 use ensogl_shape_utils::constants::HOVER_COLOR;
@@ -44,7 +44,7 @@ mod hover_rect {
 // === Frp ===
 // ===========
 
-ensogl_text::define_endpoints! {
+ensogl::define_endpoints! {
     Input {
         set_size   (Vector2),
         show_icons (),
@@ -118,7 +118,7 @@ impl Model {
         self
     }
 
-    fn place_button_in_slot<T>(&self, button:&ToggleButton<T>, index:usize) {
+    fn place_button_in_slot<T:ColorableShape>(&self, button:&ToggleButton<T>, index:usize) {
         let icon_size = Vector2::new(self.size.get().y, self.size.get().y);
         let index     = index as f32;
         button.mod_position(|p| p.x = (1.5 * index + 0.5) * icon_size.x);

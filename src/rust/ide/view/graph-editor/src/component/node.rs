@@ -348,8 +348,8 @@ impl Node {
                 model.visualization.frp.set_visibility.emit(visible);
             });
 
-            model.frp.source.skip   <+ actions.action_skip;
-            model.frp.source.freeze <+ actions.action_freeze;
+            out.source.skip   <+ actions.action_skip;
+            out.source.freeze <+ actions.action_freeze;
 
 
             // === Color Handling ===

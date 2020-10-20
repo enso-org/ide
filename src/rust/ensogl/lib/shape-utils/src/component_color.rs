@@ -15,7 +15,6 @@ use ensogl_core::data::color;
 use ensogl_core::display::shape::*;
 use ensogl_core::display::style::path::Path;
 use ensogl_core::gui::component::Animation;
-use ensogl_text;
 
 
 
@@ -94,7 +93,7 @@ impl Default for State {
 // === Frp ===
 // ===========
 
-ensogl_text::define_endpoints! {
+ensogl_core::define_endpoints! {
     Input {
         source (Source),
         state  (State),

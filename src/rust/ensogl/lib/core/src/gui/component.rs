@@ -251,7 +251,7 @@ define_self_animatable!(Vector4);
 
 /// Smart animation handler. Contains of dynamic simulation and frp endpoint. Whenever a new value
 /// is computed, it is emitted via the endpoint.
-#[derive(CloneRef,Derivative,Debug)]
+#[derive(CloneRef,Derivative,Debug,Shrinkwrap)]
 #[derivative(Clone(bound=""))]
 #[allow(missing_docs)]
 pub struct Animation<T:Animatable> {
