@@ -504,6 +504,7 @@ impl<T:HashSetRegistryItem> HashSetRegistryModel<T> {
         }
     }
 
+    #[allow(clippy::collapsible_if)]
     fn on_event(&mut self, input:impl AsRef<str>, press:bool) -> Vec<T> {
         let input  = input.as_ref().to_lowercase();
         let exists = self.pressed.contains(&input);
