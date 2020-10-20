@@ -209,6 +209,10 @@ impl ColorAnimation {
 
     pub fn set_target<T:Into<Lcha>>(&self, color:T) {
         let color = color.into();
+        if !self.initialized.replace(true) {
+            self.lch.set_value(color.opaque);
+            self.alpha.set_value(color.alpha);
+        }
         self.lch.set_target_value(color.opaque);
         self.alpha.set_target_value(color.alpha);
     }
@@ -217,14 +221,21 @@ impl ColorAnimation {
         let color = color.into();
         self.lch.set_value(color.opaque);
         self.alpha.set_value(color.alpha);
+        self.initialized.replace(true);
     }
 
     pub fn set_target_alpha(&self, alpha:f32) {
+        if !self.initialized.replace(true) {
+            self.alpha.set_value(alpha);
+        }
         self.alpha.set_target_value(alpha);
     }
 
     pub fn set_target_lch<T:Into<Lch>>(&self, lch:T) {
         let lch = lch.into();
+        if !self.initialized.replace(true) {
+            self.lch.set_value(lch);
+        }
         self.lch.set_target_value(lch);
     }
 }
