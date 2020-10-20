@@ -3,12 +3,13 @@ use crate::prelude::*;
 
 use enso_frp as frp;
 use ensogl_core::application::Application;
+use ensogl_core::data::color::animation::ColorAnimation;
 use ensogl_core::data::color;
-use ensogl_core::display;
+use ensogl_core::display::shape::StyleWatch;
 use ensogl_core::display::shape::primitive::system;
+use ensogl_core::display::shape::style_watch;
+use ensogl_core::display;
 use ensogl_core::gui::component::ShapeView;
-use ensogl_shape_utils::color_animation::ColorAnimation;
-use ensogl_shape_utils::color_animation;
 
 
 
@@ -32,7 +33,7 @@ pub trait ColorableShape : system::Shape {
 ensogl_core::define_endpoints! {
     Input {
         set_visibility (bool),
-        set_base_color (color_animation::Source),
+        set_base_color (style_watch::ColorSource),
         set_size       (Vector2),
     }
     Output {
@@ -89,28 +90,25 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
         let frp     = &self.frp;
         let model   = &self.model;
 
-        let color_animation = ColorAnimation::new(&app);
-        let color_frp       = color_animation.frp;
-        let icon            = &model.icon.events;
+        let style  = StyleWatch::new(&app.display.scene().style_sheet);
+
+        let color  = ColorAnimation::new(&app);
+        let icon   = &model.icon.events;
 
         frp::extend! { network
 
 
              // === Input Processing ===
 
-            eval frp.set_base_color ((color_source) color_frp.source(color_source.clone()) );
             eval frp.set_size ((size) {
                 model.icon.shape.sprites().iter().for_each(|sprite| sprite.size.set(*size))
             });
 
-             // === Mouse Interactions ===
+            // === Mouse Interactions ===
 
-             frp.source.mouse_over <+ icon.mouse_over;
-             frp.source.mouse_out  <+ icon.mouse_out;
+            frp.source.mouse_over <+ icon.mouse_over;
+            frp.source.mouse_out  <+ icon.mouse_out;
 
-             eval_ icon.mouse_over ({
-                 color_frp.state(color_animation::State::Base)
-            });
 
             frp.source.toggle_state <+ icon.mouse_down.toggle();
 
@@ -118,26 +116,27 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
             // === Color ===
 
             invisible <- frp.set_visibility.gate_not(&frp.set_visibility);
-            eval_ invisible (color_frp.state(color_animation::State::Transparent ));
+            eval_ invisible (color.set_target_alpha(0.0));
 
             visible    <- frp.set_visibility.gate(&frp.set_visibility);
             is_hovered <- bool(&icon.mouse_out,&icon.mouse_over);
 
             button_state <- all3(&visible,&is_hovered,&frp.toggle_state);
-
-            eval button_state ([color_frp]((visible,hovered,toggle_state)) {
+            state_change <- all(&frp.set_base_color, &button_state);
+            eval state_change ([color,style]((source,(visible,hovered,toggle_state))) {
+                let source = source.clone();
                 match(*visible,*hovered,*toggle_state) {
-                    (false,_,_)        => color_frp.state(color_animation::State::Transparent ),
-                    (true,true,_)      => color_frp.state(color_animation::State::Base ),
-                    (true,false,true)  => color_frp.state(color_animation::State::Base ),
-                    (true,false,false) => color_frp.state(color_animation::State::Dim ),
+                    (false,_,_)        => color.set_target_alpha(0.0),
+                    (true,true,_)      => color.set_target(style.get_color(source)),
+                    (true,false,true)  => color.set_target(style.get_color(source)),
+                    (true,false,false) => color.set_target(style.get_color_dim(source)),
                 }
             });
 
-            eval color_frp.color ((color) model.icon.shape.set_color(color.into()));
+            eval color.value ((color) model.icon.shape.set_color(color.into()));
         }
 
-        color_frp.state(color_animation::State::Transparent);
+        color.alpha.set_value(0.0);
 
         self
     }

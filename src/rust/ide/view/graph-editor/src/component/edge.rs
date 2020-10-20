@@ -8,6 +8,7 @@ use crate::component::node;
 use enso_frp as frp;
 use enso_frp;
 use ensogl::application::Application;
+use ensogl::data::color::animation::ColorAnimation;
 use ensogl::data::color;
 use ensogl::display::Sprite;
 use ensogl::display::scene::Scene;
@@ -16,8 +17,6 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::ShapeViewEvents;
 use ensogl::gui::component;
-use ensogl_shape_utils::color_animation::ColorAnimation;
-use ensogl_shape_utils::color_animation;
 use ensogl_theme as theme;
 
 
@@ -1185,6 +1184,8 @@ impl Edge {
         let model           = &self.model;
         let shape_events    = &self.frp.shape_events;
         let edge_color      = ColorAnimation::new(app);
+        let style           = StyleWatch::new(&app.display.scene().style_sheet);
+
 
 
         model.data.front.register_proxy_frp(network, &input.shape_events);
@@ -1206,20 +1207,17 @@ impl Edge {
 
             // === Colors ===
 
-            edge_color_source <- input.set_color.map(|&color| {
-                color_animation::Source::Static{color}
-            });
-            eval edge_color_source ((source) edge_color.frp.source(source.clone()));
+            color_update <- all(input.set_color,input.set_dimmed);
 
-            eval input.set_dimmed ([edge_color](should_dim) {
+            eval color_update ([edge_color,style]((color,should_dim)) {
                 if *should_dim {
-                   edge_color.frp.state(color_animation::State::Dim);
+                   edge_color.set_target(style.get_color_dim(*color));
                  } else {
-                   edge_color.frp.state(color_animation::State::Base);
+                   edge_color.set_target(*color);
                  }
             });
 
-            eval edge_color.frp.color ((color) model.set_color(color.into()));
+            eval edge_color.value ((color) model.set_color(color.into()));
 
         }
 

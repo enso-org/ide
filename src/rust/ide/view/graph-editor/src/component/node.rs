@@ -16,14 +16,13 @@ use crate::prelude::*;
 use enso_frp as frp;
 use enso_frp;
 use ensogl::application::Application;
+use ensogl::data::color::animation::ColorAnimation;
 use ensogl::data::color;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component;
-use ensogl_shape_utils::color_animation::ColorAnimation;
-use ensogl_shape_utils::color_animation;
 use ensogl_text::Text;
 use ensogl_theme;
 
@@ -317,9 +316,10 @@ impl Node {
         let model     = Rc::new(NodeModel::new(app,registry));
         let selection = Animation::<f32>::new(network);
 
-        let background_color = ColorAnimation::new(&app);
+        let color_animation = ColorAnimation::new(&app);
+        let style           = StyleWatch::new(&app.display.scene().style_sheet);
 
-        let actions          = &model.action_bar.frp;
+        let actions         = &model.action_bar.frp;
         frp::extend! { network
             eval  selection.value ((v) model.main_area.shape.selection.set(*v));
             eval_ inputs.select   (selection.set_target_value(1.0));
@@ -354,19 +354,22 @@ impl Node {
 
             // === Color Handling ===
 
-            eval background_color.frp.color ([model](color) {
+            background_color <- inputs.set_dimmed.map(f!([model,style](should_dim) {
+                model.ports.frp.set_dimmed.emit(*should_dim);
+                let background_color_path = ensogl_theme::vars::graph_editor::node::background::color;
+                if *should_dim {
+                   style.get_color_dim(background_color_path)
+                 } else {
+                   style.get_color(background_color_path)
+                 }
+            }));
+
+            eval background_color ((color)  color_animation.set_target(color) );
+
+           eval color_animation.value ([model](color) {
+                let color:color::Rgba = color.into();
                 model.main_area.shape.bg_color.set(color.into())
             });
-
-            eval inputs.set_dimmed ([model,background_color](should_dim) {
-                model.ports.frp.set_dimmed.emit(*should_dim);
-                if *should_dim {
-                   background_color.frp.state(color_animation::State::Dim);
-                 } else {
-                   background_color.frp.state(color_animation::State::Base);
-                 }
-            });
-
 
             // === Action Bar ===
 
@@ -382,12 +385,8 @@ impl Node {
             });
         }
 
-        let background_color_path    = ensogl_theme::vars::graph_editor::node::background::color;
-        let background_color_path    = display::style::Path::from(background_color_path);
-        let background_color_animation = color_animation::Source::from(background_color_path);
-        background_color.frp.source(background_color_animation);
-
         model.action_bar.frp.hide_icons.emit(());
+        frp.set_dimmed.emit(false);
 
         Self {frp,model}
     }

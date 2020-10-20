@@ -8,6 +8,7 @@ use crate::prelude::*;
 use enso_frp as frp;
 use enso_frp;
 use ensogl::application::Application;
+use ensogl::data::color::animation::ColorAnimation;
 use ensogl::data::color;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
@@ -15,8 +16,6 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component;
 use ensogl::gui::cursor;
-use ensogl_shape_utils::color_animation::ColorAnimation;
-use ensogl_shape_utils::color_animation;
 use ensogl_text as text;
 use ensogl_text::buffer;
 use ensogl_theme as theme;
@@ -176,9 +175,8 @@ impl Model {
         display_object.add_child(&ports_group);
 
         let text_color_path    = theme::vars::graph_editor::node::text::color;
-        let text_color_path    = display::style::Path::from(text_color_path);
-        let text_dynamic_color = color_animation::Source::from(text_color_path);
-        text_color.frp.source(text_dynamic_color);
+        let style              = StyleWatch::new(&app.display.scene().style_sheet);
+        text_color.set_value(style.get_color(text_color_path));
 
         label.set_default_text_size(text::Size(12.0));
         label.remove_all_cursors();
@@ -216,6 +214,8 @@ impl Manager {
         let frp        = Frp::new_network();
         let network    = &frp.network;
         let text_color = ColorAnimation::new(&app);
+        let style     = StyleWatch::new(&app.display.scene().style_sheet);
+
 
         frp::extend! { network
             // === Cursor setup ===
@@ -260,27 +260,24 @@ impl Manager {
             frp.output.source.expression <+ model.label.content.map(|t| t.clone_ref());
 
 
-            // === Color Handling ===
+            // === Color Handling ===t
 
-            eval text_color.frp.color ([model](color) {
+
+            eval text_color.value ([model](color) {
                 // TODO: Make const once all the components can be made const.
                 let all_bytes = buffer::Range::from(Bytes::from(0)..Bytes(i32::max_value()));
-                model.label.set_color_bytes(all_bytes,*color);
+                model.label.set_color_bytes(all_bytes,color::Rgba::from(color));
             });
 
-            eval frp.set_dimmed ([text_color](should_dim) {
+            eval frp.set_dimmed ([text_color,style](should_dim) {
+                let text_color_path    = theme::vars::graph_editor::node::text::color;
                 if *should_dim {
-                   text_color.frp.state(color_animation::State::Dim);
+                   text_color.set_target(style.get_color_dim(text_color_path));
                  } else {
-                   text_color.frp.state(color_animation::State::Base);
+                   text_color.set_target(style.get_color(text_color_path));
                  }
             });
         }
-
-        let text_color_path    = theme::vars::graph_editor::node::text::color;
-        let text_color_path    = display::style::Path::from(text_color_path);
-        let text_dynamic_color = color_animation::Source::from(text_color_path);
-        text_color.frp.source(text_dynamic_color);
 
         Self {model,frp}
     }

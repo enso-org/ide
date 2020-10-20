@@ -15,7 +15,6 @@
 #![recursion_limit="512"]
 
 pub mod compound_shape;
-pub mod color_animation;
 pub mod constants;
 
 /// Commonly used types and functions.

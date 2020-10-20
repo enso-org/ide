@@ -11,7 +11,6 @@ use ensogl::display::shape::*;
 use ensogl::display;
 use ensogl::gui::component;
 use ensogl_gui_components::toggle_button::{ToggleButton, ColorableShape};
-use ensogl_shape_utils::color_animation;
 use ensogl_shape_utils::compound_shape;
 use ensogl_shape_utils::constants::HOVER_COLOR;
 use ensogl_theme as theme;
@@ -223,7 +222,7 @@ impl ActionBar {
         }
 
         let icon_path:style::Path = theme::vars::graph_editor::node::actions::icon::color.into();
-        let icon_color_source     = color_animation::Source::from(icon_path);
+        let icon_color_source     = ColorSource::from(icon_path);
         model.icon_freeze.frp.set_base_color(icon_color_source.clone());
         model.icon_skip.frp.set_base_color(icon_color_source.clone());
         model.icon_visibility.frp.set_base_color(icon_color_source);
