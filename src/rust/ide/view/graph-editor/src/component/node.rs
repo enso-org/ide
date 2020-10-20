@@ -22,8 +22,8 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component;
-use ensogl_shape_utils::component_color::ComponentColor;
-use ensogl_shape_utils::component_color;
+use ensogl_shape_utils::color_animation::ColorAnimation;
+use ensogl_shape_utils::color_animation;
 use ensogl_text::Text;
 use ensogl_theme;
 
@@ -204,7 +204,7 @@ pub struct NodeModel {
     pub action_bar     : action_bar::ActionBar,
     pub output_ports   : OutputPorts,
 
-    main_color         : ComponentColor,
+    main_color         : ColorAnimation,
 }
 
 
@@ -219,7 +219,7 @@ impl NodeModel {
         let main_logger = Logger::sub(&logger,"main_area");
         let drag_logger = Logger::sub(&logger,"drag_area");
         let main_area   = component::ShapeView::<shape::Shape>::new(&main_logger,scene);
-        let main_color  = ComponentColor::new(app);
+        let main_color  = ColorAnimation::new(app);
         let drag_area   = component::ShapeView::<drag_area::Shape>::new(&drag_logger,scene);
         edge::sort_hack_2(scene);
 
@@ -317,7 +317,7 @@ impl Node {
         let model     = Rc::new(NodeModel::new(app,registry));
         let selection = Animation::<f32>::new(network);
 
-        let background_color = ComponentColor::new(&app);
+        let background_color = ColorAnimation::new(&app);
 
         let actions          = &model.action_bar.frp;
         frp::extend! { network
@@ -361,9 +361,9 @@ impl Node {
             eval inputs.set_dimmed ([model,background_color](should_dim) {
                 model.ports.frp.set_dimmed.emit(*should_dim);
                 if *should_dim {
-                   background_color.frp.state(component_color::State::Dim);
+                   background_color.frp.state(color_animation::State::Dim);
                  } else {
-                   background_color.frp.state(component_color::State::Base);
+                   background_color.frp.state(color_animation::State::Base);
                  }
             });
 
@@ -384,8 +384,8 @@ impl Node {
 
         let background_color_path    = ensogl_theme::vars::graph_editor::node::background::color;
         let background_color_path    = display::style::Path::from(background_color_path);
-        let background_component_color = component_color::Source::from(background_color_path);
-        background_color.frp.source(background_component_color);
+        let background_color_animation = color_animation::Source::from(background_color_path);
+        background_color.frp.source(background_color_animation);
 
         model.action_bar.frp.hide_icons.emit(());
 

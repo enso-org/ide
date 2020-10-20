@@ -15,8 +15,8 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component;
 use ensogl::gui::cursor;
-use ensogl_shape_utils::component_color::ComponentColor;
-use ensogl_shape_utils::component_color;
+use ensogl_shape_utils::color_animation::ColorAnimation;
+use ensogl_shape_utils::color_animation;
 use ensogl_text as text;
 use ensogl_text::buffer;
 use ensogl_theme as theme;
@@ -159,7 +159,7 @@ impl Model {
         let type_color_map = default();
         let label          = app.new_view::<text::Area>();
         let ports          = default();
-        let text_color     = ComponentColor::new(&app);
+        let text_color     = ColorAnimation::new(&app);
 
         label.single_line(true);
         label.disable_command("cursor_move_up");
@@ -177,7 +177,7 @@ impl Model {
 
         let text_color_path    = theme::vars::graph_editor::node::text::color;
         let text_color_path    = display::style::Path::from(text_color_path);
-        let text_dynamic_color = component_color::Source::from(text_color_path);
+        let text_dynamic_color = color_animation::Source::from(text_color_path);
         text_color.frp.source(text_dynamic_color);
 
         label.set_default_text_size(text::Size(12.0));
@@ -215,7 +215,7 @@ impl Manager {
         let model      = Rc::new(Model::new(logger,app));
         let frp        = Frp::new_network();
         let network    = &frp.network;
-        let text_color = ComponentColor::new(&app);
+        let text_color = ColorAnimation::new(&app);
 
         frp::extend! { network
             // === Cursor setup ===
@@ -270,16 +270,16 @@ impl Manager {
 
             eval frp.set_dimmed ([text_color](should_dim) {
                 if *should_dim {
-                   text_color.frp.state(component_color::State::Dim);
+                   text_color.frp.state(color_animation::State::Dim);
                  } else {
-                   text_color.frp.state(component_color::State::Base);
+                   text_color.frp.state(color_animation::State::Base);
                  }
             });
         }
 
         let text_color_path    = theme::vars::graph_editor::node::text::color;
         let text_color_path    = display::style::Path::from(text_color_path);
-        let text_dynamic_color = component_color::Source::from(text_color_path);
+        let text_dynamic_color = color_animation::Source::from(text_color_path);
         text_color.frp.source(text_dynamic_color);
 
         Self {model,frp}

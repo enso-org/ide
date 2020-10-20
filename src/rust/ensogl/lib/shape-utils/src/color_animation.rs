@@ -164,14 +164,14 @@ impl Model {
 /// The `DynamicColor` provides color information through an FRP api. It allows for dynamic color
 /// transitions between different states (e.g, dim or not dim) that are emitted like an animation.
 #[derive(Clone,CloneRef,Debug)]
-pub struct ComponentColor {
+pub struct ColorAnimation {
     /// Public FRP api.
     pub frp   : Frp,
         model : Rc<Model>,
 }
 
 
-impl ComponentColor {
+impl ColorAnimation {
 
     /// Constructor.
     pub fn new(app:&Application) -> Self {
