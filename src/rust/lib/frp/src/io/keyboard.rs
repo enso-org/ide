@@ -209,6 +209,22 @@ impl From<&KeyboardEvent> for KeyWithCode {
 // =====================
 
 /// Model keeping track of currently pressed keys.
+///
+/// The keys are usually defined by their `key` value (see
+/// https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key), however we need to keep
+/// also codes of pressed keys to properly handle releases:
+///
+/// Consider the following event sequence:
+/// 1. press Shift
+/// 2. press KeyA (emitted with key `A`)
+/// 3. release Shift
+/// 4. release KeyA (emitted with key `a`)
+///
+/// During release KeyA we must realize that the acrual key to release is `A`, otherwise the key `A`
+/// will be stuck.
+///
+/// The current implementation will therefore emit repeat/release of pressed "key" values.
+/// (so in above example releasing `a` will never be emitted, only releasing `A`).
 #[derive(Clone,CloneRef,Debug,Default)]
 pub struct KeyboardModel {
     pressed_keys        : Rc<RefCell<HashSet<Key>>>,
