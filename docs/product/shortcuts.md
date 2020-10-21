@@ -31,9 +31,9 @@ further investigation.
 #### General Shortcuts
 | Shortcut | Action |
 | -------- | ------ |
-| <kbd>ctrl</kbd>+<kbd>shift</kbd>+<kbd>s</kbd> | Toggle light/dark application style. Currently doesn't work properly, as the Theme Switcher is not created yet. (https://github.com/enso-org/ide/issues/795)|
-| <kbd>ctrl</kbd>+<kbd>`</kbd>                  | Show Code Editor |
-| <kbd>meta</kbd>+<kbd>s</kbd>                  | Save module |
+| <kbd>cmd</kbd>+<kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>t</kbd> | Toggle light/dark application style. Currently doesn't work properly, as the Theme Switcher is not created yet. (https://github.com/enso-org/ide/issues/795)|
+| <kbd>ctrl</kbd>+<kbd>`</kbd>                                | Show Code Editor |
+| <kbd>meta</kbd>+<kbd>s</kbd>                                | Save module |
 
 
 #### Navigation
@@ -86,7 +86,7 @@ further investigation.
 | <kbd>enter</kbd> or <kbd>LMB</kbd> on suggestion | Pick selected suggestion and commit editing. |
 
 
-### Visualization
+#### Visualization
 | Shortcut | Action |
 | -------- | ------ |
 | <kbd>space</kbd>                         | Toggle visualization visibility of the selected node. |
@@ -96,7 +96,7 @@ further investigation.
 | :bangbang: <kbd>cmd</kbd> + <kbd>\</kbd> | Toggle documentation view visibility |
 
 
-### Debug
+#### Debug
 | Shortcut | Action |
 | -------- | ------ |
 | <kbd>ctrl</kbd> + <kbd>d</kbd>                           | Send test data to the selected node. |
