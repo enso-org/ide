@@ -376,12 +376,9 @@ impl Node {
             eval_ model.main_area.events.mouse_out   ( actions.hide_icons() );
             eval_ model.drag_area.events.mouse_over  ( actions.show_icons() );
             eval_ model.drag_area.events.mouse_out   ( actions.hide_icons() );
-            eval model.ports.frp.hover ([actions](item) {
-                match *item {
-                    Some(_) => actions.show_icons(),
-                    None    => actions.hide_icons(),
-                }
-            });
+
+            is_hovered <- model.ports.frp.hover.map(|item| item.is_some() );
+            eval is_hovered ((hovered) actions.icon_visibility(hovered) );
         }
 
         model.action_bar.frp.hide_icons.emit(());

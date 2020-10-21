@@ -44,9 +44,10 @@ mod hover_rect {
 
 ensogl::define_endpoints! {
     Input {
-        set_size   (Vector2),
-        show_icons (),
-        hide_icons (),
+        set_size        (Vector2),
+        show_icons      (),
+        hide_icons      (),
+        icon_visibility (bool)
     }
     Output {
         mouse_over       (),
@@ -202,12 +203,16 @@ impl ActionBar {
             eval  frp.set_size ((size)   model.set_size(*size));
             eval_ frp.hide_icons ( model.hide() );
             eval_ frp.show_icons ( model.show() );
+            eval  frp.icon_visibility ([model](visible) {
+                if *visible { model.show() } else { model.hide() }
+            });
 
 
             // === Mouse Interactions ===
 
             eval_ compound_shape.mouse_over (model.show());
             eval_ compound_shape.mouse_out (model.hide());
+
 
             // === Icon Actions ===
 
