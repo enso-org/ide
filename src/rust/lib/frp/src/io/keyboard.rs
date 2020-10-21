@@ -186,8 +186,8 @@ impl Default for Key {
 #[allow(missing_docs)]
 #[derive(Clone,Debug,Default)]
 pub struct KeyWithCode {
-    pub key: Key,
-    pub code: String,
+    pub key  : Key,
+    pub code : String,
 }
 
 impl KeyWithCode {
@@ -260,12 +260,10 @@ impl KeyboardModel {
     /// Simulate press of the provided key.
     pub fn press(&self, KeyWithCode{key,code}:&KeyWithCode) -> Key {
         let pressed_key_opt = self.pressed_code_to_key.borrow_mut().get(code).cloned();
-        let key             = if let Some(pressed_key) = pressed_key_opt {
-            pressed_key
-        } else {
+        let key = pressed_key_opt.unwrap_or_else(|| {
             self.pressed_code_to_key.borrow_mut().insert(code.clone(),key.clone());
             key.clone()
-        };
+        });
         self.pressed_keys.borrow_mut().insert(key.clone());
         key
     }
@@ -358,7 +356,7 @@ impl Keyboard {
         let network = frp::Network::new();
         let model   = KeyboardModel::default();
         let source  = KeyboardSource::new(&network);
-        frp::extend! { TRACE_ALL network
+        frp::extend! { network
             down         <- source.down.map(f!((kc) model.press(kc)));
             up           <- source.up.map(f!((kc) model.release(kc)));
             is_meta_down <- any(&down,&up).map(f_!(model.is_meta_down()));
