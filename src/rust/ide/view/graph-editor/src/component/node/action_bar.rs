@@ -1,8 +1,8 @@
 //! Definition of the `ActionBar` component for the `visualization::Container`.
 
-use crate::prelude::*;
+mod icon;
 
-use crate::component::node;
+use crate::prelude::*;
 
 use enso_frp as frp;
 use ensogl::application::Application;
@@ -67,9 +67,9 @@ ensogl::define_endpoints! {
 struct Model {
     hover_area            : component::ShapeView<hover_rect::Shape>,
     icons                 : display::object::Instance,
-    icon_freeze           : ToggleButton<node::icon::action::freeze::Shape>,
-    icon_visibility       : ToggleButton<node::icon::action::visibility::Shape>,
-    icon_skip             : ToggleButton<node::icon::action::skip::Shape>,
+    icon_freeze           : ToggleButton<icon::freeze::Shape>,
+    icon_visibility       : ToggleButton<icon::visibility::Shape>,
+    icon_skip             : ToggleButton<icon::skip::Shape>,
     display_object        : display::object::Instance,
     size                  : Rc<Cell<Vector2>>,
     all_shapes            : compound::events::MouseEvents,

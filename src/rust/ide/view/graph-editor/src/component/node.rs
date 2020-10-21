@@ -5,8 +5,6 @@
 
 #[deny(missing_docs)]
 pub mod action_bar;
-#[deny(missing_docs)]
-pub mod icon;
 pub mod port;
 
 pub use port::Expression;
