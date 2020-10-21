@@ -1,4 +1,5 @@
-//! Select List Component
+//! Toggle Button
+
 use crate::prelude::*;
 
 use enso_frp as frp;
