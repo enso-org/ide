@@ -194,9 +194,9 @@ impl ColorAnimation {
 
         frp::extend! { network
 
-            frp.source.value <+ all(lch.value,alpha.value).map(f!([]((lch,alpha)){
-                Lcha::new(lch.lightness,lch.chroma,lch.hue,*alpha)
-            }));
+            frp.source.value <+ all(lch.value,alpha.value).map(|(lch,alpha)| {
+                lch.with_alpha(*alpha)
+            });
 
         }
         self
