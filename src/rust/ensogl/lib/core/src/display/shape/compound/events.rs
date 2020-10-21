@@ -1,13 +1,14 @@
-//! This module contains functionality for handling multiple shapes that should act like one.
+//! This module contains functionality for events from multiple shapes that should act like one.
 
 use crate::prelude::*;
 
+use crate::display::shape::primitive::system::Shape;
+use crate::gui::component::ShapeView;
+
 use enso_frp as frp;
-use ensogl_core::display::shape::primitive::system::Shape;
-use ensogl_core::gui::component::ShapeView;
 
 
-ensogl_core::define_endpoints! {
+crate::define_endpoints! {
     Input {}
     Output {
         mouse_over (),
@@ -19,12 +20,12 @@ ensogl_core::define_endpoints! {
 /// sub-shapes. It avoids boilerplate of setting up FRP bindings for every single shape,
 /// instead the `Shape` frp endpoints can be used.
 #[derive(Clone,CloneRef,Debug)]
-pub struct Events {
+pub struct MouseEvents {
     /// Frp API.
     pub frp : Frp,
 }
 
-impl Events {
+impl MouseEvents {
 
     fn new() -> Self {
         let frp = Frp::new_network();
@@ -44,8 +45,8 @@ impl Events {
     }
 }
 
-impl Default for Events {
+impl Default for MouseEvents {
     fn default() -> Self {
-        Events::new()
+        MouseEvents::new()
     }
 }

@@ -10,9 +10,8 @@ use ensogl::display::style;
 use ensogl::display::shape::*;
 use ensogl::display;
 use ensogl::gui::component;
-use ensogl_gui_components::toggle_button::{ToggleButton, ColorableShape};
-use ensogl_shape_utils::compound_shape;
-use ensogl_shape_utils::constants::HOVER_COLOR;
+use ensogl_gui_components::toggle_button::ToggleButton;
+use ensogl_gui_components::toggle_button::ColorableShape;
 use ensogl_theme as theme;
 
 
@@ -31,7 +30,7 @@ mod hover_rect {
             let height : Var<Pixels> = "input_size.y".into();
             let rect                 = Rect((&width,&height));
             let rect_rounded         = rect.corners_radius(corner_radius);
-            let rect_filled          = rect_rounded.fill(HOVER_COLOR);
+            let rect_filled          = rect_rounded.fill(constants::HOVER_COLOR);
             rect_filled.into()
         }
     }
@@ -73,7 +72,7 @@ struct Model {
     icon_skip             : ToggleButton<node::icon::action::skip::Shape>,
     display_object        : display::object::Instance,
     size                  : Rc<Cell<Vector2>>,
-    all_shapes            : compound_shape::Events,
+    all_shapes            : compound::events::MouseEvents,
 }
 
 impl Model {
@@ -87,7 +86,7 @@ impl Model {
         let display_object        = display::object::Instance::new(&logger);
         let icons                 = display::object::Instance::new(&logger);
         let size                  = default();
-        let all_shapes            = compound_shape::Events::default();
+        let all_shapes            = compound::events::MouseEvents::default();
 
         all_shapes.add_sub_shape(&hover_area);
         all_shapes.add_sub_shape(&icon_freeze.view());
