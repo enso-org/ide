@@ -30,7 +30,6 @@ use crate::component::type_coloring::TypeColorMap;
 
 
 
-
 // ============
 // === Port ===
 // ============
@@ -270,12 +269,12 @@ impl Manager {
             });
 
             eval frp.set_dimmed ([text_color,style](should_dim) {
-                let text_color_path    = theme::vars::graph_editor::node::text::color;
+                let text_color_path = theme::vars::graph_editor::node::text::color;
                 if *should_dim {
-                   text_color.set_target(style.get_color_dim(text_color_path));
-                 } else {
-                   text_color.set_target(style.get_color(text_color_path));
-                 }
+                    text_color.set_target(style.get_color_dim(text_color_path));
+                } else {
+                    text_color.set_target(style.get_color(text_color_path));
+                }
             });
         }
 

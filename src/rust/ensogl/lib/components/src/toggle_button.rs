@@ -89,11 +89,9 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
         let network = &self.frp.network;
         let frp     = &self.frp;
         let model   = &self.model;
-
-        let style  = StyleWatch::new(&app.display.scene().style_sheet);
-
-        let color  = ColorAnimation::new(&app);
-        let icon   = &model.icon.events;
+        let style   = StyleWatch::new(&app.display.scene().style_sheet);
+        let color   = ColorAnimation::new(&app);
+        let icon    = &model.icon.events;
 
         frp::extend! { network
 
@@ -104,12 +102,11 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
                 model.icon.shape.sprites().iter().for_each(|sprite| sprite.size.set(*size))
             });
 
+
             // === Mouse Interactions ===
 
-            frp.source.mouse_over <+ icon.mouse_over;
-            frp.source.mouse_out  <+ icon.mouse_out;
-
-
+            frp.source.mouse_over   <+ icon.mouse_over;
+            frp.source.mouse_out    <+ icon.mouse_out;
             frp.source.toggle_state <+ icon.mouse_down.toggle();
 
 

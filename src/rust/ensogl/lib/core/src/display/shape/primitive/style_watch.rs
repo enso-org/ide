@@ -27,7 +27,6 @@ const DEFAULT_COLOR               : color::Lcha = color::Lcha::new(0.5,1.0,0.5,0
 // === StyleWatch ===
 // ==================
 
-
 /// Style watch utility. It's reference is passed to shapes defined with the `define_shape_system`
 /// macro. Whenever a style sheet value is accessed, the value reference is being remembered and
 /// tracked. Whenever it changes, the `callback` runs. The callback should trigger shape redraw.
@@ -129,7 +128,6 @@ impl From<&str> for ColorSource {
 // ====================
 // === Color Styles ===
 // ====================
-
 
 impl StyleWatch {
     /// Queries style sheet color, if not found fallbacks to red.

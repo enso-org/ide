@@ -366,10 +366,11 @@ impl Node {
 
             eval background_color ((color)  color_animation.set_target(color) );
 
-           eval color_animation.value ([model](color) {
+            eval color_animation.value ([model](color) {
                 let color:color::Rgba = color.into();
                 model.main_area.shape.bg_color.set(color.into())
             });
+
 
             // === Action Bar ===
 

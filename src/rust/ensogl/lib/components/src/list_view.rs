@@ -215,11 +215,11 @@ ensogl_core::define_endpoints! {
         /// Deselect all entries.
         deselect_entries(),
 
-        resize           (Vector2<f32>),
-        scroll_jump      (f32),
-        set_entries      (entry::AnyModelProvider),
-        select_entry     (entry::Id),
-        chose_entry      (entry::Id),
+        resize       (Vector2<f32>),
+        scroll_jump  (f32),
+        set_entries  (entry::AnyModelProvider),
+        select_entry (entry::Id),
+        chose_entry  (entry::Id),
     }
 
     Output {
@@ -443,6 +443,6 @@ impl application::View for ListView {
           , (Press, "home"      , "move_selection_to_first")
           , (Press, "end"       , "move_selection_to_last")
           , (Press, "enter"     , "chose_selected_entry")
-        ]).iter().map(|(a,b,c)|Self::self_shortcut(*a,*b,*c)).collect()
+          ]).iter().map(|(a,b,c)|Self::self_shortcut(*a,*b,*c)).collect()
     }
 }

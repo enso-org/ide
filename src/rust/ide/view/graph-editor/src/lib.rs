@@ -1996,8 +1996,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     out.source.node_action_freeze <+ node_action_freeze;
     out.source.node_action_skip   <+ node_action_skip;
 
-    new_node           <- add_node.map(f_!([model,node_pointer_style,edit_mode,node_action_freeze,
-                                            node_action_skip] {
+    new_node <- add_node.map(f_!([model,node_pointer_style,edit_mode,node_action_freeze,
+                                  node_action_skip] {
         model.new_node(&node_pointer_style,&node_output_touch.down,&node_input_touch.down,
                        &node_expression_set,&edit_mode,&node_action_freeze,&node_action_skip)
     }));
@@ -2020,9 +2020,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
             edges.into_iter().map(|edge_id| (edge_id,*is_frozen)).collect_vec()
         }));
 
-        eval freeze_edges (((edge_id,is_frozen)){
-            model.set_edge_freeze(edge_id,*is_frozen);
-        });
+        eval freeze_edges (((edge_id,is_frozen)) model.set_edge_freeze(edge_id,*is_frozen) );
     }
 
 

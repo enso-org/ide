@@ -2,15 +2,10 @@
 
 use crate::prelude::*;
 
-
 use enso_frp as frp;
 use ensogl_core::display::shape::primitive::system::Shape;
 use ensogl_core::gui::component::ShapeView;
 
-
-// ======================
-// === Compound Shape ===
-// ======================
 
 ensogl_core::define_endpoints! {
     Input {}
@@ -38,8 +33,8 @@ impl Events {
 
     /// Connect the given `ShapeViewEvents` to the `Events` output.
     pub fn add_sub_shape<T:Shape>(&self, view:&ShapeView<T>) {
-        let compound_frp  = &self.frp;
-        let sub_frp       = &view.events;
+        let compound_frp = &self.frp;
+        let sub_frp      = &view.events;
 
         // TODO[mm] avoid extra in/out events when switching shapes
         frp::extend! { network

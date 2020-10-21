@@ -178,10 +178,8 @@ impl ColorAnimation {
     /// Constructor.
     pub fn new(_app:&Application) -> Self {
         let initialized = default();
-
         let frp         = Frp::new_network();
         let value       = frp.output.value.clone_ref().into();
-
         let lch         = Animation::<Lch>::new(&frp.network);
         let alpha       = Animation::<f32>::new(&frp.network);
 
@@ -191,18 +189,15 @@ impl ColorAnimation {
     fn init(self) -> Self {
         let network = &self.frp.network;
         let frp     = &self.frp;
-
-        let lch         = &self.lch;
-        let alpha       = &self.alpha;
+        let lch     = &self.lch;
+        let alpha   = &self.alpha;
 
         frp::extend! { network
 
-            color_components <- all(lch.value,alpha.value);
-            color <- color_components.map(f!([]((lch,alpha)){
+            frp.source.value <+ all(lch.value,alpha.value).map(f!([]((lch,alpha)){
                 Lcha::new(lch.lightness,lch.chroma,lch.hue,*alpha)
             }));
 
-            frp.source.value <+ color;
         }
         self
     }

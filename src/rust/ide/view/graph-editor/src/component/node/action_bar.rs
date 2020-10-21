@@ -67,17 +67,13 @@ ensogl::define_endpoints! {
 #[derive(Clone,CloneRef,Debug)]
 struct Model {
     hover_area            : component::ShapeView<hover_rect::Shape>,
-
     icons                 : display::object::Instance,
     icon_freeze           : ToggleButton<node::icon::action::freeze::Shape>,
     icon_visibility       : ToggleButton<node::icon::action::visibility::Shape>,
     icon_skip             : ToggleButton<node::icon::action::skip::Shape>,
-
     display_object        : display::object::Instance,
     size                  : Rc<Cell<Vector2>>,
-
     all_shapes            : compound_shape::Events,
-
 }
 
 impl Model {
@@ -88,6 +84,9 @@ impl Model {
         let icon_freeze           = ToggleButton::new(&app);
         let icon_visibility       = ToggleButton::new(&app);
         let icon_skip             = ToggleButton::new(&app);
+        let display_object        = display::object::Instance::new(&logger);
+        let icons                 = display::object::Instance::new(&logger);
+        let size                  = default();
         let all_shapes            = compound_shape::Events::default();
 
         all_shapes.add_sub_shape(&hover_area);
@@ -95,10 +94,6 @@ impl Model {
         all_shapes.add_sub_shape(&icon_visibility.view());
         all_shapes.add_sub_shape(&icon_skip.view());
 
-        let display_object        = display::object::Instance::new(&logger);
-        let icons                 = display::object::Instance::new(&logger);
-
-        let size                  = default();
 
         Self{hover_area,icons,display_object,size,icon_freeze,icon_visibility,
              icon_skip,all_shapes}.init()
@@ -106,13 +101,12 @@ impl Model {
 
     fn init(self) -> Self {
         self.add_child(&self.hover_area);
-
         self.add_child(&self.icons);
         self.icons.add_child(&self.icon_freeze);
         self.icons.add_child(&self.icon_skip);
         self.icons.add_child(&self.icon_visibility);
 
-        // Default state s hidden.
+        // Default state is hidden.
         self.hide();
         self
     }
