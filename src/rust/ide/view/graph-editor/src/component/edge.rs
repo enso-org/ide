@@ -1210,11 +1210,12 @@ impl Edge {
             color_update <- all(input.set_color,input.set_dimmed);
 
             eval color_update ([edge_color,style]((color,should_dim)) {
-                if *should_dim {
-                   edge_color.set_target(style.get_color_dim(*color));
-                 } else {
-                   edge_color.set_target(*color);
-                 }
+                let target_color = if *should_dim {
+                   style.get_color_dim(*color)
+                } else {
+                  color.into()
+                };
+                edge_color.set_target(target_color);
             });
 
             eval edge_color.value ((color) model.set_color(color.into()));
