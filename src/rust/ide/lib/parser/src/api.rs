@@ -46,13 +46,14 @@ pub struct SourceFile {
 impl SourceFile {
     /// Describe source file contents. Uses heuristics to locate the metadata section.
     ///
-    /// Method investigates the last three lines of content to check for metadata tag and whether
-    /// idmap and metadata looks "reasonable enough".
-    /// If proper metadata is not recognized, the whole contents is treated as the code.
+    /// Method investigates the last `METADATA_LINES` lines of content to check for metadata tag and
+    /// whether idmap and metadata looks "reasonable enough". If proper metadata is not recognized,
+    /// the whole contents is treated as the code.
     pub fn new(content:String) -> Self {
-        let newline_indices                = enso_data::text::rev_newline_byte_indices(&content);
-        let three_newline_indices_from_end = newline_indices.take(3).collect_vec();
-        match three_newline_indices_from_end.as_slice() {
+        pub const METADATA_LINES:usize = 3;
+        let newline_indices            = enso_data::text::rev_newline_byte_indices(&content);
+        let newline_indices_from_end   = newline_indices.take(METADATA_LINES).collect_vec();
+        match newline_indices_from_end.as_slice() {
             [last, before_last, two_before_last] => {
                 // Last line should be metadata. Line before should be id map. Line before is the
                 // metadata tag.

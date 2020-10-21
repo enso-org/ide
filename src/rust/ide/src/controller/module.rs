@@ -55,7 +55,7 @@ impl Handle {
     }
 
     /// Save the module to file.
-    pub fn save_file(&self) -> impl Future<Output=FallibleResult<()>> {
+    pub fn save_file(&self) -> impl Future<Output=FallibleResult> {
         let content = self.model.serialized_content();
         let path    = self.model.path().clone_ref();
         let ls      = self.language_server.clone_ref();
@@ -69,7 +69,7 @@ impl Handle {
     ///
     /// May return Error when new code causes parsing errors, or when parsed code does not produce
     /// Module ast.
-    pub fn apply_code_change(&self,change:TextChange) -> FallibleResult<()> {
+    pub fn apply_code_change(&self,change:TextChange) -> FallibleResult {
         let mut id_map = self.model.ast().id_map();
         apply_code_change_to_id_map(&mut id_map,&change,&self.model.ast().repr());
         self.model.apply_code_change(change,&self.parser,id_map)
@@ -82,7 +82,7 @@ impl Handle {
 
     /// Check if current module state is synchronized with given code. If it's not, log error,
     /// and update module state to match the `code` passed as argument.
-    pub fn check_code_sync(&self, code:String) -> FallibleResult<()> {
+    pub fn check_code_sync(&self, code:String) -> FallibleResult {
         let my_code = self.code();
         if code != my_code {
             error!(self.logger,"The module controller ast was not synchronized with text editor \
@@ -158,7 +158,7 @@ impl Handle {
     /// Adds a new import to the module.
     ///
     /// May create duplicate entries if such import was already present.
-    pub fn add_import(&self, target:&module::QualifiedName) -> FallibleResult<()> {
+    pub fn add_import(&self, target:&module::QualifiedName) -> FallibleResult {
         let import = module::ImportInfo::from_qualified_name(target);
         self.modify(|info| info.add_import(&self.parser, import))?;
         Ok(())
@@ -167,7 +167,7 @@ impl Handle {
     /// Removes an import declaration that brings given target.
     ///
     /// Fails, if there was no such declaration found.
-    pub fn remove_import(&self, target:&module::QualifiedName) -> FallibleResult<()> {
+    pub fn remove_import(&self, target:&module::QualifiedName) -> FallibleResult {
         let import = module::ImportInfo::from_qualified_name(target);
         self.modify(|info| info.remove_import(&import))?
     }

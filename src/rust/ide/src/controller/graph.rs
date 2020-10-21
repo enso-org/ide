@@ -567,7 +567,7 @@ impl Handle {
     }
 
     /// Set a new pattern on the node with given id. Discards any previously set pattern.
-    pub fn set_pattern_on(&self, id:node::Id, pattern:Ast) -> FallibleResult<()> {
+    pub fn set_pattern_on(&self, id:node::Id, pattern:Ast) -> FallibleResult {
         self.update_node(id, |mut node| {
             node.set_pattern(pattern);
             node
@@ -607,7 +607,7 @@ impl Handle {
     /// Reorders lines so the former node is placed after the latter.
     /// Does nothing, if the latter node is already placed after former.
     pub fn place_node_line_after
-    (&self, node_to_be_before:node::Id, node_to_be_after:node::Id) -> FallibleResult<()> {
+    (&self, node_to_be_before:node::Id, node_to_be_after:node::Id) -> FallibleResult {
         let definition = self.graph_definition_info()?;
         let mut lines  = definition.block_lines()?;
 
@@ -625,7 +625,7 @@ impl Handle {
 
     /// Create connection in graph.
     pub fn connect
-    (&self, connection:&Connection, context:&impl SpanTreeContext) -> FallibleResult<()> {
+    (&self, connection:&Connection, context:&impl SpanTreeContext) -> FallibleResult {
         if connection.source.port.is_empty() {
             // If we create connection from node's expression root, we are able to introduce missing
             // pattern with a new variable.
@@ -647,7 +647,7 @@ impl Handle {
 
     /// Remove the connections from the graph.
     pub fn disconnect
-    (&self, connection:&Connection, context:&impl SpanTreeContext) -> FallibleResult<()> {
+    (&self, connection:&Connection, context:&impl SpanTreeContext) -> FallibleResult {
         let info = self.destination_info(connection,context)?;
 
         let updated_expression = if connection.destination.var_crumbs.is_empty() {
@@ -672,7 +672,7 @@ impl Handle {
     }
 
     /// Updates the AST of the definition of this graph.
-    pub fn update_definition_ast<F>(&self, f:F) -> FallibleResult<()>
+    pub fn update_definition_ast<F>(&self, f:F) -> FallibleResult
     where F:FnOnce(definition::DefinitionInfo) -> FallibleResult<definition::DefinitionInfo> {
         let ast_so_far     = self.module.ast();
         let definition     = self.definition()?;
@@ -718,7 +718,7 @@ impl Handle {
     }
 
     /// Removes the node with given Id.
-    pub fn remove_node(&self, id:ast::Id) -> FallibleResult<()> {
+    pub fn remove_node(&self, id:ast::Id) -> FallibleResult {
         info!(self.logger, "Removing node {id}");
         self.update_definition_ast(|definition| {
             let mut graph = GraphInfo::from_definition(definition);
@@ -732,14 +732,14 @@ impl Handle {
     }
 
     /// Sets the given's node expression.
-    pub fn set_expression(&self, id:ast::Id, expression_text:impl Str) -> FallibleResult<()> {
+    pub fn set_expression(&self, id:ast::Id, expression_text:impl Str) -> FallibleResult {
         info!(self.logger, "Setting node {id} expression to `{expression_text.as_ref()}`");
         let new_expression_ast = self.parse_node_expression(expression_text)?;
         self.set_expression_ast(id,new_expression_ast)
     }
 
     /// Sets the given's node expression.
-    pub fn set_expression_ast(&self, id:ast::Id, expression:Ast) -> FallibleResult<()> {
+    pub fn set_expression_ast(&self, id:ast::Id, expression:Ast) -> FallibleResult {
         info!(self.logger, "Setting node {id} expression to `{expression.repr()}`");
         self.update_definition_ast(|definition| {
             let mut graph = GraphInfo::from_definition(definition);
@@ -784,7 +784,7 @@ impl Handle {
     /// Updates the given node in the definition.
     ///
     /// The function `F` is called with the information with the state of the node so far and
-    pub fn update_node<F>(&self, id:ast::Id, f:F) -> FallibleResult<()>
+    pub fn update_node<F>(&self, id:ast::Id, f:F) -> FallibleResult
     where F : FnOnce(NodeInfo) -> NodeInfo {
         self.update_definition_ast(|definition| {
             let mut graph = GraphInfo::from_definition(definition);

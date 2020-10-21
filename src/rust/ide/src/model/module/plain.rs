@@ -46,7 +46,7 @@ impl Module {
     /// Fails if the `new_content` is so broken that it cannot be serialized to text. In such case
     /// the module's state is guaranteed to remain unmodified and the notification will not be
     /// emitted.
-    fn set_content(&self, new_content:Content, kind:NotificationKind) -> FallibleResult<()> {
+    fn set_content(&self, new_content:Content, kind:NotificationKind) -> FallibleResult {
         // We want the line below to fail before changing state.
         let new_file     = new_content.serialize()?;
         let notification = Notification {new_file,kind};
@@ -115,16 +115,16 @@ impl model::module::API for Module {
         data.ok_or_else(|| NodeMetadataNotFound(id).into())
     }
 
-    fn update_whole(&self, content:Content) -> FallibleResult<()> {
+    fn update_whole(&self, content:Content) -> FallibleResult {
         self.set_content(content,NotificationKind::Invalidate)
     }
 
-    fn update_ast(&self, ast:ast::known::Module) -> FallibleResult<()> {
+    fn update_ast(&self, ast:ast::known::Module) -> FallibleResult {
         self.update_content(NotificationKind::Invalidate, |content| content.ast = ast)
     }
 
     fn apply_code_change
-    (&self, change:TextChange, parser:&Parser, new_id_map:ast::IdMap) -> FallibleResult<()> {
+    (&self, change:TextChange, parser:&Parser, new_id_map:ast::IdMap) -> FallibleResult {
         let code              = self.ast().repr();
         let replaced_location = TextLocation::convert_range(&code,&change.replaced);
         let new_code          = change.applied(&code);
@@ -133,7 +133,7 @@ impl model::module::API for Module {
         self.update_content(notification,|content| content.ast = new_ast)
     }
 
-    fn set_node_metadata(&self, id:ast::Id, data:NodeMetadata) -> FallibleResult<()> {
+    fn set_node_metadata(&self, id:ast::Id, data:NodeMetadata) -> FallibleResult {
         self.update_content(NotificationKind::MetadataChanged, |content| {
             let _ = content.metadata.ide.node.insert(id, data);
         })
@@ -147,7 +147,7 @@ impl model::module::API for Module {
     }
 
     fn with_node_metadata
-    (&self, id:ast::Id, fun:Box<dyn FnOnce(&mut NodeMetadata) + '_>) -> FallibleResult<()> {
+    (&self, id:ast::Id, fun:Box<dyn FnOnce(&mut NodeMetadata) + '_>) -> FallibleResult {
         self.update_content(NotificationKind::MetadataChanged, |content| {
             let lookup   = content.metadata.ide.node.remove(&id);
             let mut data = lookup.unwrap_or_default();

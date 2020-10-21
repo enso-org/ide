@@ -103,7 +103,7 @@ impl Path {
     }
 
     /// Check if the given file path is a valid module path.
-    pub fn validate_path(file_path:&FilePath) -> FallibleResult<()> {
+    pub fn validate_path(file_path:&FilePath) -> FallibleResult {
         use ModulePathViolation::*;
         let error = |issue| {
             let path = file_path.clone();
@@ -436,20 +436,20 @@ pub trait API:Debug {
 // === Setters ===
 
     /// Update whole content of the module.
-    fn update_whole(&self, content:Content) -> FallibleResult<()>;
+    fn update_whole(&self, content:Content) -> FallibleResult;
 
     /// Update ast in module controller.
-    fn update_ast(&self, ast:ast::known::Module) -> FallibleResult<()>;
+    fn update_ast(&self, ast:ast::known::Module) -> FallibleResult;
 
     /// Updates AST after code change.
     ///
     /// May return Error when new code causes parsing errors, or when parsed code does not produce
     /// Module ast.
     fn apply_code_change
-    (&self, change:TextChange, parser:&Parser, new_id_map:ast::IdMap) -> FallibleResult<()>;
+    (&self, change:TextChange, parser:&Parser, new_id_map:ast::IdMap) -> FallibleResult;
 
     /// Sets metadata for given node.
-    fn set_node_metadata(&self, id:ast::Id, data:NodeMetadata) -> FallibleResult<()>;
+    fn set_node_metadata(&self, id:ast::Id, data:NodeMetadata) -> FallibleResult;
 
     /// Removes metadata of given node and returns them.
     fn remove_node_metadata(&self, id:ast::Id) -> FallibleResult<NodeMetadata>;
@@ -460,7 +460,7 @@ pub trait API:Debug {
     /// should use only the data passed as argument; don't use functions of this controller for
     /// getting and setting metadata for the same node.
     fn with_node_metadata
-    (&self, id:ast::Id, fun:Box<dyn FnOnce(&mut NodeMetadata) + '_>) -> FallibleResult<()>;
+    (&self, id:ast::Id, fun:Box<dyn FnOnce(&mut NodeMetadata) + '_>) -> FallibleResult;
 
 
 // === Utils ===

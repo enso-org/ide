@@ -113,7 +113,7 @@ pub fn initial_module_path(project:&model::Project) -> FallibleResult<ModulePath
 
 /// Create a file with default content if it does not already exist.
 pub async fn recreate_if_missing(project:&model::Project, path:&FilePath, default_content:String)
-                                 -> FallibleResult<()> {
+                                 -> FallibleResult {
     let rpc = project.json_rpc();
     if !rpc.file_exists(path).await?.exists {
         rpc.write_file(path,&default_content).await?;
@@ -125,7 +125,7 @@ pub async fn recreate_if_missing(project:&model::Project, path:&FilePath, defaul
 ///
 /// The lookup will be done using the given `main_ptr` value.
 pub fn add_main_if_missing
-(module:&model::Module, main_ptr:&MethodPointer, parser:&Parser) -> FallibleResult<()> {
+(module:&model::Module, main_ptr:&MethodPointer, parser:&Parser) -> FallibleResult {
     if module.lookup_method(main_ptr).is_err() {
         let mut info  = module.info();
         let main_code = default_main_method_code();

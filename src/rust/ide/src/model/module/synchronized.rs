@@ -175,20 +175,20 @@ impl API for Module {
         self.model.node_metadata(id)
     }
 
-    fn update_whole(&self, content:Content) -> FallibleResult<()> {
+    fn update_whole(&self, content:Content) -> FallibleResult {
         self.model.update_whole(content)
     }
 
-    fn update_ast(&self, ast: ast::known::Module) -> FallibleResult<()> {
+    fn update_ast(&self, ast: ast::known::Module) -> FallibleResult {
         self.model.update_ast(ast)
     }
 
     fn apply_code_change
-    (&self, change:TextChange, parser:&Parser, new_id_map:IdMap) -> FallibleResult<()> {
+    (&self, change:TextChange, parser:&Parser, new_id_map:IdMap) -> FallibleResult {
         self.model.apply_code_change(change,parser,new_id_map)
     }
 
-    fn set_node_metadata(&self, id:ast::Id, data:NodeMetadata) -> FallibleResult<()> {
+    fn set_node_metadata(&self, id:ast::Id, data:NodeMetadata) -> FallibleResult {
         self.model.set_node_metadata(id,data)
     }
 
@@ -197,7 +197,7 @@ impl API for Module {
     }
 
     fn with_node_metadata
-    (&self, id:ast::Id, fun:Box<dyn FnOnce(&mut NodeMetadata) + '_>) -> FallibleResult<()> {
+    (&self, id:ast::Id, fun:Box<dyn FnOnce(&mut NodeMetadata) + '_>) -> FallibleResult {
         self.model.with_node_metadata(id,fun)
     }
 }
@@ -410,7 +410,7 @@ pub mod test {
             let this = self.clone();
             client.expect.apply_text_file_edit(move |edits| {
                 let content_so_far = this.current_ls_content.get();
-                let ret            = f(edits);
+                let result         = f(edits);
                 let new_content    = apply_edits(content_so_far, &edits);
                 let actual_old     = this.current_ls_version.get();
                 let actual_new     = Sha3_224::new(new_content.as_bytes());
@@ -420,14 +420,14 @@ pub mod test {
                 assert_eq!(&edits.path,this.path.file_path());
                 assert_eq!(edits.old_version,actual_old);
                 assert_eq!(edits.new_version,actual_new);
-                if ret.is_ok() {
+                if result.is_ok() {
                     this.current_ls_content.set(new_content);
                     this.current_ls_version.set(actual_new);
                     debug!(this.logger,"Accepted!");
                 } else {
                     debug!(this.logger,"Rejected!");
                 }
-                ret
+                result
             });
         }
 

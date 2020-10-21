@@ -52,7 +52,7 @@ pub trait API:Debug {
     -> BoxFuture<'a,FallibleResult<model::ExecutionContext>>;
 
     /// Set a new project name.
-    fn rename_project<'a>(&'a self, name:String) -> BoxFuture<'a,FallibleResult<()>>;
+    fn rename_project<'a>(&'a self, name:String) -> BoxFuture<'a,FallibleResult>;
 
     /// Returns the primary content root id for this project.
     fn content_root_id(&self) -> Uuid {
