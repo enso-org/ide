@@ -126,7 +126,8 @@ define_theme! { dark
                 size = 7.0
             }
             text {
-                color = color::Lcha::new(1.0,0.0,0.0,0.7);
+                color             = color::Lcha::new(1.0,0.0,0.0,0.7);
+                missing_arg_color = color::Lcha::new(1.0,0.0,0.0,0.3);
                 variant {
                     dimmed = color::Lcha::new(0.25,0.013,0.18,1.0)
                 }
@@ -281,7 +282,8 @@ define_default_theme! { light
                 size = 7.0
             }
             text {
-                color = color::Lcha::new(0.0,0.0,0.0,0.7);
+                color             = color::Lcha::new(0.0,0.0,0.0,0.7);
+                missing_arg_color = color::Lcha::new(0.0,0.0,0.0,0.3);
                 variant {
                     dimmed = color::Lcha::new(0.7,0.0,0.0,0.7)
                 }
