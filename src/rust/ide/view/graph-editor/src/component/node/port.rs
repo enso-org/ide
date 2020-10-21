@@ -182,8 +182,8 @@ impl Model {
         display_object.add_child(&ports_group);
 
         let text_color_path    = theme::vars::graph_editor::node::text::color;
-        let style              = StyleWatch::new(&app.display.scene().style_sheet);
-        text_color.set_value(style.get_color(text_color_path));
+        let styles             = StyleWatch::new(&app.display.scene().style_sheet);
+        text_color.set_value(styles.get_color(text_color_path));
 
         label.set_default_text_size(text::Size(12.0));
         label.remove_all_cursors();
