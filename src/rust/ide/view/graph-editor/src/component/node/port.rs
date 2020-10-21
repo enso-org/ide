@@ -405,7 +405,7 @@ impl Manager {
             let unit  = 7.224_609_4;
             let width = unit * *size as f32;
             let x     = width/2.0 + unit * *index as f32;
-            Vector2::new(x + node::TEXT_OFF,node::NODE_HEIGHT/2.0) // FIXME
+            Vector2::new(x + node::TEXT_OFF,node::NODE_HEIGHT/2.0)
         })
     }
 

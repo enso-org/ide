@@ -55,35 +55,22 @@ impl Kind {
 impl Kind {
     /// Match the value with `Kind::Empty{..}`.
     pub fn is_empty(self) -> bool {
-        match self {
-            Self::Empty(_) => true,
-            _              => false
-        }
+        matches!(self,Self::Empty(_))
     }
 
     /// Match the value with `Kind::Operation{..}`.
     pub fn is_operation(self) -> bool {
-        match self {
-            Self::Operation => true,
-            _               => false
-        }
+        matches!(self,Self::Operation)
     }
 
     /// Match the value with `Kind::Empty{..}` but not `Kind::Empty(ExpectedArgument(_))`.
     pub fn is_positional_insertion_point(self) -> bool {
-        match self {
-            Self::Empty(InsertType::ExpectedArgument(_)) => false,
-            Self::Empty(_)                               => true,
-            _                                            => false
-        }
+        self.is_empty() && !self.is_expected_argument()
     }
 
     /// Match the value with `Kind::Empty(ExpectedArgument(_))`.
     pub fn is_expected_argument(self) -> bool {
-        match self {
-            Self::Empty(InsertType::ExpectedArgument(_)) => true,
-            _                                            => false
-        }
+        matches!(self,Self::Empty(InsertType::ExpectedArgument(_)))
     }
 }
 
@@ -269,6 +256,10 @@ impl DerefMut for Child {
 
 /// A builder pattern for `SpanTree`. A think wrapper for `Child` which adds useful methods for
 /// building properties of the current node.
+///
+/// This builder exposes two main functions - `new_child`, and `add_child`. The former provides a
+/// nice, user-friendly interface for building a `SpanTree`, while the later provides a very
+/// explicit argument setting interface meant for building `SpanTree` for shape testing purposes.
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct ChildBuilder {
@@ -294,9 +285,27 @@ impl ChildBuilder {
         Self {child}
     }
 
-    /// Add new child and use the `ChildBuilder` pattern to define its properties.
+    /// Add new child and use the `ChildBuilder` pattern to define its properties. This is a smart
+    /// child constructor. This function will automatically compute all not provided properties,
+    /// such as span or offset. Moreover, it will default all other not provided fields.
     pub fn new_child(mut self, f:impl FnOnce(Self)->Self) -> Self {
         self.node.add_child_builder(f);
+        self
+    }
+
+    /// Add new child and use the `ChildBuilder` pattern to define its properties. This function
+    /// accepts explicit list of arguments and disables all automatic computation of spans and
+    /// offsets. It is useful for testing purposes.
+    pub fn add_child
+    ( mut self
+    , offset : usize
+    , size   : usize
+    , kind   : Kind
+    , crumbs : impl IntoCrumbs
+    , f      : impl FnOnce(Self)->Self) -> Self {
+        let child = ChildBuilder::new(default());
+        let child = f(child.offset(offset).size(size).kind(kind).crumbs(crumbs));
+        self.node.children.push(child.child);
         self
     }
 
@@ -373,8 +382,7 @@ impl<'a> Ref<'a> {
         enso_data::text::Span::new(self.span_begin,self.node.size)
     }
 
-    // FIXME: These docs are invalid, this function is deeply magical
-    /// Get the reference to child with given index. Returns None if index if out of bounds.
+    /// Get the reference to child with given index. Fails if index if out of bounds.
     pub fn child(mut self, index:usize) -> FallibleResult<Ref<'a>> {
         let err = || InvalidCrumb {
             crumb   : index,
