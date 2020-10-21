@@ -114,7 +114,9 @@ impl Model {
     fn place_button_in_slot<T:ColorableShape>(&self, button:&ToggleButton<T>, index:usize) {
         let icon_size = Vector2::new(self.size.get().y, self.size.get().y);
         let index     = index as f32;
-        button.mod_position(|p| p.x = (1.5 * index + 0.5) * icon_size.x);
+        let padding   = 0.5;
+        let offset    = 0.5;
+        button.mod_position(|p| p.x = ((1.0 + padding) * index + offset) * icon_size.x);
         button.frp.set_size(icon_size);
     }
 
