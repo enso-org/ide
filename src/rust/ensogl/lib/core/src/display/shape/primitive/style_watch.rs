@@ -17,6 +17,8 @@ use crate::display::style;
 /// Key that is used to look for a dim variant of a color in the theme.
 const THEME_KEY_DIMMED            : &str        = "dimmed";
 const VARIANT_PATH_PREFIX         : &str        = "variant";
+// TODO[MM]: Replace with `theme::..` syntax. Right now this can't be done though, as this would
+// require a cyclic import from the `ensogl-theme` crate.
 const COLOR_LIGHTNESS_FACTOR_PATH : &str        = "theme.vars.colors.dimming.lightness_factor";
 const COLOR_CHROMA_FACTOR_PATH    : &str        = "theme.vars.colors.dimming.chroma_factor";
 const DEFAULT_COLOR               : color::Lcha = color::Lcha::new(0.5,1.0,0.5,0.5);
