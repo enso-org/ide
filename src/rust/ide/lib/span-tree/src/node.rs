@@ -17,7 +17,21 @@ use crate::ArgumentInfo;
 
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub struct This {
-    is_removable:bool
+    pub is_removable : bool
+}
+
+#[derive(Clone,Debug,Eq,PartialEq)]
+pub struct Argument {
+    pub is_removable : bool,
+    pub name         : Option<String>,
+    pub typename     : Option<String>,
+}
+
+#[derive(Clone,Debug,Eq,PartialEq)]
+pub struct InsertionPoint {
+    pub kind     : InsertionPointType,
+    pub name     : Option<String>,
+    pub typename : Option<String>,
 }
 
 /// An enum describing kind of node.
@@ -32,21 +46,12 @@ pub enum Kind {
     /// A node being a target (or "self") parameter of parent Infix, Section or Prefix.
     This(This),
     /// A node being a normal (not target) parameter of parent Infix, Section or Prefix.
-    Argument {
-        /// Indicates if this node can be erased.
-        is_removable : bool,
-        name         : Option<String>,
-        typename     : Option<String>,
-    },
+    Argument(Argument),
     /// A node being a placeholder for inserting new child to Prefix or Operator chain. It should
     /// not have children, but can be assigned with a span representing the number of spaces between
     /// AST tokens. For example, given expression `foo   bar`, the span assigned to the
     /// `InsertionPoint` between `foo` and `bar` should be set to 3.
-    InsertionPoint {
-        kind     : InsertionPointType,
-        name     : Option<String>,
-        typename : Option<String>,
-    },
+    InsertionPoint(InsertionPoint),
 }
 
 impl Kind {
@@ -57,31 +62,31 @@ impl Kind {
 
     /// Argument constructor.
     pub fn argument(is_removable:bool, name:Option<String>, typename:Option<String>) -> Self {
-        Self::Argument {is_removable,name,typename}
+        Self::Argument(Argument{is_removable,name,typename})
     }
 
     pub fn insertion_point
     (kind:InsertionPointType, name:Option<String>, typename:Option<String>) -> Self {
-        Self::InsertionPoint {kind,name,typename}
+        Self::InsertionPoint(InsertionPoint{kind,name,typename})
     }
 
     pub fn argument_info(&self) -> Option<ArgumentInfo> {
         match self {
-            Self::Argument       {name,typename,..} => Some(ArgumentInfo::new(name.clone(),typename.clone())),
-            Self::InsertionPoint {name,typename,..} => Some(ArgumentInfo::new(name.clone(),typename.clone())),
-            _                                       => None
+            Self::Argument       (t) => Some(ArgumentInfo::new(t.name.clone(),t.typename.clone())),
+            Self::InsertionPoint (t) => Some(ArgumentInfo::new(t.name.clone(),t.typename.clone())),
+            _                        => None
         }
     }
 
     pub fn set_argument_info(&mut self, argument_info:ArgumentInfo) {
         match self {
-            Self::Argument {is_removable,name,typename} => {
-                *name     = argument_info.name;
-                *typename = argument_info.typename;
+            Self::Argument(t) => {
+                t.name     = argument_info.name;
+                t.typename = argument_info.typename;
             },
-            Self::InsertionPoint {kind,name,typename} => {
-                *name     = argument_info.name;
-                *typename = argument_info.typename;
+            Self::InsertionPoint(t) => {
+                t.name     = argument_info.name;
+                t.typename = argument_info.typename;
             },
             _ => {}
         }
@@ -89,24 +94,24 @@ impl Kind {
 
     pub fn name(&self) -> Option<&String> {
         match self {
-            Self::Argument {is_removable,name,typename} => name.as_ref(),
-            Self::InsertionPoint {kind,name,typename} => name.as_ref(),
-            _                                         => None,
+            Self::Argument       (t) => t.name.as_ref(),
+            Self::InsertionPoint (t) => t.name.as_ref(),
+            _                        => None,
         }
     }
 
     pub fn typename(&self) -> Option<&String> {
         match self {
-            Self::Argument {is_removable,name,typename} => typename.as_ref(),
-            Self::InsertionPoint {kind,name,typename} => typename.as_ref(),
-            _                                         => None,
+            Self::Argument       (t) => t.typename.as_ref(),
+            Self::InsertionPoint (t) => t.typename.as_ref(),
+            _                        => None,
         }
     }
 
     pub fn is_removable(&self) -> bool {
         match self {
-            Self::Argument {is_removable,..} => *is_removable,
-            _                                => false,
+            Self::Argument(t) => t.is_removable,
+            _                 => false,
         }
     }
 }
@@ -137,7 +142,13 @@ impl Kind {
 
     /// Match the value with `Kind::InsertionPoint(ExpectedArgument(_))`.
     pub fn is_expected_argument(&self) -> bool {
-        matches!(self,Self::InsertionPoint{kind:InsertionPointType::ExpectedArgument(_),..})
+        match self {
+            Self::InsertionPoint(t) => match t.kind {
+                InsertionPointType::ExpectedArgument(_) => true,
+                _                                       => false,
+            },
+            _ => false
+        }
     }
 }
 
