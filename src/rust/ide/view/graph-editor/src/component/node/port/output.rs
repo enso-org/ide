@@ -771,7 +771,7 @@ impl OutputPorts {
         let ast_id = get_id_for_crumbs(&self.pattern_span_tree.borrow(),&crumbs)?;
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles = StyleWatch::new(&self.scene.style_sheet);
-        self.type_color_map.type_color(ast_id, styles)
+        self.type_color_map.type_color(ast_id,&styles)
     }
 
     /// Set the type information for the given `ast::Id`.

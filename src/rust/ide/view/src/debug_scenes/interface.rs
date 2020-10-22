@@ -249,12 +249,12 @@ pub fn expression_mock3() -> Expression {
         typename : Some("Number".to_owned()),
     };
     let param1 = span_tree::ParameterInfo {
-        name     : Some("foo".to_owned()),
-        typename : Some("Number".to_owned()),
+        name     : Some("area".to_owned()),
+        typename : Some("Vector Int".to_owned()),
     };
     let param2 = span_tree::ParameterInfo {
-        name     : Some("bar".to_owned()),
-        typename : Some("Number".to_owned()),
+        name     : Some("matrix".to_owned()),
+        typename : Some("Vector String".to_owned()),
     };
     let parameters       = vec![this_param, param0, param1, param2];
     let ast              = parser.parse_line(&code).unwrap();

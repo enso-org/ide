@@ -26,6 +26,7 @@ use text::Text;
 use super::super::node;
 
 use crate::Type;
+use crate::component::type_coloring;
 use crate::component::type_coloring::TypeColorMap;
 use ensogl_text::buffer::data::unit::traits::*;
 
@@ -357,8 +358,12 @@ impl Manager {
 
                         let crumbs = node.crumbs.clone();
                         let ast_id = get_id_for_crumbs(&expression.input_span_tree,&crumbs);
-                        let color  = ast_id.and_then(|id|type_map.type_color(id,styles.clone_ref()));
-                        let color  = color.unwrap_or(missing_type_color);
+                        println!(">> {:?}",node.parameter_info.clone().unwrap_or_default().typename);
+                        // let color  = ast_id.and_then(|id|type_map.type_color(id,styles.clone_ref()));
+                        // let color  = color.unwrap_or(missing_type_color);
+                        let color = node.parameter_info.clone().unwrap_or_default().typename.map(
+                            |tp| type_coloring::color_for_type(tp.into(),&styles)
+                        ).unwrap_or(missing_type_color);
 
                         let highlight = cursor::Style::new_highlight(&port,size,Some(color));
 
@@ -441,7 +446,7 @@ impl Manager {
         let ast_id = get_id_for_crumbs(&self.model.expression.borrow().input_span_tree,&crumbs)?;
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles = StyleWatch::new(&self.model.app.display.scene().style_sheet);
-        self.model.type_color_map.type_color(ast_id, styles)
+        self.model.type_color_map.type_color(ast_id,&styles)
     }
 
     pub fn width(&self) -> f32 {

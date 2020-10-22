@@ -592,14 +592,23 @@ impl display::Object for Edge {
 /// Typename information that may be associated with the given Port.
 ///
 /// `None` means that type for the port is unknown.
-#[derive(Clone,Debug,Hash,Shrinkwrap)]
+#[derive(Clone,Debug,Hash)]
 pub struct Type(pub ImString);
+
+impl Deref for Type {
+    type Target = ImString;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 impl From<String> for Type {
     fn from(s:String) -> Self {
         Type(s.into())
     }
 }
+
+
 
 // =============================
 // === OptionalMethodPointer ===

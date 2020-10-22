@@ -57,7 +57,7 @@ use crate::generate::Context;
 // =====================
 
 /// Additional information available for nodes being function arguments or their placeholders.
-#[derive(Clone,Debug,Eq,PartialEq)]
+#[derive(Clone,Debug,Default,Eq,PartialEq)]
 #[allow(missing_docs)]
 pub struct ParameterInfo {
     pub name     : Option<String>,
