@@ -15,9 +15,9 @@ function loadStyle(url) {
     document.head.appendChild(style);
 }
 
-function addStyleToHead(cls,stl) {
+function addStyleToHead(attr,stl) {
     let style       = document.createElement("style");
-    style.innerText = cls + "{" + stl + "}"
+    style.innerText = attr + "{" + stl + "}"
 
     document.head.appendChild(style);
 }
