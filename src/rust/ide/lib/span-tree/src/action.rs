@@ -108,11 +108,11 @@ pub trait Implementation {
     fn erase_impl(&self) -> Option<EraseOperation>;
 }
 
-impl<'a> Implementation for node::Ref<'a> {
+impl<'a,T> Implementation for node::Ref<'a,T> {
     fn set_impl(&self) -> Option<SetOperation> {
         match &self.node.kind {
-            Kind::Empty(ins_type)  => Some(Box::new(move |root,new| {
-                use node::InsertType::*;
+            Kind::InsertionPoint(ins_type)  => Some(Box::new(move |root,new| {
+                use node::InsertionPointType::*;
                 let ast            = root.get_traversing(&self.ast_crumbs)?;
                 let expect_arg     = matches!(ins_type, ExpectedArgument(_));
                 let extended_infix = (!expect_arg).and_option_from(|| ast::opr::Chain::try_new(&ast));
@@ -173,13 +173,13 @@ impl<'a> Implementation for node::Ref<'a> {
 
         match self.node.kind {
             node::Kind::Argument{is_removable:true} |
-            node::Kind::Target  {is_removable:true} => Some(Box::new(move |root| {
+            node::Kind::This  {is_removable:true} => Some(Box::new(move |root| {
                 let parent_crumb = &self.ast_crumbs[..self.ast_crumbs.len()-1];
                 let ast          = root.get_traversing(parent_crumb)?;
                 let new_ast = modify_preserving_id(ast, |ast|
                     if let Some(mut infix) = ast::opr::Chain::try_new(&ast) {
                         match self.node.kind {
-                            node::Kind::Target {..} => {infix.erase_target(); }
+                            node::Kind::This {..} => {infix.erase_target(); }
                             _                       => {infix.args.pop();     }
                         }
                         Ok(infix.into_ast())
@@ -224,8 +224,8 @@ mod test {
     use crate::generate::context;
     use crate::node::Kind::Argument;
     use crate::node::Kind::Operation;
-    use crate::node::Kind::Target;
-    use crate::node::InsertType::ExpectedArgument;
+    use crate::node::Kind::This;
+    use crate::node::InsertionPointType::ExpectedArgument;
 
     use ast::HasRepr;
     use enso_data::text::Index;

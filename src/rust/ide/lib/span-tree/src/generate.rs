@@ -5,11 +5,12 @@ pub mod macros;
 use crate::prelude::*;
 
 use crate::Node;
-use crate::ParameterInfo;
+use crate::ArgumentInfo;
 use crate::SpanTree;
 use crate::generate::context::CalledMethodInfo;
 use crate::node;
-use crate::node::InsertType;
+use crate::node::InsertionPointType;
+use crate::node::Payload;
 
 use ast::Ast;
 use ast::MacroMatchSegment;
@@ -30,15 +31,14 @@ pub use context::Context;
 
 /// A trait for all types from which we can generate referred SpanTree. Meant to be implemented for
 /// all AST-like structures.
-pub trait SpanTreeGenerator {
+pub trait SpanTreeGenerator<T> {
     /// Generate node with it's whole subtree.
-    fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node>;
+    fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node<T>>;
 
     /// Generate tree for this AST treated as root for the whole expression.
-    fn generate_tree(&self, context:&impl Context) -> FallibleResult<SpanTree> {
-        Ok(SpanTree {
-            root : self.generate_node(node::Kind::Root,context)?
-        })
+    fn generate_tree(&self, context:&impl Context) -> FallibleResult<SpanTree<T>> {
+        let root = self.generate_node(node::Kind::Root,context)?;
+        Ok(SpanTree {root})
     }
 }
 
@@ -52,12 +52,12 @@ pub trait SpanTreeGenerator {
 
 /// An utility to generate children with increasing offsets.
 #[derive(Debug,Default)]
-struct ChildGenerator {
+struct ChildGenerator<T> {
     current_offset : Size,
-    children       : Vec<node::Child>,
+    children       : Vec<node::Child<T>>,
 }
 
-impl ChildGenerator {
+impl<T:Payload> ChildGenerator<T> {
     /// Add spacing to current generator state. It will be taken into account for the next generated
     /// children's offsets
     fn spacing(&mut self, size:usize) {
@@ -66,12 +66,12 @@ impl ChildGenerator {
 
     fn generate_ast_node
     (&mut self, child_ast:Located<Ast>, kind:node::Kind, context:&impl Context)
-    -> FallibleResult<&mut node::Child> {
+    -> FallibleResult<&mut node::Child<T>> {
         let node = child_ast.item.generate_node(kind,context)?;
         Ok(self.add_node(child_ast.crumbs,node))
     }
 
-    fn add_node(&mut self, ast_crumbs:ast::Crumbs, node:Node) -> &mut node::Child {
+    fn add_node(&mut self, ast_crumbs:ast::Crumbs, node:Node<T>) -> &mut node::Child<T> {
         let offset = self.current_offset;
         let child = node::Child {node,ast_crumbs,offset};
         self.current_offset += child.node.size;
@@ -79,7 +79,7 @@ impl ChildGenerator {
         self.children.last_mut().unwrap()
     }
 
-    fn generate_empty_node(&mut self, insert_type:InsertType) -> &mut node::Child {
+    fn generate_empty_node(&mut self, insert_type:InsertionPointType) -> &mut node::Child<T> {
         let child = node::Child {
             node       : Node::new_empty(insert_type),
             offset     : self.current_offset,
@@ -136,7 +136,7 @@ impl<'a> ApplicationBase<'a> {
     }
 
     fn prefix_params
-    (&self, invocation_info:Option<CalledMethodInfo>) -> impl ExactSizeIterator<Item=ParameterInfo> {
+    (&self, invocation_info:Option<CalledMethodInfo>) -> impl ExactSizeIterator<Item=ArgumentInfo> {
         let mut ret = invocation_info.map(|info| info.parameters).unwrap_or_default().into_iter();
         if self.has_target {
             ret.next();
@@ -148,8 +148,8 @@ impl<'a> ApplicationBase<'a> {
 
 // === AST ===
 
-impl SpanTreeGenerator for Ast {
-    fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node> {
+impl<T:Payload> SpanTreeGenerator<T> for Ast {
+    fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node<T>> {
         // Code like `this.func` or `a+b+c`.
         if let Some(infix) = GeneralizedInfix::try_new(self) {
             let chain      = infix.flatten();
@@ -180,13 +180,15 @@ impl SpanTreeGenerator for Ast {
                     let expression_id = self.id;
                     let children      = default();
                     let name          = ast::identifier::name(self);
+                    let payload       = default();
                     if let Some(info) = self.id.and_then(|id| context.call_info(id, name)) {
                         let node = Node {
                             size,
                             children,
                             expression_id,
+                            payload,
                             kind           : node::Kind::Operation,
-                            parameter_info : None,
+                            argument_info : None,
                         };
                         // Note that in this place it is impossible that Ast is in form of
                         // `this.method` -- it is covered by the former if arm. As such, we don't
@@ -195,8 +197,8 @@ impl SpanTreeGenerator for Ast {
                         let params                    = info.parameters.into_iter();
                         Ok(generate_expected_arguments(node,kind,provided_prefix_arg_count,params))
                     } else {
-                        let parameter_info = default();
-                        Ok(Node {kind,size,children,expression_id,parameter_info})
+                        let argument_info = default();
+                        Ok(Node {kind,size,children,expression_id,argument_info,payload})
                     }
                 },
             }
@@ -207,17 +209,17 @@ impl SpanTreeGenerator for Ast {
 
 // === Operators (Sections and Infixes) ===
 
-impl SpanTreeGenerator for ast::opr::Chain {
-    fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node> {
+impl<T:Payload> SpanTreeGenerator<T> for ast::opr::Chain {
+    fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node<T>> {
         // Removing operands is possible only when chain has at least 3 of them
         // (target and two arguments).
         let is_removable                                 = self.args.len() >= 2;
-        let node_and_offset:FallibleResult<(Node,usize)> = match &self.target {
+        let node_and_offset:FallibleResult<(Node<T>,usize)> = match &self.target {
             Some(target) => {
-                let node = target.arg.generate_node(node::Kind::Target {is_removable},context)?;
+                let node = target.arg.generate_node(node::Kind::This {is_removable},context)?;
                 Ok((node,target.offset))
             },
-            None => Ok((Node::new_empty(InsertType::BeforeTarget),0)),
+            None => Ok((Node::new_empty(InsertionPointType::BeforeTarget),0)),
         };
 
         // In this fold we pass last generated node and offset after it, wrapped in Result.
@@ -235,9 +237,9 @@ impl SpanTreeGenerator for ast::opr::Chain {
             let left_crumbs = if has_left { vec![elem.crumb_to_previous()] } else { vec![] };
 
             let mut gen  = ChildGenerator::default();
-            if has_target { gen.generate_empty_node(InsertType::BeforeTarget); }
+            if has_target { gen.generate_empty_node(InsertionPointType::BeforeTarget); }
             gen.add_node(left_crumbs,node);
-            if has_target { gen.generate_empty_node(InsertType::AfterTarget); }
+            if has_target { gen.generate_empty_node(InsertionPointType::AfterTarget); }
             gen.spacing(off);
             gen.generate_ast_node(opr_ast,node::Kind::Operation,context)?;
             if let Some(operand) = &elem.operand {
@@ -247,7 +249,7 @@ impl SpanTreeGenerator for ast::opr::Chain {
 
                 gen.generate_ast_node(arg_ast,node::Kind::Argument {is_removable},context)?;
             }
-            gen.generate_empty_node(InsertType::Append);
+            gen.generate_empty_node(InsertionPointType::Append);
 
             if ast::opr::assoc(&self.operator) == Assoc::Right {
                 gen.reverse_children();
@@ -258,7 +260,8 @@ impl SpanTreeGenerator for ast::opr::Chain {
                 size           : gen.current_offset,
                 children       : gen.children,
                 expression_id  : elem.infix_id,
-                parameter_info : None,
+                argument_info : None,
+                payload        : default(),
             }, elem.offset))
         })?;
         Ok(node)
@@ -268,8 +271,8 @@ impl SpanTreeGenerator for ast::opr::Chain {
 
 // === Application ===
 
-impl SpanTreeGenerator for ast::prefix::Chain {
-    fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node> {
+impl<T:Payload> SpanTreeGenerator<T> for ast::prefix::Chain {
+    fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node<T>> {
         let base             = ApplicationBase::new(&self.func);
         let invocation_info  = self.id().and_then(|id| context.call_info(id, base.function_name));
         let known_args       = invocation_info.is_some();
@@ -284,27 +287,28 @@ impl SpanTreeGenerator for ast::prefix::Chain {
             let node     = node?;
             let is_first = i == 0;
             let is_last  = i + 1 == prefix_arity;
-            let arg_kind = if is_first && !base.has_target { node::Kind::Target {is_removable} }
+            let arg_kind = if is_first && !base.has_target { node::Kind::This {is_removable} }
                 else { node::Kind::Argument {is_removable} };
 
             let mut gen = ChildGenerator::default();
             gen.add_node(vec![Func.into()],node);
             gen.spacing(arg.sast.off);
-            if !known_args && matches!(arg_kind,node::Kind::Target {..}) {
-                gen.generate_empty_node(InsertType::BeforeTarget);
+            if !known_args && matches!(arg_kind,node::Kind::This {..}) {
+                gen.generate_empty_node(InsertionPointType::BeforeTarget);
             }
             let arg_ast      = arg.sast.wrapped.clone_ref();
             let arg_child    = gen.generate_ast_node(Located::new(Arg,arg_ast),arg_kind,context)?;
-            arg_child.node.parameter_info = known_params.next();
+            arg_child.node.argument_info = known_params.next();
             if !known_args {
-                gen.generate_empty_node(InsertType::Append);
+                gen.generate_empty_node(InsertionPointType::Append);
             }
             Ok(Node {
                 kind           : if is_last {kind} else {node::Kind::Chained},
                 size           : gen.current_offset,
                 children       : gen.children,
                 expression_id  : arg.prefix_id,
-                parameter_info : None,
+                argument_info : None,
+                payload        : default(),
             })
         })?;
 
@@ -315,8 +319,8 @@ impl SpanTreeGenerator for ast::prefix::Chain {
 
 // === Match ===
 
-impl SpanTreeGenerator for ast::known::Match {
-    fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node> {
+impl<T:Payload> SpanTreeGenerator<T> for ast::known::Match {
+    fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node<T>> {
         let is_removable  = false;
         let children_kind = node::Kind::Argument {is_removable};
         let mut gen   = ChildGenerator::default();
@@ -338,13 +342,14 @@ impl SpanTreeGenerator for ast::known::Match {
             size           : gen.current_offset,
             children       : gen.children,
             expression_id  : self.id(),
-            parameter_info : None,
+            argument_info : None,
+            payload        : default(),
         })
     }
 }
 
-fn generate_children_from_segment
-(gen:&mut ChildGenerator, index:usize, segment:&MacroMatchSegment<Ast>, context:&impl Context)
+fn generate_children_from_segment<T:Payload>
+(gen:&mut ChildGenerator<T>, index:usize, segment:&MacroMatchSegment<Ast>, context:&impl Context)
 -> FallibleResult {
     let is_removable  = false;
     let children_kind = node::Kind::Argument {is_removable};
@@ -362,8 +367,8 @@ fn generate_children_from_segment
 
 // === Ambiguous ==
 
-impl SpanTreeGenerator for ast::known::Ambiguous {
-    fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node> {
+impl<T:Payload> SpanTreeGenerator<T> for ast::known::Ambiguous {
+    fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node<T>> {
         let mut gen             = ChildGenerator::default();
         let first_segment_index = 0;
         generate_children_from_ambiguous(&mut gen,first_segment_index,&self.segs.head,context)?;
@@ -375,13 +380,14 @@ impl SpanTreeGenerator for ast::known::Ambiguous {
             size           : gen.current_offset,
             children       : gen.children,
             expression_id  : self.id(),
-            parameter_info : None,
+            argument_info : None,
+            payload        : default(),
         })
     }
 }
 
-fn generate_children_from_ambiguous
-(gen:&mut ChildGenerator, index:usize, segment:&MacroAmbiguousSegment<Ast>, context:&impl Context)
+fn generate_children_from_ambiguous<T:Payload>
+(gen:&mut ChildGenerator<T>, index:usize, segment:&MacroAmbiguousSegment<Ast>, context:&impl Context)
 -> FallibleResult {
     let is_removable  = false;
     let children_kind = node::Kind::Argument {is_removable};
@@ -399,32 +405,33 @@ fn generate_children_from_ambiguous
 // === Common Utility ==
 
 /// Build a prefix application-like span tree structure where the prefix argument has not been
-/// provided but instead its information is known from method's ParameterInfo.
+/// provided but instead its information is known from method's ArgumentInfo.
 ///
 /// `index` is the argument's position in the prefix chain which may be different from parameter
 /// index in the method's parameter list.
-fn generate_expected_argument
-(node:Node, kind:node::Kind, index:usize, is_last:bool, parameter_info:ParameterInfo) -> Node {
-    println!("Will generate missing argument node for {:?}",parameter_info);
+fn generate_expected_argument<T:Payload>
+(node:Node<T>, kind:node::Kind, index:usize, is_last:bool, argument_info:ArgumentInfo) -> Node<T> {
+    println!("Will generate missing argument node for {:?}",argument_info);
     let mut gen = ChildGenerator::default();
     gen.add_node(ast::Crumbs::new(),node);
-    let arg_node                 = gen.generate_empty_node(InsertType::ExpectedArgument(index));
-    arg_node.node.parameter_info = Some(parameter_info);
+    let arg_node                 = gen.generate_empty_node(InsertionPointType::ExpectedArgument(index));
+    arg_node.node.argument_info = Some(argument_info);
     Node {
         kind           : if is_last {kind} else {node::Kind::Chained},
         size           : gen.current_offset,
         children       : gen.children,
         expression_id  : None,
-        parameter_info : None,
+        argument_info : None,
+        payload        : default(),
     }
 }
 
-fn generate_expected_arguments
-(node:Node
+fn generate_expected_arguments<T:Payload>
+( node                      : Node<T>
 , kind                      : node::Kind
 , supplied_prefix_arg_count : usize
-, expected_args             : impl ExactSizeIterator<Item=ParameterInfo>
-) -> Node {
+, expected_args             : impl ExactSizeIterator<Item=ArgumentInfo>
+) -> Node<T> {
     let arity = supplied_prefix_arg_count + expected_args.len();
     (supplied_prefix_arg_count..).zip(expected_args).fold(node, |node, (index,parameter)| {
         let is_last = index + 1 == arity;
@@ -471,11 +478,11 @@ impl Context for MockContext {
 mod test {
     use super::*;
 
-    use crate::ParameterInfo;
+    use crate::ArgumentInfo;
     use crate::builder::TreeBuilder;
     use crate::generate::context::CalledMethodInfo;
     use crate::node::Kind::*;
-    use crate::node::InsertType::*;
+    use crate::node::InsertionPointType::*;
 
     use ast::Crumbs;
     use ast::IdMap;
@@ -511,7 +518,7 @@ mod test {
     /// It is used in tests. Because constructing trees with set parameter infos is troublesome,
     /// it is often more convenient to test them separately and then erase infos and test for shape.
     fn clear_parameter_infos(node:&mut Node) {
-        node.parameter_info = None;
+        node.argument_info = None;
         for child in &mut node.children {
             clear_parameter_infos(&mut child.node);
         }
@@ -783,15 +790,15 @@ mod test {
     #[wasm_bindgen_test]
     fn generating_span_tree_for_unfinished_call() {
         let parser     = Parser::new_or_panic();
-        let this_param = ParameterInfo{
+        let this_param = ArgumentInfo{
             name     : Some("this".to_owned()),
             typename : Some("Any".to_owned()),
         };
-        let param1 = ParameterInfo{
+        let param1 = ArgumentInfo{
             name     : Some("arg1".to_owned()),
             typename : Some("Number".to_owned()),
         };
-        let param2 = ParameterInfo{
+        let param2 = ArgumentInfo{
             name     : Some("arg2".to_owned()),
             typename : None,
         };
@@ -806,7 +813,7 @@ mod test {
         let ctx      = MockContext::new_single(ast.id.unwrap(),invocation_info);
         let mut tree = SpanTree::new(&ast,&ctx).unwrap();
         match tree.root_ref().leaf_iter().collect_vec().as_slice() {
-            [_func,arg0] => assert_eq!(arg0.parameter_info.as_ref(),Some(&this_param)),
+            [_func,arg0] => assert_eq!(arg0.argument_info.as_ref(),Some(&this_param)),
             sth_else     => panic!("There should be 2 leaves, found: {}",sth_else.len()),
         }
         let expected = TreeBuilder::new(3)
@@ -827,7 +834,7 @@ mod test {
         let ctx      = MockContext::new_single(ast.id.unwrap(),invocation_info);
         let mut tree = SpanTree::new(&ast,&ctx).unwrap();
         match tree.root_ref().leaf_iter().collect_vec().as_slice() {
-            [_func,arg0] => assert_eq!(arg0.parameter_info.as_ref(),Some(&this_param)),
+            [_func,arg0] => assert_eq!(arg0.argument_info.as_ref(),Some(&this_param)),
             sth_else     => panic!("There should be 2 leaves, found: {}",sth_else.len()),
         }
         let expected = TreeBuilder::new(8)
@@ -849,9 +856,9 @@ mod test {
         let mut tree = SpanTree::new(&ast,&ctx).unwrap();
         match tree.root_ref().leaf_iter().collect_vec().as_slice() {
             [_func,arg0,arg1,arg2] => {
-                assert_eq!(arg0.parameter_info.as_ref(),Some(&this_param));
-                assert_eq!(arg1.parameter_info.as_ref(),Some(&param1));
-                assert_eq!(arg2.parameter_info.as_ref(),Some(&param2));
+                assert_eq!(arg0.argument_info.as_ref(),Some(&this_param));
+                assert_eq!(arg1.argument_info.as_ref(),Some(&param1));
+                assert_eq!(arg2.argument_info.as_ref(),Some(&param2));
             },
             sth_else => panic!("There should be 4 leaves, found: {}",sth_else.len()),
         }

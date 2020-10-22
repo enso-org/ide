@@ -335,7 +335,7 @@ impl Manager {
                         let mut size  = span.size.value;
                         let mut index = span.index.value + offset_shift;
                         if is_expected_arg {
-                            let name      = node.parameter_info.as_ref().unwrap().name.as_ref().unwrap();
+                            let name      = node.argument_info.as_ref().unwrap().name.as_ref().unwrap();
                             size          = name.len();
                             index        += 1;
                             offset_shift += 1 + size;
@@ -361,10 +361,10 @@ impl Manager {
 
                         let crumbs = node.crumbs.clone();
                         let ast_id = get_id_for_crumbs(&expression.input_span_tree,&crumbs);
-                        println!(">> {:?}",node.parameter_info.clone().unwrap_or_default().typename);
+                        println!(">> {:?}",node.argument_info.clone().unwrap_or_default().typename);
                         // let color  = ast_id.and_then(|id|type_map.type_color(id,styles.clone_ref()));
                         // let color  = color.unwrap_or(missing_type_color);
-                        let color = node.parameter_info.clone().unwrap_or_default().typename.map(
+                        let color = node.argument_info.clone().unwrap_or_default().typename.map(
                             |tp| type_coloring::color_for_type(tp.into(),&styles)
                         ).unwrap_or(missing_type_color);
 

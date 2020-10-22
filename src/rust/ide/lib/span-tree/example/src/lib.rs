@@ -6,7 +6,7 @@ use ast::crumbs::*;
 use ast::crumbs::PatternMatchCrumb::*;
 use span_tree::*;
 use span_tree::builder::Builder;
-use span_tree::node::InsertType;
+use span_tree::node::InsertionPointType;
 use span_tree::node::Kind;
 use uuid::Uuid;
 
@@ -25,16 +25,16 @@ pub fn main() {
     let val              = ast::crumbs::SegmentMatchCrumb::Body {val:pattern_cr};
     let parens_cr1       = ast::crumbs::MatchCrumb::Segs {val:val.clone(),index:0};
     let parens_cr        = ast::crumbs::MatchCrumb::Segs {val,index:0};
-    let _input_span_tree = builder::TreeBuilder::new(36)
+    let _input_span_tree = builder::TreeBuilder::<()>::new(36)
         .add_child(0,14,Kind::Chained,PrefixCrumb::Func)
             .add_child(0,9,Kind::Operation,PrefixCrumb::Func)
                 .set_expression_id(Uuid::new_v4())
                 .done()
-            .add_empty_child(10,InsertType::BeforeTarget)
+            .add_empty_child(10,InsertionPointType::BeforeTarget)
             .add_child(10,4,Kind::target(true),PrefixCrumb::Arg)
                 .set_expression_id(Uuid::new_v4())
                 .done()
-            .add_empty_child(14,InsertType::Append)
+            .add_empty_child(14,InsertionPointType::Append)
             .set_expression_id(Uuid::new_v4())
             .done()
         .add_child(15,21,Kind::Argument {is_removable:true},PrefixCrumb::Arg)
@@ -44,17 +44,17 @@ pub fn main() {
                 .add_child(0,12,Kind::Operation,PrefixCrumb::Func)
                     .set_expression_id(Uuid::new_v4())
                     .done()
-                .add_empty_child(13,InsertType::BeforeTarget)
-                .add_child(13,6,Kind::Target {is_removable:false},PrefixCrumb::Arg)
+                .add_empty_child(13,InsertionPointType::BeforeTarget)
+                .add_child(13,6,Kind::This {is_removable:false},PrefixCrumb::Arg)
                     .set_expression_id(Uuid::new_v4())
                     .done()
-                .add_empty_child(19,InsertType::Append)
+                .add_empty_child(19,InsertionPointType::Append)
                 .done()
             .done()
-        .add_empty_child(36,InsertType::Append)
+        .add_empty_child(36,InsertionPointType::Append)
         .build();
 
-    let input_span_tree2 = Node::new()
+    let input_span_tree2 = Node::<()>::new()
         .new_child(|t|t
             .new_id()
             .kind(Kind::Chained)

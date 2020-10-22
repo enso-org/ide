@@ -190,11 +190,11 @@ pub fn expression_mock() -> Expression {
         .add_child(0,4,span_tree::node::Kind::Operation,PrefixCrumb::Func)
         .set_expression_id(Uuid::new_v4())
         .done()
-        .add_empty_child(5,span_tree::node::InsertType::BeforeTarget)
-        .add_child(5,10,span_tree::node::Kind::Target{is_removable:false},PrefixCrumb::Arg)
+        .add_empty_child(5,span_tree::node::InsertionPointType::BeforeTarget)
+        .add_child(5,10,span_tree::node::Kind::This{is_removable:false},PrefixCrumb::Arg)
         .set_expression_id(Uuid::new_v4())
         .done()
-        .add_empty_child(15,span_tree::node::InsertType::Append)
+        .add_empty_child(15,span_tree::node::InsertionPointType::Append)
         .set_expression_id(Uuid::new_v4())
         .build();
     Expression {code,input_span_tree,output_span_tree}
@@ -211,11 +211,11 @@ pub fn expression_mock2() -> Expression {
             .add_child(0,9,span_tree::node::Kind::Operation,PrefixCrumb::Func)
                 .set_expression_id(Uuid::new_v4())
                 .done()
-            .add_empty_child(10,span_tree::node::InsertType::BeforeTarget)
-            .add_child(10,4,span_tree::node::Kind::Target {is_removable:true},PrefixCrumb::Arg)
+            .add_empty_child(10,span_tree::node::InsertionPointType::BeforeTarget)
+            .add_child(10,4,span_tree::node::Kind::This {is_removable:true},PrefixCrumb::Arg)
                 .set_expression_id(Uuid::new_v4())
                 .done()
-            .add_empty_child(14,span_tree::node::InsertType::Append)
+            .add_empty_child(14,span_tree::node::InsertionPointType::Append)
             .set_expression_id(Uuid::new_v4())
             .done()
         .add_child(15,21,span_tree::node::Kind::Argument {is_removable:true},PrefixCrumb::Arg)
@@ -225,14 +225,14 @@ pub fn expression_mock2() -> Expression {
                 .add_child(0,12,span_tree::node::Kind::Operation,PrefixCrumb::Func)
                     .set_expression_id(Uuid::new_v4())
                     .done()
-                .add_empty_child(13,span_tree::node::InsertType::BeforeTarget)
-                .add_child(13,6,span_tree::node::Kind::Target {is_removable:false},PrefixCrumb::Arg)
+                .add_empty_child(13,span_tree::node::InsertionPointType::BeforeTarget)
+                .add_child(13,6,span_tree::node::Kind::This {is_removable:false},PrefixCrumb::Arg)
                     .set_expression_id(Uuid::new_v4())
                     .done()
-                .add_empty_child(19,span_tree::node::InsertType::Append)
+                .add_empty_child(19,span_tree::node::InsertionPointType::Append)
                 .done()
             .done()
-        .add_empty_child(36,span_tree::node::InsertType::Append)
+        .add_empty_child(36,span_tree::node::InsertionPointType::Append)
         .build();
     Expression {code,input_span_tree,output_span_tree}
 }
@@ -240,19 +240,19 @@ pub fn expression_mock2() -> Expression {
 pub fn expression_mock3() -> Expression {
     let code       = "image.blur 15".to_string();
     let parser     = Parser::new_or_panic();
-    let this_param = span_tree::ParameterInfo {
+    let this_param = span_tree::ArgumentInfo {
         name     : Some("this".to_owned()),
         typename : Some("Image".to_owned()),
     };
-    let param0 = span_tree::ParameterInfo {
+    let param0 = span_tree::ArgumentInfo {
         name     : Some("radius".to_owned()),
         typename : Some("Number".to_owned()),
     };
-    let param1 = span_tree::ParameterInfo {
+    let param1 = span_tree::ArgumentInfo {
         name     : Some("area".to_owned()),
         typename : Some("Vector Int".to_owned()),
     };
-    let param2 = span_tree::ParameterInfo {
+    let param2 = span_tree::ArgumentInfo {
         name     : Some("matrix".to_owned()),
         typename : Some("Vector String".to_owned()),
     };
