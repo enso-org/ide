@@ -13,18 +13,18 @@ use crate::LocalCall;
 
 use enso_frp as frp;
 use enso_protocol::language_server::MethodPointer;
+use ensogl::application::Application;
 use ensogl::data::color;
-use ensogl::display;
 use ensogl::display::camera::Camera2d;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
 use ensogl::display::shape::text::text_field::FocusManager;
+use ensogl::display;
 use ensogl::gui::component;
 use logger::AnyLogger;
 use logger::enabled::Logger;
 use std::cmp::Ordering;
-
 
 
 // =================
@@ -237,9 +237,9 @@ pub struct BreadcrumbsModel {
 
 impl BreadcrumbsModel {
     /// Constructor.
-    pub fn new<'t,S:Into<&'t Scene>>(scene:S, frp:&Frp, focus_manager:&FocusManager) -> Self {
-        let scene                 = scene.into();
-        let project_name          = ProjectName::new(scene,focus_manager);
+    pub fn new(app:&Application, frp:&Frp, focus_manager:&FocusManager) -> Self {
+        let scene                 = app.display.scene();
+        let project_name          = ProjectName::new(app,focus_manager);
         let logger                = Logger::new("Breadcrumbs");
         let display_object        = display::object::Instance::new(&logger);
         let breadcrumbs_container = display::object::Instance::new(&logger);
@@ -259,8 +259,6 @@ impl BreadcrumbsModel {
         self.add_child(&self.project_name);
         self.add_child(&self.breadcrumbs_container);
         self.project_name.set_position_x(HORIZONTAL_MARGIN);
-        self.relayout_for_project_name_width(self.project_name.width());
-        self.project_name.frp.select.emit(());
         self
     }
 
@@ -447,10 +445,10 @@ pub struct Breadcrumbs {
 
 impl Breadcrumbs {
     /// Constructor.
-    pub fn new<'t,S:Into<&'t Scene>>(scene:S, focus_manager:&FocusManager) -> Self {
-        let scene   = scene.into();
+    pub fn new(app:&Application, focus_manager:&FocusManager) -> Self {
+        let scene   = app.display.scene();
         let frp     = Frp::new();
-        let model   = Rc::new(BreadcrumbsModel::new(scene,&frp,focus_manager));
+        let model   = Rc::new(BreadcrumbsModel::new(app,&frp,focus_manager));
         let network = &frp.network;
 
         // === Breadcrumb selection ===
@@ -499,20 +497,20 @@ impl Breadcrumbs {
 
             // === Project Name ===
 
-            eval frp.project_name((name) model.project_name.frp.name.emit(name));
-            frp.outputs.project_name <+ model.project_name.frp.outputs.name;
+            eval frp.project_name((name) model.project_name.frp.name(name));
+            frp.outputs.project_name <+ model.project_name.frp.output.name;
 
 
             // === GUI Update ===
 
-            eval model.project_name.frp.outputs.width((width) {
+            eval model.project_name.frp.output.width((width) {
                 model.relayout_for_project_name_width(*width)
             });
 
 
             // === User Interaction ===
 
-            eval_ model.project_name.frp.outputs.mouse_down(frp.select_breadcrumb.emit(0));
+            eval_ model.project_name.frp.output.mouse_down(frp.select_breadcrumb.emit(0));
             eval_ frp.cancel_project_name_editing(model.project_name.frp.cancel_editing.emit(()));
             eval_ frp.outside_press(model.project_name.frp.outside_press.emit(()));
             
@@ -524,7 +522,7 @@ impl Breadcrumbs {
 
             // === Select ===
 
-            selected_project_name <- model.project_name.frp.outputs.mouse_down.map(f_!([model]
+            selected_project_name <- model.project_name.frp.output.mouse_down.map(f_!([model]
                 model.debug_select_breadcrumb(0))
             );
             selected_breadcrumb   <- frp.debug.select_breadcrumb.map(f!((index)
@@ -541,6 +539,10 @@ impl Breadcrumbs {
             // === Relayout ===
 
             eval_ scene.frp.camera_changed(model.camera_changed());
+
+            eval model.project_name.frp.output.width ((width) {
+                model.relayout_for_project_name_width(*width)
+            });
         }
 
         Self{frp,model}

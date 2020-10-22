@@ -1102,7 +1102,7 @@ impl GraphEditorModel {
         let visualizations     = visualization::Registry::with_default_visualizations();
         let frp                = FrpInputs::new(network);
         let touch_state        = TouchState::new(network,&scene.mouse.frp);
-        let breadcrumbs        = component::Breadcrumbs::new(scene,focus_manager);
+        let breadcrumbs        = component::Breadcrumbs::new(app,focus_manager);
         let app                = app.clone_ref();
         Self {
             logger,display_object,app,cursor,nodes,edges,touch_state,frp,breadcrumbs,visualizations

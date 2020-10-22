@@ -20,27 +20,28 @@ use crate::display::camera::Camera2d;
 use crate::display::render::RenderComposer;
 use crate::display::render::RenderPipeline;
 use crate::display::scene::dom::DomScene;
-use crate::display::shape::text::glyph::font;
 use crate::display::shape::ShapeSystemInstance;
 use crate::display::shape::system::ShapeSystemOf;
-use crate::display::style;
+use crate::display::shape::text::glyph::font;
 use crate::display::style::data::DataMatch;
-use crate::display::symbol::registry::SymbolRegistry;
+use crate::display::style;
 use crate::display::symbol::Symbol;
+use crate::display::symbol::registry::SymbolRegistry;
 use crate::display;
+use crate::gui::component;
 use crate::system::gpu::data::uniform::Uniform;
 use crate::system::gpu::data::uniform::UniformScope;
 use crate::system::gpu::shader::Context;
-use crate::system::web;
+use crate::system::web::IgnoreContextMenuHandle;
 use crate::system::web::NodeInserter;
 use crate::system::web::StyleSetter;
-use crate::system::web::IgnoreContextMenuHandle;
+use crate::system::web;
+
 
 use enso_frp as frp;
 use enso_frp::io::js::CurrentJsEvent;
 use std::any::TypeId;
 use web_sys::HtmlElement;
-
 
 
 pub trait MouseTarget : Debug + 'static {
@@ -651,6 +652,20 @@ impl View {
 
     pub fn remove(&self, symbol:&Symbol) {
         self.symbols.borrow_mut().remove_item(&(symbol.id as usize)); // TODO strange conversion
+    }
+
+    /// Add all `Symbol`s associated with the given ShapeView.
+    pub fn add_shape_view<T: display::shape::primitive::system::Shape>(&self, shape_view:&component::ShapeView<T>) {
+        shape_view.shape.sprites().iter().for_each(|sprite|{
+            self.add(&sprite.symbol);
+        });
+    }
+
+    /// Remove all `Symbol`s associated with the given ShapeView.
+    pub fn remove_shape_view<T: display::shape::primitive::system::Shape>(&self, shape_view:&component::ShapeView<T>) {
+        shape_view.shape.sprites().iter().for_each(|sprite|{
+            self.remove(&sprite.symbol);
+        });
     }
 }
 
