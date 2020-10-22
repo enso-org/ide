@@ -222,7 +222,8 @@ mod test {
 
     use crate::builder::TreeBuilder;
     use crate::generate::context;
-    use crate::node::Kind::{Operation, Argument};
+    use crate::node::King::Argument;
+    use crate::node::Kind::Operation;
     use crate::node::Kind::Target;
     use crate::node::InsertType::ExpectedArgument;
 
