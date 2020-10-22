@@ -3,7 +3,6 @@
 
 use crate::prelude::*;
 
-use crate::SharedHashMap;
 use crate::Type;
 
 use ensogl::data::color;
@@ -56,31 +55,31 @@ fn str_to_hash(s:&str) -> u64 {
 
 
 
-// ======================
-// === Type Color Map ===
-// ======================
-
-/// `Allows to keep track of the type and color of a `ast::Id`. It allows to store the
-/// `ast::Id` -> `Type` mapping and infer the colour for the given `ast::Id` from that through the
-/// `type_color` method.
-#[derive(Clone,CloneRef,Debug,Default)]
-pub struct TypeColorMap {
-    data: SharedHashMap<ast::Id,Type>,
-}
-
-impl TypeColorMap {
-    /// Return the colour for the `ast_id`. If no type information is available, returns `None`.
-    pub fn type_color(&self, ast_id:ast::Id, style:&StyleWatch) -> Option<color::Lcha> {
-        self.data.get_cloned(&ast_id).map(|type_information| {
-            color_for_type(type_information,style)
-        })
-    }
-
-    /// Set the type for the given `ast::Id`. Discards the type, if `None` is given as value.
-    pub fn update_entry(&self, key:ast::Id, value:Option<Type>) {
-        match value {
-            Some(value) => self.data.insert(key,value),
-            None        => self.data.remove(&key),
-        };
-    }
-}
+// // ======================
+// // === Type Color Map ===
+// // ======================
+//
+// /// `Allows to keep track of the type and color of a `ast::Id`. It allows to store the
+// /// `ast::Id` -> `Type` mapping and infer the colour for the given `ast::Id` from that through the
+// /// `type_color` method.
+// #[derive(Clone,CloneRef,Debug,Default)]
+// pub struct TypeColorMap {
+//     data: SharedHashMap<ast::Id,Type>,
+// }
+//
+// impl TypeColorMap {
+//     /// Return the colour for the `ast_id`. If no type information is available, returns `None`.
+//     pub fn type_color(&self, ast_id:ast::Id, style:&StyleWatch) -> Option<color::Lcha> {
+//         self.data.get_cloned(&ast_id).map(|type_information| {
+//             color_for_type(type_information,style)
+//         })
+//     }
+//
+//     /// Set the type for the given `ast::Id`. Discards the type, if `None` is given as value.
+//     pub fn update_entry(&self, key:ast::Id, value:Option<Type>) {
+//         match value {
+//             Some(value) => self.data.insert(key,value),
+//             None        => self.data.remove(&key),
+//         };
+//     }
+// }

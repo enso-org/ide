@@ -27,7 +27,6 @@ use super::super::node;
 
 use crate::Type;
 use crate::component::type_coloring;
-use crate::component::type_coloring::TypeColorMap;
 use ensogl_text::buffer::data::unit::traits::*;
 
 
@@ -146,8 +145,9 @@ pub struct Model {
     ports          : RefCell<Vec<component::ShapeView<shape::Shape>>>,
     width          : Cell<f32>,
     port_networks  : RefCell<Vec<frp::Network>>,
-    type_color_map : TypeColorMap,
     styles         : StyleWatch,
+    /// Used for applying type information update, which is in a form of `(ast::Id,Type)`.
+    id_crumbs_map  : RefCell<HashMap<ast::Id,span_tree::Crumbs>>,
     // Used for caching positions of ports. Used when dragging nodes to compute new edge position
     // based on the provided `Crumbs`. It would not be possible to do it fast without this map, as
     // some ports are virtual and have the same offset - like missing arguments.
@@ -162,11 +162,11 @@ impl Model {
         let ports_group    = display::object::Instance::new(&Logger::sub(&logger,"ports"));
         let app            = app.clone_ref();
         let port_networks  = default();
-        let type_color_map = default();
         let label          = app.new_view::<text::Area>();
         let ports          = default();
         let text_color     = ColorAnimation::new(&app);
         let position_map   = default();
+        let id_crumbs_map  = default();
 
         label.single_line(true);
         label.disable_command("cursor_move_up");
@@ -193,7 +193,7 @@ impl Model {
         let width      = default();
 
         Self {logger,display_object,ports_group,label,ports,width,app,expression,port_networks
-             ,type_color_map,styles,position_map}
+             ,styles,position_map,id_crumbs_map}
     }
 }
 
@@ -324,10 +324,13 @@ impl Manager {
                     // FIXME: How to properly discover self? Like `image.blur 15`, to disable
                     // 'blur' port?
 
+                    if let Some(id) = node.expression_id {
+                        self.model.id_crumbs_map.borrow_mut().insert(id,node.crumbs.clone());
+                    }
+
                     if !skip {
                         let logger   = Logger::sub(&model.logger,"port");
                         let port     = component::ShapeView::<shape::Shape>::new(&logger,self.scene());
-                        let type_map = &model.type_color_map;
 
                         let mut size  = span.size.value;
                         let mut index = span.index.value + offset_shift;
@@ -443,10 +446,11 @@ impl Manager {
     }
 
     pub fn get_port_color(&self, crumbs:&[span_tree::Crumb]) -> Option<color::Lcha> {
-        let ast_id = get_id_for_crumbs(&self.model.expression.borrow().input_span_tree,&crumbs)?;
-        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
-        let styles = StyleWatch::new(&self.model.app.display.scene().style_sheet);
-        self.model.type_color_map.type_color(ast_id,&styles)
+        // let ast_id = get_id_for_crumbs(&self.model.expression.borrow().input_span_tree,&crumbs)?;
+        // // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
+        // let styles = StyleWatch::new(&self.model.app.display.scene().style_sheet);
+        // self.model.type_color_map.type_color(ast_id,&styles)
+        None
     }
 
     pub fn width(&self) -> f32 {
@@ -454,7 +458,12 @@ impl Manager {
     }
 
     pub fn set_expression_type(&self, id:ast::Id, maybe_type:Option<Type>) {
-        self.model.type_color_map.update_entry(id,maybe_type);
+        if let Some(crumbs) = self.model.id_crumbs_map.borrow().get(&id) {
+            if let Ok(node) = self.model.expression.borrow_mut().input_span_tree.get_node(crumbs) {
+
+            }
+        }
+        // self.model.type_color_map.update_entry(id,maybe_type);
     }
 }
 
