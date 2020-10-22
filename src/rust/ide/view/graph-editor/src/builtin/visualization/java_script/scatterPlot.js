@@ -102,7 +102,7 @@ class ScatterPlot extends Visualization {
 
         let selectedZoomBtn = this.createButtonScaleToPoints();
 
-        this.addBrushing(box_width, box_height, scatter, scaleAndAxis, selectedZoomBtn, points);
+        this.addBrushing(box_width, box_height, scatter, scaleAndAxis, selectedZoomBtn, points, zoom);
     }
 
     // TODO: Passthrough events for right-click and scroll from brush to zoom.
@@ -117,11 +117,12 @@ class ScatterPlot extends Visualization {
             .extent([[0, 0], [box_width, box_height]])
             .on("zoom", zoomed);
 
-        let zoomElem = scatter.append("rect")
+        let zoomElem = scatter.append("g")
+            .attr("class", "zoom")
             .attr("width", box_width)
             .attr("height", box_height)
             .style("fill", "none")
-            .style("pointer-events", "auto")
+            .style("pointer-events", "all")
             .call(zoom);
 
         function zoomed() {
@@ -143,13 +144,16 @@ class ScatterPlot extends Visualization {
         return {zoomElem: zoomElem, zoom: zoom};
     }
 
-    addBrushing(box_width, box_height, scatter, scaleAndAxis, selectedZoomBtn, points) {
+    addBrushing(box_width, box_height, scatter, scaleAndAxis, selectedZoomBtn, points, zoom) {
         let extent;
-        let brush = d3.brush()
-            .extent([[0, 0], [box_width, box_height]])
+        let brush = d3.brush().filter(function() {
+            return d3.event.type === "mousedown" && d3.event.button === 0
+        }).extent([[0, 0], [box_width, box_height]])
             .on("start brush", updateChart)
 
-        let brushElem = scatter.append("g")
+        // The brush element must be child of zoom element - this is only way we found to have both zoom and brush
+        // events working at the same time. See https://stackoverflow.com/a/59757276 .
+        let brushElem = zoom.zoomElem.append("g")
             .attr("class", "brush")
             .call(brush)
 
