@@ -145,9 +145,8 @@ class ScatterPlot extends Visualization {
 
     addBrushing(box_width, box_height, scatter, scaleAndAxis, selectedZoomBtn, points, zoom) {
         let extent;
-        let brush = d3.brush().filter(function() {
-            return d3.event.type === "mousedown" && d3.event.button === 0
-        }).extent([[0, 0], [box_width, box_height]])
+        let brush = d3.brush()
+            .extent([[0, 0], [box_width, box_height]])
             .on("start brush", updateChart)
 
         // The brush element must be child of zoom element - this is only way we found to have both zoom and brush
