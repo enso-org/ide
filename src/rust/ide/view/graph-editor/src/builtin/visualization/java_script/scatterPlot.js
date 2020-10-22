@@ -32,8 +32,8 @@ const lbl_padding_y = 2;
  * To select click and swipe with LMB
  * To deselect click outside of selection with LMB
  * To pan click and swipe with RMB
- * To zoom out click "Fit all" or use key combination "ctrl+alt+a"
- * To zoom into selection click appropriate button or use key combination "ctrl+alt+z"
+ * To zoom out click "Fit all" or use key combination "ctrl/cmd+a"
+ * To zoom into selection click appropriate button or use key combination "ctrl/cmd+z"
  *
  * Data format (json):
  * {
@@ -171,7 +171,7 @@ class ScatterPlot extends Visualization {
         }
 
         const zoomInKeyEvent = function (event) {
-            if (event.ctrlKey && event.altKey && event.key === 'z') {
+            if ((event.ctrlKey || event.metaKey) && event.key === 'z') {
                 zoomIn();
                 selectedZoomBtn.style.display = "none";
             }
@@ -449,7 +449,7 @@ class ScatterPlot extends Visualization {
         }
 
         document.addEventListener('keydown', function(event) {
-            if (event.ctrlKey && event.altKey && event.key === 'a') {
+            if ((event.ctrlKey || event.metaKey) && event.key === 'a') {
                 unzoom()
             }
         });
