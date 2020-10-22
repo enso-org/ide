@@ -105,7 +105,6 @@ class ScatterPlot extends Visualization {
         this.addBrushing(box_width, box_height, scatter, scaleAndAxis, selectedZoomBtn, points, zoom);
     }
 
-    // TODO: Passthrough events for right-click and scroll from brush to zoom.
     addPanAndZoom(box_width, box_height, svg, margin, scaleAndAxis, scatter, points) {
         let zoom = d3.zoom().filter(function () {
             switch (d3.event.type) {
