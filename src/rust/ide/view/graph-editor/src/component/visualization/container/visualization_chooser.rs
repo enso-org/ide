@@ -111,22 +111,18 @@ impl VisualizationChooser {
             eval_ frp.hide_selection_menu ( menu.hide_selection_menu.emit(()) );
             eval  frp.set_menu_offset_y ((offset) menu.set_menu_offset_y.emit(offset) );
 
-            _set_selected <- frp.input.set_selected.map2(&frp.output.entries,
-                f!([menu](selected,entries) {
-                    if let Some(selected) = selected {
-                        let ix = entries.iter().position(|item| item == selected);
-                        menu.set_selected.emit(ix);
-                    }
-                })
+            set_selected_ix <= frp.input.set_selected.map2(&frp.output.entries,|selected,entries|
+                selected.as_ref().map(|s| entries.iter().position(|item| item == s))
             );
+            eval set_selected_ix ((ix) menu.set_selected.emit(ix));
 
 
             // === Showing Entries ===
 
 
             frp.source.entries <+ menu.menu_visible.gate(&menu.menu_visible).map(f_!([model] {
-                let entries                                     = Rc::new(model.entries());
-                let provider:list_view::entry::AnyModelProvider = entries.clone_ref().into();
+                let entries  = Rc::new(model.entries());
+                let provider = list_view::entry::AnyModelProvider::from(entries.clone_ref());
                 model.selection_menu.set_entries(provider);
                 entries
             }));
@@ -140,11 +136,7 @@ impl VisualizationChooser {
             frp.source.menu_visible <+ menu.menu_visible;
 
             selected_path <- model.selection_menu.frp.chosen_entry.map2(&frp.output.entries,
-                f!([](entry_id,entries) {
-                    entry_id.map(|entry_id| {
-                        entries.get(entry_id).cloned()
-                    }).flatten()
-                })
+                |entry_id,entries| entry_id.map(|entry_id| entries.get(entry_id).cloned()).flatten()
             );
 
             frp.source.chosen_entry <+ selected_path;
