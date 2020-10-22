@@ -15,10 +15,19 @@ function loadStyle(url) {
     document.head.appendChild(style);
 }
 
+function addStyleToHead(cls,stl) {
+    let style       = document.createElement("style");
+    style.innerText = cls + "{" + stl + "}"
+
+    document.head.appendChild(style);
+}
+
+
 
 
 loadScript('https://d3js.org/d3.v4.min.js');
 loadStyle('https://fontlibrary.org/face/dejavu-sans-mono')
+addStyleToHead('.selection','rx: 4px;stroke: transparent;')
 
 const label_style   = "font-family: DejaVuSansMonoBook; font-size: 10px;";
 const num_width     = 30;
