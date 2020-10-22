@@ -15,19 +15,10 @@ function loadStyle(url) {
     document.head.appendChild(style);
 }
 
-function addStyleToHead(attr,stl) {
-    let style       = document.createElement("style");
-    style.innerText = attr + "{" + stl + "}"
-
-    document.head.appendChild(style);
-}
-
-
 
 
 loadScript('https://d3js.org/d3.v4.min.js');
 loadStyle('https://fontlibrary.org/face/dejavu-sans-mono')
-addStyleToHead('.selection','rx: 4px;stroke: transparent;')
 
 const label_style   = "font-family: DejaVuSansMonoBook; font-size: 10px;";
 const num_width     = 30;
@@ -41,8 +32,8 @@ const lbl_padding_y = 2;
  * To select click and swipe with LMB
  * To deselect click outside of selection with LMB
  * To pan click and swipe with RMB
- * To zoom out click "Fit all" or use key combination "ctrl+a"
- * To zoom into selection click appropriate button or use key combination "ctrl+s"
+ * To zoom out click "Fit all" or use key combination "ctrl+alt+a"
+ * To zoom into selection click appropriate button or use key combination "ctrl+alt+z"
  *
  * Data format (json):
  * {
@@ -180,7 +171,7 @@ class ScatterPlot extends Visualization {
         }
 
         const zoomInKeyEvent = function (event) {
-            if (event.ctrlKey && event.key === 's') {
+            if (event.ctrlKey && event.altKey && event.key === 'z') {
                 zoomIn();
                 selectedZoomBtn.style.display = "none";
             }
@@ -287,7 +278,6 @@ class ScatterPlot extends Visualization {
         }
 
         if (axis.y.label !== undefined) {
-            let padding_x = 30;
             let padding_y = 15;
             svg.append("text")
                 .attr("text-anchor", "end")
@@ -371,12 +361,12 @@ class ScatterPlot extends Visualization {
     getMargins(axis) {
         if (axis.x.label === undefined && axis.y.label === undefined) {
             return {top: 20, right: 20, bottom: 20, left: 45};
-        } else if (axis.x.label === undefined) {
-            return {top: 10, right: 20, bottom: 35, left: 35};
         } else if (axis.y.label === undefined) {
-            return {top: 20, right: 10, bottom: 20, left: 60};
+            return {top: 10, right: 20, bottom: 35, left: 35};
+        } else if (axis.x.label === undefined) {
+            return {top: 20, right: 10, bottom: 20, left: 55};
         }
-        return {top: 10, right: 10, bottom: 35, left: 60};
+        return {top: 10, right: 10, bottom: 35, left: 55};
     }
 
     createDivElem(width, height) {
@@ -387,12 +377,15 @@ class ScatterPlot extends Visualization {
         divElem.setAttributeNS(null, "height", "100%");
         divElem.setAttributeNS(null, "transform", "matrix(1 0 0 -1 0 0)");
 
-        return divElem;
-    }
+        function addStyleToElem(attr,stl) {
+            let style       = document.createElement("style");
+            style.innerText = attr + "{" + stl + "}"
 
-    createBtnHelper() {
-        const btn = document.createElement("button");
-        const style = `
+            divElem.appendChild(style);
+        }
+
+        addStyleToElem('.selection','rx: 4px;stroke: transparent;')
+        addStyleToElem('button',`
             margin-left: 5px; 
             margin-bottom: 5px;
             display: inline-block;
@@ -403,23 +396,34 @@ class ScatterPlot extends Visualization {
             color: #333;
             border-radius: 14px;
             font-size: 10px;
+            font-family: DejaVuSansMonoBook;
             vertical-align: top;
             transition: all 0.3s ease;
-        `;
+        `)
+        addStyleToElem('button:hover',`
+            background-color: #333;
+            color: #e5e5e5;
+        `)
+
+        addStyleToElem('.dark .selection','fill: #efefef')
+        addStyleToElem('.dark button',`
+            border: 1px solid #fafafa;
+            color: #fafafa;
+        `)
+        addStyleToElem('.dark button:hover',`
+            background-color: #fafafa;
+            color: #343434;
+        `)
+        addStyleToElem('.dark line',`stroke: #fafafa;`)
+        addStyleToElem('.dark text',`fill: #fafafa;`)
+
+        return divElem;
+    }
+
+    createBtnHelper() {
+        const btn = document.createElement("button");
         btn.setAttribute("width", "80px");
         btn.setAttribute("height", "20px");
-        btn.setAttribute("style", style);
-
-        btn.onmouseover = function() {
-            btn.style.backgroundColor = "#333";
-            btn.style.color = "#e5e5e5";
-        }
-
-        btn.onmouseout = function() {
-            btn.style.backgroundColor = "transparent";
-            btn.style.color = "#333";
-        }
-
         return btn
     }
 
@@ -445,7 +449,7 @@ class ScatterPlot extends Visualization {
         }
 
         document.addEventListener('keydown', function(event) {
-            if (event.ctrlKey && event.key === 'a') {
+            if (event.ctrlKey && event.altKey && event.key === 'a') {
                 unzoom()
             }
         });
