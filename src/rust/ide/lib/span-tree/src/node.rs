@@ -8,15 +8,20 @@ use crate::iter::TreeFragment;
 use enso_data::text::Index;
 use enso_data::text::Size;
 use ast::crumbs::IntoCrumbs;
-
+use crate::ArgumentInfo;
 
 
 // ============
 // === Kind ===
 // ============
 
+#[derive(Clone,Debug,Eq,PartialEq)]
+pub struct This {
+    is_removable:bool
+}
+
 /// An enum describing kind of node.
-#[derive(Copy,Clone,Debug,Eq,PartialEq)]
+#[derive(Clone,Debug,Eq,PartialEq)]
 pub enum Kind {
     /// A root of the expression tree.
     Root,
@@ -25,60 +30,120 @@ pub enum Kind {
     /// A node representing operation (operator or function) of parent Infix, Section or Prefix.
     Operation,
     /// A node being a target (or "self") parameter of parent Infix, Section or Prefix.
-    This {
-        /// Indicates if this node can be erased.
-        is_removable:bool
-    },
+    This(This),
     /// A node being a normal (not target) parameter of parent Infix, Section or Prefix.
     Argument {
         /// Indicates if this node can be erased.
-        is_removable:bool
+        is_removable : bool,
+        name         : Option<String>,
+        typename     : Option<String>,
     },
     /// A node being a placeholder for inserting new child to Prefix or Operator chain. It should
     /// not have children, but can be assigned with a span representing the number of spaces between
     /// AST tokens. For example, given expression `foo   bar`, the span assigned to the
     /// `InsertionPoint` between `foo` and `bar` should be set to 3.
-    // FIXME: Rename to InsertionPoint
-    InsertionPoint(InsertionPointType),
+    InsertionPoint {
+        kind     : InsertionPointType,
+        name     : Option<String>,
+        typename : Option<String>,
+    },
 }
 
 impl Kind {
     /// This constructor.
-    pub fn target(is_removable:bool) -> Self {
-        Self::This {is_removable}
+    pub fn this(is_removable:bool) -> Self {
+        Self::This(This{is_removable})
     }
 
     /// Argument constructor.
-    pub fn argument(is_removable:bool) -> Self {
-        Self::Argument {is_removable}
+    pub fn argument(is_removable:bool, name:Option<String>, typename:Option<String>) -> Self {
+        Self::Argument {is_removable,name,typename}
+    }
+
+    pub fn insertion_point
+    (kind:InsertionPointType, name:Option<String>, typename:Option<String>) -> Self {
+        Self::InsertionPoint {kind,name,typename}
+    }
+
+    pub fn argument_info(&self) -> Option<ArgumentInfo> {
+        match self {
+            Self::Argument       {name,typename,..} => Some(ArgumentInfo::new(name.clone(),typename.clone())),
+            Self::InsertionPoint {name,typename,..} => Some(ArgumentInfo::new(name.clone(),typename.clone())),
+            _                                       => None
+        }
+    }
+
+    pub fn set_argument_info(&mut self, argument_info:ArgumentInfo) {
+        match self {
+            Self::Argument {is_removable,name,typename} => {
+                *name     = argument_info.name;
+                *typename = argument_info.typename;
+            },
+            Self::InsertionPoint {kind,name,typename} => {
+                *name     = argument_info.name;
+                *typename = argument_info.typename;
+            },
+            _ => {}
+        }
+    }
+
+    pub fn name(&self) -> Option<&String> {
+        match self {
+            Self::Argument {is_removable,name,typename} => name.as_ref(),
+            Self::InsertionPoint {kind,name,typename} => name.as_ref(),
+            _                                         => None,
+        }
+    }
+
+    pub fn typename(&self) -> Option<&String> {
+        match self {
+            Self::Argument {is_removable,name,typename} => typename.as_ref(),
+            Self::InsertionPoint {kind,name,typename} => typename.as_ref(),
+            _                                         => None,
+        }
+    }
+
+    pub fn is_removable(&self) -> bool {
+        match self {
+            Self::Argument {is_removable,..} => *is_removable,
+            _                                => false,
+        }
     }
 }
 
 impl Kind {
     /// Match the value with `Kind::InsertionPoint{..}`.
-    pub fn is_empty(self) -> bool {
-        matches!(self,Self::InsertionPoint(_))
+    pub fn is_empty(&self) -> bool {
+        matches!(self,Self::InsertionPoint{..})
+    }
+
+    pub fn is_argument(&self) -> bool {
+        matches!(self,Self::Argument{..})
+    }
+
+    pub fn is_this(&self) -> bool {
+        matches!(self,Self::This{..})
     }
 
     /// Match the value with `Kind::Operation{..}`.
-    pub fn is_operation(self) -> bool {
+    pub fn is_operation(&self) -> bool {
         matches!(self,Self::Operation)
     }
 
     /// Match the value with `Kind::InsertionPoint{..}` but not `Kind::InsertionPoint(ExpectedArgument(_))`.
-    pub fn is_positional_insertion_point(self) -> bool {
+    pub fn is_positional_insertion_point(&self) -> bool {
         self.is_empty() && !self.is_expected_argument()
     }
 
     /// Match the value with `Kind::InsertionPoint(ExpectedArgument(_))`.
-    pub fn is_expected_argument(self) -> bool {
-        matches!(self,Self::InsertionPoint(InsertionPointType::ExpectedArgument(_)))
+    pub fn is_expected_argument(&self) -> bool {
+        matches!(self,Self::InsertionPoint{kind:InsertionPointType::ExpectedArgument(_),..})
     }
 }
 
 impl Default for Kind {
     fn default() -> Self {
-        Self::InsertionPoint(default())
+        Self::insertion_point(default(),None,None)
     }
 }
 
@@ -159,9 +224,20 @@ pub struct Node<T> {
     pub size           : Size,
     pub children       : Vec<Child<T>>,
     pub expression_id  : Option<ast::Id>,
-    // FIXME: This uses nested options, which is a bad design
-    pub argument_info : Option<crate::ArgumentInfo>,
     pub payload        : T
+}
+
+impl<T> Deref for Node<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.payload
+    }
+}
+
+impl<T> DerefMut for Node<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.payload
+    }
 }
 
 impl<T:Payload> Node<T> {
@@ -174,7 +250,24 @@ impl<T:Payload> Node<T> {
     /// Create empty node.
     pub fn new_empty(insert_type:InsertionPointType) -> Self
     where T:Default {
-        Self::new().with_kind(Kind::InsertionPoint(insert_type))
+        Self::new().with_kind(Kind::insertion_point(insert_type,None,None))
+    }
+
+    pub fn name(&self) -> Option<&String> {
+        self.kind.name()
+    }
+
+    pub fn typename(&self) -> Option<&String> {
+        self.kind.typename()
+    }
+
+
+    pub fn argument_info(&self) -> Option<ArgumentInfo> {
+        self.kind.argument_info()
+    }
+
+    pub fn set_argument_info(&mut self, argument_info:ArgumentInfo) {
+        self.kind.set_argument_info(argument_info)
     }
 
     /// Define a new child by using the `ChildBuilder` pattern.
@@ -225,10 +318,10 @@ impl<T> Node<T> {
         self
     }
 
-    pub fn with_argument_info(mut self, argument_info:Option<crate::ArgumentInfo>) -> Self {
-        self.argument_info = argument_info;
-        self
-    }
+    // pub fn with_argument_info(mut self, argument_info:Option<crate::ArgumentInfo>) -> Self {
+    //     self.argument_info = argument_info;
+    //     self
+    // }
 
     pub fn with_payload(mut self, payload:T) -> Self {
         self.payload = payload;
@@ -322,7 +415,7 @@ impl<T:Payload> ChildBuilder<T> {
     , kind   : Kind
     , crumbs : impl IntoCrumbs
     , f      : impl FnOnce(Self)->Self) -> Self {
-        let child = ChildBuilder::new(default());
+        let child : ChildBuilder<T> = ChildBuilder::new(default());
         let child = f(child.offset(offset).size(size).kind(kind).crumbs(crumbs));
         self.node.children.push(child.child);
         self
@@ -507,7 +600,9 @@ impl<'a,T> Deref for Ref<'a,T> {
 mod test {
     use crate::builder::Builder;
     use crate::builder::TreeBuilder;
+    use crate::node::Kind;
     use crate::node::Kind::*;
+    use crate::SpanTree;
 
     use ast::crumbs;
     use crate::node::InsertionPointType;
@@ -517,13 +612,13 @@ mod test {
         use ast::crumbs::InfixCrumb::*;
 
         let is_removable = false;
-        let tree      = TreeBuilder::new(7)
-            .add_leaf (0,1,This{is_removable},vec![LeftOperand])
+        let tree : SpanTree = TreeBuilder::new(7)
+            .add_leaf (0,1,Kind::this(is_removable),vec![LeftOperand])
             .add_leaf (1,1,Operation,vec![Operator])
-            .add_child(2,5,Argument{is_removable},vec![RightOperand])
-                .add_leaf(0,2,This{is_removable},vec![LeftOperand])
+            .add_child(2,5,Kind::argument(is_removable,None,None),vec![RightOperand])
+                .add_leaf(0,2,Kind::this(is_removable),vec![LeftOperand])
                 .add_leaf(3,1,Operation,vec![Operator])
-                .add_leaf(4,1,Argument{is_removable},vec![RightOperand])
+                .add_leaf(4,1,Kind::argument(is_removable,None,None),vec![RightOperand])
                 .done()
             .build();
 
@@ -576,13 +671,13 @@ mod test {
         use ast::crumbs::PrefixCrumb::*;
 
         let is_removable = false;
-        let tree      = TreeBuilder::new(7)
-            .add_leaf (0,1,This{is_removable},vec![LeftOperand])
+        let tree : SpanTree = TreeBuilder::new(7)
+            .add_leaf (0,1,Kind::this(is_removable),vec![LeftOperand])
             .add_empty_child(1,InsertionPointType::AfterTarget)
             .add_leaf (1,1,Operation,vec![Operator])
-            .add_child(2,5,Argument{is_removable},vec![RightOperand])
+            .add_child(2,5,Kind::argument(is_removable,None,None),vec![RightOperand])
                 .add_leaf(0,3,Operation,vec![Func])
-                .add_leaf(3,1,This{is_removable},vec![Arg])
+                .add_leaf(3,1,Kind::this(is_removable),vec![Arg])
             .done()
             .build();
 

@@ -23,7 +23,7 @@ pub trait Builder<T:Payload> : Sized {
     /// extend this branch of the tree.
     fn add_child
     (self, offset:usize, len:usize, kind:node::Kind, crumbs:impl IntoCrumbs) -> ChildBuilder<Self,T> {
-        let node  = Node::new().with_size(Size::new(len));
+        let node  = Node::<T>::new().with_kind(kind).with_size(Size::new(len));
         let child = node::Child { node,
             offset     : Size::new(offset),
             ast_crumbs : crumbs.into_crumbs()
@@ -74,7 +74,7 @@ pub struct TreeBuilder<T=()> {
 impl<T:Payload> TreeBuilder<T> {
     /// Create new builder for tree with root having length `len`.
     pub fn new(len:usize) -> Self {
-        let built = Node::new().with_kind(node::Kind::Root).with_size(Size::new(len));
+        let built = Node::<T>::new().with_kind(node::Kind::Root).with_size(Size::new(len));
         TreeBuilder { built }
     }
 

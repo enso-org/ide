@@ -8,7 +8,7 @@ use enso_protocol::project_manager;
 use json_rpc::expect_call;
 use json_rpc::test_util::transport::mock::MockTransport;
 use serde_json::json;
-use span_tree::node::InsertType;
+use span_tree::node::InsertionPointType;
 use span_tree::node::Kind;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
 use wasm_bindgen_test::wasm_bindgen_test;
@@ -97,7 +97,7 @@ fn span_tree_args() {
     let get_node   = || graph.node(id).unwrap();
     let get_inputs = || NodeTrees::new(&get_node().info,executed_graph).unwrap().inputs;
     let get_param  = |n| get_inputs().root_ref().leaf_iter().nth(n).and_then(|node| {
-        node.parameter_info.clone()
+        node.argument_info()
     });
     let expected_this_param = model::suggestion_database::to_span_tree_param(&entry.arguments[0]);
     let expected_arg1_param = model::suggestion_database::to_span_tree_param(&entry.arguments[1]);
@@ -109,10 +109,10 @@ fn span_tree_args() {
         // The tree here should have two nodes under root - one with given Ast and second for
         // an additional prefix application argument.
         [_,second] => {
-            let Node{children,kind,parameter_info,..} = &second.node;
+            let Node{children,kind,..} = &second.node;
             assert!(children.is_empty());
-            assert_eq!(kind,&Kind::Empty(InsertType::ExpectedArgument(0)));
-            assert_eq!(parameter_info,&Some(expected_arg1_param.clone()));
+            assert_eq!(kind,&Kind::insertion_point(InsertionPointType::ExpectedArgument(0),None,None));
+            assert_eq!(kind.argument_info(),Some(expected_arg1_param.clone()));
         }
         _ => panic!("Expected only two children in the span tree's root"),
     };
@@ -124,10 +124,10 @@ fn span_tree_args() {
         // The tree here should have two nodes under root - one with given Ast and second for
         // an additional prefix application argument.
         [_,second] => {
-            let Node{children,kind,parameter_info,..} = &second.node;
+            let Node{children,kind,..} = &second.node;
             assert!(children.is_empty());
-            assert_eq!(kind,&Kind::Argument{is_removable:false});
-            assert_eq!(parameter_info,&Some(expected_arg1_param.clone()));
+            assert_eq!(kind,&Kind::argument(false,None,None));
+            assert_eq!(kind.argument_info(),Some(expected_arg1_param.clone()));
         }
         _ => panic!("Expected only two children in the span tree's root"),
     };

@@ -65,6 +65,12 @@ pub struct ArgumentInfo {
     pub typename : Option<String>,
 }
 
+impl ArgumentInfo {
+    pub fn new(name:Option<String>, typename:Option<String>) -> Self {
+        Self {name,typename}
+    }
+}
+
 
 
 // ================
@@ -106,7 +112,7 @@ impl<T:Payload> SpanTree<T> {
 
 impl<T:Payload> Default for SpanTree<T> {
     fn default() -> Self {
-        let root = Node::new().with_kind(node::Kind::Root);
+        let root = Node::<T>::new().with_kind(node::Kind::Root);
         Self {root}
     }
 }

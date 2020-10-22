@@ -161,7 +161,7 @@ impl<T:Payload> SpanTreeGenerator<T> for Ast {
             // All prefix params are missing arguments, since there is no prefix application.
             let missing_args              = app_base.prefix_params(invocation);
             let arity                     = missing_args.len();
-            let base_node_kind            = if arity==0 {kind} else {node::Kind::Operation};
+            let base_node_kind            = if arity==0 {kind.clone()} else {node::Kind::Operation};
             let node                      = chain.generate_node(base_node_kind,context)?;
             let provided_prefix_arg_count = 0;
             Ok(generate_expected_arguments(node,kind,provided_prefix_arg_count,missing_args))
@@ -187,8 +187,7 @@ impl<T:Payload> SpanTreeGenerator<T> for Ast {
                             children,
                             expression_id,
                             payload,
-                            kind           : node::Kind::Operation,
-                            argument_info : None,
+                            kind : node::Kind::Operation,
                         };
                         // Note that in this place it is impossible that Ast is in form of
                         // `this.method` -- it is covered by the former if arm. As such, we don't
@@ -197,8 +196,7 @@ impl<T:Payload> SpanTreeGenerator<T> for Ast {
                         let params                    = info.parameters.into_iter();
                         Ok(generate_expected_arguments(node,kind,provided_prefix_arg_count,params))
                     } else {
-                        let argument_info = default();
-                        Ok(Node {kind,size,children,expression_id,argument_info,payload})
+                        Ok(Node {kind,size,children,expression_id,payload})
                     }
                 },
             }
@@ -216,7 +214,7 @@ impl<T:Payload> SpanTreeGenerator<T> for ast::opr::Chain {
         let is_removable                                 = self.args.len() >= 2;
         let node_and_offset:FallibleResult<(Node<T>,usize)> = match &self.target {
             Some(target) => {
-                let node = target.arg.generate_node(node::Kind::This {is_removable},context)?;
+                let node = target.arg.generate_node(node::Kind::this(is_removable),context)?;
                 Ok((node,target.offset))
             },
             None => Ok((Node::new_empty(InsertionPointType::BeforeTarget),0)),
@@ -247,7 +245,7 @@ impl<T:Payload> SpanTreeGenerator<T> for ast::opr::Chain {
                 let arg_ast    = Located::new(arg_crumbs,operand.arg.clone_ref());
                 gen.spacing(operand.offset);
 
-                gen.generate_ast_node(arg_ast,node::Kind::Argument {is_removable},context)?;
+                gen.generate_ast_node(arg_ast,node::Kind::argument(is_removable,None,None),context)?;
             }
             gen.generate_empty_node(InsertionPointType::Append);
 
@@ -256,12 +254,11 @@ impl<T:Payload> SpanTreeGenerator<T> for ast::opr::Chain {
             }
 
             Ok((Node {
-                kind           : if is_last {kind} else {node::Kind::Chained},
-                size           : gen.current_offset,
-                children       : gen.children,
-                expression_id  : elem.infix_id,
-                argument_info : None,
-                payload        : default(),
+                kind          : if is_last {kind.clone()} else {node::Kind::Chained},
+                size          : gen.current_offset,
+                children      : gen.children,
+                expression_id : elem.infix_id,
+                payload       : default(),
             }, elem.offset))
         })?;
         Ok(node)
@@ -287,8 +284,8 @@ impl<T:Payload> SpanTreeGenerator<T> for ast::prefix::Chain {
             let node     = node?;
             let is_first = i == 0;
             let is_last  = i + 1 == prefix_arity;
-            let arg_kind = if is_first && !base.has_target { node::Kind::This {is_removable} }
-                else { node::Kind::Argument {is_removable} };
+            let arg_kind = if is_first && !base.has_target { node::Kind::this(is_removable) }
+                else { node::Kind::argument(is_removable,None,None) };
 
             let mut gen = ChildGenerator::default();
             gen.add_node(vec![Func.into()],node);
@@ -297,17 +294,18 @@ impl<T:Payload> SpanTreeGenerator<T> for ast::prefix::Chain {
                 gen.generate_empty_node(InsertionPointType::BeforeTarget);
             }
             let arg_ast      = arg.sast.wrapped.clone_ref();
-            let arg_child    = gen.generate_ast_node(Located::new(Arg,arg_ast),arg_kind,context)?;
-            arg_child.node.argument_info = known_params.next();
+            let arg_child  : &mut node::Child<T>   = gen.generate_ast_node(Located::new(Arg,arg_ast),arg_kind,context)?;
+            if let Some(info) = known_params.next() {
+                arg_child.node.set_argument_info(info)
+            }
             if !known_args {
                 gen.generate_empty_node(InsertionPointType::Append);
             }
             Ok(Node {
-                kind           : if is_last {kind} else {node::Kind::Chained},
+                kind           : if is_last {kind.clone()} else {node::Kind::Chained},
                 size           : gen.current_offset,
                 children       : gen.children,
                 expression_id  : arg.prefix_id,
-                argument_info : None,
                 payload        : default(),
             })
         })?;
@@ -322,13 +320,13 @@ impl<T:Payload> SpanTreeGenerator<T> for ast::prefix::Chain {
 impl<T:Payload> SpanTreeGenerator<T> for ast::known::Match {
     fn generate_node(&self, kind:node::Kind, context:&impl Context) -> FallibleResult<Node<T>> {
         let is_removable  = false;
-        let children_kind = node::Kind::Argument {is_removable};
-        let mut gen   = ChildGenerator::default();
+        let children_kind = node::Kind::argument(is_removable,None,None);
+        let mut gen       = ChildGenerator::default();
         if let Some(pat) = &self.pfx {
             for macros::AstInPattern {ast,crumbs} in macros::all_ast_nodes_in_pattern(&pat) {
                 let ast_crumb   = ast::crumbs::MatchCrumb::Pfx {val:crumbs};
                 let located_ast = Located::new(ast_crumb,ast.wrapped);
-                gen.generate_ast_node(located_ast,children_kind,context)?;
+                gen.generate_ast_node(located_ast,children_kind.clone(),context)?;
                 gen.spacing(ast.off);
             }
         }
@@ -339,11 +337,10 @@ impl<T:Payload> SpanTreeGenerator<T> for ast::known::Match {
             generate_children_from_segment(&mut gen,index+1,&segment.wrapped,context)?;
         }
         Ok(Node {kind,
-            size           : gen.current_offset,
-            children       : gen.children,
-            expression_id  : self.id(),
-            argument_info : None,
-            payload        : default(),
+            size          : gen.current_offset,
+            children      : gen.children,
+            expression_id : self.id(),
+            payload       : default(),
         })
     }
 }
@@ -352,14 +349,14 @@ fn generate_children_from_segment<T:Payload>
 (gen:&mut ChildGenerator<T>, index:usize, segment:&MacroMatchSegment<Ast>, context:&impl Context)
 -> FallibleResult {
     let is_removable  = false;
-    let children_kind = node::Kind::Argument {is_removable};
+    let children_kind = node::Kind::argument(is_removable,None,None);
     gen.spacing(segment.head.len());
     for macros::AstInPattern {ast,crumbs} in macros::all_ast_nodes_in_pattern(&segment.body) {
         gen.spacing(ast.off);
         let segment_crumb = ast::crumbs::SegmentMatchCrumb::Body {val:crumbs};
         let ast_crumb     = ast::crumbs::MatchCrumb::Segs{val:segment_crumb, index};
         let located_ast   = Located::new(ast_crumb,ast.wrapped);
-        gen.generate_ast_node(located_ast,children_kind,context)?;
+        gen.generate_ast_node(located_ast,children_kind.clone(),context)?;
     }
     Ok(())
 }
@@ -377,11 +374,10 @@ impl<T:Payload> SpanTreeGenerator<T> for ast::known::Ambiguous {
             generate_children_from_ambiguous(&mut gen, index+1, &segment.wrapped, context)?;
         }
         Ok(Node{kind,
-            size           : gen.current_offset,
-            children       : gen.children,
-            expression_id  : self.id(),
-            argument_info : None,
-            payload        : default(),
+            size          : gen.current_offset,
+            children      : gen.children,
+            expression_id : self.id(),
+            payload       : default(),
         })
     }
 }
@@ -390,7 +386,7 @@ fn generate_children_from_ambiguous<T:Payload>
 (gen:&mut ChildGenerator<T>, index:usize, segment:&MacroAmbiguousSegment<Ast>, context:&impl Context)
 -> FallibleResult {
     let is_removable  = false;
-    let children_kind = node::Kind::Argument {is_removable};
+    let children_kind = node::Kind::argument(is_removable,None,None);
     gen.spacing(segment.head.len());
     if let Some(sast) = &segment.body {
         gen.spacing(sast.off);
@@ -414,15 +410,14 @@ fn generate_expected_argument<T:Payload>
     println!("Will generate missing argument node for {:?}",argument_info);
     let mut gen = ChildGenerator::default();
     gen.add_node(ast::Crumbs::new(),node);
-    let arg_node                 = gen.generate_empty_node(InsertionPointType::ExpectedArgument(index));
-    arg_node.node.argument_info = Some(argument_info);
+    let arg_node = gen.generate_empty_node(InsertionPointType::ExpectedArgument(index));
+    arg_node.node.set_argument_info(argument_info);
     Node {
-        kind           : if is_last {kind} else {node::Kind::Chained},
-        size           : gen.current_offset,
-        children       : gen.children,
-        expression_id  : None,
-        argument_info : None,
-        payload        : default(),
+        kind          : if is_last {kind} else {node::Kind::Chained},
+        size          : gen.current_offset,
+        children      : gen.children,
+        expression_id : None,
+        payload       : default(),
     }
 }
 
@@ -435,7 +430,7 @@ fn generate_expected_arguments<T:Payload>
     let arity = supplied_prefix_arg_count + expected_args.len();
     (supplied_prefix_arg_count..).zip(expected_args).fold(node, |node, (index,parameter)| {
         let is_last = index + 1 == arity;
-        generate_expected_argument(node,kind,index,is_last,parameter)
+        generate_expected_argument(node,kind.clone(),index,is_last,parameter)
     })
 }
 
@@ -481,7 +476,9 @@ mod test {
     use crate::ArgumentInfo;
     use crate::builder::TreeBuilder;
     use crate::generate::context::CalledMethodInfo;
+    use crate::node::Kind;
     use crate::node::Kind::*;
+    use crate::node::Payload;
     use crate::node::InsertionPointType::*;
 
     use ast::Crumbs;
@@ -506,7 +503,7 @@ mod test {
     ///
     /// It is used in tests. Because parser can assign id as he pleases, therefore to keep tests
     /// cleaner the expression ids are removed before comparing trees.
-    fn clear_expression_ids(node:&mut Node) {
+    fn clear_expression_ids<T>(node:&mut Node<T>) {
         node.expression_id = None;
         for child in &mut node.children {
             clear_expression_ids(&mut child.node);
@@ -517,8 +514,8 @@ mod test {
     ///
     /// It is used in tests. Because constructing trees with set parameter infos is troublesome,
     /// it is often more convenient to test them separately and then erase infos and test for shape.
-    fn clear_parameter_infos(node:&mut Node) {
-        node.argument_info = None;
+    fn clear_parameter_infos<T:Payload>(node:&mut Node<T>) {
+        node.set_argument_info(default());
         for child in &mut node.children {
             clear_parameter_infos(&mut child.node);
         }
@@ -534,7 +531,7 @@ mod test {
         id_map.generate(14..15);
         id_map.generate(4..11);
         let ast      = parser.parse_line_with_id_map("2 + foo bar - 3",id_map.clone()).unwrap();
-        let mut tree = ast.generate_tree(&context::Empty).unwrap();
+        let mut tree : SpanTree = ast.generate_tree(&context::Empty).unwrap();
 
         // Check the expression ids we defined:
         for id_map_entry in id_map.vec {
@@ -549,22 +546,22 @@ mod test {
         let is_removable = false;
         let expected     = TreeBuilder::new(15)
             .add_empty_child(0,BeforeTarget)
-            .add_child(0,11,Target{is_removable},InfixCrumb::LeftOperand)
+            .add_child(0,11,Kind::this(is_removable),InfixCrumb::LeftOperand)
                 .add_empty_child(0,BeforeTarget)
-                .add_leaf (0,1,Target{is_removable},InfixCrumb::LeftOperand)
+                .add_leaf (0,1,Kind::this(is_removable),InfixCrumb::LeftOperand)
                 .add_empty_child(1,AfterTarget)
                 .add_leaf (2,1,Operation,InfixCrumb::Operator)
-                .add_child(4,7,Argument{is_removable} ,InfixCrumb::RightOperand)
+                .add_child(4,7,Kind::argument(is_removable,None,None) ,InfixCrumb::RightOperand)
                     .add_leaf(0,3,Operation,PrefixCrumb::Func)
                     .add_empty_child(4,BeforeTarget)
-                    .add_leaf(4,3,Target{is_removable},PrefixCrumb::Arg)
+                    .add_leaf(4,3,Kind::this(is_removable),PrefixCrumb::Arg)
                     .add_empty_child(7,Append)
                     .done()
                 .add_empty_child(11,Append)
                 .done()
             .add_empty_child(11,AfterTarget)
             .add_leaf(12,1,Operation,InfixCrumb::Operator)
-            .add_leaf(14,1,Argument{is_removable},InfixCrumb::RightOperand)
+            .add_leaf(14,1,Kind::argument(is_removable,None,None),InfixCrumb::RightOperand)
             .add_empty_child(15,Append)
             .build();
 
@@ -575,7 +572,7 @@ mod test {
     fn generate_span_tree_with_chains() {
         let parser   = Parser::new_or_panic();
         let ast      = parser.parse_line("2 + 3 + foo bar baz 13 + 5").unwrap();
-        let mut tree = ast.generate_tree(&context::Empty).unwrap();
+        let mut tree : SpanTree = ast.generate_tree(&context::Empty).unwrap();
         clear_expression_ids(&mut tree.root);
 
         let is_removable = true;
@@ -583,31 +580,31 @@ mod test {
             .add_child(0,22,Chained,InfixCrumb::LeftOperand)
                 .add_child(0,5,Chained,InfixCrumb::LeftOperand)
                     .add_empty_child(0,BeforeTarget)
-                    .add_leaf(0,1,Target{is_removable},InfixCrumb::LeftOperand)
+                    .add_leaf(0,1,Kind::this(is_removable),InfixCrumb::LeftOperand)
                     .add_empty_child(1,AfterTarget)
                     .add_leaf(2,1,Operation,InfixCrumb::Operator)
-                    .add_leaf(4,1,Argument{is_removable},InfixCrumb::RightOperand)
+                    .add_leaf(4,1,Kind::argument(is_removable,None,None),InfixCrumb::RightOperand)
                     .add_empty_child(5,Append)
                     .done()
                 .add_leaf (6,1 ,Operation,InfixCrumb::Operator)
-                .add_child(8,14,Argument{is_removable},InfixCrumb::RightOperand)
+                .add_child(8,14,Kind::argument(is_removable,None,None),InfixCrumb::RightOperand)
                     .add_child(0,11,Chained,PrefixCrumb::Func)
                         .add_child(0,7,Chained,PrefixCrumb::Func)
                             .add_leaf(0,3,Operation,PrefixCrumb::Func)
                             .add_empty_child(4,BeforeTarget)
-                            .add_leaf(4,3,Target{is_removable},PrefixCrumb::Arg)
+                            .add_leaf(4,3,Kind::this(is_removable),PrefixCrumb::Arg)
                             .add_empty_child(7,Append)
                             .done()
-                        .add_leaf(8,3,Argument{is_removable},PrefixCrumb::Arg)
+                        .add_leaf(8,3,Kind::argument(is_removable,None,None),PrefixCrumb::Arg)
                         .add_empty_child(11,Append)
                         .done()
-                    .add_leaf(12,2,Argument{is_removable},PrefixCrumb::Arg)
+                    .add_leaf(12,2,Kind::argument(is_removable,None,None),PrefixCrumb::Arg)
                     .add_empty_child(14,Append)
                     .done()
                 .add_empty_child(22,Append)
                 .done()
             .add_leaf(23,1,Operation,InfixCrumb::Operator)
-            .add_leaf(25,1,Argument{is_removable},InfixCrumb::RightOperand)
+            .add_leaf(25,1,Kind::argument(is_removable,None,None),InfixCrumb::RightOperand)
             .add_empty_child(26,Append)
             .build();
 
@@ -618,20 +615,20 @@ mod test {
     fn generating_span_tree_from_right_assoc_operator() {
         let parser   = Parser::new_or_panic();
         let ast      = parser.parse_line("1,2,3").unwrap();
-        let mut tree = ast.generate_tree(&context::Empty).unwrap();
+        let mut tree : SpanTree = ast.generate_tree(&context::Empty).unwrap();
         clear_expression_ids(&mut tree.root);
 
         let is_removable = true;
         let expected     = TreeBuilder::new(5)
             .add_empty_child(0,Append)
-            .add_leaf (0,1,Argument{is_removable},InfixCrumb::LeftOperand)
+            .add_leaf (0,1,Kind::argument(is_removable,None,None),InfixCrumb::LeftOperand)
             .add_leaf (1,1,Operation,InfixCrumb::Operator)
             .add_child(2,3,Chained  ,InfixCrumb::RightOperand)
                 .add_empty_child(0,Append)
-                .add_leaf(0,1,Argument{is_removable},InfixCrumb::LeftOperand)
+                .add_leaf(0,1,Kind::argument(is_removable,None,None),InfixCrumb::LeftOperand)
                 .add_leaf(1,1,Operation,InfixCrumb::Operator)
                 .add_empty_child(2,AfterTarget)
-                .add_leaf(2,1,Target{is_removable},InfixCrumb::RightOperand)
+                .add_leaf(2,1,Kind::this(is_removable),InfixCrumb::RightOperand)
                 .add_empty_child(3,BeforeTarget)
                 .done()
             .build();
@@ -645,7 +642,7 @@ mod test {
         // The star makes `SectionSides` ast being one of the parameters of + chain. First + makes
         // SectionRight, and last + makes SectionLeft.
         let ast      = parser.parse_line("+ * + + 2 +").unwrap();
-        let mut tree = ast.generate_tree(&context::Empty).unwrap();
+        let mut tree : SpanTree = ast.generate_tree(&context::Empty).unwrap();
         clear_expression_ids(&mut tree.root);
 
         let is_removable = true;
@@ -655,7 +652,7 @@ mod test {
                     .add_child(0,3,Chained,SectionLeftCrumb::Arg)
                         .add_empty_child(0,BeforeTarget)
                         .add_leaf (0,1,Operation,SectionRightCrumb::Opr)
-                        .add_child(2,1,Argument{is_removable},SectionRightCrumb::Arg)
+                        .add_child(2,1,Kind::argument(is_removable,None,None),SectionRightCrumb::Arg)
                             .add_empty_child(0,BeforeTarget)
                             .add_leaf(0,1,Operation,SectionSidesCrumb)
                             .add_empty_child(1,Append)
@@ -666,7 +663,7 @@ mod test {
                     .add_empty_child(5,Append)
                     .done()
                 .add_leaf(6,1,Operation,InfixCrumb::Operator)
-                .add_leaf(8,1,Argument{is_removable},InfixCrumb::RightOperand)
+                .add_leaf(8,1,Kind::argument(is_removable,None,None),InfixCrumb::RightOperand)
                 .add_empty_child(9,Append)
                 .done()
             .add_leaf(10,1,Operation,SectionLeftCrumb::Opr)
@@ -680,7 +677,7 @@ mod test {
     fn generating_span_tree_from_right_assoc_section() {
         let parser   = Parser::new_or_panic();
         let ast      = parser.parse_line(",2,").unwrap();
-        let mut tree = ast.generate_tree(&context::Empty).unwrap();
+        let mut tree : SpanTree = ast.generate_tree(&context::Empty).unwrap();
         clear_expression_ids(&mut tree.root);
 
         let is_removable = true;
@@ -689,7 +686,7 @@ mod test {
             .add_leaf (0,1,Operation,SectionRightCrumb::Opr)
             .add_child(1,2,Chained  ,SectionRightCrumb::Arg)
                 .add_empty_child(0,Append)
-                .add_leaf(0,1,Argument{is_removable},SectionLeftCrumb::Arg)
+                .add_leaf(0,1,Kind::argument(is_removable,None,None),SectionLeftCrumb::Arg)
                 .add_leaf(1,1,Operation,SectionLeftCrumb::Opr)
                 .add_empty_child(2,BeforeTarget)
                 .done()
@@ -707,7 +704,7 @@ mod test {
         id_map.generate(0..29);
         let expression = "if foo then (a + b) x else ()";
         let ast        = parser.parse_line_with_id_map(expression,id_map.clone()).unwrap();
-        let mut tree   = ast.generate_tree(&context::Empty).unwrap();
+        let mut tree : SpanTree = ast.generate_tree(&context::Empty).unwrap();
 
         // Check if expression id is set
         let (_,expected_id) = id_map.vec.first().unwrap();
@@ -724,23 +721,23 @@ mod test {
         };
 
         let expected = TreeBuilder::new(29)
-            .add_leaf(3,3,Argument {is_removable},segment_body_crumbs(0,&if_then_else_cr))
-            .add_child(12,9,Argument {is_removable},segment_body_crumbs(1,&if_then_else_cr))
+            .add_leaf(3,3,Kind::argument(is_removable,None,None),segment_body_crumbs(0,&if_then_else_cr))
+            .add_child(12,9,Kind::argument(is_removable,None,None),segment_body_crumbs(1,&if_then_else_cr))
                 .add_child(0,7,Operation,PrefixCrumb::Func)
-                    .add_child(1,5,Argument {is_removable},segment_body_crumbs(0,&parens_cr))
+                    .add_child(1,5,Kind::argument(is_removable,None,None),segment_body_crumbs(0,&parens_cr))
                         .add_empty_child(0,BeforeTarget)
-                        .add_leaf(0,1,Target {is_removable},InfixCrumb::LeftOperand)
+                        .add_leaf(0,1,Kind::this(is_removable),InfixCrumb::LeftOperand)
                         .add_empty_child(1,AfterTarget)
                         .add_leaf(2,1,Operation,InfixCrumb::Operator)
-                        .add_leaf(4,1,Argument {is_removable},InfixCrumb::RightOperand)
+                        .add_leaf(4,1,Kind::argument(is_removable,None,None),InfixCrumb::RightOperand)
                         .add_empty_child(5,Append)
                         .done()
                     .done()
                 .add_empty_child(8,BeforeTarget)
-                .add_leaf(8,1,Target {is_removable},PrefixCrumb::Arg)
+                .add_leaf(8,1,Kind::this(is_removable),PrefixCrumb::Arg)
                 .add_empty_child(9,Append)
                 .done()
-            .add_leaf(27,2,Argument {is_removable},segment_body_crumbs(2,&if_then_else_cr))
+            .add_leaf(27,2,Kind::argument(is_removable,None,None),segment_body_crumbs(2,&if_then_else_cr))
             .build();
 
         assert_eq!(expected,tree);
@@ -752,7 +749,7 @@ mod test {
         let mut id_map = IdMap::default();
         id_map.generate(0..2);
         let ast      = parser.parse_line_with_id_map("(4",id_map.clone()).unwrap();
-        let mut tree = ast.generate_tree(&context::Empty).unwrap();
+        let mut tree : SpanTree = ast.generate_tree(&context::Empty).unwrap();
 
         // Check the expression id:
         let (_,expected_id) = id_map.vec.first().unwrap();
@@ -763,7 +760,7 @@ mod test {
         let is_removable = false;
         let crumb        = AmbiguousCrumb{index:0, field:AmbiguousSegmentCrumb::Body};
         let expected     = TreeBuilder::new(2)
-            .add_leaf(1,1,Argument {is_removable},crumb)
+            .add_leaf(1,1,Kind::argument(is_removable,None,None),crumb)
             .build();
 
         assert_eq!(expected,tree);
@@ -773,14 +770,14 @@ mod test {
     fn generating_span_tree_for_lambda() {
         let parser   = Parser::new_or_panic();
         let ast      = parser.parse_line("foo a-> b + c").unwrap();
-        let mut tree = ast.generate_tree(&context::Empty).unwrap();
+        let mut tree : SpanTree = ast.generate_tree(&context::Empty).unwrap();
         clear_expression_ids(&mut tree.root);
 
         let is_removable = false;
         let expected     = TreeBuilder::new(13)
             .add_leaf(0,3,Operation,PrefixCrumb::Func)
             .add_empty_child(4,BeforeTarget)
-            .add_leaf(4,9,Target{is_removable},PrefixCrumb::Arg)
+            .add_leaf(4,9,Kind::this(is_removable),PrefixCrumb::Arg)
             .add_empty_child(13,Append)
             .build();
 
@@ -811,9 +808,9 @@ mod test {
             parameters : vec![this_param.clone()]
         };
         let ctx      = MockContext::new_single(ast.id.unwrap(),invocation_info);
-        let mut tree = SpanTree::new(&ast,&ctx).unwrap();
+        let mut tree : SpanTree = SpanTree::new(&ast,&ctx).unwrap();
         match tree.root_ref().leaf_iter().collect_vec().as_slice() {
-            [_func,arg0] => assert_eq!(arg0.argument_info.as_ref(),Some(&this_param)),
+            [_func,arg0] => assert_eq!(arg0.argument_info().as_ref(),Some(&this_param)),
             sth_else     => panic!("There should be 2 leaves, found: {}",sth_else.len()),
         }
         let expected = TreeBuilder::new(3)
@@ -832,14 +829,14 @@ mod test {
             parameters : vec![this_param.clone()]
         };
         let ctx      = MockContext::new_single(ast.id.unwrap(),invocation_info);
-        let mut tree = SpanTree::new(&ast,&ctx).unwrap();
+        let mut tree : SpanTree = SpanTree::new(&ast,&ctx).unwrap();
         match tree.root_ref().leaf_iter().collect_vec().as_slice() {
-            [_func,arg0] => assert_eq!(arg0.argument_info.as_ref(),Some(&this_param)),
+            [_func,arg0] => assert_eq!(arg0.argument_info().as_ref(),Some(&this_param)),
             sth_else     => panic!("There should be 2 leaves, found: {}",sth_else.len()),
         }
         let expected = TreeBuilder::new(8)
             .add_leaf(0,3,Operation,PrefixCrumb::Func)
-            .add_leaf(4,4,Target {is_removable:false},PrefixCrumb::Arg)
+            .add_leaf(4,4,Kind::this(false),PrefixCrumb::Arg)
             .build();
         clear_expression_ids(&mut tree.root);
         clear_parameter_infos(&mut tree.root);
@@ -853,12 +850,12 @@ mod test {
             parameters : vec![this_param.clone(), param1.clone(), param2.clone()]
         };
         let ctx = MockContext::new_single(ast.id.unwrap(),invocation_info);
-        let mut tree = SpanTree::new(&ast,&ctx).unwrap();
+        let mut tree : SpanTree = SpanTree::new(&ast,&ctx).unwrap();
         match tree.root_ref().leaf_iter().collect_vec().as_slice() {
             [_func,arg0,arg1,arg2] => {
-                assert_eq!(arg0.argument_info.as_ref(),Some(&this_param));
-                assert_eq!(arg1.argument_info.as_ref(),Some(&param1));
-                assert_eq!(arg2.argument_info.as_ref(),Some(&param2));
+                assert_eq!(arg0.argument_info().as_ref(),Some(&this_param));
+                assert_eq!(arg1.argument_info().as_ref(),Some(&param1));
+                assert_eq!(arg2.argument_info().as_ref(),Some(&param2));
             },
             sth_else => panic!("There should be 4 leaves, found: {}",sth_else.len()),
         }
@@ -866,7 +863,7 @@ mod test {
             .add_child(0,8,Chained  ,Crumbs::default())
                 .add_child(0,8,Chained  ,Crumbs::default())
                     .add_leaf(0,3,Operation,PrefixCrumb::Func)
-                    .add_leaf(4,4,Target {is_removable:false},PrefixCrumb::Arg)
+                    .add_leaf(4,4,Kind::this(false),PrefixCrumb::Arg)
                     .done()
                 .add_empty_child(8,ExpectedArgument(1))
                 .done()

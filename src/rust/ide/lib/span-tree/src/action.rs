@@ -111,10 +111,10 @@ pub trait Implementation {
 impl<'a,T> Implementation for node::Ref<'a,T> {
     fn set_impl(&self) -> Option<SetOperation> {
         match &self.node.kind {
-            Kind::InsertionPoint(ins_type)  => Some(Box::new(move |root,new| {
+            Kind::InsertionPoint{kind,..}  => Some(Box::new(move |root,new| {
                 use node::InsertionPointType::*;
                 let ast            = root.get_traversing(&self.ast_crumbs)?;
-                let expect_arg     = matches!(ins_type, ExpectedArgument(_));
+                let expect_arg     = matches!(kind, ExpectedArgument(_));
                 let extended_infix = (!expect_arg).and_option_from(|| ast::opr::Chain::try_new(&ast));
                 let new_ast        = modify_preserving_id(ast, |ast|
                     if let Some(mut infix) = extended_infix {
@@ -124,7 +124,7 @@ impl<'a,T> Implementation for node::Ref<'a,T> {
                         let last_elem  = infix.args.last_mut().unwrap();
                         let last_arg   = &mut last_elem.operand;
                         last_elem.offset = DEFAULT_OFFSET;
-                        match ins_type {
+                        match kind {
                             BeforeTarget            if has_target => infix.push_front_operand(item),
                             AfterTarget             if has_target => infix.insert_operand(1,item),
                             BeforeTarget|AfterTarget              => infix.target = Some(item),
@@ -140,7 +140,7 @@ impl<'a,T> Implementation for node::Ref<'a,T> {
                             sast      : Shifted{wrapped:new, off:DEFAULT_OFFSET},
                             prefix_id : None,
                         };
-                        match ins_type {
+                        match kind {
                             BeforeTarget        => prefix.insert_arg(0,item),
                             AfterTarget         => prefix.insert_arg(1,item),
                             Append              => prefix.args.push(item),
@@ -170,10 +170,8 @@ impl<'a,T> Implementation for node::Ref<'a,T> {
 
 
     fn erase_impl(&self) -> Option<EraseOperation> {
-
-        match self.node.kind {
-            node::Kind::Argument{is_removable:true} |
-            node::Kind::This  {is_removable:true} => Some(Box::new(move |root| {
+        if (self.node.kind.is_argument() || self.node.kind.is_this()) && self.node.kind.is_removable() {
+            Some(Box::new(move |root| {
                 let parent_crumb = &self.ast_crumbs[..self.ast_crumbs.len()-1];
                 let ast          = root.get_traversing(parent_crumb)?;
                 let new_ast = modify_preserving_id(ast, |ast|
@@ -190,9 +188,8 @@ impl<'a,T> Implementation for node::Ref<'a,T> {
                     }
                 );
                 root.set_traversing(parent_crumb,new_ast?)
-            })),
-            _ => None
-        }
+            }))
+        } else { None }
     }
 }
 
@@ -222,10 +219,12 @@ mod test {
 
     use crate::builder::TreeBuilder;
     use crate::generate::context;
+    use crate::node::Kind;
     use crate::node::Kind::Argument;
     use crate::node::Kind::Operation;
     use crate::node::Kind::This;
     use crate::node::InsertionPointType::ExpectedArgument;
+    use crate::SpanTree;
 
     use ast::HasRepr;
     use enso_data::text::Index;
@@ -248,7 +247,7 @@ mod test {
             fn run(&self, parser:&Parser) {
                 let ast        = parser.parse_line(self.expr).unwrap();
                 let ast_id     = ast.id;
-                let tree       = ast.generate_tree(&context::Empty).unwrap();
+                let tree : SpanTree = ast.generate_tree(&context::Empty).unwrap();
                 let span_begin = Index::new(self.span.start);
                 let span_end   = Index::new(self.span.end);
                 let span       = Span::from_indices(span_begin,span_end);
@@ -331,7 +330,7 @@ mod test {
         impl Case {
             fn run(&self, parser:&Parser) {
                 let ast        = parser.parse_line(self.expr).unwrap();
-                let tree       = ast.generate_tree(&context::Empty).unwrap();
+                let tree : SpanTree = ast.generate_tree(&context::Empty).unwrap();
                 let span_begin = Index::new(self.span.start);
                 let span_end   = Index::new(self.span.end);
                 let span       = Span::from_indices(span_begin,span_end);
@@ -384,10 +383,10 @@ mod test {
 
         // Consider Span Tree for `foo bar` where `foo` is a method known to take 3 parameters.
         // We can try setting each of 3 arguments to `baz`.
-        let is_removable = false;
-        let tree         = TreeBuilder::new(7)
-            .add_leaf(0,3,Operation           ,PrefixCrumb::Func)
-            .add_leaf(4,7,Target{is_removable},PrefixCrumb::Arg)
+        let is_removable    = false;
+        let tree : SpanTree = TreeBuilder::new(7)
+            .add_leaf(0,3,Operation,PrefixCrumb::Func)
+            .add_leaf(4,7,Kind::this(is_removable),PrefixCrumb::Arg)
             .add_empty_child(7, ExpectedArgument(1))
             .add_empty_child(7, ExpectedArgument(2))
             .build();
@@ -396,6 +395,9 @@ mod test {
         let ast_id = ast.id;
         assert_eq!(ast.repr(),"foo bar");
 
+        println!("!!!!! {:#?}",tree.root_ref());
+        println!("--------------------",);
+        println!("!!!!! {:#?}",tree.root_ref().child(1).unwrap());
         let after = tree.root_ref().child(1).unwrap().set(&ast,baz.clone_ref()).unwrap();
         assert_eq!(after.repr(),"foo baz");
         assert_eq!(after.id    ,ast_id);
@@ -411,10 +413,10 @@ mod test {
         // Another case is Span Tree for `Main . foo` where `foo` is a method known to take 2
         // parameters. We can try setting each of 2 arguments to `baz`.
         let is_removable = false;
-        let tree         = TreeBuilder::new(10)
-            .add_leaf(0,4,Target {is_removable},InfixCrumb::LeftOperand)
+        let tree : SpanTree = TreeBuilder::new(10)
+            .add_leaf(0,4,Kind::this(is_removable),InfixCrumb::LeftOperand)
             .add_leaf(5,6,Operation,InfixCrumb::Operator)
-            .add_leaf(7,10,Argument {is_removable},InfixCrumb::RightOperand)
+            .add_leaf(7,10,Kind::argument(is_removable,None,None),InfixCrumb::RightOperand)
             .add_empty_child(10, ExpectedArgument(0))
             .add_empty_child(10, ExpectedArgument(1))
             .build();
