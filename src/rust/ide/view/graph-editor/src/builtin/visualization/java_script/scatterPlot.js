@@ -405,17 +405,17 @@ class ScatterPlot extends Visualization {
             color: #e5e5e5;
         `)
 
-        addStyleToElem('.dark .selection','fill: #efefef')
         addStyleToElem('.dark button',`
-            border: 1px solid #fafafa;
-            color: #fafafa;
+            border: 0;
+            background-color: rgba(255,255,255,0.7);
         `)
         addStyleToElem('.dark button:hover',`
-            background-color: #fafafa;
-            color: #343434;
+            background-color: rgba(255,255,255,0.5);
         `)
-        addStyleToElem('.dark line',`stroke: #fafafa;`)
-        addStyleToElem('.dark text',`fill: #fafafa;`)
+        addStyleToElem('.dark .selection','fill: #efefef')
+        addStyleToElem('.dark line',`stroke: rgba(255,255,255,0.7);`)
+        addStyleToElem('.dark .domain',`stroke: rgba(255,255,255,0.7);`)
+        addStyleToElem('.dark text',`fill: rgba(255,255,255,0.7);`)
 
         return divElem;
     }
