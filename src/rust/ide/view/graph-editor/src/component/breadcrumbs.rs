@@ -19,7 +19,6 @@ use ensogl::display::camera::Camera2d;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
-use ensogl::display::shape::text::text_field::FocusManager;
 use ensogl::display;
 use ensogl::gui::component;
 use logger::AnyLogger;
@@ -237,9 +236,9 @@ pub struct BreadcrumbsModel {
 
 impl BreadcrumbsModel {
     /// Constructor.
-    pub fn new(app:&Application, frp:&Frp, focus_manager:&FocusManager) -> Self {
+    pub fn new(app:&Application, frp:&Frp) -> Self {
         let scene                 = app.display.scene();
-        let project_name          = ProjectName::new(app,focus_manager);
+        let project_name          = ProjectName::new(app);
         let logger                = Logger::new("Breadcrumbs");
         let display_object        = display::object::Instance::new(&logger);
         let breadcrumbs_container = display::object::Instance::new(&logger);
@@ -445,10 +444,10 @@ pub struct Breadcrumbs {
 
 impl Breadcrumbs {
     /// Constructor.
-    pub fn new(app:&Application, focus_manager:&FocusManager) -> Self {
+    pub fn new(app:&Application) -> Self {
         let scene   = app.display.scene();
         let frp     = Frp::new();
-        let model   = Rc::new(BreadcrumbsModel::new(app,&frp,focus_manager));
+        let model   = Rc::new(BreadcrumbsModel::new(app,&frp));
         let network = &frp.network;
 
         // === Breadcrumb selection ===

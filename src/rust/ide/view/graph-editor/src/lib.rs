@@ -46,7 +46,6 @@ use ensogl::display;
 use ensogl::display::object::Id;
 use ensogl::display::Scene;
 use ensogl::display::shape::StyleWatch;
-use ensogl::display::shape::text::text_field::FocusManager;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component::Tween;
 use ensogl::gui::cursor;
@@ -904,9 +903,9 @@ impl Deref for GraphEditorModelWithNetwork {
 }
 
 impl GraphEditorModelWithNetwork {
-    pub fn new(app:&Application, cursor:cursor::Cursor, focus_manager:&FocusManager) -> Self {
+    pub fn new(app:&Application, cursor:cursor::Cursor) -> Self {
         let network = frp::Network::new();
-        let model   = GraphEditorModel::new(app,cursor,&network,focus_manager);
+        let model   = GraphEditorModel::new(app,cursor,&network);
         Self {model,network}
     }
 
@@ -1092,7 +1091,6 @@ impl GraphEditorModel {
     ( app           : &Application
     , cursor        : cursor::Cursor
     , network       : &frp::Network
-    , focus_manager : &FocusManager
     ) -> Self {
         let scene              = app.display.scene();
         let logger             = Logger::new("GraphEditor");
@@ -1102,7 +1100,7 @@ impl GraphEditorModel {
         let visualizations     = visualization::Registry::with_default_visualizations();
         let frp                = FrpInputs::new(network);
         let touch_state        = TouchState::new(network,&scene.mouse.frp);
-        let breadcrumbs        = component::Breadcrumbs::new(app,focus_manager);
+        let breadcrumbs        = component::Breadcrumbs::new(app);
         let app                = app.clone_ref();
         Self {
             logger,display_object,app,cursor,nodes,edges,touch_state,frp,breadcrumbs,visualizations
@@ -1665,10 +1663,9 @@ impl Default for SelectionMode {
 #[allow(unused_parens)]
 fn new_graph_editor(app:&Application) -> GraphEditor {
     let world          = &app.display;
-    let focus_manager  = world.text_field_focus_manager();
     let scene          = world.scene();
     let cursor         = &app.cursor;
-    let model          = GraphEditorModelWithNetwork::new(app,cursor.clone_ref(),focus_manager);
+    let model          = GraphEditorModelWithNetwork::new(app,cursor.clone_ref());
     let network        = &model.network;
     let nodes          = &model.nodes;
     let edges          = &model.edges;

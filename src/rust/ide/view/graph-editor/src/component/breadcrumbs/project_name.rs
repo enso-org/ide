@@ -12,7 +12,6 @@ use ensogl::application::Application;
 use ensogl::data::color;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::shape::*;
-use ensogl::display::shape::text::text_field::FocusManager;
 use ensogl::display;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component;
@@ -119,7 +118,7 @@ struct ProjectNameModel {
 
 impl ProjectNameModel {
     /// Constructor.
-    fn new(app:&Application,_focus_manager:&FocusManager) -> Self {
+    fn new(app:&Application) -> Self {
         let scene                 = app.display.scene();
         let logger                = Logger::new("ProjectName");
         let display_object        = display::object::Instance::new(&logger);
@@ -225,9 +224,9 @@ pub struct ProjectName {
 
 impl ProjectName {
     /// Constructor.
-    pub fn new(app:&Application,focus_manager:&FocusManager) -> Self {
+    pub fn new(app:&Application) -> Self {
         let frp     = Frp::new_network();
-        let model   = Rc::new(ProjectNameModel::new(app,focus_manager));
+        let model   = Rc::new(ProjectNameModel::new(app));
         let network = &frp.network;
         let scene   = app.display.scene();
         let text    = &model.text_field.frp;
