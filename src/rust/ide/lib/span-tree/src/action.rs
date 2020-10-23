@@ -111,9 +111,9 @@ pub trait Implementation {
 impl<'a,T> Implementation for node::Ref<'a,T> {
     fn set_impl(&self) -> Option<SetOperation> {
         match &self.node.kind {
-            Kind::InsertionPoint(node) => Some(Box::new(move |root,new| {
+            Kind::InsertionPoint(ins_point) => Some(Box::new(move |root,new| {
                 use node::InsertionPointType::*;
-                let kind           = &node.kind;
+                let kind           = &ins_point.kind;
                 let ast            = root.get_traversing(&self.ast_crumbs)?;
                 let expect_arg     = matches!(kind, ExpectedArgument(_));
                 let extended_infix = (!expect_arg).and_option_from(|| ast::opr::Chain::try_new(&ast));
