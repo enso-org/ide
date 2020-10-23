@@ -17,7 +17,6 @@ use ensogl::application::Application;
 use ensogl::data::color;
 use ensogl::display::camera::Camera2d;
 use ensogl::display::object::ObjectOps;
-use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
 use ensogl::display;
 use ensogl::gui::component;
@@ -226,7 +225,7 @@ pub struct BreadcrumbsModel {
     /// A container for all the breadcrumbs after project name. This contained and all its
     /// breadcrumbs are moved when project name component is resized.
     breadcrumbs_container : display::object::Instance,
-    scene                 : Scene,
+    app                   : Application,
     breadcrumbs           : Rc<RefCell<Vec<Breadcrumb>>>,
     frp_inputs            : FrpInputs,
     frp_debug             : DebugFrpInputs,
@@ -236,9 +235,9 @@ pub struct BreadcrumbsModel {
 
 impl BreadcrumbsModel {
     /// Constructor.
-    pub fn new(app:&Application, frp:&Frp) -> Self {
+    pub fn new(app:Application, frp:&Frp) -> Self {
         let scene                 = app.display.scene();
-        let project_name          = ProjectName::new(app);
+        let project_name          = ProjectName::new(&app);
         let logger                = Logger::new("Breadcrumbs");
         let display_object        = display::object::Instance::new(&logger);
         let breadcrumbs_container = display::object::Instance::new(&logger);
@@ -250,7 +249,7 @@ impl BreadcrumbsModel {
         let camera                = scene.camera().clone_ref();
         let background            = component::ShapeView::<background::Shape>::new(&logger,&scene);
 
-        Self{logger,display_object,scene,breadcrumbs,project_name,breadcrumbs_container,
+        Self{logger,display_object,app,breadcrumbs,project_name,breadcrumbs_container,
             frp_inputs,current_index,frp_debug,camera,background}.init()
     }
 
@@ -332,7 +331,7 @@ impl BreadcrumbsModel {
             } else {
                 debug!(self.logger, "Creating a new {method_pointer.name} breadcrumb.");
                 self.remove_breadcrumbs_history_beginning_from(self.current_index.get());
-                let breadcrumb       = Breadcrumb::new(&self.scene, method_pointer, expression_id);
+                let breadcrumb       = Breadcrumb::new(&self.app, method_pointer, expression_id);
                 let network          = &breadcrumb.frp.network;
                 let breadcrumb_index = new_index;
                 let frp_inputs       = &self.frp_inputs;
@@ -444,8 +443,8 @@ pub struct Breadcrumbs {
 
 impl Breadcrumbs {
     /// Constructor.
-    pub fn new(app:&Application) -> Self {
-        let scene   = app.display.scene();
+    pub fn new(app:Application) -> Self {
+        let scene   = app.display.scene().clone_ref();
         let frp     = Frp::new();
         let model   = Rc::new(BreadcrumbsModel::new(app,&frp));
         let network = &frp.network;

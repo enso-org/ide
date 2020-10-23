@@ -22,7 +22,6 @@ use crate::display::render::RenderPipeline;
 use crate::display::scene::dom::DomScene;
 use crate::display::shape::ShapeSystemInstance;
 use crate::display::shape::system::ShapeSystemOf;
-use crate::display::shape::text::glyph::font;
 use crate::display::style::data::DataMatch;
 use crate::display::style;
 use crate::display::symbol::Symbol;
@@ -833,7 +832,6 @@ pub struct SceneData {
     pub style_sheet      : style::Sheet,
     pub bg_color_var     : style::Var,
     pub bg_color_change  : callback::Handle,
-    pub fonts            : font::SharedRegistry,
     pub frp              : Frp,
     extensions           : Extensions,
     disable_context_menu : Rc<IgnoreContextMenuHandle>,
@@ -870,7 +868,6 @@ impl SceneData {
         let dirty                = Dirty {symbols:symbols_dirty,shape:shape_dirty};
         let renderer             = Renderer::new(&logger,&dom,&context,&variables);
         let style_sheet          = style::Sheet::new();
-        let fonts                = font::SharedRegistry::new();
         let current_js_event     = CurrentJsEvent::new();
         let frp                  = Frp::new(&dom.root.shape);
         let mouse_logger         = Logger::sub(&logger,"mouse");
@@ -894,7 +891,7 @@ impl SceneData {
 
         uniforms.pixel_ratio.set(dom.shape().pixel_ratio);
         Self {renderer,display_object,dom,context,symbols,views,dirty,logger,variables,stats
-             ,uniforms,mouse,keyboard,shapes,style_sheet,bg_color_var,bg_color_change,fonts,frp
+             ,uniforms,mouse,keyboard,shapes,style_sheet,bg_color_var,bg_color_change,frp
              ,extensions,disable_context_menu,current_js_event}
     }
 
