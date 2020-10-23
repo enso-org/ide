@@ -183,7 +183,7 @@ impl<T:Payload> SpanTreeGenerator<T> for Ast {
                         .generate_node(kind,context),
                 _  => {
                     let size          = Size::new(self.len());
-                    let ast_id = self.id;
+                    let ast_id        = self.id;
                     let children      = default();
                     let name          = ast::identifier::name(self);
                     let payload       = default();
@@ -218,8 +218,8 @@ impl<T:Payload> SpanTreeGenerator<T> for ast::opr::Chain {
     (&self, kind:impl Into<node::Kind>, context:&impl Context) -> FallibleResult<Node<T>> {
         // Removing operands is possible only when chain has at least 3 of them
         // (target and two arguments).
-        let kind                                            = kind.into();
-        let removable                                    = self.args.len() >= 2;
+        let kind      = kind.into();
+        let removable = self.args.len() >= 2;
         let node_and_offset:FallibleResult<(Node<T>,usize)> = match &self.target {
             Some(target) => {
                 let node = target.arg.generate_node(node::Kind::this().removable(),context)?;
@@ -262,11 +262,11 @@ impl<T:Payload> SpanTreeGenerator<T> for ast::opr::Chain {
             }
 
             Ok((Node {
-                kind          : if is_last {kind.clone()} else {node::Kind::Chained},
-                size          : gen.current_offset,
-                children      : gen.children,
-                ast_id : elem.infix_id,
-                payload       : default(),
+                kind     : if is_last {kind.clone()} else {node::Kind::Chained},
+                size     : gen.current_offset,
+                children : gen.children,
+                ast_id   : elem.infix_id,
+                payload  : default(),
             }, elem.offset))
         })?;
         Ok(node)
@@ -315,11 +315,11 @@ impl<T:Payload> SpanTreeGenerator<T> for ast::prefix::Chain {
                 gen.generate_empty_node(InsertionPointType::Append);
             }
             Ok(Node {
-                kind          : if is_last {kind.clone()} else {node::Kind::Chained},
-                size          : gen.current_offset,
-                children      : gen.children,
-                ast_id : arg.prefix_id,
-                payload       : default(),
+                kind     : if is_last {kind.clone()} else {node::Kind::Chained},
+                size     : gen.current_offset,
+                children : gen.children,
+                ast_id   : arg.prefix_id,
+                payload  : default(),
             })
         })?;
 
@@ -352,10 +352,10 @@ impl<T:Payload> SpanTreeGenerator<T> for ast::known::Match {
             generate_children_from_segment(&mut gen,index+1,&segment.wrapped,context)?;
         }
         Ok(Node {kind,
-            size          : gen.current_offset,
-            children      : gen.children,
-            ast_id : self.id(),
-            payload       : default(),
+            size     : gen.current_offset,
+            children : gen.children,
+            ast_id   : self.id(),
+            payload  : default(),
         })
     }
 }
@@ -390,10 +390,10 @@ impl<T:Payload> SpanTreeGenerator<T> for ast::known::Ambiguous {
             generate_children_from_ambiguous(&mut gen, index+1, &segment.wrapped, context)?;
         }
         Ok(Node{kind,
-            size          : gen.current_offset,
-            children      : gen.children,
-            ast_id : self.id(),
-            payload       : default(),
+            size     : gen.current_offset,
+            children : gen.children,
+            ast_id   : self.id(),
+            payload  : default(),
         })
     }
 }
@@ -431,11 +431,11 @@ fn generate_expected_argument<T:Payload>
     let arg_node = gen.generate_empty_node(InsertionPointType::ExpectedArgument(index));
     arg_node.node.set_argument_info(argument_info);
     Node {
-        kind          : if is_last {kind} else {node::Kind::Chained},
-        size          : gen.current_offset,
-        children      : gen.children,
-        ast_id : None,
-        payload       : default(),
+        kind     : if is_last {kind} else {node::Kind::Chained},
+        size     : gen.current_offset,
+        children : gen.children,
+        ast_id   : None,
+        payload  : default(),
     }
 }
 
