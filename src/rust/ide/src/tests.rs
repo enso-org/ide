@@ -9,6 +9,7 @@ use json_rpc::expect_call;
 use json_rpc::test_util::transport::mock::MockTransport;
 use serde_json::json;
 use span_tree::node::InsertionPointType;
+use span_tree::node;
 use span_tree::node::Kind;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
 use wasm_bindgen_test::wasm_bindgen_test;
@@ -111,7 +112,7 @@ fn span_tree_args() {
         [_,second] => {
             let Node{children,kind,..} = &second.node;
             assert!(children.is_empty());
-            assert_eq!(kind,&Kind::insertion_point(InsertionPointType::ExpectedArgument(0),None,None));
+            assert_eq!(kind,&Kind::from(Kind::insertion_point().with_kind(InsertionPointType::ExpectedArgument(0))));
             assert_eq!(kind.argument_info(),Some(expected_arg1_param.clone()));
         }
         _ => panic!("Expected only two children in the span tree's root"),
@@ -126,7 +127,7 @@ fn span_tree_args() {
         [_,second] => {
             let Node{children,kind,..} = &second.node;
             assert!(children.is_empty());
-            assert_eq!(kind,&Kind::argument(false,None,None));
+            assert_eq!(kind,&Kind::from(node::Kind::argument()));
             assert_eq!(kind.argument_info(),Some(expected_arg1_param.clone()));
         }
         _ => panic!("Expected only two children in the span tree's root"),

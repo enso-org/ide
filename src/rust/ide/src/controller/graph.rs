@@ -652,7 +652,7 @@ impl Handle {
 
         let updated_expression = if connection.destination.var_crumbs.is_empty() {
             let port = info.port()?;
-            let only_empty_ports_after = info.chained_ports_after().all(|p| p.node.is_empty());
+            let only_empty_ports_after = info.chained_ports_after().all(|p| p.node.is_insertion_point());
             if port.is_action_available(Action::Erase) && only_empty_ports_after {
                 info.erase()
             } else {

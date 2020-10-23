@@ -10,211 +10,8 @@ use enso_data::text::Size;
 use ast::crumbs::IntoCrumbs;
 use crate::ArgumentInfo;
 
-
-// ============
-// === Kind ===
-// ============
-
-#[derive(Clone,Debug,Eq,PartialEq)]
-pub struct This {
-    pub is_removable : bool
-}
-
-#[derive(Clone,Debug,Eq,PartialEq)]
-pub struct Argument {
-    pub is_removable : bool,
-    pub name         : Option<String>,
-    pub typename     : Option<String>,
-}
-
-#[derive(Clone,Debug,Eq,PartialEq)]
-pub struct InsertionPoint {
-    pub kind     : InsertionPointType,
-    pub name     : Option<String>,
-    pub typename : Option<String>,
-}
-
-/// An enum describing kind of node.
-#[derive(Clone,Debug,Eq,PartialEq)]
-pub enum Kind {
-    /// A root of the expression tree.
-    Root,
-    /// A node chained with parent node. See crate's docs for more info about chaining.
-    Chained,
-    /// A node representing operation (operator or function) of parent Infix, Section or Prefix.
-    Operation,
-    /// A node being a target (or "self") parameter of parent Infix, Section or Prefix.
-    This(This),
-    /// A node being a normal (not target) parameter of parent Infix, Section or Prefix.
-    Argument(Argument),
-    /// A node being a placeholder for inserting new child to Prefix or Operator chain. It should
-    /// not have children, but can be assigned with a span representing the number of spaces between
-    /// AST tokens. For example, given expression `foo   bar`, the span assigned to the
-    /// `InsertionPoint` between `foo` and `bar` should be set to 3.
-    InsertionPoint(InsertionPoint),
-}
-
-impl Kind {
-    /// This constructor.
-    pub fn this(is_removable:bool) -> Self {
-        Self::This(This{is_removable})
-    }
-
-    /// Argument constructor.
-    pub fn argument(is_removable:bool, name:Option<String>, typename:Option<String>) -> Self {
-        Self::Argument(Argument{is_removable,name,typename})
-    }
-
-    pub fn insertion_point
-    (kind:InsertionPointType, name:Option<String>, typename:Option<String>) -> Self {
-        Self::InsertionPoint(InsertionPoint{kind,name,typename})
-    }
-
-    pub fn argument_info(&self) -> Option<ArgumentInfo> {
-        match self {
-            Self::Argument       (t) => Some(ArgumentInfo::new(t.name.clone(),t.typename.clone())),
-            Self::InsertionPoint (t) => Some(ArgumentInfo::new(t.name.clone(),t.typename.clone())),
-            _                        => None
-        }
-    }
-
-    pub fn set_argument_info(&mut self, argument_info:ArgumentInfo) {
-        match self {
-            Self::Argument(t) => {
-                t.name     = argument_info.name;
-                t.typename = argument_info.typename;
-            },
-            Self::InsertionPoint(t) => {
-                t.name     = argument_info.name;
-                t.typename = argument_info.typename;
-            },
-            _ => {}
-        }
-    }
-
-    pub fn name(&self) -> Option<&String> {
-        match self {
-            Self::Argument       (t) => t.name.as_ref(),
-            Self::InsertionPoint (t) => t.name.as_ref(),
-            _                        => None,
-        }
-    }
-
-    pub fn typename(&self) -> Option<&String> {
-        match self {
-            Self::Argument       (t) => t.typename.as_ref(),
-            Self::InsertionPoint (t) => t.typename.as_ref(),
-            _                        => None,
-        }
-    }
-
-    pub fn is_removable(&self) -> bool {
-        match self {
-            Self::Argument(t) => t.is_removable,
-            _                 => false,
-        }
-    }
-}
-
-impl Kind {
-    /// Match the value with `Kind::InsertionPoint{..}`.
-    pub fn is_empty(&self) -> bool {
-        matches!(self,Self::InsertionPoint{..})
-    }
-
-    pub fn is_argument(&self) -> bool {
-        matches!(self,Self::Argument{..})
-    }
-
-    pub fn is_this(&self) -> bool {
-        matches!(self,Self::This{..})
-    }
-
-    /// Match the value with `Kind::Operation{..}`.
-    pub fn is_operation(&self) -> bool {
-        matches!(self,Self::Operation)
-    }
-
-    /// Match the value with `Kind::InsertionPoint{..}` but not `Kind::InsertionPoint(ExpectedArgument(_))`.
-    pub fn is_positional_insertion_point(&self) -> bool {
-        self.is_empty() && !self.is_expected_argument()
-    }
-
-    /// Match the value with `Kind::InsertionPoint(ExpectedArgument(_))`.
-    pub fn is_expected_argument(&self) -> bool {
-        match self {
-            Self::InsertionPoint(t) => match t.kind {
-                InsertionPointType::ExpectedArgument(_) => true,
-                _                                       => false,
-            },
-            _ => false
-        }
-    }
-}
-
-impl Default for Kind {
-    fn default() -> Self {
-        Self::insertion_point(default(),None,None)
-    }
-}
-
-
-
-// ==================
-// === InsertionPointType ===
-// ==================
-
-/// A helpful information about how the new AST should be inserted during Set action. See `action`
-/// module.
-#[allow(missing_docs)]
-#[derive(Copy,Clone,Debug,Eq,PartialEq)]
-pub enum InsertionPointType {
-    BeforeTarget,
-    AfterTarget,
-    Append,
-    // FIXME: When this insert type can be assigned to node without name?
-    /// Ast should be inserted as an argument at given index into the chain.
-    /// Note that this is just argument index in the application, it may be not the same as the
-    /// index of the function parameter, as `this` argument might be passed using the `this.func`
-    /// notation.
-    ExpectedArgument(usize),
-}
-
-impl Default for InsertionPointType {
-    fn default() -> Self {
-        Self::Append
-    }
-}
-
-
-
-// ====================
-// === InvalidCrumb ===
-// ====================
-
-#[allow(missing_docs)]
-#[fail(display = "The crumb `{}` is invalid, only {} children present. Traversed crumbs: {:?}.",
-    crumb,count,context)]
-#[derive(Debug,Fail,Clone)]
-pub struct InvalidCrumb {
-    /// Crumb that was attempted.
-    pub crumb : Crumb,
-    /// Available children count.
-    pub count : usize,
-    /// Already traversed crumbs.
-    pub context : Vec<Crumb>,
-}
-
-
-// === Crumbs ===
-
-/// Identifies subtree within a node. It is the index of the child node.
-pub type Crumb = usize;
-
-/// Convert crumbs to crumbs pointing to a parent.
-pub fn parent_crumbs(crumbs:&[Crumb]) -> Option<&[Crumb]> {
-    crumbs.len().checked_sub(1).map(|new_len| &crumbs[..new_len])
-}
+pub mod kind;
+pub use kind::*;
 
 
 
@@ -222,6 +19,7 @@ pub fn parent_crumbs(crumbs:&[Crumb]) -> Option<&[Crumb]> {
 // === Node ===
 // ============
 
+/// The node payload constraints.
 pub trait Payload = Default + Clone;
 
 /// SpanTree Node.
@@ -231,11 +29,11 @@ pub trait Payload = Default + Clone;
 #[derive(Clone,Debug,Default,Eq,PartialEq)]
 #[allow(missing_docs)]
 pub struct Node<T> {
-    pub kind           : Kind,
-    pub size           : Size,
-    pub children       : Vec<Child<T>>,
-    pub expression_id  : Option<ast::Id>,
-    pub payload        : T
+    pub kind     : Kind,
+    pub size     : Size,
+    pub children : Vec<Child<T>>,
+    pub ast_id   : Option<ast::Id>,
+    pub payload  : T
 }
 
 impl<T> Deref for Node<T> {
@@ -251,34 +49,13 @@ impl<T> DerefMut for Node<T> {
     }
 }
 
+
+// === API ===
+
 impl<T:Payload> Node<T> {
     /// Constructor.
-    pub fn new() -> Self
-    where T:Default {
+    pub fn new() -> Self {
         default()
-    }
-
-    /// Create empty node.
-    pub fn new_empty(insert_type:InsertionPointType) -> Self
-    where T:Default {
-        Self::new().with_kind(Kind::insertion_point(insert_type,None,None))
-    }
-
-    pub fn name(&self) -> Option<&String> {
-        self.kind.name()
-    }
-
-    pub fn typename(&self) -> Option<&String> {
-        self.kind.typename()
-    }
-
-
-    pub fn argument_info(&self) -> Option<ArgumentInfo> {
-        self.kind.argument_info()
-    }
-
-    pub fn set_argument_info(&mut self, argument_info:ArgumentInfo) {
-        self.kind.set_argument_info(argument_info)
     }
 
     /// Define a new child by using the `ChildBuilder` pattern.
@@ -300,44 +77,32 @@ impl<T:Payload> Node<T> {
     }
 
     /// Is this node empty?
-    pub fn is_empty(&self) -> bool {
-        self.kind.is_empty()
+    pub fn is_insertion_point(&self) -> bool {
+        self.kind.is_insertion_point()
     }
 }
+
 
 // === Setters ===
 
 #[allow(missing_docs)]
 impl<T> Node<T> {
-    pub fn with_kind(mut self, kind:Kind) -> Self {
-        self.kind = kind;
-        self
-    }
+    pub fn with_kind     (mut self, k:impl Into<Kind>) -> Self { self.kind = k.into(); self }
+    pub fn with_size     (mut self, size:Size)         -> Self { self.size = size; self }
+    pub fn with_children (mut self, ts:Vec<Child<T>>)  -> Self { self.children = ts; self }
+    pub fn with_ast_id   (mut self, id:ast::Id)        -> Self { self.ast_id = Some(id); self }
+    pub fn with_payload  (mut self, payload:T)         -> Self { self.payload = payload; self }
+}
 
-    pub fn with_size(mut self, size:Size) -> Self {
-        self.size = size;
-        self
-    }
 
-    pub fn with_children(mut self, children:Vec<Child<T>>) -> Self {
-        self.children = children;
-        self
-    }
+// === Kind getters & setters ===
 
-    pub fn with_expression_id(mut self, id:ast::Id) -> Self {
-        self.expression_id = Some(id);
-        self
-    }
-
-    // pub fn with_argument_info(mut self, argument_info:Option<crate::ArgumentInfo>) -> Self {
-    //     self.argument_info = argument_info;
-    //     self
-    // }
-
-    pub fn with_payload(mut self, payload:T) -> Self {
-        self.payload = payload;
-        self
-    }
+#[allow(missing_docs)]
+impl<T> Node<T> {
+    pub fn name          (&self) -> Option<&String>      { self.kind.name() }
+    pub fn tp            (&self) -> Option<&String>      { self.kind.tp() }
+    pub fn argument_info (&self) -> Option<ArgumentInfo> { self.kind.argument_info() }
+    pub fn set_argument_info(&mut self, i:ArgumentInfo)  { self.kind.set_argument_info(i); }
 }
 
 
@@ -445,8 +210,8 @@ impl<T:Payload> ChildBuilder<T> {
     }
 
     /// Kind setter.
-    pub fn kind(mut self, kind:Kind) -> Self {
-        self.node.kind = kind;
+    pub fn kind(mut self, kind:impl Into<Kind>) -> Self {
+        self.node.kind = kind.into();
         self
     }
 
@@ -457,15 +222,48 @@ impl<T:Payload> ChildBuilder<T> {
     }
 
     /// Expression ID setter.
-    pub fn id(mut self, id:ast::Id) -> Self {
-        self.node.expression_id = Some(id);
+    pub fn ast_id(mut self, id:ast::Id) -> Self {
+        self.node.ast_id = Some(id);
         self
     }
 
     /// Expression ID generator.
-    pub fn new_id(self) -> Self {
-        self.id(ast::Id::new_v4())
+    pub fn new_ast_id(self) -> Self {
+        self.ast_id(ast::Id::new_v4())
     }
+}
+
+
+
+// ==============
+// === Crumbs ===
+// ==============
+
+/// Identifies subtree within a node. It is the index of the child node.
+pub type Crumb = usize;
+
+/// Crumbs specifying this node position related to root.
+pub type Crumbs = Vec<Crumb>;
+
+/// Convert crumbs to crumbs pointing to a parent.
+pub fn parent_crumbs(crumbs:&[Crumb]) -> Option<&[Crumb]> {
+    crumbs.len().checked_sub(1).map(|new_len| &crumbs[..new_len])
+}
+
+
+// === Invalid ===
+
+#[allow(missing_docs)]
+#[fail(display = "The crumb `{}` is invalid, only {} children present. Traversed crumbs: {:?}.",
+crumb,count,context)]
+#[derive(Debug,Fail,Clone)]
+pub struct InvalidCrumb {
+    /// Crumb that was attempted.
+    pub crumb : Crumb,
+    /// Available children count.
+    pub count : usize,
+    /// Already traversed crumbs.
+    pub context : Crumbs,
 }
 
 
@@ -473,9 +271,6 @@ impl<T:Payload> ChildBuilder<T> {
 // ===========
 // === Ref ===
 // ===========
-
-/// Crumbs specifying this node position related to root.
-pub type Crumbs = Vec<Crumb>;
 
 /// A reference to node inside some specific tree.
 #[derive(Clone,Debug)]
@@ -485,7 +280,7 @@ pub struct Ref<'a,T=()> {
     /// Span begin being an index counted from the root expression.
     pub span_begin : Index,
     /// Crumbs specifying this node position related to root.
-    pub crumbs     : Vec<Crumb>,
+    pub crumbs     : Crumbs,
     /// Ast crumbs locating associated AST node, related to the root's AST node.
     pub ast_crumbs : ast::Crumbs,
 }
@@ -611,6 +406,7 @@ impl<'a,T> Deref for Ref<'a,T> {
 mod test {
     use crate::builder::Builder;
     use crate::builder::TreeBuilder;
+    use crate::node;
     use crate::node::Kind;
     use crate::node::Kind::*;
     use crate::SpanTree;
@@ -622,14 +418,13 @@ mod test {
     fn node_lookup() {
         use ast::crumbs::InfixCrumb::*;
 
-        let is_removable = false;
         let tree : SpanTree = TreeBuilder::new(7)
-            .add_leaf (0,1,Kind::this(is_removable),vec![LeftOperand])
+            .add_leaf (0,1,Kind::this(),vec![LeftOperand])
             .add_leaf (1,1,Operation,vec![Operator])
-            .add_child(2,5,Kind::argument(is_removable,None,None),vec![RightOperand])
-                .add_leaf(0,2,Kind::this(is_removable),vec![LeftOperand])
+            .add_child(2,5,Kind::argument(),vec![RightOperand])
+                .add_leaf(0,2,Kind::this(),vec![LeftOperand])
                 .add_leaf(3,1,Operation,vec![Operator])
-                .add_leaf(4,1,Kind::argument(is_removable,None,None),vec![RightOperand])
+                .add_leaf(4,1,Kind::argument(),vec![RightOperand])
                 .done()
             .build();
 
@@ -681,14 +476,13 @@ mod test {
         use ast::crumbs::InfixCrumb::*;
         use ast::crumbs::PrefixCrumb::*;
 
-        let is_removable = false;
         let tree : SpanTree = TreeBuilder::new(7)
-            .add_leaf (0,1,Kind::this(is_removable),vec![LeftOperand])
+            .add_leaf (0,1,Kind::this(),vec![LeftOperand])
             .add_empty_child(1,InsertionPointType::AfterTarget)
             .add_leaf (1,1,Operation,vec![Operator])
-            .add_child(2,5,Kind::argument(is_removable,None,None),vec![RightOperand])
+            .add_child(2,5,Kind::argument(),vec![RightOperand])
                 .add_leaf(0,3,Operation,vec![Func])
-                .add_leaf(3,1,Kind::this(is_removable),vec![Arg])
+                .add_leaf(3,1,Kind::this(),vec![Arg])
             .done()
             .build();
 

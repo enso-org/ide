@@ -61,13 +61,14 @@ use crate::generate::Context;
 #[derive(Clone,Debug,Default,Eq,PartialEq)]
 #[allow(missing_docs)]
 pub struct ArgumentInfo {
-    pub name     : Option<String>,
-    pub typename : Option<String>,
+    pub name : Option<String>,
+    pub tp   : Option<String>,
 }
 
 impl ArgumentInfo {
-    pub fn new(name:Option<String>, typename:Option<String>) -> Self {
-        Self {name,typename}
+    /// Constructor.
+    pub fn new(name:Option<String>, tp:Option<String>) -> Self {
+        Self {name,tp}
     }
 }
 

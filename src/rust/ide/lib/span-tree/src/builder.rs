@@ -22,7 +22,9 @@ pub trait Builder<T:Payload> : Sized {
     /// Add new AST-type child to node. Returns the child's builder which may be used to further
     /// extend this branch of the tree.
     fn add_child
-    (self, offset:usize, len:usize, kind:node::Kind, crumbs:impl IntoCrumbs) -> ChildBuilder<Self,T> {
+    (self, offset:usize, len:usize, kind:impl Into<node::Kind>, crumbs:impl IntoCrumbs)
+    -> ChildBuilder<Self,T> {
+        let kind  = kind.into();
         let node  = Node::<T>::new().with_kind(kind).with_size(Size::new(len));
         let child = node::Child { node,
             offset     : Size::new(offset),
@@ -35,14 +37,15 @@ pub trait Builder<T:Payload> : Sized {
     }
 
     /// Add a leaf AST-type child to node.
-    fn add_leaf(self, offset:usize, len:usize, kind:node::Kind, crumbs:impl IntoCrumbs) -> Self {
+    fn add_leaf
+    (self, offset:usize, len:usize, kind:impl Into<node::Kind>, crumbs:impl IntoCrumbs) -> Self {
         self.add_child(offset,len,kind,crumbs).done()
     }
 
     /// Add an Empty-type child to node.
     fn add_empty_child(mut self, offset:usize, insert_type:node::InsertionPointType) -> Self {
         let child = node::Child {
-            node       : Node::new_empty(insert_type),
+            node       : Node::<T>::new().with_kind(insert_type),
             offset     : Size::new(offset),
             ast_crumbs : vec![]
         };
@@ -51,8 +54,8 @@ pub trait Builder<T:Payload> : Sized {
     }
 
     /// Set expression id for this node.
-    fn set_expression_id(mut self, id:ast::Id) -> Self {
-        self.node_being_built().expression_id = Some(id);
+    fn set_ast_id(mut self, id:ast::Id) -> Self {
+        self.node_being_built().ast_id = Some(id);
         self
     }
 }

@@ -229,8 +229,8 @@ impl From<&Entry> for span_tree::generate::context::CalledMethodInfo {
 pub fn to_span_tree_param(param_info:&Argument) -> span_tree::ArgumentInfo {
     span_tree::ArgumentInfo {
         // TODO [mwu] Check if database actually do must always have both of these filled.
-        name     : Some(param_info.name.clone()),
-        typename : Some(param_info.repr_type.clone()),
+        name : Some(param_info.name.clone()),
+        tp   : Some(param_info.repr_type.clone()),
     }
 }
 

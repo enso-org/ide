@@ -585,9 +585,9 @@ impl display::Object for Edge {
 
 
 
-// ====================
-// === OptionalType ===
-// ====================
+// ============
+// === Type ===
+// ============
 
 /// Typename information that may be associated with the given Port.
 ///

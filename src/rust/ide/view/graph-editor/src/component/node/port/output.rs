@@ -25,7 +25,6 @@ use span_tree::SpanTree;
 use span_tree;
 
 use crate::Type;
-use crate::component::node::port::get_id_for_crumbs;
 use crate::component::node;
 
 
@@ -765,7 +764,7 @@ impl OutputPorts {
     }
 
     /// Return the color of the port indicated by the given `Crumb`.
-    pub fn get_port_color(&self, crumbs:&[span_tree::Crumb]) -> Option<color::Lcha> {
+    pub fn get_port_color(&self, _crumbs:&[span_tree::Crumb]) -> Option<color::Lcha> {
         // let ast_id = get_id_for_crumbs(&self.pattern_span_tree.borrow(),&crumbs)?;
         // // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         // let styles = StyleWatch::new(&self.scene.style_sheet);
@@ -774,7 +773,7 @@ impl OutputPorts {
     }
 
     /// Set the type information for the given `ast::Id`.
-    pub fn set_pattern_type(&self, id:ast::Id, maybe_type:Option<Type>) {
+    pub fn set_pattern_type(&self, _id:ast::Id, _maybe_type:Option<Type>) {
         // self.type_color_map.update_entry(id,maybe_type);
         // self.set_port_colors_based_on_available_types();
     }

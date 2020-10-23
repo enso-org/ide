@@ -81,11 +81,11 @@ impl Expression {
 
 fn get_id_for_crumbs(span_tree:&SpanTree, crumbs:&[span_tree::Crumb]) -> Option<ast::Id> {
     if span_tree.root_ref().crumbs == crumbs {
-        return span_tree.root.expression_id
+        return span_tree.root.ast_id
     };
     let span_tree_descendant = span_tree.root_ref().get_descendant(crumbs);
-    let expression_id        = span_tree_descendant.map(|node|{node.expression_id});
-    expression_id.ok().flatten()
+    let ast_id        = span_tree_descendant.map(|node|{node.ast_id});
+    ast_id.ok().flatten()
 }
 
 
@@ -324,7 +324,7 @@ impl Manager {
                     // FIXME: How to properly discover self? Like `image.blur 15`, to disable
                     // 'blur' port?
 
-                    if let Some(id) = node.expression_id {
+                    if let Some(id) = node.ast_id {
                         self.model.id_crumbs_map.borrow_mut().insert(id,node.crumbs.clone());
                     }
 
@@ -360,11 +360,11 @@ impl Manager {
                         let missing_type_color = styles.get_color(theme::vars::graph_editor::edge::_type::missing::color);
 
                         let crumbs = node.crumbs.clone();
-                        let ast_id = get_id_for_crumbs(&expression.input_span_tree,&crumbs);
+                        let _ast_id = get_id_for_crumbs(&expression.input_span_tree,&crumbs);
                         // println!(">> {:?}",node.argument_info.clone().unwrap_or_default().typename);
                         // let color  = ast_id.and_then(|id|type_map.type_color(id,styles.clone_ref()));
                         // let color  = color.unwrap_or(missing_type_color);
-                        let color = node.typename().map(
+                        let color = node.tp().map(
                             |tp| type_coloring::color_for_type(tp.clone().into(),&styles)
                         ).unwrap_or(missing_type_color);
 
@@ -445,7 +445,7 @@ impl Manager {
         })
     }
 
-    pub fn get_port_color(&self, crumbs:&[span_tree::Crumb]) -> Option<color::Lcha> {
+    pub fn get_port_color(&self, _crumbs:&[span_tree::Crumb]) -> Option<color::Lcha> {
         // let ast_id = get_id_for_crumbs(&self.model.expression.borrow().input_span_tree,&crumbs)?;
         // // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         // let styles = StyleWatch::new(&self.model.app.display.scene().style_sheet);
@@ -457,9 +457,9 @@ impl Manager {
         self.model.width.get()
     }
 
-    pub fn set_expression_type(&self, id:ast::Id, maybe_type:Option<Type>) {
+    pub fn set_expression_type(&self, id:ast::Id, _maybe_type:Option<Type>) {
         if let Some(crumbs) = self.model.id_crumbs_map.borrow().get(&id) {
-            if let Ok(node) = self.model.expression.borrow_mut().input_span_tree.get_node(crumbs) {
+            if let Ok(_node) = self.model.expression.borrow_mut().input_span_tree.get_node(crumbs) {
 
             }
         }

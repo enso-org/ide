@@ -171,7 +171,7 @@ impl<'a,T> Implementation for node::Ref<'a,T> {
 
 
     fn erase_impl(&self) -> Option<EraseOperation> {
-        if (self.node.kind.is_argument() || self.node.kind.is_this()) && self.node.kind.is_removable() {
+        if (self.node.kind.is_argument() || self.node.kind.is_this()) && self.node.kind.removable() {
             Some(Box::new(move |root| {
                 let parent_crumb = &self.ast_crumbs[..self.ast_crumbs.len()-1];
                 let ast          = root.get_traversing(parent_crumb)?;
@@ -384,10 +384,9 @@ mod test {
 
         // Consider Span Tree for `foo bar` where `foo` is a method known to take 3 parameters.
         // We can try setting each of 3 arguments to `baz`.
-        let is_removable    = false;
-        let tree : SpanTree = TreeBuilder::new(7)
+        let tree = TreeBuilder::<()>::new(7)
             .add_leaf(0,3,Operation,PrefixCrumb::Func)
-            .add_leaf(4,7,Kind::this(is_removable),PrefixCrumb::Arg)
+            .add_leaf(4,7,Kind::this(),PrefixCrumb::Arg)
             .add_empty_child(7, ExpectedArgument(1))
             .add_empty_child(7, ExpectedArgument(2))
             .build();
@@ -410,11 +409,10 @@ mod test {
 
         // Another case is Span Tree for `Main . foo` where `foo` is a method known to take 2
         // parameters. We can try setting each of 2 arguments to `baz`.
-        let is_removable = false;
         let tree : SpanTree = TreeBuilder::new(10)
-            .add_leaf(0,4,Kind::this(is_removable),InfixCrumb::LeftOperand)
+            .add_leaf(0,4,Kind::this(),InfixCrumb::LeftOperand)
             .add_leaf(5,6,Operation,InfixCrumb::Operator)
-            .add_leaf(7,10,Kind::argument(is_removable,None,None),InfixCrumb::RightOperand)
+            .add_leaf(7,10,Kind::argument(),InfixCrumb::RightOperand)
             .add_empty_child(10, ExpectedArgument(0))
             .add_empty_child(10, ExpectedArgument(1))
             .build();
@@ -425,10 +423,10 @@ mod test {
 
         let after = tree.root_ref().child(3).unwrap().set(&ast,baz.clone_ref()).unwrap();
         assert_eq!(after.repr(),"Main . foo baz");
-        assert_eq!(after.id    ,ast_id);
+        assert_eq!(after.id,ast_id);
 
         let after = tree.root_ref().child(4).unwrap().set(&ast,baz.clone_ref()).unwrap();
         assert_eq!(after.repr(),"Main . foo _ baz");
-        assert_eq!(after.id    ,ast_id);
+        assert_eq!(after.id,ast_id);
     }
 }
