@@ -9,6 +9,7 @@
 #![feature(associated_type_bounds)]
 #![feature(option_result_contains)]
 #![feature(trait_alias)]
+#![feature(type_ascription)]
 #![feature(matches_macro)]
 #![feature(exact_size_is_empty)]
 #![warn(missing_docs)]
@@ -68,6 +69,12 @@ pub struct ArgumentInfo {
 impl ArgumentInfo {
     /// Constructor.
     pub fn new(name:Option<String>, tp:Option<String>) -> Self {
+        Self {name,tp}
+    }
+
+    /// Specialized constructor for "this" argument.
+    pub fn this(tp:Option<String>) -> Self {
+        let name = Some(node::This::NAME.into());
         Self {name,tp}
     }
 }

@@ -103,6 +103,7 @@ impl Kind {
     /// information.
     pub fn argument_info(&self) -> Option<ArgumentInfo> {
         match self {
+            Self::This           (t) => Some(ArgumentInfo::new(Some(t.name().into()),t.tp.clone())),
             Self::Argument       (t) => Some(ArgumentInfo::new(t.name.clone(),t.tp.clone())),
             Self::InsertionPoint (t) => Some(ArgumentInfo::new(t.name.clone(),t.tp.clone())),
             _                        => None
@@ -113,6 +114,10 @@ impl Kind {
     /// or was skipped.
     pub fn set_argument_info(&mut self, argument_info:ArgumentInfo) -> bool {
         match self {
+            Self::This(t) => {
+                t.tp = argument_info.tp;
+                true
+            },
             Self::Argument(t) => {
                 t.name = argument_info.name;
                 t.tp   = argument_info.tp;
@@ -150,6 +155,17 @@ impl Default for Kind {
 pub struct This {
     pub removable : bool,
     pub tp        : Option<String>,
+}
+
+
+// === Getters ===
+
+impl This {
+    /// Name of `This` argument.
+    pub const NAME : &'static str = "this";
+
+    /// Name getter. Please notice that the name of `This` argument is always "this".
+    pub fn name(&self) -> &str { Self::NAME }
 }
 
 

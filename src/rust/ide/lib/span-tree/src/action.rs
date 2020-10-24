@@ -4,7 +4,6 @@
 use crate::prelude::*;
 
 use crate::node;
-use crate::node::Kind;
 
 use ast::Ast;
 use ast::Shifted;
@@ -111,7 +110,7 @@ pub trait Implementation {
 impl<'a,T> Implementation for node::Ref<'a,T> {
     fn set_impl(&self) -> Option<SetOperation> {
         match &self.node.kind {
-            Kind::InsertionPoint(ins_point) => Some(Box::new(move |root,new| {
+            node::Kind::InsertionPoint(ins_point) => Some(Box::new(move |root,new| {
                 use node::InsertionPointType::*;
                 let kind           = &ins_point.kind;
                 let ast            = root.get_traversing(&self.ast_crumbs)?;
@@ -179,7 +178,7 @@ impl<'a,T> Implementation for node::Ref<'a,T> {
                     if let Some(mut infix) = ast::opr::Chain::try_new(&ast) {
                         match self.node.kind {
                             node::Kind::This {..} => {infix.erase_target(); }
-                            _                       => {infix.args.pop();     }
+                            _                     => {infix.args.pop();     }
                         }
                         Ok(infix.into_ast())
                     } else {
@@ -220,10 +219,7 @@ mod test {
 
     use crate::builder::TreeBuilder;
     use crate::generate::context;
-    use crate::node::Kind;
-    use crate::node::Kind::Argument;
-    use crate::node::Kind::Operation;
-    use crate::node::Kind::This;
+    use crate::node;
     use crate::node::InsertionPointType::ExpectedArgument;
     use crate::SpanTree;
 
@@ -248,7 +244,7 @@ mod test {
             fn run(&self, parser:&Parser) {
                 let ast        = parser.parse_line(self.expr).unwrap();
                 let ast_id     = ast.id;
-                let tree : SpanTree = ast.generate_tree(&context::Empty).unwrap();
+                let tree       = ast.generate_tree(&context::Empty).unwrap() : SpanTree;
                 let span_begin = Index::new(self.span.start);
                 let span_end   = Index::new(self.span.end);
                 let span       = Span::from_indices(span_begin,span_end);
@@ -385,8 +381,8 @@ mod test {
         // Consider Span Tree for `foo bar` where `foo` is a method known to take 3 parameters.
         // We can try setting each of 3 arguments to `baz`.
         let tree = TreeBuilder::<()>::new(7)
-            .add_leaf(0,3,Operation,PrefixCrumb::Func)
-            .add_leaf(4,7,Kind::this(),PrefixCrumb::Arg)
+            .add_leaf(0,3,node::Kind::Operation,PrefixCrumb::Func)
+            .add_leaf(4,7,node::Kind::this(),PrefixCrumb::Arg)
             .add_empty_child(7, ExpectedArgument(1))
             .add_empty_child(7, ExpectedArgument(2))
             .build();
@@ -410,9 +406,9 @@ mod test {
         // Another case is Span Tree for `Main . foo` where `foo` is a method known to take 2
         // parameters. We can try setting each of 2 arguments to `baz`.
         let tree : SpanTree = TreeBuilder::new(10)
-            .add_leaf(0,4,Kind::this(),InfixCrumb::LeftOperand)
-            .add_leaf(5,6,Operation,InfixCrumb::Operator)
-            .add_leaf(7,10,Kind::argument(),InfixCrumb::RightOperand)
+            .add_leaf(0,4,node::Kind::this(),InfixCrumb::LeftOperand)
+            .add_leaf(5,6,node::Kind::Operation,InfixCrumb::Operator)
+            .add_leaf(7,10,node::Kind::argument(),InfixCrumb::RightOperand)
             .add_empty_child(10, ExpectedArgument(0))
             .add_empty_child(10, ExpectedArgument(1))
             .build();

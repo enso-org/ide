@@ -407,8 +407,6 @@ mod test {
     use crate::builder::Builder;
     use crate::builder::TreeBuilder;
     use crate::node;
-    use crate::node::Kind;
-    use crate::node::Kind::*;
     use crate::SpanTree;
 
     use ast::crumbs;
@@ -419,12 +417,12 @@ mod test {
         use ast::crumbs::InfixCrumb::*;
 
         let tree : SpanTree = TreeBuilder::new(7)
-            .add_leaf (0,1,Kind::this(),vec![LeftOperand])
-            .add_leaf (1,1,Operation,vec![Operator])
-            .add_child(2,5,Kind::argument(),vec![RightOperand])
-                .add_leaf(0,2,Kind::this(),vec![LeftOperand])
-                .add_leaf(3,1,Operation,vec![Operator])
-                .add_leaf(4,1,Kind::argument(),vec![RightOperand])
+            .add_leaf (0,1,node::Kind::this(),vec![LeftOperand])
+            .add_leaf (1,1,node::Kind::Operation,vec![Operator])
+            .add_child(2,5,node::Kind::argument(),vec![RightOperand])
+                .add_leaf(0,2,node::Kind::this(),vec![LeftOperand])
+                .add_leaf(3,1,node::Kind::Operation,vec![Operator])
+                .add_leaf(4,1,node::Kind::argument(),vec![RightOperand])
                 .done()
             .build();
 
@@ -477,12 +475,12 @@ mod test {
         use ast::crumbs::PrefixCrumb::*;
 
         let tree : SpanTree = TreeBuilder::new(7)
-            .add_leaf (0,1,Kind::this(),vec![LeftOperand])
+            .add_leaf (0,1,node::Kind::this(),vec![LeftOperand])
             .add_empty_child(1,InsertionPointType::AfterTarget)
-            .add_leaf (1,1,Operation,vec![Operator])
-            .add_child(2,5,Kind::argument(),vec![RightOperand])
-                .add_leaf(0,3,Operation,vec![Func])
-                .add_leaf(3,1,Kind::this(),vec![Arg])
+            .add_leaf (1,1,node::Kind::Operation,vec![Operator])
+            .add_child(2,5,node::Kind::argument(),vec![RightOperand])
+                .add_leaf(0,3,node::Kind::Operation,vec![Func])
+                .add_leaf(3,1,node::Kind::this(),vec![Arg])
             .done()
             .build();
 
