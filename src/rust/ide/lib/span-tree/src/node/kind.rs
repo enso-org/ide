@@ -32,7 +32,7 @@ pub enum Kind {
 }
 
 
-// === Smart Kind Constructors ===
+// === Kind Constructors ===
 
 #[allow(missing_docs)]
 impl Kind {
@@ -72,7 +72,7 @@ impl Kind {
 // === API ===
 
 impl Kind {
-    /// Smart name getter.
+    /// Name getter.
     pub fn name(&self) -> Option<&String> {
         match self {
             Self::Argument       (t) => t.name.as_ref(),
@@ -81,7 +81,7 @@ impl Kind {
         }
     }
 
-    /// Smart type getter.
+    /// Type getter.
     pub fn tp(&self) -> Option<&String> {
         match self {
             Self::Argument       (t) => t.tp.as_ref(),
@@ -90,7 +90,7 @@ impl Kind {
         }
     }
 
-    /// Smart removable flag getter.
+    /// Removable flag getter.
     pub fn removable(&self) -> bool {
         match self {
             Self::This     (t) => t.removable,
@@ -99,7 +99,7 @@ impl Kind {
         }
     }
 
-    /// Smart `ArgumentInfo` getter. Returns `None` if the node could not be attached with the
+    /// `ArgumentInfo` getter. Returns `None` if the node could not be attached with the
     /// information.
     pub fn argument_info(&self) -> Option<ArgumentInfo> {
         match self {
@@ -109,7 +109,7 @@ impl Kind {
         }
     }
 
-    /// Smart `ArgumentInfo` setter. Returns bool indicating whether the operation was possible
+    /// `ArgumentInfo` setter. Returns bool indicating whether the operation was possible
     /// or was skipped.
     pub fn set_argument_info(&mut self, argument_info:ArgumentInfo) -> bool {
         match self {
@@ -144,7 +144,7 @@ impl Default for Kind {
 // ============
 
 /// Kind representing "this" node. For example, in the following expressions, `foo` is considered
-/// "this": `foo.bar`, `foo + bar`, `foo.+ bar`.
+/// "this": `bar foo`, `foo.bar`, `foo + bar`, `foo.+ bar`.
 #[derive(Clone,Debug,Default,Eq,PartialEq)]
 #[allow(missing_docs)]
 pub struct This {
@@ -153,7 +153,7 @@ pub struct This {
 }
 
 
-// === Smart Setters ===
+// === Setters ===
 
 #[allow(missing_docs)]
 impl This {
@@ -186,7 +186,7 @@ pub struct Argument {
 }
 
 
-// === Smart Setters ===
+// === Setters ===
 
 #[allow(missing_docs)]
 impl Argument {
@@ -222,7 +222,7 @@ pub struct InsertionPoint {
     pub tp   : Option<String>,
 }
 
-// === Smart Constructors ===
+// === Constructors ===
 
 #[allow(missing_docs)]
 impl InsertionPoint {
@@ -235,7 +235,7 @@ impl InsertionPoint {
 }
 
 
-// === Smart Setters ===
+// === Setters ===
 
 #[allow(missing_docs)]
 impl InsertionPoint {

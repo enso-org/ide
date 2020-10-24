@@ -153,59 +153,60 @@ impl<'a> ApplicationBase<'a> {
 impl<T:Payload> SpanTreeGenerator<T> for Ast {
     fn generate_node
     (&self, kind:impl Into<node::Kind>, context:&impl Context) -> FallibleResult<Node<T>> {
-        let kind = kind.into();
-        // Code like `this.func` or `a+b+c`.
-        if let Some(infix) = GeneralizedInfix::try_new(self) {
-            let chain      = infix.flatten();
-            let app_base   = ApplicationBase::new(self);
-            let invocation = || -> Option<CalledMethodInfo> {
-                context.call_info(self.id?, app_base.function_name)
-            }();
+        generate_node_for_ast(self,kind.into(),context)
+    }
+}
 
-            // All prefix params are missing arguments, since there is no prefix application.
-            let missing_args              = app_base.prefix_params(invocation);
-            let arity                     = missing_args.len();
-            let base_node_kind            = if arity==0 {kind.clone()} else {node::Kind::Operation};
-            let node                      = chain.generate_node(base_node_kind,context)?;
-            let provided_prefix_arg_count = 0;
-            Ok(generate_expected_arguments(node,kind,provided_prefix_arg_count,missing_args))
-        } else {
-            match self.shape() {
-                ast::Shape::Prefix(_) =>
-                    ast::prefix::Chain::from_ast(self).unwrap().generate_node(kind,context),
-                // Lambdas should fall in _ case, because we don't want to create subports for
-                // them
-                ast::Shape::Match(_) if ast::macros::as_lambda_match(self).is_none() =>
-                    ast::known::Match::try_new(self.clone_ref()).unwrap()
-                        .generate_node(kind,context),
-                ast::Shape::Ambiguous(_) =>
-                    ast::known::Ambiguous::try_new(self.clone_ref()).unwrap()
-                        .generate_node(kind,context),
-                _  => {
-                    let size          = Size::new(self.len());
-                    let ast_id        = self.id;
-                    let children      = default();
-                    let name          = ast::identifier::name(self);
-                    let payload       = default();
-                    if let Some(info) = self.id.and_then(|id| context.call_info(id, name)) {
-                        let node = Node {
-                            size,
-                            children,
-                            ast_id,
-                            payload,
-                            kind : node::Kind::Operation,
-                        };
-                        // Note that in this place it is impossible that Ast is in form of
-                        // `this.method` -- it is covered by the former if arm. As such, we don't
-                        // need to use `ApplicationBase` here as we do elsewhere.
-                        let provided_prefix_arg_count = 0;
-                        let params                    = info.parameters.into_iter();
-                        Ok(generate_expected_arguments(node,kind,provided_prefix_arg_count,params))
-                    } else {
-                        Ok(Node {kind,size,children,ast_id,payload})
-                    }
-                },
-            }
+fn generate_node_for_ast<T:Payload>
+(ast:&Ast, kind:node::Kind, context:&impl Context) -> FallibleResult<Node<T>> {
+    // Code like `ast.func` or `a+b+c`.
+    if let Some(infix) = GeneralizedInfix::try_new(ast) {
+        let chain      = infix.flatten();
+        let app_base   = ApplicationBase::new(ast);
+        let invocation = || -> Option<CalledMethodInfo> {
+            context.call_info(ast.id?, app_base.function_name)
+        }();
+
+        // All prefix params are missing arguments, since there is no prefix application.
+        let missing_args              = app_base.prefix_params(invocation);
+        let arity                     = missing_args.len();
+        let base_node_kind            = if arity==0 {kind.clone()} else {node::Kind::Operation};
+        let node                      = chain.generate_node(base_node_kind,context)?;
+        let provided_prefix_arg_count = 0;
+        Ok(generate_expected_arguments(node,kind,provided_prefix_arg_count,missing_args))
+    } else {
+        match ast.shape() {
+            ast::Shape::Prefix(_) =>
+                ast::prefix::Chain::from_ast(ast).unwrap().generate_node(kind,context),
+            // Lambdas should fall in _ case, because we don't want to create subports for
+            // them
+            ast::Shape::Match(_) if ast::macros::as_lambda_match(ast).is_none() =>
+                ast::known::Match::try_new(ast.clone_ref()).unwrap()
+                    .generate_node(kind,context),
+            ast::Shape::Ambiguous(_) =>
+                ast::known::Ambiguous::try_new(ast.clone_ref()).unwrap()
+                    .generate_node(kind,context),
+            _  => {
+                let size     = Size::new(ast.len());
+                let ast_id   = ast.id;
+                let children = default();
+                let name     = ast::identifier::name(ast);
+                let payload  = default();
+                if let Some(info) = ast.id.and_then(|id| context.call_info(id, name)) {
+                    let node = {
+                        let kind = node::Kind::Operation;
+                        Node {size,children,ast_id,payload,kind}
+                    };
+                    // Note that in this place it is impossible that Ast is in form of
+                    // `this.method` -- it is covered by the former if arm. As such, we don't
+                    // need to use `ApplicationBase` here as we do elsewhere.
+                    let provided_prefix_arg_count = 0;
+                    let params                    = info.parameters.into_iter();
+                    Ok(generate_expected_arguments(node,kind,provided_prefix_arg_count,params))
+                } else {
+                    Ok(Node {kind,size,children,ast_id,payload})
+                }
+            },
         }
     }
 }
@@ -216,61 +217,67 @@ impl<T:Payload> SpanTreeGenerator<T> for Ast {
 impl<T:Payload> SpanTreeGenerator<T> for ast::opr::Chain {
     fn generate_node
     (&self, kind:impl Into<node::Kind>, context:&impl Context) -> FallibleResult<Node<T>> {
-        // Removing operands is possible only when chain has at least 3 of them
-        // (target and two arguments).
-        let kind      = kind.into();
-        let removable = self.args.len() >= 2;
-        let node_and_offset:FallibleResult<(Node<T>,usize)> = match &self.target {
-            Some(target) => {
-                let node = target.arg.generate_node(node::Kind::this().removable(),context)?;
-                Ok((node,target.offset))
-            },
-            None => Ok((Node::<T>::new().with_kind(InsertionPointType::BeforeTarget),0)),
-        };
-
-        // In this fold we pass last generated node and offset after it, wrapped in Result.
-        let (node,_) = self.args.iter().enumerate().fold(node_and_offset, |result,(i,elem)| {
-            // Here we generate children as the operator would be left-associative. Then, if it is
-            // actually right associative, we just reverse the generated children and their offsets.
-            let (node,off)  = result?;
-            let is_first    = i == 0;
-            let is_last     = i + 1 == self.args.len();
-            let has_left    = !node.is_insertion_point();
-            // Target is a first element of chain in this context.
-            let has_target  = is_first && has_left;
-            let opr_crumbs  = elem.crumb_to_operator(has_left);
-            let opr_ast     = Located::new(opr_crumbs,elem.operator.ast().clone_ref());
-            let left_crumbs = if has_left { vec![elem.crumb_to_previous()] } else { vec![] };
-
-            let mut gen  = ChildGenerator::default();
-            if has_target { gen.generate_empty_node(InsertionPointType::BeforeTarget); }
-            gen.add_node(left_crumbs,node);
-            if has_target { gen.generate_empty_node(InsertionPointType::AfterTarget); }
-            gen.spacing(off);
-            gen.generate_ast_node(opr_ast,node::Kind::Operation,context)?;
-            if let Some(operand) = &elem.operand {
-                let arg_crumbs = elem.crumb_to_operand(has_left);
-                let arg_ast    = Located::new(arg_crumbs,operand.arg.clone_ref());
-                gen.spacing(operand.offset);
-
-                gen.generate_ast_node(arg_ast,node::Kind::argument().with_removable(removable),context)?;
-            }
-            gen.generate_empty_node(InsertionPointType::Append);
-
-            if ast::opr::assoc(&self.operator) == Assoc::Right {
-                gen.reverse_children();
-            }
-
-            Ok((Node {
-                kind     : if is_last {kind.clone()} else {node::Kind::Chained},
-                size     : gen.current_offset,
-                children : gen.children,
-                ast_id   : elem.infix_id,
-                payload  : default(),
-            }, elem.offset))
-        })?;
-        Ok(node)
+        generate_node_for_opr_chain(self,kind.into(),context)
     }
+}
+
+fn generate_node_for_opr_chain<T:Payload>
+(this:&ast::opr::Chain, kind:node::Kind, context:&impl Context)
+-> FallibleResult<Node<T>> {
+    // Removing operands is possible only when chain has at least 3 of them
+    // (target and two arguments).
+    let removable = this.args.len() >= 2;
+    let node_and_offset:FallibleResult<(Node<T>,usize)> = match &this.target {
+        Some(target) => {
+            let kind = node::Kind::this().with_removable(removable);
+            let node = target.arg.generate_node(kind,context)?;
+            Ok((node,target.offset))
+        },
+        None => Ok((Node::<T>::new().with_kind(InsertionPointType::BeforeTarget),0)),
+    };
+
+    // In this fold we pass last generated node and offset after it, wrapped in Result.
+    let (node,_) = this.args.iter().enumerate().fold(node_and_offset, |result,(i,elem)| {
+        // Here we generate children as the operator would be left-associative. Then, if it is
+        // actually right associative, we just reverse the generated children and their offsets.
+        let (node,off)  = result?;
+        let is_first    = i == 0;
+        let is_last     = i + 1 == this.args.len();
+        let has_left    = !node.is_insertion_point();
+        // Target is a first element of chain in this context.
+        let has_target  = is_first && has_left;
+        let opr_crumbs  = elem.crumb_to_operator(has_left);
+        let opr_ast     = Located::new(opr_crumbs,elem.operator.ast().clone_ref());
+        let left_crumbs = if has_left { vec![elem.crumb_to_previous()] } else { vec![] };
+
+        let mut gen  = ChildGenerator::default();
+        if has_target { gen.generate_empty_node(InsertionPointType::BeforeTarget); }
+        gen.add_node(left_crumbs,node);
+        if has_target { gen.generate_empty_node(InsertionPointType::AfterTarget); }
+        gen.spacing(off);
+        gen.generate_ast_node(opr_ast,node::Kind::Operation,context)?;
+        if let Some(operand) = &elem.operand {
+            let arg_crumbs = elem.crumb_to_operand(has_left);
+            let arg_ast    = Located::new(arg_crumbs,operand.arg.clone_ref());
+            gen.spacing(operand.offset);
+
+            gen.generate_ast_node(arg_ast,node::Kind::argument().with_removable(removable),context)?;
+        }
+        gen.generate_empty_node(InsertionPointType::Append);
+
+        if ast::opr::assoc(&this.operator) == Assoc::Right {
+            gen.reverse_children();
+        }
+
+        Ok((Node {
+            kind     : if is_last {kind.clone()} else {node::Kind::Chained},
+            size     : gen.current_offset,
+            children : gen.children,
+            ast_id   : elem.infix_id,
+            payload  : default(),
+        }, elem.offset))
+    })?;
+    Ok(node)
 }
 
 
@@ -279,52 +286,57 @@ impl<T:Payload> SpanTreeGenerator<T> for ast::opr::Chain {
 impl<T:Payload> SpanTreeGenerator<T> for ast::prefix::Chain {
     fn generate_node
     (&self, kind:impl Into<node::Kind>, context:&impl Context) -> FallibleResult<Node<T>> {
-        let kind             = kind.into();
-        let base             = ApplicationBase::new(&self.func);
-        let invocation_info  = self.id().and_then(|id| context.call_info(id, base.function_name));
-        let known_args       = invocation_info.is_some();
-        let mut known_params = base.prefix_params(invocation_info);
-        let prefix_arity     = self.args.len().max(known_params.len());
-
-        use ast::crumbs::PrefixCrumb::*;
-        // Removing arguments is possible if there at least two of them
-        let removable = self.args.len() >= 2;
-        let node         = self.func.generate_node(node::Kind::Operation,context);
-        let ret          = self.args.iter().enumerate().fold(node, |node,(i,arg)| {
-            let node     = node?;
-            let is_first = i == 0;
-            let is_last  = i + 1 == prefix_arity;
-            let arg_kind = if is_first && !base.has_target {
-                node::Kind::from(node::Kind::this().with_removable(removable))
-            } else {
-                node::Kind::from(node::Kind::argument().with_removable(removable))
-            };
-
-            let mut gen = ChildGenerator::default();
-            gen.add_node(vec![Func.into()],node);
-            gen.spacing(arg.sast.off);
-            if !known_args && matches!(arg_kind,node::Kind::This {..}) {
-                gen.generate_empty_node(InsertionPointType::BeforeTarget);
-            }
-            let arg_ast      = arg.sast.wrapped.clone_ref();
-            let arg_child  : &mut node::Child<T>   = gen.generate_ast_node(Located::new(Arg,arg_ast),arg_kind,context)?;
-            if let Some(info) = known_params.next() {
-                arg_child.node.set_argument_info(info)
-            }
-            if !known_args {
-                gen.generate_empty_node(InsertionPointType::Append);
-            }
-            Ok(Node {
-                kind     : if is_last {kind.clone()} else {node::Kind::Chained},
-                size     : gen.current_offset,
-                children : gen.children,
-                ast_id   : arg.prefix_id,
-                payload  : default(),
-            })
-        })?;
-
-        Ok(generate_expected_arguments(ret,kind,self.args.len(),known_params))
+        generate_node_for_prefix_chain(self,kind.into(),context)
     }
+}
+
+fn generate_node_for_prefix_chain<T:Payload>
+(this:&ast::prefix::Chain, kind:node::Kind, context:&impl Context)
+-> FallibleResult<Node<T>> {
+    let base             = ApplicationBase::new(&this.func);
+    let invocation_info  = this.id().and_then(|id| context.call_info(id, base.function_name));
+    let known_args       = invocation_info.is_some();
+    let mut known_params = base.prefix_params(invocation_info);
+    let prefix_arity     = this.args.len().max(known_params.len());
+
+    use ast::crumbs::PrefixCrumb::*;
+    // Removing arguments is possible if there at least two of them
+    let removable = this.args.len() >= 2;
+    let node         = this.func.generate_node(node::Kind::Operation,context);
+    let ret          = this.args.iter().enumerate().fold(node, |node,(i,arg)| {
+        let node     = node?;
+        let is_first = i == 0;
+        let is_last  = i + 1 == prefix_arity;
+        let arg_kind = if is_first && !base.has_target {
+            node::Kind::from(node::Kind::this().with_removable(removable))
+        } else {
+            node::Kind::from(node::Kind::argument().with_removable(removable))
+        };
+
+        let mut gen = ChildGenerator::default();
+        gen.add_node(vec![Func.into()],node);
+        gen.spacing(arg.sast.off);
+        if !known_args && matches!(arg_kind,node::Kind::This {..}) {
+            gen.generate_empty_node(InsertionPointType::BeforeTarget);
+        }
+        let arg_ast      = arg.sast.wrapped.clone_ref();
+        let arg_child  : &mut node::Child<T>   = gen.generate_ast_node(Located::new(Arg,arg_ast),arg_kind,context)?;
+        if let Some(info) = known_params.next() {
+            arg_child.node.set_argument_info(info)
+        }
+        if !known_args {
+            gen.generate_empty_node(InsertionPointType::Append);
+        }
+        Ok(Node {
+            kind     : if is_last {kind.clone()} else {node::Kind::Chained},
+            size     : gen.current_offset,
+            children : gen.children,
+            ast_id   : arg.prefix_id,
+            payload  : default(),
+        })
+    })?;
+
+    Ok(generate_expected_arguments(ret,kind,this.args.len(),known_params))
 }
 
 
@@ -333,31 +345,36 @@ impl<T:Payload> SpanTreeGenerator<T> for ast::prefix::Chain {
 impl<T:Payload> SpanTreeGenerator<T> for ast::known::Match {
     fn generate_node
     (&self, kind:impl Into<node::Kind>, context:&impl Context) -> FallibleResult<Node<T>> {
-        let kind          = kind.into();
-        let removable     = false;
-        let children_kind = node::Kind::argument().with_removable(removable);
-        let mut gen       = ChildGenerator::default();
-        if let Some(pat) = &self.pfx {
-            for macros::AstInPattern {ast,crumbs} in macros::all_ast_nodes_in_pattern(&pat) {
-                let ast_crumb   = ast::crumbs::MatchCrumb::Pfx {val:crumbs};
-                let located_ast = Located::new(ast_crumb,ast.wrapped);
-                gen.generate_ast_node(located_ast,children_kind.clone(),context)?;
-                gen.spacing(ast.off);
-            }
-        }
-        let first_segment_index = 0;
-        generate_children_from_segment(&mut gen,first_segment_index,&self.segs.head,context)?;
-        for (index,segment) in self.segs.tail.iter().enumerate() {
-            gen.spacing(segment.off);
-            generate_children_from_segment(&mut gen,index+1,&segment.wrapped,context)?;
-        }
-        Ok(Node {kind,
-            size     : gen.current_offset,
-            children : gen.children,
-            ast_id   : self.id(),
-            payload  : default(),
-        })
+        generate_node_for_known_match(self,kind.into(),context)
     }
+}
+
+fn generate_node_for_known_match<T:Payload>
+(this:&ast::known::Match, kind:node::Kind, context:&impl Context)
+-> FallibleResult<Node<T>> {
+    let removable     = false;
+    let children_kind = node::Kind::argument().with_removable(removable);
+    let mut gen       = ChildGenerator::default();
+    if let Some(pat) = &this.pfx {
+        for macros::AstInPattern {ast,crumbs} in macros::all_ast_nodes_in_pattern(&pat) {
+            let ast_crumb   = ast::crumbs::MatchCrumb::Pfx {val:crumbs};
+            let located_ast = Located::new(ast_crumb,ast.wrapped);
+            gen.generate_ast_node(located_ast,children_kind.clone(),context)?;
+            gen.spacing(ast.off);
+        }
+    }
+    let first_segment_index = 0;
+    generate_children_from_segment(&mut gen,first_segment_index,&this.segs.head,context)?;
+    for (index,segment) in this.segs.tail.iter().enumerate() {
+        gen.spacing(segment.off);
+        generate_children_from_segment(&mut gen,index+1,&segment.wrapped,context)?;
+    }
+    Ok(Node {kind,
+        size     : gen.current_offset,
+        children : gen.children,
+        ast_id   : this.id(),
+        payload  : default(),
+    })
 }
 
 fn generate_children_from_segment<T:Payload>
@@ -381,21 +398,25 @@ fn generate_children_from_segment<T:Payload>
 impl<T:Payload> SpanTreeGenerator<T> for ast::known::Ambiguous {
     fn generate_node
     (&self, kind:impl Into<node::Kind>, context:&impl Context) -> FallibleResult<Node<T>> {
-        let kind                = kind.into();
-        let mut gen             = ChildGenerator::default();
-        let first_segment_index = 0;
-        generate_children_from_ambiguous(&mut gen,first_segment_index,&self.segs.head,context)?;
-        for (index,segment) in self.segs.tail.iter().enumerate() {
-            gen.spacing(segment.off);
-            generate_children_from_ambiguous(&mut gen, index+1, &segment.wrapped, context)?;
-        }
-        Ok(Node{kind,
-            size     : gen.current_offset,
-            children : gen.children,
-            ast_id   : self.id(),
-            payload  : default(),
-        })
+        generate_node_for_known_ambiguous(self,kind.into(),context)
     }
+}
+
+fn generate_node_for_known_ambiguous<T:Payload>
+(this:&ast::known::Ambiguous, kind:node::Kind, context:&impl Context) -> FallibleResult<Node<T>> {
+    let mut gen             = ChildGenerator::default();
+    let first_segment_index = 0;
+    generate_children_from_ambiguous(&mut gen,first_segment_index,&this.segs.head,context)?;
+    for (index,segment) in this.segs.tail.iter().enumerate() {
+        gen.spacing(segment.off);
+        generate_children_from_ambiguous(&mut gen, index+1, &segment.wrapped, context)?;
+    }
+    Ok(Node{kind,
+        size     : gen.current_offset,
+        children : gen.children,
+        ast_id   : this.id(),
+        payload  : default(),
+    })
 }
 
 fn generate_children_from_ambiguous<T:Payload>
@@ -550,7 +571,7 @@ mod test {
         id_map.generate(14..15);
         id_map.generate(4..11);
         let ast      = parser.parse_line_with_id_map("2 + foo bar - 3",id_map.clone()).unwrap();
-        let mut tree : SpanTree = ast.generate_tree(&context::Empty).unwrap();
+        let mut tree = ast.generate_tree(&context::Empty).unwrap() : SpanTree;
 
         // Check the expression ids we defined:
         for id_map_entry in id_map.vec {
@@ -590,7 +611,7 @@ mod test {
     fn generate_span_tree_with_chains() {
         let parser   = Parser::new_or_panic();
         let ast      = parser.parse_line("2 + 3 + foo bar baz 13 + 5").unwrap();
-        let mut tree : SpanTree = ast.generate_tree(&context::Empty).unwrap();
+        let mut tree = ast.generate_tree(&context::Empty).unwrap() : SpanTree;
         clear_expression_ids(&mut tree.root);
 
         let expected = TreeBuilder::new(26)
@@ -632,7 +653,7 @@ mod test {
     fn generating_span_tree_from_right_assoc_operator() {
         let parser   = Parser::new_or_panic();
         let ast      = parser.parse_line("1,2,3").unwrap();
-        let mut tree : SpanTree = ast.generate_tree(&context::Empty).unwrap();
+        let mut tree = ast.generate_tree(&context::Empty).unwrap() : SpanTree;
         clear_expression_ids(&mut tree.root);
 
         let expected = TreeBuilder::new(5)
@@ -658,7 +679,7 @@ mod test {
         // The star makes `SectionSides` ast being one of the parameters of + chain. First + makes
         // SectionRight, and last + makes SectionLeft.
         let ast      = parser.parse_line("+ * + + 2 +").unwrap();
-        let mut tree : SpanTree = ast.generate_tree(&context::Empty).unwrap();
+        let mut tree = ast.generate_tree(&context::Empty).unwrap() : SpanTree;
         clear_expression_ids(&mut tree.root);
 
         let expected = TreeBuilder::new(11)
@@ -692,7 +713,7 @@ mod test {
     fn generating_span_tree_from_right_assoc_section() {
         let parser   = Parser::new_or_panic();
         let ast      = parser.parse_line(",2,").unwrap();
-        let mut tree : SpanTree = ast.generate_tree(&context::Empty).unwrap();
+        let mut tree = ast.generate_tree(&context::Empty).unwrap() : SpanTree;
         clear_expression_ids(&mut tree.root);
 
         let expected = TreeBuilder::new(3)
@@ -718,7 +739,7 @@ mod test {
         id_map.generate(0..29);
         let expression = "if foo then (a + b) x else ()";
         let ast        = parser.parse_line_with_id_map(expression,id_map.clone()).unwrap();
-        let mut tree : SpanTree = ast.generate_tree(&context::Empty).unwrap();
+        let mut tree   = ast.generate_tree(&context::Empty).unwrap() : SpanTree;
 
         // Check if expression id is set
         let (_,expected_id) = id_map.vec.first().unwrap();
@@ -762,7 +783,7 @@ mod test {
         let mut id_map = IdMap::default();
         id_map.generate(0..2);
         let ast      = parser.parse_line_with_id_map("(4",id_map.clone()).unwrap();
-        let mut tree : SpanTree = ast.generate_tree(&context::Empty).unwrap();
+        let mut tree = ast.generate_tree(&context::Empty).unwrap() : SpanTree;
 
         // Check the expression id:
         let (_,expected_id) = id_map.vec.first().unwrap();
@@ -782,7 +803,7 @@ mod test {
     fn generating_span_tree_for_lambda() {
         let parser   = Parser::new_or_panic();
         let ast      = parser.parse_line("foo a-> b + c").unwrap();
-        let mut tree : SpanTree = ast.generate_tree(&context::Empty).unwrap();
+        let mut tree = ast.generate_tree(&context::Empty).unwrap() : SpanTree;
         clear_expression_ids(&mut tree.root);
 
         let expected = TreeBuilder::new(13)
@@ -819,7 +840,7 @@ mod test {
             parameters : vec![this_param.clone()]
         };
         let ctx      = MockContext::new_single(ast.id.unwrap(),invocation_info);
-        let mut tree : SpanTree = SpanTree::new(&ast,&ctx).unwrap();
+        let mut tree = SpanTree::new(&ast,&ctx).unwrap() : SpanTree;
         match tree.root_ref().leaf_iter().collect_vec().as_slice() {
             [_func,arg0] => assert_eq!(arg0.argument_info().as_ref(),Some(&this_param)),
             sth_else     => panic!("There should be 2 leaves, found: {}",sth_else.len()),
@@ -840,7 +861,7 @@ mod test {
             parameters : vec![this_param.clone()]
         };
         let ctx      = MockContext::new_single(ast.id.unwrap(),invocation_info);
-        let mut tree : SpanTree = SpanTree::new(&ast,&ctx).unwrap();
+        let mut tree = SpanTree::new(&ast,&ctx).unwrap() : SpanTree;
         match tree.root_ref().leaf_iter().collect_vec().as_slice() {
             [_func,arg0] => assert_eq!(arg0.argument_info().as_ref(),Some(&this_param)),
             sth_else     => panic!("There should be 2 leaves, found: {}",sth_else.len()),
@@ -860,8 +881,8 @@ mod test {
         let invocation_info = CalledMethodInfo {
             parameters : vec![this_param.clone(), param1.clone(), param2.clone()]
         };
-        let ctx = MockContext::new_single(ast.id.unwrap(),invocation_info);
-        let mut tree : SpanTree = SpanTree::new(&ast,&ctx).unwrap();
+        let ctx      = MockContext::new_single(ast.id.unwrap(),invocation_info);
+        let mut tree = SpanTree::new(&ast,&ctx).unwrap() : SpanTree;
         match tree.root_ref().leaf_iter().collect_vec().as_slice() {
             [_func,arg0,arg1,arg2] => {
                 assert_eq!(arg0.argument_info().as_ref(),Some(&this_param));
