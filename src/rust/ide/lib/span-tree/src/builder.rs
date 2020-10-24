@@ -1,6 +1,7 @@
 //! An utility builder to be used in tests.
 use crate::node;
 use crate::node::Payload;
+use crate::node::kind::HasKindMut;
 use crate::Node;
 use crate::SpanTree;
 
@@ -15,7 +16,7 @@ use ast::crumbs::IntoCrumbs;
 
 // FIXME[WD]: This builder is obsolete. Please use `ChildBuilder` instead.
 /// A trait with common operations for all builders.
-pub trait Builder<T:Payload> : Sized {
+pub trait Builder<T:Payload+HasKindMut> : Sized {
     /// Reference to currently built  node.
     fn node_being_built(&mut self) -> &mut Node<T>;
 
@@ -74,7 +75,7 @@ pub struct TreeBuilder<T=()> {
     built : Node<T>,
 }
 
-impl<T:Payload> TreeBuilder<T> {
+impl<T:Payload+HasKindMut> TreeBuilder<T> {
     /// Create new builder for tree with root having length `len`.
     pub fn new(len:usize) -> Self {
         let built = Node::<T>::new().with_kind(node::Kind::Root).with_size(Size::new(len));
@@ -88,7 +89,7 @@ impl<T:Payload> TreeBuilder<T> {
     }
 }
 
-impl<T:Payload> Builder<T> for TreeBuilder<T> {
+impl<T:Payload+HasKindMut> Builder<T> for TreeBuilder<T> {
     fn node_being_built(&mut self) -> &mut Node<T> {
         &mut self.built
     }
@@ -104,7 +105,7 @@ pub struct ChildBuilder<Parent,T> {
     parent : Parent,
 }
 
-impl<Parent:Builder<T>,T:Payload> ChildBuilder<Parent,T> {
+impl<Parent:Builder<T>,T:Payload+HasKindMut> ChildBuilder<Parent,T> {
     /// Finish child building and return builder of the node's Parent.
     pub fn done(mut self) -> Parent {
         self.parent.node_being_built().children.push(self.built);
@@ -112,7 +113,7 @@ impl<Parent:Builder<T>,T:Payload> ChildBuilder<Parent,T> {
     }
 }
 
-impl<Parent,T:Payload> Builder<T> for ChildBuilder<Parent,T> {
+impl<Parent,T:Payload+HasKindMut> Builder<T> for ChildBuilder<Parent,T> {
     fn node_being_built(&mut self) -> &mut Node<T> {
         &mut self.built.node
     }

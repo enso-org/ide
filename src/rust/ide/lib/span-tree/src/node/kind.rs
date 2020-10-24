@@ -7,6 +7,20 @@ use crate::ArgumentInfo;
 
 
 
+pub trait HasKind {
+    fn kind(&self) -> &Kind;
+}
+
+pub trait HasKindMut : HasKind + Sized {
+    fn kind_mut(&mut self) -> &mut Kind;
+    fn set_kind(&mut self, kind:Kind);
+    fn with_kind(mut self, kind:impl Into<Kind>) -> Self{
+        self.set_kind(kind.into());
+        self
+    }
+}
+
+
 // ============
 // === Kind ===
 // ============
@@ -135,6 +149,21 @@ impl Kind {
 
 
 // === Impls ===
+
+impl HasKind for Kind {
+    fn kind(&self) -> &Kind {
+        self
+    }
+}
+
+impl HasKindMut for Kind {
+    fn kind_mut(&mut self) -> &mut Kind {
+        self
+    }
+    fn set_kind(&mut self, kind:Kind) {
+        *self = kind;
+    }
+}
 
 impl Default for Kind {
     fn default() -> Self {

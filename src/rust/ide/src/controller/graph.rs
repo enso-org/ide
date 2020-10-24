@@ -20,6 +20,7 @@ use ast::crumbs::InfixCrumb;
 use enso_protocol::language_server;
 use parser::Parser;
 use span_tree::SpanTree;
+use span_tree::traits::*;
 use span_tree::action::Actions;
 use span_tree::action::Action;
 use span_tree::generate::Context as SpanTreeContext;
@@ -363,7 +364,7 @@ impl EndpointInfo {
         //  Unpleasant. Likely there should be something in span tree that allows obtaining
         //  sequence of nodes between root and given crumb. Or sth.
         let mut parent_port = self.parent_port_of(&self.endpoint.port);
-        while parent_port.contains_if(|p| p.node.kind == span_tree::node::Kind::Chained) {
+        while parent_port.contains_if(|p| p.node.kind() == &span_tree::node::Kind::Chained) {
             parent_port = parent_port.and_then(|p| self.parent_port_of(&p.crumbs));
         }
         parent_port

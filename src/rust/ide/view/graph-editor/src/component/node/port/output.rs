@@ -624,7 +624,7 @@ pub struct OutputPorts {
 impl OutputPorts {
     /// Constructor.
     pub fn new(scene:&Scene) -> Self {
-        let pattern_span_tree = SpanTree::<()>::default();
+        let pattern_span_tree = SpanTree::<span_tree::node::Kind>::default();
         let network           = default();
         let id_map            = default();
         let frp               = Frp::new(&network,&id_map);

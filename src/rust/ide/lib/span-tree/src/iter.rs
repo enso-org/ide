@@ -4,6 +4,7 @@ use crate::prelude::*;
 use crate::Node;
 use crate::node;
 use crate::node::Payload;
+use crate::node::kind::HasKindMut;
 
 
 
@@ -37,7 +38,7 @@ pub struct LeafIterator<'a,T> {
     fragment  : TreeFragment,
 }
 
-impl<'a,T:Payload> Iterator for LeafIterator<'a,T> {
+impl<'a,T:Payload+HasKindMut> Iterator for LeafIterator<'a,T> {
     type Item = node::Ref<'a,T>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -53,7 +54,7 @@ impl<'a,T:Payload> Iterator for LeafIterator<'a,T> {
     }
 }
 
-impl<'a,T> LeafIterator<'a,T> {
+impl<'a,T:Payload+HasKindMut> LeafIterator<'a,T> {
     /// Create iterator iterating over leafs of subtree rooted  on `node`.
     pub fn new(node: node::Ref<'a,T>, fragment:TreeFragment) -> Self {
         let stack     = vec![StackFrame {node:&node.node, child_being_visited:0}];
@@ -92,7 +93,7 @@ impl<'a,T> LeafIterator<'a,T> {
     fn can_descend(&self, current_node:&Node<T>) -> bool {
         match &self.fragment {
             TreeFragment::AllNodes               => true,
-            TreeFragment::ChainAndDirectChildren => current_node.kind == node::Kind::Chained,
+            TreeFragment::ChainAndDirectChildren => current_node.kind() == &node::Kind::Chained,
         }
     }
 }

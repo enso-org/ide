@@ -28,8 +28,7 @@ pub trait Payload = Default + Clone;
 /// AST node.
 #[derive(Clone,Debug,Default,Eq,PartialEq)]
 #[allow(missing_docs)]
-pub struct Node<T> {
-    pub kind     : Kind,
+pub struct Node<T=Kind> {
     pub size     : Size,
     pub children : Vec<Child<T>>,
     pub ast_id   : Option<ast::Id>,
@@ -46,6 +45,22 @@ impl<T> Deref for Node<T> {
 impl<T> DerefMut for Node<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.payload
+    }
+}
+
+impl<T:HasKind> HasKind for Node<T> {
+    fn kind(&self) -> &Kind {
+        self.payload.kind()
+    }
+}
+
+impl<T:HasKindMut> HasKindMut for Node<T> {
+    fn kind_mut(&mut self) -> &mut Kind {
+        self.payload.kind_mut()
+    }
+
+    fn set_kind(&mut self, kind:Kind) {
+        self.payload.set_kind(kind)
     }
 }
 
@@ -76,10 +91,10 @@ impl<T:Payload> Node<T> {
         self
     }
 
-    /// Is this node empty?
-    pub fn is_insertion_point(&self) -> bool {
-        self.kind.is_insertion_point()
-    }
+    // /// Is this node empty?
+    // pub fn is_insertion_point(&self) -> bool {
+    //     self.kind.is_insertion_point()
+    // }
 }
 
 
@@ -87,7 +102,7 @@ impl<T:Payload> Node<T> {
 
 #[allow(missing_docs)]
 impl<T> Node<T> {
-    pub fn with_kind     (mut self, k:impl Into<Kind>) -> Self { self.kind = k.into(); self }
+    // pub fn with_kind     (mut self, k:impl Into<Kind>) -> Self { self.kind = k.into(); self }
     pub fn with_size     (mut self, size:Size)         -> Self { self.size = size; self }
     pub fn with_children (mut self, ts:Vec<Child<T>>)  -> Self { self.children = ts; self }
     pub fn with_ast_id   (mut self, id:ast::Id)        -> Self { self.ast_id = Some(id); self }
@@ -97,13 +112,13 @@ impl<T> Node<T> {
 
 // === Kind getters & setters ===
 
-#[allow(missing_docs)]
-impl<T> Node<T> {
-    pub fn name          (&self) -> Option<&String>      { self.kind.name() }
-    pub fn tp            (&self) -> Option<&String>      { self.kind.tp() }
-    pub fn argument_info (&self) -> Option<ArgumentInfo> { self.kind.argument_info() }
-    pub fn set_argument_info(&mut self, i:ArgumentInfo)  { self.kind.set_argument_info(i); }
-}
+// #[allow(missing_docs)]
+// impl<T> Node<T> {
+//     pub fn name          (&self) -> Option<&String>      { self.kind.name() }
+//     pub fn tp            (&self) -> Option<&String>      { self.kind.tp() }
+//     pub fn argument_info (&self) -> Option<ArgumentInfo> { self.kind.argument_info() }
+//     pub fn set_argument_info(&mut self, i:ArgumentInfo)  { self.kind.set_argument_info(i); }
+// }
 
 
 
@@ -190,7 +205,8 @@ impl<T:Payload> ChildBuilder<T> {
     , size   : usize
     , kind   : Kind
     , crumbs : impl IntoCrumbs
-    , f      : impl FnOnce(Self)->Self) -> Self {
+    , f      : impl FnOnce(Self)->Self) -> Self
+    where T:HasKindMut {
         let child : ChildBuilder<T> = ChildBuilder::new(default());
         let child = f(child.offset(offset).size(size).kind(kind).crumbs(crumbs));
         self.node.children.push(child.child);
@@ -210,8 +226,9 @@ impl<T:Payload> ChildBuilder<T> {
     }
 
     /// Kind setter.
-    pub fn kind(mut self, kind:impl Into<Kind>) -> Self {
-        self.node.kind = kind.into();
+    pub fn kind(mut self, kind:impl Into<Kind>) -> Self
+    where T:HasKindMut {
+        self.node.set_kind(kind.into());
         self
     }
 
@@ -274,7 +291,7 @@ pub struct InvalidCrumb {
 
 /// A reference to node inside some specific tree.
 #[derive(Clone,Debug)]
-pub struct Ref<'a,T=()> {
+pub struct Ref<'a,T=Kind> {
     /// The node's ref.
     pub node       : &'a Node<T>,
     /// Span begin being an index counted from the root expression.
@@ -287,14 +304,14 @@ pub struct Ref<'a,T=()> {
 
 /// A result of `get_subnode_by_ast_crumbs`
 #[derive(Clone,Debug)]
-pub struct NodeFoundByAstCrumbs<'a,'b,T=()> {
+pub struct NodeFoundByAstCrumbs<'a,'b,T=Kind> {
     /// A node being a result of the lookup.
     pub node       : Ref<'a,T>,
     /// AST crumbs locating the searched AST node inside the AST of found SpanTree node.
     pub ast_crumbs : &'b [ast::Crumb],
 }
 
-impl<'a,T:Payload> Ref<'a,T> {
+impl<'a,T:Payload+HasKindMut> Ref<'a,T> {
     /// Get span of current node.
     pub fn span(&self) -> enso_data::text::Span {
         enso_data::text::Span::new(self.span_begin,self.node.size)
@@ -337,7 +354,8 @@ impl<'a,T:Payload> Ref<'a,T> {
 
     /// Iterator over all children of operator/prefix chain starting from this node. See crate's
     /// documentation for more information about _chaining_.
-    pub fn chain_children_iter(self) -> impl Iterator<Item=Ref<'a,T>> {
+    pub fn chain_children_iter(self) -> impl Iterator<Item=Ref<'a,T>>
+    where T:HasKindMut {
         LeafIterator::new(self, TreeFragment::ChainAndDirectChildren)
     }
 

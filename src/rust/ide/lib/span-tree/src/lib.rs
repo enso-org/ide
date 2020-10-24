@@ -31,12 +31,15 @@ pub use node::Node;
 pub use node::Crumb;
 pub use node::Crumbs;
 pub use node::Payload;
+pub use node::kind::HasKindMut;
 
 /// Module gathering all commonly used traits for massive importing.
 pub mod traits {
     pub use crate::action::Actions;
     pub use crate::generate::SpanTreeGenerator;
     pub use crate::builder::Builder;
+    pub use crate::node::kind::HasKind;
+    pub use crate::node::kind::HasKindMut;
 }
 
 /// Common types that should be visible across the whole crate.
@@ -90,12 +93,12 @@ impl ArgumentInfo {
 /// This structure is used to have some specific node marked as root node, to avoid confusion
 /// regarding SpanTree crumbs and AST crumbs.
 #[derive(Clone,Debug,Eq,PartialEq)]
-pub struct SpanTree<T=()> {
+pub struct SpanTree<T=node::Kind> {
     /// A root node of the tree.
     pub root : Node<T>
 }
 
-impl<T:Payload> SpanTree<T> {
+impl<T:Payload+HasKindMut> SpanTree<T> {
     /// Create span tree from something that could generate it (usually AST).
     pub fn new(generator:&impl SpanTreeGenerator<T>, context:&impl Context) -> FallibleResult<Self> {
         generator.generate_tree(context)
@@ -118,7 +121,7 @@ impl<T:Payload> SpanTree<T> {
     }
 }
 
-impl<T:Payload> Default for SpanTree<T> {
+impl<T:Payload+HasKindMut> Default for SpanTree<T> {
     fn default() -> Self {
         let root = Node::<T>::new().with_kind(node::Kind::Root);
         Self {root}

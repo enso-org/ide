@@ -20,6 +20,7 @@ use ensogl_text as text;
 use ensogl_text::buffer;
 use ensogl_theme as theme;
 use span_tree::SpanTree;
+use span_tree::traits::*;
 use text::Bytes;
 use text::Text;
 
@@ -316,10 +317,10 @@ impl Manager {
                 Some(node) => {
                     let span            = node.span();
                     let contains_root   = span.index.value == 0;
-                    let is_empty        = node.kind.is_positional_insertion_point();
-                    let is_opr          = node.kind.is_operation();
+                    let is_empty        = node.kind().is_positional_insertion_point();
+                    let is_opr          = node.kind().is_operation();
                     let skip            = contains_root || is_empty || is_opr;
-                    let is_expected_arg = node.kind.is_expected_argument();
+                    let is_expected_arg = node.kind().is_expected_argument();
 
                     // FIXME: How to properly discover self? Like `image.blur 15`, to disable
                     // 'blur' port?

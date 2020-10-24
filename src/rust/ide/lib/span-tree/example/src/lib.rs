@@ -25,7 +25,7 @@ pub fn main() {
     let val              = ast::crumbs::SegmentMatchCrumb::Body {val:pattern_cr};
     let parens_cr1       = ast::crumbs::MatchCrumb::Segs {val:val.clone(),index:0};
     let parens_cr        = ast::crumbs::MatchCrumb::Segs {val,index:0};
-    let _input_span_tree = builder::TreeBuilder::<()>::new(36)
+    let _input_span_tree = builder::TreeBuilder::<node::Kind>::new(36)
         .add_child(0,14,node::Kind::Chained,PrefixCrumb::Func)
             .add_child(0,9,node::Kind::Operation,PrefixCrumb::Func)
                 .set_ast_id(Uuid::new_v4())
@@ -54,7 +54,7 @@ pub fn main() {
         .add_empty_child(36,InsertionPointType::Append)
         .build();
 
-    let input_span_tree2 = Node::<()>::new()
+    let input_span_tree2 = Node::<node::Kind>::new()
         .new_child(|t|t
             .new_ast_id()
             .kind(node::Kind::Chained)

@@ -4,6 +4,7 @@
 use crate::prelude::*;
 
 use crate::node;
+use crate::node::kind::HasKind;
 
 use ast::Ast;
 use ast::Shifted;
@@ -107,9 +108,9 @@ pub trait Implementation {
     fn erase_impl(&self) -> Option<EraseOperation>;
 }
 
-impl<'a,T> Implementation for node::Ref<'a,T> {
+impl<'a,T:HasKind> Implementation for node::Ref<'a,T> {
     fn set_impl(&self) -> Option<SetOperation> {
-        match &self.node.kind {
+        match &self.node.kind() {
             node::Kind::InsertionPoint(ins_point) => Some(Box::new(move |root,new| {
                 use node::InsertionPointType::*;
                 let kind           = &ins_point.kind;
@@ -170,13 +171,13 @@ impl<'a,T> Implementation for node::Ref<'a,T> {
 
 
     fn erase_impl(&self) -> Option<EraseOperation> {
-        if (self.node.kind.is_argument() || self.node.kind.is_this()) && self.node.kind.removable() {
+        if (self.node.kind().is_argument() || self.node.kind().is_this()) && self.node.kind().removable() {
             Some(Box::new(move |root| {
                 let parent_crumb = &self.ast_crumbs[..self.ast_crumbs.len()-1];
                 let ast          = root.get_traversing(parent_crumb)?;
                 let new_ast = modify_preserving_id(ast, |ast|
                     if let Some(mut infix) = ast::opr::Chain::try_new(&ast) {
-                        match self.node.kind {
+                        match self.node.kind() {
                             node::Kind::This {..} => {infix.erase_target(); }
                             _                     => {infix.args.pop();     }
                         }

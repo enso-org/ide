@@ -9,6 +9,7 @@ use crate::ArgumentInfo;
 use crate::SpanTree;
 use crate::generate::context::CalledMethodInfo;
 use crate::node;
+use crate::node::kind::HasKindMut;
 use crate::node::InsertionPointType;
 use crate::node::Payload;
 
@@ -58,7 +59,7 @@ struct ChildGenerator<T> {
     children       : Vec<node::Child<T>>,
 }
 
-impl<T:Payload> ChildGenerator<T> {
+impl<T:Payload+HasKindMut> ChildGenerator<T> {
     /// Add spacing to current generator state. It will be taken into account for the next generated
     /// children's offsets
     fn spacing(&mut self, size:usize) {
@@ -150,14 +151,14 @@ impl<'a> ApplicationBase<'a> {
 
 // === AST ===
 
-impl<T:Payload> SpanTreeGenerator<T> for Ast {
+impl<T:Payload+HasKindMut> SpanTreeGenerator<T> for Ast {
     fn generate_node
     (&self, kind:impl Into<node::Kind>, context:&impl Context) -> FallibleResult<Node<T>> {
         generate_node_for_ast(self,kind.into(),context)
     }
 }
 
-fn generate_node_for_ast<T:Payload>
+fn generate_node_for_ast<T:Payload+HasKindMut>
 (ast:&Ast, kind:node::Kind, context:&impl Context) -> FallibleResult<Node<T>> {
     // Code like `ast.func` or `a+b+c`.
     if let Some(infix) = GeneralizedInfix::try_new(ast) {
@@ -191,11 +192,10 @@ fn generate_node_for_ast<T:Payload>
                 let ast_id   = ast.id;
                 let children = default();
                 let name     = ast::identifier::name(ast);
-                let payload  = default();
                 if let Some(info) = ast.id.and_then(|id| context.call_info(id, name)) {
                     let node = {
-                        let kind = node::Kind::Operation;
-                        Node {size,children,ast_id,payload,kind}
+                        let payload = default::<T>().with_kind(node::Kind::Operation);
+                        Node {size,children,ast_id,payload}
                     };
                     // Note that in this place it is impossible that Ast is in form of
                     // `this.method` -- it is covered by the former if arm. As such, we don't
@@ -204,7 +204,8 @@ fn generate_node_for_ast<T:Payload>
                     let params                    = info.parameters.into_iter();
                     Ok(generate_expected_arguments(node,kind,provided_prefix_arg_count,params))
                 } else {
-                    Ok(Node {kind,size,children,ast_id,payload})
+                    let payload = default::<T>().with_kind(kind);
+                    Ok(Node {size,children,ast_id,payload})
                 }
             },
         }
@@ -214,14 +215,14 @@ fn generate_node_for_ast<T:Payload>
 
 // === Operators (Sections and Infixes) ===
 
-impl<T:Payload> SpanTreeGenerator<T> for ast::opr::Chain {
+impl<T:Payload+HasKindMut> SpanTreeGenerator<T> for ast::opr::Chain {
     fn generate_node
     (&self, kind:impl Into<node::Kind>, context:&impl Context) -> FallibleResult<Node<T>> {
         generate_node_for_opr_chain(self,kind.into(),context)
     }
 }
 
-fn generate_node_for_opr_chain<T:Payload>
+fn generate_node_for_opr_chain<T:Payload+HasKindMut>
 (this:&ast::opr::Chain, kind:node::Kind, context:&impl Context)
 -> FallibleResult<Node<T>> {
     // Removing operands is possible only when chain has at least 3 of them
@@ -243,7 +244,7 @@ fn generate_node_for_opr_chain<T:Payload>
         let (node,off)  = result?;
         let is_first    = i == 0;
         let is_last     = i + 1 == this.args.len();
-        let has_left    = !node.is_insertion_point();
+        let has_left    = !node.kind().is_insertion_point();
         // Target is a first element of chain in this context.
         let has_target  = is_first && has_left;
         let opr_crumbs  = elem.crumb_to_operator(has_left);
@@ -269,12 +270,12 @@ fn generate_node_for_opr_chain<T:Payload>
             gen.reverse_children();
         }
 
+        let kind = if is_last {kind.clone()} else {node::Kind::Chained};
         Ok((Node {
-            kind     : if is_last {kind.clone()} else {node::Kind::Chained},
             size     : gen.current_offset,
             children : gen.children,
             ast_id   : elem.infix_id,
-            payload  : default(),
+            payload  : default::<T>().with_kind(kind),
         }, elem.offset))
     })?;
     Ok(node)
@@ -283,14 +284,14 @@ fn generate_node_for_opr_chain<T:Payload>
 
 // === Application ===
 
-impl<T:Payload> SpanTreeGenerator<T> for ast::prefix::Chain {
+impl<T:Payload+HasKindMut> SpanTreeGenerator<T> for ast::prefix::Chain {
     fn generate_node
     (&self, kind:impl Into<node::Kind>, context:&impl Context) -> FallibleResult<Node<T>> {
         generate_node_for_prefix_chain(self,kind.into(),context)
     }
 }
 
-fn generate_node_for_prefix_chain<T:Payload>
+fn generate_node_for_prefix_chain<T:Payload+HasKindMut>
 (this:&ast::prefix::Chain, kind:node::Kind, context:&impl Context)
 -> FallibleResult<Node<T>> {
     let base             = ApplicationBase::new(&this.func);
@@ -322,17 +323,17 @@ fn generate_node_for_prefix_chain<T:Payload>
         let arg_ast      = arg.sast.wrapped.clone_ref();
         let arg_child  : &mut node::Child<T>   = gen.generate_ast_node(Located::new(Arg,arg_ast),arg_kind,context)?;
         if let Some(info) = known_params.next() {
-            arg_child.node.set_argument_info(info)
+            arg_child.node.kind_mut().set_argument_info(info);
         }
         if !known_args {
             gen.generate_empty_node(InsertionPointType::Append);
         }
+        let kind = if is_last {kind.clone()} else {node::Kind::Chained};
         Ok(Node {
-            kind     : if is_last {kind.clone()} else {node::Kind::Chained},
             size     : gen.current_offset,
             children : gen.children,
             ast_id   : arg.prefix_id,
-            payload  : default(),
+            payload  : default::<T>().with_kind(kind),
         })
     })?;
 
@@ -342,14 +343,14 @@ fn generate_node_for_prefix_chain<T:Payload>
 
 // === Match ===
 
-impl<T:Payload> SpanTreeGenerator<T> for ast::known::Match {
+impl<T:Payload+HasKindMut> SpanTreeGenerator<T> for ast::known::Match {
     fn generate_node
     (&self, kind:impl Into<node::Kind>, context:&impl Context) -> FallibleResult<Node<T>> {
         generate_node_for_known_match(self,kind.into(),context)
     }
 }
 
-fn generate_node_for_known_match<T:Payload>
+fn generate_node_for_known_match<T:Payload+HasKindMut>
 (this:&ast::known::Match, kind:node::Kind, context:&impl Context)
 -> FallibleResult<Node<T>> {
     let removable     = false;
@@ -369,15 +370,15 @@ fn generate_node_for_known_match<T:Payload>
         gen.spacing(segment.off);
         generate_children_from_segment(&mut gen,index+1,&segment.wrapped,context)?;
     }
-    Ok(Node {kind,
+    Ok(Node {
         size     : gen.current_offset,
         children : gen.children,
         ast_id   : this.id(),
-        payload  : default(),
+        payload  : default::<T>().with_kind(kind),
     })
 }
 
-fn generate_children_from_segment<T:Payload>
+fn generate_children_from_segment<T:Payload+HasKindMut>
 (gen:&mut ChildGenerator<T>, index:usize, segment:&MacroMatchSegment<Ast>, context:&impl Context)
 -> FallibleResult {
     let children_kind = node::Kind::argument();
@@ -395,14 +396,14 @@ fn generate_children_from_segment<T:Payload>
 
 // === Ambiguous ==
 
-impl<T:Payload> SpanTreeGenerator<T> for ast::known::Ambiguous {
+impl<T:Payload+HasKindMut> SpanTreeGenerator<T> for ast::known::Ambiguous {
     fn generate_node
     (&self, kind:impl Into<node::Kind>, context:&impl Context) -> FallibleResult<Node<T>> {
         generate_node_for_known_ambiguous(self,kind.into(),context)
     }
 }
 
-fn generate_node_for_known_ambiguous<T:Payload>
+fn generate_node_for_known_ambiguous<T:Payload+HasKindMut>
 (this:&ast::known::Ambiguous, kind:node::Kind, context:&impl Context) -> FallibleResult<Node<T>> {
     let mut gen             = ChildGenerator::default();
     let first_segment_index = 0;
@@ -411,15 +412,15 @@ fn generate_node_for_known_ambiguous<T:Payload>
         gen.spacing(segment.off);
         generate_children_from_ambiguous(&mut gen, index+1, &segment.wrapped, context)?;
     }
-    Ok(Node{kind,
+    Ok(Node{
         size     : gen.current_offset,
         children : gen.children,
         ast_id   : this.id(),
-        payload  : default(),
+        payload  : default::<T>().with_kind(kind),
     })
 }
 
-fn generate_children_from_ambiguous<T:Payload>
+fn generate_children_from_ambiguous<T:Payload+HasKindMut>
 ( gen     : &mut ChildGenerator<T>
 , index   : usize
 , segment : &MacroAmbiguousSegment<Ast>
@@ -444,23 +445,23 @@ fn generate_children_from_ambiguous<T:Payload>
 ///
 /// `index` is the argument's position in the prefix chain which may be different from parameter
 /// index in the method's parameter list.
-fn generate_expected_argument<T:Payload>
+fn generate_expected_argument<T:Payload+HasKindMut>
 (node:Node<T>, kind:node::Kind, index:usize, is_last:bool, argument_info:ArgumentInfo) -> Node<T> {
     println!("Will generate missing argument node for {:?}",argument_info);
     let mut gen = ChildGenerator::default();
     gen.add_node(ast::Crumbs::new(),node);
     let arg_node = gen.generate_empty_node(InsertionPointType::ExpectedArgument(index));
-    arg_node.node.set_argument_info(argument_info);
+    arg_node.node.kind_mut().set_argument_info(argument_info);
+    let kind = if is_last {kind} else {node::Kind::Chained};
     Node {
-        kind     : if is_last {kind} else {node::Kind::Chained},
         size     : gen.current_offset,
         children : gen.children,
         ast_id   : None,
-        payload  : default(),
+        payload  : default::<T>().with_kind(kind),
     }
 }
 
-fn generate_expected_arguments<T:Payload>
+fn generate_expected_arguments<T:Payload+HasKindMut>
 ( node                      : Node<T>
 , kind                      : node::Kind
 , supplied_prefix_arg_count : usize
