@@ -103,12 +103,12 @@ impl<T:Payload> SpanTree<T> {
 
     /// Get the `NodeRef` of root node.
     pub fn root_ref(&self) -> node::Ref<T> {
-        node::Ref {
-            node       : &self.root,
-            span_begin : default(),
-            crumbs     : default(),
-            ast_crumbs : default()
-        }
+        node::Ref::new(&self.root)
+    }
+
+    /// Get the `NodeRef` of root node.
+    pub fn root_ref_mut(&mut self) -> node::RefMut<T> {
+        node::RefMut::new(&mut self.root)
     }
 
     /// Get the node (root, child, or further descendant) identified by `crumbs`.

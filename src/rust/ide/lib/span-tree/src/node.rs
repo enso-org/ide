@@ -58,21 +58,9 @@ impl<T:Payload> Node<T> {
         default()
     }
 
-    /// Define a new child by using the `ChildBuilder` pattern.
-    pub fn add_child_builder(&mut self, f:impl FnOnce(ChildBuilder<T>)->ChildBuilder<T>) {
-        let mut new_child = Child::default();
-        let offset        = self.size;
-        new_child.offset  = offset;
-        let builder       = ChildBuilder::new(new_child);
-        let child         = f(builder).child;
-        let offset_diff   = child.offset - offset;
-        self.size += child.size + offset_diff;
-        self.children.push(child);
-    }
-
     /// Define a new child by using the `ChildBuilder` pattern. Consumes self.
     pub fn new_child(mut self, f:impl FnOnce(ChildBuilder<T>)->ChildBuilder<T>) -> Self {
-        self.add_child_builder(f);
+        ChildBuilder::apply_to_node(&mut self,f);
         self
     }
 
@@ -177,8 +165,20 @@ impl<T:Payload> ChildBuilder<T> {
     /// child constructor. This function will automatically compute all not provided properties,
     /// such as span or offset. Moreover, it will default all other not provided fields.
     pub fn new_child(mut self, f:impl FnOnce(Self)->Self) -> Self {
-        self.node.add_child_builder(f);
+        Self::apply_to_node(&mut self.node,f);
         self
+    }
+
+    /// Define a new child by using the `ChildBuilder` pattern.
+    fn apply_to_node(node:&mut Node<T>, f:impl FnOnce(ChildBuilder<T>)->ChildBuilder<T>) {
+        let mut new_child = Child::default();
+        let offset        = node.size;
+        new_child.offset  = offset;
+        let builder       = ChildBuilder::new(new_child);
+        let child         = f(builder).child;
+        let offset_diff   = child.offset - offset;
+        node.size += child.size + offset_diff;
+        node.children.push(child);
     }
 
     /// Add new child and use the `ChildBuilder` pattern to define its properties. This function
@@ -295,26 +295,37 @@ pub struct NodeFoundByAstCrumbs<'a,'b,T=()> {
 }
 
 impl<'a,T:Payload> Ref<'a,T> {
+    /// Constructor.
+    pub fn new(node:&'a Node<T>) -> Self {
+        let span_begin = default();
+        let crumbs     = default();
+        let ast_crumbs = default();
+        Self {node,span_begin,crumbs,ast_crumbs}
+    }
+
     /// Get span of current node.
     pub fn span(&self) -> enso_data::text::Span {
         enso_data::text::Span::new(self.span_begin,self.node.size)
     }
 
     /// Get the reference to child with given index. Fails if index if out of bounds.
-    pub fn child(mut self, index:usize) -> FallibleResult<Ref<'a,T>> {
-        let err = || InvalidCrumb {
-            crumb   : index,
-            count   : self.node.children.len(),
-            context : self.crumbs.clone()
-        }.into();
+    pub fn child(self, index:usize) -> FallibleResult<Self> {
+        let node           = self.node;
+        let mut span_begin = self.span_begin;
+        let mut crumbs     = self.crumbs;
+        let mut ast_crumbs = self.ast_crumbs;
+        let count          = node.children.len();
 
-        self.node.children.get(index).ok_or_else(err).map(|child| {
-            self.crumbs.push(index);
-            self.ast_crumbs.extend(child.ast_crumbs.clone());
-            self.span_begin += child.offset;
-            self.node = &child.node;
-            self
-        })
+        match node.children.get(index) {
+            None        => Err(InvalidCrumb {count, crumb:index, context:crumbs}.into()),
+            Some(child) => {
+                let node = &child.node;
+                span_begin += child.offset;
+                crumbs.push(index);
+                ast_crumbs.extend(child.ast_crumbs.iter().cloned());
+                Ok(Self{node,span_begin,crumbs,ast_crumbs})
+            },
+        }
     }
 
     /// Iterator over all direct children producing `Ref`s.
@@ -398,6 +409,106 @@ impl<'a,T> Deref for Ref<'a,T> {
 
 
 
+// ==============
+// === RefMut ===
+// ==============
+
+/// A mutable reference to node inside some specific tree. Please note that tree structure
+/// modification is disallowed. The only part that can be modified is the payload.
+#[derive(Debug)]
+pub struct RefMut<'a,T=()> {
+    /// The node's ref.
+    node           : &'a mut Node<T>,
+    /// Span begin being an index counted from the root expression.
+    pub span_begin : Index,
+    /// Crumbs specifying this node position related to root.
+    pub crumbs     : Crumbs,
+    /// Ast crumbs locating associated AST node, related to the root's AST node.
+    pub ast_crumbs : ast::Crumbs,
+}
+
+impl<'a,T:Payload> RefMut<'a,T> {
+    /// Constructor.
+    pub fn new(node:&'a mut Node<T>) -> Self {
+        let span_begin = default();
+        let crumbs     = default();
+        let ast_crumbs = default();
+        Self {node,span_begin,crumbs,ast_crumbs}
+    }
+
+    /// Mutable payload accessor.
+    pub fn payload(&mut self) -> &mut T {
+        &mut self.node.payload
+    }
+
+    /// Get span of current node.
+    pub fn span(&self) -> enso_data::text::Span {
+        enso_data::text::Span::new(self.span_begin,self.node.size)
+    }
+
+    /// Get the reference to child with given index. Fails if index if out of bounds.
+    pub fn child(self, index:usize) -> FallibleResult<RefMut<'a,T>> {
+        let node           = self.node;
+        let mut span_begin = self.span_begin;
+        let mut crumbs     = self.crumbs;
+        let mut ast_crumbs = self.ast_crumbs;
+        let count          = node.children.len();
+
+        match node.children.get_mut(index) {
+            None        => Err(InvalidCrumb {count, crumb:index, context:crumbs}.into()),
+            Some(child) => {
+                let node = &mut child.node;
+                span_begin += child.offset;
+                crumbs.push(index);
+                ast_crumbs.extend(child.ast_crumbs.iter().cloned());
+                Ok(Self{node,span_begin,crumbs,ast_crumbs})
+            },
+        }
+    }
+
+    /// Get the reference to child with given index. Fails if index if out of bounds.
+    pub fn child_ref(&'a mut self, index:usize) -> FallibleResult<RefMut<'a,T>> {
+        let node           = &mut self.node;
+        let mut span_begin = self.span_begin;
+        let mut crumbs     = self.crumbs.clone();
+        let mut ast_crumbs = self.ast_crumbs.clone();
+        let count          = node.children.len();
+
+        match node.children.get_mut(index) {
+            None        => Err(InvalidCrumb {count, crumb:index, context:crumbs}.into()),
+            Some(child) => {
+                let node = &mut child.node;
+                span_begin += child.offset;
+                crumbs.push(index);
+                ast_crumbs.extend(child.ast_crumbs.iter().cloned());
+                Ok(Self{node,span_begin,crumbs,ast_crumbs})
+            },
+        }
+    }
+
+    // /// Iterator over all direct children producing `Ref`s.
+    // pub fn children_iter(mut self) -> impl Iterator<Item=RefMut<'a,T>> {
+    //     let children_count = self.node.children.len();
+    //     let this : &'a mut Self = &mut self;
+    //     (0..children_count).map(move |i| {
+    //         let xx : FallibleResult<RefMut<'a,T>> = <RefMut<'a,T>>::child_ref(this,i);
+    //         xx.unwrap()
+    //     })
+    // }
+
+    /// Get the sub-node (child, or further descendant) identified by `crumbs`.
+    pub fn get_descendant<'b>
+    (self, crumbs:impl IntoIterator<Item=&'b Crumb>) -> FallibleResult<Self> {
+        let mut iter = crumbs.into_iter();
+        match iter.next() {
+            Some(index) => self.child(*index).and_then(|child| child.get_descendant(iter)),
+            None        => Ok(self)
+        }
+    }
+}
+
+
+
 // ============
 // === Test ===
 // ============
@@ -448,10 +559,10 @@ mod test {
 
         // crumbs
         assert_eq!(root.crumbs        , Vec::<usize>::new());
-        assert_eq!(child1.crumbs      , [0]            );
-        assert_eq!(child2.crumbs      , [2]            );
-        assert_eq!(grand_child1.crumbs, [2,0]          );
-        assert_eq!(grand_child2.crumbs, [2,1]          );
+        assert_eq!(child1.crumbs      , [0]   );
+        assert_eq!(child2.crumbs      , [2]   );
+        assert_eq!(grand_child1.crumbs, [2,0] );
+        assert_eq!(grand_child2.crumbs, [2,1] );
 
         // AST crumbs
         assert_eq!(root.ast_crumbs        , []                                      );

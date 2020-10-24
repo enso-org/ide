@@ -222,7 +222,7 @@ impl Manager {
         let frp        = Frp::new_network();
         let network    = &frp.network;
         let text_color = ColorAnimation::new(&app);
-        let style     = StyleWatch::new(&app.display.scene().style_sheet);
+        let style      = StyleWatch::new(&app.display.scene().style_sheet);
 
 
         frp::extend! { network
