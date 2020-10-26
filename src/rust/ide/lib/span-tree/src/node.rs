@@ -68,6 +68,16 @@ impl<T:Payload> Node<T> {
     pub fn is_insertion_point(&self) -> bool {
         self.kind.is_insertion_point()
     }
+
+    /// Payload mapping utility.
+    pub fn map<S>(self, f:impl Fn(T)->S) -> Node<S> {
+        let kind     = self.kind;
+        let size     = self.size;
+        let children = self.children.into_iter().map(|t|t.map(&f)).collect_vec();
+        let ast_id   = self.ast_id;
+        let payload  = f(self.payload);
+        Node {kind,size,children,ast_id,payload}
+    }
 }
 
 
@@ -109,6 +119,16 @@ pub struct Child<T=()> {
     pub offset     : Size,
     /// AST crumbs which lead from parent to child associated AST node.
     pub ast_crumbs : ast::Crumbs,
+}
+
+impl<T:Payload> Child<T> {
+    /// Payload mapping utility.
+    pub fn map<S>(self, f:&impl Fn(T)->S) -> Child<S> {
+        let node       = self.node.map(f);
+        let offset     = self.offset;
+        let ast_crumbs = self.ast_crumbs;
+        Child {node,offset,ast_crumbs}
+    }
 }
 
 impl<T> Deref for Child<T> {

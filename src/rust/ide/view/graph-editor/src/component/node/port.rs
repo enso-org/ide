@@ -79,7 +79,7 @@ impl Expression {
     }
 }
 
-fn get_id_for_crumbs(span_tree:&SpanTree, crumbs:&[span_tree::Crumb]) -> Option<ast::Id> {
+fn get_id_for_crumbs(span_tree:&SpanTree<SpanTreeData>, crumbs:&[span_tree::Crumb]) -> Option<ast::Id> {
     if span_tree.root_ref().crumbs == crumbs {
         return span_tree.root.ast_id
     };
@@ -103,6 +103,38 @@ impl From<&Expression> for Expression {
 
 
 
+// ===================
+// === Expression2 ===
+// ===================
+
+#[derive(Clone,Default,Debug)]
+pub struct SpanTreeData {
+    pub name : Option<String>
+}
+
+#[derive(Clone,Default)]
+pub struct Expression2 {
+    pub code             : String,
+    pub input_span_tree  : SpanTree<SpanTreeData>,
+}
+
+impl Debug for Expression2 {
+    fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f,"Expression({})",self.code)
+    }
+}
+
+impl From<Expression> for Expression2 {
+    fn from(t:Expression) -> Self {
+        let code            = t.code;
+        let input_span_tree = t.input_span_tree.map(|_|default());
+        Self {code,input_span_tree}
+    }
+}
+
+
+
+
 // ===========
 // === FRP ===
 // ===========
@@ -119,11 +151,11 @@ ensogl::define_endpoints! {
 
     Output {
         pointer_style (cursor::Style),
-        press        (span_tree::Crumbs),
-        hover        (Option<span_tree::Crumbs>),
-        width        (f32),
-        expression   (Text),
-        editing      (bool),
+        press         (span_tree::Crumbs),
+        hover         (Option<span_tree::Crumbs>),
+        width         (f32),
+        expression    (Text),
+        editing       (bool),
     }
 }
 
@@ -140,7 +172,7 @@ pub struct Model {
     display_object : display::object::Instance,
     ports_group    : display::object::Instance,
     app            : Application,
-    expression     : RefCell<Expression>,
+    expression     : RefCell<Expression2>,
     label          : text::Area,
     ports          : RefCell<Vec<component::ShapeView<shape::Shape>>>,
     width          : Cell<f32>,
@@ -297,6 +329,7 @@ impl Manager {
     pub(crate) fn set_expression(&self, expression:impl Into<Expression>) {
         let model      = &self.model;
         let expression = expression.into();
+        let expression = Expression2::from(expression);
 
         let glyph_width = 7.224_609_4; // FIXME hardcoded literal
         let width       = expression.code.len() as f32 * glyph_width;

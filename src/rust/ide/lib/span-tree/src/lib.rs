@@ -116,6 +116,12 @@ impl<T:Payload> SpanTree<T> {
     (&self, crumbs:impl IntoIterator<Item=&'a Crumb>) -> FallibleResult<node::Ref<T>> {
         self.root_ref().get_descendant(crumbs)
     }
+
+    /// Payload mapping utility.
+    pub fn map<S>(self, f:impl Fn(T)->S) -> SpanTree<S> {
+        let root = self.root.map(f);
+        SpanTree {root}
+    }
 }
 
 impl<T:Payload> Default for SpanTree<T> {
