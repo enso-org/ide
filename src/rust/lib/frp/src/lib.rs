@@ -313,8 +313,8 @@ mod dynamic_mode_tests {
     fn test_filter() {
         let passed_events = Rc::new(Cell::new(0));
         frp::new_network! { network
-            def source     = source::<bool>();
-            def filtered   = source.filter(|&value| value == true);
+            def source   = source::<bool>();
+            def filtered = source.filter(|&value| value == true);
             eval filtered ([passed_events](&value) {
                 assert_eq!(value,true);
                 passed_events.set(passed_events.get() + 1);
@@ -324,6 +324,8 @@ mod dynamic_mode_tests {
         source.emit(false);
         source.emit(true);
         source.emit(true);
+        source.emit(false);
+        source.emit(false);
         assert_eq!(passed_events.get(),2);
     }
 }

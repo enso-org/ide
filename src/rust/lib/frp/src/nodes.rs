@@ -1676,27 +1676,26 @@ where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput {
 // === Filter ===
 // ==============
 
-pub struct FilterData  <T,P> { _src:T, predicate:P }
+pub struct FilterData  <T,P> { phantom:PhantomData<T>, predicate:P }
 pub type   OwnedFilter <T,P> = stream::Node     <FilterData<T,P>>;
 pub type   Filter      <T,P> = stream::WeakNode <FilterData<T,P>>;
 
 impl<T,P> HasOutput for FilterData<T,P>
-    where T:EventOutput, P:'static+Fn(&Output<T>)->bool {
+where T:EventOutput, P:'static+Fn(&Output<T>)->bool {
     type Output = Output<T>;
 }
 
 impl<T,P> OwnedFilter<T,P>
-    where T:EventOutput, P:'static+Fn(&Output<T>)->bool {
+where T:EventOutput, P:'static+Fn(&Output<T>)->bool {
     /// Constructor.
     pub fn new(label:Label, src:&T, predicate:P) -> Self {
-        let _src       = src.clone_ref();
-        let definition = FilterData {_src,predicate};
+        let definition = FilterData {phantom:PhantomData,predicate};
         Self::construct_and_connect(label,src,definition)
     }
 }
 
 impl<T,P> stream::EventConsumer<Output<T>> for OwnedFilter<T,P>
-    where T:EventOutput, P:'static+Fn(&Output<T>)->bool {
+where T:EventOutput, P:'static+Fn(&Output<T>)->bool {
     fn on_event(&self, value:&Output<T>) {
         if (self.predicate)(value) {
             self.emit_event(value);
@@ -1716,7 +1715,7 @@ impl<T,P> Debug for FilterData<T,P> {
 // === Map ===
 // ===========
 
-pub struct MapData  <T,F> { _src:T, function:F }
+pub struct MapData  <T,F> { phantom:PhantomData<T>, function:F }
 pub type   OwnedMap <T,F> = stream::Node     <MapData<T,F>>;
 pub type   Map      <T,F> = stream::WeakNode <MapData<T,F>>;
 
@@ -1729,8 +1728,7 @@ impl<T,F,Out> OwnedMap<T,F>
 where T:EventOutput, Out:Data, F:'static+Fn(&Output<T>)->Out {
     /// Constructor.
     pub fn new(label:Label, src:&T, function:F) -> Self {
-        let _src       = src.clone_ref();
-        let definition = MapData {_src,function};
+        let definition = MapData {phantom:PhantomData,function};
         Self::construct_and_connect(label,src,definition)
     }
 }
