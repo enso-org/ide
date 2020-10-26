@@ -9,10 +9,11 @@ process.on('unhandledRejection', error => { throw(error) })
 
 let args = process.argv.slice(2)
 
-let no_validation = '--no-validation'
+let skip_validation = '--skip-version-validation'
 async function init () {
-    if(!args.includes(no_validation)) {
+    if(!args.includes(skip_validation)) {
         cmd.section('Version Validation')
+        console.log("Use the `" + skip_validation + "` flag to skip it.")
         console.log("Querying npm for the latest LTS versions.")
         let node_lts_version = await cmd.get_npm_lts_version_of('node')
         let npm_lts_version  = await cmd.get_npm_lts_version_of('npm')
