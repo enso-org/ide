@@ -373,12 +373,6 @@ ensogl::define_endpoints! {
         toggle_fullscreen_for_selected_visualization(),
 
 
-        // === Project Management ===
-
-        /// Cancel project name editing, restablishing the old name.
-        cancel_project_name_editing(),
-
-
         // === Debug ===
 
         /// Push a hardcoded breadcrumb without notifying the controller.
@@ -1565,7 +1559,6 @@ impl application::View for GraphEditor {
           // === Drag ===
             (Press   , ""              , "left-mouse-button" , "node_press")
           , (Release , ""              , "left-mouse-button" , "node_release")
-          , (Press   , "!node_editing" , "escape"            , "cancel_project_name_editing")
           , (Press   , "!node_editing" , "backspace"         , "remove_selected_nodes")
           , (Press   , ""              , "cmd g"             , "collapse_selected_nodes")
 
@@ -1693,27 +1686,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
 
 
-    // ============================
-    // === Project Name Editing ===
-    // ============================
-
-    // === Commit project name edit ===
-
-    frp::extend! { network
-        eval_ touch.background.selected(model.breadcrumbs.frp.outside_press.emit(()));
-    }
-
-
-    // === Cancel project name editing ===
-
-    frp::extend! { network
-        eval_ inputs.cancel_project_name_editing(
-            model.breadcrumbs.frp.cancel_project_name_editing.emit(())
-        );
-    }
-
-
-
     // =========================
     // === User Interactions ===
     // =========================
@@ -1779,13 +1751,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
                 node.model.ports.frp.edit_mode.emit(false);
             }
         });
-    }
-
-
-    // === Cancel project name editing ===
-
-    frp::extend! { network
-        eval_ inputs.cancel_project_name_editing(model.frp.cancel_project_name_editing.emit(()));
     }
 
 

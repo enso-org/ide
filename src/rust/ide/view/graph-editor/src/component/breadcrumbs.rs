@@ -237,7 +237,7 @@ impl BreadcrumbsModel {
     /// Constructor.
     pub fn new(app:Application, frp:&Frp) -> Self {
         let scene                 = app.display.scene();
-        let project_name          = ProjectName::new(&app);
+        let project_name          = app.new_view();
         let logger                = Logger::new("Breadcrumbs");
         let display_object        = display::object::Instance::new(&logger);
         let breadcrumbs_container = display::object::Instance::new(&logger);

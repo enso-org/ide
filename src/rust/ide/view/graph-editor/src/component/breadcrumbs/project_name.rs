@@ -9,6 +9,8 @@ use crate::component::breadcrumbs::breadcrumb;
 
 use enso_frp as frp;
 use ensogl::application::Application;
+use ensogl::application::shortcut;
+use ensogl::application;
 use ensogl::data::color;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::shape::*;
@@ -108,6 +110,7 @@ impl Animations {
 #[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 struct ProjectNameModel {
+    app            : Application,
     logger         : Logger,
     display_object : display::object::Instance,
     view           : component::ShapeView<background::Shape>,
@@ -119,6 +122,7 @@ struct ProjectNameModel {
 impl ProjectNameModel {
     /// Constructor.
     fn new(app:&Application) -> Self {
+        let app                   = app.clone_ref();
         let scene                 = app.display.scene();
         let logger                = Logger::new("ProjectName");
         let display_object        = display::object::Instance::new(&logger);
@@ -143,7 +147,7 @@ impl ProjectNameModel {
         scene.views.breadcrumbs.add_shape_view(&view);
 
         let project_name          = Rc::new(RefCell::new(UNKNOWN_PROJECT_NAME.to_string()));
-        Self{logger,view,style,display_object,text_field,project_name}.init()
+        Self{app,logger,view,style,display_object,text_field,project_name}.init()
     }
 
     /// Compute the width of the ProjectName view.
@@ -172,7 +176,7 @@ impl ProjectNameModel {
     }
 
     fn reset_name(&self) {
-        info!(self.logger, "Resetting project name.");
+        debug!(self.logger, "Resetting project name.");
         self.update_text_field_content(self.project_name.borrow().as_str());
     }
 
@@ -224,7 +228,7 @@ pub struct ProjectName {
 
 impl ProjectName {
     /// Constructor.
-    pub fn new(app:&Application) -> Self {
+    fn new(app:&Application) -> Self {
         let frp     = Frp::new_network();
         let model   = Rc::new(ProjectNameModel::new(app));
         let network = &frp.network;
@@ -327,5 +331,32 @@ impl ProjectName {
 impl display::Object for ProjectName {
     fn display_object(&self) -> &display::object::Instance {
         &self.model.display_object
+    }
+}
+
+impl Deref for ProjectName {
+    type Target = Frp;
+    fn deref(&self) -> &Self::Target {
+        &self.frp
+    }
+}
+
+impl application::command::FrpNetworkProvider for ProjectName {
+    fn network(&self) -> &frp::Network { &self.frp.network }
+}
+
+impl View for ProjectName {
+    fn label() -> &'static str { "ProjectName" }
+
+    fn new(app:&Application) -> Self { ProjectName::new(app) }
+
+    fn app(&self) -> &Application { &self.model.app }
+
+    fn default_shortcuts() -> Vec<shortcut::Shortcut> {
+        use shortcut::ActionType::*;
+        (&[
+            (Press,   "enter",  "commit"        ),
+            (Release, "escape", "cancel_editing"),
+        ]).iter().map(|(a,b,c)|Self::self_shortcut(*a,*b,*c)).collect()
     }
 }
