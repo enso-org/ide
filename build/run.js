@@ -130,7 +130,6 @@ commands.build.rust = async function(argv) {
         // https://github.com/rustwasm/wasm-pack/issues/696
         // console.log('Optimizing the WASM binary.')
         // await cmd.run('npx',['wasm-opt','-O3','-o',paths.dist.wasm.mainOpt,paths.dist.wasm.main])
-
         console.log('Minimizing the WASM binary.')
         await gzip(paths.dist.wasm.main,paths.dist.wasm.mainOptGz) // TODO main -> mainOpt
 
@@ -211,7 +210,7 @@ commands.watch.rust = async function(argv) {
     let build_args = []
     if (argv.crate != undefined) { build_args.push(`--crate=${argv.crate}`) }
     build_args  = build_args.join(' ')
-    let target  = '"' + `node ${paths.script.main} build --no-js --dev ${build_args} -- ` + cargoArgs.join(" ") + '"'
+    let target  = '"' + `node ${paths.script.main} build --skip-version-validation --no-js --dev ${build_args} -- ` + cargoArgs.join(" ") + '"'
     let args    = ['watch','-s',`${target}`]
     await cmd.with_cwd(paths.rust.root, async () => {
         await cmd.run('cargo',args)
