@@ -313,6 +313,16 @@ impl Network {
     }
 
 
+    // === FilterMap ===
+
+    /// Applies the function `f` to the value of all incoming events. If the resulting `Option`
+    /// caries a value then this value is passed on. Otherwise, nothing happens.
+    pub fn filter_map<T,F,Out>(&self, label:Label, src:&T, f:F) -> Stream<Out>
+    where T:EventOutput, Out:Data, F:'static+Fn(&Output<T>)->Option<Out> {
+        self.register(OwnedFilterMap::new(label,src,f))
+    }
+
+
     // === Map ===
 
     /// On every event from the first input stream, sample all other input streams and run the
@@ -558,6 +568,14 @@ impl DynamicNetwork {
     (self, label:Label, src:&T, p:impl'static+Fn(&Output<T>)->bool)
     -> OwnedStream<Output<T>> {
         OwnedFilter::new(label,src,p).into()
+    }
+
+
+    // === FilterMap ===
+
+    pub fn filter_map<T,F,Out>(self, label:Label, src:&T, f:F) -> OwnedStream<Out>
+    where T:EventOutput, Out:Data, F:'static+Fn(&Output<T>)->Option<Out> {
+        OwnedFilterMap::new(label,src,f).into()
     }
 
 
@@ -1706,6 +1724,45 @@ where T:EventOutput, P:'static+Fn(&Output<T>)->bool {
 impl<T,P> Debug for FilterData<T,P> {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,"FilterData")
+    }
+}
+
+
+
+// =================
+// === FilterMap ===
+// =================
+
+pub struct FilterMapData  <T,F> { phantom:PhantomData<T>, function:F }
+pub type   OwnedFilterMap <T,F> = stream::Node     <FilterMapData<T,F>>;
+pub type   FilterMap      <T,F> = stream::WeakNode <FilterMapData<T,F>>;
+
+impl<T,F,Out> HasOutput for FilterMapData<T,F>
+where T:EventOutput, Out:Data, F:'static+Fn(&Output<T>)->Option<Out> {
+    type Output = Out;
+}
+
+impl<T,F,Out> OwnedFilterMap<T,F>
+where T:EventOutput, Out:Data, F:'static+Fn(&Output<T>)->Option<Out> {
+    /// Constructor.
+    pub fn new(label:Label, src:&T, function:F) -> Self {
+        let definition = FilterMapData {phantom:PhantomData,function};
+        Self::construct_and_connect(label,src,definition)
+    }
+}
+
+impl<T,F,Out> stream::EventConsumer<Output<T>> for OwnedFilterMap<T,F>
+where T:EventOutput, Out:Data, F:'static+Fn(&Output<T>)->Option<Out> {
+    fn on_event(&self, value:&Output<T>) {
+        if let Some(out) = (self.function)(value) {
+            self.emit_event(&out);
+        }
+    }
+}
+
+impl<T,F> Debug for FilterMapData<T,F> {
+    fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f,"FilterMapData")
     }
 }
 
