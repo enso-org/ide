@@ -70,10 +70,10 @@ impl<T:Payload> Node<T> {
     }
 
     /// Payload mapping utility.
-    pub fn map<S>(self, f:impl Fn(T)->S) -> Node<S> {
+    pub fn map<S>(self, f:impl Copy+Fn(T)->S) -> Node<S> {
         let kind     = self.kind;
         let size     = self.size;
-        let children = self.children.into_iter().map(|t|t.map(&f)).collect_vec();
+        let children = self.children.into_iter().map(|t|t.map(f)).collect_vec();
         let ast_id   = self.ast_id;
         let payload  = f(self.payload);
         Node {kind,size,children,ast_id,payload}
@@ -123,7 +123,7 @@ pub struct Child<T=()> {
 
 impl<T:Payload> Child<T> {
     /// Payload mapping utility.
-    pub fn map<S>(self, f:&impl Fn(T)->S) -> Child<S> {
+    pub fn map<S>(self, f:impl Copy+Fn(T)->S) -> Child<S> {
         let node       = self.node.map(f);
         let offset     = self.offset;
         let ast_crumbs = self.ast_crumbs;
@@ -466,55 +466,43 @@ impl<'a,T:Payload> RefMut<'a,T> {
         enso_data::text::Span::new(self.span_begin,self.node.size)
     }
 
-    /// Get the reference to child with given index. Fails if index if out of bounds.
-    pub fn child(self, index:usize) -> FallibleResult<RefMut<'a,T>> {
-        let node           = self.node;
-        let mut span_begin = self.span_begin;
-        let mut crumbs     = self.crumbs;
-        let mut ast_crumbs = self.ast_crumbs;
-        let count          = node.children.len();
-
-        match node.children.get_mut(index) {
-            None        => Err(InvalidCrumb {count, crumb:index, context:crumbs}.into()),
-            Some(child) => {
-                let node = &mut child.node;
-                span_begin += child.offset;
-                crumbs.push(index);
-                ast_crumbs.extend(child.ast_crumbs.iter().cloned());
-                Ok(Self{node,span_begin,crumbs,ast_crumbs})
-            },
-        }
+    /// Helper function for building child references.
+    fn child_from_ref
+    ( index          : usize
+    , child          : &'a mut Child<T>
+    , mut span_begin : Index
+    , mut crumbs     : Crumbs
+    , mut ast_crumbs : ast::Crumbs
+    ) -> RefMut<'a,T> {
+        let node    = &mut child.node;
+        span_begin += child.offset;
+        crumbs.push(index);
+        ast_crumbs.extend(child.ast_crumbs.iter().cloned());
+        Self{node,span_begin,crumbs,ast_crumbs}
     }
 
     /// Get the reference to child with given index. Fails if index if out of bounds.
-    pub fn child_ref(&'a mut self, index:usize) -> FallibleResult<RefMut<'a,T>> {
-        let node           = &mut self.node;
-        let mut span_begin = self.span_begin;
-        let mut crumbs     = self.crumbs.clone();
-        let mut ast_crumbs = self.ast_crumbs.clone();
-        let count          = node.children.len();
-
+    pub fn child(self, index:usize) -> FallibleResult<RefMut<'a,T>> {
+        let node       = self.node;
+        let span_begin = self.span_begin;
+        let crumbs     = self.crumbs;
+        let ast_crumbs = self.ast_crumbs;
+        let count      = node.children.len();
         match node.children.get_mut(index) {
             None        => Err(InvalidCrumb {count, crumb:index, context:crumbs}.into()),
-            Some(child) => {
-                let node = &mut child.node;
-                span_begin += child.offset;
-                crumbs.push(index);
-                ast_crumbs.extend(child.ast_crumbs.iter().cloned());
-                Ok(Self{node,span_begin,crumbs,ast_crumbs})
-            },
+            Some(child) => Ok(Self::child_from_ref(index,child,span_begin,crumbs,ast_crumbs)),
         }
     }
 
     // /// Iterator over all direct children producing `Ref`s.
-    // pub fn children_iter(mut self) -> impl Iterator<Item=RefMut<'a,T>> {
-    //     let children_count = self.node.children.len();
-    //     let this : &'a mut Self = &mut self;
-    //     (0..children_count).map(move |i| {
-    //         let xx : FallibleResult<RefMut<'a,T>> = <RefMut<'a,T>>::child_ref(this,i);
-    //         xx.unwrap()
-    //     })
-    // }
+    pub fn children_iter(self) -> impl Iterator<Item=RefMut<'a,T>> {
+        let span_begin = self.span_begin;
+        let crumbs     = self.crumbs;
+        let ast_crumbs = self.ast_crumbs;
+        self.node.children.iter_mut().enumerate().map(move |(index,child)|
+            Self::child_from_ref(index,child,span_begin,crumbs.clone(),ast_crumbs.clone())
+        )
+    }
 
     /// Get the sub-node (child, or further descendant) identified by `crumbs`.
     pub fn get_descendant<'b>
@@ -524,6 +512,13 @@ impl<'a,T:Payload> RefMut<'a,T> {
             Some(index) => self.child(*index).and_then(|child| child.get_descendant(iter)),
             None        => Ok(self)
         }
+    }
+}
+
+impl<'a,T> Deref for RefMut<'a,T> {
+    type Target = Node<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.node
     }
 }
 

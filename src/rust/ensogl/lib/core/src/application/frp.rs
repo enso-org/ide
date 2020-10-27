@@ -188,21 +188,22 @@
 /// ```
 #[macro_export]
 macro_rules! define_endpoints {
-    (
-        $(Input  {
+    ( $([$($global_opts:tt)*])?
+        $(Input { $([$($input_opts:tt)*])?
             $($(#[doc=$($in_doc :tt)*])*
             $in_field : ident ($($in_field_type : tt)*)),* $(,)?
         })?
 
-        $(Output {
+        $(Output { $([$($output_opts:tt)*])?
             $($(#[doc=$($out_doc:tt)*])*
             $out_field : ident ($($out_field_type : tt)*)),* $(,)?
         })?
     ) => {
         $crate::define_endpoints! {
             NORMALIZED
+            $([$($global_opts)*])?
 
-            Input  {
+            Input  { $([$($input_opts)*])?
                 /// Focus the element. Focused elements are meant to receive shortcut events.
                 focus(),
                 /// Defocus the element. Non-focused elements are meant to be inactive and don't
@@ -214,7 +215,7 @@ macro_rules! define_endpoints {
                 $in_field ($($in_field_type )*)),*)?
             }
 
-            Output {
+            Output { $([$($output_opts)*])?
                 /// Focus state checker.
                 focused(bool),
                 $($($(#[doc=$($out_doc)*])*
@@ -225,13 +226,14 @@ macro_rules! define_endpoints {
 
     (
         NORMALIZED
+        $([$($global_opts:tt)*])?
 
-        Input  {
+        Input  { $([$($input_opts:tt)*])?
             $($(#[doc=$($in_doc :tt)*])*
             $in_field : ident ($($in_field_type : tt)*)),* $(,)?
         }
 
-        Output {
+        Output { $([$($output_opts:tt)*])?
             $($(#[doc=$($out_doc:tt)*])*
             $out_field : ident ($($out_field_type : tt)*)),* $(,)?
         }
@@ -261,6 +263,12 @@ macro_rules! define_endpoints {
             }
         }
 
+        impl Default for Frp {
+            fn default() -> Self {
+                Self::new_network()
+            }
+        }
+
         impl Deref for Frp {
             type Target = FrpEndpoints;
             fn deref(&self) -> &Self::Target {
@@ -280,7 +288,7 @@ macro_rules! define_endpoints {
         impl FrpInputs {
             /// Constructor.
             pub fn new(network:&frp::Network) -> Self {
-                frp::extend! { network
+                frp::extend! { $($($global_opts)*)? $($($input_opts)*)? network
                     $($in_field <- source();)*
                 }
                 Self { $($in_field),* }
@@ -314,7 +322,7 @@ macro_rules! define_endpoints {
                 let source = FrpOutputsSource::new(network);
                 let mut status_map  : HashMap<String,frp::Sampler<bool>> = default();
                 let mut command_map : HashMap<String,Command> = default();
-                frp::extend! { network
+                frp::extend! { $($($global_opts)*)? $($($output_opts)*)? network
                     $($out_field <- source.$out_field.sampler();)*
                     focus_events   <- bool(&input.defocus,&input.focus);
                     focused        <- any(&input.set_focus,&focus_events);

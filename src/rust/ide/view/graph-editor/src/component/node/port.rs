@@ -107,9 +107,63 @@ impl From<&Expression> for Expression {
 // === Expression2 ===
 // ===================
 
+#[derive(Clone,Copy,Debug)]
+pub enum Usage{Connection,Expression}
+
+pub mod leaf {
+    use super::*;
+    ensogl::define_endpoints! { [TRACE_ALL]
+        Input {
+            set_usage    (Option<Usage>),
+            set_optional (bool),
+            set_disabled (bool),
+            set_hover    (bool),
+        }
+
+        Output {
+            color (color::Rgba)
+        }
+    }
+
+    #[derive(Clone,Debug)]
+    pub struct LeafData {
+        pub frp : leaf::Frp,
+    }
+
+    impl Deref for LeafData {
+        type Target = leaf::Frp;
+        fn deref(&self) -> &Self::Target {
+            &self.frp
+        }
+    }
+
+    impl LeafData {
+        pub fn new() -> Self {
+            let frp     = leaf::Frp::default();
+            let network = &frp.network;
+            frp::extend! { network
+                color <- frp.input.set_hover.map(|_| color::Rgba::new(1.0,0.0,0.0,1.0));
+                frp.output.source.color <+ color;
+            }
+            Self {frp}
+        }
+    }
+
+    impl Default for LeafData {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
+}
+pub use leaf::LeafData;
+
 #[derive(Clone,Default,Debug)]
 pub struct SpanTreeData {
-    pub name : Option<String>
+    pub leaf  : Option<LeafData>,
+    pub name  : Option<String>,
+    pub size  : usize,
+    pub index : usize,
 }
 
 #[derive(Clone,Default)]
@@ -134,19 +188,18 @@ impl From<Expression> for Expression2 {
 
 
 
-
 // ===========
 // === FRP ===
 // ===========
 
 ensogl::define_endpoints! {
     Input {
-        edit_mode_ready (bool),
-        edit_mode       (bool),
-        hover           (),
-        unhover         (),
-        set_dimmed      (bool),
-
+        edit_mode_ready     (bool),
+        edit_mode           (bool),
+        hover               (),
+        unhover             (),
+        set_dimmed          (bool),
+        set_expression_type (ast::Id,Option<Type>),
     }
 
     Output {
@@ -158,6 +211,9 @@ ensogl::define_endpoints! {
         editing       (bool),
     }
 }
+
+
+
 
 
 
@@ -184,7 +240,7 @@ pub struct Model {
     // based on the provided `Crumbs`. It would not be possible to do it fast without this map, as
     // some ports are virtual and have the same offset - like missing arguments.
     // FIXME: Think of other design, where the SpanTree will be modified to contain correct offsets.
-    position_map   : RefCell<HashMap<span_tree::Crumbs,(usize,usize)>>,
+    //position_map   : RefCell<HashMap<span_tree::Crumbs,(usize,usize)>>,
 }
 
 impl Model {
@@ -196,13 +252,15 @@ impl Model {
         let port_networks  = default();
         let label          = app.new_view::<text::Area>();
         let ports          = default();
-        let text_color     = ColorAnimation::new(&app);
-        let position_map   = default();
         let id_crumbs_map  = default();
 
         label.single_line(true);
         label.disable_command("cursor_move_up");
         label.disable_command("cursor_move_down");
+
+        let styles     = StyleWatch::new(&app.display.scene().style_sheet);
+        let text_color = styles.get_color(theme::vars::graph_editor::node::text::color);
+        label.set_default_color(color::Rgba::from(text_color));
 
         // FIXME[WD]: Depth sorting of labels to in front of the mouse pointer. Temporary solution.
         // It needs to be more flexible once we have proper depth management.
@@ -214,8 +272,9 @@ impl Model {
         display_object.add_child(&label);
         display_object.add_child(&ports_group);
 
-        let text_color_path    = theme::vars::graph_editor::node::text::color;
-        let styles             = StyleWatch::new(&app.display.scene().style_sheet);
+        let text_color      = ColorAnimation::new(&app);
+        let text_color_path = theme::vars::graph_editor::node::text::color;
+        let styles          = StyleWatch::new(&app.display.scene().style_sheet);
         text_color.set_value(styles.get_color(text_color_path));
 
         label.set_default_text_size(text::Size(12.0));
@@ -225,7 +284,7 @@ impl Model {
         let width      = default();
 
         Self {logger,display_object,ports_group,label,ports,width,app,expression,port_networks
-             ,styles,position_map,id_crumbs_map}
+             ,styles,id_crumbs_map}
     }
 }
 
@@ -258,6 +317,7 @@ impl Manager {
 
 
         frp::extend! { network
+
             // === Cursor setup ===
 
             eval frp.input.edit_mode ([model](enabled) {
@@ -300,13 +360,13 @@ impl Manager {
             frp.output.source.expression <+ model.label.content.map(|t| t.clone_ref());
 
 
-            // === Color Handling ===t
-
+            // === Color Handling ===
 
             eval text_color.value ([model](color) {
-                // TODO: Make const once all the components can be made const.
-                let all_bytes = buffer::Range::from(Bytes::from(0)..Bytes(i32::max_value()));
-                model.label.set_color_bytes(all_bytes,color::Rgba::from(color));
+                // FIXME[WD]: Disabled to improve colors. To be fixed before merge.
+                // // TODO: Make const once all the components can be made const.
+                // let all_bytes = buffer::Range::from(Bytes::from(0)..Bytes(i32::max_value()));
+                // model.label.set_color_bytes(all_bytes,color::Rgba::from(color));
             });
 
             eval frp.set_dimmed ([text_color,style](should_dim) {
@@ -329,24 +389,23 @@ impl Manager {
     pub(crate) fn set_expression(&self, expression:impl Into<Expression>) {
         let model      = &self.model;
         let expression = expression.into();
-        let expression = Expression2::from(expression);
+        let mut expression = Expression2::from(expression);
 
         let glyph_width = 7.224_609_4; // FIXME hardcoded literal
         let width       = expression.code.len() as f32 * glyph_width;
         model.width.set(width);
 
-        let mut to_visit      = vec![expression.input_span_tree.root_ref()];
+        let mut to_visit      = vec![expression.input_span_tree.root_ref_mut()];
         let mut ports         = vec![];
         let mut port_networks = vec![];
         let mut offset_shift  = 0;
         let mut vis_expr      = expression.code.clone();
 
-        let mut position_map : HashMap<span_tree::Crumbs,(usize,usize)> = HashMap::new();
-
         loop {
             match to_visit.pop() {
                 None => break,
-                Some(node) => {
+                Some(mut node) => {
+                    let is_leaf         = node.children.is_empty();
                     let span            = node.span();
                     let contains_root   = span.index.value == 0;
                     let is_empty        = node.kind.is_positional_insertion_point();
@@ -375,7 +434,10 @@ impl Manager {
                             vis_expr.push(' ');
                             vis_expr += name;
                         }
-                        position_map.insert(node.crumbs.clone(),(size,index));
+                        node.payload().index = index;
+                        node.payload().size  = size;
+
+                        // position_map.insert(node.crumbs.clone(),(size,index));
 
                         let unit        = 7.224_609_4;
                         let width       = unit * size as f32;
@@ -393,7 +455,7 @@ impl Manager {
                         let missing_type_color = styles.get_color(theme::vars::graph_editor::edge::_type::missing::color);
 
                         let crumbs = node.crumbs.clone();
-                        let _ast_id = get_id_for_crumbs(&expression.input_span_tree,&crumbs);
+                        // let _ast_id = get_id_for_crumbs(&expression.input_span_tree,&crumbs);
                         // println!(">> {:?}",node.argument_info.clone().unwrap_or_default().typename);
                         // let color  = ast_id.and_then(|id|type_map.type_color(id,styles.clone_ref()));
                         // let color  = color.unwrap_or(missing_type_color);
@@ -428,12 +490,41 @@ impl Manager {
                             eval_ mouse_out  (hover_source.emit(&None));
 
 
+
+
                             // === Port Press ===
 
                             let crumbs_down  = crumbs.clone();
                             let press_source = &self.frp.output.source.press;
                             eval_ port.events.mouse_down (press_source.emit(&crumbs_down));
                         }
+
+
+                        if is_leaf {
+                            let mut leaf = LeafData::default();
+                            let leaf_in  = &leaf.input;
+                            let network  = &leaf.network;
+
+                            frp::extend! { network
+                                let mouse_over = port.events.mouse_over.clone_ref();
+                                let mouse_out  = port.events.mouse_out.clone_ref();
+                                hover <- bool (&mouse_out,&mouse_over);
+                                eval hover ((t) leaf_in.set_hover(t));
+
+                                eval leaf.output.color ([model](color) {
+                                    let start_bytes = 0_i32.bytes();//(expression.code.len() as i32).bytes();
+                                    let end_bytes   = 200_i32.bytes();//(vis_expr.len() as i32).bytes();
+                                    let range       = ensogl_text::buffer::Range::from(start_bytes..end_bytes);
+                                    model.label.set_color_bytes(range,color);
+                                });
+                            }
+
+                            node.payload().leaf = Some(leaf);
+                        }
+
+
+
+
                         ports.push(port);
                         port_networks.push(port_network);
                     }
@@ -466,14 +557,14 @@ impl Manager {
         *model.expression.borrow_mut()    = expression;
         *model.ports.borrow_mut()         = ports;
         *model.port_networks.borrow_mut() = port_networks;
-        *model.position_map.borrow_mut()  = position_map;
     }
 
     pub fn get_port_offset(&self, crumbs:&[span_tree::Crumb]) -> Option<Vector2<f32>> {
-        self.model.position_map.borrow().get(crumbs).map(|(size,index)| {
+        let expr = self.model.expression.borrow();
+        expr.input_span_tree.root_ref().get_descendant(crumbs).ok().map(|node| {
             let unit  = 7.224_609_4;
-            let width = unit * *size as f32;
-            let x     = width/2.0 + unit * *index as f32;
+            let width = unit * node.payload.size as f32;
+            let x     = width/2.0 + unit * node.payload.index as f32;
             Vector2::new(x + node::TEXT_OFF,node::NODE_HEIGHT/2.0)
         })
     }
@@ -490,14 +581,14 @@ impl Manager {
         self.model.width.get()
     }
 
-    pub fn set_expression_type(&self, id:ast::Id, _maybe_type:Option<Type>) {
-        if let Some(crumbs) = self.model.id_crumbs_map.borrow().get(&id) {
-            if let Ok(_node) = self.model.expression.borrow_mut().input_span_tree.get_node(crumbs) {
-
-            }
-        }
-        // self.model.type_color_map.update_entry(id,maybe_type);
-    }
+    // pub fn set_expression_type(&self, id:ast::Id, _maybe_type:Option<Type>) {
+    //     if let Some(crumbs) = self.model.id_crumbs_map.borrow().get(&id) {
+    //         if let Ok(_node) = self.model.expression.borrow_mut().input_span_tree.get_node(crumbs) {
+    //
+    //         }
+    //     }
+    //     // self.model.type_color_map.update_entry(id,maybe_type);
+    // }
 }
 
 impl display::Object for Manager {

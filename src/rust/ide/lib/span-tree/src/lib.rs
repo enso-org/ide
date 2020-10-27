@@ -118,7 +118,7 @@ impl<T:Payload> SpanTree<T> {
     }
 
     /// Payload mapping utility.
-    pub fn map<S>(self, f:impl Fn(T)->S) -> SpanTree<S> {
+    pub fn map<S>(self, f:impl Copy+Fn(T)->S) -> SpanTree<S> {
         let root = self.root.map(f);
         SpanTree {root}
     }
