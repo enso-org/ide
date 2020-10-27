@@ -111,10 +111,8 @@ impl Model {
         let background            = component::ShapeView::new(&logger,scene);
         let hover_area            = component::ShapeView::new(&logger,scene);
         let visualization_chooser = VisualizationChooser::new(&app,vis_registry);
-
         let display_object        = display::object::Instance::new(&logger);
         let size                  = default();
-
         Model{hover_area,visualization_chooser,display_object,size,background}.init()
     }
 
@@ -148,7 +146,6 @@ impl Model {
     }
 
     fn hide(&self) {
-        println!("Hiding");
         self.visualization_chooser.unset_parent();
         self.background.unset_parent();
         self.visualization_chooser.frp.hide_selection_menu.emit(());
@@ -203,7 +200,6 @@ impl ActionBar {
 
         frp::extend! { network
 
-
             // === Input Processing ===
 
             eval  frp.set_size ((size) model.set_size(*size));
@@ -214,7 +210,9 @@ impl ActionBar {
                 visualization_chooser.input.set_selected.emit(vis);
             });
 
+
             // === Mouse Interactions ===
+
             any_component_over <- any(&hover_area.mouse_over,&visualization_chooser.mouse_over);
             any_component_out  <- any(&hover_area.mouse_out,&visualization_chooser.mouse_out);
 

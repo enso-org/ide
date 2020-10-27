@@ -125,19 +125,30 @@ pub mod leaf {
         }
     }
 
+    // #[derive(Clone,Debug)]
+    // pub struct LeafData {
+    //     pub frp : leaf::Frp,
+    // }
+
+
+
     #[derive(Clone,Debug)]
-    pub struct LeafData {
-        pub frp : leaf::Frp,
+    pub struct SpanTreeData {
+        pub frp    : leaf::Frp,
+        pub shape  : Option<component::ShapeView<shape::Shape>>,
+        pub name   : Option<String>,
+        pub size   : f32,
+        pub offset : f32,
     }
 
-    impl Deref for LeafData {
+    impl Deref for SpanTreeData {
         type Target = leaf::Frp;
         fn deref(&self) -> &Self::Target {
             &self.frp
         }
     }
 
-    impl LeafData {
+    impl SpanTreeData {
         pub fn new() -> Self {
             let frp     = leaf::Frp::default();
             let network = &frp.network;
@@ -145,32 +156,32 @@ pub mod leaf {
                 color <- frp.input.set_hover.map(|_| color::Rgba::new(1.0,0.0,0.0,1.0));
                 frp.output.source.color <+ color;
             }
-            Self {frp}
+            let shape = default();
+            let name = default();
+            let size = default();
+            let offset = default();
+            Self {frp,shape,name,size,offset}
         }
     }
 
-    impl Default for LeafData {
+    impl Default for SpanTreeData {
         fn default() -> Self {
             Self::new()
         }
     }
-
-}
-pub use leaf::LeafData;
-
-#[derive(Clone,Default,Debug)]
-pub struct SpanTreeData {
-    pub leaf  : Option<LeafData>,
-    pub name  : Option<String>,
-    pub size  : usize,
-    pub index : usize,
-}
 
 #[derive(Clone,Default)]
 pub struct Expression2 {
     pub code             : String,
     pub input_span_tree  : SpanTree<SpanTreeData>,
 }
+
+    impl Deref for Expression2 {
+        type Target = SpanTree<SpanTreeData>;
+        fn deref(&self) -> &Self::Target {
+            &self.input_span_tree
+        }
+    }
 
 impl Debug for Expression2 {
     fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
@@ -186,7 +197,8 @@ impl From<Expression> for Expression2 {
     }
 }
 
-
+}
+pub use leaf::*;
 
 // ===========
 // === FRP ===
@@ -230,9 +242,7 @@ pub struct Model {
     app            : Application,
     expression     : RefCell<Expression2>,
     label          : text::Area,
-    ports          : RefCell<Vec<component::ShapeView<shape::Shape>>>,
     width          : Cell<f32>,
-    port_networks  : RefCell<Vec<frp::Network>>,
     styles         : StyleWatch,
     /// Used for applying type information update, which is in a form of `(ast::Id,Type)`.
     id_crumbs_map  : RefCell<HashMap<ast::Id,span_tree::Crumbs>>,
@@ -249,9 +259,7 @@ impl Model {
         let display_object = display::object::Instance::new(&logger);
         let ports_group    = display::object::Instance::new(&Logger::sub(&logger,"ports"));
         let app            = app.clone_ref();
-        let port_networks  = default();
         let label          = app.new_view::<text::Area>();
-        let ports          = default();
         let id_crumbs_map  = default();
 
         label.single_line(true);
@@ -283,8 +291,7 @@ impl Model {
         let expression = default();
         let width      = default();
 
-        Self {logger,display_object,ports_group,label,ports,width,app,expression,port_networks
-             ,styles,id_crumbs_map}
+        Self {logger,display_object,ports_group,label,width,app,expression,styles,id_crumbs_map}
     }
 }
 
@@ -396,8 +403,6 @@ impl Manager {
         model.width.set(width);
 
         let mut to_visit      = vec![expression.input_span_tree.root_ref_mut()];
-        let mut ports         = vec![];
-        let mut port_networks = vec![];
         let mut offset_shift  = 0;
         let mut vis_expr      = expression.code.clone();
 
@@ -434,8 +439,8 @@ impl Manager {
                             vis_expr.push(' ');
                             vis_expr += name;
                         }
-                        node.payload().index = index;
-                        node.payload().size  = size;
+                        node.payload().offset = index as f32;
+                        node.payload().size   = size as f32;
 
                         // position_map.insert(node.crumbs.clone(),(size,index));
 
@@ -465,7 +470,11 @@ impl Manager {
 
                         let highlight = cursor::Style::new_highlight(&port,size,Some(color));
 
-                        frp::new_network! { port_network
+                        let leaf     = &node.frp;
+                        let leaf_in  = &leaf.input;
+                        let network  = &leaf.network;
+
+                        frp::extend! { network
                             let mouse_over = port.events.mouse_over.clone_ref();
                             let mouse_out  = port.events.mouse_out.clone_ref();
 
@@ -500,33 +509,22 @@ impl Manager {
                         }
 
 
-                        if is_leaf {
-                            let mut leaf = LeafData::default();
-                            let leaf_in  = &leaf.input;
-                            let network  = &leaf.network;
 
-                            frp::extend! { network
-                                let mouse_over = port.events.mouse_over.clone_ref();
-                                let mouse_out  = port.events.mouse_out.clone_ref();
-                                hover <- bool (&mouse_out,&mouse_over);
-                                eval hover ((t) leaf_in.set_hover(t));
+                        frp::extend! { network
+                            let mouse_over = port.events.mouse_over.clone_ref();
+                            let mouse_out  = port.events.mouse_out.clone_ref();
+                            hover <- bool (&mouse_out,&mouse_over);
+                            eval hover ((t) leaf_in.set_hover(t));
 
-                                eval leaf.output.color ([model](color) {
-                                    let start_bytes = 0_i32.bytes();//(expression.code.len() as i32).bytes();
-                                    let end_bytes   = 200_i32.bytes();//(vis_expr.len() as i32).bytes();
-                                    let range       = ensogl_text::buffer::Range::from(start_bytes..end_bytes);
-                                    model.label.set_color_bytes(range,color);
-                                });
-                            }
-
-                            node.payload().leaf = Some(leaf);
+                            eval leaf.output.color ([model](color) {
+                                let start_bytes = 0_i32.bytes();//(expression.code.len() as i32).bytes();
+                                let end_bytes   = 200_i32.bytes();//(vis_expr.len() as i32).bytes();
+                                let range       = ensogl_text::buffer::Range::from(start_bytes..end_bytes);
+                                model.label.set_color_bytes(range,color);
+                            });
                         }
 
-
-
-
-                        ports.push(port);
-                        port_networks.push(port_network);
+                        node.payload().shape = Some(port);
                     }
 
                     // FIXME: This is ugly because `children_iter` is not DoubleEndedIterator.
@@ -554,17 +552,15 @@ impl Manager {
             model.label.set_cursor_at_end();
         }
 
-        *model.expression.borrow_mut()    = expression;
-        *model.ports.borrow_mut()         = ports;
-        *model.port_networks.borrow_mut() = port_networks;
+        *model.expression.borrow_mut() = expression;
     }
 
     pub fn get_port_offset(&self, crumbs:&[span_tree::Crumb]) -> Option<Vector2<f32>> {
         let expr = self.model.expression.borrow();
         expr.input_span_tree.root_ref().get_descendant(crumbs).ok().map(|node| {
             let unit  = 7.224_609_4;
-            let width = unit * node.payload.size as f32;
-            let x     = width/2.0 + unit * node.payload.index as f32;
+            let width = unit * node.payload.size;
+            let x     = width/2.0 + unit * node.payload.offset;
             Vector2::new(x + node::TEXT_OFF,node::NODE_HEIGHT/2.0)
         })
     }
