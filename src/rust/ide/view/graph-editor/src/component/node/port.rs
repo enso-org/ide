@@ -303,8 +303,8 @@ impl Model {
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct Manager {
-    model   : Rc<Model>,
     pub frp : Frp,
+    model   : Rc<Model>,
 }
 
 impl Deref for Manager {
@@ -317,7 +317,7 @@ impl Deref for Manager {
 impl Manager {
     pub fn new(logger:impl AnyLogger, app:&Application) -> Self {
         let model      = Rc::new(Model::new(logger,app));
-        let frp        = Frp::new_network();
+        let frp        = Frp::new();
         let network    = &frp.network;
         let text_color = ColorAnimation::new(&app);
         let style      = StyleWatch::new(&app.display.scene().style_sheet);

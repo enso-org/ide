@@ -242,7 +242,7 @@ impl View {
 
     /// Constructor.
     pub fn new(scene:&Scene) -> Self {
-        let frp               = Frp::new_network();
+        let frp               = Frp::new();
         let visualization_frp = visualization::instance::Frp::new(&frp.network);
         let model             = ViewModel::new(scene);
         model.load_waiting_screen();

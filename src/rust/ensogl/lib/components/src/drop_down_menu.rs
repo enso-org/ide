@@ -199,7 +199,7 @@ impl Deref for DropDownMenu {
 impl DropDownMenu {
     /// Constructor.
     pub fn new(app:&Application) -> Self {
-        let frp   = Frp::new_network();
+        let frp   = Frp::new();
         let model = Rc::new(Model::new(app));
         Self {frp,model}.init(app)
     }

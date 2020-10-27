@@ -255,8 +255,8 @@ impl Deref for ListView {
 impl ListView {
     /// Constructor.
     pub fn new(app:&Application) -> Self {
-        let frp           = Frp::new_network();
-        let model         = Model::new(app);
+        let frp   = Frp::new();
+        let model = Model::new(app);
         ListView {frp,model}.init(app)
     }
 

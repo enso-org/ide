@@ -2474,7 +2474,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     }
 
 
-    let frp = Frp::new(network.clone(),out); // fixme clone
+    let frp = Frp::deprecated_new(network.clone(),out); // fixme clone
 
     GraphEditor {model,frp}
 }

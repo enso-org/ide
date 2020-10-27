@@ -143,7 +143,7 @@ impl View {
     pub fn new(app:&Application) -> Self {
 
         let model                      = Model::new(app);
-        let frp                        = Frp::new_network();
+        let frp                        = Frp::new();
         let searcher                   = &model.searcher.frp;
         let graph                      = &model.graph_editor.frp;
         let network                    = &frp.network;

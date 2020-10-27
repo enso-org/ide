@@ -65,7 +65,7 @@ impl View {
     /// Create Code Editor component.
     pub fn new(app:&Application) -> Self {
         let scene           = app.display.scene();
-        let frp             = Frp::new_network();
+        let frp             = Frp::new();
         let network         = &frp.network;
         let model           = app.new_view::<text::Area>();
         let height_fraction = Animation::<f32>::new(network);

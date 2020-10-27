@@ -249,23 +249,23 @@ macro_rules! define_endpoints {
         }
 
         impl Frp {
-            /// Constructor.
-            pub fn new(network:frp::Network, output:FrpEndpoints) -> Self {
+            /// Create Frp with network, inputs and outputs.
+            pub fn new() -> Self {
+                let network = frp::Network::new();
+                let input   = FrpInputs::new(&network);
+                let output  = FrpEndpoints::new(&network,input);
                 Self {network,output}
             }
 
-            /// Create Frp with network, inputs and outputs.
-            pub fn new_network() -> Self {
-                let network       = frp::Network::new();
-                let frp_inputs    = FrpInputs::new(&network);
-                let frp_endpoints = FrpEndpoints::new(&network,frp_inputs);
-                Self::new(network,frp_endpoints)
+            /// Deprecated constructor. Use `new` or `default` instead.
+            pub fn deprecated_new(network:frp::Network, output:FrpEndpoints) -> Self {
+                Self {network,output}
             }
         }
 
         impl Default for Frp {
             fn default() -> Self {
-                Self::new_network()
+                Self::new()
             }
         }
 

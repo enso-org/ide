@@ -174,17 +174,17 @@ impl display::Object for Model {
 ///
 /// ```
 #[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
 pub struct ActionBar {
-         model : Rc<Model>,
-    /// Public FRp api.
-    pub frp    : Frp
+    pub frp : Frp,
+    model   : Rc<Model>,
 }
 
 impl ActionBar {
     /// Constructor.
     pub fn new(app:&Application) -> Self {
         let model = Rc::new(Model::new(app));
-        let frp   = Frp::new_network();
+        let frp   = Frp::new();
         ActionBar {model,frp}.init_frp()
     }
 

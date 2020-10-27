@@ -8,6 +8,11 @@ use crate::gui::component::ShapeView;
 use enso_frp as frp;
 
 
+
+// ===========
+// === Frp ===
+// ===========
+
 crate::define_endpoints! {
     Input {}
     Output {
@@ -16,20 +21,25 @@ crate::define_endpoints! {
     }
 }
 
+
+
+// ===================
+// === MouseEvents ===
+// ===================
+
 /// `Events` defines a common FRP api that handles mouse over/out events for  multiple
 /// sub-shapes. It avoids boilerplate of setting up FRP bindings for every single shape,
 /// instead the `Shape` frp endpoints can be used.
-#[derive(Clone,CloneRef,Debug)]
+#[derive(Clone,CloneRef,Default,Debug)]
+#[allow(missing_docs)]
 pub struct MouseEvents {
-    /// Frp API.
     pub frp : Frp,
 }
 
 impl MouseEvents {
-
+    /// Constructor.
     fn new() -> Self {
-        let frp = Frp::new_network();
-        Self{frp}
+        default()
     }
 
     /// Connect the given `ShapeViewEvents` to the `Events` output.
@@ -42,11 +52,5 @@ impl MouseEvents {
             compound_frp.source.mouse_over <+ sub_frp.mouse_over;
             compound_frp.source.mouse_out  <+ sub_frp.mouse_out;
         }
-    }
-}
-
-impl Default for MouseEvents {
-    fn default() -> Self {
-        MouseEvents::new()
     }
 }

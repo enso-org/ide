@@ -177,17 +177,17 @@ impl display::Object for Model {
 /// ```
 #[derive(Clone,CloneRef,Debug)]
 pub struct ActionBar {
-         model : Rc<Model>,
-    pub frp    : Frp
+    pub frp : Frp,
+    model   : Rc<Model>,
 }
 
 impl ActionBar {
 
     /// Constructor.
     pub fn new(app:&Application, vis_registry:visualization::Registry) -> Self {
+        let frp   = Frp::new();
         let model = Rc::new(Model::new(app,vis_registry));
-        let frp   = Frp::new_network();
-        ActionBar {model,frp}.init_frp()
+        ActionBar {frp,model}.init_frp()
     }
 
     fn init_frp(self) -> Self {

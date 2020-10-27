@@ -82,7 +82,7 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
     /// Constructor.
     pub fn new(app:&Application) -> Self {
         let model = Rc::new(Model::<Shape>::new(app));
-        let frp   = Frp::new_network();
+        let frp   = Frp::new();
         Self {model,frp}.init_frp(app)
     }
 
@@ -95,7 +95,6 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
         let icon    = &model.icon.events;
 
         frp::extend! { network
-
 
              // === Input Processing ===
 
@@ -135,7 +134,6 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
         }
 
         color.alpha.set_value(0.0);
-
         self
     }
 

@@ -307,7 +307,7 @@ impl NodeModel {
 
 impl Node {
     pub fn new(app:&Application, registry:visualization::Registry) -> Self {
-        let frp       = Frp::new_network();
+        let frp       = Frp::new();
         let network   = &frp.network;
         let inputs    = &frp.input;
         let out       = &frp.output;

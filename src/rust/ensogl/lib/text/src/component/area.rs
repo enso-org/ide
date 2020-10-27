@@ -459,7 +459,7 @@ impl Deref for Area {
 impl Area {
     /// Constructor.
     pub fn new(app:&Application) -> Self {
-        let frp  = Frp::new_network();
+        let frp  = Frp::new();
         let data = AreaModel::new(app,&frp.output);
         Self {data,frp} . init()
     }
