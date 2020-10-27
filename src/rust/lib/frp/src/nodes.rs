@@ -306,9 +306,8 @@ impl Network {
     // === Filter ===
 
     /// Passes exactly those incoming events that satisfy the predicate `p`.
-    pub fn filter<T:EventOutput>
-    (&self, label:Label, src:&T, p:impl'static+Fn(&Output<T>)->bool)
-    -> Stream<Output<T>> {
+    pub fn filter<T,P>(&self, label:Label, src:&T, p:P) -> Stream<Output<T>>
+    where T:EventOutput, P:'static+Fn(&Output<T>)->bool {
         self.register(OwnedFilter::new(label,src,p))
     }
 
@@ -563,10 +562,8 @@ impl DynamicNetwork {
 
 
     // === Filter ===
-
-    pub fn filter<T:EventOutput>
-    (self, label:Label, src:&T, p:impl'static+Fn(&Output<T>)->bool)
-    -> OwnedStream<Output<T>> {
+    pub fn filter<T,P>(&self, label:Label, src:&T, p:P) -> Stream<Output<T>>
+    where T:EventOutput, P:'static+Fn(&Output<T>)->bool {
         OwnedFilter::new(label,src,p).into()
     }
 

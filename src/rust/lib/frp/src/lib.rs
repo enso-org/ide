@@ -291,64 +291,57 @@ mod dynamic_mode_tests {
     fn test_gate() {
         let passed_events = Rc::new(Cell::new(0));
         frp::new_network! { network
-            def behavior   = source::<bool>();
-            def some_event = source::<()>();
+            behavior   <- source::<bool>();
+            some_event <- source::<()>();
 
-            def gated      = some_event.gate(&behavior);
-            eval gated ([passed_events](()) {
-                passed_events.set(passed_events.get() + 1);
-            });
+            gated      <- some_event.gate(&behavior);
+            eval_ gated (passed_events.set(passed_events.get() + 1));
+
         };
 
-        behavior.emit(false);
-        some_event.emit(());
-        behavior.emit(true);
-        some_event.emit(());
-        behavior.emit(true);
-        some_event.emit(());
-        assert_eq!(passed_events.get(), 2);
+        let input = &[false,true,true];
+        for val in input {
+            behavior.emit(val);
+            some_event.emit(());
+        }
+        let true_count = input.iter().filter(|&&val| val == true).count();
+        assert_eq!(passed_events.get(),true_count);
     }
 
     #[test]
     fn test_filter() {
         let passed_events = Rc::new(Cell::new(0));
         frp::new_network! { network
-            def source   = source::<bool>();
-            def filtered = source.filter(|&value| value == true);
+            source   <- source::<bool>();
+            filtered <- source.filter(|&value| value == true);
             eval filtered ([passed_events](&value) {
                 assert_eq!(value,true);
                 passed_events.set(passed_events.get() + 1);
             });
         };
 
-        source.emit(false);
-        source.emit(true);
-        source.emit(true);
-        source.emit(false);
-        source.emit(false);
-        assert_eq!(passed_events.get(),2);
+        let input = &[false,true,true,false,false];
+        for val in input {
+            source.emit(*val);
+        }
+        let true_count = input.iter().filter(|&&val| val == true).count();
+        assert_eq!(passed_events.get(),true_count);
     }
 
     #[test]
     fn test_filter_map() {
         let passed_events = Rc::new(Cell::new(0));
         frp::new_network! { network
-            def source        = source::<bool>();
-            def filter_mapped = source.filter_map(|&value|
-                match value {
-                    true  => Some(()),
-                    false => None,
-                });
-            eval filter_mapped ([passed_events](_) {
-                passed_events.set(passed_events.get() + 1);
-            });
+            source        <- source::<bool>();
+            filter_mapped <- source.filter_map(|v| v.as_some(()));
+            eval_ filter_mapped (passed_events.set(passed_events.get() + 1));
         };
 
-        source.emit(false);
-        source.emit(true);
-        source.emit(true);
-        source.emit(false);
-        source.emit(false);
-        assert_eq!(passed_events.get(),2);
+        let input = &[false,true,true,false,false];
+        for val in input {
+            source.emit(*val);
+        }
+        let true_count = input.iter().filter(|&&val| val == true).count();
+        assert_eq!(passed_events.get(),true_count);
     }
 }
