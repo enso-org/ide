@@ -125,20 +125,13 @@ pub mod leaf {
         }
     }
 
-    // #[derive(Clone,Debug)]
-    // pub struct LeafData {
-    //     pub frp : leaf::Frp,
-    // }
-
-
-
     #[derive(Clone,Debug)]
     pub struct SpanTreeData {
         pub frp    : leaf::Frp,
         pub shape  : Option<component::ShapeView<shape::Shape>>,
         pub name   : Option<String>,
-        pub size   : f32,
-        pub offset : f32,
+        pub index  : usize,
+        pub length : usize,
     }
 
     impl Deref for SpanTreeData {
@@ -156,11 +149,11 @@ pub mod leaf {
                 color <- frp.input.set_hover.map(|_| color::Rgba::new(1.0,0.0,0.0,1.0));
                 frp.output.source.color <+ color;
             }
-            let shape = default();
-            let name = default();
-            let size = default();
-            let offset = default();
-            Self {frp,shape,name,size,offset}
+            let shape  = default();
+            let name   = default();
+            let length = default();
+            let index  = default();
+            Self {frp,shape,name,index,length}
         }
     }
 
@@ -439,8 +432,8 @@ impl Manager {
                             vis_expr.push(' ');
                             vis_expr += name;
                         }
-                        node.payload().offset = index as f32;
-                        node.payload().size   = size as f32;
+                        node.payload().index  = index;
+                        node.payload().length = size;
 
                         // position_map.insert(node.crumbs.clone(),(size,index));
 
@@ -559,8 +552,8 @@ impl Manager {
         let expr = self.model.expression.borrow();
         expr.input_span_tree.root_ref().get_descendant(crumbs).ok().map(|node| {
             let unit  = 7.224_609_4;
-            let width = unit * node.payload.size;
-            let x     = width/2.0 + unit * node.payload.offset;
+            let width = unit * node.payload.length as f32;
+            let x     = width/2.0 + unit * node.payload.index as f32;
             Vector2::new(x + node::TEXT_OFF,node::NODE_HEIGHT/2.0)
         })
     }
