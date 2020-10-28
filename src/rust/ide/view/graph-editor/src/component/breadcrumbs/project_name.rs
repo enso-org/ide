@@ -17,6 +17,7 @@ use ensogl::display::shape::*;
 use ensogl::display;
 use ensogl::gui::component::Animation;
 use ensogl::gui::component;
+use ensogl::gui::cursor;
 use ensogl_text as text;
 use ensogl_text::style::Size as TextSize;
 use ensogl_theme as theme;
@@ -71,11 +72,12 @@ ensogl::define_endpoints! {
 
     }
     Output {
-        name       (String),
-        width      (f32),
-        mouse_down (),
-        edit_mode  (bool),
-        selected   (bool)
+        pointer_style (cursor::Style),
+        name          (String),
+        width         (f32),
+        mouse_down    (),
+        edit_mode     (bool),
+        selected      (bool)
     }
 }
 
@@ -317,6 +319,15 @@ impl ProjectName {
 
             eval animations.color.value((value) model.set_color(*value));
             eval animations.position.value((value) model.set_position(*value));
+
+             // === Pointer style ===
+
+             frp.output.source.pointer_style <+ model.view.events.mouse_over.map(|_|
+                cursor::Style::new_text_cursor()
+             );
+             frp.output.source.pointer_style <+ model.view.events.mouse_out.map(|_|
+                cursor::Style::default()
+             );
 
         }
 

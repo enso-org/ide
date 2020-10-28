@@ -20,6 +20,7 @@ use ensogl::display::object::ObjectOps;
 use ensogl::display::shape::*;
 use ensogl::display;
 use ensogl::gui::component;
+use ensogl::gui::cursor;
 use logger::AnyLogger;
 use logger::enabled::Logger;
 use std::cmp::Ordering;
@@ -151,7 +152,10 @@ pub struct FrpOutputs {
     /// Signalizes when a breadcrumb is selected, returning a tuple with the amount of breadcrumbs
     /// to be popped, in case the selection happens on the left of the currently selected
     /// breadcrumb, or else a vector of existing breadcrumbs to be pushed.
-    pub breadcrumb_select : frp::Source<(usize,Vec<Option<LocalCall>>)>
+    pub breadcrumb_select : frp::Source<(usize,Vec<Option<LocalCall>>)>,
+    /// Indicates the pointer style that should be shown based on the interactions with the
+    /// breadcrumb.
+    pub pointer_style     : frp::Source<cursor::Style>,
 }
 
 impl FrpOutputs {
@@ -162,8 +166,9 @@ impl FrpOutputs {
             breadcrumb_pop    <- source();
             project_name      <- any(...);
             breadcrumb_select <- source();
+            pointer_style     <- source();
         }
-        Self{breadcrumb_push,breadcrumb_pop,project_name,breadcrumb_select}
+        Self{breadcrumb_push,breadcrumb_pop,project_name,breadcrumb_select,pointer_style}
     }
 }
 
@@ -541,6 +546,14 @@ impl Breadcrumbs {
             eval model.project_name.frp.output.width ((width) {
                 model.relayout_for_project_name_width(*width)
             });
+
+
+            // === Pointer style ===
+
+            eval model.project_name.frp.output.pointer_style ((style)
+                frp.outputs.pointer_style.emit(style);
+            );
+
         }
 
         Self{frp,model}

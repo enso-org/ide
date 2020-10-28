@@ -2437,6 +2437,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     cursor_style_on_edge_drag_stop <- out.all_edges_attached.constant(default());
     cursor_style_edge_drag         <- any (cursor_style_edge_drag,cursor_style_on_edge_drag_stop);
 
+    breadcrumb_style <- model.breadcrumbs.frp.outputs.pointer_style.map(|s| s.clone());
 
     pointer_style <- all
         [ pointer_on_drag
@@ -2444,6 +2445,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         , cursor_press
         , node_pointer_style
         , cursor_style_edge_drag
+        , breadcrumb_style
         ].fold();
 
     eval pointer_style ((style) cursor.frp.set_style.emit(style));
