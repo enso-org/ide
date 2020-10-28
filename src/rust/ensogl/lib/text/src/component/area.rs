@@ -618,7 +618,7 @@ impl Area {
 
             eval input.set_default_color     ((t) m.buffer.frp.set_default_color(*t));
             eval input.set_default_text_size ((t) m.buffer.frp.set_default_text_size(*t));
-            eval input.set_color_all       ([input](color) {
+            eval input.set_color_all         ([input](color) {
                 let all_bytes = buffer::Range::from(Bytes::from(0)..Bytes(i32::max_value()));
                 input.set_color_bytes.emit((all_bytes,*color));
             });

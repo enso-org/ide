@@ -501,9 +501,9 @@ impl Breadcrumbs {
 
             // === GUI Update ===
 
-            eval model.project_name.frp.output.width((width) {
+            eval model.project_name.frp.output.width((width)
                 model.relayout_for_project_name_width(*width)
-            });
+            );
 
 
             // === User Interaction ===

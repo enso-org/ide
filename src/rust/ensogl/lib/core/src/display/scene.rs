@@ -654,17 +654,15 @@ impl View {
     }
 
     /// Add all `Symbol`s associated with the given ShapeView.
-    pub fn add_shape_view<T: display::shape::primitive::system::Shape>(&self, shape_view:&component::ShapeView<T>) {
-        shape_view.shape.sprites().iter().for_each(|sprite|{
-            self.add(&sprite.symbol);
-        });
+    pub fn add_shape_view<T: display::shape::primitive::system::Shape>
+    (&self, shape_view:&component::ShapeView<T>) {
+        shape_view.shape.sprites().iter().for_each(|sprite| self.add(&sprite.symbol) );
     }
 
     /// Remove all `Symbol`s associated with the given ShapeView.
-    pub fn remove_shape_view<T: display::shape::primitive::system::Shape>(&self, shape_view:&component::ShapeView<T>) {
-        shape_view.shape.sprites().iter().for_each(|sprite|{
-            self.remove(&sprite.symbol);
-        });
+    pub fn remove_shape_view<T: display::shape::primitive::system::Shape>
+    (&self, shape_view:&component::ShapeView<T>) {
+        shape_view.shape.sprites().iter().for_each(|sprite| self.remove(&sprite.symbol) );
     }
 }
 

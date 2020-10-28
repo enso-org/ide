@@ -30,9 +30,9 @@ use logger::enabled::Logger;
 // =================
 
 /// Project name used as a placeholder in `ProjectName` view when it's initialized.
-pub const UNKNOWN_PROJECT_NAME:&str = "Unknown";
+pub const UNKNOWN_PROJECT_NAME : &str = "Unknown";
 /// Default line height for project names.
-pub const LINE_HEIGHT : f32 = TEXT_SIZE * 1.5;
+pub const LINE_HEIGHT          : f32  = TEXT_SIZE * 1.5;
 
 
 
@@ -242,8 +242,7 @@ impl ProjectName {
         let deselected_color  = color::Rgba::from(deselected_color);
         let selected_color    = styles.get_color(theme::vars::graph_editor::breadcrumbs::selected::color);
         let selected_color    = color::Rgba::from(selected_color);
-
-        let animations = Animations::new(&network);
+        let animations        = Animations::new(&network);
 
         frp::extend! { network
 
@@ -266,7 +265,7 @@ impl ProjectName {
             eval_ start_edit_mode ( text.set_cursor_at_mouse_position() );
             frp.source.edit_mode <+ start_edit_mode.to_true();
 
-            outside_press     <- any(&frp.outside_press,&frp.deselect);
+            outside_press <- any(&frp.outside_press,&frp.deselect);
 
 
             // === Text Area ===
@@ -346,11 +345,9 @@ impl application::command::FrpNetworkProvider for ProjectName {
 }
 
 impl View for ProjectName {
-    fn label() -> &'static str { "ProjectName" }
-
-    fn new(app:&Application) -> Self { ProjectName::new(app) }
-
-    fn app(&self) -> &Application { &self.model.app }
+    fn label()               -> &'static str { "ProjectName" }
+    fn new(app:&Application) -> Self         { ProjectName::new(app) }
+    fn app(&self)            -> &Application { &self.model.app }
 
     fn default_shortcuts() -> Vec<shortcut::Shortcut> {
         use shortcut::ActionType::*;
