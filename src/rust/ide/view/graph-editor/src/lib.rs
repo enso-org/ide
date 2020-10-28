@@ -2340,18 +2340,17 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
      nodes_to_cycle <= inputs.cycle_visualization_for_selected_node.map(f_!(model.selected_nodes()));
      node_to_cycle  <- any(nodes_to_cycle,inputs.cycle_visualization);
 
-     let cycle_count = Rc::new(Cell::new(0));
-     def _cycle_visualization = node_to_cycle.map(f!([nodes,visualizations,logger](node_id) {
+    let cycle_count = Rc::new(Cell::new(0));
+    def _cycle_visualization = node_to_cycle.map(f!([inputs,visualizations,logger,out](node_id) {
         let visualizations = visualizations.valid_sources(&"Any".into());
         cycle_count.set(cycle_count.get() % visualizations.len());
-        let vis  = visualizations.get(cycle_count.get());
-        let node = nodes.get_cloned_ref(node_id);
-        match (vis, node) {
-            (Some(vis), Some(node))  => {
-                node.model.visualization.frp.set_visualization.emit(vis.clone());
-            },
-            (None, _) => logger.warning(|| "Failed to get visualization while cycling.".to_string()),
-            _         => {}
+        if let Some(vis) = visualizations.get(cycle_count.get()) {
+            let path = vis.signature.path.clone();
+            out.source.visualization_disabled.emit(*node_id);
+            inputs.set_visualization.emit((*node_id,Some(path)));
+            out.source.visualization_enabled.emit(*node_id);
+        } else {
+            logger.warning(|| "Failed to get visualization while cycling.".to_string());
         };
         cycle_count.set(cycle_count.get() + 1);
     }));
