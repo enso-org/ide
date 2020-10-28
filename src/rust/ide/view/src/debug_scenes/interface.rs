@@ -125,7 +125,7 @@ fn init(app:&Application) {
         }
     });
 
-    let expression_2 = expression_mock3();
+    let expression_2 = expression_mock2();
     graph_editor.frp.set_node_expression.emit((node2_id,expression_2.clone()));
     expression_2.input_span_tree.root_ref().leaf_iter().for_each(|node|{
         if let Some(expr_id) = node.ast_id {

@@ -340,7 +340,7 @@ macro_rules! define_endpoints {
         /// Frp output setters.
         #[derive(Debug,Clone,CloneRef)]
         pub(crate) struct FrpOutputsSource {
-            $($out_field : frp::Any<$($out_field_type)*>),*
+            $(pub(crate) $out_field : frp::Any<$($out_field_type)*>),*
         }
 
         impl FrpOutputsSource {

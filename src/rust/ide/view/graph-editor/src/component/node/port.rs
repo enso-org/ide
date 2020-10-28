@@ -144,11 +144,6 @@ pub mod leaf {
     impl SpanTreeData {
         pub fn new() -> Self {
             let frp     = leaf::Frp::default();
-            let network = &frp.network;
-            frp::extend! { network
-                color <- frp.input.set_hover.map(|_| color::Rgba::new(1.0,0.0,0.0,1.0));
-                frp.output.source.color <+ color;
-            }
             let shape  = default();
             let name   = default();
             let length = default();
@@ -193,6 +188,8 @@ impl From<Expression> for Expression2 {
 }
 pub use leaf::*;
 
+
+
 // ===========
 // === FRP ===
 // ===========
@@ -214,6 +211,8 @@ ensogl::define_endpoints! {
         width         (f32),
         expression    (Text),
         editing       (bool),
+        port_over     (span_tree::Crumbs),
+        port_out      (span_tree::Crumbs),
     }
 }
 
@@ -286,6 +285,49 @@ impl Model {
 
         Self {logger,display_object,ports_group,label,width,app,expression,styles,id_crumbs_map}
     }
+
+    fn on_port_hover(&self, is_hovered:bool, crumbs:&span_tree::Crumbs) {
+        println!("HOVER {} {:?}",is_hovered,crumbs);
+        let expression   = self.expression.borrow();
+        let mut to_visit = vec![];
+
+        if let Ok(node) = expression.input_span_tree.root_ref().get_descendant(crumbs) {
+            to_visit.push(node);
+        }
+
+        let mut is_root  = true;
+
+        loop {
+            match to_visit.pop() {
+                None => break,
+                Some(mut node) => {
+                    let skip = if is_root { false } else {
+                        let span            = node.span();
+                        let contains_root   = span.index.value == 0;
+                        let is_ins_point    = node.kind.is_positional_insertion_point();
+                        let is_opr          = node.kind.is_operation();
+                        contains_root || is_ins_point || is_opr
+                    };
+                    is_root = false;
+
+                    // FIXME: How to properly discover self? Like `image.blur 15`, to disable
+                    // 'blur' port?
+
+                    println!(">>> {:?} (skip: {})", node.crumbs,skip);
+
+                    if !skip {
+                        let is_leaf = node.children.is_empty();
+                        if is_leaf {
+                            node.payload.frp.set_hover(is_hovered);
+                        }
+                        to_visit.extend(node.children_iter().collect_vec().into_iter().rev());
+                    }
+                }
+            }
+        }
+        // expr.input_span_tree.root_ref()
+    }
+
 }
 
 
@@ -352,6 +394,12 @@ impl Manager {
             edit_mode_hovered <- all_with(&edit_mode,&hovered,|a,_|*a).gate(&hovered);
             label_hovered     <- all_with(&hovered,&edit_mode_hovered,|a,b|*a&&*b);
             eval label_hovered ((t) model.label.set_hover(t));
+
+
+            // === Port Hover ===
+
+            eval frp.port_over ((crumbs) model.on_port_hover(true,crumbs));
+            eval frp.port_out  ((crumbs) model.on_port_hover(false,crumbs));
 
 
             // === Properties ===
@@ -465,9 +513,20 @@ impl Manager {
 
                         let leaf     = &node.frp;
                         let leaf_in  = &leaf.input;
-                        let network  = &leaf.network;
+                        let port_network  = &leaf.network;
 
-                        frp::extend! { network
+                        frp::extend! { port_network
+                            color <- leaf.input.set_hover.map(f!([model](is_hovered) {
+                                if *is_hovered { color::Rgba::new(1.0,0.0,0.0,1.0) }
+                                else {
+                                    let color  = model.styles.get_color(theme::vars::graph_editor::node::text::color);
+                                    color::Rgba::from(color)
+                                }
+                            }));
+                            leaf.output.source.color <+ color;
+                        }
+
+                        frp::extend! { port_network
                             let mouse_over = port.events.mouse_over.clone_ref();
                             let mouse_out  = port.events.mouse_out.clone_ref();
 
@@ -501,20 +560,32 @@ impl Manager {
                             eval_ port.events.mouse_down (press_source.emit(&crumbs_down));
                         }
 
+                        let network = &self.frp.network;
 
+                        let index  = node.payload.index;
+                        let length = node.payload.length;
 
-                        frp::extend! { network
+                        frp::extend! { port_network
                             let mouse_over = port.events.mouse_over.clone_ref();
                             let mouse_out  = port.events.mouse_out.clone_ref();
-                            hover <- bool (&mouse_out,&mouse_over);
-                            eval hover ((t) leaf_in.set_hover(t));
 
-                            eval leaf.output.color ([model](color) {
-                                let start_bytes = 0_i32.bytes();//(expression.code.len() as i32).bytes();
-                                let end_bytes   = 200_i32.bytes();//(vis_expr.len() as i32).bytes();
-                                let range       = ensogl_text::buffer::Range::from(start_bytes..end_bytes);
-                                model.label.set_color_bytes(range,color);
-                            });
+                            let crumbs_over = crumbs.clone(); // fixme - passing crumbs is slow in frp
+                            let crumbs_out  = crumbs.clone();
+
+                            self.source.port_over <+ mouse_over.map (move |_| crumbs_over.clone());
+                            self.source.port_out  <+ mouse_out.map  (move |_| crumbs_out.clone());
+                        }
+
+                        if is_leaf {
+                            frp::extend! { port_network
+                                eval leaf.output.color ([model](color) {
+                                    println!("COLOR! Index: {}, length: {}",index,length);
+                                    let start_bytes = (index as i32).bytes();//(expression.code.len() as i32).bytes();
+                                    let end_bytes   = ((index + length) as i32).bytes();//(vis_expr.len() as i32).bytes();
+                                    let range       = ensogl_text::buffer::Range::from(start_bytes..end_bytes);
+                                    model.label.set_color_bytes(range,color);
+                                });
+                            }
                         }
 
                         node.payload().shape = Some(port);
