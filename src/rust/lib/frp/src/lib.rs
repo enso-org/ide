@@ -210,6 +210,18 @@ mod network_mode_tests {
         source.emit(());
         assert_eq!(sampler.value(),0);
     }
+
+    #[test]
+    #[should_panic(expected = "Encountered a loop in the reactive dataflow at 'network.looping'")]
+    fn test_looping_flow() {
+        frp::new_network! { network
+            source  <- source::<()>();
+            looping <- any_mut::<()>();
+            looping.attach(&looping);
+            looping.attach(&source);
+        }
+        source.emit(());
+    }
 }
 
 #[cfg(test)]
