@@ -1686,6 +1686,18 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
 
 
+    // ============================
+    // === Project Name Editing ===
+    // ============================
+
+    // === Commit project name edit ===
+
+    frp::extend! { network
+        eval_ touch.background.selected(model.breadcrumbs.frp.outside_press.emit(()));
+    }
+
+
+
     // =========================
     // === User Interactions ===
     // =========================
