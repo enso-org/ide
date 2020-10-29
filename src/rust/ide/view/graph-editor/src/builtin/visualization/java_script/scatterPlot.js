@@ -101,6 +101,9 @@ class ScatterPlot extends Visualization {
     }
 
     addPanAndZoom(box_width,box_height,svg,margin,scaleAndAxis,scatter,points) {
+        const extent = [.5,20];
+        let zoomClass = "zoom";
+
         let zoom = d3.zoom().filter(function () {
             let right_button = 2
             let mid_button   = 1
@@ -110,12 +113,12 @@ class ScatterPlot extends Visualization {
                 case "wheel": return d3.event.button === scroll_wheel
                 default: return false
             }
-        }).scaleExtent([.5,20])
+        }).scaleExtent(extent)
             .extent([[0,0],[box_width,box_height]])
-            .on("zoom",zoomed);
+            .on(zoomClass,zoomed);
 
         let zoomElem = scatter.append("g")
-            .attr("class","zoom")
+            .attr("class",zoomClass)
             .attr("width",box_width)
             .attr("height",box_height)
             .style("fill","none")
@@ -143,18 +146,20 @@ class ScatterPlot extends Visualization {
 
     addBrushing(box_width,box_height,scatter,scaleAndAxis,selectedZoomBtn,points,zoom) {
         let extent;
+        let brushClass = "brush";
+
         let brush = d3.brush()
             .extent([[0,0],[box_width,box_height]])
-            .on("start brush",updateChart)
+            .on("start " + brushClass,updateChart)
 
         // The brush element must be child of zoom element - this is only way we found to have both zoom and brush
         // events working at the same time. See https://stackoverflow.com/a/59757276 .
         let brushElem = zoom.zoomElem.append("g")
-            .attr("class","brush")
+            .attr("class",brushClass)
             .call(brush)
 
         let self = this;
-        function zoomIn() {
+        const zoomIn = () => {
             let xMin = scaleAndAxis.xScale.invert(extent[0][0]);
             let xMax = scaleAndAxis.xScale.invert(extent[1][0]);
             let yMin = scaleAndAxis.yScale.invert(extent[1][1]);
@@ -168,7 +173,7 @@ class ScatterPlot extends Visualization {
             brushElem.call(brush.move,null);
         }
 
-        const zoomInKeyEvent = function (event) {
+        const zoomInKeyEvent = (event) => {
             if ((event.ctrlKey || event.metaKey) && event.key === 'z') {
                 zoomIn();
                 selectedZoomBtn.style.display = "none";
@@ -190,10 +195,8 @@ class ScatterPlot extends Visualization {
             document.removeEventListener('keydown',zoomInKeyEvent,true);
         };
 
-        document.addEventListener('click'      ,endBrushing,false);
-        document.addEventListener('auxclick'   ,endBrushing,false);
-        document.addEventListener('contextmenu',endBrushing,false);
-        document.addEventListener('scroll'     ,endBrushing,false);
+        let endEvents = ['click','auxclick','contextmenu','scroll']
+        endEvents.forEach(e => document.addEventListener(e,endBrushing,false));
     }
 
     zoomingHelper(scaleAndAxis,box_width,scatter,points) {
@@ -386,6 +389,11 @@ class ScatterPlot extends Visualization {
             divElem.appendChild(style);
         }
 
+        let darkStrokeColor   = `rgba(255,255,255,0.7)`;
+        let buttonLightColor  = `#333`;
+        let darkBtnHoverColor = `rgba(255,255,255,0.5)`;
+        let darkSelectionFill = `#efefef`;
+
         addStyleToElem('.selection','rx: 4px;stroke: transparent;')
         addStyleToElem('button',`
             margin-left: 5px; 
@@ -394,8 +402,8 @@ class ScatterPlot extends Visualization {
             padding: 2px 10px;
             outline: none;
             background-color: transparent;
-            border: 1px solid #333;
-            color: #333;
+            border: 1px solid ${buttonLightColor};
+            color: ${buttonLightColor};
             border-radius: 14px;
             font-size: 10px;
             font-family: DejaVuSansMonoBook;
@@ -403,21 +411,21 @@ class ScatterPlot extends Visualization {
             transition: all 0.3s ease;
         `)
         addStyleToElem('button:hover',`
-            background-color: #333;
-            color: #e5e5e5;
+            background-color: ${buttonLightColor};
+            color: ${darkSelectionFill};
         `)
 
         addStyleToElem('.dark button',`
             border: 0;
-            background-color: rgba(255,255,255,0.7);
+            background-color: ${darkStrokeColor};
         `)
         addStyleToElem('.dark button:hover',`
-            background-color: rgba(255,255,255,0.5);
+            background-color: ${darkBtnHoverColor};
         `)
-        addStyleToElem('.dark .selection','fill: #efefef')
-        addStyleToElem('.dark line',`stroke: rgba(255,255,255,0.7);`)
-        addStyleToElem('.dark .domain',`stroke: rgba(255,255,255,0.7);`)
-        addStyleToElem('.dark text',`fill: rgba(255,255,255,0.7);`)
+        addStyleToElem('.dark .selection',`fill: ${darkSelectionFill}`)
+        addStyleToElem('.dark line',`stroke: ${darkStrokeColor};`)
+        addStyleToElem('.dark .domain',`stroke: ${darkStrokeColor};`)
+        addStyleToElem('.dark text',`fill: ${darkStrokeColor};`)
 
         return divElem;
     }
