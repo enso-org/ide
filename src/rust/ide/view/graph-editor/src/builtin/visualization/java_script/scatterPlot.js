@@ -1,3 +1,8 @@
+/**
+ * Helper function to load scripts.
+ *
+ * It runs only once, so it won't load the same script on this or any other visualization show/hide.
+ */
 function loadScript(url) {
     let script = document.createElement("script");
     script.src = url;
@@ -5,6 +10,11 @@ function loadScript(url) {
     document.head.appendChild(script);
 }
 
+/**
+ * Helper function to load styles.
+ *
+ * It runs only once, so it won't load the same style on this or any other visualization show/hide.
+ */
 function loadStyle(url) {
     let style   = document.createElement("link");
     style.href  = url;
@@ -50,6 +60,9 @@ class ScatterPlot extends Visualization {
     static inputType = "Any"
     static label     = "Scatter Plot (JS)"
 
+    /**
+     * Presents a scatterplot visualization after receiving `data`.
+     */
     onDataReceived(data) {
         loadScript('https://d3js.org/d3.v4.min.js');
         loadStyle('https://fontlibrary.org/face/dejavu-sans-mono')
@@ -100,6 +113,9 @@ class ScatterPlot extends Visualization {
         this.addBrushing(box_width,box_height,scatter,scaleAndAxis,selectedZoomBtn,points,zoom);
     }
 
+    /**
+     * Adds panning and zooming functionality to the visualization.
+     */
     addPanAndZoom(box_width,box_height,svg,margin,scaleAndAxis,scatter,points) {
         const extent = [.5,20];
         let zoomClass = "zoom";
@@ -141,9 +157,15 @@ class ScatterPlot extends Visualization {
             }
         }
 
-        return {zoomElem:zoomElem,zoom:zoom};
+        return {zoomElem,zoom};
     }
 
+    /**
+     * Adds brushing functionality to the plot.
+     *
+     * Brush is a tool which enables user to select points, and zoom into selection via
+     * keyboard shortcut or button event.
+     */
     addBrushing(box_width,box_height,scatter,scaleAndAxis,selectedZoomBtn,points,zoom) {
         let extent;
         let brushClass = "brush";
@@ -159,6 +181,10 @@ class ScatterPlot extends Visualization {
             .call(brush)
 
         let self = this;
+
+        /**
+         * Zooms into selected fragment of plot.
+         */
         const zoomIn = () => {
             let xMin = scaleAndAxis.xScale.invert(extent[0][0]);
             let xMax = scaleAndAxis.xScale.invert(extent[1][0]);
@@ -180,6 +206,9 @@ class ScatterPlot extends Visualization {
             }
         };
 
+        /**
+         * Updates plot when brushing.
+         */
         function updateChart() {
             let selectionEvent = d3.event.selection;
             selectedZoomBtn.style.display = "inline-block";
@@ -188,6 +217,9 @@ class ScatterPlot extends Visualization {
             extent = selectionEvent;
         }
 
+        /**
+         * Removes brush, keyboard event and zoom button when end event is captured.
+         */
         const endBrushing = function (_) {
             brushElem.call(brush.move,null);
             selectedZoomBtn.style.display = "none";
@@ -199,6 +231,9 @@ class ScatterPlot extends Visualization {
         endEvents.forEach(e => document.addEventListener(e,endBrushing,false));
     }
 
+    /**
+     * Helper function for zooming into given scale.
+     */
     zoomingHelper(scaleAndAxis,box_width,scatter,points) {
         scaleAndAxis.xAxis.transition().duration(animation_duration)
             .call(d3.axisBottom(scaleAndAxis.xScale).ticks(box_width / x_axis_label_width));
@@ -217,6 +252,9 @@ class ScatterPlot extends Visualization {
         }
     }
 
+    /**
+     * Creates a plot object and populates it with given data.
+     */
     createScatter(svg,box_width,box_height,points,dataPoints,scaleAndAxis) {
         let clip = svg.append("defs").append("svg:clipPath")
             .attr("id","clip")
@@ -258,6 +296,9 @@ class ScatterPlot extends Visualization {
         return scatter;
     }
 
+    /**
+     * Helper function to match d3 shape from string.
+     */
     matchShape() {
         return d => {
             if (d.shape === undefined)  { return d3.symbolCircle   }
@@ -270,6 +311,9 @@ class ScatterPlot extends Visualization {
         };
     }
 
+    /**
+     * Creates labels on axes if they're defined.
+     */
     createLabels(axis,svg,box_width,margin,box_height) {
         let fontStyle = "10px DejaVuSansMonoBook";
         if (axis.x.label !== undefined) {
@@ -294,6 +338,9 @@ class ScatterPlot extends Visualization {
         }
     }
 
+    /**
+     * Helper function to get text width to make sure text wont overlap on screen.
+     */
     getTextWidth(text,font) {
         const canvas  = document.createElement("canvas");
         const context = canvas.getContext("2d");
@@ -302,6 +349,9 @@ class ScatterPlot extends Visualization {
         return metrics.width;
     }
 
+    /**
+     * Creates plot's axes.
+     */
     createAxes(axis,extremesAndDeltas,box_width,box_height,svg,focus) {
         let {domain_x,domain_y} = this.getDomains(extremesAndDeltas,focus);
 
@@ -324,6 +374,9 @@ class ScatterPlot extends Visualization {
         return {xScale:xScale,yScale:yScale,xAxis:xAxis,yAxis:yAxis};
     }
 
+    /**
+     * Helper function calculating domains of given data.
+     */
     getDomains(extremesAndDeltas,focus) {
         let domain_x = [extremesAndDeltas.xMin - extremesAndDeltas.paddingX,
             extremesAndDeltas.xMax + extremesAndDeltas.paddingX];
@@ -341,6 +394,9 @@ class ScatterPlot extends Visualization {
         return {domain_x,domain_y};
     }
 
+    /**
+     * Helper function calculating extreme values and paddings to make sure data will fit nicely.
+     */
     getExtremesAndDeltas(dataPoints) {
         let xMin = dataPoints[0].x;
         let xMax = dataPoints[0].x;
@@ -363,6 +419,9 @@ class ScatterPlot extends Visualization {
         return {xMin:xMin,xMax:xMax,yMin:yMin,yMax:yMax,paddingX:padding_x,paddingY:padding_y,dx:dx,dy:dy};
     }
 
+    /**
+     * Helper function getting margins for plot's box.
+     */
     getMargins(axis) {
         if (axis.x.label === undefined && axis.y.label === undefined) {
             return {top:20,right:20,bottom:20,left:45};
@@ -374,6 +433,9 @@ class ScatterPlot extends Visualization {
         return {top:10,right:10,bottom:35,left:55};
     }
 
+    /**
+     * Creates HTML div element as container for plot.
+     */
     createDivElem(width,height) {
         const divElem = document.createElementNS(null,"div");
         divElem.setAttributeNS(null,"class","vis-scatterplot");
@@ -430,6 +492,9 @@ class ScatterPlot extends Visualization {
         return divElem;
     }
 
+    /**
+     * Helper function for button creation.
+     */
     createBtnHelper() {
         const btn = document.createElement("button");
         btn.setAttribute("width","80px");
@@ -437,6 +502,9 @@ class ScatterPlot extends Visualization {
         return btn
     }
 
+    /**
+     * Creates a button to fit all points on plot.
+     */
     createButtonFitAll(scaleAndAxis,scatter,points,extremesAndDeltas,zoom,box_width) {
         const btn = this.createBtnHelper()
 
@@ -468,6 +536,9 @@ class ScatterPlot extends Visualization {
         this.dom.appendChild(btn);
     }
 
+    /**
+     * Creates a button to zoom into brushed fragment of plot.
+     */
     createButtonScaleToPoints() {
         const btn = this.createBtnHelper()
         let text  = document.createTextNode("Zoom to selected");
@@ -478,6 +549,9 @@ class ScatterPlot extends Visualization {
         return btn;
     }
 
+    /**
+     * Sets size of this DOM object.
+     */
     setSize(size) {
         this.dom.setAttributeNS(null,"width",size[0]);
         this.dom.setAttributeNS(null,"height",size[1]);
