@@ -10,8 +10,9 @@ use enso_frp as frp;
 
 use crate::application::Application;
 use crate::display::shape::*;
-use crate::gui::component::*;
-use crate::gui::component::Animation;
+use crate::gui::component::HasAnimationSpaceRepr;
+use crate::gui::component::AnimationLinearSpace;
+use crate::gui::component;
 
 
 
@@ -158,46 +159,39 @@ crate::define_endpoints! {
 // === Color Animation ===
 // =======================
 
-/// The `ColorAnimation` provides color better animations for colors than the raw `Animation<_>`,
-///as it allows controlling the alpha channel separately which is important for nice fade outs.
+/// The `Animation` provides color better animations for colors than the raw
+/// `component::Animation<_>`, as it allows controlling the alpha channel separately which is
+/// important for nice fade outs.
 #[derive(Clone,CloneRef,Debug)]
-pub struct ColorAnimation {
+pub struct Animation {
     initialized : Rc<Cell<bool>>,
     frp         : Frp,
     /// Animation of the Lch components of the color.
-    pub lch     : Animation<Lch>,
+    pub lch     : component::Animation<Lch>,
     /// Animation of the alpha component of the color.
-    pub alpha   : Animation<f32>,
+    pub alpha   : component::Animation<f32>,
     /// Stream of the full Lcha color.
-    pub value   : frp::Stream<Lcha>,
+    pub value   : frp::Sampler<Lcha>,
 }
 
 #[allow(missing_docs)]
-impl ColorAnimation {
-
+impl Animation {
     /// Constructor.
-    pub fn new(_app:&Application) -> Self {
+    pub fn new() -> Self {
         let initialized = default();
         let frp         = Frp::new();
-        let value       = frp.value.clone_ref().into();
-        let lch         = Animation::<Lch>::new(&frp.network);
-        let alpha       = Animation::<f32>::new(&frp.network);
-
+        let value       = frp.value.clone_ref();
+        let lch         = component::Animation::<Lch>::new(&frp.network);
+        let alpha       = component::Animation::<f32>::new(&frp.network);
         Self{initialized,lch,alpha,frp,value}.init()
     }
 
     fn init(self) -> Self {
         let network = &self.frp.network;
-        let frp     = &self.frp;
-        let lch     = &self.lch;
-        let alpha   = &self.alpha;
-
         frp::extend! { network
-
-            frp.source.value <+ all(lch.value,alpha.value).map(|(lch,alpha)| {
-                lch.with_alpha(*alpha)
-            });
-
+            self.frp.source.value <+ all(&self.lch.value,&self.alpha.value).map(
+                |(lch,a)| lch.with_alpha(*a)
+            );
         }
         self
     }
@@ -232,5 +226,75 @@ impl ColorAnimation {
             self.lch.set_value(lch);
         }
         self.lch.set_target_value(lch);
+    }
+}
+
+
+
+// =======================
+// === Color Animation ===
+// =======================
+
+pub mod f2 {
+    use super::*;
+    crate::define_endpoints! {
+        Input {
+            target       (Lcha),
+            target_alpha (f32),
+            target_color (Lch),
+        }
+        Output {
+            value (Lcha),
+        }
+    }
+}
+
+/// The `Animation` provides color better animations for colors than the raw
+/// `component::Animation<_>`, as it allows controlling the alpha channel separately which is
+/// important for nice fade outs.
+#[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
+pub struct Animation2 {
+    frp        : f2::Frp,
+    color_anim : component::Animation2<Lch>,
+    alpha_anim : component::Animation2<f32>,
+}
+
+impl Deref for Animation2 {
+    type Target = f2::Frp;
+    fn deref(&self) -> &Self::Target {
+        &self.frp
+    }
+}
+
+impl Animation2 {
+    /// Constructor.
+    pub fn new() -> Self {
+        let frp        = default();
+        let color_anim = default();
+        let alpha_anim = default();
+        Self{frp,color_anim,alpha_anim}.init()
+    }
+
+    fn init(self) -> Self {
+        let network = &self.frp.network;
+        frp::extend! { network
+            color_of_target        <- self.frp.target.map(|t|t.opaque);
+            alpha_of_target        <- self.frp.target.map(|t|t.alpha);
+            target_color           <- any(&self.frp.target_color,&color_of_target);
+            target_alpha           <- any(&self.frp.target_alpha,&alpha_of_target);
+            self.color_anim.target <+ target_color;
+            self.alpha_anim.target <+ target_alpha;
+            self.frp.source.value  <+ all(&self.color_anim.value,&self.alpha_anim.value).map(
+                |(color,alpha)| color.with_alpha(*alpha)
+            );
+        }
+        self
+    }
+}
+
+impl Default for Animation2 {
+    fn default() -> Self {
+        Self::new()
     }
 }

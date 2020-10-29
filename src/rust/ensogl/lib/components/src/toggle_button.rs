@@ -4,7 +4,6 @@ use crate::prelude::*;
 
 use enso_frp as frp;
 use ensogl_core::application::Application;
-use ensogl_core::data::color::animation::ColorAnimation;
 use ensogl_core::data::color;
 use ensogl_core::display::shape::StyleWatch;
 use ensogl_core::display::shape::primitive::system;
@@ -91,7 +90,7 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
         let frp     = &self.frp;
         let model   = &self.model;
         let style   = StyleWatch::new(&app.display.scene().style_sheet);
-        let color   = ColorAnimation::new(&app);
+        let color   = color::Animation::new();
         let icon    = &model.icon.events;
 
         frp::extend! { network

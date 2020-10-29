@@ -14,7 +14,6 @@ use crate::prelude::*;
 use enso_frp as frp;
 use enso_frp;
 use ensogl::application::Application;
-use ensogl::data::color::animation::ColorAnimation;
 use ensogl::data::color;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
@@ -201,7 +200,7 @@ pub struct NodeModel {
     pub action_bar     : action_bar::ActionBar,
     pub output_ports   : OutputPorts,
 
-    main_color         : ColorAnimation,
+    main_color         : color::Animation,
 }
 
 
@@ -216,7 +215,7 @@ impl NodeModel {
         let main_logger = Logger::sub(&logger,"main_area");
         let drag_logger = Logger::sub(&logger,"drag_area");
         let main_area   = component::ShapeView::<shape::Shape>::new(&main_logger,scene);
-        let main_color  = ColorAnimation::new(app);
+        let main_color  = color::Animation::new();
         let drag_area   = component::ShapeView::<drag_area::Shape>::new(&drag_logger,scene);
         edge::sort_hack_2(scene);
 
@@ -314,7 +313,7 @@ impl Node {
         let model     = Rc::new(NodeModel::new(app,registry));
         let selection = Animation::<f32>::new(network);
 
-        let color_animation = ColorAnimation::new(&app);
+        let color_animation = color::Animation::new();
         let style           = StyleWatch::new(&app.display.scene().style_sheet);
 
         let actions         = &model.action_bar.frp;

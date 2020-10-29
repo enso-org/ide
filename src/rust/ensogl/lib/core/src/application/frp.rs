@@ -281,7 +281,7 @@ macro_rules! define_endpoints {
         #[allow(missing_docs)]
         #[allow(unused_parens)]
         pub struct FrpInputs {
-            $( $(#[doc=$($in_doc)*])* pub $in_field : frp::Source<($($in_field_type)*)>),*
+            $( $(#[doc=$($in_doc)*])* pub $in_field : frp::Any<($($in_field_type)*)>),*
         }
 
         #[allow(unused_parens)]
@@ -289,7 +289,7 @@ macro_rules! define_endpoints {
             /// Constructor.
             pub fn new(network:&frp::Network) -> Self {
                 frp::extend! { $($($global_opts)*)? $($($input_opts)*)? network
-                    $($in_field <- source();)*
+                    $($in_field <- any_mut();)*
                 }
                 Self { $($in_field),* }
             }

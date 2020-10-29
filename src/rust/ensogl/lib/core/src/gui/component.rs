@@ -212,12 +212,17 @@ pub struct AnimationLinearSpace<T> {
 
 /// Shorthand for a  HasAnimationSpaceRepr::AnimationSpaceRepr wrapped in a `AnimationLinearSpace`.
 pub type AnimationSpaceRepr<T> = AnimationLinearSpace<<T as HasAnimationSpaceRepr>::AnimationSpaceRepr>;
+pub type AnimationSpaceRepr2<T> = <T as HasAnimationSpaceRepr>::AnimationSpaceRepr;
 
 pub trait Animatable = HasAnimationSpaceRepr + BiInto<AnimationSpaceRepr<Self>>;
 
 /// Convert the animation space value to the respective `Animatable`.
-pub fn from_animation_space<T:Animatable>(value:T::AnimationSpaceRepr) -> T {
+pub fn from_animation_space<T:Animatable>(value:AnimationSpaceRepr2<T>) -> T {
     AnimationLinearSpace{value}.into()
+}
+
+pub fn into_animation_space_repr<T:Animatable>(t:T) -> AnimationSpaceRepr2<T> {
+    t.into().value
 }
 
 macro_rules! define_self_animatable {
@@ -292,6 +297,53 @@ impl<T:Animatable+frp::Data> Animation<T> {
     pub fn target_value(&self) -> T {
         let value = self.simulator.target_value();
         from_animation_space(value)
+    }
+}
+
+
+
+// ==================
+// === Animation2 ===
+// ==================
+
+/// Smart animation handler. Contains of dynamic simulation and frp endpoint. Whenever a new value
+/// is computed, it is emitted via the endpoint.
+#[derive(CloneRef,Derivative,Debug)]
+#[derivative(Clone(bound=""))]
+#[allow(missing_docs)]
+pub struct Animation2<T:Animatable+frp::Data> {
+    network       : frp::Network,
+    pub simulator : DynSimulator<T::AnimationSpaceRepr>,
+    pub target    : frp::Any<T>,
+    pub value     : frp::Stream<T>,
+}
+
+#[allow(missing_docs)]
+impl<T:Animatable+frp::Data> Animation2<T> {
+    /// Constructor.
+    pub fn new() -> Self {
+        frp::new_network! { network
+            value_src <- any_mut::<T>();
+        }
+        let simulator = DynSimulator::<T::AnimationSpaceRepr>::new(
+            Box::new(f!((t) value_src.emit(from_animation_space::<T>(t))))
+        );
+        frp::extend! { network
+            init   <- any_mut();
+            target <- any_mut::<T>();
+            eval target ((t) simulator.set_target_value(into_animation_space_repr(t.clone())));
+            on_init <- target.gate_not(&init);
+            init    <+ target.constant(true);
+            eval_ on_init (simulator.skip());
+        }
+        let value = value_src.into();
+        Self {network,simulator,target,value}
+    }
+}
+
+impl<T:Animatable+frp::Data> Default for Animation2<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

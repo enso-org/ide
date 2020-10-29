@@ -8,7 +8,6 @@ use crate::component::node;
 use enso_frp as frp;
 use enso_frp;
 use ensogl::application::Application;
-use ensogl::data::color::animation::ColorAnimation;
 use ensogl::data::color;
 use ensogl::display::Sprite;
 use ensogl::display::scene::Scene;
@@ -1183,7 +1182,7 @@ impl Edge {
 
         let model           = &self.model;
         let shape_events    = &self.frp.shape_events;
-        let edge_color      = ColorAnimation::new(app);
+        let edge_color      = color::Animation::new();
         let style           = StyleWatch::new(&app.display.scene().style_sheet);
 
 

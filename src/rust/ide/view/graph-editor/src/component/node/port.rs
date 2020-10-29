@@ -8,7 +8,6 @@ use crate::prelude::*;
 use enso_frp as frp;
 use enso_frp;
 use ensogl::application::Application;
-use ensogl::data::color::animation::ColorAnimation;
 use ensogl::data::color;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
@@ -79,7 +78,7 @@ impl Expression {
     }
 }
 
-fn get_id_for_crumbs(span_tree:&SpanTree<SpanTreeData>, crumbs:&[span_tree::Crumb]) -> Option<ast::Id> {
+fn get_id_for_crumbs(span_tree:&SpanTree<PortModel>, crumbs:&[span_tree::Crumb]) -> Option<ast::Id> {
     if span_tree.root_ref().crumbs == crumbs {
         return span_tree.root.ast_id
     };
@@ -121,69 +120,59 @@ pub mod leaf {
         }
 
         Output {
-            color (color::Rgba)
+            color (color::Lcha)
         }
     }
 
-    #[derive(Clone,Debug)]
-    pub struct SpanTreeData {
+    #[derive(Clone,Debug,Default)]
+    pub struct PortModel {
         pub frp    : leaf::Frp,
         pub shape  : Option<component::ShapeView<shape::Shape>>,
         pub name   : Option<String>,
         pub index  : usize,
         pub length : usize,
+        pub color  : color::Animation2,
     }
 
-    impl Deref for SpanTreeData {
+    impl Deref for PortModel {
         type Target = leaf::Frp;
         fn deref(&self) -> &Self::Target {
             &self.frp
         }
     }
 
-    impl SpanTreeData {
+    impl PortModel {
         pub fn new() -> Self {
-            let frp     = leaf::Frp::default();
-            let shape  = default();
-            let name   = default();
-            let length = default();
-            let index  = default();
-            Self {frp,shape,name,index,length}
+            default()
         }
     }
 
-    impl Default for SpanTreeData {
-        fn default() -> Self {
-            Self::new()
-        }
+    #[derive(Clone,Default)]
+    pub struct Expression2 {
+        pub code             : String,
+        pub input_span_tree  : SpanTree<PortModel>,
     }
-
-#[derive(Clone,Default)]
-pub struct Expression2 {
-    pub code             : String,
-    pub input_span_tree  : SpanTree<SpanTreeData>,
-}
 
     impl Deref for Expression2 {
-        type Target = SpanTree<SpanTreeData>;
+        type Target = SpanTree<PortModel>;
         fn deref(&self) -> &Self::Target {
             &self.input_span_tree
         }
     }
 
-impl Debug for Expression2 {
-    fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f,"Expression({})",self.code)
+    impl Debug for Expression2 {
+        fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f,"Expression({})",self.code)
+        }
     }
-}
 
-impl From<Expression> for Expression2 {
-    fn from(t:Expression) -> Self {
-        let code            = t.code;
-        let input_span_tree = t.input_span_tree.map(|_|default());
-        Self {code,input_span_tree}
+    impl From<Expression> for Expression2 {
+        fn from(t:Expression) -> Self {
+            let code            = t.code;
+            let input_span_tree = t.input_span_tree.map(|_|default());
+            Self {code,input_span_tree}
+        }
     }
-}
 
 }
 pub use leaf::*;
@@ -272,7 +261,7 @@ impl Model {
         display_object.add_child(&label);
         display_object.add_child(&ports_group);
 
-        let text_color      = ColorAnimation::new(&app);
+        let text_color      = color::Animation::new();
         let text_color_path = theme::vars::graph_editor::node::text::color;
         let styles          = StyleWatch::new(&app.display.scene().style_sheet);
         text_color.set_value(styles.get_color(text_color_path));
@@ -354,7 +343,7 @@ impl Manager {
         let model      = Rc::new(Model::new(logger,app));
         let frp        = Frp::new();
         let network    = &frp.network;
-        let text_color = ColorAnimation::new(&app);
+        let text_color = color::Animation::new();
         let style      = StyleWatch::new(&app.display.scene().style_sheet);
 
 
@@ -516,14 +505,15 @@ impl Manager {
                         let port_network  = &leaf.network;
 
                         frp::extend! { port_network
-                            color <- leaf.input.set_hover.map(f!([model](is_hovered) {
-                                if *is_hovered { color::Rgba::new(1.0,0.0,0.0,1.0) }
+                            ccc <- leaf.input.set_hover.map(f!([model](is_hovered) {
+                                if *is_hovered { color::Lcha::from(color::Rgba::new(1.0,0.0,0.0,1.0)) }
                                 else {
                                     let color  = model.styles.get_color(theme::vars::graph_editor::node::text::color);
-                                    color::Rgba::from(color)
+                                    color::Lcha::from(color)
                                 }
                             }));
-                            leaf.output.source.color <+ color;
+                            node.color.target <+ ccc;
+                            leaf.output.source.color <+ node.color.value;
                         }
 
                         frp::extend! { port_network
@@ -583,7 +573,7 @@ impl Manager {
                                     let start_bytes = (index as i32).bytes();//(expression.code.len() as i32).bytes();
                                     let end_bytes   = ((index + length) as i32).bytes();//(vis_expr.len() as i32).bytes();
                                     let range       = ensogl_text::buffer::Range::from(start_bytes..end_bytes);
-                                    model.label.set_color_bytes(range,color);
+                                    model.label.set_color_bytes(range,color::Rgba::from(color));
                                 });
                             }
                         }

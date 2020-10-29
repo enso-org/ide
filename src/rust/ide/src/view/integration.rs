@@ -495,7 +495,7 @@ impl Model {
     /// visualization respective FRP endpoint.
     fn visualization_update_handler
     ( &self
-    , endpoint : frp::Source<(graph_editor::NodeId,visualization::Data)>
+    , endpoint : frp::Any<(graph_editor::NodeId,visualization::Data)>
     , node_id  : graph_editor::NodeId
     ) -> impl FnMut(VisualizationUpdateData) -> futures::future::Ready<()> {
         // TODO [mwu]

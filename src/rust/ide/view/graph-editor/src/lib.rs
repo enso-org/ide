@@ -1603,7 +1603,7 @@ impl application::View for GraphEditor {
 }
 
 fn enable_disable_toggle
-(network:&frp::Network, enable:&frp::Source, disable:&frp::Source, toggle:&frp::Source)
+(network:&frp::Network, enable:&frp::Any, disable:&frp::Any, toggle:&frp::Any)
 -> frp::Stream<bool> {
     // FIXME: the clone_refs bellow should not be needed.
     let enable  = enable.clone_ref();
