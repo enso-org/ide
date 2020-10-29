@@ -520,7 +520,7 @@ impl Container {
         frp::extend! { network
             eval  frp.set_visibility    ((v) model.set_visibility(*v));
             eval_ frp.toggle_visibility (model.toggle_visibility());
-            eval  frp.set_visualization (
+            frp.source.visualisation <+ frp.set_visualization.map(f!(
                 [model,action_bar,scene,logger](vis_definition) {
 
                 if let Some(definition) = vis_definition {
@@ -536,7 +536,8 @@ impl Container {
                         },
                     };
                 }
-            });
+                vis_definition.clone()
+            }));
             eval  frp.set_data          ((t) model.set_visualization_data(t));
 
             eval_ frp.enable_fullscreen (model.set_visibility(true));
@@ -582,14 +583,13 @@ impl Container {
 
         // ===  Visualisation chooser frp bindings ===
         frp::extend! { network
-            eval action_bar.visualisation_selection([model,registry,scene,action_bar,frp](visualization_path) {
+            eval action_bar.visualisation_selection(
+            [model,registry,action_bar,frp](visualization_path) {
                 if let Some(path) = visualization_path {
                     if let Some(definition) = registry.definition_from_path(path) {
-                        if let Ok(visualization) = definition.new_instance(&scene) {
-                            model.set_visualization(Some(visualization));
-                            model.action_bar.frp.set_selected_visualization.emit(Some(definition.signature.path.clone()));
-                            frp.source.visualisation.emit(Some(definition));
-                        }
+                        let path = Some(definition.signature.path.clone());
+                        model.action_bar.frp.set_selected_visualization.emit(path);
+                        frp.set_visualization.emit(definition);
                     }
                     action_bar.hide_icons.emit(());
                 }
