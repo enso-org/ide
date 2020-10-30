@@ -25,12 +25,16 @@ function loadStyle(url) {
     document.head.appendChild(style);
 }
 
-const label_style        = "font-family: DejaVuSansMonoBook; font-size: 10px;";
-const x_axis_label_width = 30;
-const label_padding_x    = 7;
-const label_padding_y    = 2;
-const animation_duration = 1000;
+loadScript('https://d3js.org/d3.v4.min.js');
+loadStyle('https://fontlibrary.org/face/dejavu-sans-mono')
 
+const label_style           = "font-family: DejaVuSansMonoBook; font-size: 10px;";
+const x_axis_label_width    = 30;
+const point_label_padding_x = 7;
+const point_label_padding_y = 2;
+const animation_duration    = 1000;
+const linear_scale          = "linear";
+const visilbe_points        = "visible";
 /**
  * A d3.js ScatterPlot visualization.
  *
@@ -64,22 +68,20 @@ class ScatterPlot extends Visualization {
      * Presents a scatterplot visualization after receiving `data`.
      */
     onDataReceived(data) {
-        loadScript('https://d3js.org/d3.v4.min.js');
-        loadStyle('https://fontlibrary.org/face/dejavu-sans-mono')
 
         while (this.dom.firstChild) {
             this.dom.removeChild(this.dom.lastChild);
         }
 
-        let width        = this.dom.getAttributeNS(null,"width");
-        let height       = this.dom.getAttributeNS(null,"height");
-        const btnPadding = 25;
-        height           = height - btnPadding;
-        const divElem    = this.createDivElem(width,height);
+        let width           = this.dom.getAttributeNS(null,"width");
+        let height          = this.dom.getAttributeNS(null,"height");
+        const buttonsHeight = 25;
+        height              = height - buttonsHeight;
+        const divElem       = this.createDivElem(width,height);
         this.dom.appendChild(divElem);
 
         let parsedData = JSON.parse(data);
-        let axis       = parsedData.axis || {x:{scale:"linear"},y:{scale:"linear"}};
+        let axis       = parsedData.axis || {x:{scale:linear_scale},y:{scale:linear_scale}};
         let focus      = parsedData.focus;
         let points     = parsedData.points || {labels:"invisible"};
         let dataPoints = parsedData.data || {};
@@ -96,20 +98,16 @@ class ScatterPlot extends Visualization {
             .attr("transform","translate(" + margin.left + "," + margin.top + ")");
 
         let extremesAndDeltas = this.getExtremesAndDeltas(dataPoints);
-
         let scaleAndAxis = this.createAxes(axis,extremesAndDeltas,box_width,box_height,svg,focus);
-
         this.createLabels(axis,svg,box_width,margin,box_height);
-
         let scatter = this.createScatter(svg,box_width,box_height,points,dataPoints,scaleAndAxis);
-
         let zoom = this.addPanAndZoom(box_width,box_height,svg,margin,scaleAndAxis,scatter,points);
 
-        // TODO: Visualization selector obfuscates button, so it is now on the bottom, should be on top.
+        // TODO [MM]: In task specification buttons were on top of the visualization, but because
+        //            the visualization selector obfuscated them, they're now on the bottom.
+        //            This should be fixed in (#898).
         this.createButtonFitAll(scaleAndAxis,scatter,points,extremesAndDeltas,zoom,box_width);
-
         let selectedZoomBtn = this.createButtonScaleToPoints();
-
         this.addBrushing(box_width,box_height,scatter,scaleAndAxis,selectedZoomBtn,points,zoom);
     }
 
@@ -117,9 +115,10 @@ class ScatterPlot extends Visualization {
      * Adds panning and zooming functionality to the visualization.
      */
     addPanAndZoom(box_width,box_height,svg,margin,scaleAndAxis,scatter,points) {
-        const extent = [.5,20];
         let zoomClass = "zoom";
-
+        let minScale  = .5;
+        let maxScale  = 20;
+        const extent  = [minScale,maxScale];
         let zoom = d3.zoom().filter(function () {
             let right_button = 2
             let mid_button   = 1
@@ -154,10 +153,10 @@ class ScatterPlot extends Visualization {
             scatter.selectAll("path")
                 .attr('transform',d => "translate(" + new_xScale(d.x) + "," + new_yScale(d.y) + ")")
 
-            if (points.labels === "visible") {
+            if (points.labels === visilbe_points) {
                 scatter.selectAll("text")
-                    .attr("x",d => new_xScale(d.x) + label_padding_x)
-                    .attr("y",d => new_yScale(d.y) + label_padding_y)
+                    .attr("x",d => new_xScale(d.x) + point_label_padding_x)
+                    .attr("y",d => new_yScale(d.y) + point_label_padding_y)
             }
         }
 
@@ -252,7 +251,7 @@ class ScatterPlot extends Visualization {
     }
 
     /**
-     * Helper function for zooming into given scale.
+     * Helper function for zooming in after the scale has been updated.
      */
     zoomingHelper(scaleAndAxis,box_width,scatter,points) {
         scaleAndAxis.xAxis.transition().duration(animation_duration)
@@ -264,11 +263,11 @@ class ScatterPlot extends Visualization {
             .transition().duration(animation_duration)
             .attr('transform',d => "translate(" + scaleAndAxis.xScale(d.x) + "," + scaleAndAxis.yScale(d.y) + ")")
 
-        if (points.labels === "visible") {
+        if (points.labels === visilbe_points) {
             scatter.selectAll("text")
                 .transition().duration(animation_duration)
-                .attr("x",d => scaleAndAxis.xScale(d.x) + label_padding_x)
-                .attr("y",d => scaleAndAxis.yScale(d.y) + label_padding_y)
+                .attr("x",d => scaleAndAxis.xScale(d.x) + point_label_padding_x)
+                .attr("y",d => scaleAndAxis.yScale(d.y) + point_label_padding_y)
         }
     }
 
@@ -289,26 +288,26 @@ class ScatterPlot extends Visualization {
         let scatter = svg.append('g')
             .attr("clip-path","url(#clip)")
 
-        let size_scale = 100
+        let sizeScaleMultiplier = 100
 
         scatter
             .selectAll("dataPoint")
             .data(dataPoints)
             .enter()
             .append("path")
-            .attr("d",symbol.type(this.matchShape()).size(d => (d.size || 1.0) * size_scale))
+            .attr("d",symbol.type(this.matchShape()).size(d => (d.size || 1.0) * sizeScaleMultiplier))
             .attr('transform',d => "translate(" + scaleAndAxis.xScale(d.x) + "," + scaleAndAxis.yScale(d.y) + ")")
             .style("fill",d => "#" + (d.color || "000000"))
             .style("opacity",0.5)
 
-        if (points.labels === "visible") {
+        if (points.labels === visilbe_points) {
             scatter.selectAll("dataPoint")
                 .data(dataPoints)
                 .enter()
                 .append("text")
                 .text(d => d.label)
-                .attr("x",d => scaleAndAxis.xScale(d.x) + label_padding_x)
-                .attr("y",d => scaleAndAxis.yScale(d.y) + label_padding_y)
+                .attr("x",d => scaleAndAxis.xScale(d.x) + point_label_padding_x)
+                .attr("y",d => scaleAndAxis.yScale(d.y) + point_label_padding_y)
                 .attr("style",label_style)
                 .attr("fill","black");
         }
@@ -321,7 +320,6 @@ class ScatterPlot extends Visualization {
      */
     matchShape() {
         return d => {
-            if (d.shape === undefined)  { return d3.symbolCircle   }
             if (d.shape === "cross")    { return d3.symbolCross    }
             if (d.shape === "diamond")  { return d3.symbolDiamond  }
             if (d.shape === "square")   { return d3.symbolSquare   }
@@ -359,7 +357,8 @@ class ScatterPlot extends Visualization {
     }
 
     /**
-     * Helper function to get text width to make sure text wont overlap on screen.
+     * Helper function to get text width to make sure that labels on x axis wont overlap,
+     * and keeps it readable.
      */
     getTextWidth(text,font) {
         const canvas  = document.createElement("canvas");
@@ -376,7 +375,7 @@ class ScatterPlot extends Visualization {
         let {domain_x,domain_y} = this.getDomains(extremesAndDeltas,focus);
 
         let xScale = d3.scaleLinear();
-        if (axis.x.scale !== "linear") { xScale = d3.scaleLog(); }
+        if (axis.x.scale !== linear_scale) { xScale = d3.scaleLog(); }
 
         xScale.domain(domain_x).range([0,box_width]);
         let xAxis = svg.append("g")
@@ -385,7 +384,7 @@ class ScatterPlot extends Visualization {
             .call(d3.axisBottom(xScale).ticks(box_width/x_axis_label_width))
 
         let yScale = d3.scaleLinear()
-        if (axis.y.scale !== "linear") { yScale = d3.scaleLog(); }
+        if (axis.y.scale !== linear_scale) { yScale = d3.scaleLog(); }
 
         yScale.domain(domain_y).range([box_height,0]);
         let yAxis = svg.append("g")
@@ -395,7 +394,12 @@ class ScatterPlot extends Visualization {
     }
 
     /**
-     * Helper function calculating domains of given data.
+     * Helper function calculating domains for x and y axes.
+     *
+     * Example:
+     * Lets say we have a bunch of points. Those points will have some minimum and maximum value,
+     * from which we can calculate the span of points on X and Y axis, hence domain, with added
+     * padding to make sure points will fit nicely on the chart.
      */
     getDomains(extremesAndDeltas,focus) {
         let domain_x = [extremesAndDeltas.xMin - extremesAndDeltas.paddingX,
@@ -416,6 +420,10 @@ class ScatterPlot extends Visualization {
 
     /**
      * Helper function calculating extreme values and paddings to make sure data will fit nicely.
+     *
+     * It traverses through data getting minimal and maximal values, and calculates padding based on
+     * span calculated from above values, multiplied by 10% so that the plot is a little bit smaller
+     * than the container.
      */
     getExtremesAndDeltas(dataPoints) {
         let xMin = dataPoints[0].x;
