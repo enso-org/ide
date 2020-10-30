@@ -68,151 +68,53 @@ mod background {
 
 
 
-// =================
-// === FrpInputs ===
-// =================
-
-/// Breadcrumbs panel frp network inputs.
-#[derive(Debug,Clone,CloneRef)]
-pub struct FrpInputs {
-    /// Pushes a new breadcrumb after the selected breadcrumb. If the pushed breadcrumb already
-    /// exists as the next one of the stack, it's just selected. If the next breadcrumb isn't the
-    /// breadcrumb being pushed, any existing breadcrumb following the currently selected breadcrumb
-    /// is removed from the panel.
-    pub push_breadcrumb             : frp::Source<Option<LocalCall>>,
-    /// Pops the selected breadcrumb.
-    pub pop_breadcrumb              : frp::Source,
-    /// Signalizes a mouse press happened outside the breadcrumb panel. It's used to finish project
-    /// renaming, committing the name in text field.
-    pub outside_press               : frp::Source,
-    /// Signalizes we want to cancel project name renaming, bringing back the project name before
-    /// editing.
-    pub cancel_project_name_editing : frp::Source,
-    /// Sets the project name.
-    pub project_name                : frp::Source<String>,
-    /// Select the breadcrumb by its index.
-    pub select_breadcrumb           : frp::Source<usize>
-}
-
-impl FrpInputs {
-    /// Constructor.
-    pub fn new(network:&frp::Network) -> Self {
-        frp::extend! {network
-            push_breadcrumb             <- source();
-            pop_breadcrumb              <- source();
-            outside_press               <- source();
-            cancel_project_name_editing <- source();
-            project_name                <- source();
-            select_breadcrumb           <- source();
-        }
-        Self{push_breadcrumb,pop_breadcrumb,outside_press,cancel_project_name_editing,project_name,
-            select_breadcrumb}
-    }
-}
-
-/// Breadcrumbs panel frp network debug inputs. Used to test the breadcrumbs panel view without
-/// a controller.
-#[derive(Debug,Clone,CloneRef)]
-pub struct DebugFrpInputs {
-    /// Same as `FrpInputs::push_breadcrumb`, but pushes a hardcoded breadcrumb if
-    /// `Option<LocalCall>` is `None`.
-    pub push_breadcrumb   : frp::Source<Option<LocalCall>>,
-    /// Pops the breadcrumb view without sending signals to the controller.
-    pub pop_breadcrumb    : frp::Source,
-    /// Selects the breadcrumb by its index without sending signals to the controller.
-    pub select_breadcrumb : frp::Source<usize>
-}
-
-impl DebugFrpInputs {
-    /// Constructor.
-    pub fn new(network:&frp::Network) -> Self {
-        frp::extend!{ network
-            push_breadcrumb   <- source();
-            pop_breadcrumb    <- source();
-            select_breadcrumb <- source();
-        }
-        Self{push_breadcrumb,pop_breadcrumb,select_breadcrumb}
-    }
-}
-
-
-// ==================
-// === FrpOutputs ===
-// ==================
-
-/// Breadcrumbs panel frp network outputs.
-#[derive(Debug,Clone,CloneRef)]
-pub struct FrpOutputs {
-    /// Signalizes when a new breadcrumb is pushed.
-    pub breadcrumb_push   : frp::Source<Option<LocalCall>>,
-    /// Signalizes when a breadcrumb is popped.
-    pub breadcrumb_pop    : frp::Source,
-    /// Signalizes when project name is changed.
-    pub project_name      : frp::Any<String>,
-    /// Signalizes when a breadcrumb is selected, returning a tuple with the amount of breadcrumbs
-    /// to be popped, in case the selection happens on the left of the currently selected
-    /// breadcrumb, or else a vector of existing breadcrumbs to be pushed.
-    pub breadcrumb_select : frp::Source<(usize,Vec<Option<LocalCall>>)>,
-    /// Indicates the pointer style that should be shown based on the interactions with the
-    /// breadcrumb.
-    pub pointer_style     : frp::Source<cursor::Style>,
-}
-
-impl FrpOutputs {
-    /// Constructor.
-    pub fn new(network:&frp::Network) -> Self {
-        frp::extend! {network
-            breadcrumb_push   <- source();
-            breadcrumb_pop    <- source();
-            project_name      <- any(...);
-            breadcrumb_select <- source();
-            pointer_style     <- source();
-        }
-        Self{breadcrumb_push,breadcrumb_pop,project_name,breadcrumb_select,pointer_style}
-    }
-}
-
-
-
 // ===========
 // === Frp ===
 // ===========
 
-/// A breadcrumbs panel frp structure with its endpoints and network representation.
-#[derive(Debug,Clone,CloneRef)]
-#[allow(missing_docs)]
-pub struct Frp {
-    pub inputs  : FrpInputs,
-    pub outputs : FrpOutputs,
-    /// Frp debug inputs, used for testing the view without the controller.
-    pub debug   : DebugFrpInputs,
-    pub network : frp::Network,
-}
-
-impl Deref for Frp {
-    type Target = FrpInputs;
-    fn deref(&self) -> &Self::Target {
-        &self.inputs
+ensogl::define_endpoints! {
+    Input {
+        /// Pushes a new breadcrumb after the selected breadcrumb. If the pushed breadcrumb already
+        /// exists as the next one of the stack, it's just selected. If the next breadcrumb isn't the
+        /// breadcrumb being pushed, any existing breadcrumb following the currently selected breadcrumb
+        /// is removed from the panel.
+        push_breadcrumb             (Option<LocalCall>),
+        /// Pops the selected breadcrumb.
+        pop_breadcrumb              (),
+        /// Signalizes a mouse press happened outside the breadcrumb panel. It's used to finish project
+        /// renaming, committing the name in text field.
+        outside_press               (),
+        /// Signalizes we want to cancel project name renaming, bringing back the project name before
+        /// editing.
+        cancel_project_name_editing (),
+        /// Sets the project name.
+        project_name                (String),
+        /// Select the breadcrumb by its index.
+        select_breadcrumb           (usize),
+        /// Same as `FrpInputs::push_breadcrumb`, but pushes a hardcoded breadcrumb if
+        /// `Option<LocalCall>` is `None`.
+        debug_push_breadcrumb       (Option<LocalCall>),
+        /// Pops the breadcrumb view without sending signals to the controller.
+        debug_pop_breadcrumb        (),
+        /// Selects the breadcrumb by its index without sending signals to the controller.
+        debug_select_breadcrumb     (usize),
+    }
+    Output {
+        /// Signalizes when a new breadcrumb is pushed.
+        breadcrumb_push   (Option<LocalCall>),
+        /// Signalizes when a breadcrumb is popped.
+        breadcrumb_pop    (),
+        /// Signalizes when project name is changed.
+        project_name      (String),
+        /// Signalizes when a breadcrumb is selected, returning a tuple with the amount of breadcrumbs
+        /// to be popped, in case the selection happens on the left of the currently selected
+        /// breadcrumb, or else a vector of existing breadcrumbs to be pushed.
+        breadcrumb_select ((usize,Vec<Option<LocalCall>>)),
+        /// Indicates the pointer style that should be shown based on the interactions with the
+        /// breadcrumb.
+        pointer_style      (cursor::Style),
     }
 }
-
-impl Frp {
-    /// Constructor.
-    pub fn new() -> Self {
-        let network = frp::Network::new();
-        let inputs  = FrpInputs::new(&network);
-        let outputs = FrpOutputs::new(&network);
-        let debug   = DebugFrpInputs::new(&network);
-        Self{network,inputs,outputs,debug}
-    }
-}
-
-impl Default for Frp {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 
 
 // ========================
@@ -233,7 +135,6 @@ pub struct BreadcrumbsModel {
     app                   : Application,
     breadcrumbs           : Rc<RefCell<Vec<Breadcrumb>>>,
     frp_inputs            : FrpInputs,
-    frp_debug             : DebugFrpInputs,
     current_index         : Rc<Cell<usize>>,
     camera                : Camera2d,
 }
@@ -248,14 +149,13 @@ impl BreadcrumbsModel {
         let breadcrumbs_container = display::object::Instance::new(&logger);
         let scene                 = scene.clone_ref();
         let breadcrumbs           = default();
-        let frp_inputs            = frp.inputs.clone_ref();
-        let frp_debug             = frp.debug.clone_ref();
+        let frp_inputs            = frp.input.clone_ref();
         let current_index         = default();
         let camera                = scene.camera().clone_ref();
         let background            = component::ShapeView::<background::Shape>::new(&logger,&scene);
 
         Self{logger,display_object,app,breadcrumbs,project_name,breadcrumbs_container,
-            frp_inputs,current_index,frp_debug,camera,background}.init()
+            frp_inputs,current_index,camera,background}.init()
     }
 
     fn init(self) -> Self {
@@ -386,10 +286,10 @@ impl BreadcrumbsModel {
 
                 let new_index = *new_index;
                 let network   = &breadcrumb.frp.network;
-                let frp_debug = &self.frp_debug;
+                let frp_inputs       = &self.frp_inputs;
                 frp::extend! { network
                     eval_ breadcrumb.frp.outputs.clicked(
-                        frp_debug.select_breadcrumb.emit(new_index);
+                        frp_inputs.debug_select_breadcrumb.emit(new_index);
                     );
                 }
             }));
@@ -450,7 +350,7 @@ impl Breadcrumbs {
     /// Constructor.
     pub fn new(app:Application) -> Self {
         let scene   = app.display.scene().clone_ref();
-        let frp     = Frp::new();
+        let frp     = Frp::new_network();
         let model   = Rc::new(BreadcrumbsModel::new(app,&frp));
         let network = &frp.network;
 
@@ -461,7 +361,7 @@ impl Breadcrumbs {
             // === Selecting ===
 
             _breadcrumb_selection <- frp.select_breadcrumb.map(f!([model,frp](index)
-                frp.outputs.breadcrumb_select.emit(model.select_breadcrumb(*index));
+                frp.source.breadcrumb_select.emit(model.select_breadcrumb(*index));
             ));
 
 
@@ -471,10 +371,10 @@ impl Breadcrumbs {
                 model.push_breadcrumb(local_call))
             );
             pop_indices <= frp.pop_breadcrumb.map(f_!(model.pop_breadcrumb()));
-            debug_push_indices <= frp.debug.push_breadcrumb.map(f!((local_call)
+            debug_push_indices <= frp.input.debug_push_breadcrumb.map(f!((local_call)
                 model.debug_push_breadcrumb(local_call)
             ));
-            debug_pop_indices <= frp.debug.pop_breadcrumb.map(f_!(model.debug_pop_breadcrumb()));
+            debug_pop_indices <= frp.input.debug_pop_breadcrumb.map(f_!(model.debug_pop_breadcrumb()));
 
             indices <- any4(&push_indices,&pop_indices,&debug_push_indices,&debug_pop_indices);
             old_breadcrumb <- indices.map(f!([model] (indices) {
@@ -501,7 +401,7 @@ impl Breadcrumbs {
             // === Project Name ===
 
             eval frp.project_name((name) model.project_name.frp.name(name));
-            frp.outputs.project_name <+ model.project_name.frp.output.name;
+            frp.source.project_name <+ model.project_name.frp.output.name;
 
 
             // === GUI Update ===
@@ -517,10 +417,10 @@ impl Breadcrumbs {
             eval_ frp.cancel_project_name_editing(model.project_name.frp.cancel_editing.emit(()));
             eval_ frp.outside_press(model.project_name.frp.outside_press.emit(()));
             
-            popped_count <= frp.outputs.breadcrumb_select.map(|selected| (0..selected.0).collect_vec());
-            local_calls  <= frp.outputs.breadcrumb_select.map(|selected| selected.1.clone());
-            eval_ popped_count(frp.outputs.breadcrumb_pop.emit(()));
-            eval local_calls((local_call) frp.outputs.breadcrumb_push.emit(local_call));
+            popped_count <= frp.output.breadcrumb_select.map(|selected| (0..selected.0).collect_vec());
+            local_calls  <= frp.output.breadcrumb_select.map(|selected| selected.1.clone());
+            eval_ popped_count(frp.source.breadcrumb_pop.emit(()));
+            eval local_calls((local_call) frp.source.breadcrumb_push.emit(local_call));
 
 
             // === Select ===
@@ -528,15 +428,15 @@ impl Breadcrumbs {
             selected_project_name <- model.project_name.frp.output.mouse_down.map(f_!([model]
                 model.debug_select_breadcrumb(0))
             );
-            selected_breadcrumb   <- frp.debug.select_breadcrumb.map(f!((index)
+            selected_breadcrumb   <- frp.input.debug_select_breadcrumb.map(f!((index)
                 model.debug_select_breadcrumb(*index))
             );
             selected <- any(&selected_project_name,&selected_breadcrumb);
 
             popped_count <= selected.map(|selected| (0..selected.0).collect_vec());
             local_calls  <= selected.map(|selected| selected.1.clone());
-            eval_ popped_count(frp.debug.pop_breadcrumb.emit(()));
-            eval local_calls((local_call) frp.debug.push_breadcrumb.emit(local_call));
+            eval_ popped_count(frp.input.debug_pop_breadcrumb.emit(()));
+            eval local_calls((local_call) frp.input.debug_push_breadcrumb.emit(local_call));
 
 
             // === Relayout ===
@@ -551,7 +451,7 @@ impl Breadcrumbs {
             // === Pointer style ===
 
             eval model.project_name.frp.output.pointer_style ((style)
-                frp.outputs.pointer_style.emit(style);
+                frp.source.pointer_style.emit(style);
             );
 
         }

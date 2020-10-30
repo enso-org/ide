@@ -1680,8 +1680,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // =============================
 
     frp::extend! { network
-        eval_ inputs.debug_push_breadcrumb(model.breadcrumbs.frp.debug.push_breadcrumb.emit(None));
-        eval_ inputs.debug_pop_breadcrumb (model.breadcrumbs.frp.debug.pop_breadcrumb.emit(()));
+        eval_ inputs.debug_push_breadcrumb(model.breadcrumbs.frp.debug_push_breadcrumb.emit(None));
+        eval_ inputs.debug_pop_breadcrumb (model.breadcrumbs.frp.debug_pop_breadcrumb.emit(()));
     }
 
 
@@ -2449,7 +2449,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     cursor_style_on_edge_drag_stop <- out.all_edges_attached.constant(default());
     cursor_style_edge_drag         <- any (cursor_style_edge_drag,cursor_style_on_edge_drag_stop);
 
-    breadcrumb_style <- model.breadcrumbs.frp.outputs.pointer_style.map(|s| s.clone());
+    breadcrumb_style <- model.breadcrumbs.frp.output.pointer_style.map(|s| s.clone());
 
     pointer_style <- all
         [ pointer_on_drag

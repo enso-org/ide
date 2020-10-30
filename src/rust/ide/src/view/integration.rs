@@ -207,8 +207,8 @@ impl Integration {
 
         let breadcrumbs = &model.view.graph().model.breadcrumbs;
         frp::extend! {network
-            eval_ breadcrumbs.frp.outputs.breadcrumb_pop(model.node_exited_in_ui(&()).ok());
-            eval  breadcrumbs.frp.outputs.breadcrumb_push((local_call) {
+            eval_ breadcrumbs.frp.output.breadcrumb_pop(model.node_exited_in_ui(&()).ok());
+            eval  breadcrumbs.frp.output.breadcrumb_push((local_call) {
                 model.expression_entered_in_ui(&local_call.as_ref().map(|local_call| {
                     let definition = (**local_call.definition).clone();
                     let call       = local_call.call;
@@ -222,7 +222,7 @@ impl Integration {
 
         let breadcrumbs = &model.view.graph().model.breadcrumbs;
         frp::extend! {network
-            eval breadcrumbs.frp.outputs.project_name((name) {
+            eval breadcrumbs.frp.output.project_name((name) {
                 model.rename_project(name);
             });
         }
@@ -402,7 +402,7 @@ impl Model {
 impl Model {
     fn init_project_name(&self) {
         let project_name = self.project.name().to_string();
-        self.view.graph().model.breadcrumbs.frp.project_name.emit(project_name);
+        self.view.graph().model.breadcrumbs.frp.input.project_name.emit(project_name);
     }
 
     fn rename_project(&self, name:impl Str) {
