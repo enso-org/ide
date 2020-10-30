@@ -28,6 +28,11 @@ function loadStyle(url) {
 loadScript('https://d3js.org/d3.v4.min.js');
 loadStyle('https://fontlibrary.org/face/dejavu-sans-mono')
 
+let shortcuts = {
+    zoomIn  : (e) => ((e.ctrlKey || e.metaKey) && e.key === 'z'),
+    showAll : (e) => ((e.ctrlKey || e.metaKey) && event.key === 'a')
+}
+
 const label_style           = "font-family: DejaVuSansMonoBook; font-size: 10px;";
 const x_axis_label_width    = 30;
 const point_label_padding_x = 7;
@@ -35,6 +40,7 @@ const point_label_padding_y = 2;
 const animation_duration    = 1000;
 const linear_scale          = "linear";
 const visilbe_points        = "visible";
+
 /**
  * A d3.js ScatterPlot visualization.
  *
@@ -219,7 +225,7 @@ class ScatterPlot extends Visualization {
         }
 
         const zoomInKeyEvent = (event) => {
-            if ((event.ctrlKey || event.metaKey) && event.key === 'z') {
+            if (shortcuts.zoomIn(event)) {
                 zoomIn();
                 selectedZoomBtn.style.display = "none";
             }
@@ -554,8 +560,8 @@ class ScatterPlot extends Visualization {
             self.zoomingHelper(scaleAndAxis,box_width,scatter,points);
         }
 
-        document.addEventListener('keydown',function(event) {
-            if ((event.ctrlKey || event.metaKey) && event.key === 'a') {
+        document.addEventListener('keydown',e => {
+            if (shortcuts.showAll(e)) {
                 unzoom()
             }
         });
