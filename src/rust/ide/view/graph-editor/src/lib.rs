@@ -986,6 +986,8 @@ impl GraphEditorModelWithNetwork {
             // Ensure the graph editor knows about internal changes to the visualisation. If the
             // visualisation changes that should indicate that the old one has been disabled and a
             // new one has been enabled.
+            // TODO: Create a better API for updating the controller about visualisation changes
+            // (see #896)
             output.visualization_disabled          <+ vis_changed.constant(node_id);
             output.visualization_enabled           <+ vis_changed.constant(node_id);
             
