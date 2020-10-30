@@ -131,7 +131,8 @@ class ScatterPlot extends Visualization {
             }
         }).scaleExtent(extent)
             .extent([[0,0],[box_width,box_height]])
-            .on(zoomClass,zoomed);
+            .on(zoomClass,zoomed)
+            .on("wheel.zoom", wheeled)
 
         let zoomElem = scatter.append("g")
             .attr("class",zoomClass)
@@ -141,6 +142,9 @@ class ScatterPlot extends Visualization {
             .style("pointer-events","all")
             .call(zoom);
 
+        /**
+         * Helper function called on pan/scroll.
+         */
         function zoomed() {
             let new_xScale = d3.event.transform.rescaleX(scaleAndAxis.xScale);
             let new_yScale = d3.event.transform.rescaleY(scaleAndAxis.yScale);
@@ -155,6 +159,22 @@ class ScatterPlot extends Visualization {
                     .attr("x",d => new_xScale(d.x) + label_padding_x)
                     .attr("y",d => new_yScale(d.y) + label_padding_y)
             }
+        }
+
+        /**
+         * Helper function called on pinch.
+         *
+         * May seem unintuitive at first, but here's the explanation of ctrl+wheel:
+         * https://medium.com/@auchenberg/detecting-multi-touch-trackpad-gestures-in-javascript-a2505babb10e
+         */
+        function wheeled() {
+            let current_transform = d3.zoomTransform(scatter);
+            if (d3.event.ctrlKey) {
+                current_transform.k = current_transform.k - d3.event.deltaY * 0.01;
+            } else {
+                current_transform.y = current_transform.y - d3.event.deltaY;
+            }
+            scatter.attr("transform", current_transform);
         }
 
         return {zoomElem,zoom};
