@@ -1680,8 +1680,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // =============================
 
     frp::extend! { network
-        eval_ inputs.debug_push_breadcrumb(model.breadcrumbs.frp.debug_push_breadcrumb.emit(None));
-        eval_ inputs.debug_pop_breadcrumb (model.breadcrumbs.frp.debug_pop_breadcrumb.emit(()));
+        eval_ inputs.debug_push_breadcrumb(model.breadcrumbs.debug_push_breadcrumb.emit(None));
+        eval_ inputs.debug_pop_breadcrumb (model.breadcrumbs.debug_pop_breadcrumb.emit(()));
     }
 
 
@@ -1693,7 +1693,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Commit project name edit ===
 
     frp::extend! { network
-        eval_ touch.background.selected(model.breadcrumbs.frp.outside_press.emit(()));
+        eval_ touch.background.selected(model.breadcrumbs.outside_press.emit(()));
     }
 
 
@@ -2449,7 +2449,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     cursor_style_on_edge_drag_stop <- out.all_edges_attached.constant(default());
     cursor_style_edge_drag         <- any (cursor_style_edge_drag,cursor_style_on_edge_drag_stop);
 
-    breadcrumb_style <- model.breadcrumbs.frp.output.pointer_style.map(|s| s.clone());
+    let breadcrumb_style = model.breadcrumbs.pointer_style.clone_ref();
 
     pointer_style <- all
         [ pointer_on_drag
@@ -2475,7 +2475,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
 impl display::Object for GraphEditor {
     fn display_object(&self) -> &display::object::Instance {
-        &self.model.display_object
+        self.model.display_object()
     }
 }
 

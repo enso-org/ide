@@ -338,12 +338,11 @@ impl display::Object for BreadcrumbsModel {
 // ===================
 
 /// The breadcrumbs panel's view used for visualizing the breadcrumbs and navigating them.
-#[derive(Debug,Clone,CloneRef,Shrinkwrap)]
+#[derive(Debug,Clone,CloneRef)]
 #[allow(missing_docs)]
 pub struct Breadcrumbs {
-    #[shrinkwrap(main_field)]
     model   : Rc<BreadcrumbsModel>,
-    pub frp : Frp
+    frp : Frp
 }
 
 impl Breadcrumbs {
@@ -450,9 +449,7 @@ impl Breadcrumbs {
 
             // === Pointer style ===
 
-            eval model.project_name.frp.output.pointer_style ((style)
-                frp.source.pointer_style.emit(style);
-            );
+            frp.source.pointer_style <+ model.project_name.frp.output.pointer_style;
 
         }
 
@@ -462,6 +459,13 @@ impl Breadcrumbs {
 
 impl display::Object for Breadcrumbs {
     fn display_object(&self) -> &display::object::Instance {
-        &self.display_object
+        &self.model.display_object
+    }
+}
+
+impl Deref for Breadcrumbs {
+    type Target = Frp;
+    fn deref(&self) -> &Self::Target {
+        &self.frp
     }
 }
