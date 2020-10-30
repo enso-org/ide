@@ -583,17 +583,23 @@ impl Container {
 
         // ===  Visualisation chooser frp bindings ===
         frp::extend! { network
-            eval action_bar.visualisation_selection(
-            [model,registry,action_bar,frp](visualization_path) {
-                if let Some(path) = visualization_path {
-                    if let Some(definition) = registry.definition_from_path(path) {
-                        let path = Some(definition.signature.path.clone());
-                        model.action_bar.frp.set_selected_visualization.emit(path);
-                        frp.set_visualization.emit(definition);
-                    }
-                    action_bar.hide_icons.emit(());
-                }
+            selected_definition  <- action_bar.visualisation_selection.map(f!([registry](path)
+                path.as_ref().map(|path| registry.definition_from_path(path) ).flatten()
+            ));
+            eval selected_definition([scene,model,logger](definition)  {
+                let vis = definition.as_ref().map(|d| d.new_instance(&scene));
+                match vis {
+                    Some(Ok(vis))  =>  model.set_visualization(Some(vis)),
+                    Some(Err(err)) => {
+                        logger.warning(
+                            || format!("Failed to instantiate visualisation: {:?}",err));
+                    },
+                    None => logger.warning("Invalid visualisation selected"),
+                };
             });
+            frp.source.visualisation <+ selected_definition;
+            on_selected              <- selected_definition.map(|d|d.as_ref().map(|_|())).unwrap();
+            eval_ on_selected ( action_bar.hide_icons.emit(()) );
         }
 
         frp.set_size.emit(Vector2(DEFAULT_SIZE.0,DEFAULT_SIZE.1));
