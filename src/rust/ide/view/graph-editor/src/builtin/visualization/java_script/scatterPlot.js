@@ -132,7 +132,7 @@ class ScatterPlot extends Visualization {
         }).scaleExtent(extent)
             .extent([[0,0],[box_width,box_height]])
             .on(zoomClass,zoomed)
-            .on("wheel.zoom", wheeled)
+            // .on("wheel.zoom", wheeled)
 
         let zoomElem = scatter.append("g")
             .attr("class",zoomClass)
