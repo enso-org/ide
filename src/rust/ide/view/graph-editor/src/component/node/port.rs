@@ -28,6 +28,42 @@ use crate::Type;
 use crate::component::type_coloring;
 use ensogl_text::buffer::data::unit::traits::*;
 
+fn iterate_layers
+( root         : span_tree::node::RefMut<PortModel>
+, mut on_layer : impl FnMut()
+, mut on_node  : impl FnMut(&mut span_tree::node::RefMut<PortModel>)
+) {
+    let mut layer  = vec![root];
+    let mut layers = vec![];
+    loop {
+        match layer.pop() {
+            None => {
+                match layers.pop() {
+                    None    => break,
+                    Some(l) => {
+                        on_layer();
+                        layer = l
+                    }
+                }
+            },
+            Some(mut node) => {
+                on_node(&mut node);
+                layers.push(node.children_iter().collect_vec());
+            }
+        }
+    }
+}
+
+fn iterate_nodes
+( root    : span_tree::node::RefMut<PortModel>
+, on_node : impl FnMut(&mut span_tree::node::RefMut<PortModel>)
+) {
+    iterate_layers(root,||{},on_node)
+}
+
+fn iterate_leaves(root:span_tree::node::RefMut<PortModel>, mut f:impl FnMut(&mut span_tree::node::RefMut<PortModel>)) {
+    iterate_nodes(root,|mut node| if node.children.is_empty() { f(&mut node) })
+}
 
 
 // ============
@@ -277,46 +313,11 @@ impl Model {
 
     fn on_port_hover(&self, is_hovered:bool, crumbs:&span_tree::Crumbs) {
         println!("HOVER {} {:?}",is_hovered,crumbs);
-        let expression   = self.expression.borrow();
-        let mut to_visit = vec![];
-
-        if let Ok(node) = expression.input_span_tree.root_ref().get_descendant(crumbs) {
-            to_visit.push(node);
+        let mut expression = self.expression.borrow_mut();
+        if let Ok(node) = expression.input_span_tree.root_ref_mut().get_descendant(crumbs) {
+            iterate_leaves(node,|node| node.payload.frp.set_hover(is_hovered))
         }
-
-        let mut is_root  = true;
-
-        loop {
-            match to_visit.pop() {
-                None => break,
-                Some(mut node) => {
-                    let skip = if is_root { false } else {
-                        let span            = node.span();
-                        let contains_root   = span.index.value == 0;
-                        let is_ins_point    = node.kind.is_positional_insertion_point();
-                        let is_opr          = node.kind.is_operation();
-                        contains_root || is_ins_point || is_opr
-                    };
-                    is_root = false;
-
-                    // FIXME: How to properly discover self? Like `image.blur 15`, to disable
-                    // 'blur' port?
-
-                    println!(">>> {:?} (skip: {})", node.crumbs,skip);
-
-                    if !skip {
-                        let is_leaf = node.children.is_empty();
-                        if is_leaf {
-                            node.payload.frp.set_hover(is_hovered);
-                        }
-                        to_visit.extend(node.children_iter().collect_vec().into_iter().rev());
-                    }
-                }
-            }
-        }
-        // expr.input_span_tree.root_ref()
     }
-
 }
 
 
@@ -432,9 +433,33 @@ impl Manager {
         let width       = expression.code.len() as f32 * glyph_width;
         model.width.set(width);
 
-        let mut to_visit      = vec![expression.input_span_tree.root_ref_mut()];
-        let mut offset_shift  = 0;
+
+
         let mut vis_expr      = expression.code.clone();
+
+
+
+        let shift = Cell::new(0);
+
+        iterate_layers(expression.input_span_tree.root_ref_mut(),||{shift.set(0)},|node| {
+            let is_expected_arg = node.kind.is_expected_argument();
+            let span            = node.span();
+            let mut size        = span.size.value;
+            let mut index       = span.index.value + shift.get();
+            if is_expected_arg {
+                let name = node.name().unwrap();
+                size     = name.len();
+                index   += 1;
+                shift.set(shift.get() + size + 1);
+                vis_expr.push(' ');
+                vis_expr += name;
+            }
+            node.payload().index  = index;
+            node.payload().length = size;
+        });
+
+        let mut to_visit      = vec![expression.input_span_tree.root_ref_mut()];
+
 
         loop {
             match to_visit.pop() {
@@ -459,20 +484,8 @@ impl Manager {
                         let logger   = Logger::sub(&model.logger,"port");
                         let port     = component::ShapeView::<shape::Shape>::new(&logger,self.scene());
 
-                        let mut size  = span.size.value;
-                        let mut index = span.index.value + offset_shift;
-                        if is_expected_arg {
-                            let name      = node.name().unwrap();
-                            size          = name.len();
-                            index        += 1;
-                            offset_shift += 1 + size;
-                            vis_expr.push(' ');
-                            vis_expr += name;
-                        }
-                        node.payload().index  = index;
-                        node.payload().length = size;
-
-                        // position_map.insert(node.crumbs.clone(),(size,index));
+                        let index = node.payload.index;
+                        let size = node.payload.length;
 
                         let unit        = 7.224_609_4;
                         let width       = unit * size as f32;
@@ -501,20 +514,7 @@ impl Manager {
                         let highlight = cursor::Style::new_highlight(&port,size,Some(color));
 
                         let leaf     = &node.frp;
-                        let leaf_in  = &leaf.input;
                         let port_network  = &leaf.network;
-
-                        frp::extend! { port_network
-                            ccc <- leaf.input.set_hover.map(f!([model](is_hovered) {
-                                if *is_hovered { color::Lcha::from(color::Rgba::new(1.0,0.0,0.0,1.0)) }
-                                else {
-                                    let color  = model.styles.get_color(theme::vars::graph_editor::node::text::color);
-                                    color::Lcha::from(color)
-                                }
-                            }));
-                            node.color.target <+ ccc;
-                            leaf.output.source.color <+ node.color.value;
-                        }
 
                         frp::extend! { port_network
                             let mouse_over = port.events.mouse_over.clone_ref();
@@ -566,17 +566,9 @@ impl Manager {
                             self.source.port_out  <+ mouse_out.map  (move |_| crumbs_out.clone());
                         }
 
-                        if is_leaf {
-                            frp::extend! { port_network
-                                eval leaf.output.color ([model](color) {
-                                    println!("COLOR! Index: {}, length: {}",index,length);
-                                    let start_bytes = (index as i32).bytes();//(expression.code.len() as i32).bytes();
-                                    let end_bytes   = ((index + length) as i32).bytes();//(vis_expr.len() as i32).bytes();
-                                    let range       = ensogl_text::buffer::Range::from(start_bytes..end_bytes);
-                                    model.label.set_color_bytes(range,color::Rgba::from(color));
-                                });
-                            }
-                        }
+                        // if is_leaf {
+                        //
+                        // }
 
                         node.payload().shape = Some(port);
                     }
@@ -606,7 +598,39 @@ impl Manager {
             model.label.set_cursor_at_end();
         }
 
+
+        iterate_leaves(expression.input_span_tree.root_ref_mut(),|node| {
+            let leaf          = &node.frp;
+            let port_network  = &leaf.network;
+
+            frp::extend! { port_network
+                ccc <- leaf.input.set_hover.map(f!([model](is_hovered) {
+                    if *is_hovered { color::Lcha::from(color::Rgba::new(1.0,0.0,0.0,1.0)) }
+                    else {
+                        let color  = model.styles.get_color(theme::vars::graph_editor::node::text::color);
+                        color::Lcha::from(color)
+                    }
+                }));
+                node.color.target <+ ccc;
+                leaf.output.source.color <+ node.color.value;
+            }
+
+            let index = node.payload.index;
+            let length = node.payload.length;
+
+            frp::extend! { port_network
+                eval leaf.output.color ([model](color) {
+                    println!("COLOR! Index: {}, length: {}",index,length);
+                    let start_bytes = (index as i32).bytes();//(expression.code.len() as i32).bytes();
+                    let end_bytes   = ((index + length) as i32).bytes();//(vis_expr.len() as i32).bytes();
+                    let range       = ensogl_text::buffer::Range::from(start_bytes..end_bytes);
+                    model.label.set_color_bytes(range,color::Rgba::from(color));
+                });
+            }
+        });
+
         *model.expression.borrow_mut() = expression;
+
     }
 
     pub fn get_port_offset(&self, crumbs:&[span_tree::Crumb]) -> Option<Vector2<f32>> {
