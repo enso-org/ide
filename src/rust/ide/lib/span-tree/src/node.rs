@@ -494,7 +494,7 @@ impl<'a,T:Payload> RefMut<'a,T> {
         }
     }
 
-    // /// Iterator over all direct children producing `Ref`s.
+    /// Iterator over all direct children producing `RefMut`s.
     pub fn children_iter(self) -> impl Iterator<Item=RefMut<'a,T>> {
         let span_begin = self.span_begin;
         let crumbs     = self.crumbs;

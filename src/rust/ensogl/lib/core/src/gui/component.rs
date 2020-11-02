@@ -306,6 +306,9 @@ impl<T:Animatable+frp::Data> Animation<T> {
 // === Animation2 ===
 // ==================
 
+/// Simulator used to run the animation.
+pub type AnimationSimulator<T> = DynSimulator<AnimationSpaceRepr2<T>>;
+
 /// Smart animation handler. Contains of dynamic simulation and frp endpoint. Whenever a new value
 /// is computed, it is emitted via the endpoint.
 #[derive(CloneRef,Derivative,Debug)]
@@ -313,7 +316,7 @@ impl<T:Animatable+frp::Data> Animation<T> {
 #[allow(missing_docs)]
 pub struct Animation2<T:Animatable+frp::Data> {
     network       : frp::Network,
-    pub simulator : DynSimulator<T::AnimationSpaceRepr>,
+    pub simulator : AnimationSimulator<T>,
     pub target    : frp::Any<T>,
     pub value     : frp::Stream<T>,
 }
@@ -325,7 +328,7 @@ impl<T:Animatable+frp::Data> Animation2<T> {
         frp::new_network! { network
             value_src <- any_mut::<T>();
         }
-        let simulator = DynSimulator::<T::AnimationSpaceRepr>::new(
+        let simulator = AnimationSimulator::<T>::new(
             Box::new(f!((t) value_src.emit(from_animation_space::<T>(t))))
         );
         frp::extend! { network

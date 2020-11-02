@@ -8,7 +8,6 @@ use super::*;
 
 use enso_frp as frp;
 
-use crate::application::Application;
 use crate::display::shape::*;
 use crate::gui::component::HasAnimationSpaceRepr;
 use crate::gui::component::AnimationLinearSpace;
@@ -226,6 +225,12 @@ impl Animation {
             self.lch.set_value(lch);
         }
         self.lch.set_target_value(lch);
+    }
+}
+
+impl Default for Animation {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

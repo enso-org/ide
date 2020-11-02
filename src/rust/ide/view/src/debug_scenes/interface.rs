@@ -125,7 +125,10 @@ fn init(app:&Application) {
         }
     });
 
-    let expression_2 = expression_mock2();
+    let expression_2 = expression_mock3();
+    let child = expression_2.input_span_tree.root_ref().child(0).unwrap().child(0).unwrap().child(0).unwrap();
+    println!("??? {} {}", child.span().index,child.span().size);
+    //println!("{:#?}",expression_2.input_span_tree);
     graph_editor.frp.set_node_expression.emit((node2_id,expression_2.clone()));
     expression_2.input_span_tree.root_ref().leaf_iter().for_each(|node|{
         if let Some(expr_id) = node.ast_id {
@@ -238,7 +241,7 @@ pub fn expression_mock2() -> Expression {
 }
 
 pub fn expression_mock3() -> Expression {
-    let code       = "image.blur 15".to_string();
+    let code       = "image.blur ((foo   bar) baz)".to_string();
     let parser     = Parser::new_or_panic();
     let this_param = span_tree::ArgumentInfo {
         name : Some("this".to_owned()),

@@ -231,7 +231,7 @@ pub struct ProjectName {
 impl ProjectName {
     /// Constructor.
     fn new(app:&Application) -> Self {
-        let frp     = Frp::new_network();
+        let frp     = Frp::new();
         let model   = Rc::new(ProjectNameModel::new(app));
         let network = &frp.network;
         let scene   = app.display.scene();

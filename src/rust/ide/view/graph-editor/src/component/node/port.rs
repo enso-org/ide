@@ -31,7 +31,7 @@ use ensogl_text::buffer::data::unit::traits::*;
 fn iterate_layers
 ( root         : span_tree::node::RefMut<PortModel>
 , mut on_layer : impl FnMut()
-, mut on_node  : impl FnMut(&mut span_tree::node::RefMut<PortModel>)
+, mut on_node  : impl FnMut(&mut span_tree::node::RefMut<PortModel>) -> bool
 ) {
     let mut layer  = vec![root];
     let mut layers = vec![];
@@ -47,8 +47,11 @@ fn iterate_layers
                 }
             },
             Some(mut node) => {
-                on_node(&mut node);
-                layers.push(node.children_iter().collect_vec());
+                if on_node(&mut node) {
+                    let mut children = node.children_iter().collect_vec();
+                    children.reverse(); // FIXME : add reversed
+                    layers.push(children);
+                }
             }
         }
     }
@@ -56,13 +59,13 @@ fn iterate_layers
 
 fn iterate_nodes
 ( root    : span_tree::node::RefMut<PortModel>
-, on_node : impl FnMut(&mut span_tree::node::RefMut<PortModel>)
+, on_node : impl FnMut(&mut span_tree::node::RefMut<PortModel>) -> bool
 ) {
     iterate_layers(root,||{},on_node)
 }
 
 fn iterate_leaves(root:span_tree::node::RefMut<PortModel>, mut f:impl FnMut(&mut span_tree::node::RefMut<PortModel>)) {
-    iterate_nodes(root,|mut node| if node.children.is_empty() { f(&mut node) })
+    iterate_nodes(root,|mut node| { if node.children.is_empty() { f(&mut node) }; true })
 }
 
 
@@ -147,7 +150,7 @@ pub enum Usage{Connection,Expression}
 
 pub mod leaf {
     use super::*;
-    ensogl::define_endpoints! { [TRACE_ALL]
+    ensogl::define_endpoints! {
         Input {
             set_usage    (Option<Usage>),
             set_optional (bool),
@@ -312,7 +315,7 @@ impl Model {
     }
 
     fn on_port_hover(&self, is_hovered:bool, crumbs:&span_tree::Crumbs) {
-        println!("HOVER {} {:?}",is_hovered,crumbs);
+        // println!("HOVER {} {:?}",is_hovered,crumbs);
         let mut expression = self.expression.borrow_mut();
         if let Ok(node) = expression.input_span_tree.root_ref_mut().get_descendant(crumbs) {
             iterate_leaves(node,|node| node.payload.frp.set_hover(is_hovered))
@@ -427,6 +430,7 @@ impl Manager {
     pub(crate) fn set_expression(&self, expression:impl Into<Expression>) {
         let model      = &self.model;
         let expression = expression.into();
+        println!("\n\nSET EXPR: {}",expression.code);
         let mut expression = Expression2::from(expression);
 
         let glyph_width = 7.224_609_4; // FIXME hardcoded literal
@@ -447,31 +451,38 @@ impl Manager {
             let mut size        = span.size.value;
             let mut index       = span.index.value + shift.get();
             if is_expected_arg {
-                let name = node.name().unwrap();
-                size     = name.len();
-                index   += 1;
-                shift.set(shift.get() + size + 1);
-                vis_expr.push(' ');
-                vis_expr += name;
+                // let name = node.name().unwrap();
+                // size     = name.len();
+                // index   += 1;
+                // shift.set(shift.get() + size + 1);
+                // vis_expr.push(' ');
+                // vis_expr += name;
             }
             node.payload().index  = index;
             node.payload().length = size;
+            true
         });
 
-        let mut to_visit      = vec![expression.input_span_tree.root_ref_mut()];
+        // let mut to_visit      = vec![expression.input_span_tree.root_ref_mut()];
+
+        let mut is_header = true;
+
+        iterate_layers(expression.input_span_tree.root_ref_mut(),||{shift.set(0); println!("---");},|node| {
 
 
-        loop {
-            match to_visit.pop() {
-                None => break,
-                Some(mut node) => {
                     let is_leaf         = node.children.is_empty();
                     let span            = node.span();
                     let contains_root   = span.index.value == 0;
-                    let is_empty        = node.kind.is_positional_insertion_point();
-                    let is_opr          = node.kind.is_operation();
-                    let skip            = contains_root || is_empty || is_opr;
                     let is_expected_arg = node.kind.is_expected_argument();
+
+            let is_infix_opr = node.ast_crumbs.iter().next().map(|t|t.is_infix()) == Some(true);
+            let is_infix_opr2 = node.ast_crumbs.last().map(|t| t == &ast::Crumb::Infix(ast::crumbs::InfixCrumb::Operator)) == Some(true);
+
+                    println!("??? {} {} {:?}",is_infix_opr,is_infix_opr2,node.ast_crumbs);
+                    let skip = node.kind.is_positional_insertion_point()
+                            // || node.kind.is_operation()
+                            || is_infix_opr2
+                            || node.kind.is_token();
 
                     // FIXME: How to properly discover self? Like `image.blur 15`, to disable
                     // 'blur' port?
@@ -479,6 +490,8 @@ impl Manager {
                     if let Some(id) = node.ast_id {
                         self.model.id_crumbs_map.borrow_mut().insert(id,node.crumbs.clone());
                     }
+
+                    println!(">> ({},{}) (skip: {} [{},{},{}])",node.payload.index,node.payload.length,skip,node.kind.is_positional_insertion_point(),node.kind.is_operation(),node.kind.is_token());
 
                     if !skip {
                         let logger   = Logger::sub(&model.logger,"port");
@@ -573,11 +586,11 @@ impl Manager {
                         node.payload().shape = Some(port);
                     }
 
-                    // FIXME: This is ugly because `children_iter` is not DoubleEndedIterator.
-                    to_visit.extend(node.children_iter().collect_vec().into_iter().rev());
-                }
-            }
-        }
+                    // // FIXME: This is ugly because `children_iter` is not DoubleEndedIterator.
+                    // to_visit.extend(node.children_iter().collect_vec().into_iter().rev());
+
+            true
+        });
 
 
         model.label.set_cursor(&default());
@@ -604,13 +617,10 @@ impl Manager {
             let port_network  = &leaf.network;
 
             frp::extend! { port_network
-                ccc <- leaf.input.set_hover.map(f!([model](is_hovered) {
+                ccc <- leaf.input.set_hover.map(f!([model](is_hovered)
                     if *is_hovered { color::Lcha::from(color::Rgba::new(1.0,0.0,0.0,1.0)) }
-                    else {
-                        let color  = model.styles.get_color(theme::vars::graph_editor::node::text::color);
-                        color::Lcha::from(color)
-                    }
-                }));
+                    else { model.styles.get_color(theme::vars::graph_editor::node::text::color) }
+                ));
                 node.color.target <+ ccc;
                 leaf.output.source.color <+ node.color.value;
             }
@@ -620,7 +630,7 @@ impl Manager {
 
             frp::extend! { port_network
                 eval leaf.output.color ([model](color) {
-                    println!("COLOR! Index: {}, length: {}",index,length);
+                    // println!("COLOR! Index: {}, length: {}",index,length);
                     let start_bytes = (index as i32).bytes();//(expression.code.len() as i32).bytes();
                     let end_bytes   = ((index + length) as i32).bytes();//(vis_expr.len() as i32).bytes();
                     let range       = ensogl_text::buffer::Range::from(start_bytes..end_bytes);
