@@ -4,7 +4,6 @@
 use crate::prelude::*;
 
 use crate::node;
-use crate::node::Kind;
 
 use ast::Ast;
 use ast::Shifted;
@@ -108,45 +107,51 @@ pub trait Implementation {
     fn erase_impl(&self) -> Option<EraseOperation>;
 }
 
-impl<'a> Implementation for node::Ref<'a> {
+impl<'a,T> Implementation for node::Ref<'a,T> {
     fn set_impl(&self) -> Option<SetOperation> {
         match &self.node.kind {
-            Kind::Empty(ins_type)  => Some(Box::new(move |root,new| {
-                use node::InsertType::*;
-                let ast      = root.get_traversing(&self.ast_crumbs)?;
-                let new_ast  = if let Some(mut infix) = ast::opr::Chain::try_new(&ast) {
-                    let item       = ArgWithOffset {arg:new, offset:DEFAULT_OFFSET};
-                    let has_target = infix.target.is_some();
-                    let has_arg    = infix.args.last().unwrap().operand.is_some();
-                    let last_elem  = infix.args.last_mut().unwrap();
-                    let last_arg   = &mut last_elem.operand;
-                    last_elem.offset = DEFAULT_OFFSET;
-                    match ins_type {
-                        BeforeTarget               if has_target => infix.push_front_operand(item),
-                        AfterTarget                if has_target => infix.insert_operand(1,item),
-                        BeforeTarget | AfterTarget               => infix.target = Some(item),
-                        Append                     if has_arg    => infix.push_operand(item),
-                        Append                                   => *last_arg = Some(item),
-                        // TODO? below should never happen, as operator arity is always fixed to 2?
-                        ExpectedArgument(i)                      => infix.insert_operand(*i, item),
-                    };
-                    infix.into_ast()
-                } else {
-                    let mut prefix = ast::prefix::Chain::from_ast_non_strict(ast);
-                    let item       = ast::prefix::Argument{
-                        sast      : Shifted{wrapped:new, off:DEFAULT_OFFSET},
-                        prefix_id : None,
-                    };
-                    match ins_type {
-                        BeforeTarget        => prefix.insert_arg(0,item),
-                        AfterTarget         => prefix.insert_arg(1,item),
-                        Append              => prefix.args.push(item),
-                        ExpectedArgument(i) => prefix.insert_arg(*i, item),
+            node::Kind::InsertionPoint(ins_point) => Some(Box::new(move |root,new| {
+                use node::InsertionPointType::*;
+                let kind           = &ins_point.kind;
+                let ast            = root.get_traversing(&self.ast_crumbs)?;
+                let expect_arg     = matches!(kind, ExpectedArgument(_));
+                let extended_infix = (!expect_arg).and_option_from(|| ast::opr::Chain::try_new(&ast));
+                let new_ast        = modify_preserving_id(ast, |ast|
+                    if let Some(mut infix) = extended_infix {
+                        let item       = ArgWithOffset {arg:new, offset:DEFAULT_OFFSET};
+                        let has_target = infix.target.is_some();
+                        let has_arg    = infix.args.last().unwrap().operand.is_some();
+                        let last_elem  = infix.args.last_mut().unwrap();
+                        let last_arg   = &mut last_elem.operand;
+                        last_elem.offset = DEFAULT_OFFSET;
+                        match kind {
+                            BeforeTarget            if has_target => infix.push_front_operand(item),
+                            AfterTarget             if has_target => infix.insert_operand(1,item),
+                            BeforeTarget|AfterTarget              => infix.target = Some(item),
+                            Append                  if has_arg    => infix.push_operand(item),
+                            Append                                => *last_arg = Some(item),
+                            ExpectedArgument(_)                   =>
+                                panic!("Expected arguments should be filtered out befire this if block")
+                        };
+                        Ok(infix.into_ast())
+                    } else {
+                        let mut prefix = ast::prefix::Chain::from_ast_non_strict(&ast);
+                        let item       = ast::prefix::Argument{
+                            sast      : Shifted{wrapped:new, off:DEFAULT_OFFSET},
+                            prefix_id : None,
+                        };
+                        match kind {
+                            BeforeTarget        => prefix.insert_arg(0,item),
+                            AfterTarget         => prefix.insert_arg(1,item),
+                            Append              => prefix.args.push(item),
+                            ExpectedArgument(i) => prefix.insert_arg(*i, item),
+                        }
+                        Ok(prefix.into_ast())
                     }
-                    prefix.into_ast()
-                };
-                root.set_traversing(&self.ast_crumbs,new_ast)
+                );
+                root.set_traversing(&self.ast_crumbs,new_ast?)
             })),
+            node::Kind::Token => None,
             _ => match &self.ast_crumbs.last() {
                 // Operators should be treated in a special way - setting functions in place in
                 // a operator should replace Infix with Prefix with two applications.
@@ -156,7 +161,9 @@ impl<'a> Implementation for node::Ref<'a> {
                 Some(Crumb::SectionRight(SectionRightCrumb::Opr)) |
                 Some(Crumb::SectionSides(SectionSidesCrumb))      => None,
                 _ => Some(Box::new(move |root, new| {
-                    root.set_traversing(&self.ast_crumbs,new)
+                    modify_preserving_id(root, |root| {
+                        root.set_traversing(&self.ast_crumbs,new)
+                    })
                 }))
             }
         }
@@ -164,31 +171,41 @@ impl<'a> Implementation for node::Ref<'a> {
 
 
     fn erase_impl(&self) -> Option<EraseOperation> {
-
-        match self.node.kind {
-            node::Kind::Argument{is_removable:true} |
-            node::Kind::Target  {is_removable:true} => Some(Box::new(move |root| {
+        if (self.node.kind.is_argument() || self.node.kind.is_this()) && self.node.kind.removable() {
+            Some(Box::new(move |root| {
                 let parent_crumb = &self.ast_crumbs[..self.ast_crumbs.len()-1];
                 let ast          = root.get_traversing(parent_crumb)?;
-                let new_ast = if let Some(mut infix) = ast::opr::Chain::try_new(ast) {
-                    match self.node.kind {
-                        node::Kind::Target {..} => {infix.erase_target(); }
-                        _                       => {infix.args.pop();     }
+                let new_ast = modify_preserving_id(ast, |ast|
+                    if let Some(mut infix) = ast::opr::Chain::try_new(&ast) {
+                        match self.node.kind {
+                            node::Kind::This {..} => {infix.erase_target(); }
+                            _                     => {infix.args.pop();     }
+                        }
+                        Ok(infix.into_ast())
+                    } else {
+                        let mut prefix = ast::prefix::Chain::from_ast_non_strict(&ast);
+                        prefix.args.pop();
+                        Ok(prefix.into_ast())
                     }
-                    infix.into_ast()
-                } else {
-                    let mut prefix = ast::prefix::Chain::from_ast_non_strict(ast);
-                    prefix.args.pop();
-                    prefix.into_ast()
-                };
-                root.set_traversing(parent_crumb,new_ast)
-            })),
-            _ => None
-        }
+                );
+                root.set_traversing(parent_crumb,new_ast?)
+            }))
+        } else { None }
     }
 }
 
-
+/// Helper functions for span-tree modification.
+///
+/// To keep nodes consistent, we don't want to have the changed ast-id being changed, so this
+/// functions wrap given `modifier` and restore old id in returned AST.
+fn modify_preserving_id<F>(ast:&Ast, modifier:F) -> FallibleResult<Ast>
+where F : FnOnce(Ast) -> FallibleResult<Ast> {
+    let ast_id      = ast.id;
+    let ast         = ast.with_new_id();
+    let new_ast     = modifier(ast)?;
+    if let Some(id) = ast_id { Ok(new_ast.with_id(id)) }
+    else                     { Ok(new_ast            ) }
+}
 
 
 // =============
@@ -203,9 +220,9 @@ mod test {
 
     use crate::builder::TreeBuilder;
     use crate::generate::context;
-    use crate::node::Kind::Operation;
-    use crate::node::Kind::Target;
-    use crate::node::InsertType::ExpectedArgument;
+    use crate::node;
+    use crate::node::InsertionPointType::ExpectedArgument;
+    use crate::SpanTree;
 
     use ast::HasRepr;
     use enso_data::text::Index;
@@ -227,7 +244,8 @@ mod test {
         impl Case {
             fn run(&self, parser:&Parser) {
                 let ast        = parser.parse_line(self.expr).unwrap();
-                let tree       = ast.generate_tree(&context::Empty).unwrap();
+                let ast_id     = ast.id;
+                let tree       = ast.generate_tree(&context::Empty).unwrap() : SpanTree;
                 let span_begin = Index::new(self.span.start);
                 let span_end   = Index::new(self.span.end);
                 let span       = Span::from_indices(span_begin,span_end);
@@ -241,6 +259,7 @@ mod test {
                 }.unwrap();
                 let result_repr = result.repr();
                 assert_eq!(result_repr,self.expected,"Wrong answer for case {:?}",self);
+                assert_eq!(ast_id,result.id,"Changed AST id in case {:?}",self);
             }
         }
 
@@ -309,7 +328,7 @@ mod test {
         impl Case {
             fn run(&self, parser:&Parser) {
                 let ast        = parser.parse_line(self.expr).unwrap();
-                let tree       = ast.generate_tree(&context::Empty).unwrap();
+                let tree : SpanTree = ast.generate_tree(&context::Empty).unwrap();
                 let span_begin = Index::new(self.span.start);
                 let span_end   = Index::new(self.span.end);
                 let span       = Span::from_indices(span_begin,span_end);
@@ -348,8 +367,12 @@ mod test {
             , Case{expr:"f a"        , span:2..3  , expected: &[Set]       }
             , Case{expr:"if a then b", span:3..4  , expected: &[Set]       }
             , Case{expr:"if a then b", span:10..11, expected: &[Set]       }
+            , Case{expr:"(a + b)"    , span:0..1  , expected: &[]          }
+            , Case{expr:"[a,b]"      , span:0..1  , expected: &[]          }
+            , Case{expr:"[a,b]"      , span:4..5  , expected: &[]          }
             , Case{expr:"(a + b + c)", span:5..6  , expected: &[Set,Erase] }
             , Case{expr:"(a"         , span:1..2  , expected: &[Set]       }
+            , Case{expr:"(a"         , span:0..1  , expected: &[]          }
             , Case{expr:"(a + b + c" , span:5..6  , expected: &[Set,Erase] }
             ];
         let parser = Parser::new_or_panic();
@@ -358,27 +381,53 @@ mod test {
 
     #[test]
     fn setting_positional_arguments() {
+        let baz = Ast::var("baz");
+
         // Consider Span Tree for `foo bar` where `foo` is a method known to take 3 parameters.
         // We can try setting each of 3 arguments to `baz`.
-        let is_removable = false;
-        let tree         = TreeBuilder::new(7)
-            .add_leaf(0,3,Operation           ,PrefixCrumb::Func)
-            .add_leaf(4,7,Target{is_removable},PrefixCrumb::Arg)
+        let tree = TreeBuilder::<()>::new(7)
+            .add_leaf(0,3,node::Kind::Operation,PrefixCrumb::Func)
+            .add_leaf(4,7,node::Kind::this(),PrefixCrumb::Arg)
             .add_empty_child(7, ExpectedArgument(1))
             .add_empty_child(7, ExpectedArgument(2))
             .build();
 
         let ast    = Ast::prefix(Ast::var("foo"), Ast::var("bar"));
+        let ast_id = ast.id;
         assert_eq!(ast.repr(),"foo bar");
-        let baz    = Ast::var("baz");
 
         let after = tree.root_ref().child(1).unwrap().set(&ast,baz.clone_ref()).unwrap();
         assert_eq!(after.repr(),"foo baz");
+        assert_eq!(after.id    ,ast_id);
 
         let after = tree.root_ref().child(2).unwrap().set(&ast,baz.clone_ref()).unwrap();
         assert_eq!(after.repr(),"foo bar baz");
+        assert_eq!(after.id    ,ast_id);
 
         let after = tree.root_ref().child(3).unwrap().set(&ast,baz.clone_ref()).unwrap();
         assert_eq!(after.repr(),"foo bar _ baz");
+        assert_eq!(after.id    ,ast_id);
+
+        // Another case is Span Tree for `Main . foo` where `foo` is a method known to take 2
+        // parameters. We can try setting each of 2 arguments to `baz`.
+        let tree : SpanTree = TreeBuilder::new(10)
+            .add_leaf(0,4,node::Kind::this(),InfixCrumb::LeftOperand)
+            .add_leaf(5,6,node::Kind::Operation,InfixCrumb::Operator)
+            .add_leaf(7,10,node::Kind::argument(),InfixCrumb::RightOperand)
+            .add_empty_child(10, ExpectedArgument(0))
+            .add_empty_child(10, ExpectedArgument(1))
+            .build();
+
+        let ast    = Ast::infix(Ast::cons("Main"), ".", Ast::var("foo"));
+        let ast_id = ast.id;
+        assert_eq!(ast.repr(), "Main . foo");
+
+        let after = tree.root_ref().child(3).unwrap().set(&ast,baz.clone_ref()).unwrap();
+        assert_eq!(after.repr(),"Main . foo baz");
+        assert_eq!(after.id,ast_id);
+
+        let after = tree.root_ref().child(4).unwrap().set(&ast,baz.clone_ref()).unwrap();
+        assert_eq!(after.repr(),"Main . foo _ baz");
+        assert_eq!(after.id,ast_id);
     }
 }

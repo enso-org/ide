@@ -91,9 +91,16 @@ further investigation.
 | -------- | ------ |
 | <kbd>space</kbd>                         | Toggle visualization visibility of the selected node. |
 | <kbd>space</kbd> hold                    | Preview visualization of the selected node (hide on release). |
-| <kbd>space</kbd> double press            | Toggle visualization fullscreen mode (with improper depth sorting now). |
+| :warning: <kbd>space</kbd> double press  | Toggle visualization fullscreen mode |
 | <kbd>ctrl</kbd> + <kbd>space</kbd>       | Cycle visualizations of the selected node. |
 | :bangbang: <kbd>cmd</kbd> + <kbd>\</kbd> | Toggle documentation view visibility |
+
+
+#### Visualizations Implementations
+| Shortcut | Action |
+| -------- | ------ |
+| <kbd>meta</kbd> + <kbd>a</kbd> | Show all points if available in visualization. |
+| <kbd>meta</kbd> + <kbd>z</kbd> | Zoom into selection if available in visualization. |
 
 
 #### Debug
