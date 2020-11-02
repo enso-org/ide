@@ -1,7 +1,9 @@
 /**
  * Helper function to load scripts.
  *
- * It runs only once, so it won't load the same script on this or any other visualization show/hide.
+ * It runs only once because of the visualization implementation : file is loaded once, then
+ * the onDataReceived() is called multiple times, so it won't load the same script on this or any
+ * other visualization show/hide.
  */
 function loadScript(url) {
     let script = document.createElement("script");
@@ -13,7 +15,9 @@ function loadScript(url) {
 /**
  * Helper function to load styles.
  *
- * It runs only once, so it won't load the same style on this or any other visualization show/hide.
+ * It runs only once because of the visualization implementation : file is loaded once, then
+ * the onDataReceived() is called multiple times, so it won't load the same style on this or any
+ * other visualization show/hide.
  */
 function loadStyle(url) {
     let style   = document.createElement("link");
@@ -174,10 +178,9 @@ class ScatterPlot extends Visualization {
          */
         function wheeled() {
             let current_transform = d3.zoomTransform(scatter);
+            let delta_multiplier  = 0.01;
             if (d3.event.ctrlKey) {
-                current_transform.k = current_transform.k - d3.event.deltaY * 0.01;
-            } else {
-                current_transform.y = current_transform.y - d3.event.deltaY;
+                current_transform.k = current_transform.k - d3.event.deltaY * delta_multiplier;
             }
             scatter.attr("transform", current_transform);
         }
@@ -209,6 +212,9 @@ class ScatterPlot extends Visualization {
 
         /**
          * Zooms into selected fragment of plot.
+         *
+         * Based on https://www.d3-graph-gallery.com/graph/interactivity_brush.html
+         * Section "Brushing for zooming".
          */
         const zoomIn = () => {
             let xMin = scaleAndAxis.xScale.invert(extent[0][0]);
@@ -220,14 +226,12 @@ class ScatterPlot extends Visualization {
             scaleAndAxis.yScale.domain([yMin,yMax]);
 
             self.zoomingHelper(scaleAndAxis,box_width,scatter,points);
-
-            brushElem.call(brush.move,null);
         }
 
         const zoomInKeyEvent = (event) => {
             if (shortcuts.zoomIn(event)) {
                 zoomIn();
-                selectedZoomBtn.style.display = "none";
+                endBrushing();
             }
         };
 
@@ -245,7 +249,7 @@ class ScatterPlot extends Visualization {
         /**
          * Removes brush, keyboard event and zoom button when end event is captured.
          */
-        const endBrushing = function (_) {
+        const endBrushing = () => {
             brushElem.call(brush.move,null);
             selectedZoomBtn.style.display = "none";
             selectedZoomBtn.removeEventListener("click",zoomIn,true)
@@ -478,7 +482,7 @@ class ScatterPlot extends Visualization {
         divElem.setAttributeNS(null,"height","100%");
         divElem.setAttributeNS(null,"transform","matrix(1 0 0 -1 0 0)");
 
-        function addStyleToElem(attr,stl) {
+        const addStyleToElem = (attr,stl) => {
             let style       = document.createElement("style");
             style.innerText = attr + "{" + stl + "}"
 
@@ -546,7 +550,7 @@ class ScatterPlot extends Visualization {
         btn.appendChild(text);
 
         let self = this;
-        function unzoom() {
+        const unzoom = () => {
             zoom.zoomElem.transition().duration(0).call(zoom.zoom.transform,d3.zoomIdentity);
 
             let domain_x = [extremesAndDeltas.xMin - extremesAndDeltas.paddingX,
