@@ -30,8 +30,9 @@ use logger::enabled::Logger;
 // === Constants ===
 // =================
 
-/// Project name used as a placeholder in `ProjectName` view when it's initialized.
-pub const UNKNOWN_PROJECT_NAME : &str = "Unknown";
+// Project name used as a placeholder in `ProjectName` view when it's initialized.
+// This should never be visible, but if it is we want to easily trace it back here.
+const UNINITIALISED_PROJECT_NAME: &str = "Project Name Uninitialised";
 /// Default line height for project names.
 pub const LINE_HEIGHT          : f32  = TEXT_SIZE * 1.5;
 
@@ -148,7 +149,7 @@ impl ProjectNameModel {
         scene.views.main.remove_shape_view(&view);
         scene.views.breadcrumbs.add_shape_view(&view);
 
-        let project_name          = Rc::new(RefCell::new(UNKNOWN_PROJECT_NAME.to_string()));
+        let project_name          = default();
         Self{app,logger,view,style,display_object,text_field,project_name}.init()
     }
 
@@ -198,6 +199,7 @@ impl ProjectNameModel {
 
     fn rename(&self, name:impl Str) {
         let name = name.into();
+        debug!(self.logger, "Renaming: '{name}'.");
         self.update_text_field_content(&name);
     }
 
@@ -332,6 +334,7 @@ impl ProjectName {
         }
 
         frp.deselect();
+        frp.input.name(UNINITIALISED_PROJECT_NAME.to_string());
 
         Self{frp,model}
     }
