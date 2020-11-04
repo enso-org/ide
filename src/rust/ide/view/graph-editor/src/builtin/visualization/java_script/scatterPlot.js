@@ -91,7 +91,7 @@ class ScatterPlot extends Visualization {
         this.dom.appendChild(divElem);
 
         let parsedData = data;
-        if (typeof text === "string") {
+        if (typeof data === "string") {
             parsedData = JSON.parse(data);
         }
         let axis       = parsedData.axis || {x:{scale:linear_scale},y:{scale:linear_scale}};

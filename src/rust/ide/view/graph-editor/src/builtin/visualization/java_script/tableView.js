@@ -234,7 +234,7 @@ class TableViewVisualization extends Visualization {
         this.dom.appendChild(tabElem);
 
         let parsedData = data;
-        if (typeof text === "string") {
+        if (typeof data === "string") {
             parsedData = JSON.parse(data);
         }
 

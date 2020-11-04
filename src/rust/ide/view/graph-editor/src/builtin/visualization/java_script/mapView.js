@@ -62,7 +62,10 @@ class MapViewVisualization extends Visualization {
         mapElem.setAttributeNS(null,"style","width:" + width + "px;height: " + height + "px;");
         this.dom.appendChild(mapElem);
 
-        const parsedData = eval('('+data+')' ) || JSON.parse(data);
+        let parsedData = data;
+        if (typeof data === "string") {
+            parsedData = JSON.parse(data);
+        }
 
         let defaultMapStyle = 'mapbox://styles/mapbox/light-v9';
         if (document.getElementById("root").classList.contains("dark")){
