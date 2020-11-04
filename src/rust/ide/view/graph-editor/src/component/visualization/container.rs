@@ -602,8 +602,12 @@ impl Container {
             eval_ on_selected ( action_bar.hide_icons.emit(()) );
         }
 
+        // FIXME[mm]: If we set the size right here, we will see spurious shapes in some
+        // computation heavy circumstances (e.g., collapsing nodes, or creating an new project).
+        // If we let the animation do the size change, the size will only be set after the delays.
+        // This is not optimal the optimal solution to this problem, as it also means that we have
+        // an animation on an invisible component running.
         frp.set_size.emit(Vector2(DEFAULT_SIZE.0,DEFAULT_SIZE.1));
-        size.skip();
         frp.set_visualization.emit(Some(visualization::Registry::default_visualisation()));
         self
     }
