@@ -241,7 +241,8 @@ pub fn expression_mock2() -> Expression {
 }
 
 pub fn expression_mock3() -> Expression {
-    let code       = "image.blur ((foo   bar) baz)".to_string();
+    // let code       = "image.blur ((foo   bar) baz)".to_string();
+    let code       = "image.blur (((foo   bar)) baz)".to_string();
     let parser     = Parser::new_or_panic();
     let this_param = span_tree::ArgumentInfo {
         name : Some("this".to_owned()),

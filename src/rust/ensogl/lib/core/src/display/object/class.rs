@@ -577,7 +577,7 @@ impl<Host> Display for Instance<Host> {
 
 impl<Host> Debug for Instance<Host> {
     fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f,"Instance")
+        write!(f,"DisplayObject({})",self.logger.path())
     }
 }
 

@@ -57,6 +57,65 @@ fn iterate_layers
     }
 }
 
+fn iterate_depth
+( root         : span_tree::node::RefMut<PortModel>
+, mut on_node  : impl FnMut(&mut span_tree::node::RefMut<PortModel>) -> bool
+) {
+    let mut layer  = vec![root];
+    let mut layers = vec![];
+    loop {
+        match layer.pop() {
+            None => {
+                match layers.pop() {
+                    None    => break,
+                    Some(l) => layer = l,
+                }
+            },
+            Some(mut node) => {
+                if on_node(&mut node) {
+                    let mut children = node.children_iter().collect_vec();
+                    children.reverse(); // FIXME : add reversed
+                    mem::swap(&mut children,&mut layer);
+                    layers.push(children);
+                }
+            }
+        }
+    }
+}
+
+
+fn iterate_layers_depth<D>
+( root         : span_tree::node::RefMut<PortModel>
+, mut data     : D
+, mut on_node  : impl FnMut(&mut span_tree::node::RefMut<PortModel>, &mut D) -> (bool,D)
+) {
+    let mut layer  = vec![root];
+    let mut layers = vec![];
+    loop {
+        match layer.pop() {
+            None => {
+                match layers.pop() {
+                    None        => break,
+                    Some((l,d)) => {
+                        layer = l;
+                        data  = d;
+                    },
+                }
+            },
+            Some(mut node) => {
+                let (ok,mut sub_data) = on_node(&mut node, &mut data);
+                if ok {
+                    let mut children = node.children_iter().collect_vec();
+                    children.reverse(); // FIXME : add reversed
+                    mem::swap(&mut sub_data,&mut data);
+                    mem::swap(&mut children,&mut layer);
+                    layers.push((children,sub_data));
+                }
+            }
+        }
+    }
+}
+
 fn iterate_nodes
 ( root    : span_tree::node::RefMut<PortModel>
 , on_node : impl FnMut(&mut span_tree::node::RefMut<PortModel>) -> bool
@@ -83,7 +142,8 @@ pub mod shape {
             let height : Var<Pixels> = "input_size.y".into();
             let radius = 6.px();
             let shape  = Rect((&width,&height)).corners_radius(radius);
-            let color  : Var<color::Rgba> = "srgba(1.0,1.0,1.0,0.00001)".into();
+            //let color  : Var<color::Rgba> = "srgba(1.0,1.0,1.0,0.00001)".into();
+            let color  : Var<color::Rgba> = "srgba(1.0,0.0,0.0,0.1)".into();
             let shape  = shape.fill(color);
             shape.into()
         }
@@ -165,12 +225,13 @@ pub mod leaf {
 
     #[derive(Clone,Debug,Default)]
     pub struct PortModel {
-        pub frp    : leaf::Frp,
-        pub shape  : Option<component::ShapeView<shape::Shape>>,
-        pub name   : Option<String>,
-        pub index  : usize,
-        pub length : usize,
-        pub color  : color::Animation2,
+        pub frp         : leaf::Frp,
+        pub shape       : Option<component::ShapeView<shape::Shape>>,
+        pub name        : Option<String>,
+        pub index       : usize,
+        pub local_index : usize,
+        pub length      : usize,
+        pub color       : color::Animation2,
     }
 
     impl Deref for PortModel {
@@ -430,7 +491,7 @@ impl Manager {
     pub(crate) fn set_expression(&self, expression:impl Into<Expression>) {
         let model      = &self.model;
         let expression = expression.into();
-        println!("\n\nSET EXPR: {}",expression.code);
+        println!("\n\n=====================\nSET EXPR: {}",expression.code);
         let mut expression = Expression2::from(expression);
 
         let glyph_width = 7.224_609_4; // FIXME hardcoded literal
@@ -458,6 +519,7 @@ impl Manager {
                 // vis_expr.push(' ');
                 // vis_expr += name;
             }
+            node.payload().local_index = node.offset.value;
             node.payload().index  = index;
             node.payload().length = size;
             true
@@ -466,130 +528,151 @@ impl Manager {
         // let mut to_visit      = vec![expression.input_span_tree.root_ref_mut()];
 
         let mut is_header = true;
+        let mut parent_parensed = false;
 
-        iterate_layers(expression.input_span_tree.root_ref_mut(),||{shift.set(0); println!("---");},|node| {
+        iterate_layers_depth(expression.input_span_tree.root_ref_mut(),(model.ports_group.clone_ref(),parent_parensed,0,0),|node,(parent,parent_parensed,shift,indent)| {
 
 
-                    let is_leaf         = node.children.is_empty();
-                    let span            = node.span();
-                    let contains_root   = span.index.value == 0;
-                    let is_expected_arg = node.kind.is_expected_argument();
+            let is_leaf         = node.children.is_empty();
+            let span            = node.span();
+            let contains_root   = span.index.value == 0;
+            let is_expected_arg = node.kind.is_expected_argument();
 
-            let is_infix_opr = node.ast_crumbs.iter().next().map(|t|t.is_infix()) == Some(true);
-            let is_infix_opr2 = node.ast_crumbs.last().map(|t| t == &ast::Crumb::Infix(ast::crumbs::InfixCrumb::Operator)) == Some(true);
+            let is_infix_opr = node.ast_crumbs.last().map(|t| t == &ast::Crumb::Infix(ast::crumbs::InfixCrumb::Operator)) == Some(true);
 
-                    println!("??? {} {} {:?}",is_infix_opr,is_infix_opr2,node.ast_crumbs);
-                    let skip = node.kind.is_positional_insertion_point()
-                            // || node.kind.is_operation()
-                            || is_infix_opr2
-                            || node.kind.is_token();
+            let is_parensed = node.is_parensed();
+            let skip = node.kind.is_positional_insertion_point()
+                || node.kind.is_chained()
+                || node.kind.is_root()
+                || (node.kind.is_operation() && !is_parensed)
+                    // || node.kind.is_operation()
+                    || is_infix_opr
+                    || node.kind.is_token()
+            || *parent_parensed;
 
-                    // FIXME: How to properly discover self? Like `image.blur 15`, to disable
-                    // 'blur' port?
+            // FIXME: How to properly discover self? Like `image.blur 15`, to disable
+            // 'blur' port?
 
-                    if let Some(id) = node.ast_id {
-                        self.model.id_crumbs_map.borrow_mut().insert(id,node.crumbs.clone());
+            if let Some(id) = node.ast_id {
+                self.model.id_crumbs_map.borrow_mut().insert(id,node.crumbs.clone());
+            }
+
+            let indent_str = "   ".repeat(*indent);
+            let skipped = if skip { "(skipped)" } else { "" };
+            println!("{}[{},{}] {} {:?}",indent_str,node.payload.index,node.payload.length,skipped,node.kind.short_repr());
+            let new_parent = if !skip {
+
+                if is_header {
+                    is_header = false;
+                    if node.kind.is_operation() {
+
                     }
+                }
+                let logger   = Logger::sub(&model.logger,format!("port({},{})",node.payload.index,node.payload.length));
+                let port     = component::ShapeView::<shape::Shape>::new(&logger,self.scene());
 
-                    println!(">> ({},{}) (skip: {} [{},{},{}])",node.payload.index,node.payload.length,skip,node.kind.is_positional_insertion_point(),node.kind.is_operation(),node.kind.is_token());
+                let index = node.payload.local_index + *shift;
+                let size = node.payload.length;
 
-                    if !skip {
-                        let logger   = Logger::sub(&model.logger,"port");
-                        let port     = component::ShapeView::<shape::Shape>::new(&logger,self.scene());
+                let unit        = 7.224_609_4;
+                let width       = unit * size as f32;
+                let width2      = width + 8.0;
+                let node_height = 28.0;
+                let height      = 18.0;
+                let size        = Vector2::new(width2,height);
+                port.shape.sprite.size.set(Vector2::new(width2,node_height));
+                let x = unit * index as f32;
+                port.shape.mod_position(|t| t.x += width/2.0);
+                port.mod_position(|t| t.x = x);
+                port.mod_position(|t| t.y += 5.0);
+                parent.add_child(&port);
 
-                        let index = node.payload.index;
-                        let size = node.payload.length;
+                // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
+                let styles             = StyleWatch::new(&model.app.display.scene().style_sheet);
+                let missing_type_color = styles.get_color(theme::vars::graph_editor::edge::_type::missing::color);
 
-                        let unit        = 7.224_609_4;
-                        let width       = unit * size as f32;
-                        let width2      = width + 8.0;
-                        let node_height = 28.0;
-                        let height      = 18.0;
-                        let size        = Vector2::new(width2,height);
-                        port.shape.sprite.size.set(Vector2::new(width2,node_height));
-                        let x = width/2.0 + unit * index as f32;
-                        port.mod_position(|t| t.x = x);
-                        model.ports_group.add_child(&port);
+                let crumbs = node.crumbs.clone();
+                // let _ast_id = get_id_for_crumbs(&expression.input_span_tree,&crumbs);
+                // println!(">> {:?}",node.argument_info.clone().unwrap_or_default().typename);
+                // let color  = ast_id.and_then(|id|type_map.type_color(id,styles.clone_ref()));
+                // let color  = color.unwrap_or(missing_type_color);
+                let color = node.tp().map(
+                    |tp| type_coloring::color_for_type(tp.clone().into(),&styles)
+                ).unwrap_or(missing_type_color);
 
-                        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
-                        let styles             = StyleWatch::new(&model.app.display.scene().style_sheet);
-                        let missing_type_color = styles.get_color(theme::vars::graph_editor::edge::_type::missing::color);
+                let highlight = cursor::Style::new_highlight(&port.shape,size,Some(color));
 
-                        let crumbs = node.crumbs.clone();
-                        // let _ast_id = get_id_for_crumbs(&expression.input_span_tree,&crumbs);
-                        // println!(">> {:?}",node.argument_info.clone().unwrap_or_default().typename);
-                        // let color  = ast_id.and_then(|id|type_map.type_color(id,styles.clone_ref()));
-                        // let color  = color.unwrap_or(missing_type_color);
-                        let color = node.tp().map(
-                            |tp| type_coloring::color_for_type(tp.clone().into(),&styles)
-                        ).unwrap_or(missing_type_color);
+                let leaf     = &node.frp;
+                let port_network  = &leaf.network;
 
-                        let highlight = cursor::Style::new_highlight(&port,size,Some(color));
-
-                        let leaf     = &node.frp;
-                        let port_network  = &leaf.network;
-
-                        frp::extend! { port_network
-                            let mouse_over = port.events.mouse_over.clone_ref();
-                            let mouse_out  = port.events.mouse_out.clone_ref();
-
-
-                            // === Mouse Style ===
-
-                            pointer_style_over  <- mouse_over.map(move |_| highlight.clone());
-                            pointer_style_out   <- mouse_out.map(|_| default());
-                            pointer_style_hover <- any(pointer_style_over,pointer_style_out);
-                            pointer_style       <- all
-                                [ pointer_style_hover
-                                , self.model.label.pointer_style
-                                ].fold();
-                            self.frp.output.source.pointer_style <+ pointer_style;
+                frp::extend! { port_network
+                    let mouse_over = port.events.mouse_over.clone_ref();
+                    let mouse_out  = port.events.mouse_out.clone_ref();
 
 
-                            // === Port Hover ===
+                    // === Mouse Style ===
 
-                            let crumbs_over  = crumbs.clone();
-                            let hover_source = &self.frp.output.source.hover;
-                            eval_ mouse_over (hover_source.emit(&Some(crumbs_over.clone())));
-                            eval_ mouse_out  (hover_source.emit(&None));
+                    pointer_style_over  <- mouse_over.map(move |_| highlight.clone());
+                    pointer_style_out   <- mouse_out.map(|_| default());
+                    pointer_style_hover <- any(pointer_style_over,pointer_style_out);
+                    pointer_style       <- all
+                        [ pointer_style_hover
+                        , self.model.label.pointer_style
+                        ].fold();
+                    self.frp.output.source.pointer_style <+ pointer_style;
 
+
+                    // === Port Hover ===
+
+                    let crumbs_over  = crumbs.clone();
+                    let hover_source = &self.frp.output.source.hover;
+                    eval_ mouse_over (hover_source.emit(&Some(crumbs_over.clone())));
+                    eval_ mouse_out  (hover_source.emit(&None));
 
 
 
-                            // === Port Press ===
 
-                            let crumbs_down  = crumbs.clone();
-                            let press_source = &self.frp.output.source.press;
-                            eval_ port.events.mouse_down (press_source.emit(&crumbs_down));
-                        }
+                    // === Port Press ===
 
-                        let network = &self.frp.network;
+                    let crumbs_down  = crumbs.clone();
+                    let press_source = &self.frp.output.source.press;
+                    eval_ port.events.mouse_down (press_source.emit(&crumbs_down));
+                }
 
-                        let index  = node.payload.index;
-                        let length = node.payload.length;
+                let network = &self.frp.network;
 
-                        frp::extend! { port_network
-                            let mouse_over = port.events.mouse_over.clone_ref();
-                            let mouse_out  = port.events.mouse_out.clone_ref();
+                let index  = node.payload.index;
+                let length = node.payload.length;
 
-                            let crumbs_over = crumbs.clone(); // fixme - passing crumbs is slow in frp
-                            let crumbs_out  = crumbs.clone();
+                frp::extend! { port_network
+                    let mouse_over = port.events.mouse_over.clone_ref();
+                    let mouse_out  = port.events.mouse_out.clone_ref();
 
-                            self.source.port_over <+ mouse_over.map (move |_| crumbs_over.clone());
-                            self.source.port_out  <+ mouse_out.map  (move |_| crumbs_out.clone());
-                        }
+                    let crumbs_over = crumbs.clone(); // fixme - passing crumbs is slow in frp
+                    let crumbs_out  = crumbs.clone();
 
-                        // if is_leaf {
-                        //
-                        // }
+                    self.source.port_over <+ mouse_over.map (move |_| crumbs_over.clone());
+                    self.source.port_out  <+ mouse_out.map  (move |_| crumbs_out.clone());
+                }
 
-                        node.payload().shape = Some(port);
-                    }
+                // if is_leaf {
+                //
+                // }
+                let out = port.display_object().clone_ref();
+
+                node.payload().shape = Some(port);
+                out
+            } else {
+                parent.clone_ref()
+            };
+
+            let new_shift = if !skip { 0 } else { *shift + node.payload.local_index };
+            (true,(new_parent,is_parensed,new_shift,*indent+1))
 
                     // // FIXME: This is ugly because `children_iter` is not DoubleEndedIterator.
                     // to_visit.extend(node.children_iter().collect_vec().into_iter().rev());
 
-            true
+            // true
         });
 
 

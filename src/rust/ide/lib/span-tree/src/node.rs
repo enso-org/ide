@@ -78,6 +78,12 @@ impl<T:Payload> Node<T> {
         let payload  = f(self.payload);
         Node {kind,size,children,ast_id,payload}
     }
+
+    pub fn is_parensed(&self) -> bool {
+        let check = |t:Option<&Child<T>>|
+            t.map(|t|t.kind == Kind::Token && t.size.value == 1) == Some(true);
+        check(self.children.first()) && check(self.children.last())
+    }
 }
 
 
@@ -439,6 +445,7 @@ impl<'a,T> Deref for Ref<'a,T> {
 pub struct RefMut<'a,T=()> {
     /// The node's ref.
     node           : &'a mut Node<T>,
+    pub offset     : Size,
     /// Span begin being an index counted from the root expression.
     pub span_begin : Index,
     /// Crumbs specifying this node position related to root.
@@ -450,10 +457,11 @@ pub struct RefMut<'a,T=()> {
 impl<'a,T:Payload> RefMut<'a,T> {
     /// Constructor.
     pub fn new(node:&'a mut Node<T>) -> Self {
+        let offset     = default();
         let span_begin = default();
         let crumbs     = default();
         let ast_crumbs = default();
-        Self {node,span_begin,crumbs,ast_crumbs}
+        Self {node,offset,span_begin,crumbs,ast_crumbs}
     }
 
     /// Mutable payload accessor.
@@ -474,11 +482,12 @@ impl<'a,T:Payload> RefMut<'a,T> {
     , mut crumbs     : Crumbs
     , mut ast_crumbs : ast::Crumbs
     ) -> RefMut<'a,T> {
+        let offset  = child.offset;
         let node    = &mut child.node;
         span_begin += child.offset;
         crumbs.push(index);
         ast_crumbs.extend(child.ast_crumbs.iter().cloned());
-        Self{node,span_begin,crumbs,ast_crumbs}
+        Self{node,offset,span_begin,crumbs,ast_crumbs}
     }
 
     /// Get the reference to child with given index. Fails if index if out of bounds.

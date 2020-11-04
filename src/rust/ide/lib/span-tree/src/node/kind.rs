@@ -134,6 +134,18 @@ impl Kind {
             _ => false
         }
     }
+
+    pub fn short_repr(&self) -> &str {
+        match self {
+            Self::Root              => "Root",
+            Self::Chained           => "Chained",
+            Self::Operation         => "Operation",
+            Self::This(_)           => "This",
+            Self::Argument(_)       => "Argument",
+            Self::Token             => "Token",
+            Self::InsertionPoint(_) => "InsertionPoint"
+        }
+    }
 }
 
 
