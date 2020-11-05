@@ -98,8 +98,8 @@ pub struct InstanceModel {
 impl InstanceModel {
 
     fn get_background_color(scene:&Scene) -> color::Rgba {
-        let styles     = StyleWatch::new(&scene.style_sheet);
-        let bg_color   = styles.get_color(ensogl_theme::vars::graph_editor::visualization::background::color);
+        let styles   = StyleWatch::new(&scene.style_sheet);
+        let bg_color = styles.get_color(ensogl_theme::vars::graph_editor::visualization::background::color);
         color::Rgba::from(bg_color)
     }
 
@@ -110,7 +110,10 @@ impl InstanceModel {
             .map_err(|js_error|Error::ConstructorError{js_error})?;
 
         let bg_color = Self::get_background_color(scene);
-        let bg_hex     = format!("rgba({},{},{},{})",bg_color.red*255.0,bg_color.green*255.0,bg_color.blue*255.0,bg_color.alpha);
+        let bg_red   = bg_color.red*255.0;
+        let bg_green = bg_color.green*255.0;
+        let bg_blue  = bg_color.blue*255.0;
+        let bg_hex   = format!("rgba({},{},{},{})",bg_red,bg_green,bg_blue,bg_color.alpha);
         root_node.dom().set_style_or_warn("background",bg_hex,logger);
 
         Ok(root_node)

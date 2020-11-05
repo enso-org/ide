@@ -93,7 +93,11 @@ impl RawTextModel {
         let bg_color   = styles.get_color(ensogl_theme::vars::graph_editor::visualization::background::color);
         let bg_color   = color::Rgba::from(bg_color);
         let text_color = format!("rgba({},{},{},{})",_red,_green,_blue,text_color.alpha);
-        let bg_hex     = format!("rgba({},{},{},{})",bg_color.red*255.0,bg_color.green*255.0,bg_color.blue*255.0,bg_color.alpha);
+
+        let bg_red   = bg_color.red*255.0;
+        let bg_green = bg_color.green*255.0;
+        let bg_blue  = bg_color.blue*255.0;
+        let bg_hex   = format!("rgba({},{},{},{})",bg_red,bg_green,bg_blue,bg_color.alpha);
 
         dom.dom().set_attribute_or_warn("class","visualization scrollable",&logger);
         dom.dom().set_style_or_warn("background"    ,bg_hex          ,&logger);
