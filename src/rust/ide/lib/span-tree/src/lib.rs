@@ -127,7 +127,7 @@ impl<T:Payload> SpanTree<T> {
 // === Getters ===
 
 impl <T:Payload> SpanTree<T> {
-    fn nested_ast_id(&self, crumbs:&[Crumb]) -> Option<ast::Id> {
+    fn nested_ast_id(&self, crumbs:&Crumbs) -> Option<ast::Id> {
         if self.root_ref().crumbs == crumbs {
             self.root.ast_id
         } else {

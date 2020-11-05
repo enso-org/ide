@@ -121,9 +121,6 @@ impl NewNodeInfo {
 // === Connections ===
 // ===================
 
-/// Identifier for ports.
-pub type PortId = Vec<span_tree::node::Crumb>;
-
 /// Reference to the port (i.e. the span tree node).
 pub type PortRef<'a> = span_tree::node::Ref<'a>;
 
@@ -135,7 +132,7 @@ pub type PortRef<'a> = span_tree::node::Ref<'a>;
 #[derive(Clone,Debug,Default,Eq,Hash,PartialEq)]
 pub struct Endpoint {
     pub node : double_representation::node::Id,
-    pub port : PortId,
+    pub port : span_tree::Crumbs,
     /// Crumbs which locate the Var in the `port` ast node.
     ///
     /// In normal case this is an empty crumb (which means that the whole span of `port` is the
@@ -147,8 +144,9 @@ pub struct Endpoint {
 
 impl Endpoint {
     /// Create endpoint with empty `var_crumbs`.
-    pub fn new(node:double_representation::node::Id, port: PortId) -> Self {
+    pub fn new(node:double_representation::node::Id, port:impl Into<span_tree::Crumbs>) -> Self {
         let var_crumbs = default();
+        let port       = port.into();
         Endpoint{node,port,var_crumbs}
     }
 }

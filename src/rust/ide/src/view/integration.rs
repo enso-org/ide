@@ -1097,8 +1097,8 @@ impl Model {
         let src_node = self.get_controller_node_id(src.node_id)?;
         let dst_node = self.get_controller_node_id(dst.node_id)?;
         Ok(controller::graph::Connection {
-            source      : controller::graph::Endpoint::new(src_node,src.port.deref().clone()),
-            destination : controller::graph::Endpoint::new(dst_node,dst.port.deref().clone()),
+            source      : controller::graph::Endpoint::new(src_node,&src.port),
+            destination : controller::graph::Endpoint::new(dst_node,&dst.port),
         })
     }
 

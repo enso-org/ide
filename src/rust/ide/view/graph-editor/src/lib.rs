@@ -652,13 +652,12 @@ pub struct LocalCall {
 #[derive(Clone,CloneRef,Debug,Default)]
 pub struct EdgeTarget {
     pub node_id : NodeId,
-    pub port    : Rc<span_tree::Crumbs>,
+    pub port    : span_tree::Crumbs,
 }
 
 impl EdgeTarget {
     pub fn new(node_id:impl Into<NodeId>, port:span_tree::Crumbs) -> Self {
         let node_id = node_id.into();
-        let port    = Rc::new(port);
         Self {node_id,port}
     }
 
@@ -984,12 +983,12 @@ impl GraphEditorModelWithNetwork {
         node_id
     }
 
-    fn is_node_connected_at_input(&self, node_id:NodeId, crumbs:span_tree::Crumbs) -> bool {
+    fn is_node_connected_at_input(&self, node_id:NodeId, crumbs:&span_tree::Crumbs) -> bool {
         if let Some(node) = self.nodes.get_cloned(&node_id) {
             for in_edge_id in node.in_edges.raw.borrow().iter() {
                 if let Some(edge) = self.edges.get_cloned(in_edge_id) {
                     if let Some(target) = edge.target() {
-                        if target.node_id == node_id && target.port.as_ref() == &crumbs {
+                        if target.node_id == node_id && target.port == crumbs {
                             return true
                         }
                     }
@@ -1974,7 +1973,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         Some(model.new_edge_from_output(&edge_mouse_down,&edge_over,&edge_out))
     })).unwrap();
     new_input_edge <- create_edge_from_input.map(f!([model,edge_mouse_down,edge_over,edge_out]((target)){
-        if model.is_node_connected_at_input(target.node_id,target.port.to_vec()) {
+        if model.is_node_connected_at_input(target.node_id,&target.port) {
             return None
         };
         Some(model.new_edge_from_input(&edge_mouse_down,&edge_over,&edge_out))

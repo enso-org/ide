@@ -279,7 +279,43 @@ impl<T:Payload> ChildBuilder<T> {
 pub type Crumb = usize;
 
 /// Crumbs specifying this node position related to root.
-pub type Crumbs = Vec<Crumb>;
+#[derive(Debug,Clone,CloneRef,Default,Eq,Hash,PartialEq)]
+pub struct Crumbs {
+    pub vec : Rc<Vec<Crumb>>
+}
+
+impl Deref for Crumbs {
+    type Target = Rc<Vec<Crumb>>;
+    fn deref(&self) -> &Self::Target {
+        &self.vec
+    }
+}
+
+impl Crumbs {
+    pub fn sub(&self, child:Crumb) -> Self {
+        let mut vec = self.vec.deref().clone();
+        vec.push(child);
+        let vec = Rc::new(vec);
+        Self {vec}
+    }
+}
+
+
+// === Impls ===
+
+impl PartialEq<&Self> for Crumbs {
+    fn eq(&self, other:&&Self) -> bool {
+        self.eq(*other)
+    }
+}
+
+impl<'a> IntoIterator for &'a Crumbs {
+    type Item     = &'a Crumb;
+    type IntoIter = std::slice::Iter<'a,Crumb>;
+    fn into_iter(self) -> Self::IntoIter {
+        (&*self.vec).into_iter()
+    }
+}
 
 /// Convert crumbs to crumbs pointing to a parent.
 pub fn parent_crumbs(crumbs:&[Crumb]) -> Option<&[Crumb]> {
@@ -299,7 +335,14 @@ pub struct InvalidCrumb {
     /// Available children count.
     pub count : usize,
     /// Already traversed crumbs.
-    pub context : Crumbs,
+    pub context : Vec<Crumb>,
+}
+
+impl InvalidCrumb {
+    pub fn new(crumb:Crumb, count:usize, context:&Crumbs) -> Self {
+        let context = context.vec.deref().clone();
+        Self {crumb,count,context}
+    }
 }
 
 
@@ -353,11 +396,11 @@ impl<'a,T:Payload> Ref<'a,T> {
         let count          = node.children.len();
 
         match node.children.get(index) {
-            None        => Err(InvalidCrumb {count, crumb:index, context:crumbs}.into()),
+            None        => Err(InvalidCrumb::new(count,index,&crumbs).into()),
             Some(child) => {
                 let node = &child.node;
                 span_begin += child.offset;
-                crumbs.push(index);
+                let crumbs = crumbs.sub(index);
                 ast_crumbs.extend(child.ast_crumbs.iter().cloned());
                 Ok(Self{node,span_begin,crumbs,ast_crumbs})
             },
@@ -495,7 +538,7 @@ impl<'a,T:Payload> RefMut<'a,T> {
         let offset  = child.offset;
         let node    = &mut child.node;
         span_begin += child.offset;
-        crumbs.push(index);
+        let crumbs = crumbs.sub(index);
         ast_crumbs.extend(child.ast_crumbs.iter().cloned());
         Self{node,offset,span_begin,crumbs,ast_crumbs}
     }
@@ -508,7 +551,7 @@ impl<'a,T:Payload> RefMut<'a,T> {
         let ast_crumbs = self.ast_crumbs;
         let count      = node.children.len();
         match node.children.get_mut(index) {
-            None        => Err(InvalidCrumb {count, crumb:index, context:crumbs}.into()),
+            None        => Err(InvalidCrumb::new(count,index,&crumbs).into()),
             Some(child) => Ok(Self::child_from_ref(index,child,span_begin,crumbs,ast_crumbs)),
         }
     }
