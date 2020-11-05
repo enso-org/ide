@@ -67,6 +67,8 @@ class MapViewVisualization extends Visualization {
             parsedData = JSON.parse(data);
         }
 
+        console.log(parsedData);
+
         let defaultMapStyle = 'mapbox://styles/mapbox/light-v9';
         if (document.getElementById("root").classList.contains("dark")){
             defaultMapStyle = 'mapbox://styles/mapbox/dark-v9';
@@ -86,9 +88,23 @@ class MapViewVisualization extends Visualization {
             controller: parsedData.controller || true
         });
 
-        deckgl.setProps({
-            layers: parsedData.layers || []
-        });
+        let dataPoints = parsedData.layers[0].data || []
+        let preparedDP = []
+        dataPoints.forEach(x => preparedDP.push({position: [x.longitude, x.latitude], color: x.color || [33,33,33], radius:x.radius  || 100}))
+        console.log(preparedDP);
+
+        const scatterplotLayer = new deck.ScatterplotLayer({
+            data: preparedDP,
+            getPosition: d => [d[0], d[1], 0],
+            getColor: d => d.color,
+            getRadius: d => d.radius
+        })
+
+        if (parsedData.layers[0].type.toLowerCase() === "scatterplotlayer") {
+            deckgl.setProps({
+                layers: [scatterplotLayer]
+            });
+        }
     }
 
     setSize(size) {
