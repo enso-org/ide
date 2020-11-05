@@ -41,7 +41,7 @@ use ensogl_theme as theme;
 
 const DEFAULT_SIZE      : (f32,f32) = (200.0,200.0);
 const CORNER_RADIUS     : f32       = super::super::node::CORNER_RADIUS;
-const SHADOW_SIZE       : f32       = super::super::node::SHADOW_SIZE;
+const SHADOW_SIZE       : f32       = 0.0 * super::super::node::SHADOW_SIZE;
 const ACTION_BAR_HEIGHT : f32       = 2.0 * CORNER_RADIUS;
 
 
