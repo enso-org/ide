@@ -172,7 +172,7 @@ pub mod shape {
 }
 
 /// Function used to hack depth sorting. To be removed when it will be implemented in core engine.
-pub fn sort_hack(scene:&Scene) {
+pub fn depth_sort_hack(scene:&Scene) {
     let logger = Logger::new("hack");
     component::ShapeView::<shape::Shape>::new(&logger,scene);
 }

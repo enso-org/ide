@@ -830,7 +830,7 @@ impl AnyEdgeShape for EdgeModelData {
 
 // TODO: Implement proper sorting and remove.
 /// Hack function used to register the elements for the sorting purposes. To be removed.
-pub fn sort_hack_1(scene:&Scene) {
+pub fn depth_sort_hack_1(scene:&Scene) {
     let logger = Logger::new("hack_sort");
     component::ShapeView::<back::corner::Shape>::new(&logger,scene);
     component::ShapeView::<back::line::Shape>::new(&logger,scene);
@@ -838,7 +838,7 @@ pub fn sort_hack_1(scene:&Scene) {
 
 // TODO: Implement proper sorting and remove.
 /// Hack function used to register the elements for the sorting purposes. To be removed.
-pub fn sort_hack_2(scene:&Scene) {
+pub fn depth_sort_hack_2(scene:&Scene) {
     let logger = Logger::new("hack_sort");
     component::ShapeView::<front::corner::Shape>::new(&logger,scene);
     component::ShapeView::<front::line::Shape>::new(&logger,scene);

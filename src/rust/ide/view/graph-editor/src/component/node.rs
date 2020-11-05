@@ -208,17 +208,17 @@ impl NodeModel {
     pub fn new(app:&Application, registry:visualization::Registry) -> Self {
         let scene  = app.display.scene();
         let logger = Logger::new("node");
-        edge::sort_hack_1(scene);
+        edge::depth_sort_hack_1(scene);
 
-        output::order_hack(&scene);
+        output::area::depth_sort_hack(&scene);
         let main_logger = Logger::sub(&logger,"main_area");
         let drag_logger = Logger::sub(&logger,"drag_area");
         let main_area   = component::ShapeView::<shape::Shape>::new(&main_logger,scene);
         let main_color  = color::Animation::new();
         let drag_area   = component::ShapeView::<drag_area::Shape>::new(&drag_logger,scene);
-        edge::sort_hack_2(scene);
+        edge::depth_sort_hack_2(scene);
 
-        input::area::sort_hack(scene); // FIXME hack for sorting
+        input::area::depth_sort_hack(scene); // FIXME hack for sorting
 
         let display_object  = display::object::Instance::new(&logger);
         display_object.add_child(&drag_area);
