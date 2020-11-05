@@ -25,7 +25,6 @@ use ensogl_text::Text;
 use ensogl_theme;
 
 use crate::Type;
-use crate::component::node::output::OutputPorts;
 use crate::component::visualization;
 
 use super::edge;
@@ -196,11 +195,10 @@ pub struct NodeModel {
     pub logger         : Logger,
     pub main_area      : component::ShapeView<shape::Shape>,
     pub drag_area      : component::ShapeView<drag_area::Shape>,
-    pub ports          : input::Manager,
+    pub input          : input::Area,
+    pub output         : output::Area,
     pub visualization  : visualization::Container,
     pub action_bar     : action_bar::ActionBar,
-    pub output_ports   : OutputPorts,
-
     main_color         : color::Animation,
 }
 
@@ -212,7 +210,7 @@ impl NodeModel {
         let logger = Logger::new("node");
         edge::sort_hack_1(scene);
 
-        OutputPorts::order_hack(&scene);
+        output::order_hack(&scene);
         let main_logger = Logger::sub(&logger,"main_area");
         let drag_logger = Logger::sub(&logger,"drag_area");
         let main_area   = component::ShapeView::<shape::Shape>::new(&main_logger,scene);
@@ -230,7 +228,7 @@ impl NodeModel {
         let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
         shape_system.shape_system.set_pointer_events(false);
 
-        let ports = input::Manager::new(&logger,app);
+        let input = input::Area::new(&logger,app);
         let scene = scene.clone_ref();
         let visualization = visualization::Container::new(&logger,&app,registry);
         visualization.mod_position(|t| {
@@ -240,22 +238,21 @@ impl NodeModel {
 
         display_object.add_child(&visualization);
 
-        ports.mod_position(|p| {
+        input.mod_position(|p| {
             p.x = TEXT_OFF;
             p.y = NODE_HEIGHT/2.0;
         });
-        display_object.add_child(&ports);
+        display_object.add_child(&input);
 
         let action_bar = action_bar::ActionBar::new(&app);
         display_object.add_child(&action_bar);
         action_bar.frp.show_icons();
 
-        // TODO: Determine number of output ports based on node semantics.
-        let output_ports = OutputPorts::new(&scene);
-        display_object.add_child(&output_ports);
+        let output = output::Area::new(&scene);
+        display_object.add_child(&output);
 
         let app = app.clone_ref();
-        Self {app,display_object,logger,main_area,drag_area,output_ports,ports
+        Self {app,display_object,logger,main_area,drag_area,output,input
              ,visualization,action_bar,main_color} . init()
     }
 
@@ -265,7 +262,7 @@ impl NodeModel {
     }
 
     pub fn width(&self) -> f32 {
-        self.ports.width() + TEXT_OFF * 2.0
+        self.input.width() + TEXT_OFF * 2.0
     }
 
     pub fn height(&self) -> f32 {
@@ -274,8 +271,8 @@ impl NodeModel {
 
     fn set_expression(&self, expr:impl Into<Expression>) {
         let expr = expr.into();
-        self.output_ports.set_pattern_span_tree(&expr.output_span_tree);
-        self.ports.set_expression(expr);
+        self.output.set_pattern_span_tree(&expr.output_span_tree);
+        self.input.set_expression(expr);
     }
 
     fn set_width(&self, width:f32) {
@@ -289,9 +286,9 @@ impl NodeModel {
         self.drag_area.mod_position(|t| t.x = width/2.0);
         self.drag_area.mod_position(|t| t.y = height/2.0);
 
-        self.output_ports.frp.set_size.emit(size);
-        self.output_ports.mod_position(|t| t.x = width/2.0);
-        self.output_ports.mod_position(|t| t.y = height/2.0);
+        self.output.frp.set_size.emit(size);
+        self.output.mod_position(|t| t.x = width/2.0);
+        self.output.mod_position(|t| t.y = height/2.0);
 
         self.action_bar.mod_position(|t| {
             t.x = width/2.0 + CORNER_RADIUS;
@@ -325,22 +322,22 @@ impl Node {
 
             eval inputs.set_expression ((expr) model.set_expression(expr));
             eval inputs.set_expression_type (((ast_id,maybe_type)) {
-                model.ports.set_expression_type(*ast_id,maybe_type.clone());
-                //model.output_ports.set_pattern_type(*ast_id,maybe_type.clone())
+                model.input.set_expression_type(*ast_id,maybe_type.clone());
+                //model.output.set_pattern_type(*ast_id,maybe_type.clone())
             });
 
             eval inputs.set_visualization ((content)
                 model.visualization.frp.set_visualization.emit(content)
             );
 
-            eval model.ports.frp.width ((w) model.set_width(*w));
+            eval model.input.frp.width ((w) model.set_width(*w));
 
             out.source.background_press <+ model.drag_area.events.mouse_down;
 
-            eval_ model.drag_area.events.mouse_over (model.ports.hover());
-            eval_ model.drag_area.events.mouse_out  (model.ports.unhover());
+            eval_ model.drag_area.events.mouse_over (model.input.hover());
+            eval_ model.drag_area.events.mouse_out  (model.input.unhover());
 
-            out.source.expression <+ model.ports.frp.expression.map(|t|t.clone_ref());
+            out.source.expression <+ model.input.frp.expression.map(|t|t.clone_ref());
 
             eval actions.action_visbility ((visible){
                 model.visualization.frp.set_visibility.emit(visible);
@@ -353,7 +350,7 @@ impl Node {
             // === Color Handling ===
 
             background_color <- inputs.set_dimmed.map(f!([model,style](should_dim) {
-                model.ports.frp.set_dimmed.emit(*should_dim);
+                model.input.frp.set_dimmed.emit(*should_dim);
                 let background_color_path = ensogl_theme::vars::graph_editor::node::background::color;
                 if *should_dim {
                    style.get_color_dim(background_color_path)
@@ -377,7 +374,7 @@ impl Node {
             eval_ model.drag_area.events.mouse_over  ( actions.show_icons() );
             eval_ model.drag_area.events.mouse_out   ( actions.hide_icons() );
 
-            is_hovered <- model.ports.frp.hover.map(|item| item.is_some() );
+            is_hovered <- model.input.frp.hover.map(|item| item.is_some() );
             eval is_hovered ((hovered) actions.icon_visibility(hovered) );
         }
 

@@ -922,32 +922,32 @@ impl GraphEditorModelWithNetwork {
 
         frp::new_bridge_network! { [self.network, node.frp.network]
             eval_ node.frp.background_press(touch.nodes.down.emit(node_id));
-            let ports_frp       = &node.model.ports.frp;
+            let ports_frp       = &node.model.input.frp;
             let edit_mode_ready = edit_mode_ready.clone_ref();
 
             eval edit_mode_ready ((t) ports_frp.input.edit_mode_ready.emit(t));
-            eval node.model.ports.frp.pointer_style ((style) pointer_style.emit(style));
-            eval node.model.output_ports.frp.port_mouse_down ([output_press](crumbs){
+            eval node.model.input.frp.pointer_style ((style) pointer_style.emit(style));
+            eval node.model.output.frp.port_mouse_down ([output_press](crumbs){
                 let target = EdgeTarget::new(node_id,crumbs.clone());
                 output_press.emit(target);
             });
 
-            eval node.model.ports.frp.press ([input_press](crumbs)
+            eval node.model.input.frp.press ([input_press](crumbs)
                 let target = EdgeTarget::new(node_id,crumbs.clone());
                 input_press.emit(target);
             );
 
-            eval node.model.ports.frp.hover ([model](crumbs) {
+            eval node.model.input.frp.hover ([model](crumbs) {
                 let target = crumbs.as_ref().map(|c| EdgeTarget::new(node_id,c.clone()));
                 model.frp.hover_node_input.emit(target);
             });
 
-            eval node.model.output_ports.frp.port_mouse_over ([model](crumbs) {
+            eval node.model.output.frp.port_mouse_over ([model](crumbs) {
                let target = EdgeTarget::new(node_id,crumbs.clone());
                model.frp.hover_node_output.emit(Some(target));
             });
 
-            eval_ node.model.output_ports.frp.port_mouse_out (
+            eval_ node.model.output.frp.port_mouse_out (
                 model.frp.hover_node_output.emit(None)
             );
 
@@ -1459,7 +1459,7 @@ impl GraphEditorModel {
         if let Some(edge) = self.edges.get_cloned_ref(&edge_id) {
             if let Some(edge_target) = edge.target() {
                 if let Some(node) = self.nodes.get_cloned_ref(&edge_target.node_id) {
-                    let offset = node.model.ports.get_port_offset(&edge_target.port).unwrap_or_default();
+                    let offset = node.model.input.get_port_offset(&edge_target.port).unwrap_or_default();
                     let pos = node.position().xy() + offset;
                     edge.view.frp.target_position.emit(pos);
                     edge.view.frp.redraw.emit(());
@@ -1472,8 +1472,8 @@ impl GraphEditorModel {
     /// with the target port.
     fn try_get_edge_target_color(&self, edge_target:EdgeTarget) -> Option<color::Lcha> {
         let node              = self.nodes.get_cloned_ref(&edge_target.node_id)?;
-        let input_port_color  = node.model.ports.get_port_color(&edge_target.port);
-        let output_port_color = || node.model.output_ports.get_port_color(&edge_target.port);
+        let input_port_color  = node.model.input.get_port_color(&edge_target.port);
+        let output_port_color = || node.model.output.get_port_color(&edge_target.port);
         input_port_color.or_else(output_port_color)
     }
 
@@ -1755,12 +1755,12 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
         eval out.node_editing_started ([model] (id) {
             if let Some(node) = model.nodes.get_cloned_ref(&id) {
-                node.model.ports.frp.edit_mode.emit(true);
+                node.model.input.frp.edit_mode.emit(true);
             }
         });
         eval out.node_editing_finished ([model](id) {
             if let Some(node) = model.nodes.get_cloned_ref(&id) {
-                node.model.ports.frp.edit_mode.emit(false);
+                node.model.input.frp.edit_mode.emit(false);
             }
         });
     }

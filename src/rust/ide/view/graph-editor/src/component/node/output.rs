@@ -536,7 +536,7 @@ impl Frp {
 // === OutputPortsData ===
 // =======================
 
-/// Internal data of the `OutputPorts`.
+/// Internal data of the `Area`.
 #[derive(Debug)]
 pub struct OutputPortsData {
     display_object : display::object::Instance,
@@ -550,7 +550,7 @@ pub struct OutputPortsData {
 impl OutputPortsData {
 
     fn new(scene:&Scene, number_of_ports:u32) -> Self {
-        let logger         = Logger::new("OutputPorts");
+        let logger         = Logger::new("Area");
         let display_object = display::object::Instance::new(&logger);
         let size           = Cell::new(Vector2::zero());
         let gap_width      = Cell::new(SEGMENT_GAP_WIDTH);
@@ -590,24 +590,24 @@ impl OutputPortsData {
 
 
 
-// ===================
-// === OutputPorts ===
-// ===================
+// ============
+// === Area ===
+// ============
 
 type SharedIdCrumbMap = Rc<RefCell<HashMap<PortId,span_tree::Crumbs>>>;
 
 /// Implements the segmented output port area. Provides shapes that can be attached to a `Node` to
 /// add an interactive area with output ports.
 ///
-/// The `OutputPorts` facilitate the falling behaviour:
+/// The `Area` facilitate the falling behaviour:
 ///  * when one of the output ports is hovered, after a set time, all ports are show and the hovered
 ///    port is highlighted.
 ///  * when a different port is hovered, it is highlighted immediately.
-///  * when none of the ports is hovered all of the `OutputPorts` disappear. Note: there is a very
+///  * when none of the ports is hovered all of the `Area` disappear. Note: there is a very
 ///    small delay for disappearing to allow for smooth switching between ports.
 ///
 #[derive(Debug,Clone,CloneRef)]
-pub struct OutputPorts {
+pub struct Area {
     /// The FRP api of the `OutPutPorts`.
     pub frp               : Frp,
         network           : frp::Network,
@@ -621,7 +621,15 @@ pub struct OutputPorts {
         delay_hide        : Tween
 }
 
-impl OutputPorts {
+// TODO: Implement proper sorting and remove.
+/// Hack function used to register the elements for the sorting purposes. To be removed.
+pub(crate) fn order_hack(scene:&Scene) {
+    let logger = Logger::new("output shape order hack");
+    component::ShapeView::<multi_port_area::Shape>::new(&logger,scene);
+    component::ShapeView::<single_port_area::Shape>::new(&logger,scene);
+}
+
+impl Area {
     /// Constructor.
     pub fn new(scene:&Scene) -> Self {
         let pattern_span_tree = SpanTree::<()>::default();
@@ -646,16 +654,8 @@ impl OutputPorts {
         delay_hide.set_duration(HIDE_DELAY_DURATION);
 
 
-        OutputPorts{scene,data,network,frp,pattern_span_tree,port_network,id_map,
+        Area{scene,data,network,frp,pattern_span_tree,port_network,id_map,
                      delay_show,delay_hide}
-    }
-
-    // TODO: Implement proper sorting and remove.
-    /// Hack function used to register the elements for the sorting purposes. To be removed.
-    pub(crate) fn order_hack(scene:&Scene) {
-        let logger = Logger::new("output shape order hack");
-        component::ShapeView::<multi_port_area::Shape>::new(&logger,scene);
-        component::ShapeView::<single_port_area::Shape>::new(&logger,scene);
     }
 
     /// Set the pattern for which output ports should be presented. Triggers a rebinding of the
@@ -779,7 +779,7 @@ impl OutputPorts {
     }
 }
 
-impl display::Object for OutputPorts {
+impl display::Object for Area {
     fn display_object(&self) -> &display::object::Instance {
         &self.data.display_object
     }

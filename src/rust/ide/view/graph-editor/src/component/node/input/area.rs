@@ -199,6 +199,10 @@ impl Expression {
     }
 }
 
+
+
+
+
 fn get_id_for_crumbs(span_tree:&PortSpanTree, crumbs:&[span_tree::Crumb]) -> Option<ast::Id> {
     if span_tree.root_ref().crumbs == crumbs {
         return span_tree.root.ast_id
@@ -381,6 +385,7 @@ impl Model {
         display_object.add_child(&label);
         display_object.add_child(&ports_group);
         ports_group.add_child(&header);
+        header.mod_position(|t| t.y = 10.0);
         Self {logger,display_object,ports_group,header,label,width,app,expression,styles
              ,id_crumbs_map} . init()
     }
@@ -453,24 +458,24 @@ impl PortLayerBuilder {
 }
 
 
-// ===============
-// === Manager ===
-// ===============
+// ============
+// === Area ===
+// ============
 
 #[derive(Clone,CloneRef,Debug)]
-pub struct Manager {
+pub struct Area {
     pub frp : Frp,
     model   : Rc<Model>,
 }
 
-impl Deref for Manager {
+impl Deref for Area {
     type Target = Frp;
     fn deref(&self) -> &Self::Target {
         &self.frp
     }
 }
 
-impl Manager {
+impl Area {
     pub fn new(logger:impl AnyLogger, app:&Application) -> Self {
         let model      = Rc::new(Model::new(logger,app));
         let frp        = Frp::new();
@@ -592,10 +597,6 @@ impl Manager {
             true
         });
 
-        // let mut to_visit      = vec![expression.input_span_tree.root_ref_mut()];
-
-        model.header.unset_parent();
-
         let root = model.ports_group.clone_ref();
         let mut is_header = true;
 
@@ -606,7 +607,9 @@ impl Manager {
             let contains_root   = span.index.value == 0;
             let is_expected_arg = node.is_expected_argument();
             let is_parensed     = node.is_parensed();
-            let skip_opr        = if SKIP_OPERATIONS { node.is_operation() } else {
+            let skip_opr        = if SKIP_OPERATIONS {
+                node.is_operation() && !is_header
+            } else {
                 let crumb = ast::Crumb::Infix(ast::crumbs::InfixCrumb::Operator);
                 node.ast_crumbs.last().map(|t| t == &crumb) == Some(true)
             };
@@ -820,7 +823,7 @@ impl Manager {
     // }
 }
 
-impl display::Object for Manager {
+impl display::Object for Area {
     fn display_object(&self) -> &display::object::Instance {
         &self.model.display_object
     }
