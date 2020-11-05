@@ -64,11 +64,6 @@ impl<T:Payload> Node<T> {
         self
     }
 
-    /// Is this node empty?
-    pub fn is_insertion_point(&self) -> bool {
-        self.kind.is_insertion_point()
-    }
-
     /// Payload mapping utility.
     pub fn map<S>(self, f:impl Copy+Fn(T)->S) -> Node<S> {
         let kind     = self.kind;
@@ -78,12 +73,27 @@ impl<T:Payload> Node<T> {
         let payload  = f(self.payload);
         Node {kind,size,children,ast_id,payload}
     }
+}
 
+// === Kind utils ===
+
+#[allow(missing_docs)]
+impl<T:Payload> Node<T> {
     pub fn is_parensed(&self) -> bool {
         let check = |t:Option<&Child<T>>|
             t.map(|t|t.kind == Kind::Token && t.size.value == 1) == Some(true);
         check(self.children.first()) && check(self.children.last())
     }
+
+    pub fn is_root                       (&self) -> bool {self.kind.is_root()}
+    pub fn is_chained                    (&self) -> bool {self.kind.is_chained()}
+    pub fn is_operation                  (&self) -> bool {self.kind.is_operation()}
+    pub fn is_this                       (&self) -> bool {self.kind.is_this()}
+    pub fn is_argument                   (&self) -> bool {self.kind.is_argument()}
+    pub fn is_token                      (&self) -> bool {self.kind.is_token()}
+    pub fn is_insertion_point            (&self) -> bool {self.kind.is_insertion_point()}
+    pub fn is_positional_insertion_point (&self) -> bool {self.kind.is_positional_insertion_point()}
+    pub fn is_expected_argument          (&self) -> bool {self.kind.is_expected_argument()}
 }
 
 
