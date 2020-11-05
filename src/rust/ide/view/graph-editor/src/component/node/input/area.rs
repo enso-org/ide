@@ -14,17 +14,18 @@ use ensogl::display;
 use ensogl::gui::component;
 use ensogl::gui::cursor;
 use ensogl_text as text;
+use ensogl_text::buffer::data::unit::traits::*;
 use ensogl_text::buffer;
 use ensogl_theme as theme;
-use span_tree::SpanTree;
 use text::Bytes;
 use text::Text;
 
-use crate::node;
-
 use crate::Type;
 use crate::component::type_coloring;
-use ensogl_text::buffer::data::unit::traits::*;
+use crate::node::input::port;
+use crate::node;
+
+pub use port::depth_sort_hack;
 
 
 
@@ -33,7 +34,7 @@ use ensogl_text::buffer::data::unit::traits::*;
 // =================
 
 /// Enable visual port debug mode.
-const DEBUG : bool = true;
+pub const DEBUG : bool = true;
 
 /// Skip creating ports on all operations. For example, in expression `foo bar`, `foo` is considered
 /// an operation.
@@ -43,139 +44,12 @@ const PORT_PADDING_X             : f32  = 4.0;
 
 
 
-/// ================
-/// === SpanTree ===
-/// ================
+// ===============
+// === SpanTree ==
+// ===============
 
-fn iterate_layers
-( root         : span_tree::node::RefMut<PortModel>
-, mut on_layer : impl FnMut()
-, mut on_node  : impl FnMut(&mut span_tree::node::RefMut<PortModel>) -> bool
-) {
-    let mut layer  = vec![root];
-    let mut layers = vec![];
-    loop {
-        match layer.pop() {
-            None => {
-                match layers.pop() {
-                    None    => break,
-                    Some(l) => {
-                        on_layer();
-                        layer = l
-                    }
-                }
-            },
-            Some(mut node) => {
-                if on_node(&mut node) {
-                    let mut children = node.children_iter().collect_vec();
-                    children.reverse(); // FIXME : add reversed
-                    layers.push(children);
-                }
-            }
-        }
-    }
-}
-
-fn iterate_depth
-( root         : span_tree::node::RefMut<PortModel>
-, mut on_node  : impl FnMut(&mut span_tree::node::RefMut<PortModel>) -> bool
-) {
-    let mut layer  = vec![root];
-    let mut layers = vec![];
-    loop {
-        match layer.pop() {
-            None => {
-                match layers.pop() {
-                    None    => break,
-                    Some(l) => layer = l,
-                }
-            },
-            Some(mut node) => {
-                if on_node(&mut node) {
-                    let mut children = node.children_iter().collect_vec();
-                    children.reverse(); // FIXME : add reversed
-                    mem::swap(&mut children,&mut layer);
-                    layers.push(children);
-                }
-            }
-        }
-    }
-}
-
-
-fn iterate_layers_depth<D>
-( root         : span_tree::node::RefMut<PortModel>
-, mut data     : D
-, mut on_node  : impl FnMut(&mut span_tree::node::RefMut<PortModel>, &mut D) -> (bool,D)
-) {
-    let mut layer  = vec![root];
-    let mut layers = vec![];
-    loop {
-        match layer.pop() {
-            None => {
-                match layers.pop() {
-                    None        => break,
-                    Some((l,d)) => {
-                        layer = l;
-                        data  = d;
-                    },
-                }
-            },
-            Some(mut node) => {
-                let (ok,mut sub_data) = on_node(&mut node, &mut data);
-                if ok {
-                    let mut children = node.children_iter().collect_vec();
-                    children.reverse(); // FIXME : add reversed
-                    mem::swap(&mut sub_data,&mut data);
-                    mem::swap(&mut children,&mut layer);
-                    layers.push((children,sub_data));
-                }
-            }
-        }
-    }
-}
-
-fn iterate_nodes
-( root    : span_tree::node::RefMut<PortModel>
-, on_node : impl FnMut(&mut span_tree::node::RefMut<PortModel>) -> bool
-) {
-    iterate_layers(root,||{},on_node)
-}
-
-fn iterate_leaves(root:span_tree::node::RefMut<PortModel>, mut f:impl FnMut(&mut span_tree::node::RefMut<PortModel>)) {
-    iterate_nodes(root,|mut node| { if node.children.is_empty() { f(&mut node) }; true })
-}
-
-
-// ==================
-// === Port Shape ===
-// ==================
-
-/// Port shape definition.
-pub mod shape {
-    use super::*;
-    ensogl::define_shape_system! {
-        (style:Style) {
-            let width  : Var<Pixels> = "input_size.x".into();
-            let height : Var<Pixels> = "input_size.y".into();
-            let shape  = Rect((&width,&height));
-            if !DEBUG {
-                let color = Var::<color::Rgba>::from("srgba(1.0,1.0,1.0,0.00001)");
-                shape.fill(color).into()
-            } else {
-                let shape = shape.corners_radius(6.px());
-                let color = Var::<color::Rgba>::from("srgba(1.0,0.0,0.0,0.1)");
-                shape.fill(color).into()
-            }
-        }
-    }
-}
-
-/// Function used to hack depth sorting. To be removed when it will be implemented in core engine.
-pub fn depth_sort_hack(scene:&Scene) {
-    let logger = Logger::new("hack");
-    component::ShapeView::<shape::Shape>::new(&logger,scene);
-}
+/// Specialized `SpanTree` for the input ports model.
+pub type SpanTree = span_tree::SpanTree<port::Model>;
 
 
 
@@ -183,35 +57,25 @@ pub fn depth_sort_hack(scene:&Scene) {
 // === Expression ===
 // ==================
 
+/// Specialized version of `node::Expression`.
 #[derive(Clone,Default)]
 pub struct Expression {
-    pub code             : String,
-    pub input_span_tree  : SpanTree,
-    pub output_span_tree : SpanTree,
+    pub code  : String,
+    pub input : SpanTree,
 }
 
-impl Expression {
-    pub fn debug_from_str(s:&str) -> Self {
-        let code             = s.into();
-        let input_span_tree  = default();
-        let output_span_tree = default();
-        Self {code,input_span_tree,output_span_tree}
+impl Deref for Expression {
+    type Target = SpanTree;
+    fn deref(&self) -> &Self::Target {
+        &self.input
     }
 }
 
-
-
-
-
-fn get_id_for_crumbs(span_tree:&PortSpanTree, crumbs:&[span_tree::Crumb]) -> Option<ast::Id> {
-    if span_tree.root_ref().crumbs == crumbs {
-        return span_tree.root.ast_id
-    };
-    let span_tree_descendant = span_tree.root_ref().get_descendant(crumbs);
-    let ast_id        = span_tree_descendant.map(|node|{node.ast_id});
-    ast_id.ok().flatten()
+impl DerefMut for Expression {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.input
+    }
 }
-
 
 impl Debug for Expression {
     fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
@@ -219,203 +83,14 @@ impl Debug for Expression {
     }
 }
 
-impl From<&Expression> for Expression {
-    fn from(t:&Expression) -> Self {
-        t.clone()
-    }
-}
-
-
-
-// =======================
-// === InputExpression ===
-// =======================
-
-#[derive(Clone,Default)]
-pub struct InputExpression {
-    pub code  : String,
-    pub input : PortSpanTree,
-}
-
-impl Deref for InputExpression {
-    type Target = PortSpanTree;
-    fn deref(&self) -> &Self::Target {
-        &self.input
-    }
-}
-
-impl DerefMut for InputExpression {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.input
-    }
-}
-
-impl Debug for InputExpression {
-    fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f,"Expression({})",self.code)
-    }
-}
-
-impl From<Expression> for InputExpression {
-    fn from(t:Expression) -> Self {
+impl From<node::Expression> for Expression {
+    fn from(t:node::Expression) -> Self {
         let code  = t.code;
         let input = t.input_span_tree.map(|_|default());
         Self {code,input}
     }
 }
 
-
-
-// ================================
-// === PortSpanTree / PortModel ===
-// ================================
-
-/// `SpanTree` parametrized with `PortModel` payload.
-pub type PortSpanTree = SpanTree<PortModel>;
-
-pub mod leaf {
-    use super::*;
-    ensogl::define_endpoints! {
-        Input {
-            set_optional (bool),
-            set_disabled (bool),
-            set_hover    (bool),
-        }
-
-        Output {
-            color (color::Lcha)
-        }
-    }
-
-    #[derive(Clone,Debug,Default)]
-    pub struct PortModel {
-        pub frp         : leaf::Frp,
-        pub shape       : Option<component::ShapeView<shape::Shape>>,
-        pub name        : Option<String>,
-        pub index       : usize,
-        pub local_index : usize,
-        pub length      : usize,
-        pub color       : color::Animation2,
-    }
-
-    impl Deref for PortModel {
-        type Target = leaf::Frp;
-        fn deref(&self) -> &Self::Target {
-            &self.frp
-        }
-    }
-
-    impl PortModel {
-        pub fn new() -> Self {
-            default()
-        }
-    }
-
-
-
-}
-pub use leaf::*;
-
-
-
-// ===========
-// === FRP ===
-// ===========
-
-ensogl::define_endpoints! {
-    Input {
-        edit_mode_ready     (bool),
-        edit_mode           (bool),
-        hover               (),
-        unhover             (),
-        set_dimmed          (bool),
-        set_expression_type (ast::Id,Option<Type>),
-    }
-
-    Output {
-        pointer_style (cursor::Style),
-        press         (span_tree::Crumbs),
-        hover         (Option<span_tree::Crumbs>),
-        width         (f32),
-        expression    (Text),
-        editing       (bool),
-        port_over     (span_tree::Crumbs),
-        port_out      (span_tree::Crumbs),
-    }
-}
-
-
-
-
-
-
-// =============
-// === Model ===
-// =============
-
-/// Internal model of the port manager.
-#[derive(Debug)]
-pub struct Model {
-    logger         : Logger,
-    display_object : display::object::Instance,
-    ports_group    : display::object::Instance,
-    header         : display::object::Instance,
-    app            : Application,
-    expression     : RefCell<InputExpression>,
-    label          : text::Area,
-    width          : Cell<f32>,
-    styles         : StyleWatch,
-    /// Used for applying type information update, which is in a form of `(ast::Id,Type)`.
-    id_crumbs_map  : RefCell<HashMap<ast::Id,span_tree::Crumbs>>,
-}
-
-impl Model {
-    /// Constructor.
-    pub fn new(logger:impl AnyLogger, app:&Application) -> Self {
-        let logger         = Logger::sub(&logger,"port_manager");
-        let display_object = display::object::Instance::new(&logger);
-        let ports_group    = display::object::Instance::new(&Logger::sub(&logger,"ports"));
-        let header         = display::object::Instance::new(&Logger::sub(&logger,"header"));
-        let app            = app.clone_ref();
-        let label          = app.new_view::<text::Area>();
-        let id_crumbs_map  = default();
-        let expression     = default();
-        let width          = default();
-        let styles         = StyleWatch::new(&app.display.scene().style_sheet);
-        display_object.add_child(&label);
-        display_object.add_child(&ports_group);
-        ports_group.add_child(&header);
-        header.mod_position(|t| t.y = 10.0);
-        Self {logger,display_object,ports_group,header,label,width,app,expression,styles
-             ,id_crumbs_map} . init()
-    }
-
-    fn init(self) -> Self {
-        self.label.single_line(true);
-        self.label.disable_command("cursor_move_up");
-        self.label.disable_command("cursor_move_down");
-
-        let text_color = self.styles.get_color(theme::vars::graph_editor::node::text::color);
-        self.label.set_default_color(color::Rgba::from(text_color));
-
-        // FIXME[WD]: Depth sorting of labels to in front of the mouse pointer. Temporary solution.
-        // It needs to be more flexible once we have proper depth management.
-        let scene = self.app.display.scene();
-        self.label.remove_from_view(&scene.views.main);
-        self.label.add_to_view(&scene.views.label);
-        self.label.mod_position(|t| t.y += 6.0);
-        self.label.set_default_text_size(text::Size(12.0));
-        self.label.remove_all_cursors();
-        self
-    }
-
-    fn on_port_hover(&self, is_hovered:bool, crumbs:&span_tree::Crumbs) {
-        let mut expression = self.expression.borrow_mut();
-        if let Ok(node) = expression.input.root_ref_mut().get_descendant(crumbs) {
-            iterate_leaves(node,|node| node.payload.frp.set_hover(is_hovered))
-        }
-    }
-}
 
 
 // ========================
@@ -458,6 +133,99 @@ impl PortLayerBuilder {
 }
 
 
+
+// =============
+// === Model ===
+// =============
+
+ensogl::define_endpoints! {
+    Input {
+        edit_mode_ready     (bool),
+        edit_mode           (bool),
+        hover               (),
+        unhover             (),
+        set_dimmed          (bool),
+        set_expression_type (ast::Id,Option<Type>),
+    }
+
+    Output {
+        pointer_style (cursor::Style),
+        press         (span_tree::Crumbs),
+        hover         (Option<span_tree::Crumbs>),
+        width         (f32),
+        expression    (Text),
+        editing       (bool),
+        port_over     (span_tree::Crumbs),
+        port_out      (span_tree::Crumbs),
+    }
+}
+
+/// Internal model of the port manager.
+#[derive(Debug)]
+pub struct Model {
+    logger         : Logger,
+    display_object : display::object::Instance,
+    ports_group    : display::object::Instance,
+    header         : display::object::Instance,
+    app            : Application,
+    expression     : RefCell<Expression>,
+    label          : text::Area,
+    width          : Cell<f32>,
+    styles         : StyleWatch,
+    /// Used for applying type information update, which is in a form of `(ast::Id,Type)`.
+    id_crumbs_map  : RefCell<HashMap<ast::Id,span_tree::Crumbs>>,
+}
+
+impl Model {
+    /// Constructor.
+    pub fn new(logger:impl AnyLogger, app:&Application) -> Self {
+        let logger         = Logger::sub(&logger,"port_manager");
+        let display_object = display::object::Instance::new(&logger);
+        let ports_group    = display::object::Instance::new(&Logger::sub(&logger,"ports"));
+        let header         = display::object::Instance::new(&Logger::sub(&logger,"header"));
+        let app            = app.clone_ref();
+        let label          = app.new_view::<text::Area>();
+        let id_crumbs_map  = default();
+        let expression     = default();
+        let width          = default();
+        let styles         = StyleWatch::new(&app.display.scene().style_sheet);
+        display_object.add_child(&label);
+        display_object.add_child(&ports_group);
+        ports_group.add_child(&header);
+        header.unset_parent();
+        Self {logger,display_object,ports_group,header,label,width,app,expression,styles
+             ,id_crumbs_map} . init()
+    }
+
+    fn init(self) -> Self {
+        self.label.single_line(true);
+        self.label.disable_command("cursor_move_up");
+        self.label.disable_command("cursor_move_down");
+
+        let text_color = self.styles.get_color(theme::vars::graph_editor::node::text::color);
+        self.label.set_default_color(color::Rgba::from(text_color));
+
+        // FIXME[WD]: Depth sorting of labels to in front of the mouse pointer. Temporary solution.
+        // It needs to be more flexible once we have proper depth management.
+        let scene = self.app.display.scene();
+        self.label.remove_from_view(&scene.views.main);
+        self.label.add_to_view(&scene.views.label);
+        self.label.mod_position(|t| t.y += 6.0);
+        self.label.set_default_text_size(text::Size(12.0));
+        self.label.remove_all_cursors();
+        self
+    }
+
+    fn on_port_hover(&self, is_hovered:bool, crumbs:&span_tree::Crumbs) {
+        let mut expression = self.expression.borrow_mut();
+        if let Ok(node) = expression.input.root_ref_mut().get_descendant(crumbs) {
+            node.iterate_leaves(|node| node.payload.frp.set_hover(is_hovered))
+        }
+    }
+}
+
+
+
 // ============
 // === Area ===
 // ============
@@ -480,7 +248,6 @@ impl Area {
         let model      = Rc::new(Model::new(logger,app));
         let frp        = Frp::new();
         let network    = &frp.network;
-        let text_color = color::Animation::new();
         let style      = StyleWatch::new(&app.display.scene().style_sheet);
 
 
@@ -536,21 +303,21 @@ impl Area {
 
             // === Color Handling ===
 
-            eval text_color.value ([model](color) {
-                // FIXME[WD]: Disabled to improve colors. To be fixed before merge.
-                // // TODO: Make const once all the components can be made const.
-                // let all_bytes = buffer::Range::from(Bytes::from(0)..Bytes(i32::max_value()));
-                // model.label.set_color_bytes(all_bytes,color::Rgba::from(color));
-            });
+            // eval text_color.value ([model](color) {
+            //     // FIXME[WD]: Disabled to improve colors. To be fixed before merge.
+            //     // // TODO: Make const once all the components can be made const.
+            //     // let all_bytes = buffer::Range::from(Bytes::from(0)..Bytes(i32::max_value()));
+            //     // model.label.set_color_bytes(all_bytes,color::Rgba::from(color));
+            // });
 
-            eval frp.set_dimmed ([text_color,style](should_dim) {
-                let text_color_path = theme::vars::graph_editor::node::text::color;
-                if *should_dim {
-                    text_color.set_target(style.get_color_dim(text_color_path));
-                } else {
-                    text_color.set_target(style.get_color(text_color_path));
-                }
-            });
+            // eval frp.set_dimmed ([text_color,style](should_dim) {
+            //     let text_color_path = theme::vars::graph_editor::node::text::color;
+            //     if *should_dim {
+            //         text_color.set_target(style.get_color_dim(text_color_path));
+            //     } else {
+            //         text_color.set_target(style.get_color(text_color_path));
+            //     }
+            // });
         }
 
         Self {model,frp}
@@ -560,11 +327,11 @@ impl Area {
         self.model.app.display.scene()
     }
 
-    pub(crate) fn set_expression(&self, expression:impl Into<Expression>) {
+    pub(crate) fn set_expression(&self, expression:impl Into<node::Expression>) {
         let model      = &self.model;
         let expression = expression.into();
         println!("\n\n=====================\nSET EXPR: {}",expression.code);
-        let mut expression = InputExpression::from(expression);
+        let mut expression = Expression::from(expression);
 
         let glyph_width = 7.224_609_4; // FIXME hardcoded literal
         let width       = expression.code.len() as f32 * glyph_width;
@@ -578,7 +345,7 @@ impl Area {
 
         let shift = Cell::new(0);
 
-        iterate_layers(expression.root_ref_mut(),||{shift.set(0)},|node| {
+        expression.root_ref_mut().iterate_layers(||{shift.set(0)},|node| {
             let is_expected_arg = node.kind.is_expected_argument();
             let span            = node.span();
             let mut size        = span.size.value;
@@ -601,7 +368,7 @@ impl Area {
         let mut is_header = true;
 
         let builder = PortLayerBuilder::empty(root);
-        iterate_layers_depth(expression.root_ref_mut(),builder,|node,builder| {
+        expression.root_ref_mut().iterate_layers_depth(builder,|node,builder| {
             let is_leaf         = node.children.is_empty();
             let span            = node.span();
             let contains_root   = span.index.value == 0;
@@ -632,7 +399,7 @@ impl Area {
 
                 let logger_name  = format!("port({},{})",node.payload.index,node.payload.length);
                 let logger       = Logger::sub(&model.logger,logger_name);
-                let port         = component::ShapeView::<shape::Shape>::new(&logger,self.scene());
+                let port         = component::ShapeView::<port::Shape>::new(&logger,self.scene());
                 let index        = node.payload.local_index + builder.shift;
                 let size         = node.payload.length;
                 let unit         = 7.224_609_4;
@@ -760,7 +527,7 @@ impl Area {
         }
 
 
-        iterate_leaves(expression.root_ref_mut(),|node| {
+        expression.root_ref_mut().iterate_leaves(|node| {
             let leaf         = &node.frp;
             let port_network = &leaf.network;
 
@@ -778,9 +545,8 @@ impl Area {
 
             frp::extend! { port_network
                 eval leaf.output.color ([model](color) {
-                    // println!("COLOR! Index: {}, length: {}",index,length);
-                    let start_bytes = (index as i32).bytes();//(expression.code.len() as i32).bytes();
-                    let end_bytes   = ((index + length) as i32).bytes();//(vis_expr.len() as i32).bytes();
+                    let start_bytes = (index as i32).bytes();
+                    let end_bytes   = ((index + length) as i32).bytes();
                     let range       = ensogl_text::buffer::Range::from(start_bytes..end_bytes);
                     model.label.set_color_bytes(range,color::Rgba::from(color));
                 });

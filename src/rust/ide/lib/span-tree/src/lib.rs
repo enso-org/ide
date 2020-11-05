@@ -124,6 +124,22 @@ impl<T:Payload> SpanTree<T> {
     }
 }
 
+// === Getters ===
+
+impl <T:Payload> SpanTree<T> {
+    fn nested_ast_id(&self, crumbs:&[Crumb]) -> Option<ast::Id> {
+        if self.root_ref().crumbs == crumbs {
+            self.root.ast_id
+        } else {
+            let span_tree_descendant = self.root_ref().get_descendant(crumbs);
+            span_tree_descendant.map(|t|t.ast_id).ok().flatten()
+        }
+    }
+}
+
+
+// == Impls ===
+
 impl<T:Payload> Default for SpanTree<T> {
     fn default() -> Self {
         let root = Node::<T>::new().with_kind(node::Kind::Root);

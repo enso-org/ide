@@ -542,6 +542,98 @@ impl<'a,T> Deref for RefMut<'a,T> {
 }
 
 
+// === Specialized Iterators ===
+
+impl<'a,T:Payload> RefMut<'a,T> {
+    pub fn iterate_layers(self, mut on_layer:impl FnMut(), mut on_node:impl FnMut(&mut Self) -> bool) {
+        let mut layer  = vec![self];
+        let mut layers = vec![];
+        loop {
+            match layer.pop() {
+                None => {
+                    match layers.pop() {
+                        None    => break,
+                        Some(l) => {
+                            on_layer();
+                            layer = l
+                        }
+                    }
+                },
+                Some(mut node) => {
+                    if on_node(&mut node) {
+                        let mut children = node.children_iter().collect_vec();
+                        children.reverse(); // FIXME : add reversed
+                        layers.push(children);
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn iterate_depth
+    (self, mut on_node:impl FnMut(&mut Self) -> bool) {
+        let mut layer  = vec![self];
+        let mut layers = vec![];
+        loop {
+            match layer.pop() {
+                None => {
+                    match layers.pop() {
+                        None    => break,
+                        Some(l) => layer = l,
+                    }
+                },
+                Some(mut node) => {
+                    if on_node(&mut node) {
+                        let mut children = node.children_iter().collect_vec();
+                        children.reverse(); // FIXME : add reversed
+                        mem::swap(&mut children,&mut layer);
+                        layers.push(children);
+                    }
+                }
+            }
+        }
+    }
+
+
+    pub fn iterate_layers_depth<D>
+    (self, mut data:D, mut on_node:impl FnMut(&mut Self, &mut D) -> (bool,D)) {
+        let mut layer  = vec![self];
+        let mut layers = vec![];
+        loop {
+            match layer.pop() {
+                None => {
+                    match layers.pop() {
+                        None        => break,
+                        Some((l,d)) => {
+                            layer = l;
+                            data  = d;
+                        },
+                    }
+                },
+                Some(mut node) => {
+                    let (ok,mut sub_data) = on_node(&mut node, &mut data);
+                    if ok {
+                        let mut children = node.children_iter().collect_vec();
+                        children.reverse(); // FIXME : add reversed
+                        mem::swap(&mut sub_data,&mut data);
+                        mem::swap(&mut children,&mut layer);
+                        layers.push((children,sub_data));
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn iterate_nodes(self, on_node:impl FnMut(&mut Self) -> bool) {
+        self.iterate_layers(||{},on_node)
+    }
+
+    pub fn iterate_leaves(self, mut f:impl FnMut(&mut Self)) {
+        self.iterate_nodes(|mut node| { if node.children.is_empty() { f(&mut node) }; true })
+    }
+}
+
+
 
 // ============
 // === Test ===

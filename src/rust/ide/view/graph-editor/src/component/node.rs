@@ -5,10 +5,11 @@
 
 #[deny(missing_docs)]
 pub mod action_bar;
+pub mod expression;
 pub mod input;
 pub mod output;
 
-pub use input::Expression;
+pub use expression::Expression;
 
 use crate::prelude::*;
 
