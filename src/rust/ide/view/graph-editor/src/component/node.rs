@@ -6,9 +6,9 @@
 #[deny(missing_docs)]
 pub mod action_bar;
 pub mod input;
-pub mod port;
+pub mod output;
 
-pub use port::Expression;
+pub use input::Expression;
 
 use crate::prelude::*;
 
@@ -25,7 +25,7 @@ use ensogl_text::Text;
 use ensogl_theme;
 
 use crate::Type;
-use crate::component::node::port::output::OutputPorts;
+use crate::component::node::output::OutputPorts;
 use crate::component::visualization;
 
 use super::edge;
@@ -196,7 +196,7 @@ pub struct NodeModel {
     pub logger         : Logger,
     pub main_area      : component::ShapeView<shape::Shape>,
     pub drag_area      : component::ShapeView<drag_area::Shape>,
-    pub ports          : port::Manager,
+    pub ports          : input::Manager,
     pub visualization  : visualization::Container,
     pub action_bar     : action_bar::ActionBar,
     pub output_ports   : OutputPorts,
@@ -220,7 +220,7 @@ impl NodeModel {
         let drag_area   = component::ShapeView::<drag_area::Shape>::new(&drag_logger,scene);
         edge::sort_hack_2(scene);
 
-        port::sort_hack(scene); // FIXME hack for sorting
+        input::area::sort_hack(scene); // FIXME hack for sorting
 
         let display_object  = display::object::Instance::new(&logger);
         display_object.add_child(&drag_area);
@@ -230,7 +230,7 @@ impl NodeModel {
         let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
         shape_system.shape_system.set_pointer_events(false);
 
-        let ports = port::Manager::new(&logger,app);
+        let ports = input::Manager::new(&logger,app);
         let scene = scene.clone_ref();
         let visualization = visualization::Container::new(&logger,&app,registry);
         visualization.mod_position(|t| {

@@ -535,7 +535,7 @@ impl Model {
         //  context and as such may require updating span trees. So no matter whether expression
         //  changed or not, we shall emit the updates.
         //  This should be addressed as part of https://github.com/enso-org/ide/issues/787
-        let code_and_trees = graph_editor::component::node::port::Expression {
+        let code_and_trees = graph_editor::component::node::Expression {
             code             : expression.clone(),
             input_span_tree  : trees.inputs,
             output_span_tree : trees.outputs.unwrap_or_else(default)
@@ -860,7 +860,7 @@ impl Model {
             let error          = || GraphEditorInconsistency;
             let edited_node    = graph_frp.output.node_being_edited.value().ok_or_else(error)?;
             let new_code       = searcher.pick_completion_by_index(*entry)?;
-            let code_and_trees = graph_editor::component::node::port::Expression {
+            let code_and_trees = graph_editor::component::node::Expression {
                 code             : new_code,
                 input_span_tree  : default(),
                 output_span_tree : default(),

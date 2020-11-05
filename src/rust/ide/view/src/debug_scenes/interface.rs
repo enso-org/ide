@@ -176,7 +176,7 @@ fn visual_expr(expr:Expression) {
 // === Mocks ===
 // =============
 
-use crate::graph_editor::component::node::port::Expression;
+use crate::graph_editor::component::node::Expression;
 
 use ast::crumbs::*;
 use ast::crumbs::PatternMatchCrumb::*;

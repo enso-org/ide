@@ -1,7 +1,5 @@
 //! Definition of the Port component.
 
-#[warn(missing_docs)]
-pub mod output;
 
 use crate::prelude::*;
 
@@ -22,7 +20,7 @@ use span_tree::SpanTree;
 use text::Bytes;
 use text::Text;
 
-use super::super::node;
+use crate::node;
 
 use crate::Type;
 use crate::component::type_coloring;
@@ -397,12 +395,13 @@ impl Model {
 
         // FIXME[WD]: Depth sorting of labels to in front of the mouse pointer. Temporary solution.
         // It needs to be more flexible once we have proper depth management.
-        let scene = app.display.scene();
+        let scene = self.app.display.scene();
         self.label.remove_from_view(&scene.views.main);
         self.label.add_to_view(&scene.views.label);
         self.label.mod_position(|t| t.y += 6.0);
         self.label.set_default_text_size(text::Size(12.0));
         self.label.remove_all_cursors();
+        self
     }
 
     fn on_port_hover(&self, is_hovered:bool, crumbs:&span_tree::Crumbs) {
