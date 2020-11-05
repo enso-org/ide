@@ -62,7 +62,7 @@ mod background {
 ensogl::define_endpoints! {
     Input {
        /// Set the project name.
-       name (String),
+       set_name (String),
        /// Reset the project name to the one before editing.
        cancel_editing (),
        /// Commit current project name.
@@ -283,8 +283,8 @@ impl ProjectName {
             // === Input Commands ===
 
             eval_ frp.input.cancel_editing(model.reset_name());
-            eval  frp.input.name((name) {model.rename(name)});
-            frp.output.source.name <+ frp.input.name;
+            eval  frp.input.set_name((name) {model.rename(name)});
+            frp.output.source.name <+ frp.input.set_name;
 
 
             // === Commit ===
@@ -334,7 +334,7 @@ impl ProjectName {
         }
 
         frp.deselect();
-        frp.input.name(UNINITIALISED_PROJECT_NAME.to_string());
+        frp.input.set_name.emit(UNINITIALISED_PROJECT_NAME.to_string());
 
         Self{frp,model}
     }

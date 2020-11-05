@@ -399,7 +399,7 @@ impl Breadcrumbs {
 
             // === Project Name ===
 
-            eval frp.input.project_name((name) model.project_name.name(name));
+            eval frp.input.project_name((name) model.project_name.set_name.emit(name));
             frp.source.project_name <+ model.project_name.output.name;
 
 
