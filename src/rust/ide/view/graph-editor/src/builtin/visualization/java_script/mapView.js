@@ -85,11 +85,11 @@ class MapViewVisualization extends Visualization {
             controller: parsedData.controller || true
         });
 
-        let dataPoints = parsedData.layers[0].data || []
         let preparedDP = []
         if (parsedData.type === "GeoPoint") {
             preparedDP.push({position:[parsedData.longitude,parsedData.latitude], color:parsedData.color || [1,234,146], radius:parsedData.radius || 100});
         } else {
+            let dataPoints = parsedData.layers[0].data || []
             dataPoints.forEach(x => preparedDP.push({position:[x.longitude,x.latitude], color:x.color || [1,234,146], radius:x.radius || 100}));
         }
 
