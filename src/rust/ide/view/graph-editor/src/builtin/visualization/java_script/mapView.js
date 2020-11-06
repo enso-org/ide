@@ -79,7 +79,7 @@ class MapViewVisualization extends Visualization {
             initialViewState: {
                 longitude: parsedData.longitude || 0.0,
                 latitude: parsedData.latitude || 0.0,
-                zoom: parsedData.zoom || 3,
+                zoom: parsedData.zoom || 9,
                 pitch: parsedData.pitch || 0
             },
             controller: parsedData.controller || true
