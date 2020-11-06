@@ -89,6 +89,7 @@ impl Kind {
         match self {
             Self::Argument       (t) => t.tp.as_ref(),
             Self::InsertionPoint (t) => t.tp.as_ref(),
+            Self::This           (t) => t.tp.as_ref(),
             _                        => None,
         }
     }

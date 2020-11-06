@@ -292,11 +292,17 @@ impl Deref for Crumbs {
 }
 
 impl Crumbs {
+    /// Create sub-crumbs with the provided child crumb.
     pub fn sub(&self, child:Crumb) -> Self {
-        let mut vec = self.vec.deref().clone();
-        vec.push(child);
-        let vec = Rc::new(vec);
+        let vec = Rc::new(self.vec.deref().clone().pushed(child));
         Self {vec}
+    }
+
+    /// Create sub-crumbs with the provided child crumb.
+    pub fn into_sub(mut self, child:Crumb) -> Self {
+        let vec = Rc::make_mut(&mut self.vec);
+        vec.push(child);
+        self
     }
 }
 
@@ -390,8 +396,8 @@ impl<'a,T:Payload> Ref<'a,T> {
     /// Get the reference to child with given index. Fails if index if out of bounds.
     pub fn child(self, index:usize) -> FallibleResult<Self> {
         let node           = self.node;
+        let crumbs         = self.crumbs;
         let mut span_begin = self.span_begin;
-        let mut crumbs     = self.crumbs;
         let mut ast_crumbs = self.ast_crumbs;
         let count          = node.children.len();
 
@@ -400,7 +406,7 @@ impl<'a,T:Payload> Ref<'a,T> {
             Some(child) => {
                 let node = &child.node;
                 span_begin += child.offset;
-                let crumbs = crumbs.sub(index);
+                let crumbs = crumbs.into_sub(index);
                 ast_crumbs.extend(child.ast_crumbs.iter().cloned());
                 Ok(Self{node,span_begin,crumbs,ast_crumbs})
             },
@@ -532,13 +538,13 @@ impl<'a,T:Payload> RefMut<'a,T> {
     ( index          : usize
     , child          : &'a mut Child<T>
     , mut span_begin : Index
-    , mut crumbs     : Crumbs
+    , crumbs         : Crumbs
     , mut ast_crumbs : ast::Crumbs
     ) -> RefMut<'a,T> {
         let offset  = child.offset;
         let node    = &mut child.node;
         span_begin += child.offset;
-        let crumbs = crumbs.sub(index);
+        let crumbs = crumbs.into_sub(index);
         ast_crumbs.extend(child.ast_crumbs.iter().cloned());
         Self{node,offset,span_begin,crumbs,ast_crumbs}
     }

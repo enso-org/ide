@@ -42,10 +42,12 @@ impl Path {
 
 impl AsRef<Path> for Path { fn as_ref(&self) -> &Path { self } }
 
-impls! {              From<&str>   for Path { |t| Self::from_rev_segments(t.rsplit('.')) } }
-impls! {              From<&&str>  for Path { |t| (*t).into() }}
-impls! {              From<&Path>  for Path { |t| t.clone() }}
-impls! { [T:ToString] From<Vec<T>> for Path { |t| Self::from_segments(t.into_iter()) }}
+impls! {              From<&str>    for Path { |t| Self::from_rev_segments(t.rsplit('.')) } }
+impls! {              From<&&str>   for Path { |t| (*t).into() }}
+impls! {              From<String>  for Path { |t| t.as_str().into() }}
+impls! {              From<&String> for Path { |t| t.as_str().into() }}
+impls! {              From<&Path>   for Path { |t| t.clone() }}
+impls! { [T:ToString] From<Vec<T>>  for Path { |t| Self::from_segments(t.into_iter()) }}
 
 impl<T> From<&Vec<T>> for Path
 where for<'t> &'t T : ToString {
@@ -55,7 +57,7 @@ where for<'t> &'t T : ToString {
 }
 
 macro_rules! gen_var_path_conversions {
-    ($($($num:tt)?),*) => {$(
+    ($($($num:tt)?),* $(,)?) => {$(
         impl<T> From<&[T$(;$num)?]> for Path
         where for<'t> &'t T : ToString {
             fn from(t:&[T$(;$num)?]) -> Self {
@@ -65,4 +67,6 @@ macro_rules! gen_var_path_conversions {
     )*};
 }
 
-gen_var_path_conversions!(1,2,3,4,5,6,7,8,9,10,);
+// Generate instances of the following form (where N is the provided number):
+//     impl<T> From<&[T;N]> for Path where for<'t> &'t T: ToString { ... }
+gen_var_path_conversions!(1,2,3,4,5,6,7,8,9,10);

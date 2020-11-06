@@ -111,6 +111,7 @@ fn init(app:&Application) {
 
     let mut dummy_type_generator = DummyTypeGenerator::default();
     let expression_1 = expression_mock();
+    println!("???? {:#?}",expression_1.input_span_tree);
     graph_editor.frp.set_node_expression.emit((node1_id,expression_1.clone()));
     expression_1.input_span_tree.root_ref().leaf_iter().for_each(|node|{
         if let Some(expr_id) = node.ast_id {
@@ -187,19 +188,18 @@ use span_tree::traits::*;
 
 
 pub fn expression_mock() -> Expression {
-    let code             = "open \"data.csv\"".into();
+    let code       = "open \"data.csv\"".to_string();
+    let parser     = Parser::new_or_panic();
+    let this_param = span_tree::ArgumentInfo {
+        name : Some("this".to_owned()),
+        tp   : Some("Text".to_owned()),
+    };
+    let parameters       = vec![this_param];
+    let ast              = parser.parse_line(&code).unwrap();
+    let invocation_info  = span_tree::generate::context::CalledMethodInfo {parameters};
+    let ctx              = span_tree::generate::MockContext::new_single(ast.id.unwrap(),invocation_info);
     let output_span_tree = span_tree::SpanTree::default();
-    let input_span_tree  = span_tree::builder::TreeBuilder::new(15)
-        .add_child(0,4,span_tree::node::Kind::Operation,PrefixCrumb::Func)
-        .set_ast_id(Uuid::new_v4())
-        .done()
-        .add_empty_child(5,span_tree::node::InsertionPointType::BeforeTarget)
-        .add_child(5,10,span_tree::node::Kind::this(),PrefixCrumb::Arg)
-        .set_ast_id(Uuid::new_v4())
-        .done()
-        .add_empty_child(15,span_tree::node::InsertionPointType::Append)
-        .set_ast_id(Uuid::new_v4())
-        .build();
+    let input_span_tree  = span_tree::SpanTree::new(&ast,&ctx).unwrap();
     Expression {code,input_span_tree,output_span_tree}
 }
 
@@ -242,7 +242,7 @@ pub fn expression_mock2() -> Expression {
 
 pub fn expression_mock3() -> Expression {
     // let code       = "image.blur ((foo   bar) baz)".to_string();
-    let code       = "image.blur (((foo   bar)) baz)".to_string();
+    let code       = "image.blur name (((foo   bar)) baz)".to_string();
     let parser     = Parser::new_or_panic();
     let this_param = span_tree::ArgumentInfo {
         name : Some("this".to_owned()),
@@ -253,14 +253,18 @@ pub fn expression_mock3() -> Expression {
         tp   : Some("Number".to_owned()),
     };
     let param1 = span_tree::ArgumentInfo {
+        name : Some("name".to_owned()),
+        tp   : Some("Text".to_owned()),
+    };
+    let param2 = span_tree::ArgumentInfo {
         name : Some("area".to_owned()),
         tp   : Some("Vector Int".to_owned()),
     };
-    let param2 = span_tree::ArgumentInfo {
+    let param3 = span_tree::ArgumentInfo {
         name : Some("matrix".to_owned()),
         tp   : Some("Vector String".to_owned()),
     };
-    let parameters       = vec![this_param, param0, param1, param2];
+    let parameters       = vec![this_param,param0,param1,param2,param3];
     let ast              = parser.parse_line(&code).unwrap();
     let invocation_info  = span_tree::generate::context::CalledMethodInfo {parameters};
     let ctx              = span_tree::generate::MockContext::new_single(ast.id.unwrap(),invocation_info);

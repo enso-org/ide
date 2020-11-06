@@ -97,8 +97,8 @@ pub struct SpanTree<T=()> {
 
 impl<T:Payload> SpanTree<T> {
     /// Create span tree from something that could generate it (usually AST).
-    pub fn new(generator:&impl SpanTreeGenerator<T>, context:&impl Context) -> FallibleResult<Self> {
-        generator.generate_tree(context)
+    pub fn new(gen:&impl SpanTreeGenerator<T>, context:&impl Context) -> FallibleResult<Self> {
+        gen.generate_tree(context)
     }
 
     /// Get the `NodeRef` of root node.
@@ -124,10 +124,11 @@ impl<T:Payload> SpanTree<T> {
     }
 }
 
+
 // === Getters ===
 
 impl <T:Payload> SpanTree<T> {
-    fn nested_ast_id(&self, crumbs:&Crumbs) -> Option<ast::Id> {
+    pub fn nested_ast_id(&self, crumbs:&Crumbs) -> Option<ast::Id> {
         if self.root_ref().crumbs == crumbs {
             self.root.ast_id
         } else {

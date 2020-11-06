@@ -31,12 +31,24 @@ macro_rules! define_color_space {
             }
         }
 
+        /// Constructor.
+        #[allow(non_snake_case)]
+        pub fn $name($($comp:f32),*) -> $name {
+            $name::new($($comp),*)
+        }
+
         impl $name {
             /// Constructor.
             pub const fn new($($comp:f32),*) -> Self {
                 let data = $data_name::new($($comp),*);
                 Self {data}
             }
+        }
+
+        /// Constructor.
+        #[allow(non_snake_case)]
+        pub fn $a_name($($comp:f32),*,alpha:f32) -> $a_name {
+            $a_name::new($($comp),*,alpha)
         }
 
         impl $a_name {
