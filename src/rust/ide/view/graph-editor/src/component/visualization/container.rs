@@ -607,9 +607,10 @@ impl Container {
 
         // FIXME[mm]: If we set the size right here, we will see spurious shapes in some
         // computation heavy circumstances (e.g., collapsing nodes #805, or creating an new project
-        // #761).
-        // If we leave use the frp api and don't abort the animation, the size will stay at (0,0)
-        // until the animation has run its course and the shape stays invisible during loads.
+        // #761). This should not happen anyway, but the following is a hotfix to hide the visible
+        // behaviour. If we leave use the frp api and don't abort the animation, the size will stay
+        // at (0,0) until the animation has run its course and the shape stays invisible during
+        // loads.
         //
         // The order of events is like this:
         // * shape gets created (with size 0 or default size).
