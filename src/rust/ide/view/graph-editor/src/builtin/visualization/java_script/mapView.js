@@ -68,8 +68,11 @@ class MapViewVisualization extends Visualization {
         }
 
         let defaultMapStyle = 'mapbox://styles/mapbox/light-v9';
+        let accentColor     = [1,234,146];
+        let defaultRadius   = 150;
         if (document.getElementById("root").classList.contains("dark")){
             defaultMapStyle = 'mapbox://styles/mapbox/dark-v9';
+            accentColor     = [222,162,47];
         }
 
         const deckgl = new deck.DeckGL({
@@ -79,7 +82,7 @@ class MapViewVisualization extends Visualization {
             initialViewState: {
                 longitude: parsedData.longitude || 0.0,
                 latitude: parsedData.latitude || 0.0,
-                zoom: parsedData.zoom || 9,
+                zoom: parsedData.zoom || 11,
                 pitch: parsedData.pitch || 0
             },
             controller: parsedData.controller || true
@@ -87,10 +90,10 @@ class MapViewVisualization extends Visualization {
 
         let preparedDP = []
         if (parsedData.type === "GeoPoint") {
-            preparedDP.push({position:[parsedData.longitude,parsedData.latitude], color:parsedData.color || [1,234,146], radius:parsedData.radius || 100});
+            preparedDP.push({position:[parsedData.longitude,parsedData.latitude], color:parsedData.color || accentColor, radius:parsedData.radius || defaultRadius});
         } else {
             let dataPoints = parsedData.layers[0].data || []
-            dataPoints.forEach(x => preparedDP.push({position:[x.longitude,x.latitude], color:x.color || [1,234,146], radius:x.radius || 100}));
+            dataPoints.forEach(x => preparedDP.push({position:[x.longitude,x.latitude], color:x.color || accentColor, radius:x.radius || defaultRadius}));
         }
 
         const scatterplotLayer = new deck.ScatterplotLayer({
