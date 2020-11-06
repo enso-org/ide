@@ -32,7 +32,7 @@ use logger::enabled::Logger;
 
 // Project name used as a placeholder in `ProjectName` view when it's initialized.
 // This should never be visible, but if it is we want to easily trace it back here.
-const UNINITIALISED_PROJECT_NAME: &str = "Project Name Uninitialised";
+const UNINITIALIZED_PROJECT_NAME: &str = "Project Name Uninitialized";
 /// Default line height for project names.
 pub const LINE_HEIGHT          : f32  = TEXT_SIZE * 1.5;
 
@@ -334,7 +334,7 @@ impl ProjectName {
         }
 
         frp.deselect();
-        frp.input.set_name.emit(UNINITIALISED_PROJECT_NAME.to_string());
+        frp.input.set_name.emit(UNINITIALIZED_PROJECT_NAME.to_string());
 
         Self{frp,model}
     }
