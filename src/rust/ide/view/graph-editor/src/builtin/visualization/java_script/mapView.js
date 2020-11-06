@@ -66,14 +66,11 @@ class MapViewVisualization extends Visualization {
         if (typeof data === "string") {
             parsedData = JSON.parse(data);
         }
-
-        console.log(parsedData);
-
+        
         let defaultMapStyle = 'mapbox://styles/mapbox/light-v9';
         if (document.getElementById("root").classList.contains("dark")){
             defaultMapStyle = 'mapbox://styles/mapbox/dark-v9';
         }
-
 
         const deckgl = new deck.DeckGL({
             container: 'map',
@@ -90,17 +87,16 @@ class MapViewVisualization extends Visualization {
 
         let dataPoints = parsedData.layers[0].data || []
         let preparedDP = []
-        dataPoints.forEach(x => preparedDP.push({position: [x.longitude, x.latitude], color: x.color || [33,33,33], radius:x.radius  || 100}))
+        dataPoints.forEach(x => preparedDP.push({position:[x.longitude,x.latitude], color:x.color || [1,234,146], radius:x.radius || 100}))
         console.log(preparedDP);
 
         const scatterplotLayer = new deck.ScatterplotLayer({
             data: preparedDP,
-            getPosition: d => [d[0], d[1], 0],
-            getColor: d => d.color,
+            getFillColor: d => d.color,
             getRadius: d => d.radius
         })
 
-        if (parsedData.layers[0].type.toLowerCase() === "scatterplotlayer") {
+        if (parsedData.layers[0].type === "ScatterplotLayer") {
             deckgl.setProps({
                 layers: [scatterplotLayer]
             });
