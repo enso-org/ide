@@ -41,6 +41,7 @@ pub use web_sys::Window;
 pub use std::time::Duration;
 pub use std::time::Instant;
 use std::collections::HashMap;
+use std::panic;
 
 
 // =============
@@ -561,6 +562,22 @@ pub fn forward_panic_hook_to_console() {
     // https://github.com/rustwasm/console_error_panic_hook#readme
     console_error_panic_hook::set_once();
 }
+
+
+/// Enables throwing a descriptive JavaScript error on panics.
+pub fn forward_panic_hook_to_error() {
+    panic::set_hook(Box::new(error_throwing_panic_hook));
+}
+
+#[wasm_bindgen(module = "/js/rust_panic.js")]
+extern "C" {
+    fn throw_panic_error(message:String);
+}
+
+fn error_throwing_panic_hook(panic_info: &panic::PanicInfo) {
+    throw_panic_error(panic_info.to_string());
+}
+
 
 /// Common traits.
 pub mod traits {
