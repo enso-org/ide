@@ -55,11 +55,11 @@ pub mod shape {
 
     ensogl::define_shape_system! {
         (style:Style, selection:f32, bg_color:Vector4 ) {
-            use ensogl_theme::vars::graph_editor::node as node_theme;
+            use ensogl_theme::graph_editor::node as node_theme;
 
             let bg_color        = Var::<color::Rgba>::from(bg_color);
-            let selection_color = style.get_color(ensogl_theme::vars::graph_editor::node::selection::color);
-            let _selection_size = style.get_number_or(ensogl_theme::vars::graph_editor::node::selection::size,8.0);
+            let selection_color = style.get_color(ensogl_theme::graph_editor::node::selection::color);
+            let _selection_size = style.get_number_or(ensogl_theme::graph_editor::node::selection::size,8.0);
 
             let border_size_f = 16.0;
 
@@ -352,7 +352,7 @@ impl Node {
 
             background_color <- inputs.set_dimmed.map(f!([model,style](should_dim) {
                 model.input.frp.set_dimmed.emit(*should_dim);
-                let background_color_path = ensogl_theme::vars::graph_editor::node::background::color;
+                let background_color_path = ensogl_theme::graph_editor::node::background::color;
                 if *should_dim {
                    style.get_color_dim(background_color_path)
                  } else {

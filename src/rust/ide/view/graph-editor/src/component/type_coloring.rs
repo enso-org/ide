@@ -42,12 +42,12 @@ use std::hash::Hasher;
 /// parametrization, other mechanisms should be used. For example, `Point Float` and `Point Number`
 /// should have similar colors, completely distinct from their parameter types.
 pub fn color_for_type(tp:Type, styles:&StyleWatch) -> color::Lcha {
-    let syntax_color_pfx = ensogl_theme::vars::syntax::types;
+    let syntax_color_pfx = ensogl_theme::syntax::types;
     let syntax_color_hue = format!("{}.{}.hue",syntax_color_pfx,tp);
     println!("Looking for {}. Found: {}", syntax_color_hue,styles.get(&syntax_color_hue).is_some());
     let hue              = styles.get(syntax_color_hue).number_or_else(|| auto_hue(tp));
-    let luminance_path   = ensogl_theme::vars::syntax::luminance;
-    let chroma_path      = ensogl_theme::vars::syntax::chroma;
+    let luminance_path   = ensogl_theme::syntax::luminance;
+    let chroma_path      = ensogl_theme::syntax::chroma;
     let color_luminance  = styles.get_number_or(luminance_path,0.85);
     let color_chroma     = styles.get_number_or(chroma_path,0.6);
     color::Lch::new(color_luminance,color_chroma,hue).into()

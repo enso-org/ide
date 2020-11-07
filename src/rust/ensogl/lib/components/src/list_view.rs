@@ -16,7 +16,7 @@ use ensogl_core::display;
 use ensogl_core::display::shape::*;
 use ensogl_core::gui::component;
 use ensogl_core::gui::component::Animation;
-use ensogl_theme::vars as theme;
+use ensogl_theme as theme;
 
 
 
@@ -46,7 +46,7 @@ mod selection {
             let sprite_height : Var<Pixels> = "input_size.y".into();
             let width         = sprite_width  - 2.0.px() * PADDING_PX;
             let height        = sprite_height - 2.0.px() * PADDING_PX;
-            let color         = style.get_color(ensogl_theme::vars::widget::list_view::highlight::color);
+            let color         = style.get_color(ensogl_theme::widget::list_view::highlight::color);
             let rect          = Rect((&width,&height)).corners_radius(CORNER_RADIUS_PX.px());
             let shape         = rect.fill(color::Rgba::from(color));
             shape.into()

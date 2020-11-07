@@ -61,7 +61,7 @@ pub mod background {
 
     ensogl::define_shape_system! {
         (style:Style,selected:f32,radius:f32,roundness:f32) {
-            use theme::vars::graph_editor::visualization as visualization_theme;
+            use theme::graph_editor::visualization as visualization_theme;
 
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
@@ -113,7 +113,7 @@ pub mod fullscreen_background {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
             let radius        = 1.px() * &radius;
-            let color_path    = theme::vars::graph_editor::visualization::background::color;
+            let color_path    = theme::graph_editor::visualization::background::color;
             let color_bg      = style.get_color(color_path);
             let corner_radius = &radius * &roundness;
             let background    = Rect((&width,&height)).corners_radius(&corner_radius);
@@ -228,12 +228,12 @@ impl View {
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles   = StyleWatch::new(&scene.style_sheet);
-        let bg_color = styles.get_color(ensogl_theme::vars::graph_editor::visualization::background::color);
+        let bg_color = styles.get_color(ensogl_theme::graph_editor::visualization::background::color);
         let bg_color = color::Rgba::from(bg_color);
         let bg_hex   = format!("rgba({},{},{},{})",bg_color.red*255.0,bg_color.green*255.0,bg_color.blue*255.0,bg_color.alpha);
 
-        let shadow_alpha = styles.get_number_or(ensogl_theme::vars::graph_editor::visualization::shadow::html::alpha,0.16);
-        let shadow_size  = styles.get_number_or(ensogl_theme::vars::graph_editor::visualization::shadow::html::size,16.0);
+        let shadow_alpha = styles.get_number_or(ensogl_theme::graph_editor::visualization::shadow::html::alpha,0.16);
+        let shadow_size  = styles.get_number_or(ensogl_theme::graph_editor::visualization::shadow::html::size,16.0);
         let shadow       = format!("0 0 {}px rgba(0, 0, 0, {})",shadow_size,shadow_alpha);
 
         let div            = web::create_div();
@@ -294,7 +294,7 @@ impl FullscreenView {
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles   = StyleWatch::new(&scene.style_sheet);
-        let bg_color = styles.get_color(ensogl_theme::vars::graph_editor::visualization::background::color);
+        let bg_color = styles.get_color(ensogl_theme::graph_editor::visualization::background::color);
         let bg_color = color::Rgba::from(bg_color);
         let bg_hex   = format!("rgba({},{},{},{})",bg_color.red*255.0,bg_color.green*255.0,bg_color.blue*255.0,bg_color.alpha);
 

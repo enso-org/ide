@@ -42,7 +42,7 @@ pub mod arrow {
             let height           = Var::<Pixels>::from("input_size.y");
             let triangle         = Triangle(width,height);
             let triangle_down    = triangle.rotate(Var::<f32>::from(std::f32::consts::PI));
-            let color_path       = ensogl_theme::vars::graph_editor::visualization::action_bar::icon::color;
+            let color_path       = ensogl_theme::graph_editor::visualization::action_bar::icon::color;
             let icon_color       = style.get_color(color_path);
             let triangle_colored = triangle_down.fill(color::Rgba::from(icon_color));
 
@@ -357,7 +357,7 @@ impl DropDownMenu {
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for
         // shape system (#795)
         let styles     = StyleWatch::new(&app.display.scene().style_sheet);
-        let text_color = styles.get_color(theme::vars::widget::list_view::text::color);
+        let text_color = styles.get_color(theme::widget::list_view::text::color);
         model.label.set_default_color(color::Rgba::from(text_color));
 
         self

@@ -82,10 +82,10 @@ impl DummyTypeGenerator {
 
 fn init(app:&Application) {
 
-    ensogl_theme::dark::setup(&app);
-    // ensogl_theme::light::setup(&app);
+    ensogl_theme::dark_theme::setup(&app);
+    // ensogl_theme::light_theme::setup(&app);
 
-    let _bg = app.display.scene().style_sheet.var(ensogl_theme::vars::application::background::color);
+    let _bg = app.display.scene().style_sheet.var(ensogl_theme::application::background::color);
 
 
     let world     = &app.display;

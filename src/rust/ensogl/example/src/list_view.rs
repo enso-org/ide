@@ -95,8 +95,8 @@ impl list_view::entry::ModelProvider for MockEntries {
 // ========================
 
 fn init(app:&Application) {
-    ensogl_theme::dark::setup(&app);
-    ensogl_theme::light::setup(&app);
+    ensogl_theme::dark_theme::setup(&app);
+    ensogl_theme::light_theme::setup(&app);
 
     let select                                      = app.new_view::<list_view::ListView>();
     let provider:list_view::entry::AnyModelProvider = MockEntries::new(app,1000).into();

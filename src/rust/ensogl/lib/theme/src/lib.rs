@@ -56,7 +56,7 @@ macro_rules! _define_theme_modules {
 /// nested public modules that makes accessing values much better than with bare string literals.
 /// It adds the `var` module with string constants, so now, instead of having to get data by string
 /// literal - like `style.get("foo.bar.baz",fallback)`, you can do
-/// `style.get(theme::vars::foo::bar::baz,fallback)`.
+/// `style.get(theme::foo::bar::baz,fallback)`.
 #[macro_export]
 macro_rules! define_default_theme {
     ($name:ident $($t:tt)*) => {
@@ -68,6 +68,7 @@ macro_rules! define_default_theme {
         pub mod vars {
             $crate::_define_theme_modules!{$name [] $($t)*}
         }
+        pub use vars::*;
     };
 }
 
@@ -100,7 +101,7 @@ macro_rules! define_theme {
 // === Light Theme & Modules ===
 // =============================
 
-define_default_theme! { light
+define_default_theme! { light_theme
     application {
         background {
             color = Lcha(0.96,0.013,0.18,1.0);
@@ -216,7 +217,7 @@ define_default_theme! { light
 // === Dark Theme ===
 // ==================
 
-define_theme! { dark
+define_theme! { dark_theme
     application {
         background {
             color = Lcha(0.13,0.013,0.18,1.0);

@@ -248,7 +248,7 @@ impl ActionBar {
             frp.source.action_visbility <+ model.icon_visibility.frp.toggle_state;
         }
 
-        let icon_path:style::Path = theme::vars::graph_editor::node::actions::icon::color.into();
+        let icon_path:style::Path = theme::graph_editor::node::actions::icon::color.into();
         let icon_color_source     = ColorSource::from(icon_path);
         model.icon_freeze.frp.set_base_color(icon_color_source.clone());
         model.icon_skip.frp.set_base_color(icon_color_source.clone());

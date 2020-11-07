@@ -1318,8 +1318,8 @@ impl EdgeModelData {
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles                        = StyleWatch::new(&self.scene.style_sheet);
-        let split_color_lightness_factor  = styles.get_number_or(theme::vars::graph_editor::edge::split_color::lightness_factor,1.2);
-        let split_color_chroma_factor     = styles.get_number_or(theme::vars::graph_editor::edge::split_color::chroma_factor,0.8);
+        let split_color_lightness_factor  = styles.get_number_or(theme::graph_editor::edge::split_color::lightness_factor,1.2);
+        let split_color_chroma_factor     = styles.get_number_or(theme::graph_editor::edge::split_color::chroma_factor,0.8);
         let lightness                     = color.lightness * split_color_lightness_factor;
         let chroma                        = color.chroma * split_color_chroma_factor;
         let focus_color = color::Lcha::new(lightness,chroma,color.hue,color.alpha);

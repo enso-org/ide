@@ -1496,7 +1496,7 @@ impl GraphEditorModel {
     fn get_edge_color_or_default(&self, edge_id:EdgeId) -> color::Lcha {
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles             = StyleWatch::new(&self.scene().style_sheet);
-        let missing_type_color = styles.get_color(ensogl_theme::vars::syntax::missing::color);
+        let missing_type_color = styles.get_color(ensogl_theme::syntax::missing::color);
         match self.try_get_edge_color(edge_id) {
            Some(color) => color,
            None        => missing_type_color,
@@ -1676,7 +1676,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
     let styles             = StyleWatch::new(&scene.style_sheet);
-    let missing_type_color = styles.get_color(ensogl_theme::vars::syntax::missing::color);
+    let missing_type_color = styles.get_color(ensogl_theme::syntax::missing::color);
 
 
 

@@ -59,7 +59,7 @@ mod background {
             let background_rounded   = Rect((&width,&height)).corners_radius(&radius);
             let background_sharp     = Rect((&width,&height/2.0)).translate_y(-&height/4.0);
             let background           = background_rounded + background_sharp;
-            let color_path           = ensogl_theme::vars::graph_editor::
+            let color_path           = ensogl_theme::graph_editor::
                                            visualization::action_bar::background::color;
             let fill_color           = style.get_color(color_path);
             let background           = background.fill(color::Rgba::from(fill_color));

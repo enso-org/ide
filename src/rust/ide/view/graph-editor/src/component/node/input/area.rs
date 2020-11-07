@@ -232,7 +232,7 @@ impl Model {
         self.label.disable_command("cursor_move_up");
         self.label.disable_command("cursor_move_down");
 
-        let text_color = self.styles.get_color(theme::vars::graph_editor::node::text::color);
+        let text_color = self.styles.get_color(theme::graph_editor::node::text::color);
         self.label.set_default_color(color::Rgba::from(text_color));
 
         // FIXME[WD]: Depth sorting of labels to in front of the mouse pointer. Temporary solution.
@@ -261,7 +261,7 @@ impl Model {
 
     fn get_base_color(&self, tp:Option<&String>) -> color::Lcha {
         tp.map(|tp| type_coloring::color_for_type(tp.clone().into(),&self.styles))
-            .unwrap_or(self.styles.get_color(theme::vars::graph_editor::node::text::color))
+            .unwrap_or(self.styles.get_color(theme::graph_editor::node::text::color))
     }
 }
 
@@ -364,7 +364,7 @@ impl Area {
             // });
 
             // eval frp.set_dimmed ([text_color,style](should_dim) {
-            //     let text_color_path = theme::vars::graph_editor::node::text::color;
+            //     let text_color_path = theme::graph_editor::node::text::color;
             //     if *should_dim {
             //         text_color.set_target(style.get_color_dim(text_color_path));
             //     } else {
@@ -453,7 +453,7 @@ impl Area {
 
                 // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
                 let styles             = StyleWatch::new(&model.app.display.scene().style_sheet);
-                let missing_type_color = styles.get_color(theme::vars::syntax::missing::color);
+                let missing_type_color = styles.get_color(theme::syntax::missing::color);
 
                 let crumbs = node.crumbs.clone_ref();
                 let color = node.tp().map(
