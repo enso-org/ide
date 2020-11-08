@@ -225,10 +225,11 @@ define_theme! { dark_theme
     }
     syntax {
         missing.color = Lcha(0.5,0.0,0.0,1.0);
-        luminance     = 0.83;
-        chroma        = 0.53;
+        luminance     = 0.75;
+        chroma        = 0.4;
         types {
-            Text.hue = 0.217;
+            Text.hue   = 0.217;
+            Number.hue = 0.68;
         }
     }
     text_editor {

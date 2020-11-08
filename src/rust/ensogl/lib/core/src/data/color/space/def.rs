@@ -1,5 +1,6 @@
 //! This module contains definitions of various color spaces, including `Rgb`, `Hsl`, `Lch`, etc.
 
+use crate::prelude::*;
 use super::super::data::*;
 use super::super::component::*;
 
@@ -297,7 +298,7 @@ define_color_space! {
     ///   Lightness of 0.0 gives absolute black and 100.0 gives the brightest white. Most
     ///   implementations use value range of [0 .. 100] instead. It was rescaled for convenience.
     ///
-    /// - `chroma` [0.0 - 1.0]
+    /// - `chroma` [0.0 - 1.0 +]
     ///   The colorfulness of the color. It's similar to saturation. 0.0 gives gray scale colors,
     ///   and numbers around 128-181 gives fully saturated colors. The upper limit should include
     ///   the whole L*a*b* space and some more. You can use higher values than 1.0 to target `P3`,
@@ -352,4 +353,80 @@ impl Lcha {
     pub fn blue_green (l:f32, c:f32) -> Lcha { Lch::blue_green (l,c) . into() }
     pub fn blue       (l:f32, c:f32) -> Lcha { Lch::blue       (l,c) . into() }
     pub fn violet     (l:f32, c:f32) -> Lcha { Lch::violet     (l,c) . into() }
+}
+
+
+/// LCH color space is very limited in sRGB gammut. In the LCH color space, for the given lightness,
+/// there is a maximum chroma value which allows all hue colors to exist in the sRGB color space.
+/// This also means that for a given chroma, there exist maximum lightness. The values here were
+/// checked manually by using the online LCH color picker https://css.land/lch. We did not found any
+/// equations which allow for mathematical approximations of those, but in case you are aware of
+/// such equations, you are more than welcome to improve this code.
+///
+/// Please note that the values are scaled x100 for convenience in comparison to `Lch` struct
+/// arguments.
+///
+///
+///
+///                                                     ••••                     ├ 40
+///                                                  ••••   •                    │
+///                                               ••••       •                   │
+///                                            ••••           ••                 │
+///                                         •••                •                 │
+///                                    •••••                    ••               ├ 30
+///                                 •••                           •              │
+///                              •••                              •              │     C
+///                           •••                                  ••            │     H
+///                        •••                                       •           │     R
+///                   •••••                                          ••          ├ 20  O
+///               ••••                                                 •         │     M
+///            ••••                                                     •        │     A
+///         ••••                                                        •        │
+///       •••                                                            ••      │
+///      •                                                                 •     ├ 10
+///     •                                                                   •    │
+///   ••                                                                     ••  │
+///   •                                                                       •  │
+/// ••                                                                         ••│
+/// ┬────────┬─────────┬─────────┬────────┬─────────┬─────────┬────────┬─────────┤
+/// 0       12.5      25.0      37.5     50.0      62.5      75.0     75.5     100.0
+///                                     LIGHTNESS
+///
+pub const LCH_MAX_LIGHTNESS_CHROMA_IN_SRGB_CORRELATION : &[(usize,usize)] =
+    &[(0,0),(1,1),(2,2),(3,5),(4,5),(5,6),(6,8),(7,9),(8,10),(9,11),(10,12),(11,13),(12,13),(13,14)
+     ,(14,14),(15,15),(16,15),(17,16),(18,16),(19,17),(20,17),(21,18),(22,18),(23,18),(24,19)
+     ,(25,19),(26,20),(27,20),(28,21),(29,21),(30,22),(31,22),(32,23),(33,23),(34,24),(35,24)
+     ,(36,25),(37,25),(38,26),(39,26),(40,27),(41,27),(42,28),(43,28),(44,29),(45,29),(46,30)
+     ,(47,30),(48,31),(49,31),(50,32),(51,32),(52,33),(53,33),(54,34),(55,34),(56,35),(57,35)
+     ,(58,36),(59,36),(60,36),(61,37),(62,37),(63,38),(64,38),(65,39),(66,39),(67,40),(68,40)
+     ,(69,41),(70,41),(71,42),(72,42),(73,41),(74,39),(75,38),(76,36),(77,35),(78,33),(79,31)
+     ,(80,30),(81,28),(82,27),(83,25),(84,24),(85,22),(86,20),(87,19),(88,17),(89,16),(90,14)
+     ,(91,12),(92,11),(93,9),(94,8),(95,6),(96,5),(97,4),(98,2),(99,1),(100,0)];
+
+lazy_static! {
+    /// Map from LCH lightness to max chroma, so every hue value will be included in sRGB space.
+    /// Read docs of `LCH_MAX_LIGHTNESS_CHROMA_IN_SRGB_CORRELATION` to learn more.
+    ///
+    /// Please note that the values are scaled x100 for convenience in comparison to `Lch` struct
+    /// arguments.
+    pub static ref LCH_LIGHTNESS_TO_MAX_CHROMA_IN_SRGB : HashMap<usize,usize> = {
+        let mut m = HashMap::new();
+        for (lightness,chroma) in LCH_MAX_LIGHTNESS_CHROMA_IN_SRGB_CORRELATION {
+            m.insert(*lightness,*chroma);
+        }
+        m
+    };
+
+    /// Map from LCH chroma to max lightness, so every hue value will be included in sRGB space.
+    /// Read docs of `LCH_MAX_LIGHTNESS_CHROMA_IN_SRGB_CORRELATION` to learn more.
+    ///
+    /// Please note that the values are scaled x100 for convenience in comparison to `Lch` struct
+    /// arguments.
+    pub static ref LCH_CHROMA_TO_MAX_LIGHTNESS_IN_SRGB : HashMap<usize,usize> = {
+        let mut m = HashMap::new();
+        for (lightness,chroma) in LCH_MAX_LIGHTNESS_CHROMA_IN_SRGB_CORRELATION {
+            m.insert(*chroma,*lightness);
+        }
+        m
+    };
 }
