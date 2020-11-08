@@ -104,7 +104,7 @@ macro_rules! define_theme {
 define_default_theme! { light_theme
     application {
         background {
-            color = Lcha(0.96,0.013,0.18,1.0);
+            color = Lcha(0.96,0.014,0.18,1.0);
         }
     }
     syntax {
@@ -124,8 +124,8 @@ define_default_theme! { light_theme
     graph_editor {
         node {
             background {
-                color          = Lcha(0.98,0.013,0.18,1.0);
-                variant.dimmed = Lcha(0.98,0.013,0.18,1.0);
+                color          = Lcha(0.98,0.014,0.18,1.0);
+                variant.dimmed = Lcha(0.98,0.014,0.18,1.0);
             }
             shadow {
                 color        = Lcha(0.0,0.0,0.0,0.20);
@@ -133,7 +133,7 @@ define_default_theme! { light_theme
                 exponent     = 2.0;
             }
             selection {
-                color = Lcha(0.83,0.58,0.436,1.0);
+                color = Lcha(0.83,0.63,0.436,1.0);
                 size  = 7.0;
             }
             text {
@@ -150,7 +150,7 @@ define_default_theme! { light_theme
             }
         }
         visualization {
-            background.color = Lcha(0.98,0.013,0.18,1.0);
+            background.color = Lcha(0.98,0.014,0.18,1.0);
             shadow {
                 color        = Lcha(0.0,0.0,0.0,0.20);
                 fading_color = Lcha(0.0,0.0,0.0,0.0);
@@ -165,7 +165,7 @@ define_default_theme! { light_theme
                 selection.color = Lcha(0.7,0.0,0.125,0.7);
             }
             action_bar {
-                background.color = Lcha(0.94,0.013,0.18,1.0);
+                background.color = Lcha(0.94,0.014,0.18,1.0);
                 icon.color       = Lcha(0.0,0.0,0.0,0.7);
                 text.color       = Lcha(0.0,0.0,0.0,0.7);
             }
@@ -189,8 +189,8 @@ define_default_theme! { light_theme
     }
     widget {
         list_view {
-            background.color = Lcha(0.98,0.013,0.18,1.0);
-            highlight.color  = Lcha(0.83,0.58,0.436,1.0);
+            background.color = Lcha(0.98,0.014,0.18,1.0);
+            highlight.color  = Lcha(0.83,0.63,0.436,1.0);
             shadow {
                 color        = Lcha(0.0,0.0,0.0,0.20);
                 fading_color = Lcha(0.0,0.0,0.0,0.0);
@@ -220,7 +220,7 @@ define_default_theme! { light_theme
 define_theme! { dark_theme
     application {
         background {
-            color = Lcha(0.13,0.013,0.18,1.0);
+            color = Lcha(0.13,0.014,0.18,1.0);
         }
     }
     syntax {
@@ -241,8 +241,8 @@ define_theme! { dark_theme
     graph_editor {
         node {
             background {
-                color          = Lcha(0.2,0.013,0.18,1.0);
-                variant.dimmed = Lcha(0.15,0.013,0.18,1.0);
+                color          = Lcha(0.2,0.014,0.18,1.0);
+                variant.dimmed = Lcha(0.15,0.014,0.18,1.0);
             }
             shadow {
                 color        = Lcha(0.0,0.0,0.0,0.20);
@@ -250,13 +250,13 @@ define_theme! { dark_theme
                 exponent     = 2.0;
             }
             selection {
-                color = Lcha(0.72,0.5,0.22,1.0);
+                color = Lcha(0.72,0.54,0.22,1.0);
                 size  = 7.0;
             }
             text {
                 color             = Lcha(1.0,0.0,0.0,0.7);
                 missing_arg_color = Lcha(1.0,0.0,0.0,0.3);
-                variant.dimmed    = Lcha(0.25,0.013,0.18,1.0);
+                variant.dimmed    = Lcha(0.25,0.014,0.18,1.0);
                 selection.color   = Lcha(0.7,0.0,0.125,0.7);
             }
             actions {
@@ -267,7 +267,7 @@ define_theme! { dark_theme
             }
         }
         visualization {
-            background.color = Lcha(0.2,0.013,0.18,1.0);
+            background.color = Lcha(0.2,0.014,0.18,1.0);
             shadow {
                 color        = Lcha(0.0,0.0,0.0,0.20);
                 fading_color = Lcha(0.0,0.0,0.0,0.0);
@@ -282,7 +282,7 @@ define_theme! { dark_theme
                 selection.color = Lcha(0.7,0.0,0.125,0.7);
             }
             action_bar {
-                background.color = Lcha(0.3,0.013,0.18,1.0);
+                background.color = Lcha(0.3,0.014,0.18,1.0);
                 icon.color       = Lcha(1.0,0.0,0.0,0.7);
                 text.color       = Lcha(1.0,0.0,0.0,0.7);
             }
@@ -306,8 +306,8 @@ define_theme! { dark_theme
     }
     widget {
         list_view {
-            background.color = Lcha(0.2,0.013,0.18,1.0);
-            highlight.color  = Lcha(0.72,0.5,0.22,1.0);
+            background.color = Lcha(0.2,0.014,0.18,1.0);
+            highlight.color  = Lcha(0.72,0.54,0.22,1.0);
             shadow {
                 color        = Lcha(0.0,0.0,0.0,0.20);
                 fading_color = Lcha(0.0,0.0,0.0,0.0);

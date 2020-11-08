@@ -270,6 +270,12 @@ impl LabData {
 // === Lch ===
 // ===========
 
+/// The maximum value of chroma in LCH space that can be displayed in sRGB color space. The value
+/// uses scale used by popular color-conversion math equations, such as https://css.land/lch, or
+/// http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html. Used internally for color
+/// conversions.
+pub(crate) const LCH_MAX_CHROMA_IN_SRGB_IN_STD_EQUATIONS : usize = 120;
+
 define_color_space! {
     /// CIE L*C*h°, a polar version of CIE L*a*b*.
     ///
@@ -298,12 +304,15 @@ define_color_space! {
     ///   Lightness of 0.0 gives absolute black and 100.0 gives the brightest white. Most
     ///   implementations use value range of [0 .. 100] instead. It was rescaled for convenience.
     ///
-    /// - `chroma` [0.0 - 1.0 +]
-    ///   The colorfulness of the color. It's similar to saturation. 0.0 gives gray scale colors,
-    ///   and numbers around 128-181 gives fully saturated colors. The upper limit should include
-    ///   the whole L*a*b* space and some more. You can use higher values than 1.0 to target `P3`,
-    ///   `Rec.2020`, or even larger color spaces. Most implementations use value range of
-    ///   [0 .. 132] instead. It was rescaled for convenience.
+    /// - `chroma` [0.0 - 1.0]
+    ///   The colorfulness of the color. It's similar to saturation. 0.0 gives grayscale colors,
+    ///   while bigger values gives saturated ones. This value was scaled in such way, that the
+    ///   chroma of 1.0 is the maximum saturation of any hue shade in sRGB color space (which often
+    ///   corresponds to `LCH_MAX_CHROMA_IN_SRGB_IN_STD_EQUATIONS` value in such tools as
+    ///   https://css.land/lch. You can use higher values than 1.0 to target `P3`, `Rec.2020`, or
+    ///   even larger color spaces. Please, be aware that for some hue values, even small chroma
+    ///   values are outside of the sRGB color space. For example, for dark greens, even the value
+    ///   of 0.3 can not be displayed properly on most screens nowadays.
     ///
     /// - `hue` [0.0 - 1.0]
     ///   The hue of the color. Decides if it's red, blue, purple, etc. You can use `hue_degrees`
@@ -363,8 +372,9 @@ impl Lcha {
 /// equations which allow for mathematical approximations of those, but in case you are aware of
 /// such equations, you are more than welcome to improve this code.
 ///
-/// Please note that the values are scaled x100 for convenience in comparison to `Lch` struct
-/// arguments.
+/// ## WARNING
+/// Please note that for convenience, the value of lightness is scaled by 100 and the value of
+/// chroma is scaled by `LCH_MAX_CHROMA_IN_SRGB_IN_STD_EQUATIONS`.
 ///
 ///
 ///
@@ -407,8 +417,9 @@ lazy_static! {
     /// Map from LCH lightness to max chroma, so every hue value will be included in sRGB space.
     /// Read docs of `LCH_MAX_LIGHTNESS_CHROMA_IN_SRGB_CORRELATION` to learn more.
     ///
-    /// Please note that the values are scaled x100 for convenience in comparison to `Lch` struct
-    /// arguments.
+    /// ## WARNING
+    /// Please note that for convenience, the value of lightness is scaled by 100 and the value of
+    /// chroma is scaled by `LCH_MAX_CHROMA_IN_SRGB_IN_STD_EQUATIONS`.
     pub static ref LCH_LIGHTNESS_TO_MAX_CHROMA_IN_SRGB : HashMap<usize,usize> = {
         let mut m = HashMap::new();
         for (lightness,chroma) in LCH_MAX_LIGHTNESS_CHROMA_IN_SRGB_CORRELATION {
@@ -420,8 +431,9 @@ lazy_static! {
     /// Map from LCH chroma to max lightness, so every hue value will be included in sRGB space.
     /// Read docs of `LCH_MAX_LIGHTNESS_CHROMA_IN_SRGB_CORRELATION` to learn more.
     ///
-    /// Please note that the values are scaled x100 for convenience in comparison to `Lch` struct
-    /// arguments.
+    /// ## WARNING
+    /// Please note that for convenience, the value of lightness is scaled by 100 and the value of
+    /// chroma is scaled by `LCH_MAX_CHROMA_IN_SRGB_IN_STD_EQUATIONS`.
     pub static ref LCH_CHROMA_TO_MAX_LIGHTNESS_IN_SRGB : HashMap<usize,usize> = {
         let mut m = HashMap::new();
         for (lightness,chroma) in LCH_MAX_LIGHTNESS_CHROMA_IN_SRGB_CORRELATION {
