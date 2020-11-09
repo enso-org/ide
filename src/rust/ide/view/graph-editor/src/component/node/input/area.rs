@@ -11,13 +11,10 @@ use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
-use ensogl::gui::component;
 use ensogl::gui::cursor;
 use ensogl_text as text;
 use ensogl_text::buffer::data::unit::traits::*;
-use ensogl_text::buffer;
 use ensogl_theme as theme;
-use text::Bytes;
 use text::Text;
 
 use crate::Type;
@@ -39,8 +36,8 @@ pub const DEBUG : bool = false;
 /// Skip creating ports on all operations. For example, in expression `foo bar`, `foo` is considered
 /// an operation.
 const SKIP_OPERATIONS            : bool = true;
-const SHOW_PORTS_ONLY_ON_CONNECT : bool = true;
 const PORT_PADDING_X             : f32  = 4.0;
+// const SHOW_PORTS_ONLY_ON_CONNECT : bool = true; // TODO
 
 
 
@@ -86,12 +83,12 @@ impl Debug for Expression {
 
 impl From<node::Expression> for Expression {
     fn from(t:node::Expression) -> Self {
-        let code      = t.code;
-        let mut input = t.input_span_tree.map(|_|port::Model::default());
-        /// The number of letters the non-connected positional arguments occupied so far.
+        // The number of letters the non-connected positional arguments occupied so far.
         let mut shift    = 0;
+        let mut input    = t.input_span_tree.map(|_|port::Model::default());
         let mut viz_code = String::new();
-        input.root_ref_mut().iterate_layers_depth(ExprConversion::default(),|node,info| {
+        let code         = t.code;
+        input.root_ref_mut().dfs(ExprConversion::default(),|node,info| {
             let is_expected_arg       = node.is_expected_argument();
             let span                  = node.span();
             let mut size              = span.size.value;
@@ -116,7 +113,7 @@ impl From<node::Expression> for Expression {
             port.local_index = index - info.last_parent_tok_index;
             port.index       = index;
             port.length      = size;
-            (true,ExprConversion::new(index))
+            ExprConversion::new(index)
         });
         Self {code,viz_code,input}
     }
@@ -267,7 +264,7 @@ impl Model {
 
     fn get_base_color(&self, tp:Option<&String>) -> color::Lcha {
         tp.map(|tp| type_coloring::color_for_type(tp.clone().into(),&self.styles))
-            .unwrap_or(self.styles.get_color(theme::graph_editor::node::text::color))
+            .unwrap_or_else(||self.styles.get_color(theme::graph_editor::node::text::color))
     }
 }
 
@@ -308,7 +305,6 @@ impl Area {
         let model   = Rc::new(Model::new(logger,app));
         let frp     = Frp::new();
         let network = &frp.network;
-        let style   = StyleWatch::new(&app.display.scene().style_sheet);
 
         frp::extend! { network
 
@@ -407,10 +403,9 @@ impl Area {
         let mut is_header = true;
 
         let builder = PortLayerBuilder::empty(root);
-        expression.root_ref_mut().iterate_layers_depth(builder,|node,builder| {
-            let is_expected_arg = node.is_expected_argument();
-            let is_parensed     = node.is_parensed();
-            let skip_opr        = if SKIP_OPERATIONS {
+        expression.root_ref_mut().dfs(builder,|node,builder| {
+            let is_parensed = node.is_parensed();
+            let skip_opr    = if SKIP_OPERATIONS {
                 node.is_operation() && !is_header
             } else {
                 let crumb = ast::Crumb::Infix(ast::crumbs::InfixCrumb::Operator);
@@ -431,8 +426,7 @@ impl Area {
             let indent = "   ".repeat(builder.depth);
             let skipped = if skip { "(skipped)" } else { "" };
             println!("{}[{},{}] {} {:?} (tp: {:?}) (parent_frp: {})",indent,node.payload.index,node.payload.length,skipped,node.kind.variant_name(),node.tp(),builder.parent_frp.is_some());
-            let (new_parent) = if !skip {
-
+            let new_parent = if !skip {
                 let index        = node.payload.local_index + builder.shift;
                 let size         = node.payload.length;
                 let unit         = 7.224_609_4;
@@ -513,22 +507,11 @@ impl Area {
                     eval_ port_shape.hover.events.mouse_down (press_source.emit(&crumbs_down));
                 }
 
-
-
-
-                let network = &self.frp.network;
-
-                let index  = node.payload.index;
-                let length = node.payload.length;
-
                 frp::extend! { port_network
                     self.source.port_over <+ port_shape.hover.events.mouse_over.map (f_!(crumbs.clone_ref()));
                     self.source.port_out  <+ port_shape.hover.events.mouse_out.map  (f_!(crumbs.clone_ref()));
                 }
-
-                let new_parent = port_shape.root.display_object().clone_ref();
-                //node.payload().hover_shape = Some(port_shape.hover);
-                new_parent
+                port_shape.root.display_object().clone_ref()
             } else {
                 builder.parent.clone_ref()
             };
@@ -542,7 +525,7 @@ impl Area {
             }
             let new_parent_frp = Some(node.frp.output.clone_ref());
             let new_shift = if !skip { 0 } else { builder.shift + node.payload.local_index };
-            (true,builder.nested(new_parent,new_parent_frp,is_parensed,new_shift))
+            builder.nested(new_parent,new_parent_frp,is_parensed,new_shift)
         });
 
         model.label.set_cursor(&default());
@@ -555,7 +538,7 @@ impl Area {
 
 
         let xx : Option<String> = None;
-        expression.root_ref_mut().iterate_layers_depth(xx,|node,parent_tp| {
+        expression.root_ref_mut().dfs(xx,|node,parent_tp| {
             if node.children.is_empty() {
                 let leaf         = &node.frp;
                 let port_network = &leaf.network;
@@ -567,6 +550,7 @@ impl Area {
 
                 frp::extend! { port_network
                     ccc <- leaf.input.set_hover.map(f!([model](is_hovered)
+                        let _model = &model; // FIXME
                         if *is_hovered { color::Lcha::from(color::Rgba::new(1.0,1.0,1.0,0.7)) }
                         else if is_expected_arg { color::Lcha::from(color::Rgba::new(1.0,1.0,1.0,0.4)) }
                         else { base_color }
@@ -575,9 +559,8 @@ impl Area {
                     leaf.output.source.color <+ node.color.value;
                 }
 
-                let index = node.payload.index;
+                let index  = node.payload.index;
                 let length = node.payload.length;
-
                 frp::extend! { port_network
                     eval leaf.output.color ([model](color) {
                         let start_bytes = (index as i32).bytes();
@@ -586,18 +569,12 @@ impl Area {
                         model.label.set_color_bytes(range,color::Rgba::from(color));
                     });
                 }
-                (true,None)
-            } else {
-                (true,node.tp().cloned())
             }
+            node.tp().cloned()
         });
 
         *model.expression.borrow_mut() = expression;
-
-
-
-        model.on_port_hover(false,&default());
-
+        model.init_port_coloring();
     }
 
     pub fn get_port_offset(&self, crumbs:&[span_tree::Crumb]) -> Option<Vector2<f32>> {
