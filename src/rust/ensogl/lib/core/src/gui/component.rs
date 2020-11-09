@@ -69,11 +69,18 @@ impl MouseTarget for ShapeViewEvents {
 /// Automatically managed view of a `Shape`. The view is initially empty and is filled with a
 /// reference to an existing `Shape` as soon as it is placed on the scene and the scene is updated.
 /// As soon as it is removed from the scene, the shape is freed.
-#[derive(Clone,CloneRef,Debug,Deref)]
+#[derive(Clone,CloneRef,Debug)]
 #[clone_ref(bound="S:CloneRef")]
 #[allow(missing_docs)]
 pub struct ShapeView<S:Shape> {
     model : Rc<ShapeViewModel<S>>
+}
+
+impl<S:Shape> Deref for ShapeView<S> {
+    type Target = Rc<ShapeViewModel<S>>;
+    fn deref(&self) -> &Self::Target {
+        &self.model
+    }
 }
 
 #[derive(Debug)]

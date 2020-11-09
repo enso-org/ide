@@ -138,6 +138,11 @@ impl Rgb {
 }
 
 impl Rgba {
+    /// Fully transparent color constructor.
+    pub fn transparent() -> Self {
+        Self::new(0.0,0.0,0.0,0.0)
+    }
+
     /// Converts the color to `LinearRgba` representation.
     pub fn into_linear(self) -> LinearRgba {
         self.into()
@@ -351,17 +356,18 @@ impl Lch {
 
 #[allow(missing_docs)]
 impl Lcha {
-    pub fn white      ()             -> Lcha { Lch::white      ()    . into() }
-    pub fn black      ()             -> Lcha { Lch::black      ()    . into() }
-    pub fn pink       (l:f32, c:f32) -> Lcha { Lch::pink       (l,c) . into() }
-    pub fn red        (l:f32, c:f32) -> Lcha { Lch::red        (l,c) . into() }
-    pub fn orange     (l:f32, c:f32) -> Lcha { Lch::orange     (l,c) . into() }
-    pub fn yellow     (l:f32, c:f32) -> Lcha { Lch::yellow     (l,c) . into() }
-    pub fn olive      (l:f32, c:f32) -> Lcha { Lch::olive      (l,c) . into() }
-    pub fn green      (l:f32, c:f32) -> Lcha { Lch::green      (l,c) . into() }
-    pub fn blue_green (l:f32, c:f32) -> Lcha { Lch::blue_green (l,c) . into() }
-    pub fn blue       (l:f32, c:f32) -> Lcha { Lch::blue       (l,c) . into() }
-    pub fn violet     (l:f32, c:f32) -> Lcha { Lch::violet     (l,c) . into() }
+    pub fn transparent ()             -> Lcha { Lcha::new(0.0,0.0,0.0,0.0) }
+    pub fn white       ()             -> Lcha { Lch::white      ()    . into() }
+    pub fn black       ()             -> Lcha { Lch::black      ()    . into() }
+    pub fn pink        (l:f32, c:f32) -> Lcha { Lch::pink       (l,c) . into() }
+    pub fn red         (l:f32, c:f32) -> Lcha { Lch::red        (l,c) . into() }
+    pub fn orange      (l:f32, c:f32) -> Lcha { Lch::orange     (l,c) . into() }
+    pub fn yellow      (l:f32, c:f32) -> Lcha { Lch::yellow     (l,c) . into() }
+    pub fn olive       (l:f32, c:f32) -> Lcha { Lch::olive      (l,c) . into() }
+    pub fn green       (l:f32, c:f32) -> Lcha { Lch::green      (l,c) . into() }
+    pub fn blue_green  (l:f32, c:f32) -> Lcha { Lch::blue_green (l,c) . into() }
+    pub fn blue        (l:f32, c:f32) -> Lcha { Lch::blue       (l,c) . into() }
+    pub fn violet      (l:f32, c:f32) -> Lcha { Lch::violet     (l,c) . into() }
 }
 
 
@@ -384,16 +390,16 @@ impl Lcha {
 ///                                            ••••           ••                 │
 ///                                         •••                •                 │
 ///                                    •••••                    ••               ├ 30
-///                                 •••                           •              │
-///                              •••                              •              │     C
-///                           •••                                  ••            │     H
-///                        •••                                       •           │     R
-///                   •••••                                          ••          ├ 20  O
-///               ••••                                                 •         │     M
-///            ••••                                                     •        │     A
-///         ••••                                                        •        │
-///       •••                                                            ••      │
-///      •                                                                 •     ├ 10
+///                                 •••                           •              │     M
+///                              •••                              •              │     A
+///                           •••                                  ••            │     X
+///                        •••                                       •           │
+///                   •••••                                          ••          ├ 20  C
+///               ••••                                                 •         │     H
+///            ••••                                                     •        │     R
+///         ••••                                                        •        │     O
+///       •••                                                            ••      │     M
+///      •                                                                 •     ├ 10  A
 ///     •                                                                   •    │
 ///   ••                                                                     ••  │
 ///   •                                                                       •  │
@@ -414,8 +420,8 @@ pub const LCH_MAX_LIGHTNESS_CHROMA_IN_SRGB_CORRELATION : &[(usize,usize)] =
      ,(91,12),(92,11),(93,9),(94,8),(95,6),(96,5),(97,4),(98,2),(99,1),(100,0)];
 
 lazy_static! {
-    /// Map from LCH lightness to max chroma, so every hue value will be included in sRGB space.
-    /// Read docs of `LCH_MAX_LIGHTNESS_CHROMA_IN_SRGB_CORRELATION` to learn more.
+    /// Map from LCH lightness to max chroma, so every hue value will be included in the sRGB color
+    /// space. Read docs of `LCH_MAX_LIGHTNESS_CHROMA_IN_SRGB_CORRELATION` to learn more.
     ///
     /// ## WARNING
     /// Please note that for convenience, the value of lightness is scaled by 100 and the value of
@@ -428,8 +434,8 @@ lazy_static! {
         m
     };
 
-    /// Map from LCH chroma to max lightness, so every hue value will be included in sRGB space.
-    /// Read docs of `LCH_MAX_LIGHTNESS_CHROMA_IN_SRGB_CORRELATION` to learn more.
+    /// Map from LCH chroma to max lightness, so every hue value will be included in the sRGB color
+    /// space. Read docs of `LCH_MAX_LIGHTNESS_CHROMA_IN_SRGB_CORRELATION` to learn more.
     ///
     /// ## WARNING
     /// Please note that for convenience, the value of lightness is scaled by 100 and the value of
@@ -441,4 +447,23 @@ lazy_static! {
         }
         m
     };
+}
+
+/// For a given LCH lightness, compute the max chroma value, so every hue value will be included in
+/// the sRGB color space. Please read the docs of `LCH_MAX_LIGHTNESS_CHROMA_IN_SRGB_CORRELATION` to
+/// learn more.
+fn lch_lightness_to_max_chroma_in_srgb(l:f32) -> f32 {
+    let l                = l.max(0.0).min(100.0);
+    let l_scaled         = l * 100.0;
+    let l_scaled_floor   = l_scaled.floor();
+    let l_scaled_ceil    = l_scaled.ceil();
+    let coeff            = (l_scaled - l_scaled_floor) / (l_scaled_ceil - l_scaled_floor);
+    let l_scaled_floor_u = l_scaled_floor as usize;
+    let l_scaled_ceil_u  = l_scaled_ceil as usize;
+    let c_scaled_floor_u = LCH_LIGHTNESS_TO_MAX_CHROMA_IN_SRGB.get(&l_scaled_floor_u);
+    let c_scaled_ceil_u  = LCH_LIGHTNESS_TO_MAX_CHROMA_IN_SRGB.get(&l_scaled_ceil_u);
+    let c_scaled_floor   = c_scaled_floor_u.copied().unwrap_or(0) as f32;
+    let c_scaled_ceil    = c_scaled_ceil_u.copied().unwrap_or(0) as f32;
+    let c_scaled         = c_scaled_floor + (c_scaled_ceil - c_scaled_floor) * coeff;
+    c_scaled / LCH_MAX_CHROMA_IN_SRGB_IN_STD_EQUATIONS as f32
 }

@@ -221,7 +221,7 @@ pub mod shape {
     crate::define_shape_system! {
         ( press  : f32
         , radius : f32
-        , color  : Vector4<f32>
+        , color  : Vector4
         ) {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();

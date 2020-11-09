@@ -1,4 +1,4 @@
-//! Definition of the Port component.
+//! Definition of the node input port component.
 
 
 use crate::prelude::*;
@@ -30,7 +30,7 @@ pub use port::depth_sort_hack;
 // === Constants ===
 // =================
 
-/// Enable visual port debug mode.
+/// Enable visual port debug mode and additional port creation logging.
 pub const DEBUG : bool = false;
 
 /// Skip creating ports on all operations. For example, in expression `foo bar`, `foo` is considered
@@ -57,8 +57,10 @@ pub type SpanTree = span_tree::SpanTree<port::Model>;
 /// Specialized version of `node::Expression`.
 #[derive(Clone,Default)]
 pub struct Expression {
-    pub code     : String,
+    /// Visual code representation. It can contain names of missing arguments, and thus can differ
+    /// from `code`.
     pub viz_code : String,
+    pub code     : String,
     pub input    : SpanTree,
 }
 
@@ -81,6 +83,8 @@ impl Debug for Expression {
     }
 }
 
+/// Traverses the `SpanTree` and constructs `viz_code` based on `code` and the `SpanTree` structure.
+/// It also computes `port::Model` values in the `viz_code` representation.
 impl From<node::Expression> for Expression {
     fn from(t:node::Expression) -> Self {
         // The number of letters the non-connected positional arguments occupied so far.
@@ -102,9 +106,9 @@ impl From<node::Expression> for Expression {
             index += shift;
             if is_expected_arg {
                 if let Some(name) = node.name() {
-                    size   = name.len();
-                    index += 1;
-                    shift += 1 + size;
+                    size      = name.len();
+                    index    += 1;
+                    shift    += 1 + size;
                     viz_code += " ";
                     viz_code += name;
                 }
@@ -349,7 +353,10 @@ impl Area {
             eval frp.port_over ((crumbs) model.with_node(crumbs,|n|n.set_hover(true)));
             eval frp.port_out  ((crumbs) model.with_node(crumbs,|n|n.set_hover(false)));
 
-            eval frp.set_connected (((t,s)) model.with_node(t,|n|n.set_connected(s)));
+            eval frp.set_connected ([model]((t,s)) {
+                model.with_node(t,|n|n.set_connected(s));
+                model.with_node(t,|n|n.set_parent_connected(s));
+            });
 
 
             // === Properties ===
@@ -387,14 +394,14 @@ impl Area {
     }
 
     pub(crate) fn set_expression(&self, expression:impl Into<node::Expression>) {
-        let model      = &self.model;
-        let expression = expression.into();
-        println!("\n\n=====================\nSET EXPR: {}",expression.code);
-        println!("{:?}",expression.input_span_tree);
+        let model          = &self.model;
+        let expression     = expression.into();
         let mut expression = Expression::from(expression);
-
-        let glyph_width = 7.224_609_4; // FIXME hardcoded literal
-        let width       = expression.code.len() as f32 * glyph_width;
+        let glyph_width    = 7.224_609_4; // FIXME hardcoded literal
+        let width          = expression.code.len() as f32 * glyph_width;
+        if DEBUG {
+            println!("\n\n=====================\nSET EXPR: {}", expression.code);
+        }
         model.width.set(width);
 
 
@@ -423,9 +430,13 @@ impl Area {
                 self.model.id_crumbs_map.borrow_mut().insert(id,node.crumbs.clone());
             }
 
-            let indent = "   ".repeat(builder.depth);
-            let skipped = if skip { "(skipped)" } else { "" };
-            println!("{}[{},{}] {} {:?} (tp: {:?}) (parent_frp: {})",indent,node.payload.index,node.payload.length,skipped,node.kind.variant_name(),node.tp(),builder.parent_frp.is_some());
+            if DEBUG {
+                let indent = " ".repeat(4*builder.depth);
+                let skipped = if skip { "(skipped)" } else { "" };
+                println!("{}[{},{}] {} {:?} (tp: {:?})",indent,node.payload.index,
+                    node.payload.length,skipped,node.kind.variant_name(),node.tp());
+            }
+
             let new_parent = if !skip {
                 let index        = node.payload.local_index + builder.shift;
                 let size         = node.payload.length;
@@ -436,24 +447,21 @@ impl Area {
                 let height       = 18.0;
                 let size         = Vector2::new(width_padded,height);
 
+                let xsize         = Vector2::new(width,height);
+
                 let logger     = &model.logger;
                 let scene      = self.scene();
-                let port_shape = node.payload_mut().init_shapes(logger,scene).clone_ref();
+                let port_shape = node.payload_mut().init_shapes(logger,scene,xsize,node_height).clone_ref();
 
-                port_shape.hover.shape.sprite.size.set(Vector2::new(width_padded,node_height));
-                port_shape.viz.shape.sprite.size.set(Vector2::new(width_padded,node_height));
-                port_shape.hover.shape.mod_position(|t| t.x = width/2.0);
-                port_shape.viz.shape.mod_position(|t| t.x = width/2.0);
-                port_shape.root.mod_position(|t| t.x = unit * index as f32);
+                port_shape.mod_position(|t| t.x = unit * index as f32);
                 if DEBUG {
-                    port_shape.root.mod_position(|t| t.y = 5.0);
+                    port_shape.mod_position(|t| t.y = 5.0);
                 }
                 if is_header {
-                    println!("ADDING HEADER");
                     is_header = false;
-                    model.header.add_child(&port_shape.root);
+                    model.header.add_child(&port_shape);
                 } else {
-                    builder.parent.add_child(&port_shape.root);
+                    builder.parent.add_child(&port_shape);
                 }
 
                 // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
@@ -511,15 +519,15 @@ impl Area {
                     self.source.port_over <+ port_shape.hover.events.mouse_over.map (f_!(crumbs.clone_ref()));
                     self.source.port_out  <+ port_shape.hover.events.mouse_out.map  (f_!(crumbs.clone_ref()));
                 }
-                port_shape.root.display_object().clone_ref()
+                port_shape.display_object().clone_ref()
             } else {
                 builder.parent.clone_ref()
             };
 
             if let Some(parent_frp) = &builder.parent_frp {
                 frp::extend! { port_network
+                    node.frp.set_active           <+ parent_frp.set_active;
                     node.frp.set_hover            <+ parent_frp.set_hover;
-                    node.frp.set_connected        <+ parent_frp.set_connected;
                     node.frp.set_parent_connected <+ parent_frp.set_parent_connected;
                 }
             }
@@ -539,30 +547,34 @@ impl Area {
 
         let xx : Option<String> = None;
         expression.root_ref_mut().dfs(xx,|node,parent_tp| {
+            let frp          = &node.frp;
+            let port_network = &frp.network;
+
             if node.children.is_empty() {
-                let leaf         = &node.frp;
-                let port_network = &leaf.network;
                 let is_expected_arg = node.is_expected_argument();
+                let tp              = if node.is_token() { parent_tp.as_ref() } else { node.tp() };
+                let base_color      = model.get_base_color(tp);
 
-                let tp         = if node.is_token() { parent_tp.as_ref() } else { node.tp() };
-                let base_color = model.get_base_color(tp);
-
+                let highlighted_color = model.styles.get_color(theme::graph_editor::node::background::color);
 
                 frp::extend! { port_network
-                    ccc <- leaf.input.set_hover.map(f!([model](is_hovered)
+                    is_highlighted <- map2(&frp.set_hover,&frp.set_parent_connected,|s,t|*s||*t);
+                    text_color     <- is_highlighted.map(f!([model](is_highlighted)
                         let _model = &model; // FIXME
-                        if *is_hovered { color::Lcha::from(color::Rgba::new(1.0,1.0,1.0,0.7)) }
+                        if *is_highlighted { highlighted_color }
                         else if is_expected_arg { color::Lcha::from(color::Rgba::new(1.0,1.0,1.0,0.4)) }
                         else { base_color }
                     ));
-                    node.color.target <+ ccc;
-                    leaf.output.source.color <+ node.color.value;
+                    highlight_color <- frp.set_hover.map(move |_| base_color);
+                    node.text_color.target <+ text_color;
+                    frp.output.source.highlight_color <+ highlight_color;
+                    frp.output.source.text_color      <+ node.text_color.value;
                 }
 
                 let index  = node.payload.index;
                 let length = node.payload.length;
                 frp::extend! { port_network
-                    eval leaf.output.color ([model](color) {
+                    eval frp.output.text_color ([model](color) {
                         let start_bytes = (index as i32).bytes();
                         let end_bytes   = ((index + length) as i32).bytes();
                         let range       = ensogl_text::buffer::Range::from(start_bytes..end_bytes);
@@ -570,6 +582,15 @@ impl Area {
                     });
                 }
             }
+
+            if let Some(port_shape) = &node.payload.shape {
+                frp::extend! { port_network
+                    viz_color <- map2(&frp.highlight_color,&frp.set_connected,|color,is_connected|
+                        if *is_connected {*color} else { color::Lcha::transparent() } );
+                    eval viz_color ((color) port_shape.viz.shape.color.set(color::Rgba::from(color).into()));
+                }
+            }
+
             node.tp().cloned()
         });
 
@@ -587,12 +608,17 @@ impl Area {
         })
     }
 
-    pub fn get_port_color(&self, _crumbs:&[span_tree::Crumb]) -> Option<color::Lcha> {
+    pub fn get_port_color(&self, crumbs:&span_tree::Crumbs) -> Option<color::Lcha> {
+        // Some(color::Lcha::black())
+        // self.model.expression.borrow().input.nested_ast_id(crumbs)
         // let ast_id = get_id_for_crumbs(&self.model.expression.borrow().input_span_tree,&crumbs)?;
         // // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         // let styles = StyleWatch::new(&self.model.app.display.scene().style_sheet);
         // self.model.type_color_map.type_color(ast_id,&styles)
-        None
+        // None
+
+        let mut expression = self.model.expression.borrow();
+        expression.input.root_ref().get_descendant(crumbs).ok().map(|node|node.frp.highlight_color.value())
     }
 
     pub fn width(&self) -> f32 {

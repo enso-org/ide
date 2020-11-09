@@ -1447,7 +1447,7 @@ impl GraphEditorModel {
 
     pub fn refresh_edge_color(&self, edge_id:EdgeId) {
         if let Some(edge) = self.edges.get_cloned_ref(&edge_id) {
-            let color = self.get_edge_color_or_default(edge_id);
+            let color = self.get_edge_color(edge_id);
             let color = color::Rgba::from(color);
             edge.view.frp.set_color.emit(color);
         };
@@ -1483,7 +1483,7 @@ impl GraphEditorModel {
     /// with the target port.
     fn try_get_edge_target_color(&self, edge_target:EdgeTarget) -> Option<color::Lcha> {
         let node              = self.nodes.get_cloned_ref(&edge_target.node_id)?;
-        let input_port_color  = node.model.input.get_port_color(&edge_target.port);
+        let input_port_color  =    node.model.input.get_port_color(&edge_target.port);
         let output_port_color = || node.model.output.get_port_color(&edge_target.port);
         input_port_color.or_else(output_port_color)
     }
@@ -1491,15 +1491,15 @@ impl GraphEditorModel {
     /// Return the color of an edge based on its connected ports. Returns `None` if no type
     /// information is associated with either source or target.
     fn try_get_edge_color(&self, edge_id:EdgeId) -> Option<color::Lcha> {
-        let edge         = self.edges.get_cloned_ref(&edge_id)?;
-        let source_color = edge.source().map(|source| self.try_get_edge_target_color(source)).flatten();
-        let target_color = || edge.target().map(|target| self.try_get_edge_target_color(target)).flatten();
-        source_color.or_else(target_color)
+        let edge      = self.edges.get_cloned_ref(&edge_id)?;
+        let src_color =    edge.source().map(|src| self.try_get_edge_target_color(src)).flatten();
+        let tgt_color = || edge.target().map(|tgt| self.try_get_edge_target_color(tgt)).flatten();
+        src_color.or_else(tgt_color)
     }
 
     /// Return a color for the edge. Either based on the edges source/target type, or a default
     /// color defined in Theme Manager as `type . missing . color`
-    fn get_edge_color_or_default(&self, edge_id:EdgeId) -> color::Lcha {
+    fn get_edge_color(&self, edge_id:EdgeId) -> color::Lcha {
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles             = StyleWatch::new(&self.scene().style_sheet);
         let missing_type_color = styles.get_color(ensogl_theme::syntax::missing::color);
@@ -1512,9 +1512,7 @@ impl GraphEditorModel {
     /// Return a color for the currently detached edge. Note: multiple detached edges should all
     /// have the same type, as otherwise they could not be connected together.
     pub fn get_color_for_detached_edges(&self) -> Option<color::Lcha> {
-        self.edges.detached_edges_iter().find_map(|edge_id| {
-            self.try_get_edge_color(edge_id)
-        })
+        self.edges.detached_edges_iter().find_map(|edge_id| self.try_get_edge_color(edge_id))
     }
 }
 
