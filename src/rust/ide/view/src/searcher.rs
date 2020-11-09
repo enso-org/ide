@@ -11,7 +11,7 @@ use enso_frp as frp;
 use ensogl::application;
 use ensogl::application::{Application, shortcut};
 use ensogl::display;
-use ensogl::gui::component::Animation;
+use ensogl::gui::component::DEPRECATED_Animation;
 use ensogl_gui_components::list_view;
 use ensogl_gui_components::list_view::ListView;
 
@@ -187,7 +187,7 @@ impl View {
         let frp     = &self.frp;
         let source  = &self.frp.source;
 
-        let height = Animation::<f32>::new(&network);
+        let height = DEPRECATED_Animation::<f32>::new(&network);
 
         frp::extend! { network
             eval frp.set_suggestions ([model] ((entries,docs)) {

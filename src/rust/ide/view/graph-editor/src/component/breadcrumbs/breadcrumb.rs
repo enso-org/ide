@@ -15,7 +15,7 @@ use ensogl::data::color;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::shape::*;
 use ensogl::display;
-use ensogl::gui::component::Animation;
+use ensogl::gui::component::DEPRECATED_Animation;
 use ensogl::gui::component;
 use ensogl_text as text;
 use ensogl_theme as theme;
@@ -119,17 +119,17 @@ mod separator {
 /// ProjectName's animations handlers.
 #[derive(Debug,Clone,CloneRef)]
 pub struct Animations {
-    color           : Animation<Vector4<f32>>,
-    separator_color : Animation<Vector4<f32>>,
-    fade_in         : Animation<f32>
+    color           : DEPRECATED_Animation<Vector4<f32>>,
+    separator_color : DEPRECATED_Animation<Vector4<f32>>,
+    fade_in         : DEPRECATED_Animation<f32>
 }
 
 impl Animations {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
-        let color           = Animation::new(&network);
-        let fade_in         = Animation::new(&network);
-        let separator_color = Animation::new(&network);
+        let color           = DEPRECATED_Animation::new(&network);
+        let fade_in         = DEPRECATED_Animation::new(&network);
+        let separator_color = DEPRECATED_Animation::new(&network);
         Self{color,fade_in,separator_color}
     }
 }

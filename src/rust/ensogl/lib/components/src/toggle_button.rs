@@ -90,7 +90,7 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
         let frp     = &self.frp;
         let model   = &self.model;
         let style   = StyleWatch::new(&app.display.scene().style_sheet);
-        let color   = color::Animation::new();
+        let color   = color::DEPRECARTED_Animation::new();
         let icon    = &model.icon.events;
 
         frp::extend! { network

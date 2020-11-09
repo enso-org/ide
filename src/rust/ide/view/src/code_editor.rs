@@ -6,7 +6,7 @@ use enso_frp as frp;
 use ensogl::application;
 use ensogl::application::{Application, shortcut};
 use ensogl::display;
-use ensogl::gui::component::Animation;
+use ensogl::gui::component::DEPRECATED_Animation;
 use ensogl_text as text;
 
 
@@ -68,7 +68,7 @@ impl View {
         let frp             = Frp::new();
         let network         = &frp.network;
         let model           = app.new_view::<text::Area>();
-        let height_fraction = Animation::<f32>::new(network);
+        let height_fraction = DEPRECATED_Animation::<f32>::new(network);
 
         model.set_position_x(PADDING_LEFT);
         model.remove_from_view(&scene.views.main);

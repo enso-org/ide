@@ -22,7 +22,7 @@ use ensogl_core::data::color;
 use ensogl_core::display::scene::Scene;
 use ensogl_core::display::shape::*;
 use ensogl_core::display;
-use ensogl_core::gui::component::Animation;
+use ensogl_core::gui::component::DEPRECATED_Animation;
 use ensogl_core::gui::component;
 use ensogl_core::gui::cursor;
 use ensogl_core::system::gpu::shader::glsl::traits::IntoGlsl;
@@ -135,8 +135,8 @@ pub struct Selection {
     right_side     : display::object::Instance,
     shape_view     : component::ShapeView<selection::Shape>,
     network        : frp::Network,
-    position       : Animation<Vector2>,
-    width          : Animation<f32>,
+    position       : DEPRECATED_Animation<Vector2>,
+    width          : DEPRECATED_Animation<f32>,
     edit_mode      : Rc<Cell<bool>>,
 }
 
@@ -155,8 +155,8 @@ impl Selection {
         let right_side     = display::object::Instance::new(&logger);
         let network        = frp::Network::new();
         let shape_view     = component::ShapeView::<selection::Shape>::new(&logger,scene);
-        let position       = Animation::new(&network);
-        let width          = Animation::new(&network);
+        let position       = DEPRECATED_Animation::new(&network);
+        let width          = DEPRECATED_Animation::new(&network);
         let edit_mode      = Rc::new(Cell::new(edit_mode));
         let debug          = false; // Change to true to slow-down movement for debug purposes.
         let spring_factor  = if debug { 0.1 } else { 1.5 };
@@ -472,7 +472,7 @@ impl Area {
         let mouse    = &scene.mouse.frp;
         let input    = &self.frp.input;
         let out      = &self.frp.output;
-        let pos      = Animation :: <Vector2> :: new(&network);
+        let pos      = DEPRECATED_Animation :: <Vector2> :: new(&network);
         let keyboard = &scene.keyboard;
         let m        = &model;
         pos.update_spring(|spring| spring*2.0);

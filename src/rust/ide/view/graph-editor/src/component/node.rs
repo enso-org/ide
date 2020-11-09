@@ -20,7 +20,7 @@ use ensogl::data::color;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
-use ensogl::gui::component::Animation;
+use ensogl::gui::component::DEPRECATED_Animation;
 use ensogl::gui::component;
 use ensogl_text::Text;
 use ensogl_theme;
@@ -201,7 +201,7 @@ pub struct NodeModel {
     pub output         : output::Area,
     pub visualization  : visualization::Container,
     pub action_bar     : action_bar::ActionBar,
-    main_color         : color::Animation,
+    main_color         : color::DEPRECARTED_Animation,
 }
 
 
@@ -216,7 +216,7 @@ impl NodeModel {
         let main_logger = Logger::sub(&logger,"main_area");
         let drag_logger = Logger::sub(&logger,"drag_area");
         let main_area   = component::ShapeView::<shape::Shape>::new(&main_logger,scene);
-        let main_color  = color::Animation::new();
+        let main_color  = color::DEPRECARTED_Animation::new();
         let drag_area   = component::ShapeView::<drag_area::Shape>::new(&drag_logger,scene);
         edge::depth_sort_hack_2(scene);
 
@@ -311,9 +311,9 @@ impl Node {
         let inputs    = &frp.input;
         let out       = &frp.output;
         let model     = Rc::new(NodeModel::new(app,registry));
-        let selection = Animation::<f32>::new(network);
+        let selection = DEPRECATED_Animation::<f32>::new(network);
 
-        let color_animation = color::Animation::new();
+        let color_animation = color::DEPRECARTED_Animation::new();
         let style           = StyleWatch::new(&app.display.scene().style_sheet);
 
         let actions         = &model.action_bar.frp;

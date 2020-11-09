@@ -25,7 +25,7 @@ use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
-use ensogl::gui::component::Animation;
+use ensogl::gui::component::DEPRECATED_Animation;
 use ensogl::application::Application;
 use ensogl::gui::component;
 use ensogl::system::web;
@@ -528,9 +528,9 @@ impl Container {
         let inputs              = &self.frp;
         let network             = &self.network;
         let model               = &self.model;
-        let fullscreen          = Animation::new(network);
-        let size                = Animation::<Vector2>::new(network);
-        let fullscreen_position = Animation::<Vector3>::new(network);
+        let fullscreen          = DEPRECATED_Animation::new(network);
+        let size                = DEPRECATED_Animation::<Vector2>::new(network);
+        let fullscreen_position = DEPRECATED_Animation::<Vector3>::new(network);
         let scene               = &self.model.scene;
         let logger              = &self.model.logger;
 

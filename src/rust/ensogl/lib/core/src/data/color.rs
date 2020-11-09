@@ -26,4 +26,4 @@ pub use self::data::*;
 pub use gradient::*;
 pub use space::*;
 pub use animation::Animation;
-pub use animation::Animation2;
+pub use animation::DEPRECARTED_Animation;

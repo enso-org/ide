@@ -7,7 +7,7 @@ use crate::data::color;
 use crate::display::scene::Scene;
 use crate::display::shape::*;
 use crate::display;
-use crate::gui::component::Animation;
+use crate::gui::component::DEPRECATED_Animation;
 use crate::gui::component::Tween;
 use crate::gui::component;
 
@@ -335,7 +335,7 @@ impl Cursor {
         let input   = &model.frp;
         let mouse   = &scene.mouse.frp;
 
-        // === Animations ===
+        // === DEPRECATED_Animations ===
         //
         // The following animators are used for smooth cursor transitions. There are two of them
         // with a non-obvious behavior, namely the `host_follow_weight` and `host_attached_weight`.
@@ -355,15 +355,15 @@ impl Cursor {
         //     host during the movement. After it is fully attached, cursor moves with the same
         //     speed as the scene when panning.
         //
-        let press                = Animation :: <f32>     :: new(&network);
-        let radius               = Animation :: <f32>     :: new(&network);
-        let size                 = Animation :: <Vector2> :: new(&network);
-        let offset               = Animation :: <Vector2> :: new(&network);
-        let color_lab            = Animation :: <Vector3> :: new(&network);
-        let color_alpha          = Animation :: <f32>     :: new(&network);
-        let inactive_fade        = Animation :: <f32>     :: new(&network);
-        let host_position        = Animation :: <Vector3> :: new(&network);
-        let host_follow_weight   = Animation :: <f32>     :: new(&network);
+        let press                = DEPRECATED_Animation :: <f32>     :: new(&network);
+        let radius               = DEPRECATED_Animation :: <f32>     :: new(&network);
+        let size                 = DEPRECATED_Animation :: <Vector2> :: new(&network);
+        let offset               = DEPRECATED_Animation :: <Vector2> :: new(&network);
+        let color_lab            = DEPRECATED_Animation :: <Vector3> :: new(&network);
+        let color_alpha          = DEPRECATED_Animation :: <f32>     :: new(&network);
+        let inactive_fade        = DEPRECATED_Animation :: <f32>     :: new(&network);
+        let host_position        = DEPRECATED_Animation :: <Vector3> :: new(&network);
+        let host_follow_weight   = DEPRECATED_Animation :: <f32>     :: new(&network);
         let host_attached_weight = Tween     :: new(&network);
 
         host_attached_weight.set_duration(300.0);

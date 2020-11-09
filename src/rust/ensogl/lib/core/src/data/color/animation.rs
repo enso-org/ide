@@ -141,47 +141,117 @@ impl Into<Lab> for AnimationLinearSpace<Vector3<f32>> {
 
 
 
-// ===========
-// === Frp ===
-// ===========
+// =======================
+// === Color Animation ===
+// =======================
 
 crate::define_endpoints! {
-    Input { }
+    Input {
+        target       (Lcha),
+        target_alpha (f32),
+        target_color (Lch),
+    }
     Output {
-        value  (Lcha),
+        value (Lcha),
+    }
+}
+
+/// The `Animation` provides color better animations for colors than the raw
+/// `component::DEPRECATED_Animation<_>`, as it allows controlling the alpha channel separately which is
+/// important for nice fade outs.
+#[derive(Clone,CloneRef,Debug)]
+#[allow(missing_docs)]
+pub struct Animation {
+    frp        : Frp,
+    color_anim : component::Animation<Lch>,
+    alpha_anim : component::Animation<f32>,
+}
+
+impl Deref for Animation {
+    type Target = Frp;
+    fn deref(&self) -> &Self::Target {
+        &self.frp
+    }
+}
+
+impl Animation {
+    /// Constructor.
+    pub fn new() -> Self {
+        let frp        = default();
+        let color_anim = default();
+        let alpha_anim = default();
+        Self{frp,color_anim,alpha_anim}.init()
+    }
+
+    fn init(self) -> Self {
+        let network = &self.frp.network;
+        frp::extend! { network
+            color_of_target        <- self.frp.target.map(|t|t.opaque);
+            alpha_of_target        <- self.frp.target.map(|t|t.alpha);
+            target_color           <- any(&self.frp.target_color,&color_of_target);
+            target_alpha           <- any(&self.frp.target_alpha,&alpha_of_target);
+            self.color_anim.target <+ target_color;
+            self.alpha_anim.target <+ target_alpha;
+            self.frp.source.value  <+ all(&self.color_anim.value,&self.alpha_anim.value).map(
+                |(color,alpha)| color.with_alpha(*alpha)
+            );
+        }
+        self
+    }
+}
+
+impl Default for Animation {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
 
 
-// =======================
-// === Color Animation ===
-// =======================
+// ==================================
+// === DEPRECATED Color Animation ===
+// ==================================
 
+/// Deprecated  FRP definition.
+pub mod deprecated_frp {
+    use super::*;
+    crate::define_endpoints! {
+        Input { }
+        Output {
+            value  (Lcha),
+        }
+    }
+}
+
+/// # DEPRECATION
+/// This component is deprecated. Use `Animation` instead, which exposes much more FRP-oriented API
+/// than this component.
+///
 /// The `Animation` provides color better animations for colors than the raw
-/// `component::Animation<_>`, as it allows controlling the alpha channel separately which is
+/// `component::DEPRECATED_Animation<_>`, as it allows controlling the alpha channel separately which is
 /// important for nice fade outs.
 #[derive(Clone,CloneRef,Debug)]
-pub struct Animation {
+#[allow(non_camel_case_types)]
+pub struct DEPRECARTED_Animation {
     initialized : Rc<Cell<bool>>,
-    frp         : Frp,
+    frp         : deprecated_frp::Frp,
     /// Animation of the Lch components of the color.
-    pub lch     : component::Animation<Lch>,
+    pub lch     : component::DEPRECATED_Animation<Lch>,
     /// Animation of the alpha component of the color.
-    pub alpha   : component::Animation<f32>,
+    pub alpha   : component::DEPRECATED_Animation<f32>,
     /// Stream of the full Lcha color.
     pub value   : frp::Sampler<Lcha>,
 }
 
 #[allow(missing_docs)]
-impl Animation {
+impl DEPRECARTED_Animation {
     /// Constructor.
     pub fn new() -> Self {
         let initialized = default();
-        let frp         = Frp::new();
+        let frp         = deprecated_frp::Frp::new();
         let value       = frp.value.clone_ref();
-        let lch         = component::Animation::<Lch>::new(&frp.network);
-        let alpha       = component::Animation::<f32>::new(&frp.network);
+        let lch         = component::DEPRECATED_Animation::<Lch>::new(&frp.network);
+        let alpha       = component::DEPRECATED_Animation::<f32>::new(&frp.network);
         Self{initialized,lch,alpha,frp,value}.init()
     }
 
@@ -228,78 +298,7 @@ impl Animation {
     }
 }
 
-impl Default for Animation {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-
-
-// =======================
-// === Color Animation ===
-// =======================
-
-/// New animation FRP. To be refactored as the main FRP one day.
-pub mod animation2 {
-    use super::*;
-    crate::define_endpoints! {
-        Input {
-            target       (Lcha),
-            target_alpha (f32),
-            target_color (Lch),
-        }
-        Output {
-            value (Lcha),
-        }
-    }
-}
-
-/// The `Animation` provides color better animations for colors than the raw
-/// `component::Animation<_>`, as it allows controlling the alpha channel separately which is
-/// important for nice fade outs.
-#[derive(Clone,CloneRef,Debug)]
-#[allow(missing_docs)]
-pub struct Animation2 {
-    frp        : animation2::Frp,
-    color_anim : component::Animation2<Lch>,
-    alpha_anim : component::Animation2<f32>,
-}
-
-impl Deref for Animation2 {
-    type Target = animation2::Frp;
-    fn deref(&self) -> &Self::Target {
-        &self.frp
-    }
-}
-
-impl Animation2 {
-    /// Constructor.
-    pub fn new() -> Self {
-        let frp        = default();
-        let color_anim = default();
-        let alpha_anim = default();
-        Self{frp,color_anim,alpha_anim}.init()
-    }
-
-    fn init(self) -> Self {
-        let network = &self.frp.network;
-        frp::extend! { network
-            color_of_target        <- self.frp.target.map(|t|t.opaque);
-            alpha_of_target        <- self.frp.target.map(|t|t.alpha);
-            target_color           <- any(&self.frp.target_color,&color_of_target);
-            target_alpha           <- any(&self.frp.target_alpha,&alpha_of_target);
-            self.color_anim.target <+ target_color;
-            self.alpha_anim.target <+ target_alpha;
-            self.frp.source.value  <+ all(&self.color_anim.value,&self.alpha_anim.value).map(
-                |(color,alpha)| color.with_alpha(*alpha)
-            );
-        }
-        self
-    }
-}
-
-impl Default for Animation2 {
+impl Default for DEPRECARTED_Animation {
     fn default() -> Self {
         Self::new()
     }

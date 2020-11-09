@@ -1182,7 +1182,7 @@ impl Edge {
 
         let model           = &self.model;
         let shape_events    = &self.frp.shape_events;
-        let edge_color      = color::Animation::new();
+        let edge_color      = color::DEPRECARTED_Animation::new();
         let style           = StyleWatch::new(&app.display.scene().style_sheet);
 
 

@@ -126,7 +126,7 @@ pub struct Model {
     pub index       : usize,
     pub local_index : usize,
     pub length      : usize,
-    pub color       : color::Animation2,
+    pub color       : color::Animation,
 }
 
 impl Deref for Model {

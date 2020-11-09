@@ -17,7 +17,7 @@ use ensogl::display::shape::Rect;
 use ensogl::display::shape::Var;
 use ensogl::display::shape::primitive::def::class::ShapeOps;
 use ensogl::display;
-use ensogl::gui::component::Animation;
+use ensogl::gui::component::DEPRECATED_Animation;
 use ensogl::gui::component::Tween;
 use ensogl::gui::component;
 use ensogl_theme as theme;
@@ -447,25 +447,25 @@ fn init_port_frp<Shape: display::shape::system::Shape + PortShape + CloneRef + '
         hide,activate_and_highlight_selected} = frp;
 
     let shape        = &view.shape;
-    let port_size    = Animation::<f32>::new(&network);
-    let port_opacity = Animation::<f32>::new(&network);
+    let port_size    = DEPRECATED_Animation::<f32>::new(&network);
+    let port_opacity = DEPRECATED_Animation::<f32>::new(&network);
 
     frp::extend! { network
 
-        // === Mouse Event Handling == ///
+        // === Mouse Event Handling ===
 
         eval_ view.events.mouse_over(mouse_over.emit(port_id));
         eval_ view.events.mouse_out(mouse_out.emit(port_id));
         eval_ view.events.mouse_down(mouse_down.emit(port_id));
 
 
-        // === Animation Handling == ///
+        // === Animation Handling ===
 
         eval port_size.value    ((size) shape.set_grow(*size));
         eval port_opacity.value ((size) shape.set_opacity(*size));
 
 
-        // === Visibility and Highlight Handling == ///
+        // === Visibility and Highlight Handling ===
 
          eval_ hide ([port_size,port_opacity]{
              port_size.set_target_value(0.0);

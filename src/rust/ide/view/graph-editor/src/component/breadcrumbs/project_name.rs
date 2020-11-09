@@ -15,7 +15,7 @@ use ensogl::data::color;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::shape::*;
 use ensogl::display;
-use ensogl::gui::component::Animation;
+use ensogl::gui::component::DEPRECATED_Animation;
 use ensogl::gui::component;
 use ensogl::gui::cursor;
 use ensogl_text as text;
@@ -87,18 +87,18 @@ ensogl::define_endpoints! {
 // === Animations ===
 // ==================
 
-/// Animation handlers.
+/// DEPRECATED_Animation handlers.
 #[derive(Debug,Clone,CloneRef)]
 pub struct Animations {
-    color    : Animation<color::Rgba>,
-    position : Animation<Vector3<f32>>
+    color    : DEPRECATED_Animation<color::Rgba>,
+    position : DEPRECATED_Animation<Vector3<f32>>
 }
 
 impl Animations {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
-        let color    = Animation::new(&network);
-        let position = Animation::new(&network);
+        let color    = DEPRECATED_Animation::new(&network);
+        let position = DEPRECATED_Animation::new(&network);
         Self{color,position}
     }
 }

@@ -257,58 +257,6 @@ define_self_animatable!(Vector4);
 // === Animation ===
 // =================
 
-/// Smart animation handler. Contains of dynamic simulation and frp endpoint. Whenever a new value
-/// is computed, it is emitted via the endpoint.
-#[derive(CloneRef,Derivative,Debug,Shrinkwrap)]
-#[derivative(Clone(bound=""))]
-#[allow(missing_docs)]
-pub struct Animation<T:Animatable> {
-    #[shrinkwrap(main_field)]
-    pub simulator : DynSimulator<T::AnimationSpaceRepr>,
-    pub value     : frp::Stream<T>,
-}
-
-#[allow(missing_docs)]
-impl<T:Animatable+frp::Data> Animation<T> {
-    /// Constructor.
-    pub fn new(network:&frp::Network) -> Self {
-        frp::extend! { network
-            def target = source::<T>();
-        }
-        let simulator = DynSimulator::<T::AnimationSpaceRepr>::new(Box::new(f!((t) {
-             target.emit(from_animation_space::<T>(t))
-        })));
-        let value     = target.into();
-        Self {simulator,value}
-    }
-
-    pub fn set_value(&self, value:T) {
-        let animation_space_repr = value.into();
-        self.simulator.set_value(animation_space_repr.value);
-    }
-
-    pub fn value(&self) -> T {
-        let value = self.simulator.value();
-        from_animation_space(value)
-    }
-
-    pub fn set_target_value(&self, target_value:T) {
-        let state:AnimationLinearSpace<_> = target_value.into();
-        self.simulator.set_target_value(state.value);
-    }
-
-    pub fn target_value(&self) -> T {
-        let value = self.simulator.target_value();
-        from_animation_space(value)
-    }
-}
-
-
-
-// ==================
-// === Animation2 ===
-// ==================
-
 /// Simulator used to run the animation.
 pub type AnimationSimulator<T> = DynSimulator<AnimationSpaceRepr<T>>;
 
@@ -317,7 +265,7 @@ pub type AnimationSimulator<T> = DynSimulator<AnimationSpaceRepr<T>>;
 #[derive(CloneRef,Derivative,Debug)]
 #[derivative(Clone(bound=""))]
 #[allow(missing_docs)]
-pub struct Animation2<T:Animatable+frp::Data> {
+pub struct Animation<T:Animatable+frp::Data> {
     network       : frp::Network,
     pub simulator : AnimationSimulator<T>,
     pub target    : frp::Any<T>,
@@ -325,7 +273,7 @@ pub struct Animation2<T:Animatable+frp::Data> {
 }
 
 #[allow(missing_docs)]
-impl<T:Animatable+frp::Data> Animation2<T> {
+impl<T:Animatable+frp::Data> Animation<T> {
     /// Constructor.
     pub fn new() -> Self {
         frp::new_network! { network
@@ -347,7 +295,7 @@ impl<T:Animatable+frp::Data> Animation2<T> {
     }
 }
 
-impl<T:Animatable+frp::Data> Default for Animation2<T> {
+impl<T:Animatable+frp::Data> Default for Animation<T> {
     fn default() -> Self {
         Self::new()
     }
@@ -379,5 +327,72 @@ impl Tween {
         let animator = easing::DynAnimator::new_not_started(0.0,1.0,f,Box::new(f!((t) target.emit(t))));
         let value    = target.into();
         Self {animator,value}
+    }
+}
+
+
+
+// ============================
+// === DEPRECATED Animation ===
+// ============================
+
+/// Smart animation handler. Contains of dynamic simulation and frp endpoint. Whenever a new value
+/// is computed, it is emitted via the endpoint.
+/// 
+/// # DEPRECATION
+/// This component is deprecated. Use `Animation` instead, which exposes much more FRP-oriented API
+/// than this component. The transition to new version should be straightforward but requires some
+/// attention. The functionalities should be the same and should be accessible by similar API with
+/// two differences:
+///
+/// 1. The API bases on FRP now, which means that the usage can probably be refactored to look
+///    much nicer.
+///
+/// 2. After setting the value for the first time, the value is provided as the output value without
+///    any animation. This is different behavior from the previous implementation, where even
+///    setting the value for the first time would create animation between `default()` value and the
+///    new target. If your code depends on this behavior, it needs to be changed.
+#[derive(CloneRef,Derivative,Debug,Shrinkwrap)]
+#[derivative(Clone(bound=""))]
+#[allow(missing_docs)]
+#[allow(non_camel_case_types)]
+pub struct DEPRECATED_Animation<T:Animatable> {
+    #[shrinkwrap(main_field)]
+    pub simulator : DynSimulator<T::AnimationSpaceRepr>,
+    pub value     : frp::Stream<T>,
+}
+
+#[allow(missing_docs)]
+impl<T:Animatable+frp::Data> DEPRECATED_Animation<T> {
+    /// Constructor.
+    pub fn new(network:&frp::Network) -> Self {
+        frp::extend! { network
+            def target = source::<T>();
+        }
+        let simulator = DynSimulator::<T::AnimationSpaceRepr>::new(Box::new(f!((t) {
+             target.emit(from_animation_space::<T>(t))
+        })));
+        let value     = target.into();
+        Self {simulator,value}
+    }
+
+    pub fn set_value(&self, value:T) {
+        let animation_space_repr = value.into();
+        self.simulator.set_value(animation_space_repr.value);
+    }
+
+    pub fn value(&self) -> T {
+        let value = self.simulator.value();
+        from_animation_space(value)
+    }
+
+    pub fn set_target_value(&self, target_value:T) {
+        let state:AnimationLinearSpace<_> = target_value.into();
+        self.simulator.set_target_value(state.value);
+    }
+
+    pub fn target_value(&self) -> T {
+        let value = self.simulator.target_value();
+        from_animation_space(value)
     }
 }

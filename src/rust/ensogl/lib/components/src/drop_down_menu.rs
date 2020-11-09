@@ -6,7 +6,7 @@ use crate::list_view::entry::ModelProvider;
 
 use enso_frp as frp;
 use enso_frp;
-use ensogl_core::gui::component::Animation;
+use ensogl_core::gui::component::DEPRECATED_Animation;
 use ensogl_core::application::Application;
 use ensogl_core::data::color;
 use ensogl_core::display::shape::*;
@@ -227,7 +227,7 @@ impl DropDownMenu {
 
             // === Layouting ===
 
-            let menu_height = Animation::<f32>::new(&network);
+            let menu_height = DEPRECATED_Animation::<f32>::new(&network);
 
             eval menu_height.value ([model](height) {
                 model.selection_menu.frp.resize.emit(Vector2::new(MENU_WIDTH,*height));

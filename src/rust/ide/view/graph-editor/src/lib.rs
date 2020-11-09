@@ -46,7 +46,7 @@ use ensogl::display;
 use ensogl::display::object::Id;
 use ensogl::display::Scene;
 use ensogl::display::shape::StyleWatch;
-use ensogl::gui::component::Animation;
+use ensogl::gui::component::DEPRECATED_Animation;
 use ensogl::gui::component::Tween;
 use ensogl::gui::cursor;
 use ensogl::prelude::*;
@@ -2133,7 +2133,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Snapping ===
 
     eval drag_tgts ((ids) model.disable_grid_snapping_for(ids));
-    let node_tgt_pos_anim = Animation::<Vector2<f32>>::new(&network);
+    let node_tgt_pos_anim = DEPRECATED_Animation::<Vector2<f32>>::new(&network);
     let x_snap_strength   = Tween::new(&network);
     let y_snap_strength   = Tween::new(&network);
     x_snap_strength.set_duration(300.0);

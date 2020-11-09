@@ -15,7 +15,7 @@ use ensogl_core::data::color;
 use ensogl_core::display;
 use ensogl_core::display::shape::*;
 use ensogl_core::gui::component;
-use ensogl_core::gui::component::Animation;
+use ensogl_core::gui::component::DEPRECATED_Animation;
 use ensogl_theme as theme;
 
 
@@ -269,9 +269,9 @@ impl ListView {
         let model            = &self.model;
         let scene            = app.display.scene();
         let mouse            = &scene.mouse.frp;
-        let view_y           = Animation::<f32>::new(&network);
-        let selection_y      = Animation::<f32>::new(&network);
-        let selection_height = Animation::<f32>::new(&network);
+        let view_y           = DEPRECATED_Animation::<f32>::new(&network);
+        let selection_y      = DEPRECATED_Animation::<f32>::new(&network);
+        let selection_height = DEPRECATED_Animation::<f32>::new(&network);
 
         frp::extend!{ network
 

@@ -14,7 +14,7 @@ use ensogl::application;
 use ensogl::application::Application;
 use ensogl::application::shortcut;
 use ensogl::display;
-use ensogl::gui::component::Animation;
+use ensogl::gui::component::DEPRECATED_Animation;
 
 
 
@@ -69,7 +69,7 @@ impl Model {
 
     /// Update Searcher View - its visibility and position - when edited node changed.
     fn update_searcher_view
-    (&self, edited_node:Option<NodeId>, searcher_left_top_position:&Animation<Vector2<f32>>) {
+    (&self, edited_node:Option<NodeId>, searcher_left_top_position:&DEPRECATED_Animation<Vector2<f32>>) {
         if let Some(id) = edited_node {
             self.searcher.show();
             let new_position = self.searcher_left_top_position_when_under_node(id);
@@ -147,7 +147,7 @@ impl View {
         let searcher                   = &model.searcher.frp;
         let graph                      = &model.graph_editor.frp;
         let network                    = &frp.network;
-        let searcher_left_top_position = Animation::<Vector2<f32>>::new(network);
+        let searcher_left_top_position = DEPRECATED_Animation::<Vector2<f32>>::new(network);
 
         frp::extend!{ network
             // === Searcher Position and Size ===
