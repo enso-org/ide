@@ -2,17 +2,20 @@
 
 use crate::prelude::*;
 
+use crate::config;
+use crate::executor::delay::FrameDelay;
 use crate::transport::web::ConnectingError;
 use crate::transport::web::WebSocket;
-use crate::config;
+use crate::view::View;
 
 use enso_protocol::binary;
 use enso_protocol::language_server;
-use enso_protocol::project_manager;
 use enso_protocol::project_manager::ProjectMetadata;
 use enso_protocol::project_manager::ProjectName;
+use enso_protocol::project_manager;
+use ensogl::system::web;
 use uuid::Uuid;
-use crate::view::View;
+
 
 
 // ==============
@@ -186,6 +189,8 @@ impl IdeInitializer {
     /// to indefinitely keep it alive.
     pub fn start_and_forget(mut self) {
         let executor = setup_global_executor();
+        std::mem::forget(executor);
+
         let config   = config::Startup::new_local();
         info!(self.logger, "Starting IDE with the following config: {config:?}");
         executor::global::spawn(async move {
@@ -199,8 +204,12 @@ impl IdeInitializer {
             self.logger.info("Setup done.");
             let ide = Ide{view};
             std::mem::forget(ide);
-            std::mem::forget(executor);
+            // Note: the number off frames is chosen to bridge the gap for the delay caused by
+            // loading shaders in the first few frames.
+            let frame_delay = 6;
+            executor::global::spawn(FrameDelay::new(frame_delay,remover_loader));
         });
+
     }
 }
 
@@ -222,4 +231,13 @@ pub async fn new_opened_ws
 (logger:Logger, address:project_manager::IpWithSocket) -> Result<WebSocket,ConnectingError> {
     let endpoint = format!("ws://{}:{}", address.host, address.port);
     WebSocket::new_opened(logger,endpoint).await
+}
+
+/// Remove the loading screen from the scene. Should be called after the scene ahs been set up.
+fn remover_loader() {
+    web::get_element_by_id("loader").map(|t| {
+        t.parent_node().map(|p| {
+            p.remove_child(&t).unwrap()
+        })
+    }).expect("Failed to remove loader.");
 }
