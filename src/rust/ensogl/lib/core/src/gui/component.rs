@@ -338,7 +338,7 @@ impl Tween {
 
 /// Smart animation handler. Contains of dynamic simulation and frp endpoint. Whenever a new value
 /// is computed, it is emitted via the endpoint.
-/// 
+///
 /// # DEPRECATION
 /// This component is deprecated. Use `Animation` instead, which exposes much more FRP-oriented API
 /// than this component. The transition to new version should be straightforward but requires some

@@ -261,12 +261,14 @@ impl From<LabData> for XyzData {
 // ===================
 
 impl LchData {
-    /// Normalize the a* or b* value from range [0 .. 120] to [0 .. 1].
+    /// Normalize the a* or b* value from range [0 .. `LCH_MAX_CHROMA_IN_SRGB_IN_STD_EQUATIONS`]
+    /// to [0 .. 1].
     fn normalize_chroma(t:f32) -> f32 {
         t / LCH_MAX_CHROMA_IN_SRGB_IN_STD_EQUATIONS as f32
     }
 
-    /// Denormalize the a* or b* value from range [0 .. 1] to [0 .. 120].
+    /// Denormalize the a* or b* value from range [0 .. 1] to
+    /// [0 .. `LCH_MAX_CHROMA_IN_SRGB_IN_STD_EQUATIONS`].
     fn denormalize_chroma(t:f32) -> f32 {
         t * LCH_MAX_CHROMA_IN_SRGB_IN_STD_EQUATIONS as f32
     }

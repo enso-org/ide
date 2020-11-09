@@ -223,13 +223,13 @@ pub mod deprecated_frp {
     }
 }
 
-/// # DEPRECATION
-/// This component is deprecated. Use `Animation` instead, which exposes much more FRP-oriented API
-/// than this component.
-///
 /// The `Animation` provides color better animations for colors than the raw
 /// `component::DEPRECATED_Animation<_>`, as it allows controlling the alpha channel separately which is
 /// important for nice fade outs.
+///
+/// # DEPRECATION
+/// This component is deprecated. Use `Animation` instead, which exposes much more FRP-oriented API
+/// than this component.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(non_camel_case_types)]
 pub struct DEPRECARTED_Animation {
