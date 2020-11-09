@@ -202,6 +202,7 @@ impl ProjectNameModel {
         let name = name.into();
         debug!(self.logger, "Renaming: '{name}'.");
         self.update_text_field_content(&name);
+        self.commit(name);
     }
 
     fn commit<T:Into<String>>(&self, name:T) {
