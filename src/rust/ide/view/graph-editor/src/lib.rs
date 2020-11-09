@@ -989,6 +989,12 @@ impl GraphEditorModelWithNetwork {
         node_id
     }
 
+    fn set_input_connect_status(&self, target:&EdgeTarget, status:bool) {
+        if let Some(node) = self.nodes.get_cloned(&target.node_id) {
+            node.view.set_connection_status(&target.port,status);
+        }
+    }
+
     fn is_node_connected_at_input(&self, node_id:NodeId, crumbs:&span_tree::Crumbs) -> bool {
         if let Some(node) = self.nodes.get_cloned(&node_id) {
             for in_edge_id in node.in_edges.raw.borrow().iter() {
@@ -1872,8 +1878,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Add Node ===
     frp::extend! { network
 
-
-
     node_pointer_style <- source::<cursor::Style>();
 
     let node_input_touch  = TouchNetwork::<EdgeTarget>::new(&network,&mouse);
@@ -1979,6 +1983,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         Some(model.new_edge_from_output(&edge_mouse_down,&edge_over,&edge_out))
     })).unwrap();
     new_input_edge <- create_edge_from_input.map(f!([model,edge_mouse_down,edge_over,edge_out]((target)){
+        model.set_input_connect_status(target,true);
         if model.is_node_connected_at_input(target.node_id,&target.port) {
             return None
         };

@@ -134,6 +134,7 @@ impl From<node::Expression> for Expression {
 /// parent layer when building the nested one.
 #[derive(Clone,Debug)]
 struct PortLayerBuilder {
+    parent_frp : Option<port::FrpEndpoints>,
     /// Parent port display object.
     parent : display::object::Instance,
     /// Information whether the parent port was a parensed expression.
@@ -148,17 +149,18 @@ struct PortLayerBuilder {
 
 impl PortLayerBuilder {
     fn new
-    (parent:display::object::Instance, parent_parensed:bool, shift:usize, depth:usize) -> Self {
-        Self {parent,parent_parensed,shift,depth}
+    (parent:display::object::Instance, parent_frp:Option<port::FrpEndpoints>, parent_parensed:bool, shift:usize, depth:usize) -> Self {
+        Self {parent,parent_frp,parent_parensed,shift,depth}
     }
 
-    fn nested(&self, parent:display::object::Instance, parent_parensed:bool, shift:usize) -> Self {
-        let depth = self.depth + 1;
-        Self::new(parent,parent_parensed,shift,depth)
+    fn nested(&self, parent:display::object::Instance, parent_frp:Option<port::FrpEndpoints>, parent_parensed:bool, shift:usize) -> Self {
+        let depth      = self.depth + 1;
+        let parent_frp = parent_frp.or_else(||self.parent_frp.clone());
+        Self::new(parent,parent_frp,parent_parensed,shift,depth)
     }
 
     fn empty(parent:display::object::Instance) -> Self {
-        Self::new(parent,default(),default(),default())
+        Self::new(parent,default(),default(),default(),default())
     }
 }
 
@@ -170,12 +172,13 @@ impl PortLayerBuilder {
 
 ensogl::define_endpoints! {
     Input {
-        edit_mode_ready     (bool),
-        edit_mode           (bool),
-        hover               (),
-        unhover             (),
-        set_dimmed          (bool),
-        set_expression_type (ast::Id,Option<Type>),
+        edit_mode_ready       (bool),
+        edit_mode             (bool),
+        hover                 (),
+        unhover               (),
+        set_dimmed            (bool),
+        set_expression_type   (ast::Id,Option<Type>),
+        set_connection_status (span_tree::Crumbs,bool),
     }
 
     Output {
@@ -250,7 +253,15 @@ impl Model {
     fn on_port_hover(&self, is_hovered:bool, crumbs:&span_tree::Crumbs) {
         let mut expression = self.expression.borrow_mut();
         if let Ok(node) = expression.input.root_ref_mut().get_descendant(crumbs) {
-            node.iterate_leaves(|node| node.payload.frp.set_hover(is_hovered))
+            node.payload.frp.set_hover(is_hovered);
+            // node.iterate_leaves(|node| node.payload.frp.set_hover(is_hovered))
+        }
+    }
+
+    fn set_connection_status(&self, crumbs:&span_tree::Crumbs, status:bool) {
+        let mut expression = self.expression.borrow_mut();
+        if let Ok(node) = expression.input.root_ref_mut().get_descendant(crumbs) {
+            // node.iterate_leaves(|node| node.payload.frp.set_hover(is_hovered))
         }
     }
 
@@ -347,6 +358,7 @@ impl Area {
             eval frp.port_over ((crumbs) model.on_port_hover(true,crumbs));
             eval frp.port_out  ((crumbs) model.on_port_hover(false,crumbs));
 
+            // eval frp.set_connection_status (((t,s)) model.set_connection_status(t,*s));
 
             // === Properties ===
 
@@ -371,6 +383,8 @@ impl Area {
             //         text_color.set_target(style.get_color(text_color_path));
             //     }
             // });
+
+            trace frp.set_connection_status;
         }
 
         Self {model,frp}
@@ -398,9 +412,6 @@ impl Area {
 
         let builder = PortLayerBuilder::empty(root);
         expression.root_ref_mut().iterate_layers_depth(builder,|node,builder| {
-            let is_leaf         = node.children.is_empty();
-            let span            = node.span();
-            let contains_root   = span.index.value == 0;
             let is_expected_arg = node.is_expected_argument();
             let is_parensed     = node.is_parensed();
             let skip_opr        = if SKIP_OPERATIONS {
@@ -423,9 +434,8 @@ impl Area {
 
             let indent = "   ".repeat(builder.depth);
             let skipped = if skip { "(skipped)" } else { "" };
-            println!("{}[{},{}] {} {:?} (tp: {:?})",indent,node.payload.index,node.payload.length,skipped,node.kind.short_repr(),node.tp());
-            let new_parent = if !skip {
-
+            println!("{}[{},{}] {} {:?} (tp: {:?}) (parent_frp: {})",indent,node.payload.index,node.payload.length,skipped,node.kind.short_repr(),node.tp(),builder.parent_frp.is_some());
+            let (new_parent) = if !skip {
                 let logger_name  = format!("port({},{})",node.payload.index,node.payload.length);
                 let logger       = Logger::sub(&model.logger,logger_name);
                 let port         = component::ShapeView::<port::Shape>::new(&logger,self.scene());
@@ -502,20 +512,17 @@ impl Area {
                     eval_ port.events.mouse_down (press_source.emit(&crumbs_down));
                 }
 
+
+
+
                 let network = &self.frp.network;
 
                 let index  = node.payload.index;
                 let length = node.payload.length;
 
                 frp::extend! { port_network
-                    let mouse_over = port.events.mouse_over.clone_ref();
-                    let mouse_out  = port.events.mouse_out.clone_ref();
-
-                    let crumbs_over = crumbs.clone(); // fixme - passing crumbs is slow in frp
-                    let crumbs_out  = crumbs.clone();
-
-                    self.source.port_over <+ mouse_over.map (move |_| crumbs_over.clone());
-                    self.source.port_out  <+ mouse_out.map  (move |_| crumbs_out.clone());
+                    self.source.port_over <+ port.events.mouse_over.map (f_!(crumbs.clone_ref()));
+                    self.source.port_out  <+ port.events.mouse_out.map  (f_!(crumbs.clone_ref()));
                 }
 
                 let new_parent = port.display_object().clone_ref();
@@ -525,8 +532,15 @@ impl Area {
                 builder.parent.clone_ref()
             };
 
+            if let Some(parent_frp) = &builder.parent_frp {
+                println!("HAS PARENT FRP");
+                frp::extend! { port_network
+                    node.frp.set_hover <+ parent_frp.set_hover;
+                }
+            }
+            let new_parent_frp = Some(node.frp.output.clone_ref());
             let new_shift = if !skip { 0 } else { builder.shift + node.payload.local_index };
-            (true,builder.nested(new_parent,is_parensed,new_shift))
+            (true,builder.nested(new_parent,new_parent_frp,is_parensed,new_shift))
         });
 
         model.label.set_cursor(&default());
