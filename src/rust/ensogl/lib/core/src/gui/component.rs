@@ -196,13 +196,6 @@ impl<T:Shape> display::Object for ShapeView<T> {
 // === Animatable ===
 // ==================
 
-/// Indicate what datatype to use in the animation space representation.
-pub trait HasAnimationSpaceRepr {
-    /// Representation in animation space. Needs to support linear interpolation and all
-    /// pre-requisites of `inertia::Value`.
-    type AnimationSpaceRepr: inertia::Value;
-}
-
 /// Newtype that indicates that the wrapped value is valid to be used in animations.
 #[derive(Debug)]
 pub struct AnimationLinearSpace<T> {
@@ -210,18 +203,28 @@ pub struct AnimationLinearSpace<T> {
     pub value: T
 }
 
-/// Shorthand for a  HasAnimationSpaceRepr::AnimationSpaceRepr wrapped in a `AnimationLinearSpace`.
-pub type AnimationSpaceRepr<T> = AnimationLinearSpace<<T as HasAnimationSpaceRepr>::AnimationSpaceRepr>;
-pub type AnimationSpaceRepr2<T> = <T as HasAnimationSpaceRepr>::AnimationSpaceRepr;
+/// Indicate what datatype to use in the animation space representation.
+pub trait HasAnimationSpaceRepr {
+    /// Representation in animation space. Needs to support linear interpolation and all
+    /// pre-requisites of `inertia::Value`.
+    type AnimationSpaceRepr: inertia::Value;
+}
 
-pub trait Animatable = HasAnimationSpaceRepr + BiInto<AnimationSpaceRepr<Self>>;
+/// HasAnimationSpaceRepr::AnimationSpaceRepr getter.
+pub type AnimationSpaceRepr<T> = <T as HasAnimationSpaceRepr>::AnimationSpaceRepr;
+
+/// Strongly typed `AnimationSpaceRepr`
+pub type AnimationLinearSpaceRepr<T> = AnimationLinearSpace<AnimationSpaceRepr<T>>;
+
+pub trait Animatable = HasAnimationSpaceRepr + BiInto<AnimationLinearSpaceRepr<Self>>;
 
 /// Convert the animation space value to the respective `Animatable`.
-pub fn from_animation_space<T:Animatable>(value:AnimationSpaceRepr2<T>) -> T {
+pub fn from_animation_space<T:Animatable>(value:AnimationSpaceRepr<T>) -> T {
     AnimationLinearSpace{value}.into()
 }
 
-pub fn into_animation_space_repr<T:Animatable>(t:T) -> AnimationSpaceRepr2<T> {
+/// Convert `Animatable` to respective animation space value.
+pub fn into_animation_space_repr<T:Animatable>(t:T) -> AnimationSpaceRepr<T> {
     t.into().value
 }
 
@@ -307,7 +310,7 @@ impl<T:Animatable+frp::Data> Animation<T> {
 // ==================
 
 /// Simulator used to run the animation.
-pub type AnimationSimulator<T> = DynSimulator<AnimationSpaceRepr2<T>>;
+pub type AnimationSimulator<T> = DynSimulator<AnimationSpaceRepr<T>>;
 
 /// Smart animation handler. Contains of dynamic simulation and frp endpoint. Whenever a new value
 /// is computed, it is emitted via the endpoint.

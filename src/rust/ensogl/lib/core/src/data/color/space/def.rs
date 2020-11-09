@@ -61,14 +61,14 @@ macro_rules! define_color_space {
             }
         }
 
-        impl std::fmt::Debug for $name {
+        impl Debug for $name {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 let comps = vec![$(self.$comp.to_string()),*].join(",");
                 write!(f,"{}({})",stringify!($name),comps)
             }
         }
 
-        impl std::fmt::Debug for $a_name {
+        impl Debug for $a_name {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 let comps = vec![$(self.$comp.to_string()),*,self.alpha.to_string()].join(",");
                 write!(f,"{}({})",stringify!($a_name),comps)

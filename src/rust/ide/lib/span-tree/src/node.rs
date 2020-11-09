@@ -280,6 +280,7 @@ pub type Crumb = usize;
 
 /// Crumbs specifying this node position related to root.
 #[derive(Debug,Clone,CloneRef,Default,Eq,Hash,PartialEq)]
+#[allow(missing_docs)]
 pub struct Crumbs {
     pub vec : Rc<Vec<Crumb>>
 }
@@ -319,7 +320,7 @@ impl<'a> IntoIterator for &'a Crumbs {
     type Item     = &'a Crumb;
     type IntoIter = std::slice::Iter<'a,Crumb>;
     fn into_iter(self) -> Self::IntoIter {
-        (&*self.vec).into_iter()
+        (&*self.vec).iter()
     }
 }
 
@@ -345,6 +346,7 @@ pub struct InvalidCrumb {
 }
 
 impl InvalidCrumb {
+    /// Constructor.
     pub fn new(crumb:Crumb, count:usize, context:&Crumbs) -> Self {
         let context = context.vec.deref().clone();
         Self {crumb,count,context}
@@ -504,6 +506,7 @@ impl<'a,T> Deref for Ref<'a,T> {
 pub struct RefMut<'a,T=()> {
     /// The node's ref.
     node           : &'a mut Node<T>,
+    /// An offset counted from the parent node starting index to the start of this node's span.
     pub offset     : Size,
     /// Span begin being an index counted from the root expression.
     pub span_begin : Index,
@@ -523,8 +526,13 @@ impl<'a,T:Payload> RefMut<'a,T> {
         Self {node,offset,span_begin,crumbs,ast_crumbs}
     }
 
+    /// Payload accessor.
+    pub fn payload(&self) -> &T {
+        &self.node.payload
+    }
+
     /// Mutable payload accessor.
-    pub fn payload(&mut self) -> &mut T {
+    pub fn payload_mut(&mut self) -> &mut T {
         &mut self.node.payload
     }
 
@@ -594,54 +602,54 @@ impl<'a,T> Deref for RefMut<'a,T> {
 // === Specialized Iterators ===
 
 impl<'a,T:Payload> RefMut<'a,T> {
-    pub fn iterate_layers(self, mut on_layer:impl FnMut(), mut on_node:impl FnMut(&mut Self) -> bool) {
-        let mut layer  = vec![self];
-        let mut layers = vec![];
-        loop {
-            match layer.pop() {
-                None => {
-                    match layers.pop() {
-                        None    => break,
-                        Some(l) => {
-                            on_layer();
-                            layer = l
-                        }
-                    }
-                },
-                Some(mut node) => {
-                    if on_node(&mut node) {
-                        let mut children = node.children_iter().collect_vec();
-                        children.reverse(); // FIXME : add reversed
-                        layers.push(children);
-                    }
-                }
-            }
-        }
-    }
+    // pub fn iterate_layers(self, mut on_layer:impl FnMut(), mut on_node:impl FnMut(&mut Self) -> bool) {
+    //     let mut layer  = vec![self];
+    //     let mut layers = vec![];
+    //     loop {
+    //         match layer.pop() {
+    //             None => {
+    //                 match layers.pop() {
+    //                     None    => break,
+    //                     Some(l) => {
+    //                         on_layer();
+    //                         layer = l
+    //                     }
+    //                 }
+    //             },
+    //             Some(mut node) => {
+    //                 if on_node(&mut node) {
+    //                     let mut children = node.children_iter().collect_vec();
+    //                     children.reverse(); // FIXME : add reversed
+    //                     layers.push(children);
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
 
-    pub fn iterate_depth
-    (self, mut on_node:impl FnMut(&mut Self) -> bool) {
-        let mut layer  = vec![self];
-        let mut layers = vec![];
-        loop {
-            match layer.pop() {
-                None => {
-                    match layers.pop() {
-                        None    => break,
-                        Some(l) => layer = l,
-                    }
-                },
-                Some(mut node) => {
-                    if on_node(&mut node) {
-                        let mut children = node.children_iter().collect_vec();
-                        children.reverse(); // FIXME : add reversed
-                        mem::swap(&mut children,&mut layer);
-                        layers.push(children);
-                    }
-                }
-            }
-        }
-    }
+    // pub fn iterate_depth
+    // (self, mut on_node:impl FnMut(&mut Self) -> bool) {
+    //     let mut layer  = vec![self];
+    //     let mut layers = vec![];
+    //     loop {
+    //         match layer.pop() {
+    //             None => {
+    //                 match layers.pop() {
+    //                     None    => break,
+    //                     Some(l) => layer = l,
+    //                 }
+    //             },
+    //             Some(mut node) => {
+    //                 if on_node(&mut node) {
+    //                     let mut children = node.children_iter().collect_vec();
+    //                     children.reverse(); // FIXME : add reversed
+    //                     mem::swap(&mut children,&mut layer);
+    //                     layers.push(children);
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
 
 
     pub fn iterate_layers_depth<D>
@@ -673,13 +681,13 @@ impl<'a,T:Payload> RefMut<'a,T> {
         }
     }
 
-    pub fn iterate_nodes(self, on_node:impl FnMut(&mut Self) -> bool) {
-        self.iterate_layers(||{},on_node)
-    }
-
-    pub fn iterate_leaves(self, mut f:impl FnMut(&mut Self)) {
-        self.iterate_nodes(|mut node| { if node.children.is_empty() { f(&mut node) }; true })
-    }
+    // pub fn iterate_nodes(self, on_node:impl FnMut(&mut Self) -> bool) {
+    //     self.iterate_layers(||{},on_node)
+    // }
+    //
+    // pub fn iterate_leaves(self, mut f:impl FnMut(&mut Self)) {
+    //     self.iterate_nodes(|mut node| { if node.children.is_empty() { f(&mut node) }; true })
+    // }
 }
 
 

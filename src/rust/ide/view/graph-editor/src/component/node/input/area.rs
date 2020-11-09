@@ -112,9 +112,10 @@ impl From<node::Expression> for Expression {
                     viz_code += name;
                 }
             }
-            node.payload().local_index = index - info.last_parent_tok_index;
-            node.payload().index       = index;
-            node.payload().length      = size;
+            let port = node.payload_mut();
+            port.local_index = index - info.last_parent_tok_index;
+            port.index       = index;
+            port.length      = size;
             (true,ExprConversion::new(index))
         });
         Self {code,viz_code,input}
@@ -178,7 +179,7 @@ ensogl::define_endpoints! {
         unhover               (),
         set_dimmed            (bool),
         set_expression_type   (ast::Id,Option<Type>),
-        set_connection_status (span_tree::Crumbs,bool),
+        set_connected (span_tree::Crumbs,bool),
     }
 
     Output {
@@ -249,20 +250,14 @@ impl Model {
         self
     }
 
-    /// Traverse all leaves and emit hover style to animate their colors.
-    fn on_port_hover(&self, is_hovered:bool, crumbs:&span_tree::Crumbs) {
+    fn with_node(&self, crumbs:&span_tree::Crumbs, f:impl FnOnce(span_tree::node::RefMut<port::Model>)) {
         let mut expression = self.expression.borrow_mut();
-        if let Ok(node) = expression.input.root_ref_mut().get_descendant(crumbs) {
-            node.payload.frp.set_hover(is_hovered);
-            // node.iterate_leaves(|node| node.payload.frp.set_hover(is_hovered))
-        }
+        if let Ok(node) = expression.input.root_ref_mut().get_descendant(crumbs) { f(node) }
     }
 
-    fn set_connection_status(&self, crumbs:&span_tree::Crumbs, status:bool) {
-        let mut expression = self.expression.borrow_mut();
-        if let Ok(node) = expression.input.root_ref_mut().get_descendant(crumbs) {
-            // node.iterate_leaves(|node| node.payload.frp.set_hover(is_hovered))
-        }
+    /// Traverse all leaves and emit hover style to animate their colors.
+    fn on_port_hover(&self, is_hovered:bool, crumbs:&span_tree::Crumbs) {
+        self.with_node(crumbs,|t|t.set_hover(is_hovered))
     }
 
     /// Traverse all expressions and set their colors matching the un-hovered style.
@@ -355,10 +350,11 @@ impl Area {
 
             // === Port Hover ===
 
-            eval frp.port_over ((crumbs) model.on_port_hover(true,crumbs));
-            eval frp.port_out  ((crumbs) model.on_port_hover(false,crumbs));
+            eval frp.port_over ((crumbs) model.with_node(crumbs,|n|n.set_hover(true)));
+            eval frp.port_out  ((crumbs) model.with_node(crumbs,|n|n.set_hover(false)));
 
-            // eval frp.set_connection_status (((t,s)) model.set_connection_status(t,*s));
+            eval frp.set_connected (((t,s)) model.with_node(t,|n|n.set_connected(s)));
+
 
             // === Properties ===
 
@@ -384,7 +380,7 @@ impl Area {
             //     }
             // });
 
-            trace frp.set_connection_status;
+            trace frp.set_connected;
         }
 
         Self {model,frp}
@@ -434,11 +430,9 @@ impl Area {
 
             let indent = "   ".repeat(builder.depth);
             let skipped = if skip { "(skipped)" } else { "" };
-            println!("{}[{},{}] {} {:?} (tp: {:?}) (parent_frp: {})",indent,node.payload.index,node.payload.length,skipped,node.kind.short_repr(),node.tp(),builder.parent_frp.is_some());
+            println!("{}[{},{}] {} {:?} (tp: {:?}) (parent_frp: {})",indent,node.payload.index,node.payload.length,skipped,node.kind.variant_name(),node.tp(),builder.parent_frp.is_some());
             let (new_parent) = if !skip {
-                let logger_name  = format!("port({},{})",node.payload.index,node.payload.length);
-                let logger       = Logger::sub(&model.logger,logger_name);
-                let port         = component::ShapeView::<port::Shape>::new(&logger,self.scene());
+
                 let index        = node.payload.local_index + builder.shift;
                 let size         = node.payload.length;
                 let unit         = 7.224_609_4;
@@ -447,18 +441,25 @@ impl Area {
                 let node_height  = 28.0;
                 let height       = 18.0;
                 let size         = Vector2::new(width_padded,height);
-                port.shape.sprite.size.set(Vector2::new(width_padded,node_height));
-                port.shape.mod_position(|t| t.x = width/2.0);
-                port.mod_position(|t| t.x = unit * index as f32);
+
+                let logger     = &model.logger;
+                let scene      = self.scene();
+                let port_shape = node.payload_mut().init_shapes(logger,scene).clone_ref();
+
+                port_shape.hover.shape.sprite.size.set(Vector2::new(width_padded,node_height));
+                port_shape.viz.shape.sprite.size.set(Vector2::new(width_padded,node_height));
+                port_shape.hover.shape.mod_position(|t| t.x = width/2.0);
+                port_shape.viz.shape.mod_position(|t| t.x = width/2.0);
+                port_shape.root.mod_position(|t| t.x = unit * index as f32);
                 if DEBUG {
-                    port.mod_position(|t| t.y = 5.0);
+                    port_shape.root.mod_position(|t| t.y = 5.0);
                 }
                 if is_header {
                     println!("ADDING HEADER");
                     is_header = false;
-                    model.header.add_child(&port);
+                    model.header.add_child(&port_shape.root);
                 } else {
-                    builder.parent.add_child(&port);
+                    builder.parent.add_child(&port_shape.root);
                 }
 
                 // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
@@ -470,16 +471,16 @@ impl Area {
                     |tp| type_coloring::color_for_type(tp.clone().into(),&styles)
                 ).unwrap_or(missing_type_color);
 
-                let highlight = cursor::Style::new_highlight(&port.shape,size,Some(color));
+                let highlight = cursor::Style::new_highlight(&port_shape.hover.shape,size,Some(color));
 
                 let leaf     = &node.frp;
                 let port_network  = &leaf.network;
 
-                let dbg = format!("OVER [{},{}] {:?} {:?}",node.payload.index,node.payload.length,node.kind.short_repr(),node.tp());
+                let dbg = format!("OVER [{},{}] {:?} {:?}",node.payload.index,node.payload.length,node.kind.variant_name(),node.tp());
 
                 frp::extend! { port_network
-                    let mouse_over = port.events.mouse_over.clone_ref();
-                    let mouse_out  = port.events.mouse_out.clone_ref();
+                    let mouse_over = port_shape.hover.events.mouse_over.clone_ref();
+                    let mouse_out  = port_shape.hover.events.mouse_out.clone_ref();
 
 
                     // === Mouse Style ===
@@ -509,7 +510,7 @@ impl Area {
 
                     let crumbs_down  = crumbs.clone();
                     let press_source = &self.frp.output.source.press;
-                    eval_ port.events.mouse_down (press_source.emit(&crumbs_down));
+                    eval_ port_shape.hover.events.mouse_down (press_source.emit(&crumbs_down));
                 }
 
 
@@ -521,21 +522,22 @@ impl Area {
                 let length = node.payload.length;
 
                 frp::extend! { port_network
-                    self.source.port_over <+ port.events.mouse_over.map (f_!(crumbs.clone_ref()));
-                    self.source.port_out  <+ port.events.mouse_out.map  (f_!(crumbs.clone_ref()));
+                    self.source.port_over <+ port_shape.hover.events.mouse_over.map (f_!(crumbs.clone_ref()));
+                    self.source.port_out  <+ port_shape.hover.events.mouse_out.map  (f_!(crumbs.clone_ref()));
                 }
 
-                let new_parent = port.display_object().clone_ref();
-                node.payload().shape = Some(port);
+                let new_parent = port_shape.root.display_object().clone_ref();
+                //node.payload().hover_shape = Some(port_shape.hover);
                 new_parent
             } else {
                 builder.parent.clone_ref()
             };
 
             if let Some(parent_frp) = &builder.parent_frp {
-                println!("HAS PARENT FRP");
                 frp::extend! { port_network
-                    node.frp.set_hover <+ parent_frp.set_hover;
+                    node.frp.set_hover            <+ parent_frp.set_hover;
+                    node.frp.set_connected        <+ parent_frp.set_connected;
+                    node.frp.set_parent_connected <+ parent_frp.set_parent_connected;
                 }
             }
             let new_parent_frp = Some(node.frp.output.clone_ref());

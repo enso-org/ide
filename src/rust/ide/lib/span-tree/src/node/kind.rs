@@ -136,7 +136,8 @@ impl Kind {
         }
     }
 
-    pub fn short_repr(&self) -> &str {
+    /// Short string representation. Skips the inner fields and returns only the variant name.
+    pub fn variant_name(&self) -> &str {
         match self {
             Self::Root              => "Root",
             Self::Chained           => "Chained",

@@ -141,13 +141,13 @@ pub mod drag_area {
 
 ensogl::define_endpoints! {
     Input {
-        select                (),
-        deselect              (),
-        set_expression        (Expression),
-        set_expression_type   ((ast::Id,Option<Type>)),
-        set_visualization     (Option<visualization::Definition>),
-        set_dimmed            (bool),
-        set_connection_status (span_tree::Crumbs,bool),
+        select              (),
+        deselect            (),
+        set_expression      (Expression),
+        set_expression_type ((ast::Id,Option<Type>)),
+        set_visualization   (Option<visualization::Definition>),
+        set_dimmed          (bool),
+        set_input_connected (span_tree::Crumbs,bool),
     }
     Output {
         /// Press event. Emitted when user clicks on non-active part of the node, like its
@@ -322,7 +322,7 @@ impl Node {
             eval_ inputs.select   (selection.set_target_value(1.0));
             eval_ inputs.deselect (selection.set_target_value(0.0));
 
-            model.input.set_connection_status <+ inputs.set_connection_status;
+            model.input.set_connected <+ inputs.set_input_connected;
             eval inputs.set_expression ((expr) model.set_expression(expr));
             eval inputs.set_expression_type (((ast_id,maybe_type)) {
                 model.input.set_expression_type(*ast_id,maybe_type.clone());

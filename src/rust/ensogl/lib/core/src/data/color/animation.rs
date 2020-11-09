@@ -240,7 +240,8 @@ impl Default for Animation {
 // === Color Animation ===
 // =======================
 
-pub mod f2 {
+/// New animation FRP. To be refactored as the main FRP one day.
+pub mod animation2 {
     use super::*;
     crate::define_endpoints! {
         Input {
@@ -260,13 +261,13 @@ pub mod f2 {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Animation2 {
-    frp        : f2::Frp,
+    frp        : animation2::Frp,
     color_anim : component::Animation2<Lch>,
     alpha_anim : component::Animation2<f32>,
 }
 
 impl Deref for Animation2 {
-    type Target = f2::Frp;
+    type Target = animation2::Frp;
     fn deref(&self) -> &Self::Target {
         &self.frp
     }
