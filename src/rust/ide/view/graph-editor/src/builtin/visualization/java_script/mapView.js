@@ -131,21 +131,21 @@ class MapViewVisualization extends Visualization {
             latitude  = parsedData.latitude;
             longitude = parsedData.longitude;
         } else if (Array.isArray(parsedData) && parsedData.length && parsedData[0].type === GEO_POINT) {
-            const computed    = this.prepareDataPointsHelper(parsedData,preparedDataPoints,accentColor);
-            latitude = computed.latitude;
-            longitude  = computed.longitude;
+            const computed = this.prepareDataPointsHelper(parsedData,preparedDataPoints,accentColor);
+            latitude       = computed.latitude;
+            longitude      = computed.longitude;
         } else {
             if (parsedData.type === SCATTERPLOT_LAYER && parsedData.data.length) {
-                const computed    = this.prepareDataPointsHelper(parsedData.data,preparedDataPoints,accentColor);
-                latitude = computed.latitude;
-                longitude  = computed.longitude;
+                const computed = this.prepareDataPointsHelper(parsedData.data,preparedDataPoints,accentColor);
+                latitude       = computed.latitude;
+                longitude      = computed.longitude;
             } else if (parsedData.type === GEO_MAP && parsedData.layers !== undefined) {
                 parsedData.layers.forEach(layer => {
                     if (layer.type === SCATTERPLOT_LAYER) {
-                        let dataPoints    = layer.data || [];
-                        const computed    = this.prepareDataPointsHelper(dataPoints,preparedDataPoints,accentColor);
-                        latitude = computed.latitude;
-                        longitude  = computed.longitude;
+                        let dataPoints = layer.data || [];
+                        const computed = this.prepareDataPointsHelper(dataPoints,preparedDataPoints,accentColor);
+                        latitude       = computed.latitude;
+                        longitude      = computed.longitude;
                     } else {
                         console.log("Currently unsupported deck.gl layer.")
                     }
