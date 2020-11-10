@@ -142,6 +142,7 @@ fn init(app:&Application) {
 
     let mut was_rendered = false;
     let mut loader_hidden = false;
+    let mut frames_until_loader_hidden = 6;
     world.on_frame(move |_| {
         let _keep_alive = &navigator;
         let _keep_alive = &project_view;
@@ -149,12 +150,16 @@ fn init(app:&Application) {
         // Temporary code removing the web-loader instance.
         // To be changed in the future.
         if was_rendered && !loader_hidden {
-            web::get_element_by_id("loader").map(|t| {
-                t.parent_node().map(|p| {
-                    p.remove_child(&t).unwrap()
-                })
-            }).ok();
-            loader_hidden = true;
+            if frames_until_loader_hidden > 0 {
+                frames_until_loader_hidden -=1;
+            } else {
+                web::get_element_by_id("loader").map(|t| {
+                    t.parent_node().map(|p| {
+                        p.remove_child(&t).unwrap()
+                    })
+                }).ok();
+                loader_hidden = true;
+            }
         }
         was_rendered = true;
     }).forget();
