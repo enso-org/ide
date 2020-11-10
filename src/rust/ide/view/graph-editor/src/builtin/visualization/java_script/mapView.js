@@ -160,18 +160,22 @@ class MapViewVisualization extends Visualization {
      * @returns {{latitude: number, longitude: number}} - center.
      */
     prepareDataPointsHelper(dataPoints,preparedDataPoints,accentColor) {
-        let latitudes = [];
+        let latitudes  = [];
         let longitudes = [];
         dataPoints.forEach(e => {
-            this.pushGeoPoint(preparedDataPoints, e, accentColor);
+            this.pushGeoPoint(preparedDataPoints,e,accentColor);
             latitudes.push(e.latitude);
             longitudes.push(e.longitude);
         });
-        let latitude = 0.0;
+        let latitude  = 0.0;
         let longitude = 0.0;
         if (latitudes.length && longitudes.length) {
-            latitude = latitudes.reduce((a, b) => a + b) / latitudes.length;
-            longitude = longitudes.reduce((a, b) => a + b) / longitudes.length;
+            let minLat = Math.min.apply(null,latitudes);
+            let maxLat = Math.max.apply(null,latitudes);
+            latitude   = (minLat + maxLat)/2;
+            let minLon = Math.min.apply(null,longitudes);
+            let maxLon = Math.max.apply(null,longitudes);
+            longitude  = (minLon + maxLon)/2;
         }
         return {latitude,longitude};
     }
