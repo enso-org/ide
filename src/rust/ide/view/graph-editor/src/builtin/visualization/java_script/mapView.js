@@ -88,14 +88,14 @@ class MapViewVisualization extends Visualization {
             getFillColor: d => d.color,
             getRadius: d => d.radius
         })
-
+        //
         let latitudeMatch  = parsedData.latitude !== undefined && parsedData.latitude !== null;
         let latitude       = latitudeMatch ? parsedData.latitude : computed.latitude;
-        let longitudeMatch = parsedData.latitude !== undefined && parsedData.latitude !== null;
-        let longitude      = longitudeMatch ? parsedData.latitude : computed.longitude;
+        let longitudeMatch = parsedData.longitude !== undefined && parsedData.longitude !== null;
+        let longitude      = longitudeMatch ? parsedData.longitude : computed.longitude;
         // TODO : Compute zoom somehow.
         let zoomMatch      = parsedData.zoom !== undefined && parsedData.zoom !== null;
-        let zoom           = zoomMatch ? parsedData.latitude : computed.zoom;
+        let zoom           = zoomMatch ? parsedData.zoom : computed.zoom;
 
         const deckgl = new deck.DeckGL({
             container: 'map',
@@ -128,24 +128,24 @@ class MapViewVisualization extends Visualization {
 
         if (parsedData.type === GEO_POINT) {
             this.pushGeoPoint(preparedDataPoints,parsedData,accentColor);
-            longitude = parsedData.longitude;
             latitude  = parsedData.latitude;
+            longitude = parsedData.longitude;
         } else if (Array.isArray(parsedData) && parsedData.length && parsedData[0].type === GEO_POINT) {
             const computed    = this.prepareDataPointsHelper(parsedData,preparedDataPoints,accentColor);
-            longitude = computed.latitude;
-            latitude  = computed.longitude;
+            latitude = computed.latitude;
+            longitude  = computed.longitude;
         } else {
             if (parsedData.type === SCATTERPLOT_LAYER && parsedData.data.length) {
                 const computed    = this.prepareDataPointsHelper(parsedData.data,preparedDataPoints,accentColor);
-                longitude = computed.latitude;
-                latitude  = computed.longitude;
+                latitude = computed.latitude;
+                longitude  = computed.longitude;
             } else if (parsedData.type === GEO_MAP && parsedData.layers !== undefined) {
                 parsedData.layers.forEach(layer => {
                     if (layer.type === SCATTERPLOT_LAYER) {
                         let dataPoints    = layer.data || [];
                         const computed    = this.prepareDataPointsHelper(dataPoints,preparedDataPoints,accentColor);
-                        longitude = computed.latitude;
-                        latitude  = computed.longitude;
+                        latitude = computed.latitude;
+                        longitude  = computed.longitude;
                     } else {
                         console.log("Currently unsupported deck.gl layer.")
                     }
