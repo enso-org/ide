@@ -81,7 +81,7 @@ class MapViewVisualization extends Visualization {
         }
 
         let preparedDataPoints = []
-        this.prepareDataPoints(parsedData,preparedDataPoints,accentColor);
+        let computed           = this.prepareDataPoints(parsedData,preparedDataPoints,accentColor);
 
         const scatterplotLayer = new deck.ScatterplotLayer({
             data: preparedDataPoints,
@@ -89,16 +89,22 @@ class MapViewVisualization extends Visualization {
             getRadius: d => d.radius
         })
 
-        //TODO: Compute lat/lon/zoom if ther types are "null" (1,9)
+        let latitudeMatch  = parsedData.latitude !== undefined && parsedData.latitude !== null;
+        let latitude       = latitudeMatch ? parsedData.latitude : computed.latitude;
+        let longitudeMatch = parsedData.latitude !== undefined && parsedData.latitude !== null;
+        let longitude      = longitudeMatch ? parsedData.latitude : computed.longitude;
+        // TODO : Compute zoom somehow.
+        let zoomMatch      = parsedData.zoom !== undefined && parsedData.zoom !== null;
+        let zoom           = zoomMatch ? parsedData.latitude : computed.zoom;
 
         const deckgl = new deck.DeckGL({
             container: 'map',
             mapboxApiAccessToken: TOKEN,
             mapStyle: parsedData.mapStyle || defaultMapStyle,
             initialViewState: {
-                longitude: parsedData.longitude || 0.0,
-                latitude: parsedData.latitude || 0.0,
-                zoom: parsedData.zoom || 11,
+                longitude: longitude,
+                latitude: latitude,
+                zoom: zoom,
                 pitch: parsedData.pitch || 0
             },
             controller: parsedData.controller || true
@@ -116,22 +122,55 @@ class MapViewVisualization extends Visualization {
      * @param accentColor - accent color of IDE if element doesn't specify one.
      */
     prepareDataPoints(parsedData, preparedDataPoints, accentColor) {
+        let computedLatitude   = 0.0;
+        let computedLongitude  = 0.0;
+        let computedZoom       = 11;
+
         if (parsedData.type === GEO_POINT) {
             this.pushGeoPoint(preparedDataPoints,parsedData,accentColor);
+            computedLongitude = parsedData.longitude;
+            computedLatitude  = parsedData.latitude;
         } else if (Array.isArray(parsedData) && parsedData.length && parsedData[0].type === GEO_POINT) {
-            parsedData.forEach(e => this.pushGeoPoint(preparedDataPoints,e,accentColor));
+            const computed    = this.prepareDataPointsHelper(parsedData,preparedDataPoints,accentColor);
+            computedLongitude = computed.latitude;
+            computedLatitude  = computed.longitude;
         } else {
-            if (parsedData.layers !== undefined) {
+            if (parsedData.type === SCATTERPLOT_LAYER && parsedData.data.length) {
+                const computed    = this.prepareDataPointsHelper(parsedData.data,preparedDataPoints,accentColor);
+                computedLongitude = computed.latitude;
+                computedLatitude  = computed.longitude;
+            } else if (parsedData.type === GEO_MAP && parsedData.layers !== undefined) {
                 parsedData.layers.forEach(layer => {
                     if (layer.type === SCATTERPLOT_LAYER) {
-                        let dataPoints = layer.data || [];
-                        dataPoints.forEach(e => this.pushGeoPoint(preparedDataPoints,e,accentColor));
+                        let dataPoints    = layer.data || [];
+                        const computed    = this.prepareDataPointsHelper(dataPoints,preparedDataPoints,accentColor);
+                        computedLongitude = computed.latitude;
+                        computedLatitude  = computed.longitude;
                     } else {
                         console.log("Currently unsupported deck.gl layer.")
                     }
                 })
             }
         }
+
+        return {computedLatitude,computedLongitude,computedZoom}
+    }
+
+    prepareDataPointsHelper(dataPoints,preparedDataPoints,accentColor) {
+        let latitudes = [];
+        let longitudes = [];
+        dataPoints.forEach(e => {
+            this.pushGeoPoint(preparedDataPoints, e, accentColor);
+            latitudes.push(e.latitude);
+            longitudes.push(e.longitude);
+        });
+        let latitude = 0.0;
+        let longitude = 0.0;
+        if (latitudes.length && longitudes.length) {
+            latitude = latitudes.reduce((a, b) => a + b) / latitudes.length;
+            longitude = longitudes.reduce((a, b) => a + b) / longitudes.length;
+        }
+        return {latitude,longitude};
     }
 
     /**
