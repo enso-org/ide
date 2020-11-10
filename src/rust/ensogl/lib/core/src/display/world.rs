@@ -110,7 +110,28 @@ impl World {
     fn init(self) -> Self {
         self.init_composer();
         self.init_hotkeys();
+        self.init_loader_removal();
         self
+    }
+
+    // FIXME: This code is temporary. It's used to remove the loader from the scene.
+    fn init_loader_removal(&self) {
+        let mut loader_hidden = false;
+        let mut frames_until_loader_hidden = 60;
+        self.main_loop.on_frame(move |_| {
+            if !loader_hidden {
+                if frames_until_loader_hidden > 0 {
+                    frames_until_loader_hidden -= 1;
+                } else {
+                    web::get_element_by_id("loader").map(|t| {
+                        t.parent_node().map(|p| {
+                            p.remove_child(&t).unwrap()
+                        })
+                    }).ok();
+                    loader_hidden = true;
+                }
+            }
+        }).forget();
     }
 
     fn init_hotkeys(&self) {
