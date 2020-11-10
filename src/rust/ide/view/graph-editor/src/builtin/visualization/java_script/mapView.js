@@ -28,10 +28,13 @@ const TOKEN = 'pk.eyJ1IjoiZW5zby1vcmciLCJhIjoiY2tmNnh5MXh2MGlyOTJ5cWdubnFxbXo4ZS
 const GEO_POINT         = "GeoPoint";
 const GEO_MAP           = "GeoMap";
 const SCATTERPLOT_LAYER = "ScatterplotLayer";
+const DEFAULT_RADIUS    = 150;
+
+
 /**
  * Provides a mapbox & deck.gl-based map visualization for IDE.
  *
- * > Example creates a map with described properties with a scatter plot overlay.
+ * > Example creates a map with described properties with a scatter plot overlay:
  * {
  * "type": "GeoMap",
  * "latitude": 37.8,
@@ -54,7 +57,6 @@ class MapViewVisualization extends Visualization {
     static inputType = "Any"
 
     onDataReceived(data) {
-
         while (this.dom.firstChild) {
             this.dom.removeChild(this.dom.lastChild);
         }
@@ -73,48 +75,13 @@ class MapViewVisualization extends Visualization {
 
         let defaultMapStyle = 'mapbox://styles/mapbox/light-v9';
         let accentColor     = [1,234,146];
-        let defaultRadius   = 150;
         if (document.getElementById("root").classList.contains("dark")){
             defaultMapStyle = 'mapbox://styles/mapbox/dark-v9';
             accentColor     = [222,162,47];
         }
 
         let preparedDataPoints = []
-        if (parsedData.type === GEO_POINT) {
-            let radius = isNaN(x.radius) ? defaultRadius : x.radius;
-            preparedDataPoints.push({
-                position:[parsedData.longitude,parsedData.latitude],
-                color:parsedData.color || accentColor,
-                radius:radius || defaultRadius
-            });
-        } else if (Array.isArray(parsedData) && parsedData[0].type === GEO_POINT) {
-            parsedData.forEach(dataPoint => {
-                let radius = isNaN(x.radius) ? defaultRadius : x.radius;
-                preparedDataPoints.push({
-                    position:[dataPoint.longitude,dataPoint.latitude],
-                    color:dataPoint.color || accentColor,
-                    radius:radius || defaultRadius
-                });
-            })
-        } else {
-            if (parsedData.layers !== undefined) {
-                parsedData.layers.forEach(layer => {
-                    if (layer.type === SCATTERPLOT_LAYER) {
-                        let dataPoints = layer.data || [];
-                        dataPoints.forEach(x => {
-                            let radius = isNaN(x.radius) ? defaultRadius : x.radius;
-                            preparedDataPoints.push({
-                                position:[x.longitude,x.latitude],
-                                color:x.color || accentColor,
-                                radius:radius
-                            })
-                        });
-                    } else {
-                        console.log("Currently unsupported deck.gl layer.")
-                    }
-                })
-            }
-        }
+        this.prepareDataPoints(parsedData,preparedDataPoints,accentColor);
 
         const scatterplotLayer = new deck.ScatterplotLayer({
             data: preparedDataPoints,
@@ -123,7 +90,6 @@ class MapViewVisualization extends Visualization {
         })
 
         //TODO: Compute lat/lon/zoom if ther types are "null" (1,9)
-        //      Refactor a little?
 
         const deckgl = new deck.DeckGL({
             container: 'map',
@@ -143,6 +109,50 @@ class MapViewVisualization extends Visualization {
         });
     }
 
+    /**
+     * Prepares data points to be shown on the map.
+     * @param preparedDataPoints - List holding geoPoints.
+     * @param parsedData - All the parsed data to create GeoPoints from.
+     * @param accentColor - accent color of IDE if element doesn't specify one.
+     */
+    prepareDataPoints(parsedData, preparedDataPoints, accentColor) {
+        if (parsedData.type === GEO_POINT) {
+            this.pushGeoPoint(preparedDataPoints,parsedData,accentColor);
+        } else if (Array.isArray(parsedData) && parsedData.length && parsedData[0].type === GEO_POINT) {
+            parsedData.forEach(e => this.pushGeoPoint(preparedDataPoints,e,accentColor));
+        } else {
+            if (parsedData.layers !== undefined) {
+                parsedData.layers.forEach(layer => {
+                    if (layer.type === SCATTERPLOT_LAYER) {
+                        let dataPoints = layer.data || [];
+                        dataPoints.forEach(e => this.pushGeoPoint(preparedDataPoints,e,accentColor));
+                    } else {
+                        console.log("Currently unsupported deck.gl layer.")
+                    }
+                })
+            }
+        }
+    }
+
+    /**
+     * Pushes a new deck.gl-compatible point from GeoPoint.
+     * @param preparedDataPoints - List holding geoPoints.
+     * @param element - element to create new deck.gl point from.
+     * @param accentColor - accent color of IDE if element doesn't specify one.
+     */
+    pushGeoPoint(preparedDataPoints,element,accentColor) {
+        let radius = isNaN(element.radius) ? DEFAULT_RADIUS : element.radius;
+        preparedDataPoints.push({
+            position: [element.longitude,element.latitude],
+            color: element.color || accentColor,
+            radius: radius
+        });
+    }
+
+    /**
+     * Sets size of the visualization.
+     * @param size - new size.
+     */
     setSize(size) {
         this.dom.setAttributeNS(null, "width", size[0]);
         this.dom.setAttributeNS(null, "height", size[1]);
