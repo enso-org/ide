@@ -23,33 +23,37 @@ styleHead.innerText = `.mapboxgl-map {
         }`
 document.head.appendChild(styleHead);
 
+const TOKEN = 'pk.eyJ1IjoiZW5zby1vcmciLCJhIjoiY2tmNnh5MXh2MGlyOTJ5cWdubnFxbXo4ZSJ9.3KdAcCiiXJcSM18nwk09-Q';
+
+const GEO_POINT         = "GeoPoint";
+const GEO_MAP           = "GeoMap";
+const SCATTERPLOT_LAYER = "ScatterplotLayer";
 /**
- * Provides a deck.gl-based map visualization for IDE.
- *
- * It can be created from passed JS object.
+ * Provides a mapbox & deck.gl-based map visualization for IDE.
  *
  * > Example creates a map with described properties with a scatter plot overlay.
  * {
- *  latitude: 37.8,
- *  longitude: -122.45,
- *  zoom: 15,
- *  controller: true,
- *  layers: [
- *    new deck.ScatterplotLayer({
- *      data: [
- *        {position: [-122.45, 37.8], color: [255, 0, 0], radius: 100}
- *      ],
- *      getColor: d => d.color,
- *      getRadius: d => d.radius
- *    })
- *  ]
+ * "type": "GeoMap",
+ * "latitude": 37.8,
+ * "longitude": -122.45,
+ * "zoom": 15,
+ * "controller": true,
+ * "layers": [{
+ *     "type": "ScatterplotLayer",
+ *     "data": [{
+ *         "type": "GeoPoint",
+ *         "latitude": -122.45,
+ *         "longitude": 37.8,
+ *         "color": [255, 0, 0],
+ *         "radius": 100
+ *     }]
+ * }]
  * }
  */
 class MapViewVisualization extends Visualization {
     static inputType = "Any"
 
     onDataReceived(data) {
-        this.setPreprocessor("None");
 
         while (this.dom.firstChild) {
             this.dom.removeChild(this.dom.lastChild);
@@ -75,9 +79,55 @@ class MapViewVisualization extends Visualization {
             accentColor     = [222,162,47];
         }
 
+        let preparedDataPoints = []
+        if (parsedData.type === GEO_POINT) {
+            let radius = isNaN(x.radius) ? defaultRadius : x.radius;
+            preparedDataPoints.push({
+                position:[parsedData.longitude,parsedData.latitude],
+                color:parsedData.color || accentColor,
+                radius:radius || defaultRadius
+            });
+        } else if (Array.isArray(parsedData) && parsedData[0].type === GEO_POINT) {
+            parsedData.forEach(dataPoint => {
+                let radius = isNaN(x.radius) ? defaultRadius : x.radius;
+                preparedDataPoints.push({
+                    position:[dataPoint.longitude,dataPoint.latitude],
+                    color:dataPoint.color || accentColor,
+                    radius:radius || defaultRadius
+                });
+            })
+        } else {
+            if (parsedData.layers !== undefined) {
+                parsedData.layers.forEach(layer => {
+                    if (layer.type === SCATTERPLOT_LAYER) {
+                        let dataPoints = layer.data || [];
+                        dataPoints.forEach(x => {
+                            let radius = isNaN(x.radius) ? defaultRadius : x.radius;
+                            preparedDataPoints.push({
+                                position:[x.longitude,x.latitude],
+                                color:x.color || accentColor,
+                                radius:radius
+                            })
+                        });
+                    } else {
+                        console.log("Currently unsupported deck.gl layer.")
+                    }
+                })
+            }
+        }
+
+        const scatterplotLayer = new deck.ScatterplotLayer({
+            data: preparedDataPoints,
+            getFillColor: d => d.color,
+            getRadius: d => d.radius
+        })
+
+        //TODO: Compute lat/lon/zoom if ther types are "null" (1,9)
+        //      Refactor a little?
+
         const deckgl = new deck.DeckGL({
             container: 'map',
-            mapboxApiAccessToken: 'pk.eyJ1IjoiZW5zby1vcmciLCJhIjoiY2tmNnh5MXh2MGlyOTJ5cWdubnFxbXo4ZSJ9.3KdAcCiiXJcSM18nwk09-Q',
+            mapboxApiAccessToken: TOKEN,
             mapStyle: parsedData.mapStyle || defaultMapStyle,
             initialViewState: {
                 longitude: parsedData.longitude || 0.0,
@@ -88,25 +138,9 @@ class MapViewVisualization extends Visualization {
             controller: parsedData.controller || true
         });
 
-        let preparedDP = []
-        if (parsedData.type === "GeoPoint") {
-            preparedDP.push({position:[parsedData.longitude,parsedData.latitude], color:parsedData.color || accentColor, radius:parsedData.radius || defaultRadius});
-        } else {
-            let dataPoints = parsedData.layers[0].data || []
-            dataPoints.forEach(x => preparedDP.push({position:[x.longitude,x.latitude], color:x.color || accentColor, radius:x.radius || defaultRadius}));
-        }
-
-        const scatterplotLayer = new deck.ScatterplotLayer({
-            data: preparedDP,
-            getFillColor: d => d.color,
-            getRadius: d => d.radius
-        })
-
-        if (parsedData.type === "GeoPoint" || parsedData.layers[0].type === "ScatterplotLayer") {
-            deckgl.setProps({
-                layers: [scatterplotLayer]
-            });
-        }
+        deckgl.setProps({
+            layers: [scatterplotLayer]
+        });
     }
 
     setSize(size) {
