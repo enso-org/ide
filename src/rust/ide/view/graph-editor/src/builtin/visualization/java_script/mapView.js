@@ -122,30 +122,30 @@ class MapViewVisualization extends Visualization {
      * @param accentColor - accent color of IDE if element doesn't specify one.
      */
     prepareDataPoints(parsedData, preparedDataPoints, accentColor) {
-        let computedLatitude   = 0.0;
-        let computedLongitude  = 0.0;
-        let computedZoom       = 11;
+        let latitude  = 0.0;
+        let longitude = 0.0;
+        let zoom      = 11;
 
         if (parsedData.type === GEO_POINT) {
             this.pushGeoPoint(preparedDataPoints,parsedData,accentColor);
-            computedLongitude = parsedData.longitude;
-            computedLatitude  = parsedData.latitude;
+            longitude = parsedData.longitude;
+            latitude  = parsedData.latitude;
         } else if (Array.isArray(parsedData) && parsedData.length && parsedData[0].type === GEO_POINT) {
             const computed    = this.prepareDataPointsHelper(parsedData,preparedDataPoints,accentColor);
-            computedLongitude = computed.latitude;
-            computedLatitude  = computed.longitude;
+            longitude = computed.latitude;
+            latitude  = computed.longitude;
         } else {
             if (parsedData.type === SCATTERPLOT_LAYER && parsedData.data.length) {
                 const computed    = this.prepareDataPointsHelper(parsedData.data,preparedDataPoints,accentColor);
-                computedLongitude = computed.latitude;
-                computedLatitude  = computed.longitude;
+                longitude = computed.latitude;
+                latitude  = computed.longitude;
             } else if (parsedData.type === GEO_MAP && parsedData.layers !== undefined) {
                 parsedData.layers.forEach(layer => {
                     if (layer.type === SCATTERPLOT_LAYER) {
                         let dataPoints    = layer.data || [];
                         const computed    = this.prepareDataPointsHelper(dataPoints,preparedDataPoints,accentColor);
-                        computedLongitude = computed.latitude;
-                        computedLatitude  = computed.longitude;
+                        longitude = computed.latitude;
+                        latitude  = computed.longitude;
                     } else {
                         console.log("Currently unsupported deck.gl layer.")
                     }
@@ -153,7 +153,7 @@ class MapViewVisualization extends Visualization {
             }
         }
 
-        return {computedLatitude,computedLongitude,computedZoom}
+        return {latitude,longitude,zoom}
     }
 
     prepareDataPointsHelper(dataPoints,preparedDataPoints,accentColor) {
