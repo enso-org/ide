@@ -152,10 +152,13 @@ class MapViewVisualization extends Visualization {
                 })
             }
         }
-
         return {latitude,longitude,zoom}
     }
 
+    /**
+     * Helper for prepareDataPoints, calculating also central point.
+     * @returns {{latitude: number, longitude: number}} - center.
+     */
     prepareDataPointsHelper(dataPoints,preparedDataPoints,accentColor) {
         let latitudes = [];
         let longitudes = [];
