@@ -15,6 +15,7 @@ use ensogl::application::Application;
 use ensogl::application::shortcut;
 use ensogl::display;
 use ensogl::gui::component::Animation;
+use ensogl::system::web;
 
 
 
@@ -57,8 +58,14 @@ impl Model {
     }
 
     fn set_style(&self, is_light:bool) {
-        if is_light { self.app.themes.set_enabled(&["dark"])  }
-        else        { self.app.themes.set_enabled(&["light"]) }
+        let root_elem = web::get_element_by_id("root").unwrap_or_else(|_| panic!("Failed to find root!"));
+        if is_light {
+            self.app.themes.set_enabled(&["dark"]);
+            root_elem.set_class_name("dark");
+        } else {
+            self.app.themes.set_enabled(&["light"]);
+            root_elem.set_class_name("");
+        }
     }
 
     fn searcher_left_top_position_when_under_node_at(position:Vector2<f32>) -> Vector2<f32> {
