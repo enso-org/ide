@@ -103,6 +103,11 @@ impl<T> SharedVec<T> {
         self.raw.borrow().contains(t)
     }
 
+    /// Return clone of the first element of the slice, or `None` if it is empty.
+    pub fn first_cloned(&self) -> Option<T> where T:Clone {
+        self.raw.borrow().first().cloned()
+    }
+
     /// Return clone of the last element of the slice, or `None` if it is empty.
     pub fn last_cloned(&self) -> Option<T> where T:Clone {
         self.raw.borrow().last().cloned()
@@ -1337,12 +1342,13 @@ impl GraphEditorModel {
         edges
     }
 
-    pub fn clear_all_detached_edges(&self) {
-        let edges = self.edges.detached_source.mem_take();
-        edges.iter().for_each(|edge| {self.edges.all.remove(edge);});
-        let edges = self.edges.detached_target.mem_take();
-        edges.iter().for_each(|edge| {self.edges.all.remove(edge);});
+    pub fn clear_all_detached_edges(&self) -> Vec<EdgeId>{
+        let source_edges = self.edges.detached_source.mem_take();
+        source_edges.iter().for_each(|edge| {self.edges.all.remove(edge);});
+        let target_edges = self.edges.detached_target.mem_take();
+        target_edges.iter().for_each(|edge| {self.edges.all.remove(edge);});
         self.check_edge_attachment_status_and_emit_events();
+        source_edges.into_iter().chain(target_edges).collect()
     }
 
     fn check_edge_attachment_status_and_emit_events(&self) {
@@ -1588,10 +1594,10 @@ impl application::View for GraphEditor {
           , (Release , "" , "shift ctrl alt" , "toggle_node_inverse_select")
 
           // === Navigation ===
-          , (Press       , "" , "ctrl space"        , "cycle_visualization_for_selected_node")
-          , (DoublePress , "" , "left-mouse-button" , "enter_selected_node")
-          , (Press       , "" , "enter"             , "enter_selected_node")
-          , (Press       , "" , "alt enter"         , "exit_node")
+          , (Press       , ""              , "ctrl space"        , "cycle_visualization_for_selected_node")
+          , (DoublePress , ""              , "left-mouse-button" , "enter_selected_node")
+          , (Press       , "!node_editing" , "enter"             , "enter_selected_node")
+          , (Press       , ""              , "alt enter"         , "exit_node")
 
           // === Node Editing ===
           , (Press   , "" , "cmd"                   , "edit_mode_on")
@@ -1846,7 +1852,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     edit_mode               <- bool(&inputs.edit_mode_off,&inputs.edit_mode_on);
     node_to_select_non_edit <- touch.nodes.selected.gate_not(&edit_mode);
     node_to_select_edit     <- touch.nodes.down.gate(&edit_mode);
-    node_to_select          <- any(&node_to_select_non_edit,&node_to_select_edit);
+    node_to_select          <- any(node_to_select_non_edit,node_to_select_edit,inputs.select_node);
     node_was_selected       <- node_to_select.map(f!((id) model.nodes.selected.contains(id)));
 
     should_select <- node_to_select.map3(&selection_mode,&node_was_selected,
@@ -2010,7 +2016,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     }));
     out.source.node_added <+ new_node;
 
-    node_with_position <- add_node_at_cursor.map3(&new_node,&mouse.position,|_,id,pos| (*id,*pos));
+    node_with_position <- add_node_at_cursor.map3(&new_node,&cursor_pos_in_scene,|_,id,pos| (*id,*pos));
     out.source.node_position_set         <+ node_with_position;
     out.source.node_position_set_batched <+ node_with_position;
 
@@ -2391,7 +2397,10 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     node_to_enter           <= inputs.enter_selected_node.map(f_!(model.last_selected_node()));
     out.source.node_entered <+ node_to_enter;
+    removed_edges_on_enter  <= out.node_entered.map(f_!(model.model.clear_all_detached_edges()));
     out.source.node_exited  <+ inputs.exit_node;
+    removed_edges_on_exit   <= out.node_exited.map(f_!(model.model.clear_all_detached_edges()));
+    out.source.edge_removed <+ any(removed_edges_on_enter,removed_edges_on_exit);
 
 
     // === OUTPUTS REBIND ===
