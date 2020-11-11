@@ -156,7 +156,6 @@ pub struct Model {
     pub index           : usize,
     pub local_index     : usize,
     pub length          : usize,
-    pub text_color      : color::Animation,
     pub highlight_color : color::Lcha,
 }
 

@@ -199,7 +199,6 @@ pub struct NodeModel {
     pub output           : output::Area,
     pub visualization    : visualization::Container,
     pub action_bar       : action_bar::ActionBar,
-    pub background_color : color::Animation,
 }
 
 
@@ -214,7 +213,6 @@ impl NodeModel {
         let main_logger      = Logger::sub(&logger,"main_area");
         let drag_logger      = Logger::sub(&logger,"drag_area");
         let main_area        = component::ShapeView::<shape::Shape>::new(&main_logger,scene);
-        let background_color = color::Animation::new();
         let drag_area        = component::ShapeView::<drag_area::Shape>::new(&drag_logger,scene);
         edge::depth_sort_hack_2(scene);
 
@@ -253,7 +251,7 @@ impl NodeModel {
 
         let app = app.clone_ref();
         Self {app,display_object,logger,main_area,drag_area,output,input
-             ,visualization,action_bar,background_color} . init()
+             ,visualization,action_bar} . init()
     }
 
     fn init(self) -> Self {
@@ -311,7 +309,7 @@ impl Node {
         let model     = Rc::new(NodeModel::new(app,registry));
         let selection = DEPRECATED_Animation::<f32>::new(network);
 
-        let bg_color_anim = color::Animation::new();
+        let bg_color_anim = color::Animation::new(network);
         let style         = StyleWatch::new(&app.display.scene().style_sheet);
         let actions       = &model.action_bar.frp;
 

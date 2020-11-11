@@ -272,11 +272,11 @@ impl Model {
     }
 
     pub fn set_expression_type(&self, id:ast::Id, tp:&Option<Type>) {
-        // if let Some(crumbs) = self.model.id_crumbs_map.borrow().get(&id) {
-        //     if let Some(port) = self.model.expression.borrow().input.root_ref().get_descendant(crumbs).ok() {
-        //         port.set_usage_type(tp)
-        //     }
-        // }
+        if let Some(crumbs) = self.id_crumbs_map.borrow().get(&id) {
+            if let Ok(port) = self.expression.borrow().input.root_ref().get_descendant(crumbs) {
+                port.set_usage_type(tp)
+            }
+        }
     }
 }
 
@@ -595,13 +595,10 @@ impl Area {
             }
 
             if node.children.is_empty() {
-                let is_expected_arg = node.is_expected_argument();
-                // let def_tp          = node.tp().cloned();
-                // let tp              = if node.is_token() { parent_tp.as_ref() } else { node.tp() };
-                // let base_color      = model.get_base_color(tp);
-
+                let is_expected_arg   = node.is_expected_argument();
                 let highlighted_color = model.styles.get_color(theme::code::types::selected);
 
+                let text_color_anim = color::Animation::new(port_network);
                 frp::extend! { port_network
                     base_color <- final_tp.map(f!((t) model.get_base_color(t)));
                     is_highlighted <- all_with(&frp.set_hover,&frp.set_parent_connected,|s,t|*s||*t);
@@ -612,9 +609,9 @@ impl Area {
                         else { *base_color }
                     }));
                     highlight_color <- all_with(&frp.set_hover,&base_color,|_,t|*t);
-                    node.text_color.target <+ text_color;
+                    text_color_anim.target <+ text_color;
                     frp.output.source.highlight_color <+ highlight_color;
-                    frp.output.source.text_color      <+ node.text_color.value;
+                    frp.output.source.text_color      <+ text_color_anim.value;
                 }
 
                 let index  = node.payload.index;

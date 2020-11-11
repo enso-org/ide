@@ -249,11 +249,19 @@ macro_rules! define_endpoints {
         }
 
         impl Frp {
-            /// Create Frp with network, inputs and outputs.
+            /// Create Frp endpoints within and the associated network.
             pub fn new() -> Self {
                 let network = enso_frp::Network::new();
                 let input   = FrpInputs::new(&network);
                 let output  = FrpEndpoints::new(&network,input);
+                Self {network,output}
+            }
+
+            /// Create Frp endpoints within the provided network.
+            pub fn extend(network:&enso_frp::Network) -> Self {
+                let input   = FrpInputs::new(network);
+                let output  = FrpEndpoints::new(network,input);
+                let network = network.clone_ref();
                 Self {network,output}
             }
 

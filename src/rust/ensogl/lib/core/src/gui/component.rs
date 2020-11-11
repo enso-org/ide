@@ -273,17 +273,15 @@ pub type AnimationSimulator<T> = DynSimulator<AnimationSpaceRepr<T>>;
 #[derivative(Clone(bound=""))]
 #[allow(missing_docs)]
 pub struct Animation<T:Animatable+frp::Data> {
-    network       : frp::Network,
-    pub simulator : AnimationSimulator<T>,
-    pub target    : frp::Any<T>,
-    pub value     : frp::Stream<T>,
+    pub target : frp::Any<T>,
+    pub value  : frp::Stream<T>,
 }
 
 #[allow(missing_docs)]
 impl<T:Animatable+frp::Data> Animation<T> {
     /// Constructor.
-    pub fn new() -> Self {
-        frp::new_network! { network
+    pub fn new(network:&frp::Network) -> Self {
+        frp::extend! { network
             value_src <- any_mut::<T>();
         }
         let simulator = AnimationSimulator::<T>::new(
@@ -298,13 +296,8 @@ impl<T:Animatable+frp::Data> Animation<T> {
             eval_ on_init (simulator.skip());
         }
         let value = value_src.into();
-        Self {network,simulator,target,value}
-    }
-}
-
-impl<T:Animatable+frp::Data> Default for Animation<T> {
-    fn default() -> Self {
-        Self::new()
+        network.store(&simulator);
+        Self {target,value}
     }
 }
 
