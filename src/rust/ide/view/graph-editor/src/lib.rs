@@ -36,6 +36,7 @@ pub mod data;
 use crate::component::node;
 use crate::component::visualization;
 use crate::component::visualization::MockDataGenerator3D;
+use crate::component::type_coloring;
 
 use enso_frp as frp;
 use ensogl::application::Application;
@@ -51,7 +52,7 @@ use ensogl::gui::component::Tween;
 use ensogl::gui::cursor;
 use ensogl::prelude::*;
 use ensogl::system::web;
-use ensogl_theme;
+use ensogl_theme as theme;
 
 
 
@@ -989,12 +990,6 @@ impl GraphEditorModelWithNetwork {
         node_id
     }
 
-    fn set_input_connected(&self, target:&EdgeTarget, status:bool) {
-        if let Some(node) = self.nodes.get_cloned(&target.node_id) {
-            node.view.set_input_connected(&target.port,status);
-        }
-    }
-
     fn is_node_connected_at_input(&self, node_id:NodeId, crumbs:&span_tree::Crumbs) -> bool {
         if let Some(node) = self.nodes.get_cloned(&node_id) {
             for in_edge_id in node.in_edges.raw.borrow().iter() {
@@ -1170,10 +1165,17 @@ impl GraphEditorModel {
             }
 
             if let Some(target) = edge.take_target() {
+                self.set_input_connected(&target,false);
                 if let Some(target_node) = self.nodes.get_cloned_ref(&target.node_id) {
                     target_node.in_edges.remove(&edge_id);
                 }
             }
+        }
+    }
+
+    fn set_input_connected(&self, target:&EdgeTarget, status:bool) {
+        if let Some(node) = self.nodes.get_cloned(&target.node_id) {
+            node.view.set_input_connected(&target.port,status);
         }
     }
 
@@ -1479,40 +1481,69 @@ impl GraphEditorModel {
         };
     }
 
-    /// Return the color of an edge target. Returns `None` if no type information is associated
-    /// with the target port.
-    fn try_get_edge_target_color(&self, edge_target:EdgeTarget) -> Option<color::Lcha> {
-        let node              = self.nodes.get_cloned_ref(&edge_target.node_id)?;
-        let input_port_color  =    node.model.input.get_port_color(&edge_target.port);
-        let output_port_color = || node.model.output.get_port_color(&edge_target.port);
-        input_port_color.or_else(output_port_color)
+    // /// Return the color of an edge target. Returns `None` if no type information is associated
+    // /// with the target port.
+    // fn try_get_edge_target_color(&self, edge_target:EdgeTarget) -> Option<color::Lcha> {
+    //     let node              = self.nodes.get_cloned_ref(&edge_target.node_id)?;
+    //     let input_port_color  =    node.model.input.get_port_color(&edge_target.port);
+    //     let output_port_color = || node.model.output.get_port_color(&edge_target.port);
+    //     input_port_color.or_else(output_port_color)
+    // }
+    //
+
+    fn with_node<T>(&self, node_id:NodeId, f:impl FnOnce(Node)->T) -> Option<T> {
+        self.nodes.get_cloned_ref(&node_id).map(f)
     }
 
-    /// Return the color of an edge based on its connected ports. Returns `None` if no type
-    /// information is associated with either source or target.
-    fn try_get_edge_color(&self, edge_id:EdgeId) -> Option<color::Lcha> {
-        let edge      = self.edges.get_cloned_ref(&edge_id)?;
-        let src_color =    edge.source().map(|src| self.try_get_edge_target_color(src)).flatten();
-        let tgt_color = || edge.target().map(|tgt| self.try_get_edge_target_color(tgt)).flatten();
-        src_color.or_else(tgt_color)
+    fn with_edge<T>(&self, edge_id:EdgeId, f:impl FnOnce(Edge)->T) -> Option<T> {
+        self.edges.get_cloned_ref(&edge_id).map(f)
     }
 
-    /// Return a color for the edge. Either based on the edges source/target type, or a default
-    /// color defined in Theme Manager as `type . missing . color`
+    fn with_edge_source<T>(&self, edge_id:EdgeId, f:impl FnOnce(EdgeTarget)->T) -> Option<T> {
+        self.with_edge(edge_id,|edge| edge.source.borrow().clone().map(f)).flatten()
+    }
+
+    fn with_edge_target<T>(&self, edge_id:EdgeId, f:impl FnOnce(EdgeTarget)->T) -> Option<T> {
+        self.with_edge(edge_id,|edge| edge.target.borrow().clone().map(f)).flatten()
+    }
+
+    fn with_edge_source_node<T>
+    (&self, edge_id:EdgeId, f:impl FnOnce(Node,span_tree::Crumbs)->T) -> Option<T> {
+        self.with_edge_source(edge_id,|t| self.with_node(t.node_id,|node|f(node,t.port))).flatten()
+    }
+
+    fn with_edge_target_node<T>
+    (&self, edge_id:EdgeId, f:impl FnOnce(Node,span_tree::Crumbs)->T) -> Option<T> {
+        self.with_edge_target(edge_id,|t| self.with_node(t.node_id,|node|f(node,t.port))).flatten()
+    }
+
+    fn edge_source_type(&self, edge_id:EdgeId) -> Option<Type> {
+        let s = self.with_edge_source_node(edge_id,|n,c|n.model.input.get_port_type(&c)).flatten();
+        s.map(|t|t.into()) // FIXME
+    }
+
+    fn edge_target_type(&self, edge_id:EdgeId) -> Option<Type> {
+        let s = self.with_edge_target_node(edge_id,|n,c|n.model.input.get_port_type(&c)).flatten();
+        s.map(|t|t.into()) // FIXME
+    }
+
+
+
+    /// Return a color for the edge. Currently we query the edge target, and if missing, the edge
+    /// source type and we compute the color based on that. This would need to be more sophisticated
+    /// in the case of polymorphic types. For example, consider the edge source type to be
+    /// `(a,Number)`, and target to be `(Text,a)`. These unify to `(Text,Number)`.
     fn get_edge_color(&self, edge_id:EdgeId) -> color::Lcha {
-        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
-        let styles             = StyleWatch::new(&self.scene().style_sheet);
-        let missing_type_color = styles.get_color(ensogl_theme::syntax::missing::color);
-        match self.try_get_edge_color(edge_id) {
-           Some(color) => color,
-           None        => missing_type_color,
-       }
+       //  // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
+        let styles    = StyleWatch::new(&self.scene().style_sheet);
+        let tp        = self.edge_target_type(edge_id).or_else(||self.edge_source_type(edge_id));
+        let opt_color = tp.map(|t|type_coloring::color_for_type(&t,&styles));
+        opt_color.unwrap_or_else(|| styles.get_color(theme::code::types::missing))
     }
 
-    /// Return a color for the currently detached edge. Note: multiple detached edges should all
-    /// have the same type, as otherwise they could not be connected together.
-    pub fn get_color_for_detached_edges(&self) -> Option<color::Lcha> {
-        self.edges.detached_edges_iter().find_map(|edge_id| self.try_get_edge_color(edge_id))
+    /// Return a color for the first detached edge.
+    pub fn first_detached_edge_color(&self) -> Option<color::Lcha> {
+        self.edges.detached_edges_iter().next().map(|t|self.get_edge_color(t))
     }
 }
 
@@ -1680,7 +1711,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
     let styles             = StyleWatch::new(&scene.style_sheet);
-    let missing_type_color = styles.get_color(ensogl_theme::syntax::missing::color);
+    let missing_type_color = styles.get_color(theme::code::types::missing);
 
 
 
@@ -1944,12 +1975,15 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     edge_source_click <- valid_edge_disconnect_click.gate(&edge_is_source_click);
     edge_target_click <- valid_edge_disconnect_click.gate_not(&edge_is_source_click);
 
+    // FIXME: make nicer - out.source.edge_source_unset should contain information from which node it ws unset
+    eval edge_target_click((edge_id)
+        model.with_edge_target(edge_id.0,|t| model.set_input_connected(&t,false)));
+
     eval edge_source_click (((edge_id, _)) model.remove_edge_source(*edge_id));
     eval edge_target_click (((edge_id, _)) model.remove_edge_target(*edge_id));
 
     out.source.edge_source_unset <+ edge_source_click.map(|(edge_id,_)| *edge_id);
     out.source.edge_target_unset <+ edge_target_click.map(|(edge_id,_)| *edge_id);
-
     }
 
     // === Edge creation  ===
@@ -2056,7 +2090,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     on_new_edge_target <- new_edge_target.constant(());
 
     overlapping_edges       <= out.edge_target_set._1().map(f!((t) model.overlapping_edges(t)));
-    out.source.edge_removed    <+ overlapping_edges;
+    out.source.edge_removed <+ overlapping_edges;
 
     drop_on_bg_up  <- background_up.gate(&connect_drag_mode);
     drop_edges     <- any (drop_on_bg_up,touch.background.down);
@@ -2448,7 +2482,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     frp::extend! { network
 
     cursor_style_edge_drag <- edge_endpoint_set.map(f_!([model]{
-        if let Some(color) = model.get_color_for_detached_edges() {
+        if let Some(color) = model.first_detached_edge_color() {
             cursor::Style::new_color(color).press()
         } else {
             cursor::Style::new_color_no_animation(missing_type_color).press()

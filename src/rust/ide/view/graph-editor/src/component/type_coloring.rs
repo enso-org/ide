@@ -8,7 +8,7 @@ use crate::Type;
 use ensogl::data::color;
 use ensogl::display::shape::StyleWatch;
 use ensogl::display::style::data::DataMatch;
-use ensogl_theme;
+use ensogl_theme as theme;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
 
@@ -29,7 +29,7 @@ use std::hash::Hasher;
 ///
 /// ## Theme Defined Colors
 /// Please note that this function queries the currently selected theme for special colors. Themes
-/// can define color overrides, like `syntax::types::String { hue = 0.3 }` to override the selected
+/// can define color overrides, like `code::types::String::hue = 0.3` to override the selected
 /// color hue.
 ///
 /// ## Future Development
@@ -41,20 +41,16 @@ use std::hash::Hasher;
 /// additional "container edge style", like dashed lines). If user do not provide such
 /// parametrization, other mechanisms should be used. For example, `Point Float` and `Point Number`
 /// should have similar colors, completely distinct from their parameter types.
-pub fn color_for_type(tp:Type, styles:&StyleWatch) -> color::Lcha {
-    let syntax_color_pfx = ensogl_theme::syntax::types;
-    let syntax_color_hue = format!("{}.{}.hue",syntax_color_pfx,tp);
-    println!("Looking for {}. Found: {}", syntax_color_hue,styles.get(&syntax_color_hue).is_some());
-    let hue              = styles.get(syntax_color_hue).number_or_else(|| auto_hue(tp));
-    let luminance_path   = ensogl_theme::syntax::luminance;
-    let chroma_path      = ensogl_theme::syntax::chroma;
-    let color_luminance  = styles.get_number_or(luminance_path,0.85);
-    let color_chroma     = styles.get_number_or(chroma_path,0.6);
-    color::Lch::new(color_luminance,color_chroma,hue).into()
+pub fn color_for_type(tp:&Type, styles:&StyleWatch) -> color::Lcha {
+    let hue_style_path = theme::code::types::HERE.path().into_sub(tp.as_str()).into_sub("hue");
+    let hue            = styles.get(hue_style_path).number_or_else(||auto_hue(tp));
+    let luminance      = styles.get_number_or(theme::code::types::luminance,0.85);
+    let chroma         = styles.get_number_or(theme::code::types::chroma,0.6);
+    color::Lch::new(luminance,chroma,hue).into()
 }
 
 /// Computes LCH hue value based on incoming type information.
-fn auto_hue(tp:Type) -> f32 {
+fn auto_hue(tp:&Type) -> f32 {
     // Defines how many different hue values we can have based on our incoming type name.
     let hue_step  = 512;
     let hue_shift = 0.0;

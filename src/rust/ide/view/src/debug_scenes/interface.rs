@@ -16,7 +16,7 @@ use ensogl::system::web;
 use ensogl::application::Application;
 use ensogl::display::object::ObjectOps;
 use ensogl_text as text;
-use ensogl_theme;
+use ensogl_theme as theme;
 use wasm_bindgen::prelude::*;
 use parser::Parser;
 
@@ -82,10 +82,10 @@ impl DummyTypeGenerator {
 
 fn init(app:&Application) {
 
-    ensogl_theme::dark_theme::setup(&app);
-    // ensogl_theme::light_theme::setup(&app);
+    theme::dark_theme::setup(&app);
+    // theme::light_theme::setup(&app);
 
-    let _bg = app.display.scene().style_sheet.var(ensogl_theme::application::background::color);
+    let _bg = app.display.scene().style_sheet.var(theme::application::background);
 
 
     let world     = &app.display;

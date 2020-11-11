@@ -180,7 +180,7 @@ ensogl::define_endpoints! {
         unhover               (),
         set_dimmed            (bool),
         set_expression_type   (ast::Id,Option<Type>),
-        set_connected (span_tree::Crumbs,bool),
+        set_connected         (span_tree::Crumbs,bool),
     }
 
     Output {
@@ -227,7 +227,7 @@ impl Model {
         display_object.add_child(&label);
         display_object.add_child(&ports_group);
         ports_group.add_child(&header);
-        header.unset_parent();
+        // header.unset_parent();
         Self {logger,display_object,ports_group,header,label,width,app,expression,styles
              ,id_crumbs_map} . init()
     }
@@ -266,8 +266,8 @@ impl Model {
         self.on_port_hover(false,&default())
     }
 
-    fn get_base_color(&self, tp:Option<&String>) -> color::Lcha {
-        tp.map(|tp| type_coloring::color_for_type(tp.clone().into(),&self.styles))
+    fn get_base_color(&self, tp:Option<&String>) -> color::Lcha { // FIXME Tp string
+        tp.map(|tp| type_coloring::color_for_type(&tp.clone().into(),&self.styles))
             .unwrap_or_else(||self.styles.get_color(theme::graph_editor::node::text::color))
     }
 }
@@ -466,11 +466,11 @@ impl Area {
 
                 // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
                 let styles             = StyleWatch::new(&model.app.display.scene().style_sheet);
-                let missing_type_color = styles.get_color(theme::syntax::missing::color);
+                let missing_type_color = styles.get_color(theme::code::types::missing);
 
                 let crumbs = node.crumbs.clone_ref();
                 let color = node.tp().map(
-                    |tp| type_coloring::color_for_type(tp.clone().into(),&styles)
+                    |tp| type_coloring::color_for_type(&tp.clone().into(),&styles) // FIXME tp string
                 ).unwrap_or(missing_type_color);
 
                 let highlight = cursor::Style::new_highlight(&port_shape.hover.shape,size,Some(color));
@@ -555,10 +555,10 @@ impl Area {
                 let tp              = if node.is_token() { parent_tp.as_ref() } else { node.tp() };
                 let base_color      = model.get_base_color(tp);
 
-                let highlighted_color = model.styles.get_color(theme::graph_editor::node::background::color);
+                let highlighted_color = model.styles.get_color(theme::code::types::selected);
 
                 frp::extend! { port_network
-                    is_highlighted <- map2(&frp.set_hover,&frp.set_parent_connected,|s,t|*s||*t);
+                    is_highlighted <- all_with(&frp.set_hover,&frp.set_parent_connected,|s,t|*s||*t);
                     text_color     <- is_highlighted.map(f!([model](is_highlighted)
                         let _model = &model; // FIXME
                         if *is_highlighted { highlighted_color }
@@ -585,7 +585,7 @@ impl Area {
 
             if let Some(port_shape) = &node.payload.shape {
                 frp::extend! { port_network
-                    viz_color <- map2(&frp.highlight_color,&frp.set_connected,|color,is_connected|
+                    viz_color <- all_with(&frp.highlight_color,&frp.set_connected,|color,is_connected|
                         if *is_connected {*color} else { color::Lcha::transparent() } );
                     eval viz_color ((color) port_shape.viz.shape.color.set(color::Rgba::from(color).into()));
                 }
@@ -619,6 +619,12 @@ impl Area {
 
         let mut expression = self.model.expression.borrow();
         expression.input.root_ref().get_descendant(crumbs).ok().map(|node|node.frp.highlight_color.value())
+    }
+
+    // FIXME: String -> Type
+    pub fn get_port_type(&self, crumbs:&span_tree::Crumbs) -> Option<String> {
+        let mut expression = self.model.expression.borrow();
+        expression.input.root_ref().get_descendant(crumbs).ok().and_then(|node|node.tp().cloned())
     }
 
     pub fn width(&self) -> f32 {

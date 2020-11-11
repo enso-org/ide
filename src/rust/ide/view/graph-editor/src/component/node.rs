@@ -354,7 +354,7 @@ impl Node {
 
             background_color <- inputs.set_dimmed.map(f!([model,style](should_dim) {
                 model.input.frp.set_dimmed.emit(*should_dim);
-                let background_color_path = ensogl_theme::graph_editor::node::background::color;
+                let background_color_path = ensogl_theme::graph_editor::node::background;
                 if *should_dim {
                    style.get_color_dim(background_color_path)
                  } else {

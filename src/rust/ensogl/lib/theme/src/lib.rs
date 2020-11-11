@@ -40,12 +40,13 @@ macro_rules! _define_theme_modules {
         $crate::_define_theme_modules!{$theme [$($path)*] $qual {$($var).+ = $e} $($($rest)*)?}
     };
     ($theme:ident [$($path:ident)*] $var:ident = $e:expr $(;$($rest:tt)*)?) => {
-        pub const $var : &str = stringify!($($path.)*$var);
+        pub const $var : StaticPath = StaticPath::new(stringify!($($path.)*$var));
         $crate::_define_theme_modules!{$theme [$($path)*] $($($rest)*)?}
     };
     ($theme:ident [$($path:ident)*] $path_segment:ident {$($t:tt)*} $($rest:tt)*) => {
-        pub const $path_segment : &str = stringify!($($path.)*$path_segment);
         pub mod $path_segment {
+            use ensogl_core::display::style::StaticPath;
+            pub const HERE : StaticPath = StaticPath::new(stringify!($($path.)*$path_segment));
             $crate::_define_theme_modules!{$theme [$($path)* $path_segment] $($t)*}
         }
         $crate::_define_theme_modules!{$theme [$($path)*] $($rest)*}
@@ -79,7 +80,9 @@ macro_rules! define_theme {
     ($name:ident $($t:tt)*) => {
         #[allow(missing_docs)]
         #[allow(non_snake_case)]
+        #[allow(unused_imports)]
         pub mod $name {
+            use super::*;
             use ensogl_core::application::Application;
             use ensogl_core::data::color::Lcha;
             use ensogl_core::display::style::theme;
@@ -103,30 +106,26 @@ macro_rules! define_theme {
 
 define_default_theme! { light_theme
     application {
-        background {
-            color = Lcha(0.96,0.014,0.18,1.0);
-        }
+        background = Lcha(0.96,0.014,0.18,1.0);
     }
-    syntax {
-        missing.color = Lcha(0.8,0.0,0.0,1.0);
-        luminance     = 0.8;
-        chroma        = 0.6;
+    code {
+        syntax {
+            base      = Lcha(0.0,0.0,0.0,0.7);
+            selection = Lcha(0.7,0.0,0.125,0.7);
+        }
         types {
-            Text.hue = 0.22;
-        }
-    }
-    text_editor {
-        text {
-            color           = Lcha(0.0,0.0,0.0,0.7);
-            selection.color = Lcha(0.7,0.0,0.125,0.7);
+            luminance  = 0.8;
+            chroma     = 0.6;
+            missing    = Lcha(0.8,0.0,0.0,1.0);
+            selected   = graph_editor::node::background;
+            Text.hue   = 0.22;
+            Number.hue = 0.68;
         }
     }
     graph_editor {
         node {
-            background {
-                color          = Lcha(0.98,0.014,0.18,1.0);
-                variant.dimmed = Lcha(0.98,0.014,0.18,1.0);
-            }
+            background         = Lcha(0.98,0.014,0.18,1.0);
+            background.skipped = Lcha(0.98,0.014,0.18,1.0);
             shadow {
                 color        = Lcha(0.0,0.0,0.0,0.20);
                 fading_color = Lcha(0.0,0.0,0.0,0.0);
@@ -219,31 +218,26 @@ define_default_theme! { light_theme
 
 define_theme! { dark_theme
     application {
-        background {
-            color = Lcha(0.13,0.014,0.18,1.0);
-        }
+        background = Lcha(0.13,0.014,0.18,1.0);
     }
-    syntax {
-        missing.color = Lcha(0.5,0.0,0.0,1.0);
-        luminance     = 0.75;
-        chroma        = 0.4;
+    code {
+        syntax {
+            base      = Lcha(1.0,0.0,0.0,0.7);
+            selection = Lcha(0.7,0.0,0.125,0.7);
+        }
         types {
+            luminance  = 0.75;
+            chroma     = 0.4;
+            missing    = Lcha(0.5,0.0,0.0,1.0);
+            selected   = graph_editor::node::background;
             Text.hue   = 0.217;
             Number.hue = 0.68;
         }
     }
-    text_editor {
-        text {
-            color           = Lcha(1.0,0.0,0.0,0.7);
-            selection.color = Lcha(0.7,0.0,0.125,0.7);
-        }
-    }
     graph_editor {
         node {
-            background {
-                color          = Lcha(0.2,0.014,0.18,1.0);
-                variant.dimmed = Lcha(0.15,0.014,0.18,1.0);
-            }
+            background         = Lcha(0.2,0.014,0.18,1.0);
+            background.skipped = Lcha(0.15,0.014,0.18,1.0);
             shadow {
                 color        = Lcha(0.0,0.0,0.0,0.20);
                 fading_color = Lcha(0.0,0.0,0.0,0.0);
