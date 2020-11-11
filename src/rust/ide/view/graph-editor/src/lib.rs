@@ -1526,13 +1526,11 @@ impl GraphEditorModel {
     }
 
     fn edge_source_type(&self, edge_id:EdgeId) -> Option<Type> {
-        let s = self.with_edge_source_node(edge_id,|n,c|n.model.input.get_port_type(&c)).flatten();
-        s.map(|t|t.into()) // FIXME
+        self.with_edge_source_node(edge_id,|n,c|n.model.input.get_port_type(&c)).flatten()
     }
 
     fn edge_target_type(&self, edge_id:EdgeId) -> Option<Type> {
-        let s = self.with_edge_target_node(edge_id,|n,c|n.model.input.get_port_type(&c)).flatten();
-        s.map(|t|t.into()) // FIXME
+        self.with_edge_target_node(edge_id,|n,c|n.model.input.get_port_type(&c)).flatten()
     }
 
 

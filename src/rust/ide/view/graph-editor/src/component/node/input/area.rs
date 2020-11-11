@@ -54,7 +54,7 @@ pub type SpanTree = span_tree::SpanTree<port::Model>;
 // === Expression ===
 // ==================
 
-/// Specialized version of `node::Expression`.
+/// Specialized version of `node::Expression`, containing input port information.
 #[derive(Clone,Default)]
 pub struct Expression {
     /// Visual code representation. It can contain names of missing arguments, and thus can differ
@@ -373,23 +373,7 @@ impl Area {
             frp.output.source.expression <+ model.label.content.map(|t| t.clone_ref());
 
 
-            // === Color Handling ===
-
-            // eval text_color.value ([model](color) {
-            //     // FIXME[WD]: Disabled to improve colors. To be fixed before merge.
-            //     // // TODO: Make const once all the components can be made const.
-            //     // let all_bytes = buffer::Range::from(Bytes::from(0)..Bytes(i32::max_value()));
-            //     // model.label.set_color_bytes(all_bytes,color::Rgba::from(color));
-            // });
-
-            // eval frp.set_dimmed ([text_color,style](should_dim) {
-            //     let text_color_path = theme::graph_editor::node::text::color;
-            //     if *should_dim {
-            //         text_color.set_target(style.get_color_dim(text_color_path));
-            //     } else {
-            //         text_color.set_target(style.get_color(text_color_path));
-            //     }
-            // });
+            // === Expression Type ===
 
             eval frp.set_expression_type (((id,tp)) model.set_expression_type(*id,tp));
         }
@@ -475,18 +459,10 @@ impl Area {
                 // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
                 let styles             = StyleWatch::new(&model.app.display.scene().style_sheet);
                 let missing_type_color = styles.get_color(theme::code::types::missing);
-
                 let crumbs = node.crumbs.clone_ref();
-                let color = node.tp().map(
-                    |tp| type_coloring::color_for_type(&tp.clone().into(),&styles) // FIXME tp string
-                ).unwrap_or(missing_type_color);
-
-                let highlight = cursor::Style::new_highlight(&port_shape.hover.shape,size,Some(color));
-
                 let leaf     = &node.frp;
                 let port_network  = &leaf.network;
 
-                let dbg = format!("OVER [{},{}] {:?} {:?}",node.payload.index,node.payload.length,node.kind.variant_name(),node.tp());
 
                 frp::extend! { port_network
                     let mouse_over = port_shape.hover.events.mouse_over.clone_ref();
@@ -495,10 +471,14 @@ impl Area {
 
                     // === Mouse Style ===
 
-                    pointer_style_over  <- mouse_over.map(move |_| {
-                        println!("{}",dbg);
-                        highlight.clone()
+                    let port_shape_hover = port_shape.hover.shape.clone_ref();
+                    pointer_style_over  <- all_with(&mouse_over,&leaf.final_type,move |_,tp| {
+                        let color = tp.as_ref().map(
+                            |tp| type_coloring::color_for_type(tp,&styles)
+                        ).unwrap_or(missing_type_color);
+                        cursor::Style::new_highlight(&port_shape_hover,size,Some(color))
                     });
+
                     pointer_style_out   <- mouse_out.map(|_| default());
                     pointer_style_hover <- any(pointer_style_over,pointer_style_out);
                     pointer_style       <- all
@@ -552,20 +532,14 @@ impl Area {
             model.label.set_cursor_at_end();
         }
 
-
-        let xx : Option<frp::Sampler<Option<Type>>> = None;
-        expression.root_ref_mut().dfs(xx,|node,parent_tp| {
-            println!("-----------");
+        let parent_tp : Option<frp::Sampler<Option<Type>>> = None;
+        expression.root_ref_mut().dfs(parent_tp,|node,parent_tp| {
             let frp          = &node.frp;
             let port_network = &frp.network;
-            let is_token = node.is_token();
-
+            let is_token     = node.is_token();
 
             frp::extend! { port_network
                 def_tp <- source::<Option<Type>>();
-                trace def_tp;
-                trace frp.source.final_type;
-                trace frp.final_type;
             }
             let final_tp = match parent_tp {
                 Some(parent_tp) => {
@@ -597,14 +571,17 @@ impl Area {
             if node.children.is_empty() {
                 let is_expected_arg   = node.is_expected_argument();
                 let highlighted_color = model.styles.get_color(theme::code::types::selected);
+                let disabled_color    = model.styles.get_color(theme::code::syntax::disabled);
 
                 let text_color_anim = color::Animation::new(port_network);
                 frp::extend! { port_network
                     base_color <- final_tp.map(f!((t) model.get_base_color(t)));
                     is_highlighted <- all_with(&frp.set_hover,&frp.set_parent_connected,|s,t|*s||*t);
-                    text_color     <- all_with(&is_highlighted,&base_color,f!([model](is_highlighted,base_color) {
+                    text_color     <- all_with3(&base_color,&is_highlighted,&self.frp.set_dimmed,
+                    f!([model](base_color,is_highlighted,is_disabled) {
                         let _model = &model; // FIXME
                         if *is_highlighted { highlighted_color }
+                        else if *is_disabled { disabled_color }
                         else if is_expected_arg { color::Lcha::from(color::Rgba::new(1.0,1.0,1.0,0.4)) }
                         else { *base_color }
                     }));
@@ -656,10 +633,9 @@ impl Area {
         })
     }
 
-    // FIXME: String -> Type
-    pub fn get_port_type(&self, crumbs:&span_tree::Crumbs) -> Option<String> {
+    pub fn get_port_type(&self, crumbs:&span_tree::Crumbs) -> Option<Type> {
         let expression = self.model.expression.borrow();
-        expression.input.root_ref().get_descendant(crumbs).ok().and_then(|node|node.tp().cloned())
+        expression.input.root_ref().get_descendant(crumbs).ok().and_then(|t|t.final_type.value())
     }
 
     pub fn width(&self) -> f32 {

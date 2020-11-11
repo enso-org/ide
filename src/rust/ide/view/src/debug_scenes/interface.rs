@@ -115,14 +115,14 @@ fn init(app:&Application) {
 
     expression_1.input_span_tree.root_ref().leaf_iter().for_each(|node|{
         if let Some(expr_id) = node.ast_id {
-            //let dummy_type = Some(dummy_type_generator.get_dummy_type());
-            //graph_editor.frp.set_expression_type.emit((node1_id,expr_id,dummy_type));
+            let dummy_type = Some(dummy_type_generator.get_dummy_type());
+            graph_editor.frp.set_expression_type.emit((node1_id,expr_id,dummy_type));
         }
     });
     expression_1.output_span_tree.root_ref().leaf_iter().for_each(|node|{
         if let Some(expr_id) = node.ast_id {
-            //let dummy_type = Some(dummy_type_generator.get_dummy_type());
-            //graph_editor.frp.set_expression_type.emit((node1_id,expr_id,dummy_type));
+            let dummy_type = Some(dummy_type_generator.get_dummy_type());
+            graph_editor.frp.set_expression_type.emit((node1_id,expr_id,dummy_type));
         }
     });
 
@@ -130,14 +130,14 @@ fn init(app:&Application) {
     graph_editor.frp.set_node_expression.emit((node2_id,expression_2.clone()));
     expression_2.input_span_tree.root_ref().leaf_iter().for_each(|node|{
         if let Some(expr_id) = node.ast_id {
-            //let dummy_type = Some(dummy_type_generator.get_dummy_type());
-            //graph_editor.frp.set_expression_type.emit((node2_id,expr_id,dummy_type));
+            let dummy_type = Some(dummy_type_generator.get_dummy_type());
+            graph_editor.frp.set_expression_type.emit((node2_id,expr_id,dummy_type));
         }
     });
     expression_2.output_span_tree.root_ref().leaf_iter().for_each(|node|{
         if let Some(expr_id) = node.ast_id {
-            //let dummy_type = Some(dummy_type_generator.get_dummy_type());
-            //graph_editor.frp.set_expression_type.emit((node2_id,expr_id,dummy_type));
+            let dummy_type = Some(dummy_type_generator.get_dummy_type());
+            graph_editor.frp.set_expression_type.emit((node2_id,expr_id,dummy_type));
         }
     });
 
