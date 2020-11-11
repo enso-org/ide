@@ -15,22 +15,32 @@ use crate::gui::component;
 
 
 
+// =================
+// === Constants ===
+// =================
+
+/// Used for linear space multiplication, so animation engine will provide smoother animations.
+const NORM_COLOR_SCALING_FACTOR : f32 = 100.0;
+
+
 
 // =======================
 // === Animatable Lcha ===
 // =======================
 
-impl HasAnimationSpaceRepr for Lcha { type AnimationSpaceRepr = Vector4<f32>; }
+impl HasAnimationSpaceRepr for Lcha { type AnimationSpaceRepr = Vector4; }
 
-impl From<Lcha> for AnimationLinearSpace<Vector4<f32>> {
-    fn from(value:Lcha) -> AnimationLinearSpace<Vector4<f32>> {
-        let value = Laba::from(value).into();
+impl From<Lcha> for AnimationLinearSpace<Vector4> {
+    fn from(value:Lcha) -> AnimationLinearSpace<Vector4> {
+        let value : Vector4 = Laba::from(value).into();
+        let value = value.map(|t|t*NORM_COLOR_SCALING_FACTOR);
         AnimationLinearSpace { value }
     }
 }
-impl Into<Lcha> for AnimationLinearSpace<Vector4<f32>> {
+impl Into<Lcha> for AnimationLinearSpace<Vector4> {
     fn into(self) -> Lcha {
-        Laba::from(self.value).into()
+        let value = self.value.map(|t|t/NORM_COLOR_SCALING_FACTOR);
+        Laba::from(value).into()
     }
 }
 
@@ -40,18 +50,20 @@ impl Into<Lcha> for AnimationLinearSpace<Vector4<f32>> {
 // === Animatable Lch ===
 // ======================
 
-impl HasAnimationSpaceRepr for Lch { type AnimationSpaceRepr = Vector3<f32>; }
+impl HasAnimationSpaceRepr for Lch { type AnimationSpaceRepr = Vector3; }
 
-impl From<Lch> for AnimationLinearSpace<Vector3<f32>> {
-    fn from(value:Lch) -> AnimationLinearSpace<Vector3<f32>> {
-        let value = Lab::from(value).into();
+impl From<Lch> for AnimationLinearSpace<Vector3> {
+    fn from(value:Lch) -> AnimationLinearSpace<Vector3> {
+        let value : Vector3 = Lab::from(value).into();
+        let value = value.map(|t|t*NORM_COLOR_SCALING_FACTOR);
         AnimationLinearSpace { value }
     }
 }
 
-impl Into<Lch> for AnimationLinearSpace<Vector3<f32>> {
+impl Into<Lch> for AnimationLinearSpace<Vector3> {
     fn into(self) -> Lch {
-        Lab::from(self.value).into()
+        let value = self.value.map(|t|t/NORM_COLOR_SCALING_FACTOR);
+        Lab::from(value).into()
     }
 }
 
@@ -61,18 +73,20 @@ impl Into<Lch> for AnimationLinearSpace<Vector3<f32>> {
 // === Animatable Rgba ===
 // =======================
 
-impl HasAnimationSpaceRepr for Rgba { type AnimationSpaceRepr = Vector4<f32>; }
+impl HasAnimationSpaceRepr for Rgba { type AnimationSpaceRepr = Vector4; }
 
-impl From<Rgba> for AnimationLinearSpace<Vector4<f32>> {
-    fn from(value:Rgba) -> AnimationLinearSpace<Vector4<f32>> {
-        let value = Laba::from(value).into();
+impl From<Rgba> for AnimationLinearSpace<Vector4> {
+    fn from(value:Rgba) -> AnimationLinearSpace<Vector4> {
+        let value : Vector4 = Laba::from(value).into();
+        let value = value.map(|t|t*NORM_COLOR_SCALING_FACTOR);
         AnimationLinearSpace { value }
     }
 }
 
-impl Into<Rgba> for AnimationLinearSpace<Vector4<f32>> {
+impl Into<Rgba> for AnimationLinearSpace<Vector4> {
     fn into(self) -> Rgba {
-        Laba::from(self.value).into()
+        let value = self.value.map(|t|t/NORM_COLOR_SCALING_FACTOR);
+        Laba::from(value).into()
     }
 }
 
@@ -82,18 +96,20 @@ impl Into<Rgba> for AnimationLinearSpace<Vector4<f32>> {
 // === Animatable Rgb ===
 // ======================
 
-impl HasAnimationSpaceRepr for Rgb { type AnimationSpaceRepr = Vector3<f32>; }
+impl HasAnimationSpaceRepr for Rgb { type AnimationSpaceRepr = Vector3; }
 
-impl From<Rgb> for AnimationLinearSpace<Vector3<f32>> {
-    fn from(value:Rgb) -> AnimationLinearSpace<Vector3<f32>> {
-        let value = Lab::from(value).into();
+impl From<Rgb> for AnimationLinearSpace<Vector3> {
+    fn from(value:Rgb) -> AnimationLinearSpace<Vector3> {
+        let value : Vector3 = Lab::from(value).into();
+        let value = value.map(|t|t*NORM_COLOR_SCALING_FACTOR);
         AnimationLinearSpace { value }
     }
 }
 
-impl Into<Rgb> for AnimationLinearSpace<Vector3<f32>> {
+impl Into<Rgb> for AnimationLinearSpace<Vector3> {
     fn into(self) -> Rgb {
-        Lab::from(self.value).into()
+        let value = self.value.map(|t|t/NORM_COLOR_SCALING_FACTOR);
+        Lab::from(value).into()
     }
 }
 
@@ -103,16 +119,16 @@ impl Into<Rgb> for AnimationLinearSpace<Vector3<f32>> {
 // === Animatable Laba ===
 // =======================
 
-impl HasAnimationSpaceRepr for Laba { type AnimationSpaceRepr = Vector4<f32>; }
+impl HasAnimationSpaceRepr for Laba { type AnimationSpaceRepr = Vector4; }
 
-impl From<Laba> for AnimationLinearSpace<Vector4<f32>> {
-    fn from(value:Laba) -> AnimationLinearSpace<Vector4<f32>> {
+impl From<Laba> for AnimationLinearSpace<Vector4> {
+    fn from(value:Laba) -> AnimationLinearSpace<Vector4> {
         let value = value.into();
         AnimationLinearSpace { value }
     }
 }
 
-impl Into<Laba> for AnimationLinearSpace<Vector4<f32>> {
+impl Into<Laba> for AnimationLinearSpace<Vector4> {
     fn into(self) -> Laba {
         self.value.into()
     }
@@ -124,16 +140,16 @@ impl Into<Laba> for AnimationLinearSpace<Vector4<f32>> {
 // === Animatable Lab ===
 // ======================
 
-impl HasAnimationSpaceRepr for Lab { type AnimationSpaceRepr = Vector3<f32>; }
+impl HasAnimationSpaceRepr for Lab { type AnimationSpaceRepr = Vector3; }
 
-impl From<Lab> for AnimationLinearSpace<Vector3<f32>> {
-    fn from(value:Lab) -> AnimationLinearSpace<Vector3<f32>> {
+impl From<Lab> for AnimationLinearSpace<Vector3> {
+    fn from(value:Lab) -> AnimationLinearSpace<Vector3> {
         let value = value.into();
         AnimationLinearSpace { value }
     }
 }
 
-impl Into<Lab> for AnimationLinearSpace<Vector3<f32>> {
+impl Into<Lab> for AnimationLinearSpace<Vector3> {
     fn into(self) -> Lab {
         self.value.into()
     }

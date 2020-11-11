@@ -379,7 +379,7 @@ impl<T:Animatable+frp::Data> DEPRECATED_Animation<T> {
         let simulator = DynSimulator::<T::AnimationSpaceRepr>::new(Box::new(f!((t) {
              target.emit(from_animation_space::<T>(t))
         })));
-        let value     = target.into();
+        let value = target.into();
         Self {simulator,value}
     }
 

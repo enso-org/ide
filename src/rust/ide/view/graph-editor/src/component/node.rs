@@ -190,16 +190,16 @@ impl Deref for Node {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct NodeModel {
-    pub app            : Application,
-    pub display_object : display::object::Instance,
-    pub logger         : Logger,
-    pub main_area      : component::ShapeView<shape::Shape>,
-    pub drag_area      : component::ShapeView<drag_area::Shape>,
-    pub input          : input::Area,
-    pub output         : output::Area,
-    pub visualization  : visualization::Container,
-    pub action_bar     : action_bar::ActionBar,
-    main_color         : color::DEPRECARTED_Animation,
+    pub app              : Application,
+    pub display_object   : display::object::Instance,
+    pub logger           : Logger,
+    pub main_area        : component::ShapeView<shape::Shape>,
+    pub drag_area        : component::ShapeView<drag_area::Shape>,
+    pub input            : input::Area,
+    pub output           : output::Area,
+    pub visualization    : visualization::Container,
+    pub action_bar       : action_bar::ActionBar,
+    pub background_color : color::Animation,
 }
 
 
@@ -211,11 +211,11 @@ impl NodeModel {
         edge::depth_sort_hack_1(scene);
 
         output::area::depth_sort_hack(&scene);
-        let main_logger = Logger::sub(&logger,"main_area");
-        let drag_logger = Logger::sub(&logger,"drag_area");
-        let main_area   = component::ShapeView::<shape::Shape>::new(&main_logger,scene);
-        let main_color  = color::DEPRECARTED_Animation::new();
-        let drag_area   = component::ShapeView::<drag_area::Shape>::new(&drag_logger,scene);
+        let main_logger      = Logger::sub(&logger,"main_area");
+        let drag_logger      = Logger::sub(&logger,"drag_area");
+        let main_area        = component::ShapeView::<shape::Shape>::new(&main_logger,scene);
+        let background_color = color::Animation::new();
+        let drag_area        = component::ShapeView::<drag_area::Shape>::new(&drag_logger,scene);
         edge::depth_sort_hack_2(scene);
 
         input::area::depth_sort_hack(scene); // FIXME hack for sorting
@@ -253,7 +253,7 @@ impl NodeModel {
 
         let app = app.clone_ref();
         Self {app,display_object,logger,main_area,drag_area,output,input
-             ,visualization,action_bar,main_color} . init()
+             ,visualization,action_bar,background_color} . init()
     }
 
     fn init(self) -> Self {
@@ -311,21 +311,23 @@ impl Node {
         let model     = Rc::new(NodeModel::new(app,registry));
         let selection = DEPRECATED_Animation::<f32>::new(network);
 
-        let color_animation = color::DEPRECARTED_Animation::new();
-        let style           = StyleWatch::new(&app.display.scene().style_sheet);
+        let bg_color_anim = color::Animation::new();
+        let style         = StyleWatch::new(&app.display.scene().style_sheet);
+        let actions       = &model.action_bar.frp;
 
-        let actions         = &model.action_bar.frp;
         frp::extend! { network
+            animations <- source::<()>();
+            eval_ animations([bg_color_anim]{
+                let _bg_color_anim = &bg_color_anim;
+            });
+
             eval  selection.value ((v) model.main_area.shape.selection.set(*v));
             eval_ inputs.select   (selection.set_target_value(1.0));
             eval_ inputs.deselect (selection.set_target_value(0.0));
 
-            model.input.set_connected <+ inputs.set_input_connected;
+            model.input.set_connected       <+ inputs.set_input_connected;
+            model.input.set_expression_type <+ inputs.set_expression_type;
             eval inputs.set_expression ((expr) model.set_expression(expr));
-            eval inputs.set_expression_type (((ast_id,maybe_type)) {
-                model.input.set_expression_type(*ast_id,maybe_type.clone());
-                //model.output.set_pattern_type(*ast_id,maybe_type.clone())
-            });
 
             eval inputs.set_visualization ((content)
                 model.visualization.frp.set_visualization.emit(content)
@@ -350,22 +352,22 @@ impl Node {
 
             // === Color Handling ===
 
-            background_color <- inputs.set_dimmed.map(f!([model,style](should_dim) {
+            bg_color <- inputs.set_dimmed.map(f!([model,style](should_dim) {
                 model.input.frp.set_dimmed.emit(*should_dim);
-                let background_color_path = ensogl_theme::graph_editor::node::background;
+                let bg_color_path = ensogl_theme::graph_editor::node::background;
                 if *should_dim {
-                   style.get_color_dim(background_color_path)
+                   style.get_color_dim(bg_color_path)
                  } else {
-                   style.get_color(background_color_path)
+                   style.get_color(bg_color_path)
                  }
             }));
+            trace bg_color;
 
-            eval background_color ((color)  color_animation.set_target(color) );
-
-            eval color_animation.value ([model](color) {
-                let color:color::Rgba = color.into();
-                model.main_area.shape.bg_color.set(color.into())
-            });
+            bg_color_anim.target <+ bg_color;
+            trace bg_color_anim.value;
+            eval bg_color_anim.value ((c)
+                model.main_area.shape.bg_color.set(color::Rgba::from(c).into())
+            );
 
 
             // === Action Bar ===

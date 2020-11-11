@@ -591,13 +591,21 @@ impl display::Object for Edge {
 /// Typename information that may be associated with the given Port.
 ///
 /// `None` means that type for the port is unknown.
-#[derive(Clone,Debug,Hash)]
+#[derive(Clone,Debug,Default,Hash)]
 pub struct Type(pub ImString);
 
 impl Deref for Type {
     type Target = ImString;
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl Type {
+    /// Check whether this is any type, the most generic type in Enso. The empty string is
+    /// considered to be an empty type as well.
+    pub fn is_any(&self) -> bool {
+        self.as_str() == "Any" || self.is_empty()
     }
 }
 

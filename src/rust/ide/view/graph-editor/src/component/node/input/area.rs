@@ -266,9 +266,17 @@ impl Model {
         self.on_port_hover(false,&default())
     }
 
-    fn get_base_color(&self, tp:Option<&String>) -> color::Lcha { // FIXME Tp string
-        tp.map(|tp| type_coloring::color_for_type(&tp.clone().into(),&self.styles))
+    fn get_base_color(&self, tp:&Option<Type>) -> color::Lcha {
+        tp.as_ref().map(|tp| type_coloring::color_for_type(tp,&self.styles))
             .unwrap_or_else(||self.styles.get_color(theme::graph_editor::node::text))
+    }
+
+    pub fn set_expression_type(&self, id:ast::Id, tp:&Option<Type>) {
+        // if let Some(crumbs) = self.model.id_crumbs_map.borrow().get(&id) {
+        //     if let Some(port) = self.model.expression.borrow().input.root_ref().get_descendant(crumbs).ok() {
+        //         port.set_usage_type(tp)
+        //     }
+        // }
     }
 }
 
@@ -383,7 +391,7 @@ impl Area {
             //     }
             // });
 
-            trace frp.set_connected;
+            eval frp.set_expression_type (((id,tp)) model.set_expression_type(*id,tp));
         }
 
         Self {model,frp}
@@ -427,7 +435,7 @@ impl Area {
                 || builder.parent_parensed;
 
             if let Some(id) = node.ast_id {
-                self.model.id_crumbs_map.borrow_mut().insert(id,node.crumbs.clone());
+                self.model.id_crumbs_map.borrow_mut().insert(id,node.crumbs.clone_ref());
             }
 
             if DEBUG {
@@ -545,27 +553,65 @@ impl Area {
         }
 
 
-        let xx : Option<String> = None;
+        let xx : Option<frp::Sampler<Option<Type>>> = None;
         expression.root_ref_mut().dfs(xx,|node,parent_tp| {
+            println!("-----------");
             let frp          = &node.frp;
             let port_network = &frp.network;
+            let is_token = node.is_token();
+
+
+            frp::extend! { port_network
+                def_tp <- source::<Option<Type>>();
+                trace def_tp;
+                trace frp.source.final_type;
+                trace frp.final_type;
+            }
+            let final_tp = match parent_tp {
+                Some(parent_tp) => {
+                    frp::extend! { port_network
+                        final_tp <- all_with3(&def_tp,parent_tp,&frp.set_usage_type,
+                            move |def_tp,parent_tp,usage_tp| {
+                                println!("??? PARENT TP: {:?}",parent_tp);
+                                usage_tp.clone().or_else(|| if is_token {parent_tp.clone()} else {def_tp.clone()} )
+                            }
+                        );
+                    }
+                    final_tp
+                }
+                None => {
+                    frp::extend! { port_network
+                        final_tp <- all_with(&def_tp,&frp.set_usage_type,
+                            move |def_tp,usage_tp| {
+                                usage_tp.clone().or_else(|| def_tp.clone() )
+                            }
+                        );
+                    }
+                    final_tp
+                }
+            };
+            frp::extend! { port_network
+                frp.source.final_type <+ final_tp;
+            }
 
             if node.children.is_empty() {
                 let is_expected_arg = node.is_expected_argument();
-                let tp              = if node.is_token() { parent_tp.as_ref() } else { node.tp() };
-                let base_color      = model.get_base_color(tp);
+                // let def_tp          = node.tp().cloned();
+                // let tp              = if node.is_token() { parent_tp.as_ref() } else { node.tp() };
+                // let base_color      = model.get_base_color(tp);
 
                 let highlighted_color = model.styles.get_color(theme::code::types::selected);
 
                 frp::extend! { port_network
+                    base_color <- final_tp.map(f!((t) model.get_base_color(t)));
                     is_highlighted <- all_with(&frp.set_hover,&frp.set_parent_connected,|s,t|*s||*t);
-                    text_color     <- is_highlighted.map(f!([model](is_highlighted)
+                    text_color     <- all_with(&is_highlighted,&base_color,f!([model](is_highlighted,base_color) {
                         let _model = &model; // FIXME
                         if *is_highlighted { highlighted_color }
                         else if is_expected_arg { color::Lcha::from(color::Rgba::new(1.0,1.0,1.0,0.4)) }
-                        else { base_color }
-                    ));
-                    highlight_color <- frp.set_hover.map(move |_| base_color);
+                        else { *base_color }
+                    }));
+                    highlight_color <- all_with(&frp.set_hover,&base_color,|_,t|*t);
                     node.text_color.target <+ text_color;
                     frp.output.source.highlight_color <+ highlight_color;
                     frp.output.source.text_color      <+ node.text_color.value;
@@ -581,6 +627,8 @@ impl Area {
                         model.label.set_color_bytes(range,color::Rgba::from(color));
                     });
                 }
+
+
             }
 
             if let Some(port_shape) = &node.payload.shape {
@@ -591,7 +639,10 @@ impl Area {
                 }
             }
 
-            node.tp().cloned()
+            def_tp.emit(node.tp().cloned().map(|t|t.into())); // fixme tp string
+
+            Some(frp.final_type.clone_ref())
+            // Some(def_tp.clone_ref())
         });
 
         *model.expression.borrow_mut() = expression;
@@ -608,19 +659,6 @@ impl Area {
         })
     }
 
-    pub fn get_port_color(&self, crumbs:&span_tree::Crumbs) -> Option<color::Lcha> {
-        // Some(color::Lcha::black())
-        // self.model.expression.borrow().input.nested_ast_id(crumbs)
-        // let ast_id = get_id_for_crumbs(&self.model.expression.borrow().input_span_tree,&crumbs)?;
-        // // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
-        // let styles = StyleWatch::new(&self.model.app.display.scene().style_sheet);
-        // self.model.type_color_map.type_color(ast_id,&styles)
-        // None
-
-        let expression = self.model.expression.borrow();
-        expression.input.root_ref().get_descendant(crumbs).ok().map(|node|node.frp.highlight_color.value())
-    }
-
     // FIXME: String -> Type
     pub fn get_port_type(&self, crumbs:&span_tree::Crumbs) -> Option<String> {
         let expression = self.model.expression.borrow();
@@ -630,15 +668,6 @@ impl Area {
     pub fn width(&self) -> f32 {
         self.model.width.get()
     }
-
-    // pub fn set_expression_type(&self, id:ast::Id, _maybe_type:Option<Type>) {
-    //     if let Some(crumbs) = self.model.id_crumbs_map.borrow().get(&id) {
-    //         if let Ok(_node) = self.model.expression.borrow_mut().input_span_tree.get_node(crumbs) {
-    //
-    //         }
-    //     }
-    //     // self.model.type_color_map.update_entry(id,maybe_type);
-    // }
 }
 
 impl display::Object for Area {

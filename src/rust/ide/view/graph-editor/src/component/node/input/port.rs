@@ -6,6 +6,7 @@ use ensogl::display::shape::*;
 use ensogl::gui::component;
 use ensogl::display;
 
+use crate::Type;
 use crate::node::input::area;
 
 
@@ -135,11 +136,13 @@ ensogl::define_endpoints! {
         set_hover            (bool),
         set_connected        (bool),
         set_parent_connected (bool),
+        set_usage_type       (Option<Type>),
     }
 
     Output {
         text_color      (color::Lcha),
         highlight_color (color::Lcha),
+        final_type      (Option<Type>),
     }
 }
 
@@ -147,6 +150,7 @@ ensogl::define_endpoints! {
 #[derive(Clone,Debug,Default)]
 pub struct Model {
     pub frp             : Frp,
+    pub tp              : Rc<RefCell<Option<Type>>>,
     pub shape           : Option<Shape>,
     pub name            : Option<String>,
     pub index           : usize,

@@ -733,7 +733,12 @@ impl          IntoParam<String>    for &str { fn into_param(self) -> String {sel
 // ===============
 
 #[derive(Debug)]
-pub struct SamplerData  <Out=()> { src:Box<dyn std::any::Any>, value:RefCell<Out> }
+pub struct SamplerData  <Out=()> {
+    src        : Box<dyn std::any::Any>,
+    value      : RefCell<Out>,
+    /// Used to cache the output even if no connection is present YET.
+    self_watch : RefCell<Option<Box<dyn std::any::Any>>>
+}
 pub type   OwnedSampler <Out=()> = stream::Node     <SamplerData<Out>>;
 pub type   Sampler      <Out=()> = stream::WeakNode <SamplerData<Out>>;
 
@@ -747,8 +752,11 @@ impl<Out:Data> OwnedSampler<Out> {
     where T1:EventOutput<Output=Out> {
         let src        = Box::new(src1.clone_ref());
         let value      = default();
-        let definition = SamplerData {src,value};
-        Self::construct_and_connect(label,src1,definition)
+        let self_watch = default();
+        let definition = SamplerData {src,value,self_watch};
+        let out        = Self::construct_and_connect(label,src1,definition);
+        *out.self_watch.borrow_mut() = Some(Box::new(watch_stream(&out)));
+        out
     }
 }
 
