@@ -57,8 +57,6 @@ impl Model {
     }
 
     fn set_style(&self, is_light:bool) {
-        // TODO: Should add HTML class "dark" or remove it when switching themes, so that
-        //       documentation and visualizations can present themselves in proper color scheme.
         if is_light { self.app.themes.set_enabled(&["dark"])  }
         else        { self.app.themes.set_enabled(&["light"]) }
     }
