@@ -118,69 +118,67 @@ define_default_theme! { light_theme
             chroma     = 0.6;
             missing    = Lcha(0.8,0.0,0.0,1.0);
             selected   = graph_editor::node::background;
-            Text.hue   = 0.22;
-            Number.hue = 0.68;
+            overriden {
+                Text.hue   = 0.22;
+                Number.hue = 0.68;
+            }
         }
     }
     graph_editor {
         node {
             background         = Lcha(0.98,0.014,0.18,1.0);
             background.skipped = Lcha(0.98,0.014,0.18,1.0);
+            shadow             = Lcha(0.0,0.0,0.0,0.20);
             shadow {
-                color        = Lcha(0.0,0.0,0.0,0.20);
-                fading_color = Lcha(0.0,0.0,0.0,0.0);
-                exponent     = 2.0;
+                fading   = Lcha(0.0,0.0,0.0,0.0);
+                exponent = 2.0;
             }
-            selection {
-                color = Lcha(0.83,0.63,0.436,1.0);
-                size  = 7.0;
-            }
+            selection      = Lcha(0.83,0.63,0.436,1.0);
+            selection.size = 7.0;
+            text = Lcha(0.0,0.0,0.0,0.7);
             text {
-                color             = Lcha(0.0,0.0,0.0,0.7);
-                missing_arg_color = Lcha(0.0,0.0,0.0,0.3);
-                variant.dimmed    = Lcha(0.7,0.0,0.0,0.7);
-                selection.color   = Lcha(0.7,0.0,0.125,0.7);
+                missing_arg    = Lcha(0.0,0.0,0.0,0.3);
+                variant.dimmed = Lcha(0.7,0.0,0.0,0.7);
+                selection      = Lcha(0.7,0.0,0.125,0.7);
             }
             actions {
+                icon = Lcha(0.0,0.0,0.0,0.7);
                 icon {
-                    color          = Lcha(0.0,0.0,0.0,0.7);
                     variant.dimmed = Lcha(0.7,0.0,0.0,0.7);
                 }
             }
         }
         visualization {
-            background.color = Lcha(0.98,0.014,0.18,1.0);
+            background = Lcha(0.98,0.014,0.18,1.0);
+            shadow     = Lcha(0.0,0.0,0.0,0.20);
             shadow {
-                color        = Lcha(0.0,0.0,0.0,0.20);
-                fading_color = Lcha(0.0,0.0,0.0,0.0);
-                exponent     = 2.0;
+                fading   = Lcha(0.0,0.0,0.0,0.0);
+                exponent = 2.0;
                 html {
                     alpha = 0.16;
                     size  = 16.0;
                 }
             }
-            text {
-                color           = Lcha(0.0,0.0,0.0,0.7);
-                selection.color = Lcha(0.7,0.0,0.125,0.7);
-            }
+            text           = Lcha(0.0,0.0,0.0,0.7);
+            text.selection = Lcha(0.7,0.0,0.125,0.7);
             action_bar {
-                background.color = Lcha(0.94,0.014,0.18,1.0);
-                icon.color       = Lcha(0.0,0.0,0.0,0.7);
-                text.color       = Lcha(0.0,0.0,0.0,0.7);
+                background = Lcha(0.94,0.014,0.18,1.0);
+                icon       = Lcha(0.0,0.0,0.0,0.7);
+                text       = Lcha(0.0,0.0,0.0,0.7);
             }
         }
         breadcrumbs {
-            full.color        = Lcha(0.0,0.0,0.0,0.7);
-            transparent.color = Lcha(0.0,0.0,0.0,0.4);
-            selected.color    = Lcha(0.0,0.0,0.0,0.7);
-            hover.color       = Lcha(0.0,0.0,0.0,0.7);
+            full        = Lcha(0.0,0.0,0.0,0.7);
+            transparent = Lcha(0.0,0.0,0.0,0.4);
+            selected    = Lcha(0.0,0.0,0.0,0.7);
+            hover       = Lcha(0.0,0.0,0.0,0.7);
             deselected  {
-                left.color  = Lcha(0.0,0.0,0.0,0.5);
-                right.color = Lcha(0.0,0.0,0.0,0.2);
+                left  = Lcha(0.0,0.0,0.0,0.5);
+                right = Lcha(0.0,0.0,0.0,0.2);
             }
         }
         edge {
-            split_color {
+            split {
                 lightness_factor = 1.2;
                 chroma_factor    = 0.8;
             }
@@ -188,17 +186,17 @@ define_default_theme! { light_theme
     }
     widget {
         list_view {
-            background.color = Lcha(0.98,0.014,0.18,1.0);
-            highlight.color  = Lcha(0.83,0.63,0.436,1.0);
+            background = Lcha(0.98,0.014,0.18,1.0);
+            highlight  = Lcha(0.83,0.63,0.436,1.0);
+            shadow     = Lcha(0.0,0.0,0.0,0.20);
             shadow {
-                color        = Lcha(0.0,0.0,0.0,0.20);
-                fading_color = Lcha(0.0,0.0,0.0,0.0);
-                exponent     = 2.0;
+                fading   = Lcha(0.0,0.0,0.0,0.0);
+                exponent = 2.0;
             }
+            text = Lcha(0.0,0.0,0.0,0.7);
             text {
-                color           = Lcha(0.0,0.0,0.0,0.7);
-                highlight.color = Lcha(0.8,0.0,0.0,1.0);
-                selection.color = Lcha(0.7,0.0,0.125,0.7);
+                highlight = Lcha(0.8,0.0,0.0,1.0);
+                selection = Lcha(0.7,0.0,0.125,0.7);
             }
         }
     }
@@ -230,69 +228,67 @@ define_theme! { dark_theme
             chroma     = 0.4;
             missing    = Lcha(0.5,0.0,0.0,1.0);
             selected   = graph_editor::node::background;
-            Text.hue   = 0.217;
-            Number.hue = 0.68;
+            overriden {
+                Text.hue   = 0.217;
+                Number.hue = 0.68;
+            }
         }
     }
     graph_editor {
         node {
             background         = Lcha(0.2,0.014,0.18,1.0);
             background.skipped = Lcha(0.15,0.014,0.18,1.0);
+            shadow             = Lcha(0.0,0.0,0.0,0.20);
             shadow {
-                color        = Lcha(0.0,0.0,0.0,0.20);
-                fading_color = Lcha(0.0,0.0,0.0,0.0);
-                exponent     = 2.0;
+                fading   = Lcha(0.0,0.0,0.0,0.0);
+                exponent = 2.0;
             }
-            selection {
-                color = Lcha(0.72,0.54,0.22,1.0);
-                size  = 7.0;
-            }
+            selection      = Lcha(0.72,0.54,0.22,1.0);
+            selection.size = 7.0;
+            text           = Lcha(1.0,0.0,0.0,0.7);
             text {
-                color             = Lcha(1.0,0.0,0.0,0.7);
-                missing_arg_color = Lcha(1.0,0.0,0.0,0.3);
-                variant.dimmed    = Lcha(0.25,0.014,0.18,1.0);
-                selection.color   = Lcha(0.7,0.0,0.125,0.7);
+                missing_arg    = Lcha(1.0,0.0,0.0,0.3);
+                variant.dimmed = Lcha(0.25,0.014,0.18,1.0);
+                selection      = Lcha(0.7,0.0,0.125,0.7);
             }
             actions {
+                icon = Lcha(1.0,0.0,0.0,0.7);
                 icon {
-                    color = Lcha(1.0,0.0,0.0,0.7);
                     variant.dimmed = Lcha(0.4,0.00,0.0,1.0);
                 }
             }
         }
         visualization {
-            background.color = Lcha(0.2,0.014,0.18,1.0);
+            background = Lcha(0.2,0.014,0.18,1.0);
+            shadow     = Lcha(0.0,0.0,0.0,0.20);
             shadow {
-                color        = Lcha(0.0,0.0,0.0,0.20);
-                fading_color = Lcha(0.0,0.0,0.0,0.0);
-                exponent     = 2.0;
+                fading   = Lcha(0.0,0.0,0.0,0.0);
+                exponent = 2.0;
                 html {
                     alpha = 0.16;
                     size  = 16.0
                 }
             }
-            text {
-                color           = Lcha(1.0,0.0,0.0,0.7);
-                selection.color = Lcha(0.7,0.0,0.125,0.7);
-            }
+            text           = Lcha(1.0,0.0,0.0,0.7);
+            text.selection = Lcha(0.7,0.0,0.125,0.7);
             action_bar {
-                background.color = Lcha(0.3,0.014,0.18,1.0);
-                icon.color       = Lcha(1.0,0.0,0.0,0.7);
-                text.color       = Lcha(1.0,0.0,0.0,0.7);
+                background = Lcha(0.3,0.014,0.18,1.0);
+                icon       = Lcha(1.0,0.0,0.0,0.7);
+                text       = Lcha(1.0,0.0,0.0,0.7);
             }
         }
         breadcrumbs {
-            full.color        = Lcha(1.0,0.0,0.0,0.7);
-            transparent.color = Lcha(1.0,0.0,0.0,0.4);
-            selected.color    = Lcha(1.0,0.0,0.0,0.7);
-            hover.color       = Lcha(1.0,0.0,0.0,0.7);
+            full        = Lcha(1.0,0.0,0.0,0.7);
+            transparent = Lcha(1.0,0.0,0.0,0.4);
+            selected    = Lcha(1.0,0.0,0.0,0.7);
+            hover       = Lcha(1.0,0.0,0.0,0.7);
             deselected  {
-                left.color  = Lcha(1.0,0.0,0.0,0.5);
-                right.color = Lcha(1.0,0.0,0.0,0.2);
+                left  = Lcha(1.0,0.0,0.0,0.5);
+                right = Lcha(1.0,0.0,0.0,0.2);
             }
         }
         edge {
-            split_color {
+            split {
                 lightness_factor = 0.2;
                 chroma_factor    = 1.0;
             }
@@ -300,24 +296,24 @@ define_theme! { dark_theme
     }
     widget {
         list_view {
-            background.color = Lcha(0.2,0.014,0.18,1.0);
-            highlight.color  = Lcha(0.72,0.54,0.22,1.0);
+            background = Lcha(0.2,0.014,0.18,1.0);
+            highlight  = Lcha(0.72,0.54,0.22,1.0);
+            shadow     = Lcha(0.0,0.0,0.0,0.20);
             shadow {
-                color        = Lcha(0.0,0.0,0.0,0.20);
-                fading_color = Lcha(0.0,0.0,0.0,0.0);
-                exponent     = 2.0;
+                fading   = Lcha(0.0,0.0,0.0,0.0);
+                exponent = 2.0;
             }
+            text = Lcha(1.0,0.0,0.0,0.7);
             text {
-                color           = Lcha(1.0,0.0,0.0,0.7);
-                highlight.color = Lcha(0.7,0.0,0.0,1.0);
-                selection.color = Lcha(0.7,0.0,0.125,0.7);
+                highlight = Lcha(0.7,0.0,0.0,1.0);
+                selection = Lcha(0.7,0.0,0.125,0.7);
             }
         }
     }
+    shadow = Lcha(0.0,0.0,0.0,0.20);
     shadow {
-        color        = Lcha(0.0,0.0,0.0,0.20);
-        fading_color = Lcha(0.0,0.0,0.0,0.0);
-        exponent     = 2.0;
+        fading   = Lcha(0.0,0.0,0.0,0.0);
+        exponent = 2.0;
     }
     colors {
         dimming {

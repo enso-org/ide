@@ -42,7 +42,8 @@ use std::hash::Hasher;
 /// parametrization, other mechanisms should be used. For example, `Point Float` and `Point Number`
 /// should have similar colors, completely distinct from their parameter types.
 pub fn color_for_type(tp:&Type, styles:&StyleWatch) -> color::Lcha {
-    let hue_style_path = theme::code::types::HERE.path().into_sub(tp.as_str()).into_sub("hue");
+    let hue_types_path = theme::code::types::overriden::HERE.path();
+    let hue_style_path = hue_types_path.into_sub(tp.as_str()).into_sub("hue");
     let hue            = styles.get(hue_style_path).number_or_else(||auto_hue(tp));
     let luminance      = styles.get_number_or(theme::code::types::luminance,0.85);
     let chroma         = styles.get_number_or(theme::code::types::chroma,0.6);

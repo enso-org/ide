@@ -6,7 +6,6 @@ use crate::prelude::*;
 
 use enso_frp as frp;
 use ensogl::application::Application;
-use ensogl::display::style;
 use ensogl::display::shape::*;
 use ensogl::display;
 use ensogl::gui::component;
@@ -248,8 +247,7 @@ impl ActionBar {
             frp.source.action_visbility <+ model.icon_visibility.frp.toggle_state;
         }
 
-        let icon_path:style::Path = theme::graph_editor::node::actions::icon::color.into();
-        let icon_color_source     = ColorSource::from(icon_path);
+        let icon_color_source = ColorSource::from(theme::graph_editor::node::actions::icon);
         model.icon_freeze.frp.set_base_color(icon_color_source.clone());
         model.icon_skip.frp.set_base_color(icon_color_source.clone());
         model.icon_visibility.frp.set_base_color(icon_color_source);

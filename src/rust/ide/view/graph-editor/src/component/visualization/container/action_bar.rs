@@ -14,6 +14,7 @@ use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component;
+use ensogl_theme as theme;
 
 
 
@@ -53,16 +54,15 @@ mod background {
 
     ensogl::define_shape_system! {
         (style:Style) {
-            let width  : Var<Pixels> = "input_size.x".into();
-            let height : Var<Pixels> = "input_size.y".into();
-            let radius               = node::NODE_SHAPE_RADIUS.px() ;
-            let background_rounded   = Rect((&width,&height)).corners_radius(&radius);
-            let background_sharp     = Rect((&width,&height/2.0)).translate_y(-&height/4.0);
-            let background           = background_rounded + background_sharp;
-            let color_path           = ensogl_theme::graph_editor::
-                                           visualization::action_bar::background::color;
-            let fill_color           = style.get_color(color_path);
-            let background           = background.fill(color::Rgba::from(fill_color));
+            let width              = Var::<Pixels>::from("input_size.x");
+            let height             = Var::<Pixels>::from("input_size.y");
+            let radius             = node::NODE_SHAPE_RADIUS.px() ;
+            let background_rounded = Rect((&width,&height)).corners_radius(&radius);
+            let background_sharp   = Rect((&width,&height/2.0)).translate_y(-&height/4.0);
+            let background         = background_rounded + background_sharp;
+            let color_path         = theme::graph_editor::visualization::action_bar::background;
+            let fill_color         = style.get_color(color_path);
+            let background         = background.fill(color::Rgba::from(fill_color));
             background.into()
         }
     }

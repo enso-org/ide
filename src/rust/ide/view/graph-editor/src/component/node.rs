@@ -58,13 +58,13 @@ pub mod shape {
             use ensogl_theme::graph_editor::node as node_theme;
 
             let bg_color        = Var::<color::Rgba>::from(bg_color);
-            let selection_color = style.get_color(ensogl_theme::graph_editor::node::selection::color);
+            let selection_color = style.get_color(ensogl_theme::graph_editor::node::selection);
             let _selection_size = style.get_number_or(ensogl_theme::graph_editor::node::selection::size,8.0);
 
             let border_size_f = 16.0;
 
-            let width  : Var<Pixels> = "input_size.x".into();
-            let height : Var<Pixels> = "input_size.y".into();
+            let width  = Var::<Pixels>::from("input_size.x");
+            let height = Var::<Pixels>::from("input_size.y");
             let width  = width  - NODE_SHAPE_PADDING.px() * 2.0;
             let height = height - NODE_SHAPE_PADDING.px() * 2.0;
             let radius = NODE_SHAPE_RADIUS.px();
@@ -79,8 +79,8 @@ pub mod shape {
             let shadow_height = &height + &shadow_size * 2.0;
             let shadow_radius = &shadow_height / 2.0;
             let shadow        = Rect((shadow_width,shadow_height)).corners_radius(shadow_radius);
-            let base_color    = style.get_color(node_theme::shadow::color);
-            let fading_color  = style.get_color(node_theme::shadow::fading_color);
+            let base_color    = style.get_color(node_theme::shadow);
+            let fading_color  = style.get_color(node_theme::shadow::fading);
             let exponent      = style.get_number_or(node_theme::shadow::exponent,2.0);
             let shadow_color  = color::LinearGradient::new()
                 .add(0.0,color::Rgba::from(fading_color).into_linear())
@@ -165,7 +165,6 @@ ensogl::define_endpoints! {
 // === Node ===
 // ============
 
-
 /// Internal data of `Node`
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
@@ -179,7 +178,6 @@ impl AsRef<Node> for Node {
         self
     }
 }
-
 
 impl Deref for Node {
     type Target = Frp;

@@ -130,7 +130,7 @@ impl ProjectNameModel {
         let display_object        = display::object::Instance::new(&logger);
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let style                 = StyleWatch::new(&scene.style_sheet);
-        let base_color            = style.get_color(theme::graph_editor::breadcrumbs::transparent::color);
+        let base_color            = style.get_color(theme::graph_editor::breadcrumbs::transparent);
         let base_color            = color::Rgba::from(base_color);
         let text_size:TextSize    = TEXT_SIZE.into();
         let text_field            = app.new_view::<text::Area>();
@@ -142,8 +142,8 @@ impl ProjectNameModel {
         text_field.add_to_view(&scene.views.breadcrumbs);
         text_field.hover();
 
-        let view_logger           = Logger::sub(&logger,"view_logger");
-        let view                  = component::ShapeView::<background::Shape>::new(&view_logger, scene);
+        let view_logger = Logger::sub(&logger,"view_logger");
+        let view        = component::ShapeView::<background::Shape>::new(&view_logger,scene);
 
         scene.views.main.remove_shape_view(&view);
         scene.views.breadcrumbs.add_shape_view(&view);
@@ -237,17 +237,16 @@ impl ProjectName {
         let scene   = app.display.scene();
         let text    = &model.text_field.frp;
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
-        let styles            = StyleWatch::new(&scene.style_sheet);
-        let hover_color       = styles.get_color(theme::graph_editor::breadcrumbs::hover::color);
-        let hover_color       = color::Rgba::from(hover_color);
-        let deselected_color  = styles.get_color(theme::graph_editor::breadcrumbs::deselected::left::color);
-        let deselected_color  = color::Rgba::from(deselected_color);
-        let selected_color    = styles.get_color(theme::graph_editor::breadcrumbs::selected::color);
-        let selected_color    = color::Rgba::from(selected_color);
-        let animations        = Animations::new(&network);
+        let styles           = StyleWatch::new(&scene.style_sheet);
+        let hover_color      = styles.get_color(theme::graph_editor::breadcrumbs::hover);
+        let hover_color      = color::Rgba::from(hover_color);
+        let deselected_color = styles.get_color(theme::graph_editor::breadcrumbs::deselected::left);
+        let deselected_color = color::Rgba::from(deselected_color);
+        let selected_color   = styles.get_color(theme::graph_editor::breadcrumbs::selected);
+        let selected_color   = color::Rgba::from(selected_color);
+        let animations       = Animations::new(&network);
 
         frp::extend! { network
-
 
             // === Mouse IO ===
 

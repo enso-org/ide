@@ -237,7 +237,7 @@ impl Model {
         self.label.disable_command("cursor_move_up");
         self.label.disable_command("cursor_move_down");
 
-        let text_color = self.styles.get_color(theme::graph_editor::node::text::color);
+        let text_color = self.styles.get_color(theme::graph_editor::node::text);
         self.label.set_default_color(color::Rgba::from(text_color));
 
         // FIXME[WD]: Depth sorting of labels to in front of the mouse pointer. Temporary solution.
@@ -268,7 +268,7 @@ impl Model {
 
     fn get_base_color(&self, tp:Option<&String>) -> color::Lcha { // FIXME Tp string
         tp.map(|tp| type_coloring::color_for_type(&tp.clone().into(),&self.styles))
-            .unwrap_or_else(||self.styles.get_color(theme::graph_editor::node::text::color))
+            .unwrap_or_else(||self.styles.get_color(theme::graph_editor::node::text))
     }
 }
 
@@ -617,13 +617,13 @@ impl Area {
         // self.model.type_color_map.type_color(ast_id,&styles)
         // None
 
-        let mut expression = self.model.expression.borrow();
+        let expression = self.model.expression.borrow();
         expression.input.root_ref().get_descendant(crumbs).ok().map(|node|node.frp.highlight_color.value())
     }
 
     // FIXME: String -> Type
     pub fn get_port_type(&self, crumbs:&span_tree::Crumbs) -> Option<String> {
-        let mut expression = self.model.expression.borrow();
+        let expression = self.model.expression.borrow();
         expression.input.root_ref().get_descendant(crumbs).ok().and_then(|node|node.tp().cloned())
     }
 

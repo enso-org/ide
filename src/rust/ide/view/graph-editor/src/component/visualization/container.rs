@@ -63,13 +63,12 @@ pub mod background {
         (style:Style,selected:f32,radius:f32,roundness:f32) {
             use theme::graph_editor::visualization as visualization_theme;
 
-            let width  : Var<Pixels> = "input_size.x".into();
-            let height : Var<Pixels> = "input_size.y".into();
+            let width         = Var::<Pixels>::from("input_size.x");
+            let height        = Var::<Pixels>::from("input_size.y");
             let width         = &width  - SHADOW_SIZE.px() * 2.0;
             let height        = &height - SHADOW_SIZE.px() * 2.0;
             let radius        = 1.px() * &radius;
-            let color_path    = visualization_theme::background::color;
-            let color_bg      = style.get_color(color_path);
+            let color_bg      = style.get_color(visualization_theme::background);
             let corner_radius = &radius * &roundness;
             let background    = Rect((&width,&height)).corners_radius(&corner_radius);
             let background    = background.fill(color::Rgba::from(color_bg));
@@ -81,8 +80,8 @@ pub mod background {
             let width         = &width  + SHADOW_SIZE.px() * 2.0;
             let height        = &height + SHADOW_SIZE.px() * 2.0;
             let shadow        = Rect((&width,&height)).corners_radius(&corner_radius).shrink(1.px());
-            let base_color    = style.get_color(visualization_theme::shadow::color);
-            let fading_color  = style.get_color(visualization_theme::shadow::fading_color);
+            let base_color    = style.get_color(visualization_theme::shadow);
+            let fading_color  = style.get_color(visualization_theme::shadow::fading);
             let exponent      = style.get_number_or(visualization_theme::shadow::exponent,2.0);
             let shadow_color  = color::LinearGradient::new()
                 .add(0.0,color::Rgba::from(fading_color).into_linear())
@@ -113,7 +112,7 @@ pub mod fullscreen_background {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
             let radius        = 1.px() * &radius;
-            let color_path    = theme::graph_editor::visualization::background::color;
+            let color_path    = theme::graph_editor::visualization::background;
             let color_bg      = style.get_color(color_path);
             let corner_radius = &radius * &roundness;
             let background    = Rect((&width,&height)).corners_radius(&corner_radius);
@@ -130,14 +129,14 @@ pub mod overlay {
 
     ensogl::define_shape_system! {
         (selected:f32,radius:f32,roundness:f32) {
-            let width  : Var<Pixels> = "input_size.x".into();
-            let height : Var<Pixels> = "input_size.y".into();
-            let radius               = 1.px() * &radius;
-            let corner_radius        = &radius * &roundness;
-            let color_overlay        = color::Rgba::new(1.0,0.0,0.0,0.000_000_1);
-            let overlay              = Rect((&width,&height)).corners_radius(&corner_radius);
-            let overlay              = overlay.fill(color_overlay);
-            let out                  = overlay;
+            let width         = Var::<Pixels>::from("input_size.x");
+            let height        = Var::<Pixels>::from("input_size.y");
+            let radius        = 1.px() * &radius;
+            let corner_radius = &radius * &roundness;
+            let color_overlay = color::Rgba::new(1.0,0.0,0.0,0.000_000_1);
+            let overlay       = Rect((&width,&height)).corners_radius(&corner_radius);
+            let overlay       = overlay.fill(color_overlay);
+            let out           = overlay;
             out.into()
         }
     }
@@ -228,7 +227,7 @@ impl View {
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles   = StyleWatch::new(&scene.style_sheet);
-        let bg_color = styles.get_color(ensogl_theme::graph_editor::visualization::background::color);
+        let bg_color = styles.get_color(ensogl_theme::graph_editor::visualization::background);
         let bg_color = color::Rgba::from(bg_color);
         let bg_hex   = format!("rgba({},{},{},{})",bg_color.red*255.0,bg_color.green*255.0,bg_color.blue*255.0,bg_color.alpha);
 
@@ -294,7 +293,7 @@ impl FullscreenView {
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles   = StyleWatch::new(&scene.style_sheet);
-        let bg_color = styles.get_color(ensogl_theme::graph_editor::visualization::background::color);
+        let bg_color = styles.get_color(ensogl_theme::graph_editor::visualization::background);
         let bg_color = color::Rgba::from(bg_color);
         let bg_hex   = format!("rgba({},{},{},{})",bg_color.red*255.0,bg_color.green*255.0,bg_color.blue*255.0,bg_color.alpha);
 

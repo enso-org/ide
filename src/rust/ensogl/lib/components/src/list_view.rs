@@ -46,7 +46,7 @@ mod selection {
             let sprite_height : Var<Pixels> = "input_size.y".into();
             let width         = sprite_width  - 2.0.px() * PADDING_PX;
             let height        = sprite_height - 2.0.px() * PADDING_PX;
-            let color         = style.get_color(ensogl_theme::widget::list_view::highlight::color);
+            let color         = style.get_color(ensogl_theme::widget::list_view::highlight);
             let rect          = Rect((&width,&height)).corners_radius(CORNER_RADIUS_PX.px());
             let shape         = rect.fill(color::Rgba::from(color));
             shape.into()
@@ -68,7 +68,7 @@ mod background {
             let sprite_height : Var<Pixels> = "input_size.y".into();
             let width         = sprite_width.clone()  - SHADOW_PX.px() * 2.0 - PADDING_PX.px() * 2.0;
             let height        = sprite_height.clone() - SHADOW_PX.px() * 2.0 - PADDING_PX.px() * 2.0;
-            let color         = style.get_color(theme::widget::list_view::background::color);
+            let color         = style.get_color(theme::widget::list_view::background);
             let rect          = Rect((&width,&height)).corners_radius(CORNER_RADIUS_PX.px());
             let shape         = rect.fill(color::Rgba::from(color));
 
@@ -77,8 +77,8 @@ mod background {
             let width         = sprite_width  - PADDING_PX.px() * 2.0;
             let height        = sprite_height - PADDING_PX.px() * 2.0;
             let shadow        = Rect((&width,&height)).corners_radius(corner_radius);
-            let base_color    = style.get_color(theme::widget::list_view::shadow::color);
-            let fading_color  = style.get_color(theme::widget::list_view::shadow::fading_color);
+            let base_color    = style.get_color(theme::widget::list_view::shadow);
+            let fading_color  = style.get_color(theme::widget::list_view::shadow::fading);
             let exponent      = style.get_number_or(theme::widget::list_view::shadow::exponent,2.0);
             let shadow_color  = color::LinearGradient::new()
                 .add(0.0,color::Rgba::from(fading_color).into_linear())
