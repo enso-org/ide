@@ -1710,6 +1710,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     frp::extend! { network
         eval_ touch.background.selected(model.breadcrumbs.outside_press.emit(()));
+        eval_ inputs.edit_mode_on(model.breadcrumbs.outside_press.emit(()));
     }
 
 
