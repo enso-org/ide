@@ -140,9 +140,9 @@ ensogl::define_endpoints! {
     }
 
     Output {
-        text_color      (color::Lcha),
-        highlight_color (color::Lcha),
-        final_type      (Option<Type>),
+        text_color   (color::Lcha),
+        select_color (color::Lcha),
+        final_type   (Option<Type>),
     }
 }
 
@@ -175,12 +175,12 @@ impl Model {
     /// as some are skipped. For example, given the expression `(((foo)))`, the inner parentheses
     /// will be skipped, as there is no point in making them ports. The skip algorithm is
     /// implemented as part of the port are initialization.
-    pub fn init_shapes
-    (&mut self, logger:impl AnyLogger, scene:&Scene, size:Vector2, hover_height:f32) -> &Shape {
+    pub fn init_shape
+    (&mut self, logger:impl AnyLogger, scene:&Scene, size:Vector2, hover_height:f32) -> Shape {
         let logger_name = format!("port({},{})",self.index,self.length);
         let logger      = Logger::sub(logger,logger_name);
         let shape       = Shape::new(&logger,scene,size,hover_height);
         self.shape      = Some(shape);
-        &self.shape.as_ref().unwrap()
+        self.shape.as_ref().unwrap().clone_ref()
     }
 }

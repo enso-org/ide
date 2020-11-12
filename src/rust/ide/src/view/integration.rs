@@ -585,7 +585,7 @@ impl Model {
     /// Set given type (or lack of such) on the given sub-expression.
     fn set_type(&self, node_id:graph_editor::NodeId, id:ExpressionId, typename:Option<graph_editor::Type>) {
         let event = (node_id,id,typename);
-        self.view.graph().frp.input.set_expression_type.emit_event(&event);
+        self.view.graph().frp.input.set_expression_usage_type.emit_event(&event);
     }
 
     /// Set given method pointer (or lack of such) on the given sub-expression.

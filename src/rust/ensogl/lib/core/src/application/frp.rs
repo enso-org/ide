@@ -190,7 +190,7 @@
 macro_rules! define_endpoints {
     ( $([$($global_opts:tt)*])?
         $(Input { $([$($input_opts:tt)*])?
-            $($(#[doc=$($in_doc :tt)*])*
+            $($(#[doc=$($in_doc:tt)*])*
             $in_field : ident ($($in_field_type : tt)*)),* $(,)?
         })?
 
@@ -307,13 +307,14 @@ macro_rules! define_endpoints {
 
         /// Frp outputs.
         #[derive(Debug,Clone,CloneRef)]
+        #[allow(unused_parens)]
         #[allow(missing_docs)]
         pub struct FrpEndpoints {
             pub input         : FrpInputs,
             pub(crate) source : FrpOutputsSource,
             pub status_map    : Rc<RefCell<HashMap<String,enso_frp::Sampler<bool>>>>,
             pub command_map   : Rc<RefCell<HashMap<String,$crate::application::command::Command>>>,
-            $($(#[doc=$($out_doc)*])* pub $out_field  : enso_frp::Sampler<$($out_field_type)*>),*
+            $($(#[doc=$($out_doc)*])* pub $out_field  : enso_frp::Sampler<($($out_field_type)*)>),*
         }
 
         impl Deref for FrpEndpoints {
@@ -346,8 +347,9 @@ macro_rules! define_endpoints {
 
         /// Frp output setters.
         #[derive(Debug,Clone,CloneRef)]
+        #[allow(unused_parens)]
         pub(crate) struct FrpOutputsSource {
-            $(pub(crate) $out_field : enso_frp::Any<$($out_field_type)*>),*
+            $(pub(crate) $out_field : enso_frp::Any<($($out_field_type)*)>),*
         }
 
         impl FrpOutputsSource {

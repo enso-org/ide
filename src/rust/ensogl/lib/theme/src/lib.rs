@@ -112,6 +112,7 @@ define_default_theme! { light_theme
         syntax {
             base      = Lcha(0.0,0.0,0.0,0.7);
             disabled  = Lcha(0.0,0.0,0.0,0.3);
+            expected  = Lcha(0.0,0.0,0.0,0.3);
             selection = Lcha(0.7,0.0,0.125,0.7);
         }
         types {
@@ -223,6 +224,7 @@ define_theme! { dark_theme
         syntax {
             base      = Lcha(1.0,0.0,0.0,0.7);
             disabled  = Lcha(1.0,0.0,0.0,0.3);
+            expected  = Lcha(1.0,0.0,0.0,0.3);
             selection = Lcha(0.7,0.0,0.125,0.7);
         }
         types {

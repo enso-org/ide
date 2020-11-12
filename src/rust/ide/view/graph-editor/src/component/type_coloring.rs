@@ -41,7 +41,7 @@ use std::hash::Hasher;
 /// additional "container edge style", like dashed lines). If user do not provide such
 /// parametrization, other mechanisms should be used. For example, `Point Float` and `Point Number`
 /// should have similar colors, completely distinct from their parameter types.
-pub fn color_for_type(tp:&Type, styles:&StyleWatch) -> color::Lcha {
+pub fn compute(tp:&Type, styles:&StyleWatch) -> color::Lcha {
     let hue_types_path = theme::code::types::overriden::HERE.path();
     let hue_style_path = hue_types_path.into_sub(tp.as_str()).into_sub("hue");
     let hue            = styles.get(hue_style_path).number_or_else(||auto_hue(tp));
@@ -58,7 +58,7 @@ fn auto_hue(tp:&Type) -> f32 {
     (hash(&tp) % hue_step) as f32 / hue_step as f32 + hue_shift
 }
 
-/// Compute the hash of the type for use in the `color_for_type` function.
+/// Compute the hash of the type for use in the `compute` function.
 fn hash(s:&str) -> u64 {
     let mut hasher = DefaultHasher::new();
     s.hash(&mut hasher);

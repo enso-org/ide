@@ -36,13 +36,13 @@ use super::edge;
 // === Constants ===
 // =================
 
-pub const ACTION_BAR_HEIGHT  : f32 = 15.0;
-pub const CORNER_RADIUS      : f32 = 14.0;
-pub const NODE_HEIGHT        : f32 = 28.0;
-pub const NODE_SHAPE_PADDING : f32 = 40.0;
-pub const NODE_SHAPE_RADIUS  : f32 = 14.0;
-pub const SHADOW_SIZE        : f32 = 10.0;
-pub const TEXT_OFF           : f32 = 10.0;
+pub const ACTION_BAR_HEIGHT : f32 = 15.0;
+pub const CORNER_RADIUS     : f32 = 14.0;
+pub const HEIGHT            : f32 = 28.0;
+pub const PADDING           : f32 = 40.0;
+pub const RADIUS            : f32 = 14.0;
+pub const SHADOW_SIZE       : f32 = 10.0;
+pub const TEXT_OFF          : f32 = 10.0;
 
 
 // ============
@@ -65,9 +65,9 @@ pub mod shape {
 
             let width  = Var::<Pixels>::from("input_size.x");
             let height = Var::<Pixels>::from("input_size.y");
-            let width  = width  - NODE_SHAPE_PADDING.px() * 2.0;
-            let height = height - NODE_SHAPE_PADDING.px() * 2.0;
-            let radius = NODE_SHAPE_RADIUS.px();
+            let width  = width  - PADDING.px() * 2.0;
+            let height = height - PADDING.px() * 2.0;
+            let radius = RADIUS.px();
             let shape  = Rect((&width,&height)).corners_radius(radius);
             let shape  = shape.fill(bg_color);
 
@@ -121,8 +121,8 @@ pub mod drag_area {
         (style:Style) {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
-            let width  = width  - NODE_SHAPE_PADDING.px() * 2.0;
-            let height = height - NODE_SHAPE_PADDING.px() * 2.0;
+            let width  = width  - PADDING.px() * 2.0;
+            let height = height - PADDING.px() * 2.0;
             let radius = 14.px();
             let shape  = Rect((&width,&height)).corners_radius(radius);
             let shape  = shape.fill(color::Rgba::new(0.0,0.0,0.0,0.000_001));
@@ -143,11 +143,14 @@ ensogl::define_endpoints! {
     Input {
         select              (),
         deselect            (),
-        set_expression      (Expression),
-        set_expression_type ((ast::Id,Option<Type>)),
         set_visualization   (Option<visualization::Definition>),
         set_dimmed          (bool),
         set_input_connected (span_tree::Crumbs,bool),
+        set_expression      (Expression),
+        /// Set the expression USAGE type. This is not the definition type, which can be set with
+        /// `set_expression` instead. In case the usage type is set to None, ports still may be
+        /// colored if the definition type was present.
+        set_expression_usage_type ((ast::Id,Option<Type>)),
     }
     Output {
         /// Press event. Emitted when user clicks on non-active part of the node, like its
@@ -190,15 +193,15 @@ impl Deref for Node {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct NodeModel {
-    pub app              : Application,
-    pub display_object   : display::object::Instance,
-    pub logger           : Logger,
-    pub main_area        : component::ShapeView<shape::Shape>,
-    pub drag_area        : component::ShapeView<drag_area::Shape>,
-    pub input            : input::Area,
-    pub output           : output::Area,
-    pub visualization    : visualization::Container,
-    pub action_bar       : action_bar::ActionBar,
+    pub app            : Application,
+    pub display_object : display::object::Instance,
+    pub logger         : Logger,
+    pub main_area      : component::ShapeView<shape::Shape>,
+    pub drag_area      : component::ShapeView<drag_area::Shape>,
+    pub input          : input::Area,
+    pub output         : output::Area,
+    pub visualization  : visualization::Container,
+    pub action_bar     : action_bar::ActionBar,
 }
 
 
@@ -238,7 +241,7 @@ impl NodeModel {
 
         input.mod_position(|p| {
             p.x = TEXT_OFF;
-            p.y = NODE_HEIGHT/2.0;
+            p.y = HEIGHT/2.0;
         });
         display_object.add_child(&input);
 
@@ -260,11 +263,11 @@ impl NodeModel {
     }
 
     pub fn width(&self) -> f32 {
-        self.input.width() + TEXT_OFF * 2.0
+        self.input.width.value() + TEXT_OFF * 2.0
     }
 
     pub fn height(&self) -> f32 {
-        NODE_HEIGHT
+        HEIGHT
     }
 
     fn set_expression(&self, expr:impl Into<Expression>) {
@@ -276,7 +279,7 @@ impl NodeModel {
     fn set_width(&self, width:f32) {
         let height = self.height();
         let width  = width + TEXT_OFF * 2.0;
-        let size   = Vector2::new(width+NODE_SHAPE_PADDING*2.0, height+NODE_SHAPE_PADDING*2.0);
+        let size   = Vector2::new(width+PADDING*2.0, height+PADDING*2.0);
         self.main_area.shape.sprite.size.set(size);
         self.drag_area.shape.sprite.size.set(size);
         self.main_area.mod_position(|t| t.x = width/2.0);
@@ -324,7 +327,7 @@ impl Node {
             eval_ inputs.deselect (selection.set_target_value(0.0));
 
             model.input.set_connected       <+ inputs.set_input_connected;
-            model.input.set_expression_type <+ inputs.set_expression_type;
+            model.input.set_expression_usage_type <+ inputs.set_expression_usage_type;
             eval inputs.set_expression ((expr) model.set_expression(expr));
 
             eval inputs.set_visualization ((content)

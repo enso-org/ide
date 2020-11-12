@@ -54,7 +54,7 @@ impl Model {
 
     fn searcher_left_top_position_when_under_node_at(position:Vector2<f32>) -> Vector2<f32> {
         let x = position.x;
-        let y = position.y - node::NODE_HEIGHT/2.0;
+        let y = position.y - node::HEIGHT/2.0;
         Vector2(x,y)
     }
 

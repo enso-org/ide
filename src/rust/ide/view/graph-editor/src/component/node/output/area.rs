@@ -78,8 +78,8 @@ struct BaseShapeData {
 impl BaseShapeData {
     fn new
     (width:&Var<Pixels>, height:&Var<Pixels>, grow:&Var<f32>) -> Self {
-        let width  = width  - node::NODE_SHAPE_PADDING.px() * 2.0;
-        let height = height - node::NODE_SHAPE_PADDING.px() * 2.0;
+        let width  = width  - node::PADDING.px() * 2.0;
+        let height = height - node::PADDING.px() * 2.0;
 
         let hover_area_width  = &width  + &SHAPE_HOVER_AREA_SIZE.px() * 2.0;
         let hover_area_height = &height / 2.0 + &SHAPE_HOVER_AREA_SIZE.px();
@@ -87,7 +87,7 @@ impl BaseShapeData {
         let hover_area        = hover_area.translate_y(-hover_area_height/2.0);
 
         let shrink           = 1.px() - 1.px() * grow;
-        let radius           = node::NODE_SHAPE_RADIUS.px();
+        let radius           = node::RADIUS.px();
         let port_area_size   = SHAPE_MAX_WIDTH.px() * grow;
         let port_area_width  = &width  + (&port_area_size - &shrink) * 2.0;
         let port_area_height = &height + (&port_area_size - &shrink) * 2.0;

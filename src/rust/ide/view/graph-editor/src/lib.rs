@@ -404,7 +404,7 @@ ensogl::define_endpoints! {
         collapse_nodes               ((Vec<NodeId>,NodeId)),
         set_node_expression          ((NodeId,node::Expression)),
         set_node_position            ((NodeId,Vector2)),
-        set_expression_type          ((NodeId,ast::Id,Option<Type>)),
+        set_expression_usage_type    ((NodeId,ast::Id,Option<Type>)),
         set_method_pointer           ((ast::Id,Option<MethodPointer>)),
         cycle_visualization          (NodeId),
         set_visualization            ((NodeId,Option<visualization::Path>)),
@@ -1411,10 +1411,10 @@ impl GraphEditorModel {
         }
     }
 
-    pub fn set_node_expression_type(&self, node_id:impl Into<NodeId>, ast_id:ast::Id, maybe_type:Option<Type>) {
+    fn set_node_expression_usage_type(&self, node_id:impl Into<NodeId>, ast_id:ast::Id, maybe_type:Option<Type>) {
         let node_id  = node_id.into();
         if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
-            node.view.frp.set_expression_type.emit((ast_id,maybe_type))
+            node.view.frp.set_expression_usage_type.emit((ast_id,maybe_type))
         }
     }
 
@@ -1457,7 +1457,7 @@ impl GraphEditorModel {
 
     pub fn refresh_edge_color(&self, edge_id:EdgeId) {
         if let Some(edge) = self.edges.get_cloned_ref(&edge_id) {
-            let color = self.get_edge_color(edge_id);
+            let color = self.edge_color(edge_id);
             let color = color::Rgba::from(color);
             edge.view.frp.set_color.emit(color);
         };
@@ -1469,7 +1469,7 @@ impl GraphEditorModel {
                 if let Some(node) = self.nodes.get_cloned_ref(&edge_source.node_id) {
                     edge.mod_position(|p| {
                         p.x = node.position().x + node.model.width()/2.0;
-                        p.y = node.position().y + node::NODE_HEIGHT/2.0;
+                        p.y = node.position().y + node::HEIGHT/2.0;
                     });
                 }
             }
@@ -1480,7 +1480,7 @@ impl GraphEditorModel {
         if let Some(edge) = self.edges.get_cloned_ref(&edge_id) {
             if let Some(edge_target) = edge.target() {
                 if let Some(node) = self.nodes.get_cloned_ref(&edge_target.node_id) {
-                    let offset = node.model.input.get_port_offset(&edge_target.port).unwrap_or_default();
+                    let offset = node.model.input.port_offset(&edge_target.port).unwrap_or_default();
                     let pos = node.position().xy() + offset;
                     edge.view.frp.target_position.emit(pos);
                     edge.view.frp.redraw.emit(());
@@ -1488,16 +1488,6 @@ impl GraphEditorModel {
             }
         };
     }
-
-    // /// Return the color of an edge target. Returns `None` if no type information is associated
-    // /// with the target port.
-    // fn try_get_edge_target_color(&self, edge_target:EdgeTarget) -> Option<color::Lcha> {
-    //     let node              = self.nodes.get_cloned_ref(&edge_target.node_id)?;
-    //     let input_port_color  =    node.model.input.get_port_color(&edge_target.port);
-    //     let output_port_color = || node.model.output.get_port_color(&edge_target.port);
-    //     input_port_color.or_else(output_port_color)
-    // }
-    //
 
     fn with_node<T>(&self, node_id:NodeId, f:impl FnOnce(Node)->T) -> Option<T> {
         self.nodes.get_cloned_ref(&node_id).map(f)
@@ -1526,30 +1516,28 @@ impl GraphEditorModel {
     }
 
     fn edge_source_type(&self, edge_id:EdgeId) -> Option<Type> {
-        self.with_edge_source_node(edge_id,|n,c|n.model.input.get_port_type(&c)).flatten()
+        self.with_edge_source_node(edge_id,|n,c|n.model.input.port_type(&c)).flatten()
     }
 
     fn edge_target_type(&self, edge_id:EdgeId) -> Option<Type> {
-        self.with_edge_target_node(edge_id,|n,c|n.model.input.get_port_type(&c)).flatten()
+        self.with_edge_target_node(edge_id,|n,c|n.model.input.port_type(&c)).flatten()
     }
-
-
 
     /// Return a color for the edge. Currently we query the edge target, and if missing, the edge
     /// source type and we compute the color based on that. This would need to be more sophisticated
     /// in the case of polymorphic types. For example, consider the edge source type to be
     /// `(a,Number)`, and target to be `(Text,a)`. These unify to `(Text,Number)`.
-    fn get_edge_color(&self, edge_id:EdgeId) -> color::Lcha {
-       //  // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
+    fn edge_color(&self, edge_id:EdgeId) -> color::Lcha {
+        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles    = StyleWatch::new(&self.scene().style_sheet);
         let tp        = self.edge_target_type(edge_id).or_else(||self.edge_source_type(edge_id));
-        let opt_color = tp.map(|t|type_coloring::color_for_type(&t,&styles));
+        let opt_color = tp.map(|t|type_coloring::compute(&t,&styles));
         opt_color.unwrap_or_else(|| styles.get_color(theme::code::types::missing))
     }
 
     /// Return a color for the first detached edge.
     pub fn first_detached_edge_color(&self) -> Option<color::Lcha> {
-        self.edges.detached_edges_iter().next().map(|t|self.get_edge_color(t))
+        self.edges.detached_edges_iter().next().map(|t|self.edge_color(t))
     }
 }
 
@@ -2242,8 +2230,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Set Expression Type ===
     frp::extend! { network
 
-    node_to_refresh <- inputs.set_expression_type.map(f!([model]((node_id,ast_id,maybe_type)) {
-        model.set_node_expression_type(*node_id,*ast_id,maybe_type.clone());
+    node_to_refresh <- inputs.set_expression_usage_type.map(f!([model]((node_id,ast_id,maybe_type)) {
+        model.set_node_expression_usage_type(*node_id,*ast_id,maybe_type.clone());
         *node_id
     }));
     edges_to_refresh <= node_to_refresh.map(f!([nodes](node_id)
@@ -2312,8 +2300,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
                     edge.view.frp.target_position.emit(-node_pos.xy());
                     edge.view.frp.redraw.emit(());
                     edge.mod_position(|p| {
-                        p.x = node_pos.x + node_width / 2.0;
-                        p.y = node_pos.y + node::NODE_HEIGHT/2.0;
+                        p.x = node_pos.x + node_width/2.0;
+                        p.y = node_pos.y + node::HEIGHT/2.0;
                     });
                     model.refresh_edge_position(*edge_id);
                 }

@@ -2,7 +2,6 @@
 
 use crate::prelude::*;
 
-use crate::component::node::NODE_HEIGHT;
 use crate::component::node;
 
 use enso_frp as frp;
@@ -1336,9 +1335,7 @@ impl EdgeModelData {
     #[allow(clippy::cognitive_complexity)]
     pub fn redraw(&self) {
 
-
         // === Variables ===
-
 
         let fg               = &self.front;
         let bg               = &self.back;
@@ -1346,14 +1343,13 @@ impl EdgeModelData {
         // let fully_attached   = self.target_attached.get() && self.source_attached.get();
         let fully_attached          = self.target_attached.get();
         let node_half_width         = self.source_width.get() / 2.0;
-        let target_node_half_height = NODE_HEIGHT / 2.0;
+        let target_node_half_height = node::HEIGHT / 2.0;
         let source_node_half_height = self.source_height.get() / 2.0;
         let source_node_circle      = Vector2(node_half_width- source_node_half_height, 0.0);
         let source_node_radius      = source_node_half_height;
 
 
         // === Update Highlights ===
-
 
         match (fully_attached, self.hover_position.get(), self.hover_target.get()) {
             (true, Some(hover_position), Some(hover_target)) => {
