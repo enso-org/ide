@@ -57,7 +57,7 @@ impl Model {
         Self{app,logger,display_object,graph_editor,searcher,code_editor}
     }
 
-    fn set_style(&self, is_light:bool) {
+    pub fn set_style(&self, is_light:bool) {
         let root_elem = web::get_element_by_id("root").unwrap_or_else(|_| panic!("Failed to find root!"));
         if is_light {
             self.app.themes.set_enabled(&["dark"]);
@@ -174,6 +174,7 @@ impl View {
         let graph                      = &model.graph_editor.frp;
         let network                    = &frp.network;
         let searcher_left_top_position = Animation::<Vector2<f32>>::new(network);
+        model.set_style(false);
 
         frp::extend!{ network
             // === Searcher Position and Size ===
