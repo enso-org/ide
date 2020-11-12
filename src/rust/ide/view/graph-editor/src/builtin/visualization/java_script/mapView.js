@@ -102,13 +102,13 @@ class MapViewVisualization extends Visualization {
             getRadius:d => d.radius
         })
 
-        let latitude   = this.ok(parsedData.latitude)   ? parsedData.latitude : computed.latitude;
-        let longitude  = this.ok(parsedData.longitude)  ? parsedData.longitude : computed.longitude;
+        let latitude   = ok(parsedData.latitude)   ? parsedData.latitude : computed.latitude;
+        let longitude  = ok(parsedData.longitude)  ? parsedData.longitude : computed.longitude;
         // TODO : Compute zoom somehow from span of latitudes and longitudes.
-        let zoom       = this.ok(parsedData.zoom)       ? parsedData.zoom : DEFAULT_MAP_ZOOM;
-        let mapStyle   = this.ok(parsedData.mapStyle)   ? parsedData.mapStyle : defaultMapStyle;
-        let pitch      = this.ok(parsedData.pitch)      ? parsedData.pitch : 0;
-        let controller = this.ok(parsedData.controller) ? parsedData.controller : true;
+        let zoom       = ok(parsedData.zoom)       ? parsedData.zoom : DEFAULT_MAP_ZOOM;
+        let mapStyle   = ok(parsedData.mapStyle)   ? parsedData.mapStyle : defaultMapStyle;
+        let pitch      = ok(parsedData.pitch)      ? parsedData.pitch : 0;
+        let controller = ok(parsedData.controller) ? parsedData.controller : true;
 
         const deckgl = new deck.DeckGL({
             container: 'map',
@@ -151,7 +151,7 @@ class MapViewVisualization extends Visualization {
                 const computed = this.calculateExtremesAndPushPoints(parsedData.data,preparedDataPoints,accentColor);
                 latitude       = computed.latitude;
                 longitude      = computed.longitude;
-            } else if (parsedData.type === GEO_MAP && this.ok(parsedData.layers)) {
+            } else if (parsedData.type === GEO_MAP && ok(parsedData.layers)) {
                 parsedData.layers.forEach(layer => {
                     if (layer.type === SCATTERPLOT_LAYER) {
                         let dataPoints = layer.data || [];
@@ -204,15 +204,8 @@ class MapViewVisualization extends Visualization {
     pushGeoPoint(preparedDataPoints,geoPoint,accentColor) {
         let position = [geoPoint.longitude,geoPoint.latitude];
         let radius   = isNaN(geoPoint.radius)  ? DEFAULT_POINT_RADIUS : geoPoint.radius;
-        let color    = this.ok(geoPoint.color) ? geoPoint.color : accentColor;
+        let color    = ok(geoPoint.color) ? geoPoint.color : accentColor;
         preparedDataPoints.push({position,color,radius});
-    }
-
-    /**
-     * Checks if `t` has defined type and is not null.
-     */
-    ok(t) {
-        return t !== undefined && t !== null;
     }
 
     /**
@@ -223,6 +216,13 @@ class MapViewVisualization extends Visualization {
         this.dom.setAttributeNS(null,"width",size[0]);
         this.dom.setAttributeNS(null,"height",size[1]);
     }
+}
+
+/**
+ * Checks if `t` has defined type and is not null.
+ */
+function ok(t) {
+    return t !== undefined && t !== null;
 }
 
 return MapViewVisualization;
