@@ -57,6 +57,7 @@ impl Model {
         Self{app,logger,display_object,graph_editor,searcher,code_editor}
     }
 
+    /// Sets style of IDE.
     pub fn set_style(&self, is_light:bool) {
         let root_elem = web::get_element_by_id("root").unwrap_or_else(|_| panic!("Failed to find root!"));
         if is_light {
