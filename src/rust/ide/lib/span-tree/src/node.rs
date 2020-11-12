@@ -79,6 +79,8 @@ impl<T:Payload> Node<T> {
 
 #[allow(missing_docs)]
 impl<T:Payload> Node<T> {
+    // FIXME[WD]: This is a hack, which just checks token placement, not a real solution.
+    /// Check whether the node is a parensed expression.
     pub fn is_parensed(&self) -> bool {
         let check = |t:Option<&Child<T>>|
             t.map(|t|t.kind == Kind::Token && t.size.value == 1) == Some(true);

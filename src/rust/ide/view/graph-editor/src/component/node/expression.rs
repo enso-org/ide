@@ -16,6 +16,7 @@ pub struct Expression {
 }
 
 impl Expression {
+    /// Constructor for debug purposes.
     pub fn debug_from_str(s:&str) -> Self {
         let code             = s.into();
         let input_span_tree  = default();

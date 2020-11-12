@@ -104,7 +104,7 @@ macro_rules! define_theme {
 // === Light Theme & Modules ===
 // =============================
 
-define_default_theme! { light_theme
+define_default_theme! { __light_theme__
     application {
         background = Lcha(0.96,0.014,0.18,1.0);
     }
@@ -136,7 +136,7 @@ define_default_theme! { light_theme
                 exponent = 2.0;
             }
             selection      = Lcha(0.83,0.63,0.436,1.0);
-            selection.size = 7.0;
+            selection.size = 9.0;
             text = Lcha(0.0,0.0,0.0,0.7);
             text {
                 missing_arg    = Lcha(0.0,0.0,0.0,0.3);
@@ -216,7 +216,7 @@ define_default_theme! { light_theme
 // === Dark Theme ===
 // ==================
 
-define_theme! { dark_theme
+define_theme! { __dark_theme__
     application {
         background = Lcha(0.13,0.014,0.18,1.0);
     }
@@ -248,7 +248,7 @@ define_theme! { dark_theme
                 exponent = 2.0;
             }
             selection      = Lcha(0.72,0.54,0.22,1.0);
-            selection.size = 7.0;
+            selection.size = 9.0;
             text           = Lcha(1.0,0.0,0.0,0.7);
             text {
                 missing_arg    = Lcha(1.0,0.0,0.0,0.3);
@@ -325,4 +325,16 @@ define_theme! { dark_theme
             chroma_factor    = 0.2;
         }
     }
+}
+
+
+
+// ====================
+// === Theme Export ===
+// ====================
+
+/// Builtin themes.
+pub mod builtin {
+    pub use super::__light_theme__ as light;
+    pub use super::__dark_theme__  as dark;
 }

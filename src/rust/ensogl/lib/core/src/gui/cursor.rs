@@ -335,7 +335,7 @@ impl Cursor {
         let input   = &model.frp;
         let mouse   = &scene.mouse.frp;
 
-        // === DEPRECATED_Animations ===
+        // === Animations ===
         //
         // The following animators are used for smooth cursor transitions. There are two of them
         // with a non-obvious behavior, namely the `host_follow_weight` and `host_attached_weight`.

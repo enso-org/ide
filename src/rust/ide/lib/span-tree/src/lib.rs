@@ -101,12 +101,12 @@ impl<T:Payload> SpanTree<T> {
         gen.generate_tree(context)
     }
 
-    /// Get the `NodeRef` of root node.
+    /// Get a reference to the root node.
     pub fn root_ref(&self) -> node::Ref<T> {
         node::Ref::new(&self.root)
     }
 
-    /// Get the `NodeRef` of root node.
+    /// Get a mutable reference to the root node.
     pub fn root_ref_mut(&mut self) -> node::RefMut<T> {
         node::RefMut::new(&mut self.root)
     }
@@ -127,7 +127,7 @@ impl<T:Payload> SpanTree<T> {
 
 // === Getters ===
 
-impl <T:Payload> SpanTree<T> {
+impl<T:Payload> SpanTree<T> {
     /// Get `ast::Id` of the nested node, if exists.
     pub fn nested_ast_id(&self, crumbs:&Crumbs) -> Option<ast::Id> {
         if self.root_ref().crumbs == crumbs {

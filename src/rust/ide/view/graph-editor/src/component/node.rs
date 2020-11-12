@@ -45,6 +45,7 @@ pub const SHADOW_SIZE       : f32 = 10.0;
 pub const TEXT_OFF          : f32 = 10.0;
 
 
+
 // ============
 // === Node ===
 // ============
@@ -57,10 +58,7 @@ pub mod shape {
         (style:Style, selection:f32, bg_color:Vector4 ) {
             use ensogl_theme::graph_editor::node as node_theme;
 
-            let bg_color        = Var::<color::Rgba>::from(bg_color);
-            let selection_color = style.get_color(ensogl_theme::graph_editor::node::selection);
-            let _selection_size = style.get_number_or(ensogl_theme::graph_editor::node::selection::size,8.0);
-
+            let bg_color      = Var::<color::Rgba>::from(bg_color);
             let border_size_f = 16.0;
 
             let width  = Var::<Pixels>::from("input_size.x");
@@ -93,20 +91,26 @@ pub mod shape {
 
             // === Selection ===
 
-            let selection_offset = 5.px();
-            let selection_size   = 9.px();
-            let select_width     = &width  - 2.px() + &selection_offset * 2.0 * &selection;
-            let select_height    = &height - 2.px() + &selection_offset * 2.0 * &selection;
-            let select_radius    = &select_height / 2.0;
-            let select           = Rect((&select_width,&select_height)).corners_radius(&select_radius);
+            let sel_color = style.get_color(ensogl_theme::graph_editor::node::selection);
+            let sel_size  = style.get_number_or(ensogl_theme::graph_editor::node::selection::size,9.0);
 
-            let select2_width  = &width  - 2.px() + &selection_size * 2.0 * &selection;
-            let select2_height = &height - 2.px() + &selection_size * 2.0 * &selection;
-            let select2_radius = &select2_height / 2.0;
-            let select2        = Rect((&select2_width,&select2_height)).corners_radius(&select2_radius);
+            let sel_offset  = 5.px();
+            let sel_size    = sel_size.px();
+            let sel_width   = &width  - 2.px() + &sel_offset * 2.0 * &selection;
+            let sel_height  = &height - 2.px() + &sel_offset * 2.0 * &selection;
+            let sel_radius  = &sel_height / 2.0;
+            let select      = Rect((&sel_width,&sel_height)).corners_radius(&sel_radius);
+
+            let sel2_width  = &width  - 2.px() + &sel_size * 2.0 * &selection;
+            let sel2_height = &height - 2.px() + &sel_size * 2.0 * &selection;
+            let sel2_radius = &sel2_height / 2.0;
+            let select2     = Rect((&sel2_width,&sel2_height)).corners_radius(&sel2_radius);
 
             let select = select2 - select;
-            let select = select.fill(color::Rgba::from(selection_color));
+            let select = select.fill(color::Rgba::from(sel_color));
+
+
+            // === Final Shape ===
 
             let out = select + shadow + shape;
             out.into()

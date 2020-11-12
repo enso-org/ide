@@ -566,7 +566,7 @@ impl Area {
             let is_token     = node.is_token();
 
 
-            /// === Type Computation ===
+            // === Type Computation ===
 
             frp::extend! { port_network
                 def_tp <- source::<Option<Type>>();
@@ -633,7 +633,7 @@ impl Area {
                 }
             }
 
-            /// Initialization.
+            // Initialization.
             def_tp.emit(node.tp().cloned().map(|t|t.into()));
             Some(frp.final_type.clone_ref().into())
         });

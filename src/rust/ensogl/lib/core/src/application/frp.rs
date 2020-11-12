@@ -5,18 +5,22 @@
 /// Given the definition:
 ///
 /// ```compile_fail
-///     define_endpoints! {
-///         Input {
+///     define_endpoints! { [GLOBAL_OPTS]
+///         Input { [INPUT_OPTS]
 ///             input1 (f32),
 ///             input2 (),
 ///         }
-///         Output {
+///         Output { [OUTPUT_OPTS]
 ///             output1 (String),
 ///             output2 (bool),
 ///             output3 (),
 ///         }
 ///     }
 /// ```
+///
+/// The `INPUT_OPTS`, `OUTPUT_OPTS`, and `GLOBAL_OPTS` are optional and will be passed directly to
+/// input, output, or both FRP network definitions, respectively. For example, you can add the
+/// `TRACE_ALL` option this way.
 ///
 /// The code presented below will be generated. Please note that additional fields are added
 /// automatically. In particular, an output `focused(bool)`, and inputs `focus()`, `defocus()`,
@@ -238,27 +242,27 @@ macro_rules! define_endpoints {
             $out_field : ident ($($out_field_type : tt)*)),* $(,)?
         }
     ) => {
-        use enso_frp::IntoParam;
+        use $crate::frp::IntoParam;
 
         /// Frp network and endpoints.
         #[derive(Debug,Clone,CloneRef)]
         #[allow(missing_docs)]
         pub struct Frp {
-            pub network : enso_frp::Network,
+            pub network : $crate::frp::Network,
             pub output  : FrpEndpoints,
         }
 
         impl Frp {
             /// Create Frp endpoints within and the associated network.
             pub fn new() -> Self {
-                let network = enso_frp::Network::new();
+                let network = $crate::frp::Network::new();
                 let input   = FrpInputs::new(&network);
                 let output  = FrpEndpoints::new(&network,input);
                 Self {network,output}
             }
 
             /// Create Frp endpoints within the provided network.
-            pub fn extend(network:&enso_frp::Network) -> Self {
+            pub fn extend(network:&$crate::frp::Network) -> Self {
                 let input   = FrpInputs::new(network);
                 let output  = FrpEndpoints::new(network,input);
                 let network = network.clone_ref();
@@ -266,7 +270,7 @@ macro_rules! define_endpoints {
             }
 
             /// Deprecated constructor. Use `new` or `default` instead.
-            pub fn deprecated_new(network:enso_frp::Network, output:FrpEndpoints) -> Self {
+            pub fn deprecated_new(network:$crate::frp::Network, output:FrpEndpoints) -> Self {
                 Self {network,output}
             }
         }
@@ -289,14 +293,14 @@ macro_rules! define_endpoints {
         #[allow(missing_docs)]
         #[allow(unused_parens)]
         pub struct FrpInputs {
-            $( $(#[doc=$($in_doc)*])* pub $in_field : enso_frp::Any<($($in_field_type)*)>),*
+            $( $(#[doc=$($in_doc)*])* pub $in_field : $crate::frp::Any<($($in_field_type)*)>),*
         }
 
         #[allow(unused_parens)]
         impl FrpInputs {
             /// Constructor.
-            pub fn new(network:&enso_frp::Network) -> Self {
-                enso_frp::extend! { $($($global_opts)*)? $($($input_opts)*)? network
+            pub fn new(network:&$crate::frp::Network) -> Self {
+                $crate::frp::extend! { $($($global_opts)*)? $($($input_opts)*)? network
                     $($in_field <- any_mut();)*
                 }
                 Self { $($in_field),* }
@@ -311,10 +315,14 @@ macro_rules! define_endpoints {
         #[allow(missing_docs)]
         pub struct FrpEndpoints {
             pub input         : FrpInputs,
+            // TODO[WD]: Consider making it private and exposing only on-demand with special macro
+            //           usage syntax.
             pub(crate) source : FrpOutputsSource,
-            pub status_map    : Rc<RefCell<HashMap<String,enso_frp::Sampler<bool>>>>,
+            pub status_map    : Rc<RefCell<HashMap<String,$crate::frp::Sampler<bool>>>>,
             pub command_map   : Rc<RefCell<HashMap<String,$crate::application::command::Command>>>,
-            $($(#[doc=$($out_doc)*])* pub $out_field  : enso_frp::Sampler<($($out_field_type)*)>),*
+            $($(#[doc=$($out_doc)*])*
+                pub $out_field  : $crate::frp::Sampler<($($out_field_type)*)>
+            ),*
         }
 
         impl Deref for FrpEndpoints {
@@ -326,19 +334,21 @@ macro_rules! define_endpoints {
 
         impl FrpEndpoints {
             /// Constructor.
-            pub fn new(network:&enso_frp::Network, input:FrpInputs) -> Self {
+            pub fn new(network:&$crate::frp::Network, input:FrpInputs) -> Self {
                 use $crate::application::command::*;
                 let source = FrpOutputsSource::new(network);
-                let mut status_map  : HashMap<String,enso_frp::Sampler<bool>> = default();
+                let mut status_map  : HashMap<String,$crate::frp::Sampler<bool>> = default();
                 let mut command_map : HashMap<String,Command> = default();
-                enso_frp::extend! { $($($global_opts)*)? $($($output_opts)*)? network
+                $crate::frp::extend! { $($($global_opts)*)? $($($output_opts)*)? network
                     $($out_field <- source.$out_field.sampler();)*
                     focus_events   <- bool(&input.defocus,&input.focus);
                     focused        <- any(&input.set_focus,&focus_events);
                     source.focused <+ focused;
                 }
-                $($crate::build_status_map!{status_map $out_field ($($out_field_type)*) $out_field })*
-                $($crate::build_command_map!{command_map $in_field ($($in_field_type)*) input.$in_field })*
+                $($crate::build_status_map!
+                    {status_map $out_field ($($out_field_type)*) $out_field })*
+                $($crate::build_command_map!
+                    {command_map $in_field ($($in_field_type)*) input.$in_field })*
                 let status_map  = Rc::new(RefCell::new(status_map));
                 let command_map = Rc::new(RefCell::new(command_map));
                 Self {source,input,status_map,command_map,$($out_field),*}
@@ -349,13 +359,13 @@ macro_rules! define_endpoints {
         #[derive(Debug,Clone,CloneRef)]
         #[allow(unused_parens)]
         pub(crate) struct FrpOutputsSource {
-            $(pub(crate) $out_field : enso_frp::Any<($($out_field_type)*)>),*
+            $(pub(crate) $out_field : $crate::frp::Any<($($out_field_type)*)>),*
         }
 
         impl FrpOutputsSource {
             /// Constructor.
-            pub fn new(network:&enso_frp::Network) -> Self {
-                enso_frp::extend! { network
+            pub fn new(network:&$crate::frp::Network) -> Self {
+                $crate::frp::extend! { network
                     $($out_field <- any(...);)*
                 }
                 Self {$($out_field),*}
@@ -368,7 +378,7 @@ macro_rules! define_endpoints {
                 self.command_map.clone()
             }
 
-            fn status_api(&self) -> Rc<RefCell<HashMap<String,enso_frp::Sampler<bool>>>> {
+            fn status_api(&self) -> Rc<RefCell<HashMap<String,$crate::frp::Sampler<bool>>>> {
                 self.status_map.clone()
             }
         }

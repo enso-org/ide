@@ -1316,13 +1316,15 @@ impl EdgeModelData {
         let color:color::Lcha = color.opaque.into();
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
-        let styles                 = StyleWatch::new(&self.scene.style_sheet);
-        let split_lightness_factor = styles.get_number_or(theme::graph_editor::edge::split::lightness_factor,1.2);
-        let split_chroma_factor    = styles.get_number_or(theme::graph_editor::edge::split::chroma_factor,0.8);
-        let lightness              = color.lightness * split_lightness_factor;
-        let chroma                 = color.chroma * split_chroma_factor;
-        let focus_color            = color::Lcha::new(lightness,chroma,color.hue,color.alpha);
-        let color_rgba:color::Rgba = color.into();
+        let styles         = StyleWatch::new(&self.scene.style_sheet);
+        let factor_l_path  = theme::graph_editor::edge::split::lightness_factor;
+        let factor_c_path  = theme::graph_editor::edge::split::chroma_factor;
+        let split_factor_l = styles.get_number_or(factor_l_path,1.2);
+        let split_factor_c = styles.get_number_or(factor_c_path,0.8);
+        let lightness      = color.lightness * split_factor_l;
+        let chroma         = color.chroma * split_factor_c;
+        let focus_color    = color::Lcha::new(lightness,chroma,color.hue,color.alpha);
+        let color_rgba     = color::Rgba::from(color);
         self.shapes().iter().for_each(|shape| {
             shape.set_color_focus(focus_color.into());
             shape.set_color(color_rgba)

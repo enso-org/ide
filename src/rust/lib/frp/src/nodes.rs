@@ -1110,6 +1110,7 @@ where T:EventOutput<Output=Option<S>>, S:Data {
 #[derive(Debug)]
 pub struct AnyData  <Out=()> { srcs:Rc<RefCell<Vec<Box<dyn std::any::Any>>>>, phantom:PhantomData<Out> }
 pub type   OwnedAny <Out=()> = stream::Node     <AnyData<Out>>;
+/// Please refer to `any_mut` docs to learn more.
 pub type   Any      <Out=()> = stream::WeakNode <AnyData<Out>>;
 
 impl<Out:Data> HasOutput for AnyData<Out> {
