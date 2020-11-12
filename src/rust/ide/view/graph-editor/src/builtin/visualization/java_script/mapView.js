@@ -1,3 +1,18 @@
+// =================
+// === Constants ===
+// =================
+
+/** Mapbox API access token. */
+const TOKEN = 'pk.eyJ1IjoiZW5zby1vcmciLCJhIjoiY2tmNnh5MXh2MGlyOTJ5cWdubnFxbXo4ZSJ9.3KdAcCiiXJcSM18nwk09-Q';
+
+const GEO_POINT            = "Geo_Point";
+const GEO_MAP              = "Geo_Map";
+const SCATTERPLOT_LAYER    = "Scatterplot_Layer";
+const DEFAULT_POINT_RADIUS = 150;
+const DARK_ACCENT_COLOR    = [222,162,47];
+const LIGHT_ACCENT_COLOR   = [1,234,146];
+
+
 function loadScript(url) {
     var script = document.createElement("script");
     script.src = url;
@@ -22,13 +37,6 @@ styleHead.innerText = `.mapboxgl-map {
             border-radius: 14px;
         }`
 document.head.appendChild(styleHead);
-
-const TOKEN = 'pk.eyJ1IjoiZW5zby1vcmciLCJhIjoiY2tmNnh5MXh2MGlyOTJ5cWdubnFxbXo4ZSJ9.3KdAcCiiXJcSM18nwk09-Q';
-
-const GEO_POINT         = "GeoPoint";
-const GEO_MAP           = "GeoMap";
-const SCATTERPLOT_LAYER = "ScatterplotLayer";
-const DEFAULT_RADIUS    = 150;
 
 
 /**
@@ -74,10 +82,10 @@ class MapViewVisualization extends Visualization {
         }
 
         let defaultMapStyle = 'mapbox://styles/mapbox/light-v9';
-        let accentColor     = [1,234,146];
+        let accentColor     = LIGHT_ACCENT_COLOR;
         if (document.getElementById("root").classList.contains("dark")){
             defaultMapStyle = 'mapbox://styles/mapbox/dark-v9';
-            accentColor     = [222,162,47];
+            accentColor     = DARK_ACCENT_COLOR;
         }
 
         let preparedDataPoints = []
@@ -88,26 +96,20 @@ class MapViewVisualization extends Visualization {
             getFillColor: d => d.color,
             getRadius: d => d.radius
         })
-        //
-        let latitudeMatch  = parsedData.latitude !== undefined && parsedData.latitude !== null;
-        let latitude       = latitudeMatch ? parsedData.latitude : computed.latitude;
-        let longitudeMatch = parsedData.longitude !== undefined && parsedData.longitude !== null;
-        let longitude      = longitudeMatch ? parsedData.longitude : computed.longitude;
+        let latitude   = this.ok(parsedData.latitude) ? parsedData.latitude : computed.latitude;
+        let longitude  = this.ok(parsedData.longitude) ? parsedData.longitude : computed.longitude;
         // TODO : Compute zoom somehow.
-        let zoomMatch      = parsedData.zoom !== undefined && parsedData.zoom !== null;
-        let zoom           = zoomMatch ? parsedData.zoom : computed.zoom;
+        let zoom       = this.ok(parsedData.zoom) ? parsedData.zoom : computed.zoom;
+        let mapStyle   = this.ok(parsedData.mapStyle) ? parsedData.mapStyle : defaultMapStyle;
+        let pitch      = this.ok(parsedData.pitch) ? parsedData.pitch : 0;
+        let controller = this.ok(parsedData.controller) ? parsedData.controller : true;
 
         const deckgl = new deck.DeckGL({
             container: 'map',
             mapboxApiAccessToken: TOKEN,
-            mapStyle: parsedData.mapStyle || defaultMapStyle,
-            initialViewState: {
-                longitude: longitude,
-                latitude: latitude,
-                zoom: zoom,
-                pitch: parsedData.pitch || 0
-            },
-            controller: parsedData.controller || true
+            mapStyle,
+            initialViewState: {longitude,latitude,zoom,pitch},
+            controller
         });
 
         deckgl.setProps({
@@ -117,9 +119,14 @@ class MapViewVisualization extends Visualization {
 
     /**
      * Prepares data points to be shown on the map.
-     * @param preparedDataPoints - List holding geoPoints.
-     * @param parsedData - All the parsed data to create GeoPoints from.
-     * @param accentColor - accent color of IDE if element doesn't specify one.
+     *
+     * It checks the type of input data, whether user wants to display single `GEO_POINT`, array of
+     * those, `SCATTERPLOT_LAYER` or a fully defined `GEO_MAP`, and prepares data field of deck.gl
+     * layer for given input.
+     *
+     * @param preparedDataPoints - List holding data points to push the GeoPoints into.
+     * @param parsedData         - All the parsed data to create points from.
+     * @param accentColor        - accent color of IDE if element doesn't specify one.
      */
     prepareDataPoints(parsedData, preparedDataPoints, accentColor) {
         let latitude  = 0.0;
@@ -131,23 +138,23 @@ class MapViewVisualization extends Visualization {
             latitude  = parsedData.latitude;
             longitude = parsedData.longitude;
         } else if (Array.isArray(parsedData) && parsedData.length && parsedData[0].type === GEO_POINT) {
-            const computed = this.prepareDataPointsHelper(parsedData,preparedDataPoints,accentColor);
+            const computed = this.calculateExtremesAndPushPoints(parsedData,preparedDataPoints,accentColor);
             latitude       = computed.latitude;
             longitude      = computed.longitude;
         } else {
             if (parsedData.type === SCATTERPLOT_LAYER && parsedData.data.length) {
-                const computed = this.prepareDataPointsHelper(parsedData.data,preparedDataPoints,accentColor);
+                const computed = this.calculateExtremesAndPushPoints(parsedData.data,preparedDataPoints,accentColor);
                 latitude       = computed.latitude;
                 longitude      = computed.longitude;
-            } else if (parsedData.type === GEO_MAP && parsedData.layers !== undefined) {
+            } else if (parsedData.type === GEO_MAP && this.ok(parsedData.layers)) {
                 parsedData.layers.forEach(layer => {
                     if (layer.type === SCATTERPLOT_LAYER) {
                         let dataPoints = layer.data || [];
-                        const computed = this.prepareDataPointsHelper(dataPoints,preparedDataPoints,accentColor);
+                        const computed = this.calculateExtremesAndPushPoints(dataPoints,preparedDataPoints,accentColor);
                         latitude       = computed.latitude;
                         longitude      = computed.longitude;
                     } else {
-                        console.log("Currently unsupported deck.gl layer.")
+                        console.warn("Geo_Map: Currently unsupported deck.gl layer.")
                     }
                 })
             }
@@ -156,10 +163,10 @@ class MapViewVisualization extends Visualization {
     }
 
     /**
-     * Helper for prepareDataPoints, calculating also central point.
+     * Helper for prepareDataPoints, pushes `GEO_POINT`'s to the list, and calculates central point.
      * @returns {{latitude: number, longitude: number}} - center.
      */
-    prepareDataPointsHelper(dataPoints,preparedDataPoints,accentColor) {
+    calculateExtremesAndPushPoints(dataPoints, preparedDataPoints, accentColor) {
         let latitudes  = [];
         let longitudes = [];
         dataPoints.forEach(e => {
@@ -181,23 +188,31 @@ class MapViewVisualization extends Visualization {
     }
 
     /**
-     * Pushes a new deck.gl-compatible point from GeoPoint.
-     * @param preparedDataPoints - List holding geoPoints.
-     * @param element - element to create new deck.gl point from.
-     * @param accentColor - accent color of IDE if element doesn't specify one.
+     * Pushes a new deck.gl-compatible point made out of `GEO_POINT`
+     *
+     * @param preparedDataPoints - List holding geoPoints to push the new element into.
+     * @param geoPoint           - `GEO_POINT` to create new deck.gl point from.
+     * @param accentColor        - accent color of IDE if `GEO_POINT` doesn't specify one.
      */
-    pushGeoPoint(preparedDataPoints,element,accentColor) {
-        let radius = isNaN(element.radius) ? DEFAULT_RADIUS : element.radius;
+    pushGeoPoint(preparedDataPoints,geoPoint,accentColor) {
+        let radius = isNaN(geoPoint.radius) ? DEFAULT_POINT_RADIUS : geoPoint.radius;
         preparedDataPoints.push({
-            position: [element.longitude,element.latitude],
-            color: element.color || accentColor,
+            position: [geoPoint.longitude,geoPoint.latitude],
+            color: geoPoint.color || accentColor,
             radius: radius
         });
     }
 
     /**
+     * Checks if `t` has defined type and is not null.
+     */
+    ok(t) {
+        return t !== undefined && t !== null;
+    }
+
+    /**
      * Sets size of the visualization.
-     * @param size - new size.
+     * @param size - new size, list of two numbers containing width and height respectively.
      */
     setSize(size) {
         this.dom.setAttributeNS(null, "width", size[0]);
