@@ -50,15 +50,15 @@ document.head.appendChild(styleHead);
  *
  * > Example creates a map with described properties with a scatter plot overlay:
  * {
- * "type": "GeoMap",
+ * "type": "Geo_Map",
  * "latitude": 37.8,
  * "longitude": -122.45,
  * "zoom": 15,
  * "controller": true,
  * "layers": [{
- *     "type": "ScatterplotLayer",
+ *     "type": "Scatterplot_Layer",
  *     "data": [{
- *         "type": "GeoPoint",
+ *         "type": "Geo_Point",
  *         "latitude": -122.45,
  *         "longitude": 37.8,
  *         "color": [255, 0, 0],
