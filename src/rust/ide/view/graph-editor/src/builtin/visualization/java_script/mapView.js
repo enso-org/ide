@@ -1,14 +1,20 @@
+/** GeoMap Visualization. */
+
 // =================
 // === Constants ===
 // =================
 
-/** Mapbox API access token. */
+/**
+ * Mapbox API access token.
+ * All the limits of API are listed here: https://docs.mapbox.com/api/#rate-limits
+ */
 const TOKEN = 'pk.eyJ1IjoiZW5zby1vcmciLCJhIjoiY2tmNnh5MXh2MGlyOTJ5cWdubnFxbXo4ZSJ9.3KdAcCiiXJcSM18nwk09-Q';
 
 const GEO_POINT            = "Geo_Point";
 const GEO_MAP              = "Geo_Map";
 const SCATTERPLOT_LAYER    = "Scatterplot_Layer";
 const DEFAULT_POINT_RADIUS = 150;
+const DEFAULT_MAP_ZOOM     = 11;
 const DARK_ACCENT_COLOR    = [222,162,47];
 const LIGHT_ACCENT_COLOR   = [1,234,146];
 
@@ -69,10 +75,10 @@ class MapViewVisualization extends Visualization {
             this.dom.removeChild(this.dom.lastChild);
         }
 
-        const width   = this.dom.getAttributeNS(null, "width");
-        const height  = this.dom.getAttributeNS(null, "height");
+        const width   = this.dom.getAttributeNS(null,"width");
+        const height  = this.dom.getAttributeNS(null,"height");
         const mapElem = document.createElement("div");
-        mapElem.setAttributeNS(null,"id"   , "map");
+        mapElem.setAttributeNS(null,"id"   ,"map");
         mapElem.setAttributeNS(null,"style","width:" + width + "px;height: " + height + "px;");
         this.dom.appendChild(mapElem);
 
@@ -90,18 +96,18 @@ class MapViewVisualization extends Visualization {
 
         let preparedDataPoints = []
         let computed           = this.prepareDataPoints(parsedData,preparedDataPoints,accentColor);
-
         const scatterplotLayer = new deck.ScatterplotLayer({
             data: preparedDataPoints,
-            getFillColor: d => d.color,
-            getRadius: d => d.radius
+            getFillColor:d => d.color,
+            getRadius:d => d.radius
         })
-        let latitude   = this.ok(parsedData.latitude) ? parsedData.latitude : computed.latitude;
-        let longitude  = this.ok(parsedData.longitude) ? parsedData.longitude : computed.longitude;
-        // TODO : Compute zoom somehow.
-        let zoom       = this.ok(parsedData.zoom) ? parsedData.zoom : computed.zoom;
-        let mapStyle   = this.ok(parsedData.mapStyle) ? parsedData.mapStyle : defaultMapStyle;
-        let pitch      = this.ok(parsedData.pitch) ? parsedData.pitch : 0;
+
+        let latitude   = this.ok(parsedData.latitude)   ? parsedData.latitude : computed.latitude;
+        let longitude  = this.ok(parsedData.longitude)  ? parsedData.longitude : computed.longitude;
+        // TODO : Compute zoom somehow from span of latitudes and longitudes.
+        let zoom       = this.ok(parsedData.zoom)       ? parsedData.zoom : DEFAULT_MAP_ZOOM;
+        let mapStyle   = this.ok(parsedData.mapStyle)   ? parsedData.mapStyle : defaultMapStyle;
+        let pitch      = this.ok(parsedData.pitch)      ? parsedData.pitch : 0;
         let controller = this.ok(parsedData.controller) ? parsedData.controller : true;
 
         const deckgl = new deck.DeckGL({
@@ -131,13 +137,12 @@ class MapViewVisualization extends Visualization {
     prepareDataPoints(parsedData, preparedDataPoints, accentColor) {
         let latitude  = 0.0;
         let longitude = 0.0;
-        let zoom      = 11;
 
         if (parsedData.type === GEO_POINT) {
             this.pushGeoPoint(preparedDataPoints,parsedData,accentColor);
             latitude  = parsedData.latitude;
             longitude = parsedData.longitude;
-        } else if (Array.isArray(parsedData) && parsedData.length && parsedData[0].type === GEO_POINT) {
+        } else if (Array.isArray(parsedData) && parsedData.length) {
             const computed = this.calculateExtremesAndPushPoints(parsedData,preparedDataPoints,accentColor);
             latitude       = computed.latitude;
             longitude      = computed.longitude;
@@ -159,7 +164,7 @@ class MapViewVisualization extends Visualization {
                 })
             }
         }
-        return {latitude,longitude,zoom}
+        return {latitude,longitude}
     }
 
     /**
@@ -170,9 +175,11 @@ class MapViewVisualization extends Visualization {
         let latitudes  = [];
         let longitudes = [];
         dataPoints.forEach(e => {
-            this.pushGeoPoint(preparedDataPoints,e,accentColor);
-            latitudes.push(e.latitude);
-            longitudes.push(e.longitude);
+            if(e.type === GEO_POINT) {
+                this.pushGeoPoint(preparedDataPoints,e,accentColor);
+                latitudes.push(e.latitude);
+                longitudes.push(e.longitude);
+            }
         });
         let latitude  = 0.0;
         let longitude = 0.0;
@@ -195,12 +202,10 @@ class MapViewVisualization extends Visualization {
      * @param accentColor        - accent color of IDE if `GEO_POINT` doesn't specify one.
      */
     pushGeoPoint(preparedDataPoints,geoPoint,accentColor) {
-        let radius = isNaN(geoPoint.radius) ? DEFAULT_POINT_RADIUS : geoPoint.radius;
-        preparedDataPoints.push({
-            position: [geoPoint.longitude,geoPoint.latitude],
-            color: geoPoint.color || accentColor,
-            radius: radius
-        });
+        let position = [geoPoint.longitude,geoPoint.latitude];
+        let radius   = isNaN(geoPoint.radius)  ? DEFAULT_POINT_RADIUS : geoPoint.radius;
+        let color    = this.ok(geoPoint.color) ? geoPoint.color : accentColor;
+        preparedDataPoints.push({position,color,radius});
     }
 
     /**
@@ -215,8 +220,8 @@ class MapViewVisualization extends Visualization {
      * @param size - new size, list of two numbers containing width and height respectively.
      */
     setSize(size) {
-        this.dom.setAttributeNS(null, "width", size[0]);
-        this.dom.setAttributeNS(null, "height", size[1]);
+        this.dom.setAttributeNS(null,"width",size[0]);
+        this.dom.setAttributeNS(null,"height",size[1]);
     }
 }
 
