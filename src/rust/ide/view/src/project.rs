@@ -59,13 +59,19 @@ impl Model {
 
     /// Sets style of IDE.
     pub fn set_style(&self, is_light:bool) {
-        let root_elem = web::get_element_by_id("root").unwrap_or_else(|_| panic!("Failed to find root!"));
+        let root_elem = web::get_element_by_id("root");
         if is_light {
             self.app.themes.set_enabled(&["dark"]);
-            root_elem.set_class_name("dark-theme");
+            match root_elem {
+                Ok(v)  => v.set_class_name("dark-theme"),
+                Err(_) => self.logger.warning("Failed to find root!"),
+            }
         } else {
             self.app.themes.set_enabled(&["light"]);
-            root_elem.set_class_name("light-theme");
+            match root_elem {
+                Ok(v)  => v.set_class_name("light-theme"),
+                Err(_) => self.logger.warning("Failed to find root!"),
+            }
         }
     }
 
