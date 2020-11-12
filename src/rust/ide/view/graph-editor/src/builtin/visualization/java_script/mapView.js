@@ -68,7 +68,7 @@ class MapViewVisualization extends Visualization {
         }
 
         let defaultMapStyle = 'mapbox://styles/mapbox/light-v9';
-        if (document.getElementById("root").classList.contains("dark")){
+        if (document.getElementById("root").classList.contains("dark-theme")){
             defaultMapStyle = 'mapbox://styles/mapbox/dark-v9';
         }
 

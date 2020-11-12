@@ -61,10 +61,10 @@ impl Model {
         let root_elem = web::get_element_by_id("root").unwrap_or_else(|_| panic!("Failed to find root!"));
         if is_light {
             self.app.themes.set_enabled(&["dark"]);
-            root_elem.set_class_name("dark");
+            root_elem.set_class_name("dark-theme");
         } else {
             self.app.themes.set_enabled(&["light"]);
-            root_elem.set_class_name("");
+            root_elem.set_class_name("light-theme");
         }
     }
 
