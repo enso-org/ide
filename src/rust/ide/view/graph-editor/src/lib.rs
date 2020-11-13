@@ -427,6 +427,7 @@ ensogl::define_endpoints! {
         node_added                (NodeId),
         node_removed              (NodeId),
         nodes_collapsed           ((Vec<NodeId>,NodeId)),
+        node_hovered              (Switch<NodeId>),
         node_selected             (NodeId),
         node_deselected           (NodeId),
         node_position_set         ((NodeId,Vector2)),
@@ -434,11 +435,11 @@ ensogl::define_endpoints! {
         node_expression_set       ((NodeId,String)),
         node_entered              (NodeId),
         node_exited               (),
-        node_edit_mode            (bool),
         node_editing_started      (NodeId),
         node_editing_finished     (NodeId),
         node_action_freeze        ((NodeId,bool)),
         node_action_skip          ((NodeId,bool)),
+        node_edit_mode            (bool),
 
         edge_added         (EdgeId),
         edge_removed       (EdgeId),
@@ -926,7 +927,6 @@ impl GraphEditorModelWithNetwork {
     , pointer_style   : &frp::Source<cursor::Style>
     , output_press    : &frp::Source<EdgeTarget>
     , input_press     : &frp::Source<EdgeTarget>
-    , edit_mode_ready : &frp::Stream<bool>
     , output          : &FrpEndpoints
     ) -> NodeId {
         let view    = component::Node::new(&self.app,self.visualizations.clone_ref(),&output.some_edge_targets_detached2);
@@ -940,9 +940,12 @@ impl GraphEditorModelWithNetwork {
         frp::new_bridge_network! { [self.network, node.frp.network]
             eval_ node.frp.background_press(touch.nodes.down.emit(node_id));
             let ports_frp       = &node.model.input.frp;
-            let edit_mode_ready = edit_mode_ready.clone_ref();
+            // let edit_mode_ready = edit_mode_ready.clone_ref();
 
-            eval edit_mode_ready ((t) ports_frp.input.edit_mode_ready.emit(t));
+            hovered <- node.output.hover.map (move |t| Switch::new(node_id,*t));
+            output.source.node_hovered <+ hovered;
+
+            // eval edit_mode_ready ((t) ports_frp.input.edit_mode_ready.emit(t));
             eval node.model.input.frp.pointer_style ((style) pointer_style.emit(style));
             eval node.model.output.frp.port_mouse_down ([output_press](crumbs){
                 let target = EdgeTarget::new(node_id,crumbs.clone());
@@ -1770,13 +1773,13 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Node Editing ===
 
     frp::extend! { network
-        node_edit_mode        <- out.node_being_edited.map(|n| n.is_some());
+        node_in_edit_mode     <- out.node_being_edited.map(|n| n.is_some());
         edit_mode             <- bool(&inputs.edit_mode_off,&inputs.edit_mode_on);
         node_to_edit          <- touch.nodes.down.gate(&edit_mode);
         edit_node             <- any(&node_to_edit,&inputs.edit_node);
-        stop_edit_on_bg_click <- touch.background.selected.gate(&node_edit_mode);
+        stop_edit_on_bg_click <- touch.background.selected.gate(&node_in_edit_mode);
         stop_edit             <- any(&stop_edit_on_bg_click,&inputs.stop_editing);
-        edit_switch           <- edit_node.gate(&node_edit_mode);
+        edit_switch           <- edit_node.gate(&node_in_edit_mode);
         node_being_edited     <- out.node_being_edited.map(|n| n.unwrap_or_default());
 
         // The "finish" events must be emitted before "start", to properly cover the "switch" case.
@@ -1788,7 +1791,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         out.source.node_being_edited <+ out.node_editing_finished.constant(None);
         out.source.node_editing      <+ out.node_being_edited.map(|t|t.is_some());
 
-        out.source.node_edit_mode <+ node_edit_mode;
+        out.source.node_edit_mode <+ edit_mode;
 
         eval out.node_editing_started ([model] (id) {
             if let Some(node) = model.nodes.get_cloned_ref(&id) {
@@ -2045,9 +2048,14 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     add_node           <- any (inputs.add_node,add_node_at_cursor);
 
     new_node <- add_node.map(f_!([model,node_pointer_style,edit_mode,out] {
-        model.new_node(&node_pointer_style,&node_output_touch.down,&node_input_touch.down
-            ,&edit_mode,&out)
+        model.new_node(&node_pointer_style,&node_output_touch.down,&node_input_touch.down,&out)
     }));
+
+    _eval <- all_with(&edit_mode,&out.node_hovered,f!((e,tgt) model.with_node(tgt.value,|t|{
+        let enabled = *e && tgt.is_on();
+        t.model.input.edit_mode_ready(enabled)
+    })));
+
     out.source.node_added <+ new_node;
 
     node_with_position <- add_node_at_cursor.map3(&new_node,&mouse.position,|_,id,pos| (*id,*pos));

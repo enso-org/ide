@@ -163,6 +163,7 @@ ensogl::define_endpoints! {
         expression (Text),
         skip       (bool),
         freeze     (bool),
+        hover      (bool),
     }
 }
 
@@ -349,9 +350,12 @@ impl Node {
             eval model.input.frp.width ((w) model.set_width(*w));
 
             out.source.background_press <+ model.drag_area.events.mouse_down;
+            out.source.background_press <+ model.input.background_press;
 
             eval_ model.drag_area.events.mouse_over (model.input.set_hover(true));
             eval_ model.drag_area.events.mouse_out  (model.input.set_hover(false));
+            out.source.hover <+ model.input.body_hover;
+            trace out.hover;
 
             out.source.expression <+ model.input.frp.expression.map(|t|t.clone_ref());
 

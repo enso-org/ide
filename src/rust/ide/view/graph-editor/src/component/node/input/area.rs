@@ -182,6 +182,7 @@ ensogl::define_endpoints! {
         ports_visible (bool),
         port_hover    (Switch<Crumbs>),
         body_hover    (bool),
+        background_press (),
     }
 }
 
@@ -214,7 +215,7 @@ impl Model {
         display_object.add_child(&label);
         display_object.add_child(&ports);
         ports.add_child(&header);
-        ports.unset_parent();
+        // ports.unset_parent();
         // header.unset_parent();
         Self {logger,display_object,ports,header,label,app,expression,styles,id_crumbs_map}.init()
     }
@@ -290,11 +291,14 @@ impl Deref for Area {
 
 impl Area {
     pub fn new
-    (logger:impl AnyLogger, app:&Application, ports_enabled:&frp::Sampler<bool>) -> Self {
+    ( logger                : impl AnyLogger
+    , app                   : &Application
+    , ports_enabled_sampler : &frp::Sampler<bool>
+    ) -> Self {
         let model   = Rc::new(Model::new(logger,app));
         let frp     = Frp::new();
         let network = &frp.network;
-        let ports_enabled = ports_enabled.clone_ref();
+        let ports_enabled_sampler = ports_enabled_sampler.clone_ref();
 
         frp::extend! { network
 
@@ -316,13 +320,14 @@ impl Area {
 
             // === Show / Hide Phantom Ports ===
 
-            enabled   <- ports_enabled.sample(&frp.output.source.body_hover);
+            enabled   <- ports_enabled_sampler.sample(&frp.output.source.body_hover);
+            // edit_mode_ready <- edit_mode_sampler.sample(&frp.output.source.body_hover);
             edit_mode <- all_with(&frp.input.edit_mode,&frp.input.edit_mode_ready,|a,b|*a||*b);
             port_vis  <- all_with(&enabled,&edit_mode,|a,b|*a&&(!b));
-            eval port_vis ([model](t) {
-                if *t { model.display_object.add_child(&model.ports) }
-                else  { model.display_object.remove_child(&model.ports) }
-            });
+            // eval port_vis ([model](t) {
+            //     if *t { model.display_object.add_child(&model.ports) }
+            //     else  { model.display_object.remove_child(&model.ports) }
+            // });
 
             frp.output.source.ports_visible <+ port_vis;
             frp.output.source.editing       <+ edit_mode.sampler();
@@ -330,13 +335,10 @@ impl Area {
 
             // === Label Hover ===
 
-            let hovered = frp.input.set_hover.clone_ref();
-            // The below pattern is a very special one. When mouse is over phantom port and the edit
-            // mode button is pressed, the `edit_mode` event is emitted. It then emits trough the
-            // network and hides phantom ports. In the next frame, the hovering is changed, so this
-            // value needs to be updated.
-            edit_mode_hovered <- all_with(&edit_mode,&hovered,|a,_|*a).gate(&hovered);
-            label_hovered     <- all_with(&hovered,&edit_mode_hovered,|a,b|*a&&*b);
+            // let hovered = frp.input.set_hover.clone_ref();
+            let hovered = frp.output.body_hover.clone_ref();
+            label_hovered <- all_with(&edit_mode,&hovered,|a,b|*a && *b);
+            // label_hovered     <- all_with(&hovered,&edit_mode_hovered,|a,b|*a&&*b);
             eval label_hovered ((t) model.label.set_hover(t));
 
 
@@ -523,7 +525,7 @@ impl Area {
 
                     let mouse_over_raw = port_shape.hover.events.mouse_over.clone_ref();
                     let mouse_out      = port_shape.hover.events.mouse_out.clone_ref();
-                    let mouse_down     = port_shape.hover.events.mouse_down.clone_ref();
+                    let mouse_down_raw = port_shape.hover.events.mouse_down.clone_ref();
 
 
                     // === Body Hover ===
@@ -535,6 +537,10 @@ impl Area {
                     // the mouse hovers them, we want them
                     self.frp.output.source.body_hover <+ bool(&mouse_out,&mouse_over_raw);
                     mouse_over <- mouse_over_raw.gate(&frp.ports_visible);
+                    mouse_down <- mouse_down_raw.gate(&frp.ports_visible);
+                    bg_down    <- mouse_down_raw.gate_not(&frp.ports_visible);
+                    self.frp.output.source.background_press <+ bg_down;
+
 
                     // === Press ===
                     eval_ mouse_down ([crumbs,frp] frp.source.press.emit(&crumbs));
