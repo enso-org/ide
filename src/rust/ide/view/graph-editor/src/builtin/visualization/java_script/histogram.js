@@ -3,16 +3,15 @@ loadStyle('https://fontlibrary.org/face/dejavu-sans-mono')
 
 let shortcuts = {
     zoomIn  : (e) => ((e.ctrlKey || e.metaKey) && e.key === 'z'),
-    showAll : (e) => ((e.ctrlKey || e.metaKey) && event.key === 'a')
+    showAll : (e) => ((e.ctrlKey || e.metaKey) && e.key === 'a')
 }
 
-const label_style        = "font-family: DejaVuSansMonoBook; font-size: 10px;";
-const x_axis_label_width = 30;
-const animation_duration = 1000;
-const linear_scale       = "linear";
-const light_plot_color   = "#00E890";
-const dark_plot_color    = "#E0A63B";
-
+const LABEL_STYLE        = "font-family: DejaVuSansMonoBook; font-size: 10px;";
+const X_AXIS_LABEL_WIDTH = 30;
+const ANIMATION_DURATION = 1000;
+const LINEAR_SCALE       = "linear";
+const LIGHT_PLOT_COLOR   = "#00E890";
+const DARK_PLOT_COLOR    = "#E0A63B";
 
 
 /**
@@ -40,48 +39,50 @@ class Histogram extends Visualization {
         while (this.dom.firstChild) {
             this.dom.removeChild(this.dom.lastChild);
         }
+        this.init(data)
+    }
 
-        let width           = this.dom.getAttributeNS(null,"width");
+    init(data) {
+        const width         = this.dom.getAttributeNS(null,"width");
         let height          = this.dom.getAttributeNS(null,"height");
         const buttonsHeight = 25;
         height              = height - buttonsHeight;
         const divElem       = this.createDivElem(width,height);
         this.dom.appendChild(divElem);
 
-        let parsedData = JSON.parse(data);
-        let axis       = parsedData.axis || {x:{scale:linear_scale},y:{scale:linear_scale}};
-        let focus      = parsedData.focus;
-        let dataPoints = parsedData.data || {};
+        const parsedData = JSON.parse(data);
 
-        let margin     = this.getMargins(axis);
-        let box_width  = width - margin.left - margin.right;
-        let box_height = height - margin.top - margin.bottom;
+        const axis_scale = parsedData.axis || {x:{scale:LINEAR_SCALE},y:{scale:LINEAR_SCALE}};
+        const focus      = parsedData.focus;
+        const dataPoints = parsedData.data || {};
+        const margin     = this.getMargins(axis_scale);
+        const box_width  = width - margin.left - margin.right;
+        const box_height = height - margin.top - margin.bottom;
 
-        let svg = d3.select(divElem)
+        const svg = d3.select(this.dom)
             .append("svg")
             .attr("width",width)
             .attr("height",height)
             .append("g")
             .attr("transform","translate(" + margin.left + "," + margin.top + ")");
 
-        let extremesAndDeltas = this.getExtremesAndDeltas(dataPoints);
-        this.createLabels(axis,svg,box_width,margin,box_height);
-        let scaleAndAxis = this.createHistogram(extremesAndDeltas,box_width,svg,box_height,dataPoints,focus);
-        let zoom = this.addPanAndZoom(box_width,box_height,svg,margin,scaleAndAxis,dataPoints);
+        const extremesAndDeltas = this.getExtremesAndDeltas(dataPoints);
+        this.createLabels(axis_scale,svg,box_width,margin,box_height);
+        const [bars,scale,axis] = this.createHistogram(extremesAndDeltas,box_width,svg,box_height,dataPoints,focus);
+        const zoom = this.initPanAndZoom(box_width,box_height,svg,bars,margin,scale,axis,dataPoints);
 
         // TODO [MM]: In task specification buttons were on top of the visualization, but because
         //            the visualization selector obfuscated them, they're now on the bottom.
         //            This should be fixed in (#898).
-        this.createButtonFitAll(scaleAndAxis,svg,extremesAndDeltas,box_width,zoom);
-        let selectedZoomBtn = this.createButtonScaleToPoints();
-        this.addBrushing(box_width,box_height,svg,scaleAndAxis,selectedZoomBtn,dataPoints,zoom);
-
+        this.createButtonFitAll(scale,axis,svg,bars,extremesAndDeltas,box_width,zoom);
+        const selectedZoomBtn = this.createButtonScaleToPoints();
+        this.initBrushing(box_width,box_height,svg,bars,scale,axis,selectedZoomBtn,dataPoints,zoom);
     }
 
     /**
      * Adds panning and zooming functionality to the visualization.
      */
-    addPanAndZoom(box_width,box_height,svg,margin,scaleAndAxis,points) {
+    initPanAndZoom(box_width, box_height, svg, bars, margin, scale, axis, points) {
         let zoomClass = "zoom";
         let minScale  = .5;
         let maxScale  = 20;
@@ -98,7 +99,6 @@ class Histogram extends Visualization {
         }).scaleExtent(extent)
             .extent([[0,0],[box_width,box_height]])
             .on(zoomClass,zoomed)
-        // .on("wheel.zoom", wheeled)
 
         let zoomElem = svg.append("g")
             .attr("class",zoomClass)
@@ -108,30 +108,16 @@ class Histogram extends Visualization {
             .style("pointer-events","all")
             .call(zoom);
 
+        const self = this;
         /**
          * Helper function called on pan/scroll.
          */
         function zoomed() {
-            let new_xScale = d3.event.transform.rescaleX(scaleAndAxis.xScale);
-
-            scaleAndAxis.xAxis.call(d3.axisBottom(new_xScale).ticks(box_width/x_axis_label_width));
-            svg.selectAll("rect")
-                .attr('transform',d => "translate(" + new_xScale(d.x0) + "," + scaleAndAxis.yScale(d.length) + ")")
-        }
-
-        /**
-         * Helper function called on pinch.
-         *
-         * May seem unintuitive at first, but here's the explanation of ctrl+wheel:
-         * https://medium.com/@auchenberg/detecting-multi-touch-trackpad-gestures-in-javascript-a2505babb10e
-         */
-        function wheeled() {
-            let current_transform = d3.zoomTransform(svg);
-            let delta_multiplier  = 0.01;
-            if (d3.event.ctrlKey) {
-                current_transform.k = current_transform.k - d3.event.deltaY * delta_multiplier;
-            }
-            svg.attr("transform", current_transform);
+            console.log("ZOOMED");
+            scale.zoom = d3.event.transform.k;
+            let tmpScale = Object.assign({}, scale);
+            tmpScale.x = d3.event.transform.rescaleX(scale.x);
+            self.rescale(tmpScale,axis,box_width,bars,false)
         }
 
         return {zoomElem,zoom};
@@ -143,7 +129,7 @@ class Histogram extends Visualization {
      * Brush is a tool which enables user to select points, and zoom into selection via
      * keyboard shortcut or button event.
      */
-    addBrushing(box_width,box_height,svg,scaleAndAxis,selectedZoomBtn,points,zoom) {
+    initBrushing(box_width, box_height, svg, bars, scale, axis, selectedZoomBtn, points, zoom) {
         let extent;
         let brushClass = "brush";
 
@@ -166,12 +152,16 @@ class Histogram extends Visualization {
          * Section "Brushing for zooming".
          */
         const zoomIn = () => {
-            let xMin = scaleAndAxis.xScale.invert(extent[0]);
-            let xMax = scaleAndAxis.xScale.invert(extent[1]);
+            console.log("ZOOMIN");
+            let xMin = scale.x.invert(extent[0]);
+            let xMax = scale.x.invert(extent[1]);
 
-            scaleAndAxis.xScale.domain([xMin,xMax]);
+            scale.x.domain([xMin,xMax]);
+            console.log(extent, box_width);
+            const dx = (extent[1]-extent[0]);
+            scale.zoom = scale.zoom * (box_width / dx);
 
-            self.zoomingHelper(scaleAndAxis,box_width,svg,points);
+            self.rescale(scale,axis,box_width,bars,points,true);
         }
 
         const zoomInKeyEvent = (event) => {
@@ -209,13 +199,14 @@ class Histogram extends Visualization {
     /**
      * Helper function for zooming in after the scale has been updated.
      */
-    zoomingHelper(scaleAndAxis,box_width,svg) {
-        scaleAndAxis.xAxis.transition().duration(animation_duration)
-            .call(d3.axisBottom(scaleAndAxis.xScale).ticks(box_width / x_axis_label_width));
-
-        svg.selectAll("rect")
+    rescale(scale, axis, box_width, bars, with_animation) {
+        const animation_duration = (with_animation ? ANIMATION_DURATION : 0.0);
+        console.log(animation_duration);
+        axis.x.transition().duration(animation_duration)
+            .call(d3.axisBottom(scale.x).ticks(box_width / X_AXIS_LABEL_WIDTH));
+        bars
             .transition().duration(animation_duration)
-            .attr('transform',d => "translate(" + scaleAndAxis.xScale(d.x0) + "," + scaleAndAxis.yScale(d.length) + ")")
+            .attr('transform',d => "translate(" + scale.x(d.x0) + "," + scale.y(d.length) + ")scale(" + scale.zoom + ",1)")
     }
 
     createHistogram(extremesAndDeltas,box_width,svg,box_height,dataPoints,focus) {
@@ -239,7 +230,7 @@ class Histogram extends Visualization {
         let histogram = d3.histogram()
             .value(d => d.x)
             .domain(x.domain())
-            .thresholds(x.ticks(70));
+            .thresholds(x.ticks(3)); // FIXME
 
         let bins = histogram(dataPoints);
 
@@ -249,22 +240,34 @@ class Histogram extends Visualization {
         let yAxis = svg.append("g")
             .call(d3.axisLeft(y));
 
-        let accentColor = light_plot_color;
+        let accentColor = LIGHT_PLOT_COLOR;
         if (document.getElementById("root").classList.contains("dark")){
-            accentColor = dark_plot_color;
+            accentColor = DARK_PLOT_COLOR;
         }
 
-        svg.selectAll("rect")
+        let bars = svg.
+             append("g")
+            .attr('clip-path','url(#hist-clip-path)')
+            .selectAll("rect")
             .data(bins)
             .enter()
             .append("rect")
             .attr("x", 1)
             .attr("transform",d => "translate(" + x(d.x0) + "," + y(d.length) + ")")
-            .attr("width",d => x(d.x1) - x(d.x0) - 1)
+            .attr("width",d => x(d.x1) - x(d.x0))
             .attr("height",d => box_height - y(d.length))
             .style("fill",accentColor)
 
-        return {xScale:x,yScale:y,xAxis:xAxis,yAxis:yAxis};
+        // Create clip path
+        let defs = svg.append('defs')
+        defs.append('clipPath')
+            .attr('id', 'hist-clip-path')
+            .append('rect')
+            .attr('width', box_width)
+            .attr('height', box_height)
+
+
+        return [bars,{x:x,y:y,zoom:1.0},{x:xAxis,y:yAxis}];
     }
 
     /**
@@ -276,7 +279,7 @@ class Histogram extends Visualization {
             let padding_y = 20;
             svg.append("text")
                 .attr("text-anchor","end")
-                .attr("style",label_style)
+                .attr("style",LABEL_STYLE)
                 .attr("x",margin.left + (this.getTextWidth(axis.x.label,fontStyle) / 2))
                 .attr("y",box_height + margin.top + padding_y)
                 .text(axis.x.label);
@@ -286,7 +289,7 @@ class Histogram extends Visualization {
             let padding_y = 15;
             svg.append("text")
                 .attr("text-anchor","end")
-                .attr("style",label_style)
+                .attr("style",LABEL_STYLE)
                 .attr("transform","rotate(-90)")
                 .attr("y",-margin.left + padding_y)
                 .attr("x",-margin.top - (box_height/2) + (this.getTextWidth(axis.y.label,fontStyle) / 2))
@@ -404,7 +407,7 @@ class Histogram extends Visualization {
     /**
      * Helper function for button creation.
      */
-    createBtnHelper() {
+    createButtonElement() {
         const btn = document.createElement("button");
         btn.setAttribute("width","80px");
         btn.setAttribute("height","20px");
@@ -414,8 +417,8 @@ class Histogram extends Visualization {
     /**
      * Creates a button to fit all points on plot.
      */
-    createButtonFitAll(scaleAndAxis,svg,extremesAndDeltas,box_width,zoom) {
-        const btn = this.createBtnHelper()
+    createButtonFitAll(scale,axis,svg,bars,extremesAndDeltas,box_width,zoom) {
+        const btn = this.createButtonElement()
 
         let text = document.createTextNode("Fit all");
         btn.appendChild(text);
@@ -427,8 +430,9 @@ class Histogram extends Visualization {
             let domain_x = [extremesAndDeltas.xMin - extremesAndDeltas.paddingX,
                 extremesAndDeltas.xMax + extremesAndDeltas.paddingX];
 
-            scaleAndAxis.xScale.domain(domain_x);
-            self.zoomingHelper(scaleAndAxis,box_width,svg);
+            scale.x.domain(domain_x);
+            scale.zoom = 1.0;
+            self.rescale(scale,axis,box_width,bars,true);
         }
 
         document.addEventListener('keydown',e => {
@@ -443,7 +447,7 @@ class Histogram extends Visualization {
      * Creates a button to zoom into brushed fragment of plot.
      */
     createButtonScaleToPoints() {
-        const btn = this.createBtnHelper()
+        const btn = this.createButtonElement()
         let text  = document.createTextNode("Zoom to selected");
         btn.appendChild(text);
         btn.setAttribute("width","120px");
