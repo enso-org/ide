@@ -163,8 +163,7 @@ ensogl::define_endpoints! {
     Input {
         edit_mode_ready (bool),
         edit_mode       (bool),
-        hover           (),
-        unhover         (),
+        set_hover       (bool),
         set_dimmed      (bool),
         set_connected   (Crumbs,bool),
         /// Set the expression USAGE type. This is not the definition type, which can be set with
@@ -176,11 +175,13 @@ ensogl::define_endpoints! {
     Output {
         pointer_style (cursor::Style),
         press         (Crumbs),
-        hover         (Option<Crumbs>),
+        // xhover        (Option<Crumbs>),
         width         (f32),
         expression    (Text),
         editing       (bool),
-        port_hover    (Crumbs,bool),
+        ports_visible (bool),
+        port_hover    (Switch<Crumbs>),
+        body_hover    (bool),
     }
 }
 
@@ -213,6 +214,7 @@ impl Model {
         display_object.add_child(&label);
         display_object.add_child(&ports);
         ports.add_child(&header);
+        ports.unset_parent();
         // header.unset_parent();
         Self {logger,display_object,ports,header,label,app,expression,styles,id_crumbs_map}.init()
     }
@@ -237,7 +239,7 @@ impl Model {
 
     /// Traverse all expressions and set their colors matching the un-hovered style.
     fn init_port_coloring(&self) {
-        self.set_port_hover(&default(),false)
+        self.set_port_hover(&default())
     }
 
     /// Run the provided function on the target port if exists.
@@ -247,8 +249,8 @@ impl Model {
     }
 
     /// Traverse all `SpanTree` leaves of the given port and emit hover style to set their colors.
-    fn set_port_hover(&self, crumbs:&Crumbs, is_hovered:bool) {
-        self.with_port_mut(crumbs,|t|t.set_hover(is_hovered))
+    fn set_port_hover(&self, target:&Switch<Crumbs>) {
+        self.with_port_mut(&target.value,|t|t.set_hover(target.is_on()))
     }
 
     /// Get the code color for the provided type or default code color in case the type is None.
@@ -287,12 +289,21 @@ impl Deref for Area {
 }
 
 impl Area {
-    pub fn new(logger:impl AnyLogger, app:&Application) -> Self {
+    pub fn new
+    (logger:impl AnyLogger, app:&Application, ports_enabled:&frp::Sampler<bool>) -> Self {
         let model   = Rc::new(Model::new(logger,app));
         let frp     = Frp::new();
         let network = &frp.network;
+        let ports_enabled = ports_enabled.clone_ref();
 
         frp::extend! { network
+
+            trace frp.port_hover;
+            trace frp.output.body_hover;
+            trace frp.output.ports_visible;
+
+            frp.output.source.body_hover <+ frp.set_hover;
+
 
             // === Cursor setup ===
 
@@ -305,22 +316,21 @@ impl Area {
 
             // === Show / Hide Phantom Ports ===
 
+            enabled   <- ports_enabled.sample(&frp.output.source.body_hover);
             edit_mode <- all_with(&frp.input.edit_mode,&frp.input.edit_mode_ready,|a,b|*a||*b);
-            eval edit_mode ([model](edit_mode) {
-                if *edit_mode {
-                    model.display_object.remove_child(&model.ports)
-                } else {
-                    model.display_object.add_child(&model.ports);
-                }
+            port_vis  <- all_with(&enabled,&edit_mode,|a,b|*a&&(!b));
+            eval port_vis ([model](t) {
+                if *t { model.display_object.add_child(&model.ports) }
+                else  { model.display_object.remove_child(&model.ports) }
             });
 
-            frp.output.source.hover   <+ edit_mode.gate_not(&edit_mode).constant(None);
-            frp.output.source.editing <+ edit_mode.sampler();
+            frp.output.source.ports_visible <+ port_vis;
+            frp.output.source.editing       <+ edit_mode.sampler();
 
 
             // === Label Hover ===
 
-            hovered <- bool(&frp.input.unhover,&frp.input.hover);
+            let hovered = frp.input.set_hover.clone_ref();
             // The below pattern is a very special one. When mouse is over phantom port and the edit
             // mode button is pressed, the `edit_mode` event is emitted. It then emits trough the
             // network and hides phantom ports. In the next frame, the hovering is changed, so this
@@ -332,12 +342,14 @@ impl Area {
 
             // === Port Hover ===
 
-            eval frp.port_hover (((crumbs,hover)) model.set_port_hover(crumbs,*hover));
+            eval frp.port_hover ((t) model.set_port_hover(t));
 
             eval frp.set_connected ([model]((t,s)) {
                 model.with_port_mut(t,|n|n.set_connected(s));
                 model.with_port_mut(t,|n|n.set_parent_connected(s));
             });
+
+            // frp.output.source.body_hover <+ frp.output.port_hover.map(|t|t.is_on());
 
 
             // === Properties ===
@@ -508,18 +520,31 @@ impl Area {
 
                 frp::extend! { port_network
                     // === Aliases ===
-                    let mouse_over = port_shape.hover.events.mouse_over.clone_ref();
-                    let mouse_out  = port_shape.hover.events.mouse_out.clone_ref();
-                    let mouse_down = port_shape.hover.events.mouse_down.clone_ref();
+
+                    let mouse_over_raw = port_shape.hover.events.mouse_over.clone_ref();
+                    let mouse_out      = port_shape.hover.events.mouse_out.clone_ref();
+                    let mouse_down     = port_shape.hover.events.mouse_down.clone_ref();
+
+
+                    // === Body Hover ===
+                    // This is a very important part of the FRP network. For performance reasons,
+                    // the ports are shown and hidden only when mouse goes over or out of the node.
+                    // This way we can show and hide ports on a single node, no matter how many
+                    // nodes are on the stage. This also means, that when an edge is dragged over
+                    // the node When ports are visible and ...
+                    // the mouse hovers them, we want them
+                    self.frp.output.source.body_hover <+ bool(&mouse_out,&mouse_over_raw);
+                    mouse_over <- mouse_over_raw.gate(&frp.ports_visible);
 
                     // === Press ===
                     eval_ mouse_down ([crumbs,frp] frp.source.press.emit(&crumbs));
 
                     // === Hover ===
-                    hover <- bool(&mouse_out,&mouse_over);
-                    self.source.port_hover <+ hover.map (f!([crumbs](t)(crumbs.clone_ref(),*t)));
-                    eval_ mouse_over ([crumbs,frp] frp.source.hover.emit(&Some(crumbs.clone())));
-                    eval_ mouse_out  (frp.source.hover.emit(&None));
+                    hovered <- bool(&mouse_out,&mouse_over);
+                    hover   <- hovered.map (f!([crumbs](t) Switch::new(crumbs.clone_ref(),*t)));
+                    frp.source.port_hover <+ hover;
+
+
 
                     // === Pointer Style ===
                     let port_shape_hover = port_shape.hover.shape.clone_ref();
@@ -605,9 +630,9 @@ impl Area {
                             else if is_expected_arg { expected_color }
                             else                    { *base_color }
                         });
-                    text_color.target                 <+ text_color_tgt;
+                    text_color.target              <+ text_color_tgt;
                     frp.output.source.select_color <+ select_color;
-                    frp.output.source.text_color      <+ text_color.value;
+                    frp.output.source.text_color   <+ text_color.value;
                 }
 
                 let index  = node.payload.index;

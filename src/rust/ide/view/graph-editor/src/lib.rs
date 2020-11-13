@@ -447,6 +447,9 @@ ensogl::define_endpoints! {
         edge_source_unset  (EdgeId),
         edge_target_unset  (EdgeId),
 
+        some_edge_targets_detached2 (bool),
+        some_edge_sources_detached2 (bool),
+
         some_edge_targets_detached (),
         some_edge_sources_detached (),
         all_edge_targets_attached  (),
@@ -924,9 +927,9 @@ impl GraphEditorModelWithNetwork {
     , output_press    : &frp::Source<EdgeTarget>
     , input_press     : &frp::Source<EdgeTarget>
     , edit_mode_ready : &frp::Stream<bool>
-    , output          : &FrpOutputsSource
+    , output          : &FrpEndpoints
     ) -> NodeId {
-        let view    = component::Node::new(&self.app,self.visualizations.clone_ref());
+        let view    = component::Node::new(&self.app,self.visualizations.clone_ref(),&output.some_edge_targets_detached2);
         let node    = Node::new(view);
         let node_id = node.id();
         self.add_child(&node);
@@ -951,8 +954,9 @@ impl GraphEditorModelWithNetwork {
                 input_press.emit(target);
             );
 
-            eval node.model.input.frp.hover ([model](crumbs) {
-                let target = crumbs.as_ref().map(|c| EdgeTarget::new(node_id,c.clone()));
+            eval node.model.input.frp.port_hover ([model](t) {
+                let crumbs = t.on();
+                let target = crumbs.map(|c| EdgeTarget::new(node_id,c.clone()));
                 model.frp.hover_node_input.emit(target);
             });
 
@@ -965,18 +969,18 @@ impl GraphEditorModelWithNetwork {
                 model.frp.hover_node_output.emit(None)
             );
 
-            eval node.frp.expression((t) output.node_expression_set.emit((node_id,t.into())));
+            eval node.frp.expression((t) output.source.node_expression_set.emit((node_id,t.into())));
 
 
             // === Actions ===
 
             eval node.view.frp.freeze ((is_frozen) {
-                output.node_action_freeze.emit((node_id,*is_frozen));
+                output.source.node_action_freeze.emit((node_id,*is_frozen));
             });
 
             let set_node_dimmed = &node.frp.set_dimmed;
             eval node.view.frp.skip ([set_node_dimmed,output](is_skipped) {
-                output.node_action_skip.emit((node_id,*is_skipped));
+                output.source.node_action_skip.emit((node_id,*is_skipped));
                 set_node_dimmed.emit(is_skipped);
             });
 
@@ -988,13 +992,12 @@ impl GraphEditorModelWithNetwork {
             vis_enabled        <- vis_visible.gate(&vis_visible);
             vis_disabled       <- vis_visible.gate_not(&vis_visible);
 
-            output.visualization_enabled           <+ vis_enabled.constant(node_id);
-            output.visualization_disabled          <+ vis_disabled.constant(node_id);
-            output.visualization_enable_fullscreen <+ vis_fullscreen.constant(node_id);
+            output.source.visualization_enabled           <+ vis_enabled.constant(node_id);
+            output.source.visualization_disabled          <+ vis_disabled.constant(node_id);
+            output.source.visualization_enable_fullscreen <+ vis_fullscreen.constant(node_id);
         }
 
         self.nodes.insert(node_id,node);
-
         node_id
     }
 
@@ -2025,6 +2028,17 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     out.source.edge_target_set <+ new_edge_target;
 
 
+    // === Edge Status ===
+
+    out.source.some_edge_targets_detached2 <+ out.some_edge_targets_detached.to_true();
+    out.source.some_edge_targets_detached2 <+ out.all_edge_targets_attached.to_false();
+
+    out.source.some_edge_sources_detached2 <+ out.some_edge_sources_detached.to_true();
+    out.source.some_edge_sources_detached2 <+ out.all_edge_sources_attached.to_false();
+
+    trace out.source.some_edge_targets_detached2;
+
+
     // === Node creation  ===
 
     let add_node_at_cursor = inputs.add_node_at_cursor.clone_ref();
@@ -2032,7 +2046,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     new_node <- add_node.map(f_!([model,node_pointer_style,edit_mode,out] {
         model.new_node(&node_pointer_style,&node_output_touch.down,&node_input_touch.down
-            ,&edit_mode,&out.source)
+            ,&edit_mode,&out)
     }));
     out.source.node_added <+ new_node;
 

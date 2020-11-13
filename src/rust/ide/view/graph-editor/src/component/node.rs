@@ -211,16 +211,20 @@ pub struct NodeModel {
 
 impl NodeModel {
     /// Constructor.
-    pub fn new(app:&Application, registry:visualization::Registry) -> Self {
+    pub fn new
+    ( app            : &Application
+    , registry       : visualization::Registry
+    , inputs_enabled : &frp::Sampler<bool>
+    ) -> Self {
         let scene  = app.display.scene();
         let logger = Logger::new("node");
         edge::depth_sort_hack_1(scene);
 
         output::area::depth_sort_hack(&scene);
-        let main_logger      = Logger::sub(&logger,"main_area");
-        let drag_logger      = Logger::sub(&logger,"drag_area");
-        let main_area        = component::ShapeView::<shape::Shape>::new(&main_logger,scene);
-        let drag_area        = component::ShapeView::<drag_area::Shape>::new(&drag_logger,scene);
+        let main_logger = Logger::sub(&logger,"main_area");
+        let drag_logger = Logger::sub(&logger,"drag_area");
+        let main_area   = component::ShapeView::<shape::Shape>::new(&main_logger,scene);
+        let drag_area   = component::ShapeView::<drag_area::Shape>::new(&drag_logger,scene);
         edge::depth_sort_hack_2(scene);
 
         input::area::depth_sort_hack(scene); // FIXME hack for sorting
@@ -229,11 +233,11 @@ impl NodeModel {
         display_object.add_child(&drag_area);
         display_object.add_child(&main_area);
 
-        // FIXME: maybe we can expose shape system from shape?
+        // Disable shadows to allow interaction with the output port.
         let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
         shape_system.shape_system.set_pointer_events(false);
 
-        let input = input::Area::new(&logger,app);
+        let input = input::Area::new(&logger,app,inputs_enabled);
         let scene = scene.clone_ref();
         let visualization = visualization::Container::new(&logger,&app,registry);
         visualization.mod_position(|t| {
@@ -308,12 +312,16 @@ impl NodeModel {
 }
 
 impl Node {
-    pub fn new(app:&Application, registry:visualization::Registry) -> Self {
+    pub fn new
+    ( app            : &Application
+    , registry       : visualization::Registry
+    , inputs_enabled : &frp::Sampler<bool>
+    ) -> Self {
         let frp       = Frp::new();
         let network   = &frp.network;
         let inputs    = &frp.input;
         let out       = &frp.output;
-        let model     = Rc::new(NodeModel::new(app,registry));
+        let model     = Rc::new(NodeModel::new(app,registry,inputs_enabled));
         let selection = DEPRECATED_Animation::<f32>::new(network);
 
         let bg_color_anim = color::Animation::new(network);
@@ -342,8 +350,8 @@ impl Node {
 
             out.source.background_press <+ model.drag_area.events.mouse_down;
 
-            eval_ model.drag_area.events.mouse_over (model.input.hover());
-            eval_ model.drag_area.events.mouse_out  (model.input.unhover());
+            eval_ model.drag_area.events.mouse_over (model.input.set_hover(true));
+            eval_ model.drag_area.events.mouse_out  (model.input.set_hover(false));
 
             out.source.expression <+ model.input.frp.expression.map(|t|t.clone_ref());
 
@@ -375,14 +383,19 @@ impl Node {
             );
 
 
+            trace model.drag_area.events.mouse_over;
+            trace model.drag_area.events.mouse_out;
+
+
             // === Action Bar ===
 
-            eval_ model.main_area.events.mouse_over  ( actions.show_icons() );
-            eval_ model.main_area.events.mouse_out   ( actions.hide_icons() );
-            eval_ model.drag_area.events.mouse_over  ( actions.show_icons() );
-            eval_ model.drag_area.events.mouse_out   ( actions.hide_icons() );
+            // eval_ model.main_area.events.mouse_over  ( actions.show_icons() );
+            // eval_ model.main_area.events.mouse_out   ( actions.hide_icons() );
+            // eval_ model.drag_area.events.mouse_over  ( actions.show_icons() );
+            // eval_ model.drag_area.events.mouse_out   ( actions.hide_icons() );
 
-            is_hovered <- model.input.frp.hover.map(|item| item.is_some() );
+            // FIXME[WD]: this is strange! Input.hover is a very misleading name
+            is_hovered <- model.input.frp.port_hover.map(|t|t.is_on() );
             eval is_hovered ((hovered) actions.icon_visibility(hovered) );
         }
 
