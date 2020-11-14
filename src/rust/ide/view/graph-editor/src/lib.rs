@@ -939,8 +939,6 @@ impl GraphEditorModelWithNetwork {
 
         frp::new_bridge_network! { [self.network, node.frp.network]
             eval_ node.frp.background_press(touch.nodes.down.emit(node_id));
-            let ports_frp       = &node.model.input.frp;
-            // let edit_mode_ready = edit_mode_ready.clone_ref();
 
             hovered <- node.output.hover.map (move |t| Switch::new(node_id,*t));
             output.source.node_hovered <+ hovered;
@@ -2049,7 +2047,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     let add_node_at_cursor = inputs.add_node_at_cursor.clone_ref();
     add_node <- any (inputs.add_node,add_node_at_cursor);
-    new_node <- add_node.map(f_!([model,node_pointer_style,edit_mode,out] {
+    new_node <- add_node.map(f_!([model,node_pointer_style,out] {
         model.new_node(&node_pointer_style,&node_output_touch.down,&node_input_touch.down,&out)
     }));
     out.source.node_added <+ new_node;

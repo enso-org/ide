@@ -298,10 +298,11 @@ impl Area {
 
         frp::extend! { network
 
-            trace frp.port_hover;
-            trace frp.output.body_hover;
-            trace frp.output.ports_visible;
-
+            // === Body Hover ===
+            // This is meant to be on top of FRP network. Read more about `Node` docs to
+            // learn more about the architecture and the importance of the hover
+            // functionality.
+            
             frp.output.source.body_hover <+ frp.set_hover;
 
 
@@ -519,12 +520,9 @@ impl Area {
 
 
                     // === Body Hover ===
-                    // This is a very important part of the FRP network. For performance reasons,
-                    // the ports are shown and hidden only when mouse goes over or out of the node.
-                    // This way we can show and hide ports on a single node, no matter how many
-                    // nodes are on the stage. This also means, that when an edge is dragged over
-                    // the node When ports are visible and ...
-                    // the mouse hovers them, we want them
+                    // This is meant to be on top of FRP network. Read more about `Node` docs to
+                    // learn more about the architecture and the importance of the hover
+                    // functionality.
                     self.frp.output.source.body_hover <+ bool(&mouse_out,&mouse_over_raw);
                     mouse_over <- mouse_over_raw.gate(&frp.ports_visible);
                     mouse_down <- mouse_down_raw.gate(&frp.ports_visible);

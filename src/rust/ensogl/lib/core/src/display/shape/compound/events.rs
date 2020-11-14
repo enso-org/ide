@@ -36,6 +36,13 @@ pub struct MouseEvents {
     pub frp : Frp,
 }
 
+impl Deref for MouseEvents {
+    type Target = Frp;
+    fn deref(&self) -> &Self::Target {
+        &self.frp
+    }
+}
+
 impl MouseEvents {
     /// Constructor.
     fn new() -> Self {
@@ -43,14 +50,10 @@ impl MouseEvents {
     }
 
     /// Connect the given `ShapeViewEvents` to the `Events` output.
-    pub fn add_sub_shape<T:Shape>(&self, view:&ShapeView<T>) {
-        let compound_frp = &self.frp;
-        let sub_frp      = &view.events;
-
-        // TODO[mm] avoid extra in/out events when switching shapes
+    pub fn add_sub_shape<T:Shape>(&self, sub_shape:&ShapeView<T>) {
         frp::extend! { network
-            compound_frp.source.mouse_over <+ sub_frp.mouse_over;
-            compound_frp.source.mouse_out  <+ sub_frp.mouse_out;
+            self.frp.source.mouse_over <+ sub_shape.events.mouse_over;
+            self.frp.source.mouse_out  <+ sub_shape.events.mouse_out;
         }
     }
 }

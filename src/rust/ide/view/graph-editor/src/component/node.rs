@@ -20,7 +20,7 @@ use ensogl::data::color;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
-use ensogl::gui::component::DEPRECATED_Animation;
+use ensogl::gui::component::Animation;
 use ensogl::gui::component;
 use ensogl_text::Text;
 use ensogl_theme;
@@ -286,9 +286,9 @@ impl NodeModel {
         });
         display_object.add_child(&input);
 
-        let action_bar = action_bar::ActionBar::new(&app);
+        let action_bar = action_bar::ActionBar::new(&logger,&app);
         display_object.add_child(&action_bar);
-        action_bar.frp.show_icons();
+        //action_bar.frp.show_icons();
 
         let output = output::Area::new(&scene);
         display_object.add_child(&output);
@@ -317,7 +317,7 @@ impl NodeModel {
         self.input.set_expression(expr);
     }
 
-    fn set_width(&self, width:f32) {
+    fn set_width(&self, width:f32) -> Vector2 {
         let height = self.height();
         let width  = width + TEXT_OFF * 2.0;
         let size   = Vector2::new(width+PADDING*2.0, height+PADDING*2.0);
@@ -328,7 +328,6 @@ impl NodeModel {
         self.drag_area.mod_position(|t| t.x = width/2.0);
         self.drag_area.mod_position(|t| t.y = height/2.0);
 
-        self.output.frp.set_size.emit(size);
         self.output.mod_position(|t| t.x = width/2.0);
         self.output.mod_position(|t| t.y = height/2.0);
 
@@ -337,6 +336,7 @@ impl NodeModel {
             t.y = height + ACTION_BAR_HEIGHT;
         });
         self.action_bar.frp.set_size(Vector2::new(width,ACTION_BAR_HEIGHT));
+        size
     }
 
     pub fn visualization(&self) -> &visualization::Container {
@@ -348,56 +348,78 @@ impl Node {
     pub fn new(app:&Application, registry:visualization::Registry) -> Self {
         let frp       = Frp::new();
         let network   = &frp.network;
-        let inputs    = &frp.input;
         let out       = &frp.output;
         let model     = Rc::new(NodeModel::new(app,registry));
-        let selection = DEPRECATED_Animation::<f32>::new(network);
+        let selection = Animation::<f32>::new(network);
 
         let bg_color_anim = color::Animation::new(network);
         let style         = StyleWatch::new(&app.display.scene().style_sheet);
-        let actions       = &model.action_bar.frp;
+        let action_bar    = &model.action_bar.frp;
 
         frp::extend! { network
-            animations <- source::<()>();
-            eval_ animations([bg_color_anim]{
-                let _bg_color_anim = &bg_color_anim;
-            });
 
-            eval  selection.value ((v) model.main_area.shape.selection.set(*v));
-            eval_ inputs.select   (selection.set_target_value(1.0));
-            eval_ inputs.deselect (selection.set_target_value(0.0));
+            // === Hover ===
+            // The hover discovery of a node is an interesting process. First, we discover whether
+            // ths user hovers the drag area. The input port manager merges this information with
+            // port hover events and outputs the final hover event for any part inside of the node.
 
-            model.input.set_connected       <+ inputs.set_input_connected;
-            model.input.set_expression_usage_type <+ inputs.set_expression_usage_type;
-            eval inputs.set_expression ((expr) model.set_expression(expr));
+            let drag_area          = &model.drag_area.events;
+            drag_area_hover       <- bool(&drag_area.mouse_out,&drag_area.mouse_over);
+            model.input.set_hover <+ drag_area_hover;
+            out.source.hover      <+ model.input.body_hover;
 
-            eval inputs.set_visualization ((content)
-                model.visualization.frp.set_visualization.emit(content)
-            );
 
-            eval model.input.frp.width ((w) model.set_width(*w));
+            // === Background Press ===
 
             out.source.background_press <+ model.drag_area.events.mouse_down;
             out.source.background_press <+ model.input.background_press;
 
-            eval_ model.drag_area.events.mouse_over (model.input.set_hover(true));
-            eval_ model.drag_area.events.mouse_out  (model.input.set_hover(false));
-            out.source.hover <+ model.input.body_hover;
-            trace out.hover;
 
+            // === Selection ===
+
+            deselect_target  <- frp.deselect.constant(0.0);
+            select_target    <- frp.select.constant(1.0);
+            selection.target <+ any(&deselect_target,&select_target);
+            eval selection.value ((t) model.main_area.shape.selection.set(*t));
+
+
+            // === Expression ===
+
+            model.input.set_connected             <+ frp.set_input_connected;
+            model.input.set_expression_usage_type <+ frp.set_expression_usage_type;
+            eval frp.set_expression ((expr) model.set_expression(expr));
             out.source.expression <+ model.input.frp.expression.map(|t|t.clone_ref());
 
-            eval actions.action_visbility ((visible){
-                model.visualization.frp.set_visibility.emit(visible);
-            });
 
-            out.source.skip   <+ actions.action_skip;
-            out.source.freeze <+ actions.action_freeze;
+            // === Visualization ===
+
+            eval frp.set_visualization ((t) model.visualization.frp.set_visualization.emit(t));
+
+
+            // === Size ===
+
+            new_size <- model.input.frp.width.map(f!((w) model.set_width(*w)));
+            eval new_size ((t) model.output.frp.set_size.emit(t));
+
+
+            // === Action Bar ===
+
+            eval action_bar.action_visbility ((t) model.visualization.frp.set_visibility.emit(t));
+            out.source.skip   <+ action_bar.action_skip;
+            out.source.freeze <+ action_bar.action_freeze;
+// eval_ model.main_area.events.mouse_over  ( action_bar.show_icons() );
+            // eval_ model.main_area.events.mouse_out   ( action_bar.hide_icons() );
+            // eval_ model.drag_area.events.mouse_over  ( action_bar.show_icons() );
+            // eval_ model.drag_area.events.mouse_out   ( action_bar.hide_icons() );
+
+            // FIXME[WD]: this is strange! Input.hover is a very misleading name
+            // is_hovered <- model.input.frp.port_hover.map(|t|t.is_on() );
+            eval out.hover ((t) action_bar.set_visibility(t) );
 
 
             // === Color Handling ===
 
-            bg_color <- inputs.set_dimmed.map(f!([model,style](should_dim) {
+            bg_color <- frp.set_dimmed.map(f!([model,style](should_dim) {
                 model.input.frp.set_dimmed.emit(*should_dim);
                 let bg_color_path = ensogl_theme::graph_editor::node::background;
                 if *should_dim {
@@ -406,32 +428,13 @@ impl Node {
                    style.get_color(bg_color_path)
                  }
             }));
-            trace bg_color;
-
             bg_color_anim.target <+ bg_color;
-            trace bg_color_anim.value;
             eval bg_color_anim.value ((c)
                 model.main_area.shape.bg_color.set(color::Rgba::from(c).into())
             );
-
-
-            trace model.drag_area.events.mouse_over;
-            trace model.drag_area.events.mouse_out;
-
-
-            // === Action Bar ===
-
-            // eval_ model.main_area.events.mouse_over  ( actions.show_icons() );
-            // eval_ model.main_area.events.mouse_out   ( actions.hide_icons() );
-            // eval_ model.drag_area.events.mouse_over  ( actions.show_icons() );
-            // eval_ model.drag_area.events.mouse_out   ( actions.hide_icons() );
-
-            // FIXME[WD]: this is strange! Input.hover is a very misleading name
-            is_hovered <- model.input.frp.port_hover.map(|t|t.is_on() );
-            eval is_hovered ((hovered) actions.icon_visibility(hovered) );
         }
 
-        model.action_bar.frp.hide_icons.emit(());
+        //model.action_bar.frp.hide_icons.emit(());
         frp.set_dimmed.emit(false);
 
         Self {frp,model}
