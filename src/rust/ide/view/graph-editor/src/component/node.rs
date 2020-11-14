@@ -173,7 +173,43 @@ ensogl::define_endpoints! {
 // === Node ===
 // ============
 
-/// Internal data of `Node`
+/// The visual node representation.
+///
+/// ## FRP Event Architecture.
+/// Nodes FRP architecture is designed for efficiency. Event with millions nodes on the stage, only
+/// small amount of events will be passed around on user action. This is not always simple, and it
+/// required a careful, well thought architecture.
+///
+/// Take for example the `edit_mode` event. It is emitted when user presses the `cmd` button. The
+/// following requirements should be hold:
+///
+/// 1. If the mouse is not over a node, nothing happens.
+/// 2. If the mouse traverses over the node with `cmd` being hold, the mouse cursor should change to
+///    text cursor to indicate that editing of the expression is possible.
+/// 3. If the mouse was over the node when pressing `cmd`, the mouse cursor should change to text
+///    cursor as well.
+///
+/// The points 1 and 2 are pretty easy to be done. We can discover mouse hover from inside of the
+/// node and react in the right way. The point 3 is tricky. There are several possible solutions
+/// out there:
+///
+/// A. After pressing / releasing `cmd` we should send an event to every node on the stage to
+///    indicate that the "edit mode" is on. This is a simple solution, but also very inefficient
+///    with a lot of nodes on the stage.
+///
+/// B. We could pass a special FRP output to node constructor, like
+///    `is_edit_mode_on:frp::Sampler<bool>`, which could be sampled by the node whenever the mouse
+///    hovers it. This will solve the requirement 2, but will not work with requirement 3.
+///
+/// C. We could discover inside of node when mouse hovers it (either the drag area, or ports, or
+///    anything else that we consider part of the node), and emit it as an output event. Then we
+///    can capture the event in the graph editor and tag it with the node id. Having the information
+///    in place, we can send events to the currently hovered node whenever we need, directly from
+///    the graph editor. This solves all issues in a very efficient and elegant way, but is somehow
+///    complex logically (the events are emitted from node to graph, then processed there and
+///    emitted back to the right node).
+///
+/// Currently, the solution "C" (most optimal) is implemented here.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Node {
@@ -212,11 +248,7 @@ pub struct NodeModel {
 
 impl NodeModel {
     /// Constructor.
-    pub fn new
-    ( app            : &Application
-    , registry       : visualization::Registry
-    , inputs_enabled : &frp::Sampler<bool>
-    ) -> Self {
+    pub fn new(app:&Application, registry:visualization::Registry) -> Self {
         let scene  = app.display.scene();
         let logger = Logger::new("node");
         edge::depth_sort_hack_1(scene);
@@ -238,7 +270,7 @@ impl NodeModel {
         let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
         shape_system.shape_system.set_pointer_events(false);
 
-        let input = input::Area::new(&logger,app,inputs_enabled);
+        let input = input::Area::new(&logger,app);
         let scene = scene.clone_ref();
         let visualization = visualization::Container::new(&logger,&app,registry);
         visualization.mod_position(|t| {
@@ -313,16 +345,12 @@ impl NodeModel {
 }
 
 impl Node {
-    pub fn new
-    ( app            : &Application
-    , registry       : visualization::Registry
-    , inputs_enabled : &frp::Sampler<bool>
-    ) -> Self {
+    pub fn new(app:&Application, registry:visualization::Registry) -> Self {
         let frp       = Frp::new();
         let network   = &frp.network;
         let inputs    = &frp.input;
         let out       = &frp.output;
-        let model     = Rc::new(NodeModel::new(app,registry,inputs_enabled));
+        let model     = Rc::new(NodeModel::new(app,registry));
         let selection = DEPRECATED_Animation::<f32>::new(network);
 
         let bg_color_anim = color::Animation::new(network);

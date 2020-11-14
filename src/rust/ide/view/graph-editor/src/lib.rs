@@ -929,7 +929,7 @@ impl GraphEditorModelWithNetwork {
     , input_press     : &frp::Source<EdgeTarget>
     , output          : &FrpEndpoints
     ) -> NodeId {
-        let view    = component::Node::new(&self.app,self.visualizations.clone_ref(),&output.some_edge_targets_detached2);
+        let view    = component::Node::new(&self.app,self.visualizations.clone_ref());
         let node    = Node::new(view);
         let node_id = node.id();
         self.add_child(&node);
@@ -2042,25 +2042,32 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     trace out.source.some_edge_targets_detached2;
 
 
-    // === Node creation  ===
+
+    // ======================
+    // === Node Creation  ===
+    // ======================
 
     let add_node_at_cursor = inputs.add_node_at_cursor.clone_ref();
-    add_node           <- any (inputs.add_node,add_node_at_cursor);
-
+    add_node <- any (inputs.add_node,add_node_at_cursor);
     new_node <- add_node.map(f_!([model,node_pointer_style,edit_mode,out] {
         model.new_node(&node_pointer_style,&node_output_touch.down,&node_input_touch.down,&out)
     }));
-
-    _eval <- all_with(&edit_mode,&out.node_hovered,f!((e,tgt) model.with_node(tgt.value,|t|{
-        let enabled = *e && tgt.is_on();
-        t.model.input.edit_mode_ready(enabled)
-    })));
-
     out.source.node_added <+ new_node;
 
     node_with_position <- add_node_at_cursor.map3(&new_node,&mouse.position,|_,id,pos| (*id,*pos));
     out.source.node_position_set         <+ node_with_position;
     out.source.node_position_set_batched <+ node_with_position;
+
+    // === Event Propagation ===
+    // See the docs of `Node` to learn about how the graph - nodes event propagation works.
+
+    _eval <- all_with(&out.node_hovered,&edit_mode,f!((tgt,e)
+        model.with_node(tgt.value,|t| t.model.input.edit_mode_ready(*e && tgt.is_on()))
+    ));
+    _eval <- all_with(&out.node_hovered,&out.some_edge_targets_detached2,f!((tgt,e)
+        model.with_node(tgt.value,|t| t.model.input.ports_active(*e && tgt.is_on()))
+    ));
+
 
     }
 

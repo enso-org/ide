@@ -170,6 +170,7 @@ ensogl::define_endpoints! {
         /// `set_expression` instead. In case the usage type is set to None, ports still may be
         /// colored if the definition type was present.
         set_expression_usage_type (ast::Id,Option<Type>),
+        ports_active (bool),
     }
 
     Output {
@@ -290,15 +291,10 @@ impl Deref for Area {
 }
 
 impl Area {
-    pub fn new
-    ( logger                : impl AnyLogger
-    , app                   : &Application
-    , ports_enabled_sampler : &frp::Sampler<bool>
-    ) -> Self {
+    pub fn new(logger:impl AnyLogger, app:&Application) -> Self {
         let model   = Rc::new(Model::new(logger,app));
         let frp     = Frp::new();
         let network = &frp.network;
-        let ports_enabled_sampler = ports_enabled_sampler.clone_ref();
 
         frp::extend! { network
 
@@ -320,14 +316,12 @@ impl Area {
 
             // === Show / Hide Phantom Ports ===
 
-            enabled   <- ports_enabled_sampler.sample(&frp.output.source.body_hover);
-            // edit_mode_ready <- edit_mode_sampler.sample(&frp.output.source.body_hover);
-            edit_mode <- all_with(&frp.input.edit_mode,&frp.input.edit_mode_ready,|a,b|*a||*b);
-            port_vis  <- all_with(&enabled,&edit_mode,|a,b|*a&&(!b));
-            // eval port_vis ([model](t) {
-            //     if *t { model.display_object.add_child(&model.ports) }
-            //     else  { model.display_object.remove_child(&model.ports) }
-            // });
+            edit_mode <- all_with3
+                (&frp.input.edit_mode,&frp.input.edit_mode_ready,&frp.input.ports_active,
+                |edit_mode,edit_mode_ready,ports_active|
+                     (*edit_mode || *edit_mode_ready) && !ports_active
+                );
+            port_vis  <- all_with(&frp.input.ports_active,&edit_mode,|a,b|*a&&(!b));
 
             frp.output.source.ports_visible <+ port_vis;
             frp.output.source.editing       <+ edit_mode.sampler();
@@ -335,10 +329,8 @@ impl Area {
 
             // === Label Hover ===
 
-            // let hovered = frp.input.set_hover.clone_ref();
             let hovered = frp.output.body_hover.clone_ref();
             label_hovered <- all_with(&edit_mode,&hovered,|a,b|*a && *b);
-            // label_hovered     <- all_with(&hovered,&edit_mode_hovered,|a,b|*a&&*b);
             eval label_hovered ((t) model.label.set_hover(t));
 
 
@@ -350,8 +342,6 @@ impl Area {
                 model.with_port_mut(t,|n|n.set_connected(s));
                 model.with_port_mut(t,|n|n.set_parent_connected(s));
             });
-
-            // frp.output.source.body_hover <+ frp.output.port_hover.map(|t|t.is_on());
 
 
             // === Properties ===
