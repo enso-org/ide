@@ -1743,9 +1743,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Mouse Cursor Transform ===
     frp::extend! { network
-        cursor_pos_in_scene <- cursor.frp.position.map(f!((position) {
+        cursor_pos_in_scene <- cursor.frp.screen_position.map(f!((position)
             scene.screen_to_scene_coordinates(*position).xy()
-        }));
+        ));
     }
 
 

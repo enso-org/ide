@@ -152,7 +152,7 @@ fn init(app:&Application) {
         let graph_editor = project_view.graph();
 
         if i > 0 { i -= 1 } else {
-            println!(">> CHANGE");
+            // println!(">> CHANGE");
             i = 100;
             expression_1.input_span_tree.root_ref().leaf_iter().for_each(|node|{
                 if let Some(expr_id) = node.ast_id {
@@ -161,7 +161,7 @@ fn init(app:&Application) {
                         j -= 1;
                         graph_editor.frp.set_expression_usage_type.emit((node1_id,expr_id,dummy_type));
                     } else {
-                        println!(">> null change");
+                        // println!(">> null change");
                         j = 3;
                         graph_editor.frp.set_expression_usage_type.emit((node1_id,expr_id,None));
                         graph_editor.frp.set_expression_usage_type.emit((node1_id,expr_id,dummy_type));
