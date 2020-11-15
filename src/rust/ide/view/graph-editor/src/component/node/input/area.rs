@@ -97,6 +97,7 @@ impl Debug for Expression {
     }
 }
 
+
 // === Conversions ===
 
 /// Helper struct used for `Expression` conversions.
@@ -176,7 +177,6 @@ ensogl::define_endpoints! {
     Output {
         pointer_style (cursor::Style),
         press         (Crumbs),
-        // xhover        (Option<Crumbs>),
         width         (f32),
         expression    (Text),
         editing       (bool),

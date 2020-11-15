@@ -978,7 +978,8 @@ impl SceneData {
     }
 
     /// Transforms screen position to the object (display object) coordinate system.
-    pub fn screen_to_object_space(&self, object:&impl display::Object, screen_pos:Vector2) -> Vector2 {
+    pub fn screen_to_object_space
+    (&self, object:&impl display::Object, screen_pos:Vector2) -> Vector2 {
         let origin_world_space = Vector4(0.0,0.0,0.0,1.0);
         let origin_clip_space  = self.camera().view_projection_matrix() * origin_world_space;
         let inv_object_matrix  = object.transform_matrix().try_inverse().unwrap();

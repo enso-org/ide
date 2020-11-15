@@ -940,7 +940,6 @@ impl GraphEditorModelWithNetwork {
 
         frp::new_bridge_network! { [self.network, node.frp.network]
             eval_ node.frp.background_press(touch.nodes.down.emit(node_id));
-            trace node.frp.background_press;
 
             hovered <- node.output.hover.map (move |t| Switch::new(node_id,*t));
             output.source.node_hovered <+ hovered;
@@ -2181,7 +2180,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     node_pos_on_down  <- node_down.map(f!((id) model.node_position(id)));
     mouse_pos_on_down <- mouse_pos.sample(&node_down);
     mouse_pos_diff    <- mouse_pos.map2(&mouse_pos_on_down,|t,s|t-s).gate(&node_is_down);
-    node_tgt_pos_rt   <- mouse_pos_diff.map2(&node_pos_on_down,|t,s|t+s);
+    node_pos_diff     <- mouse_pos_diff.map(f!([scene](t) t / scene.camera().zoom()));
+    node_tgt_pos_rt   <- node_pos_diff.map2(&node_pos_on_down,|t,s|t+s);
     just_pressed      <- bool (&node_tgt_pos_rt,&node_pos_on_down);
     node_tgt_pos_rt   <- any  (&node_tgt_pos_rt,&node_pos_on_down);
 
