@@ -302,7 +302,7 @@ impl Area {
             // This is meant to be on top of FRP network. Read more about `Node` docs to
             // learn more about the architecture and the importance of the hover
             // functionality.
-            
+
             frp.output.source.body_hover <+ frp.set_hover;
 
 
@@ -322,7 +322,7 @@ impl Area {
                 |edit_mode,edit_mode_ready,ports_active|
                      (*edit_mode || *edit_mode_ready) && !ports_active
                 );
-            port_vis  <- all_with(&frp.input.ports_active,&edit_mode,|a,b|*a&&(!b));
+            port_vis <- all_with(&frp.input.ports_active,&edit_mode,|a,b|*a&&(!b));
 
             frp.output.source.ports_visible <+ port_vis;
             frp.output.source.editing       <+ edit_mode.sampler();
@@ -523,10 +523,23 @@ impl Area {
                     // This is meant to be on top of FRP network. Read more about `Node` docs to
                     // learn more about the architecture and the importance of the hover
                     // functionality.
+
+                    // Please note, that this is computed first in order to compute `ports_visible`
+                    // when needed, and thus it has to be run before the following lines.
                     self.frp.output.source.body_hover <+ bool(&mouse_out,&mouse_over_raw);
-                    mouse_over <- mouse_over_raw.gate(&frp.ports_visible);
-                    mouse_down <- mouse_down_raw.gate(&frp.ports_visible);
+
+                    // TODO[WD] for FRP3: Consider the following code. Here, we have to first
+                    //     handle `bg_down` and then `mouse_down`. Otherwise, `mouse_down` may
+                    //     trigger some events and can change `ports_visible` status, and thus make
+                    //     the `bg_down` emitted unnecessarily. For example, after plugging in
+                    //     connections to selected port, the `ports_visible` will be set to `false`,
+                    //     and `bg_down` will be emitted, causing the node to be selected. This can
+                    //     be solved by solving in the FRP engine all children first, and then their
+                    //     children (then both `bg_down` and `mouse_down` will be resolved before
+                    //     the `ports_visible` changes).
                     bg_down    <- mouse_down_raw.gate_not(&frp.ports_visible);
+                    mouse_down <- mouse_down_raw.gate(&frp.ports_visible);
+                    mouse_over <- mouse_over_raw.gate(&frp.ports_visible);
                     self.frp.output.source.background_press <+ bg_down;
 
 
@@ -610,13 +623,17 @@ impl Area {
 
             // === Code Coloring ===
 
+            frp::extend! { port_network
+                base_color   <- final_tp.map(f!((t) model.code_color(t)));
+                select_color <- all_with(&frp.set_hover,&base_color,|_,t|*t);
+                frp.output.source.select_color <+ select_color;
+            }
+
             if node.children.is_empty() {
                 let is_expected_arg   = node.is_expected_argument();
                 let text_color        = color::Animation::new(port_network);
                 frp::extend! { port_network
-                    base_color     <- final_tp.map(f!((t) model.code_color(t)));
                     is_selected    <- all_with(&frp.set_hover,&frp.set_parent_connected,|s,t|*s||*t);
-                    select_color   <- all_with(&frp.set_hover,&base_color,|_,t|*t);
                     text_color_tgt <- all_with3(&base_color,&is_selected,&self.frp.set_dimmed,
                         move |base_color,is_selected,is_disabled| {
                             if      *is_selected    { selected_color }
@@ -625,7 +642,7 @@ impl Area {
                             else                    { *base_color }
                         });
                     text_color.target              <+ text_color_tgt;
-                    frp.output.source.select_color <+ select_color;
+
                     frp.output.source.text_color   <+ text_color.value;
                 }
 
@@ -648,7 +665,7 @@ impl Area {
                 frp::extend! { port_network
                     viz_color <- all_with(&frp.select_color,&frp.set_connected,|color,is_connected|
                         if *is_connected {*color} else { color::Lcha::transparent() } );
-                    eval viz_color ((color) port_shape.viz.shape.color.set(color::Rgba::from(color).into()));
+                    eval viz_color ((t) port_shape.viz.shape.color.set(color::Rgba::from(t).into()));
                 }
             }
 

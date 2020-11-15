@@ -450,6 +450,7 @@ ensogl::define_endpoints! {
 
         some_edge_targets_detached2 (bool),
         some_edge_sources_detached2 (bool),
+        some_edges_detached         (bool),
 
         some_edge_targets_detached (),
         some_edge_sources_detached (),
@@ -924,10 +925,10 @@ impl GraphEditorModelWithNetwork {
     #[allow(clippy::too_many_arguments)]
     fn new_node
     ( &self
-    , pointer_style   : &frp::Source<cursor::Style>
-    , output_press    : &frp::Source<EdgeTarget>
-    , input_press     : &frp::Source<EdgeTarget>
-    , output          : &FrpEndpoints
+    , pointer_style : &frp::Source<cursor::Style>
+    , output_press  : &frp::Source<EdgeTarget>
+    , input_press   : &frp::Source<EdgeTarget>
+    , output        : &FrpEndpoints
     ) -> NodeId {
         let view    = component::Node::new(&self.app,self.visualizations.clone_ref());
         let node    = Node::new(view);
@@ -939,6 +940,7 @@ impl GraphEditorModelWithNetwork {
 
         frp::new_bridge_network! { [self.network, node.frp.network]
             eval_ node.frp.background_press(touch.nodes.down.emit(node_id));
+            trace node.frp.background_press;
 
             hovered <- node.output.hover.map (move |t| Switch::new(node_id,*t));
             output.source.node_hovered <+ hovered;
@@ -1872,7 +1874,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     );
 
     edit_mode               <- bool(&inputs.edit_mode_off,&inputs.edit_mode_on);
-    node_to_select_non_edit <- touch.nodes.selected.gate_not(&edit_mode);
+    node_to_select_non_edit <- touch.nodes.selected.gate_not(&edit_mode).gate_not(&out.some_edges_detached);
     node_to_select_edit     <- touch.nodes.down.gate(&edit_mode);
     node_to_select          <- any(&node_to_select_non_edit,&node_to_select_edit);
     node_was_selected       <- node_to_select.map(f!((id) model.nodes.selected.contains(id)));
@@ -2037,7 +2039,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     out.source.some_edge_sources_detached2 <+ out.some_edge_sources_detached.to_true();
     out.source.some_edge_sources_detached2 <+ out.all_edge_sources_attached.to_false();
 
-    trace out.source.some_edge_targets_detached2;
+    some_edges_detached <- map2(&out.some_edge_targets_detached2,&out.some_edge_sources_detached2,|a,b|*a||*b);
+    out.source.some_edges_detached <+ some_edges_detached;
 
 
 

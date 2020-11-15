@@ -79,7 +79,6 @@ impl View {
         model.hover();
 
         frp::extend!{ network
-            trace frp.input.toggle;
             let is_visible     =  frp.output.is_visible.clone_ref();
             show_after_toggle <- frp.toggle.gate_not(&is_visible);
             hide_after_toggle <- frp.toggle.gate    (&is_visible);

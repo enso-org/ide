@@ -126,9 +126,9 @@ impl Model {
     fn new(logger:impl AnyLogger, app:&Application) -> Self {
         let scene          = app.display.scene();
         let logger         = Logger::sub(logger,"ActionBar");
-        let icons          = Icons::new(&logger,app);
         let display_object = display::object::Instance::new(&logger);
         let hover_area     = component::ShapeView::new(&logger,scene);
+        let icons          = Icons::new(&logger,app);
         let shapes         = compound::events::MouseEvents::default();
         let size           = default();
 

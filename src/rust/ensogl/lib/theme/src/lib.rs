@@ -241,7 +241,7 @@ define_theme! { __dark_theme__
     graph_editor {
         node {
             background         = Lcha(0.2,0.014,0.18,1.0);
-            background.skipped = Lcha(0.15,0.014,0.18,1.0);t
+            background.skipped = Lcha(0.15,0.014,0.18,1.0);
             shadow             = Lcha(0.0,0.0,0.0,0.20);
             shadow {
                 fading   = Lcha(0.0,0.0,0.0,0.0);
@@ -258,7 +258,7 @@ define_theme! { __dark_theme__
             actions {
                 icon = Lcha(1.0,0.0,0.0,0.7);
                 icon {
-                    variant.dimmed = Lcha(1.0,0.0,0.0,0.2);
+                    variant.dimmed = Lcha(0.4,0.0,0.0,1.0);
                 }
             }
         }

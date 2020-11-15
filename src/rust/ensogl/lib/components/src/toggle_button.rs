@@ -37,9 +37,9 @@ ensogl_core::define_endpoints! {
         set_size       (Vector2),
     }
     Output {
-        state (bool),
-        mouse_over   (),
-        mouse_out    (),
+        state      (bool),
+        mouse_over (),
+        mouse_out  (),
     }
 }
 
@@ -144,7 +144,7 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
     }
 
     /// Return the underlying shape view. Note that some parameters like size and color will be
-    /// overwritten regularly by internal the `ToggleButton` mechanics.
+    /// overwritten regularly by internals of the `ToggleButton` mechanics.
     pub fn view(&self) -> ShapeView<Shape> {
         self.model.icon.clone_ref()
     }

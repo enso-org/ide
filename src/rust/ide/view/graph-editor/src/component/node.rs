@@ -351,6 +351,7 @@ impl Node {
         let out       = &frp.output;
         let model     = Rc::new(NodeModel::new(app,registry));
         let selection = Animation::<f32>::new(network);
+        selection.target.emit(0.0);
 
         let bg_color_anim = color::Animation::new(network);
         let style         = StyleWatch::new(&app.display.scene().style_sheet);
@@ -407,13 +408,6 @@ impl Node {
             eval action_bar.action_visbility ((t) model.visualization.frp.set_visibility.emit(t));
             out.source.skip   <+ action_bar.action_skip;
             out.source.freeze <+ action_bar.action_freeze;
-// eval_ model.main_area.events.mouse_over  ( action_bar.show_icons() );
-            // eval_ model.main_area.events.mouse_out   ( action_bar.hide_icons() );
-            // eval_ model.drag_area.events.mouse_over  ( action_bar.show_icons() );
-            // eval_ model.drag_area.events.mouse_out   ( action_bar.hide_icons() );
-
-            // FIXME[WD]: this is strange! Input.hover is a very misleading name
-            // is_hovered <- model.input.frp.port_hover.map(|t|t.is_on() );
             eval out.hover ((t) action_bar.set_visibility(t) );
 
 
@@ -434,7 +428,6 @@ impl Node {
             );
         }
 
-        //model.action_bar.frp.hide_icons.emit(());
         frp.set_dimmed.emit(false);
 
         Self {frp,model}
