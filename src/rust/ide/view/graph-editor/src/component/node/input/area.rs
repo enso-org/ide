@@ -255,12 +255,6 @@ impl Model {
         self.with_port_mut(&target.value,|t|t.set_hover(target.is_on()))
     }
 
-    /// Get the code color for the provided type or default code color in case the type is None.
-    fn code_color(&self, tp:&Option<Type>) -> color::Lcha {
-        tp.as_ref().map(|tp| type_coloring::compute(tp,&self.styles))
-            .unwrap_or_else(||self.styles.get_color(theme::graph_editor::node::text))
-    }
-
     /// Update expression type for the particular `ast::Id`.
     fn set_expression_usage_type(&self, id:ast::Id, tp:&Option<Type>) {
         if let Some(crumbs) = self.id_crumbs_map.borrow().get(&id) {
@@ -269,6 +263,12 @@ impl Model {
             }
         }
     }
+}
+
+/// Get the code color for the provided type or default code color in case the type is None.
+fn code_color(styles:&StyleWatch, tp:&Option<Type>) -> color::Lcha {
+    tp.as_ref().map(|tp| type_coloring::compute(tp,styles))
+        .unwrap_or_else(||styles.get_color(theme::graph_editor::node::text))
 }
 
 
@@ -623,8 +623,9 @@ impl Area {
 
             // === Code Coloring ===
 
+            let styles = model.styles.clone_ref();
             frp::extend! { port_network
-                base_color   <- final_tp.map(f!((t) model.code_color(t)));
+                base_color   <- final_tp.map(f!([styles](t) code_color(&styles,t)));
                 select_color <- all_with(&frp.set_hover,&base_color,|_,t|*t);
                 frp.output.source.select_color <+ select_color;
             }
@@ -648,12 +649,13 @@ impl Area {
 
                 let index  = node.payload.index;
                 let length = node.payload.length;
+                let label  = model.label.clone_ref();
                 frp::extend! { port_network
-                    eval frp.output.text_color ([model](color) {
+                    eval frp.output.text_color ([label](color) {
                         let start_bytes = (index as i32).bytes();
                         let end_bytes   = ((index + length) as i32).bytes();
                         let range       = ensogl_text::buffer::Range::from(start_bytes..end_bytes);
-                        model.label.set_color_bytes(range,color::Rgba::from(color));
+                        label.set_color_bytes(range,color::Rgba::from(color));
                     });
                 }
             }
