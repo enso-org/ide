@@ -484,6 +484,7 @@ impl Area {
                 let skipped = if not_a_port { "(skip)" } else { "" };
                 println!("{}[{},{}] {} {:?} (tp: {:?})",indent,node.payload.index,
                          node.payload.length,skipped,node.kind.variant_name(),node.tp());
+                println!("?? {} {}",node.is_chained(),builder.parent_parensed);
             }
 
             let new_parent = if not_a_port {

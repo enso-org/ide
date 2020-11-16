@@ -84,7 +84,7 @@ impl<T:Payload> Node<T> {
     pub fn is_parensed(&self) -> bool {
         let check = |t:Option<&Child<T>>|
             t.map(|t|t.kind == Kind::Token && t.size.value == 1) == Some(true);
-        check(self.children.first()) && check(self.children.last())
+        check(self.children.first()) && check(self.children.last()) && self.children.len() == 3
     }
 
     pub fn is_root                       (&self) -> bool {self.kind.is_root()}

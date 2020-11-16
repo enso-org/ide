@@ -201,7 +201,7 @@ use span_tree::traits::*;
 
 
 pub fn expression_mock() -> Expression {
-    let code       = "open \"data.csv\"".to_string();
+    let code       = "[1,2,3]".to_string();
     let parser     = Parser::new_or_panic();
     let this_param = span_tree::ArgumentInfo {
         name : Some("this".to_owned()),
