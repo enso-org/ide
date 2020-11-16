@@ -571,11 +571,11 @@ pub fn forward_panic_hook_to_error() {
 
 #[wasm_bindgen(module = "/js/rust_panic.js")]
 extern "C" {
-    fn throw_panic_error(message:String);
+    fn new_panic_error(message:String) -> JsValue;
 }
 
 fn error_throwing_panic_hook(panic_info: &panic::PanicInfo) {
-    throw_panic_error(panic_info.to_string());
+    wasm_bindgen::throw_val(new_panic_error(panic_info.to_string()));
 }
 
 
