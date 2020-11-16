@@ -104,6 +104,11 @@ impl<T> SharedVec<T> {
         self.raw.borrow().contains(t)
     }
 
+    /// Return clone of the first element of the slice, or `None` if it is empty.
+    pub fn first_cloned(&self) -> Option<T> where T:Clone {
+        self.raw.borrow().first().cloned()
+    }
+
     /// Return clone of the last element of the slice, or `None` if it is empty.
     pub fn last_cloned(&self) -> Option<T> where T:Clone {
         self.raw.borrow().last().cloned()
@@ -989,14 +994,24 @@ impl GraphEditorModelWithNetwork {
 
             // === Visualizations ===
 
+            let vis_changed    =  node.model.visualization.frp.visualisation.clone_ref();
             let vis_visible    =  node.model.visualization.frp.set_visibility.clone_ref();
             let vis_fullscreen =  node.model.visualization.frp.enable_fullscreen.clone_ref();
+
             vis_enabled        <- vis_visible.gate(&vis_visible);
             vis_disabled       <- vis_visible.gate_not(&vis_visible);
 
-            output.source.visualization_enabled           <+ vis_enabled.constant(node_id);
-            output.source.visualization_disabled          <+ vis_disabled.constant(node_id);
-            output.source.visualization_enable_fullscreen <+ vis_fullscreen.constant(node_id);
+            // Ensure the graph editor knows about internal changes to the visualisation. If the
+            // visualisation changes that should indicate that the old one has been disabled and a
+            // new one has been enabled.
+            // TODO: Create a better API for updating the controller about visualisation changes
+            // (see #896)
+            output.visualization_disabled          <+ vis_changed.constant(node_id);
+            output.visualization_enabled           <+ vis_changed.constant(node_id);
+            
+            output.visualization_enabled           <+ vis_enabled.constant(node_id);
+            output.visualization_disabled          <+ vis_disabled.constant(node_id);
+            output.visualization_enable_fullscreen <+ vis_fullscreen.constant(node_id);
         }
 
         self.nodes.insert(node_id,node);
@@ -1353,12 +1368,13 @@ impl GraphEditorModel {
         edges
     }
 
-    pub fn clear_all_detached_edges(&self) {
-        let edges = self.edges.detached_source.mem_take();
-        edges.iter().for_each(|edge| {self.edges.all.remove(edge);});
-        let edges = self.edges.detached_target.mem_take();
-        edges.iter().for_each(|edge| {self.edges.all.remove(edge);});
+    pub fn clear_all_detached_edges(&self) -> Vec<EdgeId>{
+        let source_edges = self.edges.detached_source.mem_take();
+        source_edges.iter().for_each(|edge| {self.edges.all.remove(edge);});
+        let target_edges = self.edges.detached_target.mem_take();
+        target_edges.iter().for_each(|edge| {self.edges.all.remove(edge);});
         self.check_edge_attachment_status_and_emit_events();
+        source_edges.into_iter().chain(target_edges).collect()
     }
 
     fn check_edge_attachment_status_and_emit_events(&self) {
@@ -1617,10 +1633,10 @@ impl application::View for GraphEditor {
           , (Release , "" , "shift ctrl alt" , "toggle_node_inverse_select")
 
           // === Navigation ===
-          , (Press       , "" , "ctrl space"        , "cycle_visualization_for_selected_node")
-          , (DoublePress , "" , "left-mouse-button" , "enter_selected_node")
-          , (Press       , "" , "enter"             , "enter_selected_node")
-          , (Press       , "" , "alt enter"         , "exit_node")
+          , (Press       , ""              , "ctrl space"        , "cycle_visualization_for_selected_node")
+          , (DoublePress , ""              , "left-mouse-button" , "enter_selected_node")
+          , (Press       , "!node_editing" , "enter"             , "enter_selected_node")
+          , (Press       , ""              , "alt enter"         , "exit_node")
 
           // === Node Editing ===
           , (Press   , "" , "cmd"                   , "edit_mode_on")
@@ -1732,7 +1748,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Commit project name edit ===
 
     frp::extend! { network
-        eval_ touch.background.selected(model.breadcrumbs.outside_press.emit(()));
+        deactivate_breadcrumbs <- any3_(&touch.background.selected,&inputs.edit_mode_on,&inputs.add_node_at_cursor);
+        eval_ deactivate_breadcrumbs(model.breadcrumbs.outside_press());
     }
 
 
@@ -1875,7 +1892,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     edit_mode               <- bool(&inputs.edit_mode_off,&inputs.edit_mode_on);
     node_to_select_non_edit <- touch.nodes.selected.gate_not(&edit_mode).gate_not(&out.some_edges_detached);
     node_to_select_edit     <- touch.nodes.down.gate(&edit_mode);
-    node_to_select          <- any(&node_to_select_non_edit,&node_to_select_edit);
+    node_to_select          <- any(node_to_select_non_edit,node_to_select_edit,inputs.select_node);
     node_was_selected       <- node_to_select.map(f!((id) model.nodes.selected.contains(id)));
 
     should_select <- node_to_select.map3(&selection_mode,&node_was_selected,
@@ -2054,7 +2071,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     }));
     out.source.node_added <+ new_node;
 
-    node_with_position <- add_node_at_cursor.map3(&new_node,&mouse.position,|_,id,pos| (*id,*pos));
+    node_with_position <- add_node_at_cursor.map3(&new_node,&cursor_pos_in_scene,|_,id,pos| (*id,*pos));
     out.source.node_position_set         <+ node_with_position;
     out.source.node_position_set_batched <+ node_with_position;
 
@@ -2380,18 +2397,15 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
      nodes_to_cycle <= inputs.cycle_visualization_for_selected_node.map(f_!(model.selected_nodes()));
      node_to_cycle  <- any(nodes_to_cycle,inputs.cycle_visualization);
 
-     let cycle_count = Rc::new(Cell::new(0));
-     def _cycle_visualization = node_to_cycle.map(f!([nodes,visualizations,logger](node_id) {
+    let cycle_count = Rc::new(Cell::new(0));
+    def _cycle_visualization = node_to_cycle.map(f!([inputs,visualizations,logger](node_id) {
         let visualizations = visualizations.valid_sources(&"Any".into());
         cycle_count.set(cycle_count.get() % visualizations.len());
-        let vis  = visualizations.get(cycle_count.get());
-        let node = nodes.get_cloned_ref(node_id);
-        match (vis, node) {
-            (Some(vis), Some(node))  => {
-                node.model.visualization.frp.set_visualization.emit(vis.clone());
-            },
-            (None, _) => logger.warning(|| "Failed to get visualization while cycling.".to_string()),
-            _         => {}
+        if let Some(vis) = visualizations.get(cycle_count.get()) {
+            let path = vis.signature.path.clone();
+            inputs.set_visualization.emit((*node_id,Some(path)));
+        } else {
+            logger.warning(|| "Failed to get visualization while cycling.".to_string());
         };
         cycle_count.set(cycle_count.get() + 1);
     }));
@@ -2450,7 +2464,10 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     node_to_enter           <= inputs.enter_selected_node.map(f_!(model.last_selected_node()));
     out.source.node_entered <+ node_to_enter;
+    removed_edges_on_enter  <= out.node_entered.map(f_!(model.model.clear_all_detached_edges()));
     out.source.node_exited  <+ inputs.exit_node;
+    removed_edges_on_exit   <= out.node_exited.map(f_!(model.model.clear_all_detached_edges()));
+    out.source.edge_removed <+ any(removed_edges_on_enter,removed_edges_on_exit);
 
 
     // === OUTPUTS REBIND ===
