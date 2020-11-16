@@ -42,9 +42,8 @@ pub const DEBUG_PORT_OFFSET : f32 = 5.0;
 
 /// Skip creating ports on all operations. For example, in expression `foo bar`, `foo` is considered
 /// an operation.
-const SKIP_OPERATIONS            : bool = true;
-const PORT_PADDING_X             : f32  = 4.0;
-// const SHOW_PORTS_ONLY_ON_CONNECT : bool = true; // TODO
+const SKIP_OPERATIONS : bool = true;
+const PORT_PADDING_X  : f32  = 4.0;
 
 
 
@@ -263,6 +262,13 @@ impl Model {
             }
         }
     }
+
+    fn set_label_content(&self, content:&str) {
+        self.label.set_cursor(&default());
+        self.label.select_all();
+        self.label.insert(content);
+        self.label.remove_all_cursors();
+    }
 }
 
 /// Get the code color for the provided type or default code color in case the type is None.
@@ -309,6 +315,8 @@ impl Area {
             // === Cursor setup ===
 
             eval frp.input.edit_mode ([model](enabled) {
+                // Reset the code to hide non-connected port names.
+                model.set_label_content(&model.expression.borrow().code);
                 model.label.set_focus(enabled);
                 if *enabled { model.label.set_cursor_at_mouse_position(); }
                 else        { model.label.remove_all_cursors(); }

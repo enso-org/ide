@@ -462,7 +462,6 @@ fn generate_children_from_ambiguous<T:Payload>
 /// index in the method's parameter list.
 fn generate_expected_argument<T:Payload>
 (node:Node<T>, kind:node::Kind, index:usize, is_last:bool, argument_info:ArgumentInfo) -> Node<T> {
-    println!("Will generate missing argument node for {:?}",argument_info);
     let mut gen = ChildGenerator::default();
     gen.add_node(ast::Crumbs::new(),node);
     let arg_node = gen.generate_empty_node(InsertionPointType::ExpectedArgument(index));

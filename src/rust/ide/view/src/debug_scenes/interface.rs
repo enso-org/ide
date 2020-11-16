@@ -182,15 +182,8 @@ fn init(app:&Application) {
         }
         was_rendered = true;
     }).forget();
-    visual_expr(expression_mock2());
-
 }
 
-
-fn visual_expr(expr:Expression) {
-    println!("-----------------");
-    println!("{:#?}",expr);
-}
 
 
 // =============
