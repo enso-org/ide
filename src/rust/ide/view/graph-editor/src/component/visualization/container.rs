@@ -501,8 +501,8 @@ pub struct Container {
 impl Container {
     /// Constructor.
     pub fn new(logger:&Logger,app:&Application,registry:visualization::Registry) -> Self {
-        let model   = Rc::new(ContainerModel::new(logger,app,registry));
-        let frp     = Frp::new_network();
+        let model = Rc::new(ContainerModel::new(logger,app,registry));
+        let frp   = Frp::new();
         Self {model,frp} . init()
     }
 
