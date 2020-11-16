@@ -8,6 +8,7 @@ use crate::display::scene::Scene;
 use crate::display::shape::*;
 use crate::display;
 use crate::gui::component::DEPRECATED_Animation;
+use crate::gui::component::Animation;
 use crate::gui::component::Tween;
 use crate::gui::component;
 
@@ -331,7 +332,7 @@ impl Cursor {
         //     host during the movement. After it is fully attached, cursor moves with the same
         //     speed as the scene when panning.
         //
-        let press                = DEPRECATED_Animation :: <f32>     :: new(&network);
+        let press                = Animation            :: <f32>     :: new(&network);
         let radius               = DEPRECATED_Animation :: <f32>     :: new(&network);
         let size                 = DEPRECATED_Animation :: <Vector2> :: new(&network);
         let offset               = DEPRECATED_Animation :: <Vector2> :: new(&network);
@@ -371,12 +372,12 @@ impl Cursor {
 
                 let def = 0.0;
                 match &new_style.press {
-                    None => press.set_target_value(def),
+                    None => press.target.emit(def),
                     Some(t) => {
                         let value = t.value.unwrap_or(def);
-                        press.set_target_value(value);
+                        press.target.emit(value);
                         if !t.animate {
-                            press.skip();
+                            press.skip.emit(());
                         }
                     }
                 }

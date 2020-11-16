@@ -275,11 +275,12 @@ pub type AnimationSimulator<T> = DynSimulator<AnimationSpaceRepr<T>>;
 pub struct Animation<T:Animatable+frp::Data> {
     pub target : frp::Any<T>,
     pub value  : frp::Stream<T>,
+    pub skip   : frp::Any,
 }
 
 #[allow(missing_docs)]
 impl<T:Animatable+frp::Data> Animation<T> {
-    /// Constructor.
+    /// Constructor. The initial value of the animation is set to `default`.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
             value_src <- any_mut::<T>();
@@ -288,16 +289,35 @@ impl<T:Animatable+frp::Data> Animation<T> {
             Box::new(f!((t) value_src.emit(from_animation_space::<T>(t))))
         );
         frp::extend! { network
-            init   <- any_mut();
             target <- any_mut::<T>();
-            eval target ((t) simulator.set_target_value(into_animation_space_repr(t.clone())));
-            on_init <- target.gate_not(&init);
-            init    <+ target.constant(true);
-            eval_ on_init (simulator.skip());
+            skip   <- any_mut::<()>();
+            eval  target ((t) simulator.set_target_value(into_animation_space_repr(t.clone())));
+            eval_ skip   (simulator.skip());
         }
         let value = value_src.into();
         network.store(&simulator);
-        Self {target,value}
+        Self{target,value,skip}
+    }
+
+    /// Constructor. The initial value is provided explicitly.
+    pub fn new_with_init(network:&frp::Network, init:T) -> Self {
+        let this = Self::new(network);
+        this.target.emit(init);
+        this.skip.emit(());
+        this
+    }
+
+    /// Constructor. There is no initial value. The first emitted `target` value will be used
+    /// without animation.
+    pub fn new_non_init(network:&frp::Network) -> Self {
+        let this = Self::new(network);
+        frp::extend! { network
+            init      <- any_mut();
+            on_init   <- this.target.gate_not(&init);
+            init      <+ this.target.constant(true);
+            this.skip <+ on_init.constant(());
+        }
+        this
     }
 }
 

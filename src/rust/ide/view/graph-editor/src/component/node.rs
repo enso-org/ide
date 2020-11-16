@@ -351,7 +351,6 @@ impl Node {
         let out       = &frp.output;
         let model     = Rc::new(NodeModel::new(app,registry));
         let selection = Animation::<f32>::new(network);
-        selection.target.emit(0.0);
 
         let bg_color_anim = color::Animation::new(network);
         let style         = StyleWatch::new(&app.display.scene().style_sheet);

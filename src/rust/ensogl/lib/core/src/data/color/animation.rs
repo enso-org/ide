@@ -194,8 +194,8 @@ impl Animation {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         let frp        = Frp::extend(network);
-        let color_anim = component::Animation::new(network);
-        let alpha_anim = component::Animation::new(network);
+        let color_anim = component::Animation::new_non_init(network);
+        let alpha_anim = component::Animation::new_non_init(network);
         Self{frp,color_anim,alpha_anim}.init()
     }
 
