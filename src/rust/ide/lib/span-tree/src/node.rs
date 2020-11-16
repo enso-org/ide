@@ -295,6 +295,11 @@ impl Deref for Crumbs {
 }
 
 impl Crumbs {
+    /// Constructor from raw crumbs list.
+    pub fn new(crumbs:Vec<Crumb>) -> Self {
+        Self{vec:Rc::new(crumbs)}
+    }
+
     /// Create sub-crumbs with the provided child crumb.
     pub fn sub(&self, child:Crumb) -> Self {
         let vec = Rc::new(self.vec.deref().clone().pushed(child));
@@ -306,6 +311,12 @@ impl Crumbs {
         let vec = Rc::make_mut(&mut self.vec);
         vec.push(child);
         self
+    }
+}
+
+impl From<Vec<Crumb>> for Crumbs {
+    fn from(crumbs:Vec<usize>) -> Self {
+        Self::new(crumbs)
     }
 }
 
@@ -707,11 +718,11 @@ mod test {
         assert_eq!(grand_child2.node.size.value, 1);
 
         // crumbs
-        assert_eq!(root.crumbs        , Vec::<usize>::new());
-        assert_eq!(child1.crumbs      , [0]   );
-        assert_eq!(child2.crumbs      , [2]   );
-        assert_eq!(grand_child1.crumbs, [2,0] );
-        assert_eq!(grand_child2.crumbs, [2,1] );
+        assert_eq!(root.crumbs        , node::Crumbs::default());
+        assert_eq!(child1.crumbs      , node::Crumbs::new(vec![0]  ));
+        assert_eq!(child2.crumbs      , node::Crumbs::new(vec![2]  ));
+        assert_eq!(grand_child1.crumbs, node::Crumbs::new(vec![2,0]));
+        assert_eq!(grand_child2.crumbs, node::Crumbs::new(vec![2,1]));
 
         // AST crumbs
         assert_eq!(root.ast_crumbs        , []                                      );

@@ -1006,12 +1006,12 @@ impl GraphEditorModelWithNetwork {
             // new one has been enabled.
             // TODO: Create a better API for updating the controller about visualisation changes
             // (see #896)
-            output.visualization_disabled          <+ vis_changed.constant(node_id);
-            output.visualization_enabled           <+ vis_changed.constant(node_id);
-            
-            output.visualization_enabled           <+ vis_enabled.constant(node_id);
-            output.visualization_disabled          <+ vis_disabled.constant(node_id);
-            output.visualization_enable_fullscreen <+ vis_fullscreen.constant(node_id);
+            output.source.visualization_disabled          <+ vis_changed.constant(node_id);
+            output.source.visualization_enabled           <+ vis_changed.constant(node_id);
+
+            output.source.visualization_enabled           <+ vis_enabled.constant(node_id);
+            output.source.visualization_disabled          <+ vis_disabled.constant(node_id);
+            output.source.visualization_enable_fullscreen <+ vis_fullscreen.constant(node_id);
         }
 
         self.nodes.insert(node_id,node);

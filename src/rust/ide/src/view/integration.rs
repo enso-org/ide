@@ -7,29 +7,31 @@
 use crate::prelude::*;
 
 use crate::controller::graph::NodeTrees;
+use crate::controller::searcher::suggestion::MatchInfo;
+use crate::controller::searcher::Suggestions;
 use crate::model::execution_context::ComputedValueInfo;
 use crate::model::execution_context::LocalCall;
 use crate::model::execution_context::ExpressionId;
 use crate::model::execution_context::Visualization;
 use crate::model::execution_context::VisualizationId;
 use crate::model::execution_context::VisualizationUpdateData;
+use crate::model::suggestion_database::EntryKind;
 
 use bimap::BiMap;
+use enso_data::text::TextChange;
 use enso_frp as frp;
 use enso_frp::stream::EventEmitter;
 use ensogl::display::traits::*;
 use ensogl_gui_components::list_view;
 use ide_view::graph_editor;
+use ide_view::graph_editor::component::node;
 use ide_view::graph_editor::component::visualization;
 use ide_view::graph_editor::EdgeTarget;
 use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
 use utils::channel::process_stream_with_handle;
-use crate::controller::searcher::suggestion::MatchInfo;
-use crate::controller::searcher::Suggestions;
-use crate::model::suggestion_database::EntryKind;
-use enso_data::text::TextChange;
 
+use span_tree::traits::SpanTreeGenerator;
 
 
 // ==============
@@ -854,17 +856,15 @@ impl Model {
     (&self, entry:&Option<ide_view::searcher::entry::Id>) -> FallibleResult {
         debug!(self.logger, "Picking suggestion.");
         if let Some(entry) = entry {
-            let graph_frp      = &self.view.graph().frp;
-            let error          = || MissingSearcherController;
-            let searcher       = self.searcher.borrow().clone().ok_or_else(error)?;
-            let error          = || GraphEditorInconsistency;
-            let edited_node    = graph_frp.output.node_being_edited.value().ok_or_else(error)?;
-            let new_code       = searcher.pick_completion_by_index(*entry)?;
-            let code_and_trees = graph_editor::component::node::Expression {
-                code             : new_code,
-                input_span_tree  : default(),
-                output_span_tree : default(),
-            };
+            let graph_frp        = &self.view.graph().frp;
+            let error            = || MissingSearcherController;
+            let searcher         = self.searcher.borrow().clone().ok_or_else(error)?;
+            let error            = || GraphEditorInconsistency;
+            let edited_node      = graph_frp.output.node_being_edited.value().ok_or_else(error)?;
+            let code             = searcher.pick_completion_by_index(*entry)?;
+            let input_span_tree  = code.generate_tree(&span_tree::generate::context::Empty)?;
+            let output_span_tree = default();
+            let code_and_trees = node::Expression {code,input_span_tree,output_span_tree};
             graph_frp.input.set_node_expression.emit_event(&(edited_node,code_and_trees));
         }
         Ok(())

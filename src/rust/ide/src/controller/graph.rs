@@ -1295,28 +1295,28 @@ main =
 
             let c = &connections.connections[0];
             assert_eq!(c.source.node,      node0.info.id());
-            assert_eq!(c.source.port,      vec![1]);
+            assert_eq!(c.source.port,      span_tree::node::Crumbs::new(vec![1]));
             assert_eq!(c.destination.node, node1.info.id());
-            assert_eq!(c.destination.port, vec![2]);
+            assert_eq!(c.destination.port, span_tree::node::Crumbs::new(vec![2]));
 
             let c = &connections.connections[1];
             assert_eq!(c.source.node     , node0.info.id());
-            assert_eq!(c.source.port     , vec![4]);
+            assert_eq!(c.source.port     , span_tree::node::Crumbs::new(vec![4]));
             assert_eq!(c.destination.node, node2.info.id());
-            assert_eq!(c.destination.port, vec![4,2]);
+            assert_eq!(c.destination.port, span_tree::node::Crumbs::new(vec![4,2]));
 
             let c = &connections.connections[2];
             assert_eq!(c.source.node     , node2.info.id());
-            assert_eq!(c.source.port     , Vec::<usize>::new());
+            assert_eq!(c.source.port     , span_tree::node::Crumbs::default());
             assert_eq!(c.destination.node, node3.info.id());
-            assert_eq!(c.destination.port, vec![2]);
+            assert_eq!(c.destination.port, span_tree::node::Crumbs::new(vec![2]));
 
             use ast::crumbs::*;
             let c = &connections.connections[3];
             assert_eq!(c.source.node     , node2.info.id());
-            assert_eq!(c.source.port     , Vec::<usize>::new());
+            assert_eq!(c.source.port     , span_tree::node::Crumbs::default());
             assert_eq!(c.destination.node, node4.info.id());
-            assert_eq!(c.destination.port, vec![2]);
+            assert_eq!(c.destination.port, span_tree::node::Crumbs::new(vec![2]));
             assert_eq!(c.destination.var_crumbs, crumbs!(BlockCrumb::HeadLine,PrefixCrumb::Arg));
         })
     }
@@ -1391,13 +1391,13 @@ main =
             let connection_to_add = Connection {
                 source : Endpoint {
                     node      : node2.info.id(),
-                    port      : vec![],
-                    var_crumbs: vec![]
+                    port      : default(),
+                    var_crumbs: default()
                 },
                 destination : Endpoint {
                     node      : node0.info.id(),
-                    port      : vec![4], // `_` in `print _`
-                    var_crumbs: vec![]
+                    port      : vec![4].into(), // `_` in `print _`
+                    var_crumbs: default()
                 }
             };
             graph.connect(&connection_to_add,&span_tree::generate::context::Empty).unwrap();
@@ -1428,13 +1428,13 @@ main =
             let connection_to_add = Connection {
                 source : Endpoint {
                     node      : node0.info.id(),
-                    port      : vec![],
-                    var_crumbs: vec![]
+                    port      : default(),
+                    var_crumbs: default()
                 },
                 destination : Endpoint {
                     node      : node1.info.id(),
-                    port      : vec![2], // `_` in `print _`
-                    var_crumbs: vec![]
+                    port      : vec![2].into(), // `_` in `print _`
+                    var_crumbs: default()
                 }
             };
             graph.connect(&connection_to_add,&span_tree::generate::context::Empty).unwrap();
