@@ -45,6 +45,19 @@ pub trait SpanTreeGenerator<T> {
 
 
 
+// ==============
+// === String ===
+// ==============
+
+impl<T:Payload> SpanTreeGenerator<T> for String {
+    fn generate_node
+    (&self, kind:impl Into<node::Kind>, _:&impl Context) -> FallibleResult<Node<T>> {
+        Ok(Node::<T>::new().with_kind(kind).with_size(Size::new(self.len())))
+    }
+}
+
+
+
 // =================
 // === Utilities ===
 // =================

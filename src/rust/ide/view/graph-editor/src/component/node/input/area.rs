@@ -315,11 +315,14 @@ impl Area {
             // === Cursor setup ===
 
             eval frp.input.edit_mode ([model](enabled) {
-                // Reset the code to hide non-connected port names.
-                model.set_label_content(&model.expression.borrow().code);
                 model.label.set_focus(enabled);
-                if *enabled { model.label.set_cursor_at_mouse_position(); }
-                else        { model.label.remove_all_cursors(); }
+                if *enabled {
+                    // Reset the code to hide non-connected port names.
+                    model.set_label_content(&model.expression.borrow().code);
+                    model.label.set_cursor_at_mouse_position();
+                } else {
+                    model.label.remove_all_cursors();
+                }
             });
 
 
