@@ -176,8 +176,14 @@ impl<Out:Data> HasOutput for NodeData<Out> {
 impl<Out:Data> EventEmitter for NodeData<Out> {
     fn emit_event(&self, value:&Out) {
         if self.during_call.get() {
-            panic!("Encountered a loop in the reactive dataflow at '{}'", self.label);
+            let logger = Logger::new("stream::NodeData");
+            let log_message = format!(
+                "Encountered a loop in the reactive dataflow at '{}'",
+                self.label);
+            logger.warning(&*log_message);
+            return;
         }
+
         self.during_call.set(true);
         if self.use_caching() {
             *self.value_cache.borrow_mut() = value.clone();
