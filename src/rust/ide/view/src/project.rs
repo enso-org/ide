@@ -65,20 +65,20 @@ impl Model {
     /// Sets style of IDE to light.
     pub fn set_light_style(&self) {
         ensogl_theme::builtin::light::enable(&self.app);
-        let root_elem = web::get_element_by_id("root");
-        match root_elem {
-            Ok(v)  => v.set_class_name("light-theme"),
-            Err(_) => self.logger.warning("Failed to find root!"),
-        }
+        self.set_html_style("light-theme");
     }
 
     /// Sets style of IDE to dark.
     pub fn set_dark_style(&self) {
         ensogl_theme::builtin::dark::enable(&self.app);
+        self.set_html_style("dark-theme");
+    }
+
+    fn set_html_style(&self, style:&'static str) {
         let root_elem = web::get_element_by_id("root");
         match root_elem {
-            Ok(v)  => v.set_class_name("dark-theme"),
-            Err(_) => self.logger.warning("Failed to find root!"),
+            Ok(v)  => v.set_class_name(style),
+            Err(_) => self.logger.warning("Failed to find root."),
         }
     }
 
