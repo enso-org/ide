@@ -80,13 +80,14 @@ pub mod viz {
 /// a full node height, and the `viz_shape`, which is a nice, visual highlight representation.
 /// Both shapes are children of the `root` display object:
 ///
+/// ```ignore
 ///     hover_shape
 ///      ◄──────►
 /// ╭───┬────────┬──┄
 /// │   │╭──────╮│▼ viz_shape
 /// │   │╰──────╯│▲ (appears after mouse_hover)
 /// ╰───┴────────┴──┄
-///
+/// ```
 #[derive(Clone,CloneRef,Debug)]
 pub struct Shape {
     pub root  : display::object::Instance,
