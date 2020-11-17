@@ -14,7 +14,7 @@ use ensogl::application;
 use ensogl::application::Application;
 use ensogl::application::shortcut;
 use ensogl::display;
-use ensogl::gui::component::Animation;
+use ensogl::gui::component::DEPRECATED_Animation;
 use ensogl::system::web;
 
 
@@ -77,7 +77,7 @@ impl Model {
 
     fn searcher_left_top_position_when_under_node_at(position:Vector2<f32>) -> Vector2<f32> {
         let x = position.x;
-        let y = position.y - node::NODE_HEIGHT/2.0;
+        let y = position.y - node::HEIGHT/2.0;
         Vector2(x,y)
     }
 
@@ -92,7 +92,7 @@ impl Model {
 
     /// Update Searcher View - its visibility and position - when edited node changed.
     fn update_searcher_view
-    (&self, edited_node:Option<NodeId>, searcher_left_top_position:&Animation<Vector2<f32>>) {
+    (&self, edited_node:Option<NodeId>, searcher_left_top_position:&DEPRECATED_Animation<Vector2<f32>>) {
         if let Some(id) = edited_node {
             self.searcher.show();
             let new_position = self.searcher_left_top_position_when_under_node(id);
@@ -121,6 +121,8 @@ impl Model {
         graph_editor_inputs.edit_node.emit(&node_id);
     }
 }
+
+
 
 // ===========
 // === FRP ===
@@ -176,11 +178,11 @@ impl View {
     pub fn new(app:&Application) -> Self {
 
         let model                      = Model::new(app);
-        let frp                        = Frp::new_network();
+        let frp                        = Frp::new();
         let searcher                   = &model.searcher.frp;
         let graph                      = &model.graph_editor.frp;
         let network                    = &frp.network;
-        let searcher_left_top_position = Animation::<Vector2<f32>>::new(network);
+        let searcher_left_top_position = DEPRECATED_Animation::<Vector2<f32>>::new(network);
         model.set_style(false);
 
         frp::extend!{ network
