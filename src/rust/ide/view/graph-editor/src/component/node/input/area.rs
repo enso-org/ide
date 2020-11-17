@@ -34,7 +34,7 @@ pub use port::depth_sort_hack;
 pub const GLYPH_WIDTH : f32 = 7.224_609_4; // FIXME hardcoded literal
 
 /// Enable visual port debug mode and additional port creation logging.
-pub const DEBUG : bool = false;
+pub const DEBUG : bool = true;
 
 /// Visual port offset for debugging purposes. Applied hierarchically. Applied only when `DEBUG` is
 /// set to `true`.
@@ -485,8 +485,8 @@ impl Area {
             if DEBUG {
                 let indent = " ".repeat(4*builder.depth);
                 let skipped = if not_a_port { "(skip)" } else { "" };
-                println!("{}[{},{}] {} {:?} (tp: {:?})",indent,node.payload.index,
-                         node.payload.length,skipped,node.kind.variant_name(),node.tp());
+                println!("{}[{},{}] {} {:?} (tp: {:?}) (id: {:?})",indent,node.payload.index,
+                         node.payload.length,skipped,node.kind.variant_name(),node.tp(),node.ast_id);
                 println!("?? {} {}",node.is_chained(),builder.parent_parensed);
             }
 

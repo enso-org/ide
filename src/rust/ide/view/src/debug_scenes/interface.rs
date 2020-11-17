@@ -6,6 +6,7 @@
 
 use crate::prelude::*;
 
+use crate::graph_editor;
 use crate::graph_editor::GraphEditor;
 use crate::graph_editor::Type;
 use crate::project;
@@ -141,6 +142,11 @@ fn init(app:&Application) {
         }
     });
 
+    let src = graph_editor::EdgeTarget::new(node1_id,span_tree::Crumbs::new(default()));
+    let tgt = graph_editor::EdgeTarget::new(node2_id,span_tree::Crumbs::new(vec![0,0,0,0,1]));
+    graph_editor.frp.connect_nodes.emit((src,tgt));
+
+
     let tgt_type = dummy_type_generator.get_dummy_type();
     let mut was_rendered = false;
     let mut loader_hidden = false;
@@ -152,22 +158,23 @@ fn init(app:&Application) {
         let graph_editor = project_view.graph();
 
         if i > 0 { i -= 1 } else {
-            // println!(">> CHANGE");
+            println!(">> CHANGE");
             i = 100;
-            expression_1.input_span_tree.root_ref().leaf_iter().for_each(|node|{
-                if let Some(expr_id) = node.ast_id {
-                    let dummy_type = Some(tgt_type.clone());
-                    if j != 0 {
-                        j -= 1;
-                        graph_editor.frp.set_expression_usage_type.emit((node1_id,expr_id,dummy_type));
-                    } else {
-                        // println!(">> null change");
-                        j = 3;
-                        graph_editor.frp.set_expression_usage_type.emit((node1_id,expr_id,None));
-                        graph_editor.frp.set_expression_usage_type.emit((node1_id,expr_id,dummy_type));
-                    };
-                }
-            });
+            //graph_editor.frp.set_node_expression.emit((node2_id,expression_2.clone()));
+            // expression_1.input_span_tree.root_ref().leaf_iter().for_each(|node|{
+            //     if let Some(expr_id) = node.ast_id {
+            //         let dummy_type = Some(tgt_type.clone());
+            //         if j != 0 {
+            //             j -= 1;
+            //             graph_editor.frp.set_expression_usage_type.emit((node1_id,expr_id,dummy_type));
+            //         } else {
+            //             // println!(">> null change");
+            //             j = 3;
+            //             graph_editor.frp.set_expression_usage_type.emit((node1_id,expr_id,None));
+            //             graph_editor.frp.set_expression_usage_type.emit((node1_id,expr_id,dummy_type));
+            //         };
+            //     }
+            // });
         }
 
         // Temporary code removing the web-loader instance.

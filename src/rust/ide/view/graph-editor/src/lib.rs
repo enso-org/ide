@@ -425,9 +425,8 @@ ensogl::define_endpoints! {
         some_edge_sources_detached  (),
         all_edge_targets_attached   (),
         all_edge_sources_attached   (),
-        all_edges_attached          (), // FIXME: wrong name! Its all sources and targets of a single edge!
-
     }
+    
     Output {
         node_added                (NodeId),
         node_removed              (NodeId),
@@ -1386,9 +1385,9 @@ impl GraphEditorModel {
         if no_detached_sources {
             self.frp.all_edge_sources_attached.emit(());
         }
-        if no_detached_targets && no_detached_sources {
-            self.frp.all_edges_attached.emit(());
-        }
+        // if no_detached_targets && no_detached_sources {
+        //     self.frp.all_edges_attached.emit(());
+        // }
     }
 
     fn overlapping_edges(&self, target:&EdgeTarget) -> Vec<EdgeId> {
@@ -1940,7 +1939,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     connect_drag_mode      <- any(on_connect_drag_mode,on_connect_follow_mode);
 
     on_detached_edge    <- any(&inputs.some_edge_targets_detached,&inputs.some_edge_sources_detached);
-    has_detached_edge   <- bool(&inputs.all_edges_attached,&on_detached_edge);
+    has_detached_edge   <- bool(&out.all_edges_attached,&on_detached_edge);
 
     eval node_input_touch.down ((target)   model.frp.press_node_input.emit(target));
     eval node_output_touch.down ((target)  model.frp.press_node_output.emit(target));
@@ -2000,6 +1999,11 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     out.source.edge_source_unset <+ edge_source_click.map(|(edge_id,_)| *edge_id);
     out.source.edge_target_unset <+ edge_target_click.map(|(edge_id,_)| *edge_id);
+
+
+
+    // todo
+    eval out.edge_target_set (((_,target)) model.set_input_connected(target,true));
     }
 
     // === Edge creation  ===
@@ -2031,7 +2035,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         Some(model.new_edge_from_output(&edge_mouse_down,&edge_over,&edge_out))
     })).unwrap();
     new_input_edge <- create_edge_from_input.map(f!([model,edge_mouse_down,edge_over,edge_out]((target)){
-        model.set_input_connected(target,true);
         if model.is_node_connected_at_input(target.node_id,&target.port) {
             return None
         };
@@ -2055,7 +2058,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     out.source.some_edge_sources_detached2 <+ out.some_edge_sources_detached.to_true();
     out.source.some_edge_sources_detached2 <+ out.all_edge_sources_attached.to_false();
 
-    some_edges_detached <- map2(&out.some_edge_targets_detached2,&out.some_edge_sources_detached2,|a,b|*a||*b);
+    some_edges_detached <- all_with(&out.some_edge_targets_detached2,&out.some_edge_sources_detached2,|a,b|*a||*b);
+    out.source.all_edges_attached <+ some_edges_detached.constant(()).gate_not(&some_edges_detached);
     out.source.some_edges_detached <+ some_edges_detached;
 
 
@@ -2474,8 +2478,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     out.source.some_edge_targets_detached <+ inputs.some_edge_targets_detached;
     out.source.some_edge_sources_detached <+ inputs.some_edge_sources_detached;
+    out.source.all_edge_sources_attached  <+ inputs.all_edge_sources_attached;
     out.source.all_edge_targets_attached  <+ inputs.all_edge_targets_attached;
-    out.source.all_edges_attached         <+ inputs.all_edges_attached;
+    // out.source.all_edges_attached         <+ inputs.all_edges_attached;
 
     eval out.edge_source_set        (((id,tgt)) model.set_edge_source(*id,tgt));
     eval out.edge_target_set        (((id,tgt)) model.set_edge_target(*id,tgt));
@@ -2522,7 +2527,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     frp::extend! { network
 
-    cursor_style_edge_drag <- edge_endpoint_set.map(f_!([model]{
+    on_some_edges_detached <- out.some_edges_detached.gate(&out.some_edges_detached);
+    cursor_style_edge_drag <- on_some_edges_detached.map(f_!([model]{
         if let Some(color) = model.first_detached_edge_color() {
             cursor::Style::new_color(color).press()
         } else {

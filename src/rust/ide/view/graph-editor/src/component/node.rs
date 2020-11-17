@@ -288,7 +288,6 @@ impl NodeModel {
 
         let action_bar = action_bar::ActionBar::new(&logger,&app);
         display_object.add_child(&action_bar);
-        //action_bar.frp.show_icons();
 
         let output = output::Area::new(&scene);
         display_object.add_child(&output);
@@ -331,11 +330,19 @@ impl NodeModel {
         self.output.mod_position(|t| t.x = width/2.0);
         self.output.mod_position(|t| t.y = height/2.0);
 
+        // self.action_bar.mod_position(|t| {
+        //     t.x = width/2.0 + CORNER_RADIUS;
+        //     t.y = height + ACTION_BAR_HEIGHT;
+        // });
+        // self.action_bar.frp.set_size(Vector2::new(width,ACTION_BAR_HEIGHT));
+
+        let ww = 200.0;
         self.action_bar.mod_position(|t| {
-            t.x = width/2.0 + CORNER_RADIUS;
-            t.y = height + ACTION_BAR_HEIGHT;
+            t.x = width + CORNER_RADIUS + ww;
+            t.y = 0.0; // height + ACTION_BAR_HEIGHT;
         });
-        self.action_bar.frp.set_size(Vector2::new(width,ACTION_BAR_HEIGHT));
+        self.action_bar.frp.set_size(Vector2::new(ww,ACTION_BAR_HEIGHT));
+
         size
     }
 
