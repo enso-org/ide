@@ -330,19 +330,12 @@ impl NodeModel {
         self.output.mod_position(|t| t.x = width/2.0);
         self.output.mod_position(|t| t.y = height/2.0);
 
-        // self.action_bar.mod_position(|t| {
-        //     t.x = width/2.0 + CORNER_RADIUS;
-        //     t.y = height + ACTION_BAR_HEIGHT;
-        // });
-        // self.action_bar.frp.set_size(Vector2::new(width,ACTION_BAR_HEIGHT));
-
-        let ww = 200.0;
+        let action_bar_width = 200.0;
         self.action_bar.mod_position(|t| {
-            t.x = width + CORNER_RADIUS + ww;
-            t.y = 0.0; // height + ACTION_BAR_HEIGHT;
+            t.x = width + CORNER_RADIUS + action_bar_width / 2.0;
+            t.y = ACTION_BAR_HEIGHT;
         });
-        self.action_bar.frp.set_size(Vector2::new(ww,ACTION_BAR_HEIGHT));
-
+        self.action_bar.frp.set_size(Vector2::new(action_bar_width,ACTION_BAR_HEIGHT));
         size
     }
 
