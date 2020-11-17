@@ -69,7 +69,7 @@ impl ExecutionContext {
     /// Push a new stack item to execution context.
     ///
     /// This function shadows the asynchronous version from API trait.
-    pub fn push(&self, stack_item:LocalCall)  {
+    pub fn push(&self, stack_item:LocalCall) {
         self.stack.borrow_mut().push(stack_item);
     }
 
