@@ -94,6 +94,12 @@ macro_rules! define_theme {
                 app.themes.register(stringify!($name),$name);
                 app.themes.set_enabled(&[stringify!($name)]);
             }
+
+            /// Enables current theme.
+            pub fn enable(app:&Application) {
+                let mut $name = theme::Theme::new();
+                app.themes.set_enabled(&[stringify!($name)]);
+            }
         }
     };
 }
