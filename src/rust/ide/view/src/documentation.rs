@@ -84,10 +84,13 @@ impl ViewModel {
         let styles   = StyleWatch::new(&scene.style_sheet);
         let bg_color = styles.get_color(ensogl_theme::graph_editor::visualization::background);
         let bg_color = color::Rgba::from(bg_color);
-        let bg_hex   = format!("rgba({},{},{},{})",bg_color.red*255.0,bg_color.green*255.0,bg_color.blue*255.0,bg_color.alpha);
+        let bg_hex   = format!("rgba({},{},{},{})",
+            bg_color.red*255.0,bg_color.green*255.0,bg_color.blue*255.0,bg_color.alpha);
 
-        let shadow_alpha = styles.get_number_or(ensogl_theme::graph_editor::visualization::shadow::html::alpha,0.16);
-        let shadow_size  = styles.get_number_or(ensogl_theme::graph_editor::visualization::shadow::html::size,16.0);
+        let shadow_alpha_path = ensogl_theme::graph_editor::visualization::shadow::html::alpha;
+        let shadow_alpha_size = ensogl_theme::graph_editor::visualization::shadow::html::size;
+        let shadow_alpha = styles.get_number_or(shadow_alpha_path,0.16);
+        let shadow_size  = styles.get_number_or(shadow_alpha_size,16.0);
         let shadow       = format!("0 0 {}px rgba(0, 0, 0, {})",shadow_size,shadow_alpha);
 
         dom.dom().set_attribute_or_warn("class"       ,"scrollable"                 ,&logger);

@@ -621,7 +621,7 @@ impl Area {
                 let all_bytes = buffer::Range::from(Bytes::from(0)..Bytes(i32::max_value()));
                 input.set_color_bytes.emit((all_bytes,*color));
             });
-            eval input.set_color_bytes       ((t) {
+            eval input.set_color_bytes ((t) {
                 m.buffer.frp.set_color_bytes.emit(*t);
                 m.redraw(); // FIXME: Should not be needed.
             });

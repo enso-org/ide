@@ -89,6 +89,11 @@ impl ArgumentInfo {
 ///
 /// This structure is used to have some specific node marked as root node, to avoid confusion
 /// regarding SpanTree crumbs and AST crumbs.
+///
+/// ## Design
+/// Please note that `SpanTree` was designed in such a way, that its leaves cover all visual tokens
+/// in the code. Even in the case of parenthesed expressions, like `(foo)`, the parentheses are also
+/// `SpanTree` tokens.
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub struct SpanTree<T=()> {
     /// A root node of the tree.

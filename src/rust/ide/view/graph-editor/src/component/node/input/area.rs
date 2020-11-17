@@ -34,7 +34,7 @@ pub use port::depth_sort_hack;
 pub const GLYPH_WIDTH : f32 = 7.224_609_4; // FIXME hardcoded literal
 
 /// Enable visual port debug mode and additional port creation logging.
-pub const DEBUG : bool = true;
+pub const DEBUG : bool = false;
 
 /// Visual port offset for debugging purposes. Applied hierarchically. Applied only when `DEBUG` is
 /// set to `true`.
@@ -102,7 +102,8 @@ impl Debug for Expression {
 /// Helper struct used for `Expression` conversions.
 #[derive(Debug,Default)]
 struct ExprConversion {
-    prev_tok_local_index  : usize,
+    prev_tok_local_index : usize,
+    /// Index of the last traverse parent node in the `SpanTree`.
     last_parent_tok_index : usize,
 }
 
@@ -113,11 +114,11 @@ impl ExprConversion {
     }
 }
 
-/// Traverses the `SpanTree` and constructs `viz_code` based on `code` and the `SpanTree` structure.
-/// It also computes `port::Model` values in the `viz_code` representation.
 impl From<node::Expression> for Expression {
+    /// Traverses the `SpanTree` and constructs `viz_code` based on `code` and the `SpanTree`
+    /// structure. It also computes `port::Model` values in the `viz_code` representation.
     fn from(t:node::Expression) -> Self {
-        // The number of letters the non-connected positional arguments occupied so far.
+        // The length difference between `code` and `viz_code` so far.
         let mut shift    = 0;
         let mut input    = t.input_span_tree.map(|_|port::Model::default());
         let mut viz_code = String::new();
@@ -127,9 +128,9 @@ impl From<node::Expression> for Expression {
             let span                  = node.span();
             let mut size              = span.size.value;
             let mut index             = span.index.value;
-            let offet_from_prev_tok   = node.offset.value - info.prev_tok_local_index;
+            let offset_from_prev_tok  = node.offset.value - info.prev_tok_local_index;
             info.prev_tok_local_index = node.offset.value + size;
-            viz_code += &" ".repeat(offet_from_prev_tok);
+            viz_code += &" ".repeat(offset_from_prev_tok);
             if node.children.is_empty() {
                 viz_code += &code[index..index+size];
             }
@@ -215,8 +216,6 @@ impl Model {
         display_object.add_child(&label);
         display_object.add_child(&ports);
         ports.add_child(&header);
-        // ports.unset_parent();
-        // header.unset_parent();
         Self {logger,display_object,ports,header,label,app,expression,styles,id_crumbs_map}.init()
     }
 
@@ -273,8 +272,8 @@ impl Model {
 
 /// Get the code color for the provided type or default code color in case the type is None.
 fn code_color(styles:&StyleWatch, tp:&Option<Type>) -> color::Lcha {
-    tp.as_ref().map(|tp| type_coloring::compute(tp,styles))
-        .unwrap_or_else(||styles.get_color(theme::graph_editor::node::text))
+    let opt_color = tp.as_ref().map(|tp| type_coloring::compute(tp,styles));
+    opt_color.unwrap_or_else(||styles.get_color(theme::graph_editor::node::text))
 }
 
 
@@ -350,6 +349,7 @@ impl Area {
 
             eval frp.port_hover ((t) model.set_port_hover(t));
 
+            trace frp.set_connected;
             eval frp.set_connected ([model]((t,s)) {
                 model.with_port_mut(t,|n|n.set_connected(s));
                 model.with_port_mut(t,|n|n.set_parent_connected(s));
@@ -454,6 +454,7 @@ impl Area {
         self.model.label.insert(&expression.viz_code);
         self.model.label.remove_all_cursors();
         if self.frp.editing.value() {
+            self.model.label.set_cursor(&default());
             self.model.label.set_cursor_at_end();
         }
     }
@@ -483,7 +484,7 @@ impl Area {
             }
 
             if DEBUG {
-                let indent = " ".repeat(4*builder.depth);
+                let indent  = " ".repeat(4*builder.depth);
                 let skipped = if not_a_port { "(skip)" } else { "" };
                 println!("{}[{},{}] {} {:?} (tp: {:?}) (id: {:?})",indent,node.payload.index,
                          node.payload.length,skipped,node.kind.variant_name(),node.tp(),node.ast_id);
@@ -524,6 +525,7 @@ impl Area {
                 let frp                = &self.frp.output;
 
                 frp::extend! { port_network
+
                     // === Aliases ===
 
                     let mouse_over_raw = port_shape.hover.events.mouse_over.clone_ref();
@@ -532,6 +534,7 @@ impl Area {
 
 
                     // === Body Hover ===
+
                     // This is meant to be on top of FRP network. Read more about `Node` docs to
                     // learn more about the architecture and the importance of the hover
                     // functionality.
@@ -556,16 +559,19 @@ impl Area {
 
 
                     // === Press ===
+
                     eval_ mouse_down ([crumbs,frp] frp.source.press.emit(&crumbs));
 
+
                     // === Hover ===
+
                     hovered <- bool(&mouse_out,&mouse_over);
                     hover   <- hovered.map (f!([crumbs](t) Switch::new(crumbs.clone_ref(),*t)));
                     frp.source.port_hover <+ hover;
 
 
-
                     // === Pointer Style ===
+
                     let port_shape_hover = port_shape.hover.shape.clone_ref();
                     pointer_style_out   <- mouse_out.map(|_| default());
                     pointer_style_over  <- map2(&mouse_over,&port.final_type,move |_,tp| {
@@ -667,7 +673,7 @@ impl Area {
                         let start_bytes = (index as i32).bytes();
                         let end_bytes   = ((index + length) as i32).bytes();
                         let range       = ensogl_text::buffer::Range::from(start_bytes..end_bytes);
-                        label.set_color_bytes(range,color::Rgba::from(color));
+                        label.set_color_bytes(range,color::Rgba::from(color)); // FIXME: removes cursor on tab in searcher
                     });
                 }
             }

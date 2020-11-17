@@ -426,7 +426,7 @@ ensogl::define_endpoints! {
         all_edge_targets_attached   (),
         all_edge_sources_attached   (),
     }
-    
+
     Output {
         node_added                (NodeId),
         node_removed              (NodeId),

@@ -25,7 +25,7 @@ pub const PADDING_X : f32  = 4.0;
 // === Hover Shape ===
 // ===================
 
-/// Port shape definition.
+/// Port hover shape definition.
 pub mod hover {
     use super::*;
     ensogl::define_shape_system! {
@@ -146,7 +146,8 @@ ensogl::define_endpoints! {
     }
 }
 
-/// Input port model.
+/// Input port model. Please note that this is not a component model. It is a `SpanTree` payload
+/// model.
 #[derive(Clone,Debug,Default)]
 pub struct Model {
     pub frp             : Frp,

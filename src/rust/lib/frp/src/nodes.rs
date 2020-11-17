@@ -736,7 +736,10 @@ impl          IntoParam<String>    for &str { fn into_param(self) -> String {sel
 pub struct SamplerData  <Out=()> {
     src        : Box<dyn std::any::Any>,
     value      : RefCell<Out>,
-    /// Used to cache the output even if no connection is present YET.
+    /// Used to cache the output even if no connection is present YET. Consider the following
+    /// example: first we create `Sampler`, then we emit value to it, then we connect it to some
+    /// output FRP network, Without `self_watch` the value would not be cached internally, and thus
+    /// would not be available to the new sub-network until re-emitted.
     self_watch : RefCell<Option<Box<dyn std::any::Any>>>
 }
 pub type   OwnedSampler <Out=()> = stream::Node     <SamplerData<Out>>;

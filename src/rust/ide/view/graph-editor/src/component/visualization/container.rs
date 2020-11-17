@@ -416,27 +416,29 @@ impl ContainerModel {
     }
 
     fn set_size(&self, size:impl Into<Vector2>) {
-        let size = size.into();
+        let dom    = self.view.background_dom.dom();
+        let bg_dom = self.fullscreen_view.background_dom.dom();
+        let size   = size.into();
         self.size.set(size);
         if self.is_fullscreen.get() {
             // self.fullscreen_view.background.shape.radius.set(CORNER_RADIUS);
             // self.fullscreen_view.background.shape.sprite.size.set(size);
             // self.view.background.shape.sprite.size.set(zero());
             self.view.overlay.shape.sprite.size.set(zero());
-            self.view.background_dom.dom().set_style_or_warn("width" ,"0",&self.logger);
-            self.view.background_dom.dom().set_style_or_warn("height","0",&self.logger);
-            self.fullscreen_view.background_dom.dom().set_style_or_warn("width", format!("{}px", size[0]), &self.logger);
-            self.fullscreen_view.background_dom.dom().set_style_or_warn("height", format!("{}px", size[1]), &self.logger);
+            dom.set_style_or_warn("width" ,"0",&self.logger);
+            dom.set_style_or_warn("height","0",&self.logger);
+            bg_dom.set_style_or_warn("width", format!("{}px", size[0]), &self.logger);
+            bg_dom.set_style_or_warn("height", format!("{}px", size[1]), &self.logger);
             self.action_bar.frp.set_size.emit(Vector2::zero());
         } else {
             // self.view.background.shape.radius.set(CORNER_RADIUS);
             self.view.overlay.shape.radius.set(CORNER_RADIUS);
             // self.view.background.shape.sprite.size.set(size);
             self.view.overlay.shape.sprite.size.set(size);
-            self.view.background_dom.dom().set_style_or_warn("width" ,format!("{}px",size[0]),&self.logger);
-            self.view.background_dom.dom().set_style_or_warn("height",format!("{}px",size[1]),&self.logger);
-            self.fullscreen_view.background_dom.dom().set_style_or_warn("width", "0", &self.logger);
-            self.fullscreen_view.background_dom.dom().set_style_or_warn("height", "0", &self.logger);
+            dom.set_style_or_warn("width" ,format!("{}px",size[0]),&self.logger);
+            dom.set_style_or_warn("height",format!("{}px",size[1]),&self.logger);
+            bg_dom.set_style_or_warn("width", "0", &self.logger);
+            bg_dom.set_style_or_warn("height", "0", &self.logger);
             // self.fullscreen_view.background.shape.sprite.size.set(zero());
 
             let action_bar_size = Vector2::new(size.x, ACTION_BAR_HEIGHT);
