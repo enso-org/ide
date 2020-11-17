@@ -628,6 +628,24 @@ pub struct FieldUpdate<T> {
     pub value : Option<T>,
 }
 
+impl<T> FieldUpdate<T> {
+    /// Create a field update with `Set` tag.
+    pub fn set(value:T) -> Self {
+        FieldUpdate {
+            tag   : FieldAction::Set,
+            value : Some(value)
+        }
+    }
+
+    /// Create a field update with `Remove` tag.
+    pub fn remove() -> Self {
+        FieldUpdate {
+            tag   : FieldAction::Remove,
+            value : None,
+        }
+    }
+}
+
 #[derive(Clone,Debug,Deserialize,Eq,Hash,PartialEq,Serialize)]
 #[serde(rename_all="camelCase")]
 #[allow(missing_docs)]
