@@ -39,7 +39,7 @@ pub struct NotAMethod(pub String);
 
 #[allow(missing_docs)]
 #[derive(Debug,Fail,Clone)]
-#[fail(display = "Argument index {} is invalid for Entry named {}.",index,name)]
+#[fail(display = "Argument index {} is invalid for suggestion entry named {}.",index,name)]
 pub struct InvalidArgumentIndex {
     pub name  : String,
     pub index : usize

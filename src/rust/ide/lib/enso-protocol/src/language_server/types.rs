@@ -518,8 +518,7 @@ pub struct SuggestionEntryArgument {
     /// Flag indicating that the argument has default value
     ///
     /// Note: this is obviously redundant, however it is part of the API. It will be removed as
-    /// a part of issuze
-    //TODO[ao] add issue number.
+    /// a part of https://github.com/enso-org/enso/issues/1293
     pub has_default:bool,
     /// Optional default value.
     pub default_value:Option<String>,
