@@ -298,7 +298,7 @@ impl NodeModel {
     }
 
     fn init(self) -> Self {
-        self.set_expression(Expression::debug_from_str("empty"));
+        self.set_expression(Expression::new_plain("empty"));
         self
     }
 
