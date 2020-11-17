@@ -57,29 +57,28 @@ impl Model {
         Self{app,logger,display_object,graph_editor,searcher,code_editor}
     }
 
-    /// Sets style of IDE.
-    pub fn set_style_internal(&self, is_light:bool) {
+    fn set_style(&self, is_light:bool) {
+        if is_light { self.set_dark_style()  }
+        else        { self.set_light_style() }
+    }
+
+    /// Sets style of IDE to light.
+    pub fn set_light_style(&self) {
+        ensogl_theme::builtin::light::enable(&self.app);
         let root_elem = web::get_element_by_id("root");
-        if is_light {
-            ensogl_theme::builtin::dark::enable(&self.app);
-            match root_elem {
-                Ok(v)  => v.set_class_name("dark-theme"),
-                Err(_) => self.logger.warning("Failed to find root!"),
-            }
-        } else {
-            ensogl_theme::builtin::light::enable(&self.app);
-            match root_elem {
-                Ok(v)  => v.set_class_name("light-theme"),
-                Err(_) => self.logger.warning("Failed to find root!"),
-            }
+        match root_elem {
+            Ok(v)  => v.set_class_name("light-theme"),
+            Err(_) => self.logger.warning("Failed to find root!"),
         }
     }
 
-    /// Sets style of IDE by theme name.
-    pub fn set_style(&self, theme:&'static str) {
-        match theme {
-            stringify!(ensogl_theme::builtin::dark) => self.set_style_internal(true),
-            &_                                      => self.set_style_internal(false),
+    /// Sets style of IDE to dark.
+    pub fn set_dark_style(&self) {
+        ensogl_theme::builtin::dark::enable(&self.app);
+        let root_elem = web::get_element_by_id("root");
+        match root_elem {
+            Ok(v)  => v.set_class_name("dark-theme"),
+            Err(_) => self.logger.warning("Failed to find root!"),
         }
     }
 
@@ -191,7 +190,7 @@ impl View {
         let graph                      = &model.graph_editor.frp;
         let network                    = &frp.network;
         let searcher_left_top_position = DEPRECATED_Animation::<Vector2<f32>>::new(network);
-        model.set_style(stringify!(ensogl_theme::builtin::light));
+        model.set_light_style();
 
         frp::extend!{ network
             // === Searcher Position and Size ===
@@ -275,7 +274,7 @@ impl View {
             style_press            <- style_toggle_ev.gate_not(&style_was_pressed);
             style_press_on_off     <- style_press.map2(&frp.style_light, |_,is_light| !is_light);
             frp.source.style_light <+ style_press_on_off;
-            eval frp.style_light ((is_light) model.set_style_internal(*is_light));
+            eval frp.style_light ((is_light) model.set_style(*is_light));
         }
 
         Self{model,frp}
