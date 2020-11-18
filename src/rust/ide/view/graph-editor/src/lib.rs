@@ -984,10 +984,10 @@ impl GraphEditorModelWithNetwork {
                 output.source.node_action_freeze.emit((node_id,*is_frozen));
             });
 
-            let set_node_dimmed = &node.frp.set_dimmed;
-            eval node.view.frp.skip ([set_node_dimmed,output](is_skipped) {
+            let set_node_disabled = &node.frp.set_disabled;
+            eval node.view.frp.skip ([set_node_disabled,output](is_skipped) {
                 output.source.node_action_skip.emit((node_id,*is_skipped));
-                set_node_dimmed.emit(is_skipped);
+                set_node_disabled.emit(is_skipped);
             });
 
 
@@ -997,8 +997,8 @@ impl GraphEditorModelWithNetwork {
             let vis_visible    =  node.model.visualization.frp.set_visibility.clone_ref();
             let vis_fullscreen =  node.model.visualization.frp.enable_fullscreen.clone_ref();
 
-            vis_enabled        <- vis_visible.gate(&vis_visible);
-            vis_disabled       <- vis_visible.gate_not(&vis_visible);
+            vis_enabled  <- vis_visible.gate(&vis_visible);
+            vis_disabled <- vis_visible.gate_not(&vis_visible);
 
             // Ensure the graph editor knows about internal changes to the visualisation. If the
             // visualisation changes that should indicate that the old one has been disabled and a
@@ -1827,12 +1827,12 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
         eval out.node_editing_started ([model] (id) {
             if let Some(node) = model.nodes.get_cloned_ref(&id) {
-                node.model.input.frp.edit_mode.emit(true);
+                node.model.input.frp.set_edit_mode(true);
             }
         });
         eval out.node_editing_finished ([model](id) {
             if let Some(node) = model.nodes.get_cloned_ref(&id) {
-                node.model.input.frp.edit_mode.emit(false);
+                node.model.input.set_edit_mode(false);
             }
         });
     }
@@ -2023,6 +2023,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     eval out.edge_target_set (((edge_id,_)) model.set_edge_target_connected(*edge_id,true));
     }
 
+
     // === Edge creation  ===
 
     frp::extend! { network
@@ -2100,23 +2101,19 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // See the docs of `Node` to learn about how the graph - nodes event propagation works.
 
     _eval <- all_with(&out.node_hovered,&edit_mode,f!((tgt,e)
-        model.with_node(tgt.value,|t| t.model.input.edit_mode_ready(*e && tgt.is_on()))
+        model.with_node(tgt.value,|t| t.model.input.set_edit_ready_mode(*e && tgt.is_on()))
     ));
     _eval <- all_with(&out.node_hovered,&out.some_edge_targets_detached2,f!([model](tgt,e)
         let edge_tp   = model.first_detached_edge_source_type();
         let is_active = *e && tgt.is_on();
         model.with_node(tgt.value,|t| t.model.input.set_ports_active(is_active,edge_tp))
     ));
-
-
     }
 
 
     // === Node Actions ===
 
-
     frp::extend! { network
-
         freeze_edges <= out.node_action_freeze.map (f!([model]((node_id,is_frozen)) {
             let edges = model.node_in_edges(node_id);
             edges.into_iter().map(|edge_id| (edge_id,*is_frozen)).collect_vec()

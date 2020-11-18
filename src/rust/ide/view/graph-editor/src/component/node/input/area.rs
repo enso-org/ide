@@ -162,15 +162,30 @@ impl From<node::Expression> for Expression {
 
 ensogl::define_endpoints! {
     Input {
-        edit_mode_ready (bool),
-        edit_mode       (bool),
-        set_hover       (bool),
-        set_dimmed      (bool),
-        set_connected   (Crumbs,Option<Type>,bool),
+        /// Set the mode in which the cursor will indicate that editing of the node is possible.
+        set_edit_ready_mode (bool),
+
+        /// Enable or disable node editing.
+        set_edit_mode (bool),
+
+        /// Set or unset hover over the node. Port area is unable to determine hover by itself, as
+        /// the hover may sometimes happen on the node background and the area still needs to be
+        /// notified about it, for example in order to display the right cursor style in edit ready
+        /// mode.
+        set_hover (bool),
+
+        /// Disable the node (aka "skip mode").
+        set_disabled (bool),
+
+        /// Set the connection status of the port indicated by the breadcrumbs. The optional type
+        /// is the type of the edge that was connected or disconnected if the edge was typed.
+        set_connected (Crumbs,Option<Type>,bool),
+
         /// Set the expression USAGE type. This is not the definition type, which can be set with
         /// `set_expression` instead. In case the usage type is set to None, ports still may be
         /// colored if the definition type was present.
         set_expression_usage_type (ast::Id,Option<Type>),
+
         /// Enable / disable port hovering. The optional type indicates the type of the active edge
         /// if any. It is used to highlight ports if they are missing type information or if their
         /// types are polymorphic.
@@ -306,7 +321,7 @@ impl Area {
 
         frp::extend! { network
 
-            trace frp.set_ports_active;
+            trace frp.set_expression_usage_type;
 
             // === Body Hover ===
             // This is meant to be on top of FRP network. Read more about `Node` docs to
@@ -318,9 +333,9 @@ impl Area {
 
             // === Cursor setup ===
 
-            eval frp.input.edit_mode ([model](enabled) {
-                model.label.set_focus(enabled);
-                if *enabled {
+            eval frp.input.set_edit_mode ([model](edit_mode) {
+                model.label.set_focus(edit_mode);
+                if *edit_mode {
                     // Reset the code to hide non-connected port names.
                     model.set_label_content(&model.expression.borrow().code);
                     model.label.set_cursor_at_mouse_position();
@@ -333,14 +348,14 @@ impl Area {
             // === Show / Hide Phantom Ports ===
 
             edit_mode <- all_with3
-                (&frp.input.edit_mode,&frp.input.edit_mode_ready,&frp.input.set_ports_active,
-                |edit_mode,edit_mode_ready,(set_ports_active,_)|
-                     (*edit_mode || *edit_mode_ready) && !set_ports_active
+                (&frp.input.set_edit_mode,&frp.input.set_edit_ready_mode,&frp.input.set_ports_active,
+                |edit_mode,edit_ready_mode,(set_ports_active,_)|
+                     (*edit_mode || *edit_ready_mode) && !set_ports_active
                 );
             port_vis <- all_with(&frp.input.set_ports_active,&edit_mode,|(a,_),b|*a&&(!b));
 
             frp.output.source.ports_visible <+ port_vis;
-            frp.output.source.editing       <+ edit_mode.sampler();
+            frp.output.source.editing       <+ edit_mode.sampler(); // FIXME do we need sampler here?
 
 
             // === Label Hover ===
@@ -354,7 +369,6 @@ impl Area {
 
             eval frp.port_hover ((t) model.set_port_hover(t));
 
-            trace frp.set_connected;
             eval frp.set_connected ([model]((crumbs,edge_tp,is_connected)) {
                 model.with_port_mut(crumbs,|n|n.set_connected(is_connected));
                 model.with_port_mut(crumbs,|n|n.set_parent_connected(is_connected));
@@ -581,7 +595,7 @@ impl Area {
                     pointer_style_out   <- mouse_out.map(|_| default());
                     pointer_style_over  <- map3(&mouse_over,&frp.set_ports_active,&port.tp,
                         move |_,(_,edge_tp),port_tp| {
-                            let tp    = port_tp.as_ref().or(edge_tp.as_ref());
+                            let tp    = port_tp.as_ref().or_else(||edge_tp.as_ref());
                             let color = tp.map(|tp| type_coloring::compute(tp,&styles));
                             let color = color.unwrap_or(missing_type_color);
                             cursor::Style::new_highlight(&port_shape_hover,padded_size,Some(color))
@@ -661,7 +675,7 @@ impl Area {
                 let text_color        = color::Animation::new(port_network);
                 frp::extend! { port_network
                     is_selected    <- all_with(&frp.set_hover,&frp.set_parent_connected,|s,t|*s||*t);
-                    text_color_tgt <- all_with3(&base_color,&is_selected,&self.frp.set_dimmed,
+                    text_color_tgt <- all_with3(&base_color,&is_selected,&self.frp.set_disabled,
                         move |base_color,is_selected,is_disabled| {
                             if      *is_selected    { selected_color }
                             else if *is_disabled    { disabled_color }
@@ -705,6 +719,7 @@ impl Area {
     pub(crate) fn set_expression(&self, expression:impl Into<node::Expression>) {
         let model          = &self.model;
         let expression     = expression.into();
+        println!("set_expression {:?}",expression);
         let mut expression = Expression::from(expression);
         if DEBUG { println!("\n\n=====================\nSET EXPR: {}", expression.code) }
 
