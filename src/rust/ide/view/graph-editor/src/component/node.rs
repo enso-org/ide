@@ -149,7 +149,7 @@ ensogl::define_endpoints! {
         deselect            (),
         set_visualization   (Option<visualization::Definition>),
         set_dimmed          (bool),
-        set_input_connected (span_tree::Crumbs,bool),
+        set_input_connected (span_tree::Crumbs,Option<Type>,bool),
         set_expression      (Expression),
         /// Set the expression USAGE type. This is not the definition type, which can be set with
         /// `set_expression` instead. In case the usage type is set to None, ports still may be

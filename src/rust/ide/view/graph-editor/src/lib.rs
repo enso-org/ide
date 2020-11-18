@@ -1192,7 +1192,7 @@ impl GraphEditorModel {
             }
 
             if let Some(target) = edge.take_target() {
-                self.set_input_connected(&target,false);
+                self.set_input_connected(&target,None,false); // FIXME None
                 if let Some(target_node) = self.nodes.get_cloned_ref(&target.node_id) {
                     target_node.in_edges.remove(&edge_id);
                 }
@@ -1200,10 +1200,15 @@ impl GraphEditorModel {
         }
     }
 
-    fn set_input_connected(&self, target:&EdgeTarget, status:bool) {
+    fn set_input_connected(&self, target:&EdgeTarget, tp:Option<Type>, status:bool) {
         if let Some(node) = self.nodes.get_cloned(&target.node_id) {
-            node.view.set_input_connected(&target.port,status);
+            node.view.set_input_connected(&target.port,tp,status);
         }
+    }
+
+    fn set_edge_target_connected(&self, edge_id:EdgeId, status:bool) {
+        let tp = self.edge_source_type(edge_id);
+        self.with_edge_target(edge_id,|t| self.set_input_connected(&t,tp,status));
     }
 
     // FIXME: make nicer
@@ -1555,9 +1560,21 @@ impl GraphEditorModel {
         opt_color.unwrap_or_else(|| styles.get_color(theme::code::types::missing))
     }
 
+    fn first_detached_edge(&self) -> Option<EdgeId> {
+        self.edges.detached_edges_iter().next()
+    }
+
+    fn first_detached_edge_source_type(&self) -> Option<Type> {
+        self.first_detached_edge().and_then(|edge_id| self.edge_source_type(edge_id))
+    }
+
+    fn first_detached_edge_target_type(&self) -> Option<Type> {
+        self.first_detached_edge().and_then(|edge_id| self.edge_target_type(edge_id))
+    }
+
     /// Return a color for the first detached edge.
     pub fn first_detached_edge_color(&self) -> Option<color::Lcha> {
-        self.edges.detached_edges_iter().next().map(|t|self.edge_color(t))
+        self.first_detached_edge().map(|t|self.edge_color(t))
     }
 }
 
@@ -1991,8 +2008,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     edge_target_click <- valid_edge_disconnect_click.gate_not(&edge_is_source_click);
 
     // FIXME: make nicer - out.source.edge_source_unset should contain information from which node it ws unset
-    eval edge_target_click((edge_id)
-        model.with_edge_target(edge_id.0,|t| model.set_input_connected(&t,false)));
+    eval edge_target_click((edge_id) model.set_edge_target_connected(edge_id.0,false));
+        // model.with_edge_target(edge_id.0,|t| model.set_input_connected(&t,false)));
 
     eval edge_source_click (((edge_id, _)) model.remove_edge_source(*edge_id));
     eval edge_target_click (((edge_id, _)) model.remove_edge_target(*edge_id));
@@ -2003,7 +2020,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
 
     // todo
-    eval out.edge_target_set (((_,target)) model.set_input_connected(target,true));
+    eval out.edge_target_set (((edge_id,_)) model.set_edge_target_connected(*edge_id,true));
     }
 
     // === Edge creation  ===
@@ -2085,8 +2102,10 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     _eval <- all_with(&out.node_hovered,&edit_mode,f!((tgt,e)
         model.with_node(tgt.value,|t| t.model.input.edit_mode_ready(*e && tgt.is_on()))
     ));
-    _eval <- all_with(&out.node_hovered,&out.some_edge_targets_detached2,f!((tgt,e)
-        model.with_node(tgt.value,|t| t.model.input.ports_active(*e && tgt.is_on()))
+    _eval <- all_with(&out.node_hovered,&out.some_edge_targets_detached2,f!([model](tgt,e)
+        let edge_tp   = model.first_detached_edge_source_type();
+        let is_active = *e && tgt.is_on();
+        model.with_node(tgt.value,|t| t.model.input.set_ports_active(is_active,edge_tp))
     ));
 
 
