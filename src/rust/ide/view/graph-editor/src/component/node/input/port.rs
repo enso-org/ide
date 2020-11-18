@@ -135,7 +135,7 @@ ensogl::define_endpoints! {
         set_disabled         (bool),
         set_active           (bool),
         set_hover            (bool),
-        set_connected        (bool),
+        set_connected        (bool,Option<Type>),
         set_parent_connected (bool),
         set_usage_type       (Option<Type>),
     }

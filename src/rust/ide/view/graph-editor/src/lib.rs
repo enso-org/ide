@@ -431,7 +431,7 @@ ensogl::define_endpoints! {
         node_added                (NodeId),
         node_removed              (NodeId),
         nodes_collapsed           ((Vec<NodeId>,NodeId)),
-        node_hovered              (Switch<NodeId>),
+        node_hovered              (Option<Switch<NodeId>>),
         node_selected             (NodeId),
         node_deselected           (NodeId),
         node_position_set         ((NodeId,Vector2)),
@@ -496,7 +496,7 @@ pub struct Node {
     pub out_edges : SharedHashSet<EdgeId>,
 }
 
-#[derive(Clone,CloneRef,Copy,Debug,Default,Display,Eq,From,Hash,Into,PartialEq)]
+#[derive(Clone,CloneRef,Copy,Debug,Default,Eq,From,Hash,Into,PartialEq)]
 pub struct NodeId(pub Id);
 
 impl Node {
@@ -523,6 +523,12 @@ impl display::Object for Node {
     }
 }
 
+impl Display for NodeId {
+    fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.0,f)
+    }
+}
+
 
 
 // ============
@@ -537,7 +543,7 @@ pub struct Edge {
     target   : Rc<RefCell<Option<EdgeTarget>>>,
 }
 
-#[derive(Clone,CloneRef,Copy,Debug,Default,Display,Eq,From,Hash,Into,PartialEq)]
+#[derive(Clone,CloneRef,Copy,Debug,Default,Eq,From,Hash,Into,PartialEq)]
 pub struct EdgeId(pub Id);
 
 impl Edge {
@@ -591,6 +597,12 @@ impl display::Object for Edge {
     }
 }
 
+impl Display for EdgeId {
+    fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.0,f)
+    }
+}
+
 
 
 // ============
@@ -625,7 +637,7 @@ impl From<String> for Type {
 }
 
 impl Display for Type {
-    fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f,"{}",self.0)
     }
 }
@@ -945,7 +957,7 @@ impl GraphEditorModelWithNetwork {
         frp::new_bridge_network! { [self.network, node.frp.network]
             eval_ node.frp.background_press(touch.nodes.down.emit(node_id));
 
-            hovered <- node.output.hover.map (move |t| Switch::new(node_id,*t));
+            hovered <- node.output.hover.map (move |t| Some(Switch::new(node_id,*t)));
             output.source.node_hovered <+ hovered;
 
             // eval edit_mode_ready ((t) ports_frp.input.edit_mode_ready.emit(t));
@@ -1514,38 +1526,64 @@ impl GraphEditorModel {
         };
     }
 
-    fn with_node<T>(&self, node_id:NodeId, f:impl FnOnce(Node)->T) -> Option<T> {
-        self.nodes.get_cloned_ref(&node_id).map(f)
+    fn map_node<T>(&self, id:NodeId, f:impl FnOnce(Node)->T) -> Option<T> {
+        self.nodes.get_cloned_ref(&id).map(f)
     }
 
-    fn with_edge<T>(&self, edge_id:EdgeId, f:impl FnOnce(Edge)->T) -> Option<T> {
-        self.edges.get_cloned_ref(&edge_id).map(f)
+    fn map_edge<T>(&self, id:EdgeId, f:impl FnOnce(Edge)->T) -> Option<T> {
+        self.edges.get_cloned_ref(&id).map(f)
     }
 
-    fn with_edge_source<T>(&self, edge_id:EdgeId, f:impl FnOnce(EdgeTarget)->T) -> Option<T> {
-        self.with_edge(edge_id,|edge| edge.source.borrow().clone().map(f)).flatten()
+    fn with_node<T>(&self, id:NodeId, f:impl FnOnce(Node)->T) -> Option<T> {
+        let out = self.map_node(id,f);
+        out.map_none(||warning!(&self.logger,"Trying to access nonexistent node '{id}'"))
     }
 
-    fn with_edge_target<T>(&self, edge_id:EdgeId, f:impl FnOnce(EdgeTarget)->T) -> Option<T> {
-        self.with_edge(edge_id,|edge| edge.target.borrow().clone().map(f)).flatten()
+    fn with_edge<T>(&self, id:EdgeId, f:impl FnOnce(Edge)->T) -> Option<T> {
+        let out = self.map_edge(id,f);
+        out.map_none(||warning!(&self.logger,"Trying to access nonexistent edge '{id}'"))
     }
 
-    fn with_edge_source_node<T>
+    fn with_edge_map_source<T>(&self, id:EdgeId, f:impl FnOnce(EdgeTarget)->T) -> Option<T> {
+        self.with_edge(id,|edge| edge.source.borrow().clone().map(f)).flatten()
+    }
+
+    fn with_edge_map_target<T>(&self, id:EdgeId, f:impl FnOnce(EdgeTarget)->T) -> Option<T> {
+        self.with_edge(id,|edge| edge.target.borrow().clone().map(f)).flatten()
+    }
+
+    fn with_edge_source<T>(&self, id:EdgeId, f:impl FnOnce(EdgeTarget)->T) -> Option<T> {
+        self.with_edge(id,|edge| {
+            edge.source.borrow().clone().map(f).map_none(
+                || warning!(&self.logger,"Trying to access nonexistent source of the edge {id}.")
+            )
+        }).flatten()
+    }
+
+    fn with_edge_target<T>(&self, id:EdgeId, f:impl FnOnce(EdgeTarget)->T) -> Option<T> {
+        self.with_edge(id,|edge| {
+            edge.target.borrow().clone().map(f).map_none(
+                || warning!(&self.logger,"Trying to access nonexistent target of the edge {id}.")
+            )
+        }).flatten()
+    }
+
+    fn with_edge_map_source_node<T>
     (&self, edge_id:EdgeId, f:impl FnOnce(Node,span_tree::Crumbs)->T) -> Option<T> {
-        self.with_edge_source(edge_id,|t| self.with_node(t.node_id,|node|f(node,t.port))).flatten()
+        self.with_edge_map_source(edge_id,|t| self.map_node(t.node_id,|node|f(node,t.port))).flatten()
     }
 
-    fn with_edge_target_node<T>
+    fn with_edge_map_target_node<T>
     (&self, edge_id:EdgeId, f:impl FnOnce(Node,span_tree::Crumbs)->T) -> Option<T> {
-        self.with_edge_target(edge_id,|t| self.with_node(t.node_id,|node|f(node,t.port))).flatten()
+        self.with_edge_map_target(edge_id,|t| self.map_node(t.node_id,|node|f(node,t.port))).flatten()
     }
 
     fn edge_source_type(&self, edge_id:EdgeId) -> Option<Type> {
-        self.with_edge_source_node(edge_id,|n,c|n.model.input.port_type(&c)).flatten()
+        self.with_edge_map_source_node(edge_id,|n,c|n.model.input.port_type(&c)).flatten()
     }
 
     fn edge_target_type(&self, edge_id:EdgeId) -> Option<Type> {
-        self.with_edge_target_node(edge_id,|n,c|n.model.input.port_type(&c)).flatten()
+        self.with_edge_map_target_node(edge_id,|n,c|n.model.input.port_type(&c)).flatten()
     }
 
     /// Return a color for the edge. Currently we query the edge target, and if missing, the edge
@@ -2017,10 +2055,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     out.source.edge_source_unset <+ edge_source_click.map(|(edge_id,_)| *edge_id);
     out.source.edge_target_unset <+ edge_target_click.map(|(edge_id,_)| *edge_id);
 
-
-
-    // todo
-    eval out.edge_target_set (((edge_id,_)) model.set_edge_target_connected(*edge_id,true));
     }
 
 
@@ -2100,13 +2134,17 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Event Propagation ===
     // See the docs of `Node` to learn about how the graph - nodes event propagation works.
 
-    _eval <- all_with(&out.node_hovered,&edit_mode,f!((tgt,e)
-        model.with_node(tgt.value,|t| t.model.input.set_edit_ready_mode(*e && tgt.is_on()))
+    _eval <- all_with(&out.node_hovered,&edit_mode,f!([model](tgt,e)
+        if let Some(tgt) = tgt {
+            model.with_node(tgt.value,|t| t.model.input.set_edit_ready_mode(*e && tgt.is_on()));
+        }
     ));
     _eval <- all_with(&out.node_hovered,&out.some_edge_targets_detached2,f!([model](tgt,e)
-        let edge_tp   = model.first_detached_edge_source_type();
-        let is_active = *e && tgt.is_on();
-        model.with_node(tgt.value,|t| t.model.input.set_ports_active(is_active,edge_tp))
+        if let Some(tgt) = tgt {
+            let edge_tp   = model.first_detached_edge_source_type();
+            let is_active = *e && tgt.is_on();
+            model.with_node(tgt.value,|t| t.model.input.set_ports_active(is_active,edge_tp));
+        }
     ));
     }
 
@@ -2137,6 +2175,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     out.source.edge_added      <+ edge;
     out.source.edge_source_set <+ new_edge_source;
     out.source.edge_target_set <+ new_edge_target;
+    trace out.edge_target_set;
 
     detached_edges_without_targets <= attach_all_edge_inputs.map(f_!(model.take_edges_with_detached_targets()));
     detached_edges_without_sources <= attach_all_edge_outputs.map(f_!(model.take_edges_with_detached_sources()));
@@ -2500,6 +2539,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     eval out.edge_source_set        (((id,tgt)) model.set_edge_source(*id,tgt));
     eval out.edge_target_set        (((id,tgt)) model.set_edge_target(*id,tgt));
+    // todo
+    eval out.edge_target_set (((edge_id,_)) model.set_edge_target_connected(*edge_id,true));
+
     eval out.node_selected          ((id) model.select_node(id));
     eval out.node_deselected        ((id) model.deselect_node(id));
     eval out.edge_removed           ((id) model.remove_edge(id));

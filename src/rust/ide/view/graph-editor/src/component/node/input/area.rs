@@ -289,7 +289,7 @@ impl Model {
 }
 
 /// Get the code color for the provided type or default code color in case the type is None.
-fn code_color(styles:&StyleWatch, tp:&Option<Type>) -> color::Lcha {
+fn code_color(styles:&StyleWatch, tp:Option<&Type>) -> color::Lcha {
     let opt_color = tp.as_ref().map(|tp| type_coloring::compute(tp,styles));
     opt_color.unwrap_or_else(||styles.get_color(theme::graph_editor::node::text))
 }
@@ -322,6 +322,7 @@ impl Area {
         frp::extend! { network
 
             trace frp.set_expression_usage_type;
+            trace frp.set_connected;
 
             // === Body Hover ===
             // This is meant to be on top of FRP network. Read more about `Node` docs to
@@ -370,7 +371,7 @@ impl Area {
             eval frp.port_hover ((t) model.set_port_hover(t));
 
             eval frp.set_connected ([model]((crumbs,edge_tp,is_connected)) {
-                model.with_port_mut(crumbs,|n|n.set_connected(is_connected));
+                model.with_port_mut(crumbs,|n|n.set_connected(is_connected,edge_tp));
                 model.with_port_mut(crumbs,|n|n.set_parent_connected(is_connected));
             });
 
@@ -499,6 +500,7 @@ impl Area {
                 || builder.parent_parensed;
 
             if let Some(id) = node.ast_id {
+                println!("New id mapping: {} -> {:?}",id,node.crumbs);
                 self.model.id_crumbs_map.borrow_mut().insert(id,node.crumbs.clone_ref());
             }
 
@@ -665,9 +667,7 @@ impl Area {
 
             let styles = model.styles.clone_ref();
             frp::extend! { port_network
-                base_color   <- final_tp.map(f!([styles](t) code_color(&styles,t)));
-                select_color <- all_with(&frp.set_hover,&base_color,|_,t|*t);
-                frp.output.source.select_color <+ select_color;
+                base_color <- final_tp.map(f!([styles](t) code_color(&styles,t.as_ref())));
             }
 
             if node.children.is_empty() {
@@ -704,8 +704,12 @@ impl Area {
 
             if let Some(port_shape) = &node.payload.shape {
                 frp::extend! { port_network
-                    viz_color <- all_with(&frp.select_color,&frp.set_connected,|color,is_connected|
-                        if *is_connected {*color} else { color::Lcha::transparent() } );
+                    port_tp_on_hover <- all_with(&frp.set_hover,&final_tp,|_,t|t.clone());
+                    viz_color <- all_with(&port_tp_on_hover,&frp.set_connected,f!([styles](port_tp,(is_connected,edge_tp)) {
+                        let tp    = port_tp.as_ref().or(edge_tp.as_ref());
+                        let color = code_color(&styles,tp);
+                        if *is_connected {color} else { color::Lcha::transparent() }
+                    }));
                     eval viz_color ((t) port_shape.viz.shape.color.set(color::Rgba::from(t).into()));
                 }
             }
