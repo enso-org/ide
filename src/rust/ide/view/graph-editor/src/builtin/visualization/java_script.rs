@@ -20,7 +20,7 @@ pub fn table_view_visualization() -> visualization::java_script::FallibleDefinit
 
 /// Return a `JavaScript` Scatter plot visualization.
 pub fn scatter_plot_visualization() -> visualization::java_script::FallibleDefinition {
-    let loading_scripts = include_str!("java_script/loadingScripts.js");
+    let loading_scripts = include_str!("java_script/loading.js");
     let source          = include_str!("java_script/scatterPlot.js");
     let source          = format!("{}{}",loading_scripts,source);
 
@@ -29,7 +29,7 @@ pub fn scatter_plot_visualization() -> visualization::java_script::FallibleDefin
 
 /// Return a `JavaScript` Histogram visualization.
 pub fn histogram_visualization() -> visualization::java_script::FallibleDefinition {
-    let loading_scripts = include_str!("java_script/loadingScripts.js");
+    let loading_scripts = include_str!("java_script/loading.js");
     let source          = include_str!("java_script/histogram.js");
     let source          = format!("{}{}",loading_scripts,source);
 
@@ -38,7 +38,7 @@ pub fn histogram_visualization() -> visualization::java_script::FallibleDefiniti
 
 /// Return a `JavaScript` Map visualization.
 pub fn map_view_visualization() -> visualization::java_script::FallibleDefinition {
-    let loading_scripts = include_str!("java_script/loadingScripts.js");
+    let loading_scripts = include_str!("java_script/loading.js");
     let source          = include_str!("java_script/geoMap.js");
     let source          = format!("{}{}",loading_scripts,source);
 
