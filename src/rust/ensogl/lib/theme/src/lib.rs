@@ -104,6 +104,15 @@ macro_rules! define_theme {
     };
 }
 
+/// Enum holding available themes for ease of access.
+#[allow(missing_docs)]
+#[derive(Clone,Copy,Debug)]
+pub enum Theme {
+    Light,
+    Dark,
+}
+pub use Theme::*;
+
 
 
 // =============================

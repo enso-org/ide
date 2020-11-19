@@ -62,14 +62,20 @@ impl Model {
         else        { self.set_light_style() }
     }
 
-    /// Sets style of IDE to light.
-    pub fn set_light_style(&self) {
+    /// Sets style of IDE to the one defined by parameter `theme`.
+    pub fn set_style_by_theme(&self, theme: ensogl_theme::Theme) {
+        match theme {
+            ensogl_theme::Light => { self.set_light_style() },
+            ensogl_theme::Dark  => { self.set_dark_style() }
+        }
+    }
+
+    fn set_light_style(&self) {
         ensogl_theme::builtin::light::enable(&self.app);
         self.set_html_style("light-theme");
     }
 
-    /// Sets style of IDE to dark.
-    pub fn set_dark_style(&self) {
+    fn set_dark_style(&self) {
         ensogl_theme::builtin::dark::enable(&self.app);
         self.set_html_style("dark-theme");
     }
@@ -190,7 +196,7 @@ impl View {
         let graph                      = &model.graph_editor.frp;
         let network                    = &frp.network;
         let searcher_left_top_position = DEPRECATED_Animation::<Vector2<f32>>::new(network);
-        model.set_light_style();
+        model.set_style_by_theme(ensogl_theme::Light);
 
         frp::extend!{ network
             // === Searcher Position and Size ===
