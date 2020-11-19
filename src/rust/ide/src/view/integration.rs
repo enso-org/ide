@@ -272,20 +272,19 @@ impl Integration {
             _action <- editor_outs.nodes_collapsed          .map2(&is_hold,nodes_collapsed);
             _action <- editor_outs.node_entered             .map2(&is_hold,node_entered);
             _action <- editor_outs.node_exited              .map2(&is_hold,node_exited);
-            _action <- editor_outs.connection_added         .map2(&is_hold,connection_created);
+            _action <- editor_outs.on_edge_endpoints_set    .map2(&is_hold,connection_created);
             _action <- editor_outs.visualization_enabled    .map2(&is_hold,visualization_enabled);
             _action <- editor_outs.visualization_disabled   .map2(&is_hold,visualization_disabled);
-            _action <- editor_outs.connection_removed       .map2(&is_hold,connection_removed);
+            _action <- editor_outs.on_edge_endpoint_unset   .map2(&is_hold,connection_removed);
             _action <- editor_outs.node_position_set_batched.map2(&is_hold,node_moved);
             _action <- editor_outs.node_being_edited        .map2(&is_hold,node_editing);
             _action <- editor_outs.node_expression_set      .map2(&is_hold,node_expression_set);
             _action <- searcher_frp.picked_entry            .map2(&is_hold,suggestion_picked);
             _action <- project_frp.editing_committed        .map2(&is_hold,node_editing_committed);
 
-            eval project_frp.editing_committed ((_) invalidate.trigger.emit(()));
-            eval project_frp.editing_aborted   ((_) invalidate.trigger.emit(()));
-
-            eval_ project_frp.save_module      (model.module_saved_in_ui());
+            eval_ project_frp.editing_committed (invalidate.trigger.emit(()));
+            eval_ project_frp.editing_aborted   (invalidate.trigger.emit(()));
+            eval_ project_frp.save_module       (model.module_saved_in_ui());
         }
         Self::connect_frp_to_graph_controller_notifications(&model,handle_graph_notification.trigger);
         Self::connect_frp_text_controller_notifications(&model,handle_text_notification.trigger);
@@ -602,7 +601,7 @@ impl Model {
             if !self.connection_views.borrow().contains_left(&con) {
                 let targets = self.edge_targets_from_controller_connection(con.clone())?;
                 self.view.graph().frp.input.connect_nodes.emit_event(&targets);
-                let edge_id = self.view.graph().frp.output.edge_added.value();
+                let edge_id = self.view.graph().frp.output.on_edge_add.value();
                 self.connection_views.borrow_mut().insert(con, edge_id);
             }
         }

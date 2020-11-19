@@ -421,10 +421,10 @@ ensogl::define_endpoints! {
 
         // FIXME[WD]: These FRP endpoints look like output endpoints, but are used in some strange
         //            cyclic way. To be refactored / removed.
-        some_edge_targets_detached  (),
-        some_edge_sources_detached  (),
-        all_edge_targets_attached   (),
-        all_edge_sources_attached   (),
+        on_some_edges_targets_unset  (),
+        on_some_edges_sources_unset  (),
+        on_all_edges_targets_set   (),
+        on_all_edges_sources_set   (),
     }
 
     Output {
@@ -447,28 +447,30 @@ ensogl::define_endpoints! {
 
 
 
-        edge_added         (EdgeId),
-        edge_removed       (EdgeId),
-        edge_source_set    ((EdgeId,EdgeEndpoint)),
-        edge_target_set    ((EdgeId,EdgeEndpoint)),
-        edge_source_unset  ((EdgeId,EdgeEndpoint)),
-        edge_target_unset  ((EdgeId,EdgeEndpoint)),
+        // ============
+        // === Edge ===
+        // ============
+
+        on_edge_add                 (EdgeId),
+        on_edge_drop                (EdgeId),
+        on_edge_source_set          ((EdgeId,EdgeEndpoint)),
+        on_edge_target_set          ((EdgeId,EdgeEndpoint)),
+        on_edge_source_unset        ((EdgeId,EdgeEndpoint)),
+        on_edge_target_unset        ((EdgeId,EdgeEndpoint)),
+        on_edge_endpoint_unset      (EdgeId),
+        on_edge_endpoints_set       (EdgeId),
+        on_some_edges_targets_unset (),
+        on_some_edges_sources_unset (),
+        on_all_edges_targets_set    (),
+        on_all_edges_sources_set    (),
+        on_all_edges_endpoints_set  (),
+        some_edge_targets_unset     (bool),
+        some_edge_sources_unset     (bool),
+        some_edge_endpoints_unset   (bool),
 
 
 
 
-        some_edge_targets_detached2 (bool),
-        some_edge_sources_detached2 (bool),
-        some_edges_detached         (bool),
-
-        some_edge_targets_detached (),
-        some_edge_sources_detached (),
-        all_edge_targets_attached  (),
-        all_edge_sources_attached  (),
-        all_edges_attached         (),
-
-        connection_added   (EdgeId),
-        connection_removed (EdgeId),
 
         visualization_enabled           (NodeId),
         visualization_disabled          (NodeId),
@@ -1085,7 +1087,7 @@ impl GraphEditorModelWithNetwork {
         let first_detached = self.edges.detached_target.is_empty();
         self.edges.detached_target.insert(edge_id);
         if first_detached {
-            self.frp.some_edge_targets_detached.emit(());
+            self.frp.on_some_edges_targets_unset.emit(());
         }
         edge_id
     }
@@ -1100,7 +1102,7 @@ impl GraphEditorModelWithNetwork {
         let first_detached = self.edges.detached_source.is_empty();
         self.edges.detached_source.insert(edge_id);
         if first_detached {
-            self.frp.some_edge_sources_detached.emit(());
+            self.frp.on_some_edges_sources_unset.emit(());
         }
         edge_id
     }
@@ -1332,7 +1334,7 @@ impl GraphEditorModel {
                     self.refresh_edge_position(edge_id);
                     self.refresh_edge_source_size(edge_id);
                     if first_detached {
-                        self.frp.some_edge_sources_detached.emit(());
+                        self.frp.on_some_edges_sources_unset.emit(());
                     }
                 }
             }
@@ -1349,7 +1351,7 @@ impl GraphEditorModel {
                 self.edges.detached_target.remove(&edge_id);
                 let all_attached = self.edges.detached_target.is_empty();
                 if all_attached {
-                    self.frp.all_edge_targets_attached.emit(());
+                    self.frp.on_all_edges_targets_set.emit(());
                 }
 
                 edge.view.frp.target_attached.emit(true);
@@ -1370,7 +1372,7 @@ impl GraphEditorModel {
                     edge.view.frp.target_attached.emit(false);
                     self.refresh_edge_position(edge_id);
                     if first_detached {
-                        self.frp.some_edge_targets_detached.emit(());
+                        self.frp.on_some_edges_targets_unset.emit(());
                     }
                 };
             }
@@ -1402,13 +1404,13 @@ impl GraphEditorModel {
         let no_detached_sources = self.edges.detached_source.is_empty();
         let no_detached_targets = self.edges.detached_target.is_empty();
         if no_detached_targets {
-            self.frp.all_edge_targets_attached.emit(());
+            self.frp.on_all_edges_targets_set.emit(());
         }
         if no_detached_sources {
-            self.frp.all_edge_sources_attached.emit(());
+            self.frp.on_all_edges_sources_set.emit(());
         }
         // if no_detached_targets && no_detached_sources {
-        //     self.frp.all_edges_attached.emit(());
+        //     self.frp.on_all_edges_endpoints_set.emit(());
         // }
     }
 
@@ -1951,7 +1953,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     );
 
     edit_mode               <- bool(&inputs.edit_mode_off,&inputs.edit_mode_on);
-    node_to_select_non_edit <- touch.nodes.selected.gate_not(&edit_mode).gate_not(&out.some_edges_detached);
+    node_to_select_non_edit <- touch.nodes.selected.gate_not(&edit_mode).gate_not(&out.some_edge_endpoints_unset);
     node_to_select_edit     <- touch.nodes.down.gate(&edit_mode);
     node_to_select          <- any(node_to_select_non_edit,node_to_select_edit,inputs.select_node);
     node_was_selected       <- node_to_select.map(f!((id) model.nodes.selected.contains(id)));
@@ -2000,8 +2002,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     on_connect_follow_mode <- any(on_output_connect_follow_mode,on_input_connect_follow_mode);
     connect_drag_mode      <- any(on_connect_drag_mode,on_connect_follow_mode);
 
-    on_detached_edge    <- any(&inputs.some_edge_targets_detached,&inputs.some_edge_sources_detached);
-    has_detached_edge   <- bool(&out.all_edges_attached,&on_detached_edge);
+    on_detached_edge    <- any(&inputs.on_some_edges_targets_unset,&inputs.on_some_edges_sources_unset);
+    has_detached_edge   <- bool(&out.on_all_edges_endpoints_set,&on_detached_edge);
 
     eval node_input_touch.down ((target)   model.frp.press_node_input.emit(target));
     eval node_output_touch.down ((target)  model.frp.press_node_output.emit(target));
@@ -2052,17 +2054,17 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     edge_source_click <- valid_edge_disconnect_click.gate(&edge_is_source_click);
     edge_target_click <- valid_edge_disconnect_click.gate_not(&edge_is_source_click);
 
-    // FIXME: make nicer - out.source.edge_source_unset should contain information from which node it ws unset
+    // FIXME: make nicer - out.source.on_edge_source_unset should contain information from which node it ws unset
     eval edge_target_click((edge_id) model.set_edge_target_connected(edge_id.0,false));
 
 
-    edge_source_unset <= edge_source_click.map(f!(((id,_)) model.with_edge_source(*id,|t|(*id,t.clone()))));
-    edge_target_unset <= edge_target_click.map(f!(((id,_)) model.with_edge_target(*id,|t|(*id,t.clone()))));
-    out.source.edge_source_unset <+ edge_source_unset;
-    out.source.edge_target_unset <+ edge_target_unset;
+    on_edge_source_unset <= edge_source_click.map(f!(((id,_)) model.with_edge_source(*id,|t|(*id,t.clone()))));
+    on_edge_target_unset <= edge_target_click.map(f!(((id,_)) model.with_edge_target(*id,|t|(*id,t.clone()))));
+    out.source.on_edge_source_unset <+ on_edge_source_unset;
+    out.source.on_edge_target_unset <+ on_edge_target_unset;
 
-    eval out.edge_source_unset (((edge_id,_)) model.remove_edge_source(*edge_id));
-    eval out.edge_target_unset (((edge_id,_)) model.remove_edge_target(*edge_id));
+    eval out.on_edge_source_unset (((edge_id,_)) model.remove_edge_source(*edge_id));
+    eval out.on_edge_target_unset (((edge_id,_)) model.remove_edge_target(*edge_id));
 
     }
 
@@ -2102,26 +2104,26 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         Some(model.new_edge_from_input(&edge_mouse_down,&edge_over,&edge_out))
     })).unwrap();
 
-    out.source.edge_added <+ new_output_edge;
+    out.source.on_edge_add <+ new_output_edge;
     new_edge_source <- new_output_edge.map2(&node_output_touch.down, move |id,target| (*id,target.clone()));
-    out.source.edge_source_set <+ new_edge_source;
+    out.source.on_edge_source_set <+ new_edge_source;
 
-    out.source.edge_added <+ new_input_edge;
+    out.source.on_edge_add <+ new_input_edge;
     new_edge_target <- new_input_edge.map2(&node_input_touch.down, move |id,target| (*id,target.clone()));
-    out.source.edge_target_set <+ new_edge_target;
+    out.source.on_edge_target_set <+ new_edge_target;
 
 
     // === Edge Status ===
 
-    out.source.some_edge_targets_detached2 <+ out.some_edge_targets_detached.to_true();
-    out.source.some_edge_targets_detached2 <+ out.all_edge_targets_attached.to_false();
+    out.source.some_edge_targets_unset <+ out.on_some_edges_targets_unset.to_true();
+    out.source.some_edge_targets_unset <+ out.on_all_edges_targets_set.to_false();
 
-    out.source.some_edge_sources_detached2 <+ out.some_edge_sources_detached.to_true();
-    out.source.some_edge_sources_detached2 <+ out.all_edge_sources_attached.to_false();
+    out.source.some_edge_sources_unset <+ out.on_some_edges_sources_unset.to_true();
+    out.source.some_edge_sources_unset <+ out.on_all_edges_sources_set.to_false();
 
-    some_edges_detached <- all_with(&out.some_edge_targets_detached2,&out.some_edge_sources_detached2,|a,b|*a||*b);
-    out.source.all_edges_attached <+ some_edges_detached.constant(()).gate_not(&some_edges_detached);
-    out.source.some_edges_detached <+ some_edges_detached;
+    some_edge_endpoints_unset <- all_with(&out.some_edge_targets_unset,&out.some_edge_sources_unset,|a,b|*a||*b);
+    out.source.on_all_edges_endpoints_set <+ some_edge_endpoints_unset.constant(()).gate_not(&some_edge_endpoints_unset);
+    out.source.some_edge_endpoints_unset <+ some_edge_endpoints_unset;
 
 
 
@@ -2148,7 +2150,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
             model.with_node(tgt.value,|t| t.model.input.set_edit_ready_mode(*e && tgt.is_on()));
         }
     ));
-    _eval <- all_with(&out.node_hovered,&out.some_edge_targets_detached2,f!([model](tgt,e)
+    _eval <- all_with(&out.node_hovered,&out.some_edge_targets_unset,f!([model](tgt,e)
         if let Some(tgt) = tgt {
             let edge_tp   = model.first_detached_edge_source_type();
             let is_active = *e && tgt.is_on();
@@ -2174,30 +2176,30 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     frp::extend! { network
 
-    out.source.edge_source_set <+ inputs.set_edge_source;
-    out.source.edge_target_set <+ inputs.set_edge_target;
+    out.source.on_edge_source_set <+ inputs.set_edge_source;
+    out.source.on_edge_target_set <+ inputs.set_edge_target;
 
     let endpoints            = inputs.connect_nodes.clone_ref();
     edge                    <- endpoints . map(f_!(model.new_edge_from_output(&edge_mouse_down,&edge_over,&edge_out)));
     new_edge_source         <- endpoints . _0() . map2(&edge, |t,id| (*id,t.clone()));
     new_edge_target         <- endpoints . _1() . map2(&edge, |t,id| (*id,t.clone()));
-    out.source.edge_added      <+ edge;
-    out.source.edge_source_set <+ new_edge_source;
-    out.source.edge_target_set <+ new_edge_target;
+    out.source.on_edge_add      <+ edge;
+    out.source.on_edge_source_set <+ new_edge_source;
+    out.source.on_edge_target_set <+ new_edge_target;
 
     detached_edges_without_targets <= attach_all_edge_inputs.map(f_!(model.take_edges_with_detached_targets()));
     detached_edges_without_sources <= attach_all_edge_outputs.map(f_!(model.take_edges_with_detached_sources()));
 
     new_edge_target <- detached_edges_without_targets.map2(&attach_all_edge_inputs, |id,t| (*id,t.clone()));
-    out.source.edge_target_set <+ new_edge_target;
+    out.source.on_edge_target_set <+ new_edge_target;
     new_edge_source <- detached_edges_without_sources.map2(&attach_all_edge_outputs, |id,t| (*id,t.clone()));
-    out.source.edge_source_set <+ new_edge_source;
+    out.source.on_edge_source_set <+ new_edge_source;
 
     on_new_edge_source <- new_edge_source.constant(());
     on_new_edge_target <- new_edge_target.constant(());
 
-    overlapping_edges       <= out.edge_target_set._1().map(f!((t) model.overlapping_edges(t)));
-    out.source.edge_removed <+ overlapping_edges;
+    overlapping_edges       <= out.on_edge_target_set._1().map(f!((t) model.overlapping_edges(t)));
+    out.source.on_edge_drop <+ overlapping_edges;
 
     drop_on_bg_up  <- background_up.gate(&connect_drag_mode);
     drop_edges     <- any (drop_on_bg_up,touch.background.down);
@@ -2360,7 +2362,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     frp::extend! { network
 
-    detached_edge           <- any(&inputs.some_edge_targets_detached,&inputs.some_edge_sources_detached);
+    detached_edge           <- any(&inputs.on_some_edges_targets_unset,&inputs.on_some_edges_sources_unset);
     update_edge             <- any(detached_edge,on_new_edge_source,on_new_edge_target);
     cursor_pos_on_update    <- cursor_pos_in_scene.sample(&update_edge);
     edge_refresh_cursor_pos <- any(cursor_pos_on_update,cursor_pos_in_scene);
@@ -2534,30 +2536,30 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     removed_edges_on_enter  <= out.node_entered.map(f_!(model.model.clear_all_detached_edges()));
     out.source.node_exited  <+ inputs.exit_node;
     removed_edges_on_exit   <= out.node_exited.map(f_!(model.model.clear_all_detached_edges()));
-    out.source.edge_removed <+ any(removed_edges_on_enter,removed_edges_on_exit);
+    out.source.on_edge_drop <+ any(removed_edges_on_enter,removed_edges_on_exit);
 
 
     // === OUTPUTS REBIND ===
 
-    out.source.some_edge_targets_detached <+ inputs.some_edge_targets_detached;
-    out.source.some_edge_sources_detached <+ inputs.some_edge_sources_detached;
-    out.source.all_edge_sources_attached  <+ inputs.all_edge_sources_attached;
-    out.source.all_edge_targets_attached  <+ inputs.all_edge_targets_attached;
-    // out.source.all_edges_attached         <+ inputs.all_edges_attached;
+    out.source.on_some_edges_targets_unset <+ inputs.on_some_edges_targets_unset;
+    out.source.on_some_edges_sources_unset <+ inputs.on_some_edges_sources_unset;
+    out.source.on_all_edges_sources_set  <+ inputs.on_all_edges_sources_set;
+    out.source.on_all_edges_targets_set  <+ inputs.on_all_edges_targets_set;
+    // out.source.on_all_edges_endpoints_set         <+ inputs.on_all_edges_endpoints_set;
 
-    eval out.edge_source_set        (((id,tgt)) model.set_edge_source(*id,tgt));
-    eval out.edge_target_set        (((id,tgt)) model.set_edge_target(*id,tgt));
+    eval out.on_edge_source_set        (((id,tgt)) model.set_edge_source(*id,tgt));
+    eval out.on_edge_target_set        (((id,tgt)) model.set_edge_target(*id,tgt));
 
-    eval out.edge_target_set (((edge_id,_)) model.set_edge_target_connected(*edge_id,true));
+    eval out.on_edge_target_set (((edge_id,_)) model.set_edge_target_connected(*edge_id,true));
 
-    eval out.edge_source_set   (((id,_)) model.refresh_edge_color(*id));
-    eval out.edge_target_set   (((id,_)) model.refresh_edge_color(*id));
-    eval out.edge_source_unset (((id,_)) model.refresh_edge_color(*id));
-    eval out.edge_target_unset (((id,_)) model.refresh_edge_color(*id));
+    eval out.on_edge_source_set   (((id,_)) model.refresh_edge_color(*id));
+    eval out.on_edge_target_set   (((id,_)) model.refresh_edge_color(*id));
+    eval out.on_edge_source_unset (((id,_)) model.refresh_edge_color(*id));
+    eval out.on_edge_target_unset (((id,_)) model.refresh_edge_color(*id));
 
     eval out.node_selected          ((id) model.select_node(id));
     eval out.node_deselected        ((id) model.deselect_node(id));
-    eval out.edge_removed           ((id) model.remove_edge(id));
+    eval out.on_edge_drop           ((id) model.remove_edge(id));
     eval out.node_removed           ((id) model.remove_node(id));
     // TODO[ao] This one action is triggered by input frp node event instead of output, because
     //  the output emits the string and we need the expression with span-trees here.
@@ -2569,14 +2571,14 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Edge discovery ===
 
-    edge_endpoint_set          <- any (out.edge_source_set, out.edge_target_set)._0();
+    edge_endpoint_set          <- any (out.on_edge_source_set, out.on_edge_target_set)._0();
     both_endpoints_set         <- edge_endpoint_set.map(f!((id) model.is_connection(id)));
     new_connection             <- edge_endpoint_set.gate(&both_endpoints_set);
-    out.source.connection_added   <+ new_connection;
+    out.source.on_edge_endpoints_set   <+ new_connection;
 
-    on_edge_source_unset <- out.edge_source_unset._0();
-    on_edge_target_unset <- out.edge_target_unset._0();
-    out.source.connection_removed <+ any(out.edge_removed,on_edge_source_unset,on_edge_target_unset);
+    on_edge_source_unset <- out.on_edge_source_unset._0();
+    on_edge_target_unset <- out.on_edge_target_unset._0();
+    out.source.on_edge_endpoint_unset <+ any(out.on_edge_drop,on_edge_source_unset,on_edge_target_unset);
 
 
     // === Remove implementation ===
@@ -2592,7 +2594,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     input_edges_to_rm    <= rm_input_edges  . map(f!((node_id) model.node_in_edges(node_id)));
     output_edges_to_rm   <= rm_output_edges . map(f!((node_id) model.node_out_edges(node_id)));
     edges_to_rm          <- any (inputs.remove_edge, input_edges_to_rm, output_edges_to_rm);
-    out.source.edge_removed <+ edges_to_rm;
+    out.source.on_edge_drop <+ edges_to_rm;
     }
 
 
@@ -2603,7 +2605,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     frp::extend! { network
 
-    on_some_edges_detached <- out.some_edges_detached.gate(&out.some_edges_detached);
+    on_some_edges_detached <- out.some_edge_endpoints_unset.gate(&out.some_edge_endpoints_unset);
     cursor_style_edge_drag <- on_some_edges_detached.map(f_!([model]{
         if let Some(color) = model.first_detached_edge_color() {
             cursor::Style::new_color(color).press()
@@ -2611,7 +2613,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
             cursor::Style::new_color_no_animation(missing_type_color).press()
         }
     }));
-    cursor_style_on_edge_drag_stop <- out.all_edges_attached.constant(default());
+    cursor_style_on_edge_drag_stop <- out.on_all_edges_endpoints_set.constant(default());
     cursor_style_edge_drag         <- any (cursor_style_edge_drag,cursor_style_on_edge_drag_stop);
 
     let breadcrumb_style = model.breadcrumbs.pointer_style.clone_ref();
