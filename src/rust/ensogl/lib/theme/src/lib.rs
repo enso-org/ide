@@ -97,7 +97,6 @@ macro_rules! define_theme {
 
             /// Enables current theme.
             pub fn enable(app:&Application) {
-                let $name = theme::Theme::new();
                 app.themes.set_enabled(&[stringify!($name)]);
             }
         }

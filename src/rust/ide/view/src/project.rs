@@ -57,16 +57,11 @@ impl Model {
         Self{app,logger,display_object,graph_editor,searcher,code_editor}
     }
 
-    fn set_style(&self, is_light:bool) {
-        if is_light { self.set_dark_style()  }
-        else        { self.set_light_style() }
-    }
-
     /// Sets style of IDE to the one defined by parameter `theme`.
-    pub fn set_style_by_theme(&self, theme: ensogl_theme::Theme) {
+    pub fn set_style(&self, theme: ensogl_theme::Theme) {
         match theme {
             ensogl_theme::Light => { self.set_light_style() },
-            ensogl_theme::Dark  => { self.set_dark_style() }
+            ensogl_theme::Dark  => { self.set_dark_style()  },
         }
     }
 
@@ -81,11 +76,7 @@ impl Model {
     }
 
     fn set_html_style(&self, style:&'static str) {
-        let root_elem = web::get_element_by_id("root");
-        match root_elem {
-            Ok(v)  => v.set_class_name(style),
-            Err(_) => self.logger.warning("Failed to find root."),
-        }
+        web::run_on_element_by_id(&self.logger,"root",|root| root.set_class_name(style));
     }
 
     fn searcher_left_top_position_when_under_node_at(position:Vector2<f32>) -> Vector2<f32> {
@@ -196,7 +187,7 @@ impl View {
         let graph                      = &model.graph_editor.frp;
         let network                    = &frp.network;
         let searcher_left_top_position = DEPRECATED_Animation::<Vector2<f32>>::new(network);
-        model.set_style_by_theme(ensogl_theme::Light);
+        model.set_style(ensogl_theme::Light);
 
         frp::extend!{ network
             // === Searcher Position and Size ===
@@ -280,7 +271,10 @@ impl View {
             style_press            <- style_toggle_ev.gate_not(&style_was_pressed);
             style_press_on_off     <- style_press.map2(&frp.style_light, |_,is_light| !is_light);
             frp.source.style_light <+ style_press_on_off;
-            eval frp.style_light ((is_light) model.set_style(*is_light));
+            eval frp.style_light ((is_light) model.set_style({
+            if *is_light { ensogl_theme::Dark }
+            else { ensogl_theme::Light }
+            }));
         }
 
         Self{model,frp}

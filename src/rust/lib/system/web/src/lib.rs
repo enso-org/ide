@@ -245,6 +245,14 @@ pub fn get_element_by_id(id:&str) -> Result<Element> {
         Error(format!("Element with id '{}' not found.",id)))
 }
 
+pub fn run_on_element_by_id<F>(logger:&Logger, id:&str, f:F) where F : FnOnce(Element){
+    let root_elem = get_element_by_id(id);
+    match root_elem {
+        Ok(v)  => f(v),
+        Err(_) => logger.warning("Failed to find root."),
+    }
+}
+
 pub fn get_elements_by_class_name(name:&str) -> Result<Vec<Element>> {
     let collection = try_document()?.get_elements_by_class_name(name);
     let indices    = 0..collection.length();
