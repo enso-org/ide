@@ -23,7 +23,7 @@ impl Suggestion {
     /// The suggestion caption (suggested function name, or action name, etc.).
     pub fn caption(&self) -> String {
         match self {
-            Self::Completion(completion) => completion.code_to_insert(None,None)
+            Self::Completion(completion) => completion.code_to_insert(None)
         }
     }
 }

@@ -209,6 +209,26 @@ impl ParsedInput {
             CompletedFragmentId::Argument {..}                  => TypingArgument,
         }
     }
+
+    /// Convert the current input to Prefix Chain representation.
+    pub fn as_prefix_chain
+    (&self, parser:&Parser) -> Option<ast::Shifted<ast::prefix::Chain>> {
+        let parsed_pattern = parser.parse_line(&self.pattern).ok();
+        let pattern_sast   = parsed_pattern.map(|p| ast::Shifted::new(self.pattern_offset,p));
+        if let Some(mut chain) = self.expression.clone() {
+            if let Some(sast) = pattern_sast {
+                let prefix_id = None;
+                let argument  = ast::prefix::Argument {sast,prefix_id};
+                chain.wrapped.args.push(argument);
+            }
+            Some(chain)
+        } else if let Some(sast) = pattern_sast{
+            let chain = ast::prefix::Chain::from_ast_non_strict(&sast.wrapped);
+            Some(ast::Shifted::new(self.pattern_offset,chain))
+        } else {
+            None
+        }
+    }
 }
 
 impl HasRepr for ParsedInput {
@@ -312,8 +332,8 @@ pub struct FragmentAddedByPickingSuggestion {
 impl FragmentAddedByPickingSuggestion {
     /// Check if the picked fragment is still unmodified by user.
     fn is_still_unmodified
-    (&self, input:&ParsedInput, this_var:Option<&str>, current_module:&QualifiedName) -> bool {
-        let expected_code = &self.picked_suggestion.code_to_insert(this_var,Some(current_module));
+    (&self, input:&ParsedInput, current_module:&QualifiedName) -> bool {
+        let expected_code = &self.picked_suggestion.code_to_insert(Some(current_module));
         input.completed_fragment(self.id).contains(expected_code)
     }
 }
@@ -354,10 +374,10 @@ impl Data {
                 id                : CompletedFragmentId::Function,
                 picked_suggestion : entry
             };
-            // When editing node, we don't have any special handling for "this" node.
-            // This might be revisited in the future.
-            let this_var = None;
-            fragment.is_still_unmodified(&input,this_var,&current_module).and_option(Some(fragment))
+            // This is meant to work with single function calls (without this argument).
+            // In other case we should know what the function is from the engine, as the function
+            // should be resolved.
+            fragment.is_still_unmodified(&input,&current_module).and_option(Some(fragment))
         });
         let mut fragments_added_by_picking = Vec::<FragmentAddedByPickingSuggestion>::new();
         initial_fragment.for_each(|f| fragments_added_by_picking.push(f));
@@ -483,10 +503,9 @@ impl Searcher {
     /// Code that will be inserted by expanding given suggestion at given location.
     ///
     /// Code depends on the location, as the first fragment can introduce `this` variable access.
-    fn code_to_insert(&self, suggestion:&suggestion::Completion, id:CompletedFragmentId) -> String {
-        let var = self.this_var_for(id);
+    fn code_to_insert(&self, suggestion:&suggestion::Completion) -> String {
         let current_module = self.module_qualified_name();
-        suggestion.code_to_insert(var,Some(&current_module))
+        suggestion.code_to_insert(Some(&current_module))
     }
 
     /// Pick a completion suggestion.
@@ -498,7 +517,7 @@ impl Searcher {
     (&self, picked_suggestion:suggestion::Completion) -> FallibleResult<String> {
         info!(self.logger, "Picking suggestion: {picked_suggestion:?}");
         let id                = self.data.borrow().input.next_completion_id();
-        let code_to_insert    = self.code_to_insert(&picked_suggestion,id);
+        let code_to_insert    = self.code_to_insert(&picked_suggestion);
         let added_ast         = self.parser.parse_line(&code_to_insert)?;
         let picked_completion = FragmentAddedByPickingSuggestion {id,picked_suggestion};
         let pattern_offset    = self.data.borrow().input.pattern_offset;
@@ -546,12 +565,11 @@ impl Searcher {
     ///
     /// False if it was modified after picking or if it wasn't picked at all.
     pub fn is_function_fragment_unmodified(&self) -> bool {
-        let this_var       = self.this_var();
         let current_module = self.module_qualified_name();
         with(self.data.borrow(), |data| {
             data.fragments_added_by_picking.first().contains_if(|frag| {
                 let is_function = frag.id == CompletedFragmentId::Function;
-                is_function && frag.is_still_unmodified(&data.input,this_var,&current_module)
+                is_function && frag.is_still_unmodified(&data.input,&current_module)
             })
         })
     }
@@ -562,19 +580,23 @@ impl Searcher {
     /// expression, otherwise a new node is added. This will also add all imports required by
     /// picked suggestions.
     pub fn commit_node(&self) -> FallibleResult<ast::Id> {
-        let data_borrowed   = self.data.borrow();
-        let expression      = data_borrowed.input.repr();
+        let input_chain = self.data.borrow().input.as_prefix_chain(&self.parser);
+
+        let expression = match (self.this_var(),input_chain) {
+            (Some(this_var),Some(input)) =>
+                apply_this_argument(this_var,&input.wrapped.into_ast()).repr(),
+            (None,Some(input)) => input.wrapped.into_ast().repr(),
+            (_,None)           => "".to_owned(),
+        };
         let intended_method = self.intended_method();
 
         let id = match *self.mode {
             Mode::NewNode {position} => {
-                let mut new_node    = NewNodeInfo::new_pushed_back(expression);
-                new_node.metadata   = Some(NodeMetadata {position,intended_method});
-                let graph           = self.graph.graph();
-                if self.is_function_fragment_unmodified() {
-                    if let Some(this) = self.this_arg.deref().as_ref() {
-                        this.introduce_pattern(graph.clone_ref())?;
-                    }
+                let mut new_node  = NewNodeInfo::new_pushed_back(expression);
+                new_node.metadata = Some(NodeMetadata {position,intended_method});
+                let graph         = self.graph.graph();
+                if let Some(this) = self.this_arg.deref().as_ref() {
+                    this.introduce_pattern(graph.clone_ref())?;
                 }
                 graph.add_node(new_node)?
             },
@@ -595,10 +617,9 @@ impl Searcher {
         let data           = data.deref_mut();
         let input          = &data.input;
         let current_module = self.module_qualified_name();
-        data.fragments_added_by_picking.drain_filter(|frag| {
-            let this = self.this_var_for(frag.id);
-            !frag.is_still_unmodified(input,this,&current_module)
-        });
+        data.fragments_added_by_picking.drain_filter(
+            |frag| !frag.is_still_unmodified(input,&current_module)
+        );
     }
 
     fn add_required_imports(&self) -> FallibleResult {
@@ -822,6 +843,37 @@ impl SimpleFunctionCall {
                 function_name : name.to_owned(),
             })
         }
+    }
+}
+
+fn apply_this_argument(this_var:&str, ast:&Ast) -> Ast {
+    iprintln!("APPLY THIS {this_var} TO {ast.repr()} === {ast:?}");
+    if let Ok(opr) = ast::known::Opr::try_from(ast) {
+        let shape = ast::SectionLeft {
+            arg: Ast::var(this_var),
+            off: 1,
+            opr: opr.into()
+        };
+        Ast::new(shape,None)
+    } else if let Some(mut infix_chain) = ast::opr::Chain::try_new(ast) {
+        if let Some(ref mut target) = &mut infix_chain.target {
+             target.arg = apply_this_argument(this_var,&target.arg);
+        } else {
+            infix_chain.target = Some(ast::opr::ArgWithOffset {arg:Ast::var(this_var), offset:1});
+        }
+        infix_chain.into_ast()
+    } else if let Some(mut prefix_chain) = ast::prefix::Chain::from_ast(ast) {
+        prefix_chain.func = apply_this_argument(this_var, &prefix_chain.func);
+        prefix_chain.into_ast()
+    } else {
+        let shape = ast::Infix {
+            larg : Ast::var(this_var),
+            loff : 0,
+            opr  : Ast::opr(ast::opr::predefined::ACCESS),
+            roff : 0,
+            rarg : ast.clone_ref(),
+        };
+        Ast::new(shape,None)
     }
 }
 
