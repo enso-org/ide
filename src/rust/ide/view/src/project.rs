@@ -76,7 +76,7 @@ impl Model {
     }
 
     fn set_html_style(&self, style:&'static str) {
-        web::run_on_element_by_id(&self.logger,"root",|root| root.set_class_name(style));
+        web::with_element_by_id_or_warn(&self.logger,"root",|root| root.set_class_name(style));
     }
 
     fn searcher_left_top_position_when_under_node_at(position:Vector2<f32>) -> Vector2<f32> {
@@ -271,10 +271,10 @@ impl View {
             style_press            <- style_toggle_ev.gate_not(&style_was_pressed);
             style_press_on_off     <- style_press.map2(&frp.style_light, |_,is_light| !is_light);
             frp.source.style_light <+ style_press_on_off;
-            eval frp.style_light ((is_light) model.set_style({
-            if *is_light { ensogl_theme::Dark }
-            else { ensogl_theme::Light }
-            }));
+            eval frp.style_light ((is_light) model.set_style(
+                if *is_light { ensogl_theme::Dark  }
+                else         { ensogl_theme::Light }
+            ));
         }
 
         Self{model,frp}
