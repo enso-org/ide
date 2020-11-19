@@ -418,13 +418,6 @@ ensogl::define_endpoints! {
 
         hover_node_input            (Option<EdgeEndpoint>),
         hover_node_output           (Option<EdgeEndpoint>),
-
-        // FIXME[WD]: These FRP endpoints look like output endpoints, but are used in some strange
-        //            cyclic way. To be refactored / removed.
-        on_some_edges_targets_unset  (),
-        on_some_edges_sources_unset  (),
-        on_all_edges_targets_set   (),
-        on_all_edges_sources_set   (),
     }
 
     Output {
@@ -939,9 +932,9 @@ impl Deref for GraphEditorModelWithNetwork {
 }
 
 impl GraphEditorModelWithNetwork {
-    pub fn new(app:&Application, cursor:cursor::Cursor) -> Self {
-        let network = frp::Network::new();
-        let model   = GraphEditorModel::new(app,cursor,&network);
+    pub fn new(app:&Application, cursor:cursor::Cursor, frp:&Frp) -> Self {
+        let network = frp.network.clone_ref(); // FIXME make weak
+        let model   = GraphEditorModel::new(app,cursor,&frp);
         Self {model,network}
     }
 
@@ -1087,7 +1080,7 @@ impl GraphEditorModelWithNetwork {
         let first_detached = self.edges.detached_target.is_empty();
         self.edges.detached_target.insert(edge_id);
         if first_detached {
-            self.frp.on_some_edges_targets_unset.emit(());
+            self.frp.source.on_some_edges_targets_unset.emit(());
         }
         edge_id
     }
@@ -1102,7 +1095,7 @@ impl GraphEditorModelWithNetwork {
         let first_detached = self.edges.detached_source.is_empty();
         self.edges.detached_source.insert(edge_id);
         if first_detached {
-            self.frp.on_some_edges_sources_unset.emit(());
+            self.frp.source.on_some_edges_sources_unset.emit(());
         }
         edge_id
     }
@@ -1126,7 +1119,7 @@ pub struct GraphEditorModel {
     pub edges          : Edges,
     pub visualizations : visualization::Registry,
     touch_state        : TouchState,
-    frp                : FrpInputs,
+    frp                : FrpEndpoints,
 }
 
 
@@ -1134,20 +1127,21 @@ pub struct GraphEditorModel {
 
 impl GraphEditorModel {
     pub fn new
-    ( app           : &Application
-    , cursor        : cursor::Cursor
-    , network       : &frp::Network
+    ( app    : &Application
+    , cursor : cursor::Cursor
+    , frp    : &Frp
     ) -> Self {
-        let scene              = app.display.scene();
-        let logger             = Logger::new("GraphEditor");
-        let display_object     = display::object::Instance::new(&logger);
-        let nodes              = Nodes::new(&logger);
-        let edges              = default();
-        let visualizations     = visualization::Registry::with_default_visualizations();
-        let frp                = FrpInputs::new(network);
-        let touch_state        = TouchState::new(network,&scene.mouse.frp);
-        let breadcrumbs        = component::Breadcrumbs::new(app.clone_ref());
-        let app                = app.clone_ref();
+        let network        = &frp.network;
+        let scene          = app.display.scene();
+        let logger         = Logger::new("GraphEditor");
+        let display_object = display::object::Instance::new(&logger);
+        let nodes          = Nodes::new(&logger);
+        let edges          = default();
+        let visualizations = visualization::Registry::with_default_visualizations();
+        let touch_state    = TouchState::new(network,&scene.mouse.frp);
+        let breadcrumbs    = component::Breadcrumbs::new(app.clone_ref());
+        let app            = app.clone_ref();
+        let frp            = frp.output.clone_ref();
         Self {
             logger,display_object,app,cursor,nodes,edges,touch_state,frp,breadcrumbs,visualizations
         }.init()
@@ -1334,7 +1328,7 @@ impl GraphEditorModel {
                     self.refresh_edge_position(edge_id);
                     self.refresh_edge_source_size(edge_id);
                     if first_detached {
-                        self.frp.on_some_edges_sources_unset.emit(());
+                        self.frp.source.on_some_edges_sources_unset.emit(());
                     }
                 }
             }
@@ -1351,7 +1345,7 @@ impl GraphEditorModel {
                 self.edges.detached_target.remove(&edge_id);
                 let all_attached = self.edges.detached_target.is_empty();
                 if all_attached {
-                    self.frp.on_all_edges_targets_set.emit(());
+                    self.frp.source.on_all_edges_targets_set.emit(());
                 }
 
                 edge.view.frp.target_attached.emit(true);
@@ -1372,7 +1366,7 @@ impl GraphEditorModel {
                     edge.view.frp.target_attached.emit(false);
                     self.refresh_edge_position(edge_id);
                     if first_detached {
-                        self.frp.on_some_edges_targets_unset.emit(());
+                        self.frp.source.on_some_edges_targets_unset.emit(());
                     }
                 };
             }
@@ -1404,14 +1398,11 @@ impl GraphEditorModel {
         let no_detached_sources = self.edges.detached_source.is_empty();
         let no_detached_targets = self.edges.detached_target.is_empty();
         if no_detached_targets {
-            self.frp.on_all_edges_targets_set.emit(());
+            self.frp.source.on_all_edges_targets_set.emit(());
         }
         if no_detached_sources {
-            self.frp.on_all_edges_sources_set.emit(());
+            self.frp.source.on_all_edges_sources_set.emit(());
         }
-        // if no_detached_targets && no_detached_sources {
-        //     self.frp.on_all_edges_endpoints_set.emit(());
-        // }
     }
 
     fn overlapping_edges(&self, target:&EdgeEndpoint) -> Vec<EdgeId> {
@@ -1776,8 +1767,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     let world          = &app.display;
     let scene          = world.scene();
     let cursor         = &app.cursor;
-    let model          = GraphEditorModelWithNetwork::new(app,cursor.clone_ref());
-    let network        = &model.network;
+    let frp            = Frp::new();
+    let model          = GraphEditorModelWithNetwork::new(app,cursor.clone_ref(),&frp);
+    let network        = &frp.network;
     let nodes          = &model.nodes;
     let edges          = &model.edges;
     let inputs         = &model.frp;
@@ -1785,7 +1777,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     let touch          = &model.touch_state;
     let visualizations = &model.visualizations;
     let logger         = &model.logger;
-    let out            = FrpEndpoints::new(&network,inputs.clone_ref());
+    let out            = &frp.output;
+    // let out            = FrpEndpoints::new(&network,inputs.clone_ref());
 
     // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
     let styles             = StyleWatch::new(&scene.style_sheet);
@@ -2541,15 +2534,10 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === OUTPUTS REBIND ===
 
-    out.source.on_some_edges_targets_unset <+ inputs.on_some_edges_targets_unset;
-    out.source.on_some_edges_sources_unset <+ inputs.on_some_edges_sources_unset;
-    out.source.on_all_edges_sources_set  <+ inputs.on_all_edges_sources_set;
-    out.source.on_all_edges_targets_set  <+ inputs.on_all_edges_targets_set;
-    // out.source.on_all_edges_endpoints_set         <+ inputs.on_all_edges_endpoints_set;
-
     eval out.on_edge_source_set        (((id,tgt)) model.set_edge_source(*id,tgt));
     eval out.on_edge_target_set        (((id,tgt)) model.set_edge_target(*id,tgt));
 
+    // FIXME: make nicer and handle here the opposite case
     eval out.on_edge_target_set (((edge_id,_)) model.set_edge_target_connected(*edge_id,true));
 
     eval out.on_edge_source_set   (((id,_)) model.refresh_edge_color(*id));
@@ -2632,7 +2620,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     }
 
 
-    let frp = Frp::deprecated_new(network.clone(),out); // fixme clone
+    // let frp = Frp::deprecated_new(network.clone(),out); // fixme clone
 
     GraphEditor {model,frp}
 }
