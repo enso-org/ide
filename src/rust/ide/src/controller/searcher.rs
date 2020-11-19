@@ -451,7 +451,7 @@ impl Searcher {
     /// Set the Searcher Input.
     ///
     /// This function should be called each time user modifies Searcher input in view. It may result
-    /// in a new suggestion list (the aprriopriate notification will be emitted).
+    /// in a new suggestion list (the appropriate notification will be emitted).
     pub fn set_input(&self, new_input:String) -> FallibleResult {
         debug!(self.logger, "Manually setting input to {new_input}.");
         let parsed_input = ParsedInput::new(new_input,&self.parser)?;
@@ -959,14 +959,16 @@ pub mod test {
                     Argument {
                         repr_type     : "Any".to_string(),
                         name          : "this".to_string(),
+                        has_default   : false,
                         default_value : None,
-                        is_suspended  : false
+                        is_suspended  : false,
                     },
                     Argument {
                         repr_type     : "Number".to_string(),
                         name          : "num_arg".to_string(),
+                        has_default   : false,
                         default_value : None,
-                        is_suspended  : false
+                        is_suspended  : false,
                     }
                 ],
                 ..entry1.clone()
@@ -978,12 +980,14 @@ pub mod test {
                     Argument {
                         repr_type     : "Any".to_string(),
                         name          : "this".to_string(),
+                        has_default   : false,
                         default_value : None,
                         is_suspended  : false
                     },
                     Argument {
                         repr_type     : "String".to_string(),
                         name          : "num_arg".to_string(),
+                        has_default   : false,
                         default_value : None,
                         is_suspended  : false
                     }
@@ -996,12 +1000,14 @@ pub mod test {
                     Argument {
                         repr_type     : "Text".to_string(),
                         name          : "text_arg".to_string(),
+                        has_default   : false,
                         default_value : None,
                         is_suspended  : false
                     },
                     Argument {
                         repr_type     : "Number".to_string(),
                         name          : "num_arg".to_string(),
+                        has_default   : false,
                         default_value : None,
                         is_suspended  : false
                     },
