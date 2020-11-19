@@ -34,7 +34,7 @@ pub use port::depth_sort_hack;
 pub const GLYPH_WIDTH : f32 = 7.224_609_4; // FIXME hardcoded literal
 
 /// Enable visual port debug mode and additional port creation logging.
-pub const DEBUG : bool = false;
+pub const DEBUG : bool = true;
 
 /// Visual port offset for debugging purposes. Applied hierarchically. Applied only when `DEBUG` is
 /// set to `true`.
@@ -508,7 +508,6 @@ impl Area {
                 let skipped = if not_a_port { "(skip)" } else { "" };
                 println!("{}[{},{}] {} {:?} (tp: {:?}) (id: {:?})",indent,node.payload.index,
                          node.payload.length,skipped,node.kind.variant_name(),node.tp(),node.ast_id);
-                println!("?? {} {}",node.is_chained(),builder.parent_parensed);
             }
 
             let new_parent = if not_a_port {
@@ -719,17 +718,36 @@ impl Area {
         });
     }
 
-    pub(crate) fn set_expression(&self, expression:impl Into<node::Expression>) {
-        let model          = &self.model;
-        let expression     = expression.into();
-        let mut expression = Expression::from(expression);
-        if DEBUG { println!("\n\n=====================\nSET EXPR: {}", expression.code) }
+    pub(crate) fn set_expression(&self, new_expression:impl Into<node::Expression>) {
+        let model              = &self.model;
+        let new_expression     = new_expression.into();
+        let mut new_expression = Expression::from(new_expression);
+        if DEBUG { println!("\n\n=====================\nSET EXPR: {}", new_expression.code) }
 
-        self.set_label_on_new_expression(&expression);
-        self.build_port_shapes_on_new_expression(&mut expression);
-        self.init_port_frp_on_new_expression(&mut expression);
+        // {
+        //     let mut old_expression = model.expression.borrow_mut();
+        //     new_expression.root_ref_mut().partial_double_dfs(old_expression.root_ref_mut(),(),
+        //         |new_node,old_node,_| {
+        //             if new_node.ast_id == old_node.ast_id {
+        //                 new_node.payload_mut().shape           = old_node.payload.shape.clone();
+        //                 new_node.payload_mut().name            = old_node.payload.name.clone();
+        //                 new_node.payload_mut().index           = old_node.payload.index.clone();
+        //                 new_node.payload_mut().local_index     = old_node.payload.local_index.clone();
+        //                 new_node.payload_mut().length          = old_node.payload.length.clone();
+        //                 new_node.payload_mut().highlight_color = old_node.payload.highlight_color.clone();
+        //                 (true,())
+        //             } else {
+        //                 (false,())
+        //             }
+        //         }
+        //     )
+        // }
 
-        *model.expression.borrow_mut() = expression;
+        self.set_label_on_new_expression(&new_expression);
+        self.build_port_shapes_on_new_expression(&mut new_expression);
+        self.init_port_frp_on_new_expression(&mut new_expression);
+
+        *model.expression.borrow_mut() = new_expression;
         model.init_port_coloring();
     }
 }

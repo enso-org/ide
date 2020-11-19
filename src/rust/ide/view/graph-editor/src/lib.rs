@@ -2549,6 +2549,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // TODO[ao] This one action is triggered by input frp node event instead of output, because
     //  the output emits the string and we need the expression with span-trees here.
     eval inputs.set_node_expression     (((id,expr)) model.set_node_expression(id,expr));
+    port_to_update <= inputs.set_node_expression.map(f!(((id,_))model.node_in_edges(id)));
+    eval port_to_update ((edge_id) model.set_edge_target_connected(*edge_id,true));
 
 
 
