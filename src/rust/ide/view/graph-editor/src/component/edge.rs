@@ -311,7 +311,7 @@ fn corner_base_shape
     shape.into()
 }
 
-// FIXME [WD]: The 2 follwoing impls are almost the same. Should be merged. This task should will
+// FIXME [WD]: The 2 following impls are almost the same. Should be merged. This task should will
 //             handled by Wojciech.
 macro_rules! define_corner_start { () => {
     /// Shape definition.

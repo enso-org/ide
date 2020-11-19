@@ -1307,7 +1307,7 @@ impl GraphEditorModel {
                 edge.set_source(target);
                 edge.view.frp.source_attached.emit(true);
                 // FIXME: both lines require edge to refresh. Let's make it more efficient.
-                self.refresh_edge_color(edge_id);
+                //self.refresh_edge_color(edge_id);
                 self.refresh_edge_position(edge_id);
                 self.refresh_edge_source_size(edge_id);
             }
@@ -1349,7 +1349,7 @@ impl GraphEditorModel {
 
                 edge.view.frp.target_attached.emit(true);
                 edge.view.frp.redraw.emit(());
-                self.refresh_edge_color(edge_id);
+                // self.refresh_edge_color(edge_id);
                 self.refresh_edge_position(edge_id);
             };
         }
@@ -2050,11 +2050,13 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // FIXME: make nicer - out.source.edge_source_unset should contain information from which node it ws unset
     eval edge_target_click((edge_id) model.set_edge_target_connected(edge_id.0,false));
 
-    eval edge_source_click (((edge_id, _)) model.remove_edge_source(*edge_id));
-    eval edge_target_click (((edge_id, _)) model.remove_edge_target(*edge_id));
+
 
     out.source.edge_source_unset <+ edge_source_click.map(|(edge_id,_)| *edge_id);
     out.source.edge_target_unset <+ edge_target_click.map(|(edge_id,_)| *edge_id);
+
+    eval out.edge_source_unset ((edge_id) model.remove_edge_source(*edge_id));
+    eval out.edge_target_unset ((edge_id) model.remove_edge_target(*edge_id));
 
     }
 
@@ -2541,6 +2543,11 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     eval out.edge_target_set        (((id,tgt)) model.set_edge_target(*id,tgt));
 
     eval out.edge_target_set (((edge_id,_)) model.set_edge_target_connected(*edge_id,true));
+
+    eval out.edge_source_set   (((id,_)) model.refresh_edge_color(*id));
+    eval out.edge_target_set   (((id,_)) model.refresh_edge_color(*id));
+    eval out.edge_source_unset ((id)     model.refresh_edge_color(*id));
+    eval out.edge_target_unset ((id)     model.refresh_edge_color(*id));
 
     eval out.node_selected          ((id) model.select_node(id));
     eval out.node_deselected        ((id) model.deselect_node(id));
