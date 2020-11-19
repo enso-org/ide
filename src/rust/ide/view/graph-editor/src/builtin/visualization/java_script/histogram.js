@@ -50,10 +50,9 @@ class Histogram extends Visualization {
       this.initCanvas();
       this.initLabels();
       this.initHistogram();
-    } else {
-      this.updateLabels();
-      this.updateHistogram();
     }
+    this.updateLabels();
+    this.updateHistogram();
   }
 
   /**
@@ -142,14 +141,14 @@ class Histogram extends Visualization {
     }
 
     this.canvas = this.canvasDimensions();
-    const divElem = this.createOuterContainer(
+    const container = this.createOuterContainerWithStyle(
       this.canvas.outer.width,
       this.canvas.outer.height
     );
-    this.dom.appendChild(divElem);
+    this.dom.appendChild(container);
 
     this.svg = d3
-      .select(this.dom)
+      .select(container)
       .append("svg")
       .attr("width", this.canvas.outer.width)
       .attr("height", this.canvas.outer.height)
@@ -163,10 +162,10 @@ class Histogram extends Visualization {
           ")"
       );
 
-    this.yAxis = this.svg.append("g");
-    this.xAxis = this.svg.append("g");
+    this.yAxis = this.svg.append("g").attr("style", LABEL_STYLE);
+    this.xAxis = this.svg.append("g").attr("style", LABEL_STYLE);
 
-    this.svg.append("g").attr("clip-path", "url(#hist-clip-path)");
+    this.plot = this.svg.append("g").attr("clip-path", "url(#hist-clip-path)");
 
     // Create clip path
     const defs = this.svg.append("defs");
@@ -182,7 +181,6 @@ class Histogram extends Visualization {
    * Initialise the histogram with the current data and settings.
    */
   initHistogram() {
-    this.updateLabels();
     this.updateHistogram();
     const zoom = this.initPanAndZoom();
     // TODO [MM]: In task specification buttons were on top of the visualization, but because
@@ -290,7 +288,7 @@ class Histogram extends Visualization {
       const dx = extent[1] - extent[0];
       self.scale.zoom = self.scale.zoom * (self.canvas.inner.width / dx);
 
-      self.rescale(scale, true);
+      self.rescale(self.scale, true);
     };
 
     const zoomInKeyEvent = (event) => {
@@ -333,12 +331,9 @@ class Histogram extends Visualization {
     this.xAxis
       .transition()
       .duration(animation_duration)
-      .call(
-        d3
-          .axisBottom(scale.x)
-          .ticks(this.canvas.inner.width / X_AXIS_LABEL_WIDTH)
-      );
-    this.bars
+      .call(d3.axisBottom(scale.x).ticks(this.binCount()));
+    this.plot
+      .selectAll("rect")
       .transition()
       .duration(animation_duration)
       .attr(
@@ -394,7 +389,14 @@ class Histogram extends Visualization {
     const y = d3.scaleLinear().range([this.canvas.inner.height, 0]);
     y.domain([0, d3.max(bins, (d) => d.length)]);
 
-    this.yAxis.call(d3.axisLeft(y));
+    const yAxisTicks = y.ticks().filter((tick) => Number.isInteger(tick));
+
+    const yAxis = d3
+      .axisLeft(y)
+      .tickValues(yAxisTicks)
+      .tickFormat(d3.format("d"));
+
+    this.yAxis.call(yAxis);
 
     let accentColor = LIGHT_PLOT_COLOR;
 
@@ -402,7 +404,7 @@ class Histogram extends Visualization {
       accentColor = DARK_PLOT_COLOR;
     }
 
-    const items = this.svg.selectAll("rect").data(bins);
+    const items = this.plot.selectAll("rect").data(bins);
 
     this.bars = items
       .enter()
@@ -425,8 +427,16 @@ class Histogram extends Visualization {
    * Creates labels on axes if they are defined.
    */
   initLabels() {
-    this.yAxisLabel = this.svg.append("text");
-    this.xAxisLabel = this.svg.append("text");
+    this.yAxisLabel = this.svg
+      .append("text")
+      .attr("text-anchor", "end")
+      .attr("style", LABEL_STYLE);
+
+    this.xAxisLabel = this.svg
+      .append("text")
+      .attr("text-anchor", "end")
+      .attr("style", LABEL_STYLE)
+      .attr("transform", "rotate(-90)");
   }
 
   /**
@@ -440,22 +450,17 @@ class Histogram extends Visualization {
     if (axis.x.label !== undefined) {
       let padding_y = 20;
       this.xAxisLabel
-        .attr("text-anchor", "end")
-        .attr("style", LABEL_STYLE)
+        .attr("y", canvas.inner.height + canvas.margin.top + padding_y)
+        .text(axis.x.label)
         .attr(
           "x",
           canvas.margin.left + this.textWidth(axis.x.label, fontStyle) / 2
-        )
-        .attr("y", canvas.inner.height + canvas.margin.top + padding_y)
-        .text(axis.x.label);
+        );
     }
 
     if (axis.y.label !== undefined) {
       const padding_y = 15;
       this.yAxisLabel
-        .attr("text-anchor", "end")
-        .attr("style", LABEL_STYLE)
-        .attr("transform", "rotate(-90)")
         .attr("y", -canvas.margin.left + padding_y)
         .attr(
           "x",
@@ -515,19 +520,19 @@ class Histogram extends Visualization {
     const noYAxis = axis.y.label === undefined;
 
     if (noXAxis && noYAxis) {
-      return { top: 20, right: 20, bottom: 20, left: 20 };
+      return { top: 20, right: 20, bottom: 25, left: 35 };
     } else if (noYAxis) {
-      return { top: 10, right: 20, bottom: 35, left: 20 };
+      return { top: 10, right: 20, bottom: 35, left: 35 };
     } else if (noXAxis) {
-      return { top: 20, right: 10, bottom: 20, left: 45 };
+      return { top: 20, right: 10, bottom: 25, left: 55 };
     }
-    return { top: 10, right: 10, bottom: 35, left: 45 };
+    return { top: 10, right: 10, bottom: 35, left: 55 };
   }
 
   /**
    * Creates HTML div element as container for plot.
    */
-  createOuterContainer(width, height) {
+  createOuterContainerWithStyle(width, height) {
     const divElem = document.createElementNS(null, "div");
     divElem.setAttributeNS(null, "class", "vis-histogram");
     divElem.setAttributeNS(
