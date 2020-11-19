@@ -26,7 +26,7 @@ use ensogl_gui_components::list_view;
 use ide_view::graph_editor;
 use ide_view::graph_editor::component::node;
 use ide_view::graph_editor::component::visualization;
-use ide_view::graph_editor::EdgeTarget;
+use ide_view::graph_editor::EdgeEndpoint;
 use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
 use utils::channel::process_stream_with_handle;
@@ -610,11 +610,11 @@ impl Model {
     }
 
     fn edge_targets_from_controller_connection
-    (&self, connection:controller::graph::Connection) -> FallibleResult<(EdgeTarget,EdgeTarget)> {
+    (&self, connection:controller::graph::Connection) -> FallibleResult<(EdgeEndpoint,EdgeEndpoint)> {
         let src_node = self.get_displayed_node_id(connection.source.node)?;
         let dst_node = self.get_displayed_node_id(connection.destination.node)?;
-        let src      = EdgeTarget::new(src_node,connection.source.port);
-        let data     = EdgeTarget::new(dst_node,connection.destination.port);
+        let src      = EdgeEndpoint::new(src_node,connection.source.port);
+        let data     = EdgeEndpoint::new(dst_node,connection.destination.port);
         Ok((src,data))
     }
 
