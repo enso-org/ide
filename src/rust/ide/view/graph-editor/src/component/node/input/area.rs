@@ -321,9 +321,6 @@ impl Area {
 
         frp::extend! { network
 
-            trace frp.set_expression_usage_type;
-            trace frp.set_connected;
-
             // === Body Hover ===
             // This is meant to be on top of FRP network. Read more about `Node` docs to
             // learn more about the architecture and the importance of the hover
@@ -356,7 +353,7 @@ impl Area {
             port_vis <- all_with(&frp.input.set_ports_active,&edit_mode,|(a,_),b|*a&&(!b));
 
             frp.output.source.ports_visible <+ port_vis;
-            frp.output.source.editing       <+ edit_mode.sampler(); // FIXME do we need sampler here?
+            frp.output.source.editing       <+ edit_mode;
 
 
             // === Label Hover ===
@@ -500,7 +497,9 @@ impl Area {
                 || builder.parent_parensed;
 
             if let Some(id) = node.ast_id {
-                println!("New id mapping: {} -> {:?}",id,node.crumbs);
+                if DEBUG {
+                    println!("New id mapping: {} -> {:?}",id,node.crumbs);
+                }
                 self.model.id_crumbs_map.borrow_mut().insert(id,node.crumbs.clone_ref());
             }
 
@@ -706,7 +705,7 @@ impl Area {
                 frp::extend! { port_network
                     port_tp_on_hover <- all_with(&frp.set_hover,&final_tp,|_,t|t.clone());
                     viz_color <- all_with(&port_tp_on_hover,&frp.set_connected,f!([styles](port_tp,(is_connected,edge_tp)) {
-                        let tp    = port_tp.as_ref().or(edge_tp.as_ref());
+                        let tp    = port_tp.as_ref().or_else(||edge_tp.as_ref());
                         let color = code_color(&styles,tp);
                         if *is_connected {color} else { color::Lcha::transparent() }
                     }));
@@ -723,7 +722,6 @@ impl Area {
     pub(crate) fn set_expression(&self, expression:impl Into<node::Expression>) {
         let model          = &self.model;
         let expression     = expression.into();
-        println!("set_expression {:?}",expression);
         let mut expression = Expression::from(expression);
         if DEBUG { println!("\n\n=====================\nSET EXPR: {}", expression.code) }
 

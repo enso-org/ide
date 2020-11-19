@@ -148,7 +148,7 @@ ensogl::define_endpoints! {
         select              (),
         deselect            (),
         set_visualization   (Option<visualization::Definition>),
-        set_disabled         (bool),
+        set_disabled        (bool),
         set_input_connected (span_tree::Crumbs,Option<Type>,bool),
         set_expression      (Expression),
         /// Set the expression USAGE type. This is not the definition type, which can be set with

@@ -1552,6 +1552,7 @@ impl GraphEditorModel {
         self.with_edge(id,|edge| edge.target.borrow().clone().map(f)).flatten()
     }
 
+    #[allow(dead_code)]
     fn with_edge_source<T>(&self, id:EdgeId, f:impl FnOnce(EdgeTarget)->T) -> Option<T> {
         self.with_edge(id,|edge| {
             edge.source.borrow().clone().map(f).map_none(
@@ -1606,6 +1607,7 @@ impl GraphEditorModel {
         self.first_detached_edge().and_then(|edge_id| self.edge_source_type(edge_id))
     }
 
+    #[allow(dead_code)]
     fn first_detached_edge_target_type(&self) -> Option<Type> {
         self.first_detached_edge().and_then(|edge_id| self.edge_target_type(edge_id))
     }
@@ -2047,7 +2049,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // FIXME: make nicer - out.source.edge_source_unset should contain information from which node it ws unset
     eval edge_target_click((edge_id) model.set_edge_target_connected(edge_id.0,false));
-        // model.with_edge_target(edge_id.0,|t| model.set_input_connected(&t,false)));
 
     eval edge_source_click (((edge_id, _)) model.remove_edge_source(*edge_id));
     eval edge_target_click (((edge_id, _)) model.remove_edge_target(*edge_id));
@@ -2175,7 +2176,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     out.source.edge_added      <+ edge;
     out.source.edge_source_set <+ new_edge_source;
     out.source.edge_target_set <+ new_edge_target;
-    trace out.edge_target_set;
 
     detached_edges_without_targets <= attach_all_edge_inputs.map(f_!(model.take_edges_with_detached_targets()));
     detached_edges_without_sources <= attach_all_edge_outputs.map(f_!(model.take_edges_with_detached_sources()));
@@ -2539,7 +2539,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     eval out.edge_source_set        (((id,tgt)) model.set_edge_source(*id,tgt));
     eval out.edge_target_set        (((id,tgt)) model.set_edge_target(*id,tgt));
-    // todo
+
     eval out.edge_target_set (((edge_id,_)) model.set_edge_target_connected(*edge_id,true));
 
     eval out.node_selected          ((id) model.select_node(id));
