@@ -110,7 +110,10 @@ pub enum Theme {
     Light,
     Dark,
 }
-pub use Theme::*;
+
+impl Default for Theme {
+    fn default() -> Self { Theme::Light }
+}
 
 
 

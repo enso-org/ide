@@ -251,7 +251,7 @@ pub fn with_element_by_id_or_warn<F>(logger:&Logger, id:&str, f:F) where F : FnO
     let root_elem = get_element_by_id(id);
     match root_elem {
         Ok(v)  => f(v),
-        Err(_) => logger.warning(format!("Failed to get element with ID '{}'.",id)),
+        Err(_) => logger.warning("Failed to get element by ID."),
     }
 }
 

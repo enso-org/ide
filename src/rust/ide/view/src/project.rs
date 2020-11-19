@@ -60,8 +60,8 @@ impl Model {
     /// Sets style of IDE to the one defined by parameter `theme`.
     pub fn set_style(&self, theme: ensogl_theme::Theme) {
         match theme {
-            ensogl_theme::Light => { self.set_light_style() },
-            ensogl_theme::Dark  => { self.set_dark_style()  },
+            ensogl_theme::Theme::Light => { self.set_light_style() },
+            ensogl_theme::Theme::Dark  => { self.set_dark_style()  },
         }
     }
 
@@ -152,7 +152,7 @@ ensogl::define_endpoints! {
         editing_aborted               (NodeId),
         editing_committed             (NodeId),
         code_editor_shown             (bool),
-        style_light                   (bool),
+        style                         (ensogl_theme::Theme),
     }
 }
 
@@ -187,7 +187,7 @@ impl View {
         let graph                      = &model.graph_editor.frp;
         let network                    = &frp.network;
         let searcher_left_top_position = DEPRECATED_Animation::<Vector2<f32>>::new(network);
-        model.set_style(ensogl_theme::Light);
+        model.set_style(ensogl_theme::Theme::Light);
 
         frp::extend!{ network
             // === Searcher Position and Size ===
@@ -265,16 +265,16 @@ impl View {
 
             // === Style toggle ===
 
-            let style_toggle_ev     = frp.toggle_style.clone_ref();
-            style_pressed          <- style_toggle_ev.toggle() ;
-            style_was_pressed      <- style_pressed.previous();
-            style_press            <- style_toggle_ev.gate_not(&style_was_pressed);
-            style_press_on_off     <- style_press.map2(&frp.style_light, |_,is_light| !is_light);
-            frp.source.style_light <+ style_press_on_off;
-            eval frp.style_light ((is_light) model.set_style(
-                if *is_light { ensogl_theme::Dark  }
-                else         { ensogl_theme::Light }
-            ));
+            let style_toggle_ev   = frp.toggle_style.clone_ref();
+            style_pressed        <- style_toggle_ev.toggle() ;
+            style_was_pressed    <- style_pressed.previous();
+            style_press          <- style_toggle_ev.gate_not(&style_was_pressed);
+            style_press_on_off   <- style_press.map2(&frp.style, |_,s| match s {
+                ensogl_theme::Theme::Light => ensogl_theme::Theme::Dark ,
+                ensogl_theme::Theme::Dark  => ensogl_theme::Theme::Light,
+            });
+            frp.source.style     <+ style_press_on_off;
+            eval frp.style ((style) model.set_style(*style));
         }
 
         Self{model,frp}
