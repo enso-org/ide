@@ -263,10 +263,10 @@ impl Integration {
             ));
 
             // Changes in Graph Editor
-            is_handling_notification <-
-                all_with(&handle_graph_notification.is_running,&handle_text_notification.is_running
-                    ,|l,r| *l || *r);
-            is_hold <- is_handling_notification.all_with(&invalidate.is_running, |l,r| *l || *r);
+            is_handling_notification <- handle_graph_notification.is_running
+                                     || handle_text_notification.is_running;
+            is_hold                  <- is_handling_notification || invalidate.is_running;
+            on_connection_removed    <- editor_outs.on_edge_endpoint_unset._0();
             _action <- code_editor.changed                  .map2(&is_hold,code_changed);
             _action <- editor_outs.node_removed             .map2(&is_hold,node_removed);
             _action <- editor_outs.nodes_collapsed          .map2(&is_hold,nodes_collapsed);
@@ -275,7 +275,7 @@ impl Integration {
             _action <- editor_outs.on_edge_endpoints_set    .map2(&is_hold,connection_created);
             _action <- editor_outs.visualization_enabled    .map2(&is_hold,visualization_enabled);
             _action <- editor_outs.visualization_disabled   .map2(&is_hold,visualization_disabled);
-            _action <- editor_outs.on_edge_endpoint_unset   .map2(&is_hold,connection_removed);
+            _action <- on_connection_removed                .map2(&is_hold,connection_removed);
             _action <- editor_outs.node_position_set_batched.map2(&is_hold,node_moved);
             _action <- editor_outs.node_being_edited        .map2(&is_hold,node_editing);
             _action <- editor_outs.node_expression_set      .map2(&is_hold,node_expression_set);

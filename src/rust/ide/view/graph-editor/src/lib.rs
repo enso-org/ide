@@ -421,6 +421,31 @@ ensogl::define_endpoints! {
     }
 
     Output {
+
+        // === Edge ===
+
+        on_edge_add                 (EdgeId),
+        on_edge_drop                (EdgeId),
+        on_edge_source_set          ((EdgeId,EdgeEndpoint)),
+        on_edge_target_set          ((EdgeId,EdgeEndpoint)),
+        on_edge_source_unset        ((EdgeId,EdgeEndpoint)),
+        on_edge_target_unset        ((EdgeId,EdgeEndpoint)),
+        on_edge_endpoint_unset      ((EdgeId,EdgeEndpoint)),
+        on_edge_endpoint_set        ((EdgeId,EdgeEndpoint)),
+        on_edge_endpoints_set       (EdgeId),
+        on_some_edges_targets_unset (),
+        on_some_edges_sources_unset (),
+        on_all_edges_targets_set    (),
+        on_all_edges_sources_set    (),
+        on_all_edges_endpoints_set  (),
+        some_edge_targets_unset     (bool),
+        some_edge_sources_unset     (bool),
+        some_edge_endpoints_unset   (bool),
+
+
+        // === Other ===
+        // FIXME: To be refactored
+
         node_added                (NodeId),
         node_removed              (NodeId),
         nodes_collapsed           ((Vec<NodeId>,NodeId)),
@@ -437,33 +462,6 @@ ensogl::define_endpoints! {
         node_action_freeze        ((NodeId,bool)),
         node_action_skip          ((NodeId,bool)),
         node_edit_mode            (bool),
-
-
-
-        // ============
-        // === Edge ===
-        // ============
-
-        on_edge_add                 (EdgeId),
-        on_edge_drop                (EdgeId),
-        on_edge_source_set          ((EdgeId,EdgeEndpoint)),
-        on_edge_target_set          ((EdgeId,EdgeEndpoint)),
-        on_edge_source_unset        ((EdgeId,EdgeEndpoint)),
-        on_edge_target_unset        ((EdgeId,EdgeEndpoint)),
-        on_edge_endpoint_unset      (EdgeId),
-        on_edge_endpoint_set        ((EdgeId,EdgeEndpoint)),
-        on_edge_endpoints_set       (EdgeId),
-        on_some_edges_targets_unset (),
-        on_some_edges_sources_unset (),
-        on_all_edges_targets_set    (),
-        on_all_edges_sources_set    (),
-        on_all_edges_endpoints_set  (),
-        some_edge_targets_unset     (bool),
-        some_edge_sources_unset     (bool),
-        some_edge_endpoints_unset   (bool),
-
-
-
 
 
         visualization_enabled           (NodeId),
@@ -1555,6 +1553,14 @@ impl GraphEditorModel {
         self.with_edge(id,|edge| edge.target.borrow().clone().map(f)).flatten()
     }
 
+    fn edge_source(&self, id:EdgeId) -> Option<EdgeEndpoint> {
+        self.with_edge_map_source(id,|endpoint| endpoint.clone())
+    }
+
+    fn edge_target(&self, id:EdgeId) -> Option<EdgeEndpoint> {
+        self.with_edge_map_target(id,|endpoint| endpoint.clone())
+    }
+
     #[allow(dead_code)]
     fn with_edge_source<T>(&self, id:EdgeId, f:impl FnOnce(EdgeEndpoint)->T) -> Option<T> {
         self.with_edge(id,|edge| {
@@ -2516,11 +2522,12 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     out.source.on_edge_drop <+ any(removed_edges_on_enter,removed_edges_on_exit);
 
 
+
     // ==================
-    // === Model Bind ===
+    // === Edge Binds ===
     // ==================
 
-    // === Edges ===
+    // === Source / Target ===
 
     eval out.on_edge_source_set   (((id,tgt)) model.set_edge_source(*id,tgt));
     eval out.on_edge_target_set   (((id,tgt)) model.set_edge_target(*id,tgt));
@@ -2536,21 +2543,41 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     eval out.on_edge_source_unset (((id,_)) model.refresh_edge_color(*id));
     eval out.on_edge_target_unset (((id,_)) model.refresh_edge_color(*id));
 
-    some_edge_sources_unset <- bool(&out.on_all_edges_sources_set,&out.on_some_edges_sources_unset);
-    some_edge_targets_unset <- bool(&out.on_all_edges_targets_set,&out.on_some_edges_targets_unset);
-    out.source.some_edge_sources_unset <+ some_edge_sources_unset;
-    out.source.some_edge_targets_unset <+ some_edge_targets_unset;
-
-    some_edge_endpoints_unset <- or(&out.some_edge_targets_unset,&out.some_edge_sources_unset);
+    some_edge_sources_unset   <- out.on_all_edges_sources_set ?? out.on_some_edges_sources_unset;
+    some_edge_targets_unset   <- out.on_all_edges_targets_set ?? out.on_some_edges_targets_unset;
+    some_edge_endpoints_unset <- out.some_edge_targets_unset  || out.some_edge_sources_unset;
+    out.source.some_edge_sources_unset    <+ some_edge_sources_unset;
+    out.source.some_edge_targets_unset    <+ some_edge_targets_unset;
     out.source.some_edge_endpoints_unset  <+ some_edge_endpoints_unset;
     out.source.on_all_edges_endpoints_set <+ out.some_edge_endpoints_unset.on_false();
 
 
-    // === Other ===
+    // === Endpoints ===
+
+    edge_source_drop <= out.on_edge_drop.map(f!((id) model.edge_source(*id).map(|t|(*id,t))));
+    edge_target_drop <= out.on_edge_drop.map(f!((id) model.edge_target(*id).map(|t|(*id,t))));
+
+    edge_endpoint_set                 <- any(out.on_edge_source_set,out.on_edge_target_set)._0();
+    both_endpoints_set                <- edge_endpoint_set.map(f!((id) model.is_connection(id)));
+    new_edge_with_both_endpoints_set  <- edge_endpoint_set.gate(&both_endpoints_set);
+    out.source.on_edge_endpoints_set  <+ new_edge_with_both_endpoints_set;
+    out.source.on_edge_endpoint_set   <+ any(out.on_edge_source_set,out.on_edge_target_set);
+    out.source.on_edge_endpoint_unset <+ any(out.on_edge_source_unset,out.on_edge_target_unset);
+    out.source.on_edge_endpoint_unset <+ any(edge_source_drop,edge_target_drop);
+
+
+    // === Drop ===
+
+    eval out.on_edge_drop    ((id) model.remove_edge(id));
+
+
+
+    // ===================
+    // === Other Binds ===
+    // ===================
 
     eval out.node_selected   ((id) model.select_node(id));
     eval out.node_deselected ((id) model.deselect_node(id));
-    eval out.on_edge_drop    ((id) model.remove_edge(id));
     eval out.node_removed    ((id) model.remove_node(id));
 
     eval inputs.set_node_expression (((id,expr)) model.set_node_expression(id,expr));
@@ -2559,17 +2586,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
 
 
-    // === Edge discovery ===
-
-    edge_endpoint_set                <- any(out.on_edge_source_set,out.on_edge_target_set)._0();
-    both_endpoints_set               <- edge_endpoint_set.map(f!((id) model.is_connection(id)));
-    new_edge_with_both_endpoints_set <- edge_endpoint_set.gate(&both_endpoints_set);
-    out.source.on_edge_endpoints_set <+ new_edge_with_both_endpoints_set;
-
-    on_edge_source_unset <- out.on_edge_source_unset._0();
-    on_edge_target_unset <- out.on_edge_target_unset._0();
-    out.source.on_edge_endpoint_set   <+ any(out.on_edge_source_set,out.on_edge_target_set);
-    out.source.on_edge_endpoint_unset <+ any(out.on_edge_drop,on_edge_source_unset,on_edge_target_unset);
 
 
     // === Remove implementation ===
