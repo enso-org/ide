@@ -451,6 +451,7 @@ ensogl::define_endpoints! {
         on_edge_source_unset        ((EdgeId,EdgeEndpoint)),
         on_edge_target_unset        ((EdgeId,EdgeEndpoint)),
         on_edge_endpoint_unset      (EdgeId),
+        on_edge_endpoint_set        ((EdgeId,EdgeEndpoint)),
         on_edge_endpoints_set       (EdgeId),
         on_some_edges_targets_unset (),
         on_some_edges_sources_unset (),
@@ -1219,9 +1220,13 @@ impl GraphEditorModel {
         }
     }
 
-    fn set_edge_target_connected(&self, edge_id:EdgeId, status:bool) {
+    fn set_edge_target_connection_status(&self, edge_id:EdgeId, status:bool) {
+        self.with_edge_target(edge_id,|tgt| self.set_endpoint_connection_status(edge_id,&tgt,status));
+    }
+
+    fn set_endpoint_connection_status(&self, edge_id:EdgeId, target:&EdgeEndpoint, status:bool) {
         let tp = self.edge_source_type(edge_id);
-        self.with_edge_target(edge_id,|t| self.set_input_connected(&t,tp,status));
+        self.set_input_connected(target,tp,status);
     }
 
     // FIXME: make nicer
@@ -2047,18 +2052,10 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     edge_source_click <- valid_edge_disconnect_click.gate(&edge_is_source_click);
     edge_target_click <- valid_edge_disconnect_click.gate_not(&edge_is_source_click);
 
-    // FIXME: make nicer - out.source.on_edge_source_unset should contain information from which node it ws unset
-    eval edge_target_click((edge_id) model.set_edge_target_connected(edge_id.0,false));
-
-
     on_edge_source_unset <= edge_source_click.map(f!(((id,_)) model.with_edge_source(*id,|t|(*id,t.clone()))));
     on_edge_target_unset <= edge_target_click.map(f!(((id,_)) model.with_edge_target(*id,|t|(*id,t.clone()))));
     out.source.on_edge_source_unset <+ on_edge_source_unset;
     out.source.on_edge_target_unset <+ on_edge_target_unset;
-
-    eval out.on_edge_source_unset (((edge_id,_)) model.remove_edge_source(*edge_id));
-    eval out.on_edge_target_unset (((edge_id,_)) model.remove_edge_target(*edge_id));
-
     }
 
 
@@ -2104,19 +2101,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     out.source.on_edge_add <+ new_input_edge;
     new_edge_target <- new_input_edge.map2(&node_input_touch.down, move |id,target| (*id,target.clone()));
     out.source.on_edge_target_set <+ new_edge_target;
-
-
-    // === Edge Status ===
-
-    out.source.some_edge_targets_unset <+ out.on_some_edges_targets_unset.to_true();
-    out.source.some_edge_targets_unset <+ out.on_all_edges_targets_set.to_false();
-
-    out.source.some_edge_sources_unset <+ out.on_some_edges_sources_unset.to_true();
-    out.source.some_edge_sources_unset <+ out.on_all_edges_sources_set.to_false();
-
-    some_edge_endpoints_unset <- all_with(&out.some_edge_targets_unset,&out.some_edge_sources_unset,|a,b|*a||*b);
-    out.source.on_all_edges_endpoints_set <+ some_edge_endpoints_unset.constant(()).gate_not(&some_edge_endpoints_unset);
-    out.source.some_edge_endpoints_unset <+ some_edge_endpoints_unset;
 
 
 
@@ -2532,40 +2516,59 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     out.source.on_edge_drop <+ any(removed_edges_on_enter,removed_edges_on_exit);
 
 
-    // === OUTPUTS REBIND ===
+    // ==================
+    // === Model Bind ===
+    // ==================
 
-    eval out.on_edge_source_set        (((id,tgt)) model.set_edge_source(*id,tgt));
-    eval out.on_edge_target_set        (((id,tgt)) model.set_edge_target(*id,tgt));
+    // === Edges ===
 
-    // FIXME: make nicer and handle here the opposite case
-    eval out.on_edge_target_set (((edge_id,_)) model.set_edge_target_connected(*edge_id,true));
+    eval out.on_edge_source_set   (((id,tgt)) model.set_edge_source(*id,tgt));
+    eval out.on_edge_target_set   (((id,tgt)) model.set_edge_target(*id,tgt));
+
+    eval out.on_edge_target_set   (((id,tgt)) model.set_endpoint_connection_status(*id,tgt,true));
+    eval out.on_edge_target_unset (((id,tgt)) model.set_endpoint_connection_status(*id,tgt,false));
+
+    eval out.on_edge_source_unset (((id,_)) model.remove_edge_source(*id));
+    eval out.on_edge_target_unset (((id,_)) model.remove_edge_target(*id));
 
     eval out.on_edge_source_set   (((id,_)) model.refresh_edge_color(*id));
     eval out.on_edge_target_set   (((id,_)) model.refresh_edge_color(*id));
     eval out.on_edge_source_unset (((id,_)) model.refresh_edge_color(*id));
     eval out.on_edge_target_unset (((id,_)) model.refresh_edge_color(*id));
 
-    eval out.node_selected          ((id) model.select_node(id));
-    eval out.node_deselected        ((id) model.deselect_node(id));
-    eval out.on_edge_drop           ((id) model.remove_edge(id));
-    eval out.node_removed           ((id) model.remove_node(id));
-    // TODO[ao] This one action is triggered by input frp node event instead of output, because
-    //  the output emits the string and we need the expression with span-trees here.
-    eval inputs.set_node_expression     (((id,expr)) model.set_node_expression(id,expr));
-    port_to_update <= inputs.set_node_expression.map(f!(((id,_))model.node_in_edges(id)));
-    eval port_to_update ((edge_id) model.set_edge_target_connected(*edge_id,true));
+    some_edge_sources_unset <- bool(&out.on_all_edges_sources_set,&out.on_some_edges_sources_unset);
+    some_edge_targets_unset <- bool(&out.on_all_edges_targets_set,&out.on_some_edges_targets_unset);
+    out.source.some_edge_sources_unset <+ some_edge_sources_unset;
+    out.source.some_edge_targets_unset <+ some_edge_targets_unset;
+
+    some_edge_endpoints_unset <- or(&out.some_edge_targets_unset,&out.some_edge_sources_unset);
+    out.source.some_edge_endpoints_unset  <+ some_edge_endpoints_unset;
+    out.source.on_all_edges_endpoints_set <+ out.some_edge_endpoints_unset.on_false();
+
+
+    // === Other ===
+
+    eval out.node_selected   ((id) model.select_node(id));
+    eval out.node_deselected ((id) model.deselect_node(id));
+    eval out.on_edge_drop    ((id) model.remove_edge(id));
+    eval out.node_removed    ((id) model.remove_node(id));
+
+    eval inputs.set_node_expression (((id,expr)) model.set_node_expression(id,expr));
+    port_to_refresh <= inputs.set_node_expression.map(f!(((id,_))model.node_in_edges(id)));
+    eval port_to_refresh ((id) model.set_edge_target_connection_status(*id,true));
 
 
 
     // === Edge discovery ===
 
-    edge_endpoint_set          <- any (out.on_edge_source_set, out.on_edge_target_set)._0();
-    both_endpoints_set         <- edge_endpoint_set.map(f!((id) model.is_connection(id)));
-    new_connection             <- edge_endpoint_set.gate(&both_endpoints_set);
-    out.source.on_edge_endpoints_set   <+ new_connection;
+    edge_endpoint_set                <- any(out.on_edge_source_set,out.on_edge_target_set)._0();
+    both_endpoints_set               <- edge_endpoint_set.map(f!((id) model.is_connection(id)));
+    new_edge_with_both_endpoints_set <- edge_endpoint_set.gate(&both_endpoints_set);
+    out.source.on_edge_endpoints_set <+ new_edge_with_both_endpoints_set;
 
     on_edge_source_unset <- out.on_edge_source_unset._0();
     on_edge_target_unset <- out.on_edge_target_unset._0();
+    out.source.on_edge_endpoint_set   <+ any(out.on_edge_source_set,out.on_edge_target_set);
     out.source.on_edge_endpoint_unset <+ any(out.on_edge_drop,on_edge_source_unset,on_edge_target_unset);
 
 
