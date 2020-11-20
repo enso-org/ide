@@ -1494,6 +1494,7 @@ impl GraphEditorModel {
     }
 
     pub fn refresh_edge_color(&self, edge_id:EdgeId) {
+        println!("refresh_edge_color");
         if let Some(edge) = self.edges.get_cloned_ref(&edge_id) {
             let color = self.edge_color(edge_id);
             let color = color::Rgba::from(color);
@@ -1605,7 +1606,9 @@ impl GraphEditorModel {
         let styles    = StyleWatch::new(&self.scene().style_sheet);
         let tp        = self.edge_target_type(edge_id).or_else(||self.edge_source_type(edge_id));
         let opt_color = tp.map(|t|type_coloring::compute(&t,&styles));
-        opt_color.unwrap_or_else(|| styles.get_color(theme::code::types::missing))
+        let out = opt_color.unwrap_or_else(|| styles.get_color(theme::code::types::any::selection));
+        println!(">> {:?}",out);
+        out
     }
 
     fn first_detached_edge(&self) -> Option<EdgeId> {
@@ -1623,6 +1626,7 @@ impl GraphEditorModel {
 
     /// Return a color for the first detached edge.
     pub fn first_detached_edge_color(&self) -> Option<color::Lcha> {
+        println!("first_detached_edge_color");
         self.first_detached_edge().map(|t|self.edge_color(t))
     }
 }
@@ -1802,6 +1806,12 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // =============================
 
     frp::extend! { network
+        trace out.on_edge_add;
+        trace out.on_edge_source_set;
+        trace out.on_edge_target_set;
+        trace out.on_edge_source_unset;
+        trace out.on_edge_target_unset;
+
         eval_ inputs.debug_push_breadcrumb(model.breadcrumbs.debug_push_breadcrumb.emit(None));
         eval_ inputs.debug_pop_breadcrumb (model.breadcrumbs.debug_pop_breadcrumb.emit(()));
     }
@@ -2614,6 +2624,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     on_some_edges_detached <- out.some_edge_endpoints_unset.gate(&out.some_edge_endpoints_unset);
     cursor_style_edge_drag <- on_some_edges_detached.map(f_!([model]{
+        println!("? 1");
         if let Some(color) = model.first_detached_edge_color() {
             cursor::Style::new_color(color).press()
         } else {

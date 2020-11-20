@@ -34,7 +34,7 @@ pub use port::depth_sort_hack;
 pub const GLYPH_WIDTH : f32 = 7.224_609_4; // FIXME hardcoded literal
 
 /// Enable visual port debug mode and additional port creation logging.
-pub const DEBUG : bool = true;
+pub const DEBUG : bool = false;
 
 /// Visual port offset for debugging purposes. Applied hierarchically. Applied only when `DEBUG` is
 /// set to `true`.
@@ -294,6 +294,11 @@ fn code_color(styles:&StyleWatch, tp:Option<&Type>) -> color::Lcha {
     opt_color.unwrap_or_else(||styles.get_color(theme::graph_editor::node::text))
 }
 
+fn select_color(styles:&StyleWatch, tp:Option<&Type>) -> color::Lcha {
+    let opt_color = tp.as_ref().map(|tp| type_coloring::compute(tp,styles));
+    opt_color.unwrap_or_else(||styles.get_color(theme::code::types::any::selection))
+}
+
 
 
 // ============
@@ -376,7 +381,7 @@ impl Area {
             // === Properties ===
 
             frp.output.source.width      <+ model.label.width;
-            frp.output.source.expression <+ model.label.content.map(|t| t.clone_ref());
+            frp.output.source.expression <+ model.label.content;
 
 
             // === Expression Type ===
@@ -705,7 +710,7 @@ impl Area {
                     port_tp_on_hover <- all_with(&frp.set_hover,&final_tp,|_,t|t.clone());
                     viz_color <- all_with(&port_tp_on_hover,&frp.set_connected,f!([styles](port_tp,(is_connected,edge_tp)) {
                         let tp    = port_tp.as_ref().or_else(||edge_tp.as_ref());
-                        let color = code_color(&styles,tp);
+                        let color = select_color(&styles,tp);
                         if *is_connected {color} else { color::Lcha::transparent() }
                     }));
                     eval viz_color ((t) port_shape.viz.shape.color.set(color::Rgba::from(t).into()));

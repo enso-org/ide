@@ -1181,10 +1181,8 @@ impl Edge {
 
         let model           = &self.model;
         let shape_events    = &self.frp.shape_events;
-        let edge_color      = color::DEPRECARTED_Animation::new();
+        let edge_color      = color::Animation::new(network);
         let style           = StyleWatch::new(&app.display.scene().style_sheet);
-
-
 
         model.data.front.register_proxy_frp(network, &input.shape_events);
         model.data.back.register_proxy_frp(network, &input.shape_events);
@@ -1208,17 +1206,29 @@ impl Edge {
             color_update <- all(input.set_color,input.set_dimmed);
 
             eval color_update ([edge_color,style]((color,should_dim)) {
-                let target_color = if *should_dim {
-                   style.get_color_dim(*color)
-                } else {
-                  color.into()
-                };
-                edge_color.set_target(target_color);
+                // let target_color = if *should_dim {
+                //    style.get_color_dim(*color)
+                // } else {
+                //   color.into()
+                // };
+                // println!("set target inner");
+                // edge_color.target.emit(target_color);
+                edge_color.target.emit(color::Lcha::from(color));
             });
 
-            eval edge_color.value ((color) model.set_color(color.into()));
+            eval edge_color.value ([model](color) {
+                // println!(">> edge_color {:?}", color);
+                model.set_color(color.into())
+            });
 
         }
+
+        // println!("-- 1 {:?}", color::Lcha::from(color::Rgba(1.0,0.0,0.0,1.0)));
+        // edge_color.target.emit(color::Lcha::from(color::Rgba(1.0,0.0,0.0,1.0)));
+        // println!("-- 2");
+        //
+        // self.model.set_color(color::Rgba(0.0,1.0,0.0,1.0).into());
+        // println!("-- 3");
 
         self
     }
@@ -1312,6 +1322,7 @@ impl EdgeModelData {
     /// Set the color of the edge. Also updates the focus color (which will be a dimmed version
     /// of the main color).
     fn set_color(&self, color:color::Lcha) {
+        println!("set color");
         // We must never use alpha in edges, as it will show artifacts with overlapping sub-parts.
         let color:color::Lcha = color.opaque.into();
 

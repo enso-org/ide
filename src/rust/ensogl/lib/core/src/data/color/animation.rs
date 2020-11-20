@@ -218,98 +218,100 @@ impl Animation {
 
 
 
-// ==================================
-// === DEPRECATED Color Animation ===
-// ==================================
-
-/// Deprecated  FRP definition.
-pub mod deprecated_frp {
-    use super::*;
-    crate::define_endpoints! {
-        Input { }
-        Output {
-            value  (Lcha),
-        }
-    }
-}
-
-/// The `Animation` provides color better animations for colors than the raw
-/// `component::DEPRECATED_Animation<_>`, as it allows controlling the alpha channel separately which is
-/// important for nice fade outs.
-///
-/// # DEPRECATION
-/// This component is deprecated. Use `Animation` instead, which exposes much more FRP-oriented API
-/// than this component.
-#[derive(Clone,CloneRef,Debug)]
-#[allow(non_camel_case_types)]
-pub struct DEPRECARTED_Animation {
-    initialized : Rc<Cell<bool>>,
-    frp         : deprecated_frp::Frp,
-    /// Animation of the Lch components of the color.
-    pub lch     : component::DEPRECATED_Animation<Lch>,
-    /// Animation of the alpha component of the color.
-    pub alpha   : component::DEPRECATED_Animation<f32>,
-    /// Stream of the full Lcha color.
-    pub value   : frp::Sampler<Lcha>,
-}
-
-#[allow(missing_docs)]
-impl DEPRECARTED_Animation {
-    /// Constructor.
-    pub fn new() -> Self {
-        let initialized = default();
-        let frp         = deprecated_frp::Frp::new();
-        let value       = frp.value.clone_ref();
-        let lch         = component::DEPRECATED_Animation::<Lch>::new(&frp.network);
-        let alpha       = component::DEPRECATED_Animation::<f32>::new(&frp.network);
-        Self{initialized,lch,alpha,frp,value}.init()
-    }
-
-    fn init(self) -> Self {
-        let network = &self.frp.network;
-        frp::extend! { network
-            self.frp.source.value <+ all(&self.lch.value,&self.alpha.value).map(
-                |(lch,a)| lch.with_alpha(*a)
-            );
-        }
-        self
-    }
-
-    pub fn set_target<T:Into<Lcha>>(&self, color:T) {
-        let color = color.into();
-        if !self.initialized.replace(true) {
-            self.lch.set_value(color.opaque);
-            self.alpha.set_value(color.alpha);
-        }
-        self.lch.set_target_value(color.opaque);
-        self.alpha.set_target_value(color.alpha);
-    }
-
-    pub fn set_value<T:Into<Lcha>>(&self, color:T) {
-        let color = color.into();
-        self.lch.set_value(color.opaque);
-        self.alpha.set_value(color.alpha);
-        self.initialized.replace(true);
-    }
-
-    pub fn set_target_alpha(&self, alpha:f32) {
-        if !self.initialized.replace(true) {
-            self.alpha.set_value(alpha);
-        }
-        self.alpha.set_target_value(alpha);
-    }
-
-    pub fn set_target_lch<T:Into<Lch>>(&self, lch:T) {
-        let lch = lch.into();
-        if !self.initialized.replace(true) {
-            self.lch.set_value(lch);
-        }
-        self.lch.set_target_value(lch);
-    }
-}
-
-impl Default for DEPRECARTED_Animation {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+// // ==================================
+// // === DEPRECATED Color Animation ===
+// // ==================================
+//
+// /// Deprecated  FRP definition.
+// pub mod deprecated_frp {
+//     use super::*;
+//     crate::define_endpoints! {
+//         Input { }
+//         Output {
+//             value  (Lcha),
+//         }
+//     }
+// }
+//
+// /// The `Animation` provides color better animations for colors than the raw
+// /// `component::DEPRECATED_Animation<_>`, as it allows controlling the alpha channel separately which is
+// /// important for nice fade outs.
+// ///
+// /// # DEPRECATION
+// /// This component is deprecated. Use `Animation` instead, which exposes much more FRP-oriented API
+// /// than this component.
+// #[derive(Clone,CloneRef,Debug)]
+// #[allow(non_camel_case_types)]
+// pub struct DEPRECARTED_Animation {
+//     initialized : Rc<Cell<bool>>,
+//     frp         : deprecated_frp::Frp,
+//     /// Animation of the Lch components of the color.
+//     pub lch     : component::DEPRECATED_Animation<Lch>,
+//     /// Animation of the alpha component of the color.
+//     pub alpha   : component::DEPRECATED_Animation<f32>,
+//     /// Stream of the full Lcha color.
+//     pub value   : frp::Sampler<Lcha>,
+// }
+//
+// #[allow(missing_docs)]
+// impl DEPRECARTED_Animation {
+//     /// Constructor.
+//     pub fn new() -> Self {
+//         let initialized = default();
+//         let frp         = deprecated_frp::Frp::new();
+//         let value       = frp.value.clone_ref();
+//         let lch         = component::DEPRECATED_Animation::<Lch>::new(&frp.network);
+//         let alpha       = component::DEPRECATED_Animation::<f32>::new(&frp.network);
+//         Self{initialized,lch,alpha,frp,value}.init()
+//     }
+//
+//     fn init(self) -> Self {
+//         let network = &self.frp.network;
+//         frp::extend! { network
+//             self.frp.source.value <+ all(&self.lch.value,&self.alpha.value).map(
+//                 |(lch,a)| lch.with_alpha(*a)
+//             );
+//         }
+//         self
+//     }
+//
+//     pub fn set_target<T:Into<Lcha>>(&self, color:T) {
+//         let color = color.into();
+//         if !self.initialized.replace(true) {
+//             self.lch.set_value(color.opaque);
+//             self.alpha.set_value(color.alpha);
+//             self.lch.simulator.skip();
+//             self.alpha.simulator.skip();
+//         }
+//         self.lch.set_target_value(color.opaque);
+//         self.alpha.set_target_value(color.alpha);
+//     }
+//
+//     pub fn set_value<T:Into<Lcha>>(&self, color:T) {
+//         let color = color.into();
+//         self.lch.set_value(color.opaque);
+//         self.alpha.set_value(color.alpha);
+//         self.initialized.replace(true);
+//     }
+//
+//     pub fn set_target_alpha(&self, alpha:f32) {
+//         if !self.initialized.replace(true) {
+//             self.alpha.set_value(alpha);
+//         }
+//         self.alpha.set_target_value(alpha);
+//     }
+//
+//     pub fn set_target_lch<T:Into<Lch>>(&self, lch:T) {
+//         let lch = lch.into();
+//         if !self.initialized.replace(true) {
+//             self.lch.set_value(lch);
+//         }
+//         self.lch.set_target_value(lch);
+//     }
+// }
+//
+// impl Default for DEPRECARTED_Animation {
+//     fn default() -> Self {
+//         Self::new()
+//     }
+// }
