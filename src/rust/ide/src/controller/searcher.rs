@@ -215,14 +215,17 @@ impl ParsedInput {
     (&self, parser:&Parser) -> Option<ast::Shifted<ast::prefix::Chain>> {
         let parsed_pattern = parser.parse_line(&self.pattern).ok();
         let pattern_sast   = parsed_pattern.map(|p| ast::Shifted::new(self.pattern_offset,p));
-        if let Some(mut chain) = self.expression.clone() {
+        // If there is an expression part of input, we add current pattern as the last argument.
+        if let Some(chain) = &self.expression {
+            let mut chain = chain.clone();
             if let Some(sast) = pattern_sast {
                 let prefix_id = None;
                 let argument  = ast::prefix::Argument {sast,prefix_id};
                 chain.wrapped.args.push(argument);
             }
             Some(chain)
-        } else if let Some(sast) = pattern_sast{
+        // If there isn't any expression part, the pattern is the whole input.
+        } else if let Some(sast) = pattern_sast {
             let chain = ast::prefix::Chain::from_ast_non_strict(&sast.wrapped);
             Some(ast::Shifted::new(self.pattern_offset,chain))
         } else {
@@ -374,7 +377,7 @@ impl Data {
                 id                : CompletedFragmentId::Function,
                 picked_suggestion : entry
             };
-            // This is meant to work with single function calls (without this argument).
+            // This is meant to work with single function calls (without "this" argument).
             // In other case we should know what the function is from the engine, as the function
             // should be resolved.
             fragment.is_still_unmodified(&input,&current_module).and_option(Some(fragment))
@@ -849,7 +852,6 @@ impl SimpleFunctionCall {
 }
 
 fn apply_this_argument(this_var:&str, ast:&Ast) -> Ast {
-    iprintln!("APPLY THIS {this_var} TO {ast.repr()} === {ast:?}");
     if let Ok(opr) = ast::known::Opr::try_from(ast) {
         let shape = ast::SectionLeft {
             arg: Ast::var(this_var),
