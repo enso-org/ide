@@ -475,10 +475,6 @@ impl Area {
         self.model.label.select_all();
         self.model.label.insert(&expression.viz_code);
         self.model.label.remove_all_cursors();
-        if self.frp.editing.value() {
-            self.model.label.set_cursor(&default());
-            self.model.label.set_cursor_at_end();
-        }
     }
 
     fn build_port_shapes_on_new_expression(&self, expression:&mut Expression) {
@@ -697,7 +693,7 @@ impl Area {
                         let start_bytes = (index as i32).bytes();
                         let end_bytes   = ((index + length) as i32).bytes();
                         let range       = ensogl_text::buffer::Range::from(start_bytes..end_bytes);
-                        label.set_color_bytes(range,color::Rgba::from(color)); // FIXME: removes cursor on tab in searcher
+                        label.set_color_bytes(range,color::Rgba::from(color));
                     });
                 }
             }
@@ -729,31 +725,16 @@ impl Area {
         let mut new_expression = Expression::from(new_expression);
         if DEBUG { println!("\n\n=====================\nSET EXPR: {}", new_expression.code) }
 
-        // {
-        //     let mut old_expression = model.expression.borrow_mut();
-        //     new_expression.root_ref_mut().partial_double_dfs(old_expression.root_ref_mut(),(),
-        //         |new_node,old_node,_| {
-        //             if new_node.ast_id == old_node.ast_id {
-        //                 new_node.payload_mut().shape           = old_node.payload.shape.clone();
-        //                 new_node.payload_mut().name            = old_node.payload.name.clone();
-        //                 new_node.payload_mut().index           = old_node.payload.index.clone();
-        //                 new_node.payload_mut().local_index     = old_node.payload.local_index.clone();
-        //                 new_node.payload_mut().length          = old_node.payload.length.clone();
-        //                 new_node.payload_mut().highlight_color = old_node.payload.highlight_color.clone();
-        //                 (true,())
-        //             } else {
-        //                 (false,())
-        //             }
-        //         }
-        //     )
-        // }
-
         self.set_label_on_new_expression(&new_expression);
         self.build_port_shapes_on_new_expression(&mut new_expression);
         self.init_port_frp_on_new_expression(&mut new_expression);
 
         *model.expression.borrow_mut() = new_expression;
         model.init_port_coloring();
+
+        if self.frp.editing.value() {
+            self.model.label.set_cursor_at_end();
+        }
     }
 }
 
