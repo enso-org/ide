@@ -543,7 +543,7 @@ impl Area {
 
                 // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
                 let styles             = StyleWatch::new(&self.model.app.display.scene().style_sheet);
-                let missing_type_color = styles.get_color(theme::code::types::missing);
+                let any_type_sel_color = styles.get_color(theme::code::types::any::selection);
                 let crumbs             = port.crumbs.clone_ref();
                 let port_network       = &port.network;
                 let frp                = &self.frp.output;
@@ -602,7 +602,7 @@ impl Area {
                         move |_,(_,edge_tp),port_tp| {
                             let tp    = port_tp.as_ref().or_else(||edge_tp.as_ref());
                             let color = tp.map(|tp| type_coloring::compute(tp,&styles));
-                            let color = color.unwrap_or(missing_type_color);
+                            let color = color.unwrap_or(any_type_sel_color);
                             cursor::Style::new_highlight(&port_shape_hover,padded_size,Some(color))
                         }
                     );

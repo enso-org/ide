@@ -1195,6 +1195,7 @@ impl GraphEditorModel {
 
 impl GraphEditorModel {
     fn remove_edge<E:Into<EdgeId>>(&self, edge_id:E) {
+        println!("REMOVE EDGE");
         let edge_id = edge_id.into();
         if let Some(edge) = self.edges.remove(&edge_id) {
             if let Some(source) = edge.take_source() {
@@ -1494,7 +1495,6 @@ impl GraphEditorModel {
     }
 
     pub fn refresh_edge_color(&self, edge_id:EdgeId) {
-        println!("refresh_edge_color");
         if let Some(edge) = self.edges.get_cloned_ref(&edge_id) {
             let color = self.edge_color(edge_id);
             let color = color::Rgba::from(color);
@@ -1555,11 +1555,11 @@ impl GraphEditorModel {
     }
 
     fn edge_source(&self, id:EdgeId) -> Option<EdgeEndpoint> {
-        self.with_edge_map_source(id,|endpoint| endpoint.clone())
+        self.with_edge_map_source(id,|endpoint|endpoint)
     }
 
     fn edge_target(&self, id:EdgeId) -> Option<EdgeEndpoint> {
-        self.with_edge_map_target(id,|endpoint| endpoint.clone())
+        self.with_edge_map_target(id,|endpoint|endpoint)
     }
 
     #[allow(dead_code)]
@@ -1606,9 +1606,7 @@ impl GraphEditorModel {
         let styles    = StyleWatch::new(&self.scene().style_sheet);
         let tp        = self.edge_target_type(edge_id).or_else(||self.edge_source_type(edge_id));
         let opt_color = tp.map(|t|type_coloring::compute(&t,&styles));
-        let out = opt_color.unwrap_or_else(|| styles.get_color(theme::code::types::any::selection));
-        println!(">> {:?}",out);
-        out
+        opt_color.unwrap_or_else(|| styles.get_color(theme::code::types::any::selection))
     }
 
     fn first_detached_edge(&self) -> Option<EdgeId> {
@@ -1626,7 +1624,6 @@ impl GraphEditorModel {
 
     /// Return a color for the first detached edge.
     pub fn first_detached_edge_color(&self) -> Option<color::Lcha> {
-        println!("first_detached_edge_color");
         self.first_detached_edge().map(|t|self.edge_color(t))
     }
 }
@@ -1793,11 +1790,10 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     let visualizations = &model.visualizations;
     let logger         = &model.logger;
     let out            = &frp.output;
-    // let out            = FrpEndpoints::new(&network,inputs.clone_ref());
 
     // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
     let styles             = StyleWatch::new(&scene.style_sheet);
-    let missing_type_color = styles.get_color(theme::code::types::missing);
+    let any_type_sel_color = styles.get_color(theme::code::types::any::selection);
 
 
 
@@ -1806,12 +1802,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // =============================
 
     frp::extend! { network
-        trace out.on_edge_add;
-        trace out.on_edge_source_set;
-        trace out.on_edge_target_set;
-        trace out.on_edge_source_unset;
-        trace out.on_edge_target_unset;
-
         eval_ inputs.debug_push_breadcrumb(model.breadcrumbs.debug_push_breadcrumb.emit(None));
         eval_ inputs.debug_pop_breadcrumb (model.breadcrumbs.debug_pop_breadcrumb.emit(()));
     }
@@ -2068,8 +2058,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     edge_source_click <- valid_edge_disconnect_click.gate(&edge_is_source_click);
     edge_target_click <- valid_edge_disconnect_click.gate_not(&edge_is_source_click);
 
-    on_edge_source_unset <= edge_source_click.map(f!(((id,_)) model.with_edge_source(*id,|t|(*id,t.clone()))));
-    on_edge_target_unset <= edge_target_click.map(f!(((id,_)) model.with_edge_target(*id,|t|(*id,t.clone()))));
+    on_edge_source_unset <= edge_source_click.map(f!(((id,_)) model.with_edge_source(*id,|t|(*id,t))));
+    on_edge_target_unset <= edge_target_click.map(f!(((id,_)) model.with_edge_target(*id,|t|(*id,t))));
     out.source.on_edge_source_unset <+ on_edge_source_unset;
     out.source.on_edge_target_unset <+ on_edge_target_unset;
     }
@@ -2595,9 +2585,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     eval port_to_refresh ((id) model.set_edge_target_connection_status(*id,true));
 
 
-
-
-
     // === Remove implementation ===
     out.source.node_removed <+ inputs.remove_node;
     }
@@ -2624,11 +2611,10 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     on_some_edges_detached <- out.some_edge_endpoints_unset.gate(&out.some_edge_endpoints_unset);
     cursor_style_edge_drag <- on_some_edges_detached.map(f_!([model]{
-        println!("? 1");
         if let Some(color) = model.first_detached_edge_color() {
             cursor::Style::new_color(color).press()
         } else {
-            cursor::Style::new_color_no_animation(missing_type_color).press()
+            cursor::Style::new_color_no_animation(any_type_sel_color).press()
         }
     }));
     cursor_style_on_edge_drag_stop <- out.on_all_edges_endpoints_set.constant(default());

@@ -666,8 +666,13 @@ impl<'a,T:Payload> RefMut<'a,T> {
         self.partial_dfs((),|t,_|(true,on_node(t)))
     }
 
+    /// Just like `partial_dfs` but traversing two `SpanTree`s at the same time.
     pub fn partial_double_dfs<D>
-    (self, other:Self, mut data:D, mut on_node:impl FnMut(&mut Self, &mut Self, &mut D) -> (bool,D)) {
+    ( self
+    , other       : Self
+    , mut data    : D
+    , mut on_node : impl FnMut(&mut Self, &mut Self, &mut D) -> (bool,D)
+    ) {
         let mut layer  = vec![(self,other)];
         let mut layers = vec![];
         loop {
@@ -684,7 +689,8 @@ impl<'a,T:Payload> RefMut<'a,T> {
                 Some((mut node1, mut node2)) => {
                     let (ok,mut sub_data) = on_node(&mut node1, &mut node2, &mut data);
                     if ok {
-                        let mut children = node1.children_iter().zip(node2.children_iter()).collect_vec().reversed();
+                        let children     = node1.children_iter().zip(node2.children_iter());
+                        let mut children = children.collect_vec().reversed();
                         mem::swap(&mut sub_data,&mut data);
                         mem::swap(&mut children,&mut layer);
                         layers.push((children,sub_data));
