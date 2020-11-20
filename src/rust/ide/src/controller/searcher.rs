@@ -497,10 +497,16 @@ impl Searcher {
 
     /// Code that will be inserted by expanding given suggestion at given location.
     ///
-    /// Code depends on the location, as the first fragment can introduce `this` variable access.
-    fn code_to_insert(&self, suggestion:&suggestion::Completion) -> String {
+    /// Code depends on the location, as the first fragment can introduce `this` variable access,
+    /// and then we don't want to put any module name.
+    fn code_to_insert
+    (&self, suggestion:&suggestion::Completion, loc:CompletedFragmentId) -> String {
         let current_module = self.module_qualified_name();
-        suggestion.code_to_insert(Some(&current_module))
+        if loc == CompletedFragmentId::Function && self.this_arg.is_some() {
+            suggestion.code_to_insert_skip_module()
+        } else {
+            suggestion.code_to_insert(Some(&current_module))
+        }
     }
 
     /// Pick a completion suggestion.
@@ -512,7 +518,7 @@ impl Searcher {
     (&self, picked_suggestion:suggestion::Completion) -> FallibleResult<String> {
         info!(self.logger, "Picking suggestion: {picked_suggestion:?}");
         let id                = self.data.borrow().input.next_completion_id();
-        let code_to_insert    = self.code_to_insert(&picked_suggestion);
+        let code_to_insert    = self.code_to_insert(&picked_suggestion,id);
         let added_ast         = self.parser.parse_line(&code_to_insert)?;
         let picked_completion = FragmentAddedByPickingSuggestion {id,picked_suggestion};
         let pattern_offset    = self.data.borrow().input.pattern_offset;

@@ -127,6 +127,12 @@ impl Entry {
         }
     }
 
+    /// Returns the code which should be inserted to Searcher input when suggestion is picked,
+    /// omitting module name.
+    pub fn code_to_insert_skip_module(&self) -> String {
+        self.name.clone()
+    }
+
     /// Return the Method Id of suggested method.
     ///
     /// Returns none, if this is not suggestion for a method.
