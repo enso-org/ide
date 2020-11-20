@@ -18,6 +18,7 @@ const DEFAULT_MAP_ZOOM     = 11;
 const DARK_ACCENT_COLOR    = [222,162,47];
 const LIGHT_ACCENT_COLOR   = [1,234,146];
 
+let MAP_ID = 0;
 
 function loadScript(url) {
     var script = document.createElement("script");
@@ -74,7 +75,8 @@ class MapViewVisualization extends Visualization {
         while (this.dom.firstChild) {
             this.dom.removeChild(this.dom.lastChild);
         }
-        const id      = this.makeId(6);
+        MAP_ID += 1;
+        const id      = "map_" + MAP_ID;
         const width   = this.dom.getAttributeNS(null,"width");
         const height  = this.dom.getAttributeNS(null,"height");
         const mapElem = document.createElement("div");
@@ -217,9 +219,6 @@ class MapViewVisualization extends Visualization {
         this.dom.setAttributeNS(null,"height",size[1]);
     }
 
-    makeId(length) {
-        return Math.random().toString(36).replace(/[^a-z]+/g, '').substr(0, length);
-    }
 }
 
 /**
