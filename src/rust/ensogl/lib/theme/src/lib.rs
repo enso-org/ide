@@ -9,6 +9,8 @@
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 
+use ensogl_core::prelude::ImString;
+
 
 
 // ==============
@@ -105,10 +107,11 @@ macro_rules! define_theme {
 
 /// Enum holding available themes for ease of access.
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug)]
+#[derive(Clone,Debug)]
 pub enum Theme {
     Light,
     Dark,
+    Other(ImString),
 }
 
 impl Default for Theme {

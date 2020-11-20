@@ -16,6 +16,7 @@ use ensogl::application::shortcut;
 use ensogl::display;
 use ensogl::gui::component::DEPRECATED_Animation;
 use ensogl::system::web;
+use ensogl_theme::Theme as Theme;
 
 
 
@@ -58,10 +59,10 @@ impl Model {
     }
 
     /// Sets style of IDE to the one defined by parameter `theme`.
-    pub fn set_style(&self, theme: ensogl_theme::Theme) {
+    pub fn set_style(&self, theme:Theme) {
         match theme {
-            ensogl_theme::Theme::Light => { self.set_light_style() },
-            ensogl_theme::Theme::Dark  => { self.set_dark_style()  },
+            Theme::Light => { self.set_light_style() },
+            _            => { self.set_dark_style()  },
         }
     }
 
@@ -152,7 +153,7 @@ ensogl::define_endpoints! {
         editing_aborted               (NodeId),
         editing_committed             (NodeId),
         code_editor_shown             (bool),
-        style                         (ensogl_theme::Theme),
+        style                         (Theme),
     }
 }
 
@@ -187,7 +188,7 @@ impl View {
         let graph                      = &model.graph_editor.frp;
         let network                    = &frp.network;
         let searcher_left_top_position = DEPRECATED_Animation::<Vector2<f32>>::new(network);
-        model.set_style(ensogl_theme::Theme::Light);
+        model.set_style(Theme::Light);
 
         frp::extend!{ network
             // === Searcher Position and Size ===
@@ -270,11 +271,11 @@ impl View {
             style_was_pressed    <- style_pressed.previous();
             style_press          <- style_toggle_ev.gate_not(&style_was_pressed);
             style_press_on_off   <- style_press.map2(&frp.style, |_,s| match s {
-                ensogl_theme::Theme::Light => ensogl_theme::Theme::Dark ,
-                ensogl_theme::Theme::Dark  => ensogl_theme::Theme::Light,
+                Theme::Light => Theme::Dark ,
+                _            => Theme::Light,
             });
             frp.source.style     <+ style_press_on_off;
-            eval frp.style ((style) model.set_style(*style));
+            eval frp.style ((style) model.set_style(style.clone()));
         }
 
         Self{model,frp}
