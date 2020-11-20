@@ -74,11 +74,11 @@ class MapViewVisualization extends Visualization {
         while (this.dom.firstChild) {
             this.dom.removeChild(this.dom.lastChild);
         }
-
+        const id      = this.makeId(6);
         const width   = this.dom.getAttributeNS(null,"width");
         const height  = this.dom.getAttributeNS(null,"height");
         const mapElem = document.createElement("div");
-        mapElem.setAttributeNS(null,"id"   ,"map");
+        mapElem.setAttributeNS(null,"id"   ,id);
         mapElem.setAttributeNS(null,"style","width:" + width + "px;height: " + height + "px;");
         this.dom.appendChild(mapElem);
 
@@ -111,7 +111,7 @@ class MapViewVisualization extends Visualization {
         let controller = ok(parsedData.controller) ? parsedData.controller : true;
 
         const deckgl = new deck.DeckGL({
-            container: 'map',
+            container: id,
             mapboxApiAccessToken: TOKEN,
             mapStyle,
             initialViewState: {longitude,latitude,zoom,pitch},
@@ -215,6 +215,10 @@ class MapViewVisualization extends Visualization {
     setSize(size) {
         this.dom.setAttributeNS(null,"width",size[0]);
         this.dom.setAttributeNS(null,"height",size[1]);
+    }
+
+    makeId(length) {
+        return Math.random().toString(36).replace(/[^a-z]+/g, '').substr(0, length);
     }
 }
 
