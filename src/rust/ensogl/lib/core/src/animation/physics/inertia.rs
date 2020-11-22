@@ -15,13 +15,12 @@ use crate::animation;
 /// The type of the value of the simulation. In particular, the Value could be `f32`
 /// (1-dimensional simulation), or `Vector3<f32>` (3-dimensional simulation).
 pub trait Value
-    = 'static + Copy + Default + Debug + Normalize + PartialEq
+    = 'static + Copy + Default
+    + PartialEq
+    + Normalize
     + Magnitude <Output=f32>
-    + Neg<       Output=Self>
-    + Sub<Self , Output=Self>
-    + Add<Self , Output=Self>
-    + Div<f32  , Output=Self>
-    + Mul<f32  , Output=Self>;
+    + Add       <Output=Self>
+    + Mul   <f32,Output=Self>;
 
 
 
@@ -222,7 +221,7 @@ impl<T:Value> SimulationData<T> {
     fn step(&mut self, delta_seconds:f32) {
         if self.active {
             let velocity      = self.velocity.magnitude();
-            let distance      = (self.value - self.target_value).magnitude();
+            let distance      = (self.value + self.target_value * -1.0).magnitude();
             let snap_velocity = velocity < self.thresholds.speed;
             let snap_distance = distance < self.thresholds.distance;
             let should_snap   = snap_velocity && snap_distance;
@@ -232,7 +231,7 @@ impl<T:Value> SimulationData<T> {
                 self.active   = false;
             } else {
                 let force        = self.spring_force() + self.drag_force();
-                let acceleration = force / self.mass.value;
+                let acceleration = force * (1.0 / self.mass.value);
                 self.velocity    = self.velocity + acceleration * delta_seconds;
                 self.value       = self.value + self.velocity * delta_seconds;
             }
@@ -241,7 +240,7 @@ impl<T:Value> SimulationData<T> {
 
     /// Compute spring force.
     fn spring_force(&self) -> T {
-        let value_delta = self.target_value - self.value;
+        let value_delta = self.target_value + self.value * -1.0;
         let distance    = value_delta.magnitude();
         if distance > 0.0 {
             let coefficient = distance * self.spring.value;
@@ -253,7 +252,7 @@ impl<T:Value> SimulationData<T> {
 
     /// Compute air drag force.
     fn drag_force(&self) -> T {
-        -self.velocity * self.drag.value
+        self.velocity * -1.0 * self.drag.value
     }
 }
 

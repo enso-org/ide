@@ -1,4 +1,4 @@
-//! Define `Animatable` for colors. Note that we choose the Lab space as state space for
+//! Define `LinearMix` for colors. Note that we choose the Lab space as state space for
 //! animations to get nicer transitions in terms of lightness/chroma/hue and avoid the
 //! discontinuities of the polar coordinates of Lcha (i.e., a transition from hue 1 to 359 would go
 //! through all hues instead of taking the shorter trip "backwards").
@@ -9,8 +9,8 @@ use super::*;
 use enso_frp as frp;
 
 use crate::display::shape::*;
-use crate::gui::component::HasAnimationSpaceRepr;
-use crate::gui::component::AnimationLinearSpace;
+use crate::gui::component::HasLinearMixSpaceRepr;
+use crate::gui::component::LinearMixSpaceWrapper;
 use crate::gui::component;
 
 
@@ -25,19 +25,19 @@ const NORM_COLOR_SCALING_FACTOR : f32 = 100.0;
 
 
 // =======================
-// === Animatable Lcha ===
+// === LinearMix Lcha ===
 // =======================
 
-impl HasAnimationSpaceRepr for Lcha { type AnimationSpaceRepr = Vector4; }
+impl HasLinearMixSpaceRepr for Lcha { type LinearMixSpaceRepr = Vector4; }
 
-impl From<Lcha> for AnimationLinearSpace<Vector4> {
-    fn from(value:Lcha) -> AnimationLinearSpace<Vector4> {
+impl From<Lcha> for LinearMixSpaceWrapper<Vector4> {
+    fn from(value:Lcha) -> LinearMixSpaceWrapper<Vector4> {
         let value : Vector4 = Laba::from(value).into();
         let value = value.map(|t|t*NORM_COLOR_SCALING_FACTOR);
-        AnimationLinearSpace { value }
+        LinearMixSpaceWrapper { value }
     }
 }
-impl Into<Lcha> for AnimationLinearSpace<Vector4> {
+impl Into<Lcha> for LinearMixSpaceWrapper<Vector4> {
     fn into(self) -> Lcha {
         let value = self.value.map(|t|t/NORM_COLOR_SCALING_FACTOR);
         Laba::from(value).into()
@@ -47,20 +47,20 @@ impl Into<Lcha> for AnimationLinearSpace<Vector4> {
 
 
 // ======================
-// === Animatable Lch ===
+// === LinearMix Lch ===
 // ======================
 
-impl HasAnimationSpaceRepr for Lch { type AnimationSpaceRepr = Vector3; }
+impl HasLinearMixSpaceRepr for Lch { type LinearMixSpaceRepr = Vector3; }
 
-impl From<Lch> for AnimationLinearSpace<Vector3> {
-    fn from(value:Lch) -> AnimationLinearSpace<Vector3> {
+impl From<Lch> for LinearMixSpaceWrapper<Vector3> {
+    fn from(value:Lch) -> LinearMixSpaceWrapper<Vector3> {
         let value : Vector3 = Lab::from(value).into();
         let value = value.map(|t|t*NORM_COLOR_SCALING_FACTOR);
-        AnimationLinearSpace { value }
+        LinearMixSpaceWrapper { value }
     }
 }
 
-impl Into<Lch> for AnimationLinearSpace<Vector3> {
+impl Into<Lch> for LinearMixSpaceWrapper<Vector3> {
     fn into(self) -> Lch {
         let value = self.value.map(|t|t/NORM_COLOR_SCALING_FACTOR);
         Lab::from(value).into()
@@ -70,20 +70,20 @@ impl Into<Lch> for AnimationLinearSpace<Vector3> {
 
 
 // =======================
-// === Animatable Rgba ===
+// === LinearMix Rgba ===
 // =======================
 
-impl HasAnimationSpaceRepr for Rgba { type AnimationSpaceRepr = Vector4; }
+impl HasLinearMixSpaceRepr for Rgba { type LinearMixSpaceRepr = Vector4; }
 
-impl From<Rgba> for AnimationLinearSpace<Vector4> {
-    fn from(value:Rgba) -> AnimationLinearSpace<Vector4> {
+impl From<Rgba> for LinearMixSpaceWrapper<Vector4> {
+    fn from(value:Rgba) -> LinearMixSpaceWrapper<Vector4> {
         let value : Vector4 = Laba::from(value).into();
         let value = value.map(|t|t*NORM_COLOR_SCALING_FACTOR);
-        AnimationLinearSpace { value }
+        LinearMixSpaceWrapper { value }
     }
 }
 
-impl Into<Rgba> for AnimationLinearSpace<Vector4> {
+impl Into<Rgba> for LinearMixSpaceWrapper<Vector4> {
     fn into(self) -> Rgba {
         let value = self.value.map(|t|t/NORM_COLOR_SCALING_FACTOR);
         Laba::from(value).into()
@@ -93,20 +93,20 @@ impl Into<Rgba> for AnimationLinearSpace<Vector4> {
 
 
 // ======================
-// === Animatable Rgb ===
+// === LinearMix Rgb ===
 // ======================
 
-impl HasAnimationSpaceRepr for Rgb { type AnimationSpaceRepr = Vector3; }
+impl HasLinearMixSpaceRepr for Rgb { type LinearMixSpaceRepr = Vector3; }
 
-impl From<Rgb> for AnimationLinearSpace<Vector3> {
-    fn from(value:Rgb) -> AnimationLinearSpace<Vector3> {
+impl From<Rgb> for LinearMixSpaceWrapper<Vector3> {
+    fn from(value:Rgb) -> LinearMixSpaceWrapper<Vector3> {
         let value : Vector3 = Lab::from(value).into();
         let value = value.map(|t|t*NORM_COLOR_SCALING_FACTOR);
-        AnimationLinearSpace { value }
+        LinearMixSpaceWrapper { value }
     }
 }
 
-impl Into<Rgb> for AnimationLinearSpace<Vector3> {
+impl Into<Rgb> for LinearMixSpaceWrapper<Vector3> {
     fn into(self) -> Rgb {
         let value = self.value.map(|t|t/NORM_COLOR_SCALING_FACTOR);
         Lab::from(value).into()
@@ -116,19 +116,19 @@ impl Into<Rgb> for AnimationLinearSpace<Vector3> {
 
 
 // =======================
-// === Animatable Laba ===
+// === LinearMix Laba ===
 // =======================
 
-impl HasAnimationSpaceRepr for Laba { type AnimationSpaceRepr = Vector4; }
+impl HasLinearMixSpaceRepr for Laba { type LinearMixSpaceRepr = Vector4; }
 
-impl From<Laba> for AnimationLinearSpace<Vector4> {
-    fn from(value:Laba) -> AnimationLinearSpace<Vector4> {
+impl From<Laba> for LinearMixSpaceWrapper<Vector4> {
+    fn from(value:Laba) -> LinearMixSpaceWrapper<Vector4> {
         let value = value.into();
-        AnimationLinearSpace { value }
+        LinearMixSpaceWrapper { value }
     }
 }
 
-impl Into<Laba> for AnimationLinearSpace<Vector4> {
+impl Into<Laba> for LinearMixSpaceWrapper<Vector4> {
     fn into(self) -> Laba {
         self.value.into()
     }
@@ -137,19 +137,19 @@ impl Into<Laba> for AnimationLinearSpace<Vector4> {
 
 
 // ======================
-// === Animatable Lab ===
+// === LinearMix Lab ===
 // ======================
 
-impl HasAnimationSpaceRepr for Lab { type AnimationSpaceRepr = Vector3; }
+impl HasLinearMixSpaceRepr for Lab { type LinearMixSpaceRepr = Vector3; }
 
-impl From<Lab> for AnimationLinearSpace<Vector3> {
-    fn from(value:Lab) -> AnimationLinearSpace<Vector3> {
+impl From<Lab> for LinearMixSpaceWrapper<Vector3> {
+    fn from(value:Lab) -> LinearMixSpaceWrapper<Vector3> {
         let value = value.into();
-        AnimationLinearSpace { value }
+        LinearMixSpaceWrapper { value }
     }
 }
 
-impl Into<Lab> for AnimationLinearSpace<Vector3> {
+impl Into<Lab> for LinearMixSpaceWrapper<Vector3> {
     fn into(self) -> Lab {
         self.value.into()
     }

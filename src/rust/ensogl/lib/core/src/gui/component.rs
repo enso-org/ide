@@ -200,52 +200,52 @@ impl<T:Shape> display::Object for ShapeView<T> {
 
 
 // ==================
-// === Animatable ===
+// === LinearMix ===
 // ==================
 
 /// Newtype that indicates that the wrapped value is valid to be used in animations.
 #[derive(Debug)]
-pub struct AnimationLinearSpace<T> {
+pub struct LinearMixSpaceWrapper<T> {
     /// Wrapped value representing the animation space value.
     pub value: T
 }
 
 /// Indicate what datatype to use in the animation space representation.
-pub trait HasAnimationSpaceRepr {
+pub trait HasLinearMixSpaceRepr {
     /// Representation in animation space. Needs to support linear interpolation and all
     /// pre-requisites of `inertia::Value`.
-    type AnimationSpaceRepr: inertia::Value;
+    type LinearMixSpaceRepr;
 }
 
-/// HasAnimationSpaceRepr::AnimationSpaceRepr getter.
-pub type AnimationSpaceRepr<T> = <T as HasAnimationSpaceRepr>::AnimationSpaceRepr;
+/// HasLinearMixSpaceRepr::LinearMixSpaceRepr getter.
+pub type LinearMixSpaceRepr<T> = <T as HasLinearMixSpaceRepr>::LinearMixSpaceRepr;
 
-/// Strongly typed `AnimationSpaceRepr`
-pub type AnimationLinearSpaceRepr<T> = AnimationLinearSpace<AnimationSpaceRepr<T>>;
+/// Strongly typed `LinearMixSpaceRepr`
+pub type LinearMixSpace<T> = LinearMixSpaceWrapper<LinearMixSpaceRepr<T>>;
 
-pub trait Animatable = HasAnimationSpaceRepr + BiInto<AnimationLinearSpaceRepr<Self>>;
+pub trait LinearMix = HasLinearMixSpaceRepr + BiInto<LinearMixSpace<Self>>;
 
-/// Convert the animation space value to the respective `Animatable`.
-pub fn from_animation_space<T:Animatable>(value:AnimationSpaceRepr<T>) -> T {
-    AnimationLinearSpace{value}.into()
+/// Convert the animation space value to the respective `LinearMix`.
+pub fn from_animation_space<T:LinearMix>(value:LinearMixSpaceRepr<T>) -> T {
+    LinearMixSpaceWrapper{value}.into()
 }
 
-/// Convert `Animatable` to respective animation space value.
-pub fn into_animation_space_repr<T:Animatable>(t:T) -> AnimationSpaceRepr<T> {
+/// Convert `LinearMix` to respective animation space value.
+pub fn into_animation_space_repr<T:LinearMix>(t:T) -> LinearMixSpaceRepr<T> {
     t.into().value
 }
 
 macro_rules! define_self_animatable {
     ($type:ty ) => {
-        impl HasAnimationSpaceRepr for $type { type AnimationSpaceRepr = $type; }
+        impl HasLinearMixSpaceRepr for $type { type LinearMixSpaceRepr = $type; }
 
-        impl From<$type> for AnimationLinearSpace<$type> {
-            fn from(value:$type) -> AnimationLinearSpace<$type> {
-                 AnimationLinearSpace{value}
+        impl From<$type> for LinearMixSpaceWrapper<$type> {
+            fn from(value:$type) -> LinearMixSpaceWrapper<$type> {
+                 LinearMixSpaceWrapper{value}
             }
         }
 
-        impl Into<$type> for AnimationLinearSpace<$type> {
+        impl Into<$type> for LinearMixSpaceWrapper<$type> {
             fn into(self) -> $type {
                 self.value
             }
@@ -265,21 +265,22 @@ define_self_animatable!(Vector4);
 // =================
 
 /// Simulator used to run the animation.
-pub type AnimationSimulator<T> = DynSimulator<AnimationSpaceRepr<T>>;
+pub type AnimationSimulator<T> = DynSimulator<LinearMixSpaceRepr<T>>;
 
 /// Smart animation handler. Contains of dynamic simulation and frp endpoint. Whenever a new value
 /// is computed, it is emitted via the endpoint.
 #[derive(CloneRef,Derivative,Debug)]
 #[derivative(Clone(bound=""))]
 #[allow(missing_docs)]
-pub struct Animation<T:Animatable+frp::Data> {
+pub struct Animation<T:LinearMix+frp::Data> {
     pub target : frp::Any<T>,
     pub value  : frp::Stream<T>,
     pub skip   : frp::Any,
 }
 
 #[allow(missing_docs)]
-impl<T:Animatable+frp::Data> Animation<T> {
+impl<T:LinearMix+frp::Data> Animation<T>
+where LinearMixSpaceRepr<T> : inertia::Value {
     /// Constructor. The initial value of the animation is set to `default`.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
@@ -376,20 +377,21 @@ impl Tween {
 #[derivative(Clone(bound=""))]
 #[allow(missing_docs)]
 #[allow(non_camel_case_types)]
-pub struct DEPRECATED_Animation<T:Animatable> {
+pub struct DEPRECATED_Animation<T:LinearMix> {
     #[shrinkwrap(main_field)]
-    pub simulator : DynSimulator<T::AnimationSpaceRepr>,
+    pub simulator : DynSimulator<T::LinearMixSpaceRepr>,
     pub value     : frp::Stream<T>,
 }
 
 #[allow(missing_docs)]
-impl<T:Animatable+frp::Data> DEPRECATED_Animation<T> {
+impl<T:LinearMix+frp::Data> DEPRECATED_Animation<T>
+where LinearMixSpaceRepr<T> : inertia::Value {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
             def target = source::<T>();
         }
-        let simulator = DynSimulator::<T::AnimationSpaceRepr>::new(Box::new(f!((t) {
+        let simulator = DynSimulator::<T::LinearMixSpaceRepr>::new(Box::new(f!((t) {
              target.emit(from_animation_space::<T>(t))
         })));
         let value = target.into();
@@ -407,7 +409,7 @@ impl<T:Animatable+frp::Data> DEPRECATED_Animation<T> {
     }
 
     pub fn set_target_value(&self, target_value:T) {
-        let state:AnimationLinearSpace<_> = target_value.into();
+        let state:LinearMixSpaceWrapper<_> = target_value.into();
         self.simulator.set_target_value(state.value);
     }
 
