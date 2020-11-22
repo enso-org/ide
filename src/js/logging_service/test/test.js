@@ -28,7 +28,12 @@ describe('Logging Server', function () {
         const message = 'This is a crash report.'
         await axios.post(`http://localhost:${server.address().port}/`,
             message,
-            { headers: { 'content-type': 'text/plain' }})
+            {
+                headers: {
+                    'Content-Type': 'text/plain',
+                    'Origin': 'http://localhost/'
+                }
+            })
         const log_files = fs.readdirSync('log/')
         assert.strictEqual(log_files.length, 1)
         assert.strictEqual(fs.readFileSync(`log/${log_files[0]}`).toString(), message)
