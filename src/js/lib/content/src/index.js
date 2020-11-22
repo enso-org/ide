@@ -122,6 +122,101 @@ function show_debug_screen(wasm,msg) {
 
 
 
+// ======================
+// === Crash Handling ===
+// ======================
+
+function recoveringFromCrash() {
+    return sessionStorage.getItem("crash-message") !== null
+}
+
+function previousCrashMessage() {
+    return sessionStorage.getItem("crash-message")
+}
+
+function storeCrashMessage(message) {
+    sessionStorage.setItem("crash-message", message)
+}
+
+function recoveredFromCrash() {
+    sessionStorage.removeItem("crash-message")
+}
+
+
+// === Crash detection ===
+
+function setupCrashDetection() {
+    Error.stackTraceLimit = Infinity
+
+    window.onerror = function (message, _url, _line, _column, error) {
+        handleCrash(error.stack || message)
+    }
+    window.onunhandledrejection = function (event) {
+        handleCrash(event.reason.stack || "Unhandled rejection")
+    }
+}
+
+function handleCrash(message) {
+    if (document.getElementById("crash-banner") === null) {
+        storeCrashMessage(message)
+        location.reload()
+    } else {
+        for (let element of [... document.body.childNodes]) {
+            if (element.id !== "crash-banner") {
+                element.remove()
+            }
+        }
+    }
+}
+
+
+// === Crash recovery ===
+
+function showCrashBanner(message) {
+    document.body.insertAdjacentHTML('afterbegin',
+        `<div id="crash-banner">
+            <button id="crash-banner-close-button" class="icon-button">✖</button>
+            <div id="crash-banner-content">
+            <button id="crash-report-button">Report</button>
+            An internal error occurred and the Enso IDE has been restarted.
+            </div>
+        </div>`
+    )
+
+    const banner = document.getElementById("crash-banner")
+    const content = document.getElementById("crash-banner-content")
+    const report_button = document.getElementById("crash-report-button")
+    const close_button = document.getElementById("crash-banner-close-button")
+
+    report_button.onclick = async _event => {
+        try {
+            await reportCrash(message)
+            content.textContent = "Thank you, the crash was reported."
+        } catch (e) {
+            content.textContent = "The crash could not be reported."
+        }
+    }
+    close_button.onclick = () => {
+        banner.remove()
+    }
+}
+
+async function reportCrash(message) {
+    let cfg = getUrlParams()
+    const reportHost = cfg.reportHost || 'localhost'
+    const reportPort = cfg.reportPort || 20060
+    await fetch(`http://${reportHost}:${reportPort}/`, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'text/plain'
+        },
+        body: message
+      })
+}
+
+
+
 // ========================
 // === Main Entry Point ===
 // ========================
@@ -157,6 +252,12 @@ function disableContextMenu() {
 
 /// Main entry point. Loads WASM, initializes it, chooses the scene to run.
 async function main() {
+    setupCrashDetection()
+    if (recoveringFromCrash()) {
+        showCrashBanner(previousCrashMessage())
+        recoveredFromCrash()
+    }
+
     disableContextMenu()
     let target = window.location.pathname.split('/')
     target.splice(0,1)

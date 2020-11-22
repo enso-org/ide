@@ -120,6 +120,23 @@ optParser.options('window-size', {
 })
 
 
+// === Crash Reporting Options ===
+
+let reportOptionsGroup = 'Crash Reporting Options:'
+
+optParser.options('report-address', {
+    group       : reportOptionsGroup,
+    describe    : 'Hostname or IP address to send crash reports to',
+    requiresArg : true
+})
+
+optParser.options('report-port', {
+    group       : reportOptionsGroup,
+    describe    : 'Port to send crash reports to',
+    requiresArg : true
+})
+
+
 // === Other Options ===
 
 optParser.options('info', {
@@ -245,8 +262,11 @@ Electron.app.on('web-contents-created', (event,contents) => {
 /// https://www.electronjs.org/docs/tutorial/security#12-disable-or-limit-navigation
 Electron.app.on('web-contents-created', (event,contents) => {
     contents.on('will-navigate', (event,navigationUrl) => {
-        event.preventDefault()
-        console.error(`Prevented navigation to '${navigationUrl}'`)
+        const parsedUrl = new URL(navigationUrl)
+        if (parsedUrl.origin !== origin) {
+            event.preventDefault()
+            console.error(`Prevented navigation to '${navigationUrl}'`)
+        }
     })
 })
 
@@ -296,6 +316,7 @@ async function main() {
 let port = Server.DEFAULT_PORT
 if      (server)    { port = server.port }
 else if (args.port) { port = args.port }
+let origin = `http://localhost:${port}`
 
 function urlParamsFromObject(obj) {
     let params = []
@@ -320,7 +341,6 @@ function createWindow() {
         sandbox              : true,
         backgroundThrottling : false,
         transparent          : false,
-        backgroundColor      : "#00000000",
         titleBarStyle        : 'default'
     }
 
@@ -358,13 +378,19 @@ function createWindow() {
     if (args.project) {
         urlCfg.project = args.project;
     }
+    if (args.reportAddress) {
+        urlCfg.reportAddress = args.reportAddress
+    }
+    if (args.reportPort) {
+        urlCfg.reportPort = args.reportPort
+    }
 
     let params      = urlParamsFromObject(urlCfg)
     let targetScene = ""
     if (args.debugScene) {
         targetScene = `debug/${args.debugScene}`
     }
-    let address = `http://localhost:${port}/${targetScene}?${params}`
+    let address = `${origin}/${targetScene}?${params}`
     console.log(`Loading the window address ${address}`)
     window.loadURL(address)
     return window
