@@ -9,6 +9,7 @@ use crate::prelude::*;
 use crate::animation::physics::inertia;
 use crate::animation::physics::inertia::DynSimulator;
 use crate::animation::easing;
+use crate::data::mix;
 use crate::display::object::traits::*;
 use crate::display::scene::MouseTarget;
 use crate::display::scene::Scene;
@@ -199,105 +200,52 @@ impl<T:Shape> display::Object for ShapeView<T> {
 
 
 
-// ==================
-// === LinearMix ===
-// ==================
-
-/// Newtype that indicates that the wrapped value is valid to be used in animations.
-#[derive(Debug)]
-pub struct LinearMixSpaceWrapper<T> {
-    /// Wrapped value representing the animation space value.
-    pub value: T
-}
-
-/// Indicate what datatype to use in the animation space representation.
-pub trait HasLinearMixSpaceRepr {
-    /// Representation in animation space. Needs to support linear interpolation and all
-    /// pre-requisites of `inertia::Value`.
-    type LinearMixSpaceRepr;
-}
-
-/// HasLinearMixSpaceRepr::LinearMixSpaceRepr getter.
-pub type LinearMixSpaceRepr<T> = <T as HasLinearMixSpaceRepr>::LinearMixSpaceRepr;
-
-/// Strongly typed `LinearMixSpaceRepr`
-pub type LinearMixSpace<T> = LinearMixSpaceWrapper<LinearMixSpaceRepr<T>>;
-
-pub trait LinearMix = HasLinearMixSpaceRepr + BiInto<LinearMixSpace<Self>>;
-
-/// Convert the animation space value to the respective `LinearMix`.
-pub fn from_animation_space<T:LinearMix>(value:LinearMixSpaceRepr<T>) -> T {
-    LinearMixSpaceWrapper{value}.into()
-}
-
-/// Convert `LinearMix` to respective animation space value.
-pub fn into_animation_space_repr<T:LinearMix>(t:T) -> LinearMixSpaceRepr<T> {
-    t.into().value
-}
-
-macro_rules! define_self_animatable {
-    ($type:ty ) => {
-        impl HasLinearMixSpaceRepr for $type { type LinearMixSpaceRepr = $type; }
-
-        impl From<$type> for LinearMixSpaceWrapper<$type> {
-            fn from(value:$type) -> LinearMixSpaceWrapper<$type> {
-                 LinearMixSpaceWrapper{value}
-            }
-        }
-
-        impl Into<$type> for LinearMixSpaceWrapper<$type> {
-            fn into(self) -> $type {
-                self.value
-            }
-        }
-    }
-}
-
-define_self_animatable!(f32);
-define_self_animatable!(Vector2);
-define_self_animatable!(Vector3);
-define_self_animatable!(Vector4);
-
-
-
 // =================
 // === Animation ===
 // =================
 
 /// Simulator used to run the animation.
-pub type AnimationSimulator<T> = DynSimulator<LinearMixSpaceRepr<T>>;
+pub type AnimationSimulator<T> = DynSimulator<mix::Repr<T>>;
 
 /// Smart animation handler. Contains of dynamic simulation and frp endpoint. Whenever a new value
 /// is computed, it is emitted via the endpoint.
 #[derive(CloneRef,Derivative,Debug)]
 #[derivative(Clone(bound=""))]
 #[allow(missing_docs)]
-pub struct Animation<T:LinearMix+frp::Data> {
-    pub target : frp::Any<T>,
-    pub value  : frp::Stream<T>,
-    pub skip   : frp::Any,
+pub struct Animation<T:mix::Mixable+frp::Data> {
+    pub target    : frp::Any<T>,
+    pub precision : frp::Any<f32>,
+    pub skip      : frp::Any,
+    pub value     : frp::Stream<T>,
 }
 
 #[allow(missing_docs)]
-impl<T:LinearMix+frp::Data> Animation<T>
-where LinearMixSpaceRepr<T> : inertia::Value {
+impl<T:mix::Mixable+frp::Data> Animation<T>
+where mix::Repr<T> : inertia::Value {
     /// Constructor. The initial value of the animation is set to `default`.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
             value_src <- any_mut::<T>();
         }
         let simulator = AnimationSimulator::<T>::new(
-            Box::new(f!((t) value_src.emit(from_animation_space::<T>(t))))
+            Box::new(f!((t) value_src.emit(mix::from_space::<T>(t))))
         );
+        // FIXME[WD]: The precision should become default and should be increased in all simulators
+        //            that work with pixels. The reason is that by default the simulator should
+        //            give nice results for animations in the range of 0 .. 1, while it should not
+        //            make too many steps when animating bigger values (like pixels).
+        simulator.set_precision(0.001);
         frp::extend! { network
-            target <- any_mut::<T>();
-            skip   <- any_mut::<()>();
-            eval  target ((t) simulator.set_target_value(into_animation_space_repr(t.clone())));
-            eval_ skip   (simulator.skip());
+            target    <- any_mut::<T>();
+            precision <- any_mut::<f32>();
+            skip      <- any_mut::<()>();
+            eval  target    ((t) simulator.set_target_value(mix::into_space(t.clone())));
+            eval  precision ((t) simulator.set_precision(*t));
+            eval_ skip      (simulator.skip());
         }
         let value = value_src.into();
         network.store(&simulator);
-        Self{target,value,skip}
+        Self{target,precision,value,skip}
     }
 
     /// Constructor. The initial value is provided explicitly.
@@ -377,22 +325,22 @@ impl Tween {
 #[derivative(Clone(bound=""))]
 #[allow(missing_docs)]
 #[allow(non_camel_case_types)]
-pub struct DEPRECATED_Animation<T:LinearMix> {
+pub struct DEPRECATED_Animation<T:mix::Mixable> {
     #[shrinkwrap(main_field)]
-    pub simulator : DynSimulator<T::LinearMixSpaceRepr>,
+    pub simulator : DynSimulator<T::Repr>,
     pub value     : frp::Stream<T>,
 }
 
 #[allow(missing_docs)]
-impl<T:LinearMix+frp::Data> DEPRECATED_Animation<T>
-where LinearMixSpaceRepr<T> : inertia::Value {
+impl<T:mix::Mixable+frp::Data> DEPRECATED_Animation<T>
+where mix::Repr<T> : inertia::Value {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
             def target = source::<T>();
         }
-        let simulator = DynSimulator::<T::LinearMixSpaceRepr>::new(Box::new(f!((t) {
-             target.emit(from_animation_space::<T>(t))
+        let simulator = DynSimulator::<T::Repr>::new(Box::new(f!((t) {
+             target.emit(mix::from_space::<T>(t))
         })));
         let value = target.into();
         Self {simulator,value}
@@ -405,16 +353,16 @@ where LinearMixSpaceRepr<T> : inertia::Value {
 
     pub fn value(&self) -> T {
         let value = self.simulator.value();
-        from_animation_space(value)
+        mix::from_space(value)
     }
 
     pub fn set_target_value(&self, target_value:T) {
-        let state:LinearMixSpaceWrapper<_> = target_value.into();
+        let state:mix::Space<_> = target_value.into();
         self.simulator.set_target_value(state.value);
     }
 
     pub fn target_value(&self) -> T {
         let value = self.simulator.target_value();
-        from_animation_space(value)
+        mix::from_space(value)
     }
 }

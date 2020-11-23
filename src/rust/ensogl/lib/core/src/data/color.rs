@@ -18,6 +18,7 @@
 pub mod component;
 pub mod data;
 pub mod gradient;
+pub mod mix;
 pub mod space;
 pub mod animation;
 
