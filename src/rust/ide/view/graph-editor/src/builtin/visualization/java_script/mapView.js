@@ -70,13 +70,19 @@ document.head.appendChild(styleHead);
  */
 class MapViewVisualization extends Visualization {
     static inputType = "Any"
+    mapId            = 0;
 
     onDataReceived(data) {
         while (this.dom.firstChild) {
             this.dom.removeChild(this.dom.lastChild);
         }
-        MAP_ID       += 1;
-        const id      = "map_" + MAP_ID;
+
+        if (this.mapId === 0) {
+            MAP_ID     += 1;
+            this.mapId  = MAP_ID;
+        }
+
+        const id      = "map_" + this.mapId;
         const width   = this.dom.getAttributeNS(null,"width");
         const height  = this.dom.getAttributeNS(null,"height");
         const mapElem = document.createElement("div");
