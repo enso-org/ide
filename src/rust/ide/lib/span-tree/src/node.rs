@@ -469,6 +469,7 @@ impl<'a,T:Payload> Ref<'a,T> {
     /// structure will have non-empty `ast_crumbs` field.
     pub fn get_descendant_by_ast_crumbs<'b>
     (self, ast_crumbs:&'b [ast::Crumb]) -> Option<NodeFoundByAstCrumbs<'a,'b,T>> {
+        println!("Getting descendant: {:?} AST {:?}", self.crumbs, ast_crumbs);
         if self.node.children.is_empty() || ast_crumbs.is_empty() {
             let node                 = self;
             let remaining_ast_crumbs = ast_crumbs;
@@ -479,7 +480,8 @@ impl<'a,T:Payload> Ref<'a,T> {
             // therefore have different meaning!
             let next = children.find_position(|ch| {
                 !ch.ast_crumbs.is_empty() && ast_crumbs.starts_with(&ch.ast_crumbs)
-            });
+            }).or_else(|| children.find_position(|ch| ch.ast_crumbs.is_empty() && !ch.kind.is_insertion_point()));
+            println!("Trying {:?}", next.as_ref().map(|(id,_)| id));
             next.and_then(|(id,child)| {
                 let ast_subcrumbs = &ast_crumbs[child.ast_crumbs.len()..];
                 self.child(id).unwrap().get_descendant_by_ast_crumbs(ast_subcrumbs)
