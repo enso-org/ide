@@ -75,7 +75,7 @@ class MapViewVisualization extends Visualization {
         while (this.dom.firstChild) {
             this.dom.removeChild(this.dom.lastChild);
         }
-        MAP_ID += 1;
+        MAP_ID       += 1;
         const id      = "map_" + MAP_ID;
         const width   = this.dom.getAttributeNS(null,"width");
         const height  = this.dom.getAttributeNS(null,"height");
