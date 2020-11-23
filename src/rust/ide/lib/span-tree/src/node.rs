@@ -478,9 +478,16 @@ impl<'a,T:Payload> Ref<'a,T> {
             // therefore have different meaning!
             let next = self.node.children.iter().find_position(|ch| {
                 !ch.ast_crumbs.is_empty() && ast_crumbs.starts_with(&ch.ast_crumbs)
-            }).or_else(|| self.node.children.iter().find_position(|ch| {
-                ch.ast_crumbs.is_empty() && !ch.kind.is_insertion_point()
-            }));
+            }).or_else(|| {
+                // We do the second round to cover case of "prefix-like" nodes with
+                // `InsertionPoint(ExpectedArgument(_))`. See also docs for
+                // `generate::generate_expected_argument`.
+                // TODO[ao]: This is kinda heuristic. Should be reconsidered in
+                //  https://github.com/enso-org/ide/issues/787
+                self.node.children.iter().find_position(|ch| {
+                    ch.ast_crumbs.is_empty() && !ch.kind.is_insertion_point()
+                })
+            });
             next.and_then(|(id,child)| {
                 let ast_subcrumbs = &ast_crumbs[child.ast_crumbs.len()..];
                 self.child(id).unwrap().get_descendant_by_ast_crumbs(ast_subcrumbs)
