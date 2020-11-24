@@ -49,10 +49,17 @@ pub trait SpanTreeGenerator<T> {
 // === String ===
 // ==============
 
-impl<T:Payload> SpanTreeGenerator<T> for String {
+impl<T:Payload> SpanTreeGenerator<T> for &str {
     fn generate_node
     (&self, kind:impl Into<node::Kind>, _:&impl Context) -> FallibleResult<Node<T>> {
         Ok(Node::<T>::new().with_kind(kind).with_size(Size::new(self.len())))
+    }
+}
+
+impl<T:Payload> SpanTreeGenerator<T> for String {
+    fn generate_node
+    (&self, kind:impl Into<node::Kind>, context:&impl Context) -> FallibleResult<Node<T>> {
+        self.as_str().generate_node(kind,context)
     }
 }
 
@@ -962,6 +969,40 @@ mod test {
                 .add_empty_child(8,ExpectedArgument(1))
                 .done()
             .add_empty_child(8,ExpectedArgument(2))
+            .build();
+        clear_expression_ids(&mut tree.root);
+        clear_parameter_infos(&mut tree.root);
+        assert_eq!(tree,expected);
+
+
+        // === Partial application chain - this argument ===
+
+        let ast = parser.parse_line("here.foo").unwrap();
+        let invocation_info = CalledMethodInfo {
+            parameters : vec![this_param.clone(), param1.clone(), param2.clone()]
+        };
+        let ctx      = MockContext::new_single(ast.id.unwrap(),invocation_info);
+        let mut tree = SpanTree::new(&ast,&ctx).unwrap() : SpanTree;
+        match tree.root_ref().leaf_iter().collect_vec().as_slice() {
+            [_,_this,_,_,_func,_,arg1,arg2] => {
+                assert_eq!(arg1.argument_info().as_ref(),Some(&param1));
+                assert_eq!(arg2.argument_info().as_ref(),Some(&param2));
+            },
+            sth_else => panic!("There should be 8 leaves, found: {}",sth_else.len()),
+        }
+        let expected = TreeBuilder::new(8)
+            .add_child(0,8,node::Kind::Chained,Crumbs::default())
+                .add_child(0,8,node::Kind::Operation,Crumbs::default())
+                    .add_empty_child(0,BeforeTarget)
+                    .add_leaf(0,4,node::Kind::this(),InfixCrumb::LeftOperand)
+                    .add_empty_child(4,AfterTarget)
+                    .add_leaf(4,1,node::Kind::Operation,InfixCrumb::Operator)
+                    .add_leaf(5,3,node::Kind::argument(),InfixCrumb::RightOperand)
+                    .add_empty_child(8,Append)
+                    .done()
+                .add_empty_child(8,ExpectedArgument(0))
+                .done()
+            .add_empty_child(8,ExpectedArgument(1))
             .build();
         clear_expression_ids(&mut tree.root);
         clear_parameter_infos(&mut tree.root);

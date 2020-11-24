@@ -26,12 +26,11 @@ use ensogl_gui_components::list_view;
 use ide_view::graph_editor;
 use ide_view::graph_editor::component::node;
 use ide_view::graph_editor::component::visualization;
-use ide_view::graph_editor::EdgeTarget;
+use ide_view::graph_editor::EdgeEndpoint;
 use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
 use utils::channel::process_stream_with_handle;
 
-use span_tree::traits::SpanTreeGenerator;
 
 
 // ==============
@@ -170,7 +169,7 @@ struct Model {
     project            : model::Project,
     visualization      : controller::Visualization,
     node_views         : RefCell<BiMap<ast::Id,graph_editor::NodeId>>,
-    expression_views   : RefCell<HashMap<graph_editor::NodeId,String>>,
+    expression_views   : RefCell<HashMap<graph_editor::NodeId,graph_editor::component::node::Expression>>,
     connection_views   : RefCell<BiMap<controller::graph::Connection,graph_editor::EdgeId>>,
     code_view          : CloneRefCell<ensogl_text::Text>,
     visualizations     : SharedHashMap<graph_editor::NodeId,VisualizationId>,
@@ -264,29 +263,28 @@ impl Integration {
             ));
 
             // Changes in Graph Editor
-            is_handling_notification <-
-                all_with(&handle_graph_notification.is_running,&handle_text_notification.is_running
-                    ,|l,r| *l || *r);
-            is_hold <- is_handling_notification.all_with(&invalidate.is_running, |l,r| *l || *r);
+            is_handling_notification <- handle_graph_notification.is_running
+                                     || handle_text_notification.is_running;
+            is_hold                  <- is_handling_notification || invalidate.is_running;
+            on_connection_removed    <- editor_outs.on_edge_endpoint_unset._0();
             _action <- code_editor.changed                  .map2(&is_hold,code_changed);
             _action <- editor_outs.node_removed             .map2(&is_hold,node_removed);
             _action <- editor_outs.nodes_collapsed          .map2(&is_hold,nodes_collapsed);
             _action <- editor_outs.node_entered             .map2(&is_hold,node_entered);
             _action <- editor_outs.node_exited              .map2(&is_hold,node_exited);
-            _action <- editor_outs.connection_added         .map2(&is_hold,connection_created);
+            _action <- editor_outs.on_edge_endpoints_set    .map2(&is_hold,connection_created);
             _action <- editor_outs.visualization_enabled    .map2(&is_hold,visualization_enabled);
             _action <- editor_outs.visualization_disabled   .map2(&is_hold,visualization_disabled);
-            _action <- editor_outs.connection_removed       .map2(&is_hold,connection_removed);
+            _action <- on_connection_removed                .map2(&is_hold,connection_removed);
             _action <- editor_outs.node_position_set_batched.map2(&is_hold,node_moved);
             _action <- editor_outs.node_being_edited        .map2(&is_hold,node_editing);
             _action <- editor_outs.node_expression_set      .map2(&is_hold,node_expression_set);
             _action <- searcher_frp.picked_entry            .map2(&is_hold,suggestion_picked);
             _action <- project_frp.editing_committed        .map2(&is_hold,node_editing_committed);
 
-            eval project_frp.editing_committed ((_) invalidate.trigger.emit(()));
-            eval project_frp.editing_aborted   ((_) invalidate.trigger.emit(()));
-
-            eval_ project_frp.save_module      (model.module_saved_in_ui());
+            eval_ project_frp.editing_committed (invalidate.trigger.emit(()));
+            eval_ project_frp.editing_aborted   (invalidate.trigger.emit(()));
+            eval_ project_frp.save_module       (model.module_saved_in_ui());
         }
         Self::connect_frp_to_graph_controller_notifications(&model,handle_graph_notification.trigger);
         Self::connect_frp_text_controller_notifications(&model,handle_text_notification.trigger);
@@ -538,12 +536,14 @@ impl Model {
         //  changed or not, we shall emit the updates.
         //  This should be addressed as part of https://github.com/enso-org/ide/issues/787
         let code_and_trees = graph_editor::component::node::Expression {
-            code             : expression.clone(),
+            code             : expression,
             input_span_tree  : trees.inputs,
             output_span_tree : trees.outputs.unwrap_or_else(default)
         };
-        self.view.graph().frp.input.set_node_expression.emit_event(&(id, code_and_trees));
-        self.expression_views.borrow_mut().insert(id, expression);
+        if !self.expression_views.borrow().get(&id).contains(&&code_and_trees) {
+            self.view.graph().frp.input.set_node_expression.emit_event(&(id, code_and_trees.clone()));
+            self.expression_views.borrow_mut().insert(id,code_and_trees);
+        }
 
         // Set initially available type information on ports (identifiable expression's sub-parts).
         for expression_part in node.info.expression().iter_recursive() {
@@ -579,8 +579,6 @@ impl Model {
                 })
             });
             self.set_method_pointer(id,method_pointer);
-        } else {
-            debug!(self.logger, "Failed to get `NodeId` for ID: {id:?}.");
         }
     }
 
@@ -603,7 +601,7 @@ impl Model {
             if !self.connection_views.borrow().contains_left(&con) {
                 let targets = self.edge_targets_from_controller_connection(con.clone())?;
                 self.view.graph().frp.input.connect_nodes.emit_event(&targets);
-                let edge_id = self.view.graph().frp.output.edge_added.value();
+                let edge_id = self.view.graph().frp.output.on_edge_add.value();
                 self.connection_views.borrow_mut().insert(con, edge_id);
             }
         }
@@ -611,11 +609,11 @@ impl Model {
     }
 
     fn edge_targets_from_controller_connection
-    (&self, connection:controller::graph::Connection) -> FallibleResult<(EdgeTarget,EdgeTarget)> {
+    (&self, connection:controller::graph::Connection) -> FallibleResult<(EdgeEndpoint,EdgeEndpoint)> {
         let src_node = self.get_displayed_node_id(connection.source.node)?;
         let dst_node = self.get_displayed_node_id(connection.destination.node)?;
-        let src      = EdgeTarget::new(src_node,connection.source.port);
-        let data     = EdgeTarget::new(dst_node,connection.destination.port);
+        let src      = EdgeEndpoint::new(src_node,connection.source.port);
+        let data     = EdgeEndpoint::new(dst_node,connection.destination.port);
         Ok((src,data))
     }
 
@@ -808,8 +806,9 @@ impl Model {
     fn node_expression_set_in_ui
     (&self, (displayed_id,expression):&(graph_editor::NodeId,String)) -> FallibleResult {
         debug!(self.logger, "Setting node expression.");
-        let searcher = self.searcher.borrow();
-        self.expression_views.borrow_mut().insert(*displayed_id,expression.clone());
+        let searcher       = self.searcher.borrow();
+        let code_and_trees = graph_editor::component::node::Expression::new_plain(expression);
+        self.expression_views.borrow_mut().insert(*displayed_id,code_and_trees);
         if let Some(searcher) = searcher.as_ref() {
             searcher.set_input(expression.clone())?;
         }
@@ -856,15 +855,13 @@ impl Model {
     (&self, entry:&Option<ide_view::searcher::entry::Id>) -> FallibleResult {
         debug!(self.logger, "Picking suggestion.");
         if let Some(entry) = entry {
-            let graph_frp        = &self.view.graph().frp;
-            let error            = || MissingSearcherController;
-            let searcher         = self.searcher.borrow().clone().ok_or_else(error)?;
-            let error            = || GraphEditorInconsistency;
-            let edited_node      = graph_frp.output.node_being_edited.value().ok_or_else(error)?;
-            let code             = searcher.pick_completion_by_index(*entry)?;
-            let input_span_tree  = code.generate_tree(&span_tree::generate::context::Empty)?;
-            let output_span_tree = default();
-            let code_and_trees = node::Expression {code,input_span_tree,output_span_tree};
+            let graph_frp      = &self.view.graph().frp;
+            let error          = || MissingSearcherController;
+            let searcher       = self.searcher.borrow().clone().ok_or_else(error)?;
+            let error          = || GraphEditorInconsistency;
+            let edited_node    = graph_frp.output.node_being_edited.value().ok_or_else(error)?;
+            let code           = searcher.pick_completion_by_index(*entry)?;
+            let code_and_trees = node::Expression::new_plain(code);
             graph_frp.input.set_node_expression.emit_event(&(edited_node,code_and_trees));
         }
         Ok(())
@@ -1135,7 +1132,7 @@ impl DataProviderForView {
             EntryKind::Local    => "Local variable",
             EntryKind::Method   => "Method",
         };
-        format!("{} `{}`\n\nNo documentation available", title,suggestion.code_to_insert(None,None))
+        format!("{} `{}`\n\nNo documentation available", title,suggestion.code_to_insert(None))
     }
 }
 
