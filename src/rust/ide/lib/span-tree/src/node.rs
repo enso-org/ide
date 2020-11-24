@@ -479,11 +479,11 @@ impl<'a,T:Payload> Ref<'a,T> {
             let next = self.node.children.iter().find_position(|ch| {
                 !ch.ast_crumbs.is_empty() && ast_crumbs.starts_with(&ch.ast_crumbs)
             }).or_else(|| {
-                // We do the second round to cover case of "prefix-like" nodes with
-                // `InsertionPoint(ExpectedArgument(_))`. See also docs for
+                // We try to find appriopriate node second time, this time expecting case of
+                // "prefix-like" nodes with `InsertionPoint(ExpectedArgument(_))`. See also docs for
                 // `generate::generate_expected_argument`.
-                // TODO[ao]: This is kinda heuristic. Should be reconsidered in
-                //  https://github.com/enso-org/ide/issues/787
+                // TODO[ao]: As implementation of SpanTree will extend there may be some day more
+                //  cases. Should be reconsidered in https://github.com/enso-org/ide/issues/787
                 self.node.children.iter().find_position(|ch| {
                     ch.ast_crumbs.is_empty() && !ch.kind.is_insertion_point()
                 })

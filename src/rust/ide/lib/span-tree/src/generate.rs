@@ -983,7 +983,6 @@ mod test {
         };
         let ctx      = MockContext::new_single(ast.id.unwrap(),invocation_info);
         let mut tree = SpanTree::new(&ast,&ctx).unwrap() : SpanTree;
-        // assert!(false, "{:?}", tree);
         match tree.root_ref().leaf_iter().collect_vec().as_slice() {
             [_,_this,_,_,_func,_,arg1,arg2] => {
                 assert_eq!(arg1.argument_info().as_ref(),Some(&param1));
