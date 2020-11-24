@@ -9,6 +9,8 @@
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 
+use ensogl_core::prelude::ImString;
+
 
 
 // ==============
@@ -94,8 +96,26 @@ macro_rules! define_theme {
                 app.themes.register(stringify!($name),$name);
                 app.themes.set_enabled(&[stringify!($name)]);
             }
+
+            /// Enables current theme.
+            pub fn enable(app:&Application) {
+                app.themes.set_enabled(&[stringify!($name)]);
+            }
         }
     };
+}
+
+/// Enum holding available themes for ease of access.
+#[allow(missing_docs)]
+#[derive(Clone,Debug)]
+pub enum Theme {
+    Light,
+    Dark,
+    Other(ImString),
+}
+
+impl Default for Theme {
+    fn default() -> Self { Theme::Light }
 }
 
 
@@ -116,10 +136,11 @@ define_default_theme! { __light_theme__
             selection = Lcha(0.7,0.0,0.125,0.7);
         }
         types {
-            luminance  = 0.8;
-            chroma     = 0.6;
-            missing    = Lcha(0.8,0.0,0.0,1.0);
-            selected   = code::syntax::base;
+            luminance     = 0.8;
+            chroma        = 0.6;
+            any           = code::syntax::base;
+            any.selection = Lcha(0.8,0.0,0.0,1.0);
+            selected      = code::syntax::base;
             overriden {
                 Text.hue   = 0.22;
                 Number.hue = 0.68;
