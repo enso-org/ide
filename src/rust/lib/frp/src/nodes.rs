@@ -180,9 +180,10 @@ impl Network {
         self.all_with(label,t1,t2,|a,b| *a && *b)
     }
 
-    /// If the first input is false, the second input will be redirected to the output. Otherwise,
-    /// the third input will be redirected to the output. The redirection is persistent. The first
-    /// input doesn't have to fire to propagate the events fromm second and third input streams.
+    /// Redirect second or third input to the output when the value of the first input is `false` or
+    /// `true` respectively. The redirection is persistent. The first input doesn't have to fire to
+    /// propagate the events fromm second and third input streams. Moreover, when first input
+    /// changes, an output event will be emitted with the updated value.
     pub fn switch<T1,T2,T3,T>
     (&self, label:Label, check:&T1, t2:&T2, t3:&T3) -> Stream<T>
     where T1:EventOutput<Output=bool>, T2:EventOutput<Output=T>, T3:EventOutput<Output=T>, T:Data {

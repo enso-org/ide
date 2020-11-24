@@ -83,7 +83,6 @@ impl DummyTypeGenerator {
 
 fn init(app:&Application) {
 
-
     theme::builtin::dark::setup(&app);
     // theme::builtin::light::setup(&app);
 

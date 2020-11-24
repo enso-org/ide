@@ -1868,12 +1868,14 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     frp::extend! { network
         mouse_down_target <- mouse.down.map(f_!(model.scene().mouse.target.get()));
         mouse_up_target   <- mouse.up.map(f_!(model.scene().mouse.target.get()));
-        background_up     <- mouse_up_target.map(|t| if t==&display::scene::Target::Background {Some(())} else {None}).unwrap();
+        background_up     <= mouse_up_target.map(
+            |t| (t==&display::scene::PointerTarget::Background).as_some(())
+        );
 
         eval mouse_down_target([touch,model](target) {
             match target {
-                display::scene::Target::Background  => touch.background.down.emit(()),
-                display::scene::Target::Symbol {..} => {
+                display::scene::PointerTarget::Background  => touch.background.down.emit(()),
+                display::scene::PointerTarget::Symbol {..} => {
                     if let Some(target) = model.scene().shapes.get_mouse_target(*target) {
                         target.mouse_down().emit(());
                     }
