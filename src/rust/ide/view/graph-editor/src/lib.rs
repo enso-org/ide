@@ -339,6 +339,8 @@ ensogl::define_endpoints! {
 
         /// Enter the last selected node.
         enter_selected_node(),
+        /// Enter the node currently under the cursor.
+        enter_hovered_node(),
         /// Steps out of the current node, popping the topmost stack frame from the crumb list.
         exit_node(),
 
@@ -1697,7 +1699,7 @@ impl application::View for GraphEditor {
 
           // === Navigation ===
           , (Press       , ""              , "ctrl space"        , "cycle_visualization_for_selected_node")
-          , (DoublePress , ""              , "left-mouse-button" , "enter_selected_node")
+          , (DoublePress , ""              , "left-mouse-button" , "enter_hovered_node")
           , (Press       , "!node_editing" , "enter"             , "enter_selected_node")
           , (Press       , ""              , "alt enter"         , "exit_node")
 
@@ -1805,14 +1807,45 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
 
 
+    // =============================
+    // === Node Level Navigation ===
+    // =============================
+
+    frp::extend! { network
+
+        target_to_enter <- inputs.enter_hovered_node.map(f_!(scene.mouse.target.get()));
+
+        // Go level up on background click.
+        enter_on_background    <= target_to_enter.map(|target| target.is_background().as_some(()));
+        out.source.node_exited <+ enter_on_background;
+
+        // Go level down on node double click.
+        enter_node <= target_to_enter.map(|target| target.is_symbol().as_some(()));
+        node_switch_to_enter    <- out.node_hovered.sample(&enter_node).unwrap();
+        node_to_enter           <- node_switch_to_enter.map(|switch| switch.on().cloned()).unwrap();
+        out.source.node_entered <+ node_to_enter;
+    }
+
+
+
     // ============================
     // === Project Name Editing ===
     // ============================
 
+
+    // === Start project name edit ===
+    frp::extend! { network
+        edit_mode     <- bool(&inputs.edit_mode_off,&inputs.edit_mode_on);
+        eval edit_mode ((edit_mode_on) model.breadcrumbs.ide_text_edit_mode.emit(edit_mode_on));
+    }
+
+
     // === Commit project name edit ===
 
     frp::extend! { network
-        deactivate_breadcrumbs <- any3_(&touch.background.selected,&inputs.edit_mode_on,&inputs.add_node_at_cursor);
+        deactivate_breadcrumbs <- any3_(&touch.background.down,
+                                        &out.node_editing_started,
+                                        &out.node_entered);
         eval_ deactivate_breadcrumbs(model.breadcrumbs.outside_press());
     }
 
