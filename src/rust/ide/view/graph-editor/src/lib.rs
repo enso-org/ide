@@ -1312,7 +1312,6 @@ impl GraphEditorModel {
                 edge.set_source(target);
                 edge.view.frp.source_attached.emit(true);
                 // FIXME: both lines require edge to refresh. Let's make it more efficient.
-                //self.refresh_edge_color(edge_id);
                 self.refresh_edge_position(edge_id);
                 self.refresh_edge_source_size(edge_id);
             }
@@ -1354,7 +1353,6 @@ impl GraphEditorModel {
 
                 edge.view.frp.target_attached.emit(true);
                 edge.view.frp.redraw.emit(());
-                // self.refresh_edge_color(edge_id);
                 self.refresh_edge_position(edge_id);
             };
         }
@@ -1497,7 +1495,6 @@ impl GraphEditorModel {
     pub fn refresh_edge_color(&self, edge_id:EdgeId) {
         if let Some(edge) = self.edges.get_cloned_ref(&edge_id) {
             let color = self.edge_color(edge_id);
-            let color = color::Rgba::from(color);
             edge.view.frp.set_color.emit(color);
         };
     }

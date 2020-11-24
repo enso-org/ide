@@ -64,10 +64,10 @@ pub fn into_space<T:Mixable>(t:T) -> Repr<T> {
 }
 
 /// Perform a mix of two values. See module docs to learn more.
-pub fn mix<T:Mixable>(coeff:f32, t1:T, t2:T) -> T {
+pub fn mix<T:Mixable>(t1:T, t2:T, coefficient:f32) -> T {
     let v1 = into_space(t1);
     let v2 = into_space(t2);
-    let v  = v1 * (1.0 - coeff) + v2 * coeff;
+    let v  = v1 * (1.0 - coefficient) + v2 * coefficient;
     from_space(v)
 }
 

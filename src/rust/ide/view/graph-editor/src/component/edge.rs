@@ -1071,7 +1071,7 @@ pub struct Frp {
     pub source_attached : frp::Source<bool>,
     pub redraw          : frp::Source,
     pub set_dimmed      : frp::Source<bool>,
-    pub set_color       : frp::Source<color::Rgba>,
+    pub set_color       : frp::Source<color::Lcha>,
 
     pub hover_position  : frp::Source<Option<Vector2<f32>>>,
     pub shape_events    : ShapeViewEventsProxy
@@ -1179,10 +1179,11 @@ impl Edge {
         let hover_position  = &self.hover_position;
         let hover_target    = &self.hover_target;
 
-        let model           = &self.model;
-        let shape_events    = &self.frp.shape_events;
-        let edge_color      = color::Animation::new(network);
-        let _style          = StyleWatch::new(&app.display.scene().style_sheet);
+        let model            = &self.model;
+        let shape_events     = &self.frp.shape_events;
+        let edge_color       = color::Animation::new(network);
+        let edge_focus_color = color::Animation::new(network);
+        let _style           = StyleWatch::new(&app.display.scene().style_sheet);
 
         model.data.front.register_proxy_frp(network, &input.shape_events);
         model.data.back.register_proxy_frp(network, &input.shape_events);
@@ -1201,24 +1202,34 @@ impl Edge {
 
             eval_ input.redraw (model.redraw());
 
+            is_hovered <- input.hover_position.map(|t| t.is_some());
+
+
             // === Colors ===
 
-            color_update <- all(input.set_color,input.set_dimmed);
+            let new_color = input.set_color.clone_ref();
+            new_focus_color <- new_color.map(f!((color) model.focus_color(*color)));
+            focus_color     <- switch(&is_hovered,&new_color,&new_focus_color);
 
-            // TODO: dimming commented for now, as it was using bad colors. Should be mixed with background instead.
-            eval color_update ([edge_color]((color,_should_dim)) {
-                // let target_color = if *should_dim {
-                //    style.get_color_dim(*color)
-                // } else {
-                //   color.into()
-                // };
-                // edge_color.target.emit(target_color);
-                edge_color.target.emit(color::Lcha::from(color));
-            });
+            edge_color.target       <+ new_color;
+            edge_focus_color.target <+ focus_color;
 
-            eval edge_color.value ([model](color) {
-                model.set_color(color.into())
-            });
+            // color_update <- all(input.set_color,input.set_dimmed);
+
+            // // TODO: dimming commented for now, as it was using bad colors. Should be mixed with background instead.
+            // eval color_update ([edge_color]((color,_should_dim)) {
+            //     // let target_color = if *should_dim {
+            //     //    style.get_color_dim(*color)
+            //     // } else {
+            //     //   color.into()
+            //     // };
+            //     // edge_color.target.emit(target_color);
+            //     let color = color::Lcha::from(color);
+            //     edge_color.target.emit(color);
+            // });
+
+            eval edge_color.value       ((color) model.set_color(color.into()));
+            eval edge_focus_color.value ((color) model.set_focus_color(color.into()));
 
         }
         self
@@ -1310,30 +1321,27 @@ impl EdgeModelData {
               layout_state,hover_target,joint,scene}
     }
 
-    /// Set the color of the edge. Also updates the focus color (which will be a dimmed version
-    /// of the main color).
+    /// Set the color of the edge.
     fn set_color(&self, color:color::Lcha) {
         // We must never use alpha in edges, as it will show artifacts with overlapping sub-parts.
         let color:color::Lcha = color.opaque.into();
-
-        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
-        let styles         = StyleWatch::new(&self.scene.style_sheet);
-        let bg_color       = styles.get_color(theme::application::background);
-        let factor_l_path  = theme::graph_editor::edge::split::lightness_factor;
-        let factor_c_path  = theme::graph_editor::edge::split::chroma_factor;
-        let split_factor_l = styles.get_number_or(factor_l_path,1.2);
-        let split_factor_c = styles.get_number_or(factor_c_path,0.8);
-        let lightness      = color.lightness * split_factor_l;
-        let chroma         = color.chroma * split_factor_c;
-        let focus_color    = color::Lcha::new(lightness,chroma,color.hue,color.alpha);
-        let focus_color    = color::Lcha::new(0.5,0.0,1.0,1.0);
-        let color_rgba     = color::Rgba::from(color);
-        self.shapes().iter().for_each(|shape| {
-            shape.set_color_focus(focus_color.into());
-            shape.set_color(color_rgba)
-        });
-
+        let color_rgba        = color::Rgba::from(color);
+        self.shapes().iter().for_each(|shape| shape.set_color(color_rgba));
         self.joint.shape.color_rgba.set(color_rgba.into());
+    }
+
+    fn set_focus_color(&self, color:color::Lcha) {
+        println!(">>> set_focus_color {:?}", color);
+        let color:color::Lcha = color.opaque.into();
+        self.shapes().iter().for_each(|shape| shape.set_color_focus(color.into()));
+    }
+
+    fn focus_color(&self, color:color::Lcha) -> color::Lcha {
+        // We must never use alpha in edges, as it will show artifacts with overlapping sub-parts.
+        let color:color::Lcha = color.opaque.into();
+        let styles            = StyleWatch::new(&self.scene.style_sheet);
+        let bg_color          = styles.get_color(theme::application::background);
+        color::mix(bg_color,color,0.25)
     }
 
     /// Redraws the connection.

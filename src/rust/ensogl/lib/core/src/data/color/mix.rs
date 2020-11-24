@@ -6,6 +6,8 @@ use super::*;
 use crate::data::mix;
 use crate::data::mix::Mixable;
 
+pub use crate::data::mix::mix;
+
 
 
 // =================
