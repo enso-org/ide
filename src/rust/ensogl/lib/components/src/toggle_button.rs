@@ -118,8 +118,8 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
 
             // === Color ===
 
-            invisible <- frp.set_visibility.gate_not(&frp.set_visibility);
-            eval_ invisible (color.target_alpha.emit(0.0));
+            invisible <- frp.set_visibility.on_false().constant(0.0);
+            color.target_alpha <+ invisible;
 
             visible    <- frp.set_visibility.gate(&frp.set_visibility);
             is_hovered <- bool(&icon.mouse_out,&icon.mouse_over);

@@ -666,8 +666,10 @@ impl<'a,T:Payload> RefMut<'a,T> {
         self.partial_dfs((),|t,_|(true,on_node(t)))
     }
 
-    /// Just like `partial_dfs` but traversing two `SpanTree`s at the same time.
-    pub fn partial_double_dfs<D>
+    /// Just like `partial_dfs` but traversing two `SpanTree`s at the same time. The children are
+    /// traversed on pair. If one node has more children than the other one, the un-paired children
+    /// will be skipped.
+    pub fn partial_zipped_dfs<D>
     ( self
     , other       : Self
     , mut data    : D

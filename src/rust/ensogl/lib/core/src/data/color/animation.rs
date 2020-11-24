@@ -1,4 +1,4 @@
-//! Define `LinearMix` for colors. Note that we choose the Lab space as state space for
+//! Define `Animation` for colors. Note that we choose the Lab space as state space for
 //! animations to get nicer transitions in terms of lightness/chroma/hue and avoid the
 //! discontinuities of the polar coordinates of Lcha (i.e., a transition from hue 1 to 359 would go
 //! through all hues instead of taking the shorter trip "backwards").

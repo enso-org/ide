@@ -77,6 +77,8 @@ pub fn mix<T:Mixable>(t1:T, t2:T, coefficient:f32) -> T {
 // === Impls ===
 // =============
 
+/// Macro for defining `Mixable` impls for types whose mix space is the same as the types
+/// themselves.
 macro_rules! define_self_mixables {
     ($($type:ty),*) => {$(
         impl Mixable for $type {
