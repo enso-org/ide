@@ -89,7 +89,7 @@ impl RawTextModel {
         let _red       = text_color.red * 255.0;
         let _green     = text_color.green * 255.0;
         let _blue      = text_color.blue * 255.0;
-        let text_color = format!("rgba({},{},{},{})",_red,_green,_blue,1.0);
+        let text_color = format!("rgba({},{},{},{})",_red,_green,_blue,text_color.alpha);
 
         dom.dom().set_attribute_or_warn("class","visualization scrollable",&logger);
         dom.dom().set_style_or_warn("white-space"   ,"pre"                ,&logger);
@@ -97,8 +97,7 @@ impl RawTextModel {
         dom.dom().set_style_or_warn("overflow-x"    ,"auto"               ,&logger);
         dom.dom().set_style_or_warn("font-family"   ,"DejaVuSansMonoBook" ,&logger);
         dom.dom().set_style_or_warn("font-size"     ,"12px"               ,&logger);
-        dom.dom().set_style_or_warn("font-weight"   ,"bold"               ,&logger);
-        // dom.dom().set_style_or_warn("padding-left"  ,"5px"                ,&logger);
+        dom.dom().set_style_or_warn("padding-left"  ,"5px"                ,&logger);
         dom.dom().set_style_or_warn("color"         ,text_color           ,&logger);
         dom.dom().set_style_or_warn("pointer-events","auto"               ,&logger);
 
@@ -112,6 +111,8 @@ impl RawTextModel {
     }
 
     fn set_size(&self, size:Vector2) {
+        let x_mod = size.x - 5.0;
+        let size  = Vector2(x_mod,size.y);
         self.size.set(size);
         self.reload_style();
     }
