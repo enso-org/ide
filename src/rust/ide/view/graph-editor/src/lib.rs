@@ -1426,7 +1426,7 @@ impl GraphEditorModel {
     fn set_edge_freeze<T:Into<EdgeId>>(&self, edge_id:T, is_frozen:bool) {
         let edge_id = edge_id.into();
         if let Some(edge) = self.edges.get_cloned_ref(&edge_id) {
-            edge.view.frp.set_dimmed.emit(is_frozen);
+            edge.view.frp.set_disabled.emit(is_frozen);
         }
     }
 }

@@ -1070,7 +1070,7 @@ pub struct Frp {
     pub target_attached : frp::Source<bool>,
     pub source_attached : frp::Source<bool>,
     pub redraw          : frp::Source,
-    pub set_dimmed      : frp::Source<bool>,
+    pub set_disabled    : frp::Source<bool>,
     pub set_color       : frp::Source<color::Lcha>,
 
     pub hover_position  : frp::Source<Option<Vector2<f32>>>,
@@ -1088,12 +1088,12 @@ impl Frp {
             def source_attached = source();
             def redraw          = source();
             def hover_position  = source();
-            def set_dimmed      = source();
+            def set_disabled    = source();
             def set_color       = source();
         }
         let shape_events = ShapeViewEventsProxy::new(&network);
         Self {source_width,source_height,target_position,target_attached,source_attached,redraw,
-              hover_position,shape_events,set_dimmed,set_color}
+              hover_position,shape_events,set_disabled,set_color}
     }
 }
 
@@ -1198,39 +1198,22 @@ impl Edge {
             eval input.hover_position  ((t) hover_position.set(*t));
 
             eval  shape_events.on_mouse_over ((id) hover_target.set(Some(*id)));
-            eval_ shape_events.on_mouse_out  (     hover_target.set(None));
-
-            eval_ input.redraw (model.redraw());
-
-            is_hovered <- input.hover_position.map(|t| t.is_some());
+            eval_ shape_events.on_mouse_out       (hover_target.set(None));
+            eval_ input.redraw                    (model.redraw());
 
 
             // === Colors ===
 
-            let new_color = input.set_color.clone_ref();
+            is_hovered      <- input.hover_position.map(|t| t.is_some());
+            new_color       <- all_with(&input.set_color,&input.set_disabled,f!((c,t) model.base_color(*c,*t)));
             new_focus_color <- new_color.map(f!((color) model.focus_color(*color)));
             focus_color     <- switch(&is_hovered,&new_color,&new_focus_color);
 
             edge_color.target       <+ new_color;
             edge_focus_color.target <+ focus_color;
 
-            // color_update <- all(input.set_color,input.set_dimmed);
-
-            // // TODO: dimming commented for now, as it was using bad colors. Should be mixed with background instead.
-            // eval color_update ([edge_color]((color,_should_dim)) {
-            //     // let target_color = if *should_dim {
-            //     //    style.get_color_dim(*color)
-            //     // } else {
-            //     //   color.into()
-            //     // };
-            //     // edge_color.target.emit(target_color);
-            //     let color = color::Lcha::from(color);
-            //     edge_color.target.emit(color);
-            // });
-
             eval edge_color.value       ((color) model.set_color(color.into()));
             eval edge_focus_color.value ((color) model.set_focus_color(color.into()));
-
         }
         self
     }
@@ -1331,9 +1314,16 @@ impl EdgeModelData {
     }
 
     fn set_focus_color(&self, color:color::Lcha) {
-        println!(">>> set_focus_color {:?}", color);
         let color:color::Lcha = color.opaque.into();
         self.shapes().iter().for_each(|shape| shape.set_color_focus(color.into()));
+    }
+
+    fn base_color(&self, color:color::Lcha, is_disabled:bool) -> color::Lcha {
+        let color:color::Lcha = color.opaque.into();
+        if !is_disabled {color} else {
+            let styles = StyleWatch::new(&self.scene.style_sheet);
+            styles.get_color(theme::code::syntax::disabled)
+        }
     }
 
     fn focus_color(&self, color:color::Lcha) -> color::Lcha {
