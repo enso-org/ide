@@ -14,13 +14,13 @@ use events::ZoomEvent;
 
 
 
-// =================
-// === Navigator ===
-// =================
+// ======================
+// === NavigatorModel ===
+// ======================
 
 /// Navigator enables camera navigation with mouse interactions.
 #[derive(Debug)]
-pub struct Navigator {
+pub struct NavigatorModel {
     _events         : NavigatorEvents,
     simulator       : physics::inertia::DynSimulator<Vector3>,
     resize_callback : callback::Handle,
@@ -28,7 +28,7 @@ pub struct Navigator {
     pan_speed       : SharedSwitch<f32>,
 }
 
-impl Navigator {
+impl NavigatorModel {
     pub fn new(scene:&Scene, camera:&Camera2d) -> Self {
         let zoom_speed             = Rc::new(Cell::new(Switch::On(10.0/1000.0)));
         let pan_speed              = Rc::new(Cell::new(Switch::On(1.0)));
@@ -117,6 +117,27 @@ impl Navigator {
         self.pan_speed.update(|switch| switch.switched(false));
         self.zoom_speed.update(|switch| switch.switched(false));
     }
+}
+
+
+
+// =================
+// === Navigator ===
+// =================
+
+/// Navigator enables camera navigation with mouse interactions.
+#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
+pub struct Navigator {
+    #[shrinkwrap(main_field)]
+    model : Rc<NavigatorModel>,
+}
+
+impl Navigator {
+    pub fn new(scene:&Scene, camera:&Camera2d) -> Self {
+        let model = Rc::new(NavigatorModel::new(scene,camera));
+        Navigator{model}
+    }
+
 }
 
 

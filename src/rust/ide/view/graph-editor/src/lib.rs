@@ -43,17 +43,17 @@ use ensogl::application::Application;
 use ensogl::application::shortcut;
 use ensogl::application;
 use ensogl::data::color;
-use ensogl::display;
-use ensogl::display::object::Id;
 use ensogl::display::Scene;
+use ensogl::display::navigation::navigator::Navigator;
+use ensogl::display::object::Id;
 use ensogl::display::shape::StyleWatch;
+use ensogl::display;
 use ensogl::gui::component::DEPRECATED_Animation;
 use ensogl::gui::component::Tween;
 use ensogl::gui::cursor;
 use ensogl::prelude::*;
 use ensogl::system::web;
 use ensogl_theme as theme;
-
 
 
 // ===============
@@ -1121,6 +1121,8 @@ pub struct GraphEditorModel {
     pub visualizations : visualization::Registry,
     touch_state        : TouchState,
     frp                : FrpEndpoints,
+    navigator          : Navigator,
+
 }
 
 
@@ -1143,8 +1145,10 @@ impl GraphEditorModel {
         let breadcrumbs    = component::Breadcrumbs::new(app.clone_ref());
         let app            = app.clone_ref();
         let frp            = frp.output.clone_ref();
+        let navigator      = Navigator::new(&scene,&scene.camera());
         Self {
-            logger,display_object,app,cursor,nodes,edges,touch_state,frp,breadcrumbs,visualizations
+            logger,display_object,app,cursor,nodes,edges,touch_state,frp,breadcrumbs,
+            vis_registry,visualisations,navigator
         }.init()
     }
 
@@ -1778,7 +1782,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     let world          = &app.display;
     let scene          = world.scene();
     let cursor         = &app.cursor;
-    let frp            = Frp::new();
+    let frp          = Frp::new();
     let model          = GraphEditorModelWithNetwork::new(app,cursor.clone_ref(),&frp);
     let network        = &frp.network;
     let nodes          = &model.nodes;
