@@ -608,13 +608,25 @@ impl Handle {
     /// Does nothing, if the latter node is already placed after former.
     pub fn place_node_line_after
     (&self, node_to_be_before:node::Id, node_to_be_after:node::Id) -> FallibleResult {
-        let definition = self.graph_definition_info()?;
-        let mut lines  = definition.block_lines()?;
+        let definition      = self.graph_definition_info()?;
+        let dependent_nodes = double_representation::connection::dependent_nodes_in_def(&definition.body().item, node_to_be_after);
+        let mut lines       = definition.block_lines()?;
 
         let before_node_position = node::index_in_lines(&lines,node_to_be_before)?;
         let after_node_position  = node::index_in_lines(&lines,node_to_be_after)?;
         if before_node_position > after_node_position {
             lines[after_node_position..=before_node_position].rotate_left(1);
+            let mut range_to_check = after_node_position..(before_node_position + 1);
+            while !range_to_check.is_empty() {
+                let id = NodeInfo::from_block_line(&lines[range_to_check.start]).map(|n| n.id());
+                if id.map_or(false, |id| dependent_nodes.contains(&id)) {
+                    lines[range_to_check.start ..= before_node_position].rotate_left(1);
+                    range_to_check = range_to_check.start .. (range_to_check.end - 1)
+                } else {
+                    range_to_check = (range_to_check.start + 1) .. range_to_check.end;
+                }
+            }
+
             self.update_definition_ast(|mut def| {
                 def.set_block_lines(lines)?;
                 Ok(def)
