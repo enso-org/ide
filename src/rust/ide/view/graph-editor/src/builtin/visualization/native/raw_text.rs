@@ -21,7 +21,7 @@ use ensogl::system::web::AttributeSetter;
 // =================
 // === Constants ===
 // =================
-const PADDING_LEFT: f32 = 14.0;
+const PADDING_TEXT: f32 = 10.0;
 
 
 
@@ -97,7 +97,7 @@ impl RawTextModel {
         let _green       = text_color.green * 255.0;
         let _blue        = text_color.blue * 255.0;
         let text_color   = format!("rgba({},{},{},{})",_red,_green,_blue,text_color.alpha);
-        let padding_left = format!("{}px",PADDING_LEFT);
+        let padding_text = format!("{}px",PADDING_TEXT);
 
         dom.dom().set_attribute_or_warn("class","visualization scrollable",&logger);
         dom.dom().set_style_or_warn("white-space"   ,"pre"                ,&logger);
@@ -105,7 +105,8 @@ impl RawTextModel {
         dom.dom().set_style_or_warn("overflow-x"    ,"auto"               ,&logger);
         dom.dom().set_style_or_warn("font-family"   ,"DejaVuSansMonoBook" ,&logger);
         dom.dom().set_style_or_warn("font-size"     ,"12px"               ,&logger);
-        dom.dom().set_style_or_warn("padding-left"  ,padding_left         ,&logger);
+        dom.dom().set_style_or_warn("padding-left"  ,&padding_text        ,&logger);
+        dom.dom().set_style_or_warn("padding-top"   ,&padding_text        ,&logger);
         dom.dom().set_style_or_warn("color"         ,text_color           ,&logger);
         dom.dom().set_style_or_warn("pointer-events","auto"               ,&logger);
 
@@ -119,8 +120,9 @@ impl RawTextModel {
     }
 
     fn set_size(&self, size:Vector2) {
-        let x_mod = size.x - PADDING_LEFT;
-        let size  = Vector2(x_mod,size.y);
+        let x_mod = size.x - PADDING_TEXT;
+        let y_mod = size.y - PADDING_TEXT;
+        let size  = Vector2(x_mod,y_mod);
         self.size.set(size);
         self.reload_style();
     }
@@ -132,7 +134,6 @@ impl RawTextModel {
         };
         let data_str = serde_json::to_string_pretty(&**data_inner);
         let data_str = data_str.unwrap_or_else(|e| format!("<Cannot render data: {}>", e));
-        let data_str = format!("\n{}",data_str);
         self.dom.dom().set_inner_text(&data_str);
         Ok(())
     }
