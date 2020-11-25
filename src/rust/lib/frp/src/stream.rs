@@ -11,27 +11,43 @@ use crate::data::watch;
 // === CallStack ===
 // =================
 
+/// Owned call stack type.
+#[cfg(feature="stack-trace")]
+pub type OwnedCallStack = EnabledCallStack;
+
+/// Owned call stack type.
+#[cfg(not(feature="stack-trace"))]
+pub type OwnedCallStack = DisabledCallStack;
+
 /// A call stack trace for FRP events.
 pub type CallStack<'a> = &'a OwnedCallStack;
 
+
+// === Ops ===
+
+/// Call stack operations available on both enabled and disabled stack implementations.
+pub trait CallStackOps : Default + Display {
+    /// Create a sub stack trace.
+    fn sub(&self, label:Label) -> Self;
+}
+
+
+// === Enabled ===
+
 /// A call stack trace for FRP events.
-#[cfg(feature="stack-trace")]
 #[derive(Debug,Default)]
-pub struct OwnedCallStack {
+pub struct EnabledCallStack {
     stack: Vec<Label>
 }
 
-#[cfg(feature="stack-trace")]
-impl OwnedCallStack {
-    /// Create a sub stack trace.
-    pub fn sub(&self, label:Label) -> Self {
+impl CallStackOps for EnabledCallStack {
+    fn sub(&self, label:Label) -> Self {
         let stack = self.stack.to_vec().pushed(label);
         Self {stack}
     }
 }
 
-#[cfg(feature="stack-trace")]
-impl Display for OwnedCallStack {
+impl Display for EnabledCallStack {
     fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
         let indent = "\n    ";
         let trace  = indent.to_string() + &self.stack.join(indent);
@@ -39,23 +55,22 @@ impl Display for OwnedCallStack {
     }
 }
 
+
+// === Disabled ===
+
 /// A call stack trace for FRP events.
-#[cfg(not(feature="stack-trace"))]
 #[derive(Debug,Clone,Copy,Default)]
-pub struct OwnedCallStack {
+pub struct DisabledCallStack {
     stack: ()
 }
 
-#[cfg(not(feature="stack-trace"))]
-impl OwnedCallStack {
-    /// Create a sub stack trace.
-    pub fn sub(&self, _label:Label) -> Self {
+impl CallStackOps for DisabledCallStack {
+    fn sub(&self, _label:Label) -> Self {
         *self
     }
 }
 
-#[cfg(not(feature="stack-trace"))]
-impl Display for OwnedCallStack {
+impl Display for DisabledCallStack {
     fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f,"Compile time disabled call stack trace.")
     }
@@ -105,7 +120,7 @@ pub trait EventOutput = 'static + ValueProvider + EventEmitter + CloneRef + HasI
 pub trait EventEmitter : HasOutput {
     /// Emit a new event.
     fn emit_event(&self, stack:CallStack, value:&Self::Output);
-    /// Register new event target. All emited events will be send to every registered target.
+    /// Register new event target. All emitted events will be send to every registered target.
     fn register_target(&self, target:EventInput<Output<Self>>);
     /// Register that someone is watching value of this node.
     fn register_watch(&self) -> watch::Handle;
