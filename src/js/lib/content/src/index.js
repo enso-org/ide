@@ -167,7 +167,8 @@ function print_scam_warning() {
     let msg1 = "This is a browser feature intended for developers. If someone told you to " +
                "copy-paste something here, it is a scam and will give them access to your " +
                "account and data."
-    let msg2 = "See https://www.enso.org/security/selfxss for more information."
+    let msg2 = "See https://github.com/enso-org/ide/blob/main/docs/security/selfxss.md for more " +
+               "information."
     console.log("%cStop!",stopCSS)
     console.log("%c"+msg1,msgCSS)
     console.log("%c"+msg2,msgCSS)
