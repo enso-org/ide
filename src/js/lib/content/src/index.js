@@ -155,8 +155,27 @@ function disableContextMenu() {
     })
 }
 
+function print_scam_warning() {
+    let stopCSS = `
+        color : red;
+        font-weight : bold;
+        font-size : 46px;
+        -webkit-text-stroke-color : black;
+        -webkit-text-stroke-width : 1px;
+    `
+    let msgCSS = "font-size:large;"
+    let msg1 = "This is a browser feature intended for developers. If someone told you to " +
+               "copy-paste something here, it is a scam and will give them access to your " +
+               "account and data."
+    let msg2 = "See https://www.enso.org/security/selfxss for more information."
+    console.log("%cStop!",stopCSS)
+    console.log("%c"+msg1,msgCSS)
+    console.log("%c"+msg2,msgCSS)
+}
+
 /// Main entry point. Loads WASM, initializes it, chooses the scene to run.
 async function main() {
+    print_scam_warning()
     disableContextMenu()
     let location = window.location.pathname.split('/')
     location.splice(0,1)
