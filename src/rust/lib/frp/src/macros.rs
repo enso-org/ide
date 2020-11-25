@@ -262,8 +262,8 @@ macro_rules! extend_line2 {
     ([] $net:ident $name:ident <- $($toks:tt)*) => {$crate::extend_line2! { [] $net def $name = $($toks)* } };
     ([] $net:ident $($tgt:ident).+ <+ $($src:ident).+) => { $($tgt).+.attach(&$($src).+); };
     ([] $net:ident $($tgt:ident).+ <+ $($toks:tt)*) => {
-        $crate::extend_line2! { [] $net __tmp__ <- $($toks)* }
-        $($tgt).+.attach(&__tmp__);
+        $crate::extend_line2! { [] $net __unnamed__ <- $($toks)* }
+        $($tgt).+.attach(&__unnamed__);
     };
 
     ([] $net:ident eval $tgt1:ident                                                         ($($args:tt)*) $($ts:tt)*) => { $crate::extend_line2! { [] $net def _eval = $tgt1                                 . map (f!($($args)*)) $($ts)* } };

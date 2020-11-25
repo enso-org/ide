@@ -750,8 +750,8 @@ impl<Out:Data> OwnedSource<Out> {
 
 impl<Out:Data> OwnedSource<Out> {
     /// Emit new event.
-    pub fn emit<T:IntoParam<Out>>(&self, stack:CallStack, value:T) {
-        self.emit_event(stack, &value.into_param())
+    pub fn emit<T:IntoParam<Out>>(&self, value:T) {
+        self.emit_event(&default(), &value.into_param())
     }
 }
 
