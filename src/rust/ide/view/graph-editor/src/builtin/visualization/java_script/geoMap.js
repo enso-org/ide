@@ -43,10 +43,32 @@ loadScript("https://api.tiles.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.js");
 loadStyle("https://api.tiles.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.css");
 
 const styleHead = document.createElement("style");
-styleHead.innerText = `.mapboxgl-map {
-            border-radius: 14px;
-        }`;
+styleHead.innerText = `
+.mapboxgl-map {
+    border-radius: 14px;
+}`;
 document.head.appendChild(styleHead);
+
+// ====================
+// === Id Generator ===
+// ====================
+
+/**
+ * Returns a function that will generate unique map ids of the form "map_" followed by a number.
+ * Each call to the returned function will return a unique id.
+ *
+ * @returns {function(): string}
+ */
+function makeGenerator() {
+  let _id = 0;
+  return () => {
+    const id = "map_" + _id.toString();
+    _id += 1;
+    return id;
+  };
+}
+
+const makeId = makeGenerator();
 
 // ============================
 // === MapViewVisualization ===
@@ -89,7 +111,7 @@ class GeoMapVisualization extends Visualization {
     const width = this.dom.getAttributeNS(null, "width");
     const height = this.dom.getAttributeNS(null, "height");
     const mapElem = document.createElement("div");
-    this.mapId = "map";
+    this.mapId = makeId();
     mapElem.setAttributeNS(null, "id", this.mapId);
     mapElem.setAttributeNS(
       null,
