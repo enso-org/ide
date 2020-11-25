@@ -300,7 +300,7 @@ impl Integration {
         let logger  = model.logger.clone_ref();
         let handler = process_stream_with_handle(stream,weak,move |notification,_model| {
             info!(logger,"Processing notification {notification:?}");
-            frp_endpoint.emit_event(&Some(notification));
+            frp_endpoint.emit(&Some(notification));
             futures::future::ready(())
         });
         executor::global::spawn(handler);
@@ -315,7 +315,7 @@ impl Integration {
         let logger  = model.logger.clone_ref();
         let handler = process_stream_with_handle(stream,weak,move |notification,_model| {
             info!(logger,"Processing notification {notification:?}");
-            frp_endpoint.emit_event(&Some(notification));
+            frp_endpoint.emit(&Some(notification));
             futures::future::ready(())
         });
         executor::global::spawn(handler);
@@ -474,7 +474,7 @@ impl Model {
             filtered.map(|(k,v)| (*k,*v)).collect_vec()
         };
         for (id,displayed_id) in to_remove {
-            self.view.graph().frp.input.remove_node.emit_event(&displayed_id);
+            self.view.graph().frp.input.remove_node.emit(&displayed_id);
             self.node_views.borrow_mut().remove_by_left(&id);
         }
     }
@@ -486,7 +486,7 @@ impl Model {
         self.refresh_node_view(displayed_id, info, trees);
         // If position wasn't present in metadata, we must initialize it.
         if info.metadata.as_ref().and_then(|md| md.position).is_none() {
-            self.view.graph().frp.input.set_node_position.emit_event(&(displayed_id, default_pos));
+            self.view.graph().frp.input.set_node_position.emit(&(displayed_id, default_pos));
         }
         self.node_views.borrow_mut().insert(id, displayed_id);
     }
@@ -526,7 +526,7 @@ impl Model {
     (&self, id:graph_editor::NodeId, node:&controller::graph::Node, trees:NodeTrees) {
         let position = node.metadata.as_ref().and_then(|md| md.position);
         if let Some(position) = position {
-            self.view.graph().frp.input.set_node_position.emit_event(&(id, position.vector));
+            self.view.graph().frp.input.set_node_position.emit(&(id, position.vector));
         }
         let expression = node.info.expression().repr();
 
@@ -541,7 +541,7 @@ impl Model {
             output_span_tree : trees.outputs.unwrap_or_else(default)
         };
         if !self.expression_views.borrow().get(&id).contains(&&code_and_trees) {
-            self.view.graph().frp.input.set_node_expression.emit_event(&(id, code_and_trees.clone()));
+            self.view.graph().frp.input.set_node_expression.emit(&(id, code_and_trees.clone()));
             self.expression_views.borrow_mut().insert(id,code_and_trees);
         }
 
@@ -585,13 +585,13 @@ impl Model {
     /// Set given type (or lack of such) on the given sub-expression.
     fn set_type(&self, node_id:graph_editor::NodeId, id:ExpressionId, typename:Option<graph_editor::Type>) {
         let event = (node_id,id,typename);
-        self.view.graph().frp.input.set_expression_usage_type.emit_event(&event);
+        self.view.graph().frp.input.set_expression_usage_type.emit(&event);
     }
 
     /// Set given method pointer (or lack of such) on the given sub-expression.
     fn set_method_pointer(&self, id:ExpressionId, method:Option<graph_editor::MethodPointer>) {
         let event = (id,method);
-        self.view.graph().frp.input.set_method_pointer.emit_event(&event);
+        self.view.graph().frp.input.set_method_pointer.emit(&event);
     }
 
     fn refresh_connection_views
@@ -600,7 +600,7 @@ impl Model {
         for con in connections {
             if !self.connection_views.borrow().contains_left(&con) {
                 let targets = self.edge_targets_from_controller_connection(con.clone())?;
-                self.view.graph().frp.input.connect_nodes.emit_event(&targets);
+                self.view.graph().frp.input.connect_nodes.emit(&targets);
                 let edge_id = self.view.graph().frp.output.on_edge_add.value();
                 self.connection_views.borrow_mut().insert(con, edge_id);
             }
@@ -625,7 +625,7 @@ impl Model {
             filtered.map(|(_,edge_id)| *edge_id).collect_vec()
         };
         for edge_id in to_remove {
-            self.view.graph().frp.input.remove_edge.emit_event(&edge_id);
+            self.view.graph().frp.input.remove_edge.emit(&edge_id);
             self.connection_views.borrow_mut().remove_by_right(&edge_id);
         }
     }
@@ -650,7 +650,7 @@ impl Model {
         let definition = local_call.definition.clone().into();
         let call       = local_call.call;
         let local_call = graph_editor::LocalCall{definition,call};
-        self.view.graph().frp.deselect_all_nodes.emit_event(&());
+        self.view.graph().frp.deselect_all_nodes.emit(&());
         self.view.graph().model.breadcrumbs.push_breadcrumb.emit(&Some(local_call));
         self.request_detaching_all_visualizations();
         self.refresh_graph_view()
@@ -658,12 +658,12 @@ impl Model {
 
     /// Handle notification received from controller about node having been exited.
     pub fn on_node_exited(&self, id:double_representation::node::Id) -> FallibleResult {
-        self.view.graph().frp.deselect_all_nodes.emit_event(&());
+        self.view.graph().frp.deselect_all_nodes.emit(&());
         self.request_detaching_all_visualizations();
         self.refresh_graph_view()?;
         self.view.graph().model.breadcrumbs.pop_breadcrumb.emit(());
         let id = self.get_displayed_node_id(id)?;
-        self.view.graph().frp.select_node.emit_event(&id);
+        self.view.graph().frp.select_node.emit(&id);
         Ok(())
     }
 
@@ -862,7 +862,7 @@ impl Model {
             let edited_node    = graph_frp.output.node_being_edited.value().ok_or_else(error)?;
             let code           = searcher.pick_completion_by_index(*entry)?;
             let code_and_trees = node::Expression::new_plain(code);
-            graph_frp.input.set_node_expression.emit_event(&(edited_node,code_and_trees));
+            graph_frp.input.set_node_expression.emit(&(edited_node,code_and_trees));
         }
         Ok(())
     }
