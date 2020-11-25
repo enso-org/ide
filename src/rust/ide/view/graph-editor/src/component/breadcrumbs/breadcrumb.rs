@@ -26,6 +26,7 @@ use std::f32::consts::PI;
 use ensogl::application::Application;
 
 
+
 // =================
 // === Constants ===
 // =================
@@ -228,7 +229,7 @@ impl Default for Frp {
 impl Frp {
     /// Constructor.
     pub fn new() -> Self {
-        let network = frp::Network::new();
+        let network = frp::Network::new("breadcrumbs");
         let inputs  = FrpInputs::new(&network);
         let outputs = FrpOutputs::new(&network);
         Self{network,inputs,outputs}

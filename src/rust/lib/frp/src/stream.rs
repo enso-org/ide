@@ -247,7 +247,9 @@ impl<Out:Data> EventEmitter for NodeData<Out> {
         let new_stack = stack.sub(self.label);
         if self.during_call.get() {
             let logger = Logger::new("frp");
-            warning!(&logger,"Encountered a loop in the reactive dataflow. {new_stack}");
+            warning_group!(logger,"Encountered a loop in the reactive dataflow.", {
+                warning!(&logger,"{new_stack}");
+            })
         } else {
             self.during_call.set(true);
             if self.use_caching() {

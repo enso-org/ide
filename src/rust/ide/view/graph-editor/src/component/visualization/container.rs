@@ -148,11 +148,6 @@ pub mod overlay {
 
 
 // ===========
-// === FRP ===
-// ===========
-
-
-// ===========
 // === Frp ===
 // ===========
 
@@ -169,6 +164,7 @@ ensogl::define_endpoints! {
         disable_fullscreen (),
         scene_shape        (scene::Shape),
     }
+
     Output {
         preprocessor  (EnsoCode),
         visualisation (Option<visualization::Definition>),

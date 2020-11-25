@@ -37,7 +37,7 @@ pub fn entry_point_animation() {
 fn init() {
 
     let logger  = Logger::new("AnimationTest");
-    let network = enso_frp::Network::new();
+    let network = enso_frp::Network::new("test");
     let animation = DEPRECATED_Animation::<f32>::new(&network);
     animation.set_target_value(-259_830.0);
 

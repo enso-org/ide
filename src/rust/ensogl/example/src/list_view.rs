@@ -105,7 +105,7 @@ fn init(app:&Application) {
     app.display.add_child(&select);
 
     let logger  = Logger::new("SelectDebugScene");
-    let network = enso_frp::Network::new();
+    let network = enso_frp::Network::new("test");
     enso_frp::extend! {network
         eval select.chosen_entry([logger](entry) {
             info!(logger, "Chosen entry {entry:?}")

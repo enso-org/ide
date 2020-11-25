@@ -77,6 +77,7 @@ ensogl::define_endpoints! {
        /// start editing it.
        ide_text_edit_mode (bool),
     }
+
     Output {
         pointer_style (cursor::Style),
         name          (String),
