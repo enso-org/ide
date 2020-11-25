@@ -314,15 +314,15 @@ function defaultConfig() {
         version: "2.0.0-alpha.0",
         author: {
             name: "Enso Team",
-            email: "contact@luna-lang.org"
+            email: "contact@enso.org"
         },
-        homepage: "https://github.com/luna/ide",
+        homepage: "https://github.com/enso-org/ide",
         repository: {
             type: "git",
-            url: "git@github.com:luna/ide.git"
+            url: "git@github.com:enso-org/ide.git"
         },
         bugs: {
-            url: "https://github.com/luna/ide/issues"
+            url: "https://github.com/enso-org/ide/issues"
         },
     }
 }

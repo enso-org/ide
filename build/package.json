@@ -2,7 +2,7 @@
   "name": "build-script",
   "version": "1.0.0",
   "description": "Build Scripts",
-  "repository": "git@github.com:luna/ide.git",
+  "repository": "git@github.com:enso-org/ide.git",
   "dependencies": {
     "binaryen": "^91.0.0",
     "glob": "^7.1.6",

@@ -1,7 +1,7 @@
 //! Text Controller module.
 //!
-//! Facade over filesystem API or module text API for text editor. Does discerning between Luna
-//! module file and plain text file. In case of luna module idmap and metadata are hidden for the
+//! Facade over filesystem API or module text API for text editor. Does discerning between Enso
+//! module file and plain text file. In case of Enso module, idmap and metadata are hidden for the
 //! user.
 
 use crate::prelude::*;

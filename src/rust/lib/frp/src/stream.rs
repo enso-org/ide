@@ -7,6 +7,60 @@ use crate::data::watch;
 
 
 
+// =================
+// === CallStack ===
+// =================
+
+/// A call stack trace for FRP events.
+pub type CallStack<'a> = &'a OwnedCallStack;
+
+/// A call stack trace for FRP events.
+#[cfg(feature="stack-trace")]
+#[derive(Debug,Default)]
+pub struct OwnedCallStack {
+    stack: Vec<Label>
+}
+
+#[cfg(feature="stack-trace")]
+impl OwnedCallStack {
+    /// Create a sub stack trace.
+    pub fn sub(&self, label:Label) -> Self {
+        let stack = self.stack.to_vec().pushed(label);
+        Self {stack}
+    }
+}
+
+#[cfg(feature="stack-trace")]
+impl Display for OwnedCallStack {
+    fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
+        let indent = "\n    ";
+        let trace  = indent.to_string() + &self.stack.join(indent);
+        write!(f,"Call stack trace:{}",trace)
+    }
+}
+
+/// A call stack trace for FRP events.
+#[cfg(not(feature="stack-trace"))]
+#[derive(Debug,Clone,Copy,Default)]
+pub struct OwnedCallStack {
+    stack: ()
+}
+
+#[cfg(not(feature="stack-trace"))]
+impl OwnedCallStack {
+    /// Create a sub stack trace.
+    pub fn sub(&self, _label:Label) -> Self {
+        *self
+    }
+}
+
+#[cfg(not(feature="stack-trace"))]
+impl Display for OwnedCallStack {
+    fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f,"Compile time disabled call stack trace.")
+    }
+}
+
 
 
 // =================
@@ -42,8 +96,6 @@ impl<T> InputBehaviors for T {
 // ====================
 // === EventEmitter ===
 // ====================
-
-pub type CallStack<'a> = &'a [Label];
 
 /// Any type which can be used as FRP stream output.
 pub trait EventOutput = 'static + ValueProvider + EventEmitter + CloneRef + HasId;
@@ -176,14 +228,11 @@ impl<Out:Data> HasOutput for NodeData<Out> {
 }
 
 impl<Out:Data> EventEmitter for NodeData<Out> {
-    fn emit_event(&self, stack:&[Label], value:&Out) {
-        let new_stack = stack.to_vec().pushed(self.label);
+    fn emit_event(&self, stack:CallStack, value:&Out) {
+        let new_stack = stack.sub(self.label);
         if self.during_call.get() {
             let logger = Logger::new("frp");
-            let indent = "\n    ";
-            let err    = "Encountered a loop in the reactive dataflow. Call stack trace:";
-            let err    = err.to_string() + indent + &new_stack.join(indent);
-            warning!(&logger,"{err}");
+            warning!(&logger,"Encountered a loop in the reactive dataflow. {new_stack}");
         } else {
             self.during_call.set(true);
             if self.use_caching() {

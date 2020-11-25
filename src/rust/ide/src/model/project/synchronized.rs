@@ -211,7 +211,7 @@ impl Project {
                     error!(logger,"Lost binary connection with the Language Server!");
                     // TODO [wmu]
                     //  The problem should be reported to the user and the connection should be
-                    //  reestablished, see https://github.com/luna/ide/issues/145
+                    //  reestablished, see https://github.com/enso-org/ide/issues/145
                 }
                 Event::Error(error) => {
                     error!(logger,"Error emitted by the binary data connection: {error}.");
@@ -231,7 +231,7 @@ impl Project {
         //  binary protocol notifications. However, it is not practical to generalize them, as the
         //  underlying RPC handlers and their types are separate.
         //  This generalization should be reconsidered once the old JSON-RPC handler is phased out.
-        //  See: https://github.com/luna/ide/issues/587
+        //  See: https://github.com/enso-org/ide/issues/587
         let logger                  = self.logger.clone_ref();
         let weak_execution_contexts = Rc::downgrade(&self.execution_contexts);
         let weak_suggestion_db      = Rc::downgrade(&self.suggestion_db);
@@ -265,7 +265,7 @@ impl Project {
                     error!(logger,"Lost JSON-RPC connection with the Language Server!");
                     // TODO [wmu]
                     //  The problem should be reported to the user and the connection should be
-                    //  reestablished, see https://github.com/luna/ide/issues/145
+                    //  reestablished, see https://github.com/enso-org/ide/issues/145
                 }
                 Event::Error(error) => {
                     error!(logger,"Error emitted by the binary data connection: {error}.");

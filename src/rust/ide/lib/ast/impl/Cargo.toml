@@ -1,11 +1,13 @@
 [package]
 name    = "ast"
 version = "0.1.0"
-authors = ["Enso Team <contact@luna-lang.org>"]
+authors = ["Enso Team <contact@enso.org>"]
 edition = "2018"
+
 
 [lib]
 crate-type = ["cdylib", "rlib"]
+
 
 [dependencies]
 derive_more  = { version = "0.15.0"                                           }
