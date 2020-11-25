@@ -21,7 +21,7 @@ use ensogl::system::web::AttributeSetter;
 // =================
 // === Constants ===
 // =================
-const PADDING_LEFT: f32 = 10.0;
+const PADDING_LEFT: f32 = 14.0;
 
 
 
