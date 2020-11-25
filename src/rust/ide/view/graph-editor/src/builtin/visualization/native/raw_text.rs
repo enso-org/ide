@@ -18,6 +18,13 @@ use ensogl::system::web::AttributeSetter;
 
 
 
+// =================
+// === Constants ===
+// =================
+const PADDING_LEFT: f32 = 10.0;
+
+
+
 // ===============
 // === RawText ===
 // ===============
@@ -83,13 +90,14 @@ impl RawTextModel {
         let size   = Rc::new(Cell::new(Vector2(200.0,200.0)));
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
-        let styles     = StyleWatch::new(&scene.style_sheet);
-        let text_color = styles.get_color(ensogl_theme::graph_editor::visualization::text);
-        let text_color = color::Rgba::from(text_color);
-        let _red       = text_color.red * 255.0;
-        let _green     = text_color.green * 255.0;
-        let _blue      = text_color.blue * 255.0;
-        let text_color = format!("rgba({},{},{},{})",_red,_green,_blue,text_color.alpha);
+        let styles       = StyleWatch::new(&scene.style_sheet);
+        let text_color   = styles.get_color(ensogl_theme::graph_editor::visualization::text);
+        let text_color   = color::Rgba::from(text_color);
+        let _red         = text_color.red * 255.0;
+        let _green       = text_color.green * 255.0;
+        let _blue        = text_color.blue * 255.0;
+        let text_color   = format!("rgba({},{},{},{})",_red,_green,_blue,text_color.alpha);
+        let padding_left = format!("{}px",PADDING_LEFT);
 
         dom.dom().set_attribute_or_warn("class","visualization scrollable",&logger);
         dom.dom().set_style_or_warn("white-space"   ,"pre"                ,&logger);
@@ -97,7 +105,7 @@ impl RawTextModel {
         dom.dom().set_style_or_warn("overflow-x"    ,"auto"               ,&logger);
         dom.dom().set_style_or_warn("font-family"   ,"DejaVuSansMonoBook" ,&logger);
         dom.dom().set_style_or_warn("font-size"     ,"12px"               ,&logger);
-        dom.dom().set_style_or_warn("padding-left"  ,"5px"                ,&logger);
+        dom.dom().set_style_or_warn("padding-left"  ,padding_left         ,&logger);
         dom.dom().set_style_or_warn("color"         ,text_color           ,&logger);
         dom.dom().set_style_or_warn("pointer-events","auto"               ,&logger);
 
@@ -111,7 +119,7 @@ impl RawTextModel {
     }
 
     fn set_size(&self, size:Vector2) {
-        let x_mod = size.x - 5.0;
+        let x_mod = size.x - PADDING_LEFT;
         let size  = Vector2(x_mod,size.y);
         self.size.set(size);
         self.reload_style();
