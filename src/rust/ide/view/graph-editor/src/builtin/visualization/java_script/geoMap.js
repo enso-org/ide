@@ -66,73 +66,116 @@ document.head.appendChild(styleHead);
  * }]
  * }
  */
-class MapViewVisualization extends Visualization {
+class GeoMapVisualization extends Visualization {
   static inputType = "Any";
+  static label = "Geo Map";
 
-  onDataReceived(data) {
-    while (this.dom.firstChild) {
-      this.dom.removeChild(this.dom.lastChild);
-    }
+  constructor(api) {
+    super(api);
+    this.initMapElement();
+    this.initStyle();
+    this.dataPoints = [];
+  }
 
+  initMapElement() {
     const width = this.dom.getAttributeNS(null, "width");
     const height = this.dom.getAttributeNS(null, "height");
     const mapElem = document.createElement("div");
-    mapElem.setAttributeNS(null, "id", "map");
+    this.mapId = "map";
+    mapElem.setAttributeNS(null, "id", this.mapId);
     mapElem.setAttributeNS(
       null,
       "style",
       "width:" + width + "px;height: " + height + "px;"
     );
     this.dom.appendChild(mapElem);
+    this.mapElem = mapElem;
+  }
 
-    let parsedData = data;
-    if (typeof data === "string") {
-      parsedData = JSON.parse(data);
-    }
-
+  initStyle() {
     let defaultMapStyle = "mapbox://styles/mapbox/light-v9";
     let accentColor = LIGHT_ACCENT_COLOR;
     if (document.getElementById("root").classList.contains("dark-theme")) {
       defaultMapStyle = "mapbox://styles/mapbox/dark-v9";
       accentColor = DARK_ACCENT_COLOR;
     }
+    this.defaultMapStyle = defaultMapStyle;
+    this.accentColor = accentColor;
+  }
 
-    let preparedDataPoints = [];
-    let computed = this.prepareDataPoints(
-      parsedData,
-      preparedDataPoints,
-      accentColor
+  onDataReceived(data) {
+    let parsedData = data;
+    if (typeof data === "string") {
+      parsedData = JSON.parse(data);
+    }
+    this.updateState(parsedData);
+    this.updateMap();
+    this.updateLayers();
+  }
+
+  /**
+   * Update the internal data with the new incoming data. Does not affect anything rendered.
+   */
+  updateState(data) {
+    let { latitude, longitude } = this.prepareDataPoints(
+      data,
+      this.dataPoints,
+      this.accentColor
     );
-    const scatterplotLayer = new deck.ScatterplotLayer({
-      data: preparedDataPoints,
+
+    this.latitude = ok(data.latitude) ? data.latitude : latitude;
+    this.longitude = ok(data.longitude) ? data.longitude : longitude;
+
+    // TODO : Compute zoom somehow from span of latitudes and longitudes.
+    this.zoom = ok(data.zoom) ? data.zoom : DEFAULT_MAP_ZOOM;
+    this.mapStyle = ok(data.mapStyle) ? data.mapStyle : this.defaultMapStyle;
+    this.pitch = ok(data.pitch) ? data.pitch : 0;
+    this.controller = ok(data.controller) ? data.controller : true;
+  }
+
+  viewState() {
+    return {
+      longitude: this.longitude,
+      latitude: this.latitude,
+      zoom: this.zoom,
+      pitch: this.pitch,
+    };
+  }
+
+  updateMap() {
+    if (!ok(this.deckgl)) {
+      this.initDeckGl();
+    } else {
+      this.updateDeckGl();
+    }
+  }
+
+  makeScatterLayer() {
+    return new deck.ScatterplotLayer({
+      data: this.dataPoints,
       getFillColor: (d) => d.color,
       getRadius: (d) => d.radius,
     });
+  }
 
-    let latitude = ok(parsedData.latitude)
-      ? parsedData.latitude
-      : computed.latitude;
-    let longitude = ok(parsedData.longitude)
-      ? parsedData.longitude
-      : computed.longitude;
-    // TODO : Compute zoom somehow from span of latitudes and longitudes.
-    let zoom = ok(parsedData.zoom) ? parsedData.zoom : DEFAULT_MAP_ZOOM;
-    let mapStyle = ok(parsedData.mapStyle)
-      ? parsedData.mapStyle
-      : defaultMapStyle;
-    let pitch = ok(parsedData.pitch) ? parsedData.pitch : 0;
-    let controller = ok(parsedData.controller) ? parsedData.controller : true;
-
-    const deckgl = new deck.DeckGL({
-      container: "map",
+  initDeckGl() {
+    this.deckgl = new deck.DeckGL({
+      container: this.mapId,
       mapboxApiAccessToken: TOKEN,
-      mapStyle,
-      initialViewState: { longitude, latitude, zoom, pitch },
-      controller,
+      mapStyle: this.mapStyle,
+      initialViewState: this.viewState(),
+      controller: this.controller,
     });
+  }
 
-    deckgl.setProps({
-      layers: [scatterplotLayer],
+  updateDeckGl() {
+    this.deckgl.mapStyle = this.mapStyle;
+    this.deckgl.controller = this.controller;
+  }
+
+  updateLayers() {
+    this.deckgl.setProps({
+      layers: [this.makeScatterLayer()],
     });
   }
 
@@ -242,6 +285,11 @@ class MapViewVisualization extends Visualization {
   setSize(size) {
     this.dom.setAttributeNS(null, "width", size[0]);
     this.dom.setAttributeNS(null, "height", size[1]);
+    this.mapElem.setAttributeNS(
+      null,
+      "style",
+      "width:" + size[0] + "px;height: " + size[1] + "px;"
+    );
   }
 }
 
@@ -252,4 +300,4 @@ function ok(t) {
   return t !== undefined && t !== null;
 }
 
-return MapViewVisualization;
+return GeoMapVisualization;
