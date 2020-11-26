@@ -22,7 +22,7 @@ use ensogl_text as text;
 use ensogl_text::style::Size as TextSize;
 use ensogl_theme as theme;
 use logger::AnyLogger;
-use logger::enabled::Logger;
+use logger::DefaultTraceLogger as Logger;
 
 
 
@@ -150,7 +150,7 @@ impl ProjectNameModel {
         text_field.add_to_view(&scene.views.breadcrumbs);
         text_field.hover();
 
-        let view_logger = Logger::sub(&logger,"view_logger") : Logger;
+        let view_logger = Logger::sub(&logger,"view_logger");
         let view        = component::ShapeView::<background::Shape>::new(&view_logger,scene);
 
         scene.views.main.remove_shape_view(&view);

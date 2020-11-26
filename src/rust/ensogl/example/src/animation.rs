@@ -6,7 +6,7 @@ use ensogl_core::system::web;
 use ensogl_core::application::Application;
 use ensogl_core::gui::component::DEPRECATED_Animation;
 use ensogl_text_msdf_sys::run_once_initialized;
-use logger::enabled::TraceLogger as Logger;
+use logger::TraceLogger as Logger;
 use wasm_bindgen::prelude::*;
 
 

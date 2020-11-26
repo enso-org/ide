@@ -3,7 +3,7 @@ use crate::prelude::*;
 
 use crate as frp;
 
-use enso_logger::disabled::*;
+use enso_logger::WarningLogger as Logger;
 use ensogl_system_web as web;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;

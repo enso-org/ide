@@ -7,7 +7,6 @@ use ensogl_core::display;
 use ensogl_core::display::shape::StyleWatch;
 use ensogl_text as text;
 use ensogl_theme;
-use enabled::Logger;
 
 
 

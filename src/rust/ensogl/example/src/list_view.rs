@@ -10,7 +10,7 @@ use ensogl_core::data::color;
 use ensogl_core::gui;
 use ensogl_text_msdf_sys::run_once_initialized;
 use ensogl_gui_components::list_view;
-use logger::enabled::TraceLogger as Logger;
+use logger::TraceLogger as Logger;
 use wasm_bindgen::prelude::*;
 use ensogl_core::display::Scene;
 use ensogl_text::buffer::data::unit::Bytes;
