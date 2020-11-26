@@ -171,7 +171,7 @@ class TableVisualization extends Visualization {
         const style_dark = `
         <style>
         table {
-            font-family: sans-serif;
+            font-family: DejaVuSansMonoBook, sans-serif;
             font-size: 12px;
         }
         
@@ -206,7 +206,7 @@ class TableVisualization extends Visualization {
         const style_light = `
         <style>
         table {
-            font-family: sans-serif;
+            font-family: DejaVuSansMonoBook, sans-serif;
             font-size: 12px;
         }
 
