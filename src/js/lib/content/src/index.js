@@ -156,21 +156,25 @@ function disableContextMenu() {
 }
 
 function print_scam_warning() {
-    let stopCSS = `
+    let headerCSS = `
         color : white;
         background : crimson;
         display : block;
         border-radius : 8px;
         font-weight : bold;
-        font-size : 46px;
+        padding: 10px 20px 10px 20px;
     `
-    let msgCSS = "font-size:large;"
+    let headerCSS1 = headerCSS + "font-size : 46px;"
+    let headerCSS2 = headerCSS + "font-size : 20px;"
+    let msgCSS     = "font-size:16px;"
+    
     let msg1 = "This is a browser feature intended for developers. If someone told you to " +
                "copy-paste something here, it is a scam and will give them access to your " +
                "account and data."
     let msg2 = "See https://github.com/enso-org/ide/blob/main/docs/security/selfxss.md for more " +
                "information."
-    console.log("%c Stop! ",stopCSS)
+    console.log("%cStop!",headerCSS1)
+    console.log("%cYou may be victim of a scam!",headerCSS2)
     console.log("%c"+msg1,msgCSS)
     console.log("%c"+msg2,msgCSS)
 }
