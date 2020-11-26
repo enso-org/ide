@@ -9,5 +9,9 @@
     "ncp": "^2.0.0",
     "yargs": "^15.3.0"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "prettier": "2.2.0",
+    "prettier-plugin-toml": "0.3.1"
+  }
 }

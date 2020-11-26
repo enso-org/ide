@@ -157,11 +157,12 @@ function disableContextMenu() {
 
 function print_scam_warning() {
     let stopCSS = `
-        color : red;
+        color : white;
+        background : crimson;
+        display : block;
+        border-radius : 8px;
         font-weight : bold;
         font-size : 46px;
-        -webkit-text-stroke-color : black;
-        -webkit-text-stroke-width : 1px;
     `
     let msgCSS = "font-size:large;"
     let msg1 = "This is a browser feature intended for developers. If someone told you to " +
@@ -169,7 +170,7 @@ function print_scam_warning() {
                "account and data."
     let msg2 = "See https://github.com/enso-org/ide/blob/main/docs/security/selfxss.md for more " +
                "information."
-    console.log("%cStop!",stopCSS)
+    console.log("%c Stop! ",stopCSS)
     console.log("%c"+msg1,msgCSS)
     console.log("%c"+msg2,msgCSS)
 }
