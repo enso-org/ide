@@ -63,4 +63,3 @@ impl display::Object for Application {
         self.display.display_object()
     }
 }
-zrobic issue na kolory

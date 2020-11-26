@@ -1,13 +1,14 @@
-const cmd    = require('./cmd')
-const fs     = require('fs').promises
-const fss    = require('fs')
-const glob   = require('glob')
-const ncp    = require('ncp').ncp
-const path   = require('path')
-const paths  = require('./paths')
-const stream = require('stream');
-const yargs  = require('yargs')
-const zlib   = require('zlib');
+const cmd      = require('./cmd')
+const fs       = require('fs').promises
+const fss      = require('fs')
+const glob     = require('glob')
+const ncp      = require('ncp').ncp
+const path     = require('path')
+const paths    = require('./paths')
+const prettier = require("prettier")
+const stream   = require('stream')
+const yargs    = require('yargs')
+const zlib     = require('zlib')
 
 process.on('unhandledRejection', error => { throw(error) })
 process.chdir(paths.root)
@@ -201,6 +202,22 @@ commands.lint.rust = async function() {
 }
 
 
+// === TomlFmt ===
+
+commands['toml-fmt'] = command(`Lint the codebase`)
+commands['toml-fmt'].rust = async function() {
+    console.log("Looking for all TOML files.")
+    let files = glob.sync(paths.rust.root + "/**/*.toml", {cwd:paths.root});
+    console.log(`Found ${files.length} entries. Running auto-formatter.`)
+    for (let file of files) {
+        console.log(`    Formatting '${file}'.`)
+        let text = fss.readFileSync(file, "utf8")
+        let out  = prettier.format(text,{parser:'toml'})
+        fss.writeFileSync(file,out)
+    }
+}
+
+
 // === Watch ===
 
 commands.watch          = command(`Start a file-watch utility and run interactive mode`)
@@ -383,6 +400,10 @@ async function installJsDeps() {
 async function runCommand(command,argv) {
     let config = commands[command]
     cargoArgs  = argv['--']
+    if (config === undefined) {
+        console.error(`Invalid command '${command}'.`)
+        return
+    }
     if(cargoArgs === undefined) { cargoArgs = [] }
     let index = cargoArgs.indexOf('--')
     if (index == -1) {

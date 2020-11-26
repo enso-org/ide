@@ -5,10 +5,8 @@ authors = ["Enso Team <contact@enso.org>"]
 edition = "2018"
 
 [dependencies]
-path-clean  = "0.1.0"
+path-clean = "0.1.0"
 
 [dependencies.reqwest]
-version  = "0.10.6"
-features = [
-  'blocking',
-]
+version = "0.10.6"
+features = ['blocking']

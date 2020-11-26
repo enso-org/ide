@@ -7,4 +7,4 @@ edition = "2018"
 [workspace]
 
 [dependencies]
-toml="0.5.5"
+toml = "0.5.5"
