@@ -574,8 +574,14 @@ extern "C" {
     fn new_panic_error(message:String) -> JsValue;
 }
 
-fn error_throwing_panic_hook(panic_info: &panic::PanicInfo) {
+fn error_throwing_panic_hook(panic_info:&panic::PanicInfo) {
     wasm_bindgen::throw_val(new_panic_error(panic_info.to_string()));
+}
+
+#[wasm_bindgen]
+pub fn entry_point_panic() {
+    forward_panic_hook_to_error();
+    panic!();
 }
 
 
