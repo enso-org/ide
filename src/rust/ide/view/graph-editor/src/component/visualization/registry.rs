@@ -37,7 +37,6 @@ impl Registry {
     /// Return a `Registry` pre-populated with default visualizations.
     pub fn with_default_visualizations() -> Self {
         let registry = Self::new();
-        registry.add(builtin::visualization::native::BubbleChart::definition());
         registry.add(builtin::visualization::native::RawText::definition());
         registry.try_add_java_script(builtin::visualization::java_script::scatter_plot_visualization());
         registry.try_add_java_script(builtin::visualization::java_script::histogram_visualization());
