@@ -116,9 +116,11 @@ pub fn group_by_source_node
     result
 }
 
-
+/// Returns a set of nodes dependent of the given node in the block.
+///
+/// A node _A_ is dependent on node _B_ if its input is connected to _B_'s output, or to at least
+/// one node dependent on _B_.
 pub fn dependent_nodes_in_def(body:&Ast, node:Id) -> HashSet<Id> {
-    let logger               = enso_logger::enabled::Logger::default();
     let connections          = list(body);
     let node_out_connections = group_by_source_node(connections);
     let mut result           = HashSet::new();
@@ -146,7 +148,7 @@ mod tests {
     use parser::Parser;
     use crate::double_representation::definition::DefinitionInfo;
     use crate::double_representation::graph::GraphInfo;
-    use ast::{crumbs, HasIdMap};
+    use ast::crumbs;
     use ast::crumbs::InfixCrumb;
 
     struct TestRun {
