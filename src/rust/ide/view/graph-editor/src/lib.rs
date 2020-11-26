@@ -13,6 +13,7 @@
 #![feature(specialization)]
 #![feature(trait_alias)]
 #![feature(type_alias_impl_trait)]
+#![feature(type_ascription)]
 #![feature(unboxed_closures)]
 #![feature(vec_remove_item)]
 #![feature(weak_into_raw)]
@@ -2453,7 +2454,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
                 node.model.visualization.frp.set_visualization.emit(vis_definition);
             },
             (Some(node), None) => node.model.visualization.frp.set_visualization.emit(None),
-             _                 => logger.warning(|| format!("Failed to get node: {:?}",node_id)),
+             _                 => warning!(logger,"Failed to get node: {node_id:?}"),
 
        }
    }));
@@ -2489,7 +2490,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
             let path = vis.signature.path.clone();
             inputs.set_visualization.emit((*node_id,Some(path)));
         } else {
-            logger.warning(|| "Failed to get visualization while cycling.".to_string());
+            warning!(logger,"Failed to get visualization while cycling.");
         };
         cycle_count.set(cycle_count.get() + 1);
     }));

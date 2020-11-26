@@ -890,8 +890,8 @@ impl Model {
         let con       = self.controller_connection_from_displayed(&displayed)?;
         let inserting = self.connection_views.borrow_mut().insert(con.clone(), *edge_id);
         if inserting.did_overwrite() {
-            internal_warning!(self.logger,"Created connection {edge_id} overwrite some old \
-                mappings in GraphEditorIntegration.")
+            warning!(self.logger,"Created connection {edge_id} overwrite some old mappings in \
+                GraphEditorIntegration.")
         }
         self.graph.connect(&con)?;
         Ok(())

@@ -80,7 +80,7 @@ impl<Callback:?Sized> Drop for Listener<Callback> {
     fn drop(&mut self) {
         let callback = self.callback.as_ref().unchecked_ref();
         if self.element.remove_event_listener_with_callback(&self.event_type, callback).is_err() {
-            self.logger.warning("Couldn't remove event listener.");
+            warning!(self.logger,"Couldn't remove event listener.");
         }
     }
 }

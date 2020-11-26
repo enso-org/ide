@@ -280,7 +280,7 @@ impl BreadcrumbModel {
         let scene             = app.display.scene();
         let logger            = Logger::new("Breadcrumbs");
         let display_object    = display::object::Instance::new(&logger);
-        let view_logger       = Logger::sub(&logger,"view_logger");
+        let view_logger       = Logger::sub(&logger,"view_logger") : Logger;
         let view              = component::ShapeView::<background::Shape>::new(&view_logger, scene);
         let icon              = component::ShapeView::<icon::Shape>::new(&view_logger, scene);
         let separator         = component::ShapeView::<separator::Shape>::new(&view_logger, scene);

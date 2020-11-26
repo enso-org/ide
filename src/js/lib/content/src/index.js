@@ -167,7 +167,7 @@ function print_scam_warning() {
     let headerCSS1 = headerCSS + "font-size : 46px;"
     let headerCSS2 = headerCSS + "font-size : 20px;"
     let msgCSS     = "font-size:16px;"
-    
+
     let msg1 = "This is a browser feature intended for developers. If someone told you to " +
                "copy-paste something here, it is a scam and will give them access to your " +
                "account and data."

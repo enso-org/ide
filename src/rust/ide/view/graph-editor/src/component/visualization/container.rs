@@ -530,8 +530,7 @@ impl Container {
                             action_bar.set_selected_visualization.emit(path);
                         },
                         Err(err) => {
-                            logger.warning(
-                                || format!("Failed to instantiate visualisation: {:?}",err));
+                            warning!(logger,"Failed to instantiate visualisation: {err:?}");
                         },
                     };
                 }
@@ -588,12 +587,11 @@ impl Container {
             eval selected_definition([scene,model,logger](definition)  {
                 let vis = definition.as_ref().map(|d| d.new_instance(&scene));
                 match vis {
-                    Some(Ok(vis))  =>  model.set_visualization(Some(vis)),
+                    Some(Ok(vis))  => model.set_visualization(Some(vis)),
                     Some(Err(err)) => {
-                        logger.warning(
-                            || format!("Failed to instantiate visualisation: {:?}",err));
+                        warning!(logger,"Failed to instantiate visualisation: {err:?}");
                     },
-                    None => logger.warning("Invalid visualisation selected"),
+                    None => warning!(logger,"Invalid visualisation selected."),
                 };
             });
             frp.source.visualisation <+ selected_definition;

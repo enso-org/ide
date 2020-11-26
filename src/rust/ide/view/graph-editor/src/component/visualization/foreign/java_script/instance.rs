@@ -197,11 +197,10 @@ impl InstanceModel {
 
     /// Helper method to call methods on the wrapped javascript object.
     fn try_call1(&self, method:&Option<js_sys::Function>, arg:&JsValue)
-        ->  result::Result<(),JsValue> {
+    -> result::Result<(),JsValue> {
         if let Some(method) = method {
             if let Err(error) = method.call1(&self.object, arg) {
-                self.logger.warning(
-                    || format!("Failed to call method {:?} with error: {:?}",method,error));
+                warning!(self.logger,"Failed to call method {method:?} with error: {error:?}");
                 return Err(error)
             }
         }

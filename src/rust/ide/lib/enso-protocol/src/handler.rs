@@ -119,7 +119,7 @@ where Id           : Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
     /// Main entry point for input data while running. Should be connected to the `Transport`s
     /// output event stream.
     pub fn process_event(&mut self, event:TransportEvent) {
-        group!(self.logger, "Processing incoming transport event", {
+        debug!(self.logger, "Processing incoming transport event", || {
             debug!(self.logger, "Transport event contents: {event:?}.");
             let disposition = (self.processor)(event);
             debug!(self.logger, "Disposition: {disposition:?}");
@@ -134,7 +134,7 @@ where Id           : Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
     pub fn make_request<F,R>
     (&mut self, message:&dyn IsRequest<Id=Id>, f:F) -> impl Future<Output=FallibleResult<R>>
     where F: FnOnce(Reply) -> FallibleResult<R> {
-        group!(self.logger, "Making a new RPC call", {
+        debug!(self.logger, "Making a new RPC call", || {
             let id  = message.id();
             let ret = self.ongoing_calls.open_new_request(id,f);
             debug!(self.logger,"Sending message {message:?}");
