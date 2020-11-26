@@ -641,7 +641,7 @@ impl Area {
         let data              = Rc::new(data);
         let pattern_span_tree = Rc::new(RefCell::new(pattern_span_tree));
         let scene             = scene.clone_ref();
-        let port_network      = Rc::new(RefCell::new(frp::Network::new("node_outputs")));
+        let port_network      = Rc::new(RefCell::new(frp::Network::new("node_output_ports")));
 
 
         // TODO memory leak from tween?

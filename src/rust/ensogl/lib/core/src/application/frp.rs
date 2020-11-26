@@ -192,7 +192,8 @@
 /// ```
 #[macro_export]
 macro_rules! define_endpoints {
-    (   $([$($global_opts:tt)*])?
+    (
+        $([$($global_opts:tt)*])?
         $(Input { $([$($input_opts:tt)*])?
             $($(#[doc=$($in_doc:tt)*])*
             $in_field : ident ($($in_field_type : tt)*)),* $(,)?

@@ -60,9 +60,7 @@ impl Display for EnabledCallStack {
 
 /// A call stack trace for FRP events.
 #[derive(Debug,Clone,Copy,Default)]
-pub struct DisabledCallStack {
-    stack: ()
-}
+pub struct DisabledCallStack;
 
 impl CallStackOps for DisabledCallStack {
     fn sub(&self, _label:Label) -> Self {
