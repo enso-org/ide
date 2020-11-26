@@ -13,21 +13,21 @@ statistics = []
 no_unboxed_callbacks = []
 
 [dependencies]
-code-builder = { version = "0.1.0", path = "../../../lib/code-builder" }
-enso-callback = { version = "0.1.0", path = "../../../lib/callback" }
+code-builder = { path = "../../../lib/code-builder" }
+enso-callback = { path = "../../../lib/callback" }
 enso-data = { version = "0.1.1" }
-enso-frp = { version = "0.1.0", path = "../../../lib/frp" }
+enso-frp = { path = "../../../lib/frp" }
 enso-generics = { version = "0.1.1" }
 enso-logger = { version = "0.1.3" }
 enso-optics = { version = "0.1.1" }
 enso-prelude = { version = "0.1.8" }
 enso-shapely = { version = "0.1.1" }
-enso-shortcuts = { version = "0.1.0", path = "../../../lib/shortcuts" }
-enso-types = { version = "0.1.0", path = "../../../lib/types" }
-ensogl-system-web = { version = "0.1.0", path = "../../../lib/system/web" }
-ensogl-text-embedded-fonts = { version = "0.1.0", path = "../text/embedded-fonts" }
-ensogl-text-msdf-sys = { version = "0.1.0", path = "../text/msdf-sys" }
-eval-tt = { version = "0.1.0", path = "../../../lib/eval-tt" }
+enso-shortcuts = { path = "../../../lib/shortcuts" }
+enso-types = { path = "../../../lib/types" }
+ensogl-system-web = { path = "../../../lib/system/web" }
+ensogl-text-embedded-fonts = { path = "../text/embedded-fonts" }
+ensogl-text-msdf-sys = { path = "../text/msdf-sys" }
+eval-tt = { path = "../../../lib/eval-tt" }
 bit_field = { version = "0.10.0" }
 console_error_panic_hook = { version = "0.1.6" }
 enum_dispatch = { version = "0.2.0" }
@@ -87,4 +87,4 @@ features = [
 [dev-dependencies]
 assert_approx_eq = { version = "1.1.0" }
 wasm-bindgen-test = { version = "0.3.8" }
-web-test = { version = "0.1.0", path = "../../../lib/web-test" }
+web-test = { path = "../../../lib/web-test" }
