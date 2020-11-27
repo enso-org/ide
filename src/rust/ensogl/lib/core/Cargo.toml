@@ -21,7 +21,7 @@ enso-generics = { version = "0.1.1" }
 enso-logger = { version = "0.1.3" }
 enso-optics = { version = "0.1.1" }
 enso-prelude = { version = "0.1.8" }
-enso-shapely = { version = "0.1.1" }
+enso-shapely = { version = "0.1.2" }
 enso-shortcuts = { path = "../../../lib/shortcuts" }
 enso-types = { path = "../../../lib/types" }
 ensogl-system-web = { path = "../../../lib/system/web" }
