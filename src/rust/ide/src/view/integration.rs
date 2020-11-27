@@ -354,14 +354,14 @@ impl Model {
     , text          : controller::Text
     , visualization : controller::Visualization
     , project       : model::Project) -> Self {
-        let node_views       = default();
+        let node_views              = default();
         let node_view_by_expression = default();
-        let connection_views = default();
-        let expression_views = default();
-        let code_view        = default();
-        let visualizations   = default();
-        let searcher         = default();
-        let this             = Model
+        let connection_views        = default();
+        let expression_views        = default();
+        let code_view               = default();
+        let visualizations          = default();
+        let searcher                = default();
+        let this                    = Model
             {view,graph,text,searcher,node_views,expression_views,connection_views,code_view,logger
             ,visualization,visualizations,project,node_view_by_expression};
 
