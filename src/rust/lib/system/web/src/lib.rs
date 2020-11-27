@@ -21,7 +21,6 @@ use crate::prelude::*;
 pub use web_sys::console;
 use js_sys::Function;
 use enso_logger::WarningLogger as Logger;
-use enso_logger::AnyLogger;
 use enso_logger::warning;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::Closure;

@@ -11,7 +11,6 @@ use enso_frp as frp;
 use frp::io::keyboard::Keyboard;
 use frp::io::keyboard as keyboard;
 
-use enso_logger::AnyLogger;
 use enso_logger::WarningLogger as Logger;
 
 #[wasm_bindgen]

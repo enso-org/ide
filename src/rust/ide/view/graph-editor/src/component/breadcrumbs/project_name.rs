@@ -21,8 +21,7 @@ use ensogl::gui::cursor;
 use ensogl_text as text;
 use ensogl_text::style::Size as TextSize;
 use ensogl_theme as theme;
-use logger::AnyLogger;
-use logger::DefaultTraceLogger as Logger;
+use logger::DefaultWarningLogger as Logger;
 
 
 

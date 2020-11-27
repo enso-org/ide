@@ -19,7 +19,6 @@ use ensogl::gui::component::DEPRECATED_Animation;
 use ensogl::gui::component;
 use ensogl_text as text;
 use ensogl_theme as theme;
-use logger::AnyLogger;
 use logger::DefaultTraceLogger as Logger;
 use nalgebra::Vector2;
 use std::f32::consts::PI;

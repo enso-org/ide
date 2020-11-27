@@ -9,7 +9,6 @@ use futures::channel::mpsc::UnboundedSender;
 use json_rpc::Transport;
 use json_rpc::TransportEvent;
 use enso_logger::*;
-use enso_logger::AnyLogger;
 use enso_logger::WarningLogger as Logger;
 use std::future::Future;
 use utils::fail::FallibleResult;

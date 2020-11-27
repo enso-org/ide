@@ -810,7 +810,7 @@ impl Nodes {
 
 
 
-#[derive(Debug,Clone,CloneRef,Default)]
+#[derive(Debug,Clone,CloneRef)]
 pub struct Edges {
     pub logger          : Logger,
     pub all             : SharedHashMap<EdgeId,Edge>,
@@ -827,8 +827,8 @@ impl Deref for Edges {
 
 impl Edges {
     pub fn new(logger:impl AnyLogger) -> Self {
-        let logger   = Logger::sub(logger,"edges");
-        let all      = default();
+        let logger          = Logger::sub(logger,"edges");
+        let all             = default();
         let detached_source = default();
         let detached_target = default();
         Self {logger,all,detached_source,detached_target}
@@ -1137,7 +1137,7 @@ impl GraphEditorModel {
         let logger         = Logger::new("GraphEditor");
         let display_object = display::object::Instance::new(&logger);
         let nodes          = Nodes::new(&logger);
-        let edges          = default();
+        let edges          = Edges::new(&logger);
         let visualizations = visualization::Registry::with_default_visualizations();
         let touch_state    = TouchState::new(network,&scene.mouse.frp);
         let breadcrumbs    = component::Breadcrumbs::new(app.clone_ref());
