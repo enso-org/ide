@@ -1,5 +1,6 @@
-class TableViewVisualization extends Visualization {
+class TableVisualization extends Visualization {
     static inputType = 'Any'
+    static label = 'Table'
 
     onDataReceived(data) {
         function tableOf(content, level) {
@@ -170,7 +171,7 @@ class TableViewVisualization extends Visualization {
         const style_dark = `
         <style>
         table {
-            font-family: sans-serif;
+            font-family: DejaVuSansMonoBook, sans-serif;
             font-size: 12px;
         }
         
@@ -205,7 +206,7 @@ class TableViewVisualization extends Visualization {
         const style_light = `
         <style>
         table {
-            font-family: sans-serif;
+            font-family: DejaVuSansMonoBook, sans-serif;
             font-size: 12px;
         }
 
@@ -274,4 +275,4 @@ class TableViewVisualization extends Visualization {
     }
 }
 
-return TableViewVisualization
+return TableVisualization
