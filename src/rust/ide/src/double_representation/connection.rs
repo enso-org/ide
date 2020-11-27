@@ -102,9 +102,9 @@ pub fn list(body:&Ast) -> Vec<Connection> {
 
 
 
-// =============================
-// === Analyzing Connections ===
-// =============================
+// ============================
+// === Connections Analysis ===
+// ============================
 
 /// A function grouping a set of connections by their source node.
 pub fn group_by_source_node
