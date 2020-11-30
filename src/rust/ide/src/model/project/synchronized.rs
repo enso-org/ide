@@ -403,7 +403,7 @@ mod test {
             let json_connection   = language_server::Connection::new_mock(json_client);
             let binary_connection = binary::Connection::new_mock(binary_client);
             let project_manager   = Rc::new(project_manager);
-            let logger            = Logger::default();
+            let logger            = Logger::new("Fixture");
             let id                = Uuid::new_v4();
             let project_fut       = Project::from_connections(logger,project_manager,
                 json_connection,binary_connection,id,DEFAULT_PROJECT_NAME).boxed_local();
