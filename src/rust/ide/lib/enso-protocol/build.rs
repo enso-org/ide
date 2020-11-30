@@ -31,7 +31,7 @@ const ENABLE_ENV_VAR_NAME:&str = "ENSO_IDE_ENABLE_FLATC";
 
 /// An URL pointing to engine interface files.
 pub fn interface_description_url() -> reqwest::Url {
-    let url = format!("https://packages.enso.org/fbs-schema/nightly/{}/fbs-schema.zip",COMMIT);
+    let url = format!("https://packages.luna-lang.org/fbs-schema/nightly/{}/fbs-schema.zip",COMMIT);
     let err = format!("{} is an invalid URL.",url);
     reqwest::Url::parse(&url).expect(&err)
 }

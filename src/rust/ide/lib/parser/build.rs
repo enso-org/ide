@@ -34,7 +34,7 @@ const PARSER_PREAMBLE: &str = "var __ScalaJSEnv = { global: window };";
 /// Obtains a URL where this parser version can be downloaded.
 pub fn parser_url(version:&ParserVersion) -> reqwest::Url {
     let url_string = format!(
-        "https://packages.enso.org/parser-js/nightly/{}/scala-parser.js",
+        "https://packages.luna-lang.org/parser-js/nightly/{}/scala-parser.js",
         version.commit);
     let invalid_url_msg = format!("{} is an invalid URL.", url_string);
     reqwest::Url::parse(&url_string).expect(&invalid_url_msg)
