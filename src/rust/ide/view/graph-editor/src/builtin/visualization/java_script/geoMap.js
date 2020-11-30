@@ -140,7 +140,8 @@ class GeoMapVisualization extends Visualization {
         }
         this.updateState(parsedData)
         this.updateMap()
-        this.updateLayers()
+        let isPickable = ok(parsedData.isPickable) ? parsedData.isPickable : false
+        this.updateLayers(isPickable)
     }
 
     /**
@@ -180,11 +181,12 @@ class GeoMapVisualization extends Visualization {
         }
     }
 
-    makeScatterLayer() {
+    makeScatterLayer(pickable) {
         return new deck.ScatterplotLayer({
             data: this.dataPoints,
             getFillColor: (d) => d.color,
             getRadius: (d) => d.radius,
+            pickable
         })
     }
 
@@ -203,10 +205,15 @@ class GeoMapVisualization extends Visualization {
         this.deckgl.controller = this.controller
     }
 
-    updateLayers() {
+    updateLayers(pickable) {
         this.deckgl.setProps({
-            layers: [this.makeScatterLayer()],
+            layers: [this.makeScatterLayer(pickable)],
         })
+
+        this.deckgl.getTooltip(({ pin }) =>
+            pin && {
+                html: `Info: ${pin.message}`
+            })
     }
 
     /**
