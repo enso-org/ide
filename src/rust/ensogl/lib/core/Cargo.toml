@@ -43,6 +43,7 @@ rustc-hash = { version = "1.0.1" }
 shrinkwraprs = { version = "0.3.0" }
 smallvec = { version = "1.0.0" }
 typenum = { version = "1.11.2" }
+
 # We require exact version of wasm-bindgen because we do patching final js in our build process,
 # and this is vulnerable to any wasm-bindgen version change.
 wasm-bindgen = { version = "=0.2.58", features = ["nightly"] }
