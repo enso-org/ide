@@ -555,8 +555,8 @@ impl Area {
             eval sels ((s) m.copy(s));
 
             cut_sels           <- input.cut.map(f_!(m.buffer.selections_contents()));
-            all_empty_sels_cut <- cut.map(|s|s.iter().all(|t|t.is_empty()));
-            line_sel_mode_cut  <- cut.gate(&all_empty_sels_cut);
+            all_empty_sels_cut <- cut_sels.map(|s|s.iter().all(|t|t.is_empty()));
+            line_sel_mode_cut  <- cut_sels.gate(&all_empty_sels_cut);
 
             eval_ line_sel_mode_cut (m.buffer.frp.cursors_select(Some(Transform::Line)));
             non_line_sel_mode_cut_sels <- cut_sels.gate_not(&all_empty_sels_cut);
