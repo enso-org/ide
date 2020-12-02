@@ -209,15 +209,15 @@ class GeoMapVisualization extends Visualization {
     updateLayers() {
         this.deckgl.setProps({
             layers: [this.makeScatterLayer()],
+            getTooltip: ({ object }) =>
+                object && {
+                    html: `<h2>Message:</h2><div>${object.message}</div>`,
+                    style: {
+                        backgroundColor: '#fafafa',
+                        fontSize: '0.8em',
+                    },
+                },
         })
-        if (this.isPickable) {
-            this.deckgl.getTooltip(
-                ({ pin }) =>
-                    pin && {
-                        html: `Info: ${pin.message}`,
-                    }
-            )
-        }
     }
 
     /**
@@ -325,7 +325,8 @@ class GeoMapVisualization extends Visualization {
             ? DEFAULT_POINT_RADIUS
             : geoPoint.radius
         let color = ok(geoPoint.color) ? geoPoint.color : accentColor
-        preparedDataPoints.push({ position, color, radius })
+        let message = ok(geoPoint.message) ? geoPoint.message : ''
+        preparedDataPoints.push({ position, color, radius, message })
     }
 
     /**
