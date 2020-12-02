@@ -32,6 +32,13 @@ pub struct NoSuchSuggestion{
     index : usize,
 }
 
+#[allow(missing_docs)]
+#[fail(display = "Suggestion entry with index {} is not a completion suggestion.", index)]
+#[derive(Copy,Clone,Debug,Fail)]
+pub struct NotACompletion {
+    index : usize,
+}
+
 
 // =====================
 // === Notifications ===
@@ -51,37 +58,11 @@ pub enum Notification {
 // ===================
 
 /// List of suggestions available in Searcher.
-#[derive(Clone,CloneRef,Debug)]
-pub enum Suggestions {
-    /// The suggestion list is still loading from the Language Server.
-    Loading,
-    /// The suggestion list is loaded.
-    #[allow(missing_docs)]
-    Loaded {
-        list : Rc<suggestion::List>
-    },
-    /// Loading suggestion list resulted in error.
-    Error(Rc<failure::Error>)
-}
-
-impl Suggestions {
-    /// Check if suggestion list is still loading.
-    pub fn is_loading(&self) -> bool {
-        matches!(self,Self::Loading)
-    }
-
-    /// Check if retrieving suggestion list was unsuccessful
-    pub fn is_error(&self) -> bool {
-        matches!(self,Self::Error(_))
-    }
-
-    /// Get the list of suggestions. Returns None if still loading or error was returned.
-    pub fn list(&self) -> Option<&suggestion::List> {
-        match self {
-            Self::Loaded {list} => Some(list),
-            _                   => None,
-        }
-    }
+#[derive(Clone,CloneRef,Debug,Default)]
+pub struct Suggestions {
+    pub list          : Rc<suggestion::List>,
+    pub still_loading : Immutable<bool>,
+    pub errors        : Rc<Vec<failure::Error>>,
 }
 
 impl Default for Suggestions {
@@ -90,6 +71,15 @@ impl Default for Suggestions {
     }
 }
 
+impl Suggestions {
+    fn new_empty_loading() -> Self {
+        Self {
+            list          : default(),
+            still_loading : Immutable(true),
+            errors        : default()
+        }
+    }
+}
 
 
 // ===================
@@ -560,8 +550,30 @@ impl Searcher {
             list.get_cloned(index).ok_or_else(error)?.suggestion
         };
         match suggestion {
-            Suggestion::Completion(completion) => self.pick_completion(completion)
+            Suggestion::Completion(completion) => self.pick_completion(completion),
+            _ => Err(NotACompletion{index}.into())
         }
+    }
+
+    pub fn commit_suggestion
+    (&self, suggestion:Suggestion) -> FallibleResult<Option<ast::Id>> {
+        match suggestion {
+            Suggestion::Completion (completion) => {
+                self.pick_completion(completion)?;
+                Ok(Some(self.commit_node()?))
+            },
+            Suggestion::Example    (example)    => { error!(self.logger, "TODO"); Ok(None) }
+        }
+    }
+
+    pub fn commit_suggestion_by_index(&self, index:usize) -> FallibleResult<Option<ast::Id>> {
+        let error      = || NoSuchSuggestion{index};
+        let suggestion = {
+            let data = self.data.borrow();
+            let list = data.suggestions.list().ok_or_else(error)?;
+            list.get_cloned(index).ok_or_else(error)?.suggestion
+        };
+        self.commit_suggestion(suggestion)
     }
 
     /// Check if the first fragment in the input (i.e. the one representing the called function)
@@ -654,8 +666,8 @@ impl Searcher {
             CompletedFragmentId::Argument {index} =>
                 self.return_types_for_argument_completion(index),
         };
-        self.get_suggestion_list_from_engine(this_type,return_types,None);
-        self.data.borrow_mut().suggestions = Suggestions::Loading;
+        self.extend_suggestion_list_from_engine(this_type,return_types,None);
+        self.data.borrow_mut().suggestions = Suggestions::Loaded {};
         executor::global::spawn(self.notifier.publish(Notification::NewSuggestionList));
     }
 
@@ -693,7 +705,7 @@ impl Searcher {
         }).collect()
     }
 
-    fn get_suggestion_list_from_engine
+    fn extend_suggestion_list_from_engine
     ( &self
     , this_type    : impl Future<Output=Option<String>> + 'static
     , return_types : impl IntoIterator<Item=String>
@@ -702,11 +714,12 @@ impl Searcher {
         let ls               = self.language_server.clone_ref();
         let graph            = self.graph.graph();
         let position         = self.position_in_code.deref().into();
-        let mut return_types = return_types.into_iter().map(Some).collect_vec();
         let this             = self.clone_ref();
+        let list             = self.data.borrow().suggestions.clone_ref();
+        let mut return_types = return_types.into_iter().map(Some).collect_vec();
         if return_types.is_empty() {
             return_types.push(None)
-        }
+        };
         executor::global::spawn(async move {
             let this_type = this_type.await;
             info!(this.logger,"Requesting new suggestion list. Type of `this` is {this_type:?}.");

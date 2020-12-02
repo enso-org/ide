@@ -2,7 +2,6 @@
 //!
 //! This component wraps the plain ListView in some searcher-specific logic, like committing
 //! editing, or picking suggestion with Tab.
-
 use crate::prelude::*;
 
 use crate::documentation;
@@ -142,7 +141,7 @@ ensogl::define_endpoints! {
     Output {
         selected_entry    (Option<entry::Id>),
         picked_entry      (Option<entry::Id>),
-        editing_committed (),
+        editing_committed (Option<entry::Id>),
         size              (Vector2<f32>),
         is_visible        (bool),
         is_selected       (bool),
@@ -205,14 +204,11 @@ impl View {
             eval frp.show     ((()) height.set_target_value(SEARCHER_HEIGHT));
             eval frp.hide     ((()) height.set_target_value(-list_view::SHADOW_PX));
 
-            is_selected         <- model.list.selected_entry.map(|e| e.is_some());
-            displayed_doc       <- model.list.selected_entry.map(f!((id) model.docs_for(*id)));
-            opt_picked_entry    <- model.list.selected_entry.sample(&frp.pick_suggestion);
-            source.picked_entry <+ opt_picked_entry.gate(&is_selected);
-            // Order of the two below is important: we want pick the entry first, and then commit
-            // editing.
-            source.picked_entry      <+ model.list.chosen_entry.gate(&is_selected);
-            source.editing_committed <+ model.list.chosen_entry.gate(&is_selected).constant(());
+            is_selected              <- model.list.selected_entry.map(|e| e.is_some());
+            displayed_doc            <- model.list.selected_entry.map(f!((id) model.docs_for(*id)));
+            opt_picked_entry         <- model.list.selected_entry.sample(&frp.pick_suggestion);
+            source.picked_entry      <+ opt_picked_entry.gate(&is_selected);
+            source.editing_committed <+ model.list.chosen_entry.gate(&is_selected);
 
             eval displayed_doc ((data) model.documentation.frp.display_docstring(data));
         };

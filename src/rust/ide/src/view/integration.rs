@@ -907,16 +907,23 @@ impl Model {
     }
 
     fn node_editing_committed_in_ui
-    (&self, displayed_id:&graph_editor::NodeId) -> FallibleResult {
+    (&self, (displayed_id,entry                                                                                             ):&(graph_editor::NodeId,Option<ide_view::searcher::entry::Id>))
+    -> FallibleResult {
         debug!(self.logger, "Committing node expression.");
         let error = || MissingSearcherController;
         let searcher = self.searcher.borrow().clone().ok_or_else(error)?;
         *self.searcher.borrow_mut() = None;
-        match searcher.commit_node() {
-            Ok(node_id) => {
+        let result = if let Some(entry) = entry {
+            searcher.commit_suggestion_by_index(*entry)
+        } else {
+            searcher.commit_node().map(|id| Some(id))
+        };
+        match result {
+            Ok(Some(node_id)) => {
                 self.node_views.borrow_mut().insert(node_id,*displayed_id);
                 Ok(())
             }
+            Ok(None) => Ok(()),
             Err(err) => {
                 self.view.graph().frp.remove_node.emit(displayed_id);
                 Err(err)
@@ -1222,6 +1229,7 @@ impl ide_view::searcher::DocumentationProvider for DataProviderForView {
                 let doc = completion.documentation.clone();
                 Some(doc.unwrap_or_else(|| Self::doc_placeholder_for(&completion)))
             }
+            Suggestion::Example(_) => None, // TODO
         }
     }
 }
