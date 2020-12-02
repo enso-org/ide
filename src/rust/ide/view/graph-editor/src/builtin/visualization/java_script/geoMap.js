@@ -92,7 +92,8 @@ const makeId = makeGenerator()
  *         "latitude": -122.45,
  *         "longitude": 37.8,
  *         "color": [255, 0, 0],
- *         "radius": 100
+ *         "radius": 100,
+ *         "message": "foo bar baz"
  *     }]
  * }]
  * }
@@ -213,8 +214,11 @@ class GeoMapVisualization extends Visualization {
                 object && {
                     html: `<h2>Message:</h2><div>${object.message}</div>`,
                     style: {
-                        backgroundColor: '#fafafa',
-                        fontSize: '0.8em',
+                        backgroundColor: '#fafafaea',
+                        fontSize: '12px',
+                        borderRadius: '14px',
+                        fontFamily: 'DejaVuSansMonoBook, sans-serif',
+                        color: 'rgba(0, 0, 0, 0.7)',
                     },
                 },
         })
