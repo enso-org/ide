@@ -84,6 +84,7 @@ const makeId = makeGenerator()
  * "longitude": -122.45,
  * "zoom": 15,
  * "controller": true,
+ * "isPickable": true,
  * "layers": [{
  *     "type": "Scatterplot_Layer",
  *     "data": [{
@@ -140,8 +141,7 @@ class GeoMapVisualization extends Visualization {
         }
         this.updateState(parsedData)
         this.updateMap()
-        let isPickable = ok(parsedData.isPickable) ? parsedData.isPickable : false
-        this.updateLayers(isPickable)
+        this.updateLayers()
     }
 
     /**
@@ -162,6 +162,7 @@ class GeoMapVisualization extends Visualization {
         this.mapStyle = ok(data.mapStyle) ? data.mapStyle : this.defaultMapStyle
         this.pitch = ok(data.pitch) ? data.pitch : 0
         this.controller = ok(data.controller) ? data.controller : true
+        this.isPickable = ok(data.isPickable) ? data.isPickable : false
     }
 
     viewState() {
@@ -181,12 +182,12 @@ class GeoMapVisualization extends Visualization {
         }
     }
 
-    makeScatterLayer(pickable) {
+    makeScatterLayer() {
         return new deck.ScatterplotLayer({
             data: this.dataPoints,
             getFillColor: (d) => d.color,
             getRadius: (d) => d.radius,
-            pickable
+            pickable: this.isPickable,
         })
     }
 
@@ -205,15 +206,18 @@ class GeoMapVisualization extends Visualization {
         this.deckgl.controller = this.controller
     }
 
-    updateLayers(pickable) {
+    updateLayers() {
         this.deckgl.setProps({
-            layers: [this.makeScatterLayer(pickable)],
+            layers: [this.makeScatterLayer()],
         })
-
-        this.deckgl.getTooltip(({ pin }) =>
-            pin && {
-                html: `Info: ${pin.message}`
-            })
+        if (this.isPickable) {
+            this.deckgl.getTooltip(
+                ({ pin }) =>
+                    pin && {
+                        html: `Info: ${pin.message}`,
+                    }
+            )
+        }
     }
 
     /**
