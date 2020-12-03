@@ -986,7 +986,6 @@ impl GraphEditorModelWithNetwork {
             hovered <- node.output.hover.map (move |t| Some(Switch::new(node_id,*t)));
             output.source.node_hovered <+ hovered;
 
-            // eval edit_mode_ready ((t) ports_frp.input.edit_mode_ready.emit(t));
             eval node.model.input.frp.pointer_style ((style) pointer_style.emit(style));
             eval node.model.output.frp.port_mouse_down ([output_press](crumbs){
                 let target = EdgeEndpoint::new(node_id,crumbs.clone());
@@ -1011,6 +1010,10 @@ impl GraphEditorModelWithNetwork {
 
             eval_ node.model.output.frp.port_mouse_out (
                 model.frp.hover_node_output.emit(None)
+            );
+
+            eval node.model.input.frp.on_port_tp_change(((crumbs,_))
+                model.with_input_edge_id(node_id,crumbs,|id| model.refresh_edge_color(id))
             );
 
             eval node.frp.expression((t) output.source.node_expression_set.emit((node_id,t.into())));
@@ -1599,7 +1602,23 @@ impl GraphEditorModel {
         self.with_edge_map_target(id,|endpoint|endpoint)
     }
 
-    #[allow(dead_code)]
+    // FIXME[WD]: This implementation is slow. Node should allow for easy mapping between Crumbs
+    //            and edges.
+    fn with_input_edge_id(&self, id:NodeId, crumbs:&span_tree::Crumbs, f:impl FnOnce(EdgeId)) {
+        self.with_node(id,move |node| {
+            let mut target_edge_id = None;
+            for edge_id in node.in_edges.keys() {
+                self.with_edge(edge_id,|edge| {
+                    let ok = edge.target().map(|tgt| tgt.port == crumbs) == Some(true);
+                    if ok { target_edge_id = Some(edge_id) }
+                });
+            }
+            if let Some(edge_id) = target_edge_id {
+                f(edge_id)
+            }
+        });
+    }
+
     fn with_edge_source<T>(&self, id:EdgeId, f:impl FnOnce(EdgeEndpoint)->T) -> Option<T> {
         self.with_edge(id,|edge| {
             edge.source.borrow().clone().map(f).map_none(
