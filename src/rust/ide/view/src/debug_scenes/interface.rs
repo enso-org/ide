@@ -271,7 +271,7 @@ pub fn expression_mock2() -> Expression {
 
 pub fn expression_mock3() -> Expression {
     // let code       = "image.blur ((foo   bar) baz)".to_string();
-    let code       = "image.blur name (((foo   bar)) baz)".to_string();
+    let code       = "Vector x y z".to_string();
     let parser     = Parser::new_or_panic();
     let this_param = span_tree::ArgumentInfo {
         name : Some("this".to_owned()),
@@ -297,7 +297,7 @@ pub fn expression_mock3() -> Expression {
     let ast              = parser.parse_line(&code).unwrap();
     let invocation_info  = span_tree::generate::context::CalledMethodInfo {parameters};
     let ctx              = span_tree::generate::MockContext::new_single(ast.id.unwrap(),invocation_info);
-    let output_span_tree = span_tree::SpanTree::default();
+    let output_span_tree = span_tree::SpanTree::new(&ast,&ctx).unwrap();//span_tree::SpanTree::default();
     let input_span_tree  = span_tree::SpanTree::new(&ast,&ctx).unwrap();
     Expression {code,input_span_tree,output_span_tree}
 }

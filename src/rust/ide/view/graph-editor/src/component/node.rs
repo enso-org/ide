@@ -328,7 +328,7 @@ impl NodeModel {
         self.drag_area.mod_position(|t| t.y = height/2.0);
 
         self.output.mod_position(|t| t.x = width/2.0);
-        self.output.mod_position(|t| t.y = height/2.0);
+        self.output.mod_position(|t| t.y = height/2.0 + 40.0);
 
         let action_bar_width = 200.0;
         self.action_bar.mod_position(|t| {
