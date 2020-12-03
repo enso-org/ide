@@ -403,11 +403,11 @@ ensogl_core::define_endpoints! {
         undo(),
         /// Redo the last operation.
         redo(),
-        /// Copy selected text to clipboard.
+        /// Copy the selected text to the clipboard.
         copy(),
-        /// Copy selected text to clipboard and remove from area.
+        /// Copy the selected text to the clipboard and remove it from the text area.
         cut(),
-        /// Paste selected text from clipboard.
+        /// Paste the selected text from the clipboard.
         paste(),
 
         hover(),
@@ -563,6 +563,7 @@ impl Area {
             line_sel_mode_cut_sels     <- line_sel_mode_cut.map(f_!(m.buffer.selections_contents()));
             sels_cut                   <- any(&line_sel_mode_cut_sels,&non_line_sel_mode_cut_sels);
             eval sels_cut ((s) m.cut(s));
+            eval_ sels_cut (m.buffer.frp.delete_left());
 
             eval_ input.paste (m.paste());
             eval input.paste_string ((s) m.buffer.frp.paste(m.decode_paste(s)));
@@ -918,7 +919,6 @@ impl AreaModel {
 
     fn cut(&self, selections:&[String]) {
         self.copy(selections);
-        self.buffer.frp.delete_left();
     }
 
     fn paste(&self) {
