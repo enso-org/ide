@@ -212,13 +212,13 @@ class GeoMapVisualization extends Visualization {
             layers: [this.makeScatterLayer()],
             getTooltip: ({ object }) =>
                 object && {
-                    html: `<h2>Message:</h2><div>${object.message}</div>`,
+                    html: `<div>${object.message}</div>`,
                     style: {
-                        backgroundColor: '#fafafaea',
+                        backgroundColor: 'rgba(250, 250, 250, 0.8)',
                         fontSize: '12px',
                         borderRadius: '14px',
                         fontFamily: 'DejaVuSansMonoBook, sans-serif',
-                        color: 'rgba(0, 0, 0, 0.7)',
+                        color: 'rgba(0, 0, 0, 0.8)',
                     },
                 },
         })
