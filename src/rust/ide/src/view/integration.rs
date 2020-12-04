@@ -529,8 +529,10 @@ impl Model {
         if let Some(position) = position {
             self.view.graph().frp.input.set_node_position.emit(&(id, position.vector));
         }
+        let pattern        = node.info.pattern().map(|t|t.repr());
         let expression     = node.info.expression().repr();
         let code_and_trees = graph_editor::component::node::Expression {
+            pattern,
             code             : expression,
             input_span_tree  : trees.inputs,
             output_span_tree : trees.outputs.unwrap_or_else(default)

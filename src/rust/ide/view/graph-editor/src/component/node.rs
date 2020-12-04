@@ -289,7 +289,7 @@ impl NodeModel {
         let action_bar = action_bar::ActionBar::new(&logger,&app);
         display_object.add_child(&action_bar);
 
-        let output = output::Area::new(&scene);
+        let output = output::Area::new(&logger,app);
         display_object.add_child(&output);
 
         let app = app.clone_ref();
@@ -312,8 +312,8 @@ impl NodeModel {
 
     fn set_expression(&self, expr:impl Into<Expression>) {
         let expr = expr.into();
-        self.output.set_pattern_span_tree(&expr.output_span_tree);
-        self.input.set_expression(expr);
+        self.output.set_expression(&expr);
+        self.input.set_expression(&expr);
     }
 
     fn set_width(&self, width:f32) -> Vector2 {
@@ -328,7 +328,7 @@ impl NodeModel {
         self.drag_area.mod_position(|t| t.y = height/2.0);
 
         self.output.mod_position(|t| t.x = width/2.0);
-        self.output.mod_position(|t| t.y = height/2.0 + 40.0);
+        self.output.mod_position(|t| t.y = height/2.0);
 
         let action_bar_width = 200.0;
         self.action_bar.mod_position(|t| {

@@ -47,9 +47,9 @@ const PORT_PADDING_X  : f32  = 4.0;
 
 
 
-// ===============
-// === SpanTree ==
-// ===============
+// ================
+// === SpanTree ===
+// ================
 
 pub use span_tree::Crumb;
 pub use span_tree::Crumbs;
@@ -67,26 +67,26 @@ pub type PortRefMut<'a> = span_tree::node::RefMut<'a,port::Model>;
 // === Expression ===
 // ==================
 
-/// Specialized version of `node::Expression`, containing input port information.
+/// Specialized version of `node::Expression`, containing the port information.
 #[derive(Clone,Default)]
 pub struct Expression {
     /// Visual code representation. It can contain names of missing arguments, and thus can differ
     /// from `code`.
-    pub viz_code : String,
-    pub code     : String,
-    pub input    : SpanTree,
+    pub viz_code  : String,
+    pub code      : String,
+    pub span_tree : SpanTree,
 }
 
 impl Deref for Expression {
     type Target = SpanTree;
     fn deref(&self) -> &Self::Target {
-        &self.input
+        &self.span_tree
     }
 }
 
 impl DerefMut for Expression {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.input
+        &mut self.span_tree
     }
 }
 
@@ -119,11 +119,11 @@ impl From<node::Expression> for Expression {
     /// structure. It also computes `port::Model` values in the `viz_code` representation.
     fn from(t:node::Expression) -> Self {
         // The length difference between `code` and `viz_code` so far.
-        let mut shift    = 0;
-        let mut input    = t.input_span_tree.map(|_|port::Model::default());
-        let mut viz_code = String::new();
-        let code         = t.code;
-        input.root_ref_mut().dfs(ExprConversion::default(),|node,info| {
+        let mut shift     = 0;
+        let mut span_tree = t.input_span_tree.map(|_|port::Model::default());
+        let mut viz_code  = String::new();
+        let code          = t.code;
+        span_tree.root_ref_mut().dfs(ExprConversion::default(),|node,info| {
             let is_expected_arg       = node.is_expected_argument();
             let span                  = node.span();
             let mut size              = span.size.value;
@@ -150,7 +150,7 @@ impl From<node::Expression> for Expression {
             port.length      = size;
             ExprConversion::new(index)
         });
-        Self {code,viz_code,input}
+        Self {code,viz_code,span_tree}
     }
 }
 
@@ -223,7 +223,7 @@ pub struct Model {
 impl Model {
     /// Constructor.
     pub fn new(logger:impl AnyLogger, app:&Application) -> Self {
-        let logger         = Logger::sub(&logger,"port_manager");
+        let logger         = Logger::sub(&logger,"input_ports");
         let display_object = display::object::Instance::new(&logger);
         let ports          = display::object::Instance::new(&Logger::sub(&logger,"ports"));
         let header         = display::object::Instance::new(&Logger::sub(&logger,"header"));
@@ -264,7 +264,7 @@ impl Model {
     /// Run the provided function on the target port if exists.
     fn with_port_mut(&self, crumbs:&Crumbs, f:impl FnOnce(PortRefMut)) {
         let mut expression = self.expression.borrow_mut();
-        if let Ok(node) = expression.input.root_ref_mut().get_descendant(crumbs) { f(node) }
+        if let Ok(node) = expression.span_tree.root_ref_mut().get_descendant(crumbs) { f(node) }
     }
 
     /// Traverse all `SpanTree` leaves of the given port and emit hover style to set their colors.
@@ -275,7 +275,7 @@ impl Model {
     /// Update expression type for the particular `ast::Id`.
     fn set_expression_usage_type(&self, id:ast::Id, tp:&Option<Type>) {
         if let Some(crumbs) = self.id_crumbs_map.borrow().get(&id) {
-            if let Ok(port) = self.expression.borrow().input.root_ref().get_descendant(crumbs) {
+            if let Ok(port) = self.expression.borrow().span_tree.root_ref().get_descendant(crumbs) {
                 port.set_usage_type(tp)
             }
         }
@@ -410,7 +410,7 @@ impl Area {
 
     pub fn port_type(&self, crumbs:&Crumbs) -> Option<Type> {
         let expression = self.model.expression.borrow();
-        expression.input.root_ref().get_descendant(crumbs).ok().and_then(|t|t.tp.value())
+        expression.span_tree.root_ref().get_descendant(crumbs).ok().and_then(|t|t.tp.value())
     }
 }
 
