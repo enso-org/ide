@@ -272,7 +272,7 @@ pub fn expression_mock2() -> Expression {
 }
 
 pub fn expression_mock3() -> Expression {
-    let pattern    = Some("var1".to_string());
+    let pattern    = Some("Vector x y z".to_string());
     // let code       = "image.blur ((foo   bar) baz)".to_string();
     let code       = "Vector x y z".to_string();
     let parser     = Parser::new_or_panic();

@@ -235,7 +235,7 @@ impl Model {
         display_object.add_child(&label);
         display_object.add_child(&ports);
         ports.add_child(&header);
-        Self {logger,display_object,ports,header,label,app,expression,styles,id_crumbs_map}.init()
+        Self {logger,display_object,ports,header,label,app,expression,id_crumbs_map,styles}.init()
     }
 
     fn init(self) -> Self {
@@ -279,13 +279,6 @@ impl Model {
                 port.set_usage_type(tp)
             }
         }
-    }
-
-    fn set_label_content(&self, content:&str) {
-        self.label.set_cursor(&default());
-        self.label.select_all();
-        self.label.insert(content);
-        self.label.remove_all_cursors();
     }
 }
 
@@ -341,7 +334,7 @@ impl Area {
                 model.label.set_focus(edit_mode);
                 if *edit_mode {
                     // Reset the code to hide non-connected port names.
-                    model.set_label_content(&model.expression.borrow().code);
+                    model.label.set_content(model.expression.borrow().code.clone());
                     model.label.set_cursor_at_mouse_position();
                 } else {
                     model.label.remove_all_cursors();
@@ -473,10 +466,7 @@ impl PortLayerBuilder {
 
 impl Area {
     fn set_label_on_new_expression(&self, expression:&Expression) {
-        self.model.label.set_cursor(&default());
-        self.model.label.select_all();
-        self.model.label.insert(&expression.viz_code);
-        self.model.label.remove_all_cursors();
+        self.model.label.set_content(expression.viz_code.clone());
     }
 
     fn build_port_shapes_on_new_expression(&self, expression:&mut Expression) {
@@ -733,7 +723,6 @@ impl Area {
     }
 
     pub(crate) fn set_expression(&self, new_expression:impl Into<node::Expression>) {
-        let model              = &self.model;
         let new_expression     = new_expression.into();
         let mut new_expression = Expression::from(new_expression);
         if DEBUG { println!("\n\n=====================\nSET EXPR: {}", new_expression.code) }
@@ -742,8 +731,8 @@ impl Area {
         self.build_port_shapes_on_new_expression(&mut new_expression);
         self.init_port_frp_on_new_expression(&mut new_expression);
 
-        *model.expression.borrow_mut() = new_expression;
-        model.init_port_coloring();
+        *self.model.expression.borrow_mut() = new_expression;
+        self.model.init_port_coloring();
 
         if self.frp.editing.value() {
             self.model.label.set_cursor_at_end();
