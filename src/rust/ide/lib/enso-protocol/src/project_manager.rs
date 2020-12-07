@@ -198,7 +198,11 @@ mod mock_client_tests {
         };
         let open_result              = Ok(expected_ip_with_socket.clone());
         let missing_component_action = MissingComponentAction::Fail;
-        expect_call!(mock_client.create_project(name="HelloWorld".to_string(),version=None,missing_component_action=missing_component_action) => Ok(creation_response));
+        expect_call!(mock_client.create_project(
+            name                     = "HelloWorld".to_string(),
+            version                  = None,
+            missing_component_action = missing_component_action
+        ) => Ok(creation_response));
         expect_call!(mock_client.open_project(expected_uuid,missing_component_action) => open_result);
         expect_call!(mock_client.close_project(expected_uuid) => error("Project isn't open."));
         expect_call!(mock_client.delete_project(expected_uuid) => error("Project doesn't exist."));
