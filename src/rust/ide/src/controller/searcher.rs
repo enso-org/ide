@@ -57,12 +57,42 @@ pub enum Notification {
 // === Suggestions ===
 // ===================
 
+// ===================
+// === Suggestions ===
+// ===================
+
 /// List of suggestions available in Searcher.
-#[derive(Clone,CloneRef,Debug,Default)]
-pub struct Suggestions {
-    pub list          : Rc<suggestion::List>,
-    pub still_loading : Immutable<bool>,
-    pub errors        : Rc<Vec<failure::Error>>,
+#[derive(Clone,CloneRef,Debug)]
+pub enum Suggestions {
+    /// The suggestion list is still loading from the Language Server.
+    Loading,
+    /// The suggestion list is loaded.
+    #[allow(missing_docs)]
+    Loaded {
+        list : Rc<suggestion::List>
+    },
+    /// Loading suggestion list resulted in error.
+    Error(Rc<failure::Error>)
+}
+
+impl Suggestions {
+    /// Check if suggestion list is still loading.
+    pub fn is_loading(&self) -> bool {
+        matches!(self,Self::Loading)
+    }
+
+    /// Check if retrieving suggestion list was unsuccessful
+    pub fn is_error(&self) -> bool {
+        matches!(self,Self::Error(_))
+    }
+
+    /// Get the list of suggestions. Returns None if still loading or error was returned.
+    pub fn list(&self) -> Option<&suggestion::List> {
+        match self {
+            Self::Loaded {list} => Some(list),
+            _                   => None,
+        }
+    }
 }
 
 impl Default for Suggestions {
@@ -71,15 +101,6 @@ impl Default for Suggestions {
     }
 }
 
-impl Suggestions {
-    fn new_empty_loading() -> Self {
-        Self {
-            list          : default(),
-            still_loading : Immutable(true),
-            errors        : default()
-        }
-    }
-}
 
 
 // ===================
@@ -666,8 +687,8 @@ impl Searcher {
             CompletedFragmentId::Argument {index} =>
                 self.return_types_for_argument_completion(index),
         };
-        self.extend_suggestion_list_from_engine(this_type,return_types,None);
-        self.data.borrow_mut().suggestions = Suggestions::Loaded {};
+        self.get_suggestion_list_from_engine(this_type, return_types, None);
+        self.data.borrow_mut().suggestions = Suggestions::Loading;
         executor::global::spawn(self.notifier.publish(Notification::NewSuggestionList));
     }
 
@@ -705,7 +726,7 @@ impl Searcher {
         }).collect()
     }
 
-    fn extend_suggestion_list_from_engine
+    fn get_suggestion_list_from_engine
     ( &self
     , this_type    : impl Future<Output=Option<String>> + 'static
     , return_types : impl IntoIterator<Item=String>
@@ -715,7 +736,6 @@ impl Searcher {
         let graph            = self.graph.graph();
         let position         = self.position_in_code.deref().into();
         let this             = self.clone_ref();
-        let list             = self.data.borrow().suggestions.clone_ref();
         let mut return_types = return_types.into_iter().map(Some).collect_vec();
         if return_types.is_empty() {
             return_types.push(None)
@@ -744,6 +764,7 @@ impl Searcher {
     (&self, responses:Vec<json_rpc::Result<language_server::response::Completion>>)
     -> FallibleResult<suggestion::List> {
         let suggestions = suggestion::List::new();
+        // suggestions.extend(suggestion::example::EXAMPLES.iter().map(|e| Suggestion::Example(Rc::new(e.clone()))));
         for response in responses {
             let response = response?;
             let entries  = response.results.iter().filter_map(|id| {
@@ -905,8 +926,9 @@ pub mod test {
     use super::*;
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
-    use crate::model::suggestion_database::Scope;
-    use crate::model::suggestion_database::Argument;
+    use crate::model::suggestion_database::entry::Argument;
+    use crate::model::suggestion_database::entry::Kind;
+    use crate::model::suggestion_database::entry::Scope;
     use crate::test::mock::data::MAIN_FINISH;
     use crate::test::mock::data::PROJECT_NAME;
 
@@ -1007,7 +1029,7 @@ pub mod test {
             };
             let entry1 = model::suggestion_database::Entry {
                 name          : "testFunction1".to_string(),
-                kind          : model::suggestion_database::EntryKind::Function,
+                kind          : Kind::Function,
                 module        : crate::test::mock::data::module_qualified_name(),
                 arguments     : vec![],
                 return_type   : "Number".to_string(),
@@ -1017,12 +1039,12 @@ pub mod test {
             };
             let entry2 = model::suggestion_database::Entry {
                 name : "TestVar1".to_string(),
-                kind : model::suggestion_database::EntryKind::Local,
+                kind : Kind::Local,
                 ..entry1.clone()
             };
             let entry3 = model::suggestion_database::Entry {
                 name          : "testMethod1".to_string(),
-                kind          : model::suggestion_database::EntryKind::Method,
+                kind          : Kind::Method,
                 self_type     : Some(crate::test::mock::data::MODULE_NAME.to_string()),
                 scope         : Scope::Everywhere,
                 arguments     : vec![

@@ -100,8 +100,8 @@ fn span_tree_args() {
     let get_param  = |n| get_inputs().root_ref().leaf_iter().nth(n).and_then(|node| {
         node.argument_info()
     });
-    let expected_this_param = model::suggestion_database::to_span_tree_param(&entry.arguments[0]);
-    let expected_arg1_param = model::suggestion_database::to_span_tree_param(&entry.arguments[1]);
+    let expected_this_param = model::suggestion_database::entry::to_span_tree_param(&entry.arguments[0]);
+    let expected_arg1_param = model::suggestion_database::entry::to_span_tree_param(&entry.arguments[1]);
 
 
     // === Method notation, without prefix application ===

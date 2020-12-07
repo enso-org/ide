@@ -1,3 +1,4 @@
+use crate::prelude::*;
 
 #[derive(Clone,Debug,Default,Eq,PartialEq)]
 pub struct Example {
@@ -6,7 +7,8 @@ pub struct Example {
     pub documentation : String,
 }
 
-const EXAMPLES:&[Example] = &
+lazy_static! {
+    pub static ref EXAMPLES:Vec<Example> = vec!
     [ Example {name: "Split an Example".to_owned(), code: r#"
         example = File.read "/home/adam-praca/Documents/example"
         example.split " "
@@ -17,3 +19,4 @@ const EXAMPLES:&[Example] = &
         "#.to_owned(),
         documentation: "Lorem ipsum".to_owned()}
     ];
+}

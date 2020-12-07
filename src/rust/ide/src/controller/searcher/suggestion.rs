@@ -1,9 +1,5 @@
 //! All structures related to the suggestion list provided by SearcherController.
-pub mod example;
-
 use crate::prelude::*;
-
-pub use example::Example;
 
 
 
@@ -14,12 +10,15 @@ pub use example::Example;
 /// Suggestion for input completion: possible functions, arguments, etc.
 pub type Completion = Rc<model::suggestion_database::Entry>;
 
+
+pub type Example = Rc<model::suggestion_database::Example>;
+
 /// A single suggestion on the Searcher suggestion list.
 #[derive(Clone,CloneRef,Debug,Eq,PartialEq)]
 pub enum Suggestion {
     /// Suggestion for input completion: possible functions, arguments, etc.
     Completion(Completion),
-    Example(&'static Example),
+    Example(Example),
     // In future, other suggestion types will be added (like suggestions of actions, etc.).
 }
 

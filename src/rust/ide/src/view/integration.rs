@@ -15,7 +15,7 @@ use crate::model::execution_context::ExpressionId;
 use crate::model::execution_context::Visualization;
 use crate::model::execution_context::VisualizationId;
 use crate::model::execution_context::VisualizationUpdateData;
-use crate::model::suggestion_database::EntryKind;
+use crate::model::suggestion_database;
 
 use bimap::BiMap;
 use enso_data::text::TextChange;
@@ -1173,10 +1173,10 @@ struct DataProviderForView {
 impl DataProviderForView {
     fn doc_placeholder_for(suggestion:&controller::searcher::suggestion::Completion) -> String {
         let title = match suggestion.kind {
-            EntryKind::Atom     => "Atom",
-            EntryKind::Function => "Function",
-            EntryKind::Local    => "Local variable",
-            EntryKind::Method   => "Method",
+            suggestion_database::entry::Kind::Atom     => "Atom",
+            suggestion_database::entry::Kind::Function => "Function",
+            suggestion_database::entry::Kind::Local    => "Local variable",
+            suggestion_database::entry::Kind::Method   => "Method",
         };
         format!("{} `{}`\n\nNo documentation available", title,suggestion.code_to_insert(None))
     }
