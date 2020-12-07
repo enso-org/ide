@@ -1,3 +1,5 @@
+//! Module with the Suggestion Database Entry and all structures related to.
+
 use crate::prelude::*;
 
 use crate::constants::keywords;
@@ -8,7 +10,6 @@ use data::text::TextLocation;
 use enso_protocol::language_server;
 use enso_protocol::language_server::FieldUpdate;
 use language_server::types::FieldAction;
-
 
 pub use language_server::types::SuggestionEntryArgument as Argument;
 pub use language_server::types::SuggestionId as Id;
@@ -199,6 +200,7 @@ impl Entry {
         Ok(this)
     }
 
+    /// Apply modification to the entry.
     pub fn apply_modifications
     ( &mut self
       , arguments     : Vec<language_server::types::SuggestionArgumentUpdate>

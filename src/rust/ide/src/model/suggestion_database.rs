@@ -59,6 +59,7 @@ pub enum Notification {
 pub struct SuggestionDatabase {
     logger        : Logger,
     entries       : RefCell<HashMap<entry::Id,Rc<Entry>>>,
+    examples      : RefCell<Vec<Rc<Example>>>,
     version       : Cell<SuggestionsDatabaseVersion>,
     notifications : notification::Publisher<Notification>,
 }
@@ -68,9 +69,10 @@ impl SuggestionDatabase {
     pub fn new_empty(logger:impl AnyLogger) -> Self {
         let logger        = Logger::sub(logger,"SuggestionDatabase");
         let entries       = default();
+        let examples      = default();
         let version       = default();
         let notifications = default();
-        Self {logger,entries,version,notifications}
+        Self {logger,entries,examples,version,notifications}
     }
 
     /// Create a database filled with entries provided by the given iterator.
@@ -100,9 +102,14 @@ impl SuggestionDatabase {
                 Err(err)  => { error!(logger,"Discarded invalid entry {id}: {err}"); },
             }
         }
+        //TODO[ao] this is temporary solution. Eventually we should gather examples from
+        //         available modules documentation. The proper one should be delivered with
+        //         https://github.com/enso-org/ide/issues/1011
+        let examples = example::EXAMPLES.iter().cloned().map(Rc::new).collect_vec();
         Self {
             logger,
             entries       : RefCell::new(entries),
+            examples      : RefCell::new(examples),
             version       : Cell::new(response.current_version),
             notifications : default()
         }

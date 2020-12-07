@@ -407,8 +407,17 @@ impl Data {
 /// Searcher Controller.
 ///
 /// This is an object providing all required functionalities for Searcher View: mainly it is the
-/// suggestion list to display depending on the searcher input, and actions of picking one or
-/// accepting the Searcher input (pressing "Enter").
+/// suggestion list to display depending on the searcher input, and actions of picking and
+/// committing.
+///
+/// ### Suggestion actions
+/// * _Committing_ suggestion: Run the action bound to it (e.g. opening project,
+///   inserting example etc.). It should result in closing the searcher panel.
+/// * _Picking_ suggestion: available for `Completion` suggestions only; the suggested code in added
+///   to the searcher input. User shall continue editing the input.
+///
+/// Additionally user can accept the current searcher input as a new node (or new expression of
+/// existing node).
 #[derive(Clone,CloneRef,Debug)]
 pub struct Searcher {
     logger           : Logger,
@@ -525,9 +534,9 @@ impl Searcher {
 
     /// Pick a completion suggestion.
     ///
-    /// This function should be called when user chooses some completion suggestion. The picked
-    /// suggestion will be remembered, and the searcher's input will be updated and returned by this
-    /// function.
+    /// This function should be called when user _picks_ some completion suggestion (see struct
+    /// documentation). The picked  suggestion will be remembered, and the searcher's input will be
+    /// updated and returned by this function.
     pub fn pick_completion
     (&self, picked_suggestion:suggestion::Completion) -> FallibleResult<String> {
         info!(self.logger, "Picking suggestion: {picked_suggestion:?}");
@@ -562,7 +571,7 @@ impl Searcher {
         Ok(new_input)
     }
 
-    /// Pick a completion suggestion by index.
+    /// Pick a completion suggestion by index. See `pick_completion` documentation.
     pub fn pick_completion_by_index(&self, index:usize) -> FallibleResult<String> {
         let error      = || NoSuchSuggestion{index};
         let suggestion = {
@@ -576,6 +585,11 @@ impl Searcher {
         }
     }
 
+    /// Commit given suggestion.
+    ///
+    /// This function should be called when user _commits_ suggestion (see struct documentation).
+    /// If the action of given suggestion results in adding new node to the graph, or changing an
+    /// exiting node, its id will be returned by this function.
     pub fn commit_suggestion
     (&self, suggestion:Suggestion) -> FallibleResult<Option<ast::Id>> {
         match suggestion {
@@ -587,6 +601,7 @@ impl Searcher {
         }
     }
 
+    /// Commit suggestion by index. See `commit_suggestion` documentation.
     pub fn commit_suggestion_by_index(&self, index:usize) -> FallibleResult<Option<ast::Id>> {
         let error      = || NoSuchSuggestion{index};
         let suggestion = {

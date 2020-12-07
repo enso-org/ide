@@ -10,13 +10,13 @@ use crate::prelude::*;
 /// Suggestion for input completion: possible functions, arguments, etc.
 pub type Completion = Rc<model::suggestion_database::Entry>;
 
-
+/// Suggestion for inserting example into current graph.
 pub type Example = Rc<model::suggestion_database::Example>;
 
 /// A single suggestion on the Searcher suggestion list.
+#[allow(missing_docs)]
 #[derive(Clone,CloneRef,Debug,Eq,PartialEq)]
 pub enum Suggestion {
-    /// Suggestion for input completion: possible functions, arguments, etc.
     Completion(Completion),
     Example(Example),
     // In future, other suggestion types will be added (like suggestions of actions, etc.).
