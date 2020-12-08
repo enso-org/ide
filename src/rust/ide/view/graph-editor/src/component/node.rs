@@ -20,7 +20,7 @@ use ensogl::data::color;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
-use ensogl::gui::component::Animation;
+use ensogl::Animation;
 use ensogl::gui::component;
 use ensogl_text::Text;
 use ensogl_theme;

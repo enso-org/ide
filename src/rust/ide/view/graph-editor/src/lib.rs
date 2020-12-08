@@ -39,6 +39,8 @@ use crate::component::visualization::MockDataGenerator3D;
 use crate::component::type_coloring;
 
 use enso_frp as frp;
+use ensogl::DEPRECATED_Animation;
+use ensogl::DEPRECATED_Tween;
 use ensogl::application::Application;
 use ensogl::application::shortcut;
 use ensogl::application;
@@ -48,12 +50,11 @@ use ensogl::display::navigation::navigator::Navigator;
 use ensogl::display::object::Id;
 use ensogl::display::shape::StyleWatch;
 use ensogl::display;
-use ensogl::gui::component::DEPRECATED_Animation;
-use ensogl::gui::component::DEPRECATED_Tween;
 use ensogl::gui::cursor;
 use ensogl::prelude::*;
 use ensogl::system::web;
 use ensogl_theme as theme;
+
 
 
 // ===============
@@ -74,8 +75,6 @@ pub mod prelude {
 
 const SNAP_DISTANCE_THRESHOLD         : f32 = 10.0;
 const VIZ_PREVIEW_MODE_TOGGLE_TIME_MS : f32 = 300.0;
-
-
 
 #[derive(Clone,CloneRef,Debug,Derivative)]
 #[derivative(Default(bound=""))]

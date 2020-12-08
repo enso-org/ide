@@ -2,14 +2,14 @@
 
 use crate::prelude::*;
 
-use crate::frp;
+use crate::Animation;
+use crate::DEPRECATED_Animation;
+use crate::DEPRECATED_Tween;
 use crate::data::color;
 use crate::display::scene::Scene;
 use crate::display::shape::*;
 use crate::display;
-use crate::gui::component::DEPRECATED_Animation;
-use crate::gui::component::Animation;
-use crate::gui::component::DEPRECATED_Tween;
+use crate::frp;
 use crate::gui::component;
 
 

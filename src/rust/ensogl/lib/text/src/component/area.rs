@@ -15,6 +15,7 @@ use crate::typeface;
 
 use enso_frp as frp;
 use enso_frp::io::keyboard::Key;
+use ensogl_core::DEPRECATED_Animation;
 use ensogl_core::application::Application;
 use ensogl_core::application::shortcut;
 use ensogl_core::application;
@@ -22,7 +23,6 @@ use ensogl_core::data::color;
 use ensogl_core::display::scene::Scene;
 use ensogl_core::display::shape::*;
 use ensogl_core::display;
-use ensogl_core::gui::component::DEPRECATED_Animation;
 use ensogl_core::gui::component;
 use ensogl_core::gui::cursor;
 use ensogl_core::system::gpu::shader::glsl::traits::IntoGlsl;

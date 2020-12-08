@@ -2,8 +2,8 @@
 use crate::prelude::*;
 use enso_frp as frp;
 use ensogl::gui::component;
-use ensogl::gui::component::Animation;
-use ensogl::gui::component::Tween;
+use ensogl::Animation;
+use ensogl::Tween;
 use ensogl::display;
 use ensogl::display::shape::AnyShape;
 use ensogl::display::shape::BottomHalfPlane;
@@ -451,14 +451,12 @@ ensogl::define_endpoints! {
     }
 }
 
-
-
 #[derive(Clone,Debug,Default)]
 pub struct Model {
-    frp   : Option<Frp>,
-    shape : Option<PortShapeView>,
-    pub index           : usize,
-    pub length          : usize,
+    frp        : Option<Frp>,
+    shape      : Option<PortShapeView>,
+    pub index  : usize,
+    pub length : usize,
 }
 
 impl Model {
@@ -468,7 +466,6 @@ impl Model {
         let logger_name = format!("port({},{})",self.index,self.length);
         let logger      = Logger::sub(logger,logger_name);
         let shape       = PortShapeView::new(port_count,&logger,scene);
-
 
         let is_first      = port_index == 0;
         let is_last       = port_index == port_count - 1;
