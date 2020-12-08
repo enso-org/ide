@@ -156,7 +156,14 @@ pub type DynAnimator<T,F> = Animator<T,F,Box<dyn Fn(f32)>,Box<dyn Fn(EndStatus)>
 #[allow(clippy::type_complexity)]
 pub struct Animator<T,F,OnStep=(),OnEnd=()> {
     data           : Rc<AnimatorData<T,F,OnStep,OnEnd>>,
-    animation_loop : Rc<CloneCell<Option<AnimationStep<T,F,OnStep,OnEnd>>>>,
+    animation_loop : AnimationLoop<T,F,OnStep,OnEnd>,
+}
+
+impl<T,F,OnStep,OnEnd> Deref for Animator<T,F,OnStep,OnEnd> {
+    type Target = Rc<AnimatorData<T,F,OnStep,OnEnd>>;
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
 }
 
 impl<T,F,OnStep,OnEnd> Debug for Animator<T,F,OnStep,OnEnd> {
@@ -205,18 +212,6 @@ where F:AnyFnEasing, OnStep:Callback<T>, OnEnd:Callback<EndStatus> {
             self.active.set(false);
             self.on_end.call(EndStatus::Normal);
         }
-    }
-}
-
-/// Alias for `FixedFrameRateLoop` with specified step callback.
-pub type AnimationStep<T,F,OnStep,OnEnd> = animation::Loop<Step<T,F,OnStep,OnEnd>>;
-pub type Step<T,F,OnStep,OnEnd> = impl Fn(animation::TimeInfo);
-fn step<T:Value,F,OnStep,OnEnd>(easing:&Animator<T,F,OnStep,OnEnd>) -> Step<T,F,OnStep,OnEnd>
-where F:AnyFnEasing, OnStep:Callback<T>, OnEnd:Callback<EndStatus> {
-    let this = easing.clone_ref();
-    move |time:animation::TimeInfo| {
-        if this.active() { this.data.step(time.local) }
-        else             { this.stop() }
     }
 }
 
@@ -334,5 +329,72 @@ where F:AnyFnEasing, OnStep:Callback<T>, OnEnd:Callback<EndStatus> {
 
     pub fn set_duration(&self, t:f32) {
         self.data.duration.set(t);
+    }
+}
+
+
+// =====================
+// === AnimationLoop ===
+// =====================
+
+/// A wrapper over animation loop implementation. This type is defined mainly to make Rust type
+/// inferencer happy (not infer infinite, recursive types).
+#[derive(CloneRef,Derivative)]
+#[derivative(Clone(bound=""))]
+#[derivative(Default(bound=""))]
+#[allow(clippy::type_complexity)]
+#[allow(missing_debug_implementations)]
+pub struct AnimationLoop<T,F,OnStep,OnEnd> {
+    animation_loop : Rc<CloneCell<Option<AnimationStep<T,F,OnStep,OnEnd>>>>,
+}
+
+#[allow(clippy::type_complexity)]
+impl<T,F,OnStep,OnEnd> Deref for AnimationLoop<T,F,OnStep,OnEnd> {
+    type Target = Rc<CloneCell<Option<AnimationStep<T,F,OnStep,OnEnd>>>>;
+    fn deref(&self) -> &Self::Target {
+        &self.animation_loop
+    }
+}
+
+impl<T,F,OnStep,OnEnd> AnimationLoop<T,F,OnStep,OnEnd> {
+    /// Downgrade to a week reference.
+    pub fn downgrade(&self) -> WeakAnimationLoop<T,F,OnStep,OnEnd> {
+        let animation_loop = Rc::downgrade(&self.animation_loop);
+        WeakAnimationLoop {animation_loop}
+    }
+}
+
+/// A weak wrapper over animation loop implementation. This type is defined mainly to make Rust type
+/// inferencer happy (not infer infinite, recursive types).
+#[allow(clippy::type_complexity)]
+#[allow(missing_debug_implementations)]
+pub struct WeakAnimationLoop<T,F,OnStep,OnEnd> {
+    animation_loop : Weak<CloneCell<Option<AnimationStep<T,F,OnStep,OnEnd>>>>,
+}
+
+impl<T,F,OnStep,OnEnd> WeakAnimationLoop<T,F,OnStep,OnEnd> {
+    /// Upgrade the weak reference.
+    pub fn upgrade(&self) -> Option<AnimationLoop<T,F,OnStep,OnEnd>> {
+        self.animation_loop.upgrade().map(|animation_loop| AnimationLoop{animation_loop})
+    }
+}
+
+
+// === Animation Step ===
+
+/// Alias for `FixedFrameRateLoop` with specified step callback.
+pub type AnimationStep<T,F,OnStep,OnEnd> = animation::Loop<Step<T,F,OnStep,OnEnd>>;
+pub type Step<T,F,OnStep,OnEnd> = impl Fn(animation::TimeInfo);
+fn step<T:Value,F,OnStep,OnEnd>(easing:&Animator<T,F,OnStep,OnEnd>) -> Step<T,F,OnStep,OnEnd>
+    where F:AnyFnEasing, OnStep:Callback<T>, OnEnd:Callback<EndStatus> {
+    let data           = easing.data.clone_ref();
+    let animation_loop = easing.animation_loop.downgrade();
+    move |time:animation::TimeInfo| {
+        if data.active.get() {
+            data.step(time.local)
+        } else if let Some(animation_loop) = animation_loop.upgrade() {
+            animation_loop.set(None);
+            data.on_end.call(EndStatus::Normal);
+        }
     }
 }
