@@ -49,7 +49,7 @@ use ensogl::display::object::Id;
 use ensogl::display::shape::StyleWatch;
 use ensogl::display;
 use ensogl::gui::component::DEPRECATED_Animation;
-use ensogl::gui::component::Tween;
+use ensogl::gui::component::DEPRECATED_Tween;
 use ensogl::gui::cursor;
 use ensogl::prelude::*;
 use ensogl::system::web;
@@ -987,7 +987,7 @@ impl GraphEditorModelWithNetwork {
             output.source.node_hovered <+ hovered;
 
             eval node.model.input.frp.pointer_style ((style) pointer_style.emit(style));
-            eval node.model.output.frp.port_mouse_down ([output_press](crumbs){
+            eval node.model.output.frp.on_port_press ([output_press](crumbs){
                 let target = EdgeEndpoint::new(node_id,crumbs.clone());
                 output_press.emit(target);
             });
@@ -1003,14 +1003,10 @@ impl GraphEditorModelWithNetwork {
                 model.frp.hover_node_input.emit(target);
             });
 
-            eval node.model.output.frp.port_mouse_over ([model](crumbs) {
-               let target = EdgeEndpoint::new(node_id,crumbs.clone());
-               model.frp.hover_node_output.emit(Some(target));
+            eval node.model.output.frp.on_port_hover ([model](hover) {
+               let output = hover.on().map(|crumbs| EdgeEndpoint::new(node_id,crumbs.clone()));
+               model.frp.hover_node_output.emit(output);
             });
-
-            eval_ node.model.output.frp.port_mouse_out (
-                model.frp.hover_node_output.emit(None)
-            );
 
             eval node.model.input.frp.on_port_tp_change(((crumbs,_))
                 model.with_input_edge_id(node_id,crumbs,|id| model.refresh_edge_color(id))
@@ -2371,8 +2367,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     eval drag_tgts ((ids) model.disable_grid_snapping_for(ids));
     let node_tgt_pos_anim = DEPRECATED_Animation::<Vector2<f32>>::new(&network);
-    let x_snap_strength   = Tween::new(&network);
-    let y_snap_strength   = Tween::new(&network);
+    let x_snap_strength   = DEPRECATED_Tween::new(&network);
+    let y_snap_strength   = DEPRECATED_Tween::new(&network);
     x_snap_strength.set_duration(300.0);
     y_snap_strength.set_duration(300.0);
 

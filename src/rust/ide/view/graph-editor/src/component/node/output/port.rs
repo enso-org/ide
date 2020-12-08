@@ -2,7 +2,8 @@
 use crate::prelude::*;
 use enso_frp as frp;
 use ensogl::gui::component;
-use ensogl::gui::component::DEPRECATED_Animation;
+use ensogl::gui::component::Animation;
+use ensogl::gui::component::Tween;
 use ensogl::display;
 use ensogl::display::shape::AnyShape;
 use ensogl::display::shape::BottomHalfPlane;
@@ -28,8 +29,7 @@ const PORT_SIZE_MULTIPLIER_NOT_HOVERED : f32 = 0.6;
 const PORT_SIZE_MULTIPLIER_HOVERED     : f32 = 1.0;
 const SEGMENT_GAP_WIDTH                : f32 = 2.0;
 const HOVER_AREA_PADDING               : f32 = 20.0;
-const SHOW_DELAY_DURATION_MS           : f32 = 150.0;
-const HIDE_DELAY_DURATION_MS           : f32 = 150.0;
+
 
 const INFINITE : f32 = 99999.0;
 
@@ -441,14 +441,13 @@ impl PortId {
 
 ensogl::define_endpoints! {
     Input {
-        mouse_over (PortId),
-        mouse_out  (PortId),
-        mouse_down (PortId),
-        hide       (),
+        set_size_multiplier (f32),
         activate_and_highlight_selected (PortId) // FIXME : naming
     }
 
     Output {
+        on_hover (bool),
+        on_press (),
     }
 }
 
@@ -480,7 +479,7 @@ impl Model {
         shape.set_padding_left(padding_left);
         shape.set_padding_right(padding_right);
 
-        shape.set_size_multiplier(1.0);
+        // shape.set_size_multiplier(1.0);
         shape.set_opacity(1.0);
         // shape.set_padding_left()
         // Self::Multi{shapes,..} => {
@@ -506,41 +505,45 @@ impl Model {
         let port_id      = PortId::new(port_id);
         let frp          = Frp::new();
         let network      = &frp.network;
-        let port_size    = DEPRECATED_Animation::<f32>::new(&network);
         let events       = shape.events();
+
+
 
         frp::extend! { network
 
             // === Mouse Event Handling ===
 
-            eval_ events.mouse_over (frp.mouse_over.emit(port_id));
-            eval_ events.mouse_out  (frp.mouse_out.emit(port_id));
-            eval_ events.mouse_down (frp.mouse_down.emit(port_id));
+            frp.source.on_hover <+ bool(&events.mouse_out,&events.mouse_over);
+            frp.source.on_press <+ events.mouse_down;
+
+
+            // ready_to_show       <- show_delay_finished.on_true();
+
+            eval frp.set_size_multiplier ((t) shape.set_size_multiplier(*t));
 
 
             // === Animation Handling ===
 
-            eval port_size.value    ((size) shape.set_size_multiplier(*size));
 
 
             // === Visibility and Highlight Handling ===
 
-             eval_ frp.hide ([port_size]{
-                 port_size.set_target_value(0.0);
-             });
+             // eval_ frp.hide ([port_size]{
+             //     port_size.set_target_value(0.0);
+             // });
 
             // Through the provided ID we can infer whether this port should be highlighted.
-            is_selected      <- frp.activate_and_highlight_selected.map(move |id| *id == port_id);
-            show_normal      <- frp.activate_and_highlight_selected.gate_not(&is_selected);
-            show_highlighted <- frp.activate_and_highlight_selected.gate(&is_selected);
-
-            eval_ show_highlighted ([port_size]{
-                port_size.set_target_value(PORT_SIZE_MULTIPLIER_HOVERED);
-            });
-
-            eval_ show_normal ([port_size] {
-                port_size.set_target_value(PORT_SIZE_MULTIPLIER_NOT_HOVERED);
-            });
+            // is_selected      <- frp.activate_and_highlight_selected.map(move |id| *id == port_id);
+            // show_normal      <- frp.activate_and_highlight_selected.gate_not(&is_selected);
+            // show_highlighted <- frp.activate_and_highlight_selected.gate(&is_selected);
+            //
+            // eval_ show_highlighted ([port_size]{
+            //     port_size.set_target_value(PORT_SIZE_MULTIPLIER_HOVERED);
+            // });
+            //
+            // eval_ show_normal ([port_size] {
+            //     port_size.set_target_value(PORT_SIZE_MULTIPLIER_NOT_HOVERED);
+            // });
         }
 
         self.frp = Some(frp);

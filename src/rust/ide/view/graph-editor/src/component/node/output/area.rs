@@ -18,13 +18,14 @@ use ensogl::display::shape::Var;
 use ensogl::display::shape::primitive::def::class::ShapeOps;
 use ensogl::display;
 use ensogl::gui::component::DEPRECATED_Animation;
-use ensogl::gui::component::Tween;
 use ensogl::gui::component;
 use ensogl_theme as theme;
 use span_tree;
 use ensogl::application::Application;
 use ensogl_text as text;
 use ensogl_text::buffer::data::unit::traits::*;
+use ensogl::gui::component::Animation;
+use ensogl::gui::component::Tween;
 
 use crate::Type;
 use crate::component::node;
@@ -37,7 +38,8 @@ use crate::component::node::output::port;
 // =================
 
 const DEBUG : bool = true;
-
+const SHOW_DELAY_DURATION_MS           : f32 = 150.0;
+const HIDE_DELAY_DURATION_MS           : f32 = 150.0;
 
 
 // =============
@@ -134,9 +136,9 @@ ensogl::define_endpoints! {
     }
 
     Output {
-        port_mouse_over (span_tree::Crumbs),
-        port_mouse_out  (span_tree::Crumbs),
-        port_mouse_down (span_tree::Crumbs),
+        on_port_hover        (Switch<span_tree::Crumbs>),
+        on_port_press        (span_tree::Crumbs),
+        port_size_multiplier (f32),
     }
 }
 
@@ -272,8 +274,28 @@ impl Area {
         let model   = Rc::new(Model::new(logger,app));
         let frp     = Frp::new();
         let network = &frp.network;
+
+        let port_size  = Animation::<f32>::new(network);
+        let show_delay = Tween::new(network);
+        show_delay.set_duration(SHOW_DELAY_DURATION_MS);
+
         frp::extend! { network
             eval frp.set_size ((t) model.set_size(*t));
+
+            show_delay_target <= frp.on_port_hover.map(|t| t.on().map(|_| 1.0));
+            show_delay.target <+ show_delay_target;
+
+
+            on_hover_out <= frp.on_port_hover.map(|t| t.is_off()).on_true();
+            // on_hover_out_during_show <- on_hover_out.gate()
+
+            trace show_delay.value;
+
+            on_show_start <- show_delay.on_end.map(|t| t.is_normal()).on_true();
+
+            port_size.target <+ on_show_start.constant(1.0);
+            frp.source.port_size_multiplier <+ port_size.value;
+
         }
         Self {frp,model}
     }
@@ -347,8 +369,9 @@ impl Area {
                 let port_network = &port_frp.network;
 
                 frp::extend! { port_network
-                    trace port_frp.mouse_down;
-                    self.frp.output.source.port_mouse_down <+ port_frp.mouse_down.constant(crumbs);
+                    self.frp.output.source.on_port_hover <+ port_frp.on_hover.map(f!([crumbs](t) Switch::new(crumbs.clone(),*t)));
+                    self.frp.output.source.on_port_press <+ port_frp.on_press.constant(crumbs);
+                    port_frp.set_size_multiplier <+ self.frp.port_size_multiplier;
                 }
 
                 self.model.ports.add_child(&port_shape);

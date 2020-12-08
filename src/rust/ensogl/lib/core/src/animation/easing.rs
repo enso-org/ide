@@ -5,6 +5,7 @@ use crate::prelude::*;
 
 use crate::animation;
 use core::f32::consts::PI;
+use crate::data::function::callback::Function1;
 
 
 
@@ -141,21 +142,38 @@ pub fn elastic_in_out_params(t:f32, period:f32, amplitude:f32) -> f32 {
 pub trait Value = Copy + Add<Self,Output=Self> + Mul<f32,Output=Self> + PartialEq + 'static;
 
 /// Easing animator callback.
-pub trait Callback<T> = Fn(T) + 'static;
+pub trait Callback<T> = Function1<T> + 'static;
+
+/// Status of the tween end. It is either normal, which happens when the animation finishes, or
+/// forced, which means that it was forced by the user (for example by using `stop_*` functions).
+#[derive(Clone,Copy,Debug,Eq,PartialEq,Hash)]
+pub enum EndStatus { Normal, Forced }
+
+#[allow(missing_docs)]
+impl EndStatus {
+    pub fn is_normal(&self) -> bool { *self == Self::Normal }
+    pub fn is_forced(&self) -> bool { *self == Self::Forced }
+}
+
+impl Default for EndStatus {
+    fn default() -> Self {
+        Self::Normal
+    }
+}
 
 /// Handy alias for `Simulator` with a boxed closure callback.
-pub type DynAnimator<T,F> = Animator<T,F,Box<dyn Fn(f32)>>;
+pub type DynAnimator<T,F> = Animator<T,F,Box<dyn Fn(f32)>,Box<dyn Fn(EndStatus)>>;
 
 /// Easing animator. Allows animating any value which implements `Value` according to one of the
 /// tween functions.
 #[derive(CloneRef,Derivative)]
 #[derivative(Clone(bound=""))]
-pub struct Animator<T,F,Cb> {
-    data           : Rc<AnimatorData<T,F,Cb>>,
-    animation_loop : Rc<CloneCell<Option<AnimationStep<T,F,Cb>>>>,
+pub struct Animator<T,F,OnStep=(),OnEnd=()> {
+    data           : Rc<AnimatorData<T,F,OnStep,OnEnd>>,
+    animation_loop : Rc<CloneCell<Option<AnimationStep<T,F,OnStep,OnEnd>>>>,
 }
 
-impl<T,F,Cb> Debug for Animator<T,F,Cb> {
+impl<T,F,OnStep,OnEnd> Debug for Animator<T,F,OnStep,OnEnd> {
     fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f,"Animator")
     }
@@ -165,7 +183,7 @@ impl<T,F,Cb> Debug for Animator<T,F,Cb> {
 #[derive(Derivative)]
 #[derivative(Debug(bound="T:Debug+Copy"))]
 #[allow(missing_docs)]
-pub struct AnimatorData<T,F,Cb> {
+pub struct AnimatorData<T,F,OnStep,OnEnd> {
     pub duration     : Cell<f32>,
     pub start_value  : Cell<T>,
     pub target_value : Cell<T>,
@@ -174,37 +192,41 @@ pub struct AnimatorData<T,F,Cb> {
     #[derivative(Debug="ignore")]
     pub tween_fn     : F,
     #[derivative(Debug="ignore")]
-    pub callback     : Cb,
+    pub callback     : OnStep,
+    #[derivative(Debug="ignore")]
+    pub on_end       : OnEnd,
 }
 
-impl<T:Value,F,Cb> AnimatorData<T,F,Cb>
-where F:AnyFnEasing, Cb:Callback<T> {
-    fn new(start:T, end:T, tween_fn:F, callback:Cb) -> Self {
+impl<T:Value,F,OnStep,OnEnd> AnimatorData<T,F,OnStep,OnEnd>
+where F:AnyFnEasing, OnStep:Callback<T>, OnEnd:Callback<EndStatus> {
+    fn new(start:T, end:T, tween_fn:F, callback:OnStep, on_end:OnEnd) -> Self {
         let duration     = Cell::new(1000.0);
         let value        = Cell::new(start);
         let start_value  = Cell::new(start);
         let target_value = Cell::new(end);
         let active       = default();
-        Self {duration,value,start_value,target_value,active,tween_fn,callback}
+        Self {duration,value,start_value,target_value,active,tween_fn,callback,on_end}
     }
 
     fn step(&self, time:f32) {
-        let sample = (time / self.duration.get()).min(1.0);
-        let weight = (self.tween_fn)(sample);
-        let value  = self.start_value.get() * (1.0-weight) + self.target_value.get() * weight;
-        (self.callback)(value);
+        let sample   = (time / self.duration.get()).min(1.0);
+        let weight   = (self.tween_fn)(sample);
+        let value    = self.start_value.get() * (1.0-weight) + self.target_value.get() * weight;
+        let finished = (sample - 1.0).abs() < std::f32::EPSILON;
+        self.callback.call(value);
         self.value.set(value);
-        if (sample - 1.0).abs() < std::f32::EPSILON {
+        if finished {
             self.active.set(false);
+            self.on_end.call(EndStatus::Normal);
         }
     }
 }
 
 /// Alias for `FixedFrameRateLoop` with specified step callback.
-pub type AnimationStep<T,F,Cb> = animation::Loop<Step<T,F,Cb>>;
-pub type Step<T,F,Cb> = impl Fn(animation::TimeInfo);
-fn step<T:Value,F,Cb>(easing:&Animator<T,F,Cb>) -> Step<T,F,Cb>
-where F:AnyFnEasing, Cb:Callback<T> {
+pub type AnimationStep<T,F,OnStep,OnEnd> = animation::Loop<Step<T,F,OnStep,OnEnd>>;
+pub type Step<T,F,OnStep,OnEnd> = impl Fn(animation::TimeInfo);
+fn step<T:Value,F,OnStep,OnEnd>(easing:&Animator<T,F,OnStep,OnEnd>) -> Step<T,F,OnStep,OnEnd>
+where F:AnyFnEasing, OnStep:Callback<T>, OnEnd:Callback<EndStatus> {
     let this = easing.clone_ref();
     move |time:animation::TimeInfo| {
         if this.active() { this.data.step(time.local) }
@@ -212,17 +234,18 @@ where F:AnyFnEasing, Cb:Callback<T> {
     }
 }
 
-impl<T:Value,F,Cb> Animator<T,F,Cb> where F:AnyFnEasing, Cb:Callback<T> {
+impl<T:Value,F,OnStep,OnEnd> Animator<T,F,OnStep,OnEnd>
+where F:AnyFnEasing, OnStep:Callback<T>, OnEnd:Callback<EndStatus> {
     /// Constructor.
-    pub fn new_not_started(start:T, end:T, tween_fn:F, callback:Cb) -> Self {
-        let data           = Rc::new(AnimatorData::new(start,end,tween_fn,callback));
+    pub fn new_not_started(start:T, end:T, tween_fn:F, callback:OnStep, on_end:OnEnd) -> Self {
+        let data           = Rc::new(AnimatorData::new(start,end,tween_fn,callback,on_end));
         let animation_loop = default();
         Self {data,animation_loop}
     }
 
     /// Constructor.
-    pub fn new(start:T, end:T, tween_fn:F, callback:Cb) -> Self {
-        let this = Self::new_not_started(start,end,tween_fn,callback);
+    pub fn new(start:T, end:T, tween_fn:F, callback:OnStep, on_end:OnEnd) -> Self {
+        let this = Self::new_not_started(start,end,tween_fn,callback,on_end);
         this.start();
         this
     }
@@ -253,7 +276,8 @@ impl<T:Value,F,Cb> Animator<T,F,Cb> where F:AnyFnEasing, Cb:Callback<T> {
         self.stop();
         self.set_start_value_no_restart(value);
         self.data.value.set(value);
-        (self.data.callback)(value);
+        self.data.callback.call(value);
+        self.data.on_end.call(EndStatus::Forced);
     }
 
     /// Stop the animation, rewind it to the initial value and call the callback.
@@ -272,7 +296,8 @@ impl<T:Value,F,Cb> Animator<T,F,Cb> where F:AnyFnEasing, Cb:Callback<T> {
         self.data.start_value.set(current);
         self.data.target_value.set(tgt);
         if current != tgt {
-            (self.data.callback)(self.start_value());
+            self.data.callback.call(self.start_value());
+            self.data.on_end.call(EndStatus::Forced);
             self.reset();
         }
     }
@@ -290,7 +315,8 @@ impl<T:Value,F,Cb> Animator<T,F,Cb> where F:AnyFnEasing, Cb:Callback<T> {
         self.stop();
         let value = self.target_value();
         self.data.value.set(value);
-        (self.data.callback)(value);
+        self.data.callback.call(value);
+        self.data.on_end.call(EndStatus::Forced);
     }
 }
 
@@ -298,7 +324,8 @@ impl<T:Value,F,Cb> Animator<T,F,Cb> where F:AnyFnEasing, Cb:Callback<T> {
 // === Getters & Setters ===
 
 #[allow(missing_docs)]
-impl<T:Value,F,Cb> Animator<T,F,Cb> where F:AnyFnEasing, Cb:Callback<T> {
+impl<T:Value,F,OnStep,OnEnd> Animator<T,F,OnStep,OnEnd>
+where F:AnyFnEasing, OnStep:Callback<T>, OnEnd:Callback<EndStatus> {
     pub fn start_value(&self) -> T {
         self.data.start_value.get()
     }
