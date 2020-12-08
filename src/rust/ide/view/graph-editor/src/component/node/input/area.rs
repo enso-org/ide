@@ -30,6 +30,8 @@ pub use port::depth_sort_hack;
 // === Constants ===
 // =================
 
+pub const TEXT_OFF          : f32 = 10.0;
+
 /// Width of a single glyph
 pub const GLYPH_WIDTH : f32 = 7.224_609_4; // FIXME hardcoded literal
 
@@ -250,9 +252,14 @@ impl Model {
         self.label.disable_command("cursor_move_up");
         self.label.disable_command("cursor_move_down");
         self.label.set_default_color(color::Rgba::from(text_color));
-        self.label.mod_position(|t| t.y += 6.0);
         self.label.set_default_text_size(text::Size(12.0));
         self.label.remove_all_cursors();
+
+        let label_pos = Vector2(TEXT_OFF,-node::HEIGHT/2.0);
+        self.ports.set_position_xy(label_pos);
+        self.label.set_position_xy(label_pos);
+        self.label.mod_position(|t| t.y += 6.0);
+
         self
     }
 
@@ -299,6 +306,11 @@ fn select_color(styles:&StyleWatch, tp:Option<&Type>) -> color::Lcha {
 // === Area ===
 // ============
 
+/// Input ports area.
+///
+/// ## Origin
+// Please note that the origin of this component is in the left top corner. To learn more about this
+// design decision, please read the docs for the node.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Area {
     pub frp : Frp,
@@ -375,7 +387,8 @@ impl Area {
 
             // === Properties ===
 
-            frp.output.source.width      <+ model.label.width;
+            width <- model.label.width.map(|t| t + 2.0 * TEXT_OFF);
+            frp.output.source.width      <+ width;
             frp.output.source.expression <+ model.label.content;
 
 
@@ -397,7 +410,7 @@ impl Area {
             let unit  = GLYPH_WIDTH;
             let width = unit * node.payload.length as f32;
             let x     = width/2.0 + unit * node.payload.index as f32;
-            Vector2::new(x + node::TEXT_OFF,node::HEIGHT/2.0)
+            Vector2::new(TEXT_OFF + x,-node::HEIGHT/2.0)
         })
     }
 
@@ -466,6 +479,7 @@ impl PortLayerBuilder {
 
 impl Area {
     fn set_label_on_new_expression(&self, expression:&Expression) {
+        println!("set_label_on_new_expression");
         self.model.label.set_content(expression.viz_code.clone());
     }
 

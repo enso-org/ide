@@ -42,7 +42,6 @@ pub const HEIGHT            : f32 = 28.0;
 pub const PADDING           : f32 = 40.0;
 pub const RADIUS            : f32 = 14.0;
 pub const SHADOW_SIZE       : f32 = 10.0;
-pub const TEXT_OFF          : f32 = 10.0;
 
 
 
@@ -175,6 +174,12 @@ ensogl::define_endpoints! {
 
 /// The visual node representation.
 ///
+/// ## Origin
+/// Please note that the origin of the node is in the left top corner. This decision was made to
+/// optimise performance. When node is being edited, its width changes, while its left border should
+/// not move. When expanding the node, its height changes, while its top border should not move.
+/// Thus, while editing or expanding the node, there is no need to update its position.
+///
 /// ## FRP Event Architecture.
 /// Nodes FRP architecture is designed for efficiency. Event with millions nodes on the stage, only
 /// small amount of events will be passed around on user action. This is not always simple, and it
@@ -280,10 +285,10 @@ impl NodeModel {
 
         display_object.add_child(&visualization);
 
-        input.mod_position(|p| {
-            p.x = TEXT_OFF;
-            p.y = HEIGHT/2.0;
-        });
+        // input.mod_position(|p| {
+        //     p.x = TEXT_OFF;
+        //     p.y = HEIGHT/2.0;
+        // });
         display_object.add_child(&input);
 
         let action_bar = action_bar::ActionBar::new(&logger,&app);
@@ -303,7 +308,7 @@ impl NodeModel {
     }
 
     pub fn width(&self) -> f32 {
-        self.input.width.value() + TEXT_OFF * 2.0
+        self.input.width.value()
     }
 
     pub fn height(&self) -> f32 {
@@ -317,18 +322,18 @@ impl NodeModel {
     }
 
     fn set_width(&self, width:f32) -> Vector2 {
-        let height = self.height();
-        let width  = width + TEXT_OFF * 2.0;
-        let size   = Vector2::new(width+PADDING*2.0, height+PADDING*2.0);
-        self.main_area.shape.sprite.size.set(size);
-        self.drag_area.shape.sprite.size.set(size);
+        let height      = self.height();
+        let size        = Vector2(width,height);
+        let padded_size = size + Vector2(PADDING,PADDING) * 2.0;
+        self.main_area.shape.sprite.size.set(padded_size);
+        self.drag_area.shape.sprite.size.set(padded_size);
         self.main_area.mod_position(|t| t.x = width/2.0);
-        self.main_area.mod_position(|t| t.y = height/2.0);
+        self.main_area.mod_position(|t| t.y = -height/2.0);
         self.drag_area.mod_position(|t| t.x = width/2.0);
-        self.drag_area.mod_position(|t| t.y = height/2.0);
+        self.drag_area.mod_position(|t| t.y = -height/2.0);
 
-        //self.output.mod_position(|t| t.x = width/2.0);
-        self.output.mod_position(|t| t.y = height/2.0);
+        // self.output.mod_position(|t| t.x = width/2.0);
+        // self.output.mod_position(|t| t.y = height/2.0);
 
         let action_bar_width = 200.0;
         self.action_bar.mod_position(|t| {

@@ -40,7 +40,6 @@ const DEBUG : bool = true;
 
 
 
-
 // =============
 // === Utils ===
 // =============
@@ -67,7 +66,6 @@ pub type SpanTree = span_tree::SpanTree<port::Model>;
 
 /// Mutable reference to port inside of a `SpanTree`.
 pub type PortRefMut<'a> = span_tree::node::RefMut<'a,port::Model>;
-
 
 
 
@@ -132,10 +130,7 @@ impl From<node::Expression> for Expression {
 
 ensogl::define_endpoints! {
     Input {
-        set_size           (Vector2),
-        on_port_mouse_down (port::PortId),
-        on_port_mouse_over (port::PortId),
-        on_port_mouse_out  (port::PortId),
+        set_size (Vector2),
     }
 
     Output {
@@ -155,6 +150,7 @@ pub struct Model {
     label          : text::Area,
     expression     : RefCell<Expression>,
     id_crumbs_map  : RefCell<HashMap<ast::Id,Crumbs>>,
+    port_count     : Cell<usize>,
     styles         : StyleWatch,
 }
 
@@ -170,10 +166,11 @@ impl Model {
         let label          = app.new_view::<text::Area>();
         let id_crumbs_map  = default();
         let expression     = default();
+        let port_count     = default();
         let styles         = StyleWatch::new(&app.display.scene().style_sheet);
         display_object.add_child(&label);
         display_object.add_child(&ports);
-        Self {logger,display_object,ports,app,label,expression,id_crumbs_map,styles}.init()
+        Self {logger,display_object,ports,app,label,expression,id_crumbs_map,port_count,styles}.init()
     }
 
     fn init(self) -> Self {
@@ -188,13 +185,17 @@ impl Model {
         self.label.disable_command("cursor_move_up");
         self.label.disable_command("cursor_move_down");
         self.label.set_default_color(color::Rgba::from(text_color));
-        self.label.mod_position(|t| t.y += 6.0);
         self.label.set_default_text_size(text::Size(12.0));
         self.label.remove_all_cursors();
 
-        self.set_label("TEST");
+        self.label.mod_position(|t| t.y = -node::HEIGHT/2.0 + 6.0);
+        self.ports.mod_position(|t| t.y = -node::HEIGHT/2.0);
 
         self
+    }
+
+    fn scene(&self) -> &Scene {
+        self.app.display.scene()
     }
 
     fn set_label(&self, content:impl Into<String>) {
@@ -206,6 +207,31 @@ impl Model {
     fn with_port_mut(&self, crumbs:&Crumbs, f:impl FnOnce(PortRefMut)) {
         let mut expression = self.expression.borrow_mut();
         if let Ok(node) = expression.span_tree.root_ref_mut().get_descendant(crumbs) { f(node) }
+    }
+
+    fn traverse_expression(&self, mut f:impl FnMut(bool, &mut PortRefMut, &mut PortLayerBuilder)) {
+        let mut expression = self.expression.borrow_mut();
+        expression.root_ref_mut().dfs(PortLayerBuilder::default(),|node,builder| {
+            let is_leaf     = node.children.is_empty();
+            let is_this     = node.is_this();
+            let is_argument = node.is_argument();
+            let is_a_port   = (is_this || is_argument) && is_leaf;
+            f(is_a_port,node,builder);
+            builder.nested()
+        });
+    }
+
+    fn count_ports(&self) -> usize {
+        let mut count = 0;
+        self.traverse_expression(|is_a_port,_,_| if is_a_port { count += 1 });
+        count
+    }
+
+    fn set_size(&self, size:Vector2) {
+        self.ports.set_position_x(size.x/2.0);
+        self.traverse_expression(|is_a_port,mut node,_| {
+            if is_a_port { node.payload_mut().set_size(size) }
+        })
     }
 }
 
@@ -226,6 +252,9 @@ impl Model {
 ///  * when none of the ports is hovered all of the `Area` disappear. Note: there is a very
 ///    small delay for disappearing to allow for smooth switching between ports.
 ///
+/// ## Origin
+/// Please note that the origin of this component is in the left top corner. To learn more about
+/// this design decision, please read the docs for the node.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Area {
     pub frp : Frp,
@@ -246,12 +275,9 @@ impl Area {
         let frp     = Frp::new();
         let network = &frp.network;
         frp::extend! { network
+            eval frp.set_size ((t) model.set_size(*t));
         }
         Self {frp,model}
-    }
-
-    fn scene(&self) -> &Scene {
-        self.model.app.display.scene()
     }
 
     pub fn port_type(&self, crumbs:&Crumbs) -> Option<Type> {
@@ -284,13 +310,21 @@ impl Area {
         self.model.set_label(expression.code());
     }
 
-    fn build_port_shapes_on_new_expression(&self, expression:&mut Expression) {
-        expression.root_ref_mut().dfs(PortLayerBuilder::default(),|mut node,builder| {
-            let is_leaf     = node.children.is_empty();
-            let is_this     = node.is_this();
-            let is_argument = node.is_argument();
-            let is_a_port   = (is_this || is_argument) && is_leaf;
+    pub(crate) fn set_expression(&self, new_expression:impl Into<node::Expression>) {
+        let new_expression     = new_expression.into();
+        let mut new_expression = Expression::from(new_expression);
+        if DEBUG { println!("\n\n=====================\nSET EXPR: {:?}", new_expression) }
 
+        self.set_label_on_new_expression(&new_expression);
+        *self.model.expression.borrow_mut() = new_expression;
+        self.model.port_count.set(self.model.count_ports());
+        self.build_port_shapes_on_new_expression();
+    }
+
+    fn build_port_shapes_on_new_expression(&self) {
+        let mut port_index = 0;
+        let port_count     = self.model.port_count.get();
+        self.model.traverse_expression(|is_a_port,mut node,builder|{
             if let Some(id) = node.ast_id {
                 // if DEBUG {
                 //     println!("New id mapping: {} -> {:?}",id,node.crumbs);
@@ -302,30 +336,26 @@ impl Area {
                 let indent  = " ".repeat(4*builder.depth);
                 let skipped = if !is_a_port { "(skip)" } else { "" };
                 println!("{}[{},{}] {} {:?} (tp: {:?}) (id: {:?})",indent,node.payload.index,
-                    node.payload.length,skipped,node.kind.variant_name(),node.tp(),node.ast_id);
+                         node.payload.length,skipped,node.kind.variant_name(),node.tp(),node.ast_id);
             }
 
             if is_a_port {
-                let port         = &mut node;
-                let logger       = &self.model.logger;
-                let scene        = self.scene();
-                let port_shape   = port.payload_mut().init_shape(logger,scene);
+                let port       = &mut node;
+                let crumbs     = port.crumbs.clone_ref();
+                let logger     = &self.model.logger;
+                let scene      = self.model.scene();
+                let (port_shape,port_frp) = port.payload_mut().init_shape(logger,scene,port_index,port_count);
+                let port_network = &port_frp.network;
+
+                frp::extend! { port_network
+                    trace port_frp.mouse_down;
+                    self.frp.output.source.port_mouse_down <+ port_frp.mouse_down.constant(crumbs);
+                }
 
                 self.model.ports.add_child(&port_shape);
+                port_index += 1;
             }
-            builder.nested()
         })
-    }
-
-    pub(crate) fn set_expression(&self, new_expression:impl Into<node::Expression>) {
-        let new_expression     = new_expression.into();
-        let mut new_expression = Expression::from(new_expression);
-        if DEBUG { println!("\n\n=====================\nSET EXPR: {:?}", new_expression) }
-
-        self.set_label_on_new_expression(&new_expression);
-        self.build_port_shapes_on_new_expression(&mut new_expression);
-
-        *self.model.expression.borrow_mut() = new_expression;
     }
 }
 

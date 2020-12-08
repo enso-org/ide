@@ -64,61 +64,45 @@ struct AllPortsShape {
 
 impl AllPortsShape {
     fn new
-    ( node_canvas_width  : &Var<Pixels>
-    , node_canvas_height : &Var<Pixels>
-    , size_norm          : &Var<f32>
+    ( canvas_width    : &Var<Pixels>
+    , canvas_height   : &Var<Pixels>
+    , size_multiplier : &Var<f32>
     ) -> Self {
 
         // === Generic Info ===
 
-        let inner_width  = node_canvas_width  - node::PADDING.px() * 2.0;
-        let inner_height = node_canvas_height - node::PADDING.px() * 2.0;
+        let inner_width  = canvas_width - HOVER_AREA_PADDING.px() * 2.0;
+        let inner_height = canvas_height - HOVER_AREA_PADDING.px() * 2.0;
         let inner_radius = node::RADIUS.px();
+        let top_mask     = BottomHalfPlane();
 
 
         // === Main Shape ===
 
-        let shrink           = 1.px() - 1.px() * size_norm;
-        let port_area_size   = PORT_SIZE.px() * size_norm;
+        let shrink           = 1.px() - 1.px() * size_multiplier;
+        let port_area_size   = PORT_SIZE.px() * size_multiplier;
         let port_area_width  = &inner_width  + (&port_area_size - &shrink) * 2.0;
         let port_area_height = &inner_height + (&port_area_size - &shrink) * 2.0;
         let outer_radius     = &inner_radius + &port_area_size;
         let shape            = Rect((&port_area_width,&port_area_height));
         let shape            = shape.corners_radius(&outer_radius);
-        let shape            = shape - BottomHalfPlane();
+        let shape            = shape - &top_mask;
         let corner_radius    = &port_area_size / 2.0;
         let corner_offset    = &port_area_width / 2.0 - &corner_radius;
         let corner           = Circle(&corner_radius);
         let left_corner      = corner.translate_x(-&corner_offset);
         let right_corner     = corner.translate_x(&corner_offset);
-        let shape            = shape + left_corner + right_corner;
-        let shape            = shape.into();
+        let shape            = (shape + left_corner + right_corner).into();
 
 
         // === Hover Area ===
 
-        let hover_width  = &inner_width + &HOVER_AREA_PADDING.px() * 2.0;
-        let hover_height = &inner_height / 2.0 + &HOVER_AREA_PADDING.px();
-        let hover        = Rect((&hover_width,&hover_height));
-        let hover        = hover.translate_y(-hover_height/2.0);
-        let hover        = hover.into();
+        let hover_radius = &inner_radius + &HOVER_AREA_PADDING.px();
+        let hover        = Rect((canvas_width,canvas_height)).corners_radius(&hover_radius);
+        let hover        = (hover - &top_mask).into();
 
         AllPortsShape{shape,hover,inner_radius,inner_width}
     }
-}
-
-
-
-// =================
-// === PortShape ===
-// =================
-
-/// Abstraction for the `MultiPortShape` and the `SinglePortShape` allowing to
-/// control animation parameters for any shape implementation.
-#[allow(missing_docs)]
-pub trait PortShape {
-    fn set_size_multiplier(&self, grow_value:f32);
-    fn set_opacity(&self, opacity:f32);
 }
 
 
@@ -136,25 +120,15 @@ mod single_port_area {
     use ensogl::display::shape::*;
 
     ensogl::define_shape_system! {
-        (style:Style, grow:f32, opacity:f32, color_rgb:Vector3<f32>) {
+        (style:Style, size_multiplier:f32, opacity:f32, color_rgb:Vector3<f32>) {
             let overall_width  = Var::<Pixels>::from("input_size.x");
             let overall_height = Var::<Pixels>::from("input_size.y");
-            let ports          = AllPortsShape::new(&overall_width,&overall_height,&grow);
+            let ports          = AllPortsShape::new(&overall_width,&overall_height,&size_multiplier);
             let color          = Var::<color::Rgba>::from("srgba(input_color_rgb,input_opacity)");
             let shape          = ports.shape.fill(color);
             let hover          = ports.hover.fill(color::Rgba::new(1.0,0.0,0.0,0.3));
             // let hover          = ports.hover.fill(color::Rgba::almost_transparent());
             (shape + hover).into()
-        }
-    }
-
-    impl PortShape for Shape {
-        fn set_size_multiplier(&self, grow_value:f32) {
-            self.grow.set(grow_value)
-        }
-
-        fn set_opacity(&self, opacity:f32) {
-            self.opacity.set(opacity)
         }
     }
 }
@@ -262,26 +236,27 @@ mod multi_port_area {
     }
 
     ensogl::define_shape_system! {
-        ( style         : Style
-        , grow          : f32
-        , index         : f32
-        , port_num      : f32
-        , opacity       : f32
-        , padding_left  : f32
-        , padding_right : f32
-        , color_rgb     : Vector3<f32>
+        ( style           : Style
+        , size_multiplier : f32
+        , index           : f32
+        , opacity         : f32
+        , port_count        : f32
+        , padding_left    : f32
+        , padding_right   : f32
+        , color_rgb       : Vector3<f32>
         ) {
             let overall_width  = Var::<Pixels>::from("input_size.x");
             let overall_height = Var::<Pixels>::from("input_size.y");
-            let ports          = AllPortsShape::new(&overall_width,&overall_height,&grow);
+            let ports          = AllPortsShape::new(&overall_width,&overall_height,&size_multiplier);
 
             let inner_radius = Var::<f32>::from(ports.inner_radius);
             let inner_width  = Var::<f32>::from(ports.inner_width);
+            let next_index   = &index + &Var::<f32>::from(1.0);
 
             let left_shape_crop = compute_crop_plane
-                (&index,&port_num,&inner_width,&inner_radius,&0.0.into());
+                (&index,&port_count,&inner_width,&inner_radius,&0.0.into());
             let right_shape_crop = compute_crop_plane
-                (&(Var::<f32>::from(1.0) + &index),&port_num,&inner_width,&inner_radius,&0.0.into());
+                (&next_index,&port_count,&inner_width,&inner_radius,&0.0.into());
 
             let hover_area = ports.hover.difference(&left_shape_crop);
             let hover_area = hover_area.intersection(&right_shape_crop);
@@ -303,16 +278,6 @@ mod multi_port_area {
             (port_area + hover_area).into()
         }
     }
-
-    impl PortShape for Shape {
-        fn set_size_multiplier(&self, grow_value:f32) {
-            self.grow.set(grow_value)
-        }
-
-        fn set_opacity(&self, opacity:f32) {
-            self.opacity.set(opacity)
-        }
-    }
 }
 
 
@@ -324,50 +289,65 @@ mod multi_port_area {
 /// Abstraction over `ShapeView<SinglePortShape>` and `ShapeView<MultiPortShape>`.
 #[derive(Clone,CloneRef,Debug)]
 pub enum PortShapeView {
-    Single (SinglePortShapeView),
-    Multi  (MultiPortShapeView),
+    Single (component::ShapeView<SinglePortShape>),
+    Multi  (component::ShapeView<MultiPortShape>),
 }
 
-#[derive(Clone,CloneRef,Debug)]
-pub struct SinglePortShapeView {
-    shape : component::ShapeView<SinglePortShape>
+macro_rules! fn_helper {
+    ($( $name:ident($this:ident,$($arg:ident : $arg_tp:ty),*) {$($body1:tt)*} {$($body2:tt)*} )*)
+    => {$(
+        fn $name(&self, $($arg : $arg_tp),*) {
+            match self {
+                Self::Single ($this) => $($body1)*,
+                Self::Multi  ($this) => $($body2)*,
+            }
+        }
+    )*};
 }
 
-#[derive(Clone,CloneRef,Debug)]
-pub struct MultiPortShapeView {
-    display_object : display::object::Instance,
-    shapes         : Rc<Vec<component::ShapeView<MultiPortShape>>>,
+macro_rules! fn_both {
+    ($( $name:ident $args:tt $body:tt )*) => {
+        fn_helper! {$($name $args $body $body)*}
+    };
 }
 
-impl SinglePortShapeView {
-    pub fn new(logger:&Logger, scene:&Scene) -> Self {
-        Self {shape : component::ShapeView::new(&logger,&scene) }
-    }
-}
-
-impl MultiPortShapeView {
-    pub fn new(logger:&Logger, scene:&Scene) -> Self {
-        let display_object = display::object::Instance::new(logger);
-        let shapes         = default();
-        Self {display_object,shapes}
-    }
+macro_rules! fn_multi_only {
+    ($( $name:ident $args:tt $body:tt )*) => {
+        fn_helper! {$($name $args {{}} $body)*}
+    };
 }
 
 impl PortShapeView {
-    /// Constructor. If the port count is 0, we will still show a single port.
     fn new(number_of_ports: usize, logger: &Logger, scene: &Scene) -> Self {
-        if number_of_ports <= 1 {
-            Self::Single(SinglePortShapeView::new(logger, scene))
-        } else {
-            Self::Multi(MultiPortShapeView::new(logger, scene))
-            // let display_object  = display::object::Instance::new(logger);
-            // let mut shapes       = Vec::default();
-            // let number_of_ports = number_of_ports as usize;
-            // shapes.resize_with(number_of_ports,|| component::ShapeView::new(&logger,&scene));
-            // shapes.iter().for_each(|shape| shape.display_object().set_parent(&display_object));
-            // Self::Multi {display_object,shapes}
+        if number_of_ports <= 1 { Self::Single (component::ShapeView::new(&logger,&scene)) }
+        else                    { Self::Multi  (component::ShapeView::new(&logger,&scene)) }
+    }
+
+    fn_both! {
+        set_size            (this,t:Vector2)     {this.shape.sprite.size.set(t)}
+        set_size_multiplier (this,t:f32)         {this.shape.size_multiplier.set(t)}
+        set_color           (this,t:color::Rgba) {this.shape.color_rgb.set(t.opaque.into())}
+        set_opacity         (this,t:f32)         {this.shape.opacity.set(t)}
+    }
+
+    fn_multi_only! {
+        set_index         (this,t:usize) { this.shape.index.set(t as f32) }
+        set_port_count    (this,t:usize) { this.shape.port_count.set(t as f32) }
+        set_padding_left  (this,t:f32)   { this.shape.padding_left.set(t) }
+        set_padding_right (this,t:f32)   { this.shape.padding_right.set(t) }
+    }
+
+    fn events(&self) -> &component::ShapeViewEvents {
+        match self {
+            Self::Single (t) => &t.events,
+            Self::Multi  (t) => &t.events,
         }
     }
+}
+
+
+
+
 //
 //     /// Set up the frp for all ports.
 //     fn init_frp(&self, network:&frp::Network, port_frp:port::Frp) {
@@ -424,13 +404,13 @@ impl PortShapeView {
 //         }
 //     }
 // }
-}
+
 
 impl display::Object for PortShapeView {
     fn display_object(&self) -> &display::object::Instance {
         match self {
-            Self::Single (view) => view.shape.display_object(),
-            Self::Multi  (view) => &view.display_object,
+            Self::Single (view) => view.display_object(),
+            Self::Multi  (view) => view.display_object(),
         }
     }
 }
@@ -454,6 +434,7 @@ impl PortId {
 }
 
 
+
 // =================
 // === Port Frp  ===
 // =================
@@ -472,55 +453,6 @@ ensogl::define_endpoints! {
 }
 
 
-/// Set up the FRP system for a ShapeView of a shape that implements the PortShapeApi.
-///
-/// This allows us to use the same setup code for bot the `MultiPortShape` and the
-/// `SinglePortShape`.
-pub fn init_port_frp<Shape: display::shape::system::Shape + PortShape + CloneRef + 'static>
-(view:&component::ShapeView<Shape>, port_id:PortId, frp:Frp, network:&frp::Network) {
-    let shape        = &view.shape;
-    let port_size    = DEPRECATED_Animation::<f32>::new(&network);
-    let port_opacity = DEPRECATED_Animation::<f32>::new(&network);
-    let frp          = &frp.input;
-
-    frp::extend! { network
-
-        // === Mouse Event Handling ===
-
-        eval_ view.events.mouse_over (frp.mouse_over.emit(port_id));
-        eval_ view.events.mouse_out  (frp.mouse_out.emit(port_id));
-        eval_ view.events.mouse_down (frp.mouse_down.emit(port_id));
-
-
-        // === Animation Handling ===
-
-        eval port_size.value    ((size) shape.set_size_multiplier(*size));
-        eval port_opacity.value ((size) shape.set_opacity(*size));
-
-
-        // === Visibility and Highlight Handling ===
-
-         eval_ frp.hide ([port_size,port_opacity]{
-             port_size.set_target_value(0.0);
-             port_opacity.set_target_value(0.0);
-         });
-
-        // Through the provided ID we can infer whether this port should be highlighted.
-        is_selected      <- frp.activate_and_highlight_selected.map(move |id| *id == port_id);
-        show_normal      <- frp.activate_and_highlight_selected.gate_not(&is_selected);
-        show_highlighted <- frp.activate_and_highlight_selected.gate(&is_selected);
-
-        eval_ show_highlighted ([port_opacity,port_size]{
-            port_opacity.set_target_value(1.0);
-            port_size.set_target_value(PORT_SIZE_MULTIPLIER_HOVERED);
-        });
-
-        eval_ show_normal ([port_opacity,port_size] {
-            port_opacity.set_target_value(0.5);
-            port_size.set_target_value(PORT_SIZE_MULTIPLIER_NOT_HOVERED);
-        });
-    }
-}
 
 #[derive(Clone,Debug,Default)]
 pub struct Model {
@@ -532,11 +464,97 @@ pub struct Model {
 
 impl Model {
     pub fn init_shape
-    (&mut self, logger:impl AnyLogger, scene:&Scene) -> PortShapeView {
+    (&mut self, logger:impl AnyLogger, scene:&Scene, port_index:usize, port_count:usize)
+    -> (PortShapeView,Frp) {
         let logger_name = format!("port({},{})",self.index,self.length);
         let logger      = Logger::sub(logger,logger_name);
-        let shape       = PortShapeView::new(1,&logger,scene);
+        let shape       = PortShapeView::new(port_count,&logger,scene);
+
+
+        let is_first      = port_index == 0;
+        let is_last       = port_index == port_count - 1;
+        let padding_left  = if is_first { -INFINITE } else {  2.0 };
+        let padding_right = if is_last  {  INFINITE } else { -2.0 };
+        shape.set_index(port_index);
+        shape.set_port_count(port_count);
+        shape.set_padding_left(padding_left);
+        shape.set_padding_right(padding_right);
+
+        shape.set_size_multiplier(1.0);
+        shape.set_opacity(1.0);
+        // shape.set_padding_left()
+        // Self::Multi{shapes,..} => {
+        //                 let port_num = shapes.len() as f32;
+//                 for (index,shape) in shapes.iter().enumerate(){
+//                     let shape = &shape.shape;
+//                     shape.sprite.size.set(size);
+//                     shape.index.set(index as f32);
+//                     shape.port_num.set(port_num);
+//                     shape.padding_left.set(gap_width * 0.5);
+//                     shape.padding_right.set(-gap_width * 0.5);
+//                 }
+//                 shapes[0]              .shape.padding_left.set(-INFINITE);
+//                 shapes[shapes.len() - 1].shape.padding_right.set(INFINITE);
+        self.init_frp(&shape,port_index);
+
+
         self.shape      = Some(shape);
-        self.shape.as_ref().unwrap().clone_ref()
+        (self.shape.as_ref().unwrap().clone_ref(),self.frp.as_ref().unwrap().clone_ref())
+    }
+
+    pub fn init_frp(&mut self, shape:&PortShapeView, port_id:usize) {
+        let port_id      = PortId::new(port_id);
+        let frp          = Frp::new();
+        let network      = &frp.network;
+        let port_size    = DEPRECATED_Animation::<f32>::new(&network);
+        let events       = shape.events();
+
+        frp::extend! { network
+
+            // === Mouse Event Handling ===
+
+            eval_ events.mouse_over (frp.mouse_over.emit(port_id));
+            eval_ events.mouse_out  (frp.mouse_out.emit(port_id));
+            eval_ events.mouse_down (frp.mouse_down.emit(port_id));
+
+
+            // === Animation Handling ===
+
+            eval port_size.value    ((size) shape.set_size_multiplier(*size));
+
+
+            // === Visibility and Highlight Handling ===
+
+             eval_ frp.hide ([port_size]{
+                 port_size.set_target_value(0.0);
+             });
+
+            // Through the provided ID we can infer whether this port should be highlighted.
+            is_selected      <- frp.activate_and_highlight_selected.map(move |id| *id == port_id);
+            show_normal      <- frp.activate_and_highlight_selected.gate_not(&is_selected);
+            show_highlighted <- frp.activate_and_highlight_selected.gate(&is_selected);
+
+            eval_ show_highlighted ([port_size]{
+                port_size.set_target_value(PORT_SIZE_MULTIPLIER_HOVERED);
+            });
+
+            eval_ show_normal ([port_size] {
+                port_size.set_target_value(PORT_SIZE_MULTIPLIER_NOT_HOVERED);
+            });
+        }
+
+        self.frp = Some(frp);
+    }
+
+    pub fn set_size(&self, size:Vector2) {
+        if let Some(shape) = &self.shape {
+            println!("SET SIZE: {:?}", size);
+            shape.set_size(size + Vector2(HOVER_AREA_PADDING,HOVER_AREA_PADDING) * 2.0);
+            // shape.mod_position(|t| {
+            //     t.y = 0.0;
+            // });
+            //shape.set_position_xy(size/2.0);
+            // shape.set_position_y(10.0);
+        }
     }
 }
