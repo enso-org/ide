@@ -448,7 +448,7 @@ impl Model {
     }
 
     fn refresh_node_views
-    (&self, mut trees:HashMap<double_representation::node::Id,NodeTrees>,update_position:bool) -> FallibleResult {
+    (&self, mut trees:HashMap<double_representation::node::Id,NodeTrees>, update_position:bool) -> FallibleResult {
         let nodes = self.graph.graph().nodes()?;
         let ids   = nodes.iter().map(|node| node.info.id() ).collect();
         self.retain_node_views(&ids);
@@ -1223,5 +1223,4 @@ impl ide_view::searcher::DocumentationProvider for DataProviderForView {
         }
     }
 }
-
 
