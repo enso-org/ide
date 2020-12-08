@@ -18,6 +18,10 @@ const DEFAULT_POINT_RADIUS = 150
 const DEFAULT_MAP_ZOOM = 11
 const DARK_ACCENT_COLOR = [222, 162, 47]
 const LIGHT_ACCENT_COLOR = [1, 234, 146]
+const DARK_LABEL_BACKGROUND = `rgb(51, 48, 46)`
+const LIGHT_LABEL_BACKGROUND = `rgb(252, 250, 245)`
+const DARK_LABEL_COLOR = `rgba(255, 255, 255, 0.8)`
+const LIGHT_LABEL_COLOR = `rgba(0, 0, 0, 0.8)`
 
 // =====================================
 // === Script & Style Initialisation ===
@@ -84,7 +88,7 @@ const makeId = makeGenerator()
  * "longitude": -122.45,
  * "zoom": 15,
  * "controller": true,
- * "isPickable": true,
+ * "pickable": true, // Enables presenting labels when hovering over Geo_Point.
  * "layers": [{
  *     "type": "Scatterplot_Layer",
  *     "data": [{
@@ -93,7 +97,7 @@ const makeId = makeGenerator()
  *         "longitude": 37.8,
  *         "color": [255, 0, 0],
  *         "radius": 100,
- *         "message": "foo bar baz"
+ *         "label": "foo bar baz"
  *     }]
  * }]
  * }
@@ -127,12 +131,18 @@ class GeoMapVisualization extends Visualization {
     initStyle() {
         let defaultMapStyle = 'mapbox://styles/mapbox/light-v9'
         let accentColor = LIGHT_ACCENT_COLOR
+        let labelBackgroundColor = LIGHT_LABEL_BACKGROUND
+        let labelColor = LIGHT_LABEL_COLOR
         if (document.getElementById('root').classList.contains('dark-theme')) {
             defaultMapStyle = 'mapbox://styles/mapbox/dark-v9'
             accentColor = DARK_ACCENT_COLOR
+            labelBackgroundColor = DARK_LABEL_BACKGROUND
+            labelColor = DARK_LABEL_COLOR
         }
         this.defaultMapStyle = defaultMapStyle
         this.accentColor = accentColor
+        this.labelBackgroundColor = labelBackgroundColor
+        this.labelColor = labelColor
     }
 
     onDataReceived(data) {
@@ -163,7 +173,7 @@ class GeoMapVisualization extends Visualization {
         this.mapStyle = ok(data.mapStyle) ? data.mapStyle : this.defaultMapStyle
         this.pitch = ok(data.pitch) ? data.pitch : 0
         this.controller = ok(data.controller) ? data.controller : true
-        this.isPickable = ok(data.isPickable) ? data.isPickable : false
+        this.pickable = ok(data.pickable) ? data.pickable : false
     }
 
     viewState() {
@@ -188,7 +198,7 @@ class GeoMapVisualization extends Visualization {
             data: this.dataPoints,
             getFillColor: (d) => d.color,
             getRadius: (d) => d.radius,
-            pickable: this.isPickable,
+            pickable: this.pickable,
         })
     }
 
@@ -212,13 +222,13 @@ class GeoMapVisualization extends Visualization {
             layers: [this.makeScatterLayer()],
             getTooltip: ({ object }) =>
                 object && {
-                    html: `<div>${object.message}</div>`,
+                    html: `<div>${object.label}</div>`,
                     style: {
-                        backgroundColor: 'rgba(250, 250, 250, 0.8)',
+                        backgroundColor: this.labelBackgroundColor,
                         fontSize: '12px',
                         borderRadius: '14px',
                         fontFamily: 'DejaVuSansMonoBook, sans-serif',
-                        color: 'rgba(0, 0, 0, 0.8)',
+                        color: this.labelColor,
                     },
                 },
         })
@@ -329,8 +339,8 @@ class GeoMapVisualization extends Visualization {
             ? DEFAULT_POINT_RADIUS
             : geoPoint.radius
         let color = ok(geoPoint.color) ? geoPoint.color : accentColor
-        let message = ok(geoPoint.message) ? geoPoint.message : ''
-        preparedDataPoints.push({ position, color, radius, message })
+        let label = ok(geoPoint.label) ? geoPoint.label : ''
+        preparedDataPoints.push({ position, color, radius, label })
     }
 
     /**
