@@ -255,9 +255,9 @@ impl Model {
         self.label.set_default_text_size(text::Size(12.0));
         self.label.remove_all_cursors();
 
-        let label_pos = Vector2(TEXT_OFF,-node::HEIGHT/2.0);
-        self.ports.set_position_xy(label_pos);
-        self.label.set_position_xy(label_pos);
+        let origin = Vector2(TEXT_OFF,0.0);
+        self.ports.set_position_xy(origin);
+        self.label.set_position_xy(origin);
         self.label.mod_position(|t| t.y += 6.0);
 
         self
@@ -309,8 +309,8 @@ fn select_color(styles:&StyleWatch, tp:Option<&Type>) -> color::Lcha {
 /// Input ports area.
 ///
 /// ## Origin
-// Please note that the origin of this component is in the left top corner. To learn more about this
-// design decision, please read the docs for the node.
+/// Please note that the origin of the node is on its left side, centered vertically. To learn more
+/// about this design decision, please read the docs for the node.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Area {
     pub frp : Frp,
@@ -410,7 +410,7 @@ impl Area {
             let unit  = GLYPH_WIDTH;
             let width = unit * node.payload.length as f32;
             let x     = width/2.0 + unit * node.payload.index as f32;
-            Vector2::new(TEXT_OFF + x,-node::HEIGHT/2.0)
+            Vector2::new(TEXT_OFF + x,0.0)
         })
     }
 

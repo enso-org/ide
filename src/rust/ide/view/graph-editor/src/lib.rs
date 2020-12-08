@@ -1548,7 +1548,7 @@ impl GraphEditorModel {
                 if let Some(node) = self.nodes.get_cloned_ref(&edge_source.node_id) {
                     edge.mod_position(|p| {
                         p.x = node.position().x + node.model.width()/2.0;
-                        p.y = node.position().y + node::HEIGHT/2.0;
+                        p.y = node.position().y;
                     });
                 }
             }

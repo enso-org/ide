@@ -175,10 +175,19 @@ ensogl::define_endpoints! {
 /// The visual node representation.
 ///
 /// ## Origin
-/// Please note that the origin of the node is in the left top corner. This decision was made to
-/// optimise performance. When node is being edited, its width changes, while its left border should
-/// not move. When expanding the node, its height changes, while its top border should not move.
-/// Thus, while editing or expanding the node, there is no need to update its position.
+/// Please note that the origin of the node is on its left side, centered vertically. This decision
+/// was made to both optimise performance and make the origin point more meaningful. When editing
+/// the node, its width changes, while its left border remains still. When expanding the node, its
+/// height changes, while its top remains at the same place. Thus, while editing or expanding the
+/// node, there is no need to update its position. Moreover, the chosen origin point is more natural
+/// than origin placed in other possible places, including the upper-left corner of its bounding
+/// box. The `x` symbolises the origin on the following drawing:
+///
+/// ```ignore
+///   ╭─────────────────╮
+///  x│                 │
+///   ╰─────────────────╯
+/// ```
 ///
 /// ## FRP Event Architecture.
 /// Nodes FRP architecture is designed for efficiency. Event with millions nodes on the stage, only
@@ -298,8 +307,8 @@ impl NodeModel {
         display_object.add_child(&output);
 
         let app = app.clone_ref();
-        Self {app,display_object,logger,main_area,drag_area,output,input
-             ,visualization,action_bar} . init()
+        Self {app,display_object,logger,main_area,drag_area,output,input,visualization,action_bar}
+            .init()
     }
 
     fn init(self) -> Self {
@@ -328,12 +337,7 @@ impl NodeModel {
         self.main_area.shape.sprite.size.set(padded_size);
         self.drag_area.shape.sprite.size.set(padded_size);
         self.main_area.mod_position(|t| t.x = width/2.0);
-        self.main_area.mod_position(|t| t.y = -height/2.0);
         self.drag_area.mod_position(|t| t.x = width/2.0);
-        self.drag_area.mod_position(|t| t.y = -height/2.0);
-
-        // self.output.mod_position(|t| t.x = width/2.0);
-        // self.output.mod_position(|t| t.y = height/2.0);
 
         let action_bar_width = 200.0;
         self.action_bar.mod_position(|t| {

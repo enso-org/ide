@@ -188,8 +188,7 @@ impl Model {
         self.label.set_default_text_size(text::Size(12.0));
         self.label.remove_all_cursors();
 
-        self.label.mod_position(|t| t.y = -node::HEIGHT/2.0 + 6.0);
-        self.ports.mod_position(|t| t.y = -node::HEIGHT/2.0);
+        self.label.mod_position(|t| t.y = 6.0);
 
         self
     }
@@ -237,7 +236,6 @@ impl Model {
 
 
 
-
 // ============
 // === Area ===
 // ============
@@ -253,8 +251,8 @@ impl Model {
 ///    small delay for disappearing to allow for smooth switching between ports.
 ///
 /// ## Origin
-/// Please note that the origin of this component is in the left top corner. To learn more about
-/// this design decision, please read the docs for the node.
+/// Please note that the origin of the node is on its left side, centered vertically. To learn more
+/// about this design decision, please read the docs for the node.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Area {
     pub frp : Frp,
@@ -286,6 +284,7 @@ impl Area {
         None
     }
 }
+
 
 
 // ==========================
@@ -336,7 +335,7 @@ impl Area {
                 let indent  = " ".repeat(4*builder.depth);
                 let skipped = if !is_a_port { "(skip)" } else { "" };
                 println!("{}[{},{}] {} {:?} (tp: {:?}) (id: {:?})",indent,node.payload.index,
-                         node.payload.length,skipped,node.kind.variant_name(),node.tp(),node.ast_id);
+                    node.payload.length,skipped,node.kind.variant_name(),node.tp(),node.ast_id);
             }
 
             if is_a_port {
