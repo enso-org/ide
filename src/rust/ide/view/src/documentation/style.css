@@ -106,14 +106,14 @@
 }
 
 .docVis h1 {
-    font-size: 30px;
+    font-size: 24px;
     line-height: 1.08824;
     font-weight: 500;
     letter-spacing: 0.01em;
 }
 
 .docVis h2 {
-    font-size: 22px;
+    font-size: 20px;
     line-height: 1.1073;
     font-weight: 500;
     letter-spacing: 0.012em;
@@ -145,7 +145,7 @@
 }
 
 .Header {
-    font-size: 17px;
+    font-size: 16px;
     font-weight: 500;
 }
 
@@ -254,7 +254,7 @@
 
 .Body .Raw {
     margin-bottom: 0.6rem;
-    font-size: 14px;
+    font-size: 12px;
     line-height: 1.52947;
     font-weight: 400;
     letter-spacing: -0.021em;
@@ -271,7 +271,7 @@
 .Info,
 .CodeBlock,
 .Example {
-    font-size: 14px;
+    font-size: 12px;
     padding: 15px 20px 10px 20px;
     border: 0;
     border-radius: 6px;
@@ -333,7 +333,7 @@
     margin-top: 10px;
     padding: 0;
     margin-bottom: 15px;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 400;
     color: #333333;
     font-style: normal;
@@ -362,7 +362,7 @@
 .Def .DefDoc .documentation .ASTHead .DefTitle,
 .Def .DefDoc .documentation .ASTHead .Infix {
     padding: 0;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 400;
     font-style: normal;
     text-decoration: inherit;
@@ -387,7 +387,7 @@
 
 .DefTitle {
     display: inline-flex;
-    font-size: large;
+    font-size: 20px;
     font-weight: 400;
     margin-bottom: 20px;
 }
@@ -410,7 +410,7 @@
 }
 
 .Synopsis {
-    font-size: 18px;
+    font-size: 14px;
 }
 
 .Documentation .ASTData,
@@ -431,11 +431,11 @@
 }
 
 .Documentation .ASTHead .DefTitle {
-    font-size: 34px;
+    font-size: 24px;
     margin: 0;
 }
 .Documentation .ASTData .ASTHead .DefTitle {
-    font-size: large;
+    font-size: 20px;
 }
 .Documentation .Documented {
     margin: 0;
