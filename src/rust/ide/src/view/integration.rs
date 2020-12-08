@@ -733,7 +733,7 @@ impl Model {
         debug!(self.logger, "Received notification {notification:?}");
         let result = match notification {
             Some(Notification::Graph(Invalidate))         => self.on_graph_invalidated(),
-            Some(Notification::Graph(ExpressionUpdate))   => self.on_graph_expression_update(),
+            Some(Notification::Graph(PortsUpdate))   => self.on_graph_expression_update(),
             Some(Notification::ComputedValueInfo(update)) => self.on_values_computed(update),
             Some(Notification::SteppedOutOfNode(id))      => self.on_node_exited(*id),
             Some(Notification::EnteredNode(local_call))   => self.on_node_entered(local_call),

@@ -68,8 +68,8 @@ pub struct NoPatternOnNode {
 pub enum Notification {
     /// The content should be fully reloaded.
     Invalidate,
-    /// The graph expressions need updating, e.g., types, names, ports.
-    ExpressionUpdate,
+    /// The graph node's ports need updating, e.g., types, names.
+    PortsUpdate,
 }
 
 
@@ -821,7 +821,7 @@ impl Handle {
         });
         let db_sub = self.suggestion_db.subscribe().map(|notification| {
             match notification {
-                model::suggestion_database::Notification::Updated => Notification::ExpressionUpdate
+                model::suggestion_database::Notification::Updated => Notification::PortsUpdate
             }
         });
         futures::stream::select(module_sub,db_sub)
@@ -1006,7 +1006,7 @@ pub mod tests {
                 current_version : default(),
             };
             graph.suggestion_db.apply_update_event(update);
-            assert_eq!(Some(Notification::ExpressionUpdate), sub.next().await);
+            assert_eq!(Some(Notification::PortsUpdate), sub.next().await);
         });
     }
 
