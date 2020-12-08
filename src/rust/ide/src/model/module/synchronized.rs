@@ -51,6 +51,7 @@ impl ContentSummary {
 struct ParsedContentSummary {
     #[shrinkwrap(main_field)]
     summary  : ContentSummary,
+    source   : String,
     code     : Range<TextLocation>,
     id_map   : Range<TextLocation>,
     metadata : Range<TextLocation>,
@@ -60,10 +61,11 @@ impl ParsedContentSummary {
     /// Get summary from `SourceFile`.
     fn from_source(source:&SourceFile) -> Self {
         ParsedContentSummary {
-            summary     : ContentSummary::new(&source.content),
-            code        : TextLocation::convert_byte_range(&source.content,&source.code),
-            id_map      : TextLocation::convert_byte_range(&source.content,&source.id_map),
-            metadata    : TextLocation::convert_byte_range(&source.content,&source.metadata),
+            summary  : ContentSummary::new(&source.content),
+            source   : source.content.clone(),
+            code     : TextLocation::convert_byte_range(&source.content,&source.code),
+            id_map   : TextLocation::convert_byte_range(&source.content,&source.id_map),
+            metadata : TextLocation::convert_byte_range(&source.content,&source.metadata),
         }
     }
 }
