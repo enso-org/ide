@@ -267,25 +267,50 @@ impl Area {
 
         let port_size  = Animation::<f32>::new(network);
         let show_delay = Tween::new(network);
+        let hide_delay = Tween::new(network);
         show_delay.set_duration(SHOW_DELAY_DURATION_MS);
+        hide_delay.set_duration(HIDE_DELAY_DURATION_MS);
 
         frp::extend! { network
-            eval frp.set_size ((t) model.set_size(*t));
 
-            show_delay_target <= frp.on_port_hover.map(|t| t.on().map(|_| 1.0));
-            show_delay.target <+ show_delay_target;
+            // === Ports Show / Hide ===
 
+            during_transition <- any_mut();
 
-            on_hover_out <- frp.on_port_hover.map(|t| t.is_off()).on_true();
-            // on_hover_out_during_show <- on_hover_out.gate()
+            on_hover_out                 <- frp.on_port_hover.map(|t| t.is_off()).on_true();
+            on_hover_out_during_show     <- on_hover_out.gate(&during_transition);
+            on_hover_out_not_during_show <- on_hover_out.gate_not(&during_transition);
 
-            trace show_delay.value;
+            on_hover_in                  <- frp.on_port_hover.map(|t| t.is_on()).on_true();
+            on_hover_in_during_show      <- on_hover_in.gate(&during_transition);
+            on_hover_in_not_during_show  <- on_hover_in.gate_not(&during_transition);
 
+            show_delay.target <+ on_hover_in_not_during_show.constant(1.0);
+            hide_delay.target <+ on_hover_out_not_during_show.constant(1.0);
+
+            show_delay.stop_and_rewind <+ on_hover_out.constant(0.0);
+            hide_delay.stop_and_rewind <+ on_hover_in.constant(0.0);
+
+            on_hide_start <- hide_delay.on_end.map(|t| t.is_normal()).on_true();
             on_show_start <- show_delay.on_end.map(|t| t.is_normal()).on_true();
 
+            on_show_end <- port_size.value.map(|t| (t - 1.0).abs() < std::f32::EPSILON).on_true();
+            on_hide_end <- port_size.value.map(|t| t.abs() < std::f32::EPSILON).on_true();
+
             port_size.target <+ on_show_start.constant(1.0);
+            port_size.target <+ on_hide_start.constant(0.0);
+            port_size.target <+ on_hover_out_during_show.constant(0.0);
+            port_size.target <+ on_hover_in_during_show.constant(1.0);
+
+            during_transition <+ bool(&on_show_end,&on_show_start);
+            during_transition <+ bool(&on_hide_end,&on_hide_start);
+
             frp.source.port_size_multiplier <+ port_size.value;
 
+
+            // === Bindings ===
+
+            eval frp.set_size ((t) model.set_size(*t));
         }
         Self {frp,model}
     }
