@@ -1,6 +1,7 @@
-#![allow(missing_docs)]
+//! Definition of function related utilities.
 
-#[warn(missing_docs)]
-pub mod callback;
-#[warn(missing_docs)]
-pub mod procedure;
+pub mod traits;
+pub mod closure;
+
+pub use traits::*;
+pub use closure::*;

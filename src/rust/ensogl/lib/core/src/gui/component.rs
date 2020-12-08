@@ -227,9 +227,8 @@ where mix::Repr<T> : inertia::Value {
         frp::extend! { network
             value_src <- any_mut::<T>();
         }
-        let simulator = AnimationSimulator::<T>::new(
-            Box::new(f!((t) value_src.emit(mix::from_space::<T>(t))))
-        );
+        let on_step   = Box::new(f!((t) value_src.emit(mix::from_space::<T>(t))));
+        let simulator = AnimationSimulator::<T>::new(on_step,(),());
         // FIXME[WD]: The precision should become default and should be increased in all simulators
         //            that work with pixels. The reason is that by default the simulator should
         //            give nice results for animations in the range of 0 .. 1, while it should not
@@ -408,9 +407,8 @@ where mix::Repr<T> : inertia::Value {
         frp::extend! { network
             def target = source::<T>();
         }
-        let simulator = DynSimulator::<T::Repr>::new(Box::new(f!((t) {
-             target.emit(mix::from_space::<T>(t))
-        })));
+        let on_step   = Box::new(f!((t) target.emit(mix::from_space::<T>(t))));
+        let simulator = DynSimulator::<T::Repr>::new(on_step,(),());
         let value = target.into();
         Self {simulator,value}
     }

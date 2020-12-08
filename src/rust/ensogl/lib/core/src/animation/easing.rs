@@ -5,7 +5,9 @@ use crate::prelude::*;
 
 use crate::animation;
 use core::f32::consts::PI;
-use crate::data::function::callback::Function1;
+use crate::data::function::Fn1;
+
+pub use crate::animation::physics::inertia::EndStatus;
 
 
 
@@ -142,24 +144,7 @@ pub fn elastic_in_out_params(t:f32, period:f32, amplitude:f32) -> f32 {
 pub trait Value = Copy + Add<Self,Output=Self> + Mul<f32,Output=Self> + PartialEq + 'static;
 
 /// Easing animator callback.
-pub trait Callback<T> = Function1<T> + 'static;
-
-/// Status of the tween end. It is either normal, which happens when the animation finishes, or
-/// forced, which means that it was forced by the user (for example by using `stop_*` functions).
-#[derive(Clone,Copy,Debug,Eq,PartialEq,Hash)]
-pub enum EndStatus { Normal, Forced }
-
-#[allow(missing_docs)]
-impl EndStatus {
-    pub fn is_normal(&self) -> bool { *self == Self::Normal }
-    pub fn is_forced(&self) -> bool { *self == Self::Forced }
-}
-
-impl Default for EndStatus {
-    fn default() -> Self {
-        Self::Normal
-    }
-}
+pub trait Callback<T> = Fn1<T> + 'static;
 
 /// Handy alias for `Simulator` with a boxed closure callback.
 pub type DynAnimator<T,F> = Animator<T,F,Box<dyn Fn(f32)>,Box<dyn Fn(EndStatus)>>;
@@ -168,6 +153,7 @@ pub type DynAnimator<T,F> = Animator<T,F,Box<dyn Fn(f32)>,Box<dyn Fn(EndStatus)>
 /// tween functions.
 #[derive(CloneRef,Derivative)]
 #[derivative(Clone(bound=""))]
+#[allow(clippy::type_complexity)]
 pub struct Animator<T,F,OnStep=(),OnEnd=()> {
     data           : Rc<AnimatorData<T,F,OnStep,OnEnd>>,
     animation_loop : Rc<CloneCell<Option<AnimationStep<T,F,OnStep,OnEnd>>>>,
