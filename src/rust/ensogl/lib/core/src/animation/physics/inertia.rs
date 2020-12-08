@@ -133,7 +133,7 @@ macro_rules! define_self_opr_mods {
 
 macro_rules! define_property {
     ($name:ident = $default:expr) => {
-        /// Simulation property.
+        /// SimulationDataCell property.
         #[derive(Debug,Clone,Copy,Into,From)]
         pub struct $name {
             /// Internal value of the $name.
@@ -356,20 +356,19 @@ impl<T:Value> SimulationData<T> {
 
 
 
-// ==================
-// === Simulation ===
-// ==================
+// ==========================
+// === SimulationDataCell ===
+// ==========================
 
 /// The main simulation engine. It allows running the simulation by explicitly calling the `step`
 /// function. Refer to `Simulator` for a more automated solution.
-#[derive(Derivative,CloneRef,Default)]
-#[derivative(Clone(bound=""))]
+#[derive(Derivative,Default)]
 #[derivative(Debug(bound="T:Copy+Debug"))]
-pub struct Simulation<T> {
-    data : Rc<Cell<SimulationData<T>>>
+pub struct SimulationDataCell<T> {
+    data : Cell<SimulationData<T>>
 }
 
-impl<T:Value> Simulation<T> {
+impl<T:Value> SimulationDataCell<T> {
     /// Constructor.
     pub fn new() -> Self {
         default()
@@ -387,7 +386,7 @@ impl<T:Value> Simulation<T> {
 // === Getters ===
 
 #[allow(missing_docs)]
-impl<T:Value> Simulation<T> {
+impl<T:Value> SimulationDataCell<T> {
     pub fn active(&self) -> bool {
         self.data.get().active()
     }
@@ -417,7 +416,7 @@ impl<T:Value> Simulation<T> {
 // === Setters ===
 
 #[allow(missing_docs)]
-impl<T:Value> Simulation<T> {
+impl<T:Value> SimulationDataCell<T> {
     pub fn set_drag(&self, drag:Drag) {
         self.data.update(|mut sim| {sim.set_drag(drag); sim});
     }
@@ -469,6 +468,42 @@ impl<T:Value> Simulation<T> {
 
 
 
+// =====================
+// === SimulatorData ===
+// =====================
+
+pub struct SimulatorData<T,Cb> {
+    simulation : SimulationDataCell<T>,
+    frame_rate : Cell<f32>,
+    callback   : Cb,
+}
+
+impl<T,Cb> Deref for SimulatorData<T,Cb> {
+    type Target = SimulationDataCell<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.simulation
+    }
+}
+
+impl<T:Value,Cb:Callback<T>> SimulatorData<T,Cb> {
+    /// Constructor.
+    pub fn new(callback:Cb) -> Self {
+        let simulation = SimulationDataCell::new();
+        let frame_rate = Cell::new(60.0);
+        Self {simulation,frame_rate,callback}
+    }
+
+    pub fn step(&self, delta_seconds:f32) -> bool {
+        let is_active = self.simulation.active();
+        if is_active {
+            self.simulation.step(delta_seconds);
+            (self.callback)(self.simulation.value());
+        }
+        is_active
+    }
+}
+
+
 // =================
 // === Simulator ===
 // =================
@@ -479,22 +514,52 @@ pub trait Callback<T> = Fn(T)+'static;
 /// Handy alias for `Simulator` with a boxed closure callback.
 pub type DynSimulator<T> = Simulator<T,Box<dyn Fn(T)>>;
 
-/// The `Simulation` with an associated animation loop. The simulation is updated every frame in an
+#[derive(CloneRef,Derivative)]
+#[derivative(Clone(bound=""))]
+#[derivative(Default(bound=""))]
+pub struct AnimationLoop<T,Cb> {
+    animation_loop : Rc<CloneCell<Option<FixedFrameRateAnimationStep<T,Cb>>>>,
+}
+
+impl<T,Cb> Deref for AnimationLoop<T,Cb> {
+    type Target = Rc<CloneCell<Option<FixedFrameRateAnimationStep<T,Cb>>>>;
+    fn deref(&self) -> &Self::Target {
+        &self.animation_loop
+    }
+}
+
+impl<T,Cb> AnimationLoop<T,Cb> {
+    pub fn downgrade(&self) -> WeakAnimationLoop<T,Cb> {
+        let animation_loop = Rc::downgrade(&self.animation_loop);
+        WeakAnimationLoop {animation_loop}
+    }
+}
+
+pub struct WeakAnimationLoop<T,Cb> {
+    animation_loop : Weak<CloneCell<Option<FixedFrameRateAnimationStep<T,Cb>>>>,
+}
+
+impl<T,Cb> WeakAnimationLoop<T,Cb> {
+    pub fn upgrade(&self) -> Option<AnimationLoop<T,Cb>> {
+        self.animation_loop.upgrade().map(|animation_loop| AnimationLoop{animation_loop})
+    }
+}
+
+
+/// The `SimulationDataCell` with an associated animation loop. The simulation is updated every frame in an
 /// efficient way – when the simulation finishes, it automatically unregisters in the animation loop
 /// and registers back only when needed.
 #[derive(CloneRef,Derivative)]
 #[derivative(Clone(bound=""))]
 pub struct Simulator<T,Cb> {
-    simulation     : Simulation<T>,
-    animation_loop : Rc<CloneCell<Option<FixedFrameRateAnimationStep<T,Cb>>>>,
-    frame_rate     : Rc<Cell<f32>>,
-    callback       : Rc<Cb>,
+    data           : Rc<SimulatorData<T,Cb>>,
+    animation_loop : AnimationLoop<T,Cb> ,
 }
 
 impl<T,Cb> Deref for Simulator<T,Cb> {
-    type Target = Simulation<T>;
+    type Target = Rc<SimulatorData<T,Cb>>;
     fn deref(&self) -> &Self::Target {
-        &self.simulation
+        &self.data
     }
 }
 
@@ -502,11 +567,9 @@ impl<T:Value,Cb> Simulator<T,Cb>
 where Cb : Callback<T> {
     /// Constructor.
     pub fn new(callback:Cb) -> Self {
-        let frame_rate     = Rc::new(Cell::new(60.0));
-        let callback       = Rc::new(callback);
-        let simulation     = Simulation::new();
+        let data           = Rc::new(SimulatorData::new(callback));
         let animation_loop = default();
-        Self {simulation,animation_loop,frame_rate,callback} . init()
+        Self {data,animation_loop} . init()
     }
 }
 
@@ -522,13 +585,6 @@ impl<T,Cb> Debug for Simulator<T,Cb> {
 #[allow(missing_docs)]
 impl<T:Value,Cb> Simulator<T,Cb>
 where Cb : Callback<T> {
-    pub fn set_callback(&mut self, callback:Cb) {
-        let callback = Rc::new(callback);
-        self.callback = callback;
-        self.stop();
-        self.start();
-    }
-
     pub fn set_value(&self, value:T) {
         self.simulation.set_value(value);
         self.start();
@@ -583,14 +639,14 @@ pub type FixedFrameRateAnimationStep<T,Cb> = animation::FixedFrameRateLoop<Step<
 pub type Step<T,Cb> = impl Fn(animation::TimeInfo);
 fn step<T:Value,Cb>(simulator:&Simulator<T,Cb>) -> Step<T,Cb>
 where Cb : Callback<T> {
-    let this = simulator.clone_ref();
+    let data           = simulator.data.clone_ref();
+    let animation_loop = simulator.animation_loop.downgrade();
     move |time:animation::TimeInfo| {
         let delta_seconds = time.frame / 1000.0;
-        if this.simulation.active() {
-            this.simulation.step(delta_seconds);
-            (this.callback)(this.simulation.value());
-        } else {
-            this.stop();
+        if !data.step(delta_seconds) {
+            if let Some(animation_loop) = animation_loop.upgrade() {
+                animation_loop.set(None)
+            }
         }
     }
 }

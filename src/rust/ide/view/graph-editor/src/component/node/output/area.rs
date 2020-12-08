@@ -286,7 +286,7 @@ impl Area {
             show_delay.target <+ show_delay_target;
 
 
-            on_hover_out <= frp.on_port_hover.map(|t| t.is_off()).on_true();
+            on_hover_out <- frp.on_port_hover.map(|t| t.is_off()).on_true();
             // on_hover_out_during_show <- on_hover_out.gate()
 
             trace show_delay.value;
