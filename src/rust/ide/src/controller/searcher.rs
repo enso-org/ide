@@ -39,6 +39,11 @@ pub struct NotACompletion {
     index : usize,
 }
 
+#[allow(missing_docs)]
+#[fail(display = "TODO")]
+#[derive(Copy,Clone,Debug,Fail)]
+pub struct ExampleWhenEditingNode;
+
 
 // =====================
 // === Notifications ===
@@ -595,9 +600,12 @@ impl Searcher {
         match suggestion {
             Suggestion::Completion (completion) => {
                 self.pick_completion(completion)?;
-                Ok(Some(self.commit_node()?))
+                self.commit_node().map(Some)
             },
-            Suggestion::Example    (example)    => { error!(self.logger, "TODO"); Ok(None) }
+            Suggestion::Example    (example) => match *self.mode {
+                Mode::NewNode {position} => self.graph.graph().add_example(&*example,position).map(Some),
+                _ => Err(ExampleWhenEditingNode.into())
+            }
         }
     }
 
@@ -779,7 +787,7 @@ impl Searcher {
     (&self, responses:Vec<json_rpc::Result<language_server::response::Completion>>)
     -> FallibleResult<suggestion::List> {
         let suggestions = suggestion::List::new();
-        // suggestions.extend(suggestion::example::EXAMPLES.iter().map(|e| Suggestion::Example(Rc::new(e.clone()))));
+        suggestions.extend(self.database.iterate_examples().map(Suggestion::Example));
         for response in responses {
             let response = response?;
             let entries  = response.results.iter().filter_map(|id| {

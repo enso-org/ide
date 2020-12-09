@@ -218,14 +218,15 @@ impl View {
             // The order of instructions below is important to properly distinguish between
             // committing and aborting node editing.
 
+            frp.source.editing_committed <+ searcher.editing_committed
+                .map2(&graph.output.node_being_edited, |entry,id| (*id,*entry))
+                .filter_map(|(id,entry)| Some(((*id)?, *entry)));
+
             // This node is true when received "abort_node_editing" signal, and should get false
             // once processing of "node_being_edited" event from graph is performed.
             editing_aborted              <- any(...);
             editing_aborted              <+ frp.abort_node_editing.constant(true);
             editing_commited_in_searcher <- searcher.editing_committed.constant(());
-            frp.source.editing_committed <+ searcher.editing_committed
-                .map2(&graph.output.node_being_edited, |entry,id| (*id,*entry))
-                .filter_map(|(id,entry)| Some(((*id)?, *entry)));
             should_finish_editing_if_any <-
                 any(frp.abort_node_editing,editing_commited_in_searcher,frp.add_new_node);
             should_finish_editing <- should_finish_editing_if_any.gate(&graph.output.node_editing);

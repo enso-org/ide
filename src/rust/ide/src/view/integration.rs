@@ -907,7 +907,7 @@ impl Model {
     }
 
     fn node_editing_committed_in_ui
-    (&self, (displayed_id,entry                                                                                             ):&(graph_editor::NodeId,Option<ide_view::searcher::entry::Id>))
+    (&self, (displayed_id,entry):&(graph_editor::NodeId,Option<ide_view::searcher::entry::Id>))
     -> FallibleResult {
         debug!(self.logger, "Committing node expression.");
         let error = || MissingSearcherController;

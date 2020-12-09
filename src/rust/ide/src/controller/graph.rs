@@ -15,7 +15,7 @@ use crate::double_representation::identifier::generate_name;
 use crate::double_representation::module;
 use crate::double_representation::node;
 use crate::double_representation::node::NodeInfo;
-use crate::model::module::NodeMetadata;
+use crate::model::module::{NodeMetadata, Position};
 
 use ast::crumbs::InfixCrumb;
 use enso_protocol::language_server;
@@ -28,7 +28,8 @@ use span_tree::generate::context::CalledMethodInfo;
 
 pub use crate::double_representation::graph::LocationHint;
 pub use crate::double_representation::graph::Id;
-
+use crate::model::suggestion_database::Example;
+use crate::double_representation::definition::DefinitionName;
 
 
 // ==============
@@ -729,6 +730,27 @@ impl Handle {
         Ok(node_info.id())
     }
 
+    pub fn add_example(&self, example:&Example, position:Option<Position>) -> FallibleResult<ast::Id> {
+        let mut module        = double_representation::module::Info{ast: self.module.ast()};
+        let my_name           = self.graph_info()?.source.name.item;
+        let new_function      = example.definition_to_add(&module,&self.parser)?;
+        let new_function_name = Ast::var(new_function.name.name.item.clone());
+        module.add_method(new_function,module::Placement::Before(my_name),&self.parser)?;
+
+        let here             = Ast::var(constants::keywords::HERE);
+        let node_expression  = ast::prefix::Chain::new_with_this(new_function_name,here,std::iter::empty()).into_ast();
+        let graph_definition = module::locate(&module.ast,&self.id)?;
+        let node             = NodeInfo::new_expression(node_expression).ok_or(FailedToCreateNode)?;
+        let mut graph        = GraphInfo::from_definition(graph_definition.item);
+        graph.add_node(node.ast().clone_ref(),LocationHint::End)?;
+
+        let new_module      = module.ast.set_traversing(&graph_definition.crumbs,graph.ast())?;
+        let intended_method = None;
+        self.module.update_ast(new_module)?;
+        self.module.set_node_metadata(node.id(),NodeMetadata {position,intended_method})?;
+        Ok(node.id())
+    }
+
     /// Removes the node with given Id.
     pub fn remove_node(&self, id:ast::Id) -> FallibleResult {
         info!(self.logger, "Removing node {id}");
@@ -1200,6 +1222,66 @@ main =
             let collapsed_node_info = graph.node(collapsed_node).unwrap();
             let collapsed_node_pos  = collapsed_node_info.metadata.and_then(|m| m.position);
             assert_eq!(collapsed_node_pos, Some(Position::new(125.0,250.0)));
+        })
+    }
+
+    #[wasm_bindgen_test]
+    fn adding_example() {
+        let mut test  = Fixture::set_up();
+        let example = Example {
+            name          : "Test Example".to_owned(),
+            code          : "x = 2 + 2\nx + 4".to_owned(),
+            documentation : "Lorem ipsum".to_owned()
+        };
+        let code = r#"
+main =
+    Nothing
+"#;
+        let expected_code = r#"
+test_example1 =
+    x = 2 + 2
+    x + 4
+
+main =
+    Nothing
+    here.test_example1
+"#;
+
+        test.data.code = code.to_owned();
+        test.run(move |graph| async move {
+            graph.add_example(&example,None).unwrap();
+            model::module::test::expect_code(&*graph.module,expected_code);
+        })
+    }
+
+    #[wasm_bindgen_test]
+    fn adding_example_twice() {
+        let mut test  = Fixture::set_up();
+        let example = Example {
+            name          : "Test Example".to_owned(),
+            code          : "[1,2,3,4,5]".to_owned(),
+            documentation : "Lorem ipsum".to_owned()
+        };
+        let code = r#"
+main =
+    Nothing
+"#;
+        let expected_code = r#"
+test_example1 = [1,2,3,4,5]
+
+test_example2 = [1,2,3,4,5]
+
+main =
+    Nothing
+    here.test_example1
+    here.test_example2
+"#;
+
+        test.data.code = code.to_owned();
+        test.run(move |graph| async move {
+            graph.add_example(&example,None).unwrap();
+            graph.add_example(&example,None).unwrap();
+            model::module::test::expect_code(&*graph.module,expected_code);
         })
     }
 

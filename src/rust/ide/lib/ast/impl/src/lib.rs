@@ -1144,6 +1144,28 @@ impl<T> HasID for WithLength<T>
 
 // === Shape ===
 
+impl<T> Module<T> {
+    pub fn as_block(&self, indent:usize) -> Option<Block<T>>
+    where T:Clone {
+        let is_empty    = |line:&&BlockLine<Option<T>>| line.elem.is_none();
+        let empty_lines = self.lines.iter().take_while(is_empty);
+        let empty_lines = empty_lines.map(|line| line.off).collect_vec();
+        let ty          = BlockType::Discontinuous {};
+        let first_line  = self.lines.iter().find_map(|line| Some(BlockLine {
+            off  : line.off,
+            elem : line.elem.as_ref()?.clone()
+        }))?;
+        let lines = self.lines.iter().skip_while(is_empty).skip(1).cloned().collect();
+        // We virtually never want block to be an orphan (i.e. start with a first line attached
+        // to whatever AST was there before). While it may seem tempting to have this for single
+        // line blocks, it does not make sense. If we want expression inline, it shouldn't be a
+        // block at all. Also, having inline expression can play badly when the only line is an
+        // assignment and we want to use block as a definition's body.
+        let is_orphan = false;
+        Some(Block {ty,indent,empty_lines,first_line,lines,is_orphan})
+    }
+}
+
 impl<T> BlockLine<T> {
     /// Creates a new BlockLine wrapping given item and having 0 offset.
     pub fn new(elem:T) -> BlockLine<T> {

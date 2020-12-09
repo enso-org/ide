@@ -201,6 +201,11 @@ impl SuggestionDatabase {
         })
     }
 
+    pub fn iterate_examples<'a>(&'a self) -> impl Iterator<Item=Rc<Example>> + 'a {
+        let indices = 0..self.examples.borrow().len();
+        indices.filter_map(move |i| self.examples.borrow().get(i).cloned())
+    }
+
     /// Put the entry to the database. Using this function likely break the synchronization between
     /// Language Server and IDE, and should be used only in tests.
     #[cfg(test)]
