@@ -12,6 +12,7 @@
 #![feature(option_result_contains)]
 #![feature(trait_alias)]
 #![feature(matches_macro)]
+#![feature(range_is_empty)]
 #![feature(result_cloned)]
 #![feature(slice_patterns)]
 #![feature(result_map_or_else)]
@@ -51,7 +52,7 @@ mod tests;
 /// Common types that should be visible across the whole IDE crate.
 pub mod prelude {
     pub use ensogl::prelude::*;
-    pub use ensogl::prelude::disabled::Logger;
+    pub use ensogl::prelude::DefaultWarningLogger as Logger;
     pub use enso_prelude::*;
     pub use ast::prelude::*;
     pub use wasm_bindgen::prelude::*;

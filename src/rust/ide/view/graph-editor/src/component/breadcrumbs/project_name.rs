@@ -21,8 +21,7 @@ use ensogl::gui::cursor;
 use ensogl_text as text;
 use ensogl_text::style::Size as TextSize;
 use ensogl_theme as theme;
-use logger::AnyLogger;
-use logger::enabled::Logger;
+use logger::DefaultWarningLogger as Logger;
 
 
 
@@ -71,12 +70,15 @@ ensogl::define_endpoints! {
        /// Commit current project name.
        commit             (),
        outside_press      (),
+       /// Indicates that this is the currenlty active breadcrumb.
        select             (),
+       /// Indicates that this is not the currenlty active breadcrumb.
        deselect           (),
        /// Indicates the IDE is in edit mode. This means a click on some editable text should
        /// start editing it.
        ide_text_edit_mode (bool),
     }
+
     Output {
         pointer_style (cursor::Style),
         name          (String),
@@ -315,20 +317,16 @@ impl ProjectName {
 
             // === Selection ===
 
-            select <- any(&frp.select,&frp.input.start_editing);
-            eval_  select([text,animations]{
-                text.set_focus(true);
-                animations.color.set_target_value(selected_color);
-            });
-            frp.output.source.selected <+ select.to_true();
+            eval_ frp.select( animations.color.set_target_value(selected_color) );
+            frp.output.source.selected <+ frp.select.to_true();
 
-            deselect <- any3(&frp.deselect,&end_edit_mode,&outside_press);
-            eval_ deselect ([text,animations]{
+            set_inactive <- any3(&frp.deselect,&end_edit_mode,&outside_press);
+            eval_ set_inactive ([text,animations]{
                 text.set_focus(false);
                 text.remove_all_cursors();
                 animations.color.set_target_value(deselected_color);
             });
-            frp.output.source.selected <+ deselect.to_false();
+            frp.output.source.selected <+ set_inactive.to_false();
 
 
             // === Animations ===
