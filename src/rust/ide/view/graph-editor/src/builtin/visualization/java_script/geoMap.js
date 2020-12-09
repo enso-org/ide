@@ -227,6 +227,7 @@ class GeoMapVisualization extends Visualization {
                         backgroundColor: this.labelBackgroundColor,
                         fontSize: '12px',
                         borderRadius: '14px',
+                        borderBottomLeftRadius: '1px',
                         fontFamily: 'DejaVuSansMonoBook, sans-serif',
                         color: this.labelColor,
                     },
