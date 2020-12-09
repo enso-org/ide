@@ -439,7 +439,7 @@ impl Model {
                 |usage_tp,def_tp| usage_tp.clone().or_else(|| def_tp.clone())
             );
 
-            color_tgt <- frp.tp.map(f!([styles](t) type_coloring::compute_for_code(t.as_ref(),&styles)));
+            color_tgt <- frp.tp.map(f!([styles](t) type_coloring::compute_for_selection(t.as_ref(),&styles)));
             color.target <+ color_tgt;
             eval color.value ((t) shape.set_color(t.into()));
         }

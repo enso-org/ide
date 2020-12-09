@@ -27,9 +27,10 @@ use crate::component::node::output::port;
 // === Constants ===
 // =================
 
-const DEBUG : bool = true;
-const SHOW_DELAY_DURATION_MS           : f32 = 150.0;
-const HIDE_DELAY_DURATION_MS           : f32 = 150.0;
+const DEBUG                  : bool = false;
+const HIDE_DELAY_DURATION_MS : f32 = 150.0;
+const SHOW_DELAY_DURATION_MS : f32 = 150.0;
+
 
 
 // =============
@@ -413,8 +414,6 @@ impl Area {
         })
     }
 }
-
-
 
 impl display::Object for Area {
     fn display_object(&self) -> &display::object::Instance {

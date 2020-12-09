@@ -30,7 +30,7 @@ pub use port::depth_sort_hack;
 // === Constants ===
 // =================
 
-pub const TEXT_OFF          : f32 = 10.0;
+pub const TEXT_OFFSET : f32 = 10.0;
 
 /// Width of a single glyph
 pub const GLYPH_WIDTH : f32 = 7.224_609_4; // FIXME hardcoded literal
@@ -255,7 +255,7 @@ impl Model {
         self.label.set_default_text_size(text::Size(12.0));
         self.label.remove_all_cursors();
 
-        let origin = Vector2(TEXT_OFF,0.0);
+        let origin = Vector2(TEXT_OFFSET,0.0);
         self.ports.set_position_xy(origin);
         self.label.set_position_xy(origin);
         self.label.mod_position(|t| t.y += 6.0);
@@ -358,8 +358,8 @@ impl Area {
                      (*edit_mode || *edit_ready_mode) && !set_ports_active
                 );
 
-            are_ports_active                <- frp.input.set_ports_active._0();
-            frp.output.source.ports_visible <+ are_ports_active && edit_mode;
+            port_vis <- all_with(&frp.input.set_ports_active,&edit_mode,|(a,_),b|*a&&(!b));
+            frp.output.source.ports_visible <+ port_vis;
             frp.output.source.editing       <+ edit_mode;
 
 
@@ -381,7 +381,7 @@ impl Area {
 
             // === Properties ===
 
-            width <- model.label.width.map(|t| t + 2.0 * TEXT_OFF);
+            width <- model.label.width.map(|t| t + 2.0 * TEXT_OFFSET);
             frp.output.source.width      <+ width;
             frp.output.source.expression <+ model.label.content;
 
@@ -404,7 +404,7 @@ impl Area {
             let unit  = GLYPH_WIDTH;
             let width = unit * node.payload.length as f32;
             let x     = width/2.0 + unit * node.payload.index as f32;
-            Vector2::new(TEXT_OFF + x,0.0)
+            Vector2::new(TEXT_OFFSET + x,0.0)
         })
     }
 
