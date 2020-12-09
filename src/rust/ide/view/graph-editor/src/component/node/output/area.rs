@@ -123,11 +123,16 @@ impl From<node::Expression> for Expression {
 ensogl::define_endpoints! {
     Input {
         set_size (Vector2),
+
+        /// Set the expression USAGE type. This is not the definition type, which can be set with
+        /// `set_expression` instead. In case the usage type is set to None, ports still may be
+        /// colored if the definition type was present.
+        set_expression_usage_type (ast::Id,Option<Type>),
     }
 
     Output {
-        on_port_hover        (Switch<span_tree::Crumbs>),
-        on_port_press        (span_tree::Crumbs),
+        on_port_hover        (Switch<Crumbs>),
+        on_port_press        (Crumbs),
         port_size_multiplier (f32),
     }
 }
@@ -194,13 +199,28 @@ impl Model {
         self.label.set_position_x(-self.label.width.value() - 10.0);
     }
 
-    /// Run the provided function on the target port if exists.
-    fn with_port_mut(&self, crumbs:&Crumbs, f:impl FnOnce(PortRefMut)) {
-        let mut expression = self.expression.borrow_mut();
-        if let Ok(node) = expression.span_tree.root_ref_mut().get_descendant(crumbs) { f(node) }
+    /// Update expression type for the particular `ast::Id`.
+    fn set_expression_usage_type(&self, id:ast::Id, tp:&Option<Type>) {
+        if let Some(crumbs) = self.id_crumbs_map.borrow().get(&id) {
+            if let Ok(port) = self.expression.borrow().span_tree.root_ref().get_descendant(crumbs) {
+                if let Some(frp) = &port.frp {
+                    frp.set_usage_type(tp)
+                }
+            }
+        }
     }
 
-    fn traverse_expression(&self, mut f:impl FnMut(bool, &mut PortRefMut, &mut PortLayerBuilder)) {
+    fn traverse_expression
+    (&self, mut f:impl FnMut(bool, &mut PortRefMut, &mut PortLayerBuilder)) {
+        let port_count = self.port_count.get();
+        self.traverse_expression_raw(|is_a_port,node,builder| {
+            let is_a_port = is_a_port || port_count == 0;
+            f(is_a_port,node,builder)
+        })
+    }
+
+    fn traverse_expression_raw
+    (&self, mut f:impl FnMut(bool, &mut PortRefMut, &mut PortLayerBuilder)) {
         let mut expression = self.expression.borrow_mut();
         expression.root_ref_mut().dfs(PortLayerBuilder::default(),|node,builder| {
             let is_leaf     = node.children.is_empty();
@@ -214,13 +234,13 @@ impl Model {
 
     fn count_ports(&self) -> usize {
         let mut count = 0;
-        self.traverse_expression(|is_a_port,_,_| if is_a_port { count += 1 });
+        self.traverse_expression_raw(|is_a_port,_,_| if is_a_port { count += 1 });
         count
     }
 
     fn set_size(&self, size:Vector2) {
         self.ports.set_position_x(size.x/2.0);
-        self.traverse_expression(|is_a_port,mut node,_| {
+        self.traverse_expression(|is_a_port,node,_| {
             if is_a_port { node.payload_mut().set_size(size) }
         })
     }
@@ -306,19 +326,19 @@ impl Area {
             during_transition <+ bool(&on_hide_end,&on_hide_start);
 
             frp.source.port_size_multiplier <+ port_size.value;
-
-
-            // === Bindings ===
-
             eval frp.set_size ((t) model.set_size(*t));
+
+
+            // === Expression Type ===
+
+            eval frp.set_expression_usage_type (((id,tp)) model.set_expression_usage_type(*id,tp));
         }
         Self {frp,model}
     }
 
     pub fn port_type(&self, crumbs:&Crumbs) -> Option<Type> {
-        // let expression = self.model.expression.borrow();
-        // expression.span_tree.root_ref().get_descendant(crumbs).ok().and_then(|t|t.tp.value())
-        None
+        let expression = self.model.expression.borrow();
+        expression.span_tree.root_ref().get_descendant(crumbs).ok().and_then(|t|t.frp.as_ref().and_then(|frp|frp.tp.value()))
     }
 }
 
@@ -347,8 +367,7 @@ impl Area {
     }
 
     pub(crate) fn set_expression(&self, new_expression:impl Into<node::Expression>) {
-        let new_expression     = new_expression.into();
-        let mut new_expression = Expression::from(new_expression);
+        let new_expression = Expression::from(new_expression.into());
         if DEBUG { println!("\n\n=====================\nSET EXPR: {:?}", new_expression) }
 
         self.set_label_on_new_expression(&new_expression);
@@ -362,9 +381,6 @@ impl Area {
         let port_count     = self.model.port_count.get();
         self.model.traverse_expression(|is_a_port,mut node,builder|{
             if let Some(id) = node.ast_id {
-                // if DEBUG {
-                //     println!("New id mapping: {} -> {:?}",id,node.crumbs);
-                // }
                 self.model.id_crumbs_map.borrow_mut().insert(id,node.crumbs.clone_ref());
             }
 
@@ -380,7 +396,7 @@ impl Area {
                 let crumbs     = port.crumbs.clone_ref();
                 let logger     = &self.model.logger;
                 let scene      = self.model.scene();
-                let (port_shape,port_frp) = port.payload_mut().init_shape(logger,scene,port_index,port_count);
+                let (port_shape,port_frp) = port.payload_mut().init_shape(logger,scene,&self.model.styles,port_index,port_count);
                 let port_network = &port_frp.network;
 
                 frp::extend! { port_network
@@ -388,6 +404,8 @@ impl Area {
                     self.frp.output.source.on_port_press <+ port_frp.on_press.constant(crumbs);
                     port_frp.set_size_multiplier <+ self.frp.port_size_multiplier;
                 }
+
+                port_frp.set_definition_type.emit(node.tp().cloned().map(|t|t.into()));
 
                 self.model.ports.add_child(&port_shape);
                 port_index += 1;

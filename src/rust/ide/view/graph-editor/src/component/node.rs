@@ -285,7 +285,6 @@ impl NodeModel {
         shape_system.shape_system.set_pointer_events(false);
 
         let input = input::Area::new(&logger,app);
-        let scene = scene.clone_ref();
         let visualization = visualization::Container::new(&logger,&app,registry);
         visualization.mod_position(|t| {
             t.x = 60.0;
@@ -342,7 +341,6 @@ impl NodeModel {
         let action_bar_width = 200.0;
         self.action_bar.mod_position(|t| {
             t.x = width + CORNER_RADIUS + action_bar_width / 2.0;
-            t.y = ACTION_BAR_HEIGHT;
         });
         self.action_bar.frp.set_size(Vector2::new(action_bar_width,ACTION_BAR_HEIGHT));
         size
@@ -394,8 +392,9 @@ impl Node {
 
             // === Expression ===
 
-            model.input.set_connected             <+ frp.set_input_connected;
-            model.input.set_expression_usage_type <+ frp.set_expression_usage_type;
+            model.input.set_connected              <+ frp.set_input_connected;
+            model.input.set_expression_usage_type  <+ frp.set_expression_usage_type;
+            model.output.set_expression_usage_type <+ frp.set_expression_usage_type;
             eval frp.set_expression ((expr) model.set_expression(expr));
             out.source.expression <+ model.input.frp.expression.map(|t|t.clone_ref());
 

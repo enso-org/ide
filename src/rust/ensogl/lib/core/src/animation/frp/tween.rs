@@ -3,8 +3,6 @@
 use crate::prelude::*;
 
 use crate::animation::easing;
-use crate::animation::physics::inertia;
-use crate::data::mix;
 
 use enso_frp as frp;
 

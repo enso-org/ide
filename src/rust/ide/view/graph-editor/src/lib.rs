@@ -1641,7 +1641,7 @@ impl GraphEditorModel {
     }
 
     fn edge_source_type(&self, edge_id:EdgeId) -> Option<Type> {
-        self.with_edge_map_source_node(edge_id,|n,c|n.model.input.port_type(&c)).flatten()
+        self.with_edge_map_source_node(edge_id,|n,c|n.model.output.port_type(&c)).flatten()
     }
 
     fn edge_target_type(&self, edge_id:EdgeId) -> Option<Type> {

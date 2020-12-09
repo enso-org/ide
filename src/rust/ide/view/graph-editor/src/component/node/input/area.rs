@@ -289,12 +289,6 @@ impl Model {
     }
 }
 
-/// Get the code color for the provided type or default code color in case the type is None.
-fn code_color(styles:&StyleWatch, tp:Option<&Type>) -> color::Lcha {
-    let opt_color = tp.as_ref().map(|tp| type_coloring::compute(tp,styles));
-    opt_color.unwrap_or_else(||styles.get_color(theme::graph_editor::node::text))
-}
-
 fn select_color(styles:&StyleWatch, tp:Option<&Type>) -> color::Lcha {
     let opt_color = tp.as_ref().map(|tp| type_coloring::compute(tp,styles));
     opt_color.unwrap_or_else(||styles.get_color(theme::code::types::any::selection))
@@ -675,7 +669,7 @@ impl Area {
 
             let styles = model.styles.clone_ref();
             frp::extend! { port_network
-                base_color <- frp.tp.map(f!([styles](t) code_color(&styles,t.as_ref())));
+                base_color <- frp.tp.map(f!([styles](t) type_coloring::compute_for_code(t.as_ref(),&styles)));
             }
 
             if node.children.is_empty() {
