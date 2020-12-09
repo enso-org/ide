@@ -18,6 +18,7 @@ use ensogl::system::web::AttributeSetter;
 use ensogl::gui::component;
 
 
+
 // =================
 // === Constants ===
 // =================
@@ -148,10 +149,22 @@ impl ViewModel {
     /// Create a container for generated content and embed it with stylesheet.
     fn push_to_dom(&self, content:String) {
         let data_str = format!(r#"<div class="docVis">{}{}</div>"#,documentation_style(),content);
-        self.dom.dom().set_inner_html(&data_str)
-        // TODO: Get all elements with class name "CodeBlock" and "copyCodeBtn".
-        //       Then assign every code block a copy button, and add to copy button a event listener,
-        //       which on click will run function copyCode(codeBlock) which is already provided.
+        self.dom.dom().set_inner_html(&data_str);
+        // TODO: Add to copy button an event listener, which on click will run function
+        //       copyCode(codeBlock) which is already provided.
+        let code_blocks  = self.dom.dom().get_elements_by_class_name("CodeBlock");
+        let copy_buttons = self.dom.dom().get_elements_by_class_name("copyCodeBtn");
+        println!("FOO");
+        for i in 0..copy_buttons.length() {
+            let copy_button = copy_buttons.get_with_index(i); // HTMLButtonElement
+            let code_block  = code_blocks.get_with_index(i); // HTMLDivElement
+            println!("{:?} : {:?}", copy_button, code_block);
+            // let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| unsafe {
+            //     copyCode(code_block); // This is already in index.html.
+            // }) as Box<dyn FnMut(_)>);
+            // copy_button.add_event_listener_with_callback("click", closure.as_ref())?;
+            // closure.forget();
+        }
     }
 
     /// Receive data, process and present it in the documentation view.

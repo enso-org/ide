@@ -220,9 +220,9 @@ function disableContextMenu() {
 
 /// Main entry point. Loads WASM, initializes it, chooses the scene to run.
 async function main() {
-    printScamWarning()
-    hideLogs()
-    disableContextMenu()
+    // printScamWarning()
+    // hideLogs()
+    // disableContextMenu()
     let location = window.location.pathname.split('/')
     location.splice(0,1)
     let cfg = getUrlParams()
