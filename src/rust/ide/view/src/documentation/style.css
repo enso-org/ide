@@ -287,7 +287,8 @@
 }
 
 .Example {
-    background-color: #F5F3F0;
+    background-color: transparent;
+    border: 1px solid #333;
 }
 
 .CodeBlock {
