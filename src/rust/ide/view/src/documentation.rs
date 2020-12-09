@@ -149,6 +149,9 @@ impl ViewModel {
     fn push_to_dom(&self, content:String) {
         let data_str = format!(r#"<div class="docVis">{}{}</div>"#,documentation_style(),content);
         self.dom.dom().set_inner_html(&data_str)
+        // TODO: Get all elements with class name "CodeBlock" and "copyCodeBtn".
+        //       Then assign every code block a copy button, and add to copy button a event listener,
+        //       which on click will run function copyCode(codeBlock) which is already provided.
     }
 
     /// Receive data, process and present it in the documentation view.
