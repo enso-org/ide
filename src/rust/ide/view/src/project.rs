@@ -66,6 +66,12 @@ impl Model {
         }
     }
 
+    /// Quits the IDE.
+    pub fn quit(&self) {
+        info!(self.logger,"Quitting IDE.");
+        std::process::exit(0);
+    }
+
     fn set_light_style(&self) {
         ensogl_theme::builtin::light::enable(&self.app);
         self.set_html_style("light-theme");
@@ -143,6 +149,8 @@ ensogl::define_endpoints! {
         toggle_style(),
         /// Saves the currently opened module to file.
         save_module(),
+        /// Exits the application. Can be further exapnded to ask if user wants to exit without saving changes.
+        exit_app(),
     }
 
     Output {
@@ -154,6 +162,7 @@ ensogl::define_endpoints! {
         editing_committed             (NodeId),
         code_editor_shown             (bool),
         style                         (Theme),
+        is_quiting                    (bool),
     }
 }
 
@@ -280,6 +289,16 @@ impl View {
             });
             frp.source.style     <+ style_press_on_off;
             eval frp.style ((style) model.set_style(style.clone()));
+
+            // === Exit app ===
+
+            let exit_app_ev   = frp.exit_app.clone_ref();
+            exit_pressed     <- exit_app_ev.toggle() ;
+            exit_was_pressed <- exit_pressed.previous();
+            exit_press       <- exit_app_ev.gate_not(&exit_was_pressed);
+            exit_press_run   <- exit_press.map2(&frp.is_quiting, |_,_| true);
+            frp.source.is_quiting <+ exit_press_run;
+            eval frp.is_quiting ((_) model.quit());
         }
 
         Self{model,frp}
@@ -318,6 +337,8 @@ impl application::View for View {
           , (Press   , ""              , "escape"          , "abort_node_editing")
           , (Press   , ""              , "cmd alt shift t" , "toggle_style")
           , (Press   , ""              , "cmd s"           , "save_module")
+          , (Press   , ""              , "alt f4"          , "exit_app")
+          , (Press   , ""              , "cmd q"           , "exit_app")
           ]).iter().map(|(a,b,c,d)|Self::self_shortcut_when(*a,*c,*d,*b)).collect()
     }
 }
