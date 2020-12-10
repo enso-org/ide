@@ -1,7 +1,7 @@
 //! Definition of function related utilities.
 
-pub mod traits;
 pub mod closure;
+pub mod traits;
 
-pub use traits::*;
 pub use closure::*;
+pub use traits::*;

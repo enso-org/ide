@@ -7,8 +7,8 @@ pub mod physics;
 mod frp;
 mod loops;
 
-pub use loops::*;
 pub use frp::*;
+pub use loops::*;
 
 
 

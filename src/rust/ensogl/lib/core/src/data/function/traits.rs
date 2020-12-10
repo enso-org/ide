@@ -29,7 +29,7 @@
 ///
 /// For the input of `[mut] FnMut FnMut1<T1>`, the following code will be generated:
 ///
-/// ```ignore
+/// ```
 ///     pub trait FnMut1<T1> {
 ///         type Output;
 ///         fn call(&mut self, T1: T1) -> Self::Output;

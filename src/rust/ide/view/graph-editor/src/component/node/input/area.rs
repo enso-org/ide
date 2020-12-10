@@ -307,7 +307,7 @@ fn select_color(styles:&StyleWatch, tp:Option<&Type>) -> color::Lcha {
 ///
 /// ## Origin
 /// Please note that the origin of the node is on its left side, centered vertically. To learn more
-/// about this design decision, please read the docs for the node.
+/// about this design decision, please read the docs for the [`node::Node`].
 #[derive(Clone,CloneRef,Debug)]
 pub struct Area {
     pub frp : Frp,
