@@ -19,6 +19,8 @@ use ensogl::gui::component;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::closure::WasmClosureFnOnce;
 use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::*;
+use web_sys::HtmlElement;
 use web_sys::MouseEvent;
 
 
@@ -47,6 +49,10 @@ fn documentation_style() -> String {
     format!("<style>{}</style>", include_str!("documentation/style.css"))
 }
 
+#[wasm_bindgen]
+extern "C" {
+    fn copyCode(code_block: &HtmlElement);
+}
 
 
 // =================
@@ -166,12 +172,11 @@ impl ViewModel {
             match copy_button {
                 Some(btn) => match code_block {
                     Some(code) => {
-                        let cpy_btn = btn.dyn_into::<web_sys::HtmlElement>();
-                        let code_blk = code.dyn_into::<web_sys::HtmlElement>();
+                        let cpy_btn = btn.dyn_into::<HtmlElement>();
+                        let code_blk = code.dyn_into::<HtmlElement>();
                         let closure = move |_event: MouseEvent| {
                             println!("BAR : {:?}", &code_blk);
-                            // TODO: Run function copyCode(codeBlock) which is already provided.
-                            // copyCode(code_block); // This is already in index.html.
+                            copyCode(&code_blk.unwrap());
                         };
                         let closure = Closure::wrap(Box::new(closure).into_fn_mut());
                         let callback = closure.as_ref().unchecked_ref();
