@@ -16,7 +16,8 @@ use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
 use ensogl::system::web::AttributeSetter;
 use ensogl::gui::component;
-use wasm_bindgen::closure::{Closure, WasmClosureFnOnce};
+use wasm_bindgen::closure::Closure;
+use wasm_bindgen::closure::WasmClosureFnOnce;
 use wasm_bindgen::JsCast;
 use web_sys::MouseEvent;
 
