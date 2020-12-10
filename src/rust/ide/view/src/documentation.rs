@@ -156,24 +156,25 @@ impl ViewModel {
         let copy_buttons = self.dom.dom().get_elements_by_class_name("copyCodeBtn");
         println!("FOO");
         for i in 0..copy_buttons.length() {
-            let copy_button = copy_buttons.get_with_index(i); // HTMLButtonElement
-            let code_block  = code_blocks.get_with_index(i); // HTMLDivElement
+            let copy_button = copy_buttons.get_with_index(i);
+            let code_block  = code_blocks.get_with_index(i);
             match copy_button {
                 Some(cpy_btn) => match code_block {
                         Some(code_blk) => {
-                            // let cpy_btn  = cpy_btn.dyn_into();
-                            // let code_blk = code_blk.dyn_into();
+                            let cpy_btn  = cpy_btn.dyn_into::<web_sys::HtmlButtonElement>()?;
+                            let code_blk = code_blk.dyn_into::<web_sys::HtmlDivElement>()?;
                             println!("{:?} : {:?}", cpy_btn, code_blk);
+                            let closure = wasm_bindgen::Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
+                                println!("BAR : {:?} : {:?}", cpy_btn, code_blk);
+                                // copyCode(code_block); // This is already in index.html.
+                            }) as Box<dyn FnMut(_)>);
+                            copy_button.add_event_listener_with_callback("click", closure.as_ref())?;
+                            closure.forget();
                         },
                         None => info!(&self.logger, "No code block."),
                     },
                 None => info!(&self.logger, "No copy button."),
             }
-            // let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| unsafe {
-            //     copyCode(code_block); // This is already in index.html.
-            // }) as Box<dyn FnMut(_)>);
-            // copy_button.add_event_listener_with_callback("click", closure.as_ref())?;
-            // closure.forget();
         }
     }
 
