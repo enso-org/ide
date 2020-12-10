@@ -154,29 +154,35 @@ impl ViewModel {
     fn push_to_dom(&self, content:String) {
         let data_str = format!(r#"<div class="docVis">{}{}</div>"#,documentation_style(),content);
         self.dom.dom().set_inner_html(&data_str);
+    }
 
-        let code_blocks  = self.dom.dom().get_elements_by_class_name("CodeBlock");
+    /// Append listeners to copy buttons in doc to enable copying examples.
+    fn append_listeners_to_copy_buttons(&self) {
+        let code_blocks = self.dom.dom().get_elements_by_class_name("CodeBlock");
         let copy_buttons = self.dom.dom().get_elements_by_class_name("copyCodeBtn");
         for i in 0..copy_buttons.length() {
             let copy_button = copy_buttons.get_with_index(i);
-            let code_block  = code_blocks.get_with_index(i);
+            let code_block = code_blocks.get_with_index(i);
             match copy_button {
                 Some(btn) => match code_block {
-                        Some(code) => {
-                            let cpy_btn  = btn.dyn_into::<web_sys::HtmlElement>();
-                            let code_blk = code.dyn_into::<web_sys::HtmlElement>();
-                            let closure  = move |_event:MouseEvent| {
-                                println!("BAR : {:?}", &code_blk);
-                                // TODO: Run function copyCode(codeBlock) which is already provided.
-                                // copyCode(code_block); // This is already in index.html.
-                            };
-                            let closure  = Closure::wrap(Box::new(closure).into_fn_mut());
-                            let callback = closure.as_ref().unchecked_ref();
-                            cpy_btn.unwrap().add_event_listener_with_callback("click", callback);
-                            closure.forget();
-                        },
-                        None => info!(&self.logger, "No code block."),
+                    Some(code) => {
+                        let cpy_btn = btn.dyn_into::<web_sys::HtmlElement>();
+                        let code_blk = code.dyn_into::<web_sys::HtmlElement>();
+                        let closure = move |_event: MouseEvent| {
+                            println!("BAR : {:?}", &code_blk);
+                            // TODO: Run function copyCode(codeBlock) which is already provided.
+                            // copyCode(code_block); // This is already in index.html.
+                        };
+                        let closure = Closure::wrap(Box::new(closure).into_fn_mut());
+                        let callback = closure.as_ref().unchecked_ref();
+                        match cpy_btn.unwrap().add_event_listener_with_callback("click", callback){
+                            Ok(_)  => (),
+                            Err(_) => error!(&self.logger, "Unable to add event listener.")
+                        }
+                        closure.forget();
                     },
+                    None => info!(&self.logger, "No code block."),
+                },
                 None => info!(&self.logger, "No copy button."),
             }
         }
@@ -209,6 +215,7 @@ impl ViewModel {
         };
 
         self.push_to_dom(html);
+        self.append_listeners_to_copy_buttons();
     }
 
     /// Load an HTML file into the documentation view when user is waiting for data to be received.
