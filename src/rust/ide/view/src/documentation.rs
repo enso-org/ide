@@ -158,7 +158,17 @@ impl ViewModel {
         for i in 0..copy_buttons.length() {
             let copy_button = copy_buttons.get_with_index(i); // HTMLButtonElement
             let code_block  = code_blocks.get_with_index(i); // HTMLDivElement
-            println!("{:?} : {:?}", copy_button, code_block);
+            match copy_button {
+                Some(cpy_btn) => match code_block {
+                        Some(code_blk) => {
+                            // let cpy_btn  = cpy_btn.dyn_into();
+                            // let code_blk = code_blk.dyn_into();
+                            println!("{:?} : {:?}", cpy_btn, code_blk);
+                        },
+                        None => info!(&self.logger, "No code block."),
+                    },
+                None => info!(&self.logger, "No copy button."),
+            }
             // let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| unsafe {
             //     copyCode(code_block); // This is already in index.html.
             // }) as Box<dyn FnMut(_)>);
