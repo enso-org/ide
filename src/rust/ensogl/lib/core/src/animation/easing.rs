@@ -3,8 +3,9 @@
 
 use crate::prelude::*;
 
-use crate::animation;
 use core::f32::consts::PI;
+
+use crate::animation;
 use crate::data::function::Fn1;
 
 pub use crate::animation::physics::inertia::EndStatus;
@@ -153,7 +154,6 @@ pub type DynAnimator<T,F> = Animator<T,F,Box<dyn Fn(f32)>,Box<dyn Fn(EndStatus)>
 /// tween functions.
 #[derive(CloneRef,Derivative)]
 #[derivative(Clone(bound=""))]
-#[allow(clippy::type_complexity)]
 pub struct Animator<T,F,OnStep=(),OnEnd=()> {
     data           : Rc<AnimatorData<T,F,OnStep,OnEnd>>,
     animation_loop : AnimationLoop<T,F,OnStep,OnEnd>,
@@ -385,8 +385,9 @@ impl<T,F,OnStep,OnEnd> WeakAnimationLoop<T,F,OnStep,OnEnd> {
 /// Alias for `FixedFrameRateLoop` with specified step callback.
 pub type AnimationStep<T,F,OnStep,OnEnd> = animation::Loop<Step<T,F,OnStep,OnEnd>>;
 pub type Step<T,F,OnStep,OnEnd> = impl Fn(animation::TimeInfo);
+
 fn step<T:Value,F,OnStep,OnEnd>(easing:&Animator<T,F,OnStep,OnEnd>) -> Step<T,F,OnStep,OnEnd>
-    where F:AnyFnEasing, OnStep:Callback<T>, OnEnd:Callback<EndStatus> {
+where F:AnyFnEasing, OnStep:Callback<T>, OnEnd:Callback<EndStatus> {
     let data           = easing.data.clone_ref();
     let animation_loop = easing.animation_loop.downgrade();
     move |time:animation::TimeInfo| {

@@ -473,7 +473,6 @@ impl PortLayerBuilder {
 
 impl Area {
     fn set_label_on_new_expression(&self, expression:&Expression) {
-        println!("set_label_on_new_expression");
         self.model.label.set_content(expression.viz_code.clone());
     }
 
