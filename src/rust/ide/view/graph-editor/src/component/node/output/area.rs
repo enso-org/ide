@@ -72,6 +72,10 @@ pub type PortRefMut<'a> = span_tree::node::RefMut<'a,port::Model>;
 pub struct Expression {
     pub code      : Option<String>,
     pub span_tree : SpanTree,
+    /// This field contains the type of the whole input expression. This is needed due to a bug in
+    /// engine: https://github.com/enso-org/enso/issues/1038.
+    pub whole_expr_type : Option<Type>,
+    pub whole_expr_id   : Option<ast::Id>,
 }
 
 impl Expression {
@@ -104,15 +108,17 @@ impl Debug for Expression {
 
 impl From<node::Expression> for Expression {
     fn from(expr:node::Expression) -> Self {
-        let code          = expr.pattern.clone();
-        let mut span_tree = expr.output_span_tree.map(|_| port::Model::default());
+        let code            = expr.pattern.clone();
+        let whole_expr_type = expr.input_span_tree.root.tp().map(|t|t.to_owned().into());
+        let whole_expr_id   = expr.input_span_tree.root.ast_id;
+        let mut span_tree   = expr.output_span_tree.map(|_| port::Model::default());
         span_tree.root_ref_mut().dfs((),|node,()| {
             let span    = node.span();
             let port    = node.payload_mut();
             port.index  = span.index.value;
             port.length = span.size.value;
         });
-        Expression{code,span_tree}
+        Expression{code,span_tree,whole_expr_type,whole_expr_id}
     }
 }
 
@@ -381,10 +387,13 @@ impl Area {
     }
 
     fn build_port_shapes_on_new_expression(&self) {
-        let mut port_index = 0;
-        let port_count     = self.model.port_count.get();
+        let mut port_index  = 0;
+        let whole_expr_type = self.model.expression.borrow().whole_expr_type.clone();
+        let whole_expr_id   = self.model.expression.borrow().whole_expr_id;
+        let port_count      = self.model.port_count.get();
         self.model.traverse_expression(|is_a_port,mut node,builder|{
-            if let Some(id) = node.ast_id {
+            let ast_id = if port_count == 0 { whole_expr_id } else { node.ast_id };
+            if let Some(id) = ast_id {
                 self.model.id_crumbs_map.borrow_mut().insert(id,node.crumbs.clone_ref());
             }
 
@@ -411,7 +420,11 @@ impl Area {
                     port_frp.set_size_multiplier <+ self.frp.port_size_multiplier;
                 }
 
-                port_frp.set_definition_type.emit(node.tp().cloned().map(|t|t.into()));
+                let node_tp : Option<Type> = node.tp().cloned().map(|t|t.into());
+                let node_tp = if port_count != 0 { node_tp } else {
+                    node_tp.or_else(||whole_expr_type.clone())
+                };
+                port_frp.set_definition_type.emit(node_tp);
 
                 self.model.ports.add_child(&port_shape);
                 port_index += 1;
