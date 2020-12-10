@@ -1,7 +1,7 @@
 //! FRP bindings to the animation engine.
 
 pub mod animation;
-pub mod tween;
+pub mod easing;
 
 pub use animation::*;
-pub use tween::*;
+pub use easing::*;

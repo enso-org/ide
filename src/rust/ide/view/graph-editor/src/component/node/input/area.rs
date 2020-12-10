@@ -47,6 +47,9 @@ pub const DEBUG_PORT_OFFSET : f32 = 5.0;
 const SKIP_OPERATIONS : bool = true;
 const PORT_PADDING_X  : f32  = 4.0;
 
+/// Text size used for input area text.
+pub const TEXT_SIZE : f32 = 12.0;
+
 
 
 // ================
@@ -252,13 +255,13 @@ impl Model {
         self.label.disable_command("cursor_move_up");
         self.label.disable_command("cursor_move_down");
         self.label.set_default_color(color::Rgba::from(text_color));
-        self.label.set_default_text_size(text::Size(12.0));
+        self.label.set_default_text_size(text::Size(TEXT_SIZE));
         self.label.remove_all_cursors();
 
         let origin = Vector2(TEXT_OFFSET,0.0);
         self.ports.set_position_xy(origin);
         self.label.set_position_xy(origin);
-        self.label.mod_position(|t| t.y += 6.0);
+        self.label.mod_position(|t| t.y += TEXT_SIZE/2.0);
 
         self
     }

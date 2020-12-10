@@ -6,7 +6,7 @@ use ensogl::display::traits::*;
 use enso_frp as frp;
 use enso_frp;
 use ensogl::Animation;
-use ensogl::Tween;
+use ensogl::Easing;
 use ensogl::application::Application;
 use ensogl::data::color;
 use ensogl::display::scene::Scene;
@@ -20,6 +20,7 @@ use span_tree;
 use crate::Type;
 use crate::component::node;
 use crate::component::node::output::port;
+use crate::component::node::input;
 
 
 
@@ -168,7 +169,8 @@ impl Model {
         let styles         = StyleWatch::new(&app.display.scene().style_sheet);
         display_object.add_child(&label);
         display_object.add_child(&ports);
-        Self {logger,display_object,ports,app,label,expression,id_crumbs_map,port_count,styles}.init()
+        Self {logger,display_object,ports,app,label,expression,id_crumbs_map,port_count,styles}
+            .init()
     }
 
     fn init(self) -> Self {
@@ -183,10 +185,10 @@ impl Model {
         self.label.disable_command("cursor_move_up");
         self.label.disable_command("cursor_move_down");
         self.label.set_default_color(color::Rgba::from(text_color));
-        self.label.set_default_text_size(text::Size(12.0));
+        self.label.set_default_text_size(text::Size(input::area::TEXT_SIZE));
         self.label.remove_all_cursors();
 
-        self.label.mod_position(|t| t.y = 6.0);
+        self.label.mod_position(|t| t.y = input::area::TEXT_SIZE/2.0);
 
         self
     }
@@ -197,7 +199,7 @@ impl Model {
 
     fn set_label(&self, content:impl Into<String>) {
         self.label.set_content(content.into());
-        self.label.set_position_x(-self.label.width.value() - 10.0);
+        self.label.set_position_x(-self.label.width.value() - input::area::TEXT_OFFSET);
     }
 
     /// Update expression type for the particular `ast::Id`.
@@ -287,8 +289,8 @@ impl Area {
         let network = &frp.network;
 
         let port_size  = Animation::<f32>::new(network);
-        let show_delay = Tween::new(network);
-        let hide_delay = Tween::new(network);
+        let show_delay = Easing::new(network);
+        let hide_delay = Easing::new(network);
         show_delay.set_duration(SHOW_DELAY_DURATION_MS);
         hide_delay.set_duration(HIDE_DELAY_DURATION_MS);
 
@@ -339,7 +341,8 @@ impl Area {
 
     pub fn port_type(&self, crumbs:&Crumbs) -> Option<Type> {
         let expression = self.model.expression.borrow();
-        expression.span_tree.root_ref().get_descendant(crumbs).ok().and_then(|t|t.frp.as_ref().and_then(|frp|frp.tp.value()))
+        expression.span_tree.root_ref().get_descendant(crumbs).ok()
+            .and_then(|t|t.frp.as_ref().and_then(|frp|frp.tp.value()))
     }
 }
 
@@ -393,15 +396,17 @@ impl Area {
             }
 
             if is_a_port {
-                let port       = &mut node;
-                let crumbs     = port.crumbs.clone_ref();
-                let logger     = &self.model.logger;
-                let scene      = self.model.scene();
-                let (port_shape,port_frp) = port.payload_mut().init_shape(logger,scene,&self.model.styles,port_index,port_count);
+                let port   = &mut node;
+                let crumbs = port.crumbs.clone_ref();
+                let logger = &self.model.logger;
+                let scene  = self.model.scene();
+                let (port_shape,port_frp) = port.payload_mut()
+                    .init_shape(logger,scene,&self.model.styles,port_index,port_count);
                 let port_network = &port_frp.network;
 
                 frp::extend! { port_network
-                    self.frp.output.source.on_port_hover <+ port_frp.on_hover.map(f!([crumbs](t) Switch::new(crumbs.clone(),*t)));
+                    self.frp.output.source.on_port_hover <+ port_frp.on_hover.map
+                        (f!([crumbs](t) Switch::new(crumbs.clone(),*t)));
                     self.frp.output.source.on_port_press <+ port_frp.on_press.constant(crumbs);
                     port_frp.set_size_multiplier <+ self.frp.port_size_multiplier;
                 }

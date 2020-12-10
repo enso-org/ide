@@ -513,7 +513,8 @@ impl Area {
 
             _eval <- m.buffer.frp.selection_edit_mode.map2
                 (&scene.frp.frame_time,f!([m](selections,time) {
-                        // FIXME: added for undo redo. Should not be needed. See https://github.com/enso-org/ide/issues/1031
+                        // FIXME: added for undo redo. Should not be needed.
+                        //        See https://github.com/enso-org/ide/issues/1031
                         m.redraw(true);
                         m.on_modified_selection(selections,*time,true)
                     }
@@ -521,7 +522,8 @@ impl Area {
 
             _eval <- m.buffer.frp.selection_non_edit_mode.map2
                 (&scene.frp.frame_time,f!([m](selections,time) {
-                    // FIXME: added for undo redo. Should not be needed. See https://github.com/enso-org/ide/issues/1031
+                    // FIXME: added for undo redo. Should not be needed.
+                    //        See https://github.com/enso-org/ide/issues/1031
                     m.redraw(true);
                     m.on_modified_selection(selections,*time,false)
                 }

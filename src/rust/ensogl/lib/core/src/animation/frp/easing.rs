@@ -8,9 +8,9 @@ use enso_frp as frp;
 
 
 
-// =============
-// === Tween ===
-// =============
+// ==============
+// === Easing ===
+// ==============
 
 crate::define_endpoints! {
     Input {
@@ -24,22 +24,22 @@ crate::define_endpoints! {
     }
 }
 
-/// Smart tween handler. Contains tween animator and frp endpoint. Whenever a new value is computed,
-/// it is emitted via the endpoint.
+/// Easing FRP animator. To learn more about easing functions, follow the link:
+/// https://easings.net/en.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub struct Tween {
+pub struct Easing {
     pub frp : FrpEndpoints,
 }
 
-impl Deref for Tween {
+impl Deref for Easing {
     type Target = FrpEndpoints;
     fn deref(&self) -> &Self::Target {
         &self.frp
     }
 }
 
-impl Tween {
+impl Easing {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         let frp      = Frp::extend(network);
@@ -73,7 +73,7 @@ impl Tween {
 /// it is emitted via the endpoint.
 ///
 /// # DEPRECATION
-/// This component is deprecated. Use `Tween` instead, which exposes much more FRP-oriented API
+/// This component is deprecated. Use `Easing` instead, which exposes much more FRP-oriented API
 /// than this component.
 #[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 #[allow(missing_docs)]

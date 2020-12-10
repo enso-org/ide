@@ -1598,7 +1598,7 @@ impl GraphEditorModel {
     }
 
     // FIXME[WD]: This implementation is slow. Node should allow for easy mapping between Crumbs
-    //            and edges.
+    //            and edges. Should be part of https://github.com/enso-org/ide/issues/822.
     fn with_input_edge_id(&self, id:NodeId, crumbs:&span_tree::Crumbs, f:impl FnOnce(EdgeId)) {
         self.with_node(id,move |node| {
             let mut target_edge_id = None;

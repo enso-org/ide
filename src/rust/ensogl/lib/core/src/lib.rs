@@ -63,7 +63,7 @@ pub use enso_frp   as frp;
 pub use enso_types as types;
 
 pub use animation::Animation;
-pub use animation::Tween;
+pub use animation::Easing;
 pub use animation::DEPRECATED_Animation;
 pub use animation::DEPRECATED_Tween;
 

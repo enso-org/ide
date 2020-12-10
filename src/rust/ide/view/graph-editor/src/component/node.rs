@@ -292,11 +292,6 @@ impl NodeModel {
         });
 
         display_object.add_child(&visualization);
-
-        // input.mod_position(|p| {
-        //     p.x = TEXT_OFF;
-        //     p.y = HEIGHT/2.0;
-        // });
         display_object.add_child(&input);
 
         let action_bar = action_bar::ActionBar::new(&logger,&app);

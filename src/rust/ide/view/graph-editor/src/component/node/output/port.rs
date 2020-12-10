@@ -261,7 +261,6 @@ mod multi_port_area {
 
             let hover_area = ports.hover.difference(&left_shape_crop);
             let hover_area = hover_area.intersection(&right_shape_crop);
-            // let hover_area = hover_area.fill(color::Rgba::new(1.0,0.0,0.0,0.3));
             let hover_area = hover_area.fill(color::Rgba::almost_transparent());
 
             let padding_left  = Var::<Pixels>::from(padding_left);
@@ -386,8 +385,13 @@ pub struct Model {
 
 impl Model {
     pub fn init_shape
-    (&mut self, logger:impl AnyLogger, scene:&Scene, styles:&StyleWatch, port_index:usize, port_count:usize)
-    -> (PortShapeView,Frp) {
+    ( &mut self
+    , logger     : impl AnyLogger
+    , scene      : &Scene
+    , styles     : &StyleWatch
+    , port_index : usize
+    , port_count : usize
+    ) -> (PortShapeView,Frp) {
         let logger_name = format!("port({},{})",self.index,self.length);
         let logger      = Logger::sub(logger,logger_name);
         let shape       = PortShapeView::new(port_count,&logger,scene);
