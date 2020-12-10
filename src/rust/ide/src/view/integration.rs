@@ -442,13 +442,13 @@ impl Model {
         info!(self.logger, "Refreshing the graph view.");
         use controller::graph::Connections;
         let Connections{trees,connections} = self.graph.connections()?;
-        self.refresh_node_views(trees)?;
+        self.refresh_node_views(trees, true)?;
         self.refresh_connection_views(connections)?;
         Ok(())
     }
 
     fn refresh_node_views
-    (&self, mut trees:HashMap<double_representation::node::Id,NodeTrees>) -> FallibleResult {
+    (&self, mut trees:HashMap<double_representation::node::Id,NodeTrees>, update_position:bool) -> FallibleResult {
         let nodes = self.graph.graph().nodes()?;
         let ids   = nodes.iter().map(|node| node.info.id() ).collect();
         self.retain_node_views(&ids);
@@ -460,11 +460,23 @@ impl Model {
             let default_pos = Vector2(x,y);
             let displayed   = self.node_views.borrow_mut().get_by_left(&id).cloned();
             match displayed {
-                Some(displayed) => self.refresh_node_view(displayed, node_info, node_trees),
-                None            => self.create_node_view(node_info,node_trees,default_pos),
+                Some(displayed) => {
+                   if update_position {
+                       self.refresh_node_position(displayed,node_info)
+                   };
+                   self.refresh_node_expression(displayed, node_info, node_trees);
+                },
+                None => self.create_node_view(node_info,node_trees,default_pos),
             }
         }
         Ok(())
+    }
+
+    /// Refresh the expressions (e.g., types, ports) for all nodes.
+    fn refresh_graph_expressions(&self) -> FallibleResult  {
+        info!(self.logger, "Refreshing the graph expressions.");
+        let trees = self.graph.connections()?.trees;
+        self.refresh_node_views(trees, false)
     }
 
     /// Retain only given nodes in displayed graph.
@@ -485,9 +497,13 @@ impl Model {
         let id           = info.info.id();
         let displayed_id = self.view.graph().add_node();
         self.refresh_node_view(displayed_id, info, trees);
-        // If position wasn't present in metadata, we must initialize it.
         if info.metadata.as_ref().and_then(|md| md.position).is_none() {
             self.view.graph().frp.input.set_node_position.emit(&(displayed_id, default_pos));
+            // If position wasn't present in metadata, we initialize it.
+            if let Err(err) = self.set_node_metadata_position(id,default_pos) {
+                debug!(self.logger, "Failed to set default position information IDs: {id:?} because \
+                of error {err:?}");
+            }
         }
         self.node_views.borrow_mut().insert(id, displayed_id);
     }
@@ -525,12 +541,22 @@ impl Model {
 
     fn refresh_node_view
     (&self, id:graph_editor::NodeId, node:&controller::graph::Node, trees:NodeTrees) {
+        self.refresh_node_position(id,node);
+        self.refresh_node_expression(id, node, trees)
+    }
+
+    /// Update the position of the node based on its current metadata.
+    fn refresh_node_position(&self, id:graph_editor::NodeId, node:&controller::graph::Node) {
         let position = node.metadata.as_ref().and_then(|md| md.position);
         if let Some(position) = position {
             self.view.graph().frp.input.set_node_position.emit(&(id, position.vector));
         }
-        let pattern        = node.info.pattern().map(|t|t.repr());
+    }
+
+    /// Update the expression of the node and all related properties e.g., types, ports).
+    fn refresh_node_expression(&self, id:graph_editor::NodeId, node:&controller::graph::Node, trees:NodeTrees) {
         let expression     = node.info.expression().repr();
+        let pattern        = node.info.pattern().map(|t|t.repr());
         let code_and_trees = graph_editor::component::node::Expression {
             pattern,
             code             : expression,
@@ -596,6 +622,13 @@ impl Model {
         self.view.graph().frp.input.set_method_pointer.emit(&event);
     }
 
+    /// Set the position in the node's metadata.
+    fn set_node_metadata_position(&self, node_id:ast::Id,pos:Vector2) -> FallibleResult {
+        self.graph.graph().module.with_node_metadata(node_id, Box::new(|md| {
+            md.position = Some(model::module::Position::new(pos.x,pos.y));
+        }))
+    }
+
     fn refresh_connection_views
     (&self, connections:Vec<controller::graph::Connection>) -> FallibleResult {
         self.retain_connection_views(&connections);
@@ -640,6 +673,11 @@ impl Model {
     /// Handle notification received from controller about the whole graph being invalidated.
     pub fn on_graph_invalidated(&self) -> FallibleResult {
         self.refresh_graph_view()
+    }
+
+    /// Handle notification received from controller about the graph receiving new type information.
+    pub fn on_graph_expression_update(&self) -> FallibleResult {
+        self.refresh_graph_expressions()
     }
 
     /// Handle notification received from controller about the whole graph being invalidated.
@@ -692,16 +730,17 @@ impl Model {
     pub fn handle_graph_notification
     (&self, notification:&Option<controller::graph::executed::Notification>) {
         use controller::graph::executed::Notification;
-        use controller::graph::Notification::Invalidate;
+        use controller::graph::Notification::*;
 
         debug!(self.logger, "Received notification {notification:?}");
         let result = match notification {
             Some(Notification::Graph(Invalidate))         => self.on_graph_invalidated(),
+            Some(Notification::Graph(PortsUpdate))   => self.on_graph_expression_update(),
             Some(Notification::ComputedValueInfo(update)) => self.on_values_computed(update),
             Some(Notification::SteppedOutOfNode(id))      => self.on_node_exited(*id),
             Some(Notification::EnteredNode(local_call))   => self.on_node_entered(local_call),
-            other => {
-                warning!(self.logger,"Handling notification {other:?} is not implemented; \
+            None => {
+                warning!(self.logger,"Handling `None` notification is not implemented; \
                     performing full invalidation");
                 self.refresh_graph_view()
             }
@@ -786,9 +825,7 @@ impl Model {
     (&self, (displayed_id,pos):&(graph_editor::NodeId,Vector2)) -> FallibleResult {
         debug!(self.logger, "Moving node.");
         if let Ok(id) = self.get_controller_node_id(*displayed_id) {
-            self.graph.graph().module.with_node_metadata(id, Box::new(|md| {
-                md.position = Some(model::module::Position::new(pos.x,pos.y));
-            }))?;
+           self.set_node_metadata_position(id,*pos)?;
         }
         Ok(())
     }
@@ -1188,5 +1225,3 @@ impl ide_view::searcher::DocumentationProvider for DataProviderForView {
         }
     }
 }
-
-

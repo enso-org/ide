@@ -2,9 +2,10 @@
 
 use crate::prelude::*;
 
+use crate::config;
 use crate::transport::web::ConnectingError;
 use crate::transport::web::WebSocket;
-use crate::config;
+use crate::view::View;
 
 use enso_protocol::binary;
 use enso_protocol::language_server;
@@ -12,7 +13,18 @@ use enso_protocol::project_manager;
 use enso_protocol::project_manager::ProjectMetadata;
 use enso_protocol::project_manager::ProjectName;
 use uuid::Uuid;
-use crate::view::View;
+
+
+
+// =================
+// === Constants ===
+// =================
+
+// TODO[ao] We need to set a big timeout on Project Manager to make sure it will have time to
+//          download required version of Engine. This should be handled properly when implementing
+//          https://github.com/enso-org/ide/issues/1034
+const PROJECT_MANAGER_TIMEOUT_SEC:u64 = 2 * 60 * 60;
+
 
 
 // ==============
@@ -37,6 +49,7 @@ pub struct ProjectNotFound {
 pub struct Ide {
     view : View
 }
+
 
 
 
@@ -72,7 +85,8 @@ impl IdeInitializer {
     /// within the global executor.
     pub fn setup_project_manager
     (transport:impl json_rpc::Transport + 'static) -> project_manager::Client {
-        let project_manager = project_manager::Client::new(transport);
+        let mut project_manager = project_manager::Client::new(transport);
+        project_manager.set_timeout(std::time::Duration::from_secs(PROJECT_MANAGER_TIMEOUT_SEC));
         executor::global::spawn(project_manager.runner());
         project_manager
     }
@@ -83,7 +97,8 @@ impl IdeInitializer {
     , project_manager  : Rc<dyn project_manager::API>
     , project_metadata : ProjectMetadata
     ) -> FallibleResult<model::Project> {
-        let endpoints       = project_manager.open_project(&project_metadata.id).await?;
+        use project_manager::MissingComponentAction::*;
+        let endpoints       = project_manager.open_project(&project_metadata.id,&Install).await?;
         let json_endpoint   = endpoints.language_server_json_address;
         let binary_endpoint = endpoints.language_server_binary_address;
         info!(logger, "Establishing Language Server connection.");
@@ -110,8 +125,11 @@ impl IdeInitializer {
     , project_manager : &impl project_manager::API
     , name            : &str
     ) -> FallibleResult<ProjectMetadata> {
+        use project_manager::MissingComponentAction::Install;
         info!(logger, "Creating a new project named '{name}'.");
-        let id          = project_manager.create_project(&name.to_string()).await?.project_id;
+        let version     = None;
+        let response    = project_manager.create_project(&name.to_string(),&version,&Install);
+        let id          = response.await?.project_id;
         let name        = name.to_string();
         let name        = ProjectName::new(name);
         let last_opened = default();
