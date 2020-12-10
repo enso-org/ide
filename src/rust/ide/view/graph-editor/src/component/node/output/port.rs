@@ -127,8 +127,7 @@ mod single_port_area {
             let ports          = AllPortsShape::new(&overall_width,&overall_height,&size_multiplier);
             let color          = Var::<color::Rgba>::from("srgba(input_color_rgb,input_opacity)");
             let shape          = ports.shape.fill(color);
-            // let hover          = ports.hover.fill(color::Rgba::new(1.0,0.0,0.0,0.3));
-            let hover          = ports.hover.fill(color::Rgba::almost_transparent());
+            let hover          = ports.hover.fill(HOVER_COLOR);
             (shape + hover).into()
         }
     }
@@ -261,7 +260,7 @@ mod multi_port_area {
 
             let hover_area = ports.hover.difference(&left_shape_crop);
             let hover_area = hover_area.intersection(&right_shape_crop);
-            let hover_area = hover_area.fill(color::Rgba::almost_transparent());
+            let hover_area = hover_area.fill(HOVER_COLOR);
 
             let padding_left  = Var::<Pixels>::from(padding_left);
             let padding_right = Var::<Pixels>::from(padding_right);

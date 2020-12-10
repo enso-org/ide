@@ -158,12 +158,6 @@ impl Rgba {
         Self::new(0.0,0.0,0.0,0.0)
     }
 
-    /// An almost transparent color. This is often used in WebGL to hide an element, but keep its
-    /// mouse interaction active.
-    pub fn almost_transparent() -> Self {
-        Self::new(0.0,0.0,0.0,0.000_001)
-    }
-
     /// Converts the color to `LinearRgba` representation.
     pub fn into_linear(self) -> LinearRgba {
         self.into()
