@@ -176,14 +176,13 @@ impl ViewModel {
                         let cpy_btn = btn.dyn_into::<HtmlElement>();
                         let code_blk = code.dyn_into::<HtmlElement>();
                         let closure = move |_event: MouseEvent| {
-                            println!("BAR : {:?}", &code_blk);
                             copyCode(&code_blk.unwrap());
                         };
                         let closure = Closure::wrap(Box::new(closure).into_fn_mut());
                         let callback = closure.as_ref().unchecked_ref();
                         match cpy_btn.unwrap().add_event_listener_with_callback("click", callback){
                             Ok(_)  => (),
-                            Err(_) => error!(&self.logger, "Unable to add event listener.")
+                            Err(err) => error!(&self.logger, "Unable to add event listener: {err:?}")
                         }
                         closure.forget();
                     },
