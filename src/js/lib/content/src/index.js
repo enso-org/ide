@@ -121,6 +121,22 @@ function show_debug_screen(wasm,msg) {
 }
 
 
+
+// =======================================
+// === Copy Documentation Example Code ===
+// =======================================
+
+function copyCode(codeBlockElem) {
+    let range = document.createRange()
+    range.selectNode(codeBlockElem)
+    window.getSelection().removeAllRanges()
+    window.getSelection().addRange(range)
+    document.execCommand('copy')
+    window.getSelection().removeAllRanges()
+}
+
+
+
 // ====================
 // === Scam Warning ===
 // ====================
@@ -180,6 +196,7 @@ function showLogs() {
     console.autoFlush = true
 }
 
+window.copyCode = copyCode
 window.showLogs = showLogs
 window.logsBuffer = logsBuffer
 
@@ -220,9 +237,9 @@ function disableContextMenu() {
 
 /// Main entry point. Loads WASM, initializes it, chooses the scene to run.
 async function main() {
-    // printScamWarning()
-    // hideLogs()
-    // disableContextMenu()
+    printScamWarning()
+    hideLogs()
+    disableContextMenu()
     let location = window.location.pathname.split('/')
     location.splice(0,1)
     let cfg = getUrlParams()

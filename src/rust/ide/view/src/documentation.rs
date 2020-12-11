@@ -51,6 +51,7 @@ fn documentation_style() -> String {
 
 #[wasm_bindgen]
 extern "C" {
+    #[allow(unsafe_code)]
     fn copyCode(code_block: &HtmlElement);
 }
 
