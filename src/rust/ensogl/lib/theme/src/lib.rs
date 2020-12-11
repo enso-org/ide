@@ -98,7 +98,7 @@ macro_rules! define_themes {
         /// Builtin themes.
         pub mod builtin {
             use super::*;
-            $(define_theme! {$name $body})*
+            $(define_theme! {$name $id $body})*
         }
     }
 }
@@ -107,7 +107,7 @@ macro_rules! define_themes {
 /// to the theme name and there will be function `setup` which creates a theme definition in `app`.
 #[macro_export]
 macro_rules! define_theme {
-    ($name:ident {$($t:tt)*}) => {
+    ($name:ident $id:tt {$($t:tt)*}) => {
         #[allow(missing_docs)]
         #[allow(non_snake_case)]
         #[allow(unused_imports)]
@@ -120,7 +120,7 @@ macro_rules! define_theme {
             /// Setup the `$name` theme in application.
             pub fn setup(app:&Application) {
                 let mut $name = theme::Theme::new();
-                $crate::_define_theme_literals!{0 $name [] $($t)*}
+                $crate::_define_theme_literals!{$id $name [] $($t)*}
                 app.themes.register(stringify!($name),$name);
                 app.themes.set_enabled(&[stringify!($name)]);
             }
