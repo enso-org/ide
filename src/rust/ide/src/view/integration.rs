@@ -916,7 +916,7 @@ impl Model {
         let result = if let Some(entry) = entry {
             searcher.commit_suggestion_by_index(*entry)
         } else {
-            searcher.commit_node().map(|id| Some(id))
+            searcher.commit_node().map(Some)
         };
         match result {
             Ok(Some(node_id)) => {

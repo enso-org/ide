@@ -499,7 +499,9 @@ pub struct ToAdd {
 }
 
 impl ToAdd {
-    pub fn new(name:DefinitionName, explicit_parameter_names:Vec<String>, body:Ast) -> Self {
+    /// Create ToAdd description from an arbitrary AST.
+    pub fn new_with_body
+    (name:DefinitionName, explicit_parameter_names:Vec<String>, body:Ast) -> Self {
         let (body_head,body_tail) = match body.shape() {
             ast::Shape::Block(ast::Block{ first_line,lines,..}) => (
                 first_line.elem.clone_ref(),

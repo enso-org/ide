@@ -15,7 +15,9 @@ use crate::double_representation::identifier::generate_name;
 use crate::double_representation::module;
 use crate::double_representation::node;
 use crate::double_representation::node::NodeInfo;
-use crate::model::module::{NodeMetadata, Position};
+use crate::model::module::NodeMetadata;
+use crate::model::module::Position;
+use crate::model::suggestion_database::Example;
 
 use ast::crumbs::InfixCrumb;
 use enso_protocol::language_server;
@@ -28,8 +30,7 @@ use span_tree::generate::context::CalledMethodInfo;
 
 pub use crate::double_representation::graph::LocationHint;
 pub use crate::double_representation::graph::Id;
-use crate::model::suggestion_database::Example;
-use crate::double_representation::definition::DefinitionName;
+
 
 
 // ==============
@@ -730,24 +731,34 @@ impl Handle {
         Ok(node_info.id())
     }
 
-    pub fn add_example(&self, example:&Example, position:Option<Position>) -> FallibleResult<ast::Id> {
-        let mut module        = double_representation::module::Info{ast: self.module.ast()};
-        let my_name           = self.graph_info()?.source.name.item;
-        let new_function      = example.definition_to_add(&module,&self.parser)?;
-        let new_function_name = Ast::var(new_function.name.name.item.clone());
-        module.add_method(new_function,module::Placement::Before(my_name),&self.parser)?;
+    /// Adds an example to the graph.
+    ///
+    /// The example piece of code will be inserted as a new function definition, and in current
+    /// graph the node will appear which calls this function.
+    pub fn add_example
+    (&self, example:&Example, position:Option<Position>) -> FallibleResult<ast::Id> {
+        // Add new function definition
+        let mut module            = double_representation::module::Info{ast:self.module.ast()};
+        let graph_definition      = module::locate(&module.ast,&self.id)?;
+        let graph_definition_name = self.graph_info()?.source.name.item;
+        let new_definition        = example.definition_to_add(&module, &self.parser)?;
+        let new_definition_name   = Ast::var(new_definition.name.name.item.clone());
+        let new_definition_place  = module::Placement::Before(graph_definition_name);
+        module.add_method(new_definition,new_definition_place,&self.parser)?;
 
+        // Add new node
         let here             = Ast::var(constants::keywords::HERE);
-        let node_expression  = ast::prefix::Chain::new_with_this(new_function_name,here,std::iter::empty()).into_ast();
-        let graph_definition = module::locate(&module.ast,&self.id)?;
+        let args             = std::iter::empty();
+        let node_expression  = ast::prefix::Chain::new_with_this(new_definition_name,here,args);
+        let node_expression  = node_expression.into_ast();
         let node             = NodeInfo::new_expression(node_expression).ok_or(FailedToCreateNode)?;
         let mut graph        = GraphInfo::from_definition(graph_definition.item);
         graph.add_node(node.ast().clone_ref(),LocationHint::End)?;
-
         let new_module      = module.ast.set_traversing(&graph_definition.crumbs,graph.ast())?;
         let intended_method = None;
         self.module.update_ast(new_module)?;
         self.module.set_node_metadata(node.id(),NodeMetadata {position,intended_method})?;
+
         Ok(node.id())
     }
 

@@ -201,6 +201,10 @@ impl SuggestionDatabase {
         })
     }
 
+    /// An iterator over all examples gathered from suggestions.
+    ///
+    /// If database was modified during iteration, the iterator does not panic, but may return
+    /// unpredictable result (a mix of old and new values).
     pub fn iterate_examples<'a>(&'a self) -> impl Iterator<Item=Rc<Example>> + 'a {
         let indices = 0..self.examples.borrow().len();
         indices.filter_map(move |i| self.examples.borrow().get(i).cloned())

@@ -38,7 +38,19 @@ pub struct Example {
 }
 
 impl Example {
-    pub fn definition_name(&self) -> String {
+    /// Return the example name converted in such way, that
+    ///
+    /// #### Example
+    /// ```
+    /// use enso_prelude::*;
+    ///
+    /// use ide::model::suggestion_database::Example;
+    ///
+    /// let name    = "With Spaces and Strange $#%^& Characters.".to_owned();
+    /// let example = Example{name,..default()};
+    /// assert_eq!(example.function_name(), "with_spaces_and_strange__characters");
+    /// ```
+    pub fn function_name(&self) -> String {
         self.name.chars().filter_map(|c|
             if c == ' ' { Some('_') }
             else if !c.is_ascii_alphanumeric() { None }
@@ -46,16 +58,23 @@ impl Example {
         ).collect()
     }
 
+    /// Returns the function definition containing the example code.
     pub fn definition_to_add(&self, module:&module::Info, parser:&Parser)
     -> FallibleResult<definition::ToAdd> {
-        let base_name  = self.definition_name();
+        let base_name  = self.function_name();
         let name       = DefinitionName::new_plain(module.generate_name(&base_name)?);
         let code_ast   = parser.parse_module(self.code.clone(),default())?;
         let body_block = code_ast.shape().as_block(0).ok_or(InvalidExample)?;
         let body_ast   = Ast::new(body_block,None);
-        Ok(definition::ToAdd::new(name,default(),body_ast))
+        Ok(definition::ToAdd::new_with_body(name,default(),body_ast))
     }
 }
+
+
+
+// =========================
+// === Embedded Examples ===
+// =========================
 
 lazy_static! {
     /// The hard-coded examples to be used until the proper solution
