@@ -165,23 +165,23 @@ impl ViewModel {
 
     /// Append listeners to copy buttons in doc to enable copying examples.
     fn append_listeners_to_copy_buttons(&self) {
-        let code_blocks = self.dom.dom().get_elements_by_class_name("CodeBlock");
+        let code_blocks  = self.dom.dom().get_elements_by_class_name("CodeBlock");
         let copy_buttons = self.dom.dom().get_elements_by_class_name("copyCodeBtn");
         for i in 0..copy_buttons.length() {
             let copy_button = copy_buttons.get_with_index(i);
-            let code_block = code_blocks.get_with_index(i);
+            let code_block  = code_blocks.get_with_index(i);
             match copy_button {
                 Some(btn) => match code_block {
                     Some(code) => {
-                        let cpy_btn = btn.dyn_into::<HtmlElement>();
+                        let cpy_btn  = btn.dyn_into::<HtmlElement>();
                         let code_blk = code.dyn_into::<HtmlElement>();
-                        let closure = move |_event: MouseEvent| {
+                        let closure  = move |_event: MouseEvent| {
                             copyCode(&code_blk.unwrap());
                         };
-                        let closure = Closure::wrap(Box::new(closure).into_fn_mut());
+                        let closure  = Closure::wrap(Box::new(closure).into_fn_mut());
                         let callback = closure.as_ref().unchecked_ref();
                         match cpy_btn.unwrap().add_event_listener_with_callback("click", callback){
-                            Ok(_)  => (),
+                            Ok(_)    => (),
                             Err(err) => error!(&self.logger, "Unable to add event listener: {err:?}")
                         }
                         closure.forget();
