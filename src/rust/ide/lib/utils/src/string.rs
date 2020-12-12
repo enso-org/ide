@@ -9,21 +9,21 @@ use enso_prelude::*;
 // ===============================
 
 /// Return the end index (exclusive) of the character position of the last matching character
-  /// of the longest common prefix of the two chars. If they are equal this will be the length of
-  /// the shorter string. If they are completely different this will be zero.
-  ///
-  /// Example:
-  /// ```
-  /// # use utils::string::find_prefix_end_index;
-  /// let a = "hospital";
-  /// let b = "host";
-  /// let c = "bunny";
-  ///
-  /// assert_eq!(find_prefix_end_index(a,b), 3);
-  /// assert_eq!(find_prefix_end_index(a,c), 0);
-  /// assert_eq!(find_prefix_end_index(a,a), 8);
-  ///
-  /// ```
+/// of the longest common prefix of the two chars. If they are equal this will be the length of
+/// the shorter string. If they are completely different this will be zero.
+///
+/// Example:
+/// ```
+/// # use utils::string::find_prefix_end_index;
+/// let a = "hospital";
+/// let b = "host";
+/// let c = "bunny";
+///
+/// assert_eq!(find_prefix_end_index(a,b), 3);
+/// assert_eq!(find_prefix_end_index(a,c), 0);
+/// assert_eq!(find_prefix_end_index(a,a), 8);
+///
+/// ```
 pub fn find_prefix_end_index(source_a:&str, source_b:&str) -> usize {
     let max_ix = source_a.len().min(source_b.len());
     let chars_a = source_a.chars();

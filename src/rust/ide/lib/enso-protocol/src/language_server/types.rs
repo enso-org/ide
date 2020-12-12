@@ -401,8 +401,8 @@ impl TextEdit {
     pub fn move_by_lines(self, lines:usize) -> TextEdit {
         let TextEdit{range,text} = self;
         let TextRange{start,end} = range;
-        let start = Position{line:start.line+lines,character:start.character};
-        let end   = Position{line:end.line+lines,character:end.character};
+        let start = Position{line:start.line+lines, character:start.character};
+        let end   = Position{line:end.line+lines, character:end.character};
         let range = TextRange{start,end};
         TextEdit{range,text}
     }
