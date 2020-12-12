@@ -349,30 +349,34 @@ impl TextEdit {
     /// ```
     /// # use enso_protocol::language_server::{TextEdit, Position, TextRange};
     /// # use enso_data::text::TextLocation;
-    /// let source = "\n333<->12345\n";
-    /// let target = "\n333x12345\n";
+    /// let source = "\n333<->🌊12345\n";
+    /// let target = "\n333x🔥12345\n";
     ///
     /// let diff = TextEdit::from_prefix_postfix_differences(source,target);
     ///
     /// let edit_start:TextLocation = Position{line:1,character:3}.into();
-    /// let edit_end:TextLocation   = Position{line:1,character:6}.into();
-    /// let edit_range:TextRange = (edit_start..edit_end).into();
-    /// assert_eq!(diff, TextEdit{range:edit_range, text:"x".to_string()});
+    /// let edit_end:TextLocation   = Position{line:1,character:7}.into();
+    /// let edit_range:TextRange    = (edit_start..edit_end).into();
+    /// assert_eq!(diff, TextEdit{range:edit_range, text:"x🔥".to_string()});
     /// ```
     pub fn from_prefix_postfix_differences(source:&str, target:&str) -> TextEdit {
         use enso_data::text::Index;
         use enso_data::text::TextLocation;
 
-        let start_ix = utils::string::find_prefix_end_index(source, target);
-        let end_ix   = utils::string::find_postfix_start_index(source, target);
+        let source_length = source.chars().count();
+        let target_length = target.chars().count();
 
-        let source_start_index    = Index::new(start_ix);
-        let source_end_index      = Index::new(source.len()-end_ix);
-        let source_start_position = TextLocation::from_index(source, source_start_index);
-        let source_end_position   = TextLocation::from_index(source, source_end_index);
+        let prefix_length  = utils::string::common_prefix_length(source, target);
+        let postfix_length = utils::string::common_postfix_length(source, target);
+
+        let source_start_index = Index::new(prefix_length);
+        let source_end_index   = Index::new(source_length - postfix_length);
+
+        let source_start_position = TextLocation::from_index(source,source_start_index);
+        let source_end_position   = TextLocation::from_index(source,source_end_index);
         let source_text_range     = source_start_position..source_end_position;
 
-        let target_range = (start_ix)..(target.len()-end_ix);
+        let target_range = prefix_length..(target_length - postfix_length);
         let target_text  = target.chars().skip(target_range.start).take(target_range.len());
 
         TextEdit {
