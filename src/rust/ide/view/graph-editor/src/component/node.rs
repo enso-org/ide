@@ -403,13 +403,13 @@ impl Node {
             let drag_area          = &model.drag_area.events;
             drag_area_hover       <- bool(&drag_area.mouse_out,&drag_area.mouse_over);
             model.input.set_hover <+ drag_area_hover;
-            out.source.hover      <+ model.input.body_hover;
+            out.source.hover      <+ model.input.on_body_hover;
 
 
             // === Background Press ===
 
             out.source.background_press <+ model.drag_area.events.mouse_down;
-            out.source.background_press <+ model.input.background_press;
+            out.source.background_press <+ model.input.on_background_press;
 
 
             // === Selection ===

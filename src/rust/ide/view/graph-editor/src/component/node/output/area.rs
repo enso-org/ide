@@ -139,8 +139,9 @@ ensogl::define_endpoints! {
     }
 
     Output {
-        on_port_hover        (Switch<Crumbs>),
         on_port_press        (Crumbs),
+        on_port_hover        (Switch<Crumbs>),
+        on_port_type_change  (Crumbs,Option<Type>),
         port_size_multiplier (f32),
     }
 }
@@ -419,8 +420,9 @@ impl Area {
                 frp::extend! { port_network
                     self.frp.output.source.on_port_hover <+ port_frp.on_hover.map
                         (f!([crumbs](t) Switch::new(crumbs.clone(),*t)));
-                    self.frp.output.source.on_port_press <+ port_frp.on_press.constant(crumbs);
+                    self.frp.output.source.on_port_press <+ port_frp.on_press.constant(crumbs.clone());
                     port_frp.set_size_multiplier <+ self.frp.port_size_multiplier;
+                    self.frp.source.on_port_type_change <+ port_frp.tp.map(move |t|(crumbs.clone(),t.clone()));
                 }
 
                 let node_tp : Option<Type> = node.tp().cloned().map(|t|t.into());

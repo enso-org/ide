@@ -198,16 +198,16 @@ ensogl::define_endpoints! {
     }
 
     Output {
-        pointer_style     (cursor::Style),
-        press             (Crumbs),
-        width             (f32),
-        expression        (Text),
-        editing           (bool),
-        ports_visible     (bool),
-        port_hover        (Switch<Crumbs>),
-        body_hover        (bool),
-        background_press  (),
-        on_port_tp_change (Crumbs,Option<Type>),
+        pointer_style       (cursor::Style),
+        width               (f32),
+        expression          (Text),
+        editing             (bool),
+        ports_visible       (bool),
+        on_port_press       (Crumbs),
+        on_port_hover       (Switch<Crumbs>),
+        on_port_type_change (Crumbs,Option<Type>),
+        on_body_hover       (bool),
+        on_background_press (),
     }
 }
 
@@ -336,7 +336,7 @@ impl Area {
             // learn more about the architecture and the importance of the hover
             // functionality.
 
-            frp.output.source.body_hover <+ frp.set_hover;
+            frp.output.source.on_body_hover <+ frp.set_hover;
 
 
             // === Cursor setup ===
@@ -370,13 +370,13 @@ impl Area {
 
             // === Label Hover ===
 
-            label_hovered <- edit_mode && frp.output.body_hover;
+            label_hovered <- edit_mode && frp.output.on_body_hover;
             eval label_hovered ((t) model.label.set_hover(t));
 
 
             // === Port Hover ===
 
-            eval frp.port_hover ((t) model.set_port_hover(t));
+            eval frp.on_port_hover ((t) model.set_port_hover(t));
 
             eval frp.set_connected ([model]((crumbs,edge_tp,is_connected)) {
                 model.with_port_mut(crumbs,|n|n.set_connected(is_connected,edge_tp));
@@ -566,7 +566,7 @@ impl Area {
 
                     // Please note, that this is computed first in order to compute `ports_visible`
                     // when needed, and thus it has to be run before the following lines.
-                    self.frp.output.source.body_hover <+ bool(&mouse_out,&mouse_over_raw);
+                    self.frp.output.source.on_body_hover <+ bool(&mouse_out,&mouse_over_raw);
 
                     // TODO[WD] for FRP3: Consider the following code. Here, we have to first
                     //     handle `bg_down` and then `mouse_down`. Otherwise, `mouse_down` may
@@ -580,19 +580,19 @@ impl Area {
                     bg_down    <- mouse_down_raw.gate_not(&frp.ports_visible);
                     mouse_down <- mouse_down_raw.gate(&frp.ports_visible);
                     mouse_over <- mouse_over_raw.gate(&frp.ports_visible);
-                    self.frp.output.source.background_press <+ bg_down;
+                    self.frp.output.source.on_background_press <+ bg_down;
 
 
                     // === Press ===
 
-                    eval_ mouse_down ([crumbs,frp] frp.source.press.emit(&crumbs));
+                    eval_ mouse_down ([crumbs,frp] frp.source.on_port_press.emit(&crumbs));
 
 
                     // === Hover ===
 
                     hovered <- bool(&mouse_out,&mouse_over);
                     hover   <- hovered.map (f!([crumbs](t) Switch::new(crumbs.clone_ref(),*t)));
-                    frp.source.port_hover <+ hover;
+                    frp.source.on_port_hover <+ hover;
 
 
                     // === Pointer Style ===
@@ -664,7 +664,7 @@ impl Area {
                 );
                 frp.source.tp <+ final_tp;
 
-                self.frp.source.on_port_tp_change <+ frp.tp.map(move |t|(crumbs.clone(),t.clone()));
+                self.frp.source.on_port_type_change <+ frp.tp.map(move |t|(crumbs.clone(),t.clone()));
             }
 
 
@@ -732,8 +732,8 @@ impl Area {
     ///
     /// As a design note, it is important to first assign the expression to the model, as the FRP
     /// signals can cause other parts of the network to fire, which may query the expression types.
-    /// For example, firing the `port::set_definition_type` will fire `on_port_tp_change`, which may
-    /// require some edges to re-color, which consequently will require to checking the current
+    /// For example, firing the `port::set_definition_type` will fire `on_port_type_change`, which
+    /// may require some edges to re-color, which consequently will require to checking the current
     /// expression types.
     fn init_new_expression(&self, expression:Expression) {
         *self.model.expression.borrow_mut() = expression;

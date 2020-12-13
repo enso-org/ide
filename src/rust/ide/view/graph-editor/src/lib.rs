@@ -991,12 +991,12 @@ impl GraphEditorModelWithNetwork {
                 output_press.emit(target);
             });
 
-            eval node.model.input.frp.press ([input_press](crumbs)
+            eval node.model.input.frp.on_port_press ([input_press](crumbs)
                 let target = EdgeEndpoint::new(node_id,crumbs.clone());
                 input_press.emit(target);
             );
 
-            eval node.model.input.frp.port_hover ([model](t) {
+            eval node.model.input.frp.on_port_hover ([model](t) {
                 let crumbs = t.on();
                 let target = crumbs.map(|c| EdgeEndpoint::new(node_id,c.clone()));
                 model.frp.hover_node_input.emit(target);
@@ -1007,8 +1007,12 @@ impl GraphEditorModelWithNetwork {
                model.frp.hover_node_output.emit(output);
             });
 
-            eval node.model.input.frp.on_port_tp_change(((crumbs,_))
+            eval node.model.input.frp.on_port_type_change(((crumbs,_))
                 model.with_input_edge_id(node_id,crumbs,|id| model.refresh_edge_color(id))
+            );
+
+            eval node.model.output.frp.on_port_type_change(((crumbs,_))
+                model.with_output_edge_id(node_id,crumbs,|id| model.refresh_edge_color(id))
             );
 
             eval node.frp.expression((t) output.source.node_expression_set.emit((node_id,t.into())));
@@ -1606,6 +1610,23 @@ impl GraphEditorModel {
         self.with_node(id,move |node| {
             let mut target_edge_id = None;
             for edge_id in node.in_edges.keys() {
+                self.with_edge(edge_id,|edge| {
+                    let ok = edge.target().map(|tgt| tgt.port == crumbs) == Some(true);
+                    if ok { target_edge_id = Some(edge_id) }
+                });
+            }
+            if let Some(edge_id) = target_edge_id {
+                f(edge_id)
+            }
+        });
+    }
+
+    // FIXME[WD]: This implementation is slow. Node should allow for easy mapping between Crumbs
+    //            and edges. Should be part of https://github.com/enso-org/ide/issues/822.
+    fn with_output_edge_id(&self, id:NodeId, crumbs:&span_tree::Crumbs, f:impl FnOnce(EdgeId)) {
+        self.with_node(id,move |node| {
+            let mut target_edge_id = None;
+            for edge_id in node.out_edges.keys() {
                 self.with_edge(edge_id,|edge| {
                     let ok = edge.target().map(|tgt| tgt.port == crumbs) == Some(true);
                     if ok { target_edge_id = Some(edge_id) }
