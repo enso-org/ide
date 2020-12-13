@@ -687,7 +687,7 @@ impl Area {
                             else if is_expected_arg { expected_color }
                             else                    { *base_color }
                         });
-                    label_color.target            <+ text_color_tgt;
+                    label_color.target <+ text_color_tgt;
                 }
 
                 let index  = node.payload.index;

@@ -130,7 +130,9 @@ impl From<node::Expression> for Expression {
 
 ensogl::define_endpoints! {
     Input {
-        set_size (Vector2),
+        set_size       (Vector2),
+        set_hover      (bool),
+        set_expression (node::Expression),
 
         /// Set the expression USAGE type. This is not the definition type, which can be set with
         /// `set_expression` instead. In case the usage type is set to None, ports still may be
@@ -158,13 +160,12 @@ pub struct Model {
     id_crumbs_map  : RefCell<HashMap<ast::Id,Crumbs>>,
     port_count     : Cell<usize>,
     styles         : StyleWatch,
+    frp            : FrpEndpoints,
 }
-
-
 
 impl Model {
     /// Constructor.
-    pub fn new(logger:impl AnyLogger, app:&Application) -> Self {
+    pub fn new(logger:impl AnyLogger, app:&Application, frp:&Frp) -> Self {
         let logger         = Logger::sub(&logger,"output_ports");
         let display_object = display::object::Instance::new(&logger);
         let ports          = display::object::Instance::new(&Logger::sub(&logger,"ports"));
@@ -174,9 +175,10 @@ impl Model {
         let expression     = default();
         let port_count     = default();
         let styles         = StyleWatch::new(&app.display.scene().style_sheet);
+        let frp            = frp.output.clone_ref();
         display_object.add_child(&label);
         display_object.add_child(&ports);
-        Self {logger,display_object,ports,app,label,expression,id_crumbs_map,port_count,styles}
+        Self {logger,display_object,ports,app,label,expression,id_crumbs_map,port_count,styles,frp}
             .init()
     }
 
@@ -187,11 +189,9 @@ impl Model {
         self.label.remove_from_view(&scene.views.main);
         self.label.add_to_view(&scene.views.label);
 
-        let text_color = self.styles.get_color(theme::graph_editor::node::text);
         self.label.single_line(true);
         self.label.disable_command("cursor_move_up");
         self.label.disable_command("cursor_move_down");
-        self.label.set_default_color(color::Rgba::from(text_color));
         self.label.set_default_text_size(text::Size(input::area::TEXT_SIZE));
         self.label.remove_all_cursors();
 
@@ -256,6 +256,69 @@ impl Model {
             if is_a_port { node.payload_mut().set_size(size) }
         })
     }
+
+    fn set_label_on_new_expression(&self, expression:&Expression) {
+        self.set_label(expression.code());
+    }
+
+    fn build_port_shapes_on_new_expression(&self) {
+        let mut port_index    = 0;
+        let mut id_crumbs_map = HashMap::new();
+        let whole_expr_type   = self.expression.borrow().whole_expr_type.clone();
+        let whole_expr_id     = self.expression.borrow().whole_expr_id;
+        let port_count        = self.port_count.get();
+        self.traverse_expression(|is_a_port,mut node,builder| {
+            let ast_id = if port_count == 0 { whole_expr_id } else { node.ast_id };
+            if let Some(id) = ast_id {
+                id_crumbs_map.insert(id,node.crumbs.clone_ref());
+            }
+
+            if DEBUG {
+                let indent  = " ".repeat(4*builder.depth);
+                let skipped = if !is_a_port { "(skip)" } else { "" };
+                println!("{}[{},{}] {} {:?} (tp: {:?}) (id: {:?})",indent,node.payload.index,
+                    node.payload.length,skipped,node.kind.variant_name(),node.tp(),node.ast_id);
+            }
+
+            if is_a_port {
+                let port   = &mut node;
+                let crumbs = port.crumbs.clone_ref();
+                let logger = &self.logger;
+                let scene  = self.scene();
+                let (port_shape,port_frp) = port.payload_mut()
+                    .init_shape(logger,scene,&self.styles,port_index,port_count);
+                let port_network = &port_frp.network;
+
+                frp::extend! { port_network
+                    self.frp.source.on_port_hover <+ port_frp.on_hover.map
+                        (f!([crumbs](t) Switch::new(crumbs.clone(),*t)));
+                    self.frp.source.on_port_press <+ port_frp.on_press.constant(crumbs.clone());
+                    port_frp.set_size_multiplier <+ self.frp.port_size_multiplier;
+                    self.frp.source.on_port_type_change <+ port_frp.tp.map(move |t|(crumbs.clone(),t.clone()));
+                }
+
+                let node_tp : Option<Type> = node.tp().cloned().map(|t|t.into());
+                let node_tp = if port_count != 0 { node_tp } else {
+                    node_tp.or_else(||whole_expr_type.clone())
+                };
+                port_frp.set_definition_type.emit(node_tp);
+
+                self.ports.add_child(&port_shape);
+                port_index += 1;
+            }
+        });
+        *self.id_crumbs_map.borrow_mut() = id_crumbs_map;
+    }
+
+    fn set_expression(&self, new_expression:impl Into<node::Expression>) {
+        let new_expression = Expression::from(new_expression.into());
+        if DEBUG { println!("\n\n=====================\nSET EXPR: {:?}", new_expression) }
+
+        self.set_label_on_new_expression(&new_expression);
+        *self.expression.borrow_mut() = new_expression;
+        self.port_count.set(self.count_ports());
+        self.build_port_shapes_on_new_expression();
+    }
 }
 
 
@@ -293,13 +356,13 @@ impl Deref for Area {
 
 impl Area {
     pub fn new(logger:impl AnyLogger, app:&Application) -> Self {
-        let model   = Rc::new(Model::new(logger,app));
-        let frp     = Frp::new();
-        let network = &frp.network;
-
-        let port_size  = Animation::<f32>::new(network);
-        let show_delay = Easing::new(network);
-        let hide_delay = Easing::new(network);
+        let frp         = Frp::new();
+        let model       = Rc::new(Model::new(logger,app,&frp));
+        let network     = &frp.network;
+        let port_size   = Animation::<f32>::new(network);
+        let label_color = color::Animation::new(network);
+        let show_delay  = Easing::new(network);
+        let hide_delay  = Easing::new(network);
         show_delay.set_duration(SHOW_DELAY_DURATION_MS);
         hide_delay.set_duration(HIDE_DELAY_DURATION_MS);
 
@@ -341,10 +404,26 @@ impl Area {
             eval frp.set_size ((t) model.set_size(*t));
 
 
-            // === Expression Type ===
+            // === Expression ===
 
+            eval frp.set_expression            ((a)     model.set_expression(a));
             eval frp.set_expression_usage_type (((a,b)) model.set_expression_usage_type(a,b));
+
+
+            // === Label Color ===
+
+            port_hover               <- frp.on_port_hover.map(|t| t.is_on());
+            hovered                  <- frp.set_hover || port_hover;
+            label_alpha_tgt          <- hovered.map(|hovered| if *hovered {1.0} else {0.0} );
+            label_color.target_alpha <+ label_alpha_tgt;
+            label_color_on_change    <- label_color.value.sample(&frp.set_expression);
+            new_label_color          <- any(&label_color.value,&label_color_on_change);
+            eval new_label_color ((color) model.label.set_color_all(color::Rgba::from(color)));
         }
+
+        label_color.target_alpha(0.0);
+        label_color.target_color(model.styles.get_color(theme::graph_editor::node::text).opaque);
+
         Self {frp,model}
     }
 
@@ -371,71 +450,6 @@ impl PortLayerBuilder {
     fn nested(&self) -> Self {
         let depth = self.depth + 1;
         Self {depth}
-    }
-}
-
-impl Area {
-    fn set_label_on_new_expression(&self, expression:&Expression) {
-        self.model.set_label(expression.code());
-    }
-
-    pub(crate) fn set_expression(&self, new_expression:impl Into<node::Expression>) {
-        let new_expression = Expression::from(new_expression.into());
-        if DEBUG { println!("\n\n=====================\nSET EXPR: {:?}", new_expression) }
-
-        self.set_label_on_new_expression(&new_expression);
-        *self.model.expression.borrow_mut() = new_expression;
-        self.model.port_count.set(self.model.count_ports());
-        self.build_port_shapes_on_new_expression();
-    }
-
-    fn build_port_shapes_on_new_expression(&self) {
-        let mut port_index    = 0;
-        let mut id_crumbs_map = HashMap::new();
-        let whole_expr_type   = self.model.expression.borrow().whole_expr_type.clone();
-        let whole_expr_id     = self.model.expression.borrow().whole_expr_id;
-        let port_count        = self.model.port_count.get();
-        self.model.traverse_expression(|is_a_port,mut node,builder| {
-            let ast_id = if port_count == 0 { whole_expr_id } else { node.ast_id };
-            if let Some(id) = ast_id {
-                id_crumbs_map.insert(id,node.crumbs.clone_ref());
-            }
-
-            if DEBUG {
-                let indent  = " ".repeat(4*builder.depth);
-                let skipped = if !is_a_port { "(skip)" } else { "" };
-                println!("{}[{},{}] {} {:?} (tp: {:?}) (id: {:?})",indent,node.payload.index,
-                    node.payload.length,skipped,node.kind.variant_name(),node.tp(),node.ast_id);
-            }
-
-            if is_a_port {
-                let port   = &mut node;
-                let crumbs = port.crumbs.clone_ref();
-                let logger = &self.model.logger;
-                let scene  = self.model.scene();
-                let (port_shape,port_frp) = port.payload_mut()
-                    .init_shape(logger,scene,&self.model.styles,port_index,port_count);
-                let port_network = &port_frp.network;
-
-                frp::extend! { port_network
-                    self.frp.output.source.on_port_hover <+ port_frp.on_hover.map
-                        (f!([crumbs](t) Switch::new(crumbs.clone(),*t)));
-                    self.frp.output.source.on_port_press <+ port_frp.on_press.constant(crumbs.clone());
-                    port_frp.set_size_multiplier <+ self.frp.port_size_multiplier;
-                    self.frp.source.on_port_type_change <+ port_frp.tp.map(move |t|(crumbs.clone(),t.clone()));
-                }
-
-                let node_tp : Option<Type> = node.tp().cloned().map(|t|t.into());
-                let node_tp = if port_count != 0 { node_tp } else {
-                    node_tp.or_else(||whole_expr_type.clone())
-                };
-                port_frp.set_definition_type.emit(node_tp);
-
-                self.model.ports.add_child(&port_shape);
-                port_index += 1;
-            }
-        });
-        *self.model.id_crumbs_map.borrow_mut() = id_crumbs_map;
     }
 }
 

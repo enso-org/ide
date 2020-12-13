@@ -400,10 +400,11 @@ impl Node {
             // ths user hovers the drag area. The input port manager merges this information with
             // port hover events and outputs the final hover event for any part inside of the node.
 
-            let drag_area          = &model.drag_area.events;
-            drag_area_hover       <- bool(&drag_area.mouse_out,&drag_area.mouse_over);
-            model.input.set_hover <+ drag_area_hover;
-            out.source.hover      <+ model.input.on_body_hover;
+            let drag_area           = &model.drag_area.events;
+            drag_area_hover        <- bool(&drag_area.mouse_out,&drag_area.mouse_over);
+            model.input.set_hover  <+ drag_area_hover;
+            out.source.hover       <+ model.input.on_body_hover;
+            model.output.set_hover <+ out.hover;
 
 
             // === Background Press ===
