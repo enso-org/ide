@@ -135,7 +135,7 @@ ensogl::define_endpoints! {
         /// Set the expression USAGE type. This is not the definition type, which can be set with
         /// `set_expression` instead. In case the usage type is set to None, ports still may be
         /// colored if the definition type was present.
-        set_expression_usage_type (ast::Id,Option<Type>),
+        set_expression_usage_type (Crumbs,Option<Type>),
     }
 
     Output {
@@ -199,6 +199,10 @@ impl Model {
         self
     }
 
+    pub fn get_crumbs_by_id(&self, id:ast::Id) -> Option<Crumbs> {
+        self.id_crumbs_map.borrow().get(&id).cloned()
+    }
+
     fn scene(&self) -> &Scene {
         self.app.display.scene()
     }
@@ -209,12 +213,10 @@ impl Model {
     }
 
     /// Update expression type for the particular `ast::Id`.
-    fn set_expression_usage_type(&self, id:ast::Id, tp:&Option<Type>) {
-        if let Some(crumbs) = self.id_crumbs_map.borrow().get(&id) {
-            if let Ok(port) = self.expression.borrow().span_tree.root_ref().get_descendant(crumbs) {
-                if let Some(frp) = &port.frp {
-                    frp.set_usage_type(tp)
-                }
+    fn set_expression_usage_type(&self, crumbs:&Crumbs, tp:&Option<Type>) {
+        if let Ok(port) = self.expression.borrow().span_tree.root_ref().get_descendant(crumbs) {
+            if let Some(frp) = &port.frp {
+                frp.set_usage_type(tp)
             }
         }
     }
@@ -276,8 +278,8 @@ impl Model {
 /// about this design decision, please read the docs for the [`node::Node`].
 #[derive(Clone,CloneRef,Debug)]
 pub struct Area {
-    pub frp : Frp,
-    model   : Rc<Model>,
+    pub frp   : Frp,
+    pub model : Rc<Model>,
 }
 
 impl Deref for Area {
@@ -340,7 +342,7 @@ impl Area {
 
             // === Expression Type ===
 
-            eval frp.set_expression_usage_type (((id,tp)) model.set_expression_usage_type(*id,tp));
+            eval frp.set_expression_usage_type (((a,b)) model.set_expression_usage_type(a,b));
         }
         Self {frp,model}
     }
@@ -387,14 +389,15 @@ impl Area {
     }
 
     fn build_port_shapes_on_new_expression(&self) {
-        let mut port_index  = 0;
-        let whole_expr_type = self.model.expression.borrow().whole_expr_type.clone();
-        let whole_expr_id   = self.model.expression.borrow().whole_expr_id;
-        let port_count      = self.model.port_count.get();
-        self.model.traverse_expression(|is_a_port,mut node,builder|{
+        let mut port_index    = 0;
+        let mut id_crumbs_map = HashMap::new();
+        let whole_expr_type   = self.model.expression.borrow().whole_expr_type.clone();
+        let whole_expr_id     = self.model.expression.borrow().whole_expr_id;
+        let port_count        = self.model.port_count.get();
+        self.model.traverse_expression(|is_a_port,mut node,builder| {
             let ast_id = if port_count == 0 { whole_expr_id } else { node.ast_id };
             if let Some(id) = ast_id {
-                self.model.id_crumbs_map.borrow_mut().insert(id,node.crumbs.clone_ref());
+                id_crumbs_map.insert(id,node.crumbs.clone_ref());
             }
 
             if DEBUG {
@@ -429,7 +432,8 @@ impl Area {
                 self.model.ports.add_child(&port_shape);
                 port_index += 1;
             }
-        })
+        });
+        *self.model.id_crumbs_map.borrow_mut() = id_crumbs_map;
     }
 }
 

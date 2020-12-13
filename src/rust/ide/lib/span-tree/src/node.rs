@@ -515,6 +515,61 @@ impl<'a,T> Deref for Ref<'a,T> {
     }
 }
 
+// === Specialized Iterators ===
+
+impl<'a,T:Payload> Ref<'a,T> {
+    /// Perform a depth-first-search algorithm on the `SpanTree`. The order of the layers will be
+    /// preserved - after all children of a node will be traversed, the next node sibling will be
+    /// traversed and then it's children.
+    ///
+    /// # Control Flow
+    /// This algorithm allows for some kind of control flow. Return `false` as the first tuple value
+    /// to stop traversing children of the current branch.
+    ///
+    /// # Layer Data
+    /// This algorithm allows passing any kind of data to layers. In order to set data for all
+    /// children of the current branch, return it as the second argument of the tuple. Please note
+    /// that callbacks get mutable access to the passed data, so they can freely modify it.
+    pub fn partial_dfs<D>(self, mut data:D, mut on_node:impl FnMut(&mut Self, &mut D) -> (bool,D)) {
+        let mut layer  = vec![self];
+        let mut layers = vec![];
+        loop {
+            match layer.pop() {
+                None => {
+                    match layers.pop() {
+                        None        => break,
+                        Some((l,d)) => {
+                            layer = l;
+                            data  = d;
+                        },
+                    }
+                },
+                Some(mut node) => {
+                    let (ok,mut sub_data) = on_node(&mut node, &mut data);
+                    if ok {
+                        let mut children = node.children_iter().collect_vec().reversed();
+                        mem::swap(&mut sub_data,&mut data);
+                        mem::swap(&mut children,&mut layer);
+                        layers.push((children,sub_data));
+                    }
+                }
+            }
+        }
+    }
+
+    /// Perform a full (traverse all nodes) depth-first-search algorithm on the `SpanTree`. See docs
+    /// of `partial_dfs` to learn more.
+    pub fn dfs<D>(self, data:D, mut on_node:impl FnMut(&mut Self, &mut D) -> D) {
+        self.partial_dfs(data,|t,s|(true,on_node(t,s)))
+    }
+
+    /// Perform a full (traverse all nodes) depth-first-search algorithm on the `SpanTree`. Just
+    /// like `dfs`, but without data attached.
+    pub fn dfs_(self, mut on_node:impl FnMut(&mut Self)) {
+        self.partial_dfs((),|t,_|(true,on_node(t)))
+    }
+}
+
 
 
 // ==============

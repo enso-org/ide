@@ -45,9 +45,9 @@ pub const SHADOW_SIZE       : f32 = 10.0;
 
 
 
-// ============
-// === Node ===
-// ============
+// =============
+// === Shape ===
+// =============
 
 /// Canvas node shape definition.
 pub mod shape {
@@ -138,9 +138,38 @@ pub mod drag_area {
 
 
 
-// ===========
-// === Frp ===
-// ===========
+#[derive(Clone,Copy,Debug)]
+pub enum Endpoint { Input, Output }
+
+#[derive(Clone,Debug)]
+pub struct Crumbs {
+    pub endpoint : Endpoint,
+    pub crumbs   : span_tree::Crumbs,
+}
+
+impl Crumbs {
+    pub fn input(crumbs: span_tree::Crumbs) -> Self {
+        let endpoint = Endpoint::Input;
+        Self {endpoint,crumbs}
+    }
+
+    pub fn output(crumbs: span_tree::Crumbs) -> Self {
+        let endpoint = Endpoint::Output;
+        Self {endpoint,crumbs}
+    }
+}
+
+impl Default for Crumbs {
+    fn default() -> Self {
+        Self::output(default())
+    }
+}
+
+
+
+// ============
+// === Node ===
+// ============
 
 ensogl::define_endpoints! {
     Input {
@@ -153,7 +182,7 @@ ensogl::define_endpoints! {
         /// Set the expression USAGE type. This is not the definition type, which can be set with
         /// `set_expression` instead. In case the usage type is set to None, ports still may be
         /// colored if the definition type was present.
-        set_expression_usage_type ((ast::Id,Option<Type>)),
+        set_expression_usage_type (Crumbs,Option<Type>),
     }
     Output {
         /// Press event. Emitted when user clicks on non-active part of the node, like its
@@ -165,12 +194,6 @@ ensogl::define_endpoints! {
         hover      (bool),
     }
 }
-
-
-
-// ============
-// === Node ===
-// ============
 
 /// The visual node representation.
 ///
@@ -305,6 +328,11 @@ impl NodeModel {
             .init()
     }
 
+    pub fn get_crumbs_by_id(&self, id:ast::Id) -> Option<Crumbs> {
+        let input_crumbs = self.input.model.get_crumbs_by_id(id).map(|t|(Crumbs::input(t)));
+        input_crumbs.or_else(||self.output.model.get_crumbs_by_id(id).map(|t|(Crumbs::output(t))))
+    }
+
     fn init(self) -> Self {
         self.set_expression(Expression::new_plain("empty"));
         self
@@ -322,6 +350,13 @@ impl NodeModel {
         let expr = expr.into();
         self.output.set_expression(&expr);
         self.input.set_expression(&expr);
+    }
+
+    fn set_expression_usage_type(&self, crumbs:&Crumbs, tp:&Option<Type>) {
+        match crumbs.endpoint {
+            Endpoint::Input  => self.input.set_expression_usage_type(&crumbs.crumbs,tp),
+            Endpoint::Output => self.output.set_expression_usage_type(&crumbs.crumbs,tp),
+        }
     }
 
     fn set_width(&self, width:f32) -> Vector2 {
@@ -388,9 +423,10 @@ impl Node {
             // === Expression ===
 
             model.input.set_connected              <+ frp.set_input_connected;
-            model.input.set_expression_usage_type  <+ frp.set_expression_usage_type;
-            model.output.set_expression_usage_type <+ frp.set_expression_usage_type;
-            eval frp.set_expression ((expr) model.set_expression(expr));
+            // model.input.set_expression_usage_type  <+ frp.set_expression_usage_type;
+            // model.output.set_expression_usage_type <+ frp.set_expression_usage_type;
+            eval frp.set_expression_usage_type (((a,b)) model.set_expression_usage_type(a,b));
+            eval frp.set_expression            ((a)     model.set_expression(a));
             out.source.expression <+ model.input.frp.expression.map(|t|t.clone_ref());
 
 

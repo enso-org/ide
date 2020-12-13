@@ -1489,7 +1489,10 @@ impl GraphEditorModel {
     fn set_node_expression_usage_type(&self, node_id:impl Into<NodeId>, ast_id:ast::Id, maybe_type:Option<Type>) {
         let node_id  = node_id.into();
         if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
-            node.view.frp.set_expression_usage_type.emit((ast_id,maybe_type))
+            let crumbs = node.view.model.get_crumbs_by_id(ast_id);
+            if let Some(crumbs) = crumbs {
+                node.view.frp.set_expression_usage_type.emit((crumbs,maybe_type));
+            }
         }
     }
 
