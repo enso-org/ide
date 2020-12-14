@@ -1145,6 +1145,9 @@ impl<T> HasID for WithLength<T>
 // === Shape ===
 
 impl<T> Module<T> {
+    /// Convert the Module node to Block with given indentation.
+    ///
+    /// Returns None if Module does not contain any lines.
     pub fn as_block(&self, indent:usize) -> Option<Block<T>>
     where T:Clone {
         let is_empty    = |line:&&BlockLine<Option<T>>| line.elem.is_none();

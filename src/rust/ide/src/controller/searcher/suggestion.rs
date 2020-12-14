@@ -13,11 +13,16 @@ pub type Completion = Rc<model::suggestion_database::Entry>;
 /// Suggestion for inserting example into current graph.
 pub type Example = Rc<model::suggestion_database::Example>;
 
-/// A single suggestion on the Searcher suggestion list.
-#[allow(missing_docs)]
+/// A single suggestion on the Searcher suggestion list. See also `controller::searcher::Searcher`
+/// docs.
 #[derive(Clone,CloneRef,Debug,Eq,PartialEq)]
 pub enum Suggestion {
+    /// Completion suggestion: picking will result in adding the suggested function/argument etc. to
+    /// the current searcher input. Committing suggestion will also add it to the input and commit
+    /// the searcher input as a new node expression.
     Completion(Completion),
+    /// Example suggestion: May be committed only creating new node. Will add to the current module
+    /// a new function with example code, and a new node in current scene calling that function.
     Example(Example),
     // In future, other suggestion types will be added (like suggestions of actions, etc.).
 }

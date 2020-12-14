@@ -40,9 +40,9 @@ pub struct NotACompletion {
 }
 
 #[allow(missing_docs)]
-#[fail(display = "TODO")]
+#[fail(display = "An example suggestion was committed when searcher was in "edit node" mode.")]
 #[derive(Copy,Clone,Debug,Fail)]
-pub struct ExampleWhenEditingNode;
+pub struct ExampleCommittedWhenEditingNode;
 
 
 // =====================
@@ -57,10 +57,6 @@ pub enum Notification {
 }
 
 
-
-// ===================
-// === Suggestions ===
-// ===================
 
 // ===================
 // === Suggestions ===
@@ -415,6 +411,8 @@ impl Data {
 /// suggestion list to display depending on the searcher input, and actions of picking and
 /// committing.
 ///
+/// For description of different suggestions, see `Suggestion` type.
+///
 /// ### Suggestion actions
 /// * _Committing_ suggestion: Run the action bound to it (e.g. opening project,
 ///   inserting example etc.). It should result in closing the searcher panel.
@@ -604,7 +602,7 @@ impl Searcher {
             },
             Suggestion::Example    (example) => match *self.mode {
                 Mode::NewNode {position} => self.graph.graph().add_example(&*example,position).map(Some),
-                _ => Err(ExampleWhenEditingNode.into())
+                _ => Err(ExampleCommittedWhenEditingNode.into())
             }
         }
     }
@@ -710,7 +708,7 @@ impl Searcher {
             CompletedFragmentId::Argument {index} =>
                 self.return_types_for_argument_completion(index),
         };
-        self.get_suggestion_list_from_engine(this_type, return_types, None);
+        self.get_suggestion_list_from_engine(this_type,return_types,None);
         self.data.borrow_mut().suggestions = Suggestions::Loading;
         executor::global::spawn(self.notifier.publish(Notification::NewSuggestionList));
     }
@@ -762,7 +760,7 @@ impl Searcher {
         let mut return_types = return_types.into_iter().map(Some).collect_vec();
         if return_types.is_empty() {
             return_types.push(None)
-        };
+        }
         executor::global::spawn(async move {
             let this_type = this_type.await;
             info!(this.logger,"Requesting new suggestion list. Type of `this` is {this_type:?}.");
@@ -787,7 +785,9 @@ impl Searcher {
     (&self, responses:Vec<json_rpc::Result<language_server::response::Completion>>)
     -> FallibleResult<suggestion::List> {
         let suggestions = suggestion::List::new();
-        suggestions.extend(self.database.iterate_examples().map(Suggestion::Example));
+        if matches!(&self.mode, Mode::NewNode{..}) {
+            suggestions.extend(self.database.iterate_examples().map(Suggestion::Example));
+        }
         for response in responses {
             let response = response?;
             let entries  = response.results.iter().filter_map(|id| {

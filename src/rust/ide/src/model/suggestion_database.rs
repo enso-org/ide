@@ -103,8 +103,7 @@ impl SuggestionDatabase {
             }
         }
         //TODO[ao] this is temporary solution. Eventually we should gather examples from
-        //         available modules documentation. The proper one should be delivered with
-        //         https://github.com/enso-org/ide/issues/1011
+        //         available modules documentation. (https://github.com/enso-org/ide/issues/1011)
         let examples = example::EXAMPLES.iter().cloned().map(Rc::new).collect_vec();
         Self {
             logger,
