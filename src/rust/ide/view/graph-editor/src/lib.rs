@@ -1984,6 +1984,17 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
                 }
             }
         });
+
+        eval mouse_up_target([touch,model](target) {
+            match target {
+                display::scene::PointerTarget::Background  => {} // touch.background.up.emit(()),
+                display::scene::PointerTarget::Symbol {..} => {
+                    if let Some(target) = model.scene().shapes.get_mouse_target(*target) {
+                        target.mouse_up().emit(());
+                    }
+                }
+            }
+        });
     }
 
 

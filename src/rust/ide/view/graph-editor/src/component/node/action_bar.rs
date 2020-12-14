@@ -9,6 +9,7 @@ use ensogl::application::Application;
 use ensogl::display::shape::*;
 use ensogl::display;
 use ensogl::gui::component;
+use ensogl_gui_components::toggle_button;
 use ensogl_gui_components::toggle_button::ToggleButton;
 use ensogl_gui_components::toggle_button::ColorableShape;
 use ensogl_theme as theme;
@@ -54,8 +55,6 @@ ensogl::define_endpoints! {
     Input {
         set_size       (Vector2),
         set_visibility (bool),
-        // show_icons     (),
-        // hide_icons     (),
     }
 
     Output {
@@ -120,6 +119,7 @@ struct Model {
     icons          : Icons,
     size           : Rc<Cell<Vector2>>,
     shapes         : compound::events::MouseEvents,
+    styles         : StyleWatch,
 }
 
 impl Model {
@@ -131,13 +131,14 @@ impl Model {
         let icons          = Icons::new(&logger,app);
         let shapes         = compound::events::MouseEvents::default();
         let size           = default();
+        let styles         = StyleWatch::new(&app.display.scene().style_sheet);
 
         shapes.add_sub_shape(&hover_area);
         shapes.add_sub_shape(&icons.freeze.view());
         shapes.add_sub_shape(&icons.visibility.view());
         shapes.add_sub_shape(&icons.skip.view());
 
-        Self{hover_area,display_object,size,icons,shapes}.init()
+        Self{hover_area,display_object,size,icons,shapes,styles}.init()
     }
 
     fn init(self) -> Self {
@@ -260,10 +261,16 @@ impl ActionBar {
             frp.source.action_visbility <+ model.icons.visibility.state;
         }
 
-        let icon_color_source = ColorSource::from(theme::graph_editor::node::actions::icon);
-        model.icons.freeze.frp.set_base_color(&icon_color_source);
-        model.icons.skip.frp.set_base_color(&icon_color_source);
-        model.icons.visibility.frp.set_base_color(&icon_color_source);
+        let color_scheme = toggle_button::ColorScheme {
+            disabled : Some(model.styles.get_color(theme::graph_editor::node::actions::button::disabled)),
+            enabled  : Some(model.styles.get_color(theme::graph_editor::node::actions::button::enabled)),
+            hovered  : Some(model.styles.get_color(theme::graph_editor::node::actions::button::hovered)),
+            ..default()
+        };
+
+        model.icons.freeze.frp.set_color_scheme(&color_scheme);
+        model.icons.skip.frp.set_color_scheme(&color_scheme);
+        model.icons.visibility.frp.set_color_scheme(&color_scheme);
         self
     }
 }
