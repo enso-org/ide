@@ -270,6 +270,10 @@ impl Model {
         self.id_crumbs_map.borrow().get(&id).cloned()
     }
 
+    fn scene(&self) -> &Scene {
+        self.app.display.scene()
+    }
+
     /// Traverse all expressions and set their colors matching the un-hovered style.
     fn init_port_coloring(&self) {
         self.set_port_hover(&default())
@@ -399,10 +403,6 @@ impl Area {
         Self {model,frp}
     }
 
-    fn scene(&self) -> &Scene {
-        self.model.app.display.scene()
-    }
-
     pub fn port_offset(&self, crumbs:&[Crumb]) -> Option<Vector2<f32>> {
         let expr = self.model.expression.borrow();
         expr.root_ref().get_descendant(crumbs).ok().map(|node| {
@@ -529,7 +529,7 @@ impl Area {
                 let padded_size  = Vector2(width_padded,height);
                 let size         = Vector2(width,height);
                 let logger       = &self.model.logger;
-                let scene        = self.scene();
+                let scene        = self.model.scene();
                 let port_shape   = port.payload_mut().init_shape(logger,scene,size,node::HEIGHT);
 
                 port_shape.mod_position(|t| t.x = unit * index as f32);

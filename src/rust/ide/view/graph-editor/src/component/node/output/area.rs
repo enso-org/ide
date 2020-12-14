@@ -191,9 +191,11 @@ impl Model {
         self.label.remove_from_view(&scene.views.main);
         self.label.add_to_view(&scene.views.label);
 
+        let text_color = self.styles.get_color(theme::graph_editor::node::text);
         self.label.single_line(true);
         self.label.disable_command("cursor_move_up");
         self.label.disable_command("cursor_move_down");
+        self.label.set_default_color(color::Rgba::from(text_color));
         self.label.set_default_text_size(text::Size(input::area::TEXT_SIZE));
         self.label.remove_all_cursors();
 
@@ -224,16 +226,19 @@ impl Model {
         }
     }
 
-    fn traverse_expression
+    /// Traverse all span tree nodes that are considered ports. In case of empty span tree, include
+    /// its root as the port as well.
+    fn traverse_expression_mut
     (&self, mut f:impl FnMut(bool, &mut PortRefMut, &mut PortLayerBuilder)) {
         let port_count = self.port_count.get();
-        self.traverse_expression_raw(|is_a_port,node,builder| {
+        self.traverse_expression_raw_mut(|is_a_port,node,builder| {
             let is_a_port = is_a_port || port_count == 0;
             f(is_a_port,node,builder)
         })
     }
 
-    fn traverse_expression_raw
+    /// Traverse all span tree nodes that are considered ports.
+    fn traverse_expression_raw_mut
     (&self, mut f:impl FnMut(bool, &mut PortRefMut, &mut PortLayerBuilder)) {
         let mut expression = self.expression.borrow_mut();
         expression.root_ref_mut().dfs(PortLayerBuilder::default(),|node,builder| {
@@ -248,13 +253,13 @@ impl Model {
 
     fn count_ports(&self) -> usize {
         let mut count = 0;
-        self.traverse_expression_raw(|is_a_port,_,_| if is_a_port { count += 1 });
+        self.traverse_expression_raw_mut(|is_a_port,_,_| if is_a_port { count += 1 });
         count
     }
 
     fn set_size(&self, size:Vector2) {
         self.ports.set_position_x(size.x/2.0);
-        self.traverse_expression(|is_a_port,node,_| {
+        self.traverse_expression_mut(|is_a_port,node,_| {
             if is_a_port { node.payload_mut().set_size(size) }
         })
     }
@@ -269,7 +274,7 @@ impl Model {
         let whole_expr_type   = self.expression.borrow().whole_expr_type.clone();
         let whole_expr_id     = self.expression.borrow().whole_expr_id;
         let port_count        = self.port_count.get();
-        self.traverse_expression(|is_a_port,mut node,builder| {
+        self.traverse_expression_mut(|is_a_port,mut node,builder| {
             let ast_id = if port_count == 0 { whole_expr_id } else { node.ast_id };
             if let Some(id) = ast_id {
                 id_crumbs_map.insert(id,node.crumbs.clone_ref());
