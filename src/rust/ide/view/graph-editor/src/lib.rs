@@ -471,6 +471,7 @@ ensogl::define_endpoints! {
         node_action_freeze        ((NodeId,bool)),
         node_action_skip          ((NodeId,bool)),
         node_edit_mode            (bool),
+        nodes_labels_visible      (bool),
 
 
         visualization_enabled           (NodeId),
@@ -984,6 +985,8 @@ impl GraphEditorModelWithNetwork {
 
             hovered <- node.output.hover.map (move |t| Some(Switch::new(node_id,*t)));
             output.source.node_hovered <+ hovered;
+
+            node.set_output_expression_visibility <+ self.frp.nodes_labels_visible;
 
             eval node.model.input.frp.pointer_style ((style) pointer_style.emit(style));
             eval node.model.output.frp.on_port_press ([output_press](crumbs){
@@ -2005,7 +2008,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         out.source.node_being_edited <+ out.node_editing_finished.constant(None);
         out.source.node_editing      <+ out.node_being_edited.map(|t|t.is_some());
 
-        out.source.node_edit_mode <+ edit_mode;
+        out.source.node_edit_mode       <+ edit_mode;
+        out.source.nodes_labels_visible <+ out.node_edit_mode || node_in_edit_mode;
 
         eval out.node_editing_started ([model] (id) {
             if let Some(node) = model.nodes.get_cloned_ref(&id) {

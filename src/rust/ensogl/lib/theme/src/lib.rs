@@ -186,7 +186,7 @@ define_themes! { [light:0, dark:1]
             }
             selection      = Lcha(0.83,0.63,0.436,1.0) , Lcha(0.72,0.54,0.22,1.0);
             selection.size = 9.0 , 9.0;
-            text           = Lcha(0.0,0.0,0.0,0.7) , Lcha(1.0,0.0,0.0,0.7);
+            text           = Lcha(0.0,0.0,0.0,0.3) , Lcha(1.0,0.0,0.0,0.7);
             text {
                 missing_arg    = Lcha(0.0,0.0,0.0,0.3) , Lcha(1.0,0.0,0.0,0.3);
                 variant.dimmed = Lcha(0.7,0.0,0.0,0.7) , Lcha(0.25,0.014,0.18,1.0);

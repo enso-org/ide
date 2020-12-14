@@ -203,10 +203,10 @@ ensogl::define_endpoints! {
         expression          (Text),
         editing             (bool),
         ports_visible       (bool),
+        body_hover          (bool),
         on_port_press       (Crumbs),
         on_port_hover       (Switch<Crumbs>),
         on_port_type_change (Crumbs,Option<Type>),
-        on_body_hover       (bool),
         on_background_press (),
     }
 }
@@ -336,7 +336,7 @@ impl Area {
             // learn more about the architecture and the importance of the hover
             // functionality.
 
-            frp.output.source.on_body_hover <+ frp.set_hover;
+            frp.output.source.body_hover <+ frp.set_hover;
 
 
             // === Cursor setup ===
@@ -370,7 +370,7 @@ impl Area {
 
             // === Label Hover ===
 
-            label_hovered <- edit_mode && frp.output.on_body_hover;
+            label_hovered <- edit_mode && frp.output.body_hover;
             eval label_hovered ((t) model.label.set_hover(t));
 
 
@@ -566,7 +566,7 @@ impl Area {
 
                     // Please note, that this is computed first in order to compute `ports_visible`
                     // when needed, and thus it has to be run before the following lines.
-                    self.frp.output.source.on_body_hover <+ bool(&mouse_out,&mouse_over_raw);
+                    self.frp.output.source.body_hover <+ bool(&mouse_out,&mouse_over_raw);
 
                     // TODO[WD] for FRP3: Consider the following code. Here, we have to first
                     //     handle `bg_down` and then `mouse_down`. Otherwise, `mouse_down` may

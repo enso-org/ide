@@ -130,9 +130,10 @@ impl From<node::Expression> for Expression {
 
 ensogl::define_endpoints! {
     Input {
-        set_size       (Vector2),
-        set_hover      (bool),
-        set_expression (node::Expression),
+        set_size                  (Vector2),
+        set_hover                 (bool),
+        set_expression            (node::Expression),
+        set_expression_visibility (bool),
 
         /// Set the expression USAGE type. This is not the definition type, which can be set with
         /// `set_expression` instead. In case the usage type is set to None, ports still may be
@@ -145,6 +146,7 @@ ensogl::define_endpoints! {
         on_port_hover        (Switch<Crumbs>),
         on_port_type_change  (Crumbs,Option<Type>),
         port_size_multiplier (f32),
+        body_hover           (bool),
     }
 }
 
@@ -412,9 +414,12 @@ impl Area {
 
             // === Label Color ===
 
+            let label_vis_color = model.styles.get_color(theme::graph_editor::node::text);
+            let label_vis_alpha = label_vis_color.alpha;
             port_hover               <- frp.on_port_hover.map(|t| t.is_on());
-            hovered                  <- frp.set_hover || port_hover;
-            label_alpha_tgt          <- hovered.map(|hovered| if *hovered {1.0} else {0.0} );
+            frp.source.body_hover    <+ frp.set_hover || port_hover;
+            expr_vis                 <- frp.body_hover || frp.set_expression_visibility;
+            label_alpha_tgt          <- expr_vis.map(move |t| if *t {label_vis_alpha} else {0.0} );
             label_color.target_alpha <+ label_alpha_tgt;
             label_color_on_change    <- label_color.value.sample(&frp.set_expression);
             new_label_color          <- any(&label_color.value,&label_color_on_change);
@@ -422,7 +427,7 @@ impl Area {
         }
 
         label_color.target_alpha(0.0);
-        label_color.target_color(model.styles.get_color(theme::graph_editor::node::text).opaque);
+        label_color.target_color(label_vis_color.opaque);
 
         Self {frp,model}
     }

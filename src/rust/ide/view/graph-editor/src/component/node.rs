@@ -183,6 +183,7 @@ ensogl::define_endpoints! {
         /// `set_expression` instead. In case the usage type is set to None, ports still may be
         /// colored if the definition type was present.
         set_expression_usage_type (Crumbs,Option<Type>),
+        set_output_expression_visibility (bool),
     }
     Output {
         /// Press event. Emitted when user clicks on non-active part of the node, like its
@@ -403,8 +404,8 @@ impl Node {
             let drag_area           = &model.drag_area.events;
             drag_area_hover        <- bool(&drag_area.mouse_out,&drag_area.mouse_over);
             model.input.set_hover  <+ drag_area_hover;
-            out.source.hover       <+ model.input.on_body_hover;
-            model.output.set_hover <+ out.hover;
+            model.output.set_hover <+ model.input.body_hover;
+            out.source.hover       <+ model.output.body_hover;
 
 
             // === Background Press ===
@@ -423,12 +424,11 @@ impl Node {
 
             // === Expression ===
 
-            model.input.set_connected              <+ frp.set_input_connected;
-            // model.input.set_expression_usage_type  <+ frp.set_expression_usage_type;
-            // model.output.set_expression_usage_type <+ frp.set_expression_usage_type;
             eval frp.set_expression_usage_type (((a,b)) model.set_expression_usage_type(a,b));
             eval frp.set_expression            ((a)     model.set_expression(a));
-            out.source.expression <+ model.input.frp.expression.map(|t|t.clone_ref());
+            out.source.expression                  <+ model.input.frp.expression;
+            model.input.set_connected              <+ frp.set_input_connected;
+            model.output.set_expression_visibility <+ frp.set_output_expression_visibility;
 
 
             // === Visualization ===
@@ -447,7 +447,7 @@ impl Node {
             eval action_bar.action_visbility ((t) model.visualization.frp.set_visibility.emit(t));
             out.source.skip   <+ action_bar.action_skip;
             out.source.freeze <+ action_bar.action_freeze;
-            eval out.hover ((t) action_bar.set_visibility(t) );
+            eval out.hover ((t) action_bar.set_visibility(t));
 
 
             // === Color Handling ===
