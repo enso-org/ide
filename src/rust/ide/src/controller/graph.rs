@@ -734,7 +734,7 @@ impl Handle {
     /// Adds an example to the graph.
     ///
     /// The example piece of code will be inserted as a new function definition, and in current
-    /// graph the node will appear which calls this function.
+    /// graph the node calling this function will appear.
     pub fn add_example
     (&self, example:&Example, position:Option<Position>) -> FallibleResult<ast::Id> {
         // Add new function definition

@@ -24,11 +24,11 @@ pub struct InvalidExample;
 // === Example ===
 // ===============
 
-/// Example is a titled piece of code user can put into their graph to see and learn how to use
-/// our language.
+/// Example is a labeled piece of code user can put into their graph to see and learn how to use
+/// the language.
 ///
-/// If user picks the example, the `code` should became a body of a new method defined in current
-/// module. On scene the call for this method should appear.
+/// If a user picks an example, its `code` should became a body of a new method defined in current
+/// module. On the scene the node calling this method should appear.
 #[allow(missing_docs)]
 #[derive(Clone,Debug,Default,Eq,PartialEq)]
 pub struct Example {
@@ -38,7 +38,7 @@ pub struct Example {
 }
 
 impl Example {
-    /// Return the example name converted in such way, that
+    /// Return the example name converted in such way, that it will be a valid identifier.
     ///
     /// #### Example
     /// ```

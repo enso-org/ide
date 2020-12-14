@@ -40,7 +40,7 @@ pub struct NotACompletion {
 }
 
 #[allow(missing_docs)]
-#[fail(display = "An example suggestion was committed when searcher was in "edit node" mode.")]
+#[fail(display = "An example suggestion was committed when searcher was in \"edit node\" mode.")]
 #[derive(Copy,Clone,Debug,Fail)]
 pub struct ExampleCommittedWhenEditingNode;
 
@@ -785,7 +785,7 @@ impl Searcher {
     (&self, responses:Vec<json_rpc::Result<language_server::response::Completion>>)
     -> FallibleResult<suggestion::List> {
         let suggestions = suggestion::List::new();
-        if matches!(&self.mode, Mode::NewNode{..}) {
+        if matches!(self.mode.deref(), Mode::NewNode{..}) {
             suggestions.extend(self.database.iterate_examples().map(Suggestion::Example));
         }
         for response in responses {
