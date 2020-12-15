@@ -739,7 +739,6 @@ impl Handle {
     (&self, example:&Example, position:Option<Position>) -> FallibleResult<ast::Id> {
         // === Add new function definition ===
         let mut module            = double_representation::module::Info{ast:self.module.ast()};
-        let graph_definition      = module::locate(&module.ast,&self.id)?;
         let graph_definition_name = self.graph_info()?.source.name.item;
         let new_definition        = example.definition_to_add(&module, &self.parser)?;
         let new_definition_name   = Ast::var(new_definition.name.name.item.clone());
@@ -753,6 +752,7 @@ impl Handle {
         let node_expression  = ast::prefix::Chain::new_with_this(new_definition_name,here,args);
         let node_expression  = node_expression.into_ast();
         let node             = NodeInfo::new_expression(node_expression).ok_or(FailedToCreateNode)?;
+        let graph_definition = module::locate(&module.ast,&self.id)?;
         let mut graph        = GraphInfo::from_definition(graph_definition.item);
         graph.add_node(node.ast().clone_ref(),LocationHint::End)?;
         let new_module      = module.ast.set_traversing(&graph_definition.crumbs,graph.ast())?;
