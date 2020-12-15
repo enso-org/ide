@@ -59,6 +59,9 @@ pub use span_tree::Crumbs;
 pub type SpanTree = span_tree::SpanTree<port::Model>;
 
 /// Mutable reference to port inside of a `SpanTree`.
+pub type PortRef<'a> = span_tree::node::Ref<'a,port::Model>;
+
+/// Mutable reference to port inside of a `SpanTree`.
 pub type PortRefMut<'a> = span_tree::node::RefMut<'a,port::Model>;
 
 
@@ -228,17 +231,28 @@ impl Model {
 
     /// Traverse all span tree nodes that are considered ports. In case of empty span tree, include
     /// its root as the port as well.
-    fn traverse_expression_mut
+    fn traverse_borrowed_expression_mut
     (&self, mut f:impl FnMut(bool, &mut PortRefMut, &mut PortLayerBuilder)) {
         let port_count = self.port_count.get();
-        self.traverse_expression_raw_mut(|is_a_port,node,builder| {
+        self.traverse_borrowed_expression_raw_mut(|is_a_port,node,builder| {
+            let is_a_port = is_a_port || port_count == 0;
+            f(is_a_port,node,builder)
+        })
+    }
+
+    /// Traverse all span tree nodes that are considered ports. In case of empty span tree, include
+    /// its root as the port as well.
+    fn traverse_borrowed_expression
+    (&self, mut f:impl FnMut(bool, &PortRef, &mut PortLayerBuilder)) {
+        let port_count = self.port_count.get();
+        self.traverse_borrowed_expression_raw(|is_a_port,node,builder| {
             let is_a_port = is_a_port || port_count == 0;
             f(is_a_port,node,builder)
         })
     }
 
     /// Traverse all span tree nodes that are considered ports.
-    fn traverse_expression_raw_mut
+    fn traverse_borrowed_expression_raw_mut
     (&self, mut f:impl FnMut(bool, &mut PortRefMut, &mut PortLayerBuilder)) {
         let mut expression = self.expression.borrow_mut();
         expression.root_ref_mut().dfs(PortLayerBuilder::default(),|node,builder| {
@@ -251,15 +265,29 @@ impl Model {
         });
     }
 
+    /// Traverse all span tree nodes that are considered ports.
+    fn traverse_borrowed_expression_raw
+    (&self, mut f:impl FnMut(bool, &PortRef, &mut PortLayerBuilder)) {
+        let mut expression = self.expression.borrow_mut();
+        expression.root_ref().dfs(PortLayerBuilder::default(),|node,builder| {
+            let is_leaf     = node.children.is_empty();
+            let is_this     = node.is_this();
+            let is_argument = node.is_argument();
+            let is_a_port   = (is_this || is_argument) && is_leaf;
+            f(is_a_port,node,builder);
+            builder.nested()
+        });
+    }
+
     fn count_ports(&self) -> usize {
         let mut count = 0;
-        self.traverse_expression_raw_mut(|is_a_port,_,_| if is_a_port { count += 1 });
+        self.traverse_borrowed_expression_raw_mut(|is_a_port,_,_| if is_a_port { count += 1 });
         count
     }
 
     fn set_size(&self, size:Vector2) {
         self.ports.set_position_x(size.x/2.0);
-        self.traverse_expression_mut(|is_a_port,node,_| {
+        self.traverse_borrowed_expression_mut(|is_a_port,node,_| {
             if is_a_port { node.payload_mut().set_size(size) }
         })
     }
@@ -274,7 +302,7 @@ impl Model {
         let whole_expr_type   = self.expression.borrow().whole_expr_type.clone();
         let whole_expr_id     = self.expression.borrow().whole_expr_id;
         let port_count        = self.port_count.get();
-        self.traverse_expression_mut(|is_a_port,mut node,builder| {
+        self.traverse_borrowed_expression_mut(|is_a_port,mut node,builder| {
             let ast_id = if port_count == 0 { whole_expr_id } else { node.ast_id };
             if let Some(id) = ast_id {
                 id_crumbs_map.insert(id,node.crumbs.clone_ref());
@@ -304,17 +332,25 @@ impl Model {
                     self.frp.source.on_port_type_change <+ port_frp.tp.map(move |t|(crumbs.clone(),t.clone()));
                 }
 
-                let node_tp : Option<Type> = node.tp().cloned().map(|t|t.into());
-                let node_tp = if port_count != 0 { node_tp } else {
-                    node_tp.or_else(||whole_expr_type.clone())
-                };
-                port_frp.set_definition_type.emit(node_tp);
-
                 self.ports.add_child(&port_shape);
                 port_index += 1;
             }
         });
         *self.id_crumbs_map.borrow_mut() = id_crumbs_map;
+    }
+
+    fn init_definition_types(&self) {
+        let port_count        = self.port_count.get();
+        let whole_expr_type   = self.expression.borrow().whole_expr_type.clone();
+        self.traverse_borrowed_expression(|is_a_port,mut node,builder| {
+            if let Some(port_frp) = &node.payload.frp {
+                let node_tp : Option<Type> = node.tp().cloned().map(|t|t.into());
+                let node_tp = if port_count != 0 { node_tp } else {
+                    node_tp.or_else(||whole_expr_type.clone())
+                };
+                port_frp.set_definition_type.emit(node_tp);
+            }
+        })
     }
 
     fn set_expression(&self, new_expression:impl Into<node::Expression>) {
@@ -325,6 +361,7 @@ impl Model {
         *self.expression.borrow_mut() = new_expression;
         self.port_count.set(self.count_ports());
         self.build_port_shapes_on_new_expression();
+        self.init_definition_types();
     }
 }
 
