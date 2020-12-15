@@ -1,3 +1,16 @@
+const fss = require('fs')
+
+function get_build_config() {
+    const buildInfoPath = paths.dist.buildInfo
+
+    let exists = fss.existsSync(buildInfoPath)
+    if (exists) {
+        let configFile = fss.readFileSync(buildInfoPath)
+        return JSON.parse(configFile.toString())
+    }
+}
+const build = get_build_config()
+
 let config = {
     name: "enso-studio-client",
     description: "The standalone client for the Enso IDE.",
@@ -21,11 +34,10 @@ let config = {
     },
 
     scripts: {
-        "start": `electron ${paths.dist.content} -- `,
-        "build": "webpack ",
-        "dist": "electron-builder --publish never",
-        "dist:crossplatform": "electron-builder --mac --win --linux --publish never"
-    }
+        start: `electron ${paths.dist.content} -- `,
+        build: 'webpack ',
+        dist: 'electron-builder --publish never' + ' --' + build.target,
+    },
 }
 
 config.build = {
@@ -47,6 +59,8 @@ config.build = {
     },
     files: [
         { from: paths.dist.content, to: "." }
+    ,
+        { from: paths.dist.bin, to: '.' },
     ],
     fileAssociations: [
         {

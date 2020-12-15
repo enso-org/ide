@@ -3,12 +3,12 @@
 import * as buildCfg  from '../../../../../dist/build.json'
 import * as Electron  from 'electron'
 import * as isDev     from 'electron-is-dev'
-import * as minimist  from 'minimist'
-import * as path      from 'path'
-import * as pkg       from '../package.json'
-import * as rootCfg   from '../../../package.json'
-import * as Server    from 'enso-studio-common/src/server'
-import * as yargs     from 'yargs'
+import * as path from 'path'
+import * as pkg from '../package.json'
+import * as rootCfg from '../../../package.json'
+import * as Server from 'enso-studio-common/src/server'
+import * as yargs from 'yargs'
+import * as assert from 'assert'
 
 
 // FIXME default options parsed wrong
@@ -267,6 +267,43 @@ Electron.app.on('web-contents-created', (event,contents) => {
 
 
 
+// =======================
+// === Project Manager ===
+// =======================
+
+const child_process = require('child_process')
+const fss = require('fs')
+const os = require('os')
+
+function project_manager_path() {
+    let base_path = path.join(root, 'enso', 'bin')
+    const target_platform = os.platform()
+    switch (target_platform) {
+        case 'linux':
+            return path.join(base_path, 'project-manager')
+        case 'darwin':
+            return path.join(base_path, 'project-manager')
+        case 'win32':
+            return path.join(base_path, 'project-manager.exe')
+        default:
+            throw 'UnsupportedPlatform: ' + target_platform
+    }
+}
+
+async function run_project_manager() {
+    const bin_path = project_manager_path()
+    let bin_exists = fss.existsSync(bin_path)
+    assert(bin_exists, 'Could not find file: ' + bin_path)
+
+    child_process.execFile(bin_path, [], (error, stdout, stderr) => {
+        console.error(stderr)
+        if (error) {
+            throw error
+        }
+        console.log(stdout)
+    })
+}
+
 // ============
 // === Main ===
 // ============
@@ -278,6 +315,7 @@ let server     = null
 let mainWindow = null
 
 async function main() {
+    await run_project_manager()
     if(args.server !== false) {
         let serverCfg      = Object.assign({},args)
         serverCfg.dir      = root

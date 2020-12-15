@@ -3,6 +3,7 @@ const fs       = require('fs').promises
 const fss      = require('fs')
 const glob     = require('glob')
 const ncp      = require('ncp').ncp
+const os = require('os')
 const path     = require('path')
 const paths    = require('./paths')
 const prettier = require("prettier")
@@ -121,7 +122,7 @@ commands.build.rust = async function(argv) {
     let crate     = argv.crate || DEFAULT_CRATE
     let crate_sfx = crate ? ` '${crate}'` : ``
     console.log(`Building WASM target${crate_sfx}.`)
-    let args = ['build','--target','web','--no-typescript','--out-dir',paths.dist.wasm.root,'--out-name','ide',crate]
+    let args = ['build','--target','web','--out-dir',paths.dist.wasm.root,'--out-name','ide',crate]
     if (argv.dev) { args.push('--dev') }
     await run_cargo('wasm-pack',args)
     await patch_file(paths.dist.wasm.glue, js_workaround_patcher)
@@ -296,6 +297,11 @@ optParser.options('dev', {
     type     : 'bool',
 })
 
+optParser.options('target', {
+    describe: 'Set the build target. Defaults to current platform',
+    type: 'string',
+})
+
 let commandList = Object.keys(commands)
 commandList.sort()
 for (let command of commandList) {
@@ -368,7 +374,7 @@ async function processPackageConfigs() {
 // === Main ===
 // ============
 
-async function updateBuildVersion () {
+async function updateBuildVersion (target) {
     let config        = {}
     let configPath    = paths.dist.buildInfo
     let exists        = fss.existsSync(configPath)
@@ -376,13 +382,17 @@ async function updateBuildVersion () {
         let configFile = await fs.readFile(configPath)
         config         = JSON.parse(configFile)
     }
-    let commitHashCmd = await cmd.run_read('git',['rev-parse','--short','HEAD'])
-    let commitHash    = commitHashCmd.trim()
-    if (config.buildVersion != commitHash) {
-        config.buildVersion = commitHash
-        await fs.mkdir(paths.dist.root,{recursive:true})
-        await fs.writeFile(configPath,JSON.stringify(config,undefined,2))
-    }
+
+    config.target = target
+
+    let commitHashCmd = await cmd.run_read('git', [
+        'rev-parse',
+        '--short',
+        'HEAD'
+    ])
+    config.buildVersion = commitHashCmd.trim()
+    await fs.mkdir(paths.dist.root, { recursive: true })
+    await fs.writeFile(configPath, JSON.stringify(config, undefined, 2))
 }
 
 async function installJsDeps() {
@@ -432,16 +442,35 @@ async function runCommand(command,argv) {
     runner()
 }
 
+function get_target_platform(argv) {
+    let target = argv.target
+    if (target === undefined) {
+        const local_platform = os.platform()
+        switch (local_platform) {
+            case 'darwin':
+                return 'macos'
+            case 'win32':
+                return 'win'
+            default:
+                return local_platform
+        }
+    }
+    return target
+}
+
 async function main () {
+    let argv = optParser.parse()
+
+    const target = get_target_platform(argv)
+    await updateBuildVersion(target)
     await processPackageConfigs()
-    updateBuildVersion()
-    let argv    = optParser.parse()
     let command = argv._[0]
-    if(command == 'clean') {
+    if(command === 'clean') {
         try { await fs.unlink(paths.dist.init) } catch {}
     } else {
         await installJsDeps()
     }
+
     await runCommand(command,argv)
 }
 
