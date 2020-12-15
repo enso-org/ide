@@ -182,12 +182,18 @@ impl View {
     /// Constructor.
     pub fn new(app:&Application) -> Self {
 
+        ensogl_theme::builtin::dark::register(app);
+        ensogl_theme::builtin::light::register(app);
+        // Should not be needed after proper theme management will be introduced:
+        ensogl_theme::builtin::light::enable(app);
+
         let model                      = Model::new(app);
         let frp                        = Frp::new();
         let searcher                   = &model.searcher.frp;
         let graph                      = &model.graph_editor.frp;
         let network                    = &frp.network;
         let searcher_left_top_position = DEPRECATED_Animation::<Vector2<f32>>::new(network);
+
         model.set_style(Theme::Light);
 
         frp::extend!{ network
