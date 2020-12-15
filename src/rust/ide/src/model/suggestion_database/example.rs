@@ -83,12 +83,12 @@ lazy_static! {
     pub static ref EXAMPLES:Vec<Example> = vec!
     [ Example
       { name          : "Parse JSON".to_owned()
-      , code          : r#"Json.parse {"a":10, "b": 20}"#.to_owned()
+      , code          : r#"Json.parse "{\"a\":10, \"b\": 20}""#.to_owned()
       , documentation : "An example showing how to parse string to Json structure.".to_owned()
       }
     , Example
       { name          : "Http GET".to_owned()
-      , code          : "http1 = Http.new \
+      , code          : "http1 = Http.new \n\
                          http1.get \"http://enso.org/\"".to_owned()
       , documentation : "This snippet downloads the Enso main page.".to_owned(),
       }
