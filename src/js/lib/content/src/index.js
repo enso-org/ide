@@ -122,21 +122,6 @@ function show_debug_screen(wasm,msg) {
 
 
 
-// =======================================
-// === Copy Documentation Example Code ===
-// =======================================
-
-function copyCode(codeBlockElem) {
-    let range = document.createRange()
-    range.selectNode(codeBlockElem)
-    window.getSelection().removeAllRanges()
-    window.getSelection().addRange(range)
-    document.execCommand('copy')
-    window.getSelection().removeAllRanges()
-}
-
-
-
 // ====================
 // === Scam Warning ===
 // ====================
@@ -196,7 +181,6 @@ function showLogs() {
     console.autoFlush = true
 }
 
-window.copyCode = copyCode
 window.showLogs = showLogs
 window.logsBuffer = logsBuffer
 

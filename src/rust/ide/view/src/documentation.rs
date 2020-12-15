@@ -13,13 +13,13 @@ use ensogl::display::DomSymbol;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::primitive::StyleWatch;
 use ensogl::system::web;
+use ensogl::system::web::clipboard;
 use ensogl::system::web::StyleSetter;
 use ensogl::system::web::AttributeSetter;
 use ensogl::gui::component;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::closure::WasmClosureFnOnce;
 use wasm_bindgen::JsCast;
-use wasm_bindgen::prelude::*;
 use web_sys::HtmlElement;
 use web_sys::MouseEvent;
 
@@ -49,11 +49,6 @@ fn documentation_style() -> String {
     format!("<style>{}</style>", include_str!("documentation/style.css"))
 }
 
-#[wasm_bindgen]
-extern "C" {
-    #[allow(unsafe_code)]
-    fn copyCode(code_block: &HtmlElement);
-}
 
 
 // =================
@@ -176,7 +171,8 @@ impl ViewModel {
                         let cpy_btn  = btn.dyn_into::<HtmlElement>();
                         let code_blk = code.dyn_into::<HtmlElement>();
                         let closure  = move |_event: MouseEvent| {
-                            copyCode(&code_blk.unwrap());
+                            let inner_code = code_blk.unwrap().inner_text();
+                            clipboard::write_text(inner_code);
                         };
                         let closure  = Closure::wrap(Box::new(closure).into_fn_mut());
                         let callback = closure.as_ref().unchecked_ref();
@@ -186,9 +182,9 @@ impl ViewModel {
                         }
                         closure.forget();
                     },
-                    None => info!(&self.logger, "No code block."),
+                    None => debug!(&self.logger, "No code block."),
                 },
-                None => info!(&self.logger, "No copy button."),
+                None => debug!(&self.logger, "No copy button."),
             }
         }
     }
