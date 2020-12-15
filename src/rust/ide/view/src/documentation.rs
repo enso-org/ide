@@ -165,27 +165,21 @@ impl ViewModel {
         for i in 0..copy_buttons.length() {
             let copy_button = copy_buttons.get_with_index(i);
             let code_block  = code_blocks.get_with_index(i);
-            match copy_button {
-                Some(btn) => match code_block {
-                    Some(code) => {
-                        let cpy_btn  = btn.dyn_into::<HtmlElement>();
-                        let code_blk = code.dyn_into::<HtmlElement>();
-                        let closure  = move |_event: MouseEvent| {
-                            let inner_code = code_blk.unwrap().inner_text();
-                            clipboard::write_text(inner_code);
-                        };
-                        let closure  = Closure::wrap(Box::new(closure).into_fn_mut());
-                        let callback = closure.as_ref().unchecked_ref();
-                        match cpy_btn.unwrap().add_event_listener_with_callback("click", callback){
-                            Ok(_)    => (),
-                            Err(err) => error!(&self.logger, "Unable to add event listener: {err:?}")
-                        }
-                        closure.forget();
-                    },
-                    None => debug!(&self.logger, "No code block."),
-                },
-                None => debug!(&self.logger, "No copy button."),
-            }
+            copy_button.map(|btn| { btn.dyn_into::<HtmlElement>().map(|cpy_btn| {
+                code_block.map(|code| { code.dyn_into::<HtmlElement>().map(|code_blk| {
+                    let closure  = move |_event: MouseEvent| {
+                        let inner_code = code_blk.inner_text();
+                        clipboard::write_text(inner_code);
+                    };
+                    let closure  = Closure::wrap(Box::new(closure).into_fn_mut());
+                    let callback = closure.as_ref().unchecked_ref();
+                    match cpy_btn.add_event_listener_with_callback("click", callback){
+                        Ok(_)    => (),
+                        Err(err) => error!(&self.logger, "Unable to add event listener: {err:?}")
+                    }
+                    closure.forget();
+                }) });
+            }) });
         }
     }
 
