@@ -737,7 +737,7 @@ impl Handle {
     /// graph the node calling this function will appear.
     pub fn add_example
     (&self, example:&Example, position:Option<Position>) -> FallibleResult<ast::Id> {
-        // Add new function definition
+        // === Add new function definition ===
         let mut module            = double_representation::module::Info{ast:self.module.ast()};
         let graph_definition      = module::locate(&module.ast,&self.id)?;
         let graph_definition_name = self.graph_info()?.source.name.item;
@@ -746,7 +746,8 @@ impl Handle {
         let new_definition_place  = module::Placement::Before(graph_definition_name);
         module.add_method(new_definition,new_definition_place,&self.parser)?;
 
-        // Add new node
+
+        // === Add new node ===
         let here             = Ast::var(constants::keywords::HERE);
         let args             = std::iter::empty();
         let node_expression  = ast::prefix::Chain::new_with_this(new_definition_name,here,args);

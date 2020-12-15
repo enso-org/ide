@@ -38,6 +38,7 @@ pub struct Example {
 }
 
 impl Example {
+
     /// Return the example name converted in such way, that it will be a valid identifier.
     ///
     /// #### Example
@@ -46,7 +47,7 @@ impl Example {
     ///
     /// use ide::model::suggestion_database::Example;
     ///
-    /// let name    = "With Spaces and Strange $#%^& Characters.".to_owned();
+    /// let name    = "With Spaces and Strange $ąę#%^& Characters.".to_owned();
     /// let example = Example{name,..default()};
     /// assert_eq!(example.function_name(), "with_spaces_and_strange__characters");
     /// ```
@@ -80,14 +81,16 @@ lazy_static! {
     /// The hard-coded examples to be used until the proper solution
     /// (described in https://github.com/enso-org/ide/issues/1011) will be implemented.
     pub static ref EXAMPLES:Vec<Example> = vec!
-    [ Example {name: "Split an Example".to_owned(), code: r#"
-example = File.read "/home/adam-praca/Documents/example"
-example.split " "
-"#.to_owned(),
-        documentation: "Lorem ipsum".to_owned()}
-    , Example {name: "Table".to_owned(), code: r#"
-[2,6,35,678,9038,7390]
-"#.to_owned(),
-        documentation: "Lorem ipsum".to_owned()}
+    [ Example
+      { name          : "Parse JSON".to_owned()
+      , code          : r#"Json.parse {"a":10, "b": 20}"#.to_owned()
+      , documentation : "An example showing how to parse string to Json structure.".to_owned()
+      }
+    , Example
+      { name          : "Http GET".to_owned()
+      , code          : "http1 = Http.new \
+                         http1.get \"http://enso.org/\"".to_owned()
+      , documentation : "This snippet downloads the Enso main page.".to_owned(),
+      }
     ];
 }

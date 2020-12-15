@@ -7,8 +7,8 @@
 use crate::prelude::*;
 
 use crate::controller::graph::NodeTrees;
-use crate::controller::searcher::suggestion::MatchInfo;
-use crate::controller::searcher::Suggestions;
+use crate::controller::searcher::action::MatchInfo;
+use crate::controller::searcher::Actions;
 use crate::model::execution_context::ComputedValueInfo;
 use crate::model::execution_context::LocalCall;
 use crate::model::execution_context::ExpressionId;
@@ -243,7 +243,7 @@ impl Integration {
         let node_moved             = Self::ui_action(&model,Model::node_moved_in_ui            ,inv);
         let node_editing           = Self::ui_action(&model,node_editing_in_ui                 ,inv);
         let node_expression_set    = Self::ui_action(&model,Model::node_expression_set_in_ui   ,inv);
-        let suggestion_picked      = Self::ui_action(&model,Model::suggestion_picked_in_ui     ,inv);
+        let used_as_suggestion     = Self::ui_action(&model,Model::used_as_suggestion_in_ui    ,inv);
         let node_editing_committed = Self::ui_action(&model,Model::node_editing_committed_in_ui,inv);
         let visualization_enabled  = Self::ui_action(&model,Model::visualization_enabled_in_ui ,inv);
         let visualization_disabled = Self::ui_action(&model,Model::visualization_disabled_in_ui,inv);
@@ -279,7 +279,7 @@ impl Integration {
             _action <- editor_outs.node_position_set_batched.map2(&is_hold,node_moved);
             _action <- editor_outs.node_being_edited        .map2(&is_hold,node_editing);
             _action <- editor_outs.node_expression_set      .map2(&is_hold,node_expression_set);
-            _action <- searcher_frp.picked_entry            .map2(&is_hold,suggestion_picked);
+            _action <- searcher_frp.used_as_suggestion      .map2(&is_hold,used_as_suggestion);
             _action <- project_frp.editing_committed        .map2(&is_hold,node_editing_committed);
 
             eval_ project_frp.editing_committed (invalidate.trigger.emit(()));
@@ -774,28 +774,28 @@ impl Model {
         use controller::searcher::Notification;
         use controller::searcher::UserAction;
         match notification {
-            Notification::NewSuggestionList => with(self.searcher.borrow(), |searcher| {
+            Notification::NewActionList => with(self.searcher.borrow(), |searcher| {
                 if let Some(searcher) = &*searcher {
-                    match searcher.suggestions() {
-                        Suggestions::Loading       => self.view.searcher().clear_suggestions(),
-                        Suggestions::Loaded {list:suggestions} => {
-                            let list_is_empty     = suggestions.matching_count() == 0;
+                    match searcher.actions() {
+                        Actions::Loading       => self.view.searcher().clear_actions(),
+                        Actions::Loaded {list:actions} => {
+                            let list_is_empty     = actions.matching_count() == 0;
                             let user_action       = searcher.current_user_action();
                             let intended_function = searcher.intended_function_suggestion();
                             let provider          = DataProviderForView
-                                {suggestions,user_action,intended_function};
-                            self.view.searcher().set_suggestions(Rc::new(provider));
+                                { actions,user_action,intended_function};
+                            self.view.searcher().set_actions(Rc::new(provider));
 
-                            // Usually we want to select first suggestion and display docs for it
+                            // Usually we want to select first entry and display docs for it
                             // But not when user finished typing function or argument.
                             let starting_typing = user_action == UserAction::StartingTypingArgument;
                             if  !starting_typing && !list_is_empty {
-                                self.view.searcher().select_suggestion(0);
+                                self.view.searcher().select_action(0);
                             }
-                        },
-                        Suggestions::Error(err)    => {
+                        }
+                        Actions::Error(err)    => {
                             error!(self.logger, "Error while obtaining list from searcher: {err}");
-                            self.view.searcher().clear_suggestions();
+                            self.view.searcher().clear_actions();
                         },
                     };
                 }
@@ -890,16 +890,16 @@ impl Model {
         }
     }
 
-    fn suggestion_picked_in_ui
+    fn used_as_suggestion_in_ui
     (&self, entry:&Option<ide_view::searcher::entry::Id>) -> FallibleResult {
-        debug!(self.logger, "Picking suggestion.");
+        debug!(self.logger, "Using as suggestion.");
         if let Some(entry) = entry {
             let graph_frp      = &self.view.graph().frp;
             let error          = || MissingSearcherController;
             let searcher       = self.searcher.borrow().clone().ok_or_else(error)?;
             let error          = || GraphEditorInconsistency;
             let edited_node    = graph_frp.output.node_being_edited.value().ok_or_else(error)?;
-            let code           = searcher.pick_completion_by_index(*entry)?;
+            let code           = searcher.use_as_suggestion(*entry)?;
             let code_and_trees = node::Expression::new_plain(code);
             graph_frp.input.set_node_expression.emit(&(edited_node,code_and_trees));
         }
@@ -914,7 +914,7 @@ impl Model {
         let searcher = self.searcher.borrow().clone().ok_or_else(error)?;
         *self.searcher.borrow_mut() = None;
         let result = if let Some(entry) = entry {
-            searcher.commit_suggestion_by_index(*entry)
+            searcher.execute_action_by_index(*entry)
         } else {
             searcher.commit_node().map(Some)
         };
@@ -1165,13 +1165,13 @@ impl Model {
 
 #[derive(Clone,Debug)]
 struct DataProviderForView {
-    suggestions       : Rc<controller::searcher::suggestion::List>,
+    actions           : Rc<controller::searcher::action::List>,
     user_action       : controller::searcher::UserAction,
-    intended_function : Option<controller::searcher::suggestion::Completion>,
+    intended_function : Option<controller::searcher::action::Suggestion>,
 }
 
 impl DataProviderForView {
-    fn doc_placeholder_for(suggestion:&controller::searcher::suggestion::Completion) -> String {
+    fn doc_placeholder_for(suggestion:&controller::searcher::action::Suggestion) -> String {
         let title = match suggestion.kind {
             suggestion_database::entry::Kind::Atom     => "Atom",
             suggestion_database::entry::Kind::Function => "Function",
@@ -1184,13 +1184,13 @@ impl DataProviderForView {
 
 impl list_view::entry::ModelProvider for DataProviderForView {
     fn entry_count(&self) -> usize {
-        self.suggestions.matching_count()
+        self.actions.matching_count()
     }
 
     fn get(&self, id: usize) -> Option<list_view::entry::Model> {
-        let suggestion = self.suggestions.get_cloned(id)?;
-        if let MatchInfo::Matches {subsequence} = suggestion.match_info {
-            let caption          = suggestion.suggestion.caption();
+        let action = self.actions.get_cloned(id)?;
+        if let MatchInfo::Matches {subsequence} = action.match_info {
+            let caption          = action.action.caption();
             let model            = list_view::entry::Model::new(caption.clone());
             let mut char_iter    = caption.char_indices().enumerate();
             let highlighted_iter = subsequence.indices.iter().filter_map(|idx| loop {
@@ -1223,13 +1223,13 @@ impl ide_view::searcher::DocumentationProvider for DataProviderForView {
     }
 
     fn get_for_entry(&self, id:usize) -> Option<String> {
-        use controller::searcher::suggestion::Suggestion;
-        match self.suggestions.get_cloned(id)?.suggestion {
-            Suggestion::Completion(completion) => {
-                let doc = completion.documentation.clone();
-                Some(doc.unwrap_or_else(|| Self::doc_placeholder_for(&completion)))
+        use controller::searcher::action::Action;
+        match self.actions.get_cloned(id)?.action {
+            Action::Suggestion(suggestion) => {
+                let doc = suggestion.documentation.clone();
+                Some(doc.unwrap_or_else(|| Self::doc_placeholder_for(&suggestion)))
             }
-            Suggestion::Example(_) => None, // TODO
+            Action::Example(example) => Some(example.documentation.clone())
         }
     }
 }

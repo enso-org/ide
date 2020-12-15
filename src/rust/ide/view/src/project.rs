@@ -104,7 +104,7 @@ impl Model {
             searcher_left_top_position.set_target_value(new_position);
         } else {
             self.searcher.hide();
-            self.searcher.clear_suggestions();
+            self.searcher.clear_actions();
         }
     }
 

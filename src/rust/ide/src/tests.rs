@@ -92,7 +92,7 @@ fn span_tree_args() {
     });
     let Fixture{graph,executed_graph,searcher,suggestion_db,..} = &fixture;
     let entry = suggestion_db.lookup(1).unwrap();
-    searcher.pick_completion(entry.clone_ref()).unwrap();
+    searcher.use_suggestion(entry.clone_ref()).unwrap();
     let id = searcher.commit_node().unwrap();
 
     let get_node   = || graph.node(id).unwrap();
