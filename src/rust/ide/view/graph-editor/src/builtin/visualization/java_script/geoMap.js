@@ -88,7 +88,7 @@ const makeId = makeGenerator()
  * "longitude": -122.45,
  * "zoom": 15,
  * "controller": true,
- * "pickable": true, // Enables presenting labels when hovering over Geo_Point.
+ * "showingLabels": true, // Enables presenting labels when hovering over Geo_Point.
  * "layers": [{
  *     "type": "Scatterplot_Layer",
  *     "data": [{
@@ -173,7 +173,7 @@ class GeoMapVisualization extends Visualization {
         this.mapStyle = ok(data.mapStyle) ? data.mapStyle : this.defaultMapStyle
         this.pitch = ok(data.pitch) ? data.pitch : 0
         this.controller = ok(data.controller) ? data.controller : true
-        this.pickable = ok(data.pickable) ? data.pickable : false
+        this.showingLabels = ok(data.showingLabels) ? data.showingLabels : false
     }
 
     viewState() {
@@ -198,7 +198,7 @@ class GeoMapVisualization extends Visualization {
             data: this.dataPoints,
             getFillColor: (d) => d.color,
             getRadius: (d) => d.radius,
-            pickable: this.pickable,
+            showingLabels: this.showingLabels,
         })
     }
 
