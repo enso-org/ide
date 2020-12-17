@@ -25,14 +25,14 @@ something is a bug, file it anyway!
 
 Even though GitHub search can be a bit hard to use sometimes, we'd
 appreciate if you could
-[search](https://github.com/luna/enso/search?q=&type=Issues&utf8=%E2%9C%93)
+[search](https://github.com/enso-org/enso/search?q=&type=Issues&utf8=%E2%9C%93)
 for your issue before filing a bug as it's possible that someone else has
 already reported the issue. We know the search isn't the best, and it can be
 hard to know what to search for, so we really don't mind if you _do_ submit 
 a duplicate!
 
 Opening an issue is as easy as following 
-[this link](https://github.com/luna/ide/issues/new?template=bug-report.md)
+[this link](https://github.com/enso-org/ide/issues/new?template=bug-report.md)
 and filling out the fields. The template is intended to collect all the
 information we need to best diagnose the issue, so please take the time to
 fill it out accurately.
@@ -114,7 +114,7 @@ IDE requires a service named Project Manager to be running in the background
 on the local machine. The service, being part of the Enso Engine, can be
 downloaded from [per-commit builds](https://github.com/enso-org/enso/actions?query=workflow%3A"Engine+CI"+branch%3Amain).
 The minimal supported version is commit 
-[670cffb3800912628f2289c590d8d8391fb3011a](https://github.com/enso-org/enso/actions/runs/355772649).
+[d80089ab6916f86d0b8ce479438520f24a2ae345](https://github.com/enso-org/enso/actions/runs/399967504).
 
 If the service is not running,the IDE will not start. However, it is possible 
 to hack on many components of the IDE without the service. The debug scenes 

@@ -152,11 +152,11 @@ impl Handle {
         let db_stream = self.project.suggestion_db().subscribe().map(|notification| {
             match notification {
                 model::suggestion_database::Notification::Updated =>
-                    Notification::Graph(controller::graph::Notification::Invalidate),
+                    Notification::Graph(controller::graph::Notification::PortsUpdate),
             }
         }).boxed_local();
         let update_stream = registry.subscribe().map(|_| {
-            Notification::Graph(controller::graph::Notification::Invalidate)
+            Notification::Graph(controller::graph::Notification::PortsUpdate)
         }).boxed_local();
 
         let streams = vec![value_stream,graph_stream,self_stream,db_stream,update_stream];
@@ -296,16 +296,17 @@ pub mod tests {
     use super::*;
 
     use crate::model::execution_context::ExpressionId;
+    use crate::model::module::NodeMetadata;
 
     use enso_protocol::language_server::types::test::value_update_with_type;
     use enso_protocol::language_server::types::test::value_update_with_method_ptr;
     use utils::test::traits::*;
     use wasm_bindgen_test::wasm_bindgen_test;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
-    use crate::model::module::NodeMetadata;
-    use logger::enabled::Logger;
 
     wasm_bindgen_test_configure!(run_in_browser);
+
+
 
     #[derive(Debug,Default)]
     pub struct MockData {
@@ -331,7 +332,7 @@ pub mod tests {
             model::project::test::expect_suggestion_db(&mut project,suggestion_db);
 
             let project = Rc::new(project);
-            Handle::new(Logger::default(),project.clone_ref(),method).boxed_local().expect_ok()
+            Handle::new(Logger::new("test"),project.clone_ref(),method).boxed_local().expect_ok()
         }
     }
 
@@ -373,7 +374,7 @@ pub mod tests {
             },
             |notification| match notification {
                 Notification::Graph(graph_notification) => {
-                    assert_eq!(graph_notification,&controller::graph::Notification::Invalidate);
+                    assert_eq!(graph_notification,&controller::graph::Notification::PortsUpdate);
                     true
                 }
                 _ => false,

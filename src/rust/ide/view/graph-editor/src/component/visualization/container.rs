@@ -25,7 +25,7 @@ use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
-use ensogl::gui::component::DEPRECATED_Animation;
+use ensogl::DEPRECATED_Animation;
 use ensogl::application::Application;
 use ensogl::gui::component;
 use ensogl::system::web;
@@ -148,11 +148,6 @@ pub mod overlay {
 
 
 // ===========
-// === FRP ===
-// ===========
-
-
-// ===========
 // === Frp ===
 // ===========
 
@@ -169,6 +164,7 @@ ensogl::define_endpoints! {
         disable_fullscreen (),
         scene_shape        (scene::Shape),
     }
+
     Output {
         preprocessor  (EnsoCode),
         visualisation (Option<visualization::Definition>),
@@ -535,8 +531,7 @@ impl Container {
                             action_bar.set_selected_visualization.emit(path);
                         },
                         Err(err) => {
-                            logger.warning(
-                                || format!("Failed to instantiate visualisation: {:?}",err));
+                            warning!(logger,"Failed to instantiate visualisation: {err:?}");
                         },
                     };
                 }
@@ -601,12 +596,11 @@ impl Container {
             eval selected_definition([scene,model,logger](definition)  {
                 let vis = definition.as_ref().map(|d| d.new_instance(&scene));
                 match vis {
-                    Some(Ok(vis))  =>  model.set_visualization(Some(vis)),
+                    Some(Ok(vis))  => model.set_visualization(Some(vis)),
                     Some(Err(err)) => {
-                        logger.warning(
-                            || format!("Failed to instantiate visualisation: {:?}",err));
+                        warning!(logger,"Failed to instantiate visualisation: {err:?}");
                     },
-                    None => logger.warning("Invalid visualisation selected"),
+                    None => warning!(logger,"Invalid visualisation selected."),
                 };
             });
             frp.source.visualisation <+ selected_definition;

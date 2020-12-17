@@ -15,6 +15,7 @@ use crate::typeface;
 
 use enso_frp as frp;
 use enso_frp::io::keyboard::Key;
+use ensogl_core::DEPRECATED_Animation;
 use ensogl_core::application::Application;
 use ensogl_core::application::shortcut;
 use ensogl_core::application;
@@ -22,7 +23,6 @@ use ensogl_core::data::color;
 use ensogl_core::display::scene::Scene;
 use ensogl_core::display::shape::*;
 use ensogl_core::display;
-use ensogl_core::gui::component::DEPRECATED_Animation;
 use ensogl_core::gui::component;
 use ensogl_core::gui::cursor;
 use ensogl_core::system::gpu::shader::glsl::traits::IntoGlsl;
@@ -152,7 +152,7 @@ impl Selection {
         let logger         = Logger::sub(logger,"selection");
         let display_object = display::object::Instance::new(&logger);
         let right_side     = display::object::Instance::new(&logger);
-        let network        = frp::Network::new();
+        let network        = frp::Network::new("text_selection");
         let shape_view     = component::ShapeView::<selection::Shape>::new(&logger,scene);
         let position       = DEPRECATED_Animation::new(&network);
         let width          = DEPRECATED_Animation::new(&network);
@@ -403,9 +403,11 @@ ensogl_core::define_endpoints! {
         undo(),
         /// Redo the last operation.
         redo(),
-        /// Copy selected text to clipboard.
+        /// Copy the selected text to the clipboard.
         copy(),
-        /// Paste selected text from clipboard.
+        /// Copy the selected text to the clipboard and remove it from the text area.
+        cut(),
+        /// Paste the selected text from the clipboard.
         paste(),
 
         hover(),
@@ -513,14 +515,18 @@ impl Area {
 
             _eval <- m.buffer.frp.selection_edit_mode.map2
                 (&scene.frp.frame_time,f!([m](selections,time) {
-                        m.redraw(); // FIXME: added for undo redo. Should not be needed.
+                        // FIXME: added for undo redo. Should not be needed.
+                        //        See https://github.com/enso-org/ide/issues/1031
+                        m.redraw(true);
                         m.on_modified_selection(selections,*time,true)
                     }
             ));
 
             _eval <- m.buffer.frp.selection_non_edit_mode.map2
                 (&scene.frp.frame_time,f!([m](selections,time) {
-                    m.redraw(); // FIXME: added for undo redo. Should not be needed.
+                    // FIXME: added for undo redo. Should not be needed.
+                    //        See https://github.com/enso-org/ide/issues/1031
+                    m.redraw(true);
                     m.on_modified_selection(selections,*time,false)
                 }
             ));
@@ -540,7 +546,7 @@ impl Area {
             });
 
 
-            // === Copy / Paste ===
+            // === Copy / Cut / Paste ===
 
             copy_sels      <- input.copy.map(f_!(m.buffer.selections_contents()));
             all_empty_sels <- copy_sels.map(|s|s.iter().all(|t|t.is_empty()));
@@ -551,11 +557,23 @@ impl Area {
             line_sel_mode_sels     <- line_sel_mode.map(f_!(m.buffer.selections_contents()));
             sels                   <- any(&line_sel_mode_sels,&non_line_sel_mode_sels);
             eval sels ((s) m.copy(s));
+
+            cut_sels           <- input.cut.map(f_!(m.buffer.selections_contents()));
+            all_empty_sels_cut <- cut_sels.map(|s|s.iter().all(|t|t.is_empty()));
+            line_sel_mode_cut  <- cut_sels.gate(&all_empty_sels_cut);
+
+            eval_ line_sel_mode_cut (m.buffer.frp.cursors_select(Some(Transform::Line)));
+            non_line_sel_mode_cut_sels <- cut_sels.gate_not(&all_empty_sels_cut);
+            line_sel_mode_cut_sels     <- line_sel_mode_cut.map(f_!(m.buffer.selections_contents()));
+            sels_cut                   <- any(&line_sel_mode_cut_sels,&non_line_sel_mode_cut_sels);
+            eval sels_cut ((s) m.cut(s));
+            eval_ sels_cut (m.buffer.frp.delete_left());
+
             eval_ input.paste (m.paste());
             eval input.paste_string ((s) m.buffer.frp.paste(m.decode_paste(s)));
 
 
-            eval_ m.buffer.frp.text_change (m.redraw());
+            eval_ m.buffer.frp.text_change (m.redraw(true));
 
             eval_ input.remove_all_cursors (m.buffer.frp.remove_all_cursors());
 
@@ -621,9 +639,11 @@ impl Area {
                 let all_bytes = buffer::Range::from(Bytes::from(0)..Bytes(i32::max_value()));
                 input.set_color_bytes.emit((all_bytes,*color));
             });
+            // FIXME: The color-setting operation is very slow now. For every new color, the whole
+            //        text is re-drawn. See https://github.com/enso-org/ide/issues/1031
             eval input.set_color_bytes ((t) {
                 m.buffer.frp.set_color_bytes.emit(*t);
-                m.redraw(); // FIXME: Should not be needed.
+                m.redraw(false);
             });
 
             // === Changes ===
@@ -761,7 +781,8 @@ impl AreaModel {
                         frp::extend! { selection_network
                             // FIXME[WD]: This is ultra-slow. Redrawing all glyphs on each
                             //            animation frame. Multiple times, once per cursor.
-                            eval_ selection.position.value (model.redraw());
+                            //            https://github.com/enso-org/ide/issues/1031
+                            eval_ selection.position.value (model.redraw(true));
                         }
                         selection
                     }
@@ -774,7 +795,7 @@ impl AreaModel {
             }
             *selection_map = new_selection_map;
         }
-        self.redraw()
+        self.redraw(true)
     }
 
     /// Transforms screen position to the object (display object) coordinate system.
@@ -804,12 +825,12 @@ impl AreaModel {
     }
 
     fn init(self) -> Self {
-        self.redraw();
+        self.redraw(true);
         self
     }
 
     /// Redraw the text.
-    fn redraw(&self) {
+    fn redraw(&self, width_may_change:bool) {
         let lines      = self.buffer.view_lines();
         let line_count = lines.len();
         self.lines.resize_with(line_count,|ix| self.new_line(ix));
@@ -817,7 +838,9 @@ impl AreaModel {
             self.redraw_line(view_line_index,content)
         }).collect_vec();
         let length = lengths.into_iter().max_by(|x,y|x.partial_cmp(y).unwrap()).unwrap_or_default();
-        self.frp_endpoints.source.width.emit(length);
+        if width_may_change {
+            self.frp_endpoints.source.width.emit(length);
+        }
     }
 
     fn redraw_line(&self, view_line_index:usize, content:String) -> f32 {
@@ -903,6 +926,10 @@ impl AreaModel {
         clipboard::write_text(encoded);
     }
 
+    fn cut(&self, selections:&[String]) {
+        self.copy(selections);
+    }
+
     fn paste(&self) {
         let paste_string = self.frp_endpoints.input.paste_string.clone_ref();
         clipboard::read_text(move |t| paste_string.emit(t));
@@ -985,6 +1012,7 @@ impl application::View for Area {
           , (Release        , "cmd left-mouse-button"   , "stop_newest_selection_end_follow_mouse")
           , (Press          , "cmd a"                   , "select_all")
           , (Press          , "cmd c"                   , "copy")
+          , (Press          , "cmd x"                   , "cut")
           , (Press          , "cmd v"                   , "paste")
           , (Press          , "escape"                  , "keep_oldest_cursor_only")
           ]).iter().map(|(action,rule,command)| {

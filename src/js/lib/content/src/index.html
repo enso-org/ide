@@ -4,7 +4,7 @@
         <meta charset="utf-8">
         <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
         <!-- FIXME https://github.com/validator/validator/issues/917 -->
-        <!-- FIXME Security Vulnerabilities: https://github.com/luna/ide/issues/226 -->
+        <!-- FIXME Security Vulnerabilities: https://github.com/enso-org/ide/issues/226 -->
         <meta http-equiv="Content-Security-Policy" content="
             default-src 'self';
             script-src  'self' 'unsafe-eval' data: https://*;
@@ -25,15 +25,16 @@
             html, body {
                 height : 100vh;
             }
-            body {
-                margin:0;
-            }
+
+            body { margin:0; }
+
             #root {
                 height   : 100vh;
                 margin   : 0;
                 position : absolute;
                 overflow : hidden;
             }
+
             .titlebar {
                 width    : 100vw;
                 height   : 36px;
@@ -43,17 +44,14 @@
                 -webkit-app-region  : drag;
                 -webkit-user-select : none;
             }
-            .scrollable::-webkit-scrollbar {
-                -webkit-appearance: none;
-            }
 
-            .scrollable::-webkit-scrollbar:vertical {
-                width: 11px;
-            }
+            .scrollable::-webkit-scrollbar { -webkit-appearance: none; }
 
-            .scrollable::-webkit-scrollbar:horizontal {
-                height: 11px;
-            }
+            .scrollable::-webkit-scrollbar-track { -webkit-box-shadow: none; }
+
+            .scrollable::-webkit-scrollbar:vertical { width: 11px; }
+
+            .scrollable::-webkit-scrollbar:horizontal { height: 11px; }
 
             .scrollable::-webkit-scrollbar-thumb {
                 border-radius: 8px;
@@ -61,14 +59,11 @@
                 background-color: rgba(190, 190, 190, .5);
             }
 
-            .scrollable::-webkit-scrollbar-corner {
-                background: rgba(0,0,0,0);
-            }
+            .scrollable::-webkit-scrollbar-corner { background: rgba(0,0,0,0); }
 
             .visualization {
                 z-index: 2;
                 border-radius: 14px;
-                box-shadow: 0 0 10px hsla(0, 0%, 0%, 0.1);
             }
 
             #crash-banner {

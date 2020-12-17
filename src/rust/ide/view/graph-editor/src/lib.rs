@@ -39,6 +39,8 @@ use crate::component::visualization::MockDataGenerator3D;
 use crate::component::type_coloring;
 
 use enso_frp as frp;
+use ensogl::DEPRECATED_Animation;
+use ensogl::DEPRECATED_Tween;
 use ensogl::application::Application;
 use ensogl::application::shortcut;
 use ensogl::application;
@@ -48,12 +50,11 @@ use ensogl::display::navigation::navigator::Navigator;
 use ensogl::display::object::Id;
 use ensogl::display::shape::StyleWatch;
 use ensogl::display;
-use ensogl::gui::component::DEPRECATED_Animation;
-use ensogl::gui::component::Tween;
 use ensogl::gui::cursor;
 use ensogl::prelude::*;
 use ensogl::system::web;
 use ensogl_theme as theme;
+
 
 
 // ===============
@@ -74,8 +75,6 @@ pub mod prelude {
 
 const SNAP_DISTANCE_THRESHOLD         : f32 = 10.0;
 const VIZ_PREVIEW_MODE_TOGGLE_TIME_MS : f32 = 300.0;
-
-
 
 #[derive(Clone,CloneRef,Debug,Derivative)]
 #[derivative(Default(bound=""))]
@@ -823,7 +822,7 @@ impl Nodes {
 
 
 
-#[derive(Debug,Clone,CloneRef,Default)]
+#[derive(Debug,Clone,CloneRef)]
 pub struct Edges {
     pub logger          : Logger,
     pub all             : SharedHashMap<EdgeId,Edge>,
@@ -840,8 +839,8 @@ impl Deref for Edges {
 
 impl Edges {
     pub fn new(logger:impl AnyLogger) -> Self {
-        let logger   = Logger::sub(logger,"edges");
-        let all      = default();
+        let logger          = Logger::sub(logger,"edges");
+        let all             = default();
         let detached_source = default();
         let detached_target = default();
         Self {logger,all,detached_source,detached_target}
@@ -980,15 +979,14 @@ impl GraphEditorModelWithNetwork {
         let touch = &self.touch_state;
         let model = &self.model;
 
-        frp::new_bridge_network! { [self.network, node.frp.network]
+        frp::new_bridge_network! { [self.network, node.frp.network] graph_node_bridge
             eval_ node.frp.background_press(touch.nodes.down.emit(node_id));
 
             hovered <- node.output.hover.map (move |t| Some(Switch::new(node_id,*t)));
             output.source.node_hovered <+ hovered;
 
-            // eval edit_mode_ready ((t) ports_frp.input.edit_mode_ready.emit(t));
             eval node.model.input.frp.pointer_style ((style) pointer_style.emit(style));
-            eval node.model.output.frp.port_mouse_down ([output_press](crumbs){
+            eval node.model.output.frp.on_port_press ([output_press](crumbs){
                 let target = EdgeEndpoint::new(node_id,crumbs.clone());
                 output_press.emit(target);
             });
@@ -1004,13 +1002,13 @@ impl GraphEditorModelWithNetwork {
                 model.frp.hover_node_input.emit(target);
             });
 
-            eval node.model.output.frp.port_mouse_over ([model](crumbs) {
-               let target = EdgeEndpoint::new(node_id,crumbs.clone());
-               model.frp.hover_node_output.emit(Some(target));
+            eval node.model.output.frp.on_port_hover ([model](hover) {
+               let output = hover.on().map(|crumbs| EdgeEndpoint::new(node_id,crumbs.clone()));
+               model.frp.hover_node_output.emit(output);
             });
 
-            eval_ node.model.output.frp.port_mouse_out (
-                model.frp.hover_node_output.emit(None)
+            eval node.model.input.frp.on_port_tp_change(((crumbs,_))
+                model.with_input_edge_id(node_id,crumbs,|id| model.refresh_edge_color(id))
             );
 
             eval node.frp.expression((t) output.source.node_expression_set.emit((node_id,t.into())));
@@ -1173,7 +1171,7 @@ impl GraphEditorModel {
         let logger         = Logger::new("GraphEditor");
         let display_object = display::object::Instance::new(&logger);
         let nodes          = Nodes::new(&logger);
-        let edges          = default();
+        let edges          = Edges::new(&logger);
         let vis_registry   = visualization::Registry::with_default_visualizations();
         let visualisations = default();
         let touch_state    = TouchState::new(network,&scene.mouse.frp);
@@ -1236,7 +1234,6 @@ impl GraphEditorModel {
 
 impl GraphEditorModel {
     fn remove_edge<E:Into<EdgeId>>(&self, edge_id:E) {
-        println!("REMOVE EDGE");
         let edge_id = edge_id.into();
         if let Some(edge) = self.edges.remove(&edge_id) {
             if let Some(source) = edge.take_source() {
@@ -1546,7 +1543,7 @@ impl GraphEditorModel {
                 if let Some(node) = self.nodes.get_cloned_ref(&edge_source.node_id) {
                     edge.mod_position(|p| {
                         p.x = node.position().x + node.model.width()/2.0;
-                        p.y = node.position().y + node::HEIGHT/2.0;
+                        p.y = node.position().y;
                     });
                 }
             }
@@ -1600,7 +1597,23 @@ impl GraphEditorModel {
         self.with_edge_map_target(id,|endpoint|endpoint)
     }
 
-    #[allow(dead_code)]
+    // FIXME[WD]: This implementation is slow. Node should allow for easy mapping between Crumbs
+    //            and edges. Should be part of https://github.com/enso-org/ide/issues/822.
+    fn with_input_edge_id(&self, id:NodeId, crumbs:&span_tree::Crumbs, f:impl FnOnce(EdgeId)) {
+        self.with_node(id,move |node| {
+            let mut target_edge_id = None;
+            for edge_id in node.in_edges.keys() {
+                self.with_edge(edge_id,|edge| {
+                    let ok = edge.target().map(|tgt| tgt.port == crumbs) == Some(true);
+                    if ok { target_edge_id = Some(edge_id) }
+                });
+            }
+            if let Some(edge_id) = target_edge_id {
+                f(edge_id)
+            }
+        });
+    }
+
     fn with_edge_source<T>(&self, id:EdgeId, f:impl FnOnce(EdgeEndpoint)->T) -> Option<T> {
         self.with_edge(id,|edge| {
             edge.source.borrow().clone().map(f).map_none(
@@ -1628,7 +1641,7 @@ impl GraphEditorModel {
     }
 
     fn edge_source_type(&self, edge_id:EdgeId) -> Option<Type> {
-        self.with_edge_map_source_node(edge_id,|n,c|n.model.input.port_type(&c)).flatten()
+        self.with_edge_map_source_node(edge_id,|n,c|n.model.output.port_type(&c)).flatten()
     }
 
     fn edge_target_type(&self, edge_id:EdgeId) -> Option<Type> {
@@ -1840,12 +1853,11 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // ========================
 
     frp::extend! { network
-
         no_vis_selected   <- out.some_visualisation_selected.on_false();
         some_vis_selected <- out.some_visualisation_selected.on_true();
 
-        set_navigator_true  <- inputs.set_navigator_disabled.on_true();
-        set_navigator_false <- inputs.set_navigator_disabled.on_false();
+        set_navigator_false  <- inputs.set_navigator_disabled.on_true();
+        set_navigator_true   <- inputs.set_navigator_disabled.on_false();
 
         disable_navigator <- any_(&set_navigator_false,&some_vis_selected);
         enable_navigator  <- any_(&set_navigator_true,&no_vis_selected);
@@ -2354,8 +2366,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     eval drag_tgts ((ids) model.disable_grid_snapping_for(ids));
     let node_tgt_pos_anim = DEPRECATED_Animation::<Vector2<f32>>::new(&network);
-    let x_snap_strength   = Tween::new(&network);
-    let y_snap_strength   = Tween::new(&network);
+    let x_snap_strength   = DEPRECATED_Tween::new(&network);
+    let y_snap_strength   = DEPRECATED_Tween::new(&network);
     x_snap_strength.set_duration(300.0);
     y_snap_strength.set_duration(300.0);
 
@@ -2516,7 +2528,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
                 node.model.visualization.frp.set_visualization.emit(vis_definition);
             },
             (Some(node), None) => node.model.visualization.frp.set_visualization.emit(None),
-             _                 => logger.warning(|| format!("Failed to get node: {:?}",node_id)),
+             _                 => warning!(logger,"Failed to get node: {node_id:?}"),
 
        }
    }));
@@ -2568,7 +2580,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
             let path = vis.signature.path.clone();
             inputs.set_visualization.emit((*node_id,Some(path)));
         } else {
-            logger.warning(|| "Failed to get visualization while cycling.".to_string());
+            warning!(logger,"Failed to get visualization while cycling.");
         };
         cycle_count.set(cycle_count.get() + 1);
     }));
