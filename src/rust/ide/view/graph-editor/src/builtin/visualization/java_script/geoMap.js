@@ -205,7 +205,7 @@ class GeoMapVisualization extends Visualization {
             data: this.dataPoints,
             getFillColor: (d) => d.color,
             getRadius: (d) => d.radius,
-            showingLabels: this.showingLabels,
+            pickable: this.showingLabels,
         })
     }
 
