@@ -202,13 +202,9 @@ impl Model {
         self.label.set_default_text_size(text::Size(input::area::TEXT_SIZE));
         self.label.remove_all_cursors();
 
-        self.label.mod_position(|t| t.y = input::area::TEXT_SIZE/2.0);
+        self.label.mod_position(|t| t.y = input::area::TEXT_SIZE / 2.0);
 
         self
-    }
-
-    pub fn get_crumbs_by_id(&self, id:ast::Id) -> Option<Crumbs> {
-        self.id_crumbs_map.borrow().get(&id).cloned()
     }
 
     fn scene(&self) -> &Scene {
@@ -385,8 +381,8 @@ impl Model {
 /// about this design decision, please read the docs for the [`node::Node`].
 #[derive(Clone,CloneRef,Debug)]
 pub struct Area {
-    pub frp   : Frp,
-    pub model : Rc<Model>,
+    pub frp : Frp,
+    model   : Rc<Model>,
 }
 
 impl Deref for Area {
@@ -477,6 +473,10 @@ impl Area {
         let expression = self.model.expression.borrow();
         expression.span_tree.root_ref().get_descendant(crumbs).ok()
             .and_then(|t|t.frp.as_ref().and_then(|frp|frp.tp.value()))
+    }
+
+    pub fn get_crumbs_by_id(&self, id:ast::Id) -> Option<Crumbs> {
+        self.model.id_crumbs_map.borrow().get(&id).cloned()
     }
 }
 

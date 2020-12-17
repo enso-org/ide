@@ -330,8 +330,8 @@ impl NodeModel {
     }
 
     pub fn get_crumbs_by_id(&self, id:ast::Id) -> Option<Crumbs> {
-        let input_crumbs = self.input.model.get_crumbs_by_id(id).map(Crumbs::input);
-        input_crumbs.or_else(||self.output.model.get_crumbs_by_id(id).map(Crumbs::output))
+        let input_crumbs = self.input.get_crumbs_by_id(id).map(Crumbs::input);
+        input_crumbs.or_else(||self.output.get_crumbs_by_id(id).map(Crumbs::output))
     }
 
     fn init(self) -> Self {

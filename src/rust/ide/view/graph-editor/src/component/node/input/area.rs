@@ -266,10 +266,6 @@ impl Model {
         self
     }
 
-    pub fn get_crumbs_by_id(&self, id:ast::Id) -> Option<Crumbs> {
-        self.id_crumbs_map.borrow().get(&id).cloned()
-    }
-
     fn scene(&self) -> &Scene {
         self.app.display.scene()
     }
@@ -311,8 +307,8 @@ fn select_color(styles:&StyleWatch, tp:Option<&Type>) -> color::Lcha {
 /// about this design decision, please read the docs for the [`node::Node`].
 #[derive(Clone,CloneRef,Debug)]
 pub struct Area {
-    pub frp   : Frp,
-    pub model : Rc<Model>,
+    pub frp : Frp,
+    model   : Rc<Model>,
 }
 
 impl Deref for Area {
@@ -411,6 +407,10 @@ impl Area {
     pub fn port_type(&self, crumbs:&Crumbs) -> Option<Type> {
         let expression = self.model.expression.borrow();
         expression.span_tree.root_ref().get_descendant(crumbs).ok().and_then(|t|t.tp.value())
+    }
+
+    pub fn get_crumbs_by_id(&self, id:ast::Id) -> Option<Crumbs> {
+        self.model.id_crumbs_map.borrow().get(&id).cloned()
     }
 }
 
