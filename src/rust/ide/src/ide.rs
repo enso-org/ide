@@ -10,7 +10,7 @@ use crate::view::View;
 use enso_protocol::binary;
 use enso_protocol::language_server;
 use enso_protocol::project_manager;
-use enso_protocol::project_manager::ProjectMetadata;
+use enso_protocol::project_manager::{ProjectMetadata, IpWithSocket};
 use enso_protocol::project_manager::ProjectName;
 use uuid::Uuid;
 
@@ -91,16 +91,12 @@ impl IdeInitializer {
         project_manager
     }
 
-    /// Connect to language server.
-    pub async fn open_project
-    ( logger           : &Logger
-    , project_manager  : Rc<dyn project_manager::API>
-    , project_metadata : ProjectMetadata
+    pub async fn create_project_model
+    ( logger : &Logger
+    , project_manager : Option<Rc<dyn project_manager::API>>
+    , json_endpoint   : IpWithSocket
+    , binary_endpoint : IpWithSocket
     ) -> FallibleResult<model::Project> {
-        use project_manager::MissingComponentAction::*;
-        let endpoints       = project_manager.open_project(&project_metadata.id,&Install).await?;
-        let json_endpoint   = endpoints.language_server_json_address;
-        let binary_endpoint = endpoints.language_server_binary_address;
         info!(logger, "Establishing Language Server connection.");
         let client_id     = Uuid::new_v4();
         let json_ws       = new_opened_ws(logger.clone_ref(), json_endpoint).await?;
@@ -116,6 +112,19 @@ impl IdeInitializer {
         let project           = model::project::Synchronized::from_connections(logger,
             project_manager,connection_json,connection_binary,project_id,name).await?;
         Ok(Rc::new(project))
+    }
+
+    /// Connect to language server.
+    pub async fn open_project
+    ( logger           : &Logger
+    , project_manager  : Rc<dyn project_manager::API>
+    , project_metadata : ProjectMetadata
+    ) -> FallibleResult<model::Project> {
+        use project_manager::MissingComponentAction::*;
+        let endpoints       = project_manager.open_project(&project_metadata.id,&Install).await?;
+        let json_endpoint   = endpoints.language_server_json_address;
+        let binary_endpoint = endpoints.language_server_binary_address;
+        Self::create_project_model(logger,Some(project_manager),json_endpoint,binary_endpoint)
     }
 
     /// Creates a new project and returns its metadata, so the newly connected project can be
