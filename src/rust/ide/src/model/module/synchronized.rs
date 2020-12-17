@@ -273,7 +273,6 @@ impl Module {
     async fn handle_notification
     (&self, content:&LanguageServerContent, notification:Notification)
     -> FallibleResult<ParsedContentSummary> {
-        iprintln!("HANDLING NOTIFICATION {notification:?}");
         let Notification{new_file,kind} = notification;
         debug!(self.logger,"Handling notification: {content:?}.");
         match content {
@@ -580,7 +579,7 @@ pub mod test {
                 edit_handler.expect_full_invalidation(client);
                 // Explicit AST update.
                 edit_handler.expect_some_edit(client, |edit|{
-                    assert!(edit.edits[0].text.contains("Test"));
+                    assert!(edit.edits.last().map_or(false, |edit| edit.text.contains("Test")));
                     Ok(())
                 });
                 // Replacing `Test` with `Test 2`

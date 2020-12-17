@@ -418,12 +418,13 @@ impl Info {
 
     /// Add a new import if the module is not already imported.
     pub fn add_module_import
-    (&mut self, here:&QualifiedName, parser:&parser::Parser, to_add:&QualifiedName)
-    -> Option<usize> {
+    (&mut self, here:&QualifiedName, parser:&parser::Parser, to_add:&QualifiedName) {
         let is_here          = to_add == here;
         let import           = ImportInfo::from_qualified_name(&to_add);
         let already_imported = self.iter_imports().any(|imp| imp == import);
-        (!is_here && !already_imported).as_some_from(|| self.add_import(parser,import))
+        if !is_here && !already_imported {
+            self.add_import(parser,import);
+        }
     }
 
     /// Place the line with given AST in the module's body.
