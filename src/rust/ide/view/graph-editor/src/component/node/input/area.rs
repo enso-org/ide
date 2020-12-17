@@ -128,7 +128,7 @@ impl From<node::Expression> for Expression {
         let mut span_tree = t.input_span_tree.map(|_|port::Model::default());
         let mut viz_code  = String::new();
         let code          = t.code;
-        span_tree.root_ref_mut().dfs(ExprConversion::default(),|node,info| {
+        span_tree.root_ref_mut().dfs_with_layer_data(ExprConversion::default(),|node,info| {
             let is_expected_arg       = node.is_expected_argument();
             let span                  = node.span();
             let mut size              = span.size.value;
@@ -272,11 +272,6 @@ impl Model {
 
     fn scene(&self) -> &Scene {
         self.app.display.scene()
-    }
-
-    /// Traverse all expressions and set their colors matching the un-hovered style.
-    fn init_port_coloring(&self) {
-        self.set_port_hover(&default())
     }
 
     /// Run the provided function on the target port if exists.
@@ -485,7 +480,7 @@ impl Area {
         let mut is_header     = true;
         let mut id_crumbs_map = HashMap::new();
         let builder           = PortLayerBuilder::empty(&self.model.ports);
-        expression.root_ref_mut().dfs(builder,|mut node,builder| {
+        expression.root_ref_mut().dfs_with_layer_data(builder,|mut node,builder| {
             let is_parensed = node.is_parensed();
             let skip_opr    = if SKIP_OPERATIONS {
                 node.is_operation() && !is_header
@@ -639,7 +634,7 @@ impl Area {
         let expected_color = model.styles.get_color(theme::code::syntax::expected);
 
         let parent_tp : Option<frp::Stream<Option<Type>>> = None;
-        expression.root_ref_mut().dfs(parent_tp,|node,parent_tp| {
+        expression.root_ref_mut().dfs_with_layer_data(parent_tp,|node,parent_tp| {
             let frp          = &node.frp;
             let port_network = &frp.network;
             let is_token     = node.is_token();
@@ -738,7 +733,7 @@ impl Area {
     fn init_new_expression(&self, expression:Expression) {
         *self.model.expression.borrow_mut() = expression;
         let expression = self.model.expression.borrow();
-        expression.root_ref().dfs((),|node,_| {
+        expression.root_ref().dfs_with_layer_data((),|node,_| {
             node.frp.set_definition_type(node.tp().cloned().map(|t|t.into()));
         });
     }
@@ -750,7 +745,6 @@ impl Area {
         self.build_port_shapes_on_new_expression(&mut new_expression);
         self.init_port_frp_on_new_expression(&mut new_expression);
         self.init_new_expression(new_expression);
-        // self.model.init_port_coloring(); // FIXME: is it needed anymore?
         if self.frp.editing.value() {
             self.model.label.set_cursor_at_end();
         }

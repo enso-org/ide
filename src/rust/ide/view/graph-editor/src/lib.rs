@@ -1985,7 +1985,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
             }
         });
 
-        eval mouse_up_target([touch,model](target) {
+        eval mouse_up_target([model](target) {
             match target {
                 display::scene::PointerTarget::Background  => {} // touch.background.up.emit(()),
                 display::scene::PointerTarget::Symbol {..} => {

@@ -115,7 +115,7 @@ impl From<node::Expression> for Expression {
         let whole_expr_type = expr.input_span_tree.root.tp().map(|t|t.to_owned().into());
         let whole_expr_id   = expr.input_span_tree.root.ast_id;
         let mut span_tree   = expr.output_span_tree.map(|_| port::Model::default());
-        span_tree.root_ref_mut().dfs((),|node,()| {
+        span_tree.root_ref_mut().dfs_with_layer_data((),|node,()| {
             let span    = node.span();
             let port    = node.payload_mut();
             port.index  = span.index.value;
@@ -255,7 +255,7 @@ impl Model {
     fn traverse_borrowed_expression_raw_mut
     (&self, mut f:impl FnMut(bool, &mut PortRefMut, &mut PortLayerBuilder)) {
         let mut expression = self.expression.borrow_mut();
-        expression.root_ref_mut().dfs(PortLayerBuilder::default(),|node,builder| {
+        expression.root_ref_mut().dfs_with_layer_data(PortLayerBuilder::default(),|node,builder| {
             let is_leaf     = node.children.is_empty();
             let is_this     = node.is_this();
             let is_argument = node.is_argument();
@@ -268,8 +268,8 @@ impl Model {
     /// Traverse all span tree nodes that are considered ports.
     fn traverse_borrowed_expression_raw
     (&self, mut f:impl FnMut(bool, &PortRef, &mut PortLayerBuilder)) {
-        let mut expression = self.expression.borrow_mut();
-        expression.root_ref().dfs(PortLayerBuilder::default(),|node,builder| {
+        let expression = self.expression.borrow_mut();
+        expression.root_ref().dfs_with_layer_data(PortLayerBuilder::default(),|node,builder| {
             let is_leaf     = node.children.is_empty();
             let is_this     = node.is_this();
             let is_argument = node.is_argument();
@@ -299,7 +299,6 @@ impl Model {
     fn build_port_shapes_on_new_expression(&self) {
         let mut port_index    = 0;
         let mut id_crumbs_map = HashMap::new();
-        let whole_expr_type   = self.expression.borrow().whole_expr_type.clone();
         let whole_expr_id     = self.expression.borrow().whole_expr_id;
         let port_count        = self.port_count.get();
         self.traverse_borrowed_expression_mut(|is_a_port,mut node,builder| {
@@ -342,7 +341,7 @@ impl Model {
     fn init_definition_types(&self) {
         let port_count        = self.port_count.get();
         let whole_expr_type   = self.expression.borrow().whole_expr_type.clone();
-        self.traverse_borrowed_expression(|is_a_port,mut node,builder| {
+        self.traverse_borrowed_expression(|_,node,_| {
             if let Some(port_frp) = &node.payload.frp {
                 let node_tp : Option<Type> = node.tp().cloned().map(|t|t.into());
                 let node_tp = if port_count != 0 { node_tp } else {

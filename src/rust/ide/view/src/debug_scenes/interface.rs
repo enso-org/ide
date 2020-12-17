@@ -152,11 +152,11 @@ fn init(app:&Application) {
     });
 
 
-    let tgt_type = dummy_type_generator.get_dummy_type();
+    // let tgt_type = dummy_type_generator.get_dummy_type();
     let mut was_rendered = false;
     let mut loader_hidden = false;
     let mut i = 100;
-    let mut j = 3;
+    // let mut j = 3;
     world.on_frame(move |_| {
         let _keep_alive = &navigator;
         let _keep_alive = &project_view;

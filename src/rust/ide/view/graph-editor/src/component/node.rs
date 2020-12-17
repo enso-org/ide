@@ -36,6 +36,7 @@ use super::edge;
 // === Constants ===
 // =================
 
+pub const ACTION_BAR_WIDTH  : f32 = 180.0;
 pub const ACTION_BAR_HEIGHT : f32 = 15.0;
 pub const CORNER_RADIUS     : f32 = 14.0;
 pub const HEIGHT            : f32 = 28.0;
@@ -329,8 +330,8 @@ impl NodeModel {
     }
 
     pub fn get_crumbs_by_id(&self, id:ast::Id) -> Option<Crumbs> {
-        let input_crumbs = self.input.model.get_crumbs_by_id(id).map(|t|(Crumbs::input(t)));
-        input_crumbs.or_else(||self.output.model.get_crumbs_by_id(id).map(|t|(Crumbs::output(t))))
+        let input_crumbs = self.input.model.get_crumbs_by_id(id).map(Crumbs::input);
+        input_crumbs.or_else(||self.output.model.get_crumbs_by_id(id).map(Crumbs::output))
     }
 
     fn init(self) -> Self {
@@ -368,7 +369,7 @@ impl NodeModel {
         self.main_area.mod_position(|t| t.x = width/2.0);
         self.drag_area.mod_position(|t| t.x = width/2.0);
 
-        let action_bar_width = 180.0;
+        let action_bar_width = ACTION_BAR_WIDTH;
         self.action_bar.mod_position(|t| {
             t.x = width + CORNER_RADIUS + action_bar_width / 2.0;
         });

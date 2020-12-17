@@ -262,9 +262,9 @@ impl ActionBar {
         }
 
         let color_scheme = toggle_button::ColorScheme {
-            disabled : Some(model.styles.get_color(theme::graph_editor::node::actions::button::disabled)),
-            enabled  : Some(model.styles.get_color(theme::graph_editor::node::actions::button::enabled)),
-            hovered  : Some(model.styles.get_color(theme::graph_editor::node::actions::button::hovered)),
+            non_toggled : Some(model.styles.get_color(theme::graph_editor::node::actions::button::non_toggled)),
+            toggled     : Some(model.styles.get_color(theme::graph_editor::node::actions::button::toggled)),
+            hovered     : Some(model.styles.get_color(theme::graph_editor::node::actions::button::hovered)),
             ..default()
         };
 
