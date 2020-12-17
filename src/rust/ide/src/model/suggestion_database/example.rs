@@ -81,6 +81,7 @@ impl Example {
 lazy_static! {
     /// The hard-coded examples to be used until the proper solution
     /// (described in https://github.com/enso-org/ide/issues/1011) will be implemented.
+    //TODO[ao]: Remove once the issue will be implemented.
     pub static ref EXAMPLES:Vec<Example> = vec!
     [ Example
       { name          : "Parse JSON".to_owned()

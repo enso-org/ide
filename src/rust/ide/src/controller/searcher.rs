@@ -3,8 +3,12 @@ pub mod action;
 
 use crate::prelude::*;
 
-use crate::controller::graph::{NewNodeInfo, FailedToCreateNode};
+use crate::controller::graph::FailedToCreateNode;
+use crate::controller::graph::NewNodeInfo;
+use crate::double_representation::graph::GraphInfo;
+use crate::double_representation::graph::LocationHint;
 use crate::double_representation::module::QualifiedName;
+use crate::double_representation::node::NodeInfo;
 use crate::model::module::MethodId;
 use crate::model::module::NodeMetadata;
 use crate::model::module::Position;
@@ -16,8 +20,8 @@ use flo_stream::Subscriber;
 use parser::Parser;
 
 pub use action::Action;
-use crate::double_representation::node::NodeInfo;
-use crate::double_representation::graph::{GraphInfo, LocationHint};
+
+
 
 
 // ==============
@@ -26,7 +30,7 @@ use crate::double_representation::graph::{GraphInfo, LocationHint};
 
 
 #[allow(missing_docs)]
-#[fail(display="No action entry with index {}.", index)]
+#[fail(display="No action entry with the index {}.", index)]
 #[derive(Copy,Clone,Debug,Fail)]
 pub struct NoSuchAction {
     index : usize,
@@ -694,10 +698,10 @@ impl Searcher {
         let intended_method = None;
 
 
-        // === Add imports
+        // === Add imports ===
         let here = self.module_qualified_name();
         for import in example.imports.iter().map(QualifiedName::from_text).filter_map(Result::ok) {
-            module.import_module_if_not_already_imported(&here,&self.parser,&import);
+            module.add_module_import(&here, &self.parser, &import);
         }
         graph.module.update_ast(module.ast)?;
         graph.module.set_node_metadata(node.id(),NodeMetadata {position,intended_method})?;
@@ -722,7 +726,7 @@ impl Searcher {
         let mut module    = self.module();
         let here          = self.module_qualified_name();
         for import in imports {
-            module.import_module_if_not_already_imported(&here,&self.parser,&import);
+            module.add_module_import(&here, &self.parser, &import);
         }
         self.graph.graph().module.update_ast(module.ast)
     }
@@ -738,7 +742,7 @@ impl Searcher {
             CompletedFragmentId::Argument {index} =>
                 self.return_types_for_argument_completion(index),
         };
-        self.schedule_gathering_action_list(this_type,return_types,None);
+        self.gather_actions_from_engine(this_type,return_types,None);
         self.data.borrow_mut().actions = Actions::Loading;
         executor::global::spawn(self.notifier.publish(Notification::NewActionList));
     }
@@ -777,7 +781,7 @@ impl Searcher {
         }).collect()
     }
 
-    fn schedule_gathering_action_list
+    fn gather_actions_from_engine
     ( &self
     , this_type    : impl Future<Output=Option<String>> + 'static
     , return_types : impl IntoIterator<Item=String>

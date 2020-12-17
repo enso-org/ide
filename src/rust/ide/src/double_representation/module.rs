@@ -417,7 +417,7 @@ impl Info {
     }
 
     /// Add a new import if the module is not already imported.
-    pub fn import_module_if_not_already_imported
+    pub fn add_module_import
     (&mut self, here:&QualifiedName, parser:&parser::Parser, to_add:&QualifiedName)
     -> Option<usize> {
         let is_here          = to_add == here;

@@ -102,8 +102,8 @@ impl SuggestionDatabase {
                 Err(err)  => { error!(logger,"Discarded invalid entry {id}: {err}"); },
             }
         }
-        //TODO[ao] this is temporary solution. Eventually we should gather examples from
-        //         available modules documentation. (https://github.com/enso-org/ide/issues/1011)
+        //TODO[ao]: This is a temporary solution. Eventually, we should gather examples from the
+        //          available modules documentation. (https://github.com/enso-org/ide/issues/1011)
         let examples = example::EXAMPLES.iter().cloned().map(Rc::new).collect_vec();
         Self {
             logger,
@@ -202,14 +202,14 @@ impl SuggestionDatabase {
 
     /// An iterator over all examples gathered from suggestions.
     ///
-    /// If database was modified during iteration, the iterator does not panic, but may return
+    /// If the database was modified during iteration, the iterator does not panic, but may return
     /// unpredictable result (a mix of old and new values).
     pub fn iterate_examples<'a>(&'a self) -> impl Iterator<Item=Rc<Example>> + 'a {
         let indices = 0..self.examples.borrow().len();
         indices.filter_map(move |i| self.examples.borrow().get(i).cloned())
     }
 
-    /// Put the entry to the database. Using this function likely break the synchronization between
+    /// Put the entry to the database. Using this function likely breaks the synchronization between
     /// Language Server and IDE, and should be used only in tests.
     #[cfg(test)]
     pub fn put_entry(&self, id:entry::Id, entry:Entry) {

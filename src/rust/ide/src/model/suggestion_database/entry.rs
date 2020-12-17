@@ -246,10 +246,10 @@ impl Entry {
                 type E = Entry;
                 let results =
                     [E::apply_field_update    ("name"         ,&mut arg.name         ,name)
-                        ,E::apply_field_update    ("repr_type"    ,&mut arg.repr_type    ,repr_type)
-                        ,E::apply_field_update    ("is_suspended" ,&mut arg.is_suspended ,is_suspended)
-                        ,E::apply_field_update    ("has_default"  ,&mut arg.has_default  ,has_default)
-                        ,E::apply_opt_field_update("default_value",&mut arg.default_value,default_value)
+                    ,E::apply_field_update    ("repr_type"    ,&mut arg.repr_type    ,repr_type)
+                    ,E::apply_field_update    ("is_suspended" ,&mut arg.is_suspended ,is_suspended)
+                    ,E::apply_field_update    ("has_default"  ,&mut arg.has_default  ,has_default)
+                    ,E::apply_opt_field_update("default_value",&mut arg.default_value,default_value)
                     ];
                 SmallVec::from_buf(results).into_iter().filter_map(|res| res.err()).collect_vec()
             }
@@ -258,18 +258,21 @@ impl Entry {
 
     fn apply_scope_update
     (&mut self, update:Option<FieldUpdate<language_server::types::SuggestionEntryScope>>)
-     -> FallibleResult {
+    -> FallibleResult {
         if let Some(update) = update {
             let err = || Err(failure::Error::from(InvalidFieldUpdate("scope")));
             match &mut self.scope {
-                Scope::Everywhere       => { return err() },
+                Scope::Everywhere       => { err() },
                 Scope::InModule {range} => {
-                    if let Some(value) = update.value { *range = value.into() }
-                    else                              { return err()          }
+                    if let Some(value) = update.value {
+                        *range = value.into();
+                        Ok(())
+                    } else { err() }
                 }
             }
+        } else {
+            Ok(())
         }
-        Ok(())
     }
 
     fn apply_field_update<T:Default>
