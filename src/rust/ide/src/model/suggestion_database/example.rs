@@ -91,7 +91,9 @@ lazy_static! {
     , Example
       { name          : "Http GET".to_owned()
       , code          : "http1 = Http.new \n\
-                         http1.get \"http://enso.org/\"".to_owned()
+          response = http1.get \"http://enso.org/\"\n\
+          body1    = response.body\n\
+          body1.to_text".to_owned()
       , imports       : vec!["Base.Network.Http".to_owned()]
       , documentation : "This snippet downloads the Enso main page.".to_owned(),
       }

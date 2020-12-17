@@ -589,8 +589,7 @@ impl Searcher {
     ///
     /// If the action results in adding new node to the graph, or changing an exiting node, its id
     /// will be returned by this function.
-    pub fn execute_action
-    (&self, action: Action) -> FallibleResult<Option<ast::Id>> {
+    pub fn execute_action(&self, action:Action) -> FallibleResult<Option<ast::Id>> {
         match action {
             Action::Suggestion(suggestion) => {
                 self.use_suggestion(suggestion)?;
@@ -611,7 +610,7 @@ impl Searcher {
             let list = data.actions.list().ok_or_else(error)?;
             list.get_cloned(index).ok_or_else(error)?.action
         };
-        self.execute_action(action)
+        self.execute_action(action.clone_ref())
     }
 
     /// Check if the first fragment in the input (i.e. the one representing the called function)
@@ -816,7 +815,7 @@ impl Searcher {
     (&self, completion_responses:Vec<json_rpc::Result<language_server::response::Completion>>)
      -> FallibleResult<action::List> {
         let actions = action::List::new();
-        if matches!(self.mode.deref(), Mode::NewNode{..}) {
+        if matches!(self.mode.deref(), Mode::NewNode{..}) && self.this_arg.is_none() {
             actions.extend(self.database.iterate_examples().map(Action::Example));
         }
         for response in completion_responses {

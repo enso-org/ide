@@ -907,20 +907,25 @@ impl Model {
     }
 
     fn node_editing_committed_in_ui
-    (&self, (displayed_id,entry):&(graph_editor::NodeId,Option<ide_view::searcher::entry::Id>))
+    (&self, (displayed_id,entry_id):&(graph_editor::NodeId, Option<ide_view::searcher::entry::Id>))
     -> FallibleResult {
+        use crate::controller::searcher::action::Action::Example;
         debug!(self.logger, "Committing node expression.");
-        let error = || MissingSearcherController;
-        let searcher = self.searcher.borrow().clone().ok_or_else(error)?;
-        *self.searcher.borrow_mut() = None;
-        let result = if let Some(entry) = entry {
-            searcher.execute_action_by_index(*entry)
+        let error      = || MissingSearcherController;
+        let searcher   = self.searcher.replace(None).ok_or_else(error)?;
+        let entry      = searcher.actions().list().zip(*entry_id).and_then(|(l,i)| l.get_cloned(i));
+        let is_example = entry.map_or(false, |e| matches!(e.action,Example(_)));
+        let result = if let Some(id) = entry_id {
+            searcher.execute_action_by_index(*id)
         } else {
             searcher.commit_node().map(Some)
         };
         match result {
             Ok(Some(node_id)) => {
                 self.node_views.borrow_mut().insert(node_id,*displayed_id);
+                if is_example {
+                    self.view.graph().frp.enable_visualization(displayed_id);
+                }
                 Ok(())
             }
             Ok(None) => Ok(()),
