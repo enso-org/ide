@@ -15,6 +15,12 @@ const GEO_MAP = 'Geo_Map'
 const SCATTERPLOT_LAYER = 'Scatterplot_Layer'
 const DEFAULT_POINT_RADIUS = 150
 
+const LABEL_FONT = 'DejaVuSansMonoBook, sans-serif'
+const LABEL_FONT_SIZE = '12px'
+const LABEL_BORDER_RADIUS = '14px'
+const LABEL_BORDER_TOP_LEFT_RADIUS = '2px'
+const LABEL_MARGIN = '4px'
+
 const DEFAULT_MAP_ZOOM = 11
 const DARK_ACCENT_COLOR = [222, 162, 47]
 const LIGHT_ACCENT_COLOR = [1, 234, 146]
@@ -97,7 +103,7 @@ const makeId = makeGenerator()
  *         "longitude": 37.8,
  *         "color": [255, 0, 0],
  *         "radius": 100,
- *         "label": "foo bar baz"
+ *         "label": "an example label"
  *     }]
  * }]
  * }
@@ -134,7 +140,8 @@ class GeoMapVisualization extends Visualization {
         let labelBackgroundColor = LIGHT_LABEL_BACKGROUND
         let labelColor = LIGHT_LABEL_COLOR
         if (document.getElementById('root').classList.contains('dark-theme')) {
-            defaultMapStyle = 'mapbox://styles/go-find/ckis3xdqh0l8l1al2b0z41cgn' // Move to enso mapbox account, temporarily moved to mine private.
+            defaultMapStyle =
+                'mapbox://styles/go-find/ckis3xdqh0l8l1al2b0z41cgn' // Move to enso mapbox account, temporarily moved to mine private.
             accentColor = DARK_ACCENT_COLOR
             labelBackgroundColor = DARK_LABEL_BACKGROUND
             labelColor = DARK_LABEL_COLOR
@@ -225,11 +232,11 @@ class GeoMapVisualization extends Visualization {
                     html: `<div>${object.label}</div>`,
                     style: {
                         backgroundColor: this.labelBackgroundColor,
-                        fontSize: '12px',
-                        borderRadius: '14px',
-                        borderTopLeftRadius: '1px',
-                        fontFamily: 'DejaVuSansMonoBook, sans-serif',
-                        margin: '4px',
+                        fontSize: LABEL_FONT_SIZE,
+                        borderRadius: LABEL_BORDER_RADIUS,
+                        borderTopLeftRadius: LABEL_BORDER_TOP_LEFT_RADIUS,
+                        fontFamily: LABEL_FONT,
+                        margin: LABEL_MARGIN,
                         color: this.labelColor,
                     },
                 },
