@@ -3,8 +3,7 @@ pub mod action;
 
 use crate::prelude::*;
 
-use crate::controller::graph::NewNodeInfo;
-use crate::double_representation::module::ImportInfo;
+use crate::controller::graph::{NewNodeInfo, FailedToCreateNode};
 use crate::double_representation::module::QualifiedName;
 use crate::model::module::MethodId;
 use crate::model::module::NodeMetadata;
@@ -17,7 +16,8 @@ use flo_stream::Subscriber;
 use parser::Parser;
 
 pub use action::Action;
-
+use crate::double_representation::node::NodeInfo;
+use crate::double_representation::graph::{GraphInfo, LocationHint};
 
 
 // ==============
@@ -597,8 +597,8 @@ impl Searcher {
                 self.commit_node().map(Some)
             }
             Action::Example(example) => match *self.mode {
-                Mode::NewNode {position} => self.graph.graph().add_example(&*example,position).map(Some),
-                _ => Err(CannotExecuteWhenEditingNode.into())
+                Mode::NewNode {position} => self.add_example(&example,position).map(Some),
+                _                        => Err(CannotExecuteWhenEditingNode.into())
             }
         }
     }
@@ -666,6 +666,46 @@ impl Searcher {
         Ok(id)
     }
 
+    /// Adds an example to the graph.
+    ///
+    /// The example piece of code will be inserted as a new function definition, and in current
+    /// graph the node calling this function will appear.
+    pub fn add_example
+    (&self, example:&action::Example, position:Option<Position>) -> FallibleResult<ast::Id> {
+        // === Add new function definition ===
+        let graph                 = self.graph.graph();
+        let mut module            = double_representation::module::Info{ast:graph.module.ast()};
+        let graph_definition_name = graph.graph_info()?.source.name.item;
+        let new_definition        = example.definition_to_add(&module, &self.parser)?;
+        let new_definition_name   = Ast::var(new_definition.name.name.item.clone());
+        let new_definition_place  = double_representation::module::Placement::Before(graph_definition_name);
+        module.add_method(new_definition,new_definition_place,&self.parser)?;
+
+
+        // === Add new node ===
+        let here             = Ast::var(constants::keywords::HERE);
+        let args             = std::iter::empty();
+        let node_expression  = ast::prefix::Chain::new_with_this(new_definition_name,here,args);
+        let node_expression  = node_expression.into_ast();
+        let node             = NodeInfo::new_expression(node_expression).ok_or(FailedToCreateNode)?;
+        let graph_definition = double_representation::module::locate(&module.ast,&self.graph.graph().id)?;
+        let mut graph_info   = GraphInfo::from_definition(graph_definition.item);
+        graph_info.add_node(node.ast().clone_ref(), LocationHint::End)?;
+        module.ast          = module.ast.set_traversing(&graph_definition.crumbs, graph_info.ast())?;
+        let intended_method = None;
+
+
+        // === Add imports
+        let here = self.module_qualified_name();
+        for import in example.imports.iter().map(QualifiedName::from_text).filter_map(Result::ok) {
+            module.import_module_if_not_already_imported(&here,&self.parser,&import);
+        }
+        graph.module.update_ast(module.ast)?;
+        graph.module.set_node_metadata(node.id(),NodeMetadata {position,intended_method})?;
+
+        Ok(node.id())
+    }
+
     fn invalidate_fragments_added_by_picking(&self) {
         let mut data       = self.data.borrow_mut();
         let data           = data.deref_mut();
@@ -683,12 +723,7 @@ impl Searcher {
         let mut module    = self.module();
         let here          = self.module_qualified_name();
         for import in imports {
-            let is_here          = *import == here;
-            let import           = ImportInfo::from_qualified_name(&import);
-            let already_imported = module.iter_imports().any(|imp| imp == import);
-            if !is_here && !already_imported {
-                module.add_import(&self.parser,import);
-            }
+            module.import_module_if_not_already_imported(&here,&self.parser,&import);
         }
         self.graph.graph().module.update_ast(module.ast)
     }
@@ -1642,5 +1677,40 @@ pub mod test {
 
         let ast = parser.parse_line("Main . (foo bar)").unwrap();
         assert!(SimpleFunctionCall::try_new(&ast).is_none());
+    }
+
+    #[wasm_bindgen_test]
+    fn adding_example() {
+        let Fixture{test:_test,searcher,..} = Fixture::new();
+        let module                          = searcher.graph.graph().module.clone_ref();
+        let example                         = model::suggestion_database::example::Example {
+            name          : "Test Example".to_owned(),
+            code          : "x = 2 + 2\nx + 4".to_owned(),
+            imports       : vec![],
+            documentation : "Lorem ipsum".to_owned()
+        };
+        let expected_code = "test_example1 =\n    x = 2 + 2\n    x + 4\n\n\
+            main = \n    2 + 2\n    here.test_example1";
+        searcher.add_example(&Rc::new(example),None).unwrap();
+        assert_eq!(module.ast().repr(), expected_code);
+    }
+
+    #[wasm_bindgen_test]
+    fn adding_example_twice() {
+        let Fixture{test:_test,searcher,..} = Fixture::new();
+        let module                          = searcher.graph.graph().module.clone_ref();
+        let example                         = model::suggestion_database::example::Example {
+            name          : "Test Example".to_owned(),
+            code          : "[1,2,3,4,5]".to_owned(),
+            imports       : vec!["Base.Network.Http".to_owned()],
+            documentation : "Lorem ipsum".to_owned()
+        };
+        let expected_code = "import Base.Network.Http\n\
+            test_example1 = [1,2,3,4,5]\n\ntest_example2 = [1,2,3,4,5]\n\n\
+            main = \n    2 + 2\n    here.test_example1\n    here.test_example2";
+        let example = Rc::new(example);
+        searcher.add_example(&example,None).unwrap();
+        searcher.add_example(&example,None).unwrap();
+        assert_eq!(module.ast().repr(), expected_code);
     }
 }

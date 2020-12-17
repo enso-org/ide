@@ -314,6 +314,13 @@ pub struct TextRange {
     pub end: Position
 }
 
+impl TextRange {
+    /// Returns true if range does not contain any characters.
+    pub fn is_empty(&self) -> bool {
+        self.start == self.end
+    }
+}
+
 impls!{ From + &From <Range<enso_data::text::TextLocation>> for TextRange { |range|
     TextRange {
         start : range.start.into(),
