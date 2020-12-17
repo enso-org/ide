@@ -287,12 +287,11 @@
 }
 
 .Example {
-    background-color: transparent;
-    border: 1px solid #333;
+    background-color: #F5F3F0;
 }
 
 .CodeBlock {
-    background-color: #fefefe;
+    background-color: #FAF8F5;
     margin: 10px 0px;
 }
 
