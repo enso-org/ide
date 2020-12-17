@@ -1,10 +1,12 @@
-const assert = require('assert');
+const assert = require('assert')
 const axios = require('axios').default
 const fs = require('fs')
-const mockFs = require('mock-fs');
-const path = require('path');
+const mockFs = require('mock-fs')
+const path = require('path')
 
 const { startServer } = require('../server')
+
+
 
 
 describe('Logging Server', function () {
@@ -33,12 +35,16 @@ describe('Logging Server', function () {
     }
 
     beforeEach(function (done) {
-        // For some reason, we load a file from this package directory at runtime
+        // The server relies on some package that imports from `raw-body` at runtime.
+        // Therefore, we need to include this directory in our mocked fs.
         const rawBodyDir = path.dirname(require.resolve('raw-body'))
+
+        // We mock the file system so the server does not actually write logs to disk.
         mockFs({
             [rawBodyDir]: mockFs.load(rawBodyDir)
         })
-        const port = 20060
+
+        const port = 0  // Choose an arbitrary available port
         server = startServer(port)
         server.on('listening', function () {
             serverUrl = `http://localhost:${server.address().port}/`
@@ -64,7 +70,7 @@ describe('Logging Server', function () {
         assert(!fs.existsSync('log/'))
     })
 
-    it('should keep running', async function () {
+    it('should keep running after requests', async function () {
         await Promise.allSettled([
             axios.post(serverUrl, '', goodConfig),
             axios.post(serverUrl, '', wrongOriginConfig),

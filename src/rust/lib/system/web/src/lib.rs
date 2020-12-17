@@ -582,6 +582,7 @@ pub fn forward_panic_hook_to_error() {
 
 #[wasm_bindgen(module = "/js/rust_panic.js")]
 extern "C" {
+    #[allow(unsafe_code)]
     fn new_panic_error(message:String) -> JsValue;
 }
 

@@ -6,6 +6,8 @@ import * as loader_module from 'enso-studio-common/src/loader'
 import * as html_utils    from 'enso-studio-common/src/html_utils'
 import * as animation     from 'enso-studio-common/src/animation'
 
+import cfg from '../../../config'
+
 
 
 // ========================
@@ -33,10 +35,10 @@ function wasm_instantiate_streaming(resource,imports) {
 
 /// Downloads the WASM binary and its dependencies. Displays loading progress bar unless provided
 /// with `{no_loader:true}` option.
-async function download_content(cfg) {
+async function download_content(urlCfg) {
     let wasm_glue_fetch = await fetch('/assets/wasm_imports.js')
     let wasm_fetch      = await fetch('/assets/ide.wasm')
-    let loader          = new loader_module.Loader([wasm_glue_fetch,wasm_fetch],cfg)
+    let loader          = new loader_module.Loader([wasm_glue_fetch,wasm_fetch],urlCfg)
 
     loader.done.then(() => {
         console.groupEnd()
@@ -126,67 +128,91 @@ function show_debug_screen(wasm,msg) {
 // === Crash Handling ===
 // ======================
 
-function recoveringFromCrash() {
-    return sessionStorage.getItem("crash-message") !== null
+function initCrashHandling() {
+    setupCrashDetection()
+    if (previousCrashMessageExists()) {
+        showCrashBanner(getPreviousCrashMessage())
+        clearPreviousCrashMessage()
+    }
 }
 
-function previousCrashMessage() {
-    return sessionStorage.getItem("crash-message")
+const crashMessageStorageKey = "crash-message"
+
+function previousCrashMessageExists() {
+    return sessionStorage.getItem(crashMessageStorageKey) !== null
 }
 
-function storeCrashMessage(message) {
-    sessionStorage.setItem("crash-message", message)
+function getPreviousCrashMessage() {
+    return sessionStorage.getItem(crashMessageStorageKey)
 }
 
-function recoveredFromCrash() {
-    sessionStorage.removeItem("crash-message")
+function storeLastCrashMessage(message) {
+    sessionStorage.setItem(crashMessageStorageKey, message)
+}
+
+function clearPreviousCrashMessage() {
+    sessionStorage.removeItem(crashMessageStorageKey)
 }
 
 
 // === Crash detection ===
 
 function setupCrashDetection() {
-    Error.stackTraceLimit = Infinity
+    // This will only have an effect if the GUI is running in V8.
+    // (https://v8.dev/docs/stack-trace-api#compatibility)
+    Error.stackTraceLimit = 100
 
-    window.onerror = function (message, _url, _line, _column, error) {
-        handleCrash(error.stack || message)
-    }
-    window.onunhandledrejection = function (event) {
-        handleCrash(event.reason.stack || "Unhandled rejection")
-    }
+    window.addEventListener('error', function (event) {
+        // We prefer stack traces over plain error messages but not all browsers produce traces.
+        handleCrash(event.error.stack || event.message)
+    })
+    window.addEventListener('unhandledrejection', function (event) {
+        // As above, we prefer stack traces.
+        // But here, `event.reason` is not even guaranteed to be an `Error`.
+        handleCrash(event.reason.stack || event.reason.message || "Unhandled rejection")
+    })
 }
 
 function handleCrash(message) {
-    if (document.getElementById("crash-banner") === null) {
-        storeCrashMessage(message)
+    if (document.getElementById(crashBannerId) === null) {
+        storeLastCrashMessage(message)
         location.reload()
     } else {
         for (let element of [... document.body.childNodes]) {
-            if (element.id !== "crash-banner") {
+            if (element.id !== crashBannerId) {
                 element.remove()
             }
         }
+        document.getElementById(crashBannerContentId).insertAdjacentHTML("beforeend",
+            `<hr>
+             <div>A second error occurred. This time, the IDE will not automatically restart.</div>`)
     }
 }
 
 
 // === Crash recovery ===
 
+// Those IDs should be the same that are used in index.html.
+const crashBannerId = "crash-banner"
+const crashBannerContentId = "crash-banner-content"
+const crashReportButtonId = "crash-report-button"
+const crashBannerCloseButtonId = "crash-banner-close-button"
+
 function showCrashBanner(message) {
     document.body.insertAdjacentHTML('afterbegin',
-        `<div id="crash-banner">
-            <button id="crash-banner-close-button" class="icon-button">✖</button>
-            <div id="crash-banner-content">
-            <button id="crash-report-button">Report</button>
-            An internal error occurred and the Enso IDE has been restarted.
+        `<div id="${crashBannerId}">
+            <button id="${crashBannerCloseButtonId}" class="icon-button">✖</button>
+            <div id="${crashBannerContentId}">
+                <button id="${crashReportButtonId}">Report</button>
+                An internal error occurred and the Enso IDE has been restarted.
             </div>
         </div>`
     )
 
-    const banner = document.getElementById("crash-banner")
-    const content = document.getElementById("crash-banner-content")
-    const report_button = document.getElementById("crash-report-button")
-    const close_button = document.getElementById("crash-banner-close-button")
+    const banner = document.getElementById(crashBannerId)
+    const content = document.getElementById(crashBannerContentId)
+    const report_button = document.getElementById(crashReportButtonId)
+    const close_button = document.getElementById(crashBannerCloseButtonId)
 
     report_button.onclick = async _event => {
         try {
@@ -202,10 +228,8 @@ function showCrashBanner(message) {
 }
 
 async function reportCrash(message) {
-    let cfg = getUrlParams()
-    const reportHost = cfg.reportHost || 'localhost'
-    const reportPort = cfg.reportPort || 20060
-    await fetch(`http://${reportHost}:${reportPort}/`, {
+    const crashReportHost = getUrlParams().crashReportHost || cfg.defaultLogServerHost
+    await fetch(`http://${crashReportHost}/`, {
         method: 'POST',
         mode: 'no-cors',
         headers: {
@@ -223,7 +247,7 @@ async function reportCrash(message) {
 
 let root = document.getElementById('root')
 
-function prepare_root(cfg) {
+function prepare_root(urlCfg) {
     root.style.backgroundColor = '#f6f3f199'
 }
 
@@ -252,17 +276,12 @@ function disableContextMenu() {
 
 /// Main entry point. Loads WASM, initializes it, chooses the scene to run.
 async function main() {
-    setupCrashDetection()
-    if (recoveringFromCrash()) {
-        showCrashBanner(previousCrashMessage())
-        recoveredFromCrash()
-    }
-
+    initCrashHandling()
     disableContextMenu()
     let location = window.location.pathname.split('/')
     location.splice(0,1)
-    let cfg = getUrlParams()
-    prepare_root(cfg)
+    let urlCfg = getUrlParams()
+    prepare_root(urlCfg)
 
     let debug_mode   = location[0] == "debug"
     let debug_target = location[1]

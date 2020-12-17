@@ -1,18 +1,42 @@
+// This module implements a simple http server that listens for crash reports as POST requests and
+// writes them to disk. To start the server, call `startServer(port)` or execute this file through
+// Node.js. More information can be foun in the README.md.
+
 const express = require('express')
 const fs = require('fs')
 const uuid = require('uuid')
 const yargs = require('yargs')
 
+const defaultPort = require('../../config.js').defaultLogServerPort
+
 
 module.exports = {
     startServer
-  }
+}
 
 
 function main(argv) {
     startServer(parse_args(argv).port)
 }
 
+
+
+// =================
+// === Constants ===
+// =================
+
+const httpStatusCodes = {
+    noContent: 204,
+    forbidden: 403,
+    badRequest: 400,
+    internalServerError: 500,
+}
+
+
+
+// ========================
+// === Argument Parsing ===
+// ========================
 
 function parse_args(argv) {
     return yargs(argv)
@@ -22,13 +46,18 @@ function parse_args(argv) {
                 'The number of the port that this server will listen on. ' +
                 'If the the number is 0 then an arbitrary free port will be chosen.',
             type: 'number',
-            default: 20060
+            default: defaultPort
         })
         .help()
         .alias('help', 'h')
         .argv
 }
 
+
+
+// ==============
+// === Server ===
+// ==============
 
 function startServer(port) {
     const app = express()
@@ -37,19 +66,19 @@ function startServer(port) {
     app.post("/", async (req, res) => {
         if (typeof req.headers.origin === 'undefined' ||
                 (new URL(req.headers.origin).hostname) !== 'localhost') {
-            res.sendStatus(403)  // Forbidden
+            res.sendStatus(httpStatusCodes.forbidden)
         } else if (typeof req.body !== 'string') {
-            res.sendStatus(400)  // Bad request
+            res.sendStatus(httpStatusCodes.badRequest)
         } else {
             try {
                 await writeLog(req.body)
                 console.log(`Saved log from origin ${req.headers.origin}`)
-                res.sendStatus(204)  // No content (But request was successful)
+                res.sendStatus(httpStatusCodes.noContent)
             } catch (e) {
                 console.error(
                     'Could not write log file:\n' +
                     e.message)
-                res.sendStatus(500)  // Internal Server Error
+                res.sendStatus(httpStatusCodes.internalServerError)
             }
         }
     })
@@ -61,6 +90,11 @@ function startServer(port) {
     return server
 }
 
+
+
+// ==================
+// === File Utils ===
+// ==================
 
 /**
  * Writes message to a new file in the log sub directory.
@@ -90,6 +124,8 @@ function timestamp() {
 
     return `${year}-${month}-${day}_${hour}:${minute}:${second}`
 }
+
+
 
 
 if (require.main === module) {

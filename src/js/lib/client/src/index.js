@@ -1,5 +1,6 @@
 'use strict'
 
+import cfg from '../../../config'
 import * as buildCfg  from '../../../../../dist/build.json'
 import * as Electron  from 'electron'
 import * as isDev     from 'electron-is-dev'
@@ -120,23 +121,6 @@ optParser.options('window-size', {
 })
 
 
-// === Crash Reporting Options ===
-
-let reportOptionsGroup = 'Crash Reporting Options:'
-
-optParser.options('report-address', {
-    group       : reportOptionsGroup,
-    describe    : 'Hostname or IP address to send crash reports to',
-    requiresArg : true
-})
-
-optParser.options('report-port', {
-    group       : reportOptionsGroup,
-    describe    : 'Port to send crash reports to',
-    requiresArg : true
-})
-
-
 // === Other Options ===
 
 optParser.options('info', {
@@ -145,6 +129,13 @@ optParser.options('info', {
 
 optParser.options('version', {
     describe    : `Print the version`,
+})
+
+optParser.options('crash-report-host', {
+    describe    : 'The address of the server that will receive crash reports. ' +
+                  'Consists of a hostname, optionally followed by a ":" and a port number',
+    requiresArg : true,
+    default: cfg.defaultLogServerHost
 })
 
 
@@ -265,7 +256,7 @@ Electron.app.on('web-contents-created', (event,contents) => {
         const parsedUrl = new URL(navigationUrl)
         if (parsedUrl.origin !== origin) {
             event.preventDefault()
-            console.error(`Prevented navigation to '${navigationUrl}'`)
+            console.error(`Prevented navigation to '${navigationUrl}'.`)
         }
     })
 })
@@ -378,12 +369,7 @@ function createWindow() {
     if (args.project) {
         urlCfg.project = args.project;
     }
-    if (args.reportAddress) {
-        urlCfg.reportAddress = args.reportAddress
-    }
-    if (args.reportPort) {
-        urlCfg.reportPort = args.reportPort
-    }
+    urlCfg.crashReportHost = args.crashReportHost
 
     let params      = urlParamsFromObject(urlCfg)
     let targetScene = ""
