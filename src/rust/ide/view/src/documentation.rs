@@ -140,15 +140,12 @@ impl ViewModel {
             //              https://github.com/enso-org/enso/issues/1063
             let processed = string.replace("\\n", "\n").replace("\"", "");
             let output = match input_type {
-                InputFormat::AST  => parser.generate_html_docs(processed),
+                InputFormat::AST       => parser.generate_html_docs(processed),
                 InputFormat::Docstring => parser.generate_html_doc_pure(processed),
             };
             let output = output?;
-            if output.is_empty() {
-                Ok(PLACEHOLDER_STR.into())
-            } else {
-                Ok(output)
-            }
+            if output.is_empty() { Ok(PLACEHOLDER_STR.into()) }
+            else                 { Ok(output)                 }
         }
     }
 
@@ -162,25 +159,21 @@ impl ViewModel {
     fn append_listeners_to_copy_buttons(&self) {
         let code_blocks  = self.dom.dom().get_elements_by_class_name("CodeBlock");
         let copy_buttons = self.dom.dom().get_elements_by_class_name("copyCodeBtn");
-        for i in 0..copy_buttons.length() {
-            let copy_button = copy_buttons.get_with_index(i);
-            let code_block  = code_blocks.get_with_index(i);
-            copy_button.map(|btn| { btn.dyn_into::<HtmlElement>().map(|cpy_btn| {
-                code_block.map(|code| { code.dyn_into::<HtmlElement>().map(|code_blk| {
-                    let closure  = move |_event: MouseEvent| {
-                        let inner_code = code_blk.inner_text();
-                        clipboard::write_text(inner_code);
-                    };
-                    let closure  = Closure::wrap(Box::new(closure).into_fn_mut());
-                    let callback = closure.as_ref().unchecked_ref();
-                    match cpy_btn.add_event_listener_with_callback("click", callback){
-                        Ok(_)    => (),
-                        Err(err) => error!(&self.logger, "Unable to add event listener: {err:?}")
-                    }
-                    closure.forget();
-                }) });
-            }) });
-        }
+        (0..copy_buttons.length()).map(|i| {
+            let copy_button = copy_buttons.get_with_index(i)?.dyn_into::<HtmlElement>()?;
+            let code_block  = code_blocks.get_with_index(i)?.dyn_into::<HtmlElement>()?;
+            let closure  = move |_event: MouseEvent| {
+                let inner_code = code_block.inner_text();
+                clipboard::write_text(inner_code);
+            };
+            let closure  = Closure::wrap(Box::new(closure).into_fn_mut());
+            let callback = closure.as_ref().unchecked_ref();
+            match copy_button.add_event_listener_with_callback("click", callback){
+                Ok(_)    => (),
+                Err(err) => error!(&self.logger, "Unable to add event listener: {err:?}")
+            }
+            closure.forget();
+        });
     }
 
     /// Receive data, process and present it in the documentation view.
