@@ -424,9 +424,6 @@ ensogl::define_endpoints! {
         set_visualization            ((NodeId,Option<visualization::Path>)),
         register_visualization       (Option<visualization::Definition>),
         set_visualization_data       ((NodeId,visualization::Data)),
-
-        hover_node_input            (Option<EdgeEndpoint>),
-        hover_node_output           (Option<EdgeEndpoint>),
     }
 
     Output {
@@ -450,6 +447,9 @@ ensogl::define_endpoints! {
         some_edge_targets_unset     (bool),
         some_edge_sources_unset     (bool),
         some_edge_endpoints_unset   (bool),
+
+        hover_node_input            (Option<EdgeEndpoint>),
+        hover_node_output           (Option<EdgeEndpoint>),
 
 
         // === Other ===
@@ -1002,12 +1002,12 @@ impl GraphEditorModelWithNetwork {
             eval node.model.input.frp.on_port_hover ([model](t) {
                 let crumbs = t.on();
                 let target = crumbs.map(|c| EdgeEndpoint::new(node_id,c.clone()));
-                model.frp.hover_node_input.emit(target);
+                model.frp.source.hover_node_input.emit(target);
             });
 
             eval node.model.output.frp.on_port_hover ([model](hover) {
                let output = hover.on().map(|crumbs| EdgeEndpoint::new(node_id,crumbs.clone()));
-               model.frp.hover_node_output.emit(output);
+               model.frp.source.hover_node_output.emit(output);
             });
 
             eval node.model.input.frp.on_port_type_change(((crumbs,_))
@@ -1432,6 +1432,10 @@ impl GraphEditorModel {
         edges
     }
 
+    fn edges_with_detached_targets(&self) -> HashSet<EdgeId> {
+        self.edges.detached_target.raw.borrow().clone()
+    }
+
     pub fn clear_all_detached_edges(&self) -> Vec<EdgeId>{
         let source_edges = self.edges.detached_source.mem_take();
         source_edges.iter().for_each(|edge| {self.edges.all.remove(edge);});
@@ -1609,7 +1613,8 @@ impl GraphEditorModel {
 
     // FIXME[WD]: This implementation is slow. Node should allow for easy mapping between Crumbs
     //            and edges. Should be part of https://github.com/enso-org/ide/issues/822.
-    fn with_input_edge_id(&self, id:NodeId, crumbs:&span_tree::Crumbs, f:impl FnOnce(EdgeId)) {
+    fn with_input_edge_id<T>
+    (&self, id:NodeId, crumbs:&span_tree::Crumbs, f:impl FnOnce(EdgeId)->T) -> Option<T> {
         self.with_node(id,move |node| {
             let mut target_edge_id = None;
             for edge_id in node.in_edges.keys() {
@@ -1618,15 +1623,14 @@ impl GraphEditorModel {
                     if ok { target_edge_id = Some(edge_id) }
                 });
             }
-            if let Some(edge_id) = target_edge_id {
-                f(edge_id)
-            }
-        });
+            target_edge_id.map(f)
+        }).flatten()
     }
 
     // FIXME[WD]: This implementation is slow. Node should allow for easy mapping between Crumbs
     //            and edges. Should be part of https://github.com/enso-org/ide/issues/822.
-    fn with_output_edge_id(&self, id:NodeId, crumbs:&span_tree::Crumbs, f:impl FnOnce(EdgeId)) {
+    fn with_output_edge_id<T>
+    (&self, id:NodeId, crumbs:&span_tree::Crumbs, f:impl FnOnce(EdgeId)->T) -> Option<T> {
         self.with_node(id,move |node| {
             let mut target_edge_id = None;
             for edge_id in node.out_edges.keys() {
@@ -1635,10 +1639,8 @@ impl GraphEditorModel {
                     if ok { target_edge_id = Some(edge_id) }
                 });
             }
-            if let Some(edge_id) = target_edge_id {
-                f(edge_id)
-            }
-        });
+            target_edge_id.map(f)
+        }).flatten()
     }
 
     fn with_edge_source<T>(&self, id:EdgeId, f:impl FnOnce(EdgeEndpoint)->T) -> Option<T> {
@@ -1675,15 +1677,31 @@ impl GraphEditorModel {
         self.with_edge_map_target_node(edge_id,|n,c|n.model.input.port_type(&c)).flatten()
     }
 
-    /// Return a color for the edge. Currently we query the edge target, and if missing, the edge
-    /// source type and we compute the color based on that. This would need to be more sophisticated
-    /// in the case of polymorphic types. For example, consider the edge source type to be
-    /// `(a,Number)`, and target to be `(Text,a)`. These unify to `(Text,Number)`.
+    fn edge_hover_type(&self) -> Option<Type> {
+        let hover_tgt = self.frp.hover_node_input.value();
+        hover_tgt.and_then(|tgt|
+            self.with_node(tgt.node_id,|node| node.model.input.port_type(&tgt.port)).flatten()
+        )
+    }
+
+    /// Return a color for the edge.
+    ///
+    /// The algorithm works as follow:
+    /// 1. We query the type of the currently hovered port if any.
+    /// 2. In case the previous point returns None, we query the edge target type, if any.
+    /// 3. In case the previous point returns None, we query the edge source type, if any.
+    /// 4. In case the previous point returns None, we use the generic type (gray color).
+    ///
+    /// This might need to be more sophisticated in the case of polymorphic types. For example,
+    /// consider the edge source type to be `(a,Number)`, and target to be `(Text,a)`. These unify
+    /// to `(Text,Number)`.
     fn edge_color(&self, edge_id:EdgeId) -> color::Lcha {
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles    = StyleWatch::new(&self.scene().style_sheet);
-        let tp        = self.edge_target_type(edge_id).or_else(||self.edge_source_type(edge_id));
-        let opt_color = tp.map(|t|type_coloring::compute(&t,&styles));
+        let edge_type = self.edge_hover_type()
+            .or_else(|| self.edge_target_type(edge_id))
+            .or_else(|| self.edge_source_type(edge_id));
+        let opt_color = edge_type.map(|t|type_coloring::compute(&t,&styles));
         opt_color.unwrap_or_else(|| styles.get_color(theme::code::types::any::selection))
     }
 
@@ -2704,6 +2722,10 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     eval out.on_edge_target_set   (((id,_)) model.refresh_edge_color(*id));
     eval out.on_edge_source_unset (((id,_)) model.refresh_edge_color(*id));
     eval out.on_edge_target_unset (((id,_)) model.refresh_edge_color(*id));
+
+    edge_to_refresh_on_hover <= out.hover_node_input.map(f_!(model.edges_with_detached_targets()));
+    eval edge_to_refresh_on_hover ((id) model.refresh_edge_color(*id));
+
 
     some_edge_sources_unset   <- out.on_all_edges_sources_set ?? out.on_some_edges_sources_unset;
     some_edge_targets_unset   <- out.on_all_edges_targets_set ?? out.on_some_edges_targets_unset;

@@ -190,10 +190,10 @@ ensogl::define_endpoints! {
         /// Press event. Emitted when user clicks on non-active part of the node, like its
         /// background. In edit mode, the whole node area is considered non-active.
         background_press (),
-        expression (Text),
-        skip       (bool),
-        freeze     (bool),
-        hover      (bool),
+        expression       (Text),
+        skip             (bool),
+        freeze           (bool),
+        hover            (bool),
     }
 }
 

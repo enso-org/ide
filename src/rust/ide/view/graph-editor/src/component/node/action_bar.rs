@@ -250,7 +250,9 @@ impl ActionBar {
 
             // === Mouse Interactions ===
 
-            visibility <- bool(&model.shapes.mouse_out,&model.shapes.mouse_over);
+            visibility_init  <- source::<bool>();
+            visibility_mouse <- bool(&model.shapes.mouse_out,&model.shapes.mouse_over);
+            visibility       <- any(&visibility_init,&visibility_mouse);
             eval visibility ((t) model.icons.set_visibility(*t));
 
 
@@ -271,6 +273,9 @@ impl ActionBar {
         model.icons.freeze.frp.set_color_scheme(&color_scheme);
         model.icons.skip.frp.set_color_scheme(&color_scheme);
         model.icons.visibility.frp.set_color_scheme(&color_scheme);
+
+        visibility_init.emit(false);
+
         self
     }
 }
