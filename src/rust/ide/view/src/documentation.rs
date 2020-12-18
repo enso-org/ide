@@ -160,31 +160,20 @@ impl ViewModel {
         let code_blocks  = self.dom.dom().get_elements_by_class_name("CodeBlock");
         let copy_buttons = self.dom.dom().get_elements_by_class_name("copyCodeBtn");
         (0..copy_buttons.length()).map(|i| -> Option<Closure<dyn std::ops::FnMut(web_sys::MouseEvent)>>{
-            let copy_button = copy_buttons.get_with_index(i)?;//.dyn_into::<HtmlElement>()?;
-            let code_block  = code_blocks.get_with_index(i)?;//.dyn_into::<HtmlElement>()?;
-            match copy_button.dyn_into::<HtmlElement>() {
-                Ok(btn) => {
-                    match code_block.dyn_into::<HtmlElement>() {
-                        Ok(blk) => {
-                            let closure  = move |_event: MouseEvent| {
-                                let inner_code = blk.inner_text();
-                                clipboard::write_text(inner_code);
-                            };
-                            let closure  = Closure::wrap(Box::new(closure).into_fn_mut());
-                            let callback = closure.as_ref().unchecked_ref();
-                            match btn.add_event_listener_with_callback("click", callback){
-                                Ok(_)    => (),
-                                Err(err) => error!(&self.logger, "Unable to add event listener: {err:?}")
-                            }
-                            // closure.forget();
-                            return Some(closure)
-                        },
-                        _ => ()
-                    }
-                },
-                _ => ()
+            let copy_button = copy_buttons.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
+            let code_block  = code_blocks.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
+            let closure  = move |_event: MouseEvent| {
+                let inner_code = code_block.inner_text();
+                clipboard::write_text(inner_code);
+            };
+            let closure  = Closure::wrap(Box::new(closure).into_fn_mut());
+            let callback = closure.as_ref().unchecked_ref();
+            match copy_button.add_event_listener_with_callback("click", callback){
+                Ok(_)    => (),
+                Err(err) => error!(&self.logger, "Unable to add event listener: {err:?}")
             }
-            None
+            // closure.forget();
+            Some(closure)
         });
     }
 
