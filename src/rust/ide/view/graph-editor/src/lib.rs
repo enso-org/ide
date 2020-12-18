@@ -430,12 +430,25 @@ ensogl::define_endpoints! {
 
         // === Edge ===
 
-        on_edge_add                 (EdgeId),
-        on_edge_drop                (EdgeId),
-        on_edge_source_set          ((EdgeId,EdgeEndpoint)),
-        on_edge_target_set          ((EdgeId,EdgeEndpoint)),
-        on_edge_source_unset        ((EdgeId,EdgeEndpoint)),
-        on_edge_target_unset        ((EdgeId,EdgeEndpoint)),
+        on_edge_add                            (EdgeId),
+        on_edge_drop                           (EdgeId),
+        on_edge_source_set                     ((EdgeId,EdgeEndpoint)),
+        on_edge_source_set_with_target_not_set ((EdgeId,EdgeEndpoint)),
+        on_edge_target_set_with_source_not_set ((EdgeId,EdgeEndpoint)),
+        on_edge_target_set                     ((EdgeId,EdgeEndpoint)),
+        on_edge_source_unset                   ((EdgeId,EdgeEndpoint)),
+        on_edge_target_unset                   ((EdgeId,EdgeEndpoint)),
+
+        /// Fires always when there is a new edge with source set but target not set. This could
+        /// happen after the target was disconnected or the edge was created and its source was
+        /// connected.
+        on_edge_only_target_not_set (EdgeId),
+
+        /// Fires always when there is a new edge with target set but source not set. This could
+        /// happen after the source was disconnected or the edge was created and its target was
+        /// connected.
+        on_edge_only_source_not_set (EdgeId),
+
         on_edge_endpoint_unset      ((EdgeId,EdgeEndpoint)),
         on_edge_endpoint_set        ((EdgeId,EdgeEndpoint)),
         on_edge_endpoints_set       (EdgeId),
@@ -1722,6 +1735,19 @@ impl GraphEditorModel {
     pub fn first_detached_edge_color(&self) -> Option<color::Lcha> {
         self.first_detached_edge().map(|t|self.edge_color(t))
     }
+
+    pub fn has_edges_with_detached_targets(&self, node_id:NodeId) -> bool {
+        let mut found = false;
+        self.with_node(node_id,|node| {
+            for edge_id in node.out_edges.keys() {
+                if self.with_edge(edge_id, |edge| edge.has_target()) == Some(false) {
+                    found = true;
+                    break;
+                }
+            }
+        });
+        found
+    }
 }
 
 impl display::Object for GraphEditorModel {
@@ -1911,7 +1937,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         eval_ enable_navigator  ( model.navigator.enable()  );
 
         out.source.navigator_active <+ inputs.set_navigator_disabled
-                                       || out.some_visualisation_selected;
+                                    || out.some_visualisation_selected;
     }
 
 
@@ -2297,11 +2323,13 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
             model.with_node(tgt.value,|t| t.model.input.set_edit_ready_mode(*e && tgt.is_on()));
         }
     ));
-    _eval <- all_with(&out.node_hovered,&out.some_edge_targets_unset,f!([model](tgt,e)
+    _eval <- all_with(&out.node_hovered,&out.some_edge_targets_unset,f!([model](tgt,ok)
         if let Some(tgt) = tgt {
-            let edge_tp   = model.first_detached_edge_source_type();
-            let is_active = *e && tgt.is_on();
-            model.with_node(tgt.value,|t| t.model.input.set_ports_active(is_active,edge_tp));
+            let node_id        = tgt.value;
+            let edge_tp        = model.first_detached_edge_source_type();
+            let is_edge_source = model.has_edges_with_detached_targets(node_id);
+            let is_active      = *ok && !is_edge_source && tgt.is_on();
+            model.with_node(node_id,|t| t.model.input.set_ports_active(is_active,edge_tp));
         }
     ));
     }
@@ -2356,6 +2384,15 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     eval edge_to_drop ((id) model.remove_edge(id));
 
     }
+
+    //
+    // // === Disabling self-connections ===
+    //
+    // frp::extend! { network
+    //     node_to_disable <= out.on_edge_only_target_not_set.map(f!((id) model.with_edge_source(*id,|t|t.node_id)));
+    //     eval node_to_disable ((id) model.with_node(*id,|node| node.model.input.set_ports_active(false,None)));
+    //
+    // }
 
 
     // === Remove Node ===
@@ -2564,7 +2601,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
                     edge.view.frp.redraw.emit(());
                     edge.mod_position(|p| {
                         p.x = node_pos.x + node_width/2.0;
-                        p.y = node_pos.y + node::HEIGHT/2.0;
+                        p.y = node_pos.y;
                     });
                     model.refresh_edge_position(*edge_id);
                 }
@@ -2717,6 +2754,18 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     eval out.on_edge_source_unset (((id,_)) model.remove_edge_source(*id));
     eval out.on_edge_target_unset (((id,_)) model.remove_edge_target(*id));
+
+    is_only_tgt_not_set <-
+        out.on_edge_source_set.map(f!(((id,_)) model.with_edge_map_target(*id,|_|()).is_none()));
+    out.source.on_edge_source_set_with_target_not_set <+ out.on_edge_source_set.gate(&is_only_tgt_not_set);
+    out.source.on_edge_only_target_not_set <+ out.on_edge_source_set_with_target_not_set._0();
+    out.source.on_edge_only_target_not_set <+ out.on_edge_target_unset._0();
+
+    is_only_src_not_set <-
+        out.on_edge_target_set.map(f!(((id,_)) model.with_edge_map_source(*id,|_|()).is_none()));
+    out.source.on_edge_target_set_with_source_not_set <+ out.on_edge_target_set.gate(&is_only_src_not_set);
+    out.source.on_edge_only_source_not_set <+ out.on_edge_target_set_with_source_not_set._0();
+    out.source.on_edge_only_source_not_set <+ out.on_edge_source_unset._0();
 
     eval out.on_edge_source_set   (((id,_)) model.refresh_edge_color(*id));
     eval out.on_edge_target_set   (((id,_)) model.refresh_edge_color(*id));
