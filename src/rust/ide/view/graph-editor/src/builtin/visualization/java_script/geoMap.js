@@ -140,8 +140,7 @@ class GeoMapVisualization extends Visualization {
         let labelBackgroundColor = LIGHT_LABEL_BACKGROUND
         let labelColor = LIGHT_LABEL_COLOR
         if (document.getElementById('root').classList.contains('dark-theme')) {
-            defaultMapStyle =
-                'mapbox://styles/go-find/ckis3xdqh0l8l1al2b0z41cgn' // Move to enso mapbox account, temporarily moved to mine private.
+            defaultMapStyle = 'mapbox://styles/enso-org/ckiu0o0in2fpp19rpk0jfvg2s'
             accentColor = DARK_ACCENT_COLOR
             labelBackgroundColor = DARK_LABEL_BACKGROUND
             labelColor = DARK_LABEL_COLOR
