@@ -10,7 +10,8 @@ use crate::view::View;
 use enso_protocol::binary;
 use enso_protocol::language_server;
 use enso_protocol::project_manager;
-use enso_protocol::project_manager::{ProjectMetadata, IpWithSocket};
+use enso_protocol::project_manager::ProjectMetadata;
+use enso_protocol::project_manager::IpWithSocket;
 use enso_protocol::project_manager::ProjectName;
 use uuid::Uuid;
 
@@ -60,25 +61,41 @@ pub struct Ide {
 /// The IDE initializer.
 #[derive(Debug)]
 pub struct IdeInitializer {
+    config : config::Startup,
     logger : Logger
 }
 
-impl Default for IdeInitializer {
-    fn default() -> Self {
-        let logger = Logger::new("IdeInitializer");
-        Self {logger}
-    }
-}
 
 impl IdeInitializer {
-    /// Creates a new IDE instance.
-    pub fn new() -> Self {
-        default()
+    pub fn new_local() -> Self {
+        let config        = config::Startup::new_local().expect("Failed to load configuration.");
+        let logger        = Logger::new("IdeInitializer");
+    }
+
+    pub fn start_and_forget(self) {
+        let executor = setup_global_executor();
+        executor::global::spawn(async move {
+            info!(self.logger, "Starting IDE with the following config: {config:?}");
+            // TODO [mwu] Once IDE gets some well-defined mechanism of reporting
+            //      issues to user, such information should be properly passed
+            //      in case of setup failure.
+            let project_model = initializer.initialize_project_model();
+            let view          = initializer.initialize_view(project_model);
+            info!(self.logger,"Setup done.");
+            let ide = Ide{view};
+            std::mem::forget(ide);
+        });
+        std::mem::forget(executor);
+    }
+
+    pub fn initialize_project_model() {
+        
     }
 
     /// Establishes transport to the file manager server websocket endpoint.
-    pub async fn connect_to_project_manager(&self, config:&config::Startup) -> Result<WebSocket,ConnectingError> {
-        WebSocket::new_opened(self.logger.clone_ref(),&config.project_manager_endpoint).await
+    pub async fn connect_to_project_manager
+    (&self, endpoint:&String) -> Result<WebSocket,ConnectingError> {
+        WebSocket::new_opened(self.logger.clone_ref(),&endpoint).await
     }
 
     /// Wraps the transport to the project manager server into the client type and registers it
@@ -96,6 +113,8 @@ impl IdeInitializer {
     , project_manager : Option<Rc<dyn project_manager::API>>
     , json_endpoint   : IpWithSocket
     , binary_endpoint : IpWithSocket
+    , project_id      : Uuid
+    , project_name    : ProjectName
     ) -> FallibleResult<model::Project> {
         info!(logger, "Establishing Language Server connection.");
         let client_id     = Uuid::new_v4();
@@ -107,8 +126,7 @@ impl IdeInitializer {
         crate::executor::global::spawn(client_binary.runner());
         let connection_json   = language_server::Connection::new(client_json,client_id).await?;
         let connection_binary = binary::Connection::new(client_binary,client_id).await?;
-        let project_id        = project_metadata.id;
-        let ProjectName(name) = project_metadata.name;
+        let ProjectName(name) = project_name;
         let project           = model::project::Synchronized::from_connections(logger,
             project_manager,connection_json,connection_binary,project_id,name).await?;
         Ok(Rc::new(project))
@@ -121,10 +139,12 @@ impl IdeInitializer {
     , project_metadata : ProjectMetadata
     ) -> FallibleResult<model::Project> {
         use project_manager::MissingComponentAction::*;
-        let endpoints       = project_manager.open_project(&project_metadata.id,&Install).await?;
-        let json_endpoint   = endpoints.language_server_json_address;
-        let binary_endpoint = endpoints.language_server_binary_address;
-        Self::create_project_model(logger,Some(project_manager),json_endpoint,binary_endpoint)
+        let ProjectMetadata{id,name,..} = project_metadata;
+        let endpoints                   = project_manager.open_project(&id,&Install).await?;
+        let json_endpoint               = endpoints.language_server_json_address;
+        let binary_endpoint             = endpoints.language_server_binary_address;
+        let project_manager             = Some(project_manager);
+        Self::create_project_model(logger,project_manager,json_endpoint,binary_endpoint,id,name)
     }
 
     /// Creates a new project and returns its metadata, so the newly connected project can be
@@ -189,8 +209,8 @@ impl IdeInitializer {
     }
 
     async fn initialize_project_manager
-    (&mut self, config:&config::Startup) -> FallibleResult<project_manager::Client> {
-        let transport        = self.connect_to_project_manager(config).await?;
+    (&mut self, endpoint:&String) -> FallibleResult<project_manager::Client> {
+        let transport        = self.connect_to_project_manager(endpoint).await?;
         Ok(Self::setup_project_manager(transport))
     }
 
@@ -211,11 +231,17 @@ impl IdeInitializer {
 
     /// This function initializes the project manager, creates the project view and forget IDE
     /// to indefinitely keep it alive.
-    pub fn start_and_forget(mut self) {
+    pub fn start_and_forget___(mut self) {
         let executor = setup_global_executor();
-        let config   = config::Startup::new_local();
+        let config   = config::Startup::new_local().expect("Failed to prepare configuration.");
         info!(self.logger, "Starting IDE with the following config: {config:?}");
         executor::global::spawn(async move {
+            match config.backend {
+                BackedService::ProjectManager {endpoint} => {
+
+                }
+                BackedService::LanguageServer { .. } => {}
+            }
             // TODO [mwu] Once IDE gets some well-defined mechanism of reporting
             //      issues to user, such information should be properly passed
             //      in case of setup failure.
@@ -246,7 +272,7 @@ pub fn setup_global_executor() -> executor::web::EventLoopExecutor {
 
 /// Creates a new websocket transport and waits until the connection is properly opened.
 pub async fn new_opened_ws
-(logger:Logger, address:project_manager::IpWithSocket) -> Result<WebSocket,ConnectingError> {
+(logger:Logger, address:IpWithSocket) -> Result<WebSocket,ConnectingError> {
     let endpoint = format!("ws://{}:{}", address.host, address.port);
     WebSocket::new_opened(logger,endpoint).await
 }
