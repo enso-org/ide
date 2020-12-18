@@ -41,7 +41,7 @@ async function get_target_url(): Promise<string> {
 
 // TODO[MM] remove duplicate version of this method
 function project_manager_path() {
-    let base_path = path.join(distPath, 'enso', 'bin')
+    let base_path = path.join(distPath, 'bin')
     const target_platform = os.platform()
     switch (target_platform) {
         case 'linux':
