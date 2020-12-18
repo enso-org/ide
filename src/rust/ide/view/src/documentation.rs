@@ -63,11 +63,13 @@ enum InputFormat {
 
 pub use visualization::container::overlay;
 
+#[allow(unused_qualifications)]
+type OptClosure = Option<Closure<dyn std::ops::FnMut(web_sys::MouseEvent)>>;
+
 /// Model of Native visualization that generates documentation for given Enso code and embeds
 /// it in a HTML container.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-#[allow(unused_qualifications)]
 pub struct ViewModel {
     logger : Logger,
     dom    : DomSymbol,
@@ -76,7 +78,7 @@ pub struct ViewModel {
     /// to EnsoGL shapes, and pass them to the DOM instead.
     overlay        : component::ShapeView<overlay::Shape>,
     display_object : display::object::Instance,
-    closures       : Rc<CloneCell<Vec<Option<Closure<dyn std::ops::FnMut(web_sys::MouseEvent)>>>>>
+    closures       : Rc<CloneCell<Vec<OptClosure>>>
 }
 
 impl ViewModel {
@@ -165,7 +167,7 @@ impl ViewModel {
     fn set_listeners_to_copy_buttons(&self) {
         let code_blocks  = self.dom.dom().get_elements_by_class_name("CodeBlock");
         let copy_buttons = self.dom.dom().get_elements_by_class_name("copyCodeBtn");
-        let closures     = (0..copy_buttons.length()).map(|i| -> Option<Closure<_>>{
+        let closures     = (0..copy_buttons.length()).map(|i| -> OptClosure {
             let copy_button = copy_buttons.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
             let code_block  = code_blocks.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
             println!("{:?}",&code_block.inner_text());
@@ -180,7 +182,7 @@ impl ViewModel {
                 Err(err) => error!(&self.logger, "Unable to add event listener: {err:?}")
             }
             Some(closure)
-        }).collect::<Vec<Option<Closure<_>>>>();
+        }).collect::<Vec<OptClosure>>();
         self.closures.set(closures)
     }
 
