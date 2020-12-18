@@ -12,6 +12,7 @@ const thisPath = path.resolve(__dirname)
 const root = path.resolve(thisPath, '..', '..', '..', '..', '..')
 const distPath = path.resolve(root, 'dist', 'bin')
 const buildInfoPath = path.resolve(root, 'dist', 'build.json')
+const { get_project_manager_path } = require('./../../../../../build/paths')
 
 async function get_build_config() {
     let exists = fss.existsSync(buildInfoPath)
@@ -39,20 +40,8 @@ async function get_target_url(): Promise<string> {
     }
 }
 
-// TODO[MM] remove duplicate version of this method
 function project_manager_path() {
-    let base_path = path.join(distPath, 'bin')
-    const target_platform = os.platform()
-    switch (target_platform) {
-        case 'linux':
-            return path.join(base_path, 'project-manager')
-        case 'darwin':
-            return path.join(base_path, 'project-manager')
-        case 'win32':
-            return path.join(base_path, 'project-manager.exe')
-        default:
-            throw 'UnsupportedPlatform: ' + target_platform
-    }
+    return get_project_manager_path(distPath)
 }
 
 function decompress_project_manager(source_file_path, target_folder) {
