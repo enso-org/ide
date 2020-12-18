@@ -10,6 +10,7 @@ const prettier = require("prettier")
 const stream   = require('stream')
 const yargs    = require('yargs')
 const zlib     = require('zlib')
+const child_process = require('child_process')
 
 process.on('unhandledRejection', error => { throw(error) })
 process.chdir(paths.root)
@@ -71,7 +72,17 @@ function command(docs) {
     return {docs}
 }
 
-
+function run_project_manager() {
+    const bin_path = paths.get_project_manager_path(paths.dist.bin)
+    console.log('Starting language server from ' + bin_path)
+    child_process.execFile(bin_path, [], (error, stdout, stderr) => {
+        console.error(stderr)
+        if (error) {
+            throw error
+        }
+        console.log(stdout)
+    })
+}
 
 // ================
 // === Commands ===
@@ -226,10 +237,18 @@ commands.watch.options  = Object.assign({},commands.build.options)
 commands.watch.parallel = true
 commands.watch.rust = async function(argv) {
     let build_args = []
-    if (argv.crate != undefined) { build_args.push(`--crate=${argv.crate}`) }
-    build_args  = build_args.join(' ')
-    let target  = '"' + `node ${paths.script.main} build --skip-version-validation --no-js --dev ${build_args} -- ` + cargoArgs.join(" ") + '"'
-    let args    = ['watch','-s',`${target}`]
+    if (argv.crate != undefined) {
+        build_args.push(`--crate=${argv.crate}`)
+    }
+
+    run_project_manager()
+    build_args = build_args.join(' ')
+    let target =
+        '"' +
+        `node ${paths.script.main} build --skip-version-validation --no-js --dev ${build_args} -- ` +
+        cargoArgs.join(' ') +
+        '"'
+    let args = ['watch', '-s', `${target}`]
     await cmd.with_cwd(paths.rust.root, async () => {
         await cmd.run('cargo',args)
     })

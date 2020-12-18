@@ -1,4 +1,5 @@
 const path  = require('path')
+const os = require('os')
 
 
 
@@ -36,5 +37,22 @@ paths.js.root             = path.join(paths.root,'src','js')
 
 paths.rust                = {}
 paths.rust.root           = path.join(paths.root,'src','rust')
+
+function project_manager_path(root) {
+    let base_path = path.join(root, 'enso', 'bin')
+    const target_platform = os.platform()
+    switch (target_platform) {
+        case 'linux':
+            return path.join(base_path, 'project-manager')
+        case 'darwin':
+            return path.join(base_path, 'project-manager')
+        case 'win32':
+            return path.join(base_path, 'project-manager.exe')
+        default:
+            throw 'UnsupportedPlatform: ' + target_platform
+    }
+}
+
+paths.get_project_manager_path = project_manager_path
 
 module.exports = paths
