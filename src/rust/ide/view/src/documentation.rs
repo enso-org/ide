@@ -165,9 +165,10 @@ impl ViewModel {
     fn set_listeners_to_copy_buttons(&self) {
         let code_blocks  = self.dom.dom().get_elements_by_class_name("CodeBlock");
         let copy_buttons = self.dom.dom().get_elements_by_class_name("copyCodeBtn");
-        let _closures    = (0..copy_buttons.length()).map(|i| -> Option<()>{
+        let closures     = (0..copy_buttons.length()).map(|i| -> Option<Closure<_>>{
             let copy_button = copy_buttons.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
             let code_block  = code_blocks.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
+            println!("{:?}",&code_block.inner_text());
             let closure  = move |_event: MouseEvent| {
                 let inner_code = code_block.inner_text();
                 clipboard::write_text(inner_code);
@@ -178,10 +179,9 @@ impl ViewModel {
                 Ok(_)    => (),
                 Err(err) => error!(&self.logger, "Unable to add event listener: {err:?}")
             }
-            closure.forget();
-            // self.closures.push(closure);
-            Some(())
-        });
+            Some(closure)
+        }).collect::<Vec<Option<Closure<_>>>>();
+        self.closures.set(closures)
     }
 
     /// Receive data, process and present it in the documentation view.
