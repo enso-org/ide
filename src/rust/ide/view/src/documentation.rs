@@ -19,7 +19,7 @@ use ensogl::system::web::AttributeSetter;
 use ensogl::gui::component;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::closure::WasmClosureFnOnce;
-use wasm_bindgen::{JsCast, JsValue};
+use wasm_bindgen::JsCast;
 use web_sys::HtmlElement;
 use web_sys::MouseEvent;
 
@@ -67,6 +67,7 @@ pub use visualization::container::overlay;
 /// it in a HTML container.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
+#[allow(unused_qualifications)]
 pub struct ViewModel {
     logger : Logger,
     dom    : DomSymbol,
@@ -75,7 +76,7 @@ pub struct ViewModel {
     /// to EnsoGL shapes, and pass them to the DOM instead.
     overlay        : component::ShapeView<overlay::Shape>,
     display_object : display::object::Instance,
-    // closures       : Vec<Option<Closure<dyn std::ops::FnMut(web_sys::MouseEvent)>>>
+    closures       : Rc<CloneCell<Vec<Option<Closure<dyn std::ops::FnMut(web_sys::MouseEvent)>>>>>
 }
 
 impl ViewModel {
@@ -116,8 +117,11 @@ impl ViewModel {
         display_object.add_child(&dom);
         display_object.add_child(&overlay);
         scene.dom.layers.front.manage(&dom);
-        // let mut closures: Vec<Option<Closure<_>>> = Vec::new();
-        ViewModel {logger,dom,size,overlay,display_object}.init()
+
+        let closures: Vec<Option<Closure<_>>> = Vec::new();
+        let closures = CloneCell::new(closures);
+        let closures = Rc::new(closures);
+        ViewModel {logger,dom,size,overlay,display_object,closures}.init()
     }
 
     fn init(self) -> Self {
@@ -161,20 +165,22 @@ impl ViewModel {
     fn set_listeners_to_copy_buttons(&self) {
         let code_blocks  = self.dom.dom().get_elements_by_class_name("CodeBlock");
         let copy_buttons = self.dom.dom().get_elements_by_class_name("copyCodeBtn");
-        let _closures    = (0..copy_buttons.length()).map(|i| -> Option<JsValue>{
+        let _closures    = (0..copy_buttons.length()).map(|i| -> Option<()>{
             let copy_button = copy_buttons.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
             let code_block  = code_blocks.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
             let closure  = move |_event: MouseEvent| {
                 let inner_code = code_block.inner_text();
                 clipboard::write_text(inner_code);
             };
-            let closure  = Closure::once_into_js(Box::new(closure).into_fn_mut());
+            let closure  = Closure::wrap(Box::new(closure).into_fn_mut());
             let callback = closure.as_ref().unchecked_ref();
             match copy_button.add_event_listener_with_callback("click", callback){
                 Ok(_)    => (),
                 Err(err) => error!(&self.logger, "Unable to add event listener: {err:?}")
             }
-            Some(closure)
+            closure.forget();
+            // self.closures.push(closure);
+            Some(())
         });
     }
 
