@@ -1,14 +1,15 @@
 'use strict'
 
-import * as buildCfg  from '../../../../../dist/build.json'
 import * as Electron  from 'electron'
+import * as Server  from 'enso-studio-common/src/server'
+import * as assert from 'assert'
+import * as buildCfg from '../../../../../dist/build.json'
 import * as isDev     from 'electron-is-dev'
 import * as path from 'path'
 import * as pkg from '../package.json'
 import * as rootCfg from '../../../package.json'
-import * as Server from 'enso-studio-common/src/server'
 import * as yargs from 'yargs'
-import * as assert from 'assert'
+import paths from '../../../../../build/paths'
 
 
 // FIXME default options parsed wrong
@@ -73,6 +74,11 @@ optParser.options('background-throttling', {
     describe : 'Throttle animations when run in background [false]',
 })
 
+optParser.options('local', {
+    group: configOptionsGroup,
+    describe:
+        'Set the path of a local project manager to use for running projects.',
+})
 
 // === Debug Options ===
 
@@ -273,25 +279,12 @@ Electron.app.on('web-contents-created', (event,contents) => {
 
 const child_process = require('child_process')
 const fss = require('fs')
-const os = require('os')
-
-function project_manager_path() {
-    let base_path = path.join(root, 'enso', 'bin')
-    const target_platform = os.platform()
-    switch (target_platform) {
-        case 'linux':
-            return path.join(base_path, 'project-manager')
-        case 'darwin':
-            return path.join(base_path, 'project-manager')
-        case 'win32':
-            return path.join(base_path, 'project-manager.exe')
-        default:
-            throw 'UnsupportedPlatform: ' + target_platform
-    }
-}
 
 async function run_project_manager() {
-    const bin_path = project_manager_path()
+    let bin_path = args.local
+    if (bin_path === undefined) {
+        bin_path = paths.get_project_manager_path(root)
+    }
     let bin_exists = fss.existsSync(bin_path)
     assert(bin_exists, 'Could not find file: ' + bin_path)
 
