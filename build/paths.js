@@ -39,7 +39,7 @@ paths.rust                = {}
 paths.rust.root           = path.join(paths.root,'src','rust')
 
 function project_manager_path(root) {
-    let base_path = path.join(root, 'enso', 'bin')
+    let base_path = path.join(root, 'bin')
     const target_platform = os.platform()
     switch (target_platform) {
         case 'linux':

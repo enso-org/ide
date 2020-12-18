@@ -56,13 +56,17 @@ function project_manager_path() {
 }
 
 function decompress_project_manager(source_file_path, target_folder) {
+    let decompressor
+    if (source_file_path.toString().endsWith('.zip')) {
+        decompressor = unzipper.Extract({ path: target_folder })
+    } else {
+        decompressor = tar.x({
+            strip: 1,
+            C: target_folder,
+        })
+    }
     fss.createReadStream(source_file_path)
-        .pipe(
-            tar.x({
-                strip: 1,
-                C: target_folder,
-            })
-        )
+        .pipe(decompressor)
         .on('finish', () => {
             const bin_path = project_manager_path()
             fss.chmodSync(bin_path, '744')
