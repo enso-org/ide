@@ -8,6 +8,7 @@ pub mod mix;
 pub mod seq;
 
 pub use enso_data::hash_map_tree;
+pub use enso_data::interval_tree;
 
 pub use enso_data::hash_map_tree::HashMapTree;
 pub use enso_data::index::Index;

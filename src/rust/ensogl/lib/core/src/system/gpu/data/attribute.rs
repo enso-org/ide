@@ -3,8 +3,9 @@
 use crate::prelude::*;
 
 use crate::control::callback::CallbackFn;
-use crate::data::dirty;
 use crate::data::OptVec;
+use crate::data::dirty;
+use crate::data::interval_tree::IntervalTree;
 use crate::debug::Stats;
 use crate::system::gpu::Context;
 
@@ -13,7 +14,9 @@ use crate::system::gpu::types::*;
 
 
 
+// =============
 // === Types ===
+// =============
 
 newtype_copy! {
     /// Index of the attribute instance.
@@ -31,17 +34,27 @@ pub type ShapeDirty = dirty::SharedBool<Box<dyn Fn()>>;
 
 
 
-
-
-
 // ======================
 // === AttributeScope ===
 // ======================
 
 shared! { AttributeScope
-/// Scope defines a view for geometry structure. For example, there is point
-/// scope or instance scope. Scope contains buffer of data for each item it
-/// describes.
+/// Scope defines a view for geometry structure. For example, there is point scope or instance
+/// scope. Scope contains buffer of data for each item it describes.
+///
+/// # ID re-use.
+/// The `free_ids` field uses now the new [`IntervalTree`] implementation, which tracks which
+/// intervals are not used anymore. This gives us also information whether the last interval is the
+/// last part of the allocated GPU buffers. In such a case, when the interval will be big enough,
+/// the GPU buffers can be shrunk (just like they are grown on demand right now).
+/// TODO: Implement buffer shrinking.
+///
+/// However, this would not work if an element with a very high instance ID will be still alive.
+/// Then, even if all other elements will be dropped, no memory (of elements with smaller IDs) can
+/// be freed using this technique. Alternatively, we could then re-order all attributes, but it will
+/// require introduction of more mutable state to the architecture. To learn more about this
+/// mechanism, read the docs of [`Symbol`], especially the "Changing attribute & GPU memory
+/// consumption" sections.
 #[derive(Debug)]
 pub struct AttributeScopeData {
     buffers         : OptVec<AnyBuffer>,
@@ -49,7 +62,7 @@ pub struct AttributeScopeData {
     shape_dirty     : ShapeDirty,
     buffer_name_map : HashMap<String,BufferIndex>,
     logger          : Logger,
-    free_ids        : Vec<AttributeInstanceIndex>,
+    free_ids        : IntervalTree,
     size            : usize,
     context         : Context,
     stats           : Stats,
@@ -110,8 +123,8 @@ impl {
     pub fn add_instance(&mut self) -> AttributeInstanceIndex {
         let instance_count = 1;
         debug!(self.logger, "Adding {instance_count} instance(s).", || {
-            match self.free_ids.pop() {
-                Some(ix) => ix,
+            match self.free_ids.take_first_item() {
+                Some(ix) => AttributeInstanceIndex(ix),
                 None     => {
                     let ix = self.size;
                     self.size += instance_count;
@@ -129,7 +142,7 @@ impl {
             for buffer in &self.buffers {
                 buffer.set_to_default(id.into())
             }
-            self.free_ids.push(id);
+            self.free_ids.insert(*id);
         })
     }
 
