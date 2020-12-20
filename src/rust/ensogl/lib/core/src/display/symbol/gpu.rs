@@ -339,7 +339,7 @@ pub struct Bindings {
 ///    (A).
 ///
 ///
-/// ### D. Using the depth-buffer for sorting.
+/// ### E. Using the depth-buffer for sorting.
 ///
 /// As with architecture (C), this is a very different architecture to what is currently
 /// implemented and might require very complex refactoring in order to be even tested and
@@ -371,7 +371,7 @@ pub struct Bindings {
 ///    require upfront CPU-side buffer sorting.
 ///
 ///
-/// ### E. Using depth-peeling / dual depth-peeling algorithms.
+/// ### F. Using depth-peeling / dual depth-peeling algorithms.
 ///
 /// As with architecture (C), this is a very different architecture to what is currently
 /// implemented and might require very complex refactoring in order to be even tested and
@@ -394,7 +394,7 @@ pub struct Bindings {
 ///    Fast with low memory consumption. The same as with architecture (A), (B), or (C).
 ///
 /// 2. Sorting of instances.
-///    Simple and fast. As fast as architecture (D), as it does not require upfront CPU-side buffer
+///    Simple and fast. As fast as architecture (E), as it does not require upfront CPU-side buffer
 ///    sorting.
 #[derive(Debug,Clone,CloneRef)]
 pub struct Symbol {
