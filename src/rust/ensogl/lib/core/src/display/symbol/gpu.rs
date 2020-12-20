@@ -352,9 +352,11 @@ pub struct Bindings {
 /// There is one additional thread to consider here, namely, with some browsers, systems, and GPU
 /// combinations, the super-sampling anti-aliasing is not accessible in WebGL. In such situations we
 /// could use a post-processing anti-aliasing techniques, such as [FXAA][1] or [SMAA][2], however,
-/// the resulting image quality will be even worse.
+/// the resulting image quality will be even worse. We could also use custom multi-sampled render
+/// buffers for implementing [multi-sampled depth buffers][3].
 /// [1] https://github.com/mitsuhiko/webgl-meincraft/blob/master/assets/shaders/fxaa.glsl
 /// [2] http://www.iryoku.com/papers/SMAA-Enhanced-Subpixel-Morphological-Antialiasing.pdf
+/// [3] https://stackoverflow.com/questions/50613696/whats-the-purpose-of-multisample-renderbuffers
 ///
 /// 1. Rendering.
 ///    May be 9x - 16x slower than architecture (A), depending on multi-sampling level. Also, the
