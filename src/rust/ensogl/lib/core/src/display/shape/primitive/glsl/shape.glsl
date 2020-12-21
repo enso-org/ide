@@ -99,10 +99,6 @@ Sdf grow (Sdf a, float size) {
     return Sdf(a.distance - size);
 }
 
-Sdf repeat (Sdf a, float distance) {
-    return Sdf(mod(a.distance, distance));
-}
-
 
 
 // ================
