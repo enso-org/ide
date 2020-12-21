@@ -30,6 +30,10 @@ BoundingBox inverse (BoundingBox a) {
     return BoundingBox(0.0,0.0,0.0,0.0);
 }
 
+BoundingBox infinite () {
+    return BoundingBox(0.0,0.0,999999.0,999999.0);
+}
+
 BoundingBox unify (BoundingBox a, BoundingBox b) {
     float min_x = min(a.min_x,b.min_x);
     float max_x = max(a.max_x,b.max_x);
@@ -94,6 +98,12 @@ Sdf difference (Sdf a, Sdf b) {
 Sdf grow (Sdf a, float size) {
     return Sdf(a.distance - size);
 }
+
+Sdf repeat (Sdf a, float distance) {
+    return Sdf(mod(a.distance, distance));
+}
+
+
 
 // ================
 // === BoundSdf ===
@@ -165,6 +175,11 @@ BoundSdf difference (BoundSdf a, BoundSdf b) {
 
 BoundSdf intersection (BoundSdf a, BoundSdf b) {
     return bound_sdf(intersection(sdf(a),sdf(b)),intersection(a.bounds,b.bounds));
+}
+
+BoundSdf repeat (BoundSdf a) {
+    a.bounds   = infinite();
+    return a;
 }
 
 
@@ -290,6 +305,13 @@ Shape set_color(Shape shape, Srgba t) {
     return shape;
 }
 
+Shape repeat (Shape s) {
+    Id       id    = s.id;
+    Color    color = s.color;
+    BoundSdf sdf   = repeat(s.sdf);
+    return shape(id, sdf, color);
+}
+
 
 
 // ===========
@@ -321,4 +343,8 @@ vec2 scale (vec2 position, float value) {
 
 vec2 cartesian2polar (vec2 position) {
   return vec2(length(position), atan(position.y, position.x));
+}
+
+vec2 repeat (vec2 position, vec2 t) {
+    return mod(position, t);
 }
