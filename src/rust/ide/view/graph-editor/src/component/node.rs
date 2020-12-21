@@ -57,6 +57,8 @@ const ERROR_PATTERN_WIDTH        : f32 = 10.0;
 
 const TEXT_SIZE                  : f32 = 12.0;
 
+
+
 // =============
 // === Shape ===
 // =============
@@ -77,7 +79,7 @@ pub mod shape {
             let width  = width  - PADDING.px() * 2.0;
             let height = height - PADDING.px() * 2.0;
             let radius = RADIUS.px();
-            let shape  = Rect((&width,&height)).corners_radius(radius);
+            let shape  = Rect((&width,&height)).corners_radius(&radius);
             let shape  = shape.fill(bg_color);
 
 
