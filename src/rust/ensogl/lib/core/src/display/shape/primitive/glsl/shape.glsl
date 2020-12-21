@@ -31,7 +31,7 @@ BoundingBox inverse (BoundingBox a) {
 }
 
 BoundingBox infinite () {
-    return BoundingBox(0.0,0.0,999999.0,999999.0);
+    return BoundingBox(0.0,0.0,0.0,0.0);
 }
 
 BoundingBox unify (BoundingBox a, BoundingBox b) {
