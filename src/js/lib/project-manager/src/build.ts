@@ -58,7 +58,9 @@ function decompress_project_manager(source_file_path, target_folder) {
         .pipe(decompressor)
         .on('finish', () => {
             const bin_path = project_manager_path()
-            fss.chmodSync(bin_path, '744')
+            if (os.platform() != 'win32') {
+                fss.chmodSync(bin_path, '744')
+            }
         })
 }
 
