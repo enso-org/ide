@@ -176,11 +176,12 @@ are presented below:
   
   
 ### Using IDE as a library.
-In case you are interested to use the IDE as a library, for example to embed it 
-into another website, you need to first build it using `node ./run {built,dist}`
-and find the necessary artifacts located at `dist/content`. Especially, the 
-`dist/content/index.js` defines a function `window.enso.main(cfg)` which you can
-use to run the IDE. The configuration supports currently the following options:
+In case you want to use the IDE as a library, for example to embed it into 
+another website, you need to first build it using `node ./run {built,dist}` and 
+find the necessary artifacts located at `dist/content`. Especially, the 
+`dist/content/index.js` defines a function `window.enso.main(cfg)` which you
+can use to run the IDE. Currently, the configuration argument can contain the
+following options:
 - `entry` - the entry point, one of predefined scenes. Set it to empty string to
   see the list of possible entry points.
 - `project` - the project name to open after loading the IDE.

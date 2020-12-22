@@ -5,6 +5,7 @@
 import * as loader_module from 'enso-studio-common/src/loader'
 import * as html_utils    from 'enso-studio-common/src/html_utils'
 import * as animation     from 'enso-studio-common/src/animation'
+import * as globalConfig  from '../../../../config.yaml'
 
 
 
@@ -13,8 +14,7 @@ import * as animation     from 'enso-studio-common/src/animation'
 // ==================
 
 let API = {}
-API.config = null
-window.enso = API
+window[globalConfig.windowAppScopeName] = API
 
 
 
@@ -239,7 +239,7 @@ API.main = async function (inputConfig) {
     let urlParams = new URLSearchParams(window.location.search);
     let urlConfig = Object.fromEntries(urlParams.entries())
     let config    = Object.assign(runConfigTemplate(),inputConfig,urlConfig)
-    enso.config   = config
+    API[globalConfig.windowAppScopeConfigName] = config
 
     style_root()
     printScamWarning()

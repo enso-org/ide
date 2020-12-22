@@ -43,5 +43,14 @@ module.exports = {
         hints: false,
     },
     mode: 'none',
-    stats: 'minimal'
+    stats: 'minimal',
+    module: {
+        rules: [
+            {
+                test: /\.ya?ml$/,
+                type: 'json',
+                use: 'yaml-loader'
+            }
+        ]
+    }
 }

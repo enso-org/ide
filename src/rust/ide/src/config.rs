@@ -12,7 +12,11 @@ use ensogl::system::web;
 // === Config ===
 // ==============
 
-/// The path at which the config is accessible. This needs to be synchronised with the JS wrappers.
+/// The path at which the config is accessible. This needs to be synchronised with the
+/// `src/config.yaml` configuration file. In the future, we could write a procedural macro, which
+/// loads the configuration and splits Rust variables from it during compilation time. This is not
+/// possible by using macro rules, as there is no way to plug in the output of `include_str!` macro
+/// to another macro input.
 const WINDOW_CFG_PATH : &[&str] = &["enso","config"];
 
 /// Defines a new config structure. The provided fields are converted to optional fields. The config
