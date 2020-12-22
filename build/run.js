@@ -405,16 +405,20 @@ async function updateBuildVersion (argv) {
         config         = JSON.parse(configFile)
     }
 
-    config.target = target
-
     let commitHashCmd = await cmd.run_read('git', [
         'rev-parse',
         '--short',
         'HEAD'
     ])
-    config.buildVersion = commitHashCmd.trim()
-    await fs.mkdir(paths.dist.root, { recursive: true })
-    await fs.writeFile(configPath, JSON.stringify(config, undefined, 2))
+    let commitHash =  commitHashCmd.trim()
+
+    if (config.buildVersion !== commitHash || config.target !== target){
+        config.target = target
+        config.buildVersion = commitHash
+        await fs.mkdir(paths.dist.root, { recursive: true })
+        await fs.writeFile(configPath, JSON.stringify(config, undefined, 2))
+    }
+
 }
 
 async function installJsDeps() {

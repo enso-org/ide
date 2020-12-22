@@ -77,7 +77,7 @@ optParser.options('background-throttling', {
     describe : 'Throttle animations when run in background [false]',
 })
 
-optParser.options('local', {
+optParser.options('project-manager', {
     group: configOptionsGroup,
     describe:
         'Set the path of a local project manager to use for running projects.',
@@ -281,19 +281,17 @@ Electron.app.on('web-contents-created', (event,contents) => {
 // =======================
 
 async function run_project_manager() {
-    let bin_path = args.local
+    let bin_path = args['project-manager']
     if (!bin_path) {
         bin_path = paths.get_project_manager_path(root)
     }
     let bin_exists = fss.existsSync(bin_path)
     assert(bin_exists, 'Could not find the project manager binary at ' + bin_path)
 
-    child_process.execFile(bin_path, [], (error, stdout, stderr) => {
-        console.error(stderr)
+    child_process.execFile(bin_path, [], {stdio:'inherit', shell:true}, (error, stdout, stderr) => {
         if (error) {
             throw error
         }
-        console.log(stdout)
     })
 }
 
