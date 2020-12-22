@@ -144,9 +144,9 @@ async function download_project_manager(
     })
 }
 
-// ================
+// ============
 // === Main ===
-// ================
+// ============
 
 async function main() {
     let file_url = await get_project_manager_url()
