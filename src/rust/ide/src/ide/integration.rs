@@ -475,8 +475,9 @@ impl Model {
     /// Refresh the expressions (e.g., types, ports) for all nodes.
     fn refresh_graph_expressions(&self) -> FallibleResult  {
         info!(self.logger, "Refreshing the graph expressions.");
-        let trees = self.graph.connections()?.trees;
-        self.refresh_node_views(trees, false)
+        let controller::graph::Connections{trees,connections} = self.graph.connections()?;
+        self.refresh_node_views(trees, false)?;
+        self.refresh_connection_views(connections)
     }
 
     /// Retain only given nodes in displayed graph.
@@ -735,7 +736,7 @@ impl Model {
         debug!(self.logger, "Received notification {notification:?}");
         let result = match notification {
             Some(Notification::Graph(Invalidate))         => self.on_graph_invalidated(),
-            Some(Notification::Graph(PortsUpdate))   => self.on_graph_expression_update(),
+            Some(Notification::Graph(PortsUpdate))        => self.on_graph_expression_update(),
             Some(Notification::ComputedValueInfo(update)) => self.on_values_computed(update),
             Some(Notification::SteppedOutOfNode(id))      => self.on_node_exited(*id),
             Some(Notification::EnteredNode(local_call))   => self.on_node_entered(local_call),
@@ -972,7 +973,7 @@ impl Model {
         //   fixed defaults. In future this will be changed, then the editor will also get access
         //   to the customised values.
         let project_name:String  = self.project.name().into();
-        let module_name          = crate::view::INITIAL_MODULE_NAME;
+        let module_name          = crate::ide::INITIAL_MODULE_NAME;
         let visualisation_module = QualifiedName::from_segments(project_name,&[module_name])?;
         let id                   = VisualizationId::new_v4();
         let expression           = crate::constants::SERIALIZE_TO_JSON_EXPRESSION.into();
