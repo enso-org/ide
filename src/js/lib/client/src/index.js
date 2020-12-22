@@ -1,10 +1,13 @@
 'use strict'
 
-import * as Electron  from 'electron'
-import * as Server  from 'enso-studio-common/src/server'
+const child_process = require('child_process')
+const fss = require('fs')
+
+import * as Electron from 'electron'
+import * as Server from 'enso-studio-common/src/server'
 import * as assert from 'assert'
 import * as buildCfg from '../../../../../dist/build.json'
-import * as isDev     from 'electron-is-dev'
+import * as isDev from 'electron-is-dev'
 import * as path from 'path'
 import * as pkg from '../package.json'
 import * as rootCfg from '../../../package.json'
@@ -277,16 +280,13 @@ Electron.app.on('web-contents-created', (event,contents) => {
 // === Project Manager ===
 // =======================
 
-const child_process = require('child_process')
-const fss = require('fs')
-
 async function run_project_manager() {
     let bin_path = args.local
-    if (bin_path === undefined) {
+    if (!bin_path) {
         bin_path = paths.get_project_manager_path(root)
     }
     let bin_exists = fss.existsSync(bin_path)
-    assert(bin_exists, 'Could not find file: ' + bin_path)
+    assert(bin_exists, 'Could not find the project manager binary at ' + bin_path)
 
     child_process.execFile(bin_path, [], (error, stdout, stderr) => {
         console.error(stderr)
@@ -296,6 +296,8 @@ async function run_project_manager() {
         console.log(stdout)
     })
 }
+
+
 
 // ============
 // === Main ===
@@ -308,7 +310,9 @@ let server     = null
 let mainWindow = null
 
 async function main() {
+    console.log("Starting the project manager.")
     await run_project_manager()
+    console.log("Starting the IDE.")
     if(args.server !== false) {
         let serverCfg      = Object.assign({},args)
         serverCfg.dir      = root

@@ -41,43 +41,42 @@ let config = {
 }
 
 config.build = {
-    appId: "org.enso.studio",
-    productName: "Enso Studio",
-    copyright: "Copyright © 2020 ${author}.",
+    appId: 'org.enso.studio',
+    productName: 'Enso Studio',
+    copyright: 'Copyright © 2020 ${author}.',
     mac: {
         icon: `${paths.dist.root}/icons/icon.icns`,
-        category: "public.app-category.developer-tools",
+        category: 'public.app-category.developer-tools',
         darkModeSupport: true,
-        type: "distribution"
+        type: 'distribution',
     },
     win: {
         icon: `${paths.dist.root}/icons/icon.ico`,
     },
     linux: {
         icon: `${paths.dist.root}/icons/png`,
-        category: "Development"
+        category: 'Development',
     },
     files: [
-        { from: paths.dist.content, to: "." }
-    ,
+        { from: paths.dist.content, to: '.' },
         { from: paths.dist.bin, to: '.' },
     ],
     fileAssociations: [
         {
-            ext: "enso",
-            name: "Enso Source File",
-            role: "Editor"
+            ext: 'enso',
+            name: 'Enso Source File',
+            role: 'Editor',
         },
         {
-            ext: "enso-studio",
-            name: "Enso Studio Project",
-            role: "Editor"
-        }
+            ext: 'enso-studio',
+            name: 'Enso Studio Project',
+            role: 'Editor',
+        },
     ],
     directories: {
-        "output": paths.dist.client
+        output: paths.dist.client,
     },
-    publish: []
+    publish: [],
 }
 
 module.exports = {config}

@@ -3,7 +3,7 @@ const fs       = require('fs').promises
 const fss      = require('fs')
 const glob     = require('glob')
 const ncp      = require('ncp').ncp
-const os = require('os')
+const os       = require('os')
 const path     = require('path')
 const paths    = require('./paths')
 const prettier = require("prettier")
@@ -74,7 +74,7 @@ function command(docs) {
 
 function run_project_manager() {
     const bin_path = paths.get_project_manager_path(paths.dist.bin)
-    console.log('Starting language server from ' + bin_path)
+    console.log('Starting the language server from ' + bin_path)
     child_process.execFile(bin_path, [], (error, stdout, stderr) => {
         console.error(stderr)
         if (error) {
@@ -317,7 +317,9 @@ optParser.options('dev', {
 })
 
 optParser.options('target', {
-    describe: 'Set the build target. Defaults to current platform',
+    describe:
+        'Set the build target. Defaults to the current platform. ' +
+        'Valid values are: "linux" "macos" and "win"',
     type: 'string',
 })
 
@@ -393,7 +395,8 @@ async function processPackageConfigs() {
 // === Main ===
 // ============
 
-async function updateBuildVersion (target) {
+async function updateBuildVersion (argv) {
+    const target =  get_target_platform(argv)
     let config        = {}
     let configPath    = paths.dist.buildInfo
     let exists        = fss.existsSync(configPath)
@@ -479,9 +482,7 @@ function get_target_platform(argv) {
 
 async function main () {
     let argv = optParser.parse()
-
-    const target = get_target_platform(argv)
-    await updateBuildVersion(target)
+    await updateBuildVersion(argv)
     await processPackageConfigs()
     let command = argv._[0]
     if(command === 'clean') {
