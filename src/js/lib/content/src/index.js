@@ -8,6 +8,16 @@ import * as animation     from 'enso-studio-common/src/animation'
 
 
 
+// ==================
+// === Global API ===
+// ==================
+
+let API = {}
+API.config = null
+window.enso = API
+
+
+
 // ========================
 // === Content Download ===
 // ========================
@@ -191,7 +201,7 @@ window.logsBuffer = logsBuffer
 
 let root = document.getElementById('root')
 
-function prepare_root(cfg) {
+function style_root() {
     root.style.backgroundColor = '#f6f3f199'
 }
 
@@ -218,43 +228,38 @@ function disableContextMenu() {
     })
 }
 
+function runConfigTemplate() {
+    return {
+        entry : null
+    }
+}
+
 /// Main entry point. Loads WASM, initializes it, chooses the scene to run.
-async function main() {
+API.main = async function (inputConfig) {
+    let urlParams = new URLSearchParams(window.location.search);
+    let urlConfig = Object.fromEntries(urlParams.entries())
+    let config    = Object.assign(runConfigTemplate(),inputConfig,urlConfig)
+    enso.config   = config
+
+    style_root()
     printScamWarning()
     hideLogs()
     disableContextMenu()
-    let location = window.location.pathname.split('/')
-    location.splice(0,1)
-    let cfg = getUrlParams()
-    prepare_root(cfg)
 
-    let debug_mode   = location[0] == "debug"
-    let debug_target = location[1]
-    let no_loader    = debug_mode && debug_target
+    let entryTarget = config.entry !== null ? config.entry : main_entry_point
+    let useLoader   = entryTarget === main_entry_point
 
     await windowShowAnimation()
-    let {wasm,loader} = await download_content({no_loader})
+    let {wasm,loader} = await download_content({no_loader:!useLoader})
 
-    let target = null;
-    if (debug_mode) {
-        loader.destroy()
-        if (debug_target) {
-            target = debug_target
-        }
-    } else {
-        target = main_entry_point
-    }
-
-    if (target) {
-        let fn_name = wasm_entry_point_pfx + target
+    if (entryTarget) {
+        let fn_name = wasm_entry_point_pfx + entryTarget
         let fn      = wasm[fn_name]
         if (fn) { fn() } else {
             loader.destroy()
-            show_debug_screen(wasm,"Unknown entry point '" + target + "'. ")
+            show_debug_screen(wasm,"Unknown entry point '" + entryTarget + "'. ")
         }
     } else {
         show_debug_screen(wasm)
     }
 }
-
-main()

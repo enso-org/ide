@@ -147,9 +147,9 @@ are presented below:
   utility which will build the project on every change. Open 
   `http://localhost:8080` (the port may vary and will be reported in the
   terminal if `8080` was already in use) to run the application, or
-  `http://localhost:8080/debug` to open example demo scenes. Please remember
-  to disable the cache in your browser during the development! By default,
-  the script disables heavyweight optimizations to provide interactive
+  `http://localhost:8080/?entry` to open example demo scenes list. Please 
+  remember to disable the cache in your browser during the development! By 
+  default, the script disables heavyweight optimizations to provide interactive
   development experience. The scripts are thin wrappers for
   [wasm-pack](https://github.com/rustwasm/wasm-pack) and accept the same
   [command line arguments](https://rustwasm.github.io/wasm-pack/book/commands/build.html).

@@ -94,7 +94,7 @@ pub struct IpWithSocket {
 }
 
 /// Project name.
-#[derive(Debug,Display,Clone,Serialize,Deserialize,PartialEq,Shrinkwrap)]
+#[derive(Debug,Display,Clone,Serialize,Deserialize,From,PartialEq,Shrinkwrap)]
 #[shrinkwrap(mutable)]
 pub struct ProjectName(pub String);
 
