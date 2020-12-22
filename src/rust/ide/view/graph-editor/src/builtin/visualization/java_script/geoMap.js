@@ -20,14 +20,16 @@ const LABEL_FONT_SIZE = '12px'
 const LABEL_BORDER_RADIUS = '14px'
 const LABEL_BORDER_TOP_LEFT_RADIUS = '2px'
 const LABEL_MARGIN = '4px'
+const LABEL_DARK_BACKGROUND = `rgb(93, 91, 88)`
+const LABEL_LIGHT_BACKGROUND = `rgb(252, 250, 245)`
+const LABEL_DARK_OUTLINE = `rgb(52, 50, 48)`
+const LABEL_LIGHT_OUTLINE = `rgb(200, 210, 210)`
+const LABEL_DARK_COLOR = `rgba(255, 255, 255, 0.8)`
+const LABEL_LIGHT_COLOR = `rgba(0, 0, 0, 0.8)`
 
 const DEFAULT_MAP_ZOOM = 11
 const DARK_ACCENT_COLOR = [222, 162, 47]
 const LIGHT_ACCENT_COLOR = [1, 234, 146]
-const DARK_LABEL_BACKGROUND = `rgb(58, 55, 53)`
-const LIGHT_LABEL_BACKGROUND = `rgb(252, 250, 245)`
-const DARK_LABEL_COLOR = `rgba(255, 255, 255, 0.8)`
-const LIGHT_LABEL_COLOR = `rgba(0, 0, 0, 0.8)`
 
 // =====================================
 // === Script & Style Initialisation ===
@@ -137,19 +139,22 @@ class GeoMapVisualization extends Visualization {
     initStyle() {
         let defaultMapStyle = 'mapbox://styles/mapbox/light-v9'
         let accentColor = LIGHT_ACCENT_COLOR
-        let labelBackgroundColor = LIGHT_LABEL_BACKGROUND
-        let labelColor = LIGHT_LABEL_COLOR
+        let labelBackgroundColor = LABEL_LIGHT_BACKGROUND
+        let labelColor = LABEL_LIGHT_COLOR
+        let labelOutline = LABEL_LIGHT_OUTLINE
         if (document.getElementById('root').classList.contains('dark-theme')) {
             defaultMapStyle =
                 'mapbox://styles/enso-org/ckiu0o0in2fpp19rpk0jfvg2s'
             accentColor = DARK_ACCENT_COLOR
-            labelBackgroundColor = DARK_LABEL_BACKGROUND
-            labelColor = DARK_LABEL_COLOR
+            labelBackgroundColor = LABEL_DARK_BACKGROUND
+            labelColor = LABEL_DARK_COLOR
+            labelOutline = LABEL_DARK_OUTLINE
         }
         this.defaultMapStyle = defaultMapStyle
         this.accentColor = accentColor
         this.labelBackgroundColor = labelBackgroundColor
         this.labelColor = labelColor
+        this.labelOutline = labelOutline
     }
 
     onDataReceived(data) {
@@ -238,6 +243,7 @@ class GeoMapVisualization extends Visualization {
                         fontFamily: LABEL_FONT,
                         margin: LABEL_MARGIN,
                         color: this.labelColor,
+                        border: "1px solid " + this.labelOutline
                     },
                 },
         })
