@@ -24,7 +24,7 @@ async function get_build_config() {
         let configFile = await fs.readFile(buildInfoPath)
         return JSON.parse(configFile.toString())
     } else {
-        throw 'Could not find build file at ' + buildInfoPath
+        throw `Could not find build file at "${buildInfoPath}".`
     }
 }
 
@@ -106,7 +106,7 @@ class DownloadProgressIndicator {
     }
 
     formatted_message(): string {
-        return `Download progress: ${this.progress_truncated}MB`
+        return `Download progress: ${this.progress_truncated}MB.`
     }
 }
 
@@ -142,7 +142,7 @@ async function download_project_manager(
             progress_indicator.add_progress_bytes(data.length)
         }).on('end', () => {
             target_file.end()
-            console.log(file_url + ' downloaded to ' + file_path)
+            console.log(`${file_url} downloaded to "${file_path}".`)
             decompress_project_manager(file_path, distPath)
         })
     })

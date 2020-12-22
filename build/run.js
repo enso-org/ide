@@ -74,7 +74,7 @@ function command(docs) {
 
 function run_project_manager() {
     const bin_path = paths.get_project_manager_path(paths.dist.bin)
-    console.log('Starting the language server from ' + bin_path)
+    console.log(`Starting the language server from "${bin_path}".`)
     child_process.execFile(bin_path, [], (error, stdout, stderr) => {
         console.error(stderr)
         if (error) {
@@ -424,7 +424,7 @@ async function updateBuildVersion (argv) {
 async function installJsDeps() {
     let initialized = fss.existsSync(paths.dist.init)
     if (!initialized) {
-        console.log('Installing application dependencies')
+        console.log('Installing application dependencies.')
         await cmd.with_cwd(paths.js.root, async () => {
             await cmd.run('npm',['run','install'])
         })
