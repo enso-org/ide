@@ -2434,9 +2434,10 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     eval inputs.set_node_error_status([model]((node_id, error)) {
         if let Some(node) = model.nodes.get_cloned_ref(node_id) {
-            node.set_error_status.emit(error)
+            node.set_error.emit(error)
         }
     });
+
     }
 
 

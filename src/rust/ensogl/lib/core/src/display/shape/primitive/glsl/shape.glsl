@@ -300,7 +300,7 @@ Shape withInfiniteBounds (Shape s) {
     Id       id    = s.id;
     Color    color = s.color;
     BoundSdf sdf   = s.sdf;
-    sdf.bounds = infinite();
+    sdf.bounds     = infinite();
     return shape(id, sdf, color);
 }
 
@@ -337,6 +337,6 @@ vec2 cartesian2polar (vec2 position) {
   return vec2(length(position), atan(position.y, position.x));
 }
 
-vec2 repeat (vec2 position, vec2 t) {
-    return mod(position, t);
+vec2 repeat (vec2 position, vec2 tile_size) {
+    return mod(position-tile_size/2.0, tile_size);
 }

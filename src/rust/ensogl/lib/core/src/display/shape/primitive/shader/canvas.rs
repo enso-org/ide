@@ -301,7 +301,7 @@ impl Canvas {
 
     /// Repeat the shape with the given tile size.
     pub fn repeat<T:Into<Var<Vector2<Pixels>>>>
-    (&mut self,  num:usize, s:Shape, tile_size:T) -> Shape {
+    (&mut self, num:usize, s:Shape, tile_size:T) -> Shape {
         self.if_not_defined(num, |this| {
             let value:Glsl = tile_size.into().glsl();
             let repeat     = iformat!("position = mod(position,{value});");

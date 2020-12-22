@@ -49,13 +49,13 @@ pub const PADDING           : f32 = 40.0;
 pub const RADIUS            : f32 = 14.0;
 pub const SHADOW_SIZE       : f32 = 10.0;
 
-const INFINITE                       : f32 = 99999.0;
-const ERROR_PATTERN_STRIPE_WIDTH     : f32 = 5.0;
-const ERROR_PATTERN_STRIPE_ANGLE     : f32 = 45.0;
-const ERROR_PATTERN_REPEAT_TILE_SIZE : (f32,f32) = (10.0,10.0);
-const ERROR_BORDER_WIDTH             : f32 = 10.0;
+const INFINITE                       : f32       = 99999.0;
+const ERROR_PATTERN_STRIPE_WIDTH     : f32       = 10.0;
+const ERROR_PATTERN_STRIPE_ANGLE     : f32       = 45.0;
+const ERROR_PATTERN_REPEAT_TILE_SIZE : (f32,f32) = (15.0,15.0);
+const ERROR_BORDER_WIDTH             : f32       = 10.0;
 
-const TEXT_SIZE                      : f32 = 12.0;
+const TEXT_SIZE                      : f32       = 12.0;
 
 
 
@@ -68,7 +68,7 @@ pub mod shape {
     use super::*;
 
     ensogl::define_shape_system! {
-        (style:Style, selection:f32, bg_color:Vector4 ) {
+        (style:Style, selection:f32, bg_color:Vector4) {
             use ensogl_theme::graph_editor::node as node_theme;
 
             let bg_color      = Var::<color::Rgba>::from(bg_color);
@@ -79,7 +79,7 @@ pub mod shape {
             let width  = width  - PADDING.px() * 2.0;
             let height = height - PADDING.px() * 2.0;
             let radius = RADIUS.px();
-            let shape  = Rect((&width,&height)).corners_radius(radius);
+            let shape  = Rect((&width,&height)).corners_radius(&radius);
             let shape  = shape.fill(bg_color);
 
 
@@ -122,6 +122,18 @@ pub mod shape {
             let select = select2 - select;
             let select = select.fill(color::Rgba::from(sel_color));
 
+
+             // === Error Pattern  Alternative ===
+             // TODO: Remove once the error indicator design is finalised.
+             // let repeat      =  Var::<Vector2<Pixels>>::from((10.px(), 10.px()));
+             // let error_width =  Var::<Pixels>::from(5.px());
+             //
+             // let stripe_red   = Rect((error_width, 99999.px()));
+             // let pattern = stripe_red.repeat(repeat).rotate(45.0.radians());
+             // let mask    = Rect((&width,&height)).corners_radius(&radius);
+             // let pattern1 = mask.intersection(pattern).fill(color::Rgba::red());
+
+             // let out =  select + shadow + shape + pattern1;
 
             // === Final Shape ===
 
@@ -229,7 +241,7 @@ ensogl::define_endpoints! {
         set_disabled        (bool),
         set_input_connected (span_tree::Crumbs,Option<Type>,bool),
         set_expression      (Expression),
-        set_error_status    (Option<Error>),
+        set_error           (Option<Error>),
         /// Set the expression USAGE type. This is not the definition type, which can be set with
         /// `set_expression` instead. In case the usage type is set to None, ports still may be
         /// colored if the definition type was present.
@@ -452,11 +464,7 @@ impl NodeModel {
     }
 
     fn set_error(&self, error:Option<&Error>) {
-        let message = if let Some(error) = error {
-            error.message.clone()
-        } else {
-            "".to_string()
-        };
+        let message = error.map(|t| t.message.clone()).unwrap_or_default();
         self.error_text.set_content.emit(message);
 
     }
@@ -533,7 +541,7 @@ impl Node {
 
             // === Set Node Error ===
 
-            error_color_anim.target <+ frp.set_error_status.map(f!((error) {
+            error_color_anim.target <+ frp.set_error.map(f!((error) {
                 model.set_error(error.as_ref());
                 match error.as_ref() {
                     Some(error) => {
@@ -545,9 +553,9 @@ impl Node {
                 }
             }));
 
-            eval error_color_anim.value((value) {
+            eval error_color_anim.value((value)
                 model.error_indicator.shape.color_rgba.set(color::Rgba::from(value).into());
-            });
+            );
 
 
             // === Color Handling ===
@@ -564,7 +572,7 @@ impl Node {
             );
         }
 
-        frp.set_error_status.emit(None);
+        frp.set_error.emit(None);
         frp.set_disabled.emit(false);
         Self {frp,model}
     }

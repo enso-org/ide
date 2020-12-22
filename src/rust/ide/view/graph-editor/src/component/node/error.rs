@@ -13,7 +13,8 @@ use crate::component::node::visualization;
 ///
 /// Note:
 /// Tis is a dummy implementation that can and should be extended once we have the proper
-/// error information from the language server. See #1026 for more information.
+/// error information from the language server.
+/// See [issue #1026](https://github.com/enso-org/ide/issues/1026) for more information.
 #[derive(Clone,Debug)]
 pub struct Error {
     /// The error message to show on the node.
