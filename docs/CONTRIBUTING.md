@@ -158,8 +158,8 @@ are presented below:
   In order to compile in a production mode (enable all optimizations, strip
   WASM debug symbols, minimize the output binaries, etc.), run 
   `node ./run build`. To create platform-specific packages and installers use
-  `node ./run dist` instead. The final packages will be located at
-  `app/dist/native`.
+  `node ./run dist` instead. The final executables will be located at
+  `dist/client/$PLATFORM`. 
   
 - **Selective mode**
   In order to compile only part of the project, and thus drastically shorten 
@@ -173,6 +173,18 @@ are presented below:
   were defined or re-exported by that crate. In particular, the `ide` crate
   exposes the `entry_point_ide` function, so you have to compile it to test
   your code in the Enso IDE.
+  
+  
+### Using IDE as a library.
+In case you are interested to use the IDE as a library, for example to embed it 
+into another website, you need to first build it using `node ./run {built,dist}`
+and find the necessary artifacts located at `dist/content`. Especially, the 
+`dist/content/index.js` defines a function `window.enso.main(cfg)` which you can
+use to run the IDE. The configuration supports currently the following options:
+- `entry` - the entry point, one of predefined scenes. Set it to empty string to
+  see the list of possible entry points.
+- `project` - the project name to open after loading the IDE.
+
 
 ### Testing, Linting, and Validation
 After changing the code it's always a good idea to lint and test the code. We 
