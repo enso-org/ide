@@ -173,11 +173,6 @@ BoundSdf intersection (BoundSdf a, BoundSdf b) {
     return bound_sdf(intersection(sdf(a),sdf(b)),intersection(a.bounds,b.bounds));
 }
 
-BoundSdf repeat (BoundSdf a) {
-    a.bounds   = infinite();
-    return a;
-}
-
 
 
 // ==========
@@ -301,10 +296,11 @@ Shape set_color(Shape shape, Srgba t) {
     return shape;
 }
 
-Shape repeat (Shape s) {
+Shape withInfiniteBounds (Shape s) {
     Id       id    = s.id;
     Color    color = s.color;
-    BoundSdf sdf   = repeat(s.sdf);
+    BoundSdf sdf   = s.sdf;
+    sdf.bounds = infinite();
     return shape(id, sdf, color);
 }
 

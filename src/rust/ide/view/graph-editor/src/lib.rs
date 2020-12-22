@@ -363,7 +363,7 @@ ensogl::define_endpoints! {
         /// Remove all nodes from the graph.
         collapse_selected_nodes(),
         /// Indicate whether this node had an error or not.
-        set_node_error_status((NodeId,Option<node::error::Error>)),
+        set_node_error_status(NodeId,Option<node::error::Error>),
 
 
         // === Visualization ===
