@@ -10,7 +10,7 @@
     -webkit-font-smoothing: antialiased;
     font-style: normal;
     word-wrap: break-word;
-    font-size: 14px;
+    font-size: 12px;
     line-height: 1.52947;
     font-weight: 400;
     letter-spacing: -0.021em;
@@ -81,7 +81,7 @@
     border: 1px solid #333333;
     color: #333333;
     border-radius: 5px;
-    font-size: 13px;
+    font-size: 12px;
     vertical-align: top;
     transition: all 0.3s ease;
 }
@@ -145,7 +145,7 @@
 }
 
 .Header {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 500;
 }
 
@@ -291,8 +291,9 @@
 }
 
 .CodeBlock {
-    background-color: #FAF8F5;
-    margin: 10px 0px;
+    /*background-color: #FAF8F5;*/
+    margin: 10px 0;
+    border: 1px solid #3f3f3f;
 }
 
 .dark-theme .Important {
@@ -309,6 +310,7 @@
 
 .dark-theme .CodeBlock {
     background-color: #474747;
+    border: 0;
 }
 
 .CodeBlock code {
@@ -410,7 +412,7 @@
 }
 
 .Synopsis {
-    font-size: 14px;
+    font-size: 12px;
 }
 
 .Documentation .ASTData,
