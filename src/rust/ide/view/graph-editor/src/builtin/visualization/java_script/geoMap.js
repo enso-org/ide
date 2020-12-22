@@ -243,7 +243,7 @@ class GeoMapVisualization extends Visualization {
                         fontFamily: LABEL_FONT,
                         margin: LABEL_MARGIN,
                         color: this.labelColor,
-                        border: "1px solid " + this.labelOutline
+                        border: '1px solid ' + this.labelOutline,
                     },
                 },
         })
