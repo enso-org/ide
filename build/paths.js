@@ -49,7 +49,7 @@ function get_project_manager_extension() {
 }
 
 paths.get_project_manager_path = function (root) {
-    let base_path = path.join(root, 'bin')
+    let base_path = path.join(root, 'enso', 'bin',)
     const extension = get_project_manager_extension()
     return path.join(base_path, 'project-manager') + extension
 }
