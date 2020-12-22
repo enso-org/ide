@@ -98,6 +98,6 @@ pub fn entry_point_ide() {
                 p.remove_child(&t).unwrap()
             })
         }).ok();
-        IdeInitializer::new().start_and_forget();
+        IdeInitializer::new_local().start_and_forget();
     });
 }
