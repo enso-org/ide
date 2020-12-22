@@ -414,7 +414,7 @@ mod test {
             let project_manager   = Rc::new(project_manager);
             let logger            = Logger::new("Fixture");
             let id                = Uuid::new_v4();
-            let project_fut       = Project::from_connections(logger,project_manager,
+            let project_fut       = Project::from_connections(logger,Some(project_manager),
                 json_connection,binary_connection,id,DEFAULT_PROJECT_NAME).boxed_local();
             let project = test.expect_completion(project_fut).unwrap();
             Fixture {test,project,binary_events_sender,json_events_sender}
