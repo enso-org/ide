@@ -41,18 +41,14 @@ async function get_project_manager_url(): Promise<string> {
     base_url += 'enso-staging/releases/download/'
     base_url += `enso-${version}/enso-project-manager-${version}`
     let postfix
-    switch (target_platform) {
-        case 'linux':
-            postfix = `linux-amd64.tar.gz`
-            break
-        case 'macos':
-            postfix = `macos-amd64.tar.gz`
-            break
-        case 'win':
-            postfix = `windows-amd64.zip`
-            break
-        default:
-            throw 'UnsupportedPlatform: ' + target_platform
+    if (target_platform === 'linux') {
+        postfix = `linux-amd64.tar.gz`
+    } else if (target_platform === 'macos') {
+        postfix = `macos-amd64.tar.gz`
+    } else if (target_platform === 'win') {
+        postfix = `windows-amd64.zip`
+    } else {
+        throw 'UnsupportedPlatform: ' + target_platform
     }
     return `${base_url}-${postfix}`
 }
