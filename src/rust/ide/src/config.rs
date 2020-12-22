@@ -66,7 +66,6 @@ define_config! {
     ConfigReader {
         entry   : String,
         project : ProjectName,
-        fsaf    : String
     }
 }
 
