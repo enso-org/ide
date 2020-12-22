@@ -35,12 +35,12 @@ async fn failure_to_open_project_is_reported() {
         result.expect_err("Error should have been reported.");
     });
     fixture.when_stalled_send_response(json!({
-                "projects": [{
-                    "name"       : crate::constants::DEFAULT_PROJECT_NAME,
-                    "id"         : "4b871393-eef2-4970-8765-4f3c1ea83d09",
-                    "lastOpened" : "2020-05-08T11:04:07.28738Z"
-                }]
-            }));
+        "projects": [{
+            "name"       : crate::constants::DEFAULT_PROJECT_NAME,
+            "id"         : "4b871393-eef2-4970-8765-4f3c1ea83d09",
+            "lastOpened" : "2020-05-08T11:04:07.28738Z"
+        }]
+    }));
     fixture.when_stalled_send_error(1,"Service error");
 }
 

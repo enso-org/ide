@@ -94,7 +94,7 @@ pub struct IpWithSocket {
 }
 
 impl Display for IpWithSocket {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f,"ws://{}:{}",self.host,self.port)
     }
 }

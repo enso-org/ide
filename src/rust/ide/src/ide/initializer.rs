@@ -19,8 +19,8 @@ use uuid::Uuid;
 // =================
 
 // TODO[ao] We need to set a big timeout on Project Manager to make sure it will have time to
-//          download required version of Engine. This should be handled properly when implementing
-//          https://github.com/enso-org/ide/issues/1034
+//     download required version of Engine. This should be handled properly when implementing
+//     https://github.com/enso-org/ide/issues/1034
 const PROJECT_MANAGER_TIMEOUT_SEC:u64 = 2 * 60 * 60;
 
 
@@ -31,7 +31,7 @@ const PROJECT_MANAGER_TIMEOUT_SEC:u64 = 2 * 60 * 60;
 
 /// Error raised when project with given name was not found.
 #[derive(Clone,Debug,Fail)]
-#[fail(display="Project with nae {} was not found.", name)]
+#[fail(display="Project with the name {} was not found.", name)]
 pub struct ProjectNotFound {
     name : ProjectName
 }
@@ -51,7 +51,7 @@ pub struct Initializer {
 
 
 impl Initializer {
-    /// Create Initializer with given configuration.
+    /// Create [`Initializer`] with given configuration.
     pub fn new(config:config::Startup) -> Self {
         let logger = Logger::new("ide::Initializer");
         Self{logger,config}
@@ -91,7 +91,7 @@ impl Initializer {
                 initializer.initialize_project_model().await
             }
             LanguageServer {json_endpoint,binary_endpoint} => {
-                let logger = &self.logger;
+                let logger          = &self.logger;
                 let project_manager = None;
                 let json_endpoint   = json_endpoint.clone();
                 let binary_endpoint = binary_endpoint.clone();

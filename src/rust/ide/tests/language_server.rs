@@ -285,7 +285,7 @@ async fn setup_project() -> Project {
     let config = ide::config::Startup::default();
     info!(logger,"Setting up the project.");
     let initializer = ide::Initializer::new(config);
-    let error_msg   = "Couldn't open project";
+    let error_msg   = "Couldn't open project.";
     initializer.initialize_project_model().await.expect(error_msg)
 }
 

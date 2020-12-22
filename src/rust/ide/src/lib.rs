@@ -97,7 +97,7 @@ pub fn entry_point_ide() {
                 p.remove_child(&t).unwrap()
             })
         }).ok();
-        let config = crate::config::Startup::from_web_arguments().expect("Failed to read configuration");
+        let config = crate::config::Startup::from_web_arguments().expect("Failed to read configuration.");
         crate::ide::Initializer::new(config).start_and_forget();
     });
 }
