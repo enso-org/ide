@@ -164,6 +164,7 @@ impl Model {
     }
 
     /// Append listeners to copy buttons in doc to enable copying examples.
+    #[allow(unused_must_use)]
     fn set_listeners_to_copy_buttons(&self) {
         let code_blocks  = self.dom.dom().get_elements_by_class_name("CodeBlock");
         let copy_buttons = self.dom.dom().get_elements_by_class_name("copyCodeBtn");
