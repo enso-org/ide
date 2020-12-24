@@ -64,7 +64,7 @@ enum InputFormat {
 pub use visualization::container::overlay;
 
 #[allow(unused_qualifications)]
-type OptClosure = Option<Closure<dyn std::ops::FnMut(web_sys::MouseEvent)>>;
+type ClickClosure = Closure<dyn std::ops::FnMut(web_sys::MouseEvent)>;
 
 /// Model of Native visualization that generates documentation for given Enso code and embeds
 /// it in a HTML container.
@@ -78,7 +78,7 @@ pub struct ViewModel {
     /// to EnsoGL shapes, and pass them to the DOM instead.
     overlay        : component::ShapeView<overlay::Shape>,
     display_object : display::object::Instance,
-    closures       : Rc<CloneCell<Vec<OptClosure>>>
+    closures       : Rc<CloneCell<Vec<ClickClosure>>>
 }
 
 impl ViewModel {
@@ -120,7 +120,7 @@ impl ViewModel {
         display_object.add_child(&overlay);
         scene.dom.layers.front.manage(&dom);
 
-        let closures: Vec<Option<Closure<_>>> = Vec::new();
+        let closures: Vec<Closure<_>> = Vec::new();
         let closures = CloneCell::new(closures);
         let closures = Rc::new(closures);
         ViewModel {logger,dom,size,overlay,display_object,closures}.init()
@@ -167,22 +167,20 @@ impl ViewModel {
     fn set_listeners_to_copy_buttons(&self) {
         let code_blocks  = self.dom.dom().get_elements_by_class_name("CodeBlock");
         let copy_buttons = self.dom.dom().get_elements_by_class_name("copyCodeBtn");
-        let closures     = (0..copy_buttons.length()).map(|i| -> OptClosure {
+        let closures     = (0..copy_buttons.length()).map(|i| -> Option<ClickClosure> {
             let copy_button = copy_buttons.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
             let code_block  = code_blocks.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
-            println!("{:?}",&code_block.inner_text());
-            let closure  = move |_event: MouseEvent| {
+            let closure     = move |_event: MouseEvent| {
                 let inner_code = code_block.inner_text();
                 clipboard::write_text(inner_code);
             };
             let closure  = Closure::wrap(Box::new(closure).into_fn_mut());
             let callback = closure.as_ref().unchecked_ref();
-            match copy_button.add_event_listener_with_callback("click", callback){
-                Ok(_)    => (),
-                Err(err) => error!(&self.logger, "Unable to add event listener: {err:?}")
-            }
+            copy_button.add_event_listener_with_callback("click", callback).map_err(|err| {
+                error!(&self.logger, "Unable to add event listener to copy button: {err:?}")
+            });
             Some(closure)
-        }).collect::<Vec<OptClosure>>();
+        }).filter_map(|x| x).collect::<Vec<ClickClosure>>();
         self.closures.set(closures)
     }
 
