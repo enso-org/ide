@@ -119,16 +119,11 @@ function show_debug_screen(wasm,msg) {
         ul.appendChild(li)
         a.appendChild(linkText)
         a.title   = name
-        a.href    = "javascript:{}"
-        a.onclick = () => {
-            html_utils.remove_node(debug_screen_div)
-            let fn_name = wasm_entry_point_pfx + name
-            let fn = wasm[fn_name]
-            fn()
-        }
+        a.href    = "?entry="+name
         li.appendChild(a)
     }
 }
+
 
 
 // ====================
@@ -228,17 +223,15 @@ function disableContextMenu() {
     })
 }
 
-function runConfigTemplate() {
-    return {
-        entry : null
-    }
+function ok(value) {
+    return value !== null && value !== undefined
 }
 
 /// Main entry point. Loads WASM, initializes it, chooses the scene to run.
 API.main = async function (inputConfig) {
     let urlParams = new URLSearchParams(window.location.search);
     let urlConfig = Object.fromEntries(urlParams.entries())
-    let config    = Object.assign(runConfigTemplate(),inputConfig,urlConfig)
+    let config    = Object.assign({},inputConfig,urlConfig)
     API[globalConfig.windowAppScopeConfigName] = config
 
     style_root()
@@ -246,7 +239,7 @@ API.main = async function (inputConfig) {
     hideLogs()
     disableContextMenu()
 
-    let entryTarget = config.entry !== null ? config.entry : main_entry_point
+    let entryTarget = ok(config.entry) ? config.entry : main_entry_point
     let useLoader   = entryTarget === main_entry_point
 
     await windowShowAnimation()

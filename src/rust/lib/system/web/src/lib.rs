@@ -668,29 +668,6 @@ mod tests {
         }
     }
 
-    #[test]
-    fn args() {
-        let search = String::from("?project=HelloWorld&arg0=value0");
-        let args   = Arguments::args_from_search(&search);
-        assert_eq!(args.len(), 2);
-        assert_eq!(args.get("project"), Some(&"HelloWorld".to_string()));
-        assert_eq!(args.get("arg0"), Some(&"value0".to_string()));
-
-        let search = String::from("project=HelloWorld&arg0=value0");
-        let args   = Arguments::args_from_search(&search);
-        assert_eq!(args.len(), 0);
-
-        let search = String::from("");
-        let args   = Arguments::args_from_search(&search);
-        assert_eq!(args.len(), 0);
-
-        let search = String::from("?project&arg0=value0");
-        let args   = Arguments::args_from_search(&search);
-        assert_eq!(args.len(), 2);
-        assert_eq!(args.get("project"), Some(&"".to_string()));
-        assert_eq!(args.get("arg0"), Some(&"value0".to_string()));
-    }
-
     #[cfg(not(target_arch = "wasm32"))]
     mod helpers {
         use std::time::Instant;
