@@ -70,7 +70,7 @@ type ClickClosure = Closure<dyn std::ops::FnMut(web_sys::MouseEvent)>;
 /// it in a HTML container.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub struct ViewModel {
+pub struct Model {
     logger : Logger,
     dom    : DomSymbol,
     size   : Rc<Cell<Vector2>>,
@@ -81,7 +81,7 @@ pub struct ViewModel {
     closures       : Rc<CloneCell<Vec<ClickClosure>>>
 }
 
-impl ViewModel {
+impl Model {
     /// Constructor.
     fn new(scene:&Scene) -> Self {
         let logger         = Logger::new("DocumentationView");
@@ -123,7 +123,7 @@ impl ViewModel {
         let closures: Vec<Closure<_>> = Vec::new();
         let closures = CloneCell::new(closures);
         let closures = Rc::new(closures);
-        ViewModel {logger,dom,size,overlay,display_object,closures}.init()
+        Model {logger,dom,size,overlay,display_object,closures}.init()
     }
 
     fn init(self) -> Self {
@@ -202,7 +202,7 @@ impl ViewModel {
     }
 
     fn display_doc(&self, content:&str, content_type: InputFormat) {
-        let html = match ViewModel::gen_html_from(content,content_type) {
+        let html = match Model::gen_html_from(content, content_type) {
             Ok(html)               => html,
             Err(err)               => {
                 error!(self.logger, "Documentation parsing error: {err:?}");
@@ -267,7 +267,7 @@ ensogl::define_endpoints! {
 #[allow(missing_docs)]
 pub struct View {
     #[shrinkwrap(main_field)]
-    pub model             : ViewModel,
+    pub model             : Model,
     pub visualization_frp : visualization::instance::Frp,
     pub frp               : Frp,
 }
@@ -286,7 +286,7 @@ impl View {
     pub fn new(scene:&Scene) -> Self {
         let frp               = Frp::new();
         let visualization_frp = visualization::instance::Frp::new(&frp.network);
-        let model             = ViewModel::new(scene);
+        let model             = Model::new(scene);
         model.load_waiting_screen();
         Self {model,visualization_frp,frp} . init(scene)
     }
