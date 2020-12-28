@@ -184,7 +184,12 @@ impl Model {
                 error!(&self.logger, "Unable to add event listener to copy button: {err:?}")
             });
             Some(closure)
-        }).filter_map(|x| x).collect::<Vec<ClickClosure>>();
+        }).filter_map(|x| {
+            if x.is_none() {
+                error!(&self.logger, "Tried to add event listener to a non-existent copy button.")
+            }
+            x
+        }).collect::<Vec<ClickClosure>>();
         self.code_copy_closures.set(closures)
     }
 
