@@ -167,29 +167,35 @@ impl Model {
     /// It is possible to do it with implemented method, because get_elements_by_class_name
     /// returns top-to-bottom sorted list of elements, as found in:
     /// https://stackoverflow.com/questions/35525811/order-of-elements-in-document-getelementsbyclassname-array
-    #[allow(unused_must_use)]
     fn attach_listeners_to_copy_buttons(&self) {
         let code_blocks  = self.dom.dom().get_elements_by_class_name(CODE_BLOCK_CLASS);
         let copy_buttons = self.dom.dom().get_elements_by_class_name(COPY_BUTTON_CLASS);
-        let closures     = (0..copy_buttons.length()).map(|i| -> Option<CodeCopyClosure> {
-            let copy_button = copy_buttons.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
-            let code_block  = code_blocks.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
-            let closure     = move |_event: MouseEvent| {
-                let inner_code = code_block.inner_text();
-                clipboard::write_text(inner_code);
+        let closures     = (0..copy_buttons.length()).map(|i| -> Result<CodeCopyClosure,u32> {
+            let f = || -> Option<CodeCopyClosure> {
+                let copy_button = copy_buttons.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
+                let code_block  = code_blocks.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
+                let closure     = move |_event: MouseEvent| {
+                    let inner_code = code_block.inner_text();
+                    clipboard::write_text(inner_code);
+                };
+                let closure  = Closure::wrap(Box::new(closure).into_fn_mut());
+                let callback = closure.as_ref().unchecked_ref();
+                match copy_button.add_event_listener_with_callback("click",callback) {
+                    Ok(_)  => Some(closure),
+                    Err(e) => {
+                        error!(&self.logger,"Unable to add event listener to copy button: {e:?}");
+                        None
+                    },
+                }
             };
-            let closure  = Closure::wrap(Box::new(closure).into_fn_mut());
-            let callback = closure.as_ref().unchecked_ref();
-            copy_button.add_event_listener_with_callback("click", callback).map_err(|err| {
-                error!(&self.logger, "Unable to add event listener to copy button: {err:?}")
-            });
-            Some(closure)
-        }).filter_map(|x| {
-            if x.is_none() {
-                error!(&self.logger, "Tried to add event listener to a non-existent copy button.")
-            }
-            x
-        }).collect::<Vec<CodeCopyClosure>>();
+            f().ok_or(i)
+        });
+        let (closures,errors) : (Vec<_>,Vec<_>) = closures.partition(Result::is_ok);
+        let closures = closures.into_iter().map(Result::unwrap).collect::<Vec<CodeCopyClosure>>();
+        let errors   = errors.into_iter().map(Result::unwrap_err).collect::<Vec<u32>>();
+        if !errors.is_empty() {
+            error!(&self.logger, "Tried to add event listener to a non-existent copy button with indices: {errors:?}")
+        }
         self.code_copy_closures.set(closures)
     }
 
