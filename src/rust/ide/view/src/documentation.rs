@@ -76,9 +76,9 @@ pub struct Model {
     size   : Rc<Cell<Vector2>>,
     /// The purpose of this overlay is stop propagating mouse events under the documentation panel
     /// to EnsoGL shapes, and pass them to the DOM instead.
-    overlay        : component::ShapeView<overlay::Shape>,
-    display_object : display::object::Instance,
-    closures       : Rc<CloneCell<Vec<ClickClosure>>>
+    overlay            : component::ShapeView<overlay::Shape>,
+    display_object     : display::object::Instance,
+    code_copy_closures : Rc<CloneCell<Vec<ClickClosure>>>
 }
 
 impl Model {
@@ -120,10 +120,10 @@ impl Model {
         display_object.add_child(&overlay);
         scene.dom.layers.front.manage(&dom);
 
-        let closures: Vec<Closure<_>> = Vec::new();
-        let closures = CloneCell::new(closures);
-        let closures = Rc::new(closures);
-        Model {logger,dom,size,overlay,display_object,closures}.init()
+        let code_copy_closures = Vec::<Closure<_>>::new();
+        let code_copy_closures = CloneCell::new(code_copy_closures);
+        let code_copy_closures = Rc::new(code_copy_closures);
+        Model {logger,dom,size,overlay,display_object, code_copy_closures }.init()
     }
 
     fn init(self) -> Self {
@@ -164,6 +164,9 @@ impl Model {
     }
 
     /// Append listeners to copy buttons in doc to enable copying examples.
+    /// It is possible to do it with implemented method, because get_elements_by_class_name
+    /// returns top-to-bottom sorted list of elements, as found in:
+    /// https://stackoverflow.com/questions/35525811/order-of-elements-in-document-getelementsbyclassname-array
     #[allow(unused_must_use)]
     fn set_listeners_to_copy_buttons(&self) {
         let code_blocks  = self.dom.dom().get_elements_by_class_name("CodeBlock");
@@ -182,7 +185,7 @@ impl Model {
             });
             Some(closure)
         }).filter_map(|x| x).collect::<Vec<ClickClosure>>();
-        self.closures.set(closures)
+        self.code_copy_closures.set(closures)
     }
 
     /// Receive data, process and present it in the documentation view.
