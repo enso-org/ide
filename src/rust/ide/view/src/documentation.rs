@@ -63,9 +63,6 @@ enum InputFormat {
 
 pub use visualization::container::overlay;
 
-#[allow(unused_qualifications)]
-type ClickClosure = Closure<dyn std::ops::FnMut(web_sys::MouseEvent)>;
-
 /// Model of Native visualization that generates documentation for given Enso code and embeds
 /// it in a HTML container.
 #[derive(Clone,CloneRef,Debug)]
@@ -78,7 +75,7 @@ pub struct Model {
     /// to EnsoGL shapes, and pass them to the DOM instead.
     overlay            : component::ShapeView<overlay::Shape>,
     display_object     : display::object::Instance,
-    code_copy_closures : Rc<CloneCell<Vec<ClickClosure>>>
+    code_copy_closures : Rc<CloneCell<Vec<Closure<dyn FnMut(MouseEvent)>>>>
 }
 
 impl Model {
@@ -171,7 +168,7 @@ impl Model {
     fn set_listeners_to_copy_buttons(&self) {
         let code_blocks  = self.dom.dom().get_elements_by_class_name("CodeBlock");
         let copy_buttons = self.dom.dom().get_elements_by_class_name("copyCodeBtn");
-        let closures     = (0..copy_buttons.length()).map(|i| -> Option<ClickClosure> {
+        let closures     = (0..copy_buttons.length()).map(|i| -> Option<Closure<_>> {
             let copy_button = copy_buttons.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
             let code_block  = code_blocks.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
             let closure     = move |_event: MouseEvent| {
@@ -189,7 +186,7 @@ impl Model {
                 error!(&self.logger, "Tried to add event listener to a non-existent copy button.")
             }
             x
-        }).collect::<Vec<ClickClosure>>();
+        }).collect::<Vec<Closure<dyn FnMut(MouseEvent)>>>();
         self.code_copy_closures.set(closures)
     }
 
