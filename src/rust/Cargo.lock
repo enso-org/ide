@@ -479,6 +479,7 @@ version = "0.1.2"
 dependencies = [
  "enso-prelude 0.1.8",
  "serde 1.0.116 (registry+https://github.com/rust-lang/crates.io-index)",
+ "typenum 1.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
