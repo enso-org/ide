@@ -35,9 +35,11 @@ pub const VIEW_WIDTH  : f32 = 300.0;
 pub const VIEW_HEIGHT : f32 = 300.0;
 
 /// Content in the documentation view when there is no data available.
-const PLACEHOLDER_STR : &str = "<h3>Documentation Viewer</h3><p>No documentation available</p>";
-const CORNER_RADIUS   : f32  = crate::graph_editor::component::node::CORNER_RADIUS;
-const PADDING         : f32  = 5.0;
+const PLACEHOLDER_STR   : &str = "<h3>Documentation Viewer</h3><p>No documentation available</p>";
+const CORNER_RADIUS     : f32  = crate::graph_editor::component::node::CORNER_RADIUS;
+const PADDING           : f32  = 5.0;
+const CODE_BLOCK_CLASS  : &str = "CodeBlock";
+const COPY_BUTTON_CLASS : &str = "copyCodeBtn";
 
 /// Get documentation view stylesheet from a CSS file.
 ///
@@ -122,7 +124,7 @@ impl Model {
         let code_copy_closures = Vec::<Closure<_>>::new();
         let code_copy_closures = CloneCell::new(code_copy_closures);
         let code_copy_closures = Rc::new(code_copy_closures);
-        Model {logger,dom,size,overlay,display_object, code_copy_closures }.init()
+        Model {logger,dom,size,overlay,display_object,code_copy_closures}.init()
     }
 
     fn init(self) -> Self {
@@ -151,8 +153,7 @@ impl Model {
                 InputFormat::Docstring => parser.generate_html_doc_pure(processed),
             };
             let output = output?;
-            if output.is_empty() { Ok(PLACEHOLDER_STR.into()) }
-            else                 { Ok(output)                 }
+            Ok( if output.is_empty() { PLACEHOLDER_STR.into() } else { output } )
         }
     }
 
@@ -167,9 +168,9 @@ impl Model {
     /// returns top-to-bottom sorted list of elements, as found in:
     /// https://stackoverflow.com/questions/35525811/order-of-elements-in-document-getelementsbyclassname-array
     #[allow(unused_must_use)]
-    fn set_listeners_to_copy_buttons(&self) {
-        let code_blocks  = self.dom.dom().get_elements_by_class_name("CodeBlock");
-        let copy_buttons = self.dom.dom().get_elements_by_class_name("copyCodeBtn");
+    fn attach_listeners_to_copy_buttons(&self) {
+        let code_blocks  = self.dom.dom().get_elements_by_class_name(CODE_BLOCK_CLASS);
+        let copy_buttons = self.dom.dom().get_elements_by_class_name(COPY_BUTTON_CLASS);
         let closures     = (0..copy_buttons.length()).map(|i| -> Option<CodeCopyClosure> {
             let copy_button = copy_buttons.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
             let code_block  = code_blocks.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
@@ -210,7 +211,7 @@ impl Model {
     }
 
     fn display_doc(&self, content:&str, content_type: InputFormat) {
-        let html = match Model::gen_html_from(content, content_type) {
+        let html = match Model::gen_html_from(content,content_type) {
             Ok(html)               => html,
             Err(err)               => {
                 error!(self.logger, "Documentation parsing error: {err:?}");
@@ -219,7 +220,7 @@ impl Model {
         };
 
         self.push_to_dom(html);
-        self.set_listeners_to_copy_buttons();
+        self.attach_listeners_to_copy_buttons();
     }
 
     /// Load an HTML file into the documentation view when user is waiting for data to be received.
