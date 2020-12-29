@@ -5,6 +5,8 @@ use crate::prelude::*;
 
 use crate::graph_editor::component::visualization;
 
+pub use visualization::container::overlay;
+
 use ast::prelude::FallibleResult;
 use enso_frp as frp;
 use ensogl::data::color;
@@ -18,7 +20,6 @@ use ensogl::system::web::StyleSetter;
 use ensogl::system::web::AttributeSetter;
 use ensogl::gui::component;
 use wasm_bindgen::closure::Closure;
-use wasm_bindgen::closure::WasmClosureFnOnce;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlElement;
 use web_sys::MouseEvent;
@@ -53,17 +54,15 @@ fn documentation_style() -> String {
 
 
 
-// =================
-// === ViewModel ===
-// =================
+// =============
+// === Model ===
+// =============
 
 /// The input type for documentation parser. See documentation of `View` for details.
 #[derive(Clone,Copy,Debug)]
 enum InputFormat {
     AST,Docstring
 }
-
-pub use visualization::container::overlay;
 
 type CodeCopyClosure = Closure<dyn FnMut(MouseEvent)>;
 
@@ -178,7 +177,7 @@ impl Model {
                     let inner_code = code_block.inner_text();
                     clipboard::write_text(inner_code);
                 };
-                let closure  = Closure::wrap(Box::new(closure).into_fn_mut());
+                let closure: Closure<dyn FnMut(MouseEvent)> = Closure::wrap(Box::new(closure));
                 let callback = closure.as_ref().unchecked_ref();
                 match copy_button.add_event_listener_with_callback("click",callback) {
                     Ok(_)  => Some(closure),
@@ -191,12 +190,12 @@ impl Model {
             f().ok_or(i)
         });
         let (closures,errors) : (Vec<_>,Vec<_>) = closures.partition(Result::is_ok);
-        let closures = closures.into_iter().map(Result::unwrap).collect::<Vec<CodeCopyClosure>>();
-        let errors   = errors.into_iter().map(Result::unwrap_err).collect::<Vec<u32>>();
-        if !errors.is_empty() {
-            error!(&self.logger, "Tried to add event listener to a non-existent copy button with indices: {errors:?}")
+        let ok_closures = closures.into_iter().filter(Result::is_ok).map(Result::unwrap).collect::<Vec<CodeCopyClosure>>();
+        let err_indices = errors.into_iter().filter(Result::is_err).map(Result::unwrap_err).collect::<Vec<u32>>();
+        if !err_indices.is_empty() {
+            error!(&self.logger, "Failed to attach listeners to copy buttons with indices: {err_indices:?}.")
         }
-        self.code_copy_closures.set(closures)
+        self.code_copy_closures.set(ok_closures)
     }
 
     /// Receive data, process and present it in the documentation view.
