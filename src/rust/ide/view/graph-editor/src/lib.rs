@@ -362,12 +362,12 @@ ensogl::define_endpoints! {
         stop_editing(),
         /// Remove all nodes from the graph.
         collapse_selected_nodes(),
+        /// Indicate whether this node had an error or not.
+        set_node_error_status(NodeId,Option<node::error::Error>),
 
 
         // === Visualization ===
 
-        /// Toggle the visibility of the selected visualizations.
-        toggle_visualization_visibility(),
         /// Simulates a visualization open press event. In case the event will be shortly followed by `release_visualization_visibility`, the visualization will be shown permanently. In other case, it will be disabled as soon as the `release_visualization_visibility` is emitted.
         press_visualization_visibility(),
         /// Simulates a visualization open double press event. This event toggles the visualization fullscreen mode.
@@ -376,8 +376,6 @@ ensogl::define_endpoints! {
         release_visualization_visibility(),
         /// Cycle the visualization for the selected nodes.
         cycle_visualization_for_selected_node(),
-        /// Switches the selected visualisation to/from fullscreen mode.
-        toggle_fullscreen_for_selected_visualization(),
 
 
         // === Scene Navigation ===
@@ -424,6 +422,7 @@ ensogl::define_endpoints! {
         set_visualization            ((NodeId,Option<visualization::Path>)),
         register_visualization       (Option<visualization::Definition>),
         set_visualization_data       ((NodeId,visualization::Data)),
+        enable_visualization         (NodeId),
     }
 
     Output {
@@ -2427,11 +2426,26 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     set_node_expression_string  <- inputs.set_node_expression.map(|(id,expr)| (*id,expr.code.clone()));
     out.source.node_expression_set <+ set_node_expression_string;
 
+    }
+
+
+    // === Set Node Error ===
+    frp::extend! { network
+
+    eval inputs.set_node_error_status([model]((node_id, error)) {
+        if let Some(node) = model.nodes.get_cloned_ref(node_id) {
+            node.set_error.emit(error)
+        }
+    });
+
+    }
+
 
 
     // ==================
     // === Move Nodes ===
     // ==================
+    frp::extend! { network
 
     mouse_pos <- mouse.position.map(|p| Vector2(p.x,p.y));
 
@@ -2709,7 +2723,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     }));
 
     viz_tgt_nodes_all_on <- viz_tgt_nodes_off.map(|t| t.is_empty());
-    viz_enable           <= viz_tgt_nodes.gate_not(&viz_tgt_nodes_all_on);
+    viz_enable_by_press  <= viz_tgt_nodes.gate_not(&viz_tgt_nodes_all_on);
+    viz_enable           <- any(viz_enable_by_press,inputs.enable_visualization);
     viz_disable          <= viz_tgt_nodes.gate(&viz_tgt_nodes_all_on);
     viz_preview_disable  <= viz_tgt_nodes_off.sample(&viz_preview_mode_end);
     viz_fullscreen_on    <= viz_d_press_ev.map(f_!(model.last_selected_node()));
