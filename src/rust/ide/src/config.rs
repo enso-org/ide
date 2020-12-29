@@ -52,7 +52,7 @@ impl Default for BackendService {
 impl BackendService {
     /// Read backend configuration from the web arguments. See also [`web::Arguments`]
     /// documentation.
-    pub fn from_web_arguments(config:&ConfigReader) -> FallibleResult<Self> {
+    pub fn from_web_arguments(config:&Args) -> FallibleResult<Self> {
         if let Some(endpoint) = &config.project_manager {
             if config.language_server_rpc.is_some() || config.language_server_data.is_some() {
                 Err(MutuallyExclusiveOptions.into())
@@ -77,9 +77,9 @@ impl BackendService {
 
 
 
-// ==============
-// === Config ===
-// ==============
+// ============
+// === Args ===
+// ============
 
 /// The path at which the config is accessible. This needs to be synchronised with the
 /// `src/config.yaml` configuration file. In the future, we could write a procedural macro, which
@@ -153,12 +153,16 @@ macro_rules! define_config {
 }
 
 define_config! {
-    ConfigReader {
+    Args {
         entry                : String,
         project              : ProjectName,
         project_manager      : String,
         language_server_rpc  : String,
         language_server_data : String,
+        platform             : String,
+        frame                : String,
+        darkTheme            : String,
+        highContrast         : String,
     }
 }
 
@@ -174,14 +178,14 @@ pub struct Startup {
     /// The configuration of connection to the backend service.
     pub backend : BackendService,
     /// The project name we want to open on startup.
-    pub project_name : ProjectName
+    pub project_name : ProjectName,
 }
 
 impl Default for Startup {
     fn default() -> Self {
         Self {
             backend      : default(),
-            project_name : ProjectName(constants::DEFAULT_PROJECT_NAME.to_owned())
+            project_name : ProjectName(constants::DEFAULT_PROJECT_NAME.to_owned()),
         }
     }
 }
@@ -189,9 +193,9 @@ impl Default for Startup {
 impl Startup {
     /// Read configuration from the web arguments. See also [`web::Arguments`] documentation.
     pub fn from_web_arguments() -> FallibleResult<Startup> {
-        let config       = ConfigReader::new();
-        let backend      = BackendService::from_web_arguments(&config)?;
-        let project_name = config.project.unwrap_or_else(||
+        let args         = Args::new();
+        let backend      = BackendService::from_web_arguments(&args)?;
+        let project_name = args.project.unwrap_or_else(||
             ProjectName::new(constants::DEFAULT_PROJECT_NAME)
         );
         Ok(Startup{backend,project_name})

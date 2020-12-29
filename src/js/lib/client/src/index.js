@@ -104,10 +104,10 @@ optParser.options('backend-path', {
 
 let debugOptionsGroup = 'Debug Options:'
 
-optParser.options('debug-scene', {
+optParser.options('entry-point', {
     group       : debugOptionsGroup,
-    describe    : 'Run the debug scene instead of the main app',
-    requiresArg : true
+    describe    : 'Run an alternative entry point (e.g. one of the debug scenes)',
+//    requiresArg : true
 })
 
 optParser.options('dev', {
@@ -128,7 +128,7 @@ let styleOptionsGroup = 'Style Options:'
 optParser.options('frame', {
     group       : styleOptionsGroup,
     describe    : 'Draw window frame',
-    default     : true,
+    default     : false,
     type        : `boolean`
 })
 
@@ -165,6 +165,8 @@ function parseCmdArgs() {
 }
 
 let args = parseCmdArgs()
+console.log(">>>>> ARGS")
+console.log(args)
 
 if (args.windowSize) {
     let size   = args.windowSize.split('x')
@@ -360,9 +362,10 @@ function urlParamsFromObject(obj) {
     let params = []
     for (let key in obj) {
         let val = obj[key]
-        if      (val === false) {}
-        else if (val === true)  { params.push(key) }
-        else                    { params.push(`${key}=${val}`) }
+        params.push(`${key}=${val}`)
+//        if      (val === false) {}
+//        else if (val === true)  { params.push(key) }
+//        else                    { params.push(`${key}=${val}`) }
     }
     return params.join("&")
 }
@@ -374,7 +377,7 @@ function createWindow() {
         webPreferences       : webPreferences,
         width                : windowCfg.width,
         height               : windowCfg.height,
-        frame                : true,
+        frame                : args.frame,
         devTools             : false,
         sandbox              : true,
         backgroundThrottling : false,
@@ -387,8 +390,7 @@ function createWindow() {
         windowPreferences.devTools = true
     }
 
-    if (args.frame === false) {
-        windowPreferences.frame         = false
+    if (args.frame === false && process.platform === 'darwin') {
         windowPreferences.titleBarStyle = 'hiddenInset'
     }
 
@@ -409,21 +411,17 @@ function createWindow() {
     }
 
     let urlCfg = {
-        desktop      : true,
-        dark         : Electron.nativeTheme.shouldUseDarkColors,
+        platform     : process.platform,
+        frame        : args.frame,
+        darkTheme    : Electron.nativeTheme.shouldUseDarkColors,
         highContrast : Electron.nativeTheme.shouldUseHighContrastColors,
     }
 
-    if (args.project) {
-        urlCfg.project = args.project;
-    }
+    if (args.project)    { urlCfg.project = args.project }
+    if (args.entryPoint) { urlCfg.entry   = args.entryPoint }
 
-    let params      = urlParamsFromObject(urlCfg)
-    let targetScene = ""
-    if (args.debugScene) {
-        targetScene = `debug/${args.debugScene}`
-    }
-    let address = `http://localhost:${port}/${targetScene}?${params}`
+    let params  = urlParamsFromObject(urlCfg)
+    let address = `http://localhost:${port}?${params}`
     console.log(`Loading the window address ${address}`)
     window.loadURL(address)
     return window
@@ -505,9 +503,6 @@ if (process.platform === 'darwin') {
 // =============================
 // === Deprecations & Fixmes ===
 // =============================
-
-/// FIXME: Will not be needed in Electron 9 anymore.
-Electron.app.allowRendererProcessReuse = true
 
 // FIXME Enable Metal backend on MacOS https://github.com/electron/electron/issues/22465
 
