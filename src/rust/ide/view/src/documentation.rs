@@ -173,11 +173,11 @@ impl Model {
             let f = || -> Option<CodeCopyClosure> {
                 let copy_button = copy_buttons.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
                 let code_block  = code_blocks.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
-                let closure     = move |_event: MouseEvent| {
+                let closure     = Box::new(move |_event: MouseEvent| {
                     let inner_code = code_block.inner_text();
                     clipboard::write_text(inner_code);
-                };
-                let closure: Closure<dyn FnMut(MouseEvent)> = Closure::wrap(Box::new(closure));
+                });
+                let closure: Closure<dyn FnMut(MouseEvent)> = Closure::wrap(closure);
                 let callback = closure.as_ref().unchecked_ref();
                 match copy_button.add_event_listener_with_callback("click",callback) {
                     Ok(_)  => Some(closure),
@@ -190,8 +190,16 @@ impl Model {
             f().ok_or(i)
         });
         let (closures,errors) : (Vec<_>,Vec<_>) = closures.partition(Result::is_ok);
-        let ok_closures = closures.into_iter().filter(Result::is_ok).map(Result::unwrap).collect::<Vec<CodeCopyClosure>>();
-        let err_indices = errors.into_iter().filter(Result::is_err).map(Result::unwrap_err).collect::<Vec<u32>>();
+        let ok_closures = closures
+            .into_iter()
+            .filter(Result::is_ok)
+            .map(Result::unwrap).
+            collect::<Vec<CodeCopyClosure>>();
+        let err_indices = errors
+            .into_iter()
+            .filter(Result::is_err)
+            .map(Result::unwrap_err)
+            .collect::<Vec<u32>>();
         if !err_indices.is_empty() {
             error!(&self.logger, "Failed to attach listeners to copy buttons with indices: {err_indices:?}.")
         }
