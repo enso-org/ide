@@ -264,7 +264,7 @@ pub struct Bindings {
 ///    Very fast and with low memory consumption. Requires only 1 WebGL call (attribute per
 ///    instance).
 ///
-/// 2. Sorting of instances.
+/// 2. Visual sorting of instances (depth management).
 ///    Complex. Requires sorting of all attribute buffers connected with a particular instance. For
 ///    big buffers (many instances) it may require significant CPU -> GPU data upload. For example,
 ///    taking the last element to the front, would require shifting all attributes in all buffers,
@@ -283,7 +283,7 @@ pub struct Bindings {
 ///    attribute for each vertex (4 WebGL calls). During drawing, vertexes are re-used by using
 ///    indexed geometry rendering.
 ///
-/// 2. Sorting of instances.
+/// 2. Visual sorting of instances (depth management).
 ///    The same issues as in architecture (A). Even more CPU -> GPU heavy, as the attribute count
 ///    is bigger.
 ///
@@ -298,7 +298,7 @@ pub struct Bindings {
 ///    attribute for each vertex (6 WebGL calls). During drawing, vertexes are not re-used, and thus
 ///    we need to set attributes for each vertex of each triangle.
 ///
-/// 2. Sorting of instances.
+/// 2. Visual sorting of instances (depth management).
 ///    Simple. We can re-use index buffer to sort the geometry by telling GPU in what order it
 ///    should render each of the vertexes. Unlike previous architectures, this would not require to
 ///    create any more internally mutable state regarding attribute index management (the indexes
@@ -329,7 +329,7 @@ pub struct Bindings {
 ///    pass more attributes to shaders than it is currently possible, which on the other hand,
 ///    would probably negatively affect the fragment shader performance.
 ///
-/// 2. Sorting of instances.
+/// 2. Visual sorting of instances (depth management).
 ///    Simple. Next to the attribute texture, we can pass index buffer to the shader, which will
 ///    dictate what initial offset in the texture should be used. This would allow for the fastest
 ///    sorting mechanism of all of the above architectures.
@@ -368,7 +368,7 @@ pub struct Bindings {
 /// 1. Changing attribute & GPU memory consumption.
 ///    Fast with low memory consumption. The same as with architecture (A), (B), or (C).
 ///
-/// 2. Sorting of instances.
+/// 2. Visual sorting of instances (depth management).
 ///    Simple and fast. Much faster than any other architecture listed before, as it does not
 ///    require upfront CPU-side buffer sorting.
 ///
@@ -395,7 +395,7 @@ pub struct Bindings {
 /// 1. Changing attribute & GPU memory consumption.
 ///    Fast with low memory consumption. The same as with architecture (A), (B), or (C).
 ///
-/// 2. Sorting of instances.
+/// 2. Visual sorting of instances (depth management).
 ///    Simple and fast. As fast as architecture (E), as it does not require upfront CPU-side buffer
 ///    sorting.
 #[derive(Debug,Clone,CloneRef)]
