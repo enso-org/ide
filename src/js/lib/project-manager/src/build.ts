@@ -153,4 +153,4 @@ async function main() {
     await download_project_manager(file_url, false)
 }
 
-main().then((r) => console.log(r))
+main()

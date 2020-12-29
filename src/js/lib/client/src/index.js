@@ -11,6 +11,7 @@ import * as isDev from 'electron-is-dev'
 import * as path from 'path'
 import * as pkg from '../package.json'
 import * as rootCfg from '../../../package.json'
+import * as util from 'util'
 import * as yargs from 'yargs'
 import paths from '../../../../../build/paths'
 
@@ -36,6 +37,8 @@ let windowCfg = {
 function capitalizeFirstLetter(string) {
   return string.charAt(0).toUpperCase() + string.slice(1)
 }
+
+const execFile = util.promisify(child_process.execFile);
 
 
 
@@ -294,38 +297,28 @@ Electron.app.on('web-contents-created', (event,contents) => {
 // === Project Manager ===
 // =======================
 
-async function runBackend() {
+async function withBackend(opts) {
+    let binPath = args['backend-path']
+    if (!binPath) {
+        binPath = paths.get_project_manager_path(root)
+    }
+    let binExists = fss.existsSync(binPath)
+    assert(binExists, `Could not find the project manager binary at ${binPath}.`)
+
+    let out = await execFile(binPath,opts).catch(function(err) {throw err})
+    return out
+}
+
+function runBackend() {
     if(args.backend !== false) {
         console.log("Starting the backend process.")
-        let binPath = args['backend-path']
-        if (!binPath) {
-            binPath = paths.get_project_manager_path(root)
-        }
-        let binExists = fss.existsSync(binPath)
-        assert(binExists, `Could not find the project manager binary at ${binPath}.`)
-
-        child_process.execFile(binPath, [], (error, stdout, stderr) => {
-            if (error) {
-                throw error
-            }
-        })
+        withBackend()
     }
 }
 
-function backendVersionSync() {
+async function backendVersion() {
     if(args.backend !== false) {
-        let binPath = args['backend-path']
-        if (!binPath) {
-            binPath = paths.get_project_manager_path(root)
-        }
-        let binExists = fss.existsSync(binPath)
-        assert(binExists, `Could not find the project manager binary at ${binPath}.`)
-
-        return child_process.execFileSync(binPath, ['--version'], {}, (error, stdout, stderr) => {
-            if (error) {
-                throw error
-            }
-        })
+        return await withBackend(['--version']).then((t) => t.stdout)
     }
 }
 
@@ -342,7 +335,7 @@ let server     = null
 let mainWindow = null
 
 async function main() {
-    await runBackend()
+    runBackend()
     console.log("Starting the IDE.")
     if(args.server !== false) {
         let serverCfg      = Object.assign({},args)
@@ -478,16 +471,19 @@ Electron.app.on('ready', () => {
             console.log(`${indent}${label}:${spacing} ${versionInfo[name]}`)
         }
 
-        let backend = backendVersionSync();
-        if (backend) {
-            console.log("")
-            console.log("Backend:")
-            let lines = `${backend}`.split(/\r?\n/)
-            for (let line of lines) {
-                console.log(`${indent}${line}`)
+        console.log("")
+        console.log("Backend:")
+        backendVersion().then((backend) => {
+            if (!backend) {
+                console.log(`${indent}No backend available.`)
+            } else {
+                let lines = backend.split(/\r?\n/)
+                for (let line of lines) {
+                    console.log(`${indent}${line}`)
+                }
             }
-        }
-        process.exit();
+            process.exit()
+        })
     } else if (args.info) {
         printDebugInfo()
     } else {
