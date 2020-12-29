@@ -29,6 +29,16 @@ let windowCfg = {
 
 
 
+// =============
+// === Utils ===
+// =============
+
+function capitalizeFirstLetter(string) {
+  return string.charAt(0).toUpperCase() + string.slice(1)
+}
+
+
+
 // =====================
 // === Option Parser ===
 // =====================
@@ -172,7 +182,7 @@ if (args.windowSize) {
 // ==================
 
 let versionInfo = {
-    core: rootCfg.version,
+    version: rootCfg.version,
     build: buildCfg.buildVersion,
     electron: process.versions.electron,
     chrome: process.versions.chrome,
@@ -287,14 +297,31 @@ Electron.app.on('web-contents-created', (event,contents) => {
 async function runBackend() {
     if(args.backend !== false) {
         console.log("Starting the backend process.")
-        let bin_path = args['backend-path']
-        if (!bin_path) {
-            bin_path = paths.get_project_manager_path(root)
+        let binPath = args['backend-path']
+        if (!binPath) {
+            binPath = paths.get_project_manager_path(root)
         }
-        let bin_exists = fss.existsSync(bin_path)
-        assert(bin_exists, `Could not find the project manager binary at ${bin_path}.`)
+        let binExists = fss.existsSync(binPath)
+        assert(binExists, `Could not find the project manager binary at ${binPath}.`)
 
-        child_process.execFile(bin_path, [], {stdio:'inherit', shell:true}, (error, stdout, stderr) => {
+        child_process.execFile(binPath, [], (error, stdout, stderr) => {
+            if (error) {
+                throw error
+            }
+        })
+    }
+}
+
+function backendVersionSync() {
+    if(args.backend !== false) {
+        let binPath = args['backend-path']
+        if (!binPath) {
+            binPath = paths.get_project_manager_path(root)
+        }
+        let binExists = fss.existsSync(binPath)
+        assert(binExists, `Could not find the project manager binary at ${binPath}.`)
+
+        return child_process.execFileSync(binPath, ['--version'], {}, (error, stdout, stderr) => {
             if (error) {
                 throw error
             }
@@ -436,10 +463,30 @@ Electron.app.on('activate', () => {
 
 Electron.app.on('ready', () => {
     if (args.version) {
-        console.log(`core     : ${versionInfo.core}`)
-        console.log(`build    : ${versionInfo.build}`)
-        console.log(`electron : ${versionInfo.electron}`)
-        console.log(`chrome   : ${versionInfo.chrome}`)
+        let indent     = ' '.repeat(4)
+        let maxNameLen = 0
+        for (let name in versionInfo) {
+            if (name.length > maxNameLen) {
+                maxNameLen = name.length
+            }
+        }
+
+        console.log("Frontend:")
+        for (let name in versionInfo) {
+            let label   = capitalizeFirstLetter(name)
+            let spacing = ' '.repeat(maxNameLen - name.length)
+            console.log(`${indent}${label}:${spacing} ${versionInfo[name]}`)
+        }
+
+        let backend = backendVersionSync();
+        if (backend) {
+            console.log("")
+            console.log("Backend:")
+            let lines = `${backend}`.split(/\r?\n/)
+            for (let line of lines) {
+                console.log(`${indent}${line}`)
+            }
+        }
         process.exit();
     } else if (args.info) {
         printDebugInfo()
