@@ -190,16 +190,8 @@ impl Model {
             f().ok_or(i)
         });
         let (closures,errors) : (Vec<_>,Vec<_>) = closures.partition(Result::is_ok);
-        let ok_closures = closures
-            .into_iter()
-            .filter(Result::is_ok)
-            .map(Result::unwrap).
-            collect::<Vec<CodeCopyClosure>>();
-        let err_indices = errors
-            .into_iter()
-            .filter(Result::is_err)
-            .map(Result::unwrap_err)
-            .collect::<Vec<u32>>();
+        let ok_closures = closures.into_iter().filter_map(|t| t.ok()).collect::<Vec<CodeCopyClosure>>();
+        let err_indices = errors.into_iter().filter_map(|t| t.err()).collect::<Vec<u32>>();
         if !err_indices.is_empty() {
             error!(&self.logger, "Failed to attach listeners to copy buttons with indices: {err_indices:?}.")
         }
