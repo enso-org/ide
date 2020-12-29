@@ -316,6 +316,8 @@
 
 .CodeBlock code {
     font-family: "DejaVuSansMonoBook", monospace;
+    width: 100%;
+    overflow-wrap: break-word;
 }
 
 .Def {
