@@ -1206,6 +1206,8 @@ impl GraphEditorModel {
 
     fn init(self) -> Self {
         self.add_child(&self.breadcrumbs);
+        self.breadcrumbs.set_position_x(52.0 + 13.0 + 13.0);
+        self.breadcrumbs.set_position_y(-5.0);
         self
     }
 
