@@ -411,10 +411,10 @@ function createWindow() {
     }
 
     let urlCfg = {
-        platform     : process.platform,
-        frame        : args.frame,
-        darkTheme    : Electron.nativeTheme.shouldUseDarkColors,
-        highContrast : Electron.nativeTheme.shouldUseHighContrastColors,
+        platform      : process.platform,
+        frame         : args.frame,
+        dark_theme    : Electron.nativeTheme.shouldUseDarkColors,
+        high_contrast : Electron.nativeTheme.shouldUseHighContrastColors,
     }
 
     if (args.project)    { urlCfg.project = args.project }
