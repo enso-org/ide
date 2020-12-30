@@ -1217,7 +1217,6 @@ impl GraphEditorModel {
 
     fn init(self) -> Self {
         self.add_child(&self.breadcrumbs);
-        println!("!!!! {:?}",*ARGS);
         let is_macos     = ARGS.platform.map(|p|p.is_macos()) == Some(true);
         let is_frameless = ARGS.frame == Some(false);
         let x_offset     = if is_macos && is_frameless { MACOS_TRAFFIC_LIGHTS_WIDTH }

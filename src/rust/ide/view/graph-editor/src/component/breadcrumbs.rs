@@ -33,7 +33,7 @@ use std::cmp::Ordering;
 // FIXME[dg] hardcoded literal for glyph of height 12.0. Copied from port.rs
 const GLYPH_WIDTH       : f32 = 7.224_609_4;
 const VERTICAL_MARGIN   : f32 = GLYPH_WIDTH;
-const HORIZONTAL_MARGIN : f32 = 0.0; // 52.0 + 13.0 + 13.0;
+const HORIZONTAL_MARGIN : f32 = GLYPH_WIDTH;
 const TEXT_SIZE         : f32 = 12.0;
 
 
@@ -174,7 +174,6 @@ impl BreadcrumbsModel {
         self.add_child(&self.root);
         self.root.add_child(&self.project_name);
         self.root.add_child(&self.breadcrumbs_container);
-        self.project_name.set_position_x(HORIZONTAL_MARGIN);
         self
     }
 
@@ -191,7 +190,7 @@ impl BreadcrumbsModel {
     }
 
     fn relayout_for_project_name_width(&self, width:f32) {
-        self.breadcrumbs_container.set_position_x((HORIZONTAL_MARGIN+width).round());
+        self.breadcrumbs_container.set_position_x(width.round());
     }
 
     fn get_breadcrumb(&self, index:usize) -> Option<Breadcrumb> {
