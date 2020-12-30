@@ -9,7 +9,7 @@ use std::convert::TryFrom;
 // ================
 
 /// This enumeration lists all the supported platforms.
-#[derive(Debug,Clone,Copy,PartialEq)]
+#[derive(Debug,Clone,Copy,PartialEq,Eq)]
 pub enum Platform {
     Android,
     FreeBSD,
@@ -21,6 +21,17 @@ pub enum Platform {
 }
 pub use Platform::*;
 
+#[allow(missing_docs)]
+impl Platform {
+    pub fn is_android (self) -> bool { self == Android }
+    pub fn is_freebsd (self) -> bool { self == FreeBSD }
+    pub fn is_ios     (self) -> bool { self == IOS }
+    pub fn is_linux   (self) -> bool { self == Linux }
+    pub fn is_macos   (self) -> bool { self == MacOS }
+    pub fn is_openbsd (self) -> bool { self == OpenBSD }
+    pub fn is_windows (self) -> bool { self == Windows }
+}
+
 #[derive(Clone,Copy,Debug)]
 pub struct UnknownPlatform;
 
@@ -29,17 +40,17 @@ impl TryFrom<&str> for Platform {
     #[allow(clippy::if_same_then_else)]
     fn try_from(s:&str) -> Result<Self,Self::Error> {
         let name = s.to_lowercase();
-        if      name.find("android").is_some() { Ok(Android) }
-        else if name.find("freebsd").is_some() { Ok(FreeBSD) }
-        else if name.find("openbsd").is_some() { Ok(OpenBSD) }
-        else if name.find("bsd").is_some()     { Ok(FreeBSD) }
+        if      name.find("win").is_some()     { Ok(Windows) }
+        else if name.find("darwin").is_some()  { Ok(MacOS) }
+        else if name.find("mac").is_some()     { Ok(MacOS) }
+        else if name.find("linux").is_some()   { Ok(Linux) }
         else if name.find("ios").is_some()     { Ok(IOS) }
         else if name.find("iphone").is_some()  { Ok(IOS) }
         else if name.find("ipad").is_some()    { Ok(IOS) }
-        else if name.find("linux").is_some()   { Ok(Linux) }
-        else if name.find("mac").is_some()     { Ok(MacOS) }
-        else if name.find("darwin").is_some()  { Ok(MacOS) }
-        else if name.find("win").is_some()     { Ok(Windows) }
+        else if name.find("android").is_some() { Ok(Android) }
+        else if name.find("freebsd").is_some() { Ok(FreeBSD) }
+        else if name.find("openbsd").is_some() { Ok(OpenBSD) }
+        else if name.find("bsd").is_some()     { Ok(FreeBSD) }
         else                                   { Err(UnknownPlatform) }
     }
 }
@@ -59,13 +70,13 @@ impl TryFrom<String> for Platform {
 
 /// Queries which platform we are on.
 #[cfg(target_arch="wasm32")]
-pub fn current() -> Platform {
+pub fn current() -> Option<Platform> {
     current_wasm()
 }
 
 /// Queries which platform we are on.
 #[cfg(not(target_arch="wasm32"))]
-pub fn current() -> Platform {
+pub fn current() -> Option<Platform> {
     current_native()
 }
 
@@ -83,7 +94,7 @@ pub fn current_wasm() -> Option<Platform> {
     let navigator = window.navigator();
     let platform  = navigator.platform().unwrap_or_default().to_lowercase();
     let agent     = navigator.user_agent().unwrap_or_default().to_lowercase();
-    Platform::try_from(platform).ok().or_else(||Platform::try_from(agent).ok())
+    Platform::try_from(platform).or_else(||Platform::try_from(agent)).ok()
 }
 
 
@@ -92,11 +103,11 @@ pub fn current_wasm() -> Option<Platform> {
 // === Current Native ===
 // ======================
 
-#[cfg(target_os="android")] fn current_native() -> Platform { Android }
-#[cfg(target_os="ios")]     fn current_native() -> Platform { IOS }
-#[cfg(target_os="linux")]   fn current_native() -> Platform { Linux }
-#[cfg(target_os="macos")]   fn current_native() -> Platform { MacOS }
-#[cfg(target_os="windows")] fn current_native() -> Platform { Windows }
+#[cfg(target_os="android")] fn current_native() -> Option<Platform> { Some(Android) }
+#[cfg(target_os="ios")]     fn current_native() -> Option<Platform> { Some(IOS) }
+#[cfg(target_os="linux")]   fn current_native() -> Option<Platform> { Some(Linux) }
+#[cfg(target_os="macos")]   fn current_native() -> Option<Platform> { Some(MacOS) }
+#[cfg(target_os="windows")] fn current_native() -> Option<Platform> { Some(Windows) }
 
 #[cfg(not(any(
     target_arch = "wasm32",
@@ -105,7 +116,7 @@ pub fn current_wasm() -> Option<Platform> {
     target_os   = "linux",
     target_os   = "macos",
     target_os   = "windows"
-)))] fn current_native() -> Platform { Unknown }
+)))] fn current_native() -> Option<Platform> { None }
 
 
 
@@ -124,6 +135,6 @@ mod test {
 
     #[wasm_bindgen_test]
     fn platform() {
-        assert_eq!(current(),target_os())
+        assert_eq!(current(),current_native())
     }
 }
