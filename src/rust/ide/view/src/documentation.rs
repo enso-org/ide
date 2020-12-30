@@ -120,9 +120,7 @@ impl Model {
         display_object.add_child(&overlay);
         scene.dom.layers.front.manage(&dom);
 
-        let code_copy_closures = Vec::<Closure<_>>::new();
-        let code_copy_closures = CloneCell::new(code_copy_closures);
-        let code_copy_closures = Rc::new(code_copy_closures);
+        let code_copy_closures = default();
         Model {logger,dom,size,overlay,display_object,code_copy_closures}.init()
     }
 
@@ -170,7 +168,7 @@ impl Model {
         let code_blocks  = self.dom.dom().get_elements_by_class_name(CODE_BLOCK_CLASS);
         let copy_buttons = self.dom.dom().get_elements_by_class_name(COPY_BUTTON_CLASS);
         let closures     = (0..copy_buttons.length()).map(|i| -> Result<CodeCopyClosure,u32> {
-            let f = || -> Option<CodeCopyClosure> {
+            let create_closures = || -> Option<CodeCopyClosure> {
                 let copy_button = copy_buttons.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
                 let code_block  = code_blocks.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
                 let closure     = Box::new(move |_event: MouseEvent| {
@@ -187,11 +185,11 @@ impl Model {
                     },
                 }
             };
-            f().ok_or(i)
+            create_closures().ok_or(i)
         });
         let (closures,errors) : (Vec<_>,Vec<_>) = closures.partition(Result::is_ok);
-        let ok_closures = closures.into_iter().filter_map(|t| t.ok()).collect::<Vec<CodeCopyClosure>>();
-        let err_indices = errors.into_iter().filter_map(|t| t.err()).collect::<Vec<u32>>();
+        let ok_closures = closures.into_iter().filter_map(|t| t.ok()).collect_vec();
+        let err_indices = errors.into_iter().filter_map(|t| t.err()).collect_vec();
         if !err_indices.is_empty() {
             error!(&self.logger, "Failed to attach listeners to copy buttons with indices: {err_indices:?}.")
         }
@@ -217,8 +215,8 @@ impl Model {
 
     fn display_doc(&self, content:&str, content_type: InputFormat) {
         let html = match Model::gen_html_from(content,content_type) {
-            Ok(html)               => html,
-            Err(err)               => {
+            Ok(html) => html,
+            Err(err) => {
                 error!(self.logger, "Documentation parsing error: {err:?}");
                 PLACEHOLDER_STR.into()
             }
