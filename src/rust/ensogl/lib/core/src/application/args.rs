@@ -91,19 +91,11 @@ impl ArgReader for bool {
 /// The following structs will be generated (some functions omitted for clarity):
 ///
 /// ```
-/// #[derive(Clone,Copy,Debug)]
-/// pub struct ArgNames {
-///     entry      : &'static str,
-///     project    : &'static str,
-///     dark_theme : &'static str,
-/// }
-///
 /// #[derive(Clone, Debug, Default)]
 /// pub struct Args {
-///     __names__  : ArgNames,
-///     entry      : Option<String>,
-///     project    : Option<String>,
-///     dark_theme : Option<bool>,
+///     pub entry      : Option<String>,
+///     pub project    : Option<String>,
+///     pub dark_theme : Option<bool>,
 /// }
 ///
 /// lazy_static! {
@@ -122,23 +114,22 @@ macro_rules! read_args {
     (js::$($path:ident).* { $($field:ident : $field_type:ty),* $(,)? }) => {
 
         /// Reflection mechanism containing string representation of option names.
-        #[derive(Clone,Copy,Debug)]
-        pub struct ArgNames {
-            $($field : &'static str),*
-        }
-
-        impl Default for ArgNames {
-            fn default() -> Self {
-                $(let $field = stringify!{$field};)*
-                Self {$($field),*}
-            }
+        #[derive(Clone,Copy,Debug,Default)]
+        pub struct ArgNames;
+        impl ArgNames {
+            $(
+                /// Name of the field.
+                pub fn $field(&self) -> &'static str {
+                    stringify!{$field}
+                }
+            )*
         }
 
         /// The structure containing application configs.
         #[derive(Clone,Debug,Default)]
+        #[allow(missing_docs)]
         pub struct Args {
-            __names__ : ArgNames,
-            $($field : Option<$field_type>),*
+            $(pub $field : Option<$field_type>),*
         }
 
         impl Args {
@@ -154,7 +145,6 @@ macro_rules! read_args {
                         default()
                     }
                     Some(cfg) => {
-                        let __names__ = default();
                         let keys      = web::object_keys(&cfg);
                         let mut keys  = keys.into_iter().collect::<HashSet<String>>();
                         $(
@@ -172,7 +162,7 @@ macro_rules! read_args {
                         for key in keys {
                             warning!(&logger,"Unknown config option provided '{key}'.");
                         }
-                        Self {__names__,$($field),*}
+                        Self {$($field),*}
                     }
                 }
             }
@@ -183,9 +173,7 @@ macro_rules! read_args {
             pub fn init(&self) {}
 
             /// Reflection mechanism to get string representation of argument names.
-            pub fn names(&self) -> &ArgNames {
-                &self.__names__
-            }
+            pub fn names(&self) -> ArgNames { ArgNames }
         }
 
         lazy_static! {

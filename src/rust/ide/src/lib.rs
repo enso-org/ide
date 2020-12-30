@@ -26,9 +26,6 @@
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 
-#![feature(specialization)]
-#![feature(overlapping_marker_traits)]
-
 pub mod config;
 pub mod constants;
 pub mod controller;

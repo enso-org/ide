@@ -4,32 +4,8 @@ use crate::prelude::*;
 use crate::constants;
 
 use enso_protocol::project_manager::ProjectName;
-use ensogl::system::web;
-
-
-
-// ============
-// === Args ===
-// ============
-
-// Please note that the path at which the config is accessible (`enso.config`) is hardcoded below.
-// This needs to be synchronised with the `src/config.yaml` configuration file. In the future, we
-// could write a procedural macro, which loads the configuration and splits Rust variables from it
-// during compilation time. This is not possible by using macro rules, as there is no way to plug in
-// the output of `include_str!` macro to another macro input.
-ensogl::read_args! {
-    js::enso.config {
-        entry                : String,
-        project              : ProjectName,
-        project_manager      : String,
-        language_server_rpc  : String,
-        language_server_data : String,
-        platform             : web::platform::Platform,
-        frame                : bool,
-        dark_theme           : bool,
-        high_contrast        : bool,
-    }
-}
+use enso_args::Args;
+use enso_args::ARGS;
 
 
 
@@ -77,24 +53,24 @@ impl Default for BackendService {
 impl BackendService {
     /// Read backend configuration from the web arguments. See also [`web::Arguments`]
     /// documentation.
-    pub fn from_web_arguments(config:&Args) -> FallibleResult<Self> {
-        if let Some(endpoint) = &config.project_manager {
-            if config.language_server_rpc.is_some() || config.language_server_data.is_some() {
+    pub fn from_web_arguments(args:&Args) -> FallibleResult<Self> {
+        if let Some(endpoint) = &args.project_manager {
+            if args.language_server_rpc.is_some() || args.language_server_data.is_some() {
                 Err(MutuallyExclusiveOptions.into())
             } else {
                 let endpoint = endpoint.clone();
                 Ok(Self::ProjectManager {endpoint})
             }
         } else {
-            match (&config.language_server_rpc,&config.language_server_data) {
+            match (&args.language_server_rpc,&args.language_server_data) {
                 (Some(json_endpoint),Some(binary_endpoint)) => {
                     let json_endpoint   = json_endpoint.clone();
                     let binary_endpoint = binary_endpoint.clone();
                     Ok(Self::LanguageServer {json_endpoint,binary_endpoint})
                 }
                 (None,None)    => Ok(default()),
-                (Some(_),None) => Err(MissingOption(config.names().language_server_data).into()),
-                (None,Some(_)) => Err(MissingOption(config.names().language_server_rpc).into())
+                (Some(_),None) => Err(MissingOption(args.names().language_server_data()).into()),
+                (None,Some(_)) => Err(MissingOption(args.names().language_server_rpc()).into())
             }
         }
     }
@@ -128,7 +104,7 @@ impl Startup {
     /// Read configuration from the web arguments. See also [`web::Arguments`] documentation.
     pub fn from_web_arguments() -> FallibleResult<Startup> {
         let backend      = BackendService::from_web_arguments(&ARGS)?;
-        let project_name = ARGS.project.clone().unwrap_or_else(||
+        let project_name = ARGS.project.clone().map(|t|t.into()).unwrap_or_else(||
             ProjectName::new(constants::DEFAULT_PROJECT_NAME)
         );
         Ok(Startup{backend,project_name})
