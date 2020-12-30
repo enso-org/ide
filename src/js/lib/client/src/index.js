@@ -1,6 +1,7 @@
 'use strict'
 
 import cfg from '../../../config'
+import * as assert    from 'assert'
 import * as buildCfg  from '../../../../../dist/build.json'
 import * as Electron  from 'electron'
 import * as isDev     from 'electron-is-dev'
@@ -9,7 +10,14 @@ import * as path      from 'path'
 import * as pkg       from '../package.json'
 import * as rootCfg   from '../../../package.json'
 import * as Server    from 'enso-studio-common/src/server'
+import * as util      from 'util'
 import * as yargs     from 'yargs'
+
+import paths from '../../../../../build/paths'
+
+const child_process = require('child_process')
+const fss = require('fs')
+
 
 
 // FIXME default options parsed wrong
@@ -23,6 +31,18 @@ let windowCfg = {
     width  : 640,
     height : 640,
 }
+
+
+
+// =============
+// === Utils ===
+// =============
+
+function capitalizeFirstLetter(string) {
+  return string.charAt(0).toUpperCase() + string.slice(1)
+}
+
+const execFile = util.promisify(child_process.execFile);
 
 
 
@@ -74,15 +94,24 @@ optParser.options('background-throttling', {
     describe : 'Throttle animations when run in background [false]',
 })
 
+optParser.options('backend', {
+    group    : configOptionsGroup,
+    describe : 'Start the backend process automatically [true]',
+})
+
+optParser.options('backend-path', {
+    group    : configOptionsGroup,
+    describe : 'Set the path of a local project manager to use for running projects',
+})
 
 // === Debug Options ===
 
 let debugOptionsGroup = 'Debug Options:'
 
-optParser.options('debug-scene', {
+optParser.options('entry-point', {
     group       : debugOptionsGroup,
-    describe    : 'Run the debug scene instead of the main app',
-    requiresArg : true
+    describe    : 'Run an alternative entry point (e.g. one of the debug scenes)',
+//    requiresArg : true
 })
 
 optParser.options('dev', {
@@ -103,7 +132,7 @@ let styleOptionsGroup = 'Style Options:'
 optParser.options('frame', {
     group       : styleOptionsGroup,
     describe    : 'Draw window frame',
-    default     : true,
+    default     : false,
     type        : `boolean`
 })
 
@@ -167,7 +196,7 @@ if (args.windowSize) {
 // ==================
 
 let versionInfo = {
-    core: rootCfg.version,
+    version: rootCfg.version,
     build: buildCfg.buildVersion,
     electron: process.versions.electron,
     chrome: process.versions.chrome,
@@ -278,6 +307,37 @@ Electron.app.on('web-contents-created', (event,contents) => {
 
 
 
+// =======================
+// === Project Manager ===
+// =======================
+
+async function withBackend(opts) {
+    let binPath = args['backend-path']
+    if (!binPath) {
+        binPath = paths.get_project_manager_path(root)
+    }
+    let binExists = fss.existsSync(binPath)
+    assert(binExists, `Could not find the project manager binary at ${binPath}.`)
+
+    let out = await execFile(binPath,opts).catch(function(err) {throw err})
+    return out
+}
+
+function runBackend() {
+    if(args.backend !== false) {
+        console.log("Starting the backend process.")
+        withBackend()
+    }
+}
+
+async function backendVersion() {
+    if(args.backend !== false) {
+        return await withBackend(['--version']).then((t) => t.stdout)
+    }
+}
+
+
+
 // ============
 // === Main ===
 // ============
@@ -289,6 +349,8 @@ let server     = null
 let mainWindow = null
 
 async function main() {
+    runBackend()
+    console.log("Starting the IDE.")
     if(args.server !== false) {
         let serverCfg      = Object.assign({},args)
         serverCfg.dir      = root
@@ -313,9 +375,7 @@ function urlParamsFromObject(obj) {
     let params = []
     for (let key in obj) {
         let val = obj[key]
-        if      (val === false) {}
-        else if (val === true)  { params.push(key) }
-        else                    { params.push(`${key}=${val}`) }
+        params.push(`${key}=${val}`)
     }
     return params.join("&")
 }
@@ -327,7 +387,7 @@ function createWindow() {
         webPreferences       : webPreferences,
         width                : windowCfg.width,
         height               : windowCfg.height,
-        frame                : true,
+        frame                : args.frame,
         devTools             : false,
         sandbox              : true,
         backgroundThrottling : false,
@@ -339,8 +399,7 @@ function createWindow() {
         windowPreferences.devTools = true
     }
 
-    if (args.frame === false) {
-        windowPreferences.frame         = false
+    if (args.frame === false && process.platform === 'darwin') {
         windowPreferences.titleBarStyle = 'hiddenInset'
     }
 
@@ -361,22 +420,19 @@ function createWindow() {
     }
 
     let urlCfg = {
-        desktop      : true,
-        dark         : Electron.nativeTheme.shouldUseDarkColors,
-        highContrast : Electron.nativeTheme.shouldUseHighContrastColors,
+        platform        : process.platform,
+        frame           : args.frame,
+        dark_theme      : Electron.nativeTheme.shouldUseDarkColors,
+        high_contrast   : Electron.nativeTheme.shouldUseHighContrastColors,
+        crashReportHost : args.crashReportHost,
     }
 
-    if (args.project) {
-        urlCfg.project = args.project;
-    }
-    urlCfg.crashReportHost = args.crashReportHost
+    if (args.project)    { urlCfg.project = args.project }
+    if (args.entryPoint) { urlCfg.entry   = args.entryPoint }
 
-    let params      = urlParamsFromObject(urlCfg)
-    let targetScene = ""
-    if (args.debugScene) {
-        targetScene = `debug/${args.debugScene}`
-    }
-    let address = `${origin}/${targetScene}?${params}`
+    let params  = urlParamsFromObject(urlCfg)
+    let address = `${origin}?${params}`
+
     console.log(`Loading the window address ${address}`)
     window.loadURL(address)
     return window
@@ -409,11 +465,34 @@ Electron.app.on('activate', () => {
 
 Electron.app.on('ready', () => {
     if (args.version) {
-        console.log(`core     : ${versionInfo.core}`)
-        console.log(`build    : ${versionInfo.build}`)
-        console.log(`electron : ${versionInfo.electron}`)
-        console.log(`chrome   : ${versionInfo.chrome}`)
-        process.exit();
+        let indent     = ' '.repeat(4)
+        let maxNameLen = 0
+        for (let name in versionInfo) {
+            if (name.length > maxNameLen) {
+                maxNameLen = name.length
+            }
+        }
+
+        console.log("Frontend:")
+        for (let name in versionInfo) {
+            let label   = capitalizeFirstLetter(name)
+            let spacing = ' '.repeat(maxNameLen - name.length)
+            console.log(`${indent}${label}:${spacing} ${versionInfo[name]}`)
+        }
+
+        console.log("")
+        console.log("Backend:")
+        backendVersion().then((backend) => {
+            if (!backend) {
+                console.log(`${indent}No backend available.`)
+            } else {
+                let lines = backend.split(/\r?\n/)
+                for (let line of lines) {
+                    console.log(`${indent}${line}`)
+                }
+            }
+            process.exit()
+        })
     } else if (args.info) {
         printDebugInfo()
     } else {
@@ -432,12 +511,36 @@ if (process.platform === 'darwin') {
 
 
 
+// =================
+// === Shortcuts ===
+// =================
+
+Electron.app.on('web-contents-created', (webContentsCreatedEvent, webContents) => {
+    webContents.on('before-input-event', (beforeInputEvent, input) => {
+        const {code,alt,ctrl,shift,meta} = input
+        if (ctrl && alt && shift && !meta && code === 'KeyI') {
+            Electron.BrowserWindow.getFocusedWindow().webContents.toggleDevTools({mode:'detach'})
+        }
+        if (ctrl && alt && shift && !meta && code === 'KeyR') {
+            Electron.BrowserWindow.getFocusedWindow().reload()
+        }
+
+        let cmd_q       =  meta && !ctrl && !alt && !shift && code === 'KeyQ'
+        let alt_f4      = !meta && !ctrl &&  alt && !shift && code === 'F4'
+        let ctrl_w      = !meta &&  ctrl && !alt && !shift && code === 'KeyW'
+        let quit_on_mac = process.platform == 'darwin' && (cmd_q || alt_f4)
+        let quit_on_win = process.platform == 'win32'  && (alt_f4 || ctrl_w)
+        let quit_on_lin = process.platform == 'linux'  && (alt_f4 || ctrl_q || ctrl_w)
+        let quit        = quit_on_mac || quit_on_win || quit_on_lin
+        if (quit) { Electron.app.quit() }
+    })
+})
+
+
+
 // =============================
 // === Deprecations & Fixmes ===
 // =============================
-
-/// FIXME: Will not be needed in Electron 9 anymore.
-Electron.app.allowRendererProcessReuse = true
 
 // FIXME Enable Metal backend on MacOS https://github.com/electron/electron/issues/22465
 
