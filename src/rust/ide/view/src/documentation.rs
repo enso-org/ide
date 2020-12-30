@@ -142,9 +142,7 @@ impl Model {
             Ok(PLACEHOLDER_STR.into())
         } else {
             let parser    = parser::DocParser::new()?;
-            // FIXME [MM]:  Removes characters that are not supported by Doc Parser yet.
-            //              https://github.com/enso-org/enso/issues/1063
-            let processed = string.replace("\\n", "\n").replace("\"", "");
+            let processed = string.to_string();
             let output = match input_type {
                 InputFormat::AST       => parser.generate_html_docs(processed),
                 InputFormat::Docstring => parser.generate_html_doc_pure(processed),
