@@ -495,6 +495,33 @@ if (process.platform === 'darwin') {
 
 
 
+// =================
+// === Shortcuts ===
+// =================
+
+Electron.app.on('web-contents-created', (webContentsCreatedEvent, webContents) => {
+    webContents.on('before-input-event', (beforeInputEvent, input) => {
+        const {code,alt,ctrl,shift,meta} = input
+        if (ctrl && alt && shift && !meta && code === 'KeyI') {
+            Electron.BrowserWindow.getFocusedWindow().webContents.toggleDevTools({mode:'detach'})
+        }
+        if (ctrl && alt && shift && !meta && code === 'KeyR') {
+            Electron.BrowserWindow.getFocusedWindow().reload()
+        }
+
+        let cmd_q       =  meta && !ctrl && !alt && !shift && code === 'KeyQ'
+        let alt_f4      = !meta && !ctrl &&  alt && !shift && code === 'F4'
+        let ctrl_w      = !meta &&  ctrl && !alt && !shift && code === 'KeyW'
+        let quit_on_mac = process.platform == 'darwin' && (cmd_q || alt_f4)
+        let quit_on_win = process.platform == 'win32'  && (alt_f4 || ctrl_w)
+        let quit_on_lin = process.platform == 'linux'  && (alt_f4 || ctrl_q || ctrl_w)
+        let quit        = quit_on_mac || quit_on_win || quit_on_lin
+        if (quit) { Electron.app.quit() }
+    })
+})
+
+
+
 // =============================
 // === Deprecations & Fixmes ===
 // =============================
