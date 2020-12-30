@@ -165,8 +165,6 @@ function parseCmdArgs() {
 }
 
 let args = parseCmdArgs()
-console.log(">>>>> ARGS")
-console.log(args)
 
 if (args.windowSize) {
     let size   = args.windowSize.split('x')
@@ -363,9 +361,6 @@ function urlParamsFromObject(obj) {
     for (let key in obj) {
         let val = obj[key]
         params.push(`${key}=${val}`)
-//        if      (val === false) {}
-//        else if (val === true)  { params.push(key) }
-//        else                    { params.push(`${key}=${val}`) }
     }
     return params.join("&")
 }

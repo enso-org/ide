@@ -40,10 +40,11 @@ impl TryFrom<&str> for Platform {
     #[allow(clippy::if_same_then_else)]
     fn try_from(s:&str) -> Result<Self,Self::Error> {
         let name = s.to_lowercase();
-        if      name.find("win").is_some()     { Ok(Windows) }
-        else if name.find("darwin").is_some()  { Ok(MacOS) }
+        if      name.find("darwin").is_some()  { Ok(MacOS) }
         else if name.find("mac").is_some()     { Ok(MacOS) }
         else if name.find("linux").is_some()   { Ok(Linux) }
+        // CAREFUL: this matches also "darwin" (that's why its declared below):
+        else if name.find("win").is_some()     { Ok(Windows) }
         else if name.find("ios").is_some()     { Ok(IOS) }
         else if name.find("iphone").is_some()  { Ok(IOS) }
         else if name.find("ipad").is_some()    { Ok(IOS) }
@@ -94,7 +95,7 @@ pub fn current_wasm() -> Option<Platform> {
     let navigator = window.navigator();
     let platform  = navigator.platform().unwrap_or_default().to_lowercase();
     let agent     = navigator.user_agent().unwrap_or_default().to_lowercase();
-    Platform::try_from(platform).or_else(||Platform::try_from(agent)).ok()
+    Platform::try_from(platform).or_else(|_|Platform::try_from(agent)).ok()
 }
 
 

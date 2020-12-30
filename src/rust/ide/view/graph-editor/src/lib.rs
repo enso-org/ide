@@ -1217,9 +1217,11 @@ impl GraphEditorModel {
 
     fn init(self) -> Self {
         self.add_child(&self.breadcrumbs);
+        println!("!!!! {:?}",*ARGS);
         let is_macos     = ARGS.platform.map(|p|p.is_macos()) == Some(true);
         let is_frameless = ARGS.frame == Some(false);
-        let x_offset     = if is_macos && is_frameless { MACOS_TRAFFIC_LIGHTS_WIDTH } else { 8.0 };
+        let x_offset     = if is_macos && is_frameless { MACOS_TRAFFIC_LIGHTS_WIDTH }
+                           else                        { MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET };
         self.breadcrumbs.set_position_x(x_offset);
         self.breadcrumbs.set_position_y(-5.0);
         self

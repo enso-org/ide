@@ -91,7 +91,7 @@ impl ArgReader for bool {
 /// The following structs will be generated (some functions omitted for clarity):
 ///
 /// ```
-/// #[derive(Clone, Debug, Default)]
+/// #[derive(Clone,Debug,Default)]
 /// pub struct Args {
 ///     pub entry      : Option<String>,
 ///     pub project    : Option<String>,
