@@ -64,9 +64,6 @@ impl MouseTarget for ShapeViewEvents {
 // === ShapeView ===
 // =================
 
-/// Automatically managed view of a `Shape`. The view is initially empty and is filled with a
-/// reference to an existing `Shape` as soon as it is placed on the scene and the scene is updated.
-/// As soon as it is removed from the scene, the shape is freed.
 #[derive(Clone,CloneRef,Debug)]
 #[clone_ref(bound="S:CloneRef")]
 #[allow(missing_docs)]
