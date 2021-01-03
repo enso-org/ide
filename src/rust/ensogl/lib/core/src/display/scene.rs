@@ -67,7 +67,7 @@ pub struct ShapeRegistryData {
 impl {
     fn get<T:ShapeSystemInstance>(&self) -> Option<T> {
         let id = TypeId::of::<T>();
-        self.shape_system_map.get(&id).and_then(|any| any.downcast_ref::<T>()).map(|t| t.clone_ref())
+        self.shape_system_map.get(&id).and_then(|t| t.downcast_ref::<T>()).map(|t| t.clone_ref())
     }
 
     fn register<T:ShapeSystemInstance>(&mut self) -> T {
@@ -142,7 +142,7 @@ impl PointerTarget {
     /// Encode two u32 values into three u8 values.
     ///
     /// This is the same encoding that is used in the `fragment_runner`. This encoding is lossy and
-    /// can only encode values up to 12^2=4096 each
+    /// can only encode values up to 4096 (2^12) each.
     ///
     /// We use 12 bits from each value and pack them into the 3 output bytes like described in the
     /// following diagram.
@@ -154,7 +154,7 @@ impl PointerTarget {
     ///   +-----+-----+-----+-----+           +-----+-----+-----+-----+
     ///   |     |     |     |     |           |     |     |     |     |
     ///   +-----+-----+-----+-----+           +-----+-----+-----+-----+
-    /// 32    24    16     8      0         32    24    16     8      0   <- Bit index
+    ///  32    24    16     8     0          32    24    16     8     0   <- Bit index
     ///
     ///
     /// Output

@@ -104,7 +104,7 @@ shared! { Mesh
 /// Each scope can contain named attributes which can be accessed from within materials. If the same
 /// name was defined in various scopes, it gets resolved to the var defined in the most specific
 /// scope. For example, if var 'color' was defined in both 'instance' and 'point' scope, the 'point'
-/// definition overlapps the other one.
+/// definition overlaps the other one.
 #[derive(Debug)]
 pub struct MeshData {
     scopes       : Scopes,
