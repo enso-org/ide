@@ -65,7 +65,7 @@ jobs:
         shell: bash
         run: |
           ref=${{ github.ref }}
-          refversion=${ref#"refs/tags/enso-"}
+          refversion=${ref#"refs/tags/ide-"}
           echo "DIST_VERSION=$refversion" >> $GITHUB_ENV
 
       - name: Extract ASAR file
