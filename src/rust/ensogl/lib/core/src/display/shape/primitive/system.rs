@@ -12,6 +12,7 @@ use crate::display::symbol::geometry::SpriteSystem;
 use crate::display::symbol::material::Material;
 use crate::display::symbol::material;
 use crate::display;
+use crate::system::gpu::data::attribute::AttributeInstanceIndex;
 use crate::system::gpu::data::buffer::item::Storable;
 use crate::system::gpu::types::*;
 
@@ -134,7 +135,9 @@ pub trait DynShapeSystemInstance : 'static + CloneRef {
     /// Constructor.
     fn new(scene:&Scene) -> Self;
     /// New shape constructor.
-    fn instantiate(&self, shape:&Self::DynShape);
+    fn instantiate(&self, shape:&Self::DynShape) -> AttributeInstanceIndex;
+
+    fn shape_system(&self) -> &ShapeSystem;
 }
 
 
@@ -153,9 +156,15 @@ pub trait Shape : display::Object + CloneRef + Debug + Sized {
 }
 
 
-pub trait DynShape : display::Object + CloneRef + Debug + Sized + Default {
+pub trait DynShape : display::Object + CloneRef + Debug + Sized {
     /// The shape system instance this shape belongs to.
     type System : DynShapeSystemInstance<DynShape=Self>;
+
+    /// Constructor.
+    fn new(logger:impl AnyLogger) -> Self;
+
+    /// Accessor for the underlying sprite, if the shape is initialized.
+    fn sprite(&self) -> Option<Sprite>;
 }
 
 
@@ -302,15 +311,6 @@ macro_rules! _define_shape_system {
         }
 
         impl DynShape {
-            /// Constructor.
-            pub fn new() -> Self {
-                let logger : Logger = Logger::new("dyn_shape");
-                let display_object  = $crate::display::object::Instance::new(&logger);
-                let shape           = default();
-                let params          = default();
-                Self {display_object,shape,params}
-            }
-
             /// Set the dynamic shape binding.
             pub fn set_shape_binding(&self, shape:Option<Shape>) {
                 if let Some(current_shape) = &*self.shape.borrow() {
@@ -328,14 +328,20 @@ macro_rules! _define_shape_system {
             }
         }
 
-        impl Default for DynShape {
-            fn default() -> Self {
-                Self::new()
-            }
-        }
-
         impl $crate::display::shape::system::DynShape for DynShape {
             type System = ShapeSystem;
+
+            fn new(logger:impl AnyLogger) -> Self {
+                let logger : Logger = Logger::sub(&logger,"dyn_shape");
+                let display_object  = $crate::display::object::Instance::new(&logger);
+                let shape           = default();
+                let params          = default();
+                Self {display_object,shape,params}
+            }
+
+            fn sprite(&self) -> Option<$crate::display::symbol::geometry::Sprite> {
+                self.shape.borrow().as_ref().map(|t|t.sprite.clone_ref())
+            }
         }
 
         impl $crate::display::Object for DynShape {
@@ -396,12 +402,18 @@ macro_rules! _define_shape_system {
                 Self {shape_system,style_manager,$($gpu_param),*} . init_refresh_on_style_change()
             }
 
-            fn instantiate(&self, dyn_shape:&Self::DynShape) {
+            fn instantiate(&self, dyn_shape:&Self::DynShape)
+            -> $crate::system::gpu::data::attribute::AttributeInstanceIndex {
                 let sprite = self.shape_system.new_instance();
                 let id     = sprite.instance_id;
                 $(let $gpu_param = self.$gpu_param.at(id);)*
                 let shape = Shape {sprite, $($gpu_param),*};
                 dyn_shape.set_shape_binding(Some(shape));
+                id
+            }
+
+            fn shape_system(&self) -> &$crate::display::shape::ShapeSystem {
+                &self.shape_system
             }
         }
 

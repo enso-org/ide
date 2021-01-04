@@ -59,6 +59,12 @@ impl MouseTarget for ShapeViewEvents {
     fn mouse_out  (&self) -> &frp::Source { &self.mouse_out  }
 }
 
+impl Default for ShapeViewEvents {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 
 
 // =================
@@ -212,52 +218,51 @@ impl<S:DynShape> Deref for ShapeView2<S> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug,Default)]
 #[allow(missing_docs)]
 pub struct ShapeViewModel2<S:DynShape> {
-    // pub registry       : ShapeRegistry,
-    pub shape          : S,
-    // pub display_object : display::object::Instance,
-    pub events         : ShapeViewEvents,
+    pub shape    : S,
+    pub events   : ShapeViewEvents,
+    pub registry : Rc<RefCell<Option<ShapeRegistry>>>,
 }
 
 impl<S:DynShape> Drop for ShapeViewModel2<S> {
     fn drop(&mut self) {
-        // let shape       = self.shape.borrow();
-        // let sprite      = shape.sprite();
-        // let symbol_id   = sprite.symbol_id();
-        // let instance_id = *sprite.instance_id;
-        // self.registry.remove_mouse_target(symbol_id,instance_id);
-        // self.events.on_drop.emit(());
+        self.unregister_existing_mouse_target();
     }
 }
 
 impl<S:DynShape> ShapeView2<S> {
     /// Constructor.
-    pub fn new(_logger:impl AnyLogger) -> Self {
-        // let logger         = Logger::sub(logger,"shape_view");
-        // let display_object = display::object::Instance::new(logger);
-        // let registry       = scene.shapes.clone_ref();
-        // let shape          = registry.new_instance::<S>();
-        let events         = ShapeViewEvents::new();
-        // display_object.add_child(&shape);
-        //
-        // let sprite      = shape.sprite();
-        // let events2     = events.clone_ref();
-        // let symbol_id   = sprite.symbol_id();
-        // let instance_id = *sprite.instance_id;
-        // registry.insert_mouse_target(symbol_id,instance_id,events2);
-        //
-        // let shape = RefCell::new(shape);
-
-        let shape = default();
-
-        let model = Rc::new(ShapeViewModel2 {shape,events});
+    pub fn new(logger:impl AnyLogger) -> Self {
+        let model = Rc::new(ShapeViewModel2::new(logger));
         Self {model}
+    }
+}
+
+impl<S:DynShape> ShapeViewModel2<S> {
+    /// Constructor.
+    pub fn new(logger:impl AnyLogger) -> Self {
+        let shape    = S::new(logger);
+        let events   = ShapeViewEvents::new();
+        let registry = default();
+        ShapeViewModel2 {shape,events,registry}
     }
 
     pub fn switch_registry(&self, registry:&ShapeRegistry) {
-        registry.instantiate_dyn(&self.shape);
+        self.unregister_existing_mouse_target();
+        let (symbol_id,instance_id) = registry.instantiate_dyn(&self.shape);
+        registry.insert_mouse_target(symbol_id,*instance_id,self.events.clone_ref());
+        *self.registry.borrow_mut() = Some(registry.clone_ref());
+    }
+
+    fn unregister_existing_mouse_target(&self) {
+        if let (Some(registry),Some(sprite)) = (&*self.registry.borrow(),&self.shape.sprite()) {
+            let symbol_id   = sprite.symbol_id();
+            let instance_id = *sprite.instance_id;
+            registry.remove_mouse_target(symbol_id,instance_id);
+            self.events.on_drop.emit(());
+        }
     }
 }
 

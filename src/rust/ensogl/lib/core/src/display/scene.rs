@@ -20,16 +20,17 @@ use crate::display::camera::Camera2d;
 use crate::display::render::RenderComposer;
 use crate::display::render::RenderPipeline;
 use crate::display::scene::dom::DomScene;
-use crate::display::shape::ShapeSystemInstance;
 use crate::display::shape::DynShapeSystemInstance;
-use crate::display::shape::system::ShapeSystemOf;
+use crate::display::shape::ShapeSystemInstance;
 use crate::display::shape::system::DynShapeSystemOf;
+use crate::display::shape::system::ShapeSystemOf;
 use crate::display::style::data::DataMatch;
 use crate::display::style;
 use crate::display::symbol::Symbol;
 use crate::display::symbol::registry::SymbolRegistry;
 use crate::display;
 use crate::gui::component;
+use crate::system::gpu::data::attribute::AttributeInstanceIndex;
 use crate::system::gpu::data::uniform::Uniform;
 use crate::system::gpu::data::uniform::UniformScope;
 use crate::system::gpu::shader::Context;
@@ -111,9 +112,12 @@ impl {
         system.new_instance()
     }
 
-    pub fn instantiate_dyn<T:display::shape::system::DynShape>(&mut self,shape:&T) {
-        let system = self.get_or_register_dyn::<DynShapeSystemOf<T>>();
-        system.instantiate(shape);
+    pub fn instantiate_dyn<T:display::shape::system::DynShape>(&mut self,shape:&T)
+    -> (i32,AttributeInstanceIndex) {
+        let system      = self.get_or_register_dyn::<DynShapeSystemOf<T>>();
+        let instance_id = system.instantiate(shape);
+        let symbol_id   = system.shape_system().sprite_system.symbol.id;
+        (symbol_id,instance_id)
     }
 
     pub fn insert_mouse_target<T:MouseTarget>(&mut self, symbol_id:i32, instance_id:usize, target:T) {
