@@ -11,6 +11,7 @@ use crate::display::scene::MouseTarget;
 use crate::display::scene::Scene;
 use crate::display::scene::ShapeRegistry;
 use crate::display::shape::primitive::system::Shape;
+use crate::display::shape::primitive::system::DynShape;
 use crate::display;
 
 use enso_frp as frp;
@@ -89,11 +90,10 @@ pub struct ShapeViewModel<S:Shape> {
 
 impl<S:Shape> Drop for ShapeViewModel<S> {
     fn drop(&mut self) {
-        for sprite in self.shape.sprites() {
-            let symbol_id   = sprite.symbol_id();
-            let instance_id = *sprite.instance_id;
-            self.registry.remove_mouse_target(symbol_id,instance_id);
-        }
+        let sprite      = self.shape.sprite();
+        let symbol_id   = sprite.symbol_id();
+        let instance_id = *sprite.instance_id;
+        self.registry.remove_mouse_target(symbol_id,instance_id);
         self.events.on_drop.emit(());
     }
 }
@@ -119,12 +119,12 @@ impl<S:Shape> ShapeView<S> {
         let shape          = registry.new_instance::<S>();
         let events         = ShapeViewEvents::new();
         display_object.add_child(&shape);
-        for sprite in shape.sprites() {
-            let events      = events.clone_ref();
-            let symbol_id   = sprite.symbol_id();
-            let instance_id = *sprite.instance_id;
-            registry.insert_mouse_target(symbol_id,instance_id,events);
-        }
+
+        let sprite      = shape.sprite();
+        let events2     = events.clone_ref();
+        let symbol_id   = sprite.symbol_id();
+        let instance_id = *sprite.instance_id;
+        registry.insert_mouse_target(symbol_id,instance_id,events2);
 
         let model = Rc::new(ShapeViewModel {registry,display_object,events,shape});
         Self {model}
@@ -191,3 +191,78 @@ impl<T:Shape> display::Object for ShapeView<T> {
 //    type Shape : Shape;
 ////    fn new(shape:&Self::Shape, scene:&Scene, shape_registry:&ShapeRegistry) -> Self;
 //}
+
+
+
+// ==================
+// === ShapeView2 ===
+// ==================
+
+#[derive(Clone,CloneRef,Debug)]
+#[clone_ref(bound="S:CloneRef")]
+#[allow(missing_docs)]
+pub struct ShapeView2<S:DynShape> {
+    model : Rc<ShapeViewModel2<S>>
+}
+
+impl<S:DynShape> Deref for ShapeView2<S> {
+    type Target = Rc<ShapeViewModel2<S>>;
+    fn deref(&self) -> &Self::Target {
+        &self.model
+    }
+}
+
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub struct ShapeViewModel2<S:DynShape> {
+    // pub registry       : ShapeRegistry,
+    pub shape          : S,
+    // pub display_object : display::object::Instance,
+    // pub events         : ShapeViewEvents,
+}
+
+impl<S:DynShape> Drop for ShapeViewModel2<S> {
+    fn drop(&mut self) {
+        // let shape       = self.shape.borrow();
+        // let sprite      = shape.sprite();
+        // let symbol_id   = sprite.symbol_id();
+        // let instance_id = *sprite.instance_id;
+        // self.registry.remove_mouse_target(symbol_id,instance_id);
+        // self.events.on_drop.emit(());
+    }
+}
+
+impl<S:DynShape> ShapeView2<S> {
+    /// Constructor.
+    pub fn new(logger:impl AnyLogger) -> Self {
+        // let logger         = Logger::sub(logger,"shape_view");
+        // let display_object = display::object::Instance::new(logger);
+        // let registry       = scene.shapes.clone_ref();
+        // let shape          = registry.new_instance::<S>();
+        // let events         = ShapeViewEvents::new();
+        // display_object.add_child(&shape);
+        //
+        // let sprite      = shape.sprite();
+        // let events2     = events.clone_ref();
+        // let symbol_id   = sprite.symbol_id();
+        // let instance_id = *sprite.instance_id;
+        // registry.insert_mouse_target(symbol_id,instance_id,events2);
+        //
+        // let shape = RefCell::new(shape);
+
+        let shape = default();
+
+        let model = Rc::new(ShapeViewModel2 {shape});
+        Self {model}
+    }
+
+    pub fn switch_registry(&self, registry:&ShapeRegistry) {
+        registry.instantiate_dyn(&self.shape);
+    }
+}
+
+impl<T:DynShape> display::Object for ShapeView2<T> {
+    fn display_object(&self) -> &display::object::Instance {
+        self.shape.display_object()
+    }
+}

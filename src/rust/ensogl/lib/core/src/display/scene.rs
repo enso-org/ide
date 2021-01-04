@@ -21,7 +21,9 @@ use crate::display::render::RenderComposer;
 use crate::display::render::RenderPipeline;
 use crate::display::scene::dom::DomScene;
 use crate::display::shape::ShapeSystemInstance;
+use crate::display::shape::DynShapeSystemInstance;
 use crate::display::shape::system::ShapeSystemOf;
+use crate::display::shape::system::DynShapeSystemOf;
 use crate::display::style::data::DataMatch;
 use crate::display::style;
 use crate::display::symbol::Symbol;
@@ -59,15 +61,21 @@ pub trait MouseTarget : Debug + 'static {
 shared! { ShapeRegistry
 #[derive(Debug,Default)]
 pub struct ShapeRegistryData {
-    scene            : Option<Scene>,
-    shape_system_map : HashMap<TypeId,Box<dyn Any>>,
-    mouse_target_map : HashMap<(i32,usize),Rc<dyn MouseTarget>>,
+    scene                : Option<Scene>,
+    shape_system_map     : HashMap<TypeId,Box<dyn Any>>,
+    dyn_shape_system_map : HashMap<TypeId,Box<dyn Any>>,
+    mouse_target_map     : HashMap<(i32,usize),Rc<dyn MouseTarget>>,
 }
 
 impl {
     fn get<T:ShapeSystemInstance>(&self) -> Option<T> {
         let id = TypeId::of::<T>();
         self.shape_system_map.get(&id).and_then(|t| t.downcast_ref::<T>()).map(|t| t.clone_ref())
+    }
+
+    fn get_dyn<T:DynShapeSystemInstance>(&self) -> Option<T> {
+        let id = TypeId::of::<T>();
+        self.dyn_shape_system_map.get(&id).and_then(|t| t.downcast_ref::<T>()).map(|t| t.clone_ref())
     }
 
     fn register<T:ShapeSystemInstance>(&mut self) -> T {
@@ -78,8 +86,20 @@ impl {
         system
     }
 
+    fn register_dyn<T:DynShapeSystemInstance>(&mut self) -> T {
+        let id     = TypeId::of::<T>();
+        let system = <T as DynShapeSystemInstance>::new(self.scene.as_ref().unwrap());
+        let any    = Box::new(system.clone_ref());
+        self.dyn_shape_system_map.insert(id,any);
+        system
+    }
+
     fn get_or_register<T:ShapeSystemInstance>(&mut self) -> T {
         self.get().unwrap_or_else(|| self.register())
+    }
+
+    fn get_or_register_dyn<T:DynShapeSystemInstance>(&mut self) -> T {
+        self.get_dyn().unwrap_or_else(|| self.register_dyn())
     }
 
     pub fn shape_system<T:display::shape::system::Shape>(&mut self, _phantom:PhantomData<T>) -> ShapeSystemOf<T> {
@@ -89,6 +109,11 @@ impl {
     pub fn new_instance<T:display::shape::system::Shape>(&mut self) -> T {
         let system = self.get_or_register::<ShapeSystemOf<T>>();
         system.new_instance()
+    }
+
+    pub fn instantiate_dyn<T:display::shape::system::DynShape>(&mut self,shape:&T) {
+        let system = self.get_or_register_dyn::<DynShapeSystemOf<T>>();
+        system.instantiate(shape);
     }
 
     pub fn insert_mouse_target<T:MouseTarget>(&mut self, symbol_id:i32, instance_id:usize, target:T) {
@@ -668,16 +693,18 @@ impl View {
         self.symbols.borrow_mut().remove_item(&(symbol.id as usize)); // TODO strange conversion
     }
 
+    // FIXME: used only in breadcrumbs
     /// Add all `Symbol`s associated with the given ShapeView.
     pub fn add_shape_view<T: display::shape::primitive::system::Shape>
     (&self, shape_view:&component::ShapeView<T>) {
-        shape_view.shape.sprites().iter().for_each(|sprite| self.add(&sprite.symbol) );
+        self.add(&shape_view.shape.sprite().symbol)
     }
 
+    // FIXME: used only in breadcrumbs
     /// Remove all `Symbol`s associated with the given ShapeView.
     pub fn remove_shape_view<T: display::shape::primitive::system::Shape>
     (&self, shape_view:&component::ShapeView<T>) {
-        shape_view.shape.sprites().iter().for_each(|sprite| self.remove(&sprite.symbol) );
+        self.remove(&shape_view.shape.sprite().symbol)
     }
 }
 

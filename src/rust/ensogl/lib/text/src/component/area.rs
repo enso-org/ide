@@ -132,7 +132,7 @@ pub struct Selection {
     logger         : Logger,
     display_object : display::object::Instance,
     right_side     : display::object::Instance,
-    shape_view     : component::ShapeView<selection::Shape>,
+    shape_view     : component::ShapeView2<selection::DynShape>,
     network        : frp::Network,
     position       : DEPRECATED_Animation<Vector2>,
     width          : DEPRECATED_Animation<f32>,
@@ -140,7 +140,7 @@ pub struct Selection {
 }
 
 impl Deref for Selection {
-    type Target = component::ShapeView<selection::Shape>;
+    type Target = component::ShapeView2<selection::DynShape>;
     fn deref(&self) -> &Self::Target {
         &self.shape_view
     }
@@ -153,12 +153,15 @@ impl Selection {
         let display_object = display::object::Instance::new(&logger);
         let right_side     = display::object::Instance::new(&logger);
         let network        = frp::Network::new("text_selection");
-        let shape_view     = component::ShapeView::<selection::Shape>::new(&logger,scene);
+        let shape_view     = component::ShapeView2::<selection::DynShape>::new(&logger);//,scene);
         let position       = DEPRECATED_Animation::new(&network);
         let width          = DEPRECATED_Animation::new(&network);
         let edit_mode      = Rc::new(Cell::new(edit_mode));
         let debug          = false; // Change to true to slow-down movement for debug purposes.
         let spring_factor  = if debug { 0.1 } else { 1.5 };
+
+        shape_view.switch_registry(&scene.shapes);
+
         position . update_spring (|spring| spring * spring_factor);
         width    . update_spring (|spring| spring * spring_factor);
 
@@ -184,7 +187,7 @@ impl Selection {
                     let view_y      = 0.0;
                     object.set_position_xy(*p);
                     right_side.set_position_x(abs_width/2.0);
-                    view.shape.sprite.size.set(Vector2(view_width,view_height));
+                    view.shape.size.set(Vector2(view_width,view_height));
                     view.set_position_xy(Vector2(view_x,view_y));
                 })
             );

@@ -94,7 +94,7 @@ impl Drop for SpriteGuard {
 pub struct Size {
     hidden : Rc<Cell<bool>>,
     value  : Rc<Cell<Vector2<f32>>>,
-    attr   : Attribute<Vector2<f32>>,
+    pub attr   : Attribute<Vector2<f32>>, // FIXME - should be private?
 }
 
 // === Setters ===
