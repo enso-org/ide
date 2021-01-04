@@ -218,7 +218,7 @@ pub struct ShapeViewModel2<S:DynShape> {
     // pub registry       : ShapeRegistry,
     pub shape          : S,
     // pub display_object : display::object::Instance,
-    // pub events         : ShapeViewEvents,
+    pub events         : ShapeViewEvents,
 }
 
 impl<S:DynShape> Drop for ShapeViewModel2<S> {
@@ -234,12 +234,12 @@ impl<S:DynShape> Drop for ShapeViewModel2<S> {
 
 impl<S:DynShape> ShapeView2<S> {
     /// Constructor.
-    pub fn new(logger:impl AnyLogger) -> Self {
+    pub fn new(_logger:impl AnyLogger) -> Self {
         // let logger         = Logger::sub(logger,"shape_view");
         // let display_object = display::object::Instance::new(logger);
         // let registry       = scene.shapes.clone_ref();
         // let shape          = registry.new_instance::<S>();
-        // let events         = ShapeViewEvents::new();
+        let events         = ShapeViewEvents::new();
         // display_object.add_child(&shape);
         //
         // let sprite      = shape.sprite();
@@ -252,7 +252,7 @@ impl<S:DynShape> ShapeView2<S> {
 
         let shape = default();
 
-        let model = Rc::new(ShapeViewModel2 {shape});
+        let model = Rc::new(ShapeViewModel2 {shape,events});
         Self {model}
     }
 

@@ -94,32 +94,19 @@ impl Drop for SpriteGuard {
 pub struct Size {
     hidden : Rc<Cell<bool>>,
     value  : Rc<Cell<Vector2<f32>>>,
-    pub attr   : Attribute<Vector2<f32>>, // FIXME - should be private?
+    attr   : Attribute<Vector2<f32>>,
 }
 
 // === Setters ===
 
-#[allow(missing_docs)]
-impl Size {
-    pub fn set(&self, value:Vector2<f32>) {
-        if self.hidden.get() { self.value.set(value) }
-        else                 { self.attr.set(value) }
+impl HasItem    for Size { type Item = Vector2; }
+impl CellGetter for Size { fn get(&self) -> Vector2 { self.value.get() } }
+impl CellSetter for Size { fn set(&self, v:Vector2) {
+    self.value.set(v);
+    if !self.hidden.get() {
+        self.attr.set(v)
     }
-}
-
-
-// === Getters ===
-
-#[allow(missing_docs)]
-impl Size {
-    #[deprecated(note = "This will be removed without replacement soon.\
-    Internally this will be changed to use `Var` values, which means it will be impossible to \
-    return concrete values.")]
-    pub fn get(&self) -> Vector2<f32>{
-        if self.hidden.get() { self.value.get() }
-        else                 { self.attr.get()  }
-    }
-}
+}}
 
 
 // === Private API ===
@@ -133,7 +120,6 @@ impl Size {
 
     fn hide(&self) {
         self.hidden.set(true);
-        self.value.set(self.attr.get());
         self.attr.set(zero());
     }
 

@@ -221,21 +221,18 @@ impl<T> Attribute<T> {
     }
 }
 
-impl<T:Storable> Attribute<T> {
-    /// Get a copy of the data this attribute points to.
-    pub fn get(&self) -> T {
+impl<T> HasItem for Attribute<T> {
+    type Item = T;
+}
+
+impl<T:Storable> CellGetter for Attribute<T> {
+    fn get(&self) -> Self::Item {
         self.buffer.get(self.index.into())
     }
+}
 
-    /// Set the data this attribute points to.
-    pub fn set(&self, value:T) {
+impl<T:Storable> CellSetter for Attribute<T> {
+    fn set(&self, value:Self::Item) {
         self.buffer.set(self.index.into(),value);
-    }
-
-    /// Modify the data this attribute points to.
-    pub fn modify<F:FnOnce(&mut T)>(&self, f:F) {
-        let mut value = self.get();
-        f(&mut value);
-        self.set(value);
     }
 }

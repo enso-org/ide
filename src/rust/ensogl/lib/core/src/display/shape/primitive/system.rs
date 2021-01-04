@@ -248,29 +248,31 @@ macro_rules! _define_shape_system {
         // === DynShape ===
         // ================
 
-        #[derive(Clone,CloneRef,Default,Derivative)]
-        #[derivative(Debug(bound="T:Copy+Debug"))]
+        #[derive(Clone,CloneRef,Derivative)]
+        #[derivative(Default(bound="T::Item:Default"))]
+        #[derivative(Debug(bound="T::Item:Copy+Debug, T:Debug"))]
         #[allow(missing_docs)]
-        pub struct DynParam<T> {
-            cache     : Rc<Cell<T>>,
-            attribute : Rc<RefCell<Option<$crate::system::gpu::data::Attribute<T>>>>
+        pub struct DynParam<T:HasItem> {
+            cache     : Rc<Cell<T::Item>>,
+            attribute : Rc<RefCell<Option<T>>>
         }
 
-        impl<T:$crate::system::gpu::data::buffer::item::Storable> DynParam<T> {
+        impl<T> DynParam<T>
+        where T:CellProperty, T::Item:Copy {
             fn set_attribute_binding
-            (&self, attribute:Option<$crate::system::gpu::data::Attribute<T>>) {
+            (&self, attribute:Option<T>) {
                 if let Some(attr) = &attribute { attr.set(self.cache.get()) }
                 *self.attribute.borrow_mut() = attribute;
             }
 
             /// Set the parameter value;
-            pub fn set(&self, value:T) {
+            pub fn set(&self, value:T::Item) {
                 self.cache.set(value);
                 if let Some(attr) = &*self.attribute.borrow() { attr.set(value) }
             }
 
             /// Get the parameter value;
-            pub fn get(&self) -> T {
+            pub fn get(&self) -> T::Item {
                 self.cache.get()
             }
         }
@@ -279,8 +281,8 @@ macro_rules! _define_shape_system {
         #[derive(Clone,CloneRef,Debug,Default)]
         #[allow(missing_docs)]
         pub struct DynShapeParams {
-            pub size : DynParam<Vector2<f32>>,
-            $(pub $gpu_param : DynParam<$gpu_param_type>),*
+            pub size : DynParam<$crate::display::symbol::geometry::compound::sprite::Size>,
+            $(pub $gpu_param : DynParam<$crate::system::gpu::data::Attribute<$gpu_param_type>>),*
         }
 
         /// Shape definition.
@@ -300,6 +302,7 @@ macro_rules! _define_shape_system {
         }
 
         impl DynShape {
+            /// Constructor.
             pub fn new() -> Self {
                 let logger : Logger = Logger::new("dyn_shape");
                 let display_object  = $crate::display::object::Instance::new(&logger);
@@ -315,7 +318,7 @@ macro_rules! _define_shape_system {
                 }
                 if let Some(shape) = &shape {
                     self.display_object.add_child(&shape);
-                    self.params.size.set_attribute_binding(Some(shape.sprite.size.attr.clone_ref()));
+                    self.params.size.set_attribute_binding(Some(shape.sprite.size.clone_ref()));
                     $(self.params.$gpu_param.set_attribute_binding(Some(shape.$gpu_param.clone_ref()));)*
                 } else {
                     self.params.size.set_attribute_binding(None);
