@@ -44,7 +44,7 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: ide-dist
-          path: dist/client/ide-dist
+          path: dist/client/linux-unpacked
 
 
   upload-cdn:
