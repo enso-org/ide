@@ -45,9 +45,9 @@ function wasm_instantiate_streaming(resource,imports) {
 
 /// Downloads the WASM binary and its dependencies. Displays loading progress bar unless provided
 /// with `{no_loader:true}` option.
-async function download_content(urlCfg) {
-    let wasm_glue_fetch = await fetch('/assets/wasm_imports.js')
-    let wasm_fetch      = await fetch('/assets/ide.wasm')
+async function download_content(wasm_url, wasm_glue_url, urlCfg) {
+    let wasm_glue_fetch = await fetch(wasm_glue_url)
+    let wasm_fetch      = await fetch(wasm_url)
     let loader          = new loader_module.Loader([wasm_glue_fetch,wasm_fetch],urlCfg)
 
     loader.done.then(() => {
@@ -353,6 +353,10 @@ API.main = async function (inputConfig) {
     let config    = Object.assign({},inputConfig,urlConfig)
     API[globalConfig.windowAppScopeConfigName] = config
 
+    let wasm_url = inputConfig.wasm_url ? inputConfig.wasm_url : '/assets/ide.wasm'
+    let wasm_glue_url =
+      inputConfig.wasm_glue_url ? inputConfig.wasm_glue_url : '/assets/wasm_imports.js'
+
     initCrashHandling()
     style_root()
     printScamWarning()
@@ -363,7 +367,7 @@ API.main = async function (inputConfig) {
     let useLoader   = entryTarget === main_entry_point
 
     await windowShowAnimation()
-    let {wasm,loader} = await download_content({no_loader:!useLoader})
+    let {wasm,loader} = await download_content(wasm_url, wasm_glue_url, {no_loader:!useLoader})
 
     if (entryTarget) {
         let fn_name = wasm_entry_point_pfx + entryTarget
