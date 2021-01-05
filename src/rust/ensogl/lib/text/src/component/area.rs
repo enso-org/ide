@@ -153,18 +153,12 @@ impl Selection {
         let display_object = display::object::Instance::new(&logger);
         let right_side     = display::object::Instance::new(&logger);
         let network        = frp::Network::new("text_selection");
-        let shape_view     = component::ShapeView2::<selection::DynShape>::new(&logger);//,scene);
+        let shape_view     = component::ShapeView2::<selection::DynShape>::new(&logger,scene);
         let position       = DEPRECATED_Animation::new(&network);
         let width          = DEPRECATED_Animation::new(&network);
         let edit_mode      = Rc::new(Cell::new(edit_mode));
         let debug          = false; // Change to true to slow-down movement for debug purposes.
         let spring_factor  = if debug { 0.1 } else { 1.5 };
-
-        let (symbol_id,instance_id) = shape_view.switch_view(&scene.views.breadcrumbs);
-
-        // let shape_system = scene.views.main.shape_registry.shape_system(PhantomData::<selection::Shape>);
-        // scene.views.main.remove(&shape_system.shape_system.symbol);
-
 
         position . update_spring (|spring| spring * spring_factor);
         width    . update_spring (|spring| spring * spring_factor);

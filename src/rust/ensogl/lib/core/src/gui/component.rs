@@ -236,9 +236,17 @@ impl<S:DynShape> Drop for ShapeViewModel2<S> {
 
 impl<S:DynShape> ShapeView2<S> {
     /// Constructor.
-    pub fn new(logger:impl AnyLogger) -> Self {
+    pub fn new(logger:impl AnyLogger, scene:&Scene) -> Self {
         let model = Rc::new(ShapeViewModel2::new(logger));
-        Self {model}
+        Self {model} . init(scene)
+    }
+
+    fn init(self, scene:&Scene) -> Self {
+        /// FIXME: In the future, this should not be needed, as the object should be added to the
+        ///        default view after it is added as a child to the scene for the first time. With
+        ///        SynShapeView we have now ability to do it (lazy initialization of symbols).
+        self.switch_view(&scene.views.breadcrumbs);
+        self
     }
 }
 

@@ -958,10 +958,6 @@ impl SceneData {
         symbol
     }
 
-    pub fn new_symbol2(&self) -> Symbol {
-        self.symbols.new()
-    }
-
     pub fn symbols(&self) -> &SymbolRegistry {
         &self.symbols
     }
