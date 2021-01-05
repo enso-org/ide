@@ -313,9 +313,8 @@ async function reportCrash(message) {
 // === Main Entry Point ===
 // ========================
 
-let root = document.getElementById('root')
-
 function style_root() {
+    let root = document.getElementById('root')
     root.style.backgroundColor = '#f6f3f199'
 }
 
