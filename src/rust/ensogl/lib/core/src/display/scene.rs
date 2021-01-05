@@ -1063,7 +1063,7 @@ impl Scene {
         let logger        = Logger::sub(logger,"scene");
         let no_mut_access = SceneData::new(parent_dom,logger,stats,on_mut);
         let this = Self {no_mut_access};
-        this.no_mut_access.shapes.rc.borrow_mut().scene = Some(this.clone_ref()); // FIXME ugly
+        this.no_mut_access.shapes.rc.borrow_mut().scene = Some(this.clone_ref()); // FIXME MEMORY LEAK
         this
     }
 
