@@ -88,7 +88,7 @@ jobs:
         run: >
           aws s3 cp ./dist/assets/index.js.gz
           s3://ensocdn/ide/${{ env.DIST_VERSION }}/index.js.gz --profile
-          s3-upload --acl public-read
+          s3-upload --acl public-read --content-encoding gzip
 
       - name: Upload the ide.wasm to S3
         shell: bash
@@ -102,7 +102,7 @@ jobs:
         run: >
           aws s3 cp ./dist/assets/wasm_imports.js.gz
           s3://ensocdn/ide/${{ env.DIST_VERSION }}/wasm_imports.js.gz --profile
-          s3-upload --acl public-read
+          s3-upload --acl public-read --content-encoding gzip
 
       - name: Teardown AWS Session
         shell: bash
