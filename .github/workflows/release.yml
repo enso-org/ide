@@ -87,21 +87,21 @@ jobs:
         shell: bash
         run: >
           aws s3 cp ./dist/assets/index.js.gz
-          s3://ensocdn/ide/${{ env.DIST_VERSION }} --profile
+          s3://ensocdn/ide/${{ env.DIST_VERSION }}/index.js.gz --profile
           s3-upload --acl public-read
 
       - name: Upload the ide.wasm to S3
         shell: bash
         run: >
           aws s3 cp ./dist/assets/ide.wasm
-          s3://ensocdn/ide/${{ env.DIST_VERSION }} --profile
+          s3://ensocdn/ide/${{ env.DIST_VERSION }}/ide.wasm --profile
           s3-upload --acl public-read
 
       - name: Upload the wasm_imports.js to S3
         shell: bash
         run: >
           aws s3 cp ./dist/assets/wasm_imports.js.gz
-          s3://ensocdn/ide/${{ env.DIST_VERSION }} --profile
+          s3://ensocdn/ide/${{ env.DIST_VERSION }}/wasm_imports.js.gz --profile
           s3-upload --acl public-read
 
       - name: Teardown AWS Session
