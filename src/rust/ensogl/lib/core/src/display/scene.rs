@@ -635,9 +635,10 @@ pub struct WeakView {
 
 #[derive(Debug,Clone)]
 pub struct ViewData {
-    logger     : Logger,
-    pub camera : Camera2d,
-    symbols    : RefCell<Vec<SymbolId>>,
+    logger             : Logger,
+    pub camera         : Camera2d,
+    pub shape_registry : ShapeRegistry,
+    symbols            : RefCell<Vec<SymbolId>>,
 }
 
 impl AsRef<ViewData> for View {
@@ -669,8 +670,8 @@ impl View {
         Self {data}
     }
 
-    pub fn new_with_camera(logger:&Logger, camera:&Camera2d) -> Self {
-        let data = ViewData::new_with_camera(logger,camera);
+    pub fn new_with_shared_camera(logger:&Logger, camera:&Camera2d) -> Self {
+        let data = ViewData::new_with_shared_camera(logger,camera);
         let data = Rc::new(data);
         Self {data}
     }
@@ -680,7 +681,8 @@ impl View {
         WeakView {data}
     }
 
-    pub fn add(&self, symbol:&Symbol) {
+    pub fn add_by_id(&self, symbol_id:i32) {
+        let symbol_id = symbol_id as usize;
         let mut symbols = self.symbols.borrow_mut();
         //FIXME:We check if the symbol was already added to this view to avoid a glitch that makes
         //the symbol to be rendered more than once. The Breadcrumb object, for instance, is added
@@ -688,9 +690,13 @@ impl View {
         //the breadcrumb is semi-transparent because, every time it's rendered, the shape is added
         //on top of the already rendered ones.
         //TODO:Symbols insertion can run faster if refactored as HashSet.
-        if symbols.iter().find(|id| **id == symbol.id as usize).is_none() {
-            symbols.push(symbol.id as usize); // TODO strange conversion
+        if symbols.iter().find(|id| **id == symbol_id).is_none() {
+            symbols.push(symbol_id); // TODO strange conversion
         }
+    }
+
+    pub fn add(&self, symbol:&Symbol) {
+        self.add_by_id(symbol.id)
     }
 
     pub fn remove(&self, symbol:&Symbol) {
@@ -720,17 +726,16 @@ impl WeakView {
 
 impl ViewData {
     pub fn new(logger:impl AnyLogger, width:f32, height:f32) -> Self {
-        let logger  = Logger::sub(logger,"view");
-        let camera  = Camera2d::new(&logger,width,height);
-        let symbols = default();
-        Self {logger,camera,symbols}
+        let camera = Camera2d::new(&logger,width,height);
+        Self::new_with_shared_camera(logger,camera)
     }
 
-    pub fn new_with_camera(logger:impl AnyLogger, camera:&Camera2d) -> Self {
-        let logger  = Logger::sub(logger,"view");
-        let camera  = camera.clone_ref();
-        let symbols = default();
-        Self {logger,camera,symbols}
+    pub fn new_with_shared_camera(logger:impl AnyLogger, camera:impl Into<Camera2d>) -> Self {
+        let logger         = Logger::sub(logger,"view");
+        let camera         = camera.into();
+        let shape_registry = default();
+        let symbols        = default();
+        Self {logger,camera,shape_registry,symbols}
     }
 
     pub fn symbols(&self) -> Vec<SymbolId> {
@@ -765,9 +770,9 @@ impl Views {
     pub fn mk(logger:impl AnyLogger, width:f32, height:f32) -> Self {
         let logger         = Logger::sub(logger,"views");
         let main           = View::new(&logger,width,height);
-        let viz            = View::new_with_camera(&logger,&main.camera);
+        let viz            = View::new_with_shared_camera(&logger,&main.camera);
         let cursor         = View::new(&logger,width,height);
-        let label          = View::new_with_camera(&logger,&main.camera);
+        let label          = View::new_with_shared_camera(&logger,&main.camera);
         let viz_fullscreen = View::new(&logger,width,height);
         let breadcrumbs    = View::new(&logger,width,height);
         let all            = vec![
@@ -953,6 +958,10 @@ impl SceneData {
         symbol
     }
 
+    pub fn new_symbol2(&self) -> Symbol {
+        self.symbols.new()
+    }
+
     pub fn symbols(&self) -> &SymbolRegistry {
         &self.symbols
     }
@@ -1063,7 +1072,15 @@ impl Scene {
         let logger        = Logger::sub(logger,"scene");
         let no_mut_access = SceneData::new(parent_dom,logger,stats,on_mut);
         let this = Self {no_mut_access};
-        this.no_mut_access.shapes.rc.borrow_mut().scene = Some(this.clone_ref()); // FIXME MEMORY LEAK
+
+        // FIXME MEMORY LEAK in all lines below:
+        this.no_mut_access.shapes.rc.borrow_mut().scene = Some(this.clone_ref());
+        for view in &*this.no_mut_access.views.all.borrow() {
+            if let Some(view) = view.upgrade() {
+                view.shape_registry.rc.borrow_mut().scene = Some(this.clone_ref());
+            }
+        }
+
         this
     }
 

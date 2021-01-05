@@ -10,9 +10,11 @@ use crate::display::object::traits::*;
 use crate::display::scene::MouseTarget;
 use crate::display::scene::Scene;
 use crate::display::scene::ShapeRegistry;
-use crate::display::shape::primitive::system::Shape;
+use crate::display::scene;
 use crate::display::shape::primitive::system::DynShape;
+use crate::display::shape::primitive::system::Shape;
 use crate::display;
+use crate::system::gpu::data::attribute::AttributeInstanceIndex;
 
 use enso_frp as frp;
 
@@ -249,11 +251,18 @@ impl<S:DynShape> ShapeViewModel2<S> {
         ShapeViewModel2 {shape,events,registry}
     }
 
-    pub fn switch_registry(&self, registry:&ShapeRegistry) {
+    pub fn switch_registry(&self, registry:&ShapeRegistry) -> (i32,AttributeInstanceIndex) {
         self.unregister_existing_mouse_target();
         let (symbol_id,instance_id) = registry.instantiate_dyn(&self.shape);
         registry.insert_mouse_target(symbol_id,*instance_id,self.events.clone_ref());
         *self.registry.borrow_mut() = Some(registry.clone_ref());
+        (symbol_id,instance_id)
+    }
+
+    pub fn switch_view(&self, view:&scene::View) -> (i32,AttributeInstanceIndex) {
+        let (symbol_id,instance_id) = self.switch_registry(&view.shape_registry);
+        view.add_by_id(symbol_id);
+        (symbol_id,instance_id)
     }
 
     fn unregister_existing_mouse_target(&self) {

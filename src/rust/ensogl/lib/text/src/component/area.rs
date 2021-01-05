@@ -160,7 +160,11 @@ impl Selection {
         let debug          = false; // Change to true to slow-down movement for debug purposes.
         let spring_factor  = if debug { 0.1 } else { 1.5 };
 
-        shape_view.switch_registry(&scene.shapes);
+        let (symbol_id,instance_id) = shape_view.switch_view(&scene.views.breadcrumbs);
+
+        // let shape_system = scene.views.main.shape_registry.shape_system(PhantomData::<selection::Shape>);
+        // scene.views.main.remove(&shape_system.shape_system.symbol);
+
 
         position . update_spring (|spring| spring * spring_factor);
         width    . update_spring (|spring| spring * spring_factor);

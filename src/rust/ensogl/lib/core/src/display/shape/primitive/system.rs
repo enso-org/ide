@@ -42,9 +42,22 @@ pub struct ShapeSystem {
 impl ShapeSystem {
     /// Constructor.
     pub fn new<'t,S,Sh>(scene:S, shape:Sh) -> Self
-    where S:Into<&'t Scene>, Sh:Into<def::AnyShape> {
+        where S:Into<&'t Scene>, Sh:Into<def::AnyShape> {
         let shape          = shape.into();
         let sprite_system  = SpriteSystem::new(scene);
+        let material       = Rc::new(RefCell::new(Self::surface_material()));
+        let pointer_events = Rc::new(Cell::new(true));
+        let shape          = Rc::new(RefCell::new(shape));
+        let this           = Self {sprite_system,material,pointer_events,shape};
+        this.reload_shape();
+        this
+    }
+
+    /// Constructor.
+    pub fn new2<'t,S,Sh>(scene:S, shape:Sh) -> Self
+        where S:Into<&'t Scene>, Sh:Into<def::AnyShape> {
+        let shape          = shape.into();
+        let sprite_system  = SpriteSystem::new2(scene);
         let material       = Rc::new(RefCell::new(Self::surface_material()));
         let pointer_events = Rc::new(Cell::new(true));
         let shape          = Rc::new(RefCell::new(shape));
@@ -390,10 +403,10 @@ macro_rules! _define_shape_system {
         impl $crate::display::shape::DynShapeSystemInstance for ShapeSystem {
             type DynShape = DynShape;
 
-            // FIXME: Duplicated (^^^)
+            // FIXME: ALMOST Duplicated (^^^) (see `new2` below)
             fn new(scene:&$crate::display::scene::Scene) -> Self {
                 let style_manager = $crate::display::shape::StyleWatch::new(&scene.style_sheet);
-                let shape_system  = $crate::display::shape::ShapeSystem::new(scene,&Self::shape_def(&style_manager));
+                let shape_system  = $crate::display::shape::ShapeSystem::new2(scene,&Self::shape_def(&style_manager));
                 $(
                     let name       = stringify!($gpu_param);
                     let value      = $crate::system::gpu::data::default::gpu_default::<$gpu_param_type>();

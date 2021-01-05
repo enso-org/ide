@@ -244,6 +244,28 @@ impl SpriteSystem {
         this
     }
 
+    /// Constructor.
+    pub fn new2<'t,S>(scene:S) -> Self where S:Into<&'t Scene> {
+        let scene             = scene.into();
+        let stats             = scene.stats.clone_ref();
+        let symbol            = scene.new_symbol2();
+        let mesh              = symbol.surface();
+        let point_scope       = mesh.point_scope();
+        let instance_scope    = mesh.instance_scope();
+        let uv                = point_scope.add_buffer("uv");
+        let transform         = instance_scope.add_buffer("transform");
+        let size              = instance_scope.add_buffer("size");
+        let initial_alignment = Self::uv_offset(Alignment::center());
+        let alignment         = symbol.variables().add_or_panic("alignment",initial_alignment);
+
+        stats.inc_sprite_system_count();
+
+        let this = Self {symbol,transform,uv,size,alignment,stats};
+        this.init_attributes();
+        this.init_shader();
+        this
+    }
+
     /// Creates a new sprite instance.
     pub fn new_instance(&self) -> Sprite {
         let instance_id  = self.symbol.surface().instance_scope().add_instance();
