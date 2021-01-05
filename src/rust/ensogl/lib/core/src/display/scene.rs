@@ -767,7 +767,9 @@ pub struct Views {
 }
 
 impl Views {
-    pub fn mk(logger:impl AnyLogger, width:f32, height:f32) -> Self {
+    pub fn new(logger:impl AnyLogger) -> Self {
+        let width          = 0.0;
+        let height         = 0.0;
         let logger         = Logger::sub(logger,"views");
         let main           = View::new(&logger,width,height);
         let viz            = View::new_with_shared_camera(&logger,&main.camera);
@@ -785,14 +787,6 @@ impl Views {
         ];
         let all = Rc::new(RefCell::new(all));
         Self {logger,viz,main,cursor,label,viz_fullscreen,all,width,height,breadcrumbs}
-    }
-
-    /// Creates a new view for this scene.
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new(&self) -> View {
-        let view = View::new(&self.logger,self.width,self.height);
-        self.all.borrow_mut().push(view.downgrade());
-        view
     }
 
     pub fn all(&self) -> Ref<Vec<WeakView>> {
@@ -906,11 +900,8 @@ impl SceneData {
         let var_logger           = Logger::sub(&logger,"global_variables");
         let variables            = UniformScope::new(var_logger,&context);
         let symbols              = SymbolRegistry::mk(&variables,&stats,&context,&logger,on_change);
-        let screen_shape         = dom.shape();
-        let width                = screen_shape.width;
-        let height               = screen_shape.height;
         let symbols_dirty        = dirty_flag;
-        let views                = Views::mk(&logger,width,height);
+        let views                = Views::new(&logger);
         let stats                = stats.clone();
         let shapes               = ShapeRegistry::default();
         let uniforms             = Uniforms::new(&variables);

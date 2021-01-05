@@ -256,7 +256,7 @@ impl<S:DynShape> ShapeViewModel2<S> {
         let shape    = S::new(logger);
         let events   = ShapeViewEvents::new();
         let registry = default();
-        ShapeViewModel2 {shape,events,registry}
+        ShapeViewModel2 {shape,events,registry} . init()
     }
 
     pub fn switch_registry(&self, registry:&ShapeRegistry) -> (i32,AttributeInstanceIndex) {
@@ -280,6 +280,42 @@ impl<S:DynShape> ShapeViewModel2<S> {
             registry.remove_mouse_target(symbol_id,instance_id);
             self.events.on_drop.emit(());
         }
+    }
+
+    fn init(self) -> Self {
+        self.init_on_show();
+        self
+    }
+
+    fn init_on_show(&self) {
+        // let weak_data   = Rc::downgrade(&self.data);
+        // let weak_parent = self.display_object.downgrade();
+        // let events      = self.events.clone_ref();
+        self.display_object().set_on_show(move |scene| {
+            println!("INIT ON SHOW!!!");
+            // let shape_registry: &ShapeRegistry = &scene.shapes;
+            // weak_data.upgrade().for_each(|self_data| {
+            //     weak_parent.upgrade().for_each(|parent| {
+            //         let shape = shape_registry.new_instance::<T::Shape>();
+            //         parent.add_child(&shape);
+            //         for sprite in shape.sprites() {
+            //             let events      = events.clone_ref();
+            //             let symbol_id   = sprite.symbol_id();
+            //             let instance_id = *sprite.instance_id;
+            //             shape_registry.insert_mouse_target(symbol_id,instance_id,events);
+            //         }
+            //         let data = T::new(&shape,scene,shape_registry);
+            //         let data = ShapeViewData {data,shape};
+            //         *self_data.borrow_mut() = Some(data);
+            //     })
+            // });
+        });
+    }
+}
+
+impl<T:DynShape> display::Object for ShapeViewModel2<T> {
+    fn display_object(&self) -> &display::object::Instance {
+        self.shape.display_object()
     }
 }
 
