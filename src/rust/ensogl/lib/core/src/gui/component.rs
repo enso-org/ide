@@ -226,6 +226,7 @@ pub struct ShapeViewModel2<S:DynShape> {
     pub shape    : S,
     pub events   : ShapeViewEvents,
     pub registry : Rc<RefCell<Option<ShapeRegistry>>>,
+    initialized  : Rc<Cell<bool>>,
 }
 
 impl<S:DynShape> Drop for ShapeViewModel2<S> {
@@ -234,19 +235,27 @@ impl<S:DynShape> Drop for ShapeViewModel2<S> {
     }
 }
 
-impl<S:DynShape> ShapeView2<S> {
+impl<S:DynShape+'static> ShapeView2<S> {
     /// Constructor.
-    pub fn new(logger:impl AnyLogger, scene:&Scene) -> Self {
+    pub fn new(logger:impl AnyLogger) -> Self {
         let model = Rc::new(ShapeViewModel2::new(logger));
-        Self {model} . init(scene)
+        Self {model} . init()
     }
 
-    fn init(self, scene:&Scene) -> Self {
-        /// FIXME: In the future, this should not be needed, as the object should be added to the
-        ///        default view after it is added as a child to the scene for the first time. With
-        ///        SynShapeView we have now ability to do it (lazy initialization of symbols).
-        self.switch_view(&scene.views.breadcrumbs);
+    fn init(self) -> Self {
+        self.init_on_show();
         self
+    }
+
+    fn init_on_show(&self) {
+        let weak_model = Rc::downgrade(&self.model);
+        self.display_object().set_on_show(move |scene| {
+            if let Some(model) = weak_model.upgrade() {
+                if !model.initialized.get() {
+                    model.switch_view(&scene.views.breadcrumbs);
+                }
+            }
+        });
     }
 }
 
@@ -256,7 +265,8 @@ impl<S:DynShape> ShapeViewModel2<S> {
         let shape    = S::new(logger);
         let events   = ShapeViewEvents::new();
         let registry = default();
-        ShapeViewModel2 {shape,events,registry} . init()
+        let initialized = default();
+        ShapeViewModel2 {shape,events,registry,initialized}
     }
 
     pub fn switch_registry(&self, registry:&ShapeRegistry) -> (i32,AttributeInstanceIndex) {
@@ -268,6 +278,7 @@ impl<S:DynShape> ShapeViewModel2<S> {
     }
 
     pub fn switch_view(&self, view:&scene::View) -> (i32,AttributeInstanceIndex) {
+        self.initialized.set(true);
         let (symbol_id,instance_id) = self.switch_registry(&view.shape_registry);
         view.add_by_id(symbol_id);
         (symbol_id,instance_id)
@@ -280,36 +291,6 @@ impl<S:DynShape> ShapeViewModel2<S> {
             registry.remove_mouse_target(symbol_id,instance_id);
             self.events.on_drop.emit(());
         }
-    }
-
-    fn init(self) -> Self {
-        self.init_on_show();
-        self
-    }
-
-    fn init_on_show(&self) {
-        // let weak_data   = Rc::downgrade(&self.data);
-        // let weak_parent = self.display_object.downgrade();
-        // let events      = self.events.clone_ref();
-        self.display_object().set_on_show(move |scene| {
-            println!("INIT ON SHOW!!!");
-            // let shape_registry: &ShapeRegistry = &scene.shapes;
-            // weak_data.upgrade().for_each(|self_data| {
-            //     weak_parent.upgrade().for_each(|parent| {
-            //         let shape = shape_registry.new_instance::<T::Shape>();
-            //         parent.add_child(&shape);
-            //         for sprite in shape.sprites() {
-            //             let events      = events.clone_ref();
-            //             let symbol_id   = sprite.symbol_id();
-            //             let instance_id = *sprite.instance_id;
-            //             shape_registry.insert_mouse_target(symbol_id,instance_id,events);
-            //         }
-            //         let data = T::new(&shape,scene,shape_registry);
-            //         let data = ShapeViewData {data,shape};
-            //         *self_data.borrow_mut() = Some(data);
-            //     })
-            // });
-        });
     }
 }
 

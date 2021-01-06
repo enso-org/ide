@@ -148,12 +148,12 @@ impl Deref for Selection {
 
 impl Selection {
     /// Constructor.
-    pub fn new(logger:impl AnyLogger, scene:&Scene, edit_mode:bool) -> Self {
+    pub fn new(logger:impl AnyLogger, edit_mode:bool) -> Self {
         let logger         = Logger::sub(logger,"selection");
         let display_object = display::object::Instance::new(&logger);
         let right_side     = display::object::Instance::new(&logger);
         let network        = frp::Network::new("text_selection");
-        let shape_view     = component::ShapeView2::<selection::DynShape>::new(&logger,scene);
+        let shape_view     = component::ShapeView2::<selection::DynShape>::new(&logger);
         let position       = DEPRECATED_Animation::new(&network);
         let width          = DEPRECATED_Animation::new(&network);
         let edit_mode      = Rc::new(Cell::new(edit_mode));
@@ -769,7 +769,7 @@ impl AreaModel {
                         selection
                     }
                     None => {
-                        let selection = Selection::new(&logger,&self.app.display.scene(),do_edit);
+                        let selection = Selection::new(&logger,do_edit);
                         selection.shape.letter_width.set(7.0); // FIXME hardcoded values
                         self.add_child(&selection);
                         selection.position.set_target_value(pos);
