@@ -113,7 +113,7 @@ impl CellSetter for Size { fn set(&self, v:Vector2) {
 
 impl Size {
     fn new(attr:Attribute<Vector2<f32>>) -> Self {
-        let hidden = default();
+        let hidden = Rc::new(Cell::new(true));
         let value  = Rc::new(Cell::new(zero()));
         Self {hidden,value,attr}
     }

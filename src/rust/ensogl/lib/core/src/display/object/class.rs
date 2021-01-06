@@ -192,7 +192,7 @@ impl<Host> Model<Host> {
         let children    = default();
         let transform   = default();
         let dirty       = DirtyFlags::new(&logger);
-        let visible     = Cell::new(true);
+        let visible     = Cell::new(false);
         let callbacks   = default();
         let host        = default();
         Self {logger,parent_bind,children,transform,visible,callbacks,dirty,host}
@@ -224,6 +224,10 @@ impl<Host> Model<Host> {
         self.update_with_origin(host,origin0,false)
     }
 
+    pub fn force_set_visibility(&self, visibility:bool) {
+        self.visible.set(visibility);
+    }
+
     /// Removes child by a given index. Does nothing if the index was incorrect.
     fn remove_child_by_index(&self, index:usize) {
         self.children.borrow_mut().remove(index).for_each(|child| {
@@ -250,6 +254,7 @@ impl<Host> Model<Host> {
     fn update_with_origin
     (&self, host:&Host, parent_origin:Matrix4<f32>, parent_origin_changed:bool) {
         self.update_visibility(host);
+        let is_visible          = self.visible.get();
         let has_new_parent      = self.dirty.parent.check();
         let is_origin_dirty     = has_new_parent || parent_origin_changed;
         let new_parent_origin   = is_origin_dirty.as_some(parent_origin);
@@ -286,20 +291,21 @@ impl<Host> Model<Host> {
 
     /// Hide all removed children and show this display object if it was attached to a new parent.
     fn update_visibility(&self, host:&Host) {
-        self.hide_removed_children(host);
+        self.take_removed_children_and_hide_orphans(host);
         let parent_changed = self.dirty.parent.check();
         if parent_changed && !self.is_orphan() {
-            self.show(host)
+            self.set_vis_true(host)
         }
     }
 
-    fn hide_removed_children(&self, host:&Host) {
+    fn take_removed_children_and_hide_orphans(&self, host:&Host) {
         if self.dirty.removed_children.check_all() {
             debug!(self.logger, "Updating removed children", || {
                 for child in self.dirty.removed_children.take().into_iter() {
                     if let Some(child) = child.upgrade() {
                         if child.is_orphan() {
-                            child.hide(host)
+                            child.set_vis_false(host);
+                            child.take_removed_children_and_hide_orphans(host);
                         }
                     }
                 }
@@ -307,24 +313,23 @@ impl<Host> Model<Host> {
         }
     }
 
-    fn hide(&self, host:&Host) {
-        self.hide_removed_children(host);
+    fn set_vis_false(&self, host:&Host) {
         if self.visible.get() {
             self.visible.set(false);
             self.callbacks.on_hide(host);
             self.children.borrow().iter().for_each(|child| {
-                child.upgrade().for_each(|t| t.hide(host));
+                child.upgrade().for_each(|t| t.set_vis_false(host));
             });
         }
     }
 
-    fn show(&self, host:&Host) {
+    fn set_vis_true(&self, host:&Host) {
        if !self.visible.get() {
            info!(self.logger,"Showing.");
            self.visible.set(true);
            self.callbacks.on_show(host);
            self.children.borrow().iter().for_each(|child| {
-               child.upgrade().for_each(|t| t.show(host));
+               child.upgrade().for_each(|t| t.set_vis_true(host));
            });
        }
     }
@@ -1068,9 +1073,10 @@ mod tests {
         let node1 = Instance::<()>::new(Logger::new("node1"));
         let node2 = Instance::<()>::new(Logger::new("node2"));
         let node3 = Instance::<()>::new(Logger::new("node3"));
-        assert_eq!(node3.is_visible(),true);
+        node1.force_set_visibility(true);
+        assert_eq!(node3.is_visible(),false);
         node3.update(&());
-        assert_eq!(node3.is_visible(),true);
+        assert_eq!(node3.is_visible(),false);
         node1.add_child(&node2);
         node2.add_child(&node3);
         node1.update(&());
@@ -1094,6 +1100,45 @@ mod tests {
     }
 
     #[test]
+    fn visibility_test2() {
+        let node1 = Instance::<()>::new(Logger::new("node1"));
+        let node2 = Instance::<()>::new(Logger::new("node2"));
+        let node3 = Instance::<()>::new(Logger::new("node3"));
+        assert_eq!(node1.is_visible(),false);
+        node1.update(&());
+        assert_eq!(node1.is_visible(),false);
+        node1.force_set_visibility(true);
+        node1.update(&());
+        assert_eq!(node1.is_visible(),true);
+
+        node1.add_child(&node2);
+        node1.update(&());
+        assert_eq!(node1.is_visible(),true);
+        assert_eq!(node2.is_visible(),true);
+
+        // node1.add_child(&node2);
+        // node2.add_child(&node3);
+        // node1.update(&());
+        // assert_eq!(node3.is_visible(),true);
+        // node3.unset_parent();
+        // assert_eq!(node3.is_visible(),true);
+        // node1.update(&());
+        // assert_eq!(node3.is_visible(),false);
+        // node1.add_child(&node3);
+        // node1.update(&());
+        // assert_eq!(node3.is_visible(),true);
+        // node2.add_child(&node3);
+        // node1.update(&());
+        // assert_eq!(node3.is_visible(),true);
+        // node3.unset_parent();
+        // node1.update(&());
+        // assert_eq!(node3.is_visible(),false);
+        // node2.add_child(&node3);
+        // node1.update(&());
+        // assert_eq!(node3.is_visible(),true);
+    }
+
+    #[test]
     fn deep_hierarchy_test() {
 
         // === Init ===
@@ -1106,6 +1151,8 @@ mod tests {
         let node5 = Instance::<()>::new(Logger::new("node5"));
         let node6 = Instance::<()>::new(Logger::new("node6"));
 
+        world.force_set_visibility(true);
+
         world.add_child(&node1);
         node1.add_child(&node2);
         node2.add_child(&node3);
@@ -1113,10 +1160,10 @@ mod tests {
         node4.add_child(&node5);
         node5.add_child(&node6);
 
-        assert_eq!(node3.is_visible(),true);
-        assert_eq!(node4.is_visible(),true);
-        assert_eq!(node5.is_visible(),true);
-        assert_eq!(node6.is_visible(),true);
+        assert_eq!(node3.is_visible(),false);
+        assert_eq!(node4.is_visible(),false);
+        assert_eq!(node5.is_visible(),false);
+        assert_eq!(node6.is_visible(),false);
 
 
         // === Init Update ===

@@ -891,6 +891,7 @@ impl SceneData {
         dom.recompute_shape_with_reflow();
 
         let display_object       = display::object::Instance::new(&logger);
+        display_object.force_set_visibility(true);
         let context              = web::get_webgl2_context(&dom.layers.canvas);
         let sub_logger           = Logger::sub(&logger,"shape_dirty");
         let shape_dirty          = ShapeDirty::new(sub_logger,Box::new(on_mut.clone()));

@@ -183,7 +183,6 @@ impl DomScene {
         object.display_object().set_on_show(f_!([data,dom] {
             data.view_projection_dom.append_or_panic(&dom)
         }));
-        self.data.view_projection_dom.append_or_panic(&object.dom());
     }
 
     /// Update the objects to match the new camera's point of view. This function should be called
