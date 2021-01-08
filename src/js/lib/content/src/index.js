@@ -348,8 +348,8 @@ function ok(value) {
 /// Main entry point. Loads WASM, initializes it, chooses the scene to run.
 API.main = async function (inputConfig) {
     let defaultConfig = {
-        wasm_url = '/assets/ide.wasm',
-        wasm_glue_url = '/assets/wasm_imports.js'
+        wasm_url: '/assets/ide.wasm',
+        wasm_glue_url: '/assets/wasm_imports.js'
     }
     let urlParams = new URLSearchParams(window.location.search);
     let urlConfig = Object.fromEntries(urlParams.entries())
@@ -366,7 +366,8 @@ API.main = async function (inputConfig) {
     let useLoader   = entryTarget === main_entry_point
 
     await windowShowAnimation()
-    let {wasm,loader} = await download_content(config.wasm_url, config.wasm_glue_url, {no_loader:!useLoader})
+    let {wasm,loader} =
+      await download_content(config.wasm_url, config.wasm_glue_url, {no_loader:!useLoader})
 
     if (entryTarget) {
         let fn_name = wasm_entry_point_pfx + entryTarget
