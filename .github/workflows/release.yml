@@ -38,13 +38,13 @@ jobs:
           node-version: '14.15.0'
 
       - name: Build
-        run: node ./run dist --skip-version-validation --target linux
+        run: node ./run dist --skip-version-validation
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v1
         with:
           name: ide-dist
-          path: dist/client/linux-unpacked
+          path: dist/content
 
 
   upload-cdn:
@@ -68,11 +68,6 @@ jobs:
           refversion=${ref#"refs/tags/ide-"}
           echo "DIST_VERSION=$refversion" >> $GITHUB_ENV
 
-      - name: Extract ASAR file
-        shell: bash
-        run: |
-          npx asar extract ./artifacts/ide-dist/resources/app.asar ./dist
-
       - name: Prepare AWS Session
         shell: bash
         run: |
@@ -86,21 +81,21 @@ jobs:
       - name: Upload the index.js to S3
         shell: bash
         run: >
-          aws s3 cp ./dist/assets/index.js.gz
+          aws s3 cp ./artifacts/ide-dist/assets/index.js.gz
           s3://ensocdn/ide/${{ env.DIST_VERSION }}/index.js.gz --profile
           s3-upload --acl public-read --content-encoding gzip
 
       - name: Upload the ide.wasm to S3
         shell: bash
         run: >
-          aws s3 cp ./dist/assets/ide.wasm
+          aws s3 cp ./artifacts/ide-dist/assets/ide.wasm
           s3://ensocdn/ide/${{ env.DIST_VERSION }}/ide.wasm --profile
           s3-upload --acl public-read --content-type 'application/wasm'
 
       - name: Upload the wasm_imports.js to S3
         shell: bash
         run: >
-          aws s3 cp ./dist/assets/wasm_imports.js.gz
+          aws s3 cp ./artifacts/ide-dist/assets/wasm_imports.js.gz
           s3://ensocdn/ide/${{ env.DIST_VERSION }}/wasm_imports.js.gz --profile
           s3-upload --acl public-read --content-encoding gzip
 
