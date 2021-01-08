@@ -203,6 +203,8 @@ fn init(app:&Application) {
         }
         was_rendered = true;
     }).forget();
+
+    depth_test();
 }
 
 
@@ -218,7 +220,6 @@ use ast::crumbs::PatternMatchCrumb::*;
 use enso_protocol::prelude::Uuid;
 use ensogl_text_msdf_sys::run_once_initialized;
 use span_tree::traits::*;
-
 
 
 pub fn expression_mock() -> Expression {
@@ -317,6 +318,347 @@ pub fn expression_mock3() -> Expression {
 // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
 
 // Extract and make use in scene depth sorting.
+
+
+
+
+#[derive(Clone,Copy,Debug,PartialEq,PartialOrd,Eq,Ord)]
+pub enum NoEqOrdering { Less, Greater }
+
+impl NoEqOrdering {
+    pub fn reverse(&self) -> Self {
+        match self {
+            Self::Less    => Self::Greater,
+            Self::Greater => Self::Less,
+        }
+    }
+}
+
+#[derive(Clone,Copy,Debug,PartialEq,PartialOrd,Eq,Ord)]
+pub enum RelationSource {Provided,Inferred}
+
+#[derive(Clone,Copy,Debug,PartialEq,PartialOrd,Eq,Ord)]
+pub struct Relation {
+    source   : RelationSource,
+    ordering : NoEqOrdering,
+    count    : usize,
+}
+
+impl Relation {
+    pub fn new(source:RelationSource, ordering:NoEqOrdering, count:usize) -> Self {
+        Self {source,ordering,count}
+    }
+
+    pub fn provided(ordering:NoEqOrdering) -> Self {
+        let source = RelationSource::Provided;
+        Self::new(source,ordering,0)
+    }
+
+    pub fn inferred(ordering:NoEqOrdering) -> Self {
+        let source = RelationSource::Inferred;
+        Self::new(source,ordering,0)
+    }
+
+    pub fn inc(&mut self) {
+        self.count += 1
+    }
+
+    pub fn dec(&mut self) {
+        self.count -= 1
+    }
+
+    pub fn as_provided(&mut self) {
+        self.source = RelationSource::Provided;
+    }
+
+    pub fn as_inferred(&mut self) {
+        self.source = RelationSource::Inferred;
+    }
+}
+
+#[derive(Derivative)]
+#[derivative(Debug(bound="T:Debug+Eq+Hash"))]
+#[derivative(Default(bound="T:Eq+Hash"))]
+#[derivative(PartialEq(bound="T:Eq+Hash"))]
+pub struct OrderingMap<T> {
+    map : HashMap<T,HashMap<T,Relation>>
+}
+
+impl<T:Eq+Hash+Copy> OrderingMap<T> {
+    pub fn insert(&mut self, a:T, b:T, ord:NoEqOrdering) {
+        match ord {
+            NoEqOrdering::Less    => self.insert_less(a,b),
+            NoEqOrdering::Greater => self.insert_less(b,a),
+        }
+    }
+
+    pub fn insert_less(&mut self, below:T, over:T) {
+        self.remove(below,over);
+        let top_elems    = self.over(over).copied().collect_vec();
+        let bottom_elems = self.below(below).copied().collect_vec();
+        self.insert_less_asymmetrical(below,over,&bottom_elems,&top_elems,NoEqOrdering::Greater);
+        self.insert_less_asymmetrical(over,below,&top_elems,&bottom_elems,NoEqOrdering::Less);
+    }
+
+    pub fn remove(&mut self, below:T, over:T) {
+        let top_elems    = self.over(over).copied().collect_vec();
+        let bottom_elems = self.below(below).copied().collect_vec();
+        self.remove_asymmetrical(below,over,&bottom_elems,&top_elems);
+        self.remove_asymmetrical(over,below,&top_elems,&bottom_elems);
+    }
+
+    pub fn insert_less_asymmetrical
+    (&mut self, a:T, b:T, a_side:&[T], b_side:&[T], rel:NoEqOrdering) {
+        let a_rels = self.map.entry(a).or_default();
+        a_rels.entry(b).and_modify(|t|t.as_provided()).or_insert(Relation::provided(rel)).inc();
+        for b_side_elem in b_side {
+            a_rels.entry(*b_side_elem).or_insert(Relation::inferred(rel)).inc();
+        }
+        for b_side_elem in b_side {
+            let rev_rel           = rel.reverse();
+            let b_side_elem_entry = self.map.entry(*b_side_elem).or_default();
+            b_side_elem_entry.entry(a).or_insert(Relation::inferred(rev_rel)).inc();
+            for a_side_elem in a_side {
+                b_side_elem_entry.entry(*a_side_elem).or_insert(Relation::inferred(rev_rel)).inc();
+            }
+        }
+    }
+
+    pub fn remove_asymmetrical
+    (&mut self, a:T, b:T, a_side:&[T], b_side:&[T]) {
+        let a_map        = self.map.get(&a);
+        let b_rel        = a_map.and_then(|m|m.get(&b));
+        let was_provided = b_rel.map(|t|t.source == RelationSource::Provided).unwrap_or_default();
+        if was_provided {
+            if let Some(a_rels) = self.map.get_mut(&a) {
+                let to_remove = a_rels.get_mut(&b).map(|b_entry| {
+                    b_entry.as_inferred();
+                    b_entry.dec();
+                    b_entry.count == 0
+                }).unwrap_or_default();
+                if to_remove {
+                    a_rels.remove(&b);
+                }
+                for b_side_elem in b_side {
+                    let to_remove = a_rels.get_mut(b_side_elem).map(|b_entry| {
+                        b_entry.dec();
+                        b_entry.count == 0
+                    }).unwrap_or_default();
+                    if to_remove {
+                        a_rels.remove(b_side_elem);
+                    }
+                }
+                for b_side_elem in b_side {
+                    if let Some(b_side_elem_entry) = self.map.get_mut(b_side_elem) {
+                        let to_remove = b_side_elem_entry.get_mut(&a).map(|b_entry| {
+                            b_entry.dec();
+                            b_entry.count == 0
+                        }).unwrap_or_default();
+                        if to_remove {
+                            b_side_elem_entry.remove(&a);
+                        }
+
+                        for a_side_elem in a_side {
+                            let to_remove = b_side_elem_entry.get_mut(a_side_elem).map(|b_entry| {
+                                b_entry.dec();
+                                b_entry.count == 0
+                            }).unwrap_or_default();
+                            if to_remove {
+                                b_side_elem_entry.remove(a_side_elem);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn iter_rel(&self, ord:NoEqOrdering, target:T) -> impl Iterator<Item=&T> {
+        self.map.get(&target).into_iter().flatten().filter_map(
+            move |(elem,rel)| (rel.ordering == ord).as_some(elem)
+        )
+    }
+
+    pub fn below(&self, target:T) -> impl Iterator<Item=&T> {
+        self.iter_rel(NoEqOrdering::Less,target)
+    }
+
+    pub fn over(&self, target:T) -> impl Iterator<Item=&T> {
+        self.iter_rel(NoEqOrdering::Greater,target)
+    }
+
+    pub fn unchecked_from_vec(slice:&[(T,T,Relation)]) -> Self {
+        let mut this = OrderingMap::default();
+        for (a,b,rel) in slice {
+            this.map.entry(*a).or_default().entry(*b).insert(*rel);
+        }
+        this
+    }
+
+    pub fn to_vec(&self) -> Vec<(T,T,Relation)> {
+        self.map.iter().map(|(a,m)| m.iter().map(move |(b,r)| (*a,*b,*r))).flatten().collect()
+    }
+}
+
+
+pub fn depth_test() {
+    println!("DEPTH TEST");
+    let mut m = OrderingMap::<usize>::default();
+    m.insert_less(1,2);
+    m.insert_less(3,4);
+    m.insert_less(4,5);
+    println!("\n-------");
+    m.insert_less(2,3);
+    m.insert_less(2,4);
+    println!("{:#?}",m);
+}
+
+#[cfg(test)]
+mod tests2 {
+    use super::*;
+    use RelationSource::*;
+    use NoEqOrdering::*;
+
+    fn pg(count:usize) -> Relation { Relation::new(Provided,Greater,count) }
+    fn pl(count:usize) -> Relation { Relation::new(Provided,Less,count) }
+    fn ig(count:usize) -> Relation { Relation::new(Inferred,Greater,count) }
+    fn il(count:usize) -> Relation { Relation::new(Inferred,Less,count) }
+
+    fn check(m:&OrderingMap<usize>, slice:&[(usize,usize,Relation)]) {
+        let mut v1 = m.to_vec();
+        let mut v2 = OrderingMap::<usize>::unchecked_from_vec(slice).to_vec();
+        v1.sort();
+        v2.sort();
+        assert_eq!(v1,v2);
+    }
+
+    macro_rules! check {
+        ($name:ident, $($rules:tt)*) => {
+            check(&$name,rules!{[] $($rules)*,});
+        };
+    }
+
+    macro_rules! rules {
+        ([$($x:tt)*] $(,)?)                              => {&[$($x)*]};
+        ([$($x:tt)*] $a:tt << $b:tt [$n:tt], $($ts:tt)*) => {rules!{[$($x)* ($a,$b,pg($n)),] $($ts)*}};
+        ([$($x:tt)*] $a:tt >> $b:tt [$n:tt], $($ts:tt)*) => {rules!{[$($x)* ($a,$b,pl($n)),] $($ts)*}};
+        ([$($x:tt)*] $a:tt <  $b:tt [$n:tt], $($ts:tt)*) => {rules!{[$($x)* ($a,$b,ig($n)),] $($ts)*}};
+        ([$($x:tt)*] $a:tt >  $b:tt [$n:tt], $($ts:tt)*) => {rules!{[$($x)* ($a,$b,il($n)),] $($ts)*}};
+    }
+
+
+    #[test]
+    fn hierarchy_test() {
+        let mut m = OrderingMap::<usize>::default();
+
+        // === Insertion ===
+
+        check!(m,);
+        m.insert(1,2,Less);
+        check!(m, 1<<2[1], 2>>1[1]);
+        m.insert(3,4,Less);
+        check!(m, 1<<2[1], 2>>1[1], 3<<4[1], 4>>3[1]);
+        m.insert(2,3,Less);
+        check!(m, 1<<2[1], 2>>1[1], 3> 1[1], 4> 1[1],
+                  1< 3[1], 2<<3[1], 3>>2[1], 4> 2[1],
+                  1< 4[1], 2< 4[1], 3<<4[1], 4>>3[1]);
+        m.insert(4,5,Less);
+        check!(m, 1<<2[1], 2>>1[1], 3> 1[1], 4> 1[1], 5> 1[1],
+                  1< 3[1], 2<<3[1], 3>>2[1], 4> 2[1], 5> 2[1],
+                  1< 4[1], 2< 4[1], 3<<4[1], 4>>3[1], 5> 3[1],
+                  1< 5[1], 2< 5[1], 3< 5[1], 4<<5[1], 5>>4[1]);
+        m.insert(2,4,Less);
+        check!(m, 1<<2[1], 2>>1[1], 3> 1[1], 4> 1[2], 5> 1[2],
+                  1< 3[1], 2<<3[1], 3>>2[1], 4>>2[2], 5> 2[2],
+                  1< 4[2], 2<<4[2], 3<<4[1], 4>>3[1], 5> 3[1],
+                  1< 5[2], 2< 5[2], 3< 5[1], 4<<5[1], 5>>4[1]);
+
+
+        // === Removal ===
+
+        m.remove(2,4);
+        check!(m, 1<<2[1], 2>>1[1], 3> 1[1], 4> 1[1], 5> 1[1],
+                  1< 3[1], 2<<3[1], 3>>2[1], 4> 2[1], 5> 2[1],
+                  1< 4[1], 2< 4[1], 3<<4[1], 4>>3[1], 5> 3[1],
+                  1< 5[1], 2< 5[1], 3< 5[1], 4<<5[1], 5>>4[1]);
+        m.remove(4,5);
+        check!(m, 1<<2[1], 2>>1[1], 3> 1[1], 4> 1[1],
+                  1< 3[1], 2<<3[1], 3>>2[1], 4> 2[1],
+                  1< 4[1], 2< 4[1], 3<<4[1], 4>>3[1]);
+        m.remove(2,3);
+        check!(m, 1<<2[1], 2>>1[1], 3<<4[1], 4>>3[1]);
+        m.remove(3,4);
+        check!(m, 1<<2[1], 2>>1[1]);
+        m.remove(1,2);
+        check!(m,);
+    }
+}
+
+pub trait DepthId = Copy + Debug + Eq + Hash + Ord;
+
+pub struct DepthItem<T> {
+    elem : T,
+    ordering : DepthOrdering<T>,
+}
+
+impl<T:Debug> Debug for DepthItem<T> {
+    fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "DepthItem({:?})", self.elem)
+    }
+}
+
+impl<T:PartialEq> PartialEq for DepthItem<T> {
+    fn eq(&self, other:&Self) -> bool {
+        self.elem == other.elem
+    }
+}
+
+impl<T:PartialEq> Eq for DepthItem<T> {}
+
+impl<T:DepthId> Ord for DepthItem<T> {
+    fn cmp(&self, other:&Self) -> Ordering {
+        self.ordering.check(self.elem,other.elem).unwrap_or_else(||self.elem.cmp(&other.elem))
+    }
+}
+
+impl<T:DepthId> PartialOrd for DepthItem<T> {
+    fn partial_cmp(&self, other:&Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+#[derive(CloneRef)]
+#[derive(Derivative)]
+#[derivative(Debug(bound="T:DepthId"))]
+#[derivative(Clone(bound=""))]
+#[derivative(Default(bound="T:DepthId"))]
+pub struct DepthOrdering<T> {
+    below : Rc<RefCell<HashMap<(T,T),Ordering>>>,
+}
+
+impl <T:Copy+Eq+Hash> DepthOrdering<T> {
+    fn check(&self, first:T, second:T) -> Option<Ordering> {
+        self.below.borrow().get(&(first,second)).copied()
+    }
+}
+
+#[derive(Derivative)]
+#[derivative(Debug(bound="T:DepthId"))]
+#[derivative(Default(bound="T:DepthId"))]
+pub struct DepthHierarchy<T> {
+    ordering  : DepthOrdering<T>,
+    hierarchy : BTreeSet<DepthItem<T>>
+}
+
+impl<T:DepthId> DepthHierarchy<T> {
+    fn add_rule_below(&self, below:T, over:T) {
+        let ordering = self.ordering.below.borrow_mut();
+        // ordering.insert((below,over))
+    }
+}
+
+
+
 
 #[allow(clippy::implicit_hasher)]
 pub fn depth_sort(ids:&[usize], elem_above_elems:&HashMap<usize,Vec<usize>>) -> Vec<usize> {
