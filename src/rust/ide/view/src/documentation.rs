@@ -96,7 +96,7 @@ impl Model {
         let bg_color = styles.get_color(ensogl_theme::graph_editor::visualization::background);
         let bg_color = color::Rgba::from(bg_color);
         let bg_hex   = format!("rgba({},{},{},{})",
-                               bg_color.red*255.0,bg_color.green*255.0,bg_color.blue*255.0,bg_color.alpha);
+            bg_color.red*255.0,bg_color.green*255.0,bg_color.blue*255.0,bg_color.alpha);
 
         let shadow_alpha_path = ensogl_theme::graph_editor::visualization::shadow::html::alpha;
         let shadow_alpha_size = ensogl_theme::graph_editor::visualization::shadow::html::size;
