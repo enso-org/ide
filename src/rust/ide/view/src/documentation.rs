@@ -96,7 +96,7 @@ impl Model {
         let bg_color = styles.get_color(ensogl_theme::graph_editor::visualization::background);
         let bg_color = color::Rgba::from(bg_color);
         let bg_hex   = format!("rgba({},{},{},{})",
-            bg_color.red*255.0,bg_color.green*255.0,bg_color.blue*255.0,bg_color.alpha);
+                               bg_color.red*255.0,bg_color.green*255.0,bg_color.blue*255.0,bg_color.alpha);
 
         let shadow_alpha_path = ensogl_theme::graph_editor::visualization::shadow::html::alpha;
         let shadow_alpha_size = ensogl_theme::graph_editor::visualization::shadow::html::size;
@@ -142,9 +142,7 @@ impl Model {
             Ok(PLACEHOLDER_STR.into())
         } else {
             let parser    = parser::DocParser::new()?;
-            // FIXME [MM]:  Removes characters that are not supported by Doc Parser yet.
-            //              https://github.com/enso-org/enso/issues/1063
-            let processed = string.replace("\\n", "\n").replace("\"", "");
+            let processed = string.to_string();
             let output = match input_type {
                 InputFormat::AST       => parser.generate_html_docs(processed),
                 InputFormat::Docstring => parser.generate_html_doc_pure(processed),
