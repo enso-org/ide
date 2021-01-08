@@ -18,6 +18,8 @@
     color: #333333;
     margin: 0;
     padding: 0;
+    width: 100%;
+    overflow-wrap: break-word;
 }
 
 .dark-theme .docVis {
