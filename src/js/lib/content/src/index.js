@@ -352,9 +352,9 @@ API.main = async function (inputConfig) {
     let config    = Object.assign({},inputConfig,urlConfig)
     API[globalConfig.windowAppScopeConfigName] = config
 
-    let wasm_url = inputConfig.wasm_url ? inputConfig.wasm_url : '/assets/ide.wasm'
+    let wasm_url = config.wasm_url ? inputConfig.wasm_url : '/assets/ide.wasm'
     let wasm_glue_url =
-      inputConfig.wasm_glue_url ? inputConfig.wasm_glue_url : '/assets/wasm_imports.js'
+      config.wasm_glue_url ? inputConfig.wasm_glue_url : '/assets/wasm_imports.js'
 
     initCrashHandling()
     style_root()
