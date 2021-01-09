@@ -252,7 +252,7 @@ impl<S:DynShape+'static> ShapeView2<S> {
         self.display_object().set_on_show(move |scene| {
             if let Some(model) = weak_model.upgrade() {
                 if !model.initialized.get() {
-                    model.switch_view(&scene.views.breadcrumbs);
+                    model.switch_view(&scene.views.main);
                 }
             }
         });

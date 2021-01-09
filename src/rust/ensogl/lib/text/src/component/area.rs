@@ -20,6 +20,7 @@ use ensogl_core::application::Application;
 use ensogl_core::application::shortcut;
 use ensogl_core::application;
 use ensogl_core::data::color;
+use ensogl_core::display::scene;
 use ensogl_core::display::scene::Scene;
 use ensogl_core::display::shape::*;
 use ensogl_core::display;
@@ -148,7 +149,7 @@ impl Deref for Selection {
 
 impl Selection {
     /// Constructor.
-    pub fn new(logger:impl AnyLogger, edit_mode:bool) -> Self {
+    pub fn new(logger:impl AnyLogger, edit_mode:bool, scene_view:Option<&scene::WeakView>) -> Self {
         let logger         = Logger::sub(logger,"selection");
         let display_object = display::object::Instance::new(&logger);
         let right_side     = display::object::Instance::new(&logger);
@@ -159,6 +160,10 @@ impl Selection {
         let edit_mode      = Rc::new(Cell::new(edit_mode));
         let debug          = false; // Change to true to slow-down movement for debug purposes.
         let spring_factor  = if debug { 0.1 } else { 1.5 };
+
+        if let Some(scene_view) = scene_view.and_then(|t|t.upgrade()) {
+            shape_view.switch_view(&scene_view);
+        }
 
         position . update_spring (|spring| spring * spring_factor);
         width    . update_spring (|spring| spring * spring_factor);
@@ -661,6 +666,7 @@ impl Area {
     pub fn add_to_view_OLD(&self, view:&display::scene::View) {
         for symbol in self.symbols() { view.add(&symbol); }
         self.data.camera.set(view.camera.clone_ref());
+        *self.data.scene_view.borrow_mut() = Some(view.downgrade());
     }
 
     /// Remove this component from view.
@@ -690,6 +696,8 @@ pub struct AreaModel {
     // FIXME[ao]: this is a temporary solution to handle properly areas in different views. Should
     //            be replaced with proper object management.
     camera         : Rc<CloneRefCell<display::camera::Camera2d>>,
+    scene_view     : Rc<RefCell<Option<scene::WeakView>>>,
+
     logger         : Logger,
     frp_endpoints  : FrpEndpoints,
     buffer         : buffer::View,
@@ -729,9 +737,10 @@ impl AreaModel {
         scene.views.label.add(symbol);
 
         let frp_endpoints = frp_endpoints.clone_ref();
+        let scene_view    = default();
 
         Self {app,logger,display_object,glyph_system,buffer,lines,selection_map,camera
-             ,single_line,frp_endpoints}.init()
+             ,single_line,frp_endpoints,scene_view}.init()
     }
 
     fn on_modified_selection(&self, selections:&buffer::selection::Group, time:f32, do_edit:bool) {
@@ -769,7 +778,7 @@ impl AreaModel {
                         selection
                     }
                     None => {
-                        let selection = Selection::new(&logger,do_edit);
+                        let selection = Selection::new(&logger,do_edit,self.scene_view.borrow().as_ref());
                         selection.shape.letter_width.set(7.0); // FIXME hardcoded values
                         self.add_child(&selection);
                         selection.position.set_target_value(pos);
