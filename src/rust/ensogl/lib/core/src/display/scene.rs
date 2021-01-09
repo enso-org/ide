@@ -44,6 +44,8 @@ use enso_frp as frp;
 use enso_frp::io::js::CurrentJsEvent;
 use std::any::TypeId;
 use web_sys::HtmlElement;
+use enso_data::dependency_graph::DependencyGraph;
+use smallvec::alloc::collections::BTreeSet;
 
 
 pub trait MouseTarget : Debug + 'static {
@@ -621,6 +623,31 @@ impl Renderer {
 // === View ===
 // ============
 
+pub type GlobalDepthOrder = Rc<RefCell<DependencyGraph>>;
+pub type LocalDepthOrder = Rc<RefCell<Option<DependencyGraph>>>;
+
+#[derive(Debug,Clone,CloneRef)]
+pub struct DepthOrder {
+    global : GlobalDepthOrder,
+    local  : LocalDepthOrder,
+}
+
+impl DepthOrder {
+    pub fn new(global:&GlobalDepthOrder) -> Self {
+        let global = global.clone_ref();
+        let local  = default();
+        Self {global,local}
+    }
+
+    fn sort(&self, symbols:&BTreeSet<usize>) -> Vec<usize> {
+        let local     = self.local.borrow();
+        let global    = self.global.borrow();
+        let dep_graph = local.as_ref().unwrap_or_else(||&*global);
+        dep_graph.unchecked_topo_sort(symbols.iter().copied().rev().collect_vec())
+    }
+}
+
+
 // === Definition ===
 
 #[derive(Debug,Clone,CloneRef)]
@@ -633,12 +660,23 @@ pub struct WeakView {
     data : Weak<ViewData>
 }
 
+impl PartialEq for WeakView {
+    fn eq(&self, other:&Self) -> bool {
+        self.data.ptr_eq(&other.data)
+    }
+}
+
+impl Eq for WeakView {}
+
 #[derive(Debug,Clone)]
 pub struct ViewData {
     logger             : Logger,
     pub camera         : Camera2d,
     pub shape_registry : ShapeRegistry,
-    symbols            : RefCell<Vec<SymbolId>>,
+    symbols            : RefCell<BTreeSet<SymbolId>>,
+    symbols_ordered    : RefCell<Vec<SymbolId>>,
+    depth_order        : DepthOrder,
+    symbols_placement  : Rc<RefCell<HashMap<usize,Vec<WeakView>>>>,
 }
 
 impl AsRef<ViewData> for View {
@@ -664,14 +702,15 @@ impl Deref for View {
 // === API ===
 
 impl View {
-    pub fn new(logger:&Logger, width:f32, height:f32) -> Self {
-        let data = ViewData::new(logger,width,height);
+    pub fn new(logger:&Logger, width:f32, height:f32, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<usize,Vec<WeakView>>>>) -> Self {
+        let data = ViewData::new(logger,width,height,global_depth_order,symbols_placement);
         let data = Rc::new(data);
         Self {data}
     }
 
-    pub fn new_with_shared_camera(logger:&Logger, camera:&Camera2d) -> Self {
-        let data = ViewData::new_with_shared_camera(logger,camera);
+    pub fn new_with_shared_camera
+    (logger:&Logger, camera:&Camera2d, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<usize,Vec<WeakView>>>>) -> Self {
+        let data = ViewData::new_with_shared_camera(logger,camera,global_depth_order,symbols_placement);
         let data = Rc::new(data);
         Self {data}
     }
@@ -681,18 +720,19 @@ impl View {
         WeakView {data}
     }
 
-    pub fn add_by_id(&self, symbol_id:i32) {
-        let symbol_id = symbol_id as usize;
-        let mut symbols = self.symbols.borrow_mut();
-        //FIXME:We check if the symbol was already added to this view to avoid a glitch that makes
-        //the symbol to be rendered more than once. The Breadcrumb object, for instance, is added
-        //to the view object every time a new breadcrumb is created. It gets really visible when
-        //the breadcrumb is semi-transparent because, every time it's rendered, the shape is added
-        //on top of the already rendered ones.
-        //TODO:Symbols insertion can run faster if refactored as HashSet.
-        if symbols.iter().find(|id| **id == symbol_id).is_none() {
-            symbols.push(symbol_id); // TODO strange conversion
+    pub fn add_by_id(&self, xsymbol_id:i32) {
+        let symbol_id = xsymbol_id as usize;
+        let placement = self.symbols_placement.borrow().get(&symbol_id).cloned();
+        if let Some(placement) = placement {
+            for weak_view in placement {
+                if let Some(view) = weak_view.upgrade() {
+                    view.remove_by_id(xsymbol_id)
+                }
+            }
         }
+        self.symbols_placement.borrow_mut().entry(symbol_id).or_default().push(self.downgrade());
+        self.symbols.borrow_mut().insert(symbol_id);
+        *self.symbols_ordered.borrow_mut() = self.depth_order.sort(&*self.symbols.borrow());
     }
 
     pub fn add(&self, symbol:&Symbol) {
@@ -700,7 +740,17 @@ impl View {
     }
 
     pub fn remove(&self, symbol:&Symbol) {
-        self.symbols.borrow_mut().remove_item(&(symbol.id as usize)); // TODO strange conversion
+        self.remove_by_id(symbol.id);
+    }
+
+    pub fn remove_by_id(&self, symbol_id:i32) {
+        let symbol_id = symbol_id as usize;
+        self.symbols.borrow_mut().remove(&symbol_id);
+        *self.symbols_ordered.borrow_mut() = self.depth_order.sort(&*self.symbols.borrow());
+        if let Some(placement) = self.symbols_placement.borrow_mut().get_mut(&symbol_id) {
+            placement.remove_item(&self.downgrade());
+        }
+
     }
 
     // FIXME: used only in breadcrumbs
@@ -725,21 +775,26 @@ impl WeakView {
 }
 
 impl ViewData {
-    pub fn new(logger:impl AnyLogger, width:f32, height:f32) -> Self {
+    pub fn new
+    (logger:impl AnyLogger, width:f32, height:f32, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<usize,Vec<WeakView>>>>) -> Self {
         let camera = Camera2d::new(&logger,width,height);
-        Self::new_with_shared_camera(logger,camera)
+        Self::new_with_shared_camera(logger,camera,global_depth_order,symbols_placement)
     }
 
-    pub fn new_with_shared_camera(logger:impl AnyLogger, camera:impl Into<Camera2d>) -> Self {
-        let logger         = Logger::sub(logger,"view");
-        let camera         = camera.into();
-        let shape_registry = default();
-        let symbols        = default();
-        Self {logger,camera,shape_registry,symbols}
+    pub fn new_with_shared_camera
+    (logger:impl AnyLogger, camera:impl Into<Camera2d>, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<usize,Vec<WeakView>>>>) -> Self {
+        let logger          = Logger::sub(logger,"view");
+        let camera          = camera.into();
+        let shape_registry  = default();
+        let symbols         = default();
+        let symbols_ordered = default();
+        let depth_order     = DepthOrder::new(global_depth_order);
+        let symbols_placement = symbols_placement.clone_ref();
+        Self {logger,camera,shape_registry,symbols,symbols_ordered,depth_order,symbols_placement}
     }
 
     pub fn symbols(&self) -> Vec<SymbolId> {
-        self.symbols.borrow().clone()
+        self.symbols_ordered.borrow().clone()
     }
 }
 
@@ -761,23 +816,27 @@ pub struct Views {
     pub label          : View,
     pub viz_fullscreen : View,
     pub breadcrumbs    : View,
+    pub depth_order    : GlobalDepthOrder,
     all                : Rc<RefCell<Vec<WeakView>>>,
+    symbols_placement  : Rc<RefCell<HashMap<usize,Vec<WeakView>>>>,
     width              : f32,
     height             : f32,
 }
 
 impl Views {
     pub fn new(logger:impl AnyLogger) -> Self {
-        let width          = 0.0;
-        let height         = 0.0;
-        let logger         = Logger::sub(logger,"views");
-        let main           = View::new(&logger,width,height);
-        let viz            = View::new_with_shared_camera(&logger,&main.camera);
-        let cursor         = View::new(&logger,width,height);
-        let label          = View::new_with_shared_camera(&logger,&main.camera);
-        let viz_fullscreen = View::new(&logger,width,height);
-        let breadcrumbs    = View::new(&logger,width,height);
-        let all            = vec![
+        let width             = 0.0;
+        let height            = 0.0;
+        let depth_order       = default();
+        let symbols_placement = default();
+        let logger            = Logger::sub(logger,"views");
+        let main              = View::new(&logger,width,height,&depth_order,&symbols_placement);
+        let viz               = View::new_with_shared_camera(&logger,&main.camera,&depth_order,&symbols_placement);
+        let cursor            = View::new(&logger,width,height,&depth_order,&symbols_placement);
+        let label             = View::new_with_shared_camera(&logger,&main.camera,&depth_order,&symbols_placement);
+        let viz_fullscreen    = View::new(&logger,width,height,&depth_order,&symbols_placement);
+        let breadcrumbs       = View::new(&logger,width,height,&depth_order,&symbols_placement);
+        let all               = vec![
             viz.downgrade(),
             main.downgrade(),
             cursor.downgrade(),
@@ -786,7 +845,7 @@ impl Views {
             breadcrumbs.downgrade()
         ];
         let all = Rc::new(RefCell::new(all));
-        Self {logger,viz,main,cursor,label,viz_fullscreen,all,width,height,breadcrumbs}
+        Self {logger,viz,main,cursor,label,viz_fullscreen,all,symbols_placement,width,height,breadcrumbs,depth_order}
     }
 
     pub fn all(&self) -> Ref<Vec<WeakView>> {
@@ -803,20 +862,20 @@ impl Views {
 /// FRP Scene interface.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Frp {
-    pub network                      : frp::Network,
-    pub shape                        : frp::Sampler<Shape>,
-    pub camera_changed               : frp::Stream,
-    pub frame_time                   : frp::Stream<f32>,
-    camera_changed_source            : frp::Source,
-    frame_time_source                : frp::Source<f32>,
+    pub network           : frp::Network,
+    pub shape             : frp::Sampler<Shape>,
+    pub camera_changed    : frp::Stream,
+    pub frame_time        : frp::Stream<f32>,
+    camera_changed_source : frp::Source,
+    frame_time_source     : frp::Source<f32>,
 }
 
 impl Frp {
     /// Constructor
     pub fn new(shape:&frp::Sampler<Shape>) -> Self {
         frp::new_network! { network
-            camera_changed_source        <- source();
-            frame_time_source            <- source();
+            camera_changed_source <- source();
+            frame_time_source     <- source();
         }
         let shape            = shape.clone_ref();
         let camera_changed   = camera_changed_source.clone_ref().into();

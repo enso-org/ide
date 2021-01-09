@@ -248,7 +248,7 @@ impl Model {
         // It needs to be more flexible once we have proper depth management.
         let scene = self.app.display.scene();
         self.label.remove_from_view(&scene.views.main);
-        self.label.add_to_view(&scene.views.label);
+        self.label.add_to_view_OLD(&scene.views.label);
 
         let text_color = self.styles.get_color(theme::graph_editor::node::text);
         self.label.single_line(true);

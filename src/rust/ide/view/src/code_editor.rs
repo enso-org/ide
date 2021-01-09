@@ -72,7 +72,7 @@ impl View {
 
         model.set_position_x(PADDING_LEFT);
         model.remove_from_view(&scene.views.main);
-        model.add_to_view(&scene.views.breadcrumbs);
+        model.add_to_view_OLD(&scene.views.breadcrumbs);
         // TODO[ao]: To have code editor usable we treat it as constantly mouse-hovered, but this
         //  should be changed in the second part of focus management
         //  (https://github.com/enso-org/ide/issues/823)

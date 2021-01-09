@@ -306,7 +306,7 @@ impl BreadcrumbModel {
         scene.views.breadcrumbs.add(&shape_system.shape_system.symbol);
 
         label.remove_from_view(&scene.views.main);
-        label.add_to_view(&scene.views.breadcrumbs);
+        label.add_to_view_OLD(&scene.views.breadcrumbs);
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let style = StyleWatch::new(&scene.style_sheet);

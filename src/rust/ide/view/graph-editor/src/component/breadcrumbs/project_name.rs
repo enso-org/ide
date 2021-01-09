@@ -148,7 +148,7 @@ impl ProjectNameModel {
         text_field.single_line(true);
 
         text_field.remove_from_view(&scene.views.main);
-        text_field.add_to_view(&scene.views.breadcrumbs);
+        text_field.add_to_view_OLD(&scene.views.breadcrumbs);
         text_field.hover();
 
         let view_logger = Logger::sub(&logger,"view_logger");

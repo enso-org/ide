@@ -658,7 +658,7 @@ impl Area {
     /// Add the text area to a specific view. The mouse event positions will be mapped to this view
     /// regardless the previous views this component could be added to.
     //TODO[ao] it will not move selection, see todo in `symbols` function.
-    pub fn add_to_view(&self, view:&display::scene::View) {
+    pub fn add_to_view_OLD(&self, view:&display::scene::View) {
         for symbol in self.symbols() { view.add(&symbol); }
         self.data.camera.set(view.camera.clone_ref());
     }

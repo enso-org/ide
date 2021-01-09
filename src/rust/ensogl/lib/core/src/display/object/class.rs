@@ -224,6 +224,8 @@ impl<Host> Model<Host> {
         self.update_with_origin(host,origin0,false)
     }
 
+    /// The default visibility of a new [`Instance`] is false. You can use this function to override
+    /// it. It is mainly used for a special 'root' element if such exists.
     pub fn force_set_visibility(&self, visibility:bool) {
         self.visible.set(visibility);
     }
@@ -254,7 +256,6 @@ impl<Host> Model<Host> {
     fn update_with_origin
     (&self, host:&Host, parent_origin:Matrix4<f32>, parent_origin_changed:bool) {
         self.update_visibility(host);
-        let is_visible          = self.visible.get();
         let has_new_parent      = self.dirty.parent.check();
         let is_origin_dirty     = has_new_parent || parent_origin_changed;
         let new_parent_origin   = is_origin_dirty.as_some(parent_origin);
