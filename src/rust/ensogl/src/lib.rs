@@ -5,8 +5,69 @@
 //!
 //! # Rendering Architecture
 //!
+//! https://www.nomnoml.com :
+//! ```ignore
+//!     #zoom: 0.6
+//!     #gutter:100
+//!     #padding: 14
+//!     #leading: 1.4
+//!     #spacing: 60
+//!     #edgeMargin:5
+//!     #arrowSize: 0.8
+//!     #fill: #FFFFFF; #fdf6e3
 //!
+//!     #background: #FFFFFF
+//!     #.usr: visual=roundrect title=bold stroke=rgb(237,80,80)
+//!     #.dyn: visual=roundrect title=bold dashed
+//!     #.cpu: visual=roundrect title=bold
+//!     #.gpu: stroke=rgb(68,133,187) visual=roundrect
 //!
+//!     [<gpu> Buffer]
+//!     [<gpu> WebGL Context]
+//!     [<cpu> AttributeScope]
+//!     [<cpu> Attribute]
+//!     [<cpu> Mesh]
+//!     [<cpu> Material]
+//!     [<cpu> Symbol]
+//!     [<cpu> SymbolRegistry]
+//!     [<cpu> World]
+//!     [<cpu> Scene]
+//!     [<cpu> View]
+//!     [<cpu> SpriteSystem]
+//!     [<cpu> Sprite]
+//!     [<cpu> ShapeSystem]
+//!     [<dyn> ShapeView]
+//!     [<usr> *Shape]
+//!     [<usr> *ShapeSystem]
+//!     [<usr> *Component]
+//!     [<cpu> Application]
+//!
+//!     [AttributeScope] o- [Buffer]
+//!     [Buffer] o-- [Attribute]
+//!     [Mesh]* o- 4[AttributeScope]
+//!     [Symbol]* o- [Mesh]
+//!     [Symbol]* o- [Material]
+//!     [SymbolRegistry] o- [Symbol]
+//!     [Scene] - [SymbolRegistry]
+//!     [Scene] o- [View]
+//!     [Scene] - [WebGL Context]
+//!
+//!     [SpriteSystem] o- [Symbol]
+//!     [SpriteSystem] o-- [Sprite]
+//!     [ShapeSystem] o- [SpriteSystem]
+//!     [Sprite] o- [Symbol]
+//!     [Sprite] o- [Attribute]
+//!     [*Shape] o- [Sprite]
+//!     [*ShapeSystem] o- [ShapeSystem]
+//!     [*ShapeSystem] o-- [*Shape]
+//!     [*Component] o- [ShapeView]
+//!     [ShapeView] - [*Shape]
+//!     [View] o- [Symbol]
+//!     [View] o- [*ShapeSystem]
+//!     [World] o- [Scene]
+//!     [Application] - [World]
+//!     [Application] o- [*Component]
+//! ```
 //!
 //! # Shapes Rendering
 //!
