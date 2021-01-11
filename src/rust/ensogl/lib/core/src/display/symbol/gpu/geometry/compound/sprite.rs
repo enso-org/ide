@@ -176,7 +176,7 @@ impl Sprite {
         let transform = &self.transform;
         self.display_object.set_on_updated(f!((t) transform.set(t.matrix())));
         self.display_object.set_on_hide(f_!(size.hide()));
-        self.display_object.set_on_show(f_!(size.show()));
+        self.display_object.set_on_show(f__!(size.show()));
         self
     }
 

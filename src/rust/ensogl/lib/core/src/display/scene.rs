@@ -655,7 +655,7 @@ pub struct View {
     data : Rc<ViewData>
 }
 
-#[derive(Debug,Clone,CloneRef)]
+#[derive(Clone,CloneRef)]
 pub struct WeakView {
     data : Weak<ViewData>
 }
@@ -667,6 +667,12 @@ impl PartialEq for WeakView {
 }
 
 impl Eq for WeakView {}
+
+impl Debug for WeakView {
+    fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f,"WeakView")
+    }
+}
 
 #[derive(Debug,Clone)]
 pub struct ViewData {

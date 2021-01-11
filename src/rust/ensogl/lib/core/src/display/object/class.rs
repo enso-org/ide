@@ -9,6 +9,7 @@ use super::transform;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::display::scene::Scene;
+use crate::display::scene::WeakView;
 
 use data::opt_vec::OptVec;
 use nalgebra::Matrix4;
@@ -60,7 +61,7 @@ impl<Host> Drop for ParentBind<Host> {
 #[allow(clippy::type_complexity)]
 pub struct Callbacks<Host> {
     on_updated : RefCell<Option<Box<dyn Fn(&Model<Host>)>>>,
-    on_show    : RefCell<Option<Box<dyn Fn(&Host)>>>,
+    on_show    : RefCell<Option<Box<dyn Fn(&Host,Option<&Vec<WeakView>>)>>>,
     on_hide    : RefCell<Option<Box<dyn Fn(&Host)>>>,
 }
 
@@ -69,8 +70,8 @@ impl<Host> Callbacks<Host> {
         if let Some(f) = &*self.on_updated.borrow() { f(model) }
     }
 
-    fn on_show(&self, host:&Host) {
-        if let Some(f) = &*self.on_show.borrow() { f(host) }
+    fn on_show(&self, host:&Host, views:Option<&Vec<WeakView>>) {
+        if let Some(f) = &*self.on_show.borrow() { f(host,views) }
     }
 
     fn on_hide(&self, host:&Host) {
@@ -175,6 +176,7 @@ fn on_dirty_callback(f:&Rc<RefCell<Box<dyn Fn()>>>) -> OnDirtyCallback {
 #[derivative(Debug(bound=""))]
 pub struct Model<Host=Scene> {
     host        : PhantomData <Host>,
+    views       : Rc<RefCell<Option<Vec<WeakView>>>>,
     dirty       : DirtyFlags  <Host>,
     callbacks   : Callbacks   <Host>,
     parent_bind : RefCell     <Option<ParentBind<Host>>>,
@@ -195,7 +197,8 @@ impl<Host> Model<Host> {
         let visible     = Cell::new(false);
         let callbacks   = default();
         let host        = default();
-        Self {logger,parent_bind,children,transform,visible,callbacks,dirty,host}
+        let views       = default();
+        Self {logger,parent_bind,children,transform,visible,callbacks,dirty,host,views}
     }
 
     /// Checks whether the object is visible.
@@ -221,7 +224,7 @@ impl<Host> Model<Host> {
     /// Recompute the transformation matrix of this object and update all of its dirty children.
     pub fn update(&self, host:&Host) {
         let origin0 = Matrix4::identity();
-        self.update_with_origin(host,origin0,false)
+        self.update_with_origin(host,origin0,false,None)
     }
 
     /// The default visibility of a new [`Instance`] is false. You can use this function to override
@@ -254,8 +257,10 @@ impl<Host> Model<Host> {
     /// Updates object transformations by providing a new origin location. See docs of `update` to
     /// learn more.
     fn update_with_origin
-    (&self, host:&Host, parent_origin:Matrix4<f32>, parent_origin_changed:bool) {
-        self.update_visibility(host);
+    (&self, host:&Host, parent_origin:Matrix4<f32>, parent_origin_changed:bool, parent_views:Option<&Vec<WeakView>>) {
+        let this_views          = self.views.borrow();
+        let views               = this_views.as_ref().or(parent_views);
+        self.update_visibility(host,parent_views);
         let has_new_parent      = self.dirty.parent.check();
         let is_origin_dirty     = has_new_parent || parent_origin_changed;
         let new_parent_origin   = is_origin_dirty.as_some(parent_origin);
@@ -269,7 +274,7 @@ impl<Host> Model<Host> {
                 if !self.children.borrow().is_empty() {
                     debug!(self.logger, "Updating all children.", || {
                         self.children.borrow().iter().for_each(|child| {
-                            child.upgrade().for_each(|t|t.update_with_origin(host,new_origin,true));
+                            child.upgrade().for_each(|t|t.update_with_origin(host,new_origin,true,views));
                         });
                     })
                 }
@@ -279,7 +284,7 @@ impl<Host> Model<Host> {
                     debug!(self.logger, "Updating dirty children.", || {
                         self.dirty.children.take().iter().for_each(|ix| {
                             self.children.borrow().safe_index(*ix).and_then(|t|t.upgrade())
-                                .for_each(|t|t.update_with_origin(host,new_origin,false))
+                                .for_each(|t|t.update_with_origin(host,new_origin,false,views))
                         });
                     })
                 }
@@ -291,11 +296,11 @@ impl<Host> Model<Host> {
     }
 
     /// Hide all removed children and show this display object if it was attached to a new parent.
-    fn update_visibility(&self, host:&Host) {
+    fn update_visibility(&self, host:&Host, parent_views:Option<&Vec<WeakView>>) {
         self.take_removed_children_and_hide_orphans(host);
         let parent_changed = self.dirty.parent.check();
         if parent_changed && !self.is_orphan() {
-            self.set_vis_true(host)
+            self.set_vis_true(host,parent_views)
         }
     }
 
@@ -324,13 +329,15 @@ impl<Host> Model<Host> {
         }
     }
 
-    fn set_vis_true(&self, host:&Host) {
+    fn set_vis_true(&self, host:&Host, parent_views:Option<&Vec<WeakView>>) {
        if !self.visible.get() {
            info!(self.logger,"Showing.");
+           let this_views = self.views.borrow();
+           let views      = this_views.as_ref().or(parent_views);
            self.visible.set(true);
-           self.callbacks.on_show(host);
+           self.callbacks.on_show(host,views);
            self.children.borrow().iter().for_each(|child| {
-               child.upgrade().for_each(|t| t.set_vis_true(host));
+               child.upgrade().for_each(|t| t.set_vis_true(host,views));
            });
        }
     }
@@ -437,7 +444,7 @@ impl<Host> Model<Host> {
 
     /// Sets a callback which will be called with a reference to scene when the object will be
     /// shown (attached to visible display object graph).
-    pub fn set_on_show<F:Fn(&Host)+'static>(&self, f:F) {
+    pub fn set_on_show<F:Fn(&Host,Option<&Vec<WeakView>>)+'static>(&self, f:F) {
         self.callbacks.on_show.set(Box::new(f))
     }
 
@@ -500,6 +507,10 @@ impl<Host> Instance<Host> {
     /// ID getter of this display object.
     pub fn _id(&self) -> Id {
         Id(Rc::downgrade(&self.rc).as_raw() as *const() as usize)
+    }
+
+    fn _set_view(&self, view:&WeakView) {
+        *self.views.borrow_mut() = Some(vec![view.clone_ref()]);
     }
 
     /// Adds a new `Object` as a child to the current one.
@@ -676,6 +687,10 @@ pub trait ObjectOps<Host=Scene> : Object<Host> {
     /// Globally unique identifier of this display object.
     fn id(&self) -> Id {
         self.display_object()._id()
+    }
+
+    fn set_view(&self, view:&WeakView) {
+        self.display_object()._set_view(view)
     }
 
     /// Add another display object as a child to this display object. Children will inherit all

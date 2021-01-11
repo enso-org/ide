@@ -249,10 +249,23 @@ impl<S:DynShape+'static> ShapeView2<S> {
 
     fn init_on_show(&self) {
         let weak_model = Rc::downgrade(&self.model);
-        self.display_object().set_on_show(move |scene| {
+        self.display_object().set_on_show(move |scene,views| {
+            println!("!!! init_on_show, views: {:?}", views);
             if let Some(model) = weak_model.upgrade() {
                 if !model.initialized.get() {
-                    model.switch_view(&scene.views.main);
+                    match views {
+                        None => {model.switch_view(&scene.views.main);},
+                        Some(views) => {
+                            if views.len() != 1 { todo!() }
+                            if let Some(view) = views[0].upgrade() {
+                                println!("!!!!!!");
+                                model.switch_view(&view);
+                            } else {
+                                model.switch_view(&scene.views.main);
+                            }
+                        }
+                    }
+
                 }
             }
         });

@@ -161,9 +161,9 @@ impl Selection {
         let debug          = false; // Change to true to slow-down movement for debug purposes.
         let spring_factor  = if debug { 0.1 } else { 1.5 };
 
-        if let Some(scene_view) = scene_view.and_then(|t|t.upgrade()) {
-            shape_view.switch_view(&scene_view);
-        }
+        // if let Some(scene_view) = scene_view.and_then(|t|t.upgrade()) {
+        //     shape_view.switch_view(&scene_view);
+        // }
 
         position . update_spring (|spring| spring * spring_factor);
         width    . update_spring (|spring| spring * spring_factor);
@@ -664,9 +664,11 @@ impl Area {
     /// regardless the previous views this component could be added to.
     //TODO[ao] it will not move selection, see todo in `symbols` function.
     pub fn add_to_view_OLD(&self, view:&display::scene::View) {
+        println!("add_to_view_OLD");
         for symbol in self.symbols() { view.add(&symbol); }
         self.data.camera.set(view.camera.clone_ref());
         *self.data.scene_view.borrow_mut() = Some(view.downgrade());
+        self.set_view(&view.downgrade());
     }
 
     /// Remove this component from view.
