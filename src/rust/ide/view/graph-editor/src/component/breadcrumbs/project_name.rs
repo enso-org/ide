@@ -124,7 +124,7 @@ struct ProjectNameModel {
     app            : Application,
     logger         : Logger,
     display_object : display::object::Instance,
-    view           : component::ShapeView<background::Shape>,
+    view           : component::ShapeView_DEPRECATED<background::Shape>,
     style          : StyleWatch,
     text_field     : text::Area,
     project_name   : Rc<RefCell<String>>,
@@ -152,7 +152,7 @@ impl ProjectNameModel {
         text_field.hover();
 
         let view_logger = Logger::sub(&logger,"view_logger");
-        let view        = component::ShapeView::<background::Shape>::new(&view_logger,scene);
+        let view        = component::ShapeView_DEPRECATED::<background::Shape>::new(&view_logger,scene);
 
         scene.views.main.remove_shape_view(&view);
         scene.views.breadcrumbs.add_shape_view(&view);

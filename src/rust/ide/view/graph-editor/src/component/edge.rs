@@ -359,7 +359,7 @@ macro_rules! define_corner_start { () => {
             }
         }
 
-        impl EdgeShape for component::ShapeView<Shape> {
+        impl EdgeShape for component::ShapeView_DEPRECATED<Shape> {
             fn set_focus_split_center_local(&self, center:Vector2<f32>) {
                self.shape.focus_split_center.set(center);
             }
@@ -453,7 +453,7 @@ macro_rules! define_corner_end { () => {
             }
         }
 
-        impl EdgeShape for component::ShapeView<Shape> {
+        impl EdgeShape for component::ShapeView_DEPRECATED<Shape> {
             fn set_focus_split_center_local(&self, center:Vector2<f32>) {
                 self.shape.focus_split_center.set(center);
             }
@@ -527,7 +527,7 @@ macro_rules! define_line { () => {
             }
         }
 
-        impl EdgeShape for component::ShapeView<Shape> {
+        impl EdgeShape for component::ShapeView_DEPRECATED<Shape> {
             fn set_focus_split_center_local(&self, center:Vector2<f32>) {
                 self.shape.focus_split_center.set(center);
             }
@@ -590,7 +590,7 @@ macro_rules! define_arrow { () => {
             }
         }
 
-        impl EdgeShape for component::ShapeView<Shape> {
+        impl EdgeShape for component::ShapeView_DEPRECATED<Shape> {
             fn set_focus_split_center_local(&self, center:Vector2<f32>) {
                 // We don't want the arrow to be half-focused. The focus split point is set to the
                 // closest edge (all or nothing).
@@ -650,7 +650,7 @@ trait LayoutLine {
     fn layout_h_no_overlap(&self,start:Vector2<f32>,len:f32);
 }
 
-impl LayoutLine for component::ShapeView<front::line::Shape> {
+impl LayoutLine for component::ShapeView_DEPRECATED<front::line::Shape> {
     fn layout_v(&self, start:Vector2<f32>, len:f32) {
         let pos  = Vector2(start.x, start.y + len/2.0);
         let size = Vector2(LINE_SHAPE_WIDTH, len.abs()+LINE_SIDES_OVERLAP);
@@ -677,7 +677,7 @@ impl LayoutLine for component::ShapeView<front::line::Shape> {
     }
 }
 
-impl LayoutLine for component::ShapeView<back::line::Shape> {
+impl LayoutLine for component::ShapeView_DEPRECATED<back::line::Shape> {
     fn layout_v(&self, start:Vector2<f32>, len:f32) {
         let pos  = Vector2(start.x, start.y + len/2.0);
         let size = Vector2(LINE_SHAPE_WIDTH, len.abs()+LINE_SIDES_OVERLAP);
@@ -743,14 +743,14 @@ macro_rules! define_components {
             pub display_object    : display::object::Instance,
             pub shape_view_events : Rc<Vec<ShapeViewEvents>>,
             shape_type_map        : Rc<HashMap<display::object::Id,ShapeRole>>,
-            $(pub $field : component::ShapeView<$field_type>),*
+            $(pub $field : component::ShapeView_DEPRECATED<$field_type>),*
         }
 
         impl $name {
             /// Constructor.
             pub fn new(logger:Logger, scene:&Scene) -> Self {
                 let display_object = display::object::Instance::new(&logger);
-                $(let $field = component::ShapeView::new(
+                $(let $field = component::ShapeView_DEPRECATED::new(
                     Logger::sub(&logger,stringify!($field)),scene);)*
                     $(display_object.add_child(&$field);)*
                 let mut shape_view_events:Vec<ShapeViewEvents> = Vec::default();
@@ -831,21 +831,21 @@ impl AnyEdgeShape for EdgeModelData {
 /// Hack function used to register the elements for the sorting purposes. To be removed.
 pub fn depth_sort_hack_1(scene:&Scene) {
     let logger = Logger::new("hack_sort");
-    component::ShapeView::<back::corner::Shape>::new(&logger,scene);
-    component::ShapeView::<back::line::Shape>::new(&logger,scene);
+    component::ShapeView_DEPRECATED::<back::corner::Shape>::new(&logger,scene);
+    component::ShapeView_DEPRECATED::<back::line::Shape>::new(&logger,scene);
 }
 
 // TODO: Implement proper sorting and remove.
 /// Hack function used to register the elements for the sorting purposes. To be removed.
 pub fn depth_sort_hack_2(scene:&Scene) {
     let logger = Logger::new("hack_sort");
-    component::ShapeView::<front::corner::Shape>::new(&logger,scene);
-    component::ShapeView::<front::line::Shape>::new(&logger,scene);
+    component::ShapeView_DEPRECATED::<front::corner::Shape>::new(&logger,scene);
+    component::ShapeView_DEPRECATED::<front::line::Shape>::new(&logger,scene);
 
     // Joint needs to be above all shapes, but below the arrows.
-    component::ShapeView::<joint::Shape>::new(&logger,scene);
-    component::ShapeView::<back::arrow::Shape>::new(&logger,scene);
-    component::ShapeView::<front::arrow::Shape>::new(&logger,scene);
+    component::ShapeView_DEPRECATED::<joint::Shape>::new(&logger,scene);
+    component::ShapeView_DEPRECATED::<back::arrow::Shape>::new(&logger,scene);
+    component::ShapeView_DEPRECATED::<front::arrow::Shape>::new(&logger,scene);
 }
 
 
@@ -1254,7 +1254,7 @@ pub struct EdgeModelData {
     pub frp             : Frp,
     pub front           : Front,
     pub back            : Back,
-    pub joint           : component::ShapeView<joint::Shape>,
+    pub joint           : component::ShapeView_DEPRECATED<joint::Shape>,
     pub source_width    : Rc<Cell<f32>>,
     pub source_height   : Rc<Cell<f32>>,
     pub target_position : Rc<Cell<Vector2>>,
@@ -1274,7 +1274,7 @@ impl EdgeModelData {
         let display_object = display::object::Instance::new(&logger);
         let front          = Front::new(Logger::sub(&logger,"front"),scene);
         let back           = Back::new (Logger::sub(&logger,"back"),scene);
-        let joint          = component::ShapeView::new(Logger::sub(&logger,"joint"),scene);
+        let joint          = component::ShapeView_DEPRECATED::new(Logger::sub(&logger,"joint"),scene);
 
         let shape_system = scene.shapes.shape_system(PhantomData::<joint::Shape>);
         shape_system.shape_system.set_pointer_events(false);

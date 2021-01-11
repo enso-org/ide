@@ -260,9 +260,9 @@ pub struct BreadcrumbInfo {
 pub struct BreadcrumbModel {
     logger         : Logger,
     display_object : display::object::Instance,
-    view           : component::ShapeView<background::Shape>,
-    separator      : component::ShapeView<separator::Shape>,
-    icon           : component::ShapeView<icon::Shape>,
+    view           : component::ShapeView_DEPRECATED<background::Shape>,
+    separator      : component::ShapeView_DEPRECATED<separator::Shape>,
+    icon           : component::ShapeView_DEPRECATED<icon::Shape>,
     label          : text::Area,
     animations     : Animations,
     style          : StyleWatch,
@@ -280,9 +280,9 @@ impl BreadcrumbModel {
         let logger            = Logger::new("Breadcrumbs");
         let display_object    = display::object::Instance::new(&logger);
         let view_logger       = Logger::sub(&logger,"view_logger");
-        let view              = component::ShapeView::<background::Shape>::new(&view_logger, scene);
-        let icon              = component::ShapeView::<icon::Shape>::new(&view_logger, scene);
-        let separator         = component::ShapeView::<separator::Shape>::new(&view_logger, scene);
+        let view              = component::ShapeView_DEPRECATED::<background::Shape>::new(&view_logger, scene);
+        let icon              = component::ShapeView_DEPRECATED::<icon::Shape>::new(&view_logger, scene);
+        let separator         = component::ShapeView_DEPRECATED::<separator::Shape>::new(&view_logger, scene);
         let label             = app.new_view::<text::Area>();
         let expression_id     = *expression_id;
         let method_pointer    = method_pointer.clone();

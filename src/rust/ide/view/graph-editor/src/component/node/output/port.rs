@@ -285,11 +285,11 @@ mod multi_port_area {
 // === Shape View ===
 // ==================
 
-/// Abstraction over `ShapeView<SinglePortShape>` and `ShapeView<MultiPortShape>`.
+/// Abstraction over `ShapeView_DEPRECATED<SinglePortShape>` and `ShapeView_DEPRECATED<MultiPortShape>`.
 #[derive(Clone,CloneRef,Debug)]
 pub enum PortShapeView {
-    Single (component::ShapeView<SinglePortShape>),
-    Multi  (component::ShapeView<MultiPortShape>),
+    Single (component::ShapeView_DEPRECATED<SinglePortShape>),
+    Multi  (component::ShapeView_DEPRECATED<MultiPortShape>),
 }
 
 macro_rules! fn_helper {
@@ -319,8 +319,8 @@ macro_rules! fn_multi_only {
 
 impl PortShapeView {
     fn new(number_of_ports: usize, logger: &Logger, scene: &Scene) -> Self {
-        if number_of_ports <= 1 { Self::Single (component::ShapeView::new(&logger,&scene)) }
-        else                    { Self::Multi  (component::ShapeView::new(&logger,&scene)) }
+        if number_of_ports <= 1 { Self::Single (component::ShapeView_DEPRECATED::new(&logger,&scene)) }
+        else                    { Self::Multi  (component::ShapeView_DEPRECATED::new(&logger,&scene)) }
     }
 
     fn_both! {

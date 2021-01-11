@@ -115,7 +115,7 @@ impl display::Object for Icons {
 #[derive(Clone,CloneRef,Debug)]
 struct Model {
     display_object : display::object::Instance,
-    hover_area     : component::ShapeView<hover_rect::Shape>,
+    hover_area     : component::ShapeView_DEPRECATED<hover_rect::Shape>,
     icons          : Icons,
     size           : Rc<Cell<Vector2>>,
     shapes         : compound::events::MouseEvents,
@@ -127,7 +127,7 @@ impl Model {
         let scene          = app.display.scene();
         let logger         = Logger::sub(logger,"ActionBar");
         let display_object = display::object::Instance::new(&logger);
-        let hover_area     = component::ShapeView::new(&logger,scene);
+        let hover_area     = component::ShapeView_DEPRECATED::new(&logger,scene);
         let icons          = Icons::new(&logger,app);
         let shapes         = compound::events::MouseEvents::default();
         let size           = default();

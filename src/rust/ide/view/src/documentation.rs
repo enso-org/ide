@@ -76,7 +76,7 @@ pub struct Model {
     size   : Rc<Cell<Vector2>>,
     /// The purpose of this overlay is stop propagating mouse events under the documentation panel
     /// to EnsoGL shapes, and pass them to the DOM instead.
-    overlay            : component::ShapeView<overlay::Shape>,
+    overlay            : component::ShapeView_DEPRECATED<overlay::Shape>,
     display_object     : display::object::Instance,
     code_copy_closures : Rc<CloneCell<Vec<CodeCopyClosure>>>
 }
@@ -89,7 +89,7 @@ impl Model {
         let div            = web::create_div();
         let dom            = DomSymbol::new(&div);
         let size           = Rc::new(Cell::new(Vector2(VIEW_WIDTH,VIEW_HEIGHT)));
-        let overlay        = component::ShapeView::<overlay::Shape>::new(&logger,scene);
+        let overlay        = component::ShapeView_DEPRECATED::<overlay::Shape>::new(&logger,scene);
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles   = StyleWatch::new(&scene.style_sheet);

@@ -9,9 +9,10 @@ use crate::prelude::*;
 use crate::display::object::traits::*;
 use crate::display::scene::MouseTarget;
 use crate::display::scene::Scene;
+use crate::display::scene::WeakView;
 use crate::display::scene::ShapeRegistry;
 use crate::display::scene;
-use crate::display::shape::primitive::system::DynShape;
+use crate::display::shape::primitive::system::DynamicShape;
 use crate::display::shape::primitive::system::Shape;
 use crate::display;
 use crate::system::gpu::data::attribute::AttributeInstanceIndex;
@@ -69,34 +70,47 @@ impl Default for ShapeViewEvents {
 
 
 
-// =================
-// === ShapeView ===
-// =================
+// ============================
+// === ShapeView_DEPRECATED ===
+// ============================
 
+/// # Depreciation
+/// This model is deprecated. Please use [`ShapeView`] instead. There are few major differences
+/// worth considering when upgrading:
+/// 1. The new [`ShapeView`] does not initialize the shape when created. Instead, it initializes the
+///    shape lazily.
+/// 2. The new [`ShapeView`] gets its scene layer information from `display::object::Instance`
+///    hierarchy.
+/// 3. When using the `define_shape_system!` macro, you do not need to use [`ShapeView`] explicitly
+///    anymore. Just use `my_def::View` instead, which is a type alias for
+///    `ShapeView<my_def::DynamicShape>`.
 #[derive(Clone,CloneRef,Debug)]
 #[clone_ref(bound="S:CloneRef")]
 #[allow(missing_docs)]
-pub struct ShapeView<S:Shape> {
-    model : Rc<ShapeViewModel<S>>
+#[allow(non_camel_case_types)]
+pub struct ShapeView_DEPRECATED<S:Shape> {
+    model : Rc<ShapeViewModel_DEPRECATED<S>>
 }
 
-impl<S:Shape> Deref for ShapeView<S> {
-    type Target = Rc<ShapeViewModel<S>>;
+impl<S:Shape> Deref for ShapeView_DEPRECATED<S> {
+    type Target = Rc<ShapeViewModel_DEPRECATED<S>>;
     fn deref(&self) -> &Self::Target {
         &self.model
     }
 }
 
+/// Model of [`ShapeView_DEPRECATED`].
 #[derive(Debug)]
 #[allow(missing_docs)]
-pub struct ShapeViewModel<S:Shape> {
+#[allow(non_camel_case_types)]
+pub struct ShapeViewModel_DEPRECATED<S:Shape> {
     pub registry       : ShapeRegistry,
     pub shape          : S,
     pub display_object : display::object::Instance,
     pub events         : ShapeViewEvents,
 }
 
-impl<S:Shape> Drop for ShapeViewModel<S> {
+impl<S:Shape> Drop for ShapeViewModel_DEPRECATED<S> {
     fn drop(&mut self) {
         let sprite      = self.shape.sprite();
         let symbol_id   = sprite.symbol_id();
@@ -105,20 +119,8 @@ impl<S:Shape> Drop for ShapeViewModel<S> {
         self.events.on_drop.emit(());
     }
 }
-///// A structure containing data which is constructed or dropped when the `ShapeView` is added or
-///// removed from the scene.
-//#[derive(Clone,CloneRef,Debug)]
-//pub struct ShapeViewData<T:ShapeViewDefinition> {
-//    /// A data associated with the shape. In simple cases, this data could be just a marker struct.
-//    /// In more complex examples, it could contain callback handles. For example, for a cursor
-//    /// implementation, its `data` contains a callback listening to scene size change in order to
-//    /// update the `shape` dimensions.
-//    pub phantom : PhantomData<T>,
-//    /// A shape instance. Refer to `Shape` docs to learn more.
-//    pub shape : T::Shape,
-//}
 
-impl<S:Shape> ShapeView<S> {
+impl<S:Shape> ShapeView_DEPRECATED<S> {
     /// Constructor.
     pub fn new(logger:impl AnyLogger, scene:&Scene) -> Self {
         let logger         = Logger::sub(logger,"shape_view");
@@ -134,71 +136,16 @@ impl<S:Shape> ShapeView<S> {
         let instance_id = *sprite.instance_id;
         registry.insert_mouse_target(symbol_id,instance_id,events2);
 
-        let model = Rc::new(ShapeViewModel {registry,display_object,events,shape});
+        let model = Rc::new(ShapeViewModel_DEPRECATED {registry,display_object,events,shape});
         Self {model}
     }
-
-//    fn init(self) -> Self {
-//        self.init_on_show();
-//        self.init_on_hide();
-//        self
-//    }
-//
-//    fn init_on_show(&self) {
-//        let weak_data   = Rc::downgrade(&self.data);
-//        let weak_parent = self.display_object.downgrade();
-//        let events      = self.events.clone_ref();
-//        self.display_object.set_on_show_with(move |scene| {
-//            let shape_registry: &ShapeRegistry = &scene.shapes;
-//            weak_data.upgrade().for_each(|self_data| {
-//                weak_parent.upgrade().for_each(|parent| {
-//                    let shape = shape_registry.new_instance::<T::Shape>();
-//                    parent.add_child(&shape);
-//                    for sprite in shape.sprites() {
-//                        let events      = events.clone_ref();
-//                        let symbol_id   = sprite.symbol_id();
-//                        let instance_id = *sprite.instance_id;
-//                        shape_registry.insert_mouse_target(symbol_id,instance_id,events);
-//                    }
-//                    let data = T::new(&shape,scene,shape_registry);
-//                    let data = ShapeViewData {data,shape};
-//                    *self_data.borrow_mut() = Some(data);
-//                })
-//            });
-//        });
-//    }
-//
-//    fn init_on_hide(&self) {
-//        let weak_data = Rc::downgrade(&self.data);
-//        self.display_object.set_on_hide_with(move |scene| {
-//            let shape_registry: &ShapeRegistry = &scene.shapes;
-//            weak_data.upgrade().for_each(|data| {
-//                data.borrow().for_each_ref(|data| {
-//                    for sprite in data.shape.sprites() {
-//                        let symbol_id   = sprite.symbol_id();
-//                        let instance_id = *sprite.instance_id;
-//                        shape_registry.remove_mouse_target(symbol_id,instance_id);
-//                    }
-//                });
-//                *data.borrow_mut() = None;
-//            });
-//        });
-//    }
 }
 
-impl<T:Shape> display::Object for ShapeView<T> {
+impl<T:Shape> display::Object for ShapeView_DEPRECATED<T> {
     fn display_object(&self) -> &display::object::Instance {
         &self.display_object
     }
 }
-
-///// Definition of a new shape view. In simple cases this could be a marker struct. To learn more
-///// refer to documentation of `ShapeViewData` and example usages in components.
-//pub trait ShapeViewDefinition : CloneRef + 'static {
-//    /// Associated shape instance type.
-//    type Shape : Shape;
-////    fn new(shape:&Self::Shape, scene:&Scene, shape_registry:&ShapeRegistry) -> Self;
-//}
 
 
 
@@ -209,11 +156,11 @@ impl<T:Shape> display::Object for ShapeView<T> {
 #[derive(Clone,CloneRef,Debug)]
 #[clone_ref(bound="S:CloneRef")]
 #[allow(missing_docs)]
-pub struct ShapeView2<S:DynShape> {
+pub struct ShapeView2<S:DynamicShape> {
     model : Rc<ShapeViewModel2<S>>
 }
 
-impl<S:DynShape> Deref for ShapeView2<S> {
+impl<S:DynamicShape> Deref for ShapeView2<S> {
     type Target = Rc<ShapeViewModel2<S>>;
     fn deref(&self) -> &Self::Target {
         &self.model
@@ -222,20 +169,20 @@ impl<S:DynShape> Deref for ShapeView2<S> {
 
 #[derive(Debug,Default)]
 #[allow(missing_docs)]
-pub struct ShapeViewModel2<S:DynShape> {
+pub struct ShapeViewModel2<S:DynamicShape> {
     pub shape    : S,
     pub events   : ShapeViewEvents,
     pub registry : Rc<RefCell<Option<ShapeRegistry>>>,
-    initialized  : Rc<Cell<bool>>,
+    before_first_show  : Rc<Cell<bool>>,
 }
 
-impl<S:DynShape> Drop for ShapeViewModel2<S> {
+impl<S:DynamicShape> Drop for ShapeViewModel2<S> {
     fn drop(&mut self) {
         self.unregister_existing_mouse_target();
     }
 }
 
-impl<S:DynShape+'static> ShapeView2<S> {
+impl<S:DynamicShape+'static> ShapeView2<S> {
     /// Constructor.
     pub fn new(logger:impl AnyLogger) -> Self {
         let model = Rc::new(ShapeViewModel2::new(logger));
@@ -244,42 +191,55 @@ impl<S:DynShape+'static> ShapeView2<S> {
 
     fn init(self) -> Self {
         self.init_on_show();
+        self.init_on_scene_layer_changed();
         self
     }
 
     fn init_on_show(&self) {
         let weak_model = Rc::downgrade(&self.model);
         self.display_object().set_on_show(move |scene,views| {
-            println!("!!! init_on_show, views: {:?}", views);
             if let Some(model) = weak_model.upgrade() {
-                if !model.initialized.get() {
-                    match views {
-                        None => {model.switch_view(&scene.views.main);},
-                        Some(views) => {
-                            if views.len() != 1 { todo!() }
-                            if let Some(view) = views[0].upgrade() {
-                                println!("!!!!!!");
-                                model.switch_view(&view);
-                            } else {
-                                model.switch_view(&scene.views.main);
-                            }
-                        }
-                    }
-
+                if model.before_first_show.get() {
+                    model.on_scene_layers_changed(scene,views)
                 }
+            }
+        });
+    }
+
+    fn init_on_scene_layer_changed(&self) {
+        let weak_model = Rc::downgrade(&self.model);
+        self.display_object().set_on_scene_layer_changed(move |scene,views| {
+            if let Some(model) = weak_model.upgrade() {
+                model.on_scene_layers_changed(scene,views)
             }
         });
     }
 }
 
-impl<S:DynShape> ShapeViewModel2<S> {
+impl<S:DynamicShape> ShapeViewModel2<S> {
     /// Constructor.
     pub fn new(logger:impl AnyLogger) -> Self {
         let shape    = S::new(logger);
         let events   = ShapeViewEvents::new();
         let registry = default();
-        let initialized = default();
-        ShapeViewModel2 {shape,events,registry,initialized}
+        let before_first_show = Rc::new(Cell::new(true));
+        ShapeViewModel2 {shape,events,registry,before_first_show}
+    }
+
+    pub fn on_scene_layers_changed(&self, scene:&Scene, scene_layers:Option<&Vec<WeakView>>) {
+        match scene_layers {
+            None => {
+                self.switch_view(&scene.views.main);
+            },
+            Some(scene_layers) => {
+                if scene_layers.len() != 1 { todo!() }
+                if let Some(scene_layer) = scene_layers[0].upgrade() {
+                    self.switch_view(&scene_layer);
+                } else {
+                    self.switch_view(&scene.views.main);
+                }
+            }
+        }
     }
 
     pub fn switch_registry(&self, registry:&ShapeRegistry) -> (i32,AttributeInstanceIndex) {
@@ -291,7 +251,7 @@ impl<S:DynShape> ShapeViewModel2<S> {
     }
 
     pub fn switch_view(&self, view:&scene::View) -> (i32,AttributeInstanceIndex) {
-        self.initialized.set(true);
+        self.before_first_show.set(false);
         let (symbol_id,instance_id) = self.switch_registry(&view.shape_registry);
         view.add_by_id(symbol_id);
         (symbol_id,instance_id)
@@ -307,13 +267,13 @@ impl<S:DynShape> ShapeViewModel2<S> {
     }
 }
 
-impl<T:DynShape> display::Object for ShapeViewModel2<T> {
+impl<T:DynamicShape> display::Object for ShapeViewModel2<T> {
     fn display_object(&self) -> &display::object::Instance {
         self.shape.display_object()
     }
 }
 
-impl<T:DynShape> display::Object for ShapeView2<T> {
+impl<T:DynamicShape> display::Object for ShapeView2<T> {
     fn display_object(&self) -> &display::object::Instance {
         self.shape.display_object()
     }

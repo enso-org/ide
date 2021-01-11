@@ -24,7 +24,7 @@ use ensogl::data::color;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
-use ensogl::gui::component::ShapeView;
+use ensogl::gui::component::ShapeView_DEPRECATED;
 use ensogl::gui::text;
 use ensogl_text::Text;
 use ensogl_text::style::Size as TextSize;
@@ -338,9 +338,9 @@ pub struct NodeModel {
     pub app             : Application,
     pub display_object  : display::object::Instance,
     pub logger          : Logger,
-    pub main_area       : ShapeView<shape::Shape>,
-    pub drag_area       : ShapeView<drag_area::Shape>,
-    pub error_indicator : ShapeView<error_shape::Shape>,
+    pub main_area       : ShapeView_DEPRECATED<shape::Shape>,
+    pub drag_area       : ShapeView_DEPRECATED<drag_area::Shape>,
+    pub error_indicator : ShapeView_DEPRECATED<error_shape::Shape>,
     // TODO: This extra text field should not be required after #1026 has been finished.
     // Instead we should get the error content as normal node output that is visible in the
     // visualisation. Alternatively it might be extended to use a preview of the new information.
@@ -363,9 +363,9 @@ impl NodeModel {
         let drag_logger             = Logger::sub(&logger,"drag_area");
         let error_indicator_logger  = Logger::sub(&logger,"error_indicator");
 
-        let error_indicator = ShapeView::<error_shape::Shape>::new(&error_indicator_logger,scene);
-        let main_area       = ShapeView::<shape::Shape>::new(&main_logger,scene);
-        let drag_area       = ShapeView::<drag_area::Shape>::new(&drag_logger,scene);
+        let error_indicator = ShapeView_DEPRECATED::<error_shape::Shape>::new(&error_indicator_logger,scene);
+        let main_area       = ShapeView_DEPRECATED::<shape::Shape>::new(&main_logger,scene);
+        let drag_area       = ShapeView_DEPRECATED::<drag_area::Shape>::new(&drag_logger,scene);
         let error_text      = app.new_view::<text::Area>();
         edge::depth_sort_hack_2(scene);
 

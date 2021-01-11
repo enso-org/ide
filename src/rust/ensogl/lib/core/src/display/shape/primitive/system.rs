@@ -131,11 +131,11 @@ pub trait ShapeSystemInstance : 'static + CloneRef {
 
 pub trait DynShapeSystemInstance : 'static + CloneRef {
     /// The shape type of this shape system definition.
-    type DynShape : DynShape<System=Self>;
+    type DynamicShape : DynamicShape<System=Self>;
     /// Constructor.
     fn new(scene:&Scene) -> Self;
     /// New shape constructor.
-    fn instantiate(&self, shape:&Self::DynShape) -> AttributeInstanceIndex;
+    fn instantiate(&self, shape:&Self::DynamicShape) -> AttributeInstanceIndex;
 
     fn shape_system(&self) -> &ShapeSystem;
 }
@@ -156,9 +156,9 @@ pub trait Shape : display::Object + CloneRef + Debug + Sized {
 }
 
 
-pub trait DynShape : display::Object + CloneRef + Debug + Sized {
+pub trait DynamicShape : display::Object + CloneRef + Debug + Sized {
     /// The shape system instance this shape belongs to.
-    type System : DynShapeSystemInstance<DynShape=Self>;
+    type System : DynShapeSystemInstance<DynamicShape=Self>;
 
     /// Constructor.
     fn new(logger:impl AnyLogger) -> Self;
@@ -172,7 +172,7 @@ pub trait DynShape : display::Object + CloneRef + Debug + Sized {
 pub type ShapeSystemOf<T> = <T as Shape>::System;
 
 /// Accessor for the `Shape::System` associated type.
-pub type DynShapeSystemOf<T> = <T as DynShape>::System;
+pub type DynShapeSystemOf<T> = <T as DynamicShape>::System;
 
 /// Additional operations implemented for all structures implementing `Shape`.
 pub trait ShapeOps {
@@ -223,7 +223,9 @@ macro_rules! _define_shape_system {
         // === Shape ===
         // =============
 
-        /// Shape definition.
+        /// An initialized, GPU-bound shape definition. All changed parameters are immediately
+        /// reflected in the [`Buffer`] and will be synchronised with GPU before next frame is
+        /// drawn.
         #[derive(Clone,CloneRef,Debug)]
         #[allow(missing_docs)]
         pub struct Shape {
@@ -253,20 +255,32 @@ macro_rules! _define_shape_system {
 
 
 
-        // ================
-        // === DynShape ===
-        // ================
+        // ==========================
+        // === DynamicShapeParams ===
+        // ==========================
 
+        /// A dynamic version of shape parameter. In case the shape was initialized and bound to the
+        /// GPU, the `attribute` will be initialized as well and will point to the right buffer
+        /// section. Otherwise, changing the parameter will not have any visual effect, however,
+        /// all the changes will be recorded and applied as soon as the shape will get initialized.
         #[derive(Clone,CloneRef,Derivative)]
         #[derivative(Default(bound="T::Item:Default"))]
         #[derivative(Debug(bound="T::Item:Copy+Debug, T:Debug"))]
         #[allow(missing_docs)]
-        pub struct DynParam<T:HasItem> {
+        pub struct DynamicParam<T:HasItem> {
             cache     : Rc<Cell<T::Item>>,
             attribute : Rc<RefCell<Option<T>>>
         }
 
-        impl<T> DynParam<T>
+        /// Parameters of the [`DynamicShape`].
+        #[derive(Clone,CloneRef,Debug,Default)]
+        #[allow(missing_docs)]
+        pub struct DynamicShapeParams {
+            pub size : DynamicParam<$crate::display::symbol::geometry::compound::sprite::Size>,
+            $(pub $gpu_param : DynamicParam<$crate::system::gpu::data::Attribute<$gpu_param_type>>),*
+        }
+
+        impl<T> DynamicParam<T>
         where T:CellProperty, T::Item:Copy {
             fn set_attribute_binding
             (&self, attribute:Option<T>) {
@@ -274,43 +288,44 @@ macro_rules! _define_shape_system {
                 *self.attribute.borrow_mut() = attribute;
             }
 
-            /// Set the parameter value;
+            /// Set the parameter value.
             pub fn set(&self, value:T::Item) {
                 self.cache.set(value);
                 if let Some(attr) = &*self.attribute.borrow() { attr.set(value) }
             }
 
-            /// Get the parameter value;
+            /// Get the parameter value.
             pub fn get(&self) -> T::Item {
                 self.cache.get()
             }
         }
 
-        /// Dynamic shape parameters
-        #[derive(Clone,CloneRef,Debug,Default)]
-        #[allow(missing_docs)]
-        pub struct DynShapeParams {
-            pub size : DynParam<$crate::display::symbol::geometry::compound::sprite::Size>,
-            $(pub $gpu_param : DynParam<$crate::system::gpu::data::Attribute<$gpu_param_type>>),*
-        }
 
-        /// Shape definition.
+
+        // ====================
+        // === DynamicShape ===
+        // ====================
+
+        /// A dynamic version of the [`Shape`]. In case the shape was initialized and bound to the
+        /// GPU, the parameters will be initialized as well and will point to the right buffers
+        /// sections. Otherwise, changing a parameter will not have any visual effect, however,
+        /// all the changes will be recorded and applied as soon as the shape will get initialized.
         #[derive(Clone,CloneRef,Debug)]
         #[allow(missing_docs)]
-        pub struct DynShape {
+        pub struct DynamicShape {
             display_object : $crate::display::object::Instance,
             shape          : Rc<RefCell<Option<Shape>>>,
-            params         : DynShapeParams,
+            params         : DynamicShapeParams,
         }
 
-        impl Deref for DynShape {
-            type Target = DynShapeParams;
+        impl Deref for DynamicShape {
+            type Target = DynamicShapeParams;
             fn deref(&self) -> &Self::Target {
                 &self.params
             }
         }
 
-        impl DynShape {
+        impl DynamicShape {
             /// Set the dynamic shape binding.
             pub fn set_shape_binding(&self, shape:Option<Shape>) {
                 if let Some(current_shape) = &*self.shape.borrow() {
@@ -328,7 +343,7 @@ macro_rules! _define_shape_system {
             }
         }
 
-        impl $crate::display::shape::system::DynShape for DynShape {
+        impl $crate::display::shape::system::DynamicShape for DynamicShape {
             type System = ShapeSystem;
 
             fn new(logger:impl AnyLogger) -> Self {
@@ -344,7 +359,7 @@ macro_rules! _define_shape_system {
             }
         }
 
-        impl $crate::display::Object for DynShape {
+        impl $crate::display::Object for DynamicShape {
             fn display_object(&self) -> &$crate::display::object::Instance {
                 &self.display_object
             }
@@ -352,11 +367,22 @@ macro_rules! _define_shape_system {
 
 
 
-        // ==============
-        // === System ===
-        // ==============
+        // ============
+        // === View ===
+        // ============
 
-        /// Shape system definition.
+        // A view of the defined shape. You can place the view in your objects and it will
+        // automatically initialize on-demand.
+        pub type View = $crate::gui::component::ShapeView2<DynamicShape>;
+
+
+
+        // ===================
+        // === ShapeSystem ===
+        // ===================
+
+        /// Shape system allowing the creation of new [`Shape`]s and instantiation of
+        /// [`DynamicShape`]s.
         #[derive(Clone,CloneRef,Debug)]
         #[allow(missing_docs)]
         pub struct ShapeSystem {
@@ -388,7 +414,7 @@ macro_rules! _define_shape_system {
         }
 
         impl $crate::display::shape::DynShapeSystemInstance for ShapeSystem {
-            type DynShape = DynShape;
+            type DynamicShape = DynamicShape;
 
             // FIXME: Duplicated (^^^)
             fn new(scene:&$crate::display::scene::Scene) -> Self {
@@ -402,7 +428,7 @@ macro_rules! _define_shape_system {
                 Self {shape_system,style_manager,$($gpu_param),*} . init_refresh_on_style_change()
             }
 
-            fn instantiate(&self, dyn_shape:&Self::DynShape)
+            fn instantiate(&self, dyn_shape:&Self::DynamicShape)
             -> $crate::system::gpu::data::attribute::AttributeInstanceIndex {
                 let sprite = self.shape_system.new_instance();
                 let id     = sprite.instance_id;

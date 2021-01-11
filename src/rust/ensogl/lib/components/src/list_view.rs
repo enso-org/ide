@@ -112,8 +112,8 @@ struct View {
 struct Model {
     app            : Application,
     entries        : entry::List,
-    selection      : component::ShapeView<selection::Shape>,
-    background     : component::ShapeView<background::Shape>,
+    selection      : component::ShapeView_DEPRECATED<selection::Shape>,
+    background     : component::ShapeView_DEPRECATED<background::Shape>,
     scrolled_area  : display::object::Instance,
     display_object : display::object::Instance,
 }
@@ -126,8 +126,8 @@ impl Model {
         let display_object = display::object::Instance::new(&logger);
         let scrolled_area  = display::object::Instance::new(&logger);
         let entries        = entry::List::new(&logger,&app);
-        let background     = component::ShapeView::<background::Shape>::new(&logger,&scene);
-        let selection      = component::ShapeView::<selection::Shape>::new(&logger,&scene);
+        let background     = component::ShapeView_DEPRECATED::<background::Shape>::new(&logger,&scene);
+        let selection      = component::ShapeView_DEPRECATED::<selection::Shape>::new(&logger,&scene);
         display_object.add_child(&background);
         display_object.add_child(&scrolled_area);
         scrolled_area.add_child(&entries);

@@ -114,7 +114,7 @@ impl {
         system.new_instance()
     }
 
-    pub fn instantiate_dyn<T:display::shape::system::DynShape>(&mut self,shape:&T)
+    pub fn instantiate_dyn<T:display::shape::system::DynamicShape>(&mut self,shape:&T)
     -> (i32,AttributeInstanceIndex) {
         let system      = self.get_or_register_dyn::<DynShapeSystemOf<T>>();
         let instance_id = system.instantiate(shape);
@@ -760,16 +760,16 @@ impl View {
     }
 
     // FIXME: used only in breadcrumbs
-    /// Add all `Symbol`s associated with the given ShapeView.
+    /// Add all `Symbol`s associated with the given ShapeView_DEPRECATED.
     pub fn add_shape_view<T: display::shape::primitive::system::Shape>
-    (&self, shape_view:&component::ShapeView<T>) {
+    (&self, shape_view:&component::ShapeView_DEPRECATED<T>) {
         self.add(&shape_view.shape.sprite().symbol)
     }
 
     // FIXME: used only in breadcrumbs
-    /// Remove all `Symbol`s associated with the given ShapeView.
+    /// Remove all `Symbol`s associated with the given ShapeView_DEPRECATED.
     pub fn remove_shape_view<T: display::shape::primitive::system::Shape>
-    (&self, shape_view:&component::ShapeView<T>) {
+    (&self, shape_view:&component::ShapeView_DEPRECATED<T>) {
         self.remove(&shape_view.shape.sprite().symbol)
     }
 }

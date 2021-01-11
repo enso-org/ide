@@ -268,7 +268,7 @@ crate::define_endpoints! {
 pub struct CursorModel {
     pub logger : Logger,
     pub scene  : Scene,
-    pub view   : component::ShapeView<shape::Shape>,
+    pub view   : component::ShapeView_DEPRECATED<shape::Shape>,
     pub style  : Rc<RefCell<Style>>,
 }
 
@@ -277,7 +277,7 @@ impl CursorModel {
     pub fn new(scene:&Scene) -> Self {
         let scene  = scene.clone_ref();
         let logger = Logger::new("cursor");
-        let view   = component::ShapeView::<shape::Shape>::new(&logger,&scene);
+        let view   = component::ShapeView_DEPRECATED::<shape::Shape>::new(&logger,&scene);
         let style  = default();
 
         let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);

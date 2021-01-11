@@ -78,7 +78,7 @@ impl list_view::entry::ModelProvider for MockEntries {
             None
         } else {
             use list_view::entry::ICON_SIZE;
-            let icon = gui::component::ShapeView::<icon::Shape>::new(&self.logger,&self.scene);
+            let icon = gui::component::ShapeView_DEPRECATED::<icon::Shape>::new(&self.logger,&self.scene);
             icon.shape.sprite.size.set(Vector2(ICON_SIZE,ICON_SIZE));
             icon.shape.id.set(id as f32);
             let model = list_view::entry::Model::new(iformat!("Entry {id}")).with_icon(icon);

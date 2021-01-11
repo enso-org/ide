@@ -3,7 +3,7 @@
 use crate::prelude::*;
 
 use crate::display::shape::primitive::system::Shape;
-use crate::gui::component::ShapeView;
+use crate::gui::component::ShapeView_DEPRECATED;
 
 use enso_frp as frp;
 
@@ -50,7 +50,7 @@ impl MouseEvents {
     }
 
     /// Connect the given `ShapeViewEvents` to the `Events` output.
-    pub fn add_sub_shape<T:Shape>(&self, sub_shape:&ShapeView<T>) {
+    pub fn add_sub_shape<T:Shape>(&self, sub_shape:&ShapeView_DEPRECATED<T>) {
         frp::extend! { network
             self.frp.source.mouse_over <+ sub_shape.events.mouse_over;
             self.frp.source.mouse_out  <+ sub_shape.events.mouse_out;

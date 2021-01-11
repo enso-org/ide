@@ -102,8 +102,8 @@ struct Model {
     app             : Application,
     display_object  : display::object::Instance,
 
-    icon            : component::ShapeView<arrow::Shape>,
-    icon_overlay    : component::ShapeView<chooser_hover_area::Shape>,
+    icon            : component::ShapeView_DEPRECATED<arrow::Shape>,
+    icon_overlay    : component::ShapeView_DEPRECATED<chooser_hover_area::Shape>,
 
     label           : text::Area,
     selection_menu  : list_view::ListView,
@@ -118,8 +118,8 @@ impl Model {
         let scene          = app.display.scene();
         let app            = app.clone_ref();
         let display_object = display::object::Instance::new(&logger);
-        let icon           = component::ShapeView::new(&logger,scene);
-        let icon_overlay   = component::ShapeView::new(&logger,scene);
+        let icon           = component::ShapeView_DEPRECATED::new(&logger,scene);
+        let icon_overlay   = component::ShapeView_DEPRECATED::new(&logger,scene);
         let selection_menu = list_view::ListView::new(&app);
         let label          = app.new_view::<text::Area>();
         let content        = default();

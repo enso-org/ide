@@ -185,8 +185,8 @@ ensogl::define_endpoints! {
 pub struct View {
     logger         : Logger,
     display_object : display::object::Instance,
-    // background     : component::ShapeView<background::Shape>,
-    overlay        : component::ShapeView<overlay::Shape>,
+    // background     : component::ShapeView_DEPRECATED<background::Shape>,
+    overlay        : component::ShapeView_DEPRECATED<overlay::Shape>,
     background_dom : DomSymbol
 }
 
@@ -195,8 +195,8 @@ impl View {
     pub fn new(logger:&Logger, scene:&Scene) -> Self {
         let logger         = Logger::sub(logger,"view");
         let display_object = display::object::Instance::new(&logger);
-        // let background     = component::ShapeView::<background::Shape>::new(&logger,scene);
-        let overlay        = component::ShapeView::<overlay::Shape>::new(&logger,scene);
+        // let background     = component::ShapeView_DEPRECATED::<background::Shape>::new(&logger,scene);
+        let overlay        = component::ShapeView_DEPRECATED::<overlay::Shape>::new(&logger,scene);
         display_object.add_child(&overlay);
         // display_object.add_child(&background);
 
@@ -258,7 +258,7 @@ impl display::Object for View {
 pub struct FullscreenView {
     logger         : Logger,
     display_object : display::object::Instance,
-    // background     : component::ShapeView<fullscreen_background::Shape>,
+    // background     : component::ShapeView_DEPRECATED<fullscreen_background::Shape>,
     background_dom : DomSymbol
 }
 
@@ -267,7 +267,7 @@ impl FullscreenView {
     pub fn new(logger:&Logger, scene:&Scene) -> Self {
         let logger         = Logger::sub(logger,"fullscreen_view");
         let display_object = display::object::Instance::new(&logger);
-        // let background     = component::ShapeView::<fullscreen_background::Shape>::new(&logger,scene);
+        // let background     = component::ShapeView_DEPRECATED::<fullscreen_background::Shape>::new(&logger,scene);
         // display_object.add_child(&background);
 
         let shape_system = scene.shapes.shape_system(PhantomData::<fullscreen_background::Shape>);

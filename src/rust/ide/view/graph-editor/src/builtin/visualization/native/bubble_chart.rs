@@ -45,7 +45,7 @@ pub struct BubbleChartModel {
     pub display_object : display::object::Instance,
     pub scene          : Scene,
     signature          : Signature,
-    views              : Rc<RefCell<Vec<component::ShapeView<shape::Shape>>>>,
+    views              : Rc<RefCell<Vec<component::ShapeView_DEPRECATED<shape::Shape>>>>,
     logger             : Logger,
     size               : Rc<Cell<Vector2>>,
 }
@@ -65,7 +65,7 @@ impl BubbleChartModel {
 
         // Avoid re-creating views, if we have already created some before.
         let mut views = self.views.borrow_mut();
-        views.resize_with(data_inner.len(),|| component::ShapeView::new(&self.logger,&self.scene));
+        views.resize_with(data_inner.len(),|| component::ShapeView_DEPRECATED::new(&self.logger,&self.scene));
 
         // TODO[mm] this is somewhat inefficient, as the canvas for each bubble is too large.
         // But this ensures that we can get a cropped view area and avoids an issue with the data

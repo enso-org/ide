@@ -135,11 +135,6 @@ impl System {
         Glyph {context,sprite,atlas_index,color,font,atlas}
     }
 
-//    /// Create a new `Line` of text.
-//    pub fn new_line(&self) -> Line {
-//        Line::new(&self.logger,self)
-//    }
-
     /// Get underlying sprite system.
     pub fn sprite_system(&self) -> &SpriteSystem {
         &self.sprite_system

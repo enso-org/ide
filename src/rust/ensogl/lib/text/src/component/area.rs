@@ -133,7 +133,7 @@ pub struct Selection {
     logger         : Logger,
     display_object : display::object::Instance,
     right_side     : display::object::Instance,
-    shape_view     : component::ShapeView2<selection::DynShape>,
+    shape_view     : selection::View,
     network        : frp::Network,
     position       : DEPRECATED_Animation<Vector2>,
     width          : DEPRECATED_Animation<f32>,
@@ -141,7 +141,7 @@ pub struct Selection {
 }
 
 impl Deref for Selection {
-    type Target = component::ShapeView2<selection::DynShape>;
+    type Target = selection::View;
     fn deref(&self) -> &Self::Target {
         &self.shape_view
     }
@@ -154,16 +154,12 @@ impl Selection {
         let display_object = display::object::Instance::new(&logger);
         let right_side     = display::object::Instance::new(&logger);
         let network        = frp::Network::new("text_selection");
-        let shape_view     = component::ShapeView2::<selection::DynShape>::new(&logger);
+        let shape_view     = selection::View::new(&logger);
         let position       = DEPRECATED_Animation::new(&network);
         let width          = DEPRECATED_Animation::new(&network);
         let edit_mode      = Rc::new(Cell::new(edit_mode));
         let debug          = false; // Change to true to slow-down movement for debug purposes.
         let spring_factor  = if debug { 0.1 } else { 1.5 };
-
-        // if let Some(scene_view) = scene_view.and_then(|t|t.upgrade()) {
-        //     shape_view.switch_view(&scene_view);
-        // }
 
         position . update_spring (|spring| spring * spring_factor);
         width    . update_spring (|spring| spring * spring_factor);
@@ -668,7 +664,7 @@ impl Area {
         for symbol in self.symbols() { view.add(&symbol); }
         self.data.camera.set(view.camera.clone_ref());
         *self.data.scene_view.borrow_mut() = Some(view.downgrade());
-        self.set_view(&view.downgrade());
+        self.set_scene_layer(&view.downgrade());
     }
 
     /// Remove this component from view.

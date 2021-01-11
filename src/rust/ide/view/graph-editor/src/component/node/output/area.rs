@@ -42,8 +42,8 @@ const SHOW_DELAY_DURATION_MS : f32 = 150.0;
 /// Hack function used to register the elements for the sorting purposes. To be removed.
 pub(crate) fn depth_sort_hack(scene:&Scene) {
     let logger = Logger::new("output shape order hack");
-    component::ShapeView::<port::MultiPortShape>::new(&logger,scene);
-    component::ShapeView::<port::SinglePortShape>::new(&logger,scene);
+    component::ShapeView_DEPRECATED::<port::MultiPortShape>::new(&logger,scene);
+    component::ShapeView_DEPRECATED::<port::SinglePortShape>::new(&logger,scene);
 }
 
 

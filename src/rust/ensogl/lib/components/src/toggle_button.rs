@@ -7,7 +7,7 @@ use ensogl_core::application::Application;
 use ensogl_core::data::color;
 use ensogl_core::display::shape::primitive::system;
 use ensogl_core::display;
-use ensogl_core::gui::component::ShapeView;
+use ensogl_core::gui::component::ShapeView_DEPRECATED;
 
 
 
@@ -49,13 +49,13 @@ ensogl_core::define_endpoints! {
 
 #[derive(Clone,Debug)]
 struct Model<Shape:system::Shape> {
-    icon : ShapeView<Shape>,
+    icon : ShapeView_DEPRECATED<Shape>,
 }
 
 impl<Shape:ColorableShape+'static> Model<Shape> {
     fn new(app:&Application) -> Self {
         let logger = Logger::new("ToggleButton");
-        let icon   = ShapeView::new(&logger, app.display.scene());
+        let icon   = ShapeView_DEPRECATED::new(&logger, app.display.scene());
         Self{icon}
     }
 }
@@ -235,7 +235,7 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
 
     /// Return the underlying shape view. Note that some parameters like size and color will be
     /// overwritten regularly by internals of the `ToggleButton` mechanics.
-    pub fn view(&self) -> ShapeView<Shape> {
+    pub fn view(&self) -> ShapeView_DEPRECATED<Shape> {
         self.model.icon.clone_ref()
     }
 }

@@ -60,9 +60,10 @@ impl<Host> Drop for ParentBind<Host> {
 #[derivative(Default(bound=""))]
 #[allow(clippy::type_complexity)]
 pub struct Callbacks<Host> {
-    on_updated : RefCell<Option<Box<dyn Fn(&Model<Host>)>>>,
-    on_show    : RefCell<Option<Box<dyn Fn(&Host,Option<&Vec<WeakView>>)>>>,
-    on_hide    : RefCell<Option<Box<dyn Fn(&Host)>>>,
+    on_updated             : RefCell<Option<Box<dyn Fn(&Model<Host>)>>>,
+    on_show                : RefCell<Option<Box<dyn Fn(&Host,Option<&Vec<WeakView>>)>>>,
+    on_hide                : RefCell<Option<Box<dyn Fn(&Host)>>>,
+    on_scene_layer_changed : RefCell<Option<Box<dyn Fn(&Host,Option<&Vec<WeakView>>)>>>,
 }
 
 impl<Host> Callbacks<Host> {
@@ -76,6 +77,10 @@ impl<Host> Callbacks<Host> {
 
     fn on_hide(&self, host:&Host) {
         if let Some(f) = &*self.on_hide.borrow() { f(host) }
+    }
+
+    fn on_scene_layer_changed(&self, host:&Host, views:Option<&Vec<WeakView>>) {
+        if let Some(f) = &*self.on_scene_layer_changed.borrow() { f(host,views) }
     }
 }
 
@@ -91,6 +96,15 @@ impl<Host> Debug for Callbacks<Host> {
 // === DirtyFlags ===
 // ==================
 
+// === Types ===
+
+type NewParentDirty        = dirty::SharedBool<()>;
+type ChildrenDirty         = dirty::SharedSet<usize,OnDirtyCallback>;
+type RemovedChildren<Host> = dirty::SharedVector<WeakInstance<Host>,OnDirtyCallback>;
+type TransformDirty        = dirty::SharedBool<OnDirtyCallback>;
+type SceneLayerDirty       = dirty::SharedBool<OnDirtyCallback>;
+
+
 // === Definition ===
 
 /// Set of dirty flags indicating whether some display object properties are not up to date.
@@ -105,6 +119,7 @@ pub struct DirtyFlags<Host> {
     children         : ChildrenDirty,
     removed_children : RemovedChildren<Host>,
     transform        : TransformDirty,
+    scene_layer      : SceneLayerDirty,
     #[derivative(Debug="ignore")]
     on_dirty         : Rc<RefCell<Box<dyn Fn()>>>,
 }
@@ -115,14 +130,16 @@ impl<Host> DirtyFlags<Host> {
         let logger : Logger  = Logger::sub(&logger,"dirty");
         let on_dirty         = Rc::new(RefCell::new(Box::new(||{}) as Box<dyn Fn()>));
         let sub_logger       = logger::WarningLogger::sub(&logger,"parent");
-        let parent           = NewParentDirty  :: new(sub_logger,());
+        let parent           = NewParentDirty::new(sub_logger,());
         let sub_logger       = logger::WarningLogger::sub(&logger,"children");
-        let children         = ChildrenDirty   :: new(sub_logger,on_dirty_callback(&on_dirty));
+        let children         = ChildrenDirty::new(sub_logger,on_dirty_callback(&on_dirty));
         let sub_logger       = logger::WarningLogger::sub(&logger,"removed_children");
-        let removed_children = RemovedChildren :: new(sub_logger,on_dirty_callback(&on_dirty));
+        let removed_children = RemovedChildren::new(sub_logger,on_dirty_callback(&on_dirty));
         let sub_logger       = logger::WarningLogger::sub(&logger,"transform");
-        let transform        = TransformDirty  :: new(sub_logger,on_dirty_callback(&on_dirty));
-        Self {parent,children,removed_children,transform,on_dirty}
+        let transform        = TransformDirty::new(sub_logger,on_dirty_callback(&on_dirty));
+        let sub_logger       = logger::WarningLogger::sub(&logger,"scene_layer");
+        let scene_layer      = SceneLayerDirty::new(sub_logger,on_dirty_callback(&on_dirty));
+        Self {parent,children,removed_children,transform,scene_layer,on_dirty}
     }
 
     fn set_on_dirty<F:'static+Fn()>(&self,f:F) {
@@ -135,12 +152,7 @@ impl<Host> DirtyFlags<Host> {
 }
 
 
-// === Types ===
-
-type NewParentDirty        = dirty::SharedBool<()>;
-type ChildrenDirty         = dirty::SharedSet<usize,OnDirtyCallback>;
-type RemovedChildren<Host> = dirty::SharedVector<WeakInstance<Host>,OnDirtyCallback>;
-type TransformDirty        = dirty::SharedBool<OnDirtyCallback>;
+// === Callback ===
 
 type OnDirtyCallback = impl Fn();
 fn on_dirty_callback(f:&Rc<RefCell<Box<dyn Fn()>>>) -> OnDirtyCallback {
@@ -176,7 +188,7 @@ fn on_dirty_callback(f:&Rc<RefCell<Box<dyn Fn()>>>) -> OnDirtyCallback {
 #[derivative(Debug(bound=""))]
 pub struct Model<Host=Scene> {
     host        : PhantomData <Host>,
-    views       : Rc<RefCell<Option<Vec<WeakView>>>>,
+    scene_layers       : Rc<RefCell<Option<Vec<WeakView>>>>,
     dirty       : DirtyFlags  <Host>,
     callbacks   : Callbacks   <Host>,
     parent_bind : RefCell     <Option<ParentBind<Host>>>,
@@ -189,16 +201,16 @@ pub struct Model<Host=Scene> {
 impl<Host> Model<Host> {
     /// Constructor.
     pub fn new(logger:impl AnyLogger) -> Self {
-        let logger      = Logger::new_from(logger);
-        let parent_bind = default();
-        let children    = default();
-        let transform   = default();
-        let dirty       = DirtyFlags::new(&logger);
-        let visible     = Cell::new(false);
-        let callbacks   = default();
-        let host        = default();
-        let views       = default();
-        Self {logger,parent_bind,children,transform,visible,callbacks,dirty,host,views}
+        let logger       = Logger::new_from(logger);
+        let parent_bind  = default();
+        let children     = default();
+        let transform    = default();
+        let dirty        = DirtyFlags::new(&logger);
+        let visible      = Cell::new(false);
+        let callbacks    = default();
+        let host         = default();
+        let scene_layers = default();
+        Self {logger,parent_bind,children,transform,visible,callbacks,dirty,host,scene_layers}
     }
 
     /// Checks whether the object is visible.
@@ -224,7 +236,7 @@ impl<Host> Model<Host> {
     /// Recompute the transformation matrix of this object and update all of its dirty children.
     pub fn update(&self, host:&Host) {
         let origin0 = Matrix4::identity();
-        self.update_with_origin(host,origin0,false,None)
+        self.update_with_origin(host,origin0,false,false,None)
     }
 
     /// The default visibility of a new [`Instance`] is false. You can use this function to override
@@ -257,10 +269,28 @@ impl<Host> Model<Host> {
     /// Updates object transformations by providing a new origin location. See docs of `update` to
     /// learn more.
     fn update_with_origin
-    (&self, host:&Host, parent_origin:Matrix4<f32>, parent_origin_changed:bool, parent_views:Option<&Vec<WeakView>>) {
-        let this_views          = self.views.borrow();
-        let views               = this_views.as_ref().or(parent_views);
-        self.update_visibility(host,parent_views);
+    ( &self
+    , host                        : &Host
+    , parent_origin               : Matrix4<f32>
+    , parent_origin_changed       : bool
+    , parent_scene_layers_changed : bool
+    , parent_scene_layers         : Option<&Vec<WeakView>>
+    ) {
+        let this_scene_layers           = self.scene_layers.borrow();
+        let this_scene_layers_ref       = this_scene_layers.as_ref();
+        let self_scene_layers_changed  = self.dirty.scene_layer.check();
+        let scene_layers_might_changed = parent_scene_layers_changed || self_scene_layers_changed;
+        let (scene_layers_changed,scene_layers) = if scene_layers_might_changed {
+            self.dirty.scene_layer.unset();
+            let scene_layers = this_scene_layers_ref.or(parent_scene_layers);
+            let changed      = scene_layers != this_scene_layers_ref;
+            (changed,scene_layers)
+        } else { (false,this_scene_layers_ref) };
+        if scene_layers_changed {
+            self.callbacks.on_scene_layer_changed(host,scene_layers);
+        }
+
+        self.update_visibility(host,parent_scene_layers);
         let has_new_parent      = self.dirty.parent.check();
         let is_origin_dirty     = has_new_parent || parent_origin_changed;
         let new_parent_origin   = is_origin_dirty.as_some(parent_origin);
@@ -273,8 +303,11 @@ impl<Host> Model<Host> {
                 self.callbacks.on_updated(self);
                 if !self.children.borrow().is_empty() {
                     debug!(self.logger, "Updating all children.", || {
-                        self.children.borrow().iter().for_each(|child| {
-                            child.upgrade().for_each(|t|t.update_with_origin(host,new_origin,true,views));
+                        self.children.borrow().iter().for_each(|weak_child| {
+                            weak_child.upgrade().for_each(|child|
+                                child.update_with_origin
+                                    (host,new_origin,true,scene_layers_changed,scene_layers)
+                            );
                         });
                     })
                 }
@@ -284,7 +317,9 @@ impl<Host> Model<Host> {
                     debug!(self.logger, "Updating dirty children.", || {
                         self.dirty.children.take().iter().for_each(|ix| {
                             self.children.borrow().safe_index(*ix).and_then(|t|t.upgrade())
-                                .for_each(|t|t.update_with_origin(host,new_origin,false,views))
+                                .for_each(|child|
+                                    child.update_with_origin
+                                        (host,new_origin,false,scene_layers_changed,scene_layers))
                         });
                     })
                 }
@@ -296,17 +331,17 @@ impl<Host> Model<Host> {
     }
 
     /// Hide all removed children and show this display object if it was attached to a new parent.
-    fn update_visibility(&self, host:&Host, parent_views:Option<&Vec<WeakView>>) {
+    fn update_visibility(&self, host:&Host, parent_scene_layers:Option<&Vec<WeakView>>) {
         self.take_removed_children_and_hide_orphans(host);
         let parent_changed = self.dirty.parent.check();
         if parent_changed && !self.is_orphan() {
-            self.set_vis_true(host,parent_views)
+            self.set_vis_true(host,parent_scene_layers)
         }
     }
 
     fn take_removed_children_and_hide_orphans(&self, host:&Host) {
         if self.dirty.removed_children.check_all() {
-            debug!(self.logger, "Updating removed children", || {
+            debug!(self.logger, "Updating removed children.", || {
                 for child in self.dirty.removed_children.take().into_iter() {
                     if let Some(child) = child.upgrade() {
                         if child.is_orphan() {
@@ -329,15 +364,15 @@ impl<Host> Model<Host> {
         }
     }
 
-    fn set_vis_true(&self, host:&Host, parent_views:Option<&Vec<WeakView>>) {
+    fn set_vis_true(&self, host:&Host, parent_scene_layers:Option<&Vec<WeakView>>) {
        if !self.visible.get() {
            info!(self.logger,"Showing.");
-           let this_views = self.views.borrow();
-           let views      = this_views.as_ref().or(parent_views);
+           let this_scene_layers = self.scene_layers.borrow();
+           let scene_layers      = this_scene_layers.as_ref().or(parent_scene_layers);
            self.visible.set(true);
-           self.callbacks.on_show(host,views);
+           self.callbacks.on_show(host,scene_layers);
            self.children.borrow().iter().for_each(|child| {
-               child.upgrade().for_each(|t| t.set_vis_true(host,views));
+               child.upgrade().for_each(|t| t.set_vis_true(host,scene_layers));
            });
        }
     }
@@ -453,6 +488,10 @@ impl<Host> Model<Host> {
     pub fn set_on_hide<F:Fn(&Host)+'static>(&self, f:F) {
         self.callbacks.on_hide.set(Box::new(f))
     }
+
+    pub fn set_on_scene_layer_changed<F:Fn(&Host,Option<&Vec<WeakView>>)+'static>(&self, f:F) {
+        self.callbacks.on_scene_layer_changed.set(Box::new(f))
+    }
 }
 
 
@@ -509,8 +548,9 @@ impl<Host> Instance<Host> {
         Id(Rc::downgrade(&self.rc).as_raw() as *const() as usize)
     }
 
-    fn _set_view(&self, view:&WeakView) {
-        *self.views.borrow_mut() = Some(vec![view.clone_ref()]);
+    fn _set_scene_layer(&self, view:&WeakView) {
+        self.dirty.scene_layer.set();
+        *self.scene_layers.borrow_mut() = Some(vec![view.clone_ref()]);
     }
 
     /// Adds a new `Object` as a child to the current one.
@@ -689,8 +729,8 @@ pub trait ObjectOps<Host=Scene> : Object<Host> {
         self.display_object()._id()
     }
 
-    fn set_view(&self, view:&WeakView) {
-        self.display_object()._set_view(view)
+    fn set_scene_layer(&self, view:&WeakView) {
+        self.display_object()._set_scene_layer(view)
     }
 
     /// Add another display object as a child to this display object. Children will inherit all
