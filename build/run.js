@@ -72,18 +72,28 @@ function command(docs) {
     return {docs}
 }
 
-// FIXME: this does not work if project manager was not downloaded yet.
-//function run_project_manager() {
-//    const bin_path = paths.get_project_manager_path(paths.dist.bin)
-//    console.log(`Starting the language server from "${bin_path}".`)
-//    child_process.execFile(bin_path, [], (error, stdout, stderr) => {
-//        console.error(stderr)
-//        if (error) {
-//            throw error
-//        }
-//        console.log(stdout)
-//    })
-//}
+/// Build the project manager module, which downloads the project manager binary for the current
+// platform.
+async function build_project_manager() {
+    console.log(`Getting project manager manager.`)
+    await cmd.with_cwd(paths.js.root + "/lib/project-manager", async () => {
+        await run('npm',['run-script build'])
+    })
+}
+
+/// Run the local project manager binary.
+function run_project_manager() {
+   const bin_path = paths.get_project_manager_path(paths.dist.bin)
+   console.log(`Starting the project manager from "${bin_path}".`)
+   child_process.execFile(bin_path, [], (error, stdout, stderr) => {
+       console.error(stderr)
+       if (error) {
+           throw error
+       }
+       console.log(stdout)
+       console.log(`Project manager running.`)
+   })
+}
 
 // ================
 // === Commands ===
@@ -238,12 +248,12 @@ commands.watch.options  = Object.assign({},commands.build.options)
 commands.watch.parallel = true
 commands.watch.rust = async function(argv) {
     let build_args = []
-    if (argv.crate != undefined) {
+    if (argv.crate !== undefined) {
         build_args.push(`--crate=${argv.crate}`)
     }
 
-    // FIXME: See fixme on fn definition.
-    // run_project_manager()
+    build_project_manager().then(run_project_manager)
+
     build_args = build_args.join(' ')
     let target =
         '"' +
