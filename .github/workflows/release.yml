@@ -6,7 +6,6 @@ on:
       - "ide-*.*.*"
 
 env:
-  # Please ensure that this is in sync with rustVersion in build.sbt
   rustToolchain: nightly-2019-11-04
 
 jobs:
