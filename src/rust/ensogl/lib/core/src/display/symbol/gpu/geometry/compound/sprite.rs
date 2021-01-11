@@ -191,7 +191,7 @@ impl Sprite {
         match target {
             display::scene::PointerTarget::Background                      => false,
             display::scene::PointerTarget::Symbol {symbol_id, instance_id} =>
-                self.symbol_id() == symbol_id && *self.instance_id == instance_id as usize,
+                self.symbol_id() == symbol_id && self.instance_id == instance_id,
         }
     }
 }

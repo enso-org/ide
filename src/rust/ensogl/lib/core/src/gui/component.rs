@@ -116,7 +116,7 @@ impl<S:Shape> Drop for ShapeViewModel_DEPRECATED<S> {
     fn drop(&mut self) {
         let sprite      = self.shape.sprite();
         let symbol_id   = sprite.symbol_id();
-        let instance_id = *sprite.instance_id;
+        let instance_id = sprite.instance_id;
         self.registry.remove_mouse_target(symbol_id,instance_id);
         self.events.on_drop.emit(());
     }
@@ -135,7 +135,7 @@ impl<S:Shape> ShapeView_DEPRECATED<S> {
         let sprite      = shape.sprite();
         let events2     = events.clone_ref();
         let symbol_id   = sprite.symbol_id();
-        let instance_id = *sprite.instance_id;
+        let instance_id = sprite.instance_id;
         registry.insert_mouse_target(symbol_id,instance_id,events2);
 
         let model = Rc::new(ShapeViewModel_DEPRECATED {registry,display_object,events,shape});
@@ -266,7 +266,7 @@ impl<S:DynamicShape> ShapeViewModel<S> {
     fn set_scene_registry(&self, registry:&ShapeRegistry) -> (SymbolId,attribute::InstanceIndex) {
         self.unregister_existing_mouse_target();
         let (symbol_id,instance_id) = registry.instantiate_dyn(&self.shape);
-        registry.insert_mouse_target(symbol_id,*instance_id,self.events.clone_ref());
+        registry.insert_mouse_target(symbol_id,instance_id,self.events.clone_ref());
         *self.registry.borrow_mut() = Some(registry.clone_ref());
         (symbol_id,instance_id)
     }
@@ -274,7 +274,7 @@ impl<S:DynamicShape> ShapeViewModel<S> {
     fn unregister_existing_mouse_target(&self) {
         if let (Some(registry),Some(sprite)) = (&*self.registry.borrow(),&self.shape.sprite()) {
             let symbol_id   = sprite.symbol_id();
-            let instance_id = *sprite.instance_id;
+            let instance_id = sprite.instance_id;
             registry.remove_mouse_target(symbol_id,instance_id);
             self.events.on_drop.emit(());
         }

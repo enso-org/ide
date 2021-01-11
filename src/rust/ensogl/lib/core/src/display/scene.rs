@@ -66,7 +66,7 @@ pub struct ShapeRegistryData {
     scene                : Option<Scene>,
     shape_system_map     : HashMap<TypeId,Box<dyn Any>>,
     dyn_shape_system_map : HashMap<TypeId,Box<dyn Any>>,
-    mouse_target_map     : HashMap<(SymbolId,usize),Rc<dyn MouseTarget>>,
+    mouse_target_map     : HashMap<(SymbolId,attribute::InstanceIndex),Rc<dyn MouseTarget>>,
 }
 
 impl {
@@ -121,12 +121,12 @@ impl {
         (symbol_id,instance_id)
     }
 
-    pub fn insert_mouse_target<T:MouseTarget>(&mut self, symbol_id:SymbolId, instance_id:usize, target:T) {
+    pub fn insert_mouse_target<T:MouseTarget>(&mut self, symbol_id:SymbolId, instance_id:attribute::InstanceIndex, target:T) {
         let target = Rc::new(target);
         self.mouse_target_map.insert((symbol_id,instance_id),target);
     }
 
-    pub fn remove_mouse_target(&mut self, symbol_id:SymbolId, instance_id:usize) {
+    pub fn remove_mouse_target(&mut self, symbol_id:SymbolId, instance_id:attribute::InstanceIndex) {
         self.mouse_target_map.remove(&(symbol_id,instance_id));
     }
 
@@ -134,7 +134,6 @@ impl {
         match target {
             PointerTarget::Background => None,
             PointerTarget::Symbol {symbol_id,instance_id} => {
-                let instance_id = instance_id as usize;
                 self.mouse_target_map.get(&(symbol_id,instance_id)).cloned()
             }
         }
@@ -162,7 +161,7 @@ pub enum PointerTarget {
     Background,
     Symbol {
         symbol_id   : SymbolId,
-        instance_id : u32,
+        instance_id : attribute::InstanceIndex,
     }
 }
 
@@ -221,7 +220,7 @@ impl PointerTarget {
         match self {
             Self::Background                     => Vector4::new(0,0,0,0),
             Self::Symbol {symbol_id,instance_id} => {
-                match Self::encode((**symbol_id) as u32,*instance_id) {
+                match Self::encode(**symbol_id,(**instance_id) as u32) {
                     DecodingResult::Truncated(pack0,pack1,pack2) => {
                         warning!(logger,"Target values too big to encode: \
                                          ({symbol_id},{instance_id}).");
@@ -241,26 +240,20 @@ impl PointerTarget {
         }
         else if v.w == 255 {
             let decoded     = Self::decode(v.x,v.y,v.z);
-            let symbol_id   = SymbolId::new(decoded.0 as u32);
-            let instance_id = decoded.1;
+            let symbol_id   = SymbolId::new(decoded.0);
+            let instance_id = attribute::InstanceIndex::new(decoded.1 as usize);
             Self::Symbol {symbol_id,instance_id}
         } else {
             panic!("Wrong internal format alpha for mouse target.")
         }
     }
 
-    pub fn is_background(&self) -> bool {
-        match self {
-            Self::Background => true,
-            _                => false,
-        }
+    pub fn is_background(self) -> bool {
+        self == Self::Background
     }
 
-    pub fn is_symbol(&self) -> bool {
-        match self {
-            Self::Symbol {..} => true,
-            _                 => false,
-        }
+    pub fn is_symbol(self) -> bool {
+        !self.is_background()
     }
 }
 

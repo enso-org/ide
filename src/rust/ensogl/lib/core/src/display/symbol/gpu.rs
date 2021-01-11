@@ -261,6 +261,8 @@ pub struct Symbol {
     shader_dirty      : ShaderDirty,
     variables         : UniformScope,
     global_variables  : UniformScope,
+    /// Please note that changing the uniform type to `u32` breaks node ID encoding in GLSL, as the
+    /// functions are declared to work on `int`s, not `uint`s. This might be improved one day.
     symbol_id_uniform : Uniform<i32>,
     context           : Context,
     logger            : Logger,
