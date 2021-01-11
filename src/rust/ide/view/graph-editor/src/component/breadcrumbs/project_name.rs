@@ -147,17 +147,17 @@ impl ProjectNameModel {
         text_field.set_default_text_size(text_size);
         text_field.single_line(true);
 
-        text_field.remove_from_view(&scene.views.main);
-        text_field.add_to_view_OLD(&scene.views.breadcrumbs);
+        text_field.remove_from_view(&scene.layers.main);
+        text_field.add_to_scene_layer_DEPRECATED(&scene.layers.breadcrumbs);
         text_field.hover();
 
         let view_logger = Logger::sub(&logger,"view_logger");
         let view        = component::ShapeView_DEPRECATED::<background::Shape>::new(&view_logger,scene);
 
-        scene.views.main.remove_shape_view(&view);
-        scene.views.breadcrumbs.add_shape_view(&view);
+        scene.layers.main.remove_shape_view_DEPRECATED(&view);
+        scene.layers.breadcrumbs.add_shape_view_DEPRECATED(&view);
 
-        let project_name          = default();
+        let project_name = default();
         Self{app,logger,view,style,display_object,text_field,project_name}.init()
     }
 

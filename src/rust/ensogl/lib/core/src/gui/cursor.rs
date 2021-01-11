@@ -282,8 +282,8 @@ impl CursorModel {
 
         let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
         shape_system.shape_system.set_pointer_events(false);
-        scene.views.main.remove(&shape_system.shape_system.symbol);
-        scene.views.cursor.add(&shape_system.shape_system.symbol);
+        scene.layers.main.remove(&shape_system.shape_system.symbol);
+        scene.layers.cursor.add(&shape_system.shape_system.symbol);
 
         Self {logger,scene,view,style}
     }
@@ -438,7 +438,7 @@ impl Cursor {
                     None       => host_follow_weight.set_target_value(0.0),
                     Some(host) => {
                         host_follow_weight.set_target_value(1.0);
-                        let m1       = model.scene.views.cursor.camera.inversed_view_matrix();
+                        let m1       = model.scene.layers.cursor.camera.inversed_view_matrix();
                         let m2       = model.scene.camera().view_matrix();
                         let position = host.global_position();
                         let position = Vector4::new(position.x,position.y,position.z,1.0);
@@ -473,7 +473,7 @@ impl Cursor {
             //    ╲ │
             //     ╲│ z = camera.z
             screen_position <- position.map(f!([model](position) {
-                let cam_pos = model.scene.views.cursor.camera.position();
+                let cam_pos = model.scene.layers.cursor.camera.position();
                 let coeff   = cam_pos.z / (cam_pos.z - position.z);
                 let x       = position.x * coeff;
                 let y       = position.y * coeff;

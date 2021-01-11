@@ -205,8 +205,8 @@ impl View {
         // scene.views.viz.add(&shape_system.shape_system.symbol);
 
         let shape_system = scene.shapes.shape_system(PhantomData::<overlay::Shape>);
-        scene.views.main.remove(&shape_system.shape_system.symbol);
-        scene.views.viz.add(&shape_system.shape_system.symbol);
+        scene.layers.main.remove(&shape_system.shape_system.symbol);
+        scene.layers.viz.add(&shape_system.shape_system.symbol);
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles   = StyleWatch::new(&scene.style_sheet);
@@ -271,8 +271,8 @@ impl FullscreenView {
         // display_object.add_child(&background);
 
         let shape_system = scene.shapes.shape_system(PhantomData::<fullscreen_background::Shape>);
-        scene.views.main.remove(&shape_system.shape_system.symbol);
-        scene.views.viz_fullscreen.add(&shape_system.shape_system.symbol);
+        scene.layers.main.remove(&shape_system.shape_system.symbol);
+        scene.layers.viz_fullscreen.add(&shape_system.shape_system.symbol);
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles   = StyleWatch::new(&scene.style_sheet);
@@ -574,8 +574,8 @@ impl Container {
                     model.set_corner_roundness(weight_inv);
                     model.set_size(current_size);
 
-                    let m1  = model.scene.views.viz_fullscreen.camera.inversed_view_matrix();
-                    let m2  = model.scene.views.viz.camera.view_matrix();
+                    let m1  = model.scene.layers.viz_fullscreen.camera.inversed_view_matrix();
+                    let m2  = model.scene.layers.viz.camera.view_matrix();
                     let pos = model.global_position();
                     let pos = Vector4::new(pos.x,pos.y,pos.z,1.0);
                     let pos = m2 * (m1 * pos);

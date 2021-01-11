@@ -149,7 +149,7 @@ impl Deref for Selection {
 
 impl Selection {
     /// Constructor.
-    pub fn new(logger:impl AnyLogger, edit_mode:bool, scene_view:Option<&scene::WeakView>) -> Self {
+    pub fn new(logger:impl AnyLogger, edit_mode:bool) -> Self {
         let logger         = Logger::sub(logger,"selection");
         let display_object = display::object::Instance::new(&logger);
         let right_side     = display::object::Instance::new(&logger);
@@ -656,19 +656,32 @@ impl Area {
         self
     }
 
-    /// Add the text area to a specific view. The mouse event positions will be mapped to this view
-    /// regardless the previous views this component could be added to.
-    //TODO[ao] it will not move selection, see todo in `symbols` function.
-    pub fn add_to_view_OLD(&self, view:&display::scene::View) {
-        println!("add_to_view_OLD");
+    /// Add the text area to a specific scene layer. The mouse event positions will be mapped to
+    /// this view regardless the previous views this component could be added to.
+    ///
+    /// # Depreciation
+    /// This function is magical and needs to be updated. However, it requires a few steps:
+    /// 1. The new `ShapeView` and `DynamicShape` are implemented and they use display objects to
+    ///    pass information about scene layers they are assigned to. However, the [`GlyphSystem`]
+    ///    is a very non-standard implementation, and thus has to handle the new display object
+    ///    callbacks in a special way as well.
+    /// 2. The `self.data.camera` has to still be used, otherwise there would be no way to convert
+    ///    the screen to object space (see the [`to_object_space`] function). This is a very
+    ///    temporary solution, as any object can be assigned to more than one scene layer, and thus
+    ///    can be rendered from more than one camera. Screen / object space location of events
+    ///    should thus become much more primitive information / mechanisms.
+    ///
+    /// Please note, that this function handles the selection management correctly now, as it uses
+    /// the new shape system definition, and thus, inherits the scene layer settings from this
+    /// display object.
+    pub fn add_to_scene_layer_DEPRECATED(&self, view:&display::scene::Layer) {
         for symbol in self.symbols() { view.add(&symbol); }
         self.data.camera.set(view.camera.clone_ref());
-        *self.data.scene_view.borrow_mut() = Some(view.downgrade());
         self.set_scene_layer(&view.downgrade());
     }
 
     /// Remove this component from view.
-    pub fn remove_from_view(&self, view:&display::scene::View) {
+    pub fn remove_from_view(&self, view:&display::scene::Layer) {
         for symbol in self.symbols() { view.remove(&symbol); }
     }
 
@@ -694,7 +707,6 @@ pub struct AreaModel {
     // FIXME[ao]: this is a temporary solution to handle properly areas in different views. Should
     //            be replaced with proper object management.
     camera         : Rc<CloneRefCell<display::camera::Camera2d>>,
-    scene_view     : Rc<RefCell<Option<scene::WeakView>>>,
 
     logger         : Logger,
     frp_endpoints  : FrpEndpoints,
@@ -731,14 +743,13 @@ impl AreaModel {
 
         // FIXME[WD]: This is temporary sorting utility, which places the cursor in front of mouse
         // pointer and nodes. Should be refactored when proper sorting mechanisms are in place.
-        scene.views.main.remove(symbol);
-        scene.views.label.add(symbol);
+        scene.layers.main.remove(symbol);
+        scene.layers.label.add(symbol);
 
         let frp_endpoints = frp_endpoints.clone_ref();
-        let scene_view    = default();
 
         Self {app,logger,display_object,glyph_system,buffer,lines,selection_map,camera
-             ,single_line,frp_endpoints,scene_view}.init()
+             ,single_line,frp_endpoints}.init()
     }
 
     fn on_modified_selection(&self, selections:&buffer::selection::Group, time:f32, do_edit:bool) {
@@ -776,7 +787,7 @@ impl AreaModel {
                         selection
                     }
                     None => {
-                        let selection = Selection::new(&logger,do_edit,self.scene_view.borrow().as_ref());
+                        let selection = Selection::new(&logger,do_edit);
                         selection.shape.letter_width.set(7.0); // FIXME hardcoded values
                         self.add_child(&selection);
                         selection.position.set_target_value(pos);

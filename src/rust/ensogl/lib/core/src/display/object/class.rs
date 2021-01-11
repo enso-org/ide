@@ -9,7 +9,7 @@ use super::transform;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::display::scene::Scene;
-use crate::display::scene::WeakView;
+use crate::display::scene::WeakLayer;
 
 use data::opt_vec::OptVec;
 use nalgebra::Matrix4;
@@ -61,9 +61,9 @@ impl<Host> Drop for ParentBind<Host> {
 #[allow(clippy::type_complexity)]
 pub struct Callbacks<Host> {
     on_updated             : RefCell<Option<Box<dyn Fn(&Model<Host>)>>>,
-    on_show                : RefCell<Option<Box<dyn Fn(&Host,Option<&Vec<WeakView>>)>>>,
+    on_show                : RefCell<Option<Box<dyn Fn(&Host,Option<&Vec<WeakLayer>>)>>>,
     on_hide                : RefCell<Option<Box<dyn Fn(&Host)>>>,
-    on_scene_layer_changed : RefCell<Option<Box<dyn Fn(&Host,Option<&Vec<WeakView>>)>>>,
+    on_scene_layer_changed : RefCell<Option<Box<dyn Fn(&Host,Option<&Vec<WeakLayer>>)>>>,
 }
 
 impl<Host> Callbacks<Host> {
@@ -71,7 +71,7 @@ impl<Host> Callbacks<Host> {
         if let Some(f) = &*self.on_updated.borrow() { f(model) }
     }
 
-    fn on_show(&self, host:&Host, views:Option<&Vec<WeakView>>) {
+    fn on_show(&self, host:&Host, views:Option<&Vec<WeakLayer>>) {
         if let Some(f) = &*self.on_show.borrow() { f(host,views) }
     }
 
@@ -79,7 +79,7 @@ impl<Host> Callbacks<Host> {
         if let Some(f) = &*self.on_hide.borrow() { f(host) }
     }
 
-    fn on_scene_layer_changed(&self, host:&Host, views:Option<&Vec<WeakView>>) {
+    fn on_scene_layer_changed(&self, host:&Host, views:Option<&Vec<WeakLayer>>) {
         if let Some(f) = &*self.on_scene_layer_changed.borrow() { f(host,views) }
     }
 }
@@ -188,7 +188,7 @@ fn on_dirty_callback(f:&Rc<RefCell<Box<dyn Fn()>>>) -> OnDirtyCallback {
 #[derivative(Debug(bound=""))]
 pub struct Model<Host=Scene> {
     host        : PhantomData <Host>,
-    scene_layers       : Rc<RefCell<Option<Vec<WeakView>>>>,
+    scene_layers       : Rc<RefCell<Option<Vec<WeakLayer>>>>,
     dirty       : DirtyFlags  <Host>,
     callbacks   : Callbacks   <Host>,
     parent_bind : RefCell     <Option<ParentBind<Host>>>,
@@ -274,7 +274,7 @@ impl<Host> Model<Host> {
     , parent_origin               : Matrix4<f32>
     , parent_origin_changed       : bool
     , parent_scene_layers_changed : bool
-    , parent_scene_layers         : Option<&Vec<WeakView>>
+    , parent_scene_layers         : Option<&Vec<WeakLayer>>
     ) {
         let this_scene_layers           = self.scene_layers.borrow();
         let this_scene_layers_ref       = this_scene_layers.as_ref();
@@ -331,7 +331,7 @@ impl<Host> Model<Host> {
     }
 
     /// Hide all removed children and show this display object if it was attached to a new parent.
-    fn update_visibility(&self, host:&Host, parent_scene_layers:Option<&Vec<WeakView>>) {
+    fn update_visibility(&self, host:&Host, parent_scene_layers:Option<&Vec<WeakLayer>>) {
         self.take_removed_children_and_hide_orphans(host);
         let parent_changed = self.dirty.parent.check();
         if parent_changed && !self.is_orphan() {
@@ -364,7 +364,7 @@ impl<Host> Model<Host> {
         }
     }
 
-    fn set_vis_true(&self, host:&Host, parent_scene_layers:Option<&Vec<WeakView>>) {
+    fn set_vis_true(&self, host:&Host, parent_scene_layers:Option<&Vec<WeakLayer>>) {
        if !self.visible.get() {
            info!(self.logger,"Showing.");
            let this_scene_layers = self.scene_layers.borrow();
@@ -479,7 +479,7 @@ impl<Host> Model<Host> {
 
     /// Sets a callback which will be called with a reference to scene when the object will be
     /// shown (attached to visible display object graph).
-    pub fn set_on_show<F:Fn(&Host,Option<&Vec<WeakView>>)+'static>(&self, f:F) {
+    pub fn set_on_show<F:Fn(&Host,Option<&Vec<WeakLayer>>)+'static>(&self, f:F) {
         self.callbacks.on_show.set(Box::new(f))
     }
 
@@ -489,7 +489,7 @@ impl<Host> Model<Host> {
         self.callbacks.on_hide.set(Box::new(f))
     }
 
-    pub fn set_on_scene_layer_changed<F:Fn(&Host,Option<&Vec<WeakView>>)+'static>(&self, f:F) {
+    pub fn set_on_scene_layer_changed<F:Fn(&Host,Option<&Vec<WeakLayer>>)+'static>(&self, f:F) {
         self.callbacks.on_scene_layer_changed.set(Box::new(f))
     }
 }
@@ -548,7 +548,7 @@ impl<Host> Instance<Host> {
         Id(Rc::downgrade(&self.rc).as_raw() as *const() as usize)
     }
 
-    fn _set_scene_layer(&self, view:&WeakView) {
+    fn _set_scene_layer(&self, view:&WeakLayer) {
         self.dirty.scene_layer.set();
         *self.scene_layers.borrow_mut() = Some(vec![view.clone_ref()]);
     }
@@ -729,7 +729,7 @@ pub trait ObjectOps<Host=Scene> : Object<Host> {
         self.display_object()._id()
     }
 
-    fn set_scene_layer(&self, view:&WeakView) {
+    fn set_scene_layer(&self, view:&WeakLayer) {
         self.display_object()._set_scene_layer(view)
     }
 

@@ -292,21 +292,21 @@ impl BreadcrumbModel {
         let outputs           = frp.outputs.clone_ref();
 
         let shape_system = scene.shapes.shape_system(PhantomData::<background::Shape>);
-        scene.views.main.remove(&shape_system.shape_system.symbol);
-        scene.views.breadcrumbs.add(&shape_system.shape_system.symbol);
+        scene.layers.main.remove(&shape_system.shape_system.symbol);
+        scene.layers.breadcrumbs.add(&shape_system.shape_system.symbol);
 
         let shape_system = scene.shapes.shape_system(PhantomData::<icon::Shape>);
         shape_system.shape_system.set_pointer_events(false);
-        scene.views.main.remove(&shape_system.shape_system.symbol);
-        scene.views.breadcrumbs.add(&shape_system.shape_system.symbol);
+        scene.layers.main.remove(&shape_system.shape_system.symbol);
+        scene.layers.breadcrumbs.add(&shape_system.shape_system.symbol);
 
         let shape_system = scene.shapes.shape_system(PhantomData::<separator::Shape>);
         shape_system.shape_system.set_pointer_events(false);
-        scene.views.main.remove(&shape_system.shape_system.symbol);
-        scene.views.breadcrumbs.add(&shape_system.shape_system.symbol);
+        scene.layers.main.remove(&shape_system.shape_system.symbol);
+        scene.layers.breadcrumbs.add(&shape_system.shape_system.symbol);
 
-        label.remove_from_view(&scene.views.main);
-        label.add_to_view_OLD(&scene.views.breadcrumbs);
+        label.remove_from_view(&scene.layers.main);
+        label.add_to_scene_layer_DEPRECATED(&scene.layers.breadcrumbs);
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let style = StyleWatch::new(&scene.style_sheet);

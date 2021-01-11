@@ -191,8 +191,8 @@ impl Model {
         // FIXME[WD]: Depth sorting of labels to in front of the mouse pointer. Temporary solution.
         // It needs to be more flexible once we have proper depth management.
         let scene = self.app.display.scene();
-        self.label.remove_from_view(&scene.views.main);
-        self.label.add_to_view_OLD(&scene.views.label);
+        self.label.remove_from_view(&scene.layers.main);
+        self.label.add_to_scene_layer_DEPRECATED(&scene.layers.label);
 
         let text_color = self.styles.get_color(theme::graph_editor::node::text);
         self.label.single_line(true);

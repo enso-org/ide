@@ -373,7 +373,7 @@ macro_rules! _define_shape_system {
 
         // A view of the defined shape. You can place the view in your objects and it will
         // automatically initialize on-demand.
-        pub type View = $crate::gui::component::ShapeView2<DynamicShape>;
+        pub type View = $crate::gui::component::ShapeView<DynamicShape>;
 
 
 

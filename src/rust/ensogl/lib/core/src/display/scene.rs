@@ -57,13 +57,96 @@ pub trait MouseTarget : Debug + 'static {
 
 
 
-// =========================
-// === ComponentRegistry ===
-// =========================
+// =====================
+// === ShapeRegistry ===
+// =====================
 
 shared! { ShapeRegistry
 #[derive(Debug,Default)]
 pub struct ShapeRegistryData {
+    scene                : Option<Scene>,
+    shape_system_map     : HashMap<TypeId,Box<dyn Any>>,
+    dyn_shape_system_map : HashMap<TypeId,Box<dyn Any>>,
+    mouse_target_map     : HashMap<(i32,usize),Rc<dyn MouseTarget>>,
+}
+
+impl {
+    fn get<T:ShapeSystemInstance>(&self) -> Option<T> {
+        let id = TypeId::of::<T>();
+        self.shape_system_map.get(&id).and_then(|t| t.downcast_ref::<T>()).map(|t| t.clone_ref())
+    }
+
+    fn get_dyn<T:DynShapeSystemInstance>(&self) -> Option<T> {
+        let id = TypeId::of::<T>();
+        self.dyn_shape_system_map.get(&id).and_then(|t| t.downcast_ref::<T>()).map(|t| t.clone_ref())
+    }
+
+    fn register<T:ShapeSystemInstance>(&mut self) -> T {
+        let id     = TypeId::of::<T>();
+        let system = <T as ShapeSystemInstance>::new(self.scene.as_ref().unwrap());
+        let any    = Box::new(system.clone_ref());
+        self.shape_system_map.insert(id,any);
+        system
+    }
+
+    fn register_dyn<T:DynShapeSystemInstance>(&mut self) -> T {
+        let id     = TypeId::of::<T>();
+        let system = <T as DynShapeSystemInstance>::new(self.scene.as_ref().unwrap());
+        let any    = Box::new(system.clone_ref());
+        self.dyn_shape_system_map.insert(id,any);
+        system
+    }
+
+    fn get_or_register<T:ShapeSystemInstance>(&mut self) -> T {
+        self.get().unwrap_or_else(|| self.register())
+    }
+
+    fn get_or_register_dyn<T:DynShapeSystemInstance>(&mut self) -> T {
+        self.get_dyn().unwrap_or_else(|| self.register_dyn())
+    }
+
+    pub fn shape_system<T:display::shape::system::Shape>(&mut self, _phantom:PhantomData<T>) -> ShapeSystemOf<T> {
+        self.get_or_register::<ShapeSystemOf<T>>()
+    }
+
+    pub fn new_instance<T:display::shape::system::Shape>(&mut self) -> T {
+        let system = self.get_or_register::<ShapeSystemOf<T>>();
+        system.new_instance()
+    }
+
+    pub fn instantiate_dyn<T:display::shape::system::DynamicShape>(&mut self,shape:&T)
+    -> (i32,AttributeInstanceIndex) {
+        let system      = self.get_or_register_dyn::<DynShapeSystemOf<T>>();
+        let instance_id = system.instantiate(shape);
+        let symbol_id   = system.shape_system().sprite_system.symbol.id;
+        (symbol_id,instance_id)
+    }
+
+    pub fn insert_mouse_target<T:MouseTarget>(&mut self, symbol_id:i32, instance_id:usize, target:T) {
+        let target = Rc::new(target);
+        self.mouse_target_map.insert((symbol_id,instance_id),target);
+    }
+
+    pub fn remove_mouse_target(&mut self, symbol_id:i32, instance_id:usize) {
+        self.mouse_target_map.remove(&(symbol_id,instance_id));
+    }
+
+    pub fn get_mouse_target(&mut self, target:PointerTarget) -> Option<Rc<dyn MouseTarget>> {
+        match target {
+            PointerTarget::Background => None,
+            PointerTarget::Symbol {symbol_id,instance_id} => {
+                let symbol_id   = symbol_id   as i32;
+                let instance_id = instance_id as usize;
+                self.mouse_target_map.get(&(symbol_id,instance_id)).map(|t| t.clone_ref())
+            }
+        }
+    }
+}}
+
+
+shared! { ShapeRegistry2
+#[derive(Debug,Default)]
+pub struct ShapeRegistryData2 {
     scene                : Option<Scene>,
     shape_system_map     : HashMap<TypeId,Box<dyn Any>>,
     dyn_shape_system_map : HashMap<TypeId,Box<dyn Any>>,
@@ -446,15 +529,15 @@ impl Keyboard {
 pub struct Dom {
     /// Root DOM element of the scene.
     pub root : web::dom::WithKnownShape<web::HtmlDivElement>,
-    /// Layers of the scene.
-    pub layers : Layers,
+    /// DomLayers of the scene.
+    pub layers : DomLayers,
 }
 
 impl Dom {
     /// Constructor.
     pub fn new(logger:&Logger) -> Self {
         let root   = web::create_div();
-        let layers = Layers::new(&logger,&root);
+        let layers = DomLayers::new(&logger,&root);
         root.set_class_name("scene");
         root.set_style_or_panic("height"  , "100vh");
         root.set_style_or_panic("width"   , "100vw");
@@ -474,15 +557,15 @@ impl Dom {
 
 
 
-// ==============
-// === Layers ===
-// ==============
+// =================
+// === DomLayers ===
+// =================
 
-/// DOM Layers of the scene. It contains a 2 CSS 3D layers and a canvas layer in the middle. The
+/// DOM DomLayers of the scene. It contains a 2 CSS 3D layers and a canvas layer in the middle. The
 /// CSS layers are used to manage DOM elements and to simulate depth-sorting of DOM and canvas
 /// elements.
 #[derive(Clone,CloneRef,Debug)]
-pub struct Layers {
+pub struct DomLayers {
     /// Back DOM scene layer.
     pub back: DomScene,
     /// Front DOM scene layer.
@@ -492,7 +575,7 @@ pub struct Layers {
 
 }
 
-impl Layers {
+impl DomLayers {
     /// Constructor.
     pub fn new(logger:&Logger, dom:&web_sys::HtmlDivElement) -> Self {
         let canvas = web::create_canvas();
@@ -619,9 +702,9 @@ impl Renderer {
 
 
 
-// ============
-// === View ===
-// ============
+// =============
+// === Layer ===
+// =============
 
 pub type GlobalDepthOrder = Rc<RefCell<DependencyGraph>>;
 pub type LocalDepthOrder = Rc<RefCell<Option<DependencyGraph>>>;
@@ -651,54 +734,54 @@ impl DepthOrder {
 // === Definition ===
 
 #[derive(Debug,Clone,CloneRef)]
-pub struct View {
-    data : Rc<ViewData>
+pub struct Layer {
+    data : Rc<LayerModel>
 }
 
 #[derive(Clone,CloneRef)]
-pub struct WeakView {
-    data : Weak<ViewData>
+pub struct WeakLayer {
+    data : Weak<LayerModel>
 }
 
-impl PartialEq for WeakView {
+impl PartialEq for WeakLayer {
     fn eq(&self, other:&Self) -> bool {
         self.data.ptr_eq(&other.data)
     }
 }
 
-impl Eq for WeakView {}
+impl Eq for WeakLayer {}
 
-impl Debug for WeakView {
+impl Debug for WeakLayer {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f,"WeakView")
+        write!(f,"WeakLayer")
     }
 }
 
 #[derive(Debug,Clone)]
-pub struct ViewData {
+pub struct LayerModel {
     logger             : Logger,
     pub camera         : Camera2d,
     pub shape_registry : ShapeRegistry,
     symbols            : RefCell<BTreeSet<SymbolId>>,
     symbols_ordered    : RefCell<Vec<SymbolId>>,
     depth_order        : DepthOrder,
-    symbols_placement  : Rc<RefCell<HashMap<usize,Vec<WeakView>>>>,
+    symbols_placement  : Rc<RefCell<HashMap<usize,Vec<WeakLayer>>>>,
 }
 
-impl AsRef<ViewData> for View {
-    fn as_ref(&self) -> &ViewData {
+impl AsRef<LayerModel> for Layer {
+    fn as_ref(&self) -> &LayerModel {
         &self.data
     }
 }
 
-impl std::borrow::Borrow<ViewData> for View {
-    fn borrow(&self) -> &ViewData {
+impl std::borrow::Borrow<LayerModel> for Layer {
+    fn borrow(&self) -> &LayerModel {
         &self.data
     }
 }
 
-impl Deref for View {
-    type Target = ViewData;
+impl Deref for Layer {
+    type Target = LayerModel;
     fn deref(&self) -> &Self::Target {
         &self.data
     }
@@ -707,23 +790,23 @@ impl Deref for View {
 
 // === API ===
 
-impl View {
-    pub fn new(logger:&Logger, width:f32, height:f32, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<usize,Vec<WeakView>>>>) -> Self {
-        let data = ViewData::new(logger,width,height,global_depth_order,symbols_placement);
+impl Layer {
+    pub fn new(logger:&Logger, width:f32, height:f32, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<usize,Vec<WeakLayer>>>>) -> Self {
+        let data = LayerModel::new(logger,width,height,global_depth_order,symbols_placement);
         let data = Rc::new(data);
         Self {data}
     }
 
     pub fn new_with_shared_camera
-    (logger:&Logger, camera:&Camera2d, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<usize,Vec<WeakView>>>>) -> Self {
-        let data = ViewData::new_with_shared_camera(logger,camera,global_depth_order,symbols_placement);
+    (logger:&Logger, camera:&Camera2d, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<usize,Vec<WeakLayer>>>>) -> Self {
+        let data = LayerModel::new_with_shared_camera(logger,camera,global_depth_order,symbols_placement);
         let data = Rc::new(data);
         Self {data}
     }
 
-    pub fn downgrade(&self) -> WeakView {
+    pub fn downgrade(&self) -> WeakLayer {
         let data = Rc::downgrade(&self.data);
-        WeakView {data}
+        WeakLayer {data}
     }
 
     pub fn add_by_id(&self, xsymbol_id:i32) {
@@ -759,36 +842,36 @@ impl View {
 
     }
 
-    // FIXME: used only in breadcrumbs
-    /// Add all `Symbol`s associated with the given ShapeView_DEPRECATED.
-    pub fn add_shape_view<T: display::shape::primitive::system::Shape>
+    /// Add all `Symbol`s associated with the given ShapeView_DEPRECATED. Please note that this
+    /// function was used only in one place in the codebase and should be removed in the future.
+    pub fn add_shape_view_DEPRECATED<T: display::shape::primitive::system::Shape>
     (&self, shape_view:&component::ShapeView_DEPRECATED<T>) {
         self.add(&shape_view.shape.sprite().symbol)
     }
 
-    // FIXME: used only in breadcrumbs
-    /// Remove all `Symbol`s associated with the given ShapeView_DEPRECATED.
-    pub fn remove_shape_view<T: display::shape::primitive::system::Shape>
+    /// Remove all `Symbol`s associated with the given ShapeView_DEPRECATED. Please note that this
+    /// function was used only in one place in the codebase and should be removed in the future.
+    pub fn remove_shape_view_DEPRECATED<T: display::shape::primitive::system::Shape>
     (&self, shape_view:&component::ShapeView_DEPRECATED<T>) {
         self.remove(&shape_view.shape.sprite().symbol)
     }
 }
 
-impl WeakView {
-    pub fn upgrade(&self) -> Option<View> {
-        self.data.upgrade().map(|data| View{data})
+impl WeakLayer {
+    pub fn upgrade(&self) -> Option<Layer> {
+        self.data.upgrade().map(|data| Layer {data})
     }
 }
 
-impl ViewData {
+impl LayerModel {
     pub fn new
-    (logger:impl AnyLogger, width:f32, height:f32, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<usize,Vec<WeakView>>>>) -> Self {
+    (logger:impl AnyLogger, width:f32, height:f32, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<usize,Vec<WeakLayer>>>>) -> Self {
         let camera = Camera2d::new(&logger,width,height);
         Self::new_with_shared_camera(logger,camera,global_depth_order,symbols_placement)
     }
 
     pub fn new_with_shared_camera
-    (logger:impl AnyLogger, camera:impl Into<Camera2d>, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<usize,Vec<WeakView>>>>) -> Self {
+    (logger:impl AnyLogger, camera:impl Into<Camera2d>, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<usize,Vec<WeakLayer>>>>) -> Self {
         let logger          = Logger::sub(logger,"view");
         let camera          = camera.into();
         let shape_registry  = default();
@@ -806,42 +889,42 @@ impl ViewData {
 
 
 
-// =============
-// === Views ===
-// =============
+// ==============
+// === Layers ===
+// ==============
 
-/// Please note that currently the `Views` structure is implemented in a hacky way. It assumes the
+/// Please note that currently the `Layers` structure is implemented in a hacky way. It assumes the
 /// existence of `main`, `overlay`, `cursor`, and `label` views, which are needed for the GUI to
 /// display shapes properly. This should be abstracted away in the future.
 #[derive(Clone,CloneRef,Debug)]
-pub struct Views {
+pub struct Layers {
     logger             : Logger,
-    pub viz            : View,
-    pub main           : View,
-    pub cursor         : View,
-    pub label          : View,
-    pub viz_fullscreen : View,
-    pub breadcrumbs    : View,
+    pub viz            : Layer,
+    pub main           : Layer,
+    pub cursor         : Layer,
+    pub label          : Layer,
+    pub viz_fullscreen : Layer,
+    pub breadcrumbs    : Layer,
     pub depth_order    : GlobalDepthOrder,
-    all                : Rc<RefCell<Vec<WeakView>>>,
-    symbols_placement  : Rc<RefCell<HashMap<usize,Vec<WeakView>>>>,
+    all                : Rc<RefCell<Vec<WeakLayer>>>,
+    symbols_placement  : Rc<RefCell<HashMap<usize,Vec<WeakLayer>>>>,
     width              : f32,
     height             : f32,
 }
 
-impl Views {
+impl Layers {
     pub fn new(logger:impl AnyLogger) -> Self {
         let width             = 0.0;
         let height            = 0.0;
         let depth_order       = default();
         let symbols_placement = default();
         let logger            = Logger::sub(logger,"views");
-        let main              = View::new(&logger,width,height,&depth_order,&symbols_placement);
-        let viz               = View::new_with_shared_camera(&logger,&main.camera,&depth_order,&symbols_placement);
-        let cursor            = View::new(&logger,width,height,&depth_order,&symbols_placement);
-        let label             = View::new_with_shared_camera(&logger,&main.camera,&depth_order,&symbols_placement);
-        let viz_fullscreen    = View::new(&logger,width,height,&depth_order,&symbols_placement);
-        let breadcrumbs       = View::new(&logger,width,height,&depth_order,&symbols_placement);
+        let main              = Layer::new(&logger,width,height,&depth_order,&symbols_placement);
+        let viz               = Layer::new_with_shared_camera(&logger,&main.camera,&depth_order,&symbols_placement);
+        let cursor            = Layer::new(&logger,width,height,&depth_order,&symbols_placement);
+        let label             = Layer::new_with_shared_camera(&logger,&main.camera,&depth_order,&symbols_placement);
+        let viz_fullscreen    = Layer::new(&logger,width,height,&depth_order,&symbols_placement);
+        let breadcrumbs       = Layer::new(&logger,width,height,&depth_order,&symbols_placement);
         let all               = vec![
             viz.downgrade(),
             main.downgrade(),
@@ -854,7 +937,7 @@ impl Views {
         Self {logger,viz,main,cursor,label,viz_fullscreen,all,symbols_placement,width,height,breadcrumbs,depth_order}
     }
 
-    pub fn all(&self) -> Ref<Vec<WeakView>> {
+    pub fn all(&self) -> Ref<Vec<WeakLayer>> {
         self.all.borrow()
     }
 }
@@ -936,7 +1019,7 @@ pub struct SceneData {
     pub dirty            : Dirty,
     pub logger           : Logger,
     pub renderer         : Renderer,
-    pub views            : Views,
+    pub layers            : Layers,
     pub style_sheet      : style::Sheet,
     pub bg_color_var     : style::Var,
     pub bg_color_change  : callback::Handle,
@@ -967,7 +1050,7 @@ impl SceneData {
         let variables            = UniformScope::new(var_logger,&context);
         let symbols              = SymbolRegistry::mk(&variables,&stats,&context,&logger,on_change);
         let symbols_dirty        = dirty_flag;
-        let views                = Views::new(&logger);
+        let layers                = Layers::new(&logger);
         let stats                = stats.clone();
         let shapes               = ShapeRegistry::default();
         let uniforms             = Uniforms::new(&variables);
@@ -996,7 +1079,7 @@ impl SceneData {
         }
 
         uniforms.pixel_ratio.set(dom.shape().pixel_ratio);
-        Self {renderer,display_object,dom,context,symbols,views,dirty,logger,variables,stats
+        Self {renderer,display_object,dom,context,symbols,layers,dirty,logger,variables,stats
              ,uniforms,mouse,keyboard,shapes,style_sheet,bg_color_var,bg_color_change,frp
              ,extensions,disable_context_menu,current_js_event}
     }
@@ -1006,12 +1089,12 @@ impl SceneData {
     }
 
     pub fn camera(&self) -> &Camera2d {
-        &self.views.main.camera
+        &self.layers.main.camera
     }
 
     pub fn new_symbol(&self) -> Symbol {
         let symbol = self.symbols.new();
-        self.views.main.add(&symbol);
+        self.layers.main.add(&symbol);
         symbol
     }
 
@@ -1034,7 +1117,7 @@ impl SceneData {
         if self.dirty.shape.check_all() {
             let screen = self.dom.shape();
             self.resize_canvas(screen);
-            for view in &*self.views.all.borrow() {
+            for view in &*self.layers.all.borrow() {
                 view.upgrade().for_each(|v| v.camera.set_screen(screen.width,screen.height))
             }
             self.renderer.reload_composer();
@@ -1062,7 +1145,7 @@ impl SceneData {
         }
 
         // Updating all other cameras (the main camera was already updated, so it will be skipped).
-        for view in &*self.views.all() {
+        for view in &*self.layers.all() {
             view.upgrade().for_each(|v| v.camera.update(scene));
         }
     }
@@ -1128,7 +1211,7 @@ impl Scene {
 
         // FIXME MEMORY LEAK in all lines below:
         this.no_mut_access.shapes.rc.borrow_mut().scene = Some(this.clone_ref());
-        for view in &*this.no_mut_access.views.all.borrow() {
+        for view in &*this.no_mut_access.layers.all.borrow() {
             if let Some(view) = view.upgrade() {
                 view.shape_registry.rc.borrow_mut().scene = Some(this.clone_ref());
             }
