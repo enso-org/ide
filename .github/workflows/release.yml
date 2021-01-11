@@ -97,13 +97,3 @@ jobs:
           aws s3 cp ./artifacts/ide-dist/assets/wasm_imports.js.gz
           s3://ensocdn/ide/${{ env.DIST_VERSION }}/wasm_imports.js.gz --profile
           s3-upload --acl public-read --content-encoding gzip
-
-      - name: Teardown AWS Session
-        shell: bash
-        run: |
-          aws configure --profile s3-upload <<-EOF > /dev/null 2>&1
-          null
-          null
-          null
-          text
-          EOF
