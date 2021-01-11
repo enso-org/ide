@@ -122,6 +122,7 @@ impl {
     }
 
     pub fn insert_mouse_target<T:MouseTarget>(&mut self, symbol_id:SymbolId, instance_id:usize, target:T) {
+        println!("INSERT MOUSE TARGET: {:?}",(symbol_id,instance_id));
         let target = Rc::new(target);
         self.mouse_target_map.insert((symbol_id,instance_id),target);
     }
@@ -131,13 +132,15 @@ impl {
     }
 
     pub fn get_mouse_target(&mut self, target:PointerTarget) -> Option<Rc<dyn MouseTarget>> {
-        match target {
+        let out = match target {
             PointerTarget::Background => None,
             PointerTarget::Symbol {symbol_id,instance_id} => {
                 let instance_id = instance_id as usize;
                 self.mouse_target_map.get(&(symbol_id,instance_id)).cloned()
             }
-        }
+        };
+        println!("GET MOUSE TARGET: {:?} -> {:?}",target,out.is_some());
+        out
     }
 }}
 
@@ -221,7 +224,7 @@ impl PointerTarget {
         match self {
             Self::Background                     => Vector4::new(0,0,0,0),
             Self::Symbol {symbol_id,instance_id} => {
-                match Self::encode(**symbol_id,*instance_id) {
+                match Self::encode((**symbol_id) as u32,*instance_id) {
                     DecodingResult::Truncated(pack0,pack1,pack2) => {
                         warning!(logger,"Target values too big to encode: \
                                          ({symbol_id},{instance_id}).");
@@ -241,7 +244,7 @@ impl PointerTarget {
         }
         else if v.w == 255 {
             let decoded     = Self::decode(v.x,v.y,v.z);
-            let symbol_id   = SymbolId::new(decoded.0);
+            let symbol_id   = SymbolId::new(decoded.0 as i32);
             let instance_id = decoded.1;
             Self::Symbol {symbol_id,instance_id}
         } else {
@@ -642,7 +645,7 @@ impl DepthOrder {
         let global    = self.global.borrow();
         let dep_graph = local.as_ref().unwrap_or_else(||&*global);
         let out       = dep_graph.unchecked_topo_sort(symbols.iter().map(|t|(**t) as usize).rev().collect_vec());
-        out.into_iter().map(|t| SymbolId::new(t as u32)).collect()
+        out.into_iter().map(|t| SymbolId::new(t as i32)).collect()
     }
 }
 
@@ -1010,6 +1013,7 @@ impl SceneData {
     }
 
     fn handle_mouse_events(&self) {
+        println!("handle_mouse_events, hover_ids:{:?}",self.mouse.hover_ids.get());
         let new_target     = PointerTarget::from_internal(self.mouse.hover_ids.get());
         let current_target = self.mouse.target.get();
         if new_target != current_target {

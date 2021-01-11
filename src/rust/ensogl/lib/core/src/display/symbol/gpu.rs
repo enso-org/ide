@@ -247,7 +247,7 @@ pub struct Bindings {
 
 newtype_prim! {
     /// The ID of a [`Symbol`] instance.
-    SymbolId(u32);
+    SymbolId(i32);
 }
 
 /// Symbol is a surface with attached `Shader`.
@@ -261,7 +261,7 @@ pub struct Symbol {
     shader_dirty      : ShaderDirty,
     variables         : UniformScope,
     global_variables  : UniformScope,
-    symbol_id_uniform : Uniform<u32>,
+    symbol_id_uniform : Uniform<i32>,
     context           : Context,
     logger            : Logger,
     bindings          : Rc<RefCell<Bindings>>,
