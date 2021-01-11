@@ -12,7 +12,7 @@ use crate::display::symbol::geometry::SpriteSystem;
 use crate::display::symbol::material::Material;
 use crate::display::symbol::material;
 use crate::display;
-use crate::system::gpu::data::attribute::AttributeInstanceIndex;
+use crate::system::gpu::data::attribute;
 use crate::system::gpu::data::buffer::item::Storable;
 use crate::system::gpu::types::*;
 
@@ -135,7 +135,7 @@ pub trait DynShapeSystemInstance : 'static + CloneRef {
     /// Constructor.
     fn new(scene:&Scene) -> Self;
     /// New shape constructor.
-    fn instantiate(&self, shape:&Self::DynamicShape) -> AttributeInstanceIndex;
+    fn instantiate(&self, shape:&Self::DynamicShape) -> attribute::InstanceIndex;
 
     fn shape_system(&self) -> &ShapeSystem;
 }
@@ -429,7 +429,7 @@ macro_rules! _define_shape_system {
             }
 
             fn instantiate(&self, dyn_shape:&Self::DynamicShape)
-            -> $crate::system::gpu::data::attribute::AttributeInstanceIndex {
+            -> $crate::system::gpu::data::attribute::InstanceIndex {
                 let sprite = self.shape_system.new_instance();
                 let id     = sprite.instance_id;
                 $(let $gpu_param = self.$gpu_param.at(id);)*

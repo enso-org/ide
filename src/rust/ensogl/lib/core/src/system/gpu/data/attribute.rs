@@ -21,10 +21,10 @@ use enso_shapely::newtype_prim;
 // =============
 
 newtype_prim! {
-    /// Index of the attribute instance.
-    AttributeInstanceIndex(usize);
+    /// Index of an attribute instance.
+    InstanceIndex(usize);
 
-    /// Index of the attribute instance.
+    /// Index of a buffer.
     BufferIndex(usize);
 }
 
@@ -88,7 +88,7 @@ pub struct AttributeScopeData {
     shape_dirty     : ShapeDirty,
     buffer_name_map : HashMap<String,BufferIndex>,
     logger          : Logger,
-    free_ids        : BTreeSet<AttributeInstanceIndex>,
+    free_ids        : BTreeSet<InstanceIndex>,
     size            : usize,
     context         : Context,
     stats           : Stats,
@@ -146,7 +146,7 @@ impl {
     }
 
     /// Add a new instance to every buffer in the scope.
-    pub fn add_instance(&mut self) -> AttributeInstanceIndex {
+    pub fn add_instance(&mut self) -> InstanceIndex {
         let instance_count = 1;
         debug!(self.logger, "Adding {instance_count} instance(s).", || {
             match self.free_ids.iter().next().copied() {
@@ -166,12 +166,12 @@ impl {
 
     /// Dispose instance for reuse in the future. All data in all buffers at the provided `id` will
     /// be set to default.
-    pub fn dispose(&mut self, id:AttributeInstanceIndex) {
-        debug!(self.logger, "Disposing instance {id}.", || {
+    pub fn dispose(&mut self, ix:InstanceIndex) {
+        debug!(self.logger, "Disposing instance {ix}.", || {
             for buffer in &self.buffers {
-                buffer.set_to_default(id.into())
+                buffer.set_to_default(ix.into())
             }
-            self.free_ids.insert(id);
+            self.free_ids.insert(ix);
         })
     }
 
@@ -211,13 +211,13 @@ impl {
 /// a selected `Buffer` element under the hood.
 #[derive(Clone,CloneRef,Debug,Derivative)]
 pub struct Attribute<T> {
-    index  : AttributeInstanceIndex,
+    index  : InstanceIndex,
     buffer : Buffer<T>
 }
 
 impl<T> Attribute<T> {
     /// Create a new variable as an indexed view over provided buffer.
-    pub fn new(index:AttributeInstanceIndex, buffer:Buffer<T>) -> Self {
+    pub fn new(index:InstanceIndex, buffer:Buffer<T>) -> Self {
         Self {index,buffer}
     }
 }

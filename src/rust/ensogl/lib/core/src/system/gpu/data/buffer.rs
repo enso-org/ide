@@ -11,6 +11,7 @@ use crate::control::callback::CallbackFn;
 use crate::data::dirty;
 use crate::data::seq::observable::Observable;
 use crate::debug::stats::Stats;
+use crate::system::gpu::data::attribute;
 use crate::system::gpu::data::attribute::Attribute;
 use crate::system::gpu::data::buffer::item::JsBufferView;
 use crate::system::gpu::data::buffer::usage::BufferUsage;
@@ -277,7 +278,7 @@ impl<T:Storable> BufferData<T> {
 
 impl<T:Storable> Buffer<T> {
     /// Get the attribute pointing to a given buffer index.
-    pub fn at(&self, index:AttributeInstanceIndex) -> Attribute<T> {
+    pub fn at(&self, index:attribute::InstanceIndex) -> Attribute<T> {
         Attribute::new(index,self.clone_ref())
     }
 }
@@ -321,7 +322,7 @@ fn create_gl_buffer(context:&Context) -> WebGlBuffer {
 // =================
 
 use enum_dispatch::*;
-use crate::system::gpu::data::AttributeInstanceIndex;
+use crate::system::gpu::data::attribute::InstanceIndex;
 
 
 // === Macros ===

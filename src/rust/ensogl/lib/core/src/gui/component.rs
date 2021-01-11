@@ -17,7 +17,7 @@ use crate::display::shape::primitive::system::DynamicShape;
 use crate::display::shape::primitive::system::Shape;
 use crate::display::symbol::SymbolId;
 use crate::display;
-use crate::system::gpu::data::attribute::AttributeInstanceIndex;
+use crate::system::gpu::data::attribute;
 
 use enso_frp as frp;
 
@@ -256,14 +256,14 @@ impl<S:DynamicShape> ShapeViewModel<S> {
         }
     }
 
-    fn set_scene_layer(&self, layer:&scene::Layer) -> (SymbolId,AttributeInstanceIndex) {
+    fn set_scene_layer(&self, layer:&scene::Layer) -> (SymbolId,attribute::InstanceIndex) {
         self.before_first_show.set(false);
         let (symbol_id,instance_id) = self.set_scene_registry(&layer.shape_registry);
         layer.add(symbol_id);
         (symbol_id,instance_id)
     }
 
-    fn set_scene_registry(&self, registry:&ShapeRegistry) -> (SymbolId,AttributeInstanceIndex) {
+    fn set_scene_registry(&self, registry:&ShapeRegistry) -> (SymbolId,attribute::InstanceIndex) {
         self.unregister_existing_mouse_target();
         let (symbol_id,instance_id) = registry.instantiate_dyn(&self.shape);
         registry.insert_mouse_target(symbol_id,*instance_id,self.events.clone_ref());

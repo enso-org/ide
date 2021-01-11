@@ -54,7 +54,7 @@ impl Drop for SpriteStats {
 /// the sprite dimensions to zero and marking it index as a free for future reuse.
 #[derive(Debug)]
 pub struct SpriteGuard {
-    instance_id    : AttributeInstanceIndex,
+    instance_id    : attribute::InstanceIndex,
     symbol         : Symbol,
     size           : Attribute<Vector2<f32>>,
     display_object : display::object::Instance,
@@ -62,7 +62,7 @@ pub struct SpriteGuard {
 
 impl SpriteGuard {
     fn new
-    ( instance_id    : AttributeInstanceIndex
+    ( instance_id    : attribute::InstanceIndex
     , symbol         : &Symbol
     , size           : &Attribute<Vector2<f32>>
     , display_object : &display::object::Instance
@@ -144,7 +144,7 @@ impl Size {
 #[allow(missing_docs)]
 pub struct Sprite {
     pub symbol      : Symbol,
-    pub instance_id : AttributeInstanceIndex,
+    pub instance_id : attribute::InstanceIndex,
     pub size        : Size,
     display_object  : display::object::Instance,
     transform       : Attribute<Matrix4<f32>>,
@@ -156,7 +156,7 @@ impl Sprite {
     /// Constructor.
     pub fn new
     ( symbol      : &Symbol
-    , instance_id : AttributeInstanceIndex
+    , instance_id : attribute::InstanceIndex
     , transform   : Attribute<Matrix4<f32>>
     , size        : Attribute<Vector2<f32>>
     , stats       : &Stats

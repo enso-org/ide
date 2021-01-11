@@ -30,7 +30,7 @@ use crate::display::symbol::SymbolId;
 use crate::display::symbol::registry::SymbolRegistry;
 use crate::display;
 use crate::gui::component;
-use crate::system::gpu::data::attribute::AttributeInstanceIndex;
+use crate::system::gpu::data::attribute;
 use crate::system::gpu::data::uniform::Uniform;
 use crate::system::gpu::data::uniform::UniformScope;
 use crate::system::gpu::shader::Context;
@@ -38,7 +38,6 @@ use crate::system::web::IgnoreContextMenuHandle;
 use crate::system::web::NodeInserter;
 use crate::system::web::StyleSetter;
 use crate::system::web;
-
 
 use enso_frp as frp;
 use enso_frp::io::js::CurrentJsEvent;
@@ -115,7 +114,7 @@ impl {
     }
 
     pub fn instantiate_dyn<T:display::shape::system::DynamicShape>(&mut self,shape:&T)
-    -> (SymbolId,AttributeInstanceIndex) {
+    -> (SymbolId,attribute::InstanceIndex) {
         let system      = self.get_or_register_dyn::<DynShapeSystemOf<T>>();
         let instance_id = system.instantiate(shape);
         let symbol_id   = system.shape_system().sprite_system.symbol.id;
@@ -405,7 +404,7 @@ impl Mouse {
     /// then you do not need to think about the whole asynchronous mechanisms going under the hood,
     /// and you can assume that it is synchronous. Whenever mouse moves, it is discovered what
     /// element it hovers, and its position change event is emitted as well.
-    pub fn reemit_position_event(&self) {
+    pub fn re_emit_position_event(&self) {
         let shape    = self.scene_frp.shape.value();
         let new_pos  = self.last_position.get();
         let position = Vector2(new_pos.x as f32,new_pos.y as f32) - shape.center();
@@ -1017,7 +1016,7 @@ impl SceneData {
             self.mouse.target.set(new_target);
             self.shapes.get_mouse_target(current_target) . for_each(|t| t.mouse_out().emit(()));
             self.shapes.get_mouse_target(new_target)     . for_each(|t| t.mouse_over().emit(()));
-            self.mouse.reemit_position_event(); // See docs to learn why.
+            self.mouse.re_emit_position_event(); // See docs to learn why.
         }
     }
 
@@ -1025,8 +1024,8 @@ impl SceneData {
         if self.dirty.shape.check_all() {
             let screen = self.dom.shape();
             self.resize_canvas(screen);
-            for view in &*self.layers.all.borrow() {
-                view.upgrade().for_each(|v| v.camera.set_screen(screen.width,screen.height))
+            for layer in &*self.layers.all.borrow() {
+                layer.upgrade().for_each(|v| v.camera.set_screen(screen.width,screen.height))
             }
             self.renderer.reload_composer();
             self.dirty.shape.unset_all();
