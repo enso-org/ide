@@ -380,6 +380,12 @@ impl Symbol {
     }
 }
 
+impl From<&Symbol> for SymbolId {
+    fn from(t:&Symbol) -> Self {
+        t.id
+    }
+}
+
 
 // === Visibility ===
 

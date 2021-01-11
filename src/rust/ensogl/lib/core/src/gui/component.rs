@@ -244,7 +244,9 @@ impl<S:DynamicShape> ShapeViewModel<S> {
                 self.set_scene_layer(&scene.layers.main);
             },
             Some(scene_layers) => {
-                if scene_layers.len() != 1 { todo!() }
+                if scene_layers.len() != 1 {
+                    panic!("Adding a shape to multiple scene layers is not supported currently.")
+                }
                 if let Some(scene_layer) = scene_layers[0].upgrade() {
                     self.set_scene_layer(&scene_layer);
                 } else {
@@ -254,18 +256,18 @@ impl<S:DynamicShape> ShapeViewModel<S> {
         }
     }
 
+    fn set_scene_layer(&self, layer:&scene::Layer) -> (SymbolId,AttributeInstanceIndex) {
+        self.before_first_show.set(false);
+        let (symbol_id,instance_id) = self.set_scene_registry(&layer.shape_registry);
+        layer.add(symbol_id);
+        (symbol_id,instance_id)
+    }
+
     fn set_scene_registry(&self, registry:&ShapeRegistry) -> (SymbolId,AttributeInstanceIndex) {
         self.unregister_existing_mouse_target();
         let (symbol_id,instance_id) = registry.instantiate_dyn(&self.shape);
         registry.insert_mouse_target(symbol_id,*instance_id,self.events.clone_ref());
         *self.registry.borrow_mut() = Some(registry.clone_ref());
-        (symbol_id,instance_id)
-    }
-
-    pub fn set_scene_layer(&self, layer:&scene::Layer) -> (SymbolId,AttributeInstanceIndex) {
-        self.before_first_show.set(false);
-        let (symbol_id,instance_id) = self.set_scene_registry(&layer.shape_registry);
-        layer.add_by_id(symbol_id);
         (symbol_id,instance_id)
     }
 

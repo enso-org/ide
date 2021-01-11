@@ -730,9 +730,9 @@ impl Layer {
         let symbol_id = symbol_id.into();
         let placement = self.symbols_placement.borrow().get(&symbol_id).cloned();
         if let Some(placement) = placement {
-            for weak_view in placement {
-                if let Some(view) = weak_view.upgrade() {
-                    view.remove_by_id(symbol_id)
+            for weak_layer in placement {
+                if let Some(layer) = weak_layer.upgrade() {
+                    layer.remove(symbol_id)
                 }
             }
         }
