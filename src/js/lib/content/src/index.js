@@ -45,10 +45,11 @@ function wasm_instantiate_streaming(resource,imports) {
 
 /// Downloads the WASM binary and its dependencies. Displays loading progress bar unless provided
 /// with `{no_loader:true}` option.
-async function download_content(wasm_url, wasm_glue_url, urlCfg) {
-    let wasm_glue_fetch = await fetch(wasm_glue_url)
-    let wasm_fetch      = await fetch(wasm_url)
-    let loader          = new loader_module.Loader([wasm_glue_fetch,wasm_fetch],urlCfg)
+async function download_content(config) {
+    let wasm_glue_fetch = await fetch(config.wasm_glue_url)
+    let wasm_fetch      = await fetch(config.wasm_url)
+    let loader =
+        new loader_module.Loader([wasm_glue_fetch,wasm_fetch], { no_loader: !config.use_loader })
 
     loader.done.then(() => {
         console.groupEnd()
@@ -363,11 +364,10 @@ API.main = async function (inputConfig) {
     disableContextMenu()
 
     let entryTarget = ok(config.entry) ? config.entry : main_entry_point
-    let useLoader   = entryTarget === main_entry_point
+    config.use_loader = config.use_loader && (entryTarget === main_entry_point)
 
     await windowShowAnimation()
-    let {wasm,loader} =
-      await download_content(config.wasm_url, config.wasm_glue_url, {no_loader:!useLoader})
+    let {wasm,loader} = await download_content(config)
 
     if (entryTarget) {
         let fn_name = wasm_entry_point_pfx + entryTarget
