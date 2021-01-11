@@ -247,7 +247,7 @@ pub struct Bindings {
 
 newtype_prim! {
     /// The ID of a [`Symbol`] instance.
-    SymbolId(i32);
+    SymbolId(u32);
 }
 
 /// Symbol is a surface with attached `Shader`.
@@ -297,7 +297,7 @@ impl Symbol {
             let bindings          = default();
             let stats             = SymbolStats::new(stats);
             let context           = context.clone_ref();
-            let symbol_id_uniform = variables.add_or_panic("symbol_id",*id);
+            let symbol_id_uniform = variables.add_or_panic("symbol_id",(*id) as i32);
             let display_object    = display::object::Instance::new(logger.clone());
             let is_hidden         = Rc::new(Cell::new(false));
             display_object.set_on_hide(f_!(is_hidden.set(true)));

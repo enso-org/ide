@@ -71,12 +71,12 @@ impl SymbolRegistry {
         let context      = &self.context;
         let stats        = &self.stats;
         let index        = self.symbols.borrow_mut().insert_with_ix(|ix| {
-            let id     = SymbolId::new(ix as i32);
+            let id     = SymbolId::new(ix as u32);
             let on_mut = move || {symbol_dirty.set(id)};
             let logger = Logger::sub(logger,format!("symbol_{}",ix));
             Symbol::new(logger,context,stats,id,variables,on_mut)
         });
-        SymbolId::new(index as i32)
+        SymbolId::new(index as u32)
     }
 
     /// Creates a new `Symbol` instance.
