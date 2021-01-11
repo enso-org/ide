@@ -251,8 +251,9 @@ commands.watch.rust = async function(argv) {
     if (argv.crate !== undefined) {
         build_args.push(`--crate=${argv.crate}`)
     }
-
-    build_project_manager().then(run_project_manager)
+    if (argv.backend === 'false') {
+        build_project_manager().then(run_project_manager)
+    }
 
     build_args = build_args.join(' ')
     let target =
@@ -333,6 +334,12 @@ optParser.options('target', {
         'Set the build target. Defaults to the current platform. ' +
         'Valid values are: "linux" "macos" and "win"',
     type: 'string',
+})
+
+optParser.options('backend', {
+    describe: 'Start the backend process automatically [true]',
+    type: 'bool',
+    default: true,
 })
 
 let commandList = Object.keys(commands)
