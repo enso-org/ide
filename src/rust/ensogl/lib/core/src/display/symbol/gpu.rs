@@ -22,6 +22,7 @@ use crate::system::gpu::data::uniform::AnyPrimUniformOps;
 use crate::display::symbol::geometry::primitive::mesh;
 use crate::display;
 
+use enso_shapely::newtype_prim;
 use shader::Shader;
 use wasm_bindgen::JsValue;
 use web_sys::WebGlProgram;
@@ -244,18 +245,23 @@ pub struct Bindings {
 
 // === Definition ===
 
+newtype_prim! {
+    /// The ID of a [`Symbol`] instance.
+    SymbolId(u32);
+}
+
 /// Symbol is a surface with attached `Shader`.
 #[derive(Debug,Clone,CloneRef)]
 pub struct Symbol {
+    pub id            : SymbolId,
     display_object    : display::object::Instance,
-    pub id            : i32,
     surface           : Mesh,
     shader            : Shader,
     surface_dirty     : GeometryDirty,
     shader_dirty      : ShaderDirty,
     variables         : UniformScope,
     global_variables  : UniformScope,
-    symbol_id_uniform : Uniform<i32>,
+    symbol_id_uniform : Uniform<u32>,
     context           : Context,
     logger            : Logger,
     bindings          : Rc<RefCell<Bindings>>,
@@ -269,7 +275,7 @@ impl Symbol {
     ( logger           : Logger
     , context          : &Context
     , stats            : &Stats
-    , id               : i32
+    , id               : SymbolId
     , global_variables : &UniformScope
     , on_mut           : OnMut
     ) -> Self {
@@ -291,7 +297,7 @@ impl Symbol {
             let bindings          = default();
             let stats             = SymbolStats::new(stats);
             let context           = context.clone_ref();
-            let symbol_id_uniform = variables.add_or_panic("symbol_id",id);
+            let symbol_id_uniform = variables.add_or_panic("symbol_id",*id);
             let display_object    = display::object::Instance::new(logger.clone());
             let is_hidden         = Rc::new(Cell::new(false));
             display_object.set_on_hide(f_!(is_hidden.set(true)));

@@ -12,6 +12,7 @@ use crate::data::dirty::traits::*;
 use crate::system::gpu::types::*;
 
 use std::collections::BTreeSet;
+use enso_shapely::newtype_prim;
 
 
 
@@ -19,7 +20,7 @@ use std::collections::BTreeSet;
 // === Types ===
 // =============
 
-newtype_copy! {
+newtype_prim! {
     /// Index of the attribute instance.
     AttributeInstanceIndex(usize);
 

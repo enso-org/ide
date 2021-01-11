@@ -3,16 +3,17 @@
 use crate::prelude::*;
 
 use crate::data::dirty::traits::*;
+
 use crate::data::dirty;
 use crate::debug::stats::Stats;
 use crate::display::camera::Camera2d;
 use crate::display::symbol::Symbol;
+use crate::display::symbol::SymbolId;
 use crate::system::gpu::data::uniform::Uniform;
 use crate::system::gpu::data::uniform::UniformScope;
 use crate::system::gpu::shader::Context;
 
 use data::opt_vec::OptVec;
-use nalgebra::Matrix4;
 
 
 
@@ -20,7 +21,6 @@ use nalgebra::Matrix4;
 // === Types ===
 // =============
 
-pub type SymbolId    = usize;
 pub type SymbolDirty = dirty::SharedSet<SymbolId,Box<dyn Fn()>>;
 
 
@@ -70,12 +70,13 @@ impl SymbolRegistry {
         let logger       = &self.logger;
         let context      = &self.context;
         let stats        = &self.stats;
-        self.symbols.borrow_mut().insert_with_ix(|ix| {
-            let on_mut = move || {symbol_dirty.set(ix)};
-            let logger = Logger::sub(logger,format!("symbol{}",ix));
-            let id     = ix as i32;
+        let index        = self.symbols.borrow_mut().insert_with_ix(|ix| {
+            let id     = SymbolId::new(ix as u32);
+            let on_mut = move || {symbol_dirty.set(id)};
+            let logger = Logger::sub(logger,format!("symbol_{}",ix));
             Symbol::new(logger,context,stats,id,variables,on_mut)
-        })
+        });
+        SymbolId::new(index as u32)
     }
 
     /// Creates a new `Symbol` instance.
@@ -85,16 +86,16 @@ impl SymbolRegistry {
         self.index(ix)
     }
 
-    /// Get symbol by its index.
-    pub fn index(&self, ix:usize) -> Symbol {
-        self.symbols.borrow()[ix].clone_ref()
+    /// Get symbol by its ID.
+    pub fn index(&self, id:SymbolId) -> Symbol {
+        self.symbols.borrow()[(*id) as usize].clone_ref()
     }
 
     /// Check dirty flags and update the state accordingly.
     pub fn update(&self) {
         debug!(self.logger, "Updating.", || {
             for id in self.symbol_dirty.take().iter() {
-                self.symbols.borrow()[*id].update()
+                self.symbols.borrow()[(**id) as usize].update()
             }
             self.symbol_dirty.unset_all();
         })
@@ -117,7 +118,7 @@ impl SymbolRegistry {
     pub fn render_by_ids(&self,ids:&[SymbolId]) {
         let symbols = self.symbols.borrow();
         for id in ids {
-            symbols[*id].render();
+            symbols[(**id) as usize].render();
         }
     }
 }

@@ -7,13 +7,15 @@
 use crate::prelude::*;
 
 use crate::display::object::traits::*;
+
 use crate::display::scene::MouseTarget;
 use crate::display::scene::Scene;
-use crate::display::scene::WeakLayer;
 use crate::display::scene::ShapeRegistry;
+use crate::display::scene::WeakLayer;
 use crate::display::scene;
 use crate::display::shape::primitive::system::DynamicShape;
 use crate::display::shape::primitive::system::Shape;
+use crate::display::symbol::SymbolId;
 use crate::display;
 use crate::system::gpu::data::attribute::AttributeInstanceIndex;
 
@@ -252,7 +254,7 @@ impl<S:DynamicShape> ShapeViewModel<S> {
         }
     }
 
-    fn set_scene_registry(&self, registry:&ShapeRegistry) -> (i32,AttributeInstanceIndex) {
+    fn set_scene_registry(&self, registry:&ShapeRegistry) -> (SymbolId,AttributeInstanceIndex) {
         self.unregister_existing_mouse_target();
         let (symbol_id,instance_id) = registry.instantiate_dyn(&self.shape);
         registry.insert_mouse_target(symbol_id,*instance_id,self.events.clone_ref());
@@ -260,7 +262,7 @@ impl<S:DynamicShape> ShapeViewModel<S> {
         (symbol_id,instance_id)
     }
 
-    pub fn set_scene_layer(&self, layer:&scene::Layer) -> (i32,AttributeInstanceIndex) {
+    pub fn set_scene_layer(&self, layer:&scene::Layer) -> (SymbolId,AttributeInstanceIndex) {
         self.before_first_show.set(false);
         let (symbol_id,instance_id) = self.set_scene_registry(&layer.shape_registry);
         layer.add_by_id(symbol_id);

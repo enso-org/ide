@@ -75,7 +75,7 @@ pub mod prelude {
     pub use enso_logger::AnyLogger;
     pub use enso_logger::DefaultWarningLogger as Logger;
     pub use enso_shapely::CloneRef;
-    pub use enso_shapely::newtype_copy;
+    pub use enso_shapely::newtype_prim;
     pub use enso_shapely::shared;
     pub use super::display::traits::*;
     pub use crate::data::container::AddMut;

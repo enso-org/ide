@@ -3,7 +3,6 @@
 #[warn(missing_docs)]
 pub mod dom;
 
-pub use crate::display::symbol::registry::SymbolId;
 pub use crate::system::web::dom::Shape;
 
 use crate::prelude::*;
@@ -27,6 +26,7 @@ use crate::display::shape::system::ShapeSystemOf;
 use crate::display::style::data::DataMatch;
 use crate::display::style;
 use crate::display::symbol::Symbol;
+use crate::display::symbol::SymbolId;
 use crate::display::symbol::registry::SymbolRegistry;
 use crate::display;
 use crate::gui::component;
@@ -67,7 +67,7 @@ pub struct ShapeRegistryData {
     scene                : Option<Scene>,
     shape_system_map     : HashMap<TypeId,Box<dyn Any>>,
     dyn_shape_system_map : HashMap<TypeId,Box<dyn Any>>,
-    mouse_target_map     : HashMap<(i32,usize),Rc<dyn MouseTarget>>,
+    mouse_target_map     : HashMap<(SymbolId,usize),Rc<dyn MouseTarget>>,
 }
 
 impl {
@@ -115,19 +115,19 @@ impl {
     }
 
     pub fn instantiate_dyn<T:display::shape::system::DynamicShape>(&mut self,shape:&T)
-    -> (i32,AttributeInstanceIndex) {
+    -> (SymbolId,AttributeInstanceIndex) {
         let system      = self.get_or_register_dyn::<DynShapeSystemOf<T>>();
         let instance_id = system.instantiate(shape);
         let symbol_id   = system.shape_system().sprite_system.symbol.id;
         (symbol_id,instance_id)
     }
 
-    pub fn insert_mouse_target<T:MouseTarget>(&mut self, symbol_id:i32, instance_id:usize, target:T) {
+    pub fn insert_mouse_target<T:MouseTarget>(&mut self, symbol_id:SymbolId, instance_id:usize, target:T) {
         let target = Rc::new(target);
         self.mouse_target_map.insert((symbol_id,instance_id),target);
     }
 
-    pub fn remove_mouse_target(&mut self, symbol_id:i32, instance_id:usize) {
+    pub fn remove_mouse_target(&mut self, symbol_id:SymbolId, instance_id:usize) {
         self.mouse_target_map.remove(&(symbol_id,instance_id));
     }
 
@@ -135,92 +135,8 @@ impl {
         match target {
             PointerTarget::Background => None,
             PointerTarget::Symbol {symbol_id,instance_id} => {
-                let symbol_id   = symbol_id   as i32;
                 let instance_id = instance_id as usize;
-                self.mouse_target_map.get(&(symbol_id,instance_id)).map(|t| t.clone_ref())
-            }
-        }
-    }
-}}
-
-
-shared! { ShapeRegistry2
-#[derive(Debug,Default)]
-pub struct ShapeRegistryData2 {
-    scene                : Option<Scene>,
-    shape_system_map     : HashMap<TypeId,Box<dyn Any>>,
-    dyn_shape_system_map : HashMap<TypeId,Box<dyn Any>>,
-    mouse_target_map     : HashMap<(i32,usize),Rc<dyn MouseTarget>>,
-}
-
-impl {
-    fn get<T:ShapeSystemInstance>(&self) -> Option<T> {
-        let id = TypeId::of::<T>();
-        self.shape_system_map.get(&id).and_then(|t| t.downcast_ref::<T>()).map(|t| t.clone_ref())
-    }
-
-    fn get_dyn<T:DynShapeSystemInstance>(&self) -> Option<T> {
-        let id = TypeId::of::<T>();
-        self.dyn_shape_system_map.get(&id).and_then(|t| t.downcast_ref::<T>()).map(|t| t.clone_ref())
-    }
-
-    fn register<T:ShapeSystemInstance>(&mut self) -> T {
-        let id     = TypeId::of::<T>();
-        let system = <T as ShapeSystemInstance>::new(self.scene.as_ref().unwrap());
-        let any    = Box::new(system.clone_ref());
-        self.shape_system_map.insert(id,any);
-        system
-    }
-
-    fn register_dyn<T:DynShapeSystemInstance>(&mut self) -> T {
-        let id     = TypeId::of::<T>();
-        let system = <T as DynShapeSystemInstance>::new(self.scene.as_ref().unwrap());
-        let any    = Box::new(system.clone_ref());
-        self.dyn_shape_system_map.insert(id,any);
-        system
-    }
-
-    fn get_or_register<T:ShapeSystemInstance>(&mut self) -> T {
-        self.get().unwrap_or_else(|| self.register())
-    }
-
-    fn get_or_register_dyn<T:DynShapeSystemInstance>(&mut self) -> T {
-        self.get_dyn().unwrap_or_else(|| self.register_dyn())
-    }
-
-    pub fn shape_system<T:display::shape::system::Shape>(&mut self, _phantom:PhantomData<T>) -> ShapeSystemOf<T> {
-        self.get_or_register::<ShapeSystemOf<T>>()
-    }
-
-    pub fn new_instance<T:display::shape::system::Shape>(&mut self) -> T {
-        let system = self.get_or_register::<ShapeSystemOf<T>>();
-        system.new_instance()
-    }
-
-    pub fn instantiate_dyn<T:display::shape::system::DynamicShape>(&mut self,shape:&T)
-    -> (i32,AttributeInstanceIndex) {
-        let system      = self.get_or_register_dyn::<DynShapeSystemOf<T>>();
-        let instance_id = system.instantiate(shape);
-        let symbol_id   = system.shape_system().sprite_system.symbol.id;
-        (symbol_id,instance_id)
-    }
-
-    pub fn insert_mouse_target<T:MouseTarget>(&mut self, symbol_id:i32, instance_id:usize, target:T) {
-        let target = Rc::new(target);
-        self.mouse_target_map.insert((symbol_id,instance_id),target);
-    }
-
-    pub fn remove_mouse_target(&mut self, symbol_id:i32, instance_id:usize) {
-        self.mouse_target_map.remove(&(symbol_id,instance_id));
-    }
-
-    pub fn get_mouse_target(&mut self, target:PointerTarget) -> Option<Rc<dyn MouseTarget>> {
-        match target {
-            PointerTarget::Background => None,
-            PointerTarget::Symbol {symbol_id,instance_id} => {
-                let symbol_id   = symbol_id   as i32;
-                let instance_id = instance_id as usize;
-                self.mouse_target_map.get(&(symbol_id,instance_id)).map(|t| t.clone_ref())
+                self.mouse_target_map.get(&(symbol_id,instance_id)).cloned()
             }
         }
     }
@@ -246,7 +162,7 @@ enum DecodingResult{
 pub enum PointerTarget {
     Background,
     Symbol {
-        symbol_id   : u32,
+        symbol_id   : SymbolId,
         instance_id : u32,
     }
 }
@@ -306,7 +222,7 @@ impl PointerTarget {
         match self {
             Self::Background                     => Vector4::new(0,0,0,0),
             Self::Symbol {symbol_id,instance_id} => {
-                match Self::encode(*symbol_id,*instance_id) {
+                match Self::encode(**symbol_id,*instance_id) {
                     DecodingResult::Truncated(pack0,pack1,pack2) => {
                         warning!(logger,"Target values too big to encode: \
                                          ({symbol_id},{instance_id}).");
@@ -326,7 +242,7 @@ impl PointerTarget {
         }
         else if v.w == 255 {
             let decoded     = Self::decode(v.x,v.y,v.z);
-            let symbol_id   = decoded.0;
+            let symbol_id   = SymbolId::new(decoded.0);
             let instance_id = decoded.1;
             Self::Symbol {symbol_id,instance_id}
         } else {
@@ -469,7 +385,7 @@ impl Mouse {
         Self {mouse_manager,last_position,position,hover_ids,target,handles,frp,scene_frp,logger}
     }
 
-    /// Reemits FRP mouse changed position event with the last mouse position value.
+    /// Re-emits FRP mouse changed position event with the last mouse position value.
     ///
     /// The immediate question that appears is why it is even needed. The reason is tightly coupled
     /// with how the rendering engine works and it is important to understand it properly. When
@@ -483,7 +399,7 @@ impl Mouse {
     ///   few frames.
     /// - When the new ID are received, we emit `over` and `out` FRP events for appropriate
     ///   elements.
-    /// - After emitting `over` and `out `events, the `position` event is reemitted.
+    /// - After emitting `over` and `out `events, the `position` event is re-emitted.
     ///
     /// The idea is that if your FRP network listens on both `position` and `over` or `out` events,
     /// then you do not need to think about the whole asynchronous mechanisms going under the hood,
@@ -722,11 +638,12 @@ impl DepthOrder {
         Self {global,local}
     }
 
-    fn sort(&self, symbols:&BTreeSet<usize>) -> Vec<usize> {
+    fn sort(&self, symbols:&BTreeSet<SymbolId>) -> Vec<SymbolId> {
         let local     = self.local.borrow();
         let global    = self.global.borrow();
         let dep_graph = local.as_ref().unwrap_or_else(||&*global);
-        dep_graph.unchecked_topo_sort(symbols.iter().copied().rev().collect_vec())
+        let out       = dep_graph.unchecked_topo_sort(symbols.iter().map(|t|(**t) as usize).rev().collect_vec());
+        out.into_iter().map(|t| SymbolId::new(t as u32)).collect()
     }
 }
 
@@ -765,7 +682,7 @@ pub struct LayerModel {
     symbols            : RefCell<BTreeSet<SymbolId>>,
     symbols_ordered    : RefCell<Vec<SymbolId>>,
     depth_order        : DepthOrder,
-    symbols_placement  : Rc<RefCell<HashMap<usize,Vec<WeakLayer>>>>,
+    symbols_placement  : Rc<RefCell<HashMap<SymbolId,Vec<WeakLayer>>>>,
 }
 
 impl AsRef<LayerModel> for Layer {
@@ -791,14 +708,14 @@ impl Deref for Layer {
 // === API ===
 
 impl Layer {
-    pub fn new(logger:&Logger, width:f32, height:f32, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<usize,Vec<WeakLayer>>>>) -> Self {
+    pub fn new(logger:&Logger, width:f32, height:f32, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<SymbolId,Vec<WeakLayer>>>>) -> Self {
         let data = LayerModel::new(logger,width,height,global_depth_order,symbols_placement);
         let data = Rc::new(data);
         Self {data}
     }
 
     pub fn new_with_shared_camera
-    (logger:&Logger, camera:&Camera2d, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<usize,Vec<WeakLayer>>>>) -> Self {
+    (logger:&Logger, camera:&Camera2d, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<SymbolId,Vec<WeakLayer>>>>) -> Self {
         let data = LayerModel::new_with_shared_camera(logger,camera,global_depth_order,symbols_placement);
         let data = Rc::new(data);
         Self {data}
@@ -809,13 +726,13 @@ impl Layer {
         WeakLayer {data}
     }
 
-    pub fn add_by_id(&self, xsymbol_id:i32) {
-        let symbol_id = xsymbol_id as usize;
+    pub fn add(&self, symbol_id:impl Into<SymbolId>) {
+        let symbol_id = symbol_id.into();
         let placement = self.symbols_placement.borrow().get(&symbol_id).cloned();
         if let Some(placement) = placement {
             for weak_view in placement {
                 if let Some(view) = weak_view.upgrade() {
-                    view.remove_by_id(xsymbol_id)
+                    view.remove_by_id(symbol_id)
                 }
             }
         }
@@ -824,22 +741,13 @@ impl Layer {
         *self.symbols_ordered.borrow_mut() = self.depth_order.sort(&*self.symbols.borrow());
     }
 
-    pub fn add(&self, symbol:&Symbol) {
-        self.add_by_id(symbol.id)
-    }
-
-    pub fn remove(&self, symbol:&Symbol) {
-        self.remove_by_id(symbol.id);
-    }
-
-    pub fn remove_by_id(&self, symbol_id:i32) {
-        let symbol_id = symbol_id as usize;
+    pub fn remove(&self, symbol_id:impl Into<SymbolId>) {
+        let symbol_id = symbol_id.into();
         self.symbols.borrow_mut().remove(&symbol_id);
         *self.symbols_ordered.borrow_mut() = self.depth_order.sort(&*self.symbols.borrow());
         if let Some(placement) = self.symbols_placement.borrow_mut().get_mut(&symbol_id) {
             placement.remove_item(&self.downgrade());
         }
-
     }
 
     /// Add all `Symbol`s associated with the given ShapeView_DEPRECATED. Please note that this
@@ -865,13 +773,13 @@ impl WeakLayer {
 
 impl LayerModel {
     pub fn new
-    (logger:impl AnyLogger, width:f32, height:f32, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<usize,Vec<WeakLayer>>>>) -> Self {
+    (logger:impl AnyLogger, width:f32, height:f32, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<SymbolId,Vec<WeakLayer>>>>) -> Self {
         let camera = Camera2d::new(&logger,width,height);
         Self::new_with_shared_camera(logger,camera,global_depth_order,symbols_placement)
     }
 
     pub fn new_with_shared_camera
-    (logger:impl AnyLogger, camera:impl Into<Camera2d>, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<usize,Vec<WeakLayer>>>>) -> Self {
+    (logger:impl AnyLogger, camera:impl Into<Camera2d>, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<SymbolId,Vec<WeakLayer>>>>) -> Self {
         let logger          = Logger::sub(logger,"view");
         let camera          = camera.into();
         let shape_registry  = default();
@@ -907,7 +815,7 @@ pub struct Layers {
     pub breadcrumbs    : Layer,
     pub depth_order    : GlobalDepthOrder,
     all                : Rc<RefCell<Vec<WeakLayer>>>,
-    symbols_placement  : Rc<RefCell<HashMap<usize,Vec<WeakLayer>>>>,
+    symbols_placement  : Rc<RefCell<HashMap<SymbolId,Vec<WeakLayer>>>>,
     width              : f32,
     height             : f32,
 }

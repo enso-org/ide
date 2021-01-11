@@ -12,6 +12,7 @@ use crate::display::layout::Alignment;
 use crate::display;
 use crate::display::symbol::material::Material;
 use crate::display::symbol::Symbol;
+use crate::display::symbol::SymbolId;
 use crate::display::scene::Scene;
 use crate::system::gpu::types::*;
 
@@ -181,7 +182,7 @@ impl Sprite {
     }
 
     /// Get the symbol id.
-    pub fn symbol_id(&self) -> i32 {
+    pub fn symbol_id(&self) -> SymbolId {
         self.symbol.id
     }
 
@@ -190,7 +191,7 @@ impl Sprite {
         match target {
             display::scene::PointerTarget::Background                      => false,
             display::scene::PointerTarget::Symbol {symbol_id, instance_id} =>
-                self.symbol_id() == symbol_id as i32 && *self.instance_id == instance_id as usize,
+                self.symbol_id() == symbol_id && *self.instance_id == instance_id as usize,
         }
     }
 }
