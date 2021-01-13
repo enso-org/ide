@@ -163,11 +163,6 @@ impl Fixture {
             assert_eq!(shape.int,"127");
         });
 
-        self.test_shape("127.0",|shape:&Number| {
-            assert_eq!(shape.base,None);
-            assert_eq!(shape.int,"127.0");
-        });
-
         self.test_shape("16_ff",|shape:&Number| {
             assert_eq!(shape.base.as_ref().unwrap(),"16");
             assert_eq!(shape.int,"ff");
