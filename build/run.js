@@ -76,7 +76,7 @@ function command(docs) {
 // platform.
 async function build_project_manager() {
     console.log(`Getting project manager manager.`)
-    await cmd.with_cwd(paths.js.root + "/lib/project-manager", async () => {
+    await cmd.with_cwd(paths.js.lib.projectManager , async () => {
         await run('npm',['run-script build'])
     })
 }
