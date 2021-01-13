@@ -480,7 +480,7 @@ impl Area {
     }
 
     pub fn whole_expr_id(&self) -> Option<ast::Id> {
-        self.model.expression.borrow().whole_expr_id    
+        self.model.expression.borrow().whole_expr_id
     }
 }
 
