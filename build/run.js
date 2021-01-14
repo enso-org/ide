@@ -255,7 +255,7 @@ commands.watch.rust = async function(argv) {
     if (argv.crate !== undefined) {
         build_args.push(`--crate=${argv.crate}`)
     }
-    if (argv.backend === 'false') {
+    if (argv.backend !== 'false') {
         build_project_manager().then(run_project_manager)
     }
 
