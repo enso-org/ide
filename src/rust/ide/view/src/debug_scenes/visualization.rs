@@ -41,6 +41,7 @@ fn constructor_graph() -> visualization::java_script::Definition {
                         console.log("pressed",e);
                     })
                 }
+                this.setPreprocessor(`x ->\n IO.println "Preprocessor set after receiving ${data}`)
 
                 let first = data.shift();
                 if (first) {
@@ -103,6 +104,13 @@ fn init(app:&Application) {
     }).expect("Couldn't find Graph class.");
     let visualization = vis_class.new_instance(&scene).expect("Couldn't create visualiser.");
     visualization.activate.emit(());
+
+    let network = enso_frp::Network::new("VisualizationExample");
+    enso_frp::extend! { network
+        trace visualization.on_change;
+        trace visualization.on_preprocess_change;
+    };
+    std::mem::forget(network);
 
     let mut was_rendered  = false;
     let mut loader_hidden = false;

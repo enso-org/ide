@@ -138,6 +138,11 @@ impl Handle {
         self.execution_ctx.computed_value_info_registry()
     }
 
+    pub async fn set_visualization_preprocessor
+    (&self, id:VisualizationId, code:String) -> FallibleResult{
+        self.execution_ctx.modify_visualization(id,Some(code),None).await
+    }
+
     /// Subscribe to updates about changes in this executed graph.
     ///
     /// The stream of notification contains both notifications from the graph and from the execution

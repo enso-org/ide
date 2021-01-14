@@ -520,12 +520,17 @@ impl Container {
         frp::extend! { network
             eval  frp.set_visibility    ((v) model.set_visibility(*v));
             eval_ frp.toggle_visibility (model.toggle_visibility());
+            let   preprocessor = &frp.source.preprocessor;
             frp.source.visualisation <+ frp.set_visualization.map(f!(
-                [model,action_bar,scene,logger](vis_definition) {
+                [model,action_bar,scene,logger,preprocessor](vis_definition) {
 
                 if let Some(definition) = vis_definition {
                     match definition.new_instance(&scene) {
                         Ok(vis)  => {
+                            let _vis_network = &vis.network;
+                            frp::extend! { _vis_network
+                                preprocessor <+ vis.on_change;
+                            }
                             model.set_visualization(Some(vis));
                             let path = Some(definition.signature.path.clone());
                             action_bar.set_selected_visualization.emit(path);

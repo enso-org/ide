@@ -107,7 +107,7 @@ impl Frp {
 pub struct Instance {
     display_object : display::object::Instance,
     frp            : Frp,
-    network        : frp::Network,
+    pub(crate) network        : frp::Network,
 }
 
 impl Instance {
