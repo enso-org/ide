@@ -1,4 +1,14 @@
-let win = require('electron').remote.getCurrentWindow()
+const remote = require('electron').remote
+
+let win;
+if (remote !== undefined){
+    win = remote.getCurrentWindow()
+}
+
+if (win === undefined) {
+    console.warn("Could not get current window object for animation during preload.")
+}
+
 
 
 // =============================
@@ -10,6 +20,9 @@ function ease_in_out_quad(t) {
 }
 
 function animate_show(target) {
+    if (target === undefined) {
+        return
+    }
     return new Promise(function(resolve, reject) {
         let opacity = 0
         function show_step(timestamp) {
