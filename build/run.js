@@ -191,10 +191,14 @@ commands.start.rust = async function(argv) {
    await commands.build.rust(argv2)
 }
 
-commands.start.js = async function() {
-    console.log(`Building JS target.`)
+commands.start.js = async function (argv) {
+    console.log(`Building JS target.` + argv)
+    const args = targetArgs.concat([
+        `--backend-path ${paths.get_project_manager_path(paths.dist.bin)}`,
+    ])
+    if (argv.dev) { args.push('--dev') }
     await cmd.with_cwd(paths.js.root, async () => {
-        await run('npm',['run','start','--'].concat(targetArgs))
+        await run('npm', ['run', 'start', '--'].concat(args))
     })
 }
 
