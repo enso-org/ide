@@ -131,8 +131,7 @@ let styleOptionsGroup = 'Style Options:'
 
 optParser.options('frame', {
     group       : styleOptionsGroup,
-    describe    : 'Draw window frame',
-    default     : false,
+    describe    : 'Draw window frame. Defaults to `true` on MacOs and `false` otherwise.',
     type        : `boolean`
 })
 
@@ -383,6 +382,15 @@ function urlParamsFromObject(obj) {
 function createWindow() {
     let webPreferences     = secureWebPreferences()
     webPreferences.preload = path.join(root,'preload.js')
+
+    // Note: this is a conditional default. We want borders on Win/Linux and borderless on Mac.
+    if (args.frame === undefined && process.platform === 'darwin') {
+        args.frame = false
+    }
+    if (args.frame === undefined && process.platform !== 'darwin') {
+        args.frame = true
+    }
+
     let windowPreferences  = {
         webPreferences       : webPreferences,
         width                : windowCfg.width,
