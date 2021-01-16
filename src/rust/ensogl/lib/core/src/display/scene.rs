@@ -54,7 +54,7 @@ pub trait MouseTarget : Debug + 'static {
     fn mouse_out  (&self) -> &frp::Source;
 }
 
-
+use enso_shapely::shared;
 
 // =====================
 // === ShapeRegistry ===
@@ -75,11 +75,6 @@ impl {
         self.shape_system_map.get(&id).and_then(|t| t.downcast_ref::<T>()).map(|t| t.clone_ref())
     }
 
-    fn get_dyn<T:DynShapeSystemInstance>(&self) -> Option<T> {
-        let id = TypeId::of::<T>();
-        self.dyn_shape_system_map.get(&id).and_then(|t| t.downcast_ref::<T>()).map(|t| t.clone_ref())
-    }
-
     fn register<T:ShapeSystemInstance>(&mut self) -> T {
         let id     = TypeId::of::<T>();
         let system = <T as ShapeSystemInstance>::new(self.scene.as_ref().unwrap());
@@ -88,20 +83,8 @@ impl {
         system
     }
 
-    fn register_dyn<T:DynShapeSystemInstance>(&mut self) -> T {
-        let id     = TypeId::of::<T>();
-        let system = <T as DynShapeSystemInstance>::new(self.scene.as_ref().unwrap());
-        let any    = Box::new(system.clone_ref());
-        self.dyn_shape_system_map.insert(id,any);
-        system
-    }
-
     fn get_or_register<T:ShapeSystemInstance>(&mut self) -> T {
         self.get().unwrap_or_else(|| self.register())
-    }
-
-    fn get_or_register_dyn<T:DynShapeSystemInstance>(&mut self) -> T {
-        self.get_dyn().unwrap_or_else(|| self.register_dyn())
     }
 
     pub fn shape_system<T:display::shape::system::Shape>(&mut self, _phantom:PhantomData<T>) -> ShapeSystemOf<T> {
@@ -111,14 +94,6 @@ impl {
     pub fn new_instance<T:display::shape::system::Shape>(&mut self) -> T {
         let system = self.get_or_register::<ShapeSystemOf<T>>();
         system.new_instance()
-    }
-
-    pub fn instantiate_dyn<T:display::shape::system::DynamicShape>(&mut self,shape:&T)
-    -> (SymbolId,attribute::InstanceIndex) {
-        let system      = self.get_or_register_dyn::<DynShapeSystemOf<T>>();
-        let instance_id = system.instantiate(shape);
-        let symbol_id   = system.shape_system().sprite_system.symbol.id;
-        (symbol_id,instance_id)
     }
 
     pub fn insert_mouse_target<T:MouseTarget>(&mut self, symbol_id:SymbolId, instance_id:attribute::InstanceIndex, target:T) {
@@ -139,6 +114,46 @@ impl {
         }
     }
 }}
+
+
+shared! { ShapeRegistry2
+#[derive(Debug,Default)]
+pub struct ShapeRegistryData2 {
+    scene            : Option<Scene>,
+    shape_system_map : HashMap<TypeId,Box<dyn Any>>,
+}
+
+impl {
+    fn get<T:DynShapeSystemInstance>(&self) -> Option<T> {
+        let id = TypeId::of::<T>();
+        self.shape_system_map.get(&id).and_then(|t| t.downcast_ref::<T>()).map(|t| t.clone_ref())
+    }
+
+    fn register<T:DynShapeSystemInstance>(&mut self) -> T {
+        let id     = TypeId::of::<T>();
+        let system = <T as DynShapeSystemInstance>::new(self.scene.as_ref().unwrap());
+        let any    = Box::new(system.clone_ref());
+        self.shape_system_map.insert(id,any);
+        system
+    }
+
+    fn get_or_register<T:DynShapeSystemInstance>(&mut self) -> T {
+        self.get().unwrap_or_else(|| self.register())
+    }
+
+    pub fn shape_system<T:display::shape::system::DynamicShape>(&mut self, _phantom:PhantomData<T>) -> DynShapeSystemOf<T> {
+        self.get_or_register::<DynShapeSystemOf<T>>()
+    }
+
+    pub fn instantiate<T:display::shape::system::DynamicShape>(&mut self,shape:&T)
+    -> (SymbolId,attribute::InstanceIndex) {
+        let system      = self.get_or_register::<DynShapeSystemOf<T>>();
+        let instance_id = system.instantiate(shape);
+        let symbol_id   = system.shape_system().sprite_system.symbol.id;
+        (symbol_id,instance_id)
+    }
+}}
+
 
 
 
@@ -670,7 +685,7 @@ impl Debug for WeakLayer {
 pub struct LayerModel {
     logger             : Logger,
     pub camera         : Camera2d,
-    pub shape_registry : ShapeRegistry,
+    pub shape_registry : ShapeRegistry2,
     symbols            : RefCell<BTreeSet<SymbolId>>,
     symbols_ordered    : RefCell<Vec<SymbolId>>,
     depth_order        : DepthOrder,

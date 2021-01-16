@@ -11,6 +11,7 @@ use crate::display::object::traits::*;
 use crate::display::scene::MouseTarget;
 use crate::display::scene::Scene;
 use crate::display::scene::ShapeRegistry;
+use crate::display::scene::ShapeRegistry2;
 use crate::display::scene::WeakLayer;
 use crate::display::scene;
 use crate::display::shape::primitive::system::DynamicShape;
@@ -241,33 +242,33 @@ impl<S:DynamicShape> ShapeViewModel<S> {
     fn on_scene_layers_changed(&self, scene:&Scene, scene_layers:Option<&Vec<WeakLayer>>) {
         match scene_layers {
             None => {
-                self.set_scene_layer(&scene.layers.main);
+                self.set_scene_layer(&scene,&scene.layers.main);
             },
             Some(scene_layers) => {
                 if scene_layers.len() != 1 {
                     panic!("Adding a shape to multiple scene layers is not supported currently.")
                 }
                 if let Some(scene_layer) = scene_layers[0].upgrade() {
-                    self.set_scene_layer(&scene_layer);
+                    self.set_scene_layer(&scene,&scene_layer);
                 } else {
-                    self.set_scene_layer(&scene.layers.main);
+                    self.set_scene_layer(&scene,&scene.layers.main);
                 }
             }
         }
     }
 
-    fn set_scene_layer(&self, layer:&scene::Layer) -> (SymbolId,attribute::InstanceIndex) {
+    fn set_scene_layer(&self, scene:&Scene, layer:&scene::Layer) -> (SymbolId,attribute::InstanceIndex) {
         self.before_first_show.set(false);
-        let (symbol_id,instance_id) = self.set_scene_registry(&layer.shape_registry);
+        let (symbol_id,instance_id) = self.set_scene_registry(&scene.shapes, &layer.shape_registry);
         layer.add(symbol_id);
         (symbol_id,instance_id)
     }
 
-    fn set_scene_registry(&self, registry:&ShapeRegistry) -> (SymbolId,attribute::InstanceIndex) {
+    fn set_scene_registry(&self, registry1:&ShapeRegistry, registry:&ShapeRegistry2) -> (SymbolId,attribute::InstanceIndex) {
         self.unregister_existing_mouse_target();
-        let (symbol_id,instance_id) = registry.instantiate_dyn(&self.shape);
-        registry.insert_mouse_target(symbol_id,instance_id,self.events.clone_ref());
-        *self.registry.borrow_mut() = Some(registry.clone_ref());
+        let (symbol_id,instance_id) = registry.instantiate(&self.shape);
+        registry1.insert_mouse_target(symbol_id,instance_id,self.events.clone_ref());
+        *self.registry.borrow_mut() = Some(registry1.clone_ref());
         (symbol_id,instance_id)
     }
 
