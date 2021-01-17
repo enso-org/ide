@@ -223,6 +223,13 @@ pub struct ShapeViewModel<S:DynamicShape> {
     before_first_show : Rc<Cell<bool>>,
 }
 
+impl<S:DynamicShape> Deref for ShapeViewModel<S> {
+    type Target = S;
+    fn deref(&self) -> &Self::Target {
+        &self.shape
+    }
+}
+
 impl<S:DynamicShape> Drop for ShapeViewModel<S> {
     fn drop(&mut self) {
         self.unregister_existing_mouse_target();

@@ -268,7 +268,7 @@ crate::define_endpoints! {
 pub struct CursorModel {
     pub logger : Logger,
     pub scene  : Scene,
-    pub view   : component::ShapeView_DEPRECATED<shape::Shape>,
+    pub view   : shape::View,
     pub style  : Rc<RefCell<Style>>,
 }
 
@@ -277,13 +277,15 @@ impl CursorModel {
     pub fn new(scene:&Scene) -> Self {
         let scene  = scene.clone_ref();
         let logger = Logger::new("cursor");
-        let view   = component::ShapeView_DEPRECATED::<shape::Shape>::new(&logger,&scene);
+        let view   = shape::View::new(&logger);
         let style  = default();
 
-        let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
-        shape_system.shape_system.set_pointer_events(false);
-        scene.layers.main.remove(&shape_system.shape_system.symbol);
-        scene.layers.cursor.add(&shape_system.shape_system.symbol);
+        view.set_scene_layer(&scene.layers.cursor.downgrade());
+
+        // let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
+        // shape_system.shape_system.set_pointer_events(false);
+        // scene.layers.main.remove(&shape_system.shape_system.symbol);
+        // scene.layers.cursor.add(&shape_system.shape_system.symbol);
 
         Self {logger,scene,view,style}
     }
@@ -356,7 +358,7 @@ impl Cursor {
             eval radius.value ((v) model.view.shape.radius.set(*v));
             eval size.value   ([model] (v) {
                 let dim = Vector2(v.x+SIDES_PADDING,v.y+SIDES_PADDING);
-                model.view.shape.sprite.size.set(dim);
+                model.view.size.set(dim);
             });
 
             alpha <- all_with(&color_alpha.value,&inactive_fade.value,|s,t| s*t);
@@ -523,6 +525,6 @@ impl Cursor {
 
 impl display::Object for Cursor {
     fn display_object(&self) -> &display::object::Instance {
-        &self.model.view.display_object
+        &self.model.view.display_object()
     }
 }
