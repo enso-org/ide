@@ -16,6 +16,7 @@ use crate::display::scene::WeakLayer;
 use crate::display::scene;
 use crate::display::shape::primitive::system::DynamicShape;
 use crate::display::shape::primitive::system::Shape;
+use crate::display::shape::primitive::system::ShapeSystemId;
 use crate::display::symbol::SymbolId;
 use crate::display;
 use crate::system::gpu::data::attribute;
@@ -264,19 +265,19 @@ impl<S:DynamicShape> ShapeViewModel<S> {
         }
     }
 
-    fn set_scene_layer(&self, scene:&Scene, layer:&scene::Layer) -> (SymbolId,attribute::InstanceIndex) {
+    fn set_scene_layer(&self, scene:&Scene, layer:&scene::Layer) -> (ShapeSystemId,SymbolId,attribute::InstanceIndex) {
         self.before_first_show.set(false);
-        let (symbol_id,instance_id) = self.set_scene_registry(&scene.shapes, &layer.shape_registry);
-        layer.add(symbol_id);
-        (symbol_id,instance_id)
+        let (shape_system_id,symbol_id,instance_id) = self.set_scene_registry(&scene.shapes,&layer.shape_registry);
+        layer.add(Some(shape_system_id),symbol_id);
+        (shape_system_id,symbol_id,instance_id)
     }
 
-    fn set_scene_registry(&self, registry1:&ShapeRegistry, registry:&ShapeRegistry2) -> (SymbolId,attribute::InstanceIndex) {
+    fn set_scene_registry(&self, registry1:&ShapeRegistry, registry:&ShapeRegistry2) -> (ShapeSystemId,SymbolId,attribute::InstanceIndex) {
         self.unregister_existing_mouse_target();
-        let (symbol_id,instance_id) = registry.instantiate(&self.shape);
+        let (shape_system_id,symbol_id,instance_id) = registry.instantiate(&self.shape);
         registry1.insert_mouse_target(symbol_id,instance_id,self.events.clone_ref());
         *self.registry.borrow_mut() = Some(registry1.clone_ref());
-        (symbol_id,instance_id)
+        (shape_system_id,symbol_id,instance_id)
     }
 
     fn unregister_existing_mouse_target(&self) {

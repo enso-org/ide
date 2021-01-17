@@ -23,6 +23,7 @@ use crate::display::shape::DynShapeSystemInstance;
 use crate::display::shape::ShapeSystemInstance;
 use crate::display::shape::system::DynShapeSystemOf;
 use crate::display::shape::system::ShapeSystemOf;
+use crate::display::shape::system::ShapeSystemId;
 use crate::display::style::data::DataMatch;
 use crate::display::style;
 use crate::display::symbol::Symbol;
@@ -146,11 +147,12 @@ impl {
     }
 
     pub fn instantiate<T:display::shape::system::DynamicShape>(&mut self,shape:&T)
-    -> (SymbolId,attribute::InstanceIndex) {
+    -> (ShapeSystemId,SymbolId,attribute::InstanceIndex) {
         let system      = self.get_or_register::<DynShapeSystemOf<T>>();
+        let system_id   = DynShapeSystemOf::<T>::id();
         let instance_id = system.instantiate(shape);
         let symbol_id   = system.shape_system().sprite_system.symbol.id;
-        (symbol_id,instance_id)
+        (system_id,symbol_id,instance_id)
     }
 }}
 
@@ -681,6 +683,12 @@ impl Debug for WeakLayer {
     }
 }
 
+pub struct SymbolDecl {
+    pub symbol_id       : SymbolId,
+    pub shape_system_id : ShapeSystemId,
+}
+
+
 #[derive(Debug,Clone)]
 pub struct LayerModel {
     logger             : Logger,
@@ -733,7 +741,8 @@ impl Layer {
         WeakLayer {data}
     }
 
-    pub fn add(&self, symbol_id:impl Into<SymbolId>) {
+    // FIXME: shape_system_id should not be Option after finishing refactoring of shape view.
+    pub fn add(&self, shape_system_id:Option<ShapeSystemId>, symbol_id:impl Into<SymbolId>) {
         let symbol_id = symbol_id.into();
         let placement = self.symbols_placement.borrow().get(&symbol_id).cloned();
         if let Some(placement) = placement {
@@ -761,7 +770,7 @@ impl Layer {
     /// function was used only in one place in the codebase and should be removed in the future.
     pub fn add_shape_view_DEPRECATED<T: display::shape::primitive::system::Shape>
     (&self, shape_view:&component::ShapeView_DEPRECATED<T>) {
-        self.add(&shape_view.shape.sprite().symbol)
+        self.add(None,&shape_view.shape.sprite().symbol)
     }
 
     /// Remove all `Symbol`s associated with the given ShapeView_DEPRECATED. Please note that this
@@ -1009,7 +1018,7 @@ impl SceneData {
 
     pub fn new_symbol(&self) -> Symbol {
         let symbol = self.symbols.new();
-        self.layers.main.add(&symbol);
+        self.layers.main.add(None,&symbol);
         symbol
     }
 

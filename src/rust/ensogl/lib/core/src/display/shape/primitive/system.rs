@@ -18,6 +18,17 @@ use crate::system::gpu::types::*;
 
 
 
+// =====================
+// === ShapeSystemId ===
+// =====================
+
+newtype_prim_no_default_no_display! {
+    /// The ID of a user generated shape system.
+    ShapeSystemId(std::any::TypeId);
+}
+
+
+
 // ===================
 // === ShapeSystem ===
 // ===================
@@ -132,6 +143,9 @@ pub trait ShapeSystemInstance : 'static + CloneRef {
 pub trait DynShapeSystemInstance : 'static + CloneRef {
     /// The shape type of this shape system definition.
     type DynamicShape : DynamicShape<System=Self>;
+
+    /// The ID of the shape system.
+    fn id() -> ShapeSystemId;
     /// Constructor.
     fn new(scene:&Scene) -> Self;
     /// New shape constructor.
@@ -415,6 +429,10 @@ macro_rules! _define_shape_system {
 
         impl $crate::display::shape::DynShapeSystemInstance for ShapeSystem {
             type DynamicShape = DynamicShape;
+
+            fn id() -> $crate::display::shape::ShapeSystemId {
+                std::any::TypeId::of::<ShapeSystem>().into()
+            }
 
             // FIXME: Duplicated (^^^)
             fn new(scene:&$crate::display::scene::Scene) -> Self {
