@@ -38,13 +38,13 @@ const SHOW_DELAY_DURATION_MS : f32 = 150.0;
 // === Utils ===
 // =============
 
-// TODO: Implement proper sorting and remove.
-/// Hack function used to register the elements for the sorting purposes. To be removed.
-pub(crate) fn depth_sort_hack(scene:&Scene) {
-    let logger = Logger::new("output shape order hack");
-    component::ShapeView_DEPRECATED::<port::MultiPortShape>::new(&logger,scene);
-    component::ShapeView_DEPRECATED::<port::SinglePortShape>::new(&logger,scene);
-}
+// // TODO: Implement proper sorting and remove.
+// /// Hack function used to register the elements for the sorting purposes. To be removed.
+// pub(crate) fn depth_sort_hack(scene:&Scene) {
+//     let logger = Logger::new("output shape order hack");
+//     component::ShapeView_DEPRECATED::<port::MultiPortShape>::new(&logger,scene);
+//     component::ShapeView_DEPRECATED::<port::SinglePortShape>::new(&logger,scene);
+// }
 
 
 
@@ -314,9 +314,8 @@ impl Model {
                 let port   = &mut node;
                 let crumbs = port.crumbs.clone_ref();
                 let logger = &self.logger;
-                let scene  = self.scene();
                 let (port_shape,port_frp) = port.payload_mut()
-                    .init_shape(logger,scene,&self.styles,port_index,port_count);
+                    .init_shape(logger,&self.styles,port_index,port_count);
                 let port_network = &port_frp.network;
 
                 frp::extend! { port_network

@@ -81,7 +81,7 @@ impl display::Object for Model {
 // === VisualisationChooser ===
 // ============================
 
-/// UI entity that shows a button that opens a list of visualisations that can be sel:ected from.
+/// UI entity that shows a button that opens a list of visualisations that can be selected from.
 #[derive(Clone,CloneRef,Debug)]
 pub struct VisualizationChooser {
     pub frp : Frp,

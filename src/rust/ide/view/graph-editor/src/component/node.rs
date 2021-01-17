@@ -338,9 +338,9 @@ pub struct NodeModel {
     pub app             : Application,
     pub display_object  : display::object::Instance,
     pub logger          : Logger,
-    pub main_area       : ShapeView_DEPRECATED<shape::Shape>,
-    pub drag_area       : ShapeView_DEPRECATED<drag_area::Shape>,
-    pub error_indicator : ShapeView_DEPRECATED<error_shape::Shape>,
+    pub main_area       : shape::View,
+    pub drag_area       : drag_area::View,
+    pub error_indicator : error_shape::View,
     // TODO: This extra text field should not be required after #1026 has been finished.
     // Instead we should get the error content as normal node output that is visible in the
     // visualisation. Alternatively it might be extended to use a preview of the new information.
@@ -358,14 +358,14 @@ impl NodeModel {
         let logger = Logger::new("node");
         edge::depth_sort_hack_1(scene);
 
-        output::area::depth_sort_hack(&scene);
+        // output::area::depth_sort_hack(&scene);
         let main_logger             = Logger::sub(&logger,"main_area");
         let drag_logger             = Logger::sub(&logger,"drag_area");
         let error_indicator_logger  = Logger::sub(&logger,"error_indicator");
 
-        let error_indicator = ShapeView_DEPRECATED::<error_shape::Shape>::new(&error_indicator_logger,scene);
-        let main_area       = ShapeView_DEPRECATED::<shape::Shape>::new(&main_logger,scene);
-        let drag_area       = ShapeView_DEPRECATED::<drag_area::Shape>::new(&drag_logger,scene);
+        let error_indicator = error_shape::View::new(&error_indicator_logger);
+        let main_area       = shape::View::new(&main_logger);
+        let drag_area       = drag_area::View::new(&drag_logger);
         let error_text      = app.new_view::<text::Area>();
         edge::depth_sort_hack_2(scene);
 
@@ -382,7 +382,7 @@ impl NodeModel {
 
 
         // Disable shadows to allow interaction with the output port.
-        let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
+        let shape_system = scene.layers.main.shape_registry.shape_system(PhantomData::<shape::DynamicShape>);
         shape_system.shape_system.set_pointer_events(false);
 
         let input = input::Area::new(&logger,app);
@@ -441,9 +441,9 @@ impl NodeModel {
         let height      = self.height();
         let size        = Vector2(width,height);
         let padded_size = size + Vector2(PADDING,PADDING) * 2.0;
-        self.main_area.shape.sprite.size.set(padded_size);
-        self.drag_area.shape.sprite.size.set(padded_size);
-        self.error_indicator.shape.sprite.size.set(padded_size);
+        self.main_area.size.set(padded_size);
+        self.drag_area.size.set(padded_size);
+        self.error_indicator.size.set(padded_size);
         self.main_area.mod_position(|t| t.x = width/2.0);
         self.drag_area.mod_position(|t| t.x = width/2.0);
 

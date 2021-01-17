@@ -91,22 +91,22 @@ pub mod viz {
 #[derive(Clone,CloneRef,Debug)]
 pub struct Shape {
     pub root  : display::object::Instance,
-    pub hover : component::ShapeView_DEPRECATED<hover::Shape>,
-    pub viz   : component::ShapeView_DEPRECATED<viz::Shape>,
+    pub hover : hover::View,
+    pub viz   : viz::View,
 }
 
 impl Shape {
     pub fn new(logger:&Logger, scene:&Scene, size:Vector2, hover_height:f32) -> Self {
         let root  = display::object::Instance::new(logger);
-        let hover = component::ShapeView_DEPRECATED::<hover::Shape>::new(logger,scene);
-        let viz   = component::ShapeView_DEPRECATED::<viz::Shape>::new(logger,scene);
+        let hover = hover::View::new(logger);
+        let viz   = viz::View::new(logger);
 
         let width_padded = size.x + 2.0 * PADDING_X;
-        hover.shape.sprite.size.set(Vector2::new(width_padded,hover_height));
-        viz.shape.sprite.size.set(Vector2::new(width_padded,size.y));
-        hover.shape.mod_position(|t| t.x = size.x/2.0);
-        viz.shape.mod_position(|t| t.x = size.x/2.0);
-        viz.shape.color.set(color::Rgba::transparent().into());
+        hover.size.set(Vector2::new(width_padded,hover_height));
+        viz.size.set(Vector2::new(width_padded,size.y));
+        hover.mod_position(|t| t.x = size.x/2.0);
+        viz.mod_position(|t| t.x = size.x/2.0);
+        viz.color.set(color::Rgba::transparent().into());
 
         root.add_child(&hover);
         root.add_child(&viz);

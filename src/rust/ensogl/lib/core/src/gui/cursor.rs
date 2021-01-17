@@ -280,12 +280,10 @@ impl CursorModel {
         let view   = shape::View::new(&logger);
         let style  = default();
 
-        view.set_scene_layer(&scene.layers.cursor.downgrade());
-
-        // let shape_system = scene.shapes.shape_system(PhantomData::<shape::Shape>);
-        // shape_system.shape_system.set_pointer_events(false);
-        // scene.layers.main.remove(&shape_system.shape_system.symbol);
-        // scene.layers.cursor.add(&shape_system.shape_system.symbol);
+        let tgt_layer = &scene.layers.cursor;
+        let shape_sys = tgt_layer.shape_registry.shape_system(PhantomData::<shape::DynamicShape>);
+        view.set_scene_layer(&tgt_layer.downgrade());
+        shape_sys.shape_system.set_pointer_events(false);
 
         Self {logger,scene,view,style}
     }
