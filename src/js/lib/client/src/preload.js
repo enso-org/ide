@@ -6,7 +6,7 @@ if (remote !== undefined){
 }
 
 if (win === undefined) {
-    console.warn("Could not get current window object for animation during preload.")
+    console.warn("Could not get current window object for window startup animation.")
 }
 
 
