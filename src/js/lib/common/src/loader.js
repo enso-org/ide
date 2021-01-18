@@ -17,7 +17,7 @@ export class ProgressIndicator {
     constructor(cfg) {
         this.dom                = html_utils.new_top_level_div()
         this.dom.id             = 'loader'
-        this.dom.style.position = 'absolute'
+        this.dom.style.position = 'fixed'
         this.dom.style.zIndex   = 1
 
         let center = document.createElement('div')
