@@ -43,9 +43,9 @@ shrinkwraprs = { version = "0.3.0" }
 smallvec = { version = "1.6.1" }
 typenum = { version = "1.11.2" }
 
-# The syn dependcy is only here to lock the version used by `enum_dispatch`. Otherwise an
+# The syn dependency is only here to lock the version used by `enum_dispatch`. Otherwise an
 # incompatible version will be chosen and compilation fails. This can be removed when
-#`enum_dispatch` is updated.
+#`enum_dispatch` has released a working version and we can update to that.
 syn = { version = "=1.0.57", features = ["full", "extra-traits"] }
 enum_dispatch = { version = "0.2.0" }
 
