@@ -84,6 +84,13 @@ jobs:
           s3://ensocdn/ide/${{ env.DIST_VERSION }}/index.js.gz --profile
           s3-upload --acl public-read --content-encoding gzip
 
+      - name: Upload the style.css to S3
+        shell: bash
+        run: >
+          aws s3 cp ./artifacts/ide-dist/assets/style.css
+          s3://ensocdn/ide/${{ env.DIST_VERSION }}/style.css --profile
+          s3-upload --acl public-read --content-encoding gzip
+
       - name: Upload the ide.wasm to S3
         shell: bash
         run: >
