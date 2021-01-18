@@ -20,9 +20,6 @@ function ease_in_out_quad(t) {
 }
 
 function animate_show(target) {
-    if (target === undefined) {
-        return
-    }
     return new Promise(function(resolve, reject) {
         let opacity = 0
         function show_step(timestamp) {
@@ -39,7 +36,9 @@ function animate_show(target) {
     })
 }
 
-window.showAnimation = animate_show(win)
+if (win !== undefined) {
+    window.showAnimation = animate_show(win)
+}
 
 
 
