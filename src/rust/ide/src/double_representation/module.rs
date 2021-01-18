@@ -628,7 +628,7 @@ pub fn lookup_method
     let normalized_typename        = NormalizedName::new(&method.defined_on_type);
     let accept_here_methods        = module_name.normalized() == normalized_typename;
     let module_name                = QualifiedName::try_from(method)?;
-    let implicit_extension_allowed = method.defined_on_type == module_name.name().as_ref();
+    let implicit_extension_allowed = method.defined_on_type == module_name.to_string();
     for child in ast.def_iter() {
         let child_name   = &child.name.item;
         let name_matches = child_name.name.item == method.name;

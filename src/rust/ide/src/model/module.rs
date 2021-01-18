@@ -192,11 +192,10 @@ impl Path {
     ///
     /// Note that this cannot be used for a method extending other atom than this module.
     pub fn method_pointer(&self, project_name:impl Str, method_name:impl Str) -> MethodPointer {
-        MethodPointer {
-            defined_on_type : self.module_name().to_string(),
-            name            : method_name.into(),
-            module          : self.qualified_module_name(project_name).into(),
-        }
+        let module          = String::from(self.qualified_module_name(project_name));
+        let defined_on_type = module.clone();
+        let name            = method_name.into();
+        MethodPointer {defined_on_type,name,module}
     }
 
     /// Obtain a module's full qualified name from the path and the project name.
