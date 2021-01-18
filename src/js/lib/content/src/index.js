@@ -44,12 +44,12 @@ function wasm_instantiate_streaming(resource,imports) {
 
 
 /// Downloads the WASM binary and its dependencies. Displays loading progress bar unless provided
-/// with `{no_loader:true}` option.
+/// with `{use_loader:false}` option.
 async function download_content(config) {
     let wasm_glue_fetch = await fetch(config.wasm_glue_url)
     let wasm_fetch      = await fetch(config.wasm_url)
     let loader =
-        new loader_module.Loader([wasm_glue_fetch,wasm_fetch], { no_loader: !config.use_loader })
+        new loader_module.Loader([wasm_glue_fetch,wasm_fetch], config)
 
     loader.done.then(() => {
         console.groupEnd()
