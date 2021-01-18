@@ -176,6 +176,15 @@ function parseCmdArgs() {
 
 let args = parseCmdArgs()
 
+// Note: this is a conditional default to avoid issues with some window managers affecting
+// interactions at the top of a borderless window. Thus, we want borders on Win/Linux and
+// borderless on Mac. See https://github.com/enso-org/ide/issues/1101 for details.
+if (args.frame === undefined) {
+    const show_border = process.platform !== 'darwin'
+    args.frame = show_border
+}
+
+
 if (args.windowSize) {
     let size   = args.windowSize.split('x')
     let width  = parseInt(size[0])
@@ -382,14 +391,6 @@ function urlParamsFromObject(obj) {
 function createWindow() {
     let webPreferences     = secureWebPreferences()
     webPreferences.preload = path.join(root,'preload.js')
-
-    // Note: this is a conditional default. We want borders on Win/Linux and borderless on Mac.
-    if (args.frame === undefined && process.platform === 'darwin') {
-        args.frame = false
-    }
-    if (args.frame === undefined && process.platform !== 'darwin') {
-        args.frame = true
-    }
 
     let windowPreferences  = {
         webPreferences       : webPreferences,
