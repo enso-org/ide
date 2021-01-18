@@ -60,7 +60,7 @@ fn on_mut_fn(dirty:MutDirty) -> OnMut {
 // === Buffer ===
 // ==============
 
-shared! {Buffer
+shared! { Buffer
 /// CPU-counterpart of WebGL buffers. The buffer data is synchronised with GPU on demand, usually
 /// in the update stage before drawing the frame.
 #[derive(Debug)]

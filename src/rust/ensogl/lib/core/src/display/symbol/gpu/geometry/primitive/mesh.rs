@@ -110,7 +110,6 @@ pub struct MeshData {
     scopes       : Scopes,
     scopes_dirty : ScopesDirty,
     logger       : Logger,
-    context      : Context,
     stats        : Stats,
 }
 
@@ -122,19 +121,18 @@ impl {
         let stats         = stats.clone();
         let scopes_logger = Logger::sub(&logger,"scopes_dirty");
         let scopes_dirty  = ScopesDirty::new(scopes_logger,Box::new(on_mut));
-        let context       = context.clone();
         let scopes        = debug!(logger, "Initializing.", || {
             macro_rules! new_scope { ({ $($name:ident),* } { $($uname:ident),* } ) => {$(
                 let sub_logger = Logger::sub(&logger,stringify!($name));
                 let status_mod = ScopeType::$uname;
                 let scs_dirty  = scopes_dirty.clone_ref();
                 let callback   = move || {scs_dirty.set(status_mod)};
-                let $name      = AttributeScope::new(sub_logger,&stats,&context,callback);
+                let $name      = AttributeScope::new(sub_logger,&stats,context,callback);
             )*}}
             new_scope! ({point,vertex,primitive,instance}{Point,Vertex,Primitive,Instance});
             Scopes {point,vertex,primitive,instance}
         });
-        Self {context,scopes,scopes_dirty,logger,stats}
+        Self {scopes,scopes_dirty,logger,stats}
     }
 
     /// Point scope accessor.

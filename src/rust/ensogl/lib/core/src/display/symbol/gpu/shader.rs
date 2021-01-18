@@ -91,7 +91,6 @@ impl {
         Self {geometry_material,surface_material,program,dirty,logger,context,stats}
     }
 
-    // TODO: this is very work-in-progress function. It should be refactored in the next PR.
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self, bindings:&[VarBinding]) {
         debug!(self.logger, "Updating.", || {
@@ -107,7 +106,7 @@ impl {
                     let tp   = &binding.decl.tp;
                     match binding.scope {
                         None => {
-                            warning!(self.logger,"[TODO] Fefault shader values are not \
+                            warning!(self.logger,"[TODO] Default shader values are not \
                                 implemented. This will cause visual glitches.");
                             shader_cfg.add_uniform(name,tp);
                         },
