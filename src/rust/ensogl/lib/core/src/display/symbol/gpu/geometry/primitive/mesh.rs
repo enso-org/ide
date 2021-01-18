@@ -117,7 +117,7 @@ pub struct MeshData {
 impl {
     /// Creates new mesh with attached dirty callback.
     pub fn new<OnMut:CallbackFn>
-    (logger:Logger, stats:&Stats, context:&Context,on_mut:OnMut) -> Self {
+    (logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut) -> Self {
         stats.inc_mesh_count();
         let stats         = stats.clone();
         let scopes_logger = Logger::sub(&logger,"scopes_dirty");

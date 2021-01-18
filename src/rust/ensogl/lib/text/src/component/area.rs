@@ -682,7 +682,7 @@ impl Area {
 
     /// Remove this component from view.
     pub fn remove_from_view(&self, view:&display::scene::Layer) {
-        for symbol in self.symbols() { view.remove(&symbol); }
+        for symbol in self.symbols() { view.remove(None,&symbol); }
     }
 
     fn symbols(&self) -> SmallVec<[display::Symbol;1]> {
@@ -743,7 +743,7 @@ impl AreaModel {
 
         // FIXME[WD]: This is temporary sorting utility, which places the cursor in front of mouse
         // pointer and nodes. Should be refactored when proper sorting mechanisms are in place.
-        scene.layers.main.remove(symbol);
+        scene.layers.main.remove(None,symbol);
         scene.layers.label.add(None,symbol);
 
         let frp_endpoints = frp_endpoints.clone_ref();

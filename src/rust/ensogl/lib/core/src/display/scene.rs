@@ -631,8 +631,14 @@ impl Renderer {
 // === Layer ===
 // =============
 
-pub type GlobalDepthOrder = Rc<RefCell<DependencyGraph>>;
-pub type LocalDepthOrder = Rc<RefCell<Option<DependencyGraph>>>;
+#[derive(Clone,Copy,Debug,PartialEq,PartialOrd,Eq,Hash,Ord)]
+pub enum LayerElement {
+    Symbol      (SymbolId),
+    ShapeSystem (ShapeSystemId)
+}
+
+pub type GlobalDepthOrder = Rc<RefCell<DependencyGraph<LayerElement>>>;
+pub type LocalDepthOrder = Rc<RefCell<Option<DependencyGraph<LayerElement>>>>;
 
 #[derive(Debug,Clone,CloneRef)]
 pub struct DepthOrder {
@@ -647,12 +653,11 @@ impl DepthOrder {
         Self {global,local}
     }
 
-    fn sort(&self, symbols:&BTreeSet<SymbolId>) -> Vec<SymbolId> {
+    fn sort(&self, symbols:&BTreeSet<LayerElement>) -> Vec<LayerElement> {
         let local     = self.local.borrow();
         let global    = self.global.borrow();
         let dep_graph = local.as_ref().unwrap_or_else(||&*global);
-        let out       = dep_graph.unchecked_topo_sort(symbols.iter().map(|t|(**t) as usize).rev().collect_vec());
-        out.into_iter().map(|t| SymbolId::new(t as u32)).collect()
+        dep_graph.unchecked_topo_sort(symbols.iter().copied().rev().collect_vec())
     }
 }
 
@@ -691,13 +696,14 @@ pub struct SymbolDecl {
 
 #[derive(Debug,Clone)]
 pub struct LayerModel {
-    logger             : Logger,
-    pub camera         : Camera2d,
-    pub shape_registry : ShapeRegistry2,
-    symbols            : RefCell<BTreeSet<SymbolId>>,
-    symbols_ordered    : RefCell<Vec<SymbolId>>,
-    depth_order        : DepthOrder,
-    symbols_placement  : Rc<RefCell<HashMap<SymbolId,Vec<WeakLayer>>>>,
+    logger                       : Logger,
+    pub camera                   : Camera2d,
+    pub shape_registry           : ShapeRegistry2,
+    shape_system_symbol_map      : RefCell<HashMap<ShapeSystemId,SymbolId>>,
+    elements                     : RefCell<BTreeSet<LayerElement>>,
+    symbols_ordered              : RefCell<Vec<SymbolId>>,
+    depth_order                  : DepthOrder,
+    symbols_placement            : Rc<RefCell<HashMap<SymbolId,Vec<WeakLayer>>>>,
 }
 
 impl AsRef<LayerModel> for Layer {
@@ -748,19 +754,51 @@ impl Layer {
         if let Some(placement) = placement {
             for weak_layer in placement {
                 if let Some(layer) = weak_layer.upgrade() {
-                    layer.remove(symbol_id)
+                    layer.remove(shape_system_id,symbol_id)
                 }
             }
         }
         self.symbols_placement.borrow_mut().entry(symbol_id).or_default().push(self.downgrade());
-        self.symbols.borrow_mut().insert(symbol_id);
-        *self.symbols_ordered.borrow_mut() = self.depth_order.sort(&*self.symbols.borrow());
+        match shape_system_id {
+            None => {
+                self.elements.borrow_mut().insert(LayerElement::Symbol(symbol_id));
+            },
+            Some(shape_system_id) => {
+                self.shape_system_symbol_map.borrow_mut().insert(shape_system_id,symbol_id);
+                self.elements.borrow_mut().insert(LayerElement::ShapeSystem(shape_system_id));
+            }
+        }
+        let elements_ordered = self.depth_order.sort(&*self.elements.borrow());
+        *self.symbols_ordered.borrow_mut() =
+            elements_ordered.into_iter().map(|element| {
+                match element {
+                    LayerElement::Symbol(symbol_id) => symbol_id,
+                    LayerElement::ShapeSystem(id) => *self.shape_system_symbol_map.borrow().get(&id).unwrap()
+                }
+            }).collect_vec();
     }
 
-    pub fn remove(&self, symbol_id:impl Into<SymbolId>) {
+    pub fn remove(&self, shape_system_id:Option<ShapeSystemId>, symbol_id:impl Into<SymbolId>) {
         let symbol_id = symbol_id.into();
-        self.symbols.borrow_mut().remove(&symbol_id);
-        *self.symbols_ordered.borrow_mut() = self.depth_order.sort(&*self.symbols.borrow());
+
+        self.elements.borrow_mut().remove(&LayerElement::Symbol(symbol_id));
+        match shape_system_id {
+            None => { }
+            Some(shape_system_id) => {
+                self.shape_system_symbol_map.borrow_mut().remove(&shape_system_id);
+                self.elements.borrow_mut().remove(&LayerElement::ShapeSystem(shape_system_id));
+            }
+        }
+
+        let elements_ordered = self.depth_order.sort(&*self.elements.borrow());
+        *self.symbols_ordered.borrow_mut() =
+            elements_ordered.into_iter().map(|element| {
+                match element {
+                    LayerElement::Symbol(symbol_id) => symbol_id,
+                    LayerElement::ShapeSystem(id) => *self.shape_system_symbol_map.borrow().get(&id).unwrap()
+                }
+            }).collect_vec();
+
         if let Some(placement) = self.symbols_placement.borrow_mut().get_mut(&symbol_id) {
             placement.remove_item(&self.downgrade());
         }
@@ -777,7 +815,7 @@ impl Layer {
     /// function was used only in one place in the codebase and should be removed in the future.
     pub fn remove_shape_view_DEPRECATED<T: display::shape::primitive::system::Shape>
     (&self, shape_view:&component::ShapeView_DEPRECATED<T>) {
-        self.remove(&shape_view.shape.sprite().symbol)
+        self.remove(None,&shape_view.shape.sprite().symbol)
     }
 }
 
@@ -796,14 +834,17 @@ impl LayerModel {
 
     pub fn new_with_shared_camera
     (logger:impl AnyLogger, camera:impl Into<Camera2d>, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<SymbolId,Vec<WeakLayer>>>>) -> Self {
-        let logger          = Logger::sub(logger,"view");
-        let camera          = camera.into();
-        let shape_registry  = default();
-        let symbols         = default();
-        let symbols_ordered = default();
-        let depth_order     = DepthOrder::new(global_depth_order);
-        let symbols_placement = symbols_placement.clone_ref();
-        Self {logger,camera,shape_registry,symbols,symbols_ordered,depth_order,symbols_placement}
+        let logger                       = Logger::sub(logger,"view");
+        let camera                       = camera.into();
+        let shape_registry               = default();
+        let shape_system_symbol_map      = default();
+        let elements                     = default();
+        let symbols_ordered              = default();
+        let depth_order                  = DepthOrder::new(global_depth_order);
+        let symbols_placement            = symbols_placement.clone_ref();
+
+        Self {logger,camera,shape_registry,shape_system_symbol_map,elements
+             ,symbols_ordered,depth_order,symbols_placement}
     }
 
     pub fn symbols(&self) -> Vec<SymbolId> {

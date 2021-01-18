@@ -205,7 +205,7 @@ impl View {
         // scene.views.viz.add(&shape_system.shape_system.symbol);
 
         let shape_system = scene.shapes.shape_system(PhantomData::<overlay::Shape>);
-        scene.layers.main.remove(&shape_system.shape_system.symbol);
+        scene.layers.main.remove(None,&shape_system.shape_system.symbol);
         scene.layers.viz.add(None,&shape_system.shape_system.symbol);
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
@@ -271,7 +271,7 @@ impl FullscreenView {
         // display_object.add_child(&background);
 
         let shape_system = scene.shapes.shape_system(PhantomData::<fullscreen_background::Shape>);
-        scene.layers.main.remove(&shape_system.shape_system.symbol);
+        scene.layers.main.remove(None,&shape_system.shape_system.symbol);
         scene.layers.viz_fullscreen.add(None,&shape_system.shape_system.symbol);
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
