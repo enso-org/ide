@@ -18,7 +18,9 @@ export class ProgressIndicator {
         this.dom                = html_utils.new_top_level_div()
         this.dom.id             = 'loader'
         this.dom.style.position = 'fixed'
-        this.dom.style.zIndex   = 1
+        this.dom.style.top      = 0
+        this.dom.style.left     = 0
+        this.dom.style.zIndex   = 100
 
         let center = document.createElement('div')
         center.style.width          = '100%'
