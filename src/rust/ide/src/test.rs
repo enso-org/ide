@@ -36,7 +36,7 @@ pub mod mock {
         pub const MODULE_NAME     : &str     = "Mock_Module";
         pub const CODE            : &str     = "main = \n    2 + 2";
         pub const DEFINITION_NAME : &str     = "main";
-        pub const TYPE_NAME       : &str     = "Mock_Type";
+        pub const TYPE_NAME       : &str     = "MockProject.Mock_Module.Mock_Type";
         pub const MAIN_FINISH     : Position = Position {line:1, character:9};
         pub const CONTEXT_ID      : Uuid     = Uuid::from_u128(0xFE);
 
@@ -90,7 +90,7 @@ pub mod mock {
             suggestion_database::Entry {
                 name      : "foo".to_owned(),
                 module    : module::QualifiedName::from_segments("Std",&["Base"]).unwrap(),
-                self_type : Some("Base".to_owned()),
+                self_type : Some("Std.Base".to_owned().try_into().unwrap()),
                 arguments : vec![foo_method_parameter(),foo_method_parameter2()],
                 return_type   : "Any".to_owned(),
                 kind          : suggestion_database::entry::Kind::Method,
@@ -103,7 +103,7 @@ pub mod mock {
             suggestion_database::Entry {
                 name      : "bar".to_owned(),
                 module    : module::QualifiedName::from_segments("Std",&["Other"]).unwrap(),
-                self_type : Some("Other".to_owned()),
+                self_type : Some("Std.Other".to_owned().try_into().unwrap()),
                 arguments : vec![bar_method_parameter()],
                 return_type   : "Any".to_owned(),
                 kind          : suggestion_database::entry::Kind::Method,
@@ -193,7 +193,7 @@ pub mod mock {
          -> crate::controller::Graph {
             let parser      = self.parser.clone_ref();
             let method      = self.method_pointer();
-            let definition  = module.lookup_method(&method).unwrap();
+            let definition  = module.lookup_method(&self.project_name,&method).unwrap();
             crate::controller::Graph::new(logger,module,db,parser,definition).unwrap()
         }
 

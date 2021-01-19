@@ -5,6 +5,7 @@ pub mod synchronized;
 
 pub use double_representation::module::Id;
 pub use double_representation::module::QualifiedName;
+pub use double_representation::tp::QualifiedName as TypeQualifiedName;
 
 use crate::prelude::*;
 
@@ -21,8 +22,8 @@ use flo_stream::Subscriber;
 use parser::api::SourceFile;
 use parser::api::ParsedSourceFile;
 use parser::Parser;
-use serde::Serialize;
 use serde::Deserialize;
+use serde::Serialize;
 
 
 
@@ -395,7 +396,7 @@ where f32 : Div<T,Output=f32>,
 #[allow(missing_docs)]
 pub struct MethodId {
     pub module          : QualifiedName,
-    pub defined_on_type : String,
+    pub defined_on_type : TypeQualifiedName,
     pub name            : String,
 }
 
@@ -474,8 +475,9 @@ pub trait API:Debug {
     /// The module is assumed to be in the file identified by the `method.file` (for the purpose of
     /// desugaring implicit extensions methods for modules).
     fn lookup_method
-    (&self, method:&MethodPointer) -> FallibleResult<double_representation::definition::Id> {
-        let name = self.path().module_name();
+    (&self, project_name:&str, method:&MethodPointer)
+    -> FallibleResult<double_representation::definition::Id> {
+        let name = self.path().qualified_module_name(project_name);
         let ast  = self.ast();
         double_representation::module::lookup_method(&name,&ast,method)
     }
