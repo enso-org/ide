@@ -1012,8 +1012,9 @@ impl SceneData {
         let dirty_flag           = SymbolRegistryDirty::new(sub_logger,Box::new(on_mut));
         let on_change            = enclose!((dirty_flag) move || dirty_flag.set());
         let var_logger           = Logger::sub(&logger,"global_variables");
-        let variables            = UniformScope::new(var_logger,&context);
-        let symbols              = SymbolRegistry::mk(&variables,&stats,&context,&logger,on_change);
+        let variables            = UniformScope::new(var_logger);
+        let symbols              = SymbolRegistry::mk(&variables,&stats,&logger,on_change);
+        symbols.set_context(Some(&context));
         let symbols_dirty        = dirty_flag;
         let layers                = Layers::new(&logger);
         let stats                = stats.clone();

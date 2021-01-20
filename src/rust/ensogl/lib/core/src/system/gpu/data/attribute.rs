@@ -90,14 +90,14 @@ pub struct AttributeScopeData {
     logger          : Logger,
     free_ids        : BTreeSet<InstanceIndex>,
     size            : usize,
-    context         : Context,
+    context         : Option<Context>,
     stats           : Stats,
 }
 
 impl {
     /// Create a new scope with the provided dirty callback.
     pub fn new<OnMut:CallbackFn+Clone>
-    (lgr:Logger, stats:&Stats, context:&Context, on_mut:OnMut) -> Self {
+    (lgr:Logger, stats:&Stats, on_mut:OnMut) -> Self {
         info!(lgr,"Initializing.",|| {
             let logger          = lgr.clone();
             let stats           = stats.clone_ref();
@@ -109,10 +109,17 @@ impl {
             let buffer_name_map = default();
             let free_ids        = default();
             let size            = default();
-            let context         = context.clone();
+            let context         = default();
             Self {context,buffers,buffer_dirty,shape_dirty,buffer_name_map,logger,free_ids,size
                  ,stats}
         })
+    }
+
+    pub fn set_context(&mut self, context:Option<&Context>) {
+        self.context = context.cloned();
+        for buffer in &self.buffers {
+            buffer.set_context(context);
+        }
     }
 
     /// Add a new named buffer to the scope.
@@ -126,7 +133,8 @@ impl {
             let on_set     = Box::new(move || { buffer_dirty.set(ix) });
             let on_resize  = Box::new(move || { shape_dirty.set() });
             let logger     = Logger::sub(&self.logger,&name);
-            let buffer     = Buffer::new(logger,&self.stats,&self.context,on_set,on_resize);
+            let buffer     = Buffer::new(logger,&self.stats,on_set,on_resize);
+            buffer.set_context(self.context.as_ref());
             let buffer_ref = buffer.clone();
             self.buffers.set(ix,AnyBuffer::from(buffer));
             self.buffer_name_map.insert(name,ix.into());

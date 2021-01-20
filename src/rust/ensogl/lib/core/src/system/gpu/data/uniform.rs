@@ -25,39 +25,39 @@ pub trait UniformValue = UniformUpload;
 /// Some values need to be initialized before they can be used as uniforms. Textures, for example,
 /// need to allocate memory on GPU and if used with remote source, need to download images.
 /// For primitive types, like numbers or matrices, the binding operation does nothing.
-pub trait IntoUniformValue = IntoUniformValueImpl where
-    Uniform<AsUniformValue<Self>>: Into<AnyUniform>;
+pub trait IntoUniformValue = Sized where
+    Uniform<Self>: Into<AnyUniform>;
 
-/// Internal helper for `IntoUniformValue`.
-pub trait IntoUniformValueImpl {
-    type Result;
-    fn into_uniform_value(self, context:&Context) -> Self::Result;
-}
-
-/// Result of the binding operation.
-pub type AsUniformValue<T> = <T as IntoUniformValueImpl>::Result;
+// /// Internal helper for `IntoUniformValue`.
+// pub trait IntoUniformValueImpl {
+//     type Result;
+//     fn into_uniform_value(self, context:&Context) -> Self::Result;
+// }
+//
+// /// Result of the binding operation.
+// pub type AsUniformValue<T> = <T as IntoUniformValueImpl>::Result;
 
 
 // === Instances ===
 
-macro_rules! define_identity_uniform_value_impl {
-    ( [] [$([$t1:ident $t2:ident])*] ) => {$(
-        impl IntoUniformValueImpl for $t1<$t2> {
-            type Result = $t1<$t2>;
-            fn into_uniform_value(self, _context:&Context) -> Self::Result {
-                self
-            }
-        }
-    )*}
-}
-crate::with_all_prim_types!([[define_identity_uniform_value_impl][]]);
-
-impl<S:StorageRelation<I,T>,I,T> IntoUniformValueImpl for Texture<S,I,T> {
-    type Result = Texture<S,I,T>;
-    fn into_uniform_value(self, _context:&Context) -> Self::Result {
-        self
-    }
-}
+// macro_rules! define_identity_uniform_value_impl {
+//     ( [] [$([$t1:ident $t2:ident])*] ) => {$(
+//         impl IntoUniformValueImpl for $t1<$t2> {
+//             type Result = $t1<$t2>;
+//             fn into_uniform_value(self, _context:&Context) -> Self::Result {
+//                 self
+//             }
+//         }
+//     )*}
+// }
+// crate::with_all_prim_types!([[define_identity_uniform_value_impl][]]);
+//
+// impl<S:StorageRelation<I,T>,I,T> IntoUniformValueImpl for Texture<S,I,T> {
+//     type Result = Texture<S,I,T>;
+//     fn into_uniform_value(self, _context:&Context) -> Self::Result {
+//         self
+//     }
+// }
 
 
 
@@ -72,15 +72,13 @@ shared! { UniformScope
 pub struct UniformScopeData {
     map     : HashMap<String,AnyUniform>,
     logger  : Logger,
-    context : Context,
 }
 
 impl {
     /// Constructor.
-    pub fn new(logger:Logger, context:&Context) -> Self {
-        let map     = default();
-        let context = context.clone();
-        Self {map,logger,context}
+    pub fn new(logger:Logger) -> Self {
+        let map = default();
+        Self {map,logger}
     }
 
     /// Look up uniform by name.
@@ -97,7 +95,7 @@ impl {
     /// Please note that the value will be bound to the context before it becomes the uniform.
     /// Refer to the docs of `IntoUniformValue` to learn more.
     pub fn add<Name:Str, Value:IntoUniformValue>
-    (&mut self, name:Name, value:Value) -> Option<Uniform<AsUniformValue<Value>>> {
+    (&mut self, name:Name, value:Value) -> Option<Uniform<Value>> {
         self.add_or_else(name,value,Some,|_,_,_|None)
     }
 
@@ -105,7 +103,7 @@ impl {
     /// Please note that the value will be bound to the context before it becomes the uniform.
     /// Refer to the docs of `IntoUniformValue` to learn more.
     pub fn add_or_panic<Name:Str, Value:IntoUniformValue>
-    (&mut self, name:Name, value:Value) -> Uniform<AsUniformValue<Value>> {
+    (&mut self, name:Name, value:Value) -> Uniform<Value> {
         self.add_or_else(name,value,|t|{t},|name,_,_| {
             panic!("Trying to override uniform '{}'.", name.as_ref())
         })
@@ -120,13 +118,12 @@ impl UniformScopeData {
     /// created uniform.
     pub fn add_or_else<Name:Str,Value:IntoUniformValue,OnFresh,OnExist,T>
     (&mut self, name:Name, value:Value, on_fresh:OnFresh, on_exist:OnExist) -> T
-    where OnFresh : FnOnce(Uniform<AsUniformValue<Value>>)->T,
+    where OnFresh : FnOnce(Uniform<Value>)->T,
           OnExist : FnOnce(Name,Value,&AnyUniform)->T {
         match self.map.get(name.as_ref()) {
             Some(v) => on_exist(name,value,v),
             None => {
-                let bound_value = value.into_uniform_value(&self.context);
-                let uniform     = Uniform::new(bound_value);
+                let uniform     = Uniform::new(value);
                 let any_uniform = uniform.clone().into();
                 self.map.insert(name.into(),any_uniform);
                 on_fresh(uniform)
@@ -137,18 +134,13 @@ impl UniformScopeData {
     /// Gets an existing uniform or adds a new one in case it was missing. Returns `None` if the
     /// uniform exists but its type does not match the requested one.
     pub fn get_or_add<Name:Str, Value:IntoUniformValue>
-    (&mut self, name:Name, value:Value) -> Option<Uniform<AsUniformValue<Value>>>
-    where for<'t> &'t Uniform<AsUniformValue<Value>> : TryFrom<&'t AnyUniform> {
-        let context = self.context.clone();
+    (&mut self, name:Name, value:Value) -> Option<Uniform<Value>>
+    where for<'t> &'t Uniform<Value> : TryFrom<&'t AnyUniform> {
         self.add_or_else(name,value,Some,move |_,value,uniform| {
-            let out:Option<&Uniform<AsUniformValue<Value>>> = uniform.try_into().ok();
+            let out:Option<&Uniform<Value>> = uniform.try_into().ok();
             let out = out.cloned();
-            match &out {
-                Some(t) => {
-                    let bound_value = value.into_uniform_value(&context);
-                    t.set(bound_value);
-                }
-                None => {}
+            if let Some(t) = &out {
+                t.set(value)
             }
             out
         })
@@ -159,8 +151,8 @@ impl UniformScope {
     /// Gets an existing uniform or adds a new one in case it was missing. Returns `None` if the
     /// uniform exists but its type does not match the requested one.
     pub fn get_or_add<Name:Str, Value:IntoUniformValue>
-    (&self, name:Name, value:Value) -> Option<Uniform<AsUniformValue<Value>>>
-    where for<'t> &'t Uniform<AsUniformValue<Value>> : TryFrom<&'t AnyUniform> {
+    (&self, name:Name, value:Value) -> Option<Uniform<Value>>
+    where for<'t> &'t Uniform<Value> : TryFrom<&'t AnyUniform> {
         self.rc.borrow_mut().get_or_add(name,value)
     }
 }

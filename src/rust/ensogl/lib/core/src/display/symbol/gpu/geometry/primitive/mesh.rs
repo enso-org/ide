@@ -116,7 +116,7 @@ pub struct MeshData {
 impl {
     /// Creates new mesh with attached dirty callback.
     pub fn new<OnMut:CallbackFn>
-    (logger:Logger, stats:&Stats, context:&Context, on_mut:OnMut) -> Self {
+    (logger:Logger, stats:&Stats, on_mut:OnMut) -> Self {
         stats.inc_mesh_count();
         let stats         = stats.clone();
         let scopes_logger = Logger::sub(&logger,"scopes_dirty");
@@ -127,12 +127,19 @@ impl {
                 let status_mod = ScopeType::$uname;
                 let scs_dirty  = scopes_dirty.clone_ref();
                 let callback   = move || {scs_dirty.set(status_mod)};
-                let $name      = AttributeScope::new(sub_logger,&stats,context,callback);
+                let $name      = AttributeScope::new(sub_logger,&stats,callback);
             )*}}
             new_scope! ({point,vertex,primitive,instance}{Point,Vertex,Primitive,Instance});
             Scopes {point,vertex,primitive,instance}
         });
         Self {scopes,scopes_dirty,logger,stats}
+    }
+
+    pub fn set_context(&self, context:Option<&Context>) {
+        macro_rules! set_scope_context { ($($name:ident),*) => {
+            $( self.scopes.$name.set_context(context); )*
+        }}
+        set_scope_context!(point,vertex,primitive,instance);
     }
 
     /// Point scope accessor.

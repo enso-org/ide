@@ -41,14 +41,14 @@ pub struct SymbolRegistry {
     view_projection : Uniform<Matrix4<f32>>,
     z_zoom_1        : Uniform<f32>,
     variables       : UniformScope,
-    context         : Context,
+    context         : Rc<RefCell<Option<Context>>>,
     stats           : Stats,
 }
 
 impl SymbolRegistry {
     /// Constructor.
     pub fn mk<OnMut:Fn()+'static,Log:AnyLogger>
-    (variables:&UniformScope, stats:&Stats, context:&Context, logger:&Log, on_mut:OnMut)
+    (variables:&UniformScope, stats:&Stats, logger:&Log, on_mut:OnMut)
     -> Self {
         let logger = Logger::sub(logger,"symbol_registry");
         debug!(logger,"Initializing.");
@@ -58,7 +58,7 @@ impl SymbolRegistry {
         let variables       = variables.clone();
         let view_projection = variables.add_or_panic("view_projection", Matrix4::<f32>::identity());
         let z_zoom_1        = variables.add_or_panic("z_zoom_1"       , 1.0);
-        let context         = context.clone();
+        let context         = default();
         let stats           = stats.clone_ref();
         Self {symbols,symbol_dirty,logger,view_projection,z_zoom_1,variables,context,stats}
     }
@@ -68,15 +68,23 @@ impl SymbolRegistry {
         let symbol_dirty = self.symbol_dirty.clone();
         let variables    = &self.variables;
         let logger       = &self.logger;
-        let context      = &self.context;
         let stats        = &self.stats;
         let index        = self.symbols.borrow_mut().insert_with_ix(|ix| {
             let id     = SymbolId::new(ix as u32);
             let on_mut = move || {symbol_dirty.set(id)};
             let logger = Logger::sub(logger,format!("symbol_{}",ix));
-            Symbol::new(logger,context,stats,id,variables,on_mut)
+            let symbol = Symbol::new(logger,stats,id,variables,on_mut);
+            symbol.set_context(self.context.borrow().as_ref());
+            symbol
         });
         SymbolId::new(index as u32)
+    }
+
+    pub fn set_context(&self, context:Option<&Context>) {
+        *self.context.borrow_mut() = context.cloned();
+        for symbol in &*self.symbols.borrow() {
+            symbol.set_context(context)
+        }
     }
 
     /// Creates a new `Symbol` instance.

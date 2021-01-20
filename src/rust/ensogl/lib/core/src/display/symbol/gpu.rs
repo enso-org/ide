@@ -264,7 +264,7 @@ pub struct Symbol {
     /// Please note that changing the uniform type to `u32` breaks node ID encoding in GLSL, as the
     /// functions are declared to work on `int`s, not `uint`s. This might be improved one day.
     symbol_id_uniform : Uniform<i32>,
-    context           : Context,
+    context           : Rc<RefCell<Option<Context>>>,
     logger            : Logger,
     bindings          : Rc<RefCell<Bindings>>,
     stats             : SymbolStats,
@@ -275,7 +275,6 @@ impl Symbol {
     /// Create new instance with the provided on-dirty callback.
     pub fn new <OnMut:Fn()+Clone+'static>
     ( logger           : Logger
-    , context          : &Context
     , stats            : &Stats
     , id               : SymbolId
     , global_variables : &UniformScope
@@ -292,13 +291,13 @@ impl Symbol {
             let shader_dirty      = ShaderDirty::new(mat_dirt_logger,Box::new(on_mut));
             let surface_on_mut    = Box::new(f!(surface_dirty.set()));
             let shader_on_mut     = Box::new(f!(shader_dirty.set()));
-            let shader            = Shader::new(shader_logger,&stats,context,shader_on_mut);
-            let surface           = Mesh::new(surface_logger,&stats,context,surface_on_mut);
-            let variables         = UniformScope::new(Logger::sub(&logger,"uniform_scope"),context);
+            let shader            = Shader::new(shader_logger,&stats,shader_on_mut);
+            let surface           = Mesh::new(surface_logger,&stats,surface_on_mut);
+            let variables         = UniformScope::new(Logger::sub(&logger,"uniform_scope"));
             let global_variables  = global_variables.clone_ref();
             let bindings          = default();
             let stats             = SymbolStats::new(stats);
-            let context           = context.clone_ref();
+            let context           = default();
             let symbol_id_uniform = variables.add_or_panic("symbol_id",(*id) as i32);
             let display_object    = display::object::Instance::new(logger.clone());
             let is_hidden         = Rc::new(Cell::new(false));
@@ -307,6 +306,12 @@ impl Symbol {
             Self{id,surface,shader,surface_dirty,shader_dirty,variables,global_variables,logger
                 ,context,bindings,stats,symbol_id_uniform,display_object,is_hidden}
         })
+    }
+
+    pub fn set_context(&self, context:Option<&Context>) {
+        *self.context.borrow_mut() = context.cloned();
+        self.surface.set_context(context);
+        self.shader.set_context(context);
     }
 
     /// Check dirty flags and update the state accordingly.
@@ -339,45 +344,46 @@ impl Symbol {
             if self.is_hidden() {
                 return;
             }
-            self.with_program(|_|{
-                for binding in &self.bindings.borrow().uniforms {
-                    binding.upload(&self.context);
-                }
+            if let Some(context) = &*self.context.borrow() {
+                self.with_program(context,|_| {
+                    for binding in &self.bindings.borrow().uniforms {
+                        binding.upload(context);
+                    }
 
-                let context              = &self.context;
-                let textures             = &self.bindings.borrow().textures;
-                let bound_textures_iter  = textures.iter().map(|t| {t.bind_texture_unit(context)});
-                let _textures_keep_alive = bound_textures_iter.collect_vec();
+                    let textures             = &self.bindings.borrow().textures;
+                    let bound_textures_iter  = textures.iter().map(|t| {t.bind_texture_unit(context)});
+                    let _textures_keep_alive = bound_textures_iter.collect_vec();
 
-                let mode           = Context::TRIANGLE_STRIP;
-                let first          = 0;
-                let count          = self.surface.point_scope().size()    as i32;
-                let instance_count = self.surface.instance_scope().size() as i32;
+                    let mode           = Context::TRIANGLE_STRIP;
+                    let first          = 0;
+                    let count          = self.surface.point_scope().size()    as i32;
+                    let instance_count = self.surface.instance_scope().size() as i32;
 
-                // FIXME: we should uncomment the following code in some pedantic debug mode. It
-                //        introduces severe performance overhead (0.8ms -> 3ms per frame) because
-                //        it requires GPU to sync. However, we should maintain a "pedantic mode" in
-                //        case something goes horribly wrong and we would like to discover what.
+                    // FIXME: we should uncomment the following code in some pedantic debug mode. It
+                    //        introduces severe performance overhead (0.8ms -> 3ms per frame) because
+                    //        it requires GPU to sync. However, we should maintain a "pedantic mode" in
+                    //        case something goes horribly wrong and we would like to discover what.
 
-                // // Check if we are ready to render. If we don't assert here we wil only get a warning
-                // // that won't tell us where things went wrong.
-                // {
-                //     let framebuffer_status = context.check_framebuffer_status(Context::FRAMEBUFFER);
-                //     debug_assert_eq!(
-                //         framebuffer_status,
-                //         Context::FRAMEBUFFER_COMPLETE,
-                //         "Framebuffer incomplete (status: {}).",
-                //         framebuffer_status
-                //         )
-                // }
+                    // // Check if we are ready to render. If we don't assert here we wil only get a warning
+                    // // that won't tell us where things went wrong.
+                    // {
+                    //     let framebuffer_status = context.check_framebuffer_status(Context::FRAMEBUFFER);
+                    //     debug_assert_eq!(
+                    //         framebuffer_status,
+                    //         Context::FRAMEBUFFER_COMPLETE,
+                    //         "Framebuffer incomplete (status: {}).",
+                    //         framebuffer_status
+                    //         )
+                    // }
 
-                self.stats.inc_draw_call_count();
-                if instance_count > 0 {
-                    self.context.draw_arrays_instanced(mode,first,count,instance_count);
-                } else {
-                    self.context.draw_arrays(mode,first,count);
-                }
-            });
+                    self.stats.inc_draw_call_count();
+                    if instance_count > 0 {
+                        context.draw_arrays_instanced(mode,first,count,instance_count);
+                    } else {
+                        context.draw_arrays(mode,first,count);
+                    }
+                });
+            }
         })
     }
 }
@@ -433,34 +439,36 @@ impl Symbol {
     /// Creates a new VertexArrayObject, discovers all variable bindings from shader to geometry,
     /// and initializes the VAO with the bindings.
     fn init_variable_bindings(&self, var_bindings:&[shader::VarBinding]) {
-        let max_texture_units = self.context.get_parameter(Context::MAX_TEXTURE_IMAGE_UNITS);
-        let max_texture_units = max_texture_units.unwrap_or_else(|num| {
-            let min_texture_units = 2;
-            error!(self.logger,"Cannot retrieve max texture units: {num:?}. \
-                Assuming minimal texture units possible ({min_texture_units}).");
-            JsValue::from_f64(min_texture_units as f64)
-        });
-        let max_texture_units     = max_texture_units.as_f64().unwrap() as u32;
-        let mut texture_unit_iter = 0..max_texture_units;
-        self.bindings.borrow_mut().vao      = Some(VertexArrayObject::new(&self.context));
-        self.bindings.borrow_mut().uniforms = default();
-        self.bindings.borrow_mut().textures = default();
-        self.with_program_mut(|this,program|{
-            for binding in var_bindings {
-                match binding.scope.as_ref() {
-                    Some(ScopeType::Mesh(s)) => this.init_attribute_binding(program,binding,*s),
-                    Some(_) => this.init_uniform_binding(program,binding,&mut texture_unit_iter),
-                    None    => {}
+        if let Some(context) = &*self.context.borrow() {
+            let max_texture_units = context.get_parameter(Context::MAX_TEXTURE_IMAGE_UNITS);
+            let max_texture_units = max_texture_units.unwrap_or_else(|num| {
+                let min_texture_units = 2;
+                error!(self.logger,"Cannot retrieve max texture units: {num:?}. \
+                    Assuming minimal texture units possible ({min_texture_units}).");
+                JsValue::from_f64(min_texture_units as f64)
+            });
+            let max_texture_units     = max_texture_units.as_f64().unwrap() as u32;
+            let mut texture_unit_iter = 0..max_texture_units;
+            self.bindings.borrow_mut().vao      = Some(VertexArrayObject::new(context));
+            self.bindings.borrow_mut().uniforms = default();
+            self.bindings.borrow_mut().textures = default();
+            self.with_program_mut(context,|this,program|{
+                for binding in var_bindings {
+                    match binding.scope.as_ref() {
+                        Some(ScopeType::Mesh(s)) => this.init_attribute_binding(context,program,binding,*s),
+                        Some(_) => this.init_uniform_binding(context,program,binding,&mut texture_unit_iter),
+                        None    => {}
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 
     fn init_attribute_binding
-    (&self, program:&WebGlProgram, binding:&shader::VarBinding, mesh_scope_type:mesh::ScopeType) {
+    (&self, context:&Context, program:&WebGlProgram, binding:&shader::VarBinding, mesh_scope_type:mesh::ScopeType) {
         let vtx_name = shader::builder::mk_vertex_name(&binding.name);
         let scope    = self.surface.scope_by_type(mesh_scope_type);
-        let location = self.context.get_attrib_location(program, &vtx_name);
+        let location = context.get_attrib_location(program, &vtx_name);
         if location < 0 {
             error!(self.logger,"Attribute '{vtx_name}' not found.");
         } else {
@@ -476,13 +484,14 @@ impl Symbol {
     /// closure passed as argument to `with_program`).
     fn init_uniform_binding
     ( &self
+    , context : &Context
     , program:&WebGlProgram
     , binding:&shader::VarBinding
     , texture_unit_iter : &mut dyn Iterator<Item=TextureUnit>
     ) {
         let name         = &binding.name;
         let uni_name     = shader::builder::mk_uniform_name(name);
-        let opt_location = self.context.get_uniform_location(program,&uni_name);
+        let opt_location = context.get_uniform_location(program,&uni_name);
 
         opt_location.map(|location|{
             let uniform = match &binding.scope {
@@ -500,7 +509,7 @@ impl Symbol {
                     match texture_unit_iter.next() {
                         Some(texture_unit) => {
                             let binding = TextureBinding::new(name,location,uniform,texture_unit);
-                            binding.upload_uniform(&self.context);
+                            binding.upload_uniform(context);
                             self.bindings.borrow_mut().textures.push(binding);
                         }
                         None => {
@@ -526,25 +535,27 @@ impl Symbol {
 
     /// Runs the provided function in a context of active program and active VAO. After the function
     /// is executed, both program and VAO are bound to None.
-    fn with_program<F:FnOnce(&WebGlProgram) -> T,T>(&self, f:F) -> T {
-        let program = self.shader.program().unwrap(); // FIXME
-        self.context.use_program(Some(&program));
-        let bindings = self.bindings.borrow();
-        let vao      = bindings.vao.as_ref().unwrap(); // FIXME
-        let out      = vao.with(||{ f(&program) });
-        self.context.use_program(None);
-        out
+    fn with_program<F:FnOnce(&WebGlProgram)>(&self, context:&Context, f:F) {
+        if let Some(program) = self.shader.program().as_ref() {
+            context.use_program(Some(&program));
+            let bindings = self.bindings.borrow();
+            if let Some(vao) = bindings.vao.as_ref() {
+                vao.with(|| { f(&program) });
+            }
+            context.use_program(None);
+        }
     }
 
     /// Runs the provided function in a context of active program and active VAO. After the function
     /// is executed, both program and VAO are bound to None.
-    fn with_program_mut<F:FnOnce(&Self, &WebGlProgram) -> T,T>(&self, f:F) -> T {
-        let this:&Self = self;
-        let program = this.shader.program().as_ref().unwrap().clone(); // FIXME
-        this.context.use_program(Some(&program));
-        let out = this.with_vao_mut(|this|{ f(this,&program) });
-        self.context.use_program(None);
-        out
+    fn with_program_mut<F:FnOnce(&Self, &WebGlProgram)>(&self, context:&Context, f:F) {
+        let this:&Self = self; // TODO: is this line needed?
+        if let Some(program) = this.shader.program().as_ref() {
+            context.use_program(Some(program));
+            let out = this.with_vao_mut(|this| { f(this,program) });
+            context.use_program(None);
+            out
+        }
     }
 
     fn with_vao_mut<F:FnOnce(&Self) -> T,T>(&self, f:F) -> T {

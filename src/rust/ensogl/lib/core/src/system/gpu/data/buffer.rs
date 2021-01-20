@@ -57,6 +57,26 @@ fn on_mut_fn(dirty:MutDirty) -> OnMut {
 
 
 // ==============
+// === GlData ===
+// ==============
+
+#[derive(Debug)]
+pub struct GlData {
+    context : Context,
+    buffer  : WebGlBuffer,
+}
+
+impl GlData {
+    pub fn new(context:&Context) -> Self {
+        let context = context.clone();
+        let buffer  = create_gl_buffer(&context);
+        Self {context,buffer}
+    }
+}
+
+
+
+// ==============
 // === Buffer ===
 // ==============
 
@@ -65,12 +85,11 @@ shared! { Buffer
 /// in the update stage before drawing the frame.
 #[derive(Debug)]
 pub struct BufferData<T> {
+    gl            : Option<GlData>,
     buffer        : ObservableVec<T>,
     mut_dirty     : MutDirty,
     resize_dirty  : ResizeDirty,
-    gl_buffer     : WebGlBuffer,
     usage         : BufferUsage,
-    context       : Context,
     stats         : Stats,
     gpu_mem_usage : u32,
     logger        : Logger,
@@ -78,11 +97,11 @@ pub struct BufferData<T> {
 
 impl<T:Storable> {
     /// Constructor.
-    pub fn new<OnMut:CallbackFn,OnResize:CallbackFn>
-    (lgr:Logger, stats:&Stats, context:&Context, on_mut:OnMut, on_resize:OnResize) -> Self {
-        info!(lgr,"Creating new {T::type_display()} buffer.", || {
+    pub fn new<OnMut:CallbackFn, OnResize:CallbackFn>
+    (logger:Logger, stats:&Stats, on_mut:OnMut, on_resize:OnResize) -> Self {
+        info!(logger,"Creating new {T::type_display()} buffer.", || {
             stats.inc_buffer_count();
-            let logger        = lgr.clone();
+            let logger        = logger.clone();
             let sublogger     = Logger::sub(&logger,"mut_dirty");
             let mut_dirty     = MutDirty::new(sublogger,Callback(on_mut));
             let sublogger     = Logger::sub(&logger,"resize_dirty");
@@ -91,13 +110,27 @@ impl<T:Storable> {
             let on_resize_fn  = on_resize_fn(resize_dirty.clone_ref());
             let on_mut_fn     = on_mut_fn(mut_dirty.clone_ref());
             let buffer        = ObservableVec::new(on_mut_fn,on_resize_fn);
-            let gl_buffer     = create_gl_buffer(&context);
+            // let gl_buffer     = create_gl_buffer(&context);
             let usage         = default();
-            let context       = context.clone();
+            // let context       = context.clone();
             let stats         = stats.clone_ref();
             let gpu_mem_usage = default();
-            Self {buffer,mut_dirty,resize_dirty,logger,gl_buffer,usage,context,stats,gpu_mem_usage}
+            let gl            = default();
+            Self {gl,buffer,mut_dirty,resize_dirty,logger,usage,stats,gpu_mem_usage}
         })
+    }
+
+    pub fn set_context(&mut self, context:Option<&Context>) {
+        match context {
+            None => {
+                self.gl = None;
+            }
+            Some(context) => {
+                let gl  = GlData::new(context);
+                self.gl = Some(gl);
+                self.resize_dirty.set();
+            }
+        }
     }
 
     /// Return the number of elements in the buffer.
@@ -149,23 +182,27 @@ impl<T:Storable> {
     /// Check dirty flags and update the state accordingly.
     pub fn update(&mut self) {
         info!(self.logger, "Updating.", || {
-            self.context.bind_buffer(Context::ARRAY_BUFFER,Some(&self.gl_buffer));
-            if self.resize_dirty.check() {
-                self.upload_data(&None);
-            } else if self.mut_dirty.check_all() {
-                self.upload_data(&self.mut_dirty.take().range);
-            } else {
-                warning!(self.logger,"Update requested but it was not needed.");
+            if let Some(gl) = &self.gl {
+                gl.context.bind_buffer(Context::ARRAY_BUFFER,Some(&gl.buffer));
+                if self.resize_dirty.check() {
+                    self.upload_data(&None);
+                } else if self.mut_dirty.check_all() {
+                    self.upload_data(&self.mut_dirty.take().range);
+                } else {
+                    warning!(self.logger,"Update requested but it was not needed.");
+                }
+                self.mut_dirty.unset_all();
+                self.resize_dirty.unset();
             }
-            self.mut_dirty.unset_all();
-            self.resize_dirty.unset();
         })
     }
 
     /// Bind the underlying WebGLBuffer to a given target.
     /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/bindBuffer
     pub fn bind(&self, target:u32) {
-        self.context.bind_buffer(target,Some(&self.gl_buffer));
+        if let Some(gl) = &self.gl {
+            gl.context.bind_buffer(target,Some(&gl.buffer));
+        }
     }
 
     /// Bind the buffer currently bound to gl.ARRAY_BUFFER to a generic vertex attribute of the
@@ -175,21 +212,23 @@ impl<T:Storable> {
     /// https://developer.mozilla.org/docs/Web/API/WebGLRenderingContext/vertexAttribPointer
     /// https://stackoverflow.com/questions/38853096/webgl-how-to-bind-values-to-a-mat4-attribute
     pub fn vertex_attrib_pointer(&self, loc:u32, instanced:bool) {
-        let item_byte_size = T::item_gpu_byte_size() as i32;
-        let item_type      = T::item_gl_enum().into();
-        let rows           = T::rows() as i32;
-        let cols           = T::cols() as i32;
-        let col_byte_size  = item_byte_size * rows;
-        let stride         = col_byte_size  * cols;
-        let normalize      = false;
-        for col in 0..cols {
-            let lloc = loc + col as u32;
-            let off  = col * col_byte_size;
-            self.context.enable_vertex_attrib_array(lloc);
-            self.context.vertex_attrib_pointer_with_i32(lloc,rows,item_type,normalize,stride,off);
-            if instanced {
-                let instance_count = 1;
-                self.context.vertex_attrib_divisor(lloc,instance_count);
+        if let Some(gl) = &self.gl {
+            let item_byte_size = T::item_gpu_byte_size() as i32;
+            let item_type      = T::item_gl_enum().into();
+            let rows           = T::rows() as i32;
+            let cols           = T::cols() as i32;
+            let col_byte_size  = item_byte_size * rows;
+            let stride         = col_byte_size  * cols;
+            let normalize      = false;
+            for col in 0..cols {
+                let lloc = loc + col as u32;
+                let off  = col * col_byte_size;
+                gl.context.enable_vertex_attrib_array(lloc);
+                gl.context.vertex_attrib_pointer_with_i32(lloc,rows,item_type,normalize,stride,off);
+                if instanced {
+                    let instance_count = 1;
+                    gl.context.vertex_attrib_divisor(lloc,instance_count);
+                }
             }
         }
     }
@@ -235,41 +274,45 @@ impl<T:Storable> BufferData<T> {
     /// Replace the whole GPU buffer by the local data.
     #[allow(unsafe_code)]
     fn replace_gpu_buffer(&mut self) {
-        let data    = self.as_slice();
-        let gl_enum = self.usage.into_gl_enum().into();
-        unsafe { // Note [Safety]
-            let js_array = data.js_buffer_view();
-            self.context.buffer_data_with_array_buffer_view
-            (Context::ARRAY_BUFFER,&js_array,gl_enum);
-        }
-        crate::if_compiled_with_stats! {
-            let item_byte_size    = T::item_gpu_byte_size() as u32;
-            let item_count        = T::item_count() as u32;
-            let new_gpu_mem_usage = self.len() as u32 * item_count * item_byte_size;
-            self.stats.mod_gpu_memory_usage(|s| s - self.gpu_mem_usage);
-            self.stats.mod_gpu_memory_usage(|s| s + new_gpu_mem_usage);
-            self.stats.mod_data_upload_size(|s| s + new_gpu_mem_usage);
-            self.gpu_mem_usage = new_gpu_mem_usage;
+        if let Some(gl) = &self.gl {
+            let data    = self.as_slice();
+            let gl_enum = self.usage.into_gl_enum().into();
+            unsafe { // Note [Safety]
+                let js_array = data.js_buffer_view();
+                gl.context.buffer_data_with_array_buffer_view
+                (Context::ARRAY_BUFFER,&js_array,gl_enum);
+            }
+            crate::if_compiled_with_stats! {
+                let item_byte_size    = T::item_gpu_byte_size() as u32;
+                let item_count        = T::item_count() as u32;
+                let new_gpu_mem_usage = self.len() as u32 * item_count * item_byte_size;
+                self.stats.mod_gpu_memory_usage(|s| s - self.gpu_mem_usage);
+                self.stats.mod_gpu_memory_usage(|s| s + new_gpu_mem_usage);
+                self.stats.mod_data_upload_size(|s| s + new_gpu_mem_usage);
+                self.gpu_mem_usage = new_gpu_mem_usage;
+            }
         }
     }
 
     /// Update the GPU sub-buffer data by the provided index range.
     #[allow(unsafe_code)]
     fn update_gpu_sub_buffer(&mut self, range:&RangeInclusive<usize>) {
-        let data            = self.as_slice();
-        let item_byte_size  = T::item_gpu_byte_size() as u32;
-        let item_count      = T::item_count() as u32;
-        let start           = *range.start() as u32;
-        let end             = *range.end() as u32;
-        let start_item      = start * item_count;
-        let length          = (end - start + 1) * item_count;
-        let dst_byte_offset = (item_byte_size * item_count * start) as i32;
-        unsafe { // Note [Safety]
-            let js_array = data.js_buffer_view();
-            self.context.buffer_sub_data_with_i32_and_array_buffer_view_and_src_offset_and_length
-            (Context::ARRAY_BUFFER,dst_byte_offset,&js_array,start_item,length)
+        if let Some(gl) = &self.gl {
+            let data            = self.as_slice();
+            let item_byte_size  = T::item_gpu_byte_size() as u32;
+            let item_count      = T::item_count() as u32;
+            let start           = *range.start() as u32;
+            let end             = *range.end() as u32;
+            let start_item      = start * item_count;
+            let length          = (end - start + 1) * item_count;
+            let dst_byte_offset = (item_byte_size * item_count * start) as i32;
+            unsafe { // Note [Safety]
+                let js_array = data.js_buffer_view();
+                gl.context.buffer_sub_data_with_i32_and_array_buffer_view_and_src_offset_and_length
+                (Context::ARRAY_BUFFER,dst_byte_offset,&js_array,start_item,length)
+            }
+            self.stats.mod_data_upload_size(|s| s + length * item_byte_size);
         }
-        self.stats.mod_data_upload_size(|s| s + length * item_byte_size);
     }
 }
 
@@ -301,9 +344,12 @@ impl<T> DerefMut for BufferData<T> {
 
 impl<T> Drop for BufferData<T> {
     fn drop(&mut self) {
-        self.context.delete_buffer(Some(&self.gl_buffer));
-        self.stats.mod_gpu_memory_usage(|s| s - self.gpu_mem_usage);
-        self.stats.dec_buffer_count();
+        if let Some(gl) = &self.gl {
+            gl.context.delete_buffer(Some(&gl.buffer));
+            self.stats.mod_gpu_memory_usage(|s| s - self.gpu_mem_usage);
+            self.stats.dec_buffer_count();
+            // TODO: stats management on context loss
+        }
     }
 }
 
@@ -376,6 +422,7 @@ crate::with_all_prim_types!([[define_any_buffer] []]);
 #[enum_dispatch]
 #[allow(missing_docs)]
 pub trait IsBuffer {
+    fn set_context           (&self, context:Option<&Context>);
     fn add_element           (&self);
     fn len                   (&self) -> usize;
     fn is_empty              (&self) -> bool;
