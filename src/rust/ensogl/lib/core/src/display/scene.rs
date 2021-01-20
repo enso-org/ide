@@ -696,14 +696,14 @@ pub struct SymbolDecl {
 
 #[derive(Debug,Clone)]
 pub struct LayerModel {
-    logger                       : Logger,
-    pub camera                   : Camera2d,
-    pub shape_registry           : ShapeRegistry2,
-    shape_system_symbol_map      : RefCell<HashMap<ShapeSystemId,SymbolId>>,
-    elements                     : RefCell<BTreeSet<LayerElement>>,
-    symbols_ordered              : RefCell<Vec<SymbolId>>,
-    depth_order                  : DepthOrder,
-    symbols_placement            : Rc<RefCell<HashMap<SymbolId,Vec<WeakLayer>>>>,
+    logger                  : Logger,
+    pub camera              : Camera2d,
+    pub shape_registry      : ShapeRegistry2,
+    shape_system_symbol_map : RefCell<HashMap<ShapeSystemId,SymbolId>>,
+    elements                : RefCell<BTreeSet<LayerElement>>,
+    symbols_ordered         : RefCell<Vec<SymbolId>>,
+    depth_order             : DepthOrder,
+    symbols_placement       : Rc<RefCell<HashMap<SymbolId,Vec<WeakLayer>>>>,
 }
 
 impl AsRef<LayerModel> for Layer {
@@ -768,14 +768,7 @@ impl Layer {
                 self.elements.borrow_mut().insert(LayerElement::ShapeSystem(shape_system_id));
             }
         }
-        let elements_ordered = self.depth_order.sort(&*self.elements.borrow());
-        *self.symbols_ordered.borrow_mut() =
-            elements_ordered.into_iter().map(|element| {
-                match element {
-                    LayerElement::Symbol(symbol_id) => symbol_id,
-                    LayerElement::ShapeSystem(id) => *self.shape_system_symbol_map.borrow().get(&id).unwrap()
-                }
-            }).collect_vec();
+        self.depth_sort();
     }
 
     pub fn remove(&self, shape_system_id:Option<ShapeSystemId>, symbol_id:impl Into<SymbolId>) {
@@ -790,18 +783,28 @@ impl Layer {
             }
         }
 
-        let elements_ordered = self.depth_order.sort(&*self.elements.borrow());
-        *self.symbols_ordered.borrow_mut() =
-            elements_ordered.into_iter().map(|element| {
-                match element {
-                    LayerElement::Symbol(symbol_id) => symbol_id,
-                    LayerElement::ShapeSystem(id) => *self.shape_system_symbol_map.borrow().get(&id).unwrap()
-                }
-            }).collect_vec();
+        self.depth_sort();
 
         if let Some(placement) = self.symbols_placement.borrow_mut().get_mut(&symbol_id) {
             placement.remove_item(&self.downgrade());
         }
+    }
+
+    fn depth_sort(&self) {
+        let elements_ordered = self.depth_order.sort(&*self.elements.borrow());
+        let symbols_ordered  = elements_ordered.into_iter().filter_map(|element| {
+            match element {
+                LayerElement::Symbol(symbol_id) => Some(symbol_id),
+                LayerElement::ShapeSystem(id) => {
+                    let out = self.shape_system_symbol_map.borrow().get(&id).copied();
+                    if out.is_none() {
+                        warning!(self.logger,"Trying to perform depth-order of non-existing element '{id:?}'.")
+                    }
+                    out
+                }
+            }
+        }).collect();
+        *self.symbols_ordered.borrow_mut() = symbols_ordered;
     }
 
     /// Add all `Symbol`s associated with the given ShapeView_DEPRECATED. Please note that this
@@ -871,6 +874,7 @@ pub struct Layers {
     pub viz_fullscreen : Layer,
     pub breadcrumbs    : Layer,
     pub depth_order    : GlobalDepthOrder,
+    // depth_order_dirty  : dirty::Bool,
     all                : Rc<RefCell<Vec<WeakLayer>>>,
     symbols_placement  : Rc<RefCell<HashMap<SymbolId,Vec<WeakLayer>>>>,
     width              : f32,
@@ -1014,6 +1018,9 @@ impl SceneData {
         let var_logger           = Logger::sub(&logger,"global_variables");
         let variables            = UniformScope::new(var_logger);
         let symbols              = SymbolRegistry::mk(&variables,&stats,&logger,on_change);
+        // FIXME: This should be abstracted away and should also handle context loss when Symbol
+        //        definition will be finally refactored in such way, that it would not require
+        //        Scene instance to be created.
         symbols.set_context(Some(&context));
         let symbols_dirty        = dirty_flag;
         let layers                = Layers::new(&logger);

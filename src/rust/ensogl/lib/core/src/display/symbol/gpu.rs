@@ -246,7 +246,8 @@ pub struct Bindings {
 // === Definition ===
 
 newtype_prim! {
-    /// The ID of a [`Symbol`] instance.
+    /// The ID of a [`Symbol`] instance. The ID is also the index of the symbol inside of symbol
+    /// registry. In case the symbol was not yet registered, the ID will be `0`.
     SymbolId(u32);
 }
 
@@ -308,7 +309,7 @@ impl Symbol {
         })
     }
 
-    pub fn set_context(&self, context:Option<&Context>) {
+    pub(crate) fn set_context(&self, context:Option<&Context>) {
         *self.context.borrow_mut() = context.cloned();
         self.surface.set_context(context);
         self.shader.set_context(context);
