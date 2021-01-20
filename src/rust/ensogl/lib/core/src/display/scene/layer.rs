@@ -255,6 +255,13 @@ impl Layer {
     }
 }
 
+impl From<&Layer> for LayerId {
+    fn from(t:&Layer) -> Self {
+        t.id
+    }
+}
+
+
 
 // =================
 // === WeakLayer ===
@@ -348,39 +355,19 @@ impl std::borrow::Borrow<LayerModel> for Layer {
 }
 
 
-
-// ===================
-// === LayersModel ===
-// ===================
-
-#[derive(Debug,Default)]
-pub struct LayersModel {
-    registry          : OptVec<WeakLayer>,
-    symbols_placement : HashMap<SymbolId,Vec<LayerId>>,
-    sorted_layers     : Vec<LayerId>,
-    layer_depth_order : DependencyGraph<LayerId>,
-}
-
-impl LayersModel {
-    pub fn all(&self) -> Vec<Layer> {
-        self.sorted_layers.iter().filter_map(|id| self.registry[**id].upgrade()).collect()
-    }
-}
-
-
-// ===============
-// === LayersX ===
-// ===============
+// ==============
+// === Layers ===
+// ==============
 
 #[derive(Clone,CloneRef,Debug)]
-pub struct LayersX {
+pub struct Layers {
     logger                   : Logger,
     element_depth_order      : GlobalElementDepthOrder,
     model                    : Rc<RefCell<LayersModel>>,
     layers_depth_order_dirty : dirty::SharedBool,
 }
 
-impl LayersX {
+impl Layers {
     pub fn new(logger:impl AnyLogger) -> Self {
         let logger              = Logger::sub(logger,"views");
         let dirty_logger        = Logger::sub(&logger,"dirty");
@@ -405,13 +392,40 @@ impl LayersX {
             self.layers_depth_order_dirty.unset();
             let model         = &mut *self.model.borrow_mut();
             let layers        = model.registry.iter().filter_map(|t|t.upgrade().map(|t|t.id));
-            let layers        = layers.collect_vec();
-            let sorted_layers = model.layer_depth_order.unchecked_topo_sort(layers);
+            let layers_rev    = layers.rev().collect_vec();
+            let sorted_layers = model.layer_depth_order.unchecked_topo_sort(layers_rev);
             model.sorted_layers = sorted_layers;
         }
     }
 
     pub fn all(&self) -> Vec<Layer> {
         self.model.borrow().all()
+    }
+
+    pub fn order(&self, below:impl Into<LayerId>, above:impl Into<LayerId>) {
+        let below = below.into();
+        let above = above.into();
+        self.model.borrow_mut().layer_depth_order.insert_dependency(below,above);
+        self.layers_depth_order_dirty.set();
+    }
+}
+
+
+
+// ===================
+// === LayersModel ===
+// ===================
+
+#[derive(Debug,Default)]
+pub struct LayersModel {
+    registry          : OptVec<WeakLayer>,
+    symbols_placement : HashMap<SymbolId,Vec<LayerId>>,
+    sorted_layers     : Vec<LayerId>,
+    layer_depth_order : DependencyGraph<LayerId>,
+}
+
+impl LayersModel {
+    pub fn all(&self) -> Vec<Layer> {
+        self.sorted_layers.iter().filter_map(|id| self.registry[**id].upgrade()).collect()
     }
 }

@@ -5,7 +5,7 @@ pub mod dom;
 pub mod layer;
 
 pub use layer::Layer;
-pub use layer::LayersX;
+pub use layer::Layers;
 
 pub use crate::system::web::dom::Shape;
 
@@ -604,19 +604,19 @@ impl Renderer {
 /// existence of `main`, `overlay`, `cursor`, and `label` views, which are needed for the GUI to
 /// display shapes properly. This should be abstracted away in the future.
 #[derive(Clone,CloneRef,Debug)]
-pub struct Layers {
+pub struct HardcodedLayers {
     pub viz            : Layer,
     pub main           : Layer,
     pub cursor         : Layer,
     pub label          : Layer,
     pub viz_fullscreen : Layer,
     pub breadcrumbs    : Layer,
-    layers             : LayersX,
+    layers             : Layers,
 }
 
-impl Layers {
+impl HardcodedLayers {
     pub fn new(logger:impl AnyLogger) -> Self {
-        let layers         = LayersX::new(logger);
+        let layers         = Layers::new(logger);
         let main           = layers.add();
         let viz            = layers.add();
         let cursor         = layers.add();
@@ -724,7 +724,7 @@ pub struct SceneData {
     pub dirty            : Dirty,
     pub logger           : Logger,
     pub renderer         : Renderer,
-    pub layers           : Layers,
+    pub layers           : HardcodedLayers,
     pub style_sheet      : style::Sheet,
     pub bg_color_var     : style::Var,
     pub bg_color_change  : callback::Handle,
@@ -759,7 +759,7 @@ impl SceneData {
         //        Scene instance to be created.
         symbols.set_context(Some(&context));
         let symbols_dirty        = dirty_flag;
-        let layers                = Layers::new(&logger);
+        let layers               = HardcodedLayers::new(&logger);
         let stats                = stats.clone();
         let shapes               = ShapeRegistry::default();
         let uniforms             = Uniforms::new(&variables);

@@ -17,14 +17,14 @@ use crate::display::scene;
 #[derive(Clone,Debug)]
 pub struct SymbolsRenderPass {
     target : SymbolRegistry,
-    layers : scene::Layers,
+    layers : scene::HardcodedLayers,
 }
 
 impl SymbolsRenderPass {
     /// Constructor.
-    pub fn new(target:&SymbolRegistry, layers:&scene::Layers) -> Self {
+    pub fn new(target:&SymbolRegistry, layers:&scene::HardcodedLayers) -> Self {
         let target = target.clone_ref();
-        let layers  = layers.clone_ref();
+        let layers = layers.clone_ref();
         Self {target,layers}
     }
 }
