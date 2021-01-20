@@ -84,30 +84,28 @@ pub enum LayerElement {
 
 
 // =========================
-// === ElementDepthOrder ===
+// === DepthOrder ===
 // =========================
 
-pub type GlobalElementDepthOrder = Rc<RefCell<DependencyGraph<LayerElement>>>;
-pub type LocalElementDepthOrder  = Rc<RefCell<Option<DependencyGraph<LayerElement>>>>;
+pub type ElementDepthOrder = Rc<RefCell<DependencyGraph<LayerElement>>>;
 
 #[derive(Debug,Clone,CloneRef)]
-pub struct ElementDepthOrder {
-    global : GlobalElementDepthOrder,
-    local  : LocalElementDepthOrder,
+pub struct DepthOrder {
+    global : ElementDepthOrder,
+    local  : ElementDepthOrder,
 }
 
-impl ElementDepthOrder {
-    pub fn new(global:&GlobalElementDepthOrder) -> Self {
+impl DepthOrder {
+    pub fn new(global:&ElementDepthOrder) -> Self {
         let global = global.clone_ref();
         let local  = default();
         Self {global,local}
     }
 
     fn sort(&self, symbols:&BTreeSet<LayerElement>) -> Vec<LayerElement> {
-        let local  = self.local.borrow();
-        let global = self.global.borrow();
-        let graph  = local.as_ref().unwrap_or_else(||&*global);
-        graph.unchecked_topo_sort(symbols.iter().copied().rev().collect_vec())
+        let mut graph = self.global.borrow().clone();
+        graph.extend(self.local.borrow().clone().into_iter());
+        graph.into_unchecked_topo_sort(symbols.iter().copied().rev().collect_vec())
     }
 }
 
@@ -142,8 +140,8 @@ impl Deref for Layer {
 }
 
 impl Layer {
-    pub fn new(logger:&Logger, id:LayerId, global_depth_order:&GlobalElementDepthOrder, model:&Rc<RefCell<LayersModel>>) -> Self {
-        let model = LayerModel::new(logger,id,global_depth_order,model);
+    pub fn new(logger:&Logger, id:LayerId, global_depth_order:&ElementDepthOrder, model:&Rc<RefCell<LayersModel>>, on_mut:Box<dyn Fn()>) -> Self {
+        let model = LayerModel::new(logger,id,global_depth_order,model,on_mut);
         let model = Rc::new(model);
         Self {model}
     }
@@ -160,6 +158,13 @@ impl Layer {
     pub fn downgrade(&self) -> WeakLayer {
         let model = Rc::downgrade(&self.model);
         WeakLayer {model}
+    }
+
+    pub fn update(&self) {
+        if self.depth_order_dirty.check() {
+            self.depth_order_dirty.unset();
+            self.depth_sort();
+        }
     }
 
     pub fn add_symbol(&self, symbol_id:impl Into<SymbolId>) {
@@ -306,7 +311,8 @@ pub struct LayerModel {
     shape_system_symbol_map : RefCell<HashMap<ShapeSystemId,SymbolId>>,
     elements                : RefCell<BTreeSet<LayerElement>>,
     symbols_ordered         : RefCell<Vec<SymbolId>>,
-    depth_order             : ElementDepthOrder,
+    depth_order             : DepthOrder,
+    depth_order_dirty       : dirty::SharedBool<Box<dyn Fn()>>,
     all_layers_model        : Rc<RefCell<LayersModel>>,
 }
 
@@ -321,24 +327,33 @@ impl Drop for LayerModel {
 
 impl LayerModel {
     pub fn new
-    (logger:impl AnyLogger, id:LayerId, global_depth_order:&GlobalElementDepthOrder, all_layers_model:&Rc<RefCell<LayersModel>>) -> Self {
+    (logger:impl AnyLogger, id:LayerId, global_depth_order:&ElementDepthOrder, all_layers_model:&Rc<RefCell<LayersModel>>, on_mut:Box<dyn Fn()>) -> Self {
         let width  = 0.0;
         let height = 0.0;
-        let logger                       = Logger::sub(logger,"view");
-        let camera                       = RefCell::new(Camera2d::new(&logger,width,height));
-        let shape_registry               = default();
-        let shape_system_symbol_map      = default();
-        let elements                     = default();
-        let symbols_ordered              = default();
-        let depth_order                  = ElementDepthOrder::new(global_depth_order);
-        let all_layers_model             = all_layers_model.clone();
+        let logger                  = Logger::sub(logger,"layer");
+        let logger_dirty            = Logger::sub(&logger,"dirty");
+        let camera                  = RefCell::new(Camera2d::new(&logger,width,height));
+        let shape_registry          = default();
+        let shape_system_symbol_map = default();
+        let elements                = default();
+        let symbols_ordered         = default();
+        let depth_order             = DepthOrder::new(global_depth_order);
+        let depth_order_dirty       = dirty::SharedBool::new(logger_dirty,on_mut);
+        let all_layers_model        = all_layers_model.clone();
 
         Self {id,logger,camera,shape_registry,shape_system_symbol_map,elements
-            ,symbols_ordered,depth_order,all_layers_model}
+            ,symbols_ordered,depth_order,depth_order_dirty,all_layers_model}
     }
 
     pub fn symbols(&self) -> Vec<SymbolId> {
         self.symbols_ordered.borrow().clone()
+    }
+
+    pub fn order(&self, below:impl Into<LayerElement>, above:impl Into<LayerElement>) {
+        let below = below.into();
+        let above = above.into();
+        self.depth_order_dirty.set();
+        self.depth_order.local.borrow_mut().insert_dependency(below,above);
     }
 }
 
@@ -355,32 +370,39 @@ impl std::borrow::Borrow<LayerModel> for Layer {
 }
 
 
+
 // ==============
 // === Layers ===
 // ==============
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct Layers {
-    logger                   : Logger,
-    element_depth_order      : GlobalElementDepthOrder,
-    model                    : Rc<RefCell<LayersModel>>,
-    layers_depth_order_dirty : dirty::SharedBool,
+    logger                     : Logger,
+    global_element_depth_order : ElementDepthOrder,
+    model                      : Rc<RefCell<LayersModel>>,
+    element_depth_order_dirty  : dirty::SharedBool,
+    layers_depth_order_dirty   : dirty::SharedBool,
 }
 
 impl Layers {
     pub fn new(logger:impl AnyLogger) -> Self {
-        let logger              = Logger::sub(logger,"views");
-        let dirty_logger        = Logger::sub(&logger,"dirty");
-        let element_depth_order = default();
-        let model               = default();
-        let layers_depth_order_dirty        = dirty::SharedBool::new(dirty_logger,());
-        Self {logger,element_depth_order,model,layers_depth_order_dirty}
+        let logger                     = Logger::sub(logger,"views");
+        let element_dirty_logger       = Logger::sub(&logger,"element_dirty");
+        let layers_dirty_logger        = Logger::sub(&logger,"layers_dirty");
+        let global_element_depth_order = default();
+        let model                      = default();
+        let element_depth_order_dirty  = dirty::SharedBool::new(element_dirty_logger,());
+        let layers_depth_order_dirty   = dirty::SharedBool::new(layers_dirty_logger,());
+        Self {logger,global_element_depth_order,model,element_depth_order_dirty
+             ,layers_depth_order_dirty}
     }
 
     pub fn add(&self) -> Layer {
         let (_,layer) = self.model.borrow_mut().registry.insert_with_ix2(|ix| {
-            let id    = LayerId::from(ix);
-            let layer = Layer::new(&self.logger,id,&self.element_depth_order,&self.model);
+            let id     = LayerId::from(ix);
+            let dirty  = &self.element_depth_order_dirty;
+            let on_mut = Box::new(f!(dirty.set()));
+            let layer  = Layer::new(&self.logger,id,&self.global_element_depth_order,&self.model,on_mut);
             (layer.downgrade(),layer)
         });
         self.layers_depth_order_dirty.set();
@@ -396,17 +418,31 @@ impl Layers {
             let sorted_layers = model.layer_depth_order.unchecked_topo_sort(layers_rev);
             model.sorted_layers = sorted_layers;
         }
+
+        if self.element_depth_order_dirty.check() {
+            self.element_depth_order_dirty.unset();
+            for layer in self.all() {
+                layer.update()
+            }
+        }
     }
 
     pub fn all(&self) -> Vec<Layer> {
         self.model.borrow().all()
     }
 
-    pub fn order(&self, below:impl Into<LayerId>, above:impl Into<LayerId>) {
+    pub fn layer_order(&self, below:impl Into<LayerId>, above:impl Into<LayerId>) {
         let below = below.into();
         let above = above.into();
-        self.model.borrow_mut().layer_depth_order.insert_dependency(below,above);
         self.layers_depth_order_dirty.set();
+        self.model.borrow_mut().layer_depth_order.insert_dependency(below,above);
+    }
+
+    pub fn order(&self, below:impl Into<LayerElement>, above:impl Into<LayerElement>) {
+        let below = below.into();
+        let above = above.into();
+        self.element_depth_order_dirty.set();
+        self.global_element_depth_order.borrow_mut().insert_dependency(below,above);
     }
 }
 
