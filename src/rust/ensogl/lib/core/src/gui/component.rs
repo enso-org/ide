@@ -11,8 +11,8 @@ use crate::display::object::traits::*;
 use crate::display::scene::MouseTarget;
 use crate::display::scene::Scene;
 use crate::display::scene::ShapeRegistry;
-use crate::display::scene::ShapeRegistry2;
-use crate::display::scene::WeakLayer;
+use crate::display::scene::layer::ShapeRegistry2;
+use crate::display::scene::layer::WeakLayer;
 use crate::display::scene;
 use crate::display::shape::primitive::system::DynamicShape;
 use crate::display::shape::primitive::system::Shape;
@@ -268,7 +268,7 @@ impl<S:DynamicShape> ShapeViewModel<S> {
     fn set_scene_layer(&self, scene:&Scene, layer:&scene::Layer) -> (ShapeSystemId,SymbolId,attribute::InstanceIndex) {
         self.before_first_show.set(false);
         let (shape_system_id,symbol_id,instance_id) = self.set_scene_registry(&scene.shapes,&layer.shape_registry);
-        layer.add(Some(shape_system_id),symbol_id);
+        layer.add_shape(shape_system_id,symbol_id);
         (shape_system_id,symbol_id,instance_id)
     }
 

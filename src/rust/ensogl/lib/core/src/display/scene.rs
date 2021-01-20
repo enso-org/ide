@@ -2,6 +2,10 @@
 
 #[warn(missing_docs)]
 pub mod dom;
+pub mod layer;
+
+pub use layer::Layer;
+pub use layer::LayersX;
 
 pub use crate::system::web::dom::Shape;
 
@@ -39,6 +43,7 @@ use crate::system::web::IgnoreContextMenuHandle;
 use crate::system::web::NodeInserter;
 use crate::system::web::StyleSetter;
 use crate::system::web;
+use crate::data::OptVec;
 
 use enso_frp as frp;
 use enso_frp::io::js::CurrentJsEvent;
@@ -117,44 +122,7 @@ impl {
 }}
 
 
-shared! { ShapeRegistry2
-#[derive(Debug,Default)]
-pub struct ShapeRegistryData2 {
-    scene            : Option<Scene>,
-    shape_system_map : HashMap<TypeId,Box<dyn Any>>,
-}
 
-impl {
-    fn get<T:DynShapeSystemInstance>(&self) -> Option<T> {
-        let id = TypeId::of::<T>();
-        self.shape_system_map.get(&id).and_then(|t| t.downcast_ref::<T>()).map(|t| t.clone_ref())
-    }
-
-    fn register<T:DynShapeSystemInstance>(&mut self) -> T {
-        let id     = TypeId::of::<T>();
-        let system = <T as DynShapeSystemInstance>::new(self.scene.as_ref().unwrap());
-        let any    = Box::new(system.clone_ref());
-        self.shape_system_map.insert(id,any);
-        system
-    }
-
-    fn get_or_register<T:DynShapeSystemInstance>(&mut self) -> T {
-        self.get().unwrap_or_else(|| self.register())
-    }
-
-    pub fn shape_system<T:display::shape::system::DynamicShape>(&mut self, _phantom:PhantomData<T>) -> DynShapeSystemOf<T> {
-        self.get_or_register::<DynShapeSystemOf<T>>()
-    }
-
-    pub fn instantiate<T:display::shape::system::DynamicShape>(&mut self,shape:&T)
-    -> (ShapeSystemId,SymbolId,attribute::InstanceIndex) {
-        let system      = self.get_or_register::<DynShapeSystemOf<T>>();
-        let system_id   = DynShapeSystemOf::<T>::id();
-        let instance_id = system.instantiate(shape);
-        let symbol_id   = system.shape_system().sprite_system.symbol.id;
-        (system_id,symbol_id,instance_id)
-    }
-}}
 
 
 
@@ -627,235 +595,6 @@ impl Renderer {
 
 
 
-// =============
-// === Layer ===
-// =============
-
-#[derive(Clone,Copy,Debug,PartialEq,PartialOrd,Eq,Hash,Ord)]
-pub enum LayerElement {
-    Symbol      (SymbolId),
-    ShapeSystem (ShapeSystemId)
-}
-
-pub type GlobalDepthOrder = Rc<RefCell<DependencyGraph<LayerElement>>>;
-pub type LocalDepthOrder = Rc<RefCell<Option<DependencyGraph<LayerElement>>>>;
-
-#[derive(Debug,Clone,CloneRef)]
-pub struct DepthOrder {
-    global : GlobalDepthOrder,
-    local  : LocalDepthOrder,
-}
-
-impl DepthOrder {
-    pub fn new(global:&GlobalDepthOrder) -> Self {
-        let global = global.clone_ref();
-        let local  = default();
-        Self {global,local}
-    }
-
-    fn sort(&self, symbols:&BTreeSet<LayerElement>) -> Vec<LayerElement> {
-        let local     = self.local.borrow();
-        let global    = self.global.borrow();
-        let dep_graph = local.as_ref().unwrap_or_else(||&*global);
-        dep_graph.unchecked_topo_sort(symbols.iter().copied().rev().collect_vec())
-    }
-}
-
-
-// === Definition ===
-
-#[derive(Debug,Clone,CloneRef)]
-pub struct Layer {
-    data : Rc<LayerModel>
-}
-
-#[derive(Clone,CloneRef)]
-pub struct WeakLayer {
-    data : Weak<LayerModel>
-}
-
-impl PartialEq for WeakLayer {
-    fn eq(&self, other:&Self) -> bool {
-        self.data.ptr_eq(&other.data)
-    }
-}
-
-impl Eq for WeakLayer {}
-
-impl Debug for WeakLayer {
-    fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f,"WeakLayer")
-    }
-}
-
-pub struct SymbolDecl {
-    pub symbol_id       : SymbolId,
-    pub shape_system_id : ShapeSystemId,
-}
-
-
-#[derive(Debug,Clone)]
-pub struct LayerModel {
-    logger                  : Logger,
-    pub camera              : Camera2d,
-    pub shape_registry      : ShapeRegistry2,
-    shape_system_symbol_map : RefCell<HashMap<ShapeSystemId,SymbolId>>,
-    elements                : RefCell<BTreeSet<LayerElement>>,
-    symbols_ordered         : RefCell<Vec<SymbolId>>,
-    depth_order             : DepthOrder,
-    symbols_placement       : Rc<RefCell<HashMap<SymbolId,Vec<WeakLayer>>>>,
-}
-
-impl AsRef<LayerModel> for Layer {
-    fn as_ref(&self) -> &LayerModel {
-        &self.data
-    }
-}
-
-impl std::borrow::Borrow<LayerModel> for Layer {
-    fn borrow(&self) -> &LayerModel {
-        &self.data
-    }
-}
-
-impl Deref for Layer {
-    type Target = LayerModel;
-    fn deref(&self) -> &Self::Target {
-        &self.data
-    }
-}
-
-
-// === API ===
-
-impl Layer {
-    pub fn new(logger:&Logger, width:f32, height:f32, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<SymbolId,Vec<WeakLayer>>>>) -> Self {
-        let data = LayerModel::new(logger,width,height,global_depth_order,symbols_placement);
-        let data = Rc::new(data);
-        Self {data}
-    }
-
-    pub fn new_with_shared_camera
-    (logger:&Logger, camera:&Camera2d, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<SymbolId,Vec<WeakLayer>>>>) -> Self {
-        let data = LayerModel::new_with_shared_camera(logger,camera,global_depth_order,symbols_placement);
-        let data = Rc::new(data);
-        Self {data}
-    }
-
-    pub fn downgrade(&self) -> WeakLayer {
-        let data = Rc::downgrade(&self.data);
-        WeakLayer {data}
-    }
-
-    // FIXME: shape_system_id should not be Option after finishing refactoring of shape view.
-    pub fn add(&self, shape_system_id:Option<ShapeSystemId>, symbol_id:impl Into<SymbolId>) {
-        let symbol_id = symbol_id.into();
-        let placement = self.symbols_placement.borrow().get(&symbol_id).cloned();
-        if let Some(placement) = placement {
-            for weak_layer in placement {
-                if let Some(layer) = weak_layer.upgrade() {
-                    layer.remove(shape_system_id,symbol_id)
-                }
-            }
-        }
-        self.symbols_placement.borrow_mut().entry(symbol_id).or_default().push(self.downgrade());
-        match shape_system_id {
-            None => {
-                self.elements.borrow_mut().insert(LayerElement::Symbol(symbol_id));
-            },
-            Some(shape_system_id) => {
-                self.shape_system_symbol_map.borrow_mut().insert(shape_system_id,symbol_id);
-                self.elements.borrow_mut().insert(LayerElement::ShapeSystem(shape_system_id));
-            }
-        }
-        self.depth_sort();
-    }
-
-    pub fn remove(&self, shape_system_id:Option<ShapeSystemId>, symbol_id:impl Into<SymbolId>) {
-        let symbol_id = symbol_id.into();
-
-        self.elements.borrow_mut().remove(&LayerElement::Symbol(symbol_id));
-        match shape_system_id {
-            None => { }
-            Some(shape_system_id) => {
-                self.shape_system_symbol_map.borrow_mut().remove(&shape_system_id);
-                self.elements.borrow_mut().remove(&LayerElement::ShapeSystem(shape_system_id));
-            }
-        }
-
-        self.depth_sort();
-
-        if let Some(placement) = self.symbols_placement.borrow_mut().get_mut(&symbol_id) {
-            placement.remove_item(&self.downgrade());
-        }
-    }
-
-    fn depth_sort(&self) {
-        let elements_ordered = self.depth_order.sort(&*self.elements.borrow());
-        let symbols_ordered  = elements_ordered.into_iter().filter_map(|element| {
-            match element {
-                LayerElement::Symbol(symbol_id) => Some(symbol_id),
-                LayerElement::ShapeSystem(id) => {
-                    let out = self.shape_system_symbol_map.borrow().get(&id).copied();
-                    if out.is_none() {
-                        warning!(self.logger,"Trying to perform depth-order of non-existing element '{id:?}'.")
-                    }
-                    out
-                }
-            }
-        }).collect();
-        *self.symbols_ordered.borrow_mut() = symbols_ordered;
-    }
-
-    /// Add all `Symbol`s associated with the given ShapeView_DEPRECATED. Please note that this
-    /// function was used only in one place in the codebase and should be removed in the future.
-    pub fn add_shape_view_DEPRECATED<T: display::shape::primitive::system::Shape>
-    (&self, shape_view:&component::ShapeView_DEPRECATED<T>) {
-        self.add(None,&shape_view.shape.sprite().symbol)
-    }
-
-    /// Remove all `Symbol`s associated with the given ShapeView_DEPRECATED. Please note that this
-    /// function was used only in one place in the codebase and should be removed in the future.
-    pub fn remove_shape_view_DEPRECATED<T: display::shape::primitive::system::Shape>
-    (&self, shape_view:&component::ShapeView_DEPRECATED<T>) {
-        self.remove(None,&shape_view.shape.sprite().symbol)
-    }
-}
-
-impl WeakLayer {
-    pub fn upgrade(&self) -> Option<Layer> {
-        self.data.upgrade().map(|data| Layer {data})
-    }
-}
-
-impl LayerModel {
-    pub fn new
-    (logger:impl AnyLogger, width:f32, height:f32, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<SymbolId,Vec<WeakLayer>>>>) -> Self {
-        let camera = Camera2d::new(&logger,width,height);
-        Self::new_with_shared_camera(logger,camera,global_depth_order,symbols_placement)
-    }
-
-    pub fn new_with_shared_camera
-    (logger:impl AnyLogger, camera:impl Into<Camera2d>, global_depth_order:&GlobalDepthOrder, symbols_placement:&Rc<RefCell<HashMap<SymbolId,Vec<WeakLayer>>>>) -> Self {
-        let logger                       = Logger::sub(logger,"view");
-        let camera                       = camera.into();
-        let shape_registry               = default();
-        let shape_system_symbol_map      = default();
-        let elements                     = default();
-        let symbols_ordered              = default();
-        let depth_order                  = DepthOrder::new(global_depth_order);
-        let symbols_placement            = symbols_placement.clone_ref();
-
-        Self {logger,camera,shape_registry,shape_system_symbol_map,elements
-             ,symbols_ordered,depth_order,symbols_placement}
-    }
-
-    pub fn symbols(&self) -> Vec<SymbolId> {
-        self.symbols_ordered.borrow().clone()
-    }
-}
-
-
 
 // ==============
 // === Layers ===
@@ -866,48 +605,45 @@ impl LayerModel {
 /// display shapes properly. This should be abstracted away in the future.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Layers {
-    logger             : Logger,
     pub viz            : Layer,
     pub main           : Layer,
     pub cursor         : Layer,
     pub label          : Layer,
     pub viz_fullscreen : Layer,
     pub breadcrumbs    : Layer,
-    pub depth_order    : GlobalDepthOrder,
-    // depth_order_dirty  : dirty::Bool,
-    all                : Rc<RefCell<Vec<WeakLayer>>>,
-    symbols_placement  : Rc<RefCell<HashMap<SymbolId,Vec<WeakLayer>>>>,
-    width              : f32,
-    height             : f32,
+    layers             : LayersX,
 }
 
 impl Layers {
     pub fn new(logger:impl AnyLogger) -> Self {
-        let width             = 0.0;
-        let height            = 0.0;
-        let depth_order       = default();
-        let symbols_placement = default();
-        let logger            = Logger::sub(logger,"views");
-        let main              = Layer::new(&logger,width,height,&depth_order,&symbols_placement);
-        let viz               = Layer::new_with_shared_camera(&logger,&main.camera,&depth_order,&symbols_placement);
-        let cursor            = Layer::new(&logger,width,height,&depth_order,&symbols_placement);
-        let label             = Layer::new_with_shared_camera(&logger,&main.camera,&depth_order,&symbols_placement);
-        let viz_fullscreen    = Layer::new(&logger,width,height,&depth_order,&symbols_placement);
-        let breadcrumbs       = Layer::new(&logger,width,height,&depth_order,&symbols_placement);
-        let all               = vec![
-            viz.downgrade(),
-            main.downgrade(),
-            cursor.downgrade(),
-            label.downgrade(),
-            viz_fullscreen.downgrade(),
-            breadcrumbs.downgrade()
-        ];
-        let all = Rc::new(RefCell::new(all));
-        Self {logger,viz,main,cursor,label,viz_fullscreen,all,symbols_placement,width,height,breadcrumbs,depth_order}
+        let layers         = LayersX::new(logger);
+        let main           = layers.add();
+        let viz            = layers.add();
+        let cursor         = layers.add();
+        let label          = layers.add();
+        let viz_fullscreen = layers.add();
+        let breadcrumbs    = layers.add();
+        viz.set_camera(main.camera());
+        label.set_camera(main.camera());
+        Self {layers,viz,main,cursor,label,viz_fullscreen,breadcrumbs}
     }
 
-    pub fn all(&self) -> Ref<Vec<WeakLayer>> {
-        self.all.borrow()
+    fn init(&self, scene:Scene) {
+        self.main.shape_registry.init(&scene);
+        self.viz.shape_registry.init(&scene);
+        self.cursor.shape_registry.init(&scene);
+        self.label.shape_registry.init(&scene);
+        self.viz_fullscreen.shape_registry.init(&scene);
+        self.breadcrumbs.shape_registry.init(&scene);
+    }
+
+
+    pub fn all(&self) -> Vec<Layer> {
+        self.layers.all()
+    }
+
+    pub fn update(&self) {
+        self.layers.update();
     }
 }
 
@@ -988,7 +724,7 @@ pub struct SceneData {
     pub dirty            : Dirty,
     pub logger           : Logger,
     pub renderer         : Renderer,
-    pub layers            : Layers,
+    pub layers           : Layers,
     pub style_sheet      : style::Sheet,
     pub bg_color_var     : style::Var,
     pub bg_color_change  : callback::Handle,
@@ -1061,13 +797,13 @@ impl SceneData {
         &self.dom.root.shape
     }
 
-    pub fn camera(&self) -> &Camera2d {
-        &self.layers.main.camera
+    pub fn camera(&self) -> Camera2d {
+        self.layers.main.camera()
     }
 
     pub fn new_symbol(&self) -> Symbol {
         let symbol = self.symbols.new();
-        self.layers.main.add(None,&symbol);
+        self.layers.main.add_symbol(&symbol);
         symbol
     }
 
@@ -1090,8 +826,8 @@ impl SceneData {
         if self.dirty.shape.check_all() {
             let screen = self.dom.shape();
             self.resize_canvas(screen);
-            for layer in &*self.layers.all.borrow() {
-                layer.upgrade().for_each(|v| v.camera.set_screen(screen.width,screen.height))
+            for layer in &*self.layers.all() {
+                layer.camera().set_screen(screen.width,screen.height)
             }
             self.renderer.reload_composer();
             self.dirty.shape.unset_all();
@@ -1112,14 +848,14 @@ impl SceneData {
         let changed = camera.update(scene);
         if changed {
             self.frp.camera_changed_source.emit(());
-            self.symbols.set_camera(camera);
-            self.dom.layers.front.update_view_projection(camera);
-            self.dom.layers.back.update_view_projection(camera);
+            self.symbols.set_camera(&camera);
+            self.dom.layers.front.update_view_projection(&camera);
+            self.dom.layers.back.update_view_projection(&camera);
         }
 
         // Updating all other cameras (the main camera was already updated, so it will be skipped).
-        for view in &*self.layers.all() {
-            view.upgrade().for_each(|v| v.camera.update(scene));
+        for layer in &*self.layers.all() {
+            layer.camera().update(scene);
         }
     }
 
@@ -1184,11 +920,12 @@ impl Scene {
 
         // FIXME MEMORY LEAK in all lines below:
         this.no_mut_access.shapes.rc.borrow_mut().scene = Some(this.clone_ref());
-        for view in &*this.no_mut_access.layers.all.borrow() {
-            if let Some(view) = view.upgrade() {
-                view.shape_registry.rc.borrow_mut().scene = Some(this.clone_ref());
-            }
-        }
+        this.no_mut_access.layers.init(this.clone_ref());
+        // for view in &*this.no_mut_access.layers.all() {
+        //     if let Some(view) = view.upgrade() {
+        //         view.shape_registry.rc.borrow_mut().scene = Some(this.clone_ref());
+        //     }
+        // }
 
         this
     }
@@ -1225,6 +962,7 @@ impl Scene {
             // may change display objects layout.
             self.update_camera(self);
             self.display_object.update(self);
+            self.layers.update();
             self.update_shape();
             self.update_symbols();
             self.handle_mouse_events();

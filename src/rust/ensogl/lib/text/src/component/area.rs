@@ -675,14 +675,14 @@ impl Area {
     /// the new shape system definition, and thus, inherits the scene layer settings from this
     /// display object.
     pub fn add_to_scene_layer_DEPRECATED(&self, view:&display::scene::Layer) {
-        for symbol in self.symbols() { view.add(None,&symbol); }
-        self.data.camera.set(view.camera.clone_ref());
+        for symbol in self.symbols() { view.add_symbol(&symbol); }
+        self.data.camera.set(view.camera());
         self.set_scene_layer(&view.downgrade());
     }
 
     /// Remove this component from view.
     pub fn remove_from_view(&self, view:&display::scene::Layer) {
-        for symbol in self.symbols() { view.remove(None,&symbol); }
+        for symbol in self.symbols() { view.remove_symbol(&symbol); }
     }
 
     fn symbols(&self) -> SmallVec<[display::Symbol;1]> {
@@ -743,8 +743,8 @@ impl AreaModel {
 
         // FIXME[WD]: This is temporary sorting utility, which places the cursor in front of mouse
         // pointer and nodes. Should be refactored when proper sorting mechanisms are in place.
-        scene.layers.main.remove(None,symbol);
-        scene.layers.label.add(None,symbol);
+        scene.layers.main.remove_symbol(symbol);
+        scene.layers.label.add_symbol(symbol);
 
         let frp_endpoints = frp_endpoints.clone_ref();
 

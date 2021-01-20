@@ -47,11 +47,9 @@ impl RenderPass for SymbolsRenderPass {
         context.clear_bufferfv_with_f32_array(Context::COLOR,0,&arr);
         context.clear_bufferfv_with_f32_array(Context::COLOR,1,&arr);
 
-        for view in self.layers.all().iter() {
-            if let Some(view) = view.upgrade() {
-                self.target.set_camera(&view.camera);
-                self.target.render_by_ids(&view.symbols());
-            }
+        for layer in self.layers.all().iter() {
+            self.target.set_camera(&layer.camera());
+            self.target.render_by_ids(&layer.symbols());
         }
     }
 }

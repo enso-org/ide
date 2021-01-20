@@ -9,7 +9,7 @@ use super::transform;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::display::scene::Scene;
-use crate::display::scene::WeakLayer;
+use crate::display::scene::layer::WeakLayer;
 
 use data::opt_vec::OptVec;
 use nalgebra::Matrix4;

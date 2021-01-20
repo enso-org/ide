@@ -162,7 +162,7 @@ impl World {
 
     /// Keeps the world alive even when all references are dropped. Use only if you want to keep one
     /// instance of the world forever.
-    pub fn  keep_alive_forever(&self) {
+    pub fn keep_alive_forever(&self) {
         mem::forget(self.clone_ref())
     }
 }
