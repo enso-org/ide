@@ -13,7 +13,10 @@ statistics = []
 no_unboxed_callbacks = []
 
 [dependencies]
+Inflector = { version = "0.11.4" }
+bit_field = { version = "0.10.0" }
 code-builder = { path = "../../../lib/code-builder" }
+console_error_panic_hook = { version = "0.1.6" }
 enso-callback = { path = "../../../lib/callback" }
 enso-data = { version = "0.1.4" }
 enso-frp = { path = "../../../lib/frp" }
@@ -27,27 +30,19 @@ enso-types = { path = "../../../lib/types" }
 ensogl-system-web = { path = "../../../lib/system/web" }
 ensogl-text-embedded-fonts = { path = "../text/embedded-fonts" }
 ensogl-text-msdf-sys = { path = "../text/msdf-sys" }
+enum_dispatch = { version = "0.2.0" }
 eval-tt = { path = "../../../lib/eval-tt" }
-bit_field = { version = "0.10.0" }
-console_error_panic_hook = { version = "0.1.6" }
 failure = { version = "0.1.5" }
-Inflector = { version = "0.11.4" }
 itertools = { version = "0.8" }
 js-sys = { version = "0.3.28" }
 nalgebra = { version = "0.21.1" }
-num_enum = { version = "0.4.2" }
 num-traits = { version = "0.2" }
+num_enum = { version = "0.4.2" }
 paste = { version = "0.1.6" }
 rustc-hash = { version = "1.0.1" }
 shrinkwraprs = { version = "0.3.0" }
 smallvec = { version = "1.6.1" }
 typenum = { version = "1.11.2" }
-
-# The syn dependency is only here to lock the version used by `enum_dispatch`. Otherwise an
-# incompatible version will be chosen and compilation fails. This can be removed when
-#`enum_dispatch` has released a working version and we can update to that.
-syn = { version = "=1.0.57", features = ["full", "extra-traits"] }
-enum_dispatch = { version = "0.2.0" }
 
 # We require exact version of wasm-bindgen because we do patching final js in our build process,
 # and this is vulnerable to any wasm-bindgen version change.
