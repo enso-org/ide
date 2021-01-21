@@ -129,33 +129,41 @@ impl display::Object for ShapeSystem {
 // === ShapeSystemInstance ===
 // ===========================
 
-/// Type for every `ShapeSystem` with automatic buffer management. The easiest way to define such a
-/// shape system instance is by using the `define_shape_system` macro.
+/// Trait for user defined shape systems. The easiest way to define custom shape system is by using
+/// the `define_shape_system` macro.
 pub trait ShapeSystemInstance : 'static + CloneRef {
-    /// The shape type of this shape system definition.
-    type Shape : Shape<System=Self>;
-    /// Constructor.
-    fn new(scene:&Scene) -> Self;
-    /// New shape constructor.
-    fn new_instance(&self) -> Self::Shape;
-}
-
-pub trait KnownShapeSystemId {
-    fn shape_system_id() -> ShapeSystemId;
-}
-
-pub trait DynShapeSystemInstance : 'static + CloneRef {
-    /// The shape type of this shape system definition.
-    type DynamicShape : DynamicShape<System=Self>;
-
     /// The ID of the shape system.
     fn id() -> ShapeSystemId;
     /// Constructor.
     fn new(scene:&Scene) -> Self;
-    /// New shape constructor.
-    fn instantiate(&self, shape:&Self::DynamicShape) -> attribute::InstanceIndex;
-
+    /// The [`ShapeSystem`] instance of the user defined shape system.
     fn shape_system(&self) -> &ShapeSystem;
+}
+
+/// Trait for user defined shape systems. The easiest way to define custom shape system is by using
+/// the `define_shape_system` macro.
+pub trait StaticShapeSystemInstance : ShapeSystemInstance {
+    /// The shape type of this shape system definition.
+    type Shape : Shape<System=Self>;
+    /// New shape constructor.
+    fn new_instance(&self) -> Self::Shape;
+}
+
+/// Trait for user defined shape systems. The easiest way to define custom shape system is by using
+/// the `define_shape_system` macro.
+pub trait DynShapeSystemInstance : ShapeSystemInstance {
+    /// The dynamic shape type of this shape system definition.
+    type DynamicShape : DynamicShape<System=Self>;
+    /// New shape instantiation. Used to bind a shape to a specific scene implementation.
+    fn instantiate(&self, shape:&Self::DynamicShape) -> attribute::InstanceIndex;
+}
+
+/// Abstraction for every entity which is associated with a shape system (user generated one). For
+/// example, all defined shapes are associated with a shape system, and thus they implement this
+/// trait.
+pub trait KnownShapeSystemId {
+    /// The ID of a user defined shape system.
+    fn shape_system_id() -> ShapeSystemId;
 }
 
 
@@ -164,33 +172,47 @@ pub trait DynShapeSystemInstance : 'static + CloneRef {
 // === Shape ===
 // =============
 
-/// Type for every shape with automatic attribute management. The easiest way to define such a
+/// Type for every shape bound to a specific scene and GPU buffers. The easiest way to define such a
 /// shape is by using the `define_shape_system` macro.
 pub trait Shape : display::Object + CloneRef + Debug + Sized {
     /// The shape system instance this shape belongs to.
-    type System : ShapeSystemInstance<Shape=Self>;
+    type System : StaticShapeSystemInstance<Shape=Self>;
     /// Accessor for the underlying sprite.
     fn sprite(&self) -> &Sprite;
 }
 
 
+/// Type for every shape which can, but does not have to be bound to a specific scene and GPU
+/// buffers. Dynamic shapes can be created freely and will be bound to a scene after being attached
+/// as scene children and an update frame event will be emitted.
+///
+/// Dynamic shapes contain copy of all shape parameters and use them to set up the GPU parameters
+/// on bound.
+///
+/// The easiest way to define such a shape is by using the `define_shape_system` macro.
 pub trait DynamicShape : display::Object + CloneRef + Debug + Sized {
     /// The shape system instance this shape belongs to.
     type System : DynShapeSystemInstance<DynamicShape=Self>;
-
     /// Constructor.
     fn new(logger:impl AnyLogger) -> Self;
-
     /// Accessor for the underlying sprite, if the shape is initialized.
     fn sprite(&self) -> Option<Sprite>;
 }
 
+
+// === Type Families ===
 
 /// Accessor for the `Shape::System` associated type.
 pub type ShapeSystemOf<T> = <T as Shape>::System;
 
 /// Accessor for the `Shape::System` associated type.
 pub type DynShapeSystemOf<T> = <T as DynamicShape>::System;
+
+
+
+// ================
+// === ShapeOps ===
+// ================
 
 /// Additional operations implemented for all structures implementing `Shape`.
 pub trait ShapeOps {
@@ -294,8 +316,8 @@ macro_rules! _define_shape_system {
         #[derive(Clone,CloneRef,Debug,Default)]
         #[allow(missing_docs)]
         pub struct DynamicShapeParams {
-            pub size : DynamicParam<$crate::display::symbol::geometry::compound::sprite::Size>,
-            $(pub $gpu_param : DynamicParam<$crate::system::gpu::data::Attribute<$gpu_param_type>>),*
+            pub size:DynamicParam<$crate::display::symbol::geometry::compound::sprite::Size>,
+            $(pub $gpu_param:DynamicParam<$crate::system::gpu::data::Attribute<$gpu_param_type>>),*
         }
 
         impl<T> DynamicParam<T>
@@ -352,7 +374,10 @@ macro_rules! _define_shape_system {
                 if let Some(shape) = &shape {
                     self.display_object.add_child(&shape);
                     self.params.size.set_attribute_binding(Some(shape.sprite.size.clone_ref()));
-                    $(self.params.$gpu_param.set_attribute_binding(Some(shape.$gpu_param.clone_ref()));)*
+                    $(
+                        let gpu_param = shape.$gpu_param.clone_ref();
+                        self.params.$gpu_param.set_attribute_binding(Some(gpu_param));
+                    )*
                 } else {
                     self.params.size.set_attribute_binding(None);
                     $(self.params.$gpu_param.set_attribute_binding(None);)*
@@ -389,8 +414,8 @@ macro_rules! _define_shape_system {
         // === View ===
         // ============
 
-        // A view of the defined shape. You can place the view in your objects and it will
-        // automatically initialize on-demand.
+        /// A view of the defined shape. You can place the view in your objects and it will
+        /// automatically initialize on-demand.
         pub type View = $crate::gui::component::ShapeView<DynamicShape>;
 
         impl $crate::display::shape::KnownShapeSystemId for DynamicShape {
@@ -416,18 +441,30 @@ macro_rules! _define_shape_system {
         }
 
         impl $crate::display::shape::ShapeSystemInstance for ShapeSystem {
-            type Shape = Shape;
+            fn id() -> $crate::display::shape::ShapeSystemId {
+                std::any::TypeId::of::<ShapeSystem>().into()
+            }
 
             fn new(scene:&$crate::display::scene::Scene) -> Self {
                 let style_manager = $crate::display::shape::StyleWatch::new(&scene.style_sheet);
-                let shape_system  = $crate::display::shape::ShapeSystem::new(scene,&Self::shape_def(&style_manager));
+                let shape_def     = Self::shape_def(&style_manager);
+                let shape_system  = $crate::display::shape::ShapeSystem::new(scene,&shape_def);
                 $(
-                    let name       = stringify!($gpu_param);
-                    let value      = $crate::system::gpu::data::default::gpu_default::<$gpu_param_type>();
-                    let $gpu_param = shape_system.add_input(name,value);
+                    let name = stringify!($gpu_param);
+                    let val  = $crate::system::gpu::data::default::gpu_default::<$gpu_param_type>();
+                    let $gpu_param = shape_system.add_input(name,val);
                 )*
                 Self {shape_system,style_manager,$($gpu_param),*} . init_refresh_on_style_change()
             }
+
+            fn shape_system(&self) -> &$crate::display::shape::ShapeSystem {
+                &self.shape_system
+            }
+        }
+
+
+        impl $crate::display::shape::StaticShapeSystemInstance for ShapeSystem {
+            type Shape = Shape;
 
             fn new_instance(&self) -> Self::Shape {
                 let sprite = self.shape_system.new_instance();
@@ -437,31 +474,8 @@ macro_rules! _define_shape_system {
             }
         }
 
-        impl $crate::display::shape::KnownShapeSystemId for ShapeSystem {
-            fn shape_system_id() -> $crate::display::shape::ShapeSystemId {
-                std::any::TypeId::of::<ShapeSystem>().into()
-            }
-        }
-
         impl $crate::display::shape::DynShapeSystemInstance for ShapeSystem {
             type DynamicShape = DynamicShape;
-
-            // FIXME: Duplicated (^^^)
-            fn id() -> $crate::display::shape::ShapeSystemId {
-                std::any::TypeId::of::<ShapeSystem>().into()
-            }
-
-            // FIXME: Duplicated (^^^)
-            fn new(scene:&$crate::display::scene::Scene) -> Self {
-                let style_manager = $crate::display::shape::StyleWatch::new(&scene.style_sheet);
-                let shape_system  = $crate::display::shape::ShapeSystem::new(scene,&Self::shape_def(&style_manager));
-                $(
-                    let name       = stringify!($gpu_param);
-                    let value      = $crate::system::gpu::data::default::gpu_default::<$gpu_param_type>();
-                    let $gpu_param = shape_system.add_input(name,value);
-                )*
-                Self {shape_system,style_manager,$($gpu_param),*} . init_refresh_on_style_change()
-            }
 
             fn instantiate(&self, dyn_shape:&Self::DynamicShape)
             -> $crate::system::gpu::data::attribute::InstanceIndex {
@@ -472,9 +486,11 @@ macro_rules! _define_shape_system {
                 dyn_shape.set_shape_binding(Some(shape));
                 id
             }
+        }
 
-            fn shape_system(&self) -> &$crate::display::shape::ShapeSystem {
-                &self.shape_system
+        impl $crate::display::shape::KnownShapeSystemId for ShapeSystem {
+            fn shape_system_id() -> $crate::display::shape::ShapeSystemId {
+                std::any::TypeId::of::<ShapeSystem>().into()
             }
         }
 

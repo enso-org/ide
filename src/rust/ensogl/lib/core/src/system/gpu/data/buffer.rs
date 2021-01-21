@@ -60,6 +60,8 @@ fn on_mut_fn(dirty:MutDirty) -> OnMut {
 // === GlData ===
 // ==============
 
+/// The WebGL data of the buffer. This data is missing from buffer instance if the buffer is not
+/// bound to WebGL context. See the main architecture docs of this library to learn more.
 #[derive(Debug)]
 pub struct GlData {
     context : Context,
@@ -67,6 +69,7 @@ pub struct GlData {
 }
 
 impl GlData {
+    /// Constructor.
     pub fn new(context:&Context) -> Self {
         let context = context.clone();
         let buffer  = create_gl_buffer(&context);
@@ -118,19 +121,6 @@ impl<T:Storable> {
             let gl            = default();
             Self {gl,buffer,mut_dirty,resize_dirty,logger,usage,stats,gpu_mem_usage}
         })
-    }
-
-    pub fn set_context(&mut self, context:Option<&Context>) {
-        match context {
-            None => {
-                self.gl = None;
-            }
-            Some(context) => {
-                let gl  = GlData::new(context);
-                self.gl = Some(gl);
-                self.resize_dirty.set();
-            }
-        }
     }
 
     /// Return the number of elements in the buffer.
@@ -229,6 +219,20 @@ impl<T:Storable> {
                     let instance_count = 1;
                     gl.context.vertex_attrib_divisor(lloc,instance_count);
                 }
+            }
+        }
+    }
+
+    /// Set the WebGL context. See the main architecture docs of this library to learn more.
+    pub(crate) fn set_context(&mut self, context:Option<&Context>) {
+        match context {
+            None => {
+                self.gl = None;
+            }
+            Some(context) => {
+                let gl  = GlData::new(context);
+                self.gl = Some(gl);
+                self.resize_dirty.set();
             }
         }
     }

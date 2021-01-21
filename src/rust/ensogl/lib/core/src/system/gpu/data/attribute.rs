@@ -115,13 +115,6 @@ impl {
         })
     }
 
-    pub fn set_context(&mut self, context:Option<&Context>) {
-        self.context = context.cloned();
-        for buffer in &self.buffers {
-            buffer.set_context(context);
-        }
-    }
-
     /// Add a new named buffer to the scope.
     pub fn add_buffer<Name:Str, T:Storable>(&mut self, name:Name) -> Buffer<T>
     where AnyBuffer: From<Buffer<T>> {
@@ -205,6 +198,14 @@ impl {
     /// Return the size of buffers in this scope.
     pub fn size(&self) -> usize {
         self.size
+    }
+
+    /// Set the WebGL context. See the main architecture docs of this library to learn more.
+    pub(crate) fn set_context(&mut self, context:Option<&Context>) {
+        self.context = context.cloned();
+        for buffer in &self.buffers {
+            buffer.set_context(context);
+        }
     }
 }}
 

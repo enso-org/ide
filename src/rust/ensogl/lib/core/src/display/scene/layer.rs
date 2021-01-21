@@ -4,7 +4,8 @@ use crate::data::OptVec;
 use crate::data::dirty;
 use crate::display::camera::Camera2d;
 use crate::display::scene::Scene;
-use crate::display::shape::DynShapeSystemInstance;
+use crate::display::shape::ShapeSystemInstance;
+use crate::display::shape::system::DynShapeSystemInstance;
 use crate::display::shape::system::DynShapeSystemOf;
 use crate::display::shape::system::KnownShapeSystemId;
 use crate::display::shape::system::ShapeSystemId;
@@ -39,20 +40,20 @@ impl {
         self.scene = Some(scene.clone_ref());
     }
 
-    fn get<T:DynShapeSystemInstance>(&self) -> Option<T> {
+    fn get<T:ShapeSystemInstance>(&self) -> Option<T> {
         let id = TypeId::of::<T>();
         self.shape_system_map.get(&id).and_then(|t| t.downcast_ref::<T>()).map(|t| t.clone_ref())
     }
 
-    fn register<T:DynShapeSystemInstance>(&mut self) -> T {
+    fn register<T:ShapeSystemInstance>(&mut self) -> T {
         let id     = TypeId::of::<T>();
-        let system = <T as DynShapeSystemInstance>::new(self.scene.as_ref().unwrap());
+        let system = <T as ShapeSystemInstance>::new(self.scene.as_ref().unwrap());
         let any    = Box::new(system.clone_ref());
         self.shape_system_map.insert(id,any);
         system
     }
 
-    fn get_or_register<T:DynShapeSystemInstance>(&mut self) -> T {
+    fn get_or_register<T:ShapeSystemInstance>(&mut self) -> T {
         self.get().unwrap_or_else(|| self.register())
     }
 
@@ -394,6 +395,7 @@ impl LayerModel {
 
     /// Add all `Symbol`s associated with the given ShapeView_DEPRECATED. Please note that this
     /// function was used only in one place in the codebase and should be removed in the future.
+    #[allow(non_snake_case)]
     pub fn add_shape_view_DEPRECATED<T: display::shape::primitive::system::Shape>
     (&self, shape_view:&component::ShapeView_DEPRECATED<T>) {
         self.add_symbol(&shape_view.shape.sprite().symbol)
@@ -401,6 +403,7 @@ impl LayerModel {
 
     /// Remove all `Symbol`s associated with the given ShapeView_DEPRECATED. Please note that this
     /// function was used only in one place in the codebase and should be removed in the future.
+    #[allow(non_snake_case)]
     pub fn remove_shape_view_DEPRECATED<T: display::shape::primitive::system::Shape>
     (&self, shape_view:&component::ShapeView_DEPRECATED<T>) {
         self.remove_symbol(&shape_view.shape.sprite().symbol)

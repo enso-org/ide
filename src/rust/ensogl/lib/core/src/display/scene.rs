@@ -25,6 +25,7 @@ use crate::display::render::RenderPipeline;
 use crate::display::scene::dom::DomScene;
 use crate::display::shape::ShapeSystemInstance;
 use crate::display::shape::system::ShapeSystemOf;
+use crate::display::shape::system::StaticShapeSystemInstance;
 use crate::display::style::data::DataMatch;
 use crate::display::style;
 use crate::display::symbol::Symbol;

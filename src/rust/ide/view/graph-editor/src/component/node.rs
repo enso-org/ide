@@ -24,7 +24,6 @@ use ensogl::data::color;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
-use ensogl::gui::component::ShapeView_DEPRECATED;
 use ensogl::gui::text;
 use ensogl_text::Text;
 use ensogl_text::style::Size as TextSize;

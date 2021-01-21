@@ -20,11 +20,8 @@ use ensogl_core::application::Application;
 use ensogl_core::application::shortcut;
 use ensogl_core::application;
 use ensogl_core::data::color;
-use ensogl_core::display::scene;
-use ensogl_core::display::scene::Scene;
 use ensogl_core::display::shape::*;
 use ensogl_core::display;
-use ensogl_core::gui::component;
 use ensogl_core::gui::cursor;
 use ensogl_core::system::gpu::shader::glsl::traits::IntoGlsl;
 use ensogl_core::system::web::clipboard;
@@ -674,6 +671,7 @@ impl Area {
     /// Please note, that this function handles the selection management correctly now, as it uses
     /// the new shape system definition, and thus, inherits the scene layer settings from this
     /// display object.
+    #[allow(non_snake_case)]
     pub fn add_to_scene_layer_DEPRECATED(&self, view:&display::scene::Layer) {
         for symbol in self.symbols() { view.add_symbol(&symbol); }
         self.data.camera.set(view.camera());

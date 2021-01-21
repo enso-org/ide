@@ -135,13 +135,6 @@ impl {
         Self {scopes,scopes_dirty,logger,stats}
     }
 
-    pub fn set_context(&self, context:Option<&Context>) {
-        macro_rules! set_scope_context { ($($name:ident),*) => {
-            $( self.scopes.$name.set_context(context); )*
-        }}
-        set_scope_context!(point,vertex,primitive,instance);
-    }
-
     /// Point scope accessor.
     pub fn point_scope(&self) -> AttributeScope {
         self.scopes.point.clone_ref()
@@ -193,6 +186,14 @@ impl {
             ScopeType::Primitive => &self.scopes.primitive,
             ScopeType::Instance  => &self.scopes.instance,
         }.clone_ref()
+    }
+
+    /// Set the WebGL context. See the main architecture docs of this library to learn more.
+    pub(crate) fn set_context(&self, context:Option<&Context>) {
+        macro_rules! set_scope_context { ($($name:ident),*) => {
+            $( self.scopes.$name.set_context(context); )*
+        }}
+        set_scope_context!(point,vertex,primitive,instance);
     }
 }}
 

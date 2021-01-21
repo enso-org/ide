@@ -9,10 +9,8 @@ use ensogl::Animation;
 use ensogl::Easing;
 use ensogl::application::Application;
 use ensogl::data::color;
-use ensogl::display::scene::Scene;
 use ensogl::display::shape::StyleWatch;
 use ensogl::display;
-use ensogl::gui::component;
 use ensogl_text as text;
 use ensogl_theme as theme;
 use span_tree;
@@ -191,10 +189,6 @@ impl Model {
         self.label.mod_position(|t| t.y = input::area::TEXT_SIZE / 2.0);
 
         self
-    }
-
-    fn scene(&self) -> &Scene {
-        self.app.display.scene()
     }
 
     fn set_label(&self, content:impl Into<String>) {

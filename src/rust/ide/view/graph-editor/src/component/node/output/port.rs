@@ -8,7 +8,6 @@ use crate::component::type_coloring;
 use enso_frp as frp;
 use ensogl::Animation;
 use ensogl::data::color;
-use ensogl::display::scene::Scene;
 use ensogl::display::shape::AnyShape;
 use ensogl::display::shape::BottomHalfPlane;
 use ensogl::display::shape::Circle;
