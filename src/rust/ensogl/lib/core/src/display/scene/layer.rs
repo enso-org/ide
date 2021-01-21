@@ -226,7 +226,11 @@ impl Drop for LayerModel {
 
 impl LayerModel {
     pub fn new
-    (logger:impl AnyLogger, id:LayerId, all_layers_model:&Rc<RefCell<LayersModel>>, on_mut:Box<dyn Fn()>) -> Self {
+    ( logger           : impl AnyLogger
+    , id               : LayerId
+    , all_layers_model : &Rc<RefCell<LayersModel>>
+    , on_mut           : Box<dyn Fn()>
+    ) -> Self {
         let width  = 0.0;
         let height = 0.0;
         let logger                  = Logger::sub(logger,"layer");
@@ -248,24 +252,48 @@ impl LayerModel {
         self.symbols_ordered.borrow().clone()
     }
 
-    pub fn order(&self, below:impl Into<LayerElement>, above:impl Into<LayerElement>) {
+    pub fn add_elements_order_dependency
+    (&self, below:impl Into<LayerElement>, above:impl Into<LayerElement>) {
         let below = below.into();
         let above = above.into();
         self.depth_order_dirty.set();
         self.depth_order.borrow_mut().insert_dependency(below,above);
     }
 
-    /// TODO
+    pub fn remove_elements_order_dependency
+    (&self, below:impl Into<LayerElement>, above:impl Into<LayerElement>) {
+        let below = below.into();
+        let above = above.into();
+        if self.depth_order.borrow_mut().remove_dependency(below,above) {
+            self.depth_order_dirty.set();
+        }
+    }
+
+    /// # Future Improvements
     /// This implementation can be simplified to `S1:KnownShapeSystemId` (not using [`Content`] at
     /// all), after the compiler gets updated to newer version.
-    pub fn order_shapes<S1,S2>(&self) -> (PhantomData<S1>,PhantomData<S2>) where
+    pub fn add_shapes_order_dependency<S1,S2>(&self) -> (PhantomData<S1>,PhantomData<S2>) where
     S1          : HasContent,
     S2          : HasContent,
     Content<S1> : KnownShapeSystemId,
     Content<S2> : KnownShapeSystemId {
         let s1_id = <Content<S1>>::shape_system_id();
         let s2_id = <Content<S2>>::shape_system_id();
-        self.order(s1_id,s2_id);
+        self.add_elements_order_dependency(s1_id,s2_id);
+        default()
+    }
+
+    /// # Future Improvements
+    /// This implementation can be simplified to `S1:KnownShapeSystemId` (not using [`Content`] at
+    /// all), after the compiler gets updated to newer version.
+    pub fn remove_shapes_order_dependency<S1,S2>(&self) -> (PhantomData<S1>,PhantomData<S2>) where
+    S1          : HasContent,
+    S2          : HasContent,
+    Content<S1> : KnownShapeSystemId,
+    Content<S2> : KnownShapeSystemId {
+        let s1_id = <Content<S1>>::shape_system_id();
+        let s2_id = <Content<S2>>::shape_system_id();
+        self.remove_elements_order_dependency(s1_id,s2_id);
         default()
     }
 
@@ -419,6 +447,10 @@ impl Layers {
              ,layers_depth_order_dirty}
     }
 
+    pub fn get(&self, layer_id:LayerId) -> Option<Layer> {
+        self.model.borrow().get(layer_id)
+    }
+
     pub fn add(&self) -> Layer {
         let (_,layer) = self.model.borrow_mut().registry.insert_with_ix(|ix| {
             let id     = LayerId::from(ix);
@@ -453,31 +485,55 @@ impl Layers {
         self.model.borrow().all()
     }
 
-    pub fn layer_order(&self, below:impl Into<LayerId>, above:impl Into<LayerId>) {
+    pub fn add_layers_order_dependency(&self, below:impl Into<LayerId>, above:impl Into<LayerId>) {
         let below = below.into();
         let above = above.into();
         self.layers_depth_order_dirty.set();
         self.model.borrow_mut().layer_depth_order.insert_dependency(below,above);
     }
 
-    pub fn order(&self, below:impl Into<LayerElement>, above:impl Into<LayerElement>) {
+    pub fn add_elements_order_dependency
+    (&self, below:impl Into<LayerElement>, above:impl Into<LayerElement>) {
         let below = below.into();
         let above = above.into();
         self.element_depth_order_dirty.set();
         self.global_element_depth_order.borrow_mut().insert_dependency(below,above);
     }
 
-    /// TODO
+    pub fn remove_elements_order_dependency
+    (&self, below:impl Into<LayerElement>, above:impl Into<LayerElement>) {
+        let below = below.into();
+        let above = above.into();
+        if self.global_element_depth_order.borrow_mut().remove_dependency(below,above) {
+            self.element_depth_order_dirty.set();
+        }
+    }
+
+    /// # Future Improvements
     /// This implementation can be simplified to `S1:KnownShapeSystemId` (not using [`Content`] at
     /// all), after the compiler gets updated to newer version.
-    pub fn order_shapes<S1,S2>(&self) -> (PhantomData<S1>,PhantomData<S2>) where
+    pub fn add_shapes_order_dependency<S1,S2>(&self) -> (PhantomData<S1>,PhantomData<S2>) where
     S1          : HasContent,
     S2          : HasContent,
     Content<S1> : KnownShapeSystemId,
     Content<S2> : KnownShapeSystemId {
         let s1_id = <Content<S1>>::shape_system_id();
         let s2_id = <Content<S2>>::shape_system_id();
-        self.order(s1_id,s2_id);
+        self.add_elements_order_dependency(s1_id,s2_id);
+        default()
+    }
+
+    /// # Future Improvements
+    /// This implementation can be simplified to `S1:KnownShapeSystemId` (not using [`Content`] at
+    /// all), after the compiler gets updated to newer version.
+    pub fn remove_shapes_order_dependency<S1,S2>(&self) -> (PhantomData<S1>,PhantomData<S2>) where
+    S1          : HasContent,
+    S2          : HasContent,
+    Content<S1> : KnownShapeSystemId,
+    Content<S2> : KnownShapeSystemId {
+        let s1_id = <Content<S1>>::shape_system_id();
+        let s2_id = <Content<S2>>::shape_system_id();
+        self.remove_elements_order_dependency(s1_id,s2_id);
         default()
     }
 }
@@ -500,6 +556,10 @@ impl LayersModel {
     pub fn all(&self) -> Vec<Layer> {
         self.sorted_layers.iter().filter_map(|id| self.registry[**id].upgrade()).collect()
     }
+
+    pub fn get(&self, layer_id:LayerId) -> Option<Layer> {
+        self.registry.safe_index(*layer_id).and_then(|t|t.upgrade())
+    }
 }
 
 
@@ -512,8 +572,8 @@ impl LayersModel {
 /// For example, the following usage:
 ///
 /// ```ignore
-/// order_shapes! {
-///     app.display.scene() => {
+/// shapes_order_depenendencies! {
+///     scene => {
 ///         output::port::single_port -> shape;
 ///         output::port::multi_port  -> shape;
 ///         shape                     -> input::port::hover;
@@ -525,16 +585,16 @@ impl LayersModel {
 /// Will expand to:
 ///
 /// ```ignore
-/// app.display.scene().layers.order_shapes::<output::port::single_port::View, shape::View>();
-/// app.display.scene().layers.order_shapes::<output::port::multi_port::View, shape::View>();
-/// app.display.scene().layers.order_shapes::<shape::View, input::port::hover::View>();
-/// app.display.scene().layers.order_shapes::<input::port::hover::View, input::port::viz::View>();
+/// scene.layers.add_shapes_order_dependency::<output::port::single_port::View, shape::View>();
+/// scene.layers.add_shapes_order_dependency::<output::port::multi_port::View, shape::View>();
+/// scene.layers.add_shapes_order_dependency::<shape::View, input::port::hover::View>();
+/// scene.layers.add_shapes_order_dependency::<input::port::hover::View, input::port::viz::View>();
 /// ```
 #[macro_export]
-macro_rules! order_shapes {
+macro_rules! shapes_order_depenendencies {
     ($scene:expr => {
         $( $p1:ident $(:: $ps1:ident)* -> $p2:ident $(:: $ps2:ident)*; )*
     }) => {$(
-        $scene.layers.order_shapes::<$p1$(::$ps1)*::View, $p2$(::$ps2)*::View>();
+        $scene.layers.add_shapes_order_dependency::<$p1$(::$ps1)*::View, $p2$(::$ps2)*::View>();
     )*};
 }

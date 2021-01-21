@@ -12,7 +12,7 @@ use crate::display::scene::MouseTarget;
 use crate::display::scene::Scene;
 use crate::display::scene::ShapeRegistry;
 use crate::display::scene::layer::ShapeRegistry2;
-use crate::display::scene::layer::WeakLayer;
+use crate::display::scene::layer::LayerId;
 use crate::display::scene;
 use crate::display::shape::primitive::system::DynamicShape;
 use crate::display::shape::primitive::system::Shape;
@@ -189,10 +189,10 @@ impl<S:DynamicShape+'static> ShapeView<S> {
 
     fn init_on_show(&self) {
         let weak_model = Rc::downgrade(&self.model);
-        self.display_object().set_on_show(move |scene,views| {
+        self.display_object().set_on_show(move |scene,layers| {
             if let Some(model) = weak_model.upgrade() {
                 if model.before_first_show.get() {
-                    model.on_scene_layers_changed(scene,views)
+                    model.on_scene_layers_changed(scene,layers)
                 }
             }
         });
@@ -200,9 +200,9 @@ impl<S:DynamicShape+'static> ShapeView<S> {
 
     fn init_on_scene_layer_changed(&self) {
         let weak_model = Rc::downgrade(&self.model);
-        self.display_object().set_on_scene_layer_changed(move |scene,views| {
+        self.display_object().set_on_scene_layer_changed(move |scene,layers| {
             if let Some(model) = weak_model.upgrade() {
-                model.on_scene_layers_changed(scene,views)
+                model.on_scene_layers_changed(scene,layers)
             }
         });
     }
@@ -251,7 +251,7 @@ impl<S:DynamicShape> ShapeViewModel<S> {
         ShapeViewModel {shape,events,registry,before_first_show}
     }
 
-    fn on_scene_layers_changed(&self, scene:&Scene, scene_layers:Option<&Vec<WeakLayer>>) {
+    fn on_scene_layers_changed(&self, scene:&Scene, scene_layers:Option<&Vec<LayerId>>) {
         match scene_layers {
             None => {
                 self.set_scene_layer(&scene,&scene.layers.main);
@@ -260,7 +260,7 @@ impl<S:DynamicShape> ShapeViewModel<S> {
                 if scene_layers.len() != 1 {
                     panic!("Adding a shape to multiple scene layers is not supported currently.")
                 }
-                if let Some(scene_layer) = scene_layers[0].upgrade() {
+                if let Some(scene_layer) = scene.layers.get(scene_layers[0]) {
                     self.set_scene_layer(&scene,&scene_layer);
                 } else {
                     self.set_scene_layer(&scene,&scene.layers.main);

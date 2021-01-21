@@ -9,7 +9,7 @@ use super::transform;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::display::scene::Scene;
-use crate::display::scene::layer::WeakLayer;
+use crate::display::scene::layer::LayerId;
 
 use data::opt_vec::OptVec;
 use nalgebra::Matrix4;
@@ -61,9 +61,9 @@ impl<Host> Drop for ParentBind<Host> {
 #[allow(clippy::type_complexity)]
 pub struct Callbacks<Host> {
     on_updated             : RefCell<Option<Box<dyn Fn(&Model<Host>)>>>,
-    on_show                : RefCell<Option<Box<dyn Fn(&Host,Option<&Vec<WeakLayer>>)>>>,
+    on_show                : RefCell<Option<Box<dyn Fn(&Host,Option<&Vec<LayerId>>)>>>,
     on_hide                : RefCell<Option<Box<dyn Fn(&Host)>>>,
-    on_scene_layer_changed : RefCell<Option<Box<dyn Fn(&Host,Option<&Vec<WeakLayer>>)>>>,
+    on_scene_layers_changed : RefCell<Option<Box<dyn Fn(&Host,Option<&Vec<LayerId>>)>>>,
 }
 
 impl<Host> Callbacks<Host> {
@@ -71,16 +71,16 @@ impl<Host> Callbacks<Host> {
         if let Some(f) = &*self.on_updated.borrow() { f(model) }
     }
 
-    fn on_show(&self, host:&Host, views:Option<&Vec<WeakLayer>>) {
-        if let Some(f) = &*self.on_show.borrow() { f(host,views) }
+    fn on_show(&self, host:&Host, layers:Option<&Vec<LayerId>>) {
+        if let Some(f) = &*self.on_show.borrow() { f(host,layers) }
     }
 
     fn on_hide(&self, host:&Host) {
         if let Some(f) = &*self.on_hide.borrow() { f(host) }
     }
 
-    fn on_scene_layer_changed(&self, host:&Host, views:Option<&Vec<WeakLayer>>) {
-        if let Some(f) = &*self.on_scene_layer_changed.borrow() { f(host,views) }
+    fn on_scene_layers_changed(&self, host:&Host, layers:Option<&Vec<LayerId>>) {
+        if let Some(f) = &*self.on_scene_layers_changed.borrow() { f(host,layers) }
     }
 }
 
@@ -187,15 +187,15 @@ fn on_dirty_callback(f:&Rc<RefCell<Box<dyn Fn()>>>) -> OnDirtyCallback {
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct Model<Host=Scene> {
-    host        : PhantomData <Host>,
-    scene_layers       : Rc<RefCell<Option<Vec<WeakLayer>>>>,
-    dirty       : DirtyFlags  <Host>,
-    callbacks   : Callbacks   <Host>,
-    parent_bind : RefCell     <Option<ParentBind<Host>>>,
-    children    : RefCell     <OptVec<WeakInstance<Host>>>,
-    transform   : RefCell     <CachedTransform>,
-    visible     : Cell        <bool>,
-    logger      : Logger,
+    host         : PhantomData <Host>,
+    scene_layers : Rc<RefCell<Option<Vec<LayerId>>>>,
+    dirty        : DirtyFlags  <Host>,
+    callbacks    : Callbacks   <Host>,
+    parent_bind  : RefCell     <Option<ParentBind<Host>>>,
+    children     : RefCell     <OptVec<WeakInstance<Host>>>,
+    transform    : RefCell     <CachedTransform>,
+    visible      : Cell        <bool>,
+    logger       : Logger,
 }
 
 impl<Host> Model<Host> {
@@ -274,10 +274,10 @@ impl<Host> Model<Host> {
     , parent_origin               : Matrix4<f32>
     , parent_origin_changed       : bool
     , parent_scene_layers_changed : bool
-    , parent_scene_layers         : Option<&Vec<WeakLayer>>
+    , parent_scene_layers         : Option<&Vec<LayerId>>
     ) {
-        let this_scene_layers           = self.scene_layers.borrow();
-        let this_scene_layers_ref       = this_scene_layers.as_ref();
+        let this_scene_layers          = self.scene_layers.borrow();
+        let this_scene_layers_ref      = this_scene_layers.as_ref();
         let self_scene_layers_changed  = self.dirty.scene_layer.check();
         let scene_layers_might_changed = parent_scene_layers_changed || self_scene_layers_changed;
         let (scene_layers_changed,scene_layers) = if scene_layers_might_changed {
@@ -285,9 +285,13 @@ impl<Host> Model<Host> {
             let scene_layers = this_scene_layers_ref.or(parent_scene_layers);
             let changed      = scene_layers != this_scene_layers_ref;
             (changed,scene_layers)
-        } else { (false,this_scene_layers_ref) };
+        } else {
+            (false,this_scene_layers_ref)
+        };
         if scene_layers_changed {
-            self.callbacks.on_scene_layer_changed(host,scene_layers);
+            debug!(self.logger, "Scene layers changed.", || {
+                self.callbacks.on_scene_layers_changed(host,scene_layers);
+            });
         }
 
         self.update_visibility(host,parent_scene_layers);
@@ -331,7 +335,7 @@ impl<Host> Model<Host> {
     }
 
     /// Hide all removed children and show this display object if it was attached to a new parent.
-    fn update_visibility(&self, host:&Host, parent_scene_layers:Option<&Vec<WeakLayer>>) {
+    fn update_visibility(&self, host:&Host, parent_scene_layers:Option<&Vec<LayerId>>) {
         self.take_removed_children_and_hide_orphans(host);
         let parent_changed = self.dirty.parent.check();
         if parent_changed && !self.is_orphan() {
@@ -364,7 +368,7 @@ impl<Host> Model<Host> {
         }
     }
 
-    fn set_vis_true(&self, host:&Host, parent_scene_layers:Option<&Vec<WeakLayer>>) {
+    fn set_vis_true(&self, host:&Host, parent_scene_layers:Option<&Vec<LayerId>>) {
        if !self.visible.get() {
            info!(self.logger,"Showing.");
            let this_scene_layers = self.scene_layers.borrow();
@@ -481,7 +485,7 @@ impl<Host> Model<Host> {
     /// Sets a callback which will be called with a reference to scene when the object will be
     /// shown (attached to visible display object graph).
     pub fn set_on_show<F>(&self, f:F)
-    where F : Fn(&Host,Option<&Vec<WeakLayer>>)+'static {
+    where F : Fn(&Host,Option<&Vec<LayerId>>)+'static {
         self.callbacks.on_show.set(Box::new(f))
     }
 
@@ -495,8 +499,8 @@ impl<Host> Model<Host> {
     /// Sets a callback which will be called with a reference to scene and list of scene layers this
     /// object was attached to on every change to the scene layers assignment.
     pub fn set_on_scene_layer_changed<F>(&self, f:F)
-    where F : Fn(&Host,Option<&Vec<WeakLayer>>) + 'static {
-        self.callbacks.on_scene_layer_changed.set(Box::new(f))
+    where F : Fn(&Host,Option<&Vec<LayerId>>) + 'static {
+        self.callbacks.on_scene_layers_changed.set(Box::new(f))
     }
 }
 
@@ -516,8 +520,37 @@ pub struct Id(usize);
 // === Instance ===
 // ================
 
-/// Instance of a display object. Instances can be positioned, rotated, scaled, attached to other
-/// instances to form hierarchies, etc.
+/// A hierarchical representation of object containing information about transformation in 3D space,
+/// list of children, and set of utils for dirty flag propagation.
+///
+/// ## Host
+/// The structure is parametrized with a `Host`. In real life use cases, host will be instantiated
+/// with [`Scene`]. For simplicity, it is instantiated to empty tuple in tests. Host has a very
+/// important role in decoupling the architecture. You need to provide the `update` method with a
+/// reference to the host, which is then passed to `on_show` and `on_hide` callbacks when a
+/// particular display objects gets shown or hidden respectively. This can be used for a dynamic
+/// management of GPU-side sprites. For example, after adding a display object to a scene, a new
+/// sprites can be created to display it visually. After removing the objects, and adding it to a
+/// different scene (second GPU context), the sprites in the first context can be removed, and new
+/// sprites in the new context can be created. Thus, abstracting over `Host` allows users of this
+/// library to define a view model (like few sliders in a box) without the need to contain reference
+/// to a particular renderer, and attach the renderer on-demand, when the objects will be placed on
+/// the stage.
+///
+/// ## Scene Layers
+/// Each display object instance contains an optional list of [`scene::LayerId`]. During object
+/// update, the list is passed from parent display objects to their children as long as the child
+/// does not override it (is assigned with [`None`]). Similar to [`Host`], the scene layers list
+/// plays a very important role in decoupling the architecture. It allows objects and their children
+/// to be assigned to a particular [`scene::Layer`], and thus allows for easy to use depth
+/// management.
+///
+/// ## Future Development
+/// Please note, that currently, the design is abstract over [`Host`], but it is not abstract over
+/// scene layers. This may change in the future, but first, the [`Scene`] implementation has to be
+/// refactored to allow the creation of [`Symbol`]s without requirement of a [`Scene`] instance
+/// existence. See this ticket to learn more: https://github.com/enso-org/ide/issues/1129 .
+
 #[derive(Derivative)]
 #[derive(CloneRef)]
 #[derivative(Clone(bound=""))]
@@ -554,9 +587,9 @@ impl<Host> Instance<Host> {
         Id(Rc::downgrade(&self.rc).as_raw() as *const() as usize)
     }
 
-    fn _set_scene_layer(&self, view:&WeakLayer) {
+    fn _set_scene_layer(&self, layer:LayerId) {
         self.dirty.scene_layer.set();
-        *self.scene_layers.borrow_mut() = Some(vec![view.clone_ref()]);
+        *self.scene_layers.borrow_mut() = Some(vec![layer]);
     }
 
     /// Adds a new `Object` as a child to the current one.
@@ -726,6 +759,8 @@ impl<Host,T:Object<Host>> Object<Host> for &T {
 impl<Host,T:Object<Host>> ObjectOps<Host> for T {}
 
 /// Implementation of operations available for every struct which implements `display::Object`.
+/// To learn more about the design, please refer to the documentation of [`Instance`].
+//
 // HOTFIX[WD]: We are using names with underscores in order to fix this bug:
 // https://github.com/rust-lang/rust/issues/70727 . To be removed as soon as the bug is fixed.
 #[allow(missing_docs)]
@@ -735,8 +770,9 @@ pub trait ObjectOps<Host=Scene> : Object<Host> {
         self.display_object()._id()
     }
 
-    fn set_scene_layer(&self, view:&WeakLayer) {
-        self.display_object()._set_scene_layer(view)
+    /// Assigns this object to a new scene layer. Any old assignments will be discarded.
+    fn set_scene_layer(&self, layer:impl Into<LayerId>) {
+        self.display_object()._set_scene_layer(layer.into())
     }
 
     /// Add another display object as a child to this display object. Children will inherit all

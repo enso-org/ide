@@ -677,7 +677,7 @@ impl Area {
     pub fn add_to_scene_layer_DEPRECATED(&self, view:&display::scene::Layer) {
         for symbol in self.symbols() { view.add_symbol(&symbol); }
         self.data.camera.set(view.camera());
-        self.set_scene_layer(&view.downgrade());
+        self.set_scene_layer(view);
     }
 
     /// Remove this component from view.

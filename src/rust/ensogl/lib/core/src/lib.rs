@@ -70,7 +70,7 @@ pub use animation::DEPRECATED_Tween;
 /// Commonly used utilities.
 pub mod prelude {
     pub use crate::data::container::AddMut;
-    pub use crate::order_shapes;
+    pub use crate::shapes_order_depenendencies;
     pub use enso_data as data;
     pub use enso_logger as logger;
     pub use enso_logger::*;
