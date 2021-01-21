@@ -73,7 +73,7 @@ function command(docs) {
 }
 
 /// Build the project manager module, which downloads the project manager binary for the current
-// platform.
+/// platform.
 async function build_project_manager() {
     console.log(`Getting project manager manager.`)
     await cmd.with_cwd(paths.js.lib.projectManager , async () => {
