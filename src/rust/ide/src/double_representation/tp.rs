@@ -15,12 +15,12 @@ use serde::Serialize;
 // ==============
 
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,Fail)]
+#[derive(Clone,Debug,Fail)]
 pub enum InvalidQualifiedName {
     #[fail(display="The qualified name is empty.")]
-    EmptyName,
+    EmptyName{source:String},
     #[fail(display="No module in type qualified name.")]
-    NoModuleName,
+    NoModuleName{source:String},
 }
 
 
@@ -62,10 +62,11 @@ impl QualifiedName {
     /// Create from a text representation. May fail if the text is not valid Qualified name of any
     /// type.
     pub fn from_text(text:impl Str) -> FallibleResult<Self> {
-        let mut all_segments    = text.as_ref().split('.');
-        let project_name_str    = all_segments.next().ok_or(InvalidQualifiedName::EmptyName)?;
+        let text:String         = text.into();
+        let mut all_segments    = text.split('.');
+        let project_name_str    = all_segments.next().ok_or_else(|| InvalidQualifiedName::EmptyName{source:text.clone()})?;
         let project_name        = ReferentName::new(project_name_str)?;
-        let name_str            = all_segments.next_back().ok_or(InvalidQualifiedName::NoModuleName)?;
+        let name_str            = all_segments.next_back().ok_or_else(||InvalidQualifiedName::NoModuleName{source:text.clone()})?;
         let name                = name_str.to_owned();
         let mut module_segments = Vec::new();
         for segment in all_segments {
@@ -143,11 +144,17 @@ mod test {
             assert_eq!(result.name            , name        );
         };
 
+        let invalid_case = |text:&str| {
+            assert!(QualifiedName::from_text(text).is_err());
+        };
+
         valid_case("Project.Main.Test.foo" , "Project", vec!["Main", "Test"], "foo");
         valid_case("Project.Main.Bar"      , "Project", vec!["Main"]        , "Bar");
         valid_case("Project.Baz"           , "Project", vec![]              , "Baz");
 
-        assert!(QualifiedName::from_text("Project").is_err());
-        assert!(QualifiedName::from_text("Project.module.foo").is_err());
+        invalid_case("Project");
+        invalid_case("Project.module.foo");
+        invalid_case("...");
+        invalid_case("");
     }
 }

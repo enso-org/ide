@@ -103,7 +103,7 @@ impl Id {
         Self::new(segments).map_err(Into::into)
     }
 
-    /// Get the segments of the module's path. They correspond to theQualifi module's file parent
+    /// Get the segments of the module's path. They correspond to the module's file parent
     /// directories, relative to the project's main source directory.
     ///
     /// The names are ordered beginning with the root one. The last one is the direct parent of the
@@ -635,7 +635,6 @@ pub fn locate
 pub fn lookup_method
 (module_name:&QualifiedName, ast:&known::Module, method:&language_server::MethodPointer)
 -> FallibleResult<definition::Id> {
-    // TODO shall tp::QualifiedName be normalized by default?
     let qualified_typename         = tp::QualifiedName::from_text(&method.defined_on_type)?;
     let accept_here_methods        = module_name == &qualified_typename;
     let method_module_name         = QualifiedName::try_from(method)?;

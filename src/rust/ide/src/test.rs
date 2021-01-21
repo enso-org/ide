@@ -182,7 +182,7 @@ pub mod mock {
         pub fn method_pointer(&self) -> enso_protocol::language_server::MethodPointer {
             enso_protocol::language_server::MethodPointer {
                 module          : self.module_qualified_name().to_string(),
-                defined_on_type : self.module_path.module_name().to_string(),
+                defined_on_type : self.module_qualified_name().to_string(),
                 name            : self.root_definition.to_string(),
             }
         }
@@ -193,8 +193,8 @@ pub mod mock {
          -> crate::controller::Graph {
             let parser      = self.parser.clone_ref();
             let method      = self.method_pointer();
-            let definition  = module.lookup_method(&self.project_name,&method).unwrap();
-            crate::controller::Graph::new(logger,module,db,parser,definition).unwrap()
+            let definition  = module.lookup_method(&self.project_name,&method).expect("Lookup failed.");
+            crate::controller::Graph::new(logger,module,db,parser,definition).expect("Graph could not be created")
         }
 
         pub fn execution_context(&self) -> model::ExecutionContext {

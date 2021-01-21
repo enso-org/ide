@@ -1700,35 +1700,35 @@ pub mod test {
     #[wasm_bindgen_test]
     fn adding_example() {
         let Fixture{test:_test,searcher,..} = Fixture::new();
-        // let module                          = searcher.graph.graph().module.clone_ref();
-        // let example                         = model::suggestion_database::example::Example {
-        //     name          : "Test Example".to_owned(),
-        //     code          : "x = 2 + 2\nx + 4".to_owned(),
-        //     imports       : vec![],
-        //     documentation : "Lorem ipsum".to_owned()
-        // };
-        // let expected_code = "test_example1 =\n    x = 2 + 2\n    x + 4\n\n\
-        //     main = \n    2 + 2\n    here.test_example1";
-        // searcher.add_example(&Rc::new(example),None).unwrap();
-        // assert_eq!(module.ast().repr(), expected_code);
+        let module                          = searcher.graph.graph().module.clone_ref();
+        let example                         = model::suggestion_database::example::Example {
+            name          : "Test Example".to_owned(),
+            code          : "x = 2 + 2\nx + 4".to_owned(),
+            imports       : vec![],
+            documentation : "Lorem ipsum".to_owned()
+        };
+        let expected_code = "test_example1 =\n    x = 2 + 2\n    x + 4\n\n\
+            main = \n    2 + 2\n    here.test_example1";
+        searcher.add_example(&Rc::new(example),None).unwrap();
+        assert_eq!(module.ast().repr(), expected_code);
     }
 
-    // #[wasm_bindgen_test]
-    // fn adding_example_twice() {
-    //     let Fixture{test:_test,searcher,..} = Fixture::new();
-    //     let module                          = searcher.graph.graph().module.clone_ref();
-    //     let example                         = model::suggestion_database::example::Example {
-    //         name          : "Test Example".to_owned(),
-    //         code          : "[1,2,3,4,5]".to_owned(),
-    //         imports       : vec!["Base.Network.Http".to_owned()],
-    //         documentation : "Lorem ipsum".to_owned()
-    //     };
-    //     let expected_code = "import Base.Network.Http\n\
-    //         test_example1 = [1,2,3,4,5]\n\ntest_example2 = [1,2,3,4,5]\n\n\
-    //         main = \n    2 + 2\n    here.test_example1\n    here.test_example2";
-    //     let example = Rc::new(example);
-    //     searcher.add_example(&example,None).unwrap();
-    //     searcher.add_example(&example,None).unwrap();
-    //     assert_eq!(module.ast().repr(), expected_code);
-    // }
+    #[wasm_bindgen_test]
+    fn adding_example_twice() {
+        let Fixture{test:_test,searcher,..} = Fixture::new();
+        let module                          = searcher.graph.graph().module.clone_ref();
+        let example                         = model::suggestion_database::example::Example {
+            name          : "Test Example".to_owned(),
+            code          : "[1,2,3,4,5]".to_owned(),
+            imports       : vec!["Base.Network.Http".to_owned()],
+            documentation : "Lorem ipsum".to_owned()
+        };
+        let expected_code = "import Base.Network.Http\n\
+            test_example1 = [1,2,3,4,5]\n\ntest_example2 = [1,2,3,4,5]\n\n\
+            main = \n    2 + 2\n    here.test_example1\n    here.test_example2";
+        let example = Rc::new(example);
+        searcher.add_example(&example,None).unwrap();
+        searcher.add_example(&example,None).unwrap();
+        assert_eq!(module.ast().repr(), expected_code);
+    }
 }
