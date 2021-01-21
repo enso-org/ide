@@ -271,7 +271,7 @@ impl NavigatorEvents {
                         data.set_movement_type(Some(MovementType::Pan))
                     },
                     mouse::SecondaryButton => {
-                        let focus = event.position_in_event_handler();
+                        let focus = event.position_relative_to_event_handler();
                         data.set_movement_type(Some(MovementType::Zoom{focus}))
                     },
                     _ => ()
@@ -313,7 +313,7 @@ impl NavigatorEvents {
                     event.prevent_default();
                 }
 
-                let position = event.position_in_event_handler();
+                let position = event.position_relative_to_event_handler();
                 data.set_mouse_position(position);
                 let movement = data.mouse_position() - data.last_mouse_position();
 
