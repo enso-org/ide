@@ -285,7 +285,7 @@ impl PartialEq<tp::QualifiedName> for QualifiedName {
     fn eq(&self, other:&tp::QualifiedName) -> bool {
         self.project_name             == other.project_name &&
             self.id.parent_segments() == other.module_segments.as_slice() &&
-            self.id.name().as_str()   == &other.name
+            self.id.name().as_str()   == other.name
     }
 }
 
