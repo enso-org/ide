@@ -354,7 +354,7 @@ pub struct NodeModel {
 impl NodeModel {
     /// Constructor.
     pub fn new(app:&Application, registry:visualization::Registry) -> Self {
-        order_shapes! {
+        ensogl::order_shapes! {
             app.display.scene() => {
                 output::port::single_port -> shape;
                 output::port::multi_port  -> shape;

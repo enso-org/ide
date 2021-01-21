@@ -23,18 +23,14 @@ use crate::display::camera::Camera2d;
 use crate::display::render::RenderComposer;
 use crate::display::render::RenderPipeline;
 use crate::display::scene::dom::DomScene;
-use crate::display::shape::DynShapeSystemInstance;
 use crate::display::shape::ShapeSystemInstance;
-use crate::display::shape::system::DynShapeSystemOf;
 use crate::display::shape::system::ShapeSystemOf;
-use crate::display::shape::system::ShapeSystemId;
 use crate::display::style::data::DataMatch;
 use crate::display::style;
 use crate::display::symbol::Symbol;
 use crate::display::symbol::SymbolId;
 use crate::display::symbol::registry::SymbolRegistry;
 use crate::display;
-use crate::gui::component;
 use crate::system::gpu::data::attribute;
 use crate::system::gpu::data::uniform::Uniform;
 use crate::system::gpu::data::uniform::UniformScope;
@@ -43,14 +39,11 @@ use crate::system::web::IgnoreContextMenuHandle;
 use crate::system::web::NodeInserter;
 use crate::system::web::StyleSetter;
 use crate::system::web;
-use crate::data::OptVec;
 
 use enso_frp as frp;
 use enso_frp::io::js::CurrentJsEvent;
 use std::any::TypeId;
 use web_sys::HtmlElement;
-use enso_data::dependency_graph::DependencyGraph;
-use smallvec::alloc::collections::BTreeSet;
 
 
 pub trait MouseTarget : Debug + 'static {

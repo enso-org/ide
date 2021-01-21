@@ -368,7 +368,6 @@ fn create_gl_buffer(context:&Context) -> WebGlBuffer {
 // =================
 
 use enum_dispatch::*;
-use crate::system::gpu::data::attribute::InstanceIndex;
 
 
 // === Macros ===

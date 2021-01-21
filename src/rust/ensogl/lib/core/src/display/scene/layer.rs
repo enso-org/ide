@@ -8,10 +8,8 @@ use crate::display::shape::DynShapeSystemInstance;
 use crate::display::shape::system::DynShapeSystemOf;
 use crate::display::shape::system::KnownShapeSystemId;
 use crate::display::shape::system::ShapeSystemId;
-use crate::display::shape;
 use crate::display::symbol::SymbolId;
 use crate::display;
-use crate::gui::component::ShapeView;
 use crate::gui::component;
 use crate::system::gpu::data::attribute;
 
@@ -258,13 +256,13 @@ impl LayerModel {
     }
 
     /// TODO
-    /// This implementation can be simplified to `S1:shape::KnownShapeSystemId` (not using
-    /// `Content` at all), after the compiler gets updated to newer version.
+    /// This implementation can be simplified to `S1:KnownShapeSystemId` (not using [`Content`] at
+    /// all), after the compiler gets updated to newer version.
     pub fn order_shapes<S1,S2>(&self) -> (PhantomData<S1>,PhantomData<S2>) where
     S1          : HasContent,
     S2          : HasContent,
-    Content<S1> : shape::KnownShapeSystemId,
-    Content<S2> : shape::KnownShapeSystemId {
+    Content<S1> : KnownShapeSystemId,
+    Content<S2> : KnownShapeSystemId {
         let s1_id = <Content<S1>>::shape_system_id();
         let s2_id = <Content<S2>>::shape_system_id();
         self.order(s1_id,s2_id);
@@ -422,7 +420,7 @@ impl Layers {
     }
 
     pub fn add(&self) -> Layer {
-        let (_,layer) = self.model.borrow_mut().registry.insert_with_ix2(|ix| {
+        let (_,layer) = self.model.borrow_mut().registry.insert_with_ix(|ix| {
             let id     = LayerId::from(ix);
             let dirty  = &self.element_depth_order_dirty;
             let on_mut = Box::new(f!(dirty.set()));
@@ -470,13 +468,13 @@ impl Layers {
     }
 
     /// TODO
-    /// This implementation can be simplified to `S1:shape::KnownShapeSystemId` (not using
-    /// `Content` at all), after the compiler gets updated to newer version.
+    /// This implementation can be simplified to `S1:KnownShapeSystemId` (not using [`Content`] at
+    /// all), after the compiler gets updated to newer version.
     pub fn order_shapes<S1,S2>(&self) -> (PhantomData<S1>,PhantomData<S2>) where
     S1          : HasContent,
     S2          : HasContent,
-    Content<S1> : shape::KnownShapeSystemId,
-    Content<S2> : shape::KnownShapeSystemId {
+    Content<S1> : KnownShapeSystemId,
+    Content<S2> : KnownShapeSystemId {
         let s1_id = <Content<S1>>::shape_system_id();
         let s2_id = <Content<S2>>::shape_system_id();
         self.order(s1_id,s2_id);
@@ -510,6 +508,28 @@ impl LayersModel {
 // === Macros ===
 // ==============
 
+/// Shape ordering utility. Currently, this macro supports ordering of shapes for a given stage.
+/// For example, the following usage:
+///
+/// ```ignore
+/// order_shapes! {
+///     app.display.scene() => {
+///         output::port::single_port -> shape;
+///         output::port::multi_port  -> shape;
+///         shape                     -> input::port::hover;
+///         input::port::hover        -> input::port::viz;
+///     }
+/// }
+/// ```
+///
+/// Will expand to:
+///
+/// ```ignore
+/// app.display.scene().layers.order_shapes::<output::port::single_port::View, shape::View>();
+/// app.display.scene().layers.order_shapes::<output::port::multi_port::View, shape::View>();
+/// app.display.scene().layers.order_shapes::<shape::View, input::port::hover::View>();
+/// app.display.scene().layers.order_shapes::<input::port::hover::View, input::port::viz::View>();
+/// ```
 #[macro_export]
 macro_rules! order_shapes {
     ($scene:expr => {

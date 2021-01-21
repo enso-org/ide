@@ -473,23 +473,29 @@ impl<Host> Model<Host> {
 
     /// Sets a callback which will be called with a reference to the display object when the object
     /// will be updated.
-    pub fn set_on_updated<F:Fn(&Model<Host>)+'static>(&self, f:F) {
+    pub fn set_on_updated<F>(&self, f:F)
+    where F : Fn(&Model<Host>)+'static {
         self.callbacks.on_updated.set(Box::new(f))
     }
 
     /// Sets a callback which will be called with a reference to scene when the object will be
     /// shown (attached to visible display object graph).
-    pub fn set_on_show<F:Fn(&Host,Option<&Vec<WeakLayer>>)+'static>(&self, f:F) {
+    pub fn set_on_show<F>(&self, f:F)
+    where F : Fn(&Host,Option<&Vec<WeakLayer>>)+'static {
         self.callbacks.on_show.set(Box::new(f))
     }
 
     /// Sets a callback which will be called with a reference to scene when the object will be
     /// hidden (detached from display object graph).
-    pub fn set_on_hide<F:Fn(&Host)+'static>(&self, f:F) {
+    pub fn set_on_hide<F>(&self, f:F)
+    where F : Fn(&Host) + 'static{
         self.callbacks.on_hide.set(Box::new(f))
     }
 
-    pub fn set_on_scene_layer_changed<F:Fn(&Host,Option<&Vec<WeakLayer>>)+'static>(&self, f:F) {
+    /// Sets a callback which will be called with a reference to scene and list of scene layers this
+    /// object was attached to on every change to the scene layers assignment.
+    pub fn set_on_scene_layer_changed<F>(&self, f:F)
+    where F : Fn(&Host,Option<&Vec<WeakLayer>>) + 'static {
         self.callbacks.on_scene_layer_changed.set(Box::new(f))
     }
 }

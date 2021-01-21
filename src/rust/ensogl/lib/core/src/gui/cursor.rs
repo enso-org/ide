@@ -10,7 +10,6 @@ use crate::display::scene::Scene;
 use crate::display::shape::*;
 use crate::display;
 use crate::frp;
-use crate::gui::component;
 
 
 

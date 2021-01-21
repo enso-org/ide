@@ -553,9 +553,8 @@ impl Symbol {
         let this:&Self = self; // TODO: is this line needed?
         if let Some(program) = this.shader.program().as_ref() {
             context.use_program(Some(program));
-            let out = this.with_vao_mut(|this| { f(this,program) });
+            this.with_vao_mut(|this| { f(this,program) });
             context.use_program(None);
-            out
         }
     }
 

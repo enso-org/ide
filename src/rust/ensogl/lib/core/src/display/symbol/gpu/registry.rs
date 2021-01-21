@@ -69,7 +69,7 @@ impl SymbolRegistry {
         let variables    = &self.variables;
         let logger       = &self.logger;
         let stats        = &self.stats;
-        let index        = self.symbols.borrow_mut().insert_with_ix(|ix| {
+        let index        = self.symbols.borrow_mut().insert_with_ix_(|ix| {
             let id     = SymbolId::new(ix as u32);
             let on_mut = move || {symbol_dirty.set(id)};
             let logger = Logger::sub(logger,format!("symbol_{}",ix));
