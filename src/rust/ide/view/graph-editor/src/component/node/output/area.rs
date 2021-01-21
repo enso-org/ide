@@ -34,20 +34,6 @@ const SHOW_DELAY_DURATION_MS : f32 = 150.0;
 
 
 
-// =============
-// === Utils ===
-// =============
-
-// // TODO: Implement proper sorting and remove.
-// /// Hack function used to register the elements for the sorting purposes. To be removed.
-// pub(crate) fn depth_sort_hack(scene:&Scene) {
-//     let logger = Logger::new("output shape order hack");
-//     component::ShapeView_DEPRECATED::<port::MultiPortShape>::new(&logger,scene);
-//     component::ShapeView_DEPRECATED::<port::SinglePortShape>::new(&logger,scene);
-// }
-
-
-
 // ================
 // === SpanTree ===
 // ================

@@ -140,6 +140,10 @@ pub trait ShapeSystemInstance : 'static + CloneRef {
     fn new_instance(&self) -> Self::Shape;
 }
 
+pub trait KnownShapeSystemId {
+    fn shape_system_id() -> ShapeSystemId;
+}
+
 pub trait DynShapeSystemInstance : 'static + CloneRef {
     /// The shape type of this shape system definition.
     type DynamicShape : DynamicShape<System=Self>;
@@ -389,6 +393,12 @@ macro_rules! _define_shape_system {
         // automatically initialize on-demand.
         pub type View = $crate::gui::component::ShapeView<DynamicShape>;
 
+        impl $crate::display::shape::KnownShapeSystemId for DynamicShape {
+            fn shape_system_id() -> $crate::display::shape::ShapeSystemId {
+                ShapeSystem::shape_system_id()
+            }
+        }
+
 
 
         // ===================
@@ -427,9 +437,16 @@ macro_rules! _define_shape_system {
             }
         }
 
+        impl $crate::display::shape::KnownShapeSystemId for ShapeSystem {
+            fn shape_system_id() -> $crate::display::shape::ShapeSystemId {
+                std::any::TypeId::of::<ShapeSystem>().into()
+            }
+        }
+
         impl $crate::display::shape::DynShapeSystemInstance for ShapeSystem {
             type DynamicShape = DynamicShape;
 
+            // FIXME: Duplicated (^^^)
             fn id() -> $crate::display::shape::ShapeSystemId {
                 std::any::TypeId::of::<ShapeSystem>().into()
             }

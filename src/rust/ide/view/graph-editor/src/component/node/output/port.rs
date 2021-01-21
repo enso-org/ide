@@ -112,11 +112,11 @@ impl AllPortsShape {
 // === SinglePortView ===
 // ======================
 
-pub use single_port_area::View as SinglePortView;
+pub use single_port::View as SinglePortView;
 
 /// A single port shape implementation. In contrast to `MultiPortView`, this produces a much faster
 /// shader code.
-mod single_port_area {
+pub mod single_port {
     use super::*;
     use ensogl::display::shape::*;
 
@@ -139,10 +139,10 @@ mod single_port_area {
 // === MultiPortView ===
 // =====================
 
-pub use multi_port_area::View as MultiPortView;
+pub use multi_port::View as MultiPortView;
 
 /// Implements the shape for a segment of the OutputPort with multiple output ports.
-mod multi_port_area {
+pub mod multi_port {
     use super::*;
     use ensogl::display::shape::*;
     use std::f32::consts::PI;

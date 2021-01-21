@@ -354,11 +354,19 @@ pub struct NodeModel {
 impl NodeModel {
     /// Constructor.
     pub fn new(app:&Application, registry:visualization::Registry) -> Self {
+        order_shapes! {
+            app.display.scene() => {
+                output::port::single_port -> shape;
+                output::port::multi_port  -> shape;
+                shape                     -> input::port::hover;
+                input::port::hover        -> input::port::viz;
+            }
+        }
+
         let scene  = app.display.scene();
         let logger = Logger::new("node");
         edge::depth_sort_hack_1(scene);
 
-        // output::area::depth_sort_hack(&scene);
         let main_logger             = Logger::sub(&logger,"main_area");
         let drag_logger             = Logger::sub(&logger,"drag_area");
         let error_indicator_logger  = Logger::sub(&logger,"error_indicator");

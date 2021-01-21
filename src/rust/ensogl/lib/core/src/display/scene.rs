@@ -614,6 +614,13 @@ pub struct HardcodedLayers {
     layers             : Layers,
 }
 
+impl Deref for HardcodedLayers {
+    type Target = Layers;
+    fn deref(&self) -> &Self::Target {
+        &self.layers
+    }
+}
+
 impl HardcodedLayers {
     pub fn new(logger:impl AnyLogger) -> Self {
         let layers         = Layers::new(logger);

@@ -208,6 +208,10 @@ impl<S:DynamicShape+'static> ShapeView<S> {
     }
 }
 
+impl<S:DynamicShape> HasContent for ShapeView<S> {
+    type Content = S;
+}
+
 
 
 // ======================

@@ -67,22 +67,23 @@ pub use animation::Easing;
 pub use animation::DEPRECATED_Animation;
 pub use animation::DEPRECATED_Tween;
 
-/// Prelude - commonly used utilities.
+/// Commonly used utilities.
 pub mod prelude {
-    pub use enso_prelude::*;
+    pub use crate::data::container::AddMut;
+    pub use crate::order_shapes;
+    pub use enso_data as data;
     pub use enso_logger as logger;
     pub use enso_logger::*;
     pub use enso_logger::AnyLogger;
     pub use enso_logger::DefaultWarningLogger as Logger;
+    pub use enso_prelude::*;
     pub use enso_shapely::CloneRef;
     pub use enso_shapely::newtype_prim;
-    pub use enso_shapely::newtype_prim_no_derives;
     pub use enso_shapely::newtype_prim_no_default;
     pub use enso_shapely::newtype_prim_no_default_no_display;
+    pub use enso_shapely::newtype_prim_no_derives;
     pub use enso_shapely::shared;
     pub use super::display::traits::*;
-    pub use crate::data::container::AddMut;
-    pub use enso_data as data;
     pub use super::types::*;
 }
 
