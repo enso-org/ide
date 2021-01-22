@@ -20,9 +20,9 @@ const fss = require('fs')
 
 
 
-// ================
+// =============
 // === Paths ===
-// ================
+// =============
 
 const root = Electron.app.getAppPath()
 const resources = path.join(root, "..")
