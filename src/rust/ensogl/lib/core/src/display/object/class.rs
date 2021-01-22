@@ -60,9 +60,9 @@ impl<Host> Drop for ParentBind<Host> {
 #[derivative(Default(bound=""))]
 #[allow(clippy::type_complexity)]
 pub struct Callbacks<Host> {
-    on_updated             : RefCell<Option<Box<dyn Fn(&Model<Host>)>>>,
-    on_show                : RefCell<Option<Box<dyn Fn(&Host,Option<&Vec<LayerId>>)>>>,
-    on_hide                : RefCell<Option<Box<dyn Fn(&Host)>>>,
+    on_updated              : RefCell<Option<Box<dyn Fn(&Model<Host>)>>>,
+    on_show                 : RefCell<Option<Box<dyn Fn(&Host,Option<&Vec<LayerId>>)>>>,
+    on_hide                 : RefCell<Option<Box<dyn Fn(&Host)>>>,
     on_scene_layers_changed : RefCell<Option<Box<dyn Fn(&Host,Option<&Vec<LayerId>>)>>>,
 }
 

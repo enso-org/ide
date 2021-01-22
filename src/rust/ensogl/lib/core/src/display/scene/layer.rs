@@ -372,9 +372,9 @@ impl LayerModel {
         }
     }
 
-    fn depth_sort(&self, global_element_depth_order:&DependencyGraph<LayerElement>) {
-        let elements_rev = self.elements.borrow().iter().copied().rev().collect_vec();
-        let mut graph    = global_element_depth_order.clone();
+    fn combined_depth_order_graph(&self, global_element_depth_order:&DependencyGraph<LayerElement>)
+    -> DependencyGraph<LayerElement> {
+        let mut graph = global_element_depth_order.clone();
         graph.extend(self.depth_order.borrow().clone().into_iter());
         for element in &*self.elements.borrow() {
             match element {
@@ -390,7 +390,13 @@ impl LayerModel {
                 }
                 _ => {}
             }
-        }
+        };
+        graph
+    }
+
+    fn depth_sort(&self, global_element_depth_order:&DependencyGraph<LayerElement>) {
+        let graph           = self.combined_depth_order_graph(global_element_depth_order);
+        let elements_rev    = self.elements.borrow().iter().copied().rev().collect_vec();
         let sorted_elements = graph.into_unchecked_topo_sort(elements_rev);
 
         let sorted_symbols = sorted_elements.into_iter().filter_map(|element| {
@@ -515,6 +521,14 @@ impl std::borrow::Borrow<LayerModel> for Layer {
 /// depth-dependencies. In order to define such compile tie shapes ordering relations, you have to
 /// define them while defining the shape system. The easiest way to do it is by using the
 /// [`define_shape_system!`] macro. Refer to its documentation to learn more.
+///
+///
+/// # Layer Lifetime Management
+/// Both [`Layers`] and every [`Layer`] instance are strongly interconnected. This is needed for a
+/// nice API. For example, [`Layer`] allows you to add symbols while removing them from other layers
+/// automatically. Although the [`LayersModel`] registers [`WeakLayer`], the weak form is used only
+/// to break cycles and never points to a dropped [`Layer`], as layers update the information on
+/// drop.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Layers {
     logger                     : Logger,
@@ -525,6 +539,7 @@ pub struct Layers {
 }
 
 impl Layers {
+    /// Constructor.
     pub fn new(logger:impl AnyLogger) -> Self {
         let logger                     = Logger::sub(logger,"views");
         let element_dirty_logger       = Logger::sub(&logger,"element_dirty");
@@ -537,10 +552,17 @@ impl Layers {
              ,layers_depth_order_dirty}
     }
 
+    /// Query [`Layer`] by [`LayerId`].
     pub fn get(&self, layer_id:LayerId) -> Option<Layer> {
         self.model.borrow().get(layer_id)
     }
 
+    /// All layers getter.
+    pub fn all(&self) -> Vec<Layer> {
+        self.model.borrow().all()
+    }
+
+    /// Add a new [`Layer`].
     pub fn add(&self) -> Layer {
         let (_,layer) = self.model.borrow_mut().registry.insert_with_ix(|ix| {
             let id     = LayerId::from(ix);
@@ -553,7 +575,10 @@ impl Layers {
         layer
     }
 
-    pub fn update(&self) {
+    /// Update the layers. This checks all dirty flags, sorts the layers and sort symbols in all
+    /// layers affected by previous changes. This function is usually called once per animation
+    /// frame.
+    pub(crate) fn update(&self) {
         if self.layers_depth_order_dirty.check() {
             self.layers_depth_order_dirty.unset();
             let model         = &mut *self.model.borrow_mut();
@@ -569,10 +594,6 @@ impl Layers {
                 layer.update(&*self.global_element_depth_order.borrow())
             }
         }
-    }
-
-    pub fn all(&self) -> Vec<Layer> {
-        self.model.borrow().all()
     }
 
     pub fn add_layers_order_dependency(&self, below:impl Into<LayerId>, above:impl Into<LayerId>) {
