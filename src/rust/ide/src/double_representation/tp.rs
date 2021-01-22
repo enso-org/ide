@@ -53,7 +53,7 @@ impl QualifiedName {
     /// Create from the module's qualified name.
     pub fn from_module(module:module::QualifiedName) -> Self {
         let module::QualifiedName{project_name,id} = module;
-        let mut module_segments                    = id.take_segments();
+        let mut module_segments                    = id.into_segments();
         // We may unwrap, because the `module::QualifiedName` guarantees segments to be non-empty.
         let name                                   = module_segments.pop().unwrap().into();
         QualifiedName{project_name,module_segments,name}

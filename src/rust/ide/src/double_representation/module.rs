@@ -113,7 +113,7 @@ impl Id {
     }
 
     /// Consume the [`Id`] and returns the inner representation of segments.
-    pub fn take_segments(self) -> Vec<ReferentName> {
+    pub fn into_segments(self) -> Vec<ReferentName> {
         self.segments
     }
 
