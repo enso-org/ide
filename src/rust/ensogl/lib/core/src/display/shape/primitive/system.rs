@@ -270,12 +270,6 @@ macro_rules! define_shape_system {
     }
 }
 
-#[macro_export]
-macro_rules! style_name_for_define_shape_system {
-    ()            => { style };
-    ($name:ident) => {$name};
-}
-
 /// Internal helper for `define_shape_system`.
 #[macro_export]
 macro_rules! _define_shape_system {

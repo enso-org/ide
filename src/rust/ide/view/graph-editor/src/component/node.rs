@@ -389,7 +389,7 @@ impl NodeModel {
 
 
         // Disable shadows to allow interaction with the output port.
-        let shape_system = scene.layers.main.shape_registry.shape_system(PhantomData::<shape::DynamicShape>);
+        let shape_system = scene.layers.main.shape_system_registry.shape_system(&scene,PhantomData::<shape::DynamicShape>);
         shape_system.shape_system.set_pointer_events(false);
 
         let input = input::Area::new(&logger,app);

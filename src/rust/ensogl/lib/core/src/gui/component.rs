@@ -11,15 +11,11 @@ use crate::display::object::traits::*;
 use crate::display::scene::MouseTarget;
 use crate::display::scene::Scene;
 use crate::display::scene::ShapeRegistry;
-use crate::display::scene::layer::ShapeRegistry2;
 use crate::display::scene::layer::LayerId;
 use crate::display::scene;
 use crate::display::shape::primitive::system::DynamicShape;
 use crate::display::shape::primitive::system::Shape;
-use crate::display::shape::primitive::system::ShapeSystemId;
-use crate::display::symbol::SymbolId;
 use crate::display;
-use crate::system::gpu::data::attribute;
 
 use enso_frp as frp;
 
@@ -269,22 +265,14 @@ impl<S:DynamicShape> ShapeViewModel<S> {
         }
     }
 
-    fn set_scene_layer(&self, scene:&Scene, layer:&scene::Layer) {// -> (ShapeSystemId,SymbolId,attribute::InstanceIndex) {
+    fn set_scene_layer(&self, scene:&Scene, layer:&scene::Layer) {
         self.before_first_show.set(false); // FIXME: still needed?
         self.unregister_existing_mouse_target();
-        let (shape_system_id,symbol_id,instance_id,always_above,always_below) = layer.shape_registry.instantiate(&self.shape);
-        layer.add_shape(shape_system_id,symbol_id,always_above,always_below);
+        let (shape_system_info,symbol_id,instance_id) = layer.shape_system_registry.instantiate(scene,&self.shape);
+        layer.add_shape(shape_system_info,symbol_id);
         scene.shapes.insert_mouse_target(symbol_id,instance_id,self.events.clone_ref());
         *self.registry.borrow_mut() = Some(scene.shapes.clone_ref());
     }
-
-    // fn set_scene_registry(&self, registry1:&ShapeRegistry, registry:&ShapeRegistry2) -> (ShapeSystemId,SymbolId,attribute::InstanceIndex) {
-    //     self.unregister_existing_mouse_target();
-    //     let (shape_system_id,symbol_id,instance_id) = registry.instantiate(&self.shape);
-    //     registry1.insert_mouse_target(symbol_id,instance_id,self.events.clone_ref());
-    //     *self.registry.borrow_mut() = Some(registry1.clone_ref());
-    //     (shape_system_id,symbol_id,instance_id)
-    // }
 
     fn unregister_existing_mouse_target(&self) {
         if let (Some(registry),Some(sprite)) = (&*self.registry.borrow(),&self.shape.sprite()) {

@@ -630,16 +630,6 @@ impl HardcodedLayers {
         Self {layers,viz,main,cursor,label,viz_fullscreen,breadcrumbs}
     }
 
-    fn init(&self, scene:Scene) {
-        self.main.shape_registry.init(&scene);
-        self.viz.shape_registry.init(&scene);
-        self.cursor.shape_registry.init(&scene);
-        self.label.shape_registry.init(&scene);
-        self.viz_fullscreen.shape_registry.init(&scene);
-        self.breadcrumbs.shape_registry.init(&scene);
-    }
-
-
     pub fn all(&self) -> Vec<Layer> {
         self.layers.all()
     }
@@ -922,12 +912,6 @@ impl Scene {
 
         // FIXME MEMORY LEAK in all lines below:
         this.no_mut_access.shapes.rc.borrow_mut().scene = Some(this.clone_ref());
-        this.no_mut_access.layers.init(this.clone_ref());
-        // for view in &*this.no_mut_access.layers.all() {
-        //     if let Some(view) = view.upgrade() {
-        //         view.shape_registry.rc.borrow_mut().scene = Some(this.clone_ref());
-        //     }
-        // }
 
         this
     }

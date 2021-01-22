@@ -18,7 +18,7 @@ use nalgebra::Perspective3;
 // ==============
 
 /// Camera's frustum screen dimensions.
-#[derive(Clone,Copy,Debug)]
+#[derive(Clone,Copy,Debug,Default)]
 #[allow(missing_docs)]
 pub struct Screen {
     pub width  : f32,
@@ -27,8 +27,8 @@ pub struct Screen {
 
 impl Screen {
     /// Constructor.
-    pub fn new(width:f32, height:f32) -> Self {
-        Self{width,height}
+    pub fn new() -> Self {
+        default()
     }
 
     /// Get Screen's aspect ratio.
@@ -171,9 +171,8 @@ type ProjectionDirty = dirty::SharedBool<()>;
 type TransformDirty  = dirty::SharedBool<()>;
 
 impl Camera2dData {
-    fn new
-    (logger:Logger, display_object:&display::object::Instance, width:f32, height:f32) -> Self {
-        let screen                 = Screen::new(width,height);
+    fn new(logger:Logger, display_object:&display::object::Instance) -> Self {
+        let screen                 = Screen::new();
         let projection             = default();
         let clipping               = default();
         let zoom                   = 1.0;
@@ -346,11 +345,12 @@ pub struct Camera2d {
 }
 
 impl Camera2d {
-    /// Creates new Camera instance.
-    pub fn new(logger:impl AnyLogger, width:f32, height:f32) -> Self {
+    /// Creates new [`Camera2d`] instance. Please note that the camera will be of zero-size and in
+    /// order for it to work properly, you have to initialize it by using the `set_screen` method.
+    pub fn new(logger:impl AnyLogger) -> Self {
         let logger         = Logger::sub(logger,"camera");
         let display_object = display::object::Instance::new(&logger);
-        let data           = Camera2dData::new(logger,&display_object,width,height);
+        let data           = Camera2dData::new(logger,&display_object);
         let data           = Rc::new(RefCell::new(data));
         Self {display_object,data}
     }

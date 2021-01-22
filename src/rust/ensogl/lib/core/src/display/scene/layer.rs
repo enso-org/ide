@@ -28,51 +28,105 @@ use crate::data::dirty::traits::*;
 // === ShapeRegistry ===
 // =====================
 
-shared! { ShapeRegistry2
+shared! { ShapeSystemRegistry
+/// A per [`Scene`] [`Layer`] user defined shape system registry. It is used as a cache for existing
+/// shape system instances. When creating a shape instance, we often want it to share the same shape
+/// system than other instances in order for all of them to be drawn with just a single WebGL draw
+/// call. After adding a [`DynamicShape`] to a layer, it will get instantiated (its shape will be
+/// created), and because of this structure, it will share the same shape system as other shapes of
+/// the same type on the same layer. Read the docs of [`DynamicShape`] to learn more.
 #[derive(Debug,Default)]
-pub struct ShapeRegistryData2 {
-    scene            : Option<Scene>,
+pub struct ShapeSystemRegistryData {
     shape_system_map : HashMap<TypeId,Box<dyn Any>>,
 }
 
 impl {
-    // FIXME: remove this hack
-    pub fn init(&mut self, scene:&Scene) {
-        self.scene = Some(scene.clone_ref());
-    }
-
-    fn get<T:ShapeSystemInstance>(&self) -> Option<T> {
+    fn get<T>(&self) -> Option<T>
+    where T : ShapeSystemInstance {
         let id = TypeId::of::<T>();
         self.shape_system_map.get(&id).and_then(|t| t.downcast_ref::<T>()).map(|t| t.clone_ref())
     }
 
-    fn register<T:ShapeSystemInstance>(&mut self) -> T {
+    fn register<T>(&mut self, scene:&Scene) -> T
+    where T : ShapeSystemInstance {
         let id     = TypeId::of::<T>();
-        let system = <T as ShapeSystemInstance>::new(self.scene.as_ref().unwrap());
+        let system = <T as ShapeSystemInstance>::new(scene);
         let any    = Box::new(system.clone_ref());
         self.shape_system_map.insert(id,any);
         system
     }
 
-    fn get_or_register<T:ShapeSystemInstance>(&mut self) -> T {
-        self.get().unwrap_or_else(|| self.register())
+    fn get_or_register<T>(&mut self, scene:&Scene) -> T
+    where T : ShapeSystemInstance {
+        self.get().unwrap_or_else(|| self.register(scene))
     }
 
-    pub fn shape_system<T:display::shape::system::DynamicShape>(&mut self, _phantom:PhantomData<T>) -> DynShapeSystemOf<T> {
-        self.get_or_register::<DynShapeSystemOf<T>>()
+    // TODO: This API requires Scene to be passed as argument, which is ugly. Consider splitting
+    //       the Scene into few components.
+    /// Query the registry for a user defined shape system of a given type. In case the shape system
+    /// was not yet used, it will be created.
+    pub fn shape_system<T>(&mut self, scene:&Scene, _phantom:PhantomData<T>) -> DynShapeSystemOf<T>
+    where T : display::shape::system::DynamicShape {
+        self.get_or_register::<DynShapeSystemOf<T>>(scene)
     }
 
-    pub fn instantiate<T:display::shape::system::DynamicShape>(&mut self,shape:&T)
-    -> (ShapeSystemId,SymbolId,attribute::InstanceIndex,Vec<ShapeSystemId>,Vec<ShapeSystemId>) {
-        let system       = self.get_or_register::<DynShapeSystemOf<T>>();
-        let system_id    = DynShapeSystemOf::<T>::id();
-        let instance_id  = system.instantiate(shape);
-        let symbol_id    = system.shape_system().sprite_system.symbol.id;
-        let always_above = DynShapeSystemOf::<T>::always_above();
-        let always_below = DynShapeSystemOf::<T>::always_below();
-        (system_id,symbol_id,instance_id,always_above,always_below)
+    /// Instantiate the provided [`DynamicShape`].
+    pub fn instantiate<T>
+    (&mut self, scene:&Scene, shape:&T) -> (ShapeSystemInfo,SymbolId,attribute::InstanceIndex)
+    where T : display::shape::system::DynamicShape {
+        let system            = self.get_or_register::<DynShapeSystemOf<T>>(scene);
+        let system_id         = DynShapeSystemOf::<T>::id();
+        let instance_id       = system.instantiate(shape);
+        let symbol_id         = system.shape_system().sprite_system.symbol.id;
+        let always_above      = DynShapeSystemOf::<T>::always_above();
+        let always_below      = DynShapeSystemOf::<T>::always_below();
+        let ordering          = ShapeSystemStaticDepthOrdering {always_above,always_below};
+        let shape_system_info = ShapeSystemInfo::new(system_id,ordering);
+        (shape_system_info,symbol_id,instance_id)
     }
 }}
+
+
+
+// =======================
+// === ShapeSystemInfo ===
+// =======================
+
+/// [`ShapeSystemInfoTemplate`] specialized for [`ShapeSystemId`].
+pub type ShapeSystemInfo = ShapeSystemInfoTemplate<ShapeSystemId>;
+
+/// [`ShapeSystemInfoTemplate`] specialized for [`SymbolId`].
+pub type ShapeSystemSymbolInfo = ShapeSystemInfoTemplate<SymbolId>;
+
+/// When adding a [`DynamicShape`] to a [`Layer`], it will get instantiated to [`Shape`] by reusing
+/// the shape system (read docs of [`ShapeSystemRegistry`] to learn more). This struct contains
+/// information about the compile time depth ordering relations. See the "Compile Time Shapes
+/// Ordering Relations" section in docs of [`Layers`] to learn more.
+#[derive(Clone,Debug)]
+pub struct ShapeSystemStaticDepthOrdering {
+    always_above : Vec<ShapeSystemId>,
+    always_below : Vec<ShapeSystemId>,
+}
+
+/// [`ShapeSystemStaticDepthOrdering`] associated with an id.
+#[derive(Clone,Debug)]
+pub struct ShapeSystemInfoTemplate<T> {
+    id       : T,
+    ordering : ShapeSystemStaticDepthOrdering,
+}
+
+impl<T> Deref for ShapeSystemInfoTemplate<T> {
+    type Target = ShapeSystemStaticDepthOrdering;
+    fn deref(&self) -> &Self::Target {
+        &self.ordering
+    }
+}
+
+impl<T> ShapeSystemInfoTemplate<T> {
+    fn new(id:T, ordering:ShapeSystemStaticDepthOrdering) -> Self {
+        Self {id,ordering}
+    }
+}
 
 
 
@@ -80,7 +134,10 @@ impl {
 // === LayerElement ===
 // ====================
 
+/// Abstraction over [`SymbolId`] and [`ShapeSystemId`]. Read docs of [`Layers`] to learn about its
+/// usage scenarios.
 #[derive(Clone,Copy,Debug,PartialEq,PartialOrd,Eq,Hash,Ord)]
+#[allow(missing_docs)]
 pub enum LayerElement {
     Symbol      (SymbolId),
     ShapeSystem (ShapeSystemId)
@@ -91,14 +148,6 @@ impl From<ShapeSystemId> for LayerElement {
         Self::ShapeSystem(t)
     }
 }
-
-
-
-// ==================
-// === DepthOrder ===
-// ==================
-
-pub type ElementDepthOrder = Rc<RefCell<DependencyGraph<LayerElement>>>;
 
 
 
@@ -132,13 +181,14 @@ impl Deref for Layer {
 }
 
 impl Layer {
-    pub fn new(logger:&Logger, id:LayerId, model:&Rc<RefCell<LayersModel>>, on_mut:Box<dyn Fn()>) -> Self {
+    fn new
+    (logger:&Logger, id:LayerId, model:&Rc<RefCell<LayersModel>>, on_mut:Box<dyn Fn()>) -> Self {
         let model = LayerModel::new(logger,id,model,on_mut);
         let model = Rc::new(model);
         Self {model}
     }
 
-    pub fn downgrade(&self) -> WeakLayer {
+    fn downgrade(&self) -> WeakLayer {
         let model = Rc::downgrade(&self.model);
         WeakLayer {model}
     }
@@ -156,21 +206,15 @@ impl From<&Layer> for LayerId {
 // === WeakLayer ===
 // =================
 
+/// A weak version of [`Layer`].
 #[derive(Clone,CloneRef)]
-pub struct WeakLayer {
+struct WeakLayer {
     model : Weak<LayerModel>
 }
 
 impl WeakLayer {
     pub fn upgrade(&self) -> Option<Layer> {
         self.model.upgrade().map(|model| Layer {model})
-    }
-}
-
-impl Eq        for WeakLayer {}
-impl PartialEq for WeakLayer {
-    fn eq(&self, other:&Self) -> bool {
-        self.model.ptr_eq(&other.model)
     }
 }
 
@@ -181,38 +225,26 @@ impl Debug for WeakLayer {
 }
 
 
-#[derive(Clone,Debug)]
-pub struct ShapeSystemSymbolInfo {
-    symbol_id    : SymbolId,
-    always_above : Vec<ShapeSystemId>,
-    always_below : Vec<ShapeSystemId>,
-}
-
-impl ShapeSystemSymbolInfo {
-    fn new
-    (symbol_id:SymbolId, always_above:Vec<ShapeSystemId>, always_below:Vec<ShapeSystemId>) -> Self {
-        Self {symbol_id,always_above,always_below}
-    }
-}
-
-
 
 // ==================
 // === LayerModel ===
 // ==================
 
+/// Internal representation of [`Layer`].
 #[derive(Debug,Clone)]
+#[allow(missing_docs)]
 pub struct LayerModel {
-    pub id                  : LayerId,
-    logger                  : Logger,
-    pub camera              : RefCell<Camera2d>,
-    pub shape_registry      : ShapeRegistry2,
-    shape_system_symbol_info : RefCell<HashMap<ShapeSystemId,ShapeSystemSymbolInfo>>,
-    elements                : RefCell<BTreeSet<LayerElement>>,
-    symbols_ordered         : RefCell<Vec<SymbolId>>,
-    depth_order             : RefCell<DependencyGraph<LayerElement>>,
-    depth_order_dirty       : dirty::SharedBool<Box<dyn Fn()>>,
-    all_layers_model        : Rc<RefCell<LayersModel>>,
+    pub id                          : LayerId,
+    logger                          : Logger,
+    pub camera                      : RefCell<Camera2d>,
+    pub shape_system_registry       : ShapeSystemRegistry,
+    shape_system_to_symbol_info_map : RefCell<HashMap<ShapeSystemId,ShapeSystemSymbolInfo>>,
+    symbol_to_shape_system_map      : RefCell<HashMap<SymbolId,ShapeSystemId>>,
+    elements                        : RefCell<BTreeSet<LayerElement>>,
+    symbols_ordered                 : RefCell<Vec<SymbolId>>,
+    depth_order                     : RefCell<DependencyGraph<LayerElement>>,
+    depth_order_dirty               : dirty::SharedBool<Box<dyn Fn()>>,
+    all_layers_model                : Rc<RefCell<LayersModel>>,
 }
 
 impl Drop for LayerModel {
@@ -225,50 +257,59 @@ impl Drop for LayerModel {
 }
 
 impl LayerModel {
-    pub fn new
+    fn new
     ( logger           : impl AnyLogger
     , id               : LayerId
     , all_layers_model : &Rc<RefCell<LayersModel>>
     , on_mut           : Box<dyn Fn()>
     ) -> Self {
-        let width  = 0.0;
-        let height = 0.0;
-        let logger                  = Logger::sub(logger,"layer");
-        let logger_dirty            = Logger::sub(&logger,"dirty");
-        let camera                  = RefCell::new(Camera2d::new(&logger,width,height));
-        let shape_registry          = default();
-        let shape_system_symbol_info = default();
-        let elements                = default();
-        let symbols_ordered         = default();
-        let depth_order             = default();
-        let depth_order_dirty       = dirty::SharedBool::new(logger_dirty,on_mut);
-        let all_layers_model        = all_layers_model.clone();
-
-        Self {id,logger,camera,shape_registry,shape_system_symbol_info,elements
-            ,symbols_ordered,depth_order,depth_order_dirty,all_layers_model}
+        let logger                          = Logger::sub(logger,"layer");
+        let logger_dirty                    = Logger::sub(&logger,"dirty");
+        let camera                          = RefCell::new(Camera2d::new(&logger));
+        let shape_system_registry           = default();
+        let shape_system_to_symbol_info_map = default();
+        let symbol_to_shape_system_map      = default();
+        let elements                        = default();
+        let symbols_ordered                 = default();
+        let depth_order                     = default();
+        let depth_order_dirty               = dirty::SharedBool::new(logger_dirty,on_mut);
+        let all_layers_model                = all_layers_model.clone();
+        Self {id,logger,camera,shape_system_registry,shape_system_to_symbol_info_map,elements
+             ,symbols_ordered,depth_order,depth_order_dirty,all_layers_model
+             ,symbol_to_shape_system_map}
     }
 
+    /// Vector of all symbols registered in this layer, ordered according to the defined depth-order
+    /// dependencies. Please note that this function does not update the depth-ordering of the
+    /// elements. Updates are performed by calling the `update` method on [`Layers`], which usually
+    /// happens once per animation frame.
     pub fn symbols(&self) -> Vec<SymbolId> {
         self.symbols_ordered.borrow().clone()
     }
 
+    /// Add depth-order dependency between two [`LayerElement`]s in this layer.
     pub fn add_elements_order_dependency
     (&self, below:impl Into<LayerElement>, above:impl Into<LayerElement>) {
         let below = below.into();
         let above = above.into();
-        self.depth_order_dirty.set();
         self.depth_order.borrow_mut().insert_dependency(below,above);
+        self.depth_order_dirty.set();
     }
 
+    /// Remove a depth-order dependency between two [`LayerElement`]s in this layer. Returns `true`
+    /// if the dependency was found, and `false` otherwise.
     pub fn remove_elements_order_dependency
-    (&self, below:impl Into<LayerElement>, above:impl Into<LayerElement>) {
+    (&self, below:impl Into<LayerElement>, above:impl Into<LayerElement>) -> bool {
         let below = below.into();
         let above = above.into();
-        if self.depth_order.borrow_mut().remove_dependency(below,above) {
-            self.depth_order_dirty.set();
-        }
+        let found = self.depth_order.borrow_mut().remove_dependency(below,above);
+        if found { self.depth_order_dirty.set(); }
+        found
     }
 
+    /// Add depth-order dependency between two shape-like definitions, where a "shape-like"
+    /// definition means a [`Shape`], a [`DynamicShape`], or user-defined shape system.
+    ///
     /// # Future Improvements
     /// This implementation can be simplified to `S1:KnownShapeSystemId` (not using [`Content`] at
     /// all), after the compiler gets updated to newer version.
@@ -280,42 +321,88 @@ impl LayerModel {
         let s1_id = <Content<S1>>::shape_system_id();
         let s2_id = <Content<S2>>::shape_system_id();
         self.add_elements_order_dependency(s1_id,s2_id);
+        self.depth_order_dirty.set();
         default()
     }
 
+    /// Remove depth-order dependency between two shape-like definitions, where a "shape-like"
+    /// definition means a [`Shape`], a [`DynamicShape`], or user-defined shape system. Returns
+    /// `true` if the dependency was found, and `false` otherwise.
+    ///
     /// # Future Improvements
     /// This implementation can be simplified to `S1:KnownShapeSystemId` (not using [`Content`] at
     /// all), after the compiler gets updated to newer version.
-    pub fn remove_shapes_order_dependency<S1,S2>(&self) -> (PhantomData<S1>,PhantomData<S2>) where
+    pub fn remove_shapes_order_dependency<S1,S2>
+    (&self) -> (bool,PhantomData<S1>,PhantomData<S2>) where
     S1          : HasContent,
     S2          : HasContent,
     Content<S1> : KnownShapeSystemId,
     Content<S2> : KnownShapeSystemId {
         let s1_id = <Content<S1>>::shape_system_id();
         let s2_id = <Content<S2>>::shape_system_id();
-        self.remove_elements_order_dependency(s1_id,s2_id);
-        default()
+        let found = self.remove_elements_order_dependency(s1_id,s2_id);
+        if found { self.depth_order_dirty.set(); }
+        (found,default(),default())
     }
 
+    /// Camera getter of this layer.
     pub fn camera(&self) -> Camera2d {
         self.camera.borrow().clone_ref()
     }
 
+    /// Camera setter of this layer.
     pub fn set_camera(&self, camera:impl Into<Camera2d>) {
         let camera = camera.into();
         *self.camera.borrow_mut() = camera;
     }
 
-    pub fn update(&self, global_element_depth_order:&DependencyGraph<LayerElement>) {
-        if self.depth_order_dirty.check() {
-            self.depth_order_dirty.unset();
-            self.depth_sort(global_element_depth_order);
+    /// Register a new symbol in this layer.
+    pub fn add_symbol(&self, symbol_id:impl Into<SymbolId>) {
+        self.add_element(symbol_id,None)
+    }
+
+    /// Register a new shape in this layer.
+    pub(crate) fn add_shape
+    (&self, shape_system_info:ShapeSystemInfo, symbol_id:impl Into<SymbolId>) {
+        self.add_element(symbol_id,Some(shape_system_info))
+    }
+
+    /// Internal helper for registering new elements in the layer.
+    fn add_element
+    (&self, symbol_id:impl Into<SymbolId>, shape_system_info:Option<ShapeSystemInfo>) {
+        self.depth_order_dirty.set();
+        let symbol_id = symbol_id.into();
+        self.remove_symbol_from_all_layers(symbol_id);
+        match shape_system_info {
+            None       => { self.elements.borrow_mut().insert(LayerElement::Symbol(symbol_id)); }
+            Some(info) => {
+                let symbol_info = ShapeSystemSymbolInfo::new(symbol_id,info.ordering);
+                self.shape_system_to_symbol_info_map.borrow_mut().insert(info.id,symbol_info);
+                self.symbol_to_shape_system_map.borrow_mut().insert(symbol_id,info.id);
+                self.elements.borrow_mut().insert(LayerElement::ShapeSystem(info.id));
+            }
+        }
+        self.all_layers_model.borrow_mut().symbols_placement.entry(symbol_id).or_default().push(self.id);
+    }
+
+    /// Remove the provided symbol from the current layer.
+    pub fn remove_symbol(&self, symbol_id:impl Into<SymbolId>) {
+        self.depth_order_dirty.set();
+        let symbol_id = symbol_id.into();
+
+        self.elements.borrow_mut().remove(&LayerElement::Symbol(symbol_id));
+        if let Some(shape_system_id) = self.symbol_to_shape_system_map.borrow_mut().remove(&symbol_id) {
+            self.shape_system_to_symbol_info_map.borrow_mut().remove(&shape_system_id);
+            self.elements.borrow_mut().remove(&LayerElement::ShapeSystem(shape_system_id));
+        }
+
+        if let Some(placement) = self.all_layers_model.borrow_mut().symbols_placement.get_mut(&symbol_id) {
+            placement.remove_item(&self.id);
         }
     }
 
-    pub fn add_symbol(&self, symbol_id:impl Into<SymbolId>) {
-        self.depth_order_dirty.set();
-        let symbol_id = symbol_id.into();
+    /// Remove the provided symbol from all layers it was attached to.
+    fn remove_symbol_from_all_layers(&self, symbol_id:SymbolId) {
         let placement = self.all_layers_model.borrow().symbols_placement.get(&symbol_id).cloned();
         if let Some(placement) = placement {
             for layer_id in placement {
@@ -325,70 +412,30 @@ impl LayerModel {
                 }
             }
         }
-        self.all_layers_model.borrow_mut().symbols_placement.entry(symbol_id).or_default().push(self.id);
-        self.elements.borrow_mut().insert(LayerElement::Symbol(symbol_id));
     }
 
-    pub fn add_shape(&self, shape_system_id:ShapeSystemId, symbol_id:impl Into<SymbolId>,always_above:Vec<ShapeSystemId>,always_below:Vec<ShapeSystemId>) {
-        self.depth_order_dirty.set();
-        let symbol_id = symbol_id.into();
-        let placement = self.all_layers_model.borrow().symbols_placement.get(&symbol_id).cloned();
-        if let Some(placement) = placement {
-            for layer_id in placement {
-                let opt_layer = self.all_layers_model.borrow().registry[*layer_id].upgrade();
-                if let Some(layer) = opt_layer {
-                    layer.remove_shape(shape_system_id,symbol_id)
-                }
-            }
-        }
-        self.all_layers_model.borrow_mut().symbols_placement.entry(symbol_id).or_default().push(self.id);
-
-        let info = ShapeSystemSymbolInfo::new(symbol_id,always_above,always_below);
-        self.shape_system_symbol_info.borrow_mut().insert(shape_system_id,info);
-        self.elements.borrow_mut().insert(LayerElement::ShapeSystem(shape_system_id));
-    }
-
-    pub fn remove_symbol(&self, symbol_id:impl Into<SymbolId>) {
-        self.depth_order_dirty.set();
-        let symbol_id = symbol_id.into();
-
-        self.elements.borrow_mut().remove(&LayerElement::Symbol(symbol_id));
-
-        if let Some(placement) = self.all_layers_model.borrow_mut().symbols_placement.get_mut(&symbol_id) {
-            placement.remove_item(&self.id);
+    /// Consume all dirty flags and update the ordering of elements if needed.
+    pub(crate) fn update(&self, global_element_depth_order:&DependencyGraph<LayerElement>) {
+        if self.depth_order_dirty.check() {
+            self.depth_order_dirty.unset();
+            self.depth_sort(global_element_depth_order);
         }
     }
 
-    pub fn remove_shape(&self, shape_system_id:ShapeSystemId, symbol_id:impl Into<SymbolId>) {
-        self.depth_order_dirty.set();
-        let symbol_id = symbol_id.into();
-
-        self.elements.borrow_mut().remove(&LayerElement::Symbol(symbol_id));
-        self.shape_system_symbol_info.borrow_mut().remove(&shape_system_id);
-        self.elements.borrow_mut().remove(&LayerElement::ShapeSystem(shape_system_id));
-
-        if let Some(placement) = self.all_layers_model.borrow_mut().symbols_placement.get_mut(&symbol_id) {
-            placement.remove_item(&self.id);
-        }
-    }
-
+    /// Compute a combined [`DependencyGraph`] for the layer taking int consideration the global
+    /// dependency graph (from [`Layers`]), the local one (per layer), and individual shape
+    /// preferences (see the "Compile Time Shapes Ordering Relations" section in docs of [`Layers`]
+    /// to learn more).
     fn combined_depth_order_graph(&self, global_element_depth_order:&DependencyGraph<LayerElement>)
     -> DependencyGraph<LayerElement> {
         let mut graph = global_element_depth_order.clone();
         graph.extend(self.depth_order.borrow().clone().into_iter());
         for element in &*self.elements.borrow() {
-            match element {
-                LayerElement::ShapeSystem(id) => {
-                    if let Some(info) = self.shape_system_symbol_info.borrow().get(&id) {
-                        for &id2 in &info.always_below {
-                            graph.insert_dependency(*element,LayerElement::ShapeSystem(id2));
-                        }
-                        for &id2 in &info.always_above {
-                            graph.insert_dependency(LayerElement::ShapeSystem(id2),*element);
-                        }
-                    }
+            if let LayerElement::ShapeSystem(id) = element {
+                if let Some(info) = self.shape_system_to_symbol_info_map.borrow().get(&id) {
+                    for &id2 in &info.always_below { graph.insert_dependency(*element,id2.into()); }
+                    for &id2 in &info.always_above { graph.insert_dependency(id2.into(),*element); }
                 }
-                _ => {}
             }
         };
         graph
@@ -403,9 +450,11 @@ impl LayerModel {
             match element {
                 LayerElement::Symbol(symbol_id) => Some(symbol_id),
                 LayerElement::ShapeSystem(id) => {
-                    let out = self.shape_system_symbol_info.borrow().get(&id).map(|t|t.symbol_id);
+                    let out = self.shape_system_to_symbol_info_map.borrow().get(&id).map(|t|t.id);
                     if out.is_none() {
-                        warning!(self.logger,"Trying to perform depth-order of non-existing element '{id:?}'.")
+                        warning!(self.logger,
+                            "Trying to perform depth-order of non-existing element '{id:?}'."
+                        )
                     }
                     out
                 }
@@ -450,7 +499,7 @@ impl std::borrow::Borrow<LayerModel> for Layer {
 // ==============
 
 /// [`Scene`] layers implementation. Scene can consist of one or more layers. Each layer is assigned
-/// with a camera and set of [`Symbol`]s to be displayed. Layers can both share cameras and symbols.
+/// with a camera and set of [`Symbol`]s to be displayed. Layers can share cameras and symbols.
 ///
 /// For example, you can create a layer which displays the same symbols as another layer, but from a
 /// different camera to create a "mini-map view" of a graph editor.
@@ -532,7 +581,7 @@ impl std::borrow::Borrow<LayerModel> for Layer {
 #[derive(Clone,CloneRef,Debug)]
 pub struct Layers {
     logger                     : Logger,
-    global_element_depth_order : ElementDepthOrder,
+    global_element_depth_order : Rc<RefCell<DependencyGraph<LayerElement>>>,
     model                      : Rc<RefCell<LayersModel>>,
     element_depth_order_dirty  : dirty::SharedBool,
     layers_depth_order_dirty   : dirty::SharedBool,
