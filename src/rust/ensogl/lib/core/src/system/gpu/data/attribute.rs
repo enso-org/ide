@@ -41,10 +41,16 @@ pub type ShapeDirty = dirty::SharedBool<Box<dyn Fn()>>;
 // ======================
 
 shared! { AttributeScope
-/// Scope defines a view for geometry structure. For example, there is point scope or instance
-/// scope. Scope contains buffer of data for each item it describes.
+/// [`AttributeScope`] is a set of named [`Buffer`]s of the same length. The buffers con contain any
+/// WebGL specific information, like geometry information. The buffers are named for easy access.
+/// For example, the current geometry implementation uses [`AttributeScope`] to define logical
+/// attribute scopes named "point" and "instance". They contain information attached to points and
+/// geometry instances respectively. For example, the "point" [`AttributeScope`] can contain such
+/// buffers as "color", while "instance" [`AttributeScope`] can be created with a "position" buffer
+/// to allow controlling placement of each instance separately.
 ///
-/// # Memory management and ID re-use.
+///
+/// # Internal Design (Memory management and ID re-use)
 /// TODO: The proper memory management should be implemented. Currently, after creating a lot of
 ///       instances and dropping them, the memory is not freed. This section explains why and
 ///       describes possible solutions.
@@ -215,9 +221,9 @@ impl {
 // === Attribute ===
 // =================
 
-/// View for a particular buffer. Allows reading and writing buffer data
-/// via the internal mutability pattern. It is implemented as a view on
-/// a selected `Buffer` element under the hood.
+/// Interface for a particular [`Buffer`] element. It allows reading and writing the buffer value.
+/// Attributes are used to bind geometric specific, like sprite positions, to specific [`Buffer`]
+/// indexes.
 #[derive(Clone,CloneRef,Debug,Derivative)]
 pub struct Attribute<T> {
     index  : InstanceIndex,

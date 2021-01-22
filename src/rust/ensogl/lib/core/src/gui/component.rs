@@ -269,27 +269,29 @@ impl<S:DynamicShape> ShapeViewModel<S> {
         }
     }
 
-    fn set_scene_layer(&self, scene:&Scene, layer:&scene::Layer) -> (ShapeSystemId,SymbolId,attribute::InstanceIndex) {
-        self.before_first_show.set(false);
-        let (shape_system_id,symbol_id,instance_id) = self.set_scene_registry(&scene.shapes,&layer.shape_registry);
-        layer.add_shape(shape_system_id,symbol_id);
-        (shape_system_id,symbol_id,instance_id)
+    fn set_scene_layer(&self, scene:&Scene, layer:&scene::Layer) {// -> (ShapeSystemId,SymbolId,attribute::InstanceIndex) {
+        self.before_first_show.set(false); // FIXME: still needed?
+        self.unregister_existing_mouse_target();
+        let (shape_system_id,symbol_id,instance_id,always_above,always_below) = layer.shape_registry.instantiate(&self.shape);
+        layer.add_shape(shape_system_id,symbol_id,always_above,always_below);
+        scene.shapes.insert_mouse_target(symbol_id,instance_id,self.events.clone_ref());
+        *self.registry.borrow_mut() = Some(scene.shapes.clone_ref());
     }
 
-    fn set_scene_registry(&self, registry1:&ShapeRegistry, registry:&ShapeRegistry2) -> (ShapeSystemId,SymbolId,attribute::InstanceIndex) {
-        self.unregister_existing_mouse_target();
-        let (shape_system_id,symbol_id,instance_id) = registry.instantiate(&self.shape);
-        registry1.insert_mouse_target(symbol_id,instance_id,self.events.clone_ref());
-        *self.registry.borrow_mut() = Some(registry1.clone_ref());
-        (shape_system_id,symbol_id,instance_id)
-    }
+    // fn set_scene_registry(&self, registry1:&ShapeRegistry, registry:&ShapeRegistry2) -> (ShapeSystemId,SymbolId,attribute::InstanceIndex) {
+    //     self.unregister_existing_mouse_target();
+    //     let (shape_system_id,symbol_id,instance_id) = registry.instantiate(&self.shape);
+    //     registry1.insert_mouse_target(symbol_id,instance_id,self.events.clone_ref());
+    //     *self.registry.borrow_mut() = Some(registry1.clone_ref());
+    //     (shape_system_id,symbol_id,instance_id)
+    // }
 
     fn unregister_existing_mouse_target(&self) {
         if let (Some(registry),Some(sprite)) = (&*self.registry.borrow(),&self.shape.sprite()) {
             let symbol_id   = sprite.symbol_id();
             let instance_id = sprite.instance_id;
             registry.remove_mouse_target(symbol_id,instance_id);
-            self.events.on_drop.emit(());
+            self.events.on_drop.emit(()); // FIXME: wrong place?
         }
     }
 }

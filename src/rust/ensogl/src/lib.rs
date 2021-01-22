@@ -68,26 +68,6 @@
 //!     [Application] - [World]
 //!     [Application] o- [*Component]
 //! ```
-//!
-//!                   ╭───────────────╮
-//!                   │  Application  │
-//!                   ╰───────────────╯
-//!        ◊
-//!        │
-//!        │
-//!   ╭─────────╮
-//!   │  World  │
-//!   ╰─────────╯
-//!        ◊
-//!        │
-//!   ╭─────────╮
-//!   │  Scene  │
-//!   ╰─────────╯
-//!        ◊
-//!        │
-//!   ╭────────╮     ╭─────────────────╮      ╭─────────────╮
-//!   │  View  │     │  WebGL Context  │      │  Component  │
-//!   ╰────────╯     ╰─────────────────╯      ╰─────────────╯
 //! # Shapes Rendering
 //!
 //!
@@ -98,6 +78,10 @@
 //! of attached attribute arrays. During rendering, we use the `draw_arrays_instanced` WebGL call to
 //! iterate over the arrays and draw each shape. The shape placement is done from within its vertex
 //! shader.
+//!
+//! See the documentation of [`crate::system::gpu::data::Buffer`].
+//! See the documentation of [`crate::system::gpu::data::Attribute`].
+//! See the documentation of [`crate::system::gpu::data::AttributeScope`].
 //!
 //! ### Known Issues / Ideas of Improvement
 //!

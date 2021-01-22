@@ -61,6 +61,7 @@ pub fn depth_sort_hack(scene:&Scene) {
 pub mod viz {
     use super::*;
     ensogl::define_shape_system! {
+        always_above = [hover];
         (style:Style, color:Vector4) {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();

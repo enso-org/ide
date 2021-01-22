@@ -1,3 +1,4 @@
+//! Scene layers implementation. See docs of [`Layers`] to learn more.
 use crate::prelude::*;
 
 use crate::data::OptVec;
@@ -62,12 +63,14 @@ impl {
     }
 
     pub fn instantiate<T:display::shape::system::DynamicShape>(&mut self,shape:&T)
-    -> (ShapeSystemId,SymbolId,attribute::InstanceIndex) {
-        let system      = self.get_or_register::<DynShapeSystemOf<T>>();
-        let system_id   = DynShapeSystemOf::<T>::id();
-        let instance_id = system.instantiate(shape);
-        let symbol_id   = system.shape_system().sprite_system.symbol.id;
-        (system_id,symbol_id,instance_id)
+    -> (ShapeSystemId,SymbolId,attribute::InstanceIndex,Vec<ShapeSystemId>,Vec<ShapeSystemId>) {
+        let system       = self.get_or_register::<DynShapeSystemOf<T>>();
+        let system_id    = DynShapeSystemOf::<T>::id();
+        let instance_id  = system.instantiate(shape);
+        let symbol_id    = system.shape_system().sprite_system.symbol.id;
+        let always_above = DynShapeSystemOf::<T>::always_above();
+        let always_below = DynShapeSystemOf::<T>::always_below();
+        (system_id,symbol_id,instance_id,always_above,always_below)
     }
 }}
 
@@ -97,26 +100,6 @@ impl From<ShapeSystemId> for LayerElement {
 
 pub type ElementDepthOrder = Rc<RefCell<DependencyGraph<LayerElement>>>;
 
-// #[derive(Debug,Clone,CloneRef)]
-// pub struct DepthOrder {
-//     global : ElementDepthOrder,
-//     local  : ElementDepthOrder,
-// }
-//
-// impl DepthOrder {
-//     pub fn new(global:&ElementDepthOrder) -> Self {
-//         let global = global.clone_ref();
-//         let local  = default();
-//         Self {global,local}
-//     }
-//
-//     fn sort(&self, symbols:&BTreeSet<LayerElement>) -> Vec<LayerElement> {
-//         let mut graph = self.global.borrow().clone();
-//         graph.extend(self.local.borrow().clone().into_iter());
-//         graph.into_unchecked_topo_sort(symbols.iter().copied().rev().collect_vec())
-//     }
-// }
-
 
 
 // ===============
@@ -135,6 +118,7 @@ newtype_prim! {
 // === Layer ===
 // =============
 
+/// A single scene layer. See documentation of [`Layers`] to learn more.
 #[derive(Debug,Clone,CloneRef)]
 pub struct Layer {
     model : Rc<LayerModel>
@@ -197,6 +181,21 @@ impl Debug for WeakLayer {
 }
 
 
+#[derive(Clone,Debug)]
+pub struct ShapeSystemSymbolInfo {
+    symbol_id    : SymbolId,
+    always_above : Vec<ShapeSystemId>,
+    always_below : Vec<ShapeSystemId>,
+}
+
+impl ShapeSystemSymbolInfo {
+    fn new
+    (symbol_id:SymbolId, always_above:Vec<ShapeSystemId>, always_below:Vec<ShapeSystemId>) -> Self {
+        Self {symbol_id,always_above,always_below}
+    }
+}
+
+
 
 // ==================
 // === LayerModel ===
@@ -208,7 +207,7 @@ pub struct LayerModel {
     logger                  : Logger,
     pub camera              : RefCell<Camera2d>,
     pub shape_registry      : ShapeRegistry2,
-    shape_system_symbol_map : RefCell<HashMap<ShapeSystemId,SymbolId>>,
+    shape_system_symbol_info : RefCell<HashMap<ShapeSystemId,ShapeSystemSymbolInfo>>,
     elements                : RefCell<BTreeSet<LayerElement>>,
     symbols_ordered         : RefCell<Vec<SymbolId>>,
     depth_order             : RefCell<DependencyGraph<LayerElement>>,
@@ -238,14 +237,14 @@ impl LayerModel {
         let logger_dirty            = Logger::sub(&logger,"dirty");
         let camera                  = RefCell::new(Camera2d::new(&logger,width,height));
         let shape_registry          = default();
-        let shape_system_symbol_map = default();
+        let shape_system_symbol_info = default();
         let elements                = default();
         let symbols_ordered         = default();
         let depth_order             = default();
         let depth_order_dirty       = dirty::SharedBool::new(logger_dirty,on_mut);
         let all_layers_model        = all_layers_model.clone();
 
-        Self {id,logger,camera,shape_registry,shape_system_symbol_map,elements
+        Self {id,logger,camera,shape_registry,shape_system_symbol_info,elements
             ,symbols_ordered,depth_order,depth_order_dirty,all_layers_model}
     }
 
@@ -330,7 +329,7 @@ impl LayerModel {
         self.elements.borrow_mut().insert(LayerElement::Symbol(symbol_id));
     }
 
-    pub fn add_shape(&self, shape_system_id:ShapeSystemId, symbol_id:impl Into<SymbolId>) {
+    pub fn add_shape(&self, shape_system_id:ShapeSystemId, symbol_id:impl Into<SymbolId>,always_above:Vec<ShapeSystemId>,always_below:Vec<ShapeSystemId>) {
         self.depth_order_dirty.set();
         let symbol_id = symbol_id.into();
         let placement = self.all_layers_model.borrow().symbols_placement.get(&symbol_id).cloned();
@@ -344,7 +343,8 @@ impl LayerModel {
         }
         self.all_layers_model.borrow_mut().symbols_placement.entry(symbol_id).or_default().push(self.id);
 
-        self.shape_system_symbol_map.borrow_mut().insert(shape_system_id,symbol_id);
+        let info = ShapeSystemSymbolInfo::new(symbol_id,always_above,always_below);
+        self.shape_system_symbol_info.borrow_mut().insert(shape_system_id,info);
         self.elements.borrow_mut().insert(LayerElement::ShapeSystem(shape_system_id));
     }
 
@@ -364,7 +364,7 @@ impl LayerModel {
         let symbol_id = symbol_id.into();
 
         self.elements.borrow_mut().remove(&LayerElement::Symbol(symbol_id));
-        self.shape_system_symbol_map.borrow_mut().remove(&shape_system_id);
+        self.shape_system_symbol_info.borrow_mut().remove(&shape_system_id);
         self.elements.borrow_mut().remove(&LayerElement::ShapeSystem(shape_system_id));
 
         if let Some(placement) = self.all_layers_model.borrow_mut().symbols_placement.get_mut(&symbol_id) {
@@ -373,16 +373,31 @@ impl LayerModel {
     }
 
     fn depth_sort(&self, global_element_depth_order:&DependencyGraph<LayerElement>) {
-        let symbols_rev = self.elements.borrow().iter().copied().rev().collect_vec();
-        let mut graph   = global_element_depth_order.clone();
+        let elements_rev = self.elements.borrow().iter().copied().rev().collect_vec();
+        let mut graph    = global_element_depth_order.clone();
         graph.extend(self.depth_order.borrow().clone().into_iter());
-        let sorted_elements = graph.into_unchecked_topo_sort(symbols_rev);
+        for element in &*self.elements.borrow() {
+            match element {
+                LayerElement::ShapeSystem(id) => {
+                    if let Some(info) = self.shape_system_symbol_info.borrow().get(&id) {
+                        for &id2 in &info.always_below {
+                            graph.insert_dependency(*element,LayerElement::ShapeSystem(id2));
+                        }
+                        for &id2 in &info.always_above {
+                            graph.insert_dependency(LayerElement::ShapeSystem(id2),*element);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        let sorted_elements = graph.into_unchecked_topo_sort(elements_rev);
 
-        let sorted_symbols  = sorted_elements.into_iter().filter_map(|element| {
+        let sorted_symbols = sorted_elements.into_iter().filter_map(|element| {
             match element {
                 LayerElement::Symbol(symbol_id) => Some(symbol_id),
                 LayerElement::ShapeSystem(id) => {
-                    let out = self.shape_system_symbol_map.borrow().get(&id).copied();
+                    let out = self.shape_system_symbol_info.borrow().get(&id).map(|t|t.symbol_id);
                     if out.is_none() {
                         warning!(self.logger,"Trying to perform depth-order of non-existing element '{id:?}'.")
                     }
@@ -428,6 +443,78 @@ impl std::borrow::Borrow<LayerModel> for Layer {
 // === Layers ===
 // ==============
 
+/// [`Scene`] layers implementation. Scene can consist of one or more layers. Each layer is assigned
+/// with a camera and set of [`Symbol`]s to be displayed. Layers can both share cameras and symbols.
+///
+/// For example, you can create a layer which displays the same symbols as another layer, but from a
+/// different camera to create a "mini-map view" of a graph editor.
+///
+/// ```ignore
+/// +------+.
+/// |`.    | `.  Layer 1 (top)
+/// |  `+--+---+ (Camera 1 and symbols [1,2,3])
+/// +---+--+.  |
+/// |`. |  | `.| Layer 2 (middle)
+/// |  `+------+ (Camera 2 and symbols [3,4,5])
+/// +---+--+.  |
+///  `. |    `.| Layer 3 (bottom)
+///    `+------+ (Camera 1 and symbols [3,6,7])
+/// ```
+///
+///
+/// # Layer Ordering
+/// Layers can be ordered by using the `add_layers_order_dependency` and the
+/// `remove_layers_order_dependency` methods, respectively. The API allows defining a depth-order
+/// dependency graph which will be resolved during a frame update. All symbols from lower layers
+/// will be drawn to the screen before symbols from the upper layers.
+///
+///
+/// # Symbols Ordering
+/// There are two ways to define symbol ordering in scene layers, a global, and local (per-layer)
+/// one. In order to define a global depth-order dependency, you can use the
+/// `add_elements_order_dependency` and the `remove_elements_order_dependency` methods respectively.
+/// In order to define local (per-layer) depth-order dependency, you can use methods of the same
+/// names in every layer instance. After changing a dependency graph, the layer management marks
+/// appropriate dirty flags and re-orders symbols on each new frame processed.
+///
+/// During symbol sorting, the global and local dependency graphs are merged together. The defined
+/// rules are equivalently important, so local rules will not override global ones. In case of
+/// lack of dependencies or circular dependencies, the symbol ids are considered (the ids are
+/// increasing with every new symbol created).
+///
+/// Please note, that symbol ordering doesn't work cross-layer. Even if you define that symbol A has
+/// to be above symbol B, but you place symbol B on a layer above the layer of the symbol A, the
+/// symbol A will be drawn first, below symbol B!
+///
+///
+/// # Shapes Ordering
+/// Ordering of shapes is more tricky than ordering of [`Symbol`]s. Each shape instance will be
+/// assigned with an unique [`Symbol`] when placed on a stage, but the connection may change or can
+/// be missing when the shape will be detached from the display object hierarchy or when the shape
+/// will be moved between the layers. Read the "Shape Management" section below to learn why.
+///
+/// Shapes can be ordered by using the same methods as symbols (described above). In fact, the
+/// depth-order dependencies can be seamlessly defined between both [`Symbol`]s and
+/// [`DynamicShape`]s thanks to the [`LayerElement`] abstraction. Moreover, there is a special
+/// shapes ordering API allowing describing their dependencies without requiring references to their
+/// instances (unlike the API described above). You can add or remove depth-order dependencies for
+/// shapes based solely on their types by using the [`add_shapes_order_dependency`] and the
+/// [`remove_shapes_order_dependency`] methods, respectively.
+///
+/// Also, there is a macro [`shapes_order_dependencies!`] which allows convenient form for
+/// defining the depth-order dependency graph for shapes based on their types.
+///
+///
+/// # Compile Time Shapes Ordering Relations
+/// There is also a third way to define depth-dependencies for shapes. However, unlike previous
+/// methods, this one does not require you to own a reference to [`Scene`] or its [`Layers`]. Also,
+/// it is impossible to remove during runtime dependencies created this way. This might sound
+/// restrictive, but actually it is what you may often want to do. For example, when creating a
+/// text area, you want to define that the cursor should always be above its background and there is
+/// no situation when it should not be hold. In such a way, you should use this method to define
+/// depth-dependencies. In order to define such compile tie shapes ordering relations, you have to
+/// define them while defining the shape system. The easiest way to do it is by using the
+/// [`define_shape_system!`] macro. Refer to its documentation to learn more.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Layers {
     logger                     : Logger,
@@ -493,6 +580,14 @@ impl Layers {
         let above = above.into();
         self.layers_depth_order_dirty.set();
         self.model.borrow_mut().layer_depth_order.insert_dependency(below,above);
+    }
+
+    pub fn remove_layers_order_dependency(&self, below:impl Into<LayerId>, above:impl Into<LayerId>) {
+        let below = below.into();
+        let above = above.into();
+        if self.model.borrow_mut().layer_depth_order.remove_dependency(below,above) {
+            self.layers_depth_order_dirty.set();
+        }
     }
 
     pub fn add_elements_order_dependency
@@ -575,7 +670,7 @@ impl LayersModel {
 /// For example, the following usage:
 ///
 /// ```ignore
-/// shapes_order_depenendencies! {
+/// shapes_order_dependencies! {
 ///     scene => {
 ///         output::port::single_port -> shape;
 ///         output::port::multi_port  -> shape;
@@ -594,7 +689,7 @@ impl LayersModel {
 /// scene.layers.add_shapes_order_dependency::<input::port::hover::View, input::port::viz::View>();
 /// ```
 #[macro_export]
-macro_rules! shapes_order_depenendencies {
+macro_rules! shapes_order_dependencies {
     ($scene:expr => {
         $( $p1:ident $(:: $ps1:ident)* -> $p2:ident $(:: $ps2:ident)*; )*
     }) => {$(

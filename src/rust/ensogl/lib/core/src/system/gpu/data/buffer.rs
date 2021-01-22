@@ -84,10 +84,24 @@ impl GlData {
 // ==============
 
 shared! { Buffer
-/// CPU-counterpart of WebGL buffers. The buffer data is synchronised with GPU on demand, usually
-/// in the update stage before drawing the frame.
+/// CPU-counterpart of WebGL buffers. The buffer can contain all GPU related data like vertex
+/// positions, colors, or shader parameters. Geometries use multiple buffers to store the required
+/// display data. The buffer data is synchronised with GPU on demand, usually in the update stage
+/// before drawing the frame.
+///
+/// # Design
+/// Buffers use [`ObservableVec`] under the hood. After an element is modified, buffer stories the
+/// information about modified indexes in its dirty flags. Only the information about smallest and
+/// biggest index is stored currently, as sending a big chunk of data to the GPU is often way
+/// cheaper than sending many small updates. However, this depends on many parameters, including
+/// chunks size and type of the used hardware, so it may be further optimized in the future.
+///
+/// # Contextless Buffers
+/// Buffers were designed to work without active WebGL context. In such a case, the data is stored
+/// on CPU-side and will be uploaded to the GPU as soon as the context is bound or restored.
 #[derive(Debug)]
 pub struct BufferData<T> {
+    logger        : Logger,
     gl            : Option<GlData>,
     buffer        : ObservableVec<T>,
     mut_dirty     : MutDirty,
@@ -95,7 +109,6 @@ pub struct BufferData<T> {
     usage         : BufferUsage,
     stats         : Stats,
     gpu_mem_usage : u32,
-    logger        : Logger,
 }
 
 impl<T:Storable> {
@@ -113,9 +126,7 @@ impl<T:Storable> {
             let on_resize_fn  = on_resize_fn(resize_dirty.clone_ref());
             let on_mut_fn     = on_mut_fn(mut_dirty.clone_ref());
             let buffer        = ObservableVec::new(on_mut_fn,on_resize_fn);
-            // let gl_buffer     = create_gl_buffer(&context);
             let usage         = default();
-            // let context       = context.clone();
             let stats         = stats.clone_ref();
             let gpu_mem_usage = default();
             let gl            = default();

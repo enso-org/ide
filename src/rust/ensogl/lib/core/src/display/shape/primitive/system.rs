@@ -138,6 +138,14 @@ pub trait ShapeSystemInstance : 'static + CloneRef {
     fn new(scene:&Scene) -> Self;
     /// The [`ShapeSystem`] instance of the user defined shape system.
     fn shape_system(&self) -> &ShapeSystem;
+    /// List of shape systems this shape system should always be drawn on above of. See the
+    /// [`crate::display::scene::Layers`] documentation to learn more about compile time shapes
+    /// ordering relations.
+    fn always_above() -> Vec<ShapeSystemId>;
+    /// List of shape system this shape system should always be drawn on below of. See the
+    /// [`crate::display::scene::Layers`] documentation to learn more about compile time shapes
+    /// ordering relations.
+    fn always_below() -> Vec<ShapeSystemId>;
 }
 
 /// Trait for user defined shape systems. The easiest way to define custom shape system is by using
@@ -237,23 +245,43 @@ impl<T:Shape> ShapeOps for T {
 /// the required buffer handlers.
 #[macro_export]
 macro_rules! define_shape_system {
-    ( ($style:ident : Style $(,)?) {$($body:tt)*} ) => {
-        $crate::_define_shape_system! { [$style] (){$($body)*} }
+    (
+        $(always_above = [$($always_above_1:tt $(::$always_above_2:tt)*),*];)?
+        $(always_below = [$($always_below_1:tt $(::$always_below_2:tt)*),*];)?
+        ($style:ident : Style $(,$gpu_param : ident : $gpu_param_type : ty)* $(,)?) {$($body:tt)*}
+    ) => {
+        $crate::_define_shape_system! {
+            $(always_above = [$($always_above_1 $(::$always_above_2)*),*];)?
+            $(always_below = [$($always_below_1 $(::$always_below_2)*),*];)?
+            [$style] ($($gpu_param : $gpu_param_type),*){$($body)*}
+        }
     };
 
-    ( ($style:ident : Style, $($gpu_param : ident : $gpu_param_type : ty),* $(,)?) {$($body:tt)*} ) => {
-        $crate::_define_shape_system! { [$style] ($($gpu_param : $gpu_param_type),*){$($body)*} }
-    };
-
-    ( ($($gpu_param : ident : $gpu_param_type : ty),* $(,)?) {$($body:tt)*} ) => {
-        $crate::_define_shape_system! { [style] ($($gpu_param : $gpu_param_type),*){$($body)*} }
+    (
+        $(always_above = [$($always_above_1:tt $(::$always_above_2:tt)*),*];)?
+        $(always_below = [$($always_below_1:tt $(::$always_below_2:tt)*),*];)?
+        ($($gpu_param : ident : $gpu_param_type : ty),* $(,)?) {$($body:tt)*}
+    ) => {
+        $crate::_define_shape_system! {
+            $(always_above = [$($always_above_1 $(::$always_above_2)*),*];)?
+            $(always_below = [$($always_below_1 $(::$always_below_2)*),*];)?
+            [style] ($($gpu_param : $gpu_param_type),*){$($body)*}
+        }
     }
+}
+
+#[macro_export]
+macro_rules! style_name_for_define_shape_system {
+    ()            => { style };
+    ($name:ident) => {$name};
 }
 
 /// Internal helper for `define_shape_system`.
 #[macro_export]
 macro_rules! _define_shape_system {
     (
+        $(always_above = [$($always_above_1:tt $(::$always_above_2:tt)*),*];)?
+        $(always_below = [$($always_below_1:tt $(::$always_below_2:tt)*),*];)?
         [$style:ident]
         ($($gpu_param : ident : $gpu_param_type : ty),* $(,)?)
         {$($body:tt)*}
@@ -460,8 +488,14 @@ macro_rules! _define_shape_system {
             fn shape_system(&self) -> &$crate::display::shape::ShapeSystem {
                 &self.shape_system
             }
-        }
 
+            fn always_above() -> Vec<ShapeSystemId> {
+                vec![ $($($always_above_1 $(::$always_above_2)* :: ShapeSystem :: id()),*)? ]
+            }
+            fn always_below() -> Vec<ShapeSystemId> {
+                vec![ $($($always_below_1 $(::$always_below_2)* :: ShapeSystem :: id()),*)? ]
+            }
+        }
 
         impl $crate::display::shape::StaticShapeSystemInstance for ShapeSystem {
             type Shape = Shape;

@@ -2,6 +2,7 @@
 
 #[warn(missing_docs)]
 pub mod dom;
+#[warn(missing_docs)]
 pub mod layer;
 
 pub use layer::Layer;

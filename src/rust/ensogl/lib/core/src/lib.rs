@@ -19,6 +19,7 @@
 #![feature(unboxed_closures)]
 #![feature(vec_remove_item)]
 #![feature(weak_into_raw)]
+#![feature(const_type_id)]
 
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
@@ -70,7 +71,7 @@ pub use animation::DEPRECATED_Tween;
 /// Commonly used utilities.
 pub mod prelude {
     pub use crate::data::container::AddMut;
-    pub use crate::shapes_order_depenendencies;
+    pub use crate::shapes_order_dependencies;
     pub use enso_data as data;
     pub use enso_logger as logger;
     pub use enso_logger::*;
