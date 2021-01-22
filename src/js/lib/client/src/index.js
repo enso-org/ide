@@ -20,6 +20,15 @@ const fss = require('fs')
 
 
 
+// ================
+// === Paths ===
+// ================
+
+const root = Electron.app.getAppPath()
+const resources = path.join(root, "..")
+
+
+
 // FIXME default options parsed wrong
 // https://github.com/yargs/yargs/issues/1590
 
@@ -350,8 +359,7 @@ async function backendVersion() {
 // === Main ===
 // ============
 
-let root = Electron.app.getAppPath()
-let resources = path.join(root, "..")
+
 let hideInsteadOfQuit = false
 
 let server     = null
