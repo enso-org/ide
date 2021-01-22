@@ -206,7 +206,7 @@ impl View {
 
         let shape_system = scene.shapes.shape_system(PhantomData::<overlay::Shape>);
         scene.layers.main.remove_symbol(&shape_system.shape_system.symbol);
-        scene.layers.viz.add_symbol(&shape_system.shape_system.symbol);
+        scene.layers.viz.add_symbol_exclusive(&shape_system.shape_system.symbol);
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles   = StyleWatch::new(&scene.style_sheet);
@@ -267,12 +267,9 @@ impl FullscreenView {
     pub fn new(logger:&Logger, scene:&Scene) -> Self {
         let logger         = Logger::sub(logger,"fullscreen_view");
         let display_object = display::object::Instance::new(&logger);
-        // let background     = component::ShapeView_DEPRECATED::<fullscreen_background::Shape>::new(&logger,scene);
-        // display_object.add_child(&background);
-
-        let shape_system = scene.shapes.shape_system(PhantomData::<fullscreen_background::Shape>);
+        let shape_system   = scene.shapes.shape_system(PhantomData::<fullscreen_background::Shape>);
         scene.layers.main.remove_symbol(&shape_system.shape_system.symbol);
-        scene.layers.viz_fullscreen.add_symbol(&shape_system.shape_system.symbol);
+        scene.layers.viz_fullscreen.add_symbol_exclusive(&shape_system.shape_system.symbol);
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles   = StyleWatch::new(&scene.style_sheet);
@@ -293,7 +290,6 @@ impl FullscreenView {
         background_dom.dom().set_style_or_warn("background"   ,bg_hex,&logger);
         background_dom.dom().set_style_or_warn("border-radius","0"   ,&logger);
         display_object.add_child(&background_dom);
-
         scene.dom.layers.back.manage(&background_dom);
 
         Self {logger,display_object,background_dom}

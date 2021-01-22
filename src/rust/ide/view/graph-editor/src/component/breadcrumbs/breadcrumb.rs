@@ -293,17 +293,17 @@ impl BreadcrumbModel {
 
         let shape_system = scene.shapes.shape_system(PhantomData::<background::Shape>);
         scene.layers.main.remove_symbol(&shape_system.shape_system.symbol);
-        scene.layers.breadcrumbs.add_symbol(&shape_system.shape_system.symbol);
+        scene.layers.breadcrumbs.add_symbol_exclusive(&shape_system.shape_system.symbol);
 
         let shape_system = scene.shapes.shape_system(PhantomData::<icon::Shape>);
         shape_system.shape_system.set_pointer_events(false);
         scene.layers.main.remove_symbol(&shape_system.shape_system.symbol);
-        scene.layers.breadcrumbs.add_symbol(&shape_system.shape_system.symbol);
+        scene.layers.breadcrumbs.add_symbol_exclusive(&shape_system.shape_system.symbol);
 
         let shape_system = scene.shapes.shape_system(PhantomData::<separator::Shape>);
         shape_system.shape_system.set_pointer_events(false);
         scene.layers.main.remove_symbol(&shape_system.shape_system.symbol);
-        scene.layers.breadcrumbs.add_symbol(&shape_system.shape_system.symbol);
+        scene.layers.breadcrumbs.add_symbol_exclusive(&shape_system.shape_system.symbol);
 
         label.remove_from_view(&scene.layers.main);
         label.add_to_scene_layer_DEPRECATED(&scene.layers.breadcrumbs);

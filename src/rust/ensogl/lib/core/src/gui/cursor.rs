@@ -281,7 +281,7 @@ impl CursorModel {
 
         let tgt_layer = &scene.layers.cursor;
         let shape_sys = tgt_layer.shape_system_registry.shape_system(&scene,PhantomData::<shape::DynamicShape>);
-        view.set_scene_layer(tgt_layer);
+        tgt_layer.add_exclusive(&view);
         shape_sys.shape_system.set_pointer_events(false);
 
         Self {logger,scene,view,style}

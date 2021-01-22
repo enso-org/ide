@@ -250,26 +250,26 @@ impl<S:DynamicShape> ShapeViewModel<S> {
     fn on_scene_layers_changed(&self, scene:&Scene, scene_layers:Option<&Vec<LayerId>>) {
         match scene_layers {
             None => {
-                self.set_scene_layer(&scene,&scene.layers.main);
+                self.add_to_scene_layer_exclusive(&scene,&scene.layers.main);
             },
             Some(scene_layers) => {
                 if scene_layers.len() != 1 {
-                    panic!("Adding a shape to multiple scene layers is not supported currently.")
+                    panic!("Adding a shape to multiple scene layers is currently not supported.")
                 }
                 if let Some(scene_layer) = scene.layers.get(scene_layers[0]) {
-                    self.set_scene_layer(&scene,&scene_layer);
+                    self.add_to_scene_layer_exclusive(&scene,&scene_layer);
                 } else {
-                    self.set_scene_layer(&scene,&scene.layers.main);
+                    self.add_to_scene_layer_exclusive(&scene,&scene.layers.main);
                 }
             }
         }
     }
 
-    fn set_scene_layer(&self, scene:&Scene, layer:&scene::Layer) {
+    fn add_to_scene_layer_exclusive(&self, scene:&Scene, layer:&scene::Layer) {
         self.before_first_show.set(false); // FIXME: still needed?
         self.unregister_existing_mouse_target();
         let (shape_system_info,symbol_id,instance_id) = layer.shape_system_registry.instantiate(scene,&self.shape);
-        layer.add_shape(shape_system_info,symbol_id);
+        layer.add_shape_exclusive(shape_system_info,symbol_id);
         scene.shapes.insert_mouse_target(symbol_id,instance_id,self.events.clone_ref());
         *self.registry.borrow_mut() = Some(scene.shapes.clone_ref());
     }

@@ -587,9 +587,28 @@ impl<Host> Instance<Host> {
         Id(Rc::downgrade(&self.rc).as_raw() as *const() as usize)
     }
 
-    fn _set_scene_layer(&self, layer:LayerId) {
+    /// Add this object to the provided scene layer and remove it from all other layers.
+    pub(crate) fn add_to_scene_layer(&self, layer:LayerId) {
+        self.dirty.scene_layer.set();
+        if let Some(scene_layers) = &mut *self.scene_layers.borrow_mut() {
+            if !scene_layers.contains(&layer) {
+                scene_layers.push(layer);
+            }
+        }
+    }
+
+    /// Add this object to the provided scene layer and remove it from all other layers.
+    pub(crate) fn add_to_scene_layer_exclusive(&self, layer:LayerId) {
         self.dirty.scene_layer.set();
         *self.scene_layers.borrow_mut() = Some(vec![layer]);
+    }
+
+    /// Remove this object from the provided scene layer.
+    pub(crate) fn remove_from_scene_layer(&self, layer:LayerId) {
+        self.dirty.scene_layer.set();
+        if let Some(scene_layers) = &mut *self.scene_layers.borrow_mut() {
+            scene_layers.remove_item(&layer);
+        }
     }
 
     /// Adds a new `Object` as a child to the current one.
@@ -768,11 +787,6 @@ pub trait ObjectOps<Host=Scene> : Object<Host> {
     /// Globally unique identifier of this display object.
     fn id(&self) -> Id {
         self.display_object()._id()
-    }
-
-    /// Assigns this object to a new scene layer. Any old assignments will be discarded.
-    fn set_scene_layer(&self, layer:impl Into<LayerId>) {
-        self.display_object()._set_scene_layer(layer.into())
     }
 
     /// Add another display object as a child to this display object. Children will inherit all

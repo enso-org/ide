@@ -601,7 +601,6 @@ impl Renderer {
 #[derive(Clone,CloneRef,Debug)]
 pub struct HardcodedLayers {
     pub viz            : Layer,
-    pub main           : Layer,
     pub cursor         : Layer,
     pub label          : Layer,
     pub viz_fullscreen : Layer,
@@ -619,15 +618,14 @@ impl Deref for HardcodedLayers {
 impl HardcodedLayers {
     pub fn new(logger:impl AnyLogger) -> Self {
         let layers         = Layers::new(logger);
-        let main           = layers.add();
-        let viz            = layers.add();
-        let cursor         = layers.add();
-        let label          = layers.add();
-        let viz_fullscreen = layers.add();
-        let breadcrumbs    = layers.add();
-        viz.set_camera(main.camera());
-        label.set_camera(main.camera());
-        Self {layers,viz,main,cursor,label,viz_fullscreen,breadcrumbs}
+        let viz            = layers.new_layer();
+        let cursor         = layers.new_layer();
+        let label          = layers.new_layer();
+        let viz_fullscreen = layers.new_layer();
+        let breadcrumbs    = layers.new_layer();
+        viz.set_camera(layers.main.camera());
+        label.set_camera(layers.main.camera());
+        Self {layers,viz,cursor,label,viz_fullscreen,breadcrumbs}
     }
 
     pub fn all(&self) -> Vec<Layer> {
@@ -795,7 +793,7 @@ impl SceneData {
 
     pub fn new_symbol(&self) -> Symbol {
         let symbol = self.symbols.new();
-        self.layers.main.add_symbol(&symbol);
+        self.layers.main.add_symbol_exclusive(&symbol);
         symbol
     }
 

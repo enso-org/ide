@@ -672,10 +672,10 @@ impl Area {
     /// the new shape system definition, and thus, inherits the scene layer settings from this
     /// display object.
     #[allow(non_snake_case)]
-    pub fn add_to_scene_layer_DEPRECATED(&self, view:&display::scene::Layer) {
-        for symbol in self.symbols() { view.add_symbol(&symbol); }
-        self.data.camera.set(view.camera());
-        self.set_scene_layer(view);
+    pub fn add_to_scene_layer_DEPRECATED(&self, layer:&display::scene::Layer) {
+        for symbol in self.symbols() { layer.add_symbol_exclusive(&symbol); }
+        self.data.camera.set(layer.camera());
+        layer.add_exclusive(self);
     }
 
     /// Remove this component from view.
@@ -742,7 +742,7 @@ impl AreaModel {
         // FIXME[WD]: This is temporary sorting utility, which places the cursor in front of mouse
         // pointer and nodes. Should be refactored when proper sorting mechanisms are in place.
         scene.layers.main.remove_symbol(symbol);
-        scene.layers.label.add_symbol(symbol);
+        scene.layers.label.add_symbol_exclusive(symbol);
 
         let frp_endpoints = frp_endpoints.clone_ref();
 
