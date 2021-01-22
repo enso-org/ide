@@ -322,7 +322,7 @@ Electron.app.on('web-contents-created', (event,contents) => {
 async function withBackend(opts) {
     let binPath = args['backend-path']
     if (!binPath) {
-        binPath = paths.get_project_manager_path(root)
+        binPath = paths.get_project_manager_path(resources)
     }
     let binExists = fss.existsSync(binPath)
     assert(binExists, `Could not find the project manager binary at ${binPath}.`)
@@ -351,6 +351,7 @@ async function backendVersion() {
 // ============
 
 let root = Electron.app.getAppPath()
+let resources = path.join(root, "..")
 let hideInsteadOfQuit = false
 
 let server     = null
