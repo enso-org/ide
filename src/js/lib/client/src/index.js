@@ -359,7 +359,6 @@ async function backendVersion() {
 // === Main ===
 // ============
 
-
 let hideInsteadOfQuit = false
 
 let server     = null
