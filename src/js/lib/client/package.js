@@ -79,6 +79,7 @@ config.build = {
         // their generation can take long time (even 30 mins), so we removed it
         // for now. Moreover, we may probably never need them, as our updates
         // are handled by us. More info: 
+        // https://github.com/electron-userland/electron-builder/issues/2851
         // https://github.com/electron-userland/electron-builder/issues/2900
         differentialPackage: false
     },
@@ -88,6 +89,7 @@ config.build = {
         // their generation can take long time (even 30 mins), so we removed it
         // for now. Moreover, we may probably never need them, as our updates
         // are handled by us. More info: 
+        // https://github.com/electron-userland/electron-builder/issues/2851
         // https://github.com/electron-userland/electron-builder/issues/2900
         writeUpdateInfo: false
     },
