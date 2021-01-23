@@ -71,12 +71,10 @@ trait EdgeShape : display::Object {
 
     // === Info ===
 
-    fn sprite (&self) -> &Sprite;
-    fn id     (&self) -> display::object::Id { self.sprite().id() }
+    fn id     (&self) -> display::object::Id { self.display_object().id() }
     fn events (&self) -> &ShapeViewEvents;
     fn set_color(&self, color:color::Rgba);
     fn set_color_focus(&self, color:color::Rgba);
-
 
 
     // === Hover ===
@@ -282,19 +280,19 @@ impl SnapTarget {
 // === Shape Definitions ===
 // =========================
 
-/// Joint definition
+/// Joint definition.
 pub mod joint {
     use super::*;
 
     ensogl::define_shape_system! {
-            (color_rgba:Vector4<f32>) {
-                let radius        = Var::<Pixels>::from("input_size.y");
-                let joint         = Circle((radius-PADDING.px())/2.0);
-                let joint_color   = Var::<color::Rgba>::from(color_rgba);
-                let joint_colored = joint.fill(joint_color);
-                joint_colored.into()
-            }
+        (color_rgba:Vector4<f32>) {
+            let radius        = Var::<Pixels>::from("input_size.y");
+            let joint         = Circle((radius-PADDING.px())/2.0);
+            let joint_color   = Var::<color::Rgba>::from(color_rgba);
+            let joint_colored = joint.fill(joint_color);
+            joint_colored.into()
         }
+    }
 }
 
 fn corner_base_shape
@@ -319,6 +317,7 @@ macro_rules! define_corner_start { () => {
         use super::*;
 
         ensogl::define_shape_system! {
+            always_below = [joint];
             ( radius             : f32
             , angle              : f32
             , start_angle        : f32
@@ -359,17 +358,13 @@ macro_rules! define_corner_start { () => {
             }
         }
 
-        impl EdgeShape for component::ShapeView_DEPRECATED<Shape> {
+        impl EdgeShape for View {
             fn set_focus_split_center_local(&self, center:Vector2<f32>) {
-               self.shape.focus_split_center.set(center);
+               self.focus_split_center.set(center);
             }
 
             fn set_focus_split_angle(&self, angle:f32) {
-                self.shape.focus_split_angle.set(angle);
-            }
-
-            fn sprite(&self) -> &Sprite{
-                &self.shape.sprite
+                self.focus_split_angle.set(angle);
             }
 
             fn events(&self) -> &ShapeViewEvents{
@@ -377,12 +372,12 @@ macro_rules! define_corner_start { () => {
             }
 
             fn set_color(&self, color:color::Rgba) {
-                self.shape.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
+                self.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
             }
 
             fn set_color_focus(&self, color:color::Rgba) {
                 let color_vec = Vector4::new(color.red,color.green,color.blue,color.alpha);
-                self.shape.focus_color_rgba.set(color_vec);
+                self.focus_color_rgba.set(color_vec);
             }
 
             fn normal_local(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
@@ -392,14 +387,14 @@ macro_rules! define_corner_start { () => {
             fn snap_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
                 // FIXME: These bounds check should not be required and should be removed once
                 // issue #689 is resolved.
-                let radius = self.shape.radius.get();
+                let radius = self.radius.get();
                 let center = Vector2::zero();
                 let point_to_center = point.xy() - center;
 
                 let closest_point = center + point_to_center / point_to_center.magnitude() * radius;
                 let vector_angle  = -nalgebra::Rotation2::rotation_between(&Vector2::new(0.0, 1.0),&closest_point).angle();
-                let start_angle   =  self.shape.start_angle.get();
-                let end_angle     =  start_angle + self.shape.angle.get();
+                let start_angle   =  self.start_angle.get();
+                let end_angle     =  start_angle + self.angle.get();
                 let upper_bound   = start_angle.max(end_angle);
                 let lower_bound   = start_angle.min(end_angle);
 
@@ -416,6 +411,7 @@ macro_rules! define_corner_end { () => {
     pub mod corner {
         use super::*;
         ensogl::define_shape_system! {
+            always_below = [joint];
             ( radius:f32
             , angle:f32
             , start_angle:f32
@@ -453,17 +449,13 @@ macro_rules! define_corner_end { () => {
             }
         }
 
-        impl EdgeShape for component::ShapeView_DEPRECATED<Shape> {
+        impl EdgeShape for View {
             fn set_focus_split_center_local(&self, center:Vector2<f32>) {
-                self.shape.focus_split_center.set(center);
+                self.focus_split_center.set(center);
             }
 
             fn set_focus_split_angle(&self, angle:f32) {
-                 self.shape.focus_split_angle.set(angle);
-            }
-
-            fn sprite(&self) -> &Sprite{
-                &self.shape.sprite
+                 self.focus_split_angle.set(angle);
             }
 
             fn events(&self) -> &ShapeViewEvents{
@@ -471,11 +463,11 @@ macro_rules! define_corner_end { () => {
             }
 
             fn set_color(&self, color:color::Rgba) {
-                self.shape.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
+                self.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
             }
 
             fn set_color_focus(&self, color:color::Rgba) {
-                self.shape.focus_color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
+                self.focus_color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
             }
 
             fn normal_local(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
@@ -485,14 +477,14 @@ macro_rules! define_corner_end { () => {
             fn snap_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
                 // FIXME: These bounds check should not be required and should be removed once
                 // issue #689 is resolved.
-                let radius = self.shape.radius.get();
+                let radius = self.radius.get();
                 let center = Vector2::zero();
                 let point_to_center = point.xy() - center;
 
                 let closest_point = center + point_to_center / point_to_center.magnitude() * radius;
                 let vector_angle  = -nalgebra::Rotation2::rotation_between(&Vector2::new(0.0, 1.0),&closest_point).angle();
-                let start_angle   = self.shape.start_angle.get();
-                let end_angle     = start_angle + self.shape.angle.get();
+                let start_angle   = self.start_angle.get();
+                let end_angle     = start_angle + self.angle.get();
                 let upper_bound   = start_angle.max(end_angle);
                 let lower_bound   = start_angle.min(end_angle);
 
@@ -512,6 +504,7 @@ macro_rules! define_line { () => {
     pub mod line {
         use super::*;
         ensogl::define_shape_system! {
+            always_below = [joint];
             (focus_split_center:Vector2<f32>, focus_split_angle:f32, color_rgba:Vector4<f32>,
              focus_color_rgba:Vector4<f32>) {
                 let width       = LINE_WIDTH.px();
@@ -527,17 +520,13 @@ macro_rules! define_line { () => {
             }
         }
 
-        impl EdgeShape for component::ShapeView_DEPRECATED<Shape> {
+        impl EdgeShape for View {
             fn set_focus_split_center_local(&self, center:Vector2<f32>) {
-                self.shape.focus_split_center.set(center);
+                self.focus_split_center.set(center);
             }
 
             fn set_focus_split_angle(&self, angle:f32) {
-                self.shape.focus_split_angle.set(angle);
-            }
-
-            fn sprite(&self) -> &Sprite{
-                &self.shape.sprite
+                self.focus_split_angle.set(angle);
             }
 
             fn events(&self) -> &ShapeViewEvents{
@@ -545,11 +534,11 @@ macro_rules! define_line { () => {
             }
 
             fn set_color(&self, color:color::Rgba) {
-                self.shape.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
+                self.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
             }
 
             fn set_color_focus(&self, color:color::Rgba) {
-                self.shape.focus_color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
+                self.focus_color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
             }
 
             fn normal_local(&self, _:Vector2<f32>) -> nalgebra::Rotation2<f32> {
@@ -559,8 +548,7 @@ macro_rules! define_line { () => {
             fn snap_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
                 // FIXME: These bounds check should not be required and should be removed once
                 // issue #689 is resolved.
-                #[allow(deprecated)]
-                let height = self.sprite().size.get().y;
+                let height = self.size.get().y;
                 let y      = point.y.clamp(-height/2.0, height/2.0);
                 Some(Vector2::new(0.0, y))
             }
@@ -573,6 +561,7 @@ macro_rules! define_arrow { () => {
     pub mod arrow {
         use super::*;
         ensogl::define_shape_system! {
+            always_above = [joint];
             (focus_split_center:Vector2<f32>, focus_split_angle:f32, color_rgba:Vector4<f32>,
              focus_color_rgba:Vector4<f32>) {
                 let width  : Var<Pixels> = "input_size.x".into();
@@ -590,7 +579,7 @@ macro_rules! define_arrow { () => {
             }
         }
 
-        impl EdgeShape for component::ShapeView_DEPRECATED<Shape> {
+        impl EdgeShape for View {
             fn set_focus_split_center_local(&self, center:Vector2<f32>) {
                 // We don't want the arrow to be half-focused. The focus split point is set to the
                 // closest edge (all or nothing).
@@ -599,15 +588,11 @@ macro_rules! define_arrow { () => {
                 let mid =  Vector2::<f32>::zero();
                 let x   = if center.x < mid.x { min.x } else { max.x };
                 let y   = if center.y < mid.y { min.y } else { max.y };
-                self.shape.focus_split_center.set(Vector2(x,y));
+                self.focus_split_center.set(Vector2(x,y));
             }
 
             fn set_focus_split_angle(&self, angle:f32) {
-                 self.shape.focus_split_angle.set(angle);
-            }
-
-            fn sprite(&self) -> &Sprite{
-                &self.shape.sprite
+                 self.focus_split_angle.set(angle);
             }
 
             fn events(&self) -> &ShapeViewEvents {
@@ -615,11 +600,11 @@ macro_rules! define_arrow { () => {
             }
 
             fn set_color(&self, color:color::Rgba) {
-                self.shape.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
+                self.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
             }
 
             fn set_color_focus(&self, color:color::Rgba) {
-                self.shape.focus_color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
+                self.focus_color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
             }
 
             fn normal_local(&self, _:Vector2<f32>) -> nalgebra::Rotation2<f32> {
@@ -650,56 +635,56 @@ trait LayoutLine {
     fn layout_h_no_overlap(&self,start:Vector2<f32>,len:f32);
 }
 
-impl LayoutLine for component::ShapeView_DEPRECATED<front::line::Shape> {
+impl LayoutLine for front::line::View {
     fn layout_v(&self, start:Vector2<f32>, len:f32) {
         let pos  = Vector2(start.x, start.y + len/2.0);
         let size = Vector2(LINE_SHAPE_WIDTH, len.abs()+LINE_SIDES_OVERLAP);
-        self.shape.sprite.size.set(size);
+        self.size.set(size);
         self.set_position_xy(pos);
     }
     fn layout_h(&self, start:Vector2<f32>, len:f32) {
         let pos  = Vector2(start.x + len/2.0, start.y);
         let size = Vector2(LINE_SHAPE_WIDTH, len.abs()+LINE_SIDES_OVERLAP);
-        self.shape.sprite.size.set(size);
+        self.size.set(size);
         self.set_position_xy(pos);
     }
     fn layout_v_no_overlap(&self, start:Vector2<f32>, len:f32) {
         let pos  = Vector2(start.x, start.y + len/2.0);
         let size = Vector2(LINE_SHAPE_WIDTH, len.abs());
-        self.shape.sprite.size.set(size);
+        self.size.set(size);
         self.set_position_xy(pos);
     }
     fn layout_h_no_overlap(&self, start:Vector2<f32>, len:f32) {
         let pos  = Vector2(start.x + len/2.0, start.y);
         let size = Vector2(LINE_SHAPE_WIDTH, len.abs());
-        self.shape.sprite.size.set(size);
+        self.size.set(size);
         self.set_position_xy(pos);
     }
 }
 
-impl LayoutLine for component::ShapeView_DEPRECATED<back::line::Shape> {
+impl LayoutLine for back::line::View {
     fn layout_v(&self, start:Vector2<f32>, len:f32) {
         let pos  = Vector2(start.x, start.y + len/2.0);
         let size = Vector2(LINE_SHAPE_WIDTH, len.abs()+LINE_SIDES_OVERLAP);
-        self.shape.sprite.size.set(size);
+        self.size.set(size);
         self.set_position_xy(pos);
     }
     fn layout_h(&self, start:Vector2<f32>, len:f32) {
         let pos  = Vector2(start.x + len/2.0, start.y);
         let size = Vector2(LINE_SHAPE_WIDTH, len.abs()+LINE_SIDES_OVERLAP);
-        self.shape.sprite.size.set(size);
+        self.size.set(size);
         self.set_position_xy(pos);
     }
     fn layout_v_no_overlap(&self, start:Vector2<f32>, len:f32) {
         let pos  = Vector2(start.x, start.y + len/2.0);
         let size = Vector2(LINE_SHAPE_WIDTH, len.abs());
-        self.shape.sprite.size.set(size);
+        self.size.set(size);
         self.set_position_xy(pos);
     }
     fn layout_h_no_overlap(&self, start:Vector2<f32>, len:f32) {
         let pos  = Vector2(start.x + len/2.0, start.y);
         let size = Vector2(LINE_SHAPE_WIDTH, len.abs());
-        self.shape.sprite.size.set(size);
+        self.size.set(size);
         self.set_position_xy(pos);
     }
 }
@@ -709,6 +694,28 @@ impl LayoutLine for component::ShapeView_DEPRECATED<back::line::Shape> {
 // ===========================
 // === Front / Back Shapes ===
 // ===========================
+
+// // TODO: Implement proper sorting and remove.
+// /// Hack function used to register the elements for the sorting purposes. To be removed.
+// pub fn depth_sort_hack_1(scene:&Scene) {
+//     let logger = Logger::new("hack_sort");
+//     component::ShapeView_DEPRECATED::<back::corner::Shape>::new(&logger,scene);
+//     component::ShapeView_DEPRECATED::<back::line::Shape>::new(&logger,scene);
+// }
+//
+// // TODO: Implement proper sorting and remove.
+// /// Hack function used to register the elements for the sorting purposes. To be removed.
+// pub fn depth_sort_hack_2(scene:&Scene) {
+//     let logger = Logger::new("hack_sort");
+//     component::ShapeView_DEPRECATED::<front::corner::Shape>::new(&logger,scene);
+//     component::ShapeView_DEPRECATED::<front::line::Shape>::new(&logger,scene);
+//
+//     // Joint needs to be above all shapes, but below the arrows.
+//     component::ShapeView_DEPRECATED::<joint::Shape>::new(&logger,scene);
+//     component::ShapeView_DEPRECATED::<back::arrow::Shape>::new(&logger,scene);
+//     component::ShapeView_DEPRECATED::<front::arrow::Shape>::new(&logger,scene);
+// }
+
 
 /// Shape definitions which will be rendered in the front layer (on top of nodes).
 pub mod front {
@@ -743,16 +750,15 @@ macro_rules! define_components {
             pub display_object    : display::object::Instance,
             pub shape_view_events : Rc<Vec<ShapeViewEvents>>,
             shape_type_map        : Rc<HashMap<display::object::Id,ShapeRole>>,
-            $(pub $field : component::ShapeView_DEPRECATED<$field_type>),*
+            $(pub $field : $field_type),*
         }
 
         impl $name {
             /// Constructor.
             pub fn new(logger:Logger, scene:&Scene) -> Self {
                 let display_object = display::object::Instance::new(&logger);
-                $(let $field = component::ShapeView_DEPRECATED::new(
-                    Logger::sub(&logger,stringify!($field)),scene);)*
-                    $(display_object.add_child(&$field);)*
+                $(let $field = <$field_type>::new(Logger::sub(&logger,stringify!($field)));)*
+                $(display_object.add_child(&$field);)*
                 let mut shape_view_events:Vec<ShapeViewEvents> = Vec::default();
                 $(shape_view_events.push($field.events.clone_ref());)*
                 let shape_view_events = Rc::new(shape_view_events);
@@ -794,26 +800,26 @@ macro_rules! define_components {
 
 define_components!{
     Front {
-        corner     : (front::corner::Shape, ShapeRole::Corner),
-        corner2    : (front::corner::Shape, ShapeRole::Corner2),
-        corner3    : (front::corner::Shape, ShapeRole::Corner3),
-        side_line  : (front::line::Shape,   ShapeRole::SideLine),
-        side_line2 : (front::line::Shape,   ShapeRole::SideLine2),
-        main_line  : (front::line::Shape,   ShapeRole::MainLine),
-        port_line  : (front::line::Shape,   ShapeRole::PortLine),
-        arrow      : (front::arrow::Shape,  ShapeRole::Arrow),
+        corner     : (front::corner::View, ShapeRole::Corner),
+        corner2    : (front::corner::View, ShapeRole::Corner2),
+        corner3    : (front::corner::View, ShapeRole::Corner3),
+        side_line  : (front::line::View,   ShapeRole::SideLine),
+        side_line2 : (front::line::View,   ShapeRole::SideLine2),
+        main_line  : (front::line::View,   ShapeRole::MainLine),
+        port_line  : (front::line::View,   ShapeRole::PortLine),
+        arrow      : (front::arrow::View,  ShapeRole::Arrow),
     }
 }
 
 define_components!{
     Back {
-        corner     : (back::corner::Shape, ShapeRole::Corner),
-        corner2    : (back::corner::Shape, ShapeRole::Corner2),
-        corner3    : (back::corner::Shape, ShapeRole::Corner3),
-        side_line  : (back::line::Shape,   ShapeRole::SideLine),
-        side_line2 : (back::line::Shape,   ShapeRole::SideLine2),
-        main_line  : (back::line::Shape,   ShapeRole::MainLine),
-        arrow      : (back::arrow::Shape,  ShapeRole::Arrow),
+        corner     : (back::corner::View, ShapeRole::Corner),
+        corner2    : (back::corner::View, ShapeRole::Corner2),
+        corner3    : (back::corner::View, ShapeRole::Corner3),
+        side_line  : (back::line::View,   ShapeRole::SideLine),
+        side_line2 : (back::line::View,   ShapeRole::SideLine2),
+        main_line  : (back::line::View,   ShapeRole::MainLine),
+        arrow      : (back::arrow::View,  ShapeRole::Arrow),
     }
 }
 
@@ -824,28 +830,6 @@ impl AnyEdgeShape for EdgeModelData {
         shapes_front.append(&mut shapes_back);
         shapes_front
     }
-}
-
-
-// TODO: Implement proper sorting and remove.
-/// Hack function used to register the elements for the sorting purposes. To be removed.
-pub fn depth_sort_hack_1(scene:&Scene) {
-    let logger = Logger::new("hack_sort");
-    component::ShapeView_DEPRECATED::<back::corner::Shape>::new(&logger,scene);
-    component::ShapeView_DEPRECATED::<back::line::Shape>::new(&logger,scene);
-}
-
-// TODO: Implement proper sorting and remove.
-/// Hack function used to register the elements for the sorting purposes. To be removed.
-pub fn depth_sort_hack_2(scene:&Scene) {
-    let logger = Logger::new("hack_sort");
-    component::ShapeView_DEPRECATED::<front::corner::Shape>::new(&logger,scene);
-    component::ShapeView_DEPRECATED::<front::line::Shape>::new(&logger,scene);
-
-    // Joint needs to be above all shapes, but below the arrows.
-    component::ShapeView_DEPRECATED::<joint::Shape>::new(&logger,scene);
-    component::ShapeView_DEPRECATED::<back::arrow::Shape>::new(&logger,scene);
-    component::ShapeView_DEPRECATED::<front::arrow::Shape>::new(&logger,scene);
 }
 
 
@@ -1254,7 +1238,7 @@ pub struct EdgeModelData {
     pub frp             : Frp,
     pub front           : Front,
     pub back            : Back,
-    pub joint           : component::ShapeView_DEPRECATED<joint::Shape>,
+    pub joint           : joint::View,
     pub source_width    : Rc<Cell<f32>>,
     pub source_height   : Rc<Cell<f32>>,
     pub target_position : Rc<Cell<Vector2>>,
@@ -1274,8 +1258,9 @@ impl EdgeModelData {
         let display_object = display::object::Instance::new(&logger);
         let front          = Front::new(Logger::sub(&logger,"front"),scene);
         let back           = Back::new (Logger::sub(&logger,"back"),scene);
-        let joint          = component::ShapeView_DEPRECATED::new(Logger::sub(&logger,"joint"),scene);
+        let joint          = joint::View::new(Logger::sub(&logger,"joint"));
 
+        // FIXME : this doesnt work with new shape management:
         let shape_system = scene.shapes.shape_system(PhantomData::<joint::Shape>);
         shape_system.shape_system.set_pointer_events(false);
 
@@ -1310,7 +1295,7 @@ impl EdgeModelData {
         let color:color::Lcha = color.opaque.into();
         let color_rgba        = color::Rgba::from(color);
         self.shapes().iter().for_each(|shape| shape.set_color(color_rgba));
-        self.joint.shape.color_rgba.set(color_rgba.into());
+        self.joint.color_rgba.set(color_rgba.into());
     }
 
     fn set_focus_color(&self, color:color::Lcha) {
@@ -1362,12 +1347,12 @@ impl EdgeModelData {
                     let joint_position = snap_data.position - self.display_object.position().xy();
                     self.joint.set_position_xy(joint_position);
                     let joint_size = LINE_WIDTH+PADDING;
-                    self.joint.shape.sprite.size.set(Vector2(joint_size,joint_size));
+                    self.joint.size.set(Vector2(joint_size,joint_size));
                 }
             },
             _ => {
                 self.focus_none();
-                self.joint.shape.sprite.size.set(Vector2::zero());
+                self.joint.size.set(Vector2::zero());
             },
         }
 
@@ -1464,8 +1449,8 @@ impl EdgeModelData {
         // parts. The first part is placed under the source node shadow, while the second part is
         // placed on the top layer.
         //
-        // ╭─────╮        ╭─────╮ 2╭──╮3
-        // ╰─────╯──╮1    ╰─────╯──╯1 ▢
+        // ╭─────╮        ╭─────╮ 2╭───╮3
+        // ╰─────╯──╮1    ╰─────╯──╯1  ▢
         //          ▢
 
         let mut corner1_target = port_line_end;
@@ -1497,24 +1482,24 @@ impl EdgeModelData {
         let corner1_angle       = (angle + angle_overlap) * side;
         let corner1_angle       = if is_down {corner1_angle} else {side_right_angle};
 
-        bg.corner.shape.sprite.size.set(corner1_size);
-        bg.corner.shape.start_angle.set(corner1_start_angle);
-        bg.corner.shape.angle.set(corner1_angle);
-        bg.corner.shape.radius.set(corner1_radius);
-        bg.corner.shape.pos.set(corner1);
+        bg.corner.size.set(corner1_size);
+        bg.corner.start_angle.set(corner1_start_angle);
+        bg.corner.angle.set(corner1_angle);
+        bg.corner.radius.set(corner1_radius);
+        bg.corner.pos.set(corner1);
         bg.corner.set_position_xy(corner1);
         if !fully_attached {
-            bg.corner.shape.dim.set(Vector2(node_half_width, source_node_half_height));
-            fg.corner.shape.sprite.size.set(corner1_size);
-            fg.corner.shape.start_angle.set(corner1_start_angle);
-            fg.corner.shape.angle.set(corner1_angle);
-            fg.corner.shape.radius.set(corner1_radius);
-            fg.corner.shape.pos.set(corner1);
-            fg.corner.shape.dim.set(Vector2(node_half_width, source_node_half_height));
+            bg.corner.dim.set(Vector2(node_half_width, source_node_half_height));
+            fg.corner.size.set(corner1_size);
+            fg.corner.start_angle.set(corner1_start_angle);
+            fg.corner.angle.set(corner1_angle);
+            fg.corner.radius.set(corner1_radius);
+            fg.corner.pos.set(corner1);
+            fg.corner.dim.set(Vector2(node_half_width, source_node_half_height));
             fg.corner.set_position_xy(corner1);
         } else {
-            fg.corner.shape.sprite.size.set(zero());
-            bg.corner.shape.dim.set(Vector2(INFINITE,INFINITE));
+            fg.corner.size.set(zero());
+            bg.corner.dim.set(Vector2(INFINITE,INFINITE));
         }
 
 
@@ -1525,8 +1510,8 @@ impl EdgeModelData {
         // the second is placed on the top layer. The side line placement is the same in case of
         // upwards connections - it is then placed between node and corenr 1.
         //
-        // ╭─────╮       ╭─────╮ 2╭──╮3
-        // ╰─────╯╴──╮   ╰─────╯╴─╯1 ▢
+        // ╭─────╮       ╭─────╮ 2╭───╮3
+        // ╰─────╯╴──╮   ╰─────╯╴─╯1  ▢
         //           ▢
 
         let side_line_shift = LINE_SIDES_OVERLAP;
@@ -1535,7 +1520,7 @@ impl EdgeModelData {
         let bg_line_start   = Vector2(side*bg_line_x,0.0);
         if fully_attached {
             let bg_line_len = side*side_line_len;
-            fg.side_line.shape.sprite.size.set(zero());
+            fg.side_line.size.set(zero());
             bg.side_line.layout_h(bg_line_start,bg_line_len);
         } else {
             let bg_max_len            = NODE_PADDING + side_line_shift;
@@ -1578,10 +1563,10 @@ impl EdgeModelData {
             } else if fully_attached {
                 let main_line_start_y = port_line_start.y + port_line_len;
                 let main_line_start = Vector2(port_line_start.x, main_line_start_y);
-                fg.main_line.shape.sprite.size.set(zero());
+                fg.main_line.size.set(zero());
                 bg.main_line.layout_v(main_line_start, main_line_len - port_line_len);
             } else {
-                bg.main_line.shape.sprite.size.set(zero());
+                bg.main_line.size.set(zero());
                 fg.main_line.layout_v(port_line_start, main_line_len);
             }
         }
@@ -1591,8 +1576,8 @@ impl EdgeModelData {
 
             // === Corner2 & Corner3 Radius ===
             //
-            // ╭─────╮ 2╭──╮3
-            // ╰─────╯──╯1 ▢
+            // ╭─────╮ 2╭───╮3
+            // ╰─────╯──╯1  ▢
 
             let corner2_radius      = corner1_radius;
             let corner3_radius      = upward_corner_radius;
@@ -1627,8 +1612,8 @@ impl EdgeModelData {
 
             // === Corner2 & Corner3 Placement ===
             //
-            // ╭─────╮ 2╭──╮3
-            // ╰─────╯──╯1 ▢
+            // ╭─────╮ 2╭───╮3
+            // ╰─────╯──╯1  ▢
 
             let corner3_side  = (corner3_radius + PADDING) * 2.0;
             let corner3_size  = Vector2(corner3_side,corner3_side);
@@ -1641,22 +1626,22 @@ impl EdgeModelData {
             let corner3_angle = if is_right_side {0.0} else {-RIGHT_ANGLE};
 
             if fully_attached {
-                fg.corner3.shape.sprite.size.set(zero());
-                bg.corner3.shape.sprite.size.set(corner3_size);
-                bg.corner3.shape.start_angle.set(corner3_angle);
-                bg.corner3.shape.angle.set(RIGHT_ANGLE);
-                bg.corner3.shape.radius.set(corner3_radius);
-                bg.corner3.shape.pos.set(corner3);
-                bg.corner3.shape.dim.set(Vector2(INFINITE,INFINITE));
+                fg.corner3.size.set(zero());
+                bg.corner3.size.set(corner3_size);
+                bg.corner3.start_angle.set(corner3_angle);
+                bg.corner3.angle.set(RIGHT_ANGLE);
+                bg.corner3.radius.set(corner3_radius);
+                bg.corner3.pos.set(corner3);
+                bg.corner3.dim.set(Vector2(INFINITE,INFINITE));
                 bg.corner3.set_position_xy(corner3);
             } else {
-                bg.corner3.shape.sprite.size.set(zero());
-                fg.corner3.shape.sprite.size.set(corner3_size);
-                fg.corner3.shape.start_angle.set(corner3_angle);
-                fg.corner3.shape.angle.set(RIGHT_ANGLE);
-                fg.corner3.shape.radius.set(corner3_radius);
-                fg.corner3.shape.pos.set(corner3);
-                fg.corner3.shape.dim.set(zero());
+                bg.corner3.size.set(zero());
+                fg.corner3.size.set(corner3_size);
+                fg.corner3.start_angle.set(corner3_angle);
+                fg.corner3.angle.set(RIGHT_ANGLE);
+                fg.corner3.radius.set(corner3_radius);
+                fg.corner3.pos.set(corner3);
+                fg.corner3.dim.set(zero());
                 fg.corner3.set_position_xy(corner3);
             }
 
@@ -1665,22 +1650,22 @@ impl EdgeModelData {
             let corner2_angle = if is_right_side {-RIGHT_ANGLE} else {0.0};
 
             if fully_attached {
-                fg.corner2.shape.sprite.size.set(zero());
-                bg.corner2.shape.sprite.size.set(corner1_size);
-                bg.corner2.shape.start_angle.set(corner2_angle);
-                bg.corner2.shape.angle.set(RIGHT_ANGLE);
-                bg.corner2.shape.radius.set(corner2_radius);
-                bg.corner2.shape.pos.set(corner2);
-                bg.corner2.shape.dim.set(Vector2(INFINITE,INFINITE));
+                fg.corner2.size.set(zero());
+                bg.corner2.size.set(corner1_size);
+                bg.corner2.start_angle.set(corner2_angle);
+                bg.corner2.angle.set(RIGHT_ANGLE);
+                bg.corner2.radius.set(corner2_radius);
+                bg.corner2.pos.set(corner2);
+                bg.corner2.dim.set(Vector2(INFINITE,INFINITE));
                 bg.corner2.set_position_xy(corner2);
             } else {
-                bg.corner2.shape.sprite.size.set(zero());
-                fg.corner2.shape.sprite.size.set(corner1_size);
-                fg.corner2.shape.start_angle.set(corner2_angle);
-                fg.corner2.shape.angle.set(RIGHT_ANGLE);
-                fg.corner2.shape.radius.set(corner2_radius);
-                fg.corner2.shape.pos.set(corner2);
-                fg.corner2.shape.dim.set(zero());
+                bg.corner2.size.set(zero());
+                fg.corner2.size.set(corner1_size);
+                fg.corner2.start_angle.set(corner2_angle);
+                fg.corner2.angle.set(RIGHT_ANGLE);
+                fg.corner2.radius.set(corner2_radius);
+                fg.corner2.pos.set(corner2);
+                fg.corner2.dim.set(zero());
                 fg.corner2.set_position_xy(corner2);
             }
 
@@ -1691,17 +1676,17 @@ impl EdgeModelData {
             // corner 2. In case the line is long enough, it has an arrow pointing up to show its
             // direction.
             //
-            // ╭─────╮ 2╭──╮3
-            // ╰─────╯──╯1 ▢
+            // ╭─────╮ 2╭───╮3
+            // ╰─────╯──╯1  ▢
 
             let main_line_len   = corner2_y - corner1.y;
             let main_line_start = Vector2(side*corner1_target.x,corner1.y);
 
             if fully_attached {
-                fg.main_line.shape.sprite.size.set(zero());
+                fg.main_line.size.set(zero());
                 bg.main_line.layout_v(main_line_start, main_line_len);
             } else {
-                bg.main_line.shape.sprite.size.set(zero());
+                bg.main_line.size.set(zero());
                 fg.main_line.layout_v(main_line_start, main_line_len);
             }
 
@@ -1710,17 +1695,17 @@ impl EdgeModelData {
                 let arrow_pos  = Vector2(main_line_start.x, arrow_y);
                 let arrow_size = Vector2(ARROW_SIZE_X,ARROW_SIZE_Y);
                 if fully_attached {
-                    fg.arrow.shape.sprite.size.set(zero());
-                    bg.arrow.shape.sprite.size.set(arrow_size);
+                    fg.arrow.size.set(zero());
+                    bg.arrow.size.set(arrow_size);
                     bg.arrow.set_position_xy(arrow_pos);
                 } else {
-                    bg.arrow.shape.sprite.size.set(zero());
-                    fg.arrow.shape.sprite.size.set(arrow_size);
+                    bg.arrow.size.set(zero());
+                    fg.arrow.size.set(arrow_size);
                     fg.arrow.set_position_xy(arrow_pos);
                 }
             } else {
-                bg.arrow.shape.sprite.size.set(zero());
-                fg.arrow.shape.sprite.size.set(zero());
+                bg.arrow.size.set(zero());
+                fg.arrow.size.set(zero());
             }
 
 
@@ -1728,29 +1713,29 @@ impl EdgeModelData {
             //
             // Side line 2 is the horizontal line connecting corner 2 and corner 3.
             //
-            // ╭─────╮ 2╭──╮3
-            // ╰─────╯──╯1 ▢
+            // ╭─────╮ 2╭───╮3
+            // ╰─────╯──╯1  ▢
 
             let side_line2_len  = side*(corner3_x - corner2_x);
             let side_line2_start  = Vector2(side*corner2_x,corner2_y + corner2_radius);
             if fully_attached {
-                fg.side_line2.shape.sprite.size.set(zero());
+                fg.side_line2.size.set(zero());
                 bg.side_line2.layout_h(side_line2_start,side_line2_len);
             } else {
-                bg.side_line2.shape.sprite.size.set(zero());
+                bg.side_line2.size.set(zero());
                 fg.side_line2.layout_h(side_line2_start,side_line2_len);
             }
 
             port_line_len = corner3_y - port_line_start.y;
         } else {
-            fg.arrow.shape.sprite.size.set(zero());
-            bg.arrow.shape.sprite.size.set(zero());
-            fg.corner3.shape.sprite.size.set(zero());
-            bg.corner3.shape.sprite.size.set(zero());
-            fg.corner2.shape.sprite.size.set(zero());
-            bg.corner2.shape.sprite.size.set(zero());
-            fg.side_line2.shape.sprite.size.set(zero());
-            bg.side_line2.shape.sprite.size.set(zero());
+            fg.arrow.size.set(zero());
+            bg.arrow.size.set(zero());
+            fg.corner3.size.set(zero());
+            bg.corner3.size.set(zero());
+            fg.corner2.size.set(zero());
+            bg.corner2.size.set(zero());
+            fg.side_line2.size.set(zero());
+            bg.side_line2.size.set(zero());
         }
 
 
