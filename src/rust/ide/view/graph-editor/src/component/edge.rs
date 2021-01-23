@@ -1260,8 +1260,7 @@ impl EdgeModelData {
         let back           = Back::new (Logger::sub(&logger,"back"),scene);
         let joint          = joint::View::new(Logger::sub(&logger,"joint"));
 
-        // FIXME : this doesnt work with new shape management:
-        let shape_system = scene.shapes.shape_system(PhantomData::<joint::Shape>);
+        let shape_system = scene.layers.main.shape_system_registry.shape_system(scene,PhantomData::<joint::DynamicShape>);
         shape_system.shape_system.set_pointer_events(false);
 
         display_object.add_child(&front);
