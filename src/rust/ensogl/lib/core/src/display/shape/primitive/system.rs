@@ -204,7 +204,9 @@ pub trait DynamicShape : display::Object + CloneRef + Debug + Sized {
     /// Constructor.
     fn new(logger:impl AnyLogger) -> Self;
     /// Accessor for the underlying sprite, if the shape is initialized.
-    fn sprite(&self) -> Option<Sprite>;
+    fn sprites(&self) -> Vec<Sprite>;
+
+    fn drop_instances(&self);
 }
 
 
@@ -330,8 +332,8 @@ macro_rules! _define_shape_system {
         #[derivative(Debug(bound="T::Item:Copy+Debug, T:Debug"))]
         #[allow(missing_docs)]
         pub struct DynamicParam<T:HasItem> {
-            cache     : Rc<Cell<T::Item>>,
-            attribute : Rc<RefCell<Option<T>>>
+            cache      : Rc<Cell<T::Item>>,
+            attributes : Rc<RefCell<Vec<T>>>
         }
 
         /// Parameters of the [`DynamicShape`].
@@ -344,16 +346,22 @@ macro_rules! _define_shape_system {
 
         impl<T> DynamicParam<T>
         where T:CellProperty, T::Item:Copy {
-            fn set_attribute_binding
-            (&self, attribute:Option<T>) {
-                if let Some(attr) = &attribute { attr.set(self.cache.get()) }
-                *self.attribute.borrow_mut() = attribute;
+            fn remove_attributes_bindings(&self) {
+                *self.attributes.borrow_mut() = default();
+            }
+
+            fn add_attribute_binding
+            (&self, attribute:T) {
+                attribute.set(self.cache.get());
+                self.attributes.borrow_mut().push(attribute);
             }
 
             /// Set the parameter value.
             pub fn set(&self, value:T::Item) {
                 self.cache.set(value);
-                if let Some(attr) = &*self.attribute.borrow() { attr.set(value) }
+                for attribute in &*self.attributes.borrow() {
+                    attribute.set(value)
+                }
             }
 
             /// Get the parameter value.
@@ -376,7 +384,7 @@ macro_rules! _define_shape_system {
         #[allow(missing_docs)]
         pub struct DynamicShape {
             display_object : $crate::display::object::Instance,
-            shape          : Rc<RefCell<Option<Shape>>>,
+            shapes         : Rc<RefCell<Vec<Shape>>>,
             params         : DynamicShapeParams,
         }
 
@@ -389,22 +397,14 @@ macro_rules! _define_shape_system {
 
         impl DynamicShape {
             /// Set the dynamic shape binding.
-            pub fn set_shape_binding(&self, shape:Option<Shape>) {
-                if let Some(current_shape) = &*self.shape.borrow() {
-                    current_shape.unset_parent();
-                }
-                if let Some(shape) = &shape {
-                    self.display_object.add_child(&shape);
-                    self.params.size.set_attribute_binding(Some(shape.sprite.size.clone_ref()));
-                    $(
-                        let gpu_param = shape.$gpu_param.clone_ref();
-                        self.params.$gpu_param.set_attribute_binding(Some(gpu_param));
-                    )*
-                } else {
-                    self.params.size.set_attribute_binding(None);
-                    $(self.params.$gpu_param.set_attribute_binding(None);)*
-                }
-                *self.shape.borrow_mut() = shape;
+            pub fn add_shape_binding(&self, shape:Shape) {
+                self.display_object.add_child(&shape);
+                self.params.size.add_attribute_binding(shape.sprite.size.clone_ref());
+                $(
+                    let gpu_param = shape.$gpu_param.clone_ref();
+                    self.params.$gpu_param.add_attribute_binding(gpu_param);
+                )*
+                self.shapes.borrow_mut().push(shape);
             }
         }
 
@@ -414,13 +414,21 @@ macro_rules! _define_shape_system {
             fn new(logger:impl AnyLogger) -> Self {
                 let logger : Logger = Logger::sub(&logger,"dyn_shape");
                 let display_object  = $crate::display::object::Instance::new(&logger);
-                let shape           = default();
+                let shapes          = default();
                 let params          = default();
-                Self {display_object,shape,params}
+                Self {display_object,shapes,params}
             }
 
-            fn sprite(&self) -> Option<$crate::display::symbol::geometry::Sprite> {
-                self.shape.borrow().as_ref().map(|t|t.sprite.clone_ref())
+            fn sprites(&self) -> Vec<$crate::display::symbol::geometry::Sprite> {
+                self.shapes.borrow().iter().map(|t|t.sprite.clone_ref()).collect()
+            }
+
+            fn drop_instances(&self) {
+                for shape in mem::take(&mut *self.shapes.borrow_mut()) {
+                    self.display_object.remove_child(&shape);
+                }
+                self.params.size.remove_attributes_bindings();
+                $(self.params.$gpu_param.remove_attributes_bindings();)*
             }
         }
 
@@ -511,7 +519,7 @@ macro_rules! _define_shape_system {
                 let id     = sprite.instance_id;
                 $(let $gpu_param = self.$gpu_param.at(id);)*
                 let shape = Shape {sprite, $($gpu_param),*};
-                dyn_shape.set_shape_binding(Some(shape));
+                dyn_shape.add_shape_binding(shape);
                 id
             }
         }

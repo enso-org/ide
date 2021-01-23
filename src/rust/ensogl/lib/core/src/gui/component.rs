@@ -233,7 +233,7 @@ impl<S:DynamicShape> Deref for ShapeViewModel<S> {
 
 impl<S:DynamicShape> Drop for ShapeViewModel<S> {
     fn drop(&mut self) {
-        self.unregister_existing_mouse_target();
+        self.unregister_existing_mouse_targets();
     }
 }
 
@@ -247,38 +247,38 @@ impl<S:DynamicShape> ShapeViewModel<S> {
         ShapeViewModel {shape,events,registry,before_first_show}
     }
 
-    fn on_scene_layers_changed(&self, scene:&Scene, scene_layers:Option<&Vec<LayerId>>) {
-        match scene_layers {
-            None => {
-                self.add_to_scene_layer_exclusive(&scene,&scene.layers.main);
-            },
-            Some(scene_layers) => {
-                if scene_layers.len() != 1 {
-                    panic!("Adding a shape to multiple scene layers is currently not supported.")
-                }
-                if let Some(scene_layer) = scene.layers.get(scene_layers[0]) {
-                    self.add_to_scene_layer_exclusive(&scene,&scene_layer);
-                } else {
-                    self.add_to_scene_layer_exclusive(&scene,&scene.layers.main);
-                }
+    fn on_scene_layers_changed(&self, scene:&Scene, layers:&[LayerId]) {
+        self.drop_from_all_scene_layers();
+        let default_layers = &[scene.layers.main.id];
+        let target_layers = if layers.is_empty() { default_layers } else { layers };
+        for &layer_id in target_layers {
+            if let Some(layer) = scene.layers.get(layer_id) {
+                self.add_to_scene_layer(scene,&layer)
             }
         }
     }
 
-    fn add_to_scene_layer_exclusive(&self, scene:&Scene, layer:&scene::Layer) {
+    fn drop_from_all_scene_layers(&self) {
+        self.shape.drop_instances();
+        self.unregister_existing_mouse_targets();
+    }
+
+    fn add_to_scene_layer(&self, scene:&Scene, layer:&scene::Layer) {
         self.before_first_show.set(false); // FIXME: still needed?
-        self.unregister_existing_mouse_target();
         let (shape_system_info,symbol_id,instance_id) = layer.shape_system_registry.instantiate(scene,&self.shape);
+        // FIXME: This is implemented incorrectly, as it does not remove the shape from other layers if the symbol_id is different:
         layer.add_shape_exclusive(shape_system_info,symbol_id);
         scene.shapes.insert_mouse_target(symbol_id,instance_id,self.events.clone_ref());
         *self.registry.borrow_mut() = Some(scene.shapes.clone_ref());
     }
 
-    fn unregister_existing_mouse_target(&self) {
-        if let (Some(registry),Some(sprite)) = (&*self.registry.borrow(),&self.shape.sprite()) {
-            let symbol_id   = sprite.symbol_id();
-            let instance_id = sprite.instance_id;
-            registry.remove_mouse_target(symbol_id,instance_id);
+    fn unregister_existing_mouse_targets(&self) {
+        if let Some(registry) = &*self.registry.borrow() {
+            for sprite in self.shape.sprites() {
+                let symbol_id = sprite.symbol_id();
+                let instance_id = sprite.instance_id;
+                registry.remove_mouse_target(symbol_id,instance_id);
+            }
             self.events.on_drop.emit(()); // FIXME: wrong place?
         }
     }
