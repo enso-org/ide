@@ -6,8 +6,9 @@ use enso_frp as frp;
 use ensogl_core::application::Application;
 use ensogl_core::data::color;
 use ensogl_core::display::shape::primitive::system;
+use ensogl_core::display::shape::system::DynamicShape;
 use ensogl_core::display;
-use ensogl_core::gui::component::ShapeView_DEPRECATED;
+use ensogl_core::gui::component::ShapeView;
 
 
 
@@ -17,7 +18,7 @@ use ensogl_core::gui::component::ShapeView_DEPRECATED;
 
 /// A shape that can have a single color.
 // TODO implement a derive like macro for this trait that can be used for shape creation.
-pub trait ColorableShape : system::Shape {
+pub trait ColorableShape : DynamicShape {
     /// Set the color of the shape.
     fn set_color(&self, color:color::Rgba);
 }
@@ -48,14 +49,14 @@ ensogl_core::define_endpoints! {
 // =============
 
 #[derive(Clone,Debug)]
-struct Model<Shape:system::Shape> {
-    icon : ShapeView_DEPRECATED<Shape>,
+struct Model<Shape:DynamicShape> {
+    icon : ShapeView<Shape>,
 }
 
 impl<Shape:ColorableShape+'static> Model<Shape> {
     fn new(app:&Application) -> Self {
         let logger = Logger::new("ToggleButton");
-        let icon   = ShapeView_DEPRECATED::new(&logger, app.display.scene());
+        let icon   = ShapeView::new(&logger);
         Self{icon}
     }
 }
@@ -169,12 +170,12 @@ impl ColorScheme {
 /// that acts as button and changes color depending on the toggle state.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
-pub struct ToggleButton<Shape:system::Shape> {
+pub struct ToggleButton<Shape:DynamicShape> {
     pub frp : Frp,
     model   : Rc<Model<Shape>>,
 }
 
-impl<Shape:system::Shape> Deref for ToggleButton<Shape> {
+impl<Shape:DynamicShape> Deref for ToggleButton<Shape> {
     type Target = Frp;
     fn deref(&self) -> &Self::Target {
         &self.frp
@@ -200,7 +201,7 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
 
              // === Input Processing ===
 
-            eval frp.set_size ((size) model.icon.shape.sprite().size.set(*size));
+            eval frp.set_size ((size) model.icon.size().set(*size));
 
 
             // === Mouse Interactions ===
@@ -235,7 +236,7 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
 
     /// Return the underlying shape view. Note that some parameters like size and color will be
     /// overwritten regularly by internals of the `ToggleButton` mechanics.
-    pub fn view(&self) -> ShapeView_DEPRECATED<Shape> {
+    pub fn view(&self) -> ShapeView<Shape> {
         self.model.icon.clone_ref()
     }
 }

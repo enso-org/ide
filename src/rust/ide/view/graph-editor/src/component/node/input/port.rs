@@ -45,12 +45,6 @@ pub mod hover {
     }
 }
 
-/// Function used to hack depth sorting. To be removed when it will be implemented in core engine.
-pub fn depth_sort_hack(scene:&Scene) {
-    let logger = Logger::new("hack");
-    component::ShapeView_DEPRECATED::<hover::Shape>::new(&logger,scene);
-}
-
 
 
 // =============

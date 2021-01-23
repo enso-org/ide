@@ -30,7 +30,7 @@ const BUTTON_OFFSET  : f32 = 0.5;
 // ===============
 
 /// Invisible rectangular area that can be hovered.
-mod hover_rect {
+mod hover_area {
     use super::*;
 
     ensogl::define_shape_system! {
@@ -75,9 +75,9 @@ ensogl::define_endpoints! {
 #[derive(Clone,CloneRef,Debug)]
 struct Icons {
     display_object : display::object::Instance,
-    freeze         : ToggleButton<icon::freeze::Shape>,
-    visibility     : ToggleButton<icon::visibility::Shape>,
-    skip           : ToggleButton<icon::skip::Shape>,
+    freeze         : ToggleButton<icon::freeze::DynamicShape>,
+    visibility     : ToggleButton<icon::visibility::DynamicShape>,
+    skip           : ToggleButton<icon::skip::DynamicShape>,
 }
 
 impl Icons {
@@ -115,7 +115,7 @@ impl display::Object for Icons {
 #[derive(Clone,CloneRef,Debug)]
 struct Model {
     display_object : display::object::Instance,
-    hover_area     : component::ShapeView_DEPRECATED<hover_rect::Shape>,
+    hover_area     : hover_area::View,
     icons          : Icons,
     size           : Rc<Cell<Vector2>>,
     shapes         : compound::events::MouseEvents,
@@ -127,16 +127,24 @@ impl Model {
         let scene          = app.display.scene();
         let logger         = Logger::sub(logger,"ActionBar");
         let display_object = display::object::Instance::new(&logger);
-        let hover_area     = component::ShapeView_DEPRECATED::new(&logger,scene);
+        let hover_area     = hover_area::View::new(&logger);
         let icons          = Icons::new(&logger,app);
         let shapes         = compound::events::MouseEvents::default();
         let size           = default();
-        let styles         = StyleWatch::new(&app.display.scene().style_sheet);
+        let styles         = StyleWatch::new(&scene.style_sheet);
 
         shapes.add_sub_shape(&hover_area);
         shapes.add_sub_shape(&icons.freeze.view());
         shapes.add_sub_shape(&icons.visibility.view());
         shapes.add_sub_shape(&icons.skip.view());
+
+        ensogl::shapes_order_dependencies! {
+            scene => {
+                hover_area -> icon::freeze;
+                hover_area -> icon::visibility;
+                hover_area -> icon::skip;
+            }
+        }
 
         Self{hover_area,display_object,size,icons,shapes,styles}.init()
     }

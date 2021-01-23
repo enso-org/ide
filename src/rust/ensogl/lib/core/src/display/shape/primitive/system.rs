@@ -7,6 +7,7 @@ use super::def;
 
 use crate::display::scene::Scene;
 use crate::display::shape::primitive::shader;
+use crate::display::symbol::geometry::compound::sprite;
 use crate::display::symbol::geometry::Sprite;
 use crate::display::symbol::geometry::SpriteSystem;
 use crate::display::symbol::material::Material;
@@ -207,6 +208,8 @@ pub trait DynamicShape : display::Object + CloneRef + Debug + Sized {
     fn sprites(&self) -> Vec<Sprite>;
 
     fn drop_instances(&self);
+
+    fn size(&self) -> &DynamicParam<sprite::Size>;
 }
 
 
@@ -233,6 +236,53 @@ pub trait ShapeOps {
 impl<T:Shape> ShapeOps for T {
     fn is_this_target(&self, target:display::scene::PointerTarget) -> bool {
         self.sprite().is_this_target(target)
+    }
+}
+
+
+
+// ====================
+// === DynamicParam ===
+// ====================
+
+/// A dynamic version of shape parameter. In case the shape was initialized and bound to the
+/// GPU, the `attribute` will be initialized as well and will point to the right buffer
+/// section. Otherwise, changing the parameter will not have any visual effect, however,
+/// all the changes will be recorded and applied as soon as the shape will get initialized.
+#[derive(Clone,CloneRef,Derivative)]
+#[derivative(Default(bound="T::Item:Default"))]
+#[derivative(Debug(bound="T::Item:Copy+Debug, T:Debug"))]
+#[allow(missing_docs)]
+pub struct DynamicParam<T:HasItem> {
+    cache      : Rc<Cell<T::Item>>,
+    attributes : Rc<RefCell<Vec<T>>>
+}
+
+impl<T> DynamicParam<T>
+where T:CellProperty, T::Item:Copy {
+    // FIXME: move to separate trait in order to not use such names
+    pub fn __remove_attributes_bindings(&self) {
+        *self.attributes.borrow_mut() = default();
+    }
+
+    // FIXME: move to separate trait in order to not use such names
+    pub fn __add_attribute_binding
+    (&self, attribute:T) {
+        attribute.set(self.cache.get());
+        self.attributes.borrow_mut().push(attribute);
+    }
+
+    /// Set the parameter value.
+    pub fn set(&self, value:T::Item) {
+        self.cache.set(value);
+        for attribute in &*self.attributes.borrow() {
+            attribute.set(value)
+        }
+    }
+
+    /// Get the parameter value.
+    pub fn get(&self) -> T::Item {
+        self.cache.get()
     }
 }
 
@@ -323,51 +373,12 @@ macro_rules! _define_shape_system {
         // === DynamicShapeParams ===
         // ==========================
 
-        /// A dynamic version of shape parameter. In case the shape was initialized and bound to the
-        /// GPU, the `attribute` will be initialized as well and will point to the right buffer
-        /// section. Otherwise, changing the parameter will not have any visual effect, however,
-        /// all the changes will be recorded and applied as soon as the shape will get initialized.
-        #[derive(Clone,CloneRef,Derivative)]
-        #[derivative(Default(bound="T::Item:Default"))]
-        #[derivative(Debug(bound="T::Item:Copy+Debug, T:Debug"))]
-        #[allow(missing_docs)]
-        pub struct DynamicParam<T:HasItem> {
-            cache      : Rc<Cell<T::Item>>,
-            attributes : Rc<RefCell<Vec<T>>>
-        }
-
         /// Parameters of the [`DynamicShape`].
         #[derive(Clone,CloneRef,Debug,Default)]
         #[allow(missing_docs)]
         pub struct DynamicShapeParams {
-            pub size:DynamicParam<$crate::display::symbol::geometry::compound::sprite::Size>,
-            $(pub $gpu_param:DynamicParam<$crate::system::gpu::data::Attribute<$gpu_param_type>>),*
-        }
-
-        impl<T> DynamicParam<T>
-        where T:CellProperty, T::Item:Copy {
-            fn remove_attributes_bindings(&self) {
-                *self.attributes.borrow_mut() = default();
-            }
-
-            fn add_attribute_binding
-            (&self, attribute:T) {
-                attribute.set(self.cache.get());
-                self.attributes.borrow_mut().push(attribute);
-            }
-
-            /// Set the parameter value.
-            pub fn set(&self, value:T::Item) {
-                self.cache.set(value);
-                for attribute in &*self.attributes.borrow() {
-                    attribute.set(value)
-                }
-            }
-
-            /// Get the parameter value.
-            pub fn get(&self) -> T::Item {
-                self.cache.get()
-            }
+            pub size:$crate::display::shape::system::DynamicParam<$crate::display::symbol::geometry::compound::sprite::Size>,
+            $(pub $gpu_param:$crate::display::shape::system::DynamicParam<$crate::system::gpu::data::Attribute<$gpu_param_type>>),*
         }
 
 
@@ -399,10 +410,10 @@ macro_rules! _define_shape_system {
             /// Set the dynamic shape binding.
             pub fn add_shape_binding(&self, shape:Shape) {
                 self.display_object.add_child(&shape);
-                self.params.size.add_attribute_binding(shape.sprite.size.clone_ref());
+                self.params.size.__add_attribute_binding(shape.sprite.size.clone_ref());
                 $(
                     let gpu_param = shape.$gpu_param.clone_ref();
-                    self.params.$gpu_param.add_attribute_binding(gpu_param);
+                    self.params.$gpu_param.__add_attribute_binding(gpu_param);
                 )*
                 self.shapes.borrow_mut().push(shape);
             }
@@ -427,8 +438,12 @@ macro_rules! _define_shape_system {
                 for shape in mem::take(&mut *self.shapes.borrow_mut()) {
                     self.display_object.remove_child(&shape);
                 }
-                self.params.size.remove_attributes_bindings();
-                $(self.params.$gpu_param.remove_attributes_bindings();)*
+                self.params.size.__remove_attributes_bindings();
+                $(self.params.$gpu_param.__remove_attributes_bindings();)*
+            }
+
+            fn size(&self) -> &$crate::display::shape::system::DynamicParam<$crate::display::symbol::geometry::compound::sprite::Size> {
+                &self.size
             }
         }
 

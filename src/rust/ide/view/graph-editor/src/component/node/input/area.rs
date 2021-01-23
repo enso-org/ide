@@ -22,8 +22,6 @@ use crate::component::type_coloring;
 use crate::node::input::port;
 use crate::node;
 
-pub use port::depth_sort_hack;
-
 
 
 // =================
