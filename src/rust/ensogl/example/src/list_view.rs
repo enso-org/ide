@@ -78,9 +78,9 @@ impl list_view::entry::ModelProvider for MockEntries {
             None
         } else {
             use list_view::entry::ICON_SIZE;
-            let icon = gui::component::ShapeView_DEPRECATED::<icon::Shape>::new(&self.logger,&self.scene);
-            icon.shape.sprite.size.set(Vector2(ICON_SIZE,ICON_SIZE));
-            icon.shape.id.set(id as f32);
+            let icon = icon::View::new(&self.logger);
+            icon.size.set(Vector2(ICON_SIZE,ICON_SIZE));
+            icon.id.set(id as f32);
             let model = list_view::entry::Model::new(iformat!("Entry {id}")).with_icon(icon);
             if id == 10 { Some(model.highlight(std::iter::once((Bytes(1)..Bytes(3)).into()))) }
             else        { Some(model)                                                         }

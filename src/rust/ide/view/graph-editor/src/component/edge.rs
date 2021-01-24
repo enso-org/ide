@@ -695,28 +695,6 @@ impl LayoutLine for back::line::View {
 // === Front / Back Shapes ===
 // ===========================
 
-// // TODO: Implement proper sorting and remove.
-// /// Hack function used to register the elements for the sorting purposes. To be removed.
-// pub fn depth_sort_hack_1(scene:&Scene) {
-//     let logger = Logger::new("hack_sort");
-//     component::ShapeView_DEPRECATED::<back::corner::Shape>::new(&logger,scene);
-//     component::ShapeView_DEPRECATED::<back::line::Shape>::new(&logger,scene);
-// }
-//
-// // TODO: Implement proper sorting and remove.
-// /// Hack function used to register the elements for the sorting purposes. To be removed.
-// pub fn depth_sort_hack_2(scene:&Scene) {
-//     let logger = Logger::new("hack_sort");
-//     component::ShapeView_DEPRECATED::<front::corner::Shape>::new(&logger,scene);
-//     component::ShapeView_DEPRECATED::<front::line::Shape>::new(&logger,scene);
-//
-//     // Joint needs to be above all shapes, but below the arrows.
-//     component::ShapeView_DEPRECATED::<joint::Shape>::new(&logger,scene);
-//     component::ShapeView_DEPRECATED::<back::arrow::Shape>::new(&logger,scene);
-//     component::ShapeView_DEPRECATED::<front::arrow::Shape>::new(&logger,scene);
-// }
-
-
 /// Shape definitions which will be rendered in the front layer (on top of nodes).
 pub mod front {
     use super::*;

@@ -112,8 +112,8 @@ struct View {
 struct Model {
     app            : Application,
     entries        : entry::List,
-    selection      : component::ShapeView_DEPRECATED<selection::Shape>,
-    background     : component::ShapeView_DEPRECATED<background::Shape>,
+    selection      : selection::View,
+    background     : background::View,
     scrolled_area  : display::object::Instance,
     display_object : display::object::Instance,
 }
@@ -126,8 +126,8 @@ impl Model {
         let display_object = display::object::Instance::new(&logger);
         let scrolled_area  = display::object::Instance::new(&logger);
         let entries        = entry::List::new(&logger,&app);
-        let background     = component::ShapeView_DEPRECATED::<background::Shape>::new(&logger,&scene);
-        let selection      = component::ShapeView_DEPRECATED::<selection::Shape>::new(&logger,&scene);
+        let background     = background::View::new(&logger);
+        let selection      = selection::View::new(&logger);
         display_object.add_child(&background);
         display_object.add_child(&scrolled_area);
         scrolled_area.add_child(&entries);
@@ -142,7 +142,7 @@ impl Model {
         let padding         = Vector2(2.0 * PADDING_PX, 2.0 * PADDING_PX);
         let shadow          = Vector2(2.0 * SHADOW_PX,  2.0 * SHADOW_PX);
         self.entries.set_position_x(-view.size.x / 2.0);
-        self.background.shape.sprite.size.set(view.size + padding + shadow);
+        self.background.size.set(view.size + padding + shadow);
         self.scrolled_area.set_position_y(view.size.y / 2.0 - view.position_y);
         self.entries.update_entries(visible_entries);
     }
@@ -361,7 +361,7 @@ impl ListView {
                 let width = size.x + 2.0 * PADDING_PX;
                 Vector2(width,*height)
             });
-            eval selection_size  ((size) model.selection.shape.sprite.size.set(*size));
+            eval selection_size ((size) model.selection.size.set(*size));
 
 
             // === Scrolling ===

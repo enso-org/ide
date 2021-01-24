@@ -210,6 +210,10 @@ pub trait DynamicShape : display::Object + CloneRef + Debug + Sized {
     fn drop_instances(&self);
 
     fn size(&self) -> &DynamicParam<sprite::Size>;
+
+    fn is_this_target(&self, target:display::scene::PointerTarget) -> bool {
+        self.sprites().into_iter().any(|sprite| sprite.is_this_target(target))
+    }
 }
 
 
@@ -233,6 +237,7 @@ pub trait ShapeOps {
     fn is_this_target(&self, target:display::scene::PointerTarget) -> bool;
 }
 
+// FIXME: Move to Shape trait?
 impl<T:Shape> ShapeOps for T {
     fn is_this_target(&self, target:display::scene::PointerTarget) -> bool {
         self.sprite().is_this_target(target)

@@ -185,8 +185,8 @@ ensogl::define_endpoints! {
 pub struct View {
     logger         : Logger,
     display_object : display::object::Instance,
-    // background     : component::ShapeView_DEPRECATED<background::Shape>,
-    overlay        : component::ShapeView_DEPRECATED<overlay::Shape>,
+    // background     : background::View,
+    overlay        : overlay::View,
     background_dom : DomSymbol
 }
 
@@ -195,15 +195,10 @@ impl View {
     pub fn new(logger:&Logger, scene:&Scene) -> Self {
         let logger         = Logger::sub(logger,"view");
         let display_object = display::object::Instance::new(&logger);
-        // let background     = component::ShapeView_DEPRECATED::<background::Shape>::new(&logger,scene);
-        let overlay        = component::ShapeView_DEPRECATED::<overlay::Shape>::new(&logger,scene);
+        let overlay        = overlay::View::new(&logger);
         display_object.add_child(&overlay);
-        // display_object.add_child(&background);
 
-        // let shape_system = scene.shapes.shape_system(PhantomData::<background::Shape>);
-        // scene.views.main.remove(&shape_system.shape_system.symbol);
-        // scene.views.viz.add(&shape_system.shape_system.symbol);
-
+        // FIXME HERE
         let shape_system = scene.shapes.shape_system(PhantomData::<overlay::Shape>);
         scene.layers.main.remove_symbol(&shape_system.shape_system.symbol);
         scene.layers.viz.add_symbol_exclusive(&shape_system.shape_system.symbol);
@@ -258,7 +253,7 @@ impl display::Object for View {
 pub struct FullscreenView {
     logger         : Logger,
     display_object : display::object::Instance,
-    // background     : component::ShapeView_DEPRECATED<fullscreen_background::Shape>,
+    // background     : fullscreen_background::View,
     background_dom : DomSymbol
 }
 
@@ -417,7 +412,7 @@ impl ContainerModel {
             // self.fullscreen_view.background.shape.radius.set(CORNER_RADIUS);
             // self.fullscreen_view.background.shape.sprite.size.set(size);
             // self.view.background.shape.sprite.size.set(zero());
-            self.view.overlay.shape.sprite.size.set(zero());
+            self.view.overlay.size.set(zero());
             dom.set_style_or_warn("width" ,"0",&self.logger);
             dom.set_style_or_warn("height","0",&self.logger);
             bg_dom.set_style_or_warn("width", format!("{}px", size[0]), &self.logger);
@@ -425,9 +420,9 @@ impl ContainerModel {
             self.action_bar.frp.set_size.emit(Vector2::zero());
         } else {
             // self.view.background.shape.radius.set(CORNER_RADIUS);
-            self.view.overlay.shape.radius.set(CORNER_RADIUS);
+            self.view.overlay.radius.set(CORNER_RADIUS);
             // self.view.background.shape.sprite.size.set(size);
-            self.view.overlay.shape.sprite.size.set(size);
+            self.view.overlay.size.set(size);
             dom.set_style_or_warn("width" ,format!("{}px",size[0]),&self.logger);
             dom.set_style_or_warn("height",format!("{}px",size[1]),&self.logger);
             bg_dom.set_style_or_warn("width", "0", &self.logger);

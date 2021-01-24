@@ -97,19 +97,18 @@ ensogl::define_endpoints! {
 
 #[derive(Clone,CloneRef,Debug)]
 struct Model {
-    hover_area            : component::ShapeView_DEPRECATED<hover_area::Shape>,
+    hover_area            : hover_area::View,
     visualization_chooser : VisualizationChooser,
-    background            : component::ShapeView_DEPRECATED<background::Shape>,
+    background            : background::View,
     display_object        : display::object::Instance,
     size                  : Rc<Cell<Vector2>>,
 }
 
 impl Model {
     fn new(app:&Application, vis_registry:visualization::Registry) -> Self {
-        let scene                 = app.display.scene();
         let logger                = Logger::new("ActionBarModel");
-        let background            = component::ShapeView_DEPRECATED::new(&logger,scene);
-        let hover_area            = component::ShapeView_DEPRECATED::new(&logger,scene);
+        let background            = background::View::new(&logger);
+        let hover_area            = hover_area::View::new(&logger);
         let visualization_chooser = VisualizationChooser::new(&app,vis_registry);
         let display_object        = display::object::Instance::new(&logger);
         let size                  = default();

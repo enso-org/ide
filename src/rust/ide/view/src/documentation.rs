@@ -10,17 +10,18 @@ pub use visualization::container::overlay;
 use ast::prelude::FallibleResult;
 use enso_frp as frp;
 use ensogl::data::color;
-use ensogl::display;
 use ensogl::display::DomSymbol;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::primitive::StyleWatch;
-use ensogl::system::web;
-use ensogl::system::web::clipboard;
-use ensogl::system::web::StyleSetter;
-use ensogl::system::web::AttributeSetter;
+use ensogl::display::shape::primitive::system::DynamicShape;
+use ensogl::display;
 use ensogl::gui::component;
-use wasm_bindgen::closure::Closure;
+use ensogl::system::web::AttributeSetter;
+use ensogl::system::web::StyleSetter;
+use ensogl::system::web::clipboard;
+use ensogl::system::web;
 use wasm_bindgen::JsCast;
+use wasm_bindgen::closure::Closure;
 use web_sys::HtmlElement;
 use web_sys::MouseEvent;
 
@@ -76,7 +77,7 @@ pub struct Model {
     size   : Rc<Cell<Vector2>>,
     /// The purpose of this overlay is stop propagating mouse events under the documentation panel
     /// to EnsoGL shapes, and pass them to the DOM instead.
-    overlay            : component::ShapeView_DEPRECATED<overlay::Shape>,
+    overlay            : overlay::View,
     display_object     : display::object::Instance,
     code_copy_closures : Rc<CloneCell<Vec<CodeCopyClosure>>>
 }
@@ -89,7 +90,7 @@ impl Model {
         let div            = web::create_div();
         let dom            = DomSymbol::new(&div);
         let size           = Rc::new(Cell::new(Vector2(VIEW_WIDTH,VIEW_HEIGHT)));
-        let overlay        = component::ShapeView_DEPRECATED::<overlay::Shape>::new(&logger,scene);
+        let overlay        = overlay::View::new(&logger);
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles   = StyleWatch::new(&scene.style_sheet);
@@ -132,7 +133,7 @@ impl Model {
     /// Set size of the documentation view.
     fn set_size(&self, size:Vector2) {
         self.size.set(size);
-        self.overlay.shape.sprite.size.set(size);
+        self.overlay.size.set(size);
         self.reload_style();
     }
 
@@ -330,7 +331,7 @@ impl View {
 
             mouse_down_target <- scene.mouse.frp.down.map(f_!(scene.mouse.target.get()));
             selected <- mouse_down_target.map(f!([model,visualization] (target){
-                if !model.overlay.shape.is_this_target(*target) {
+                if !model.overlay.is_this_target(*target) {
                     visualization.deactivate.emit(());
                     false
                 } else {

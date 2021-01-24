@@ -102,8 +102,8 @@ struct Model {
     app             : Application,
     display_object  : display::object::Instance,
 
-    icon            : component::ShapeView_DEPRECATED<arrow::Shape>,
-    icon_overlay    : component::ShapeView_DEPRECATED<chooser_hover_area::Shape>,
+    icon            : arrow::View,
+    icon_overlay    : chooser_hover_area::View,
 
     label           : text::Area,
     selection_menu  : list_view::ListView,
@@ -118,8 +118,8 @@ impl Model {
         let scene          = app.display.scene();
         let app            = app.clone_ref();
         let display_object = display::object::Instance::new(&logger);
-        let icon           = component::ShapeView_DEPRECATED::new(&logger,scene);
-        let icon_overlay   = component::ShapeView_DEPRECATED::new(&logger,scene);
+        let icon           = arrow::View::new(&logger);
+        let icon_overlay   = chooser_hover_area::View::new(&logger);
         let selection_menu = list_view::ListView::new(&app);
         let label          = app.new_view::<text::Area>();
         let content        = default();
@@ -238,7 +238,7 @@ impl DropDownMenu {
 
             icon_size <- all(frp.input.set_icon_size,frp.input.set_icon_padding);
             eval icon_size (((size,padding)) {
-                model.icon.shape.sprite.size.set(size-2.0*padding);
+                model.icon.size.set(size-2.0*padding);
             });
 
             resize_menu <- all(model.selection_menu.size,frp.input.set_icon_size,frp.input.set_menu_offset_y);
@@ -260,7 +260,7 @@ impl DropDownMenu {
             overlay_size <- all(model.label.frp.width,frp.input.set_icon_size);
             eval overlay_size ([model]((text_width,icon_size)) {
                 let size = Vector2::new(text_width + icon_size.x,icon_size.y);
-                model.icon_overlay.shape.sprite.size.set(size);
+                model.icon_overlay.size.set(size);
                 model.icon_overlay.set_position_x(-text_width/2.0);
             });
 
