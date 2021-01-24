@@ -161,6 +161,8 @@ pub mod drag_area {
     }
 }
 
+
+
 // =======================
 // === Error Indicator ===
 // =======================
@@ -355,9 +357,15 @@ impl NodeModel {
     pub fn new(app:&Application, registry:visualization::Registry) -> Self {
         ensogl::shapes_order_dependencies! {
             app.display.scene() => {
+                edge::back::corner        -> shape;
+                edge::back::line          -> shape;
                 output::port::single_port -> shape;
                 output::port::multi_port  -> shape;
-                shape                     -> input::port::hover;
+                shape                     -> drag_area;
+                drag_area                 -> edge::front::corner;
+                drag_area                 -> edge::front::line;
+                edge::front::corner       -> input::port::hover;
+                edge::front::line         -> input::port::hover;
                 input::port::hover        -> input::port::viz;
             }
         }
