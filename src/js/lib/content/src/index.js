@@ -160,6 +160,21 @@ function printScamWarning() {
 
 
 // ======================
+// === Remote logging ===
+// ======================
+
+const mixpanel = require('mixpanel-browser');
+mixpanel.init("API TOKEN HERE", { "api_host": "https://api-eu.mixpanel.com" }, "");
+window.enso.remote_log = function (event,data) {
+    if (mixpanel) {
+        mixpanel.track(event,data);
+    } else {
+        console.warn("Failed to log message.")
+    }
+}
+
+
+// ======================
 // === Logs Buffering ===
 // ======================
 
@@ -358,7 +373,7 @@ API.main = async function (inputConfig) {
     let config    = Object.assign(defaultConfig,inputConfig,urlConfig)
     API[globalConfig.windowAppScopeConfigName] = config
 
-    initCrashHandling()
+    // initCrashHandling()
     style_root()
     printScamWarning()
     hideLogs()

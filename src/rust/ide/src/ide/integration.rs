@@ -17,6 +17,7 @@ use crate::model::execution_context::VisualizationId;
 use crate::model::execution_context::VisualizationUpdateData;
 use crate::model::suggestion_database;
 
+use analytics;
 use bimap::BiMap;
 use enso_data::text::TextChange;
 use enso_frp as frp;
@@ -286,6 +287,22 @@ impl Integration {
             eval_ project_frp.editing_aborted   (invalidate.trigger.emit(()));
             eval_ project_frp.save_module       (model.module_saved_in_ui());
         }
+
+        frp::extend! {network
+            eval editor_outs.node_added([](_){analytics::remote_log(analytics::data::Public::new("node_added"))});
+            eval editor_outs.node_removed([](_){analytics::remote_log(analytics::data::Public::new("node_removed"))});
+            eval editor_outs.nodes_collapsed([](_){analytics::remote_log(analytics::data::Public::new("nodes_collapsed"))});
+            eval editor_outs.node_entered([](_){analytics::remote_log(analytics::data::Public::new("node_entered"))});
+            eval editor_outs.node_exited([](_){analytics::remote_log(analytics::data::Public::new("node_exited"))});
+            eval editor_outs.node_exited([](_){analytics::remote_log(analytics::data::Public::new("node_exited"))});
+            eval editor_outs.on_edge_endpoints_set([](_){analytics::remote_log(analytics::data::Public::new("on_edge_endpoints_set"))});
+            eval editor_outs.visualization_enabled([](_){analytics::remote_log(analytics::data::Public::new("visualization_enabled"))});
+            eval editor_outs.visualization_disabled([](_){analytics::remote_log(analytics::data::Public::new("visualization_disabled"))});
+            eval on_connection_removed([](_){analytics::remote_log(analytics::data::Public::new("on_connection_removed"))});
+            eval searcher_frp.used_as_suggestion([](_){analytics::remote_log(analytics::data::Public::new("used_as_suggestion"))});
+        }
+
+
         Self::connect_frp_to_graph_controller_notifications(&model,handle_graph_notification.trigger);
         Self::connect_frp_text_controller_notifications(&model,handle_text_notification.trigger);
         Self {model,network}
@@ -988,6 +1005,11 @@ impl Model {
 
         debug!(self.logger, "Attaching visualization on {node_id}.");
         let visualization  = self.prepare_visualization(node_id)?;
+        let analytics_event = analytics::data::Public::new("visualization_enabled_in_ui");
+        let analytics_data = format!("{:?}", visualization);
+        let analytics_data_public = analytics::data::Public::new(&analytics_data);
+        analytics::remote_log_data(analytics_event,analytics_data_public);
+
         let id             = visualization.id;
         let node_id        = *node_id;
         let controller     = self.graph.clone();
