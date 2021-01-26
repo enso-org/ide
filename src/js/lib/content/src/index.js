@@ -387,7 +387,7 @@ API.main = async function (inputConfig) {
     let config    = Object.assign(defaultConfig,inputConfig,urlConfig)
     API[globalConfig.windowAppScopeConfigName] = config
 
-    // initCrashHandling()
+    initCrashHandling()
     style_root()
     printScamWarning()
     hideLogs()
