@@ -1000,13 +1000,6 @@ impl Model {
         Ok(Visualization{ast_id,expression,id,visualisation_module})
     }
 
-    fn remote_log_visualisation(vis:&Visualization) {
-        let analytics_event       = analytics::AnonymousData("visualization_enabled_in_ui");
-        let analytics_data        = || format!("{:?}", vis);
-        let analytics_data_public = analytics::AnonymousData(analytics_data);
-        analytics::remote_log_data(analytics_event,analytics_data_public);
-    }
-
     fn visualization_enabled_in_ui(&self, node_id:&graph_editor::NodeId) -> FallibleResult {
         // Do nothing if there is already a visualization attached.
         let err = || VisualizationAlreadyAttached(*node_id);
@@ -1014,8 +1007,6 @@ impl Model {
 
         debug!(self.logger, "Attaching visualization on {node_id}.");
         let visualization  = self.prepare_visualization(node_id)?;
-        Self::remote_log_visualisation(&visualization);
-
         let id             = visualization.id;
         let node_id        = *node_id;
         let controller     = self.graph.clone();
