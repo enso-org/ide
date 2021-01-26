@@ -14,7 +14,6 @@ use ensogl_core::application::shortcut;
 use ensogl_core::data::color;
 use ensogl_core::display;
 use ensogl_core::display::shape::*;
-use ensogl_core::gui::component;
 use ensogl_core::DEPRECATED_Animation;
 use ensogl_theme as theme;
 
@@ -63,6 +62,7 @@ mod background {
     pub const CORNER_RADIUS_PX:f32 = selection::CORNER_RADIUS_PX;
 
     ensogl_core::define_shape_system! {
+        always_below = [selection];
         (style:Style) {
             let sprite_width  : Var<Pixels> = "input_size.x".into();
             let sprite_height : Var<Pixels> = "input_size.y".into();
@@ -106,7 +106,6 @@ struct View {
     size       : Vector2<f32>,
 }
 
-
 /// The Model of Select Component.
 #[derive(Clone,CloneRef,Debug)]
 struct Model {
@@ -121,7 +120,6 @@ struct Model {
 impl Model {
     fn new(app:&Application) -> Self {
         let app            = app.clone_ref();
-        let scene          = app.display.scene().clone_ref();
         let logger         = Logger::new("SelectionContainer");
         let display_object = display::object::Instance::new(&logger);
         let scrolled_area  = display::object::Instance::new(&logger);

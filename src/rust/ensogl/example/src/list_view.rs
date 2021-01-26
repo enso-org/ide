@@ -7,7 +7,6 @@ use ensogl_core::application::Application;
 use ensogl_core::display::object::ObjectOps;
 use ensogl_core::display::shape::*;
 use ensogl_core::data::color;
-use ensogl_core::gui;
 use ensogl_text_msdf_sys::run_once_initialized;
 use ensogl_gui_components::list_view;
 use logger::TraceLogger as Logger;

@@ -13,8 +13,8 @@ use ensogl::data::color;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
-use ensogl::gui::component;
 use ensogl_theme as theme;
+use ensogl_gui_components::drop_down_menu;
 
 
 
@@ -37,6 +37,7 @@ mod hover_area {
     use super::*;
 
     ensogl::define_shape_system! {
+        always_below = [drop_down_menu::arrow];
         () {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
@@ -53,6 +54,7 @@ mod background {
     use super::*;
 
     ensogl::define_shape_system! {
+        always_below = [hover_area];
         (style:Style) {
             let width              = Var::<Pixels>::from("input_size.x");
             let height             = Var::<Pixels>::from("input_size.y");
@@ -112,16 +114,13 @@ impl Model {
         let visualization_chooser = VisualizationChooser::new(&app,vis_registry);
         let display_object        = display::object::Instance::new(&logger);
         let size                  = default();
-        Model{hover_area,visualization_chooser,display_object,size,background}.init()
+        app.display.scene().layers.below_main.add_exclusive(&hover_area);
+        app.display.scene().layers.below_main.add_exclusive(&background);
+        Model {hover_area,visualization_chooser,display_object,size,background}.init()
     }
 
     fn init(self) -> Self {
         self.add_child(&self.hover_area);
-        self.add_child(&self.visualization_chooser);
-
-        // Remove default parent, then hide icons.
-        self.show();
-        self.hide();
         self
     }
 
@@ -140,8 +139,8 @@ impl Model {
     }
 
     fn show(&self) {
-        self.add_child(&self.visualization_chooser);
         self.add_child(&self.background);
+        self.add_child(&self.visualization_chooser);
     }
 
     fn hide(&self) {

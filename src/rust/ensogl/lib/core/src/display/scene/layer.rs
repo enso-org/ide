@@ -12,7 +12,6 @@ use crate::display::shape::system::KnownShapeSystemId;
 use crate::display::shape::system::ShapeSystemId;
 use crate::display::symbol::SymbolId;
 use crate::display;
-use crate::gui::component;
 use crate::system::gpu::data::attribute;
 
 use enso_data::dependency_graph::DependencyGraph;
@@ -481,8 +480,7 @@ impl LayerModel {
         let graph           = self.combined_depth_order_graph(global_element_depth_order);
         let elements_rev    = self.elements.borrow().iter().copied().rev().collect_vec();
         let sorted_elements = graph.into_unchecked_topo_sort(elements_rev);
-
-        let sorted_symbols = sorted_elements.into_iter().filter_map(|element| {
+        let sorted_symbols  = sorted_elements.into_iter().filter_map(|element| {
             match element {
                 LayerElement::Symbol(symbol_id) => Some(symbol_id),
                 LayerElement::ShapeSystem(id) => {
@@ -497,22 +495,6 @@ impl LayerModel {
             }
         }).collect();
         *self.symbols_ordered.borrow_mut() = sorted_symbols;
-    }
-
-    /// Add all `Symbol`s associated with the given ShapeView_DEPRECATED. Please note that this
-    /// function was used only in one place in the codebase and should be removed in the future.
-    #[allow(non_snake_case)]
-    pub fn add_shape_view_DEPRECATED<T: display::shape::primitive::system::Shape>
-    (&self, shape_view:&component::ShapeView_DEPRECATED<T>) {
-        self.add_symbol_exclusive(&shape_view.shape.sprite().symbol)
-    }
-
-    /// Remove all `Symbol`s associated with the given ShapeView_DEPRECATED. Please note that this
-    /// function was used only in one place in the codebase and should be removed in the future.
-    #[allow(non_snake_case)]
-    pub fn remove_shape_view_DEPRECATED<T: display::shape::primitive::system::Shape>
-    (&self, shape_view:&component::ShapeView_DEPRECATED<T>) {
-        self.remove_symbol(&shape_view.shape.sprite().symbol)
     }
 }
 

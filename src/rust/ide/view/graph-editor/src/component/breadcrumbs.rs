@@ -19,7 +19,6 @@ use ensogl::display::camera::Camera2d;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::shape::*;
 use ensogl::display;
-use ensogl::gui::component;
 use ensogl::gui::cursor;
 use logger::Logger;
 use std::cmp::Ordering;
@@ -137,7 +136,7 @@ pub struct BreadcrumbsModel {
     logger                : Logger,
     /// The breadcrumbs panel display object.
     display_object        : display::object::Instance,
-    background            : component::ShapeView_DEPRECATED<background::Shape>,
+    background            : background::View,
     project_name          : ProjectName,
     root                   : display::object::Instance,
     /// A container for all the breadcrumbs after project name. This contained and all its
@@ -164,7 +163,7 @@ impl BreadcrumbsModel {
         let frp_inputs            = frp.input.clone_ref();
         let current_index         = default();
         let camera                = scene.camera().clone_ref();
-        let background            = component::ShapeView_DEPRECATED::<background::Shape>::new(&logger,&scene);
+        let background            = background::View::new(&logger);
 
         Self{logger,display_object,root,app,breadcrumbs,project_name,breadcrumbs_container,
             frp_inputs,current_index,camera,background}.init()

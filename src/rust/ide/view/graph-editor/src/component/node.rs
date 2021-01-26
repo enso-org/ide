@@ -372,7 +372,6 @@ impl NodeModel {
 
         let scene  = app.display.scene();
         let logger = Logger::new("node");
-        // edge::depth_sort_hack_1(scene);
 
         let main_logger             = Logger::sub(&logger,"main_area");
         let drag_logger             = Logger::sub(&logger,"drag_area");
@@ -382,7 +381,6 @@ impl NodeModel {
         let main_area       = shape::View::new(&main_logger);
         let drag_area       = drag_area::View::new(&drag_logger);
         let error_text      = app.new_view::<text::Area>();
-        // edge::depth_sort_hack_2(scene);
 
         let display_object  = display::object::Instance::new(&logger);
         display_object.add_child(&drag_area);

@@ -15,7 +15,6 @@ use ensogl::display::scene::Scene;
 use ensogl::display::shape::primitive::StyleWatch;
 use ensogl::display::shape::primitive::system::DynamicShape;
 use ensogl::display;
-use ensogl::gui::component;
 use ensogl::system::web::AttributeSetter;
 use ensogl::system::web::StyleSetter;
 use ensogl::system::web::clipboard;

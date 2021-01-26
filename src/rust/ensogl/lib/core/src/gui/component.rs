@@ -14,8 +14,10 @@ use crate::display::scene::ShapeRegistry;
 use crate::display::scene::layer::LayerId;
 use crate::display::scene;
 use crate::display::shape::primitive::system::DynamicShape;
-use crate::display::shape::primitive::system::Shape;
+use crate::display::shape::primitive::system::DynamicShapeInternals;
 use crate::display;
+use crate::display::symbol::SymbolId;
+use crate::system::gpu::data::attribute;
 
 use enso_frp as frp;
 
@@ -70,85 +72,6 @@ impl Default for ShapeViewEvents {
 
 
 
-// ============================
-// === ShapeView_DEPRECATED ===
-// ============================
-
-/// # Depreciation
-/// This model is deprecated. Please use [`ShapeView`] instead. There are few major differences
-/// worth considering when upgrading:
-/// 1. The new [`ShapeView`] does not initialize the shape when created. Instead, it initializes the
-///    shape lazily.
-/// 2. The new [`ShapeView`] gets its scene layer information from `display::object::Instance`
-///    hierarchy.
-/// 3. When using the `define_shape_system!` macro, you do not need to use [`ShapeView`] explicitly
-///    anymore. Just use `my_def::View` instead, which is a type alias for
-///    `ShapeView<my_def::DynamicShape>`.
-#[derive(Clone,CloneRef,Debug)]
-#[clone_ref(bound="S:CloneRef")]
-#[allow(missing_docs)]
-#[allow(non_camel_case_types)]
-pub struct ShapeView_DEPRECATED<S:Shape> {
-    model : Rc<ShapeViewModel_DEPRECATED<S>>
-}
-
-impl<S:Shape> Deref for ShapeView_DEPRECATED<S> {
-    type Target = Rc<ShapeViewModel_DEPRECATED<S>>;
-    fn deref(&self) -> &Self::Target {
-        &self.model
-    }
-}
-
-/// Model of [`ShapeView_DEPRECATED`].
-#[derive(Debug)]
-#[allow(missing_docs)]
-#[allow(non_camel_case_types)]
-pub struct ShapeViewModel_DEPRECATED<S:Shape> {
-    pub registry       : ShapeRegistry,
-    pub shape          : S,
-    pub display_object : display::object::Instance,
-    pub events         : ShapeViewEvents,
-}
-
-impl<S:Shape> Drop for ShapeViewModel_DEPRECATED<S> {
-    fn drop(&mut self) {
-        let sprite      = self.shape.sprite();
-        let symbol_id   = sprite.symbol_id();
-        let instance_id = sprite.instance_id;
-        self.registry.remove_mouse_target(symbol_id,instance_id);
-        self.events.on_drop.emit(());
-    }
-}
-
-impl<S:Shape> ShapeView_DEPRECATED<S> {
-    /// Constructor.
-    pub fn new(logger:impl AnyLogger, scene:&Scene) -> Self {
-        let logger         = Logger::sub(logger,"shape_view");
-        let display_object = display::object::Instance::new(logger);
-        let registry       = scene.shapes.clone_ref();
-        let shape          = registry.new_instance::<S>();
-        let events         = ShapeViewEvents::new();
-        display_object.add_child(&shape);
-
-        let sprite      = shape.sprite();
-        let events2     = events.clone_ref();
-        let symbol_id   = sprite.symbol_id();
-        let instance_id = sprite.instance_id;
-        registry.insert_mouse_target(symbol_id,instance_id,events2);
-
-        let model = Rc::new(ShapeViewModel_DEPRECATED {registry,display_object,events,shape});
-        Self {model}
-    }
-}
-
-impl<T:Shape> display::Object for ShapeView_DEPRECATED<T> {
-    fn display_object(&self) -> &display::object::Instance {
-        &self.display_object
-    }
-}
-
-
-
 // =================
 // === ShapeView ===
 // =================
@@ -159,18 +82,18 @@ impl<T:Shape> display::Object for ShapeView_DEPRECATED<T> {
 #[derive(Clone,CloneRef,Debug)]
 #[clone_ref(bound="S:CloneRef")]
 #[allow(missing_docs)]
-pub struct ShapeView<S:DynamicShape> {
+pub struct ShapeView<S> {
     model : Rc<ShapeViewModel<S>>
 }
 
-impl<S:DynamicShape> Deref for ShapeView<S> {
+impl<S> Deref for ShapeView<S> {
     type Target = Rc<ShapeViewModel<S>>;
     fn deref(&self) -> &Self::Target {
         &self.model
     }
 }
 
-impl<S:DynamicShape+'static> ShapeView<S> {
+impl<S:DynamicShapeInternals+'static> ShapeView<S> {
     /// Constructor.
     pub fn new(logger:impl AnyLogger) -> Self {
         let model = Rc::new(ShapeViewModel::new(logger));
@@ -188,6 +111,7 @@ impl<S:DynamicShape+'static> ShapeView<S> {
         self.display_object().set_on_show(move |scene,layers| {
             if let Some(model) = weak_model.upgrade() {
                 if model.before_first_show.get() {
+                    model.before_first_show.set(false);
                     model.on_scene_layers_changed(scene,layers)
                 }
             }
@@ -204,7 +128,7 @@ impl<S:DynamicShape+'static> ShapeView<S> {
     }
 }
 
-impl<S:DynamicShape> HasContent for ShapeView<S> {
+impl<S> HasContent for ShapeView<S> {
     type Content = S;
 }
 
@@ -217,40 +141,33 @@ impl<S:DynamicShape> HasContent for ShapeView<S> {
 /// Model of [`ShapeView`].
 #[derive(Debug,Default)]
 #[allow(missing_docs)]
-pub struct ShapeViewModel<S:DynamicShape> {
-    pub shape         : S,
-    pub events        : ShapeViewEvents,
-    pub registry      : Rc<RefCell<Option<ShapeRegistry>>>,
-    before_first_show : Rc<Cell<bool>>,
+pub struct ShapeViewModel<S> {
+    pub shape           : S,
+    pub events          : ShapeViewEvents,
+    pub registry        : RefCell<Option<ShapeRegistry>>,
+    pub pointer_targets : RefCell<Vec<(SymbolId,attribute::InstanceIndex)>>,
+    before_first_show   : Cell<bool>,
 }
 
-impl<S:DynamicShape> Deref for ShapeViewModel<S> {
+impl<S> Deref for ShapeViewModel<S> {
     type Target = S;
     fn deref(&self) -> &Self::Target {
         &self.shape
     }
 }
 
-impl<S:DynamicShape> Drop for ShapeViewModel<S> {
+impl<S> Drop for ShapeViewModel<S> {
     fn drop(&mut self) {
         self.unregister_existing_mouse_targets();
+        self.events.on_drop.emit(());
     }
 }
 
-impl<S:DynamicShape> ShapeViewModel<S> {
-    /// Constructor.
-    pub fn new(logger:impl AnyLogger) -> Self {
-        let shape    = S::new(logger);
-        let events   = ShapeViewEvents::new();
-        let registry = default();
-        let before_first_show = Rc::new(Cell::new(true));
-        ShapeViewModel {shape,events,registry,before_first_show}
-    }
-
+impl<S:DynamicShapeInternals> ShapeViewModel<S> {
     fn on_scene_layers_changed(&self, scene:&Scene, layers:&[LayerId]) {
         self.drop_from_all_scene_layers();
         let default_layers = &[scene.layers.main.id];
-        let target_layers = if layers.is_empty() { default_layers } else { layers };
+        let target_layers  = if layers.is_empty() { default_layers } else { layers };
         for &layer_id in target_layers {
             if let Some(layer) = scene.layers.get(layer_id) {
                 self.add_to_scene_layer(scene,&layer)
@@ -262,35 +179,47 @@ impl<S:DynamicShape> ShapeViewModel<S> {
         self.shape.drop_instances();
         self.unregister_existing_mouse_targets();
     }
+}
+
+
+impl<S:DynamicShape> ShapeViewModel<S> {
+    /// Constructor.
+    pub fn new(logger:impl AnyLogger) -> Self {
+        let shape             = S::new(logger);
+        let events            = ShapeViewEvents::new();
+        let registry          = default();
+        let pointer_targets   = default();
+        let before_first_show = Cell::new(true);
+        ShapeViewModel {shape,events,registry,pointer_targets,before_first_show}
+    }
 
     fn add_to_scene_layer(&self, scene:&Scene, layer:&scene::Layer) {
-        self.before_first_show.set(false); // FIXME: still needed?
         let (shape_system_info,symbol_id,instance_id) = layer.shape_system_registry.instantiate(scene,&self.shape);
         // FIXME: This is implemented incorrectly, as it does not remove the shape from other layers if the symbol_id is different:
         layer.add_shape_exclusive(shape_system_info,symbol_id);
         scene.shapes.insert_mouse_target(symbol_id,instance_id,self.events.clone_ref());
+        self.pointer_targets.borrow_mut().push((symbol_id,instance_id));
         *self.registry.borrow_mut() = Some(scene.shapes.clone_ref());
     }
+}
 
+impl<S> ShapeViewModel<S> {
     fn unregister_existing_mouse_targets(&self) {
         if let Some(registry) = &*self.registry.borrow() {
-            for sprite in self.shape.sprites() {
-                let symbol_id = sprite.symbol_id();
-                let instance_id = sprite.instance_id;
+            for (symbol_id,instance_id) in mem::take(&mut *self.pointer_targets.borrow_mut()) {
                 registry.remove_mouse_target(symbol_id,instance_id);
             }
-            self.events.on_drop.emit(()); // FIXME: wrong place?
         }
     }
 }
 
-impl<T:DynamicShape> display::Object for ShapeViewModel<T> {
+impl<T:display::Object> display::Object for ShapeViewModel<T> {
     fn display_object(&self) -> &display::object::Instance {
         self.shape.display_object()
     }
 }
 
-impl<T:DynamicShape> display::Object for ShapeView<T> {
+impl<T:display::Object> display::Object for ShapeView<T> {
     fn display_object(&self) -> &display::object::Instance {
         self.shape.display_object()
     }

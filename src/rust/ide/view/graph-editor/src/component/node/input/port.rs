@@ -3,7 +3,6 @@ use crate::prelude::*;
 use ensogl::data::color;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
-use ensogl::gui::component;
 use ensogl::display;
 
 use crate::Type;

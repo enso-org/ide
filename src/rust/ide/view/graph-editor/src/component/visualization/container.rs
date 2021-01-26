@@ -27,7 +27,6 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::DEPRECATED_Animation;
 use ensogl::application::Application;
-use ensogl::gui::component;
 use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
 use ensogl_theme as theme;
@@ -198,11 +197,6 @@ impl View {
         let overlay        = overlay::View::new(&logger);
         display_object.add_child(&overlay);
 
-        // FIXME HERE
-        let shape_system = scene.shapes.shape_system(PhantomData::<overlay::Shape>);
-        scene.layers.main.remove_symbol(&shape_system.shape_system.symbol);
-        scene.layers.viz.add_symbol_exclusive(&shape_system.shape_system.symbol);
-
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles   = StyleWatch::new(&scene.style_sheet);
         let bg_color = styles.get_color(ensogl_theme::graph_editor::visualization::background);
@@ -230,7 +224,12 @@ impl View {
 
         scene.dom.layers.back.manage(&background_dom);
 
-        Self {logger,display_object,overlay,background_dom}
+        Self {logger,display_object,overlay,background_dom} . init(scene)
+    }
+
+    fn init(self, scene:&Scene) -> Self {
+        scene.layers.viz.add_exclusive(&self);
+        self
     }
 }
 
@@ -318,8 +317,6 @@ pub struct ContainerModel {
     size            : Rc<Cell<Vector2>>,
     action_bar      : ActionBar,
 }
-
-
 
 impl ContainerModel {
     /// Constructor.
@@ -458,7 +455,6 @@ impl ContainerModel {
 
     /// Check if given mouse-event-target means this visualization.
     fn is_this_target(&self, target:scene::PointerTarget) -> bool {
-        use ensogl::display::shape::primitive::system::ShapeOps;
         self.view.overlay.shape.is_this_target(target)
     }
 }

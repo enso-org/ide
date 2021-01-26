@@ -8,13 +8,11 @@ use enso_frp as frp;
 use enso_frp;
 use ensogl::application::Application;
 use ensogl::data::color;
-use ensogl::display::Sprite;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::ShapeViewEvents;
-use ensogl::gui::component;
 use ensogl_theme as theme;
 
 
@@ -733,7 +731,7 @@ macro_rules! define_components {
 
         impl $name {
             /// Constructor.
-            pub fn new(logger:Logger, scene:&Scene) -> Self {
+            pub fn new(logger:Logger) -> Self {
                 let display_object = display::object::Instance::new(&logger);
                 $(let $field = <$field_type>::new(Logger::sub(&logger,stringify!($field)));)*
                 $(display_object.add_child(&$field);)*
@@ -1234,8 +1232,8 @@ impl EdgeModelData {
     pub fn new(scene:&Scene, network:&frp::Network) -> Self {
         let logger         = Logger::new("edge");
         let display_object = display::object::Instance::new(&logger);
-        let front          = Front::new(Logger::sub(&logger,"front"),scene);
-        let back           = Back::new (Logger::sub(&logger,"back"),scene);
+        let front          = Front::new(Logger::sub(&logger,"front"));
+        let back           = Back::new (Logger::sub(&logger,"back"));
         let joint          = joint::View::new(Logger::sub(&logger,"joint"));
 
         let shape_system = scene.layers.main.shape_system_registry.shape_system(scene,PhantomData::<joint::DynamicShape>);

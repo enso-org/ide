@@ -16,7 +16,6 @@ use ensogl::display::object::ObjectOps;
 use ensogl::display::shape::*;
 use ensogl::display;
 use ensogl::DEPRECATED_Animation;
-use ensogl::gui::component;
 use ensogl_text as text;
 use ensogl_theme as theme;
 use logger::DefaultTraceLogger as Logger;
@@ -260,9 +259,9 @@ pub struct BreadcrumbInfo {
 pub struct BreadcrumbModel {
     logger         : Logger,
     display_object : display::object::Instance,
-    view           : component::ShapeView_DEPRECATED<background::Shape>,
-    separator      : component::ShapeView_DEPRECATED<separator::Shape>,
-    icon           : component::ShapeView_DEPRECATED<icon::Shape>,
+    view           : background::View,
+    separator      : separator::View,
+    icon           : icon::View,
     label          : text::Area,
     animations     : Animations,
     style          : StyleWatch,
@@ -280,9 +279,9 @@ impl BreadcrumbModel {
         let logger            = Logger::new("Breadcrumbs");
         let display_object    = display::object::Instance::new(&logger);
         let view_logger       = Logger::sub(&logger,"view_logger");
-        let view              = component::ShapeView_DEPRECATED::<background::Shape>::new(&view_logger, scene);
-        let icon              = component::ShapeView_DEPRECATED::<icon::Shape>::new(&view_logger, scene);
-        let separator         = component::ShapeView_DEPRECATED::<separator::Shape>::new(&view_logger, scene);
+        let view              = background::View::new(&view_logger);
+        let icon              = icon::View::new(&view_logger);
+        let separator         = separator::View::new(&view_logger);
         let label             = app.new_view::<text::Area>();
         let expression_id     = *expression_id;
         let method_pointer    = method_pointer.clone();
@@ -291,18 +290,15 @@ impl BreadcrumbModel {
         let relative_position = default();
         let outputs           = frp.outputs.clone_ref();
 
-        let shape_system = scene.shapes.shape_system(PhantomData::<background::Shape>);
-        scene.layers.main.remove_symbol(&shape_system.shape_system.symbol);
+        let shape_system = scene.layers.breadcrumbs.shape_system_registry.shape_system(scene,PhantomData::<background::DynamicShape>);
         scene.layers.breadcrumbs.add_symbol_exclusive(&shape_system.shape_system.symbol);
 
-        let shape_system = scene.shapes.shape_system(PhantomData::<icon::Shape>);
+        let shape_system = scene.layers.breadcrumbs.shape_system_registry.shape_system(scene,PhantomData::<icon::DynamicShape>);
         shape_system.shape_system.set_pointer_events(false);
-        scene.layers.main.remove_symbol(&shape_system.shape_system.symbol);
         scene.layers.breadcrumbs.add_symbol_exclusive(&shape_system.shape_system.symbol);
 
-        let shape_system = scene.shapes.shape_system(PhantomData::<separator::Shape>);
+        let shape_system = scene.layers.breadcrumbs.shape_system_registry.shape_system(scene,PhantomData::<separator::DynamicShape>);
         shape_system.shape_system.set_pointer_events(false);
-        scene.layers.main.remove_symbol(&shape_system.shape_system.symbol);
         scene.layers.breadcrumbs.add_symbol_exclusive(&shape_system.shape_system.symbol);
 
         label.remove_from_view(&scene.layers.main);
@@ -339,13 +335,13 @@ impl BreadcrumbModel {
         let height = self.height();
         let offset = SEPARATOR_MARGIN+SEPARATOR_SIZE/2.0;
 
-        self.view.shape.sprite.size.set(Vector2::new(width,height));
+        self.view.size.set(Vector2::new(width,height));
         self.fade_in(0.0);
         let separator_size = (SEPARATOR_SIZE+PADDING*2.0).max(0.0);
         let icon_size      = (ICON_SIZE+PADDING*2.0).max(0.0);
-        self.separator.shape.sprite.size.set(Vector2::new(separator_size,separator_size));
+        self.separator.size.set(Vector2::new(separator_size,separator_size));
         self.separator.set_position_x((offset-width/2.0).round());
-        self.icon.shape.sprite.size.set(Vector2::new(icon_size,icon_size));
+        self.icon.size.set(Vector2::new(icon_size,icon_size));
         let x_position = offset+PADDING+ICON_SIZE/2.0+LEFT_MARGIN+ICON_LEFT_MARGIN;
         self.icon.set_position_x(x_position.round());
 

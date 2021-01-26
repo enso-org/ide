@@ -12,7 +12,6 @@ use ensogl_core::data::color;
 use ensogl_core::display::shape::*;
 use ensogl_core::display::shape::primitive::StyleWatch;
 use ensogl_core::display;
-use ensogl_core::gui::component;
 use ensogl_text as text;
 use ensogl_theme as theme;
 
@@ -37,6 +36,7 @@ pub mod arrow {
     use super::*;
 
     ensogl_core::define_shape_system! {
+        always_below = [chooser_hover_area];
         (style:Style) {
             let width            = Var::<Pixels>::from("input_size.x");
             let height           = Var::<Pixels>::from("input_size.y");
@@ -114,8 +114,7 @@ struct Model {
 
 impl Model {
     fn new(app:&Application) -> Self {
-        let logger         = Logger::new("visualization_chooser::Model");
-        let scene          = app.display.scene();
+        let logger         = Logger::new("drop_down_menu");
         let app            = app.clone_ref();
         let display_object = display::object::Instance::new(&logger);
         let icon           = arrow::View::new(&logger);
@@ -124,8 +123,7 @@ impl Model {
         let label          = app.new_view::<text::Area>();
         let content        = default();
 
-        Self{logger,app,display_object,icon,
-            icon_overlay,selection_menu,label,content}.init()
+        Self{logger,app,display_object,icon,icon_overlay,selection_menu,label,content}.init()
     }
 
     fn init(self) -> Self {
@@ -163,9 +161,9 @@ impl Model {
     ///
     /// Example:
     /// Widget state: Selected [B], menu content [A, C]
-    /// Item list                [A, B,  C]
-    /// Unmasked index           [0, 1,  2]
-    /// Masked indices           [0, na, 1]
+    /// Item list      [A, B,  C]
+    /// Unmasked index [0, 1,  2]
+    /// Masked indices [0, na, 1]
     fn get_unmasked_index(&self, ix:Option<usize>) -> Option<usize> {
         Some(self.content.borrow().as_ref()?.unmasked_index(ix?))
     }
@@ -187,8 +185,8 @@ impl display::Object for Model {
 #[allow(missing_docs)]
 #[derive(Clone,CloneRef,Debug)]
 pub struct DropDownMenu {
-        model : Rc<Model>,
-    pub frp   : Frp,
+    model   : Rc<Model>,
+    pub frp : Frp,
 }
 
 impl Deref for DropDownMenu {
@@ -213,7 +211,6 @@ impl DropDownMenu {
         let mouse   = &scene.mouse.frp;
 
         frp::extend! { network
-
 
             // === Input Processing ===
 

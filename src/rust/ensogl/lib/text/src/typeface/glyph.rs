@@ -123,13 +123,13 @@ impl System {
     /// Create new glyph. In the returned glyph the further parameters (position,size,character)
     /// may be set.
     pub fn new_glyph(&self) -> Glyph {
-        let context          = self.context.clone();
-        let sprite           = self.sprite_system.new_instance();
-        let instance_id      = sprite.instance_id;
-        let color            = self.color.at(instance_id);
+        let context     = self.context.clone();
+        let sprite      = self.sprite_system.new_instance();
+        let instance_id = sprite.instance_id;
+        let color       = self.color.at(instance_id);
         let atlas_index = self.atlas_index.at(instance_id);
-        let font             = self.font.clone_ref();
-        let atlas     = self.atlas.clone();
+        let font        = self.font.clone_ref();
+        let atlas       = self.atlas.clone();
         color.set(Vector4::new(0.0,0.0,0.0,0.0));
         atlas_index.set(0.0);
         Glyph {context,sprite,atlas_index,color,font,atlas}

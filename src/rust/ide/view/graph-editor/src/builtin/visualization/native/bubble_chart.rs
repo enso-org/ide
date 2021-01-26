@@ -9,7 +9,6 @@ use enso_frp as frp;
 use ensogl::data::color::Rgba;
 use ensogl::display::scene::Scene;
 use ensogl::display;
-use ensogl::gui::component;
 
 
 

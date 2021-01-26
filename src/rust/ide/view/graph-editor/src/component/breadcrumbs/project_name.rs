@@ -16,7 +16,6 @@ use ensogl::display::object::ObjectOps;
 use ensogl::display::shape::*;
 use ensogl::display;
 use ensogl::DEPRECATED_Animation;
-use ensogl::gui::component;
 use ensogl::gui::cursor;
 use ensogl_text as text;
 use ensogl_text::style::Size as TextSize;
@@ -124,7 +123,7 @@ struct ProjectNameModel {
     app            : Application,
     logger         : Logger,
     display_object : display::object::Instance,
-    view           : component::ShapeView_DEPRECATED<background::Shape>,
+    view           : background::View,
     style          : StyleWatch,
     text_field     : text::Area,
     project_name   : Rc<RefCell<String>>,
@@ -152,10 +151,12 @@ impl ProjectNameModel {
         text_field.hover();
 
         let view_logger = Logger::sub(&logger,"view_logger");
-        let view        = component::ShapeView_DEPRECATED::<background::Shape>::new(&view_logger,scene);
+        let view        = background::View::new(&view_logger);
 
-        scene.layers.main.remove_shape_view_DEPRECATED(&view);
-        scene.layers.breadcrumbs.add_shape_view_DEPRECATED(&view);
+        // scene.layers.main.remove_shape_view_DEPRECATED(&view);
+        // scene.layers.breadcrumbs.add_shape_view_DEPRECATED(&view);
+
+        scene.layers.breadcrumbs.add_exclusive(&view);
 
         let project_name = default();
         Self{app,logger,view,style,display_object,text_field,project_name}.init()
@@ -175,7 +176,7 @@ impl ProjectNameModel {
         let x_position  = breadcrumb::LEFT_MARGIN + breadcrumb::PADDING;
         let y_position  = -VERTICAL_MARGIN - breadcrumb::TOP_MARGIN - breadcrumb::PADDING;
         self.text_field.set_position(Vector3(x_position,y_position,0.0));
-        self.view.shape.sprite.size.set(Vector2(width,height));
+        self.view.size.set(Vector2(width,height));
         self.view.set_position(Vector3(width,-height,0.0)/2.0);
     }
 

@@ -186,7 +186,7 @@ impl Sprite {
         self.symbol.id
     }
 
-    /// Check if given mouse-event-target means this visualization.
+    /// Check if given pointer-event-target means this object.
     pub fn is_this_target(&self, target:display::scene::PointerTarget) -> bool {
         match target {
             display::scene::PointerTarget::Background                      => false,

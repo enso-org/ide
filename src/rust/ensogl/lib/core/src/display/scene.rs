@@ -603,6 +603,8 @@ impl Renderer {
 #[derive(Clone,CloneRef,Debug)]
 pub struct HardcodedLayers {
     pub viz            : Layer,
+    pub below_main     : Layer,
+    // main
     pub cursor         : Layer,
     pub label          : Layer,
     pub viz_fullscreen : Layer,
@@ -624,10 +626,18 @@ impl HardcodedLayers {
         let cursor         = layers.new_layer();
         let label          = layers.new_layer();
         let viz_fullscreen = layers.new_layer();
+        let below_main     = layers.new_layer();
         let breadcrumbs    = layers.new_layer();
         viz.set_camera(layers.main.camera());
         label.set_camera(layers.main.camera());
-        Self {layers,viz,cursor,label,viz_fullscreen,breadcrumbs}
+        below_main.set_camera(layers.main.camera());
+        layers.add_layers_order_dependency(&viz,&below_main);
+        layers.add_layers_order_dependency(&below_main,&layers.main);
+        layers.add_layers_order_dependency(&layers.main,&cursor);
+        layers.add_layers_order_dependency(&cursor,&label);
+        layers.add_layers_order_dependency(&label,&viz_fullscreen);
+        layers.add_layers_order_dependency(&viz_fullscreen,&breadcrumbs);
+        Self {layers,viz,cursor,label,viz_fullscreen,below_main,breadcrumbs}
     }
 
     pub fn all(&self) -> Vec<Layer> {

@@ -8,7 +8,6 @@ use enso_frp as frp;
 use ensogl::application::Application;
 use ensogl::display::shape::*;
 use ensogl::display;
-use ensogl::gui::component;
 use ensogl_gui_components::toggle_button;
 use ensogl_gui_components::toggle_button::ToggleButton;
 use ensogl_gui_components::toggle_button::ColorableShape;
@@ -81,12 +80,12 @@ struct Icons {
 }
 
 impl Icons {
-    fn new(logger:impl AnyLogger, app:&Application) -> Self {
+    fn new(logger:impl AnyLogger) -> Self {
         let logger         = Logger::sub(logger,"Icons");
         let display_object = display::object::Instance::new(&logger);
-        let freeze         = ToggleButton::new(&app);
-        let visibility     = ToggleButton::new(&app);
-        let skip           = ToggleButton::new(&app);
+        let freeze         = ToggleButton::new(&logger);
+        let visibility     = ToggleButton::new(&logger);
+        let skip           = ToggleButton::new(&logger);
         display_object.add_child(&freeze);
         display_object.add_child(&visibility);
         display_object.add_child(&skip);
@@ -128,7 +127,7 @@ impl Model {
         let logger         = Logger::sub(logger,"ActionBar");
         let display_object = display::object::Instance::new(&logger);
         let hover_area     = hover_area::View::new(&logger);
-        let icons          = Icons::new(&logger,app);
+        let icons          = Icons::new(&logger);
         let shapes         = compound::events::MouseEvents::default();
         let size           = default();
         let styles         = StyleWatch::new(&scene.style_sheet);
