@@ -142,7 +142,7 @@ impl<S> HasContent for ShapeView<S> {
 #[derive(Debug,Default)]
 #[allow(missing_docs)]
 pub struct ShapeViewModel<S> {
-    pub shape           : S,
+    shape               : S,
     pub events          : ShapeViewEvents,
     pub registry        : RefCell<Option<ShapeRegistry>>,
     pub pointer_targets : RefCell<Vec<(SymbolId,attribute::InstanceIndex)>>,

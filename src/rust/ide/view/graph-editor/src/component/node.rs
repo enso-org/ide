@@ -519,7 +519,7 @@ impl Node {
             deselect_target  <- frp.deselect.constant(0.0);
             select_target    <- frp.select.constant(1.0);
             selection.target <+ any(&deselect_target,&select_target);
-            eval selection.value ((t) model.main_area.shape.selection.set(*t));
+            eval selection.value ((t) model.main_area.selection.set(*t));
 
 
             // === Expression ===
@@ -565,7 +565,7 @@ impl Node {
             }));
 
             eval error_color_anim.value((value)
-                model.error_indicator.shape.color_rgba.set(color::Rgba::from(value).into());
+                model.error_indicator.color_rgba.set(color::Rgba::from(value).into());
             );
 
 
@@ -579,7 +579,7 @@ impl Node {
             }));
             bg_color_anim.target <+ bg_color;
             eval bg_color_anim.value ((c)
-                model.main_area.shape.bg_color.set(color::Rgba::from(c).into())
+                model.main_area.bg_color.set(color::Rgba::from(c).into())
             );
         }
 

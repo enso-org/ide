@@ -590,7 +590,7 @@ impl Area {
 
                     // === Pointer Style ===
 
-                    let port_shape_hover = port_shape.hover.shape.clone_ref();
+                    let port_shape_hover = port_shape.hover.clone_ref();
                     pointer_style_out   <- mouse_out.map(|_| default());
                     pointer_style_over  <- map3(&mouse_over,&frp.set_ports_active,&port.tp,
                         move |_,(_,edge_tp),port_tp| {
@@ -712,7 +712,7 @@ impl Area {
                     ));
                     viz_color.target <+ new_viz_color;
                     eval viz_color.value ((t)
-                        port_shape.viz.shape.color.set(color::Rgba::from(t).into())
+                        port_shape.viz.color.set(color::Rgba::from(t).into())
                     );
                 }
             }

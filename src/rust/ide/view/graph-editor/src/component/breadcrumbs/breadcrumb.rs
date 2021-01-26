@@ -378,18 +378,18 @@ impl BreadcrumbModel {
     fn set_color(&self, value:Vector4<f32>) {
         let color = color::Rgba::from(value);
         self.label.set_color_all(color);
-        self.icon.shape.red.set(color.red);
-        self.icon.shape.green.set(color.green);
-        self.icon.shape.blue.set(color.blue);
-        self.icon.shape.alpha.set(color.alpha);
+        self.icon.red.set(color.red);
+        self.icon.green.set(color.green);
+        self.icon.blue.set(color.blue);
+        self.icon.alpha.set(color.alpha);
     }
 
     fn set_separator_color(&self, value:Vector4<f32>) {
         let color = color::Rgba::from(value);
-        self.separator.shape.red.set(color.red);
-        self.separator.shape.green.set(color.green);
-        self.separator.shape.blue.set(color.blue);
-        self.separator.shape.alpha.set(color.alpha);
+        self.separator.red.set(color.red);
+        self.separator.green.set(color.green);
+        self.separator.blue.set(color.blue);
+        self.separator.alpha.set(color.alpha);
     }
 
     fn select(&self) {

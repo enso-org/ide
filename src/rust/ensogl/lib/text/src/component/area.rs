@@ -183,7 +183,7 @@ impl Selection {
                     let view_y      = 0.0;
                     object.set_position_xy(*p);
                     right_side.set_position_x(abs_width/2.0);
-                    view.shape.size.set(Vector2(view_width,view_height));
+                    view.size.set(Vector2(view_width,view_height));
                     view.set_position_xy(Vector2(view_x,view_y));
                 })
             );
@@ -786,7 +786,7 @@ impl AreaModel {
                     }
                     None => {
                         let selection = Selection::new(&logger,do_edit);
-                        selection.shape.letter_width.set(7.0); // FIXME hardcoded values
+                        selection.letter_width.set(7.0); // FIXME hardcoded values
                         self.add_child(&selection);
                         selection.position.set_target_value(pos);
                         selection.position.skip();
@@ -806,7 +806,7 @@ impl AreaModel {
                 };
                 selection.width.set_target_value(width);
                 selection.edit_mode.set(do_edit);
-                selection.shape.start_time.set(time);
+                selection.start_time.set(time);
                 new_selection_map.id_map.insert(id,selection);
                 new_selection_map.location_map.entry(start_line).or_default().insert(sel.start.column,id);
             }

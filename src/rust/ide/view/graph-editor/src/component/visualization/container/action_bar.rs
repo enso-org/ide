@@ -126,8 +126,8 @@ impl Model {
 
     fn set_size(&self, size:Vector2) {
         self.size.set(size);
-        self.hover_area.shape.size.set(size);
-        self.background.shape.size.set(size);
+        self.hover_area.size.set(size);
+        self.background.size.set(size);
 
         let height        = size.y;
         let width         = size.x;

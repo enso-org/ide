@@ -114,8 +114,8 @@ impl Model {
         dom.dom().set_style_or_warn("border-radius"   ,format!("{}px",CORNER_RADIUS),&logger);
         dom.dom().set_style_or_warn("box-shadow"      ,shadow                       ,&logger);
 
-        overlay.shape.roundness.set(1.0);
-        overlay.shape.radius.set(CORNER_RADIUS);
+        overlay.roundness.set(1.0);
+        overlay.radius.set(CORNER_RADIUS);
         display_object.add_child(&dom);
         display_object.add_child(&overlay);
         scene.dom.layers.front.manage(&dom);

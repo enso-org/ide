@@ -351,8 +351,8 @@ impl Cursor {
         let fade_in_spring  = inactive_fade.spring();
 
         frp::extend! { network
-            eval press.value  ((v) model.view.shape.press.set(*v));
-            eval radius.value ((v) model.view.shape.radius.set(*v));
+            eval press.value  ((v) model.view.press.set(*v));
+            eval radius.value ((v) model.view.radius.set(*v));
             eval size.value   ([model] (v) {
                 let dim = Vector2(v.x+SIDES_PADDING,v.y+SIDES_PADDING);
                 model.view.size.set(dim);
@@ -500,7 +500,7 @@ impl Cursor {
             // === Evals ===
 
             eval mouse_pos_rt ((t) host_position.set_target_value(Vector3(t.x,t.y,0.0)));
-            eval anim_color   ((t) model.view.shape.color.set(t.into()));
+            eval anim_color   ((t) model.view.color.set(t.into()));
             eval position     ((t) model.view.set_position(*t));
 
 

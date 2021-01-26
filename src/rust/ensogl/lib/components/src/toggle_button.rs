@@ -224,7 +224,7 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
                 |colors,state| colors.query(*state));
 
             color.target <+ color_target;
-            eval color.value ((color) model.icon.shape.set_color(color.into()));
+            eval color.value ((color) model.icon.set_color(color.into()));
         }
 
         color.target_alpha.emit(0.0);

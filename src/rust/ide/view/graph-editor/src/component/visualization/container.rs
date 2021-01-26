@@ -442,7 +442,7 @@ impl ContainerModel {
     }
 
     fn set_corner_roundness(&self, value:f32) {
-        self.view.overlay.shape.roundness.set(value);
+        self.view.overlay.roundness.set(value);
         // self.view.background.shape.roundness.set(value);
         // self.fullscreen_view.background.shape.roundness.set(value);
     }
@@ -455,7 +455,7 @@ impl ContainerModel {
 
     /// Check if given mouse-event-target means this visualization.
     fn is_this_target(&self, target:scene::PointerTarget) -> bool {
-        self.view.overlay.shape.is_this_target(target)
+        self.view.overlay.is_this_target(target)
     }
 }
 
