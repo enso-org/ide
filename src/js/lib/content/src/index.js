@@ -167,9 +167,9 @@ function printScamWarning() {
 const mixpanel = require('mixpanel-browser');
 mixpanel.init("5b541aeab5e08f313cdc1d1bbebc12ac", { "api_host": "https://api-eu.mixpanel.com" }, "");
 
-const MAX_MESSAGE_LENGTH = 250;
+const MAX_MESSAGE_LENGTH = 500;
 
-function remote_log(event,data) {
+function remoteLog(event,data) {
     if (mixpanel) {
         event = JSON.stringify(event).substr(0,MAX_MESSAGE_LENGTH)
         if (data !== undefined) {
@@ -181,9 +181,9 @@ function remote_log(event,data) {
     }
 }
 
-window.enso.remote_log = remote_log
+window.enso.remote_log = remoteLog
 
-window.setInterval(() =>{remote_log("alive");}, 1000 * 60)
+window.setInterval(() =>{remoteLog("alive");}, 1000 * 60)
 
 
 // ======================
@@ -243,7 +243,7 @@ class LogRouter {
     }
 
     handleError(...args) {
-        //this.raw.log("ERROR!!!", args)
+        remoteLog(args)
     }
 }
 
@@ -313,7 +313,7 @@ function setupCrashDetection() {
 }
 
 function handleCrash(message) {
-    remote_log("crash", message)
+    remoteLog("crash", message)
     if (document.getElementById(crashBannerId) === null) {
         storeLastCrashMessage(message)
         location.reload()
@@ -419,7 +419,7 @@ function ok(value) {
 
 /// Main entry point. Loads WASM, initializes it, chooses the scene to run.
 API.main = async function (inputConfig) {
-    remote_log("main")
+    remoteLog("main")
     let defaultConfig = {
         use_loader    : true,
         wasm_url      : '/assets/ide.wasm',
@@ -439,11 +439,11 @@ API.main = async function (inputConfig) {
     let entryTarget = ok(config.entry) ? config.entry : main_entry_point
     config.use_loader = config.use_loader && (entryTarget === main_entry_point)
 
-    remote_log("window_show_animation")
+    remoteLog("window_show_animation")
     await windowShowAnimation()
-    remote_log("download_content")
+    remoteLog("download_content")
     let {wasm,loader} = await download_content(config)
-    remote_log("wasm_loaded")
+    remoteLog("wasm_loaded")
     if (entryTarget) {
         let fn_name = wasm_entry_point_pfx + entryTarget
         let fn      = wasm[fn_name]
