@@ -190,33 +190,76 @@ window.setInterval(() =>{remote_log("alive");}, 1000 * 60)
 // === Logs Buffering ===
 // ======================
 
-let   logsBuffer = []
-const logsFns    = ['log','info','debug','warn','error','group','groupCollapsed','groupEnd']
+const logsFns = ['log','info','debug','warn','error','group','groupCollapsed','groupEnd']
+
+class LogRouter {
+    constructor() {
+        this.buffer    = []
+        this.raw       = {}
+        this.autoFlush = true
+        console.autoFlush = true
+        for (let name of logsFns) {
+            this.raw[name] = console[name]
+            console[name] = (...args) => {
+                this.handle(name,args)
+            }
+        }
+    }
+
+    auto_flush_on() {
+        this.autoFlush = true
+        console.autoFlush = true
+        for (let {name,args} of this.buffer) {
+            this.raw[name](...args)
+        }
+        this.buffer = []
+    }
+
+    handle(name,args) {
+        if (this.autoFlush) {
+            this.raw[name](...args)
+        } else {
+            this.buffer.push({name,args})
+        }
+
+        // The following code is just a hack to discover if the logs start with `[E]` which
+        // indicates errors from Rust logger.
+        if (name == 'error') {
+            this.handleError(...args)
+        } else if (name == 'log') {
+            let firstArg = args[0]
+            if (firstArg !== undefined && firstArg.startsWith("%c")) {
+                let firstArgBody = firstArg.slice(2);
+                let bodyStartIndex = firstArgBody.indexOf("%c");
+                if (bodyStartIndex !== -1) {
+                    let body = firstArgBody.slice(bodyStartIndex + 3);
+                    let is_error = body.startsWith("[W]");
+                    if (is_error) {
+                        this.handleError(body)
+                    }
+                }
+            }
+        }
+    }
+
+    handleError(...args) {
+        //this.raw.log("ERROR!!!", args)
+    }
+}
+
+let logRouter = new LogRouter()
 
 function hideLogs() {
     console.log('All subsequent logs will be hidden. Eval `showLogs()` to reveal them.')
-    console.raw = {}
-    for (let name of logsFns) {
-        console.raw[name] = console[name]
-        console[name] = (...args) => {
-            logsBuffer.push({name,args})
-        }
-    }
+    logRouter.autoFlush = false
+    console.autoFlush = false
 }
 
 function showLogs() {
-    for (let name of logsFns) {
-        console[name] = console.raw[name]
-    }
-    for (let {name,args} of logsBuffer) {
-        console[name](...args)
-    }
-    logsBuffer = []
-    console.autoFlush = true
+    logRouter.auto_flush_on()
 }
 
 window.showLogs = showLogs
-window.logsBuffer = logsBuffer
 
 
 
