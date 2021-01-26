@@ -20,6 +20,15 @@ const fss = require('fs')
 
 
 
+// =============
+// === Paths ===
+// =============
+
+const root = Electron.app.getAppPath()
+const resources = path.join(root, "..")
+
+
+
 // FIXME default options parsed wrong
 // https://github.com/yargs/yargs/issues/1590
 
@@ -131,8 +140,7 @@ let styleOptionsGroup = 'Style Options:'
 
 optParser.options('frame', {
     group       : styleOptionsGroup,
-    describe    : 'Draw window frame',
-    default     : false,
+    describe    : 'Draw window frame. Defaults to `false` on MacOS and `true` otherwise.',
     type        : `boolean`
 })
 
@@ -176,6 +184,15 @@ function parseCmdArgs() {
 }
 
 let args = parseCmdArgs()
+
+// Note: this is a conditional default to avoid issues with some window managers affecting
+// interactions at the top of a borderless window. Thus, we want borders on Win/Linux and
+// borderless on Mac. See https://github.com/enso-org/ide/issues/1101 and
+// https://github.com/electron/electron/issues/3647 for details.
+if (args.frame === undefined) {
+    args.frame = (process.platform !== 'darwin')
+}
+
 
 if (args.windowSize) {
     let size   = args.windowSize.split('x')
@@ -314,7 +331,7 @@ Electron.app.on('web-contents-created', (event,contents) => {
 async function withBackend(opts) {
     let binPath = args['backend-path']
     if (!binPath) {
-        binPath = paths.get_project_manager_path(root)
+        binPath = paths.get_project_manager_path(resources)
     }
     let binExists = fss.existsSync(binPath)
     assert(binExists, `Could not find the project manager binary at ${binPath}.`)
@@ -342,7 +359,6 @@ async function backendVersion() {
 // === Main ===
 // ============
 
-let root = Electron.app.getAppPath()
 let hideInsteadOfQuit = false
 
 let server     = null
@@ -383,6 +399,7 @@ function urlParamsFromObject(obj) {
 function createWindow() {
     let webPreferences     = secureWebPreferences()
     webPreferences.preload = path.join(root,'preload.js')
+
     let windowPreferences  = {
         webPreferences       : webPreferences,
         width                : windowCfg.width,
