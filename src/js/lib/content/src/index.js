@@ -233,7 +233,7 @@ class LogRouter {
                 let bodyStartIndex = firstArgBody.indexOf("%c");
                 if (bodyStartIndex !== -1) {
                     let body = firstArgBody.slice(bodyStartIndex + 3);
-                    let is_error = body.startsWith("[W]");
+                    let is_error = body.startsWith("[E]");
                     if (is_error) {
                         this.handleError(body)
                     }
