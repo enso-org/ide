@@ -288,18 +288,20 @@ impl Integration {
             eval_ project_frp.save_module       (model.module_saved_in_ui());
         }
 
-        frp::extend! {network
-            eval editor_outs.node_added([](_){analytics::remote_log(analytics::data::Public::new("node_added"))});
-            eval editor_outs.node_removed([](_){analytics::remote_log(analytics::data::Public::new("node_removed"))});
-            eval editor_outs.nodes_collapsed([](_){analytics::remote_log(analytics::data::Public::new("nodes_collapsed"))});
-            eval editor_outs.node_entered([](_){analytics::remote_log(analytics::data::Public::new("node_entered"))});
-            eval editor_outs.node_exited([](_){analytics::remote_log(analytics::data::Public::new("node_exited"))});
-            eval editor_outs.node_exited([](_){analytics::remote_log(analytics::data::Public::new("node_exited"))});
-            eval editor_outs.on_edge_endpoints_set([](_){analytics::remote_log(analytics::data::Public::new("on_edge_endpoints_set"))});
-            eval editor_outs.visualization_enabled([](_){analytics::remote_log(analytics::data::Public::new("visualization_enabled"))});
-            eval editor_outs.visualization_disabled([](_){analytics::remote_log(analytics::data::Public::new("visualization_disabled"))});
-            eval on_connection_removed([](_){analytics::remote_log(analytics::data::Public::new("on_connection_removed"))});
-            eval searcher_frp.used_as_suggestion([](_){analytics::remote_log(analytics::data::Public::new("used_as_suggestion"))});
+        frp::extend! { network
+            eval_ editor_outs.node_added([]{analytics::remote_log(analytics::AnonymousData("node_added"))});
+            eval_ editor_outs.node_removed([]{analytics::remote_log(analytics::AnonymousData("node_removed"))});
+            eval_ editor_outs.nodes_collapsed([]{analytics::remote_log(analytics::AnonymousData("nodes_collapsed"))});
+            eval_ editor_outs.node_entered([]{analytics::remote_log(analytics::AnonymousData("node_entered"))});
+            eval_ editor_outs.node_exited([]{analytics::remote_log(analytics::AnonymousData("node_exited"))});
+            eval_ editor_outs.node_exited([]{analytics::remote_log(analytics::AnonymousData("node_exited"))});
+            eval_ editor_outs.on_edge_endpoints_set([]{analytics::remote_log(analytics::AnonymousData("edge_endpoints_set"))});
+            eval_ editor_outs.visualization_enabled([]{analytics::remote_log(analytics::AnonymousData("visualization_enabled"))});
+            eval_ editor_outs.visualization_disabled([]{analytics::remote_log(analytics::AnonymousData("visualization_disabled"))});
+            eval_ on_connection_removed([]{analytics::remote_log(analytics::AnonymousData("connection_removed"))});
+            eval_ searcher_frp.used_as_suggestion([]{analytics::remote_log(analytics::AnonymousData("searcher_used_as_suggestion"))});
+            eval_ project_frp.editing_committed([]{analytics::remote_log(analytics::AnonymousData("project_editing_committed"))});
+
         }
 
 
@@ -998,6 +1000,13 @@ impl Model {
         Ok(Visualization{ast_id,expression,id,visualisation_module})
     }
 
+    fn remote_log_visualisation(vis:&Visualization) {
+        let analytics_event       = analytics::AnonymousData("visualization_enabled_in_ui");
+        let analytics_data        = || format!("{:?}", vis);
+        let analytics_data_public = analytics::AnonymousData(analytics_data);
+        analytics::remote_log_data(analytics_event,analytics_data_public);
+    }
+
     fn visualization_enabled_in_ui(&self, node_id:&graph_editor::NodeId) -> FallibleResult {
         // Do nothing if there is already a visualization attached.
         let err = || VisualizationAlreadyAttached(*node_id);
@@ -1005,10 +1014,7 @@ impl Model {
 
         debug!(self.logger, "Attaching visualization on {node_id}.");
         let visualization  = self.prepare_visualization(node_id)?;
-        let analytics_event = analytics::data::Public::new("visualization_enabled_in_ui");
-        let analytics_data = format!("{:?}", visualization);
-        let analytics_data_public = analytics::data::Public::new(&analytics_data);
-        analytics::remote_log_data(analytics_event,analytics_data_public);
+        Self::remote_log_visualisation(&visualization);
 
         let id             = visualization.id;
         let node_id        = *node_id;

@@ -95,6 +95,7 @@ let wasm_entry_point_pfx = "entry_point_"
 
 /// Displays a debug screen which allows the user to run one of predefined debug examples.
 function show_debug_screen(wasm,msg) {
+    mixpanel.track("show_debug_screen")
     let names = []
     for (let fn of Object.getOwnPropertyNames(wasm)) {
         if (fn.startsWith(wasm_entry_point_pfx)) {
@@ -160,18 +161,29 @@ function printScamWarning() {
 
 
 // ======================
-// === Remote logging ===
+// === Remote Logging ===
 // ======================
 
 const mixpanel = require('mixpanel-browser');
-mixpanel.init("API TOKEN HERE", { "api_host": "https://api-eu.mixpanel.com" }, "");
-window.enso.remote_log = function (event,data) {
+mixpanel.init("5b541aeab5e08f313cdc1d1bbebc12ac", { "api_host": "https://api-eu.mixpanel.com" }, "");
+
+const MAX_MESSAGE_LENGTH = 250;
+
+function remote_log(event,data) {
     if (mixpanel) {
-        mixpanel.track(event,data);
+        event = JSON.stringify(event).substr(0,MAX_MESSAGE_LENGTH)
+        if (data !== undefined) {
+            data = JSON.stringify(data).substr(0,MAX_MESSAGE_LENGTH)
+        }
+        mixpanel.track(event,{data:data});
     } else {
-        console.warn("Failed to log message.")
+        console.warn(`Failed to log the event '${event}'.`)
     }
 }
+
+window.enso.remote_log = remote_log
+
+window.setInterval(() =>{remote_log("alive");}, 1000 * 60)
 
 
 // ======================
@@ -258,6 +270,7 @@ function setupCrashDetection() {
 }
 
 function handleCrash(message) {
+    remote_log("crash", message)
     if (document.getElementById(crashBannerId) === null) {
         storeLastCrashMessage(message)
         location.reload()
@@ -363,6 +376,7 @@ function ok(value) {
 
 /// Main entry point. Loads WASM, initializes it, chooses the scene to run.
 API.main = async function (inputConfig) {
+    remote_log("main")
     let defaultConfig = {
         use_loader    : true,
         wasm_url      : '/assets/ide.wasm',
@@ -382,9 +396,11 @@ API.main = async function (inputConfig) {
     let entryTarget = ok(config.entry) ? config.entry : main_entry_point
     config.use_loader = config.use_loader && (entryTarget === main_entry_point)
 
+    remote_log("window_show_animation")
     await windowShowAnimation()
+    remote_log("download_content")
     let {wasm,loader} = await download_content(config)
-
+    remote_log("wasm_loaded")
     if (entryTarget) {
         let fn_name = wasm_entry_point_pfx + entryTarget
         let fn      = wasm[fn_name]
