@@ -250,7 +250,6 @@ createRelease = {
 function uploadReleaseFor(name,sys,ext) {
     return {
         name: `Upload Release (${name}, ${ext})`,
-        id: "upload-release-asset",
         uses: "actions/upload-release-asset@v1",
         with: {
             upload_url: "${{ steps.create_release.outputs.upload_url }}",
