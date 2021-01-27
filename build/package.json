@@ -7,7 +7,8 @@
     "binaryen": "^91.0.0",
     "glob": "^7.1.6",
     "ncp": "^2.0.0",
-    "yargs": "^15.3.0"
+    "yargs": "^15.3.0",
+    "js-yaml": "4.0.0"
   },
   "license": "MIT",
   "devDependencies": {

@@ -26,6 +26,166 @@ async function gzip(input, output) {
   await pipe(source,gzip,destination)
 }
 
+const yaml = require('js-yaml');
+
+let doc = yaml.load(`
+defaults: &defaults
+  A: 1
+  B: 2
+mapping:
+  << : *defaults
+  A: 23
+  C: 99
+ `)
+
+function list(...args) {
+    let out = []
+    for (let arg of args) {
+        if (Array.isArray(arg)) {
+            out.push(...arg)
+        } else {
+            out.push(arg)
+        }
+    }
+    return out
+}
+
+let installRust = {
+    name: "Install Rust",
+    uses: "actions-rs/toolchain@v1",
+    with: {
+        toolchain: "nightly-2019-11-04",
+        override: true
+    }
+}
+
+let installNode = {
+    name: "Install Node",
+    uses: "actions/setup-node@v1",
+    with: {
+        "node-version": '14.15.0',
+    }
+}
+
+// We could use cargo install wasm-pack, but that takes 3.5 minutes compared to few seconds.
+let installWasmPack = [
+      {
+          name: "Install wasm-pack (MacOS)",
+          env: {
+            WASMPACKURL: "https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1",
+            WASMPACKDIR: "wasm-pack-v0.9.1-x86_64-apple-darwin",
+          },
+          run: `|
+              curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
+              mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
+              rm -r $WASMPACKDIR`,
+          shell: "bash",
+          if: "matrix.os == 'macOS-latest'",
+      },
+
+      {
+          name: "Install wasm-pack (Linux)",
+          env: {
+              WASMPACKURL: "https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1",
+              WASMPACKDIR: "wasm-pack-v0.9.1-x86_64-unknown-linux-musl",
+          },
+          run: `|
+              curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
+              mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
+              rm -r $WASMPACKDIR`,
+          shell: "bash",
+          if: "matrix.os == 'ubuntu-latest'",
+      },
+
+      {
+          name: "Install wasm-pack (Windows)",
+          env: {
+              WASMPACKURL: "https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1",
+              WASMPACKDIR: "wasm-pack-v0.9.1-x86_64-pc-windows-msvc",
+          },
+          run: `
+              curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
+              mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
+              rm -r $WASMPACKDIR
+              `,
+          shell: "bash",
+          if: "matrix.os == 'windows-latest'"
+      }
+]
+
+function buildOn(name,sys) {
+    return {
+        name: `Build (${name})`,
+        run: `node ./run dist --skip-version-validation --target ${name}`,
+        if: `matrix.os == '${sys}-latest'`
+    }
+}
+
+buildOnMacOS   = buildOn('macos','macos')
+buildOnWindows = buildOn('win','windows')
+buildOnLinux   = buildOn('linux','ubuntu')
+
+
+function uploadArtifactsFor(name,sys,ext) {
+    return {
+        name: `Upload Artifacts (${name}, ${ext})`,
+        uses: "actions/upload-artifact@v1",
+        with: {
+           name: `Enso (${name})`,
+           path: "dist/client/Enso-2.0.0-alpha.0.${ext}"
+        },
+        if: `matrix.os == '${sys}-latest'`
+    }
+}
+
+uploadArtifactsForMacOS   = uploadArtifactsFor('Linux','ubuntu','AppImage')
+uploadArtifactsForWindows = uploadArtifactsFor('Windows','windows','exe')
+uploadArtifactsForLinux   = uploadArtifactsFor('macOS','macos','dmg')
+
+let onPush = {
+    on: ["push"]
+}
+
+let onPushToMain = {
+    on: {
+        push: {
+            branches: "main"
+        }
+    }
+}
+
+let build_workflow = {
+    name : "GUI CI",
+    onPush,
+    jobs: {
+        build: {
+            name: "Build",
+            "runs-on": "${{ matrix.os }}",
+            strategy: {
+              matrix: {
+                os: ["windows-latest", "macOS-latest", "ubuntu-latest"]
+              },
+              "fail-fast": false
+            },
+            steps: list(
+                { uses: "actions/checkout@v1" },
+                installNode,
+                installRust,
+                installWasmPack,
+                buildOnMacOS,
+                buildOnWindows,
+                buildOnLinux,
+                uploadArtifactsForMacOS,
+                uploadArtifactsForWindows,
+                uploadArtifactsForLinux
+            )
+        }
+    }
+}
+
+
+let out = yaml.dump(build_workflow)
+//fss.writeFileSync(path.join(paths.github.workflows,'build2.yml'),out)
 
 
 // ========================
@@ -110,7 +270,10 @@ commands.clean.js = async function() {
     await cmd.with_cwd(paths.js.root, async () => {
         await run('npm',['run','clean'])
     })
-    try { await fs.unlink(paths.dist.init) } catch {}
+    try {
+        await fs.unlink(paths.dist.init)
+        await fs.unlink(paths.dist.buildInit)
+    } catch {}
 }
 
 commands.clean.rust = async function() {
@@ -513,7 +676,10 @@ async function main () {
     await processPackageConfigs()
     let command = argv._[0]
     if(command === 'clean') {
-        try { await fs.unlink(paths.dist.init) } catch {}
+        try {
+            await fs.unlink(paths.dist.init)
+            await fs.unlink(paths.dist.buildInit)
+        } catch {}
     } else {
         await installJsDeps()
     }
