@@ -153,6 +153,26 @@ uploadArtifactsForMacOS   = uploadArtifactsFor('Linux','ubuntu','AppImage')
 uploadArtifactsForWindows = uploadArtifactsFor('Windows','windows','exe')
 uploadArtifactsForLinux   = uploadArtifactsFor('macOS','macos','dmg')
 
+
+let lintJavaScript = {
+    name: "Lint JavaScript sources",
+    run: "npx prettier --check 'src/**/*.js'",
+}
+
+let lintRust = {
+    name: "Lint Rust sources",
+    run: "node ./run lint --skip-version-validation",
+}
+
+let testNoWASM = {
+    name: "Run tests (no WASM)",
+    run: "node ./run test --no-wasm --skip-version-validation",
+}
+
+let testWASM = {
+    name: "Run tests (WASM)",
+    run: "node ./run test --no-native --skip-version-validation",
+}
 //let onPush = {
 //    on: ["push"]
 //}
@@ -173,10 +193,10 @@ let build_workflow = {
             name: "Build",
             "runs-on": "${{ matrix.os }}",
             strategy: {
-              matrix: {
-                os: ["windows-latest", "macOS-latest", "ubuntu-latest"]
-              },
-              "fail-fast": false
+                matrix: {
+                  os: ["windows-latest", "macOS-latest", "ubuntu-latest"]
+                },
+                "fail-fast": false
             },
             steps: list(
                 { uses: "actions/checkout@v1" },
@@ -198,64 +218,76 @@ let check_workflow = {
     name : "Check",
     on: ["push"],
     jobs: {
-        build: {
-            name: "Build",
-            "runs-on": "macOS-latest",
-            steps: list(
-                { uses: "actions/checkout@v1" },
-                installNode,
-                installRust,
-                installWasmPack,
-                {
-                    name: "Build",
-                    run: "node ./run build --skip-version-validation",
-                }
-            )
-        },
+//        build: {
+//            name: "Build",
+//            "runs-on": "${{ matrix.os }}",
+//            strategy: {
+//                matrix: {
+//                  os: ["macOS-latest"]
+//                },
+//                "fail-fast": false
+//            },
+//            steps: list(
+//                { uses: "actions/checkout@v1" },
+//                installNode,
+//                installRust,
+//                installWasmPack,
+//                {
+//                    name: "Build",
+//                    run: "node ./run build --skip-version-validation",
+//                }
+//            )
+//        },
         lint: {
             name: "Linter",
-            "runs-on": "macOS-latest",
+            "runs-on": "${{ matrix.os }}",
+            strategy: {
+                matrix: {
+                  os: ["macOS-latest"]
+                },
+                "fail-fast": false
+            },
             steps: list(
                 { uses: "actions/checkout@v1" },
                 installNode,
                 installRust,
                 installPrettier,
                 installClippy,
-                {
-                    name: "Lint JavaScript sources",
-                    run: "npx prettier --check 'src/**/*.js'",
-                },
-                {
-                    name: "Lint Rust sources",
-                    run: "node ./run lint --skip-version-validation",
-                }
+                lintJavaScript,
+                lintRust
             )
         },
         test: {
             name: "Tests",
-            "runs-on": "macOS-latest",
+            "runs-on": "${{ matrix.os }}",
+            strategy: {
+                matrix: {
+                  os: ["macOS-latest"]
+                },
+                "fail-fast": false
+            },
             steps: list(
                 { uses: "actions/checkout@v1" },
                 installNode,
                 installRust,
-                {
-                    name: "Run tests",
-                    run: "node ./run test --no-wasm --skip-version-validation",
-                }
+                testNoWASM,
             )
         },
         "wasm-test": {
             name: "WASM Tests",
-            "runs-on": "macOS-latest",
+            "runs-on": "${{ matrix.os }}",
+            strategy: {
+                matrix: {
+                  os: ["macOS-latest"]
+                },
+                "fail-fast": false
+            },
             steps: list(
                 { uses: "actions/checkout@v1" },
                 installNode,
                 installRust,
                 installWasmPack,
-                {
-                    name: "Run tests",
-                    run: "node ./run test --no-native --skip-version-validation",
-                }
+                testWASM
             )
         }
     }
