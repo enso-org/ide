@@ -159,7 +159,7 @@ let build_workflow = {
     onPush,
     jobs: {
         build: {
-            name: "Build",
+            name: "Build2",
             "runs-on": "${{ matrix.os }}",
             strategy: {
               matrix: {
