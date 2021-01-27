@@ -78,51 +78,28 @@ let installClippy = {
 }
 
 
-// We could use cargo install wasm-pack, but that takes 3.5 minutes compared to few seconds.
-let installWasmPack = [
-      {
-          name: "Install wasm-pack (MacOS)",
-          env: {
+function installWasmPackOn(name,sys,pkg) {
+    return {
+        name: `Install wasm-pack (${name})`,
+        env: {
             WASMPACKURL: "https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1",
-            WASMPACKDIR: "wasm-pack-v0.9.1-x86_64-apple-darwin",
-          },
-          run: `
-              curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
-              mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
-              rm -r $WASMPACKDIR`,
-          shell: "bash",
-          if: "matrix.os == 'macOS-latest'",
-      },
+            WASMPACKDIR: `wasm-pack-v0.9.1-x86_64-${pkg}`,
+        },
+        run: `
+            curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
+            mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
+            rm -r $WASMPACKDIR`,
+        shell: "bash",
+        if: `matrix.os == '${sys}-latest'`,
+    }
+}
 
-      {
-          name: "Install wasm-pack (Linux)",
-          env: {
-              WASMPACKURL: "https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1",
-              WASMPACKDIR: "wasm-pack-v0.9.1-x86_64-unknown-linux-musl",
-          },
-          run: `
-              curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
-              mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
-              rm -r $WASMPACKDIR`,
-          shell: "bash",
-          if: "matrix.os == 'ubuntu-latest'",
-      },
+let installWasmPackOnMacOS   = installWasmPackOn('macOS','macOS','apple-darwin')
+let installWasmPackOnWindows = installWasmPackOn('Windows','windows','pc-windows-msvc')
+let installWasmPackOnLinux   = installWasmPackOn('Linux','ubuntu','unknown-linux-musl')
 
-      {
-          name: "Install wasm-pack (Windows)",
-          env: {
-              WASMPACKURL: "https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1",
-              WASMPACKDIR: "wasm-pack-v0.9.1-x86_64-pc-windows-msvc",
-          },
-          run: `
-              curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
-              mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
-              rm -r $WASMPACKDIR
-              `,
-          shell: "bash",
-          if: "matrix.os == 'windows-latest'"
-      }
-]
+// We could use cargo install wasm-pack, but that takes 3.5 minutes compared to few seconds.
+let installWasmPack = [installWasmPackOnMacOS, installWasmPackOnWindows, installWasmPackOnLinux]
 
 function buildOn(name,sys) {
     return {
@@ -185,32 +162,44 @@ let testWASM = {
 //    }
 //}
 
+function job(platforms,name,steps) {
+    return {
+        name: name,
+        "runs-on": "${{ matrix.os }}",
+        strategy: {
+            matrix: {
+              os: platforms
+            },
+            "fail-fast": false
+        },
+        steps : list({uses:"actions/checkout@v1"}, ...steps)
+    }
+}
+
+function job_on_all_platforms(...args) {
+    return job(["windows-latest", "macOS-latest", "ubuntu-latest"],...args)
+}
+
+
+function job_on_macos(...args) {
+    return job(["macOS-latest"],...args)
+}
+
 let build_workflow = {
     name : "GUI CI",
     on: ["push"],
     jobs: {
-        build: {
-            name: "Build",
-            "runs-on": "${{ matrix.os }}",
-            strategy: {
-                matrix: {
-                  os: ["windows-latest", "macOS-latest", "ubuntu-latest"]
-                },
-                "fail-fast": false
-            },
-            steps: list(
-                { uses: "actions/checkout@v1" },
-                installNode,
-                installRust,
-                installWasmPack,
-                buildOnMacOS,
-                buildOnWindows,
-                buildOnLinux,
-                uploadArtifactsForMacOS,
-                uploadArtifactsForWindows,
-                uploadArtifactsForLinux
-            )
-        }
+        build: job_on_all_platforms("Build", [
+            installNode,
+            installRust,
+            installWasmPack,
+            buildOnMacOS,
+            buildOnWindows,
+            buildOnLinux,
+            uploadArtifactsForMacOS,
+            uploadArtifactsForWindows,
+            uploadArtifactsForLinux
+        ])
     }
 }
 
@@ -218,86 +207,102 @@ let check_workflow = {
     name : "Check",
     on: ["push"],
     jobs: {
-//        build: {
-//            name: "Build",
-//            "runs-on": "${{ matrix.os }}",
-//            strategy: {
-//                matrix: {
-//                  os: ["macOS-latest"]
-//                },
-//                "fail-fast": false
-//            },
-//            steps: list(
-//                { uses: "actions/checkout@v1" },
-//                installNode,
-//                installRust,
-//                installWasmPack,
-//                {
-//                    name: "Build",
-//                    run: "node ./run build --skip-version-validation",
-//                }
-//            )
-//        },
-        lint: {
-            name: "Linter",
-            "runs-on": "${{ matrix.os }}",
-            strategy: {
-                matrix: {
-                  os: ["macOS-latest"]
-                },
-                "fail-fast": false
-            },
-            steps: list(
-                { uses: "actions/checkout@v1" },
-                installNode,
-                installRust,
-                installPrettier,
-                installClippy,
-                lintJavaScript,
-                lintRust
-            )
-        },
-        test: {
-            name: "Tests",
-            "runs-on": "${{ matrix.os }}",
-            strategy: {
-                matrix: {
-                  os: ["macOS-latest"]
-                },
-                "fail-fast": false
-            },
-            steps: list(
-                { uses: "actions/checkout@v1" },
-                installNode,
-                installRust,
-                testNoWASM,
-            )
-        },
-        "wasm-test": {
-            name: "WASM Tests",
-            "runs-on": "${{ matrix.os }}",
-            strategy: {
-                matrix: {
-                  os: ["macOS-latest"]
-                },
-                "fail-fast": false
-            },
-            steps: list(
-                { uses: "actions/checkout@v1" },
-                installNode,
-                installRust,
-                installWasmPack,
-                testWASM
-            )
-        }
+        lint: job_on_macos("Linter", [
+            installNode,
+            installRust,
+            installPrettier,
+            installClippy,
+            lintJavaScript,
+            lintRust
+        ]),
+        test: job_on_macos("Tests", [
+            installNode,
+            installRust,
+            testNoWASM,
+        ]),
+        "wasm-test": job_on_macos("WASM Tests", [
+            installNode,
+            installRust,
+            installWasmPack,
+            testWASM
+        ])
     }
 }
 
 
+createRelease = {
+    name: "Create Release",
+    id: "create_release",
+    uses: "actions/create-release@v1",
+    env: {
+        GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+    },
+    with: {
+        tag_name: "${{ github.ref }}",
+        release_name: "Enso ${{ github.ref }}",
+        body_path: "CHANGELOG.md",
+        draft: false,
+        prerelease: false,
+    }
+}
+
+
+function uploadReleaseFor(name,sys,ext) {
+    return {
+        name: `Upload Release (${name}, ${ext})`,
+        id: "upload-release-asset",
+        uses: "actions/upload-release-asset@v1",
+        with: {
+            upload_url: "${{ steps.create_release.outputs.upload_url }}",
+            asset_path: "dist/client/Enso-2.0.0-alpha.0.${ext}",
+            asset_name: "Enso-2.0.0-alpha.0.${ext}",
+            asset_content_type: "application/zip",
+        },
+        if: `matrix.os == '${sys}-latest'`
+    }
+}
+
+let uploadReleaseForMacOs   = uploadReleaseFor('macOS','macos','dmg')
+let uploadReleaseForWindows = uploadReleaseFor('Windows','windows','exe')
+let uploadReleaseForLinux   = uploadReleaseFor('Linux','ubuntu','AppImage')
+
+
+let release_workflow = {
+    name : "Release",
+    on: {
+        push: {
+            tags: ['v*']
+        }
+    },
+    jobs: {
+        release: job_on_macos("Release", [
+            installNode,
+            installRust,
+            installWasmPack,
+            buildOnMacOS,
+            buildOnWindows,
+            buildOnLinux,
+            uploadArtifactsForMacOS,
+            uploadArtifactsForWindows,
+            uploadArtifactsForLinux,
+            createRelease,
+            uploadReleaseForMacOs,
+            uploadReleaseForWindows,
+            uploadReleaseForLinux
+        ]),
+    }
+}
+
+
+
+
+
 let build_workflow_out = yaml.dump(build_workflow,{noRefs:true})
 let check_workflow_out = yaml.dump(check_workflow,{noRefs:true})
+let release_workflow_out = yaml.dump(release_workflow,{noRefs:true})
 //fss.writeFileSync(path.join(paths.github.workflows,'build.yml'),build_workflow_out)
 //fss.writeFileSync(path.join(paths.github.workflows,'check.yml'),check_workflow_out)
+//fss.writeFileSync(path.join(paths.github.workflows,'release.yml'),release_workflow_out)
 
 
 
