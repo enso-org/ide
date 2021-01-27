@@ -294,9 +294,8 @@ impl Integration {
             eval_ editor_outs.node_added([]{analytics::remote_log(analytics::AnonymousData("editor_node_added"))});
             eval_ editor_outs.node_removed([]{analytics::remote_log(analytics::AnonymousData("editor_node_removed"))});
             eval_ editor_outs.nodes_collapsed([]{analytics::remote_log(analytics::AnonymousData("editor_nodes_collapsed"))});
-            eval_ editor_outs.node_entered([]{analytics::remote_log(analytics::AnonymousData("editor_node_entered"))});
-            eval_ editor_outs.node_exited([]{analytics::remote_log(analytics::AnonymousData("editor_node_exited"))});
-            eval_ editor_outs.node_exited([]{analytics::remote_log(analytics::AnonymousData("editor_node_exited"))});
+            eval_ editor_outs.node_entered([]{analytics::remote_log(analytics::AnonymousData("editor_node_enter_request"))});
+            eval_ editor_outs.node_exited([]{analytics::remote_log(analytics::AnonymousData("editor_node_exit_request"))});
             eval_ editor_outs.on_edge_endpoints_set([]{analytics::remote_log(analytics::AnonymousData("editor_edge_endpoints_set"))});
             eval_ editor_outs.visualization_enabled([]{analytics::remote_log(analytics::AnonymousData("editor_visualization_enabled"))});
             eval_ editor_outs.visualization_disabled([]{analytics::remote_log(analytics::AnonymousData("editor_visualization_disabled"))});
