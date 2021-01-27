@@ -67,6 +67,17 @@ let installNode = {
     }
 }
 
+let installPrettier = {
+    name: "Install Prettier",
+    run: "npm install --save-dev --save-exact prettier"
+}
+
+let installClippy = {
+    name: "Install Clippy",
+    run: "rustup component add clippy"
+}
+
+
 // We could use cargo install wasm-pack, but that takes 3.5 minutes compared to few seconds.
 let installWasmPack = [
       {
@@ -183,9 +194,64 @@ let build_workflow = {
     }
 }
 
+let check_workflow = {
+    name : "Check",
+    on: ["push"],
+    jobs: {
+        lint: {
+            name: "Linter",
+            "runs-on": "macOS-latest",
+            steps: list(
+                { uses: "actions/checkout@v1" },
+                installNode,
+                installRust,
+                installPrettier,
+                installClippy,
+                {
+                    name: "Lint JavaScript sources",
+                    run: "npx prettier --check 'src/**/*.js'",
+                },
+                {
+                    name: "Lint Rust sources",
+                    run: "node ./run lint --skip-version-validation",
+                }
+            )
+        },
+        test: {
+            name: "Tests",
+            "runs-on": "macOS-latest",
+            steps: list(
+                { uses: "actions/checkout@v1" },
+                installNode,
+                installRust,
+                {
+                    name: "Run tests",
+                    run: "node ./run test --no-wasm --skip-version-validation",
+                }
+            )
+        },
+        "wasm-test": {
+            name: "WASM Tests",
+            "runs-on": "macOS-latest",
+            steps: list(
+                { uses: "actions/checkout@v1" },
+                installNode,
+                installRust,
+                installWasmPack,
+                {
+                    name: "Run tests",
+                    run: "node ./run test --no-native --skip-version-validation",
+                }
+            )
+        }
+    }
+}
 
-let out = yaml.dump(build_workflow)
-//fss.writeFileSync(path.join(paths.github.workflows,'build.yml'),out)
+
+let build_workflow_out = yaml.dump(build_workflow,{noRefs:true})
+let check_workflow_out = yaml.dump(check_workflow,{noRefs:true})
+//fss.writeFileSync(path.join(paths.github.workflows,'build.yml'),build_workflow_out)
+//fss.writeFileSync(path.join(paths.github.workflows,'check.yml'),check_workflow_out)
 
 
 
