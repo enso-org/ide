@@ -142,21 +142,21 @@ uploadArtifactsForMacOS   = uploadArtifactsFor('Linux','ubuntu','AppImage')
 uploadArtifactsForWindows = uploadArtifactsFor('Windows','windows','exe')
 uploadArtifactsForLinux   = uploadArtifactsFor('macOS','macos','dmg')
 
-let onPush = {
-    on: ["push"]
-}
-
-let onPushToMain = {
-    on: {
-        push: {
-            branches: "main"
-        }
-    }
-}
+//let onPush = {
+//    on: ["push"]
+//}
+//
+//let onPushToMain = {
+//    on: {
+//        push: {
+//            branches: "main"
+//        }
+//    }
+//}
 
 let build_workflow = {
     name : "GUI CI",
-    onPush,
+    on: ["push"],
     jobs: {
         build: {
             name: "Build",

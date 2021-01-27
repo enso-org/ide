@@ -1,7 +1,6 @@
 name: GUI CI
-onPush:
-  'on':
-    - push
+'on':
+  - push
 jobs:
   build:
     name: Build
