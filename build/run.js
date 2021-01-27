@@ -159,7 +159,7 @@ let build_workflow = {
     onPush,
     jobs: {
         build: {
-            name: "Build2",
+            name: "Build",
             "runs-on": "${{ matrix.os }}",
             strategy: {
               matrix: {
@@ -185,7 +185,7 @@ let build_workflow = {
 
 
 let out = yaml.dump(build_workflow)
-//fss.writeFileSync(path.join(paths.github.workflows,'build2.yml'),out)
+//fss.writeFileSync(path.join(paths.github.workflows,'build.yml'),out)
 
 
 // ========================
