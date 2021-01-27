@@ -2,6 +2,56 @@ name: Check
 'on':
   - push
 jobs:
+  build:
+    name: Build
+    runs-on: macOS-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Install Node
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14.15.0
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2019-11-04
+          override: true
+      - name: Install wasm-pack (MacOS)
+        env:
+          WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1
+          WASMPACKDIR: wasm-pack-v0.9.1-x86_64-apple-darwin
+        run: |2-
+
+                        curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
+                        mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
+                        rm -r $WASMPACKDIR
+        shell: bash
+        if: matrix.os == 'macOS-latest'
+      - name: Install wasm-pack (Linux)
+        env:
+          WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1
+          WASMPACKDIR: wasm-pack-v0.9.1-x86_64-unknown-linux-musl
+        run: |2-
+
+                        curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
+                        mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
+                        rm -r $WASMPACKDIR
+        shell: bash
+        if: matrix.os == 'ubuntu-latest'
+      - name: Install wasm-pack (Windows)
+        env:
+          WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1
+          WASMPACKDIR: wasm-pack-v0.9.1-x86_64-pc-windows-msvc
+        run: |2-
+
+                        curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
+                        mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
+                        rm -r $WASMPACKDIR
+                        
+        shell: bash
+        if: matrix.os == 'windows-latest'
+      - name: Build
+        run: node ./run build --skip-version-validation
   lint:
     name: Linter
     runs-on: macOS-latest

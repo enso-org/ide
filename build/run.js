@@ -198,6 +198,20 @@ let check_workflow = {
     name : "Check",
     on: ["push"],
     jobs: {
+        build: {
+            name: "Build",
+            "runs-on": "macOS-latest",
+            steps: list(
+                { uses: "actions/checkout@v1" },
+                installNode,
+                installRust,
+                installWasmPack,
+                {
+                    name: "Build",
+                    run: "node ./run build --skip-version-validation",
+                }
+            )
+        },
         lint: {
             name: "Linter",
             "runs-on": "macOS-latest",
