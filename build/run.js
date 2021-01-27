@@ -75,7 +75,7 @@ let installWasmPack = [
             WASMPACKURL: "https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1",
             WASMPACKDIR: "wasm-pack-v0.9.1-x86_64-apple-darwin",
           },
-          run: `|
+          run: `
               curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
               mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
               rm -r $WASMPACKDIR`,
@@ -89,7 +89,7 @@ let installWasmPack = [
               WASMPACKURL: "https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1",
               WASMPACKDIR: "wasm-pack-v0.9.1-x86_64-unknown-linux-musl",
           },
-          run: `|
+          run: `
               curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
               mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
               rm -r $WASMPACKDIR`,
