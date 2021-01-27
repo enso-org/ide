@@ -300,7 +300,7 @@ impl Integration {
             eval_ editor_outs.on_edge_endpoints_set([]{analytics::remote_log(analytics::AnonymousData("editor_edge_endpoints_set"))});
             eval_ editor_outs.visualization_enabled([]{analytics::remote_log(analytics::AnonymousData("editor_visualization_enabled"))});
             eval_ editor_outs.visualization_disabled([]{analytics::remote_log(analytics::AnonymousData("editor_visualization_disabled"))});
-            eval_ on_connection_removed([]{analytics::remote_log(analytics::AnonymousData("connection_removed"))});
+            eval_ on_connection_removed([]{analytics::remote_log(analytics::AnonymousData("editor_connection_removed"))});
             eval_ searcher_frp.used_as_suggestion([]{analytics::remote_log(analytics::AnonymousData("searcher_used_as_suggestion"))});
             eval_ project_frp.editing_committed([]{analytics::remote_log(analytics::AnonymousData("project_editing_committed"))});
         }
