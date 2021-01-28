@@ -253,6 +253,9 @@ function uploadReleaseFor(name,sys,ext) {
     return {
         name: `Upload Release (${name}, ${ext})`,
         uses: "actions/upload-release-asset@v1",
+        env: {
+            GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        },
         with: {
             upload_url: "${{ steps.create_release.outputs.upload_url }}",
             asset_path: `dist/client/Enso-2.0.0-alpha.0.${ext}`,
@@ -272,6 +275,9 @@ function uploadReleaseTestFor(name,sys,ext) {
     return {
         name: `Upload Release (${name}, ${ext})`,
         uses: "actions/upload-release-asset@v1",
+        env: {
+            GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        },
         with: {
             upload_url: "${{needs.create_release.outputs.release_output}}",
             asset_path: `OUT_${name}.txt`,
@@ -330,8 +336,8 @@ let release_workflow = {
 let build_workflow_out = yaml.dump(build_workflow,{noRefs:true})
 let check_workflow_out = yaml.dump(check_workflow,{noRefs:true})
 let release_workflow_out = yaml.dump(release_workflow,{noRefs:true})
-fss.writeFileSync(path.join(paths.github.workflows,'build.yml'),build_workflow_out)
-fss.writeFileSync(path.join(paths.github.workflows,'check.yml'),check_workflow_out)
+//fss.writeFileSync(path.join(paths.github.workflows,'build.yml'),build_workflow_out)
+//fss.writeFileSync(path.join(paths.github.workflows,'check.yml'),check_workflow_out)
 fss.writeFileSync(path.join(paths.github.workflows,'release.yml'),release_workflow_out)
 
 
