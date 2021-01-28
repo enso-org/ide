@@ -230,6 +230,14 @@ let downloadArtifacts = {
 // === GitHub Release ===
 // ======================
 
+let getCurrentReleaseChangelogInfo = {
+    id: 'changelog',
+    run: `
+        content=`cat CURRENT_RELEASE_CHANGELOG.json`
+        echo "::set-output name=content::$content"
+    `
+}
+
 let uploadGitHubRelease = {
     name: `Upload GitHub Release`,
     uses: "softprops/action-gh-release@v1",
@@ -237,8 +245,9 @@ let uploadGitHubRelease = {
         GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
     },
     with: {
-        files: "artifacts/**/Enso*",
-        body_path: "CURRENT_RELEASE_CHANGELOG.md",
+        files:    "artifacts/**/Enso*",
+        tag_name: "v${{fromJson(steps.changelog.outputs.content).version}}"
+        path:     "${{fromJson(steps.changelog.outputs.content).body}}",
     },
 }
 
@@ -327,6 +336,7 @@ let workflow = {
         }),
         release_to_github: job_on_macos("GitHub Release", [
               downloadArtifacts,
+              getCurrentReleaseChangelogInfo,
               uploadGitHubRelease,
         ],{
             needs: ["lint","test","wasm-test","build"],
@@ -432,8 +442,11 @@ function changelogNewestEntry() {
     return changelogEntries()[0]
 }
 
-//let out = changelogNewestEntry()
-//console.log(out)
+let out = changelogNewestEntry()
+console.log(out)
+
+
+fss.writeFileSync('CURRENT_RELEASE_CHANGELOG.json',JSON.stringify({version:out.version,body:out.body}))
 
 
 // ========================
