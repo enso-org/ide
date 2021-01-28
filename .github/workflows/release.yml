@@ -52,6 +52,8 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           path: artifacts
+      - name: ls artifacts
+        run: ls -la artifacts
       - name: Upload GitHub Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')

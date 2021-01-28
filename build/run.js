@@ -336,6 +336,10 @@ let release_workflow = {
         ]),
         upload_to_github: job_on_macos("Upload to GitHub", [
               downloadArtifacts,
+              {
+                  name: "ls artifacts",
+                  run: 'ls -la artifacts'
+              },
               uploadRelease,
 //            uploadArtifactsForMacOS,
 //            uploadArtifactsForWindows,
