@@ -1,18 +1,18 @@
-## Enso 2.0.0-alpha.2
+# Enso 2.0.0-alpha.2
 This is a minor update exposing more control over the anonymous data collection. You are now allowed 
 to run the application with `--no-errors-data-collection`, and `--no-data-collection`. The options 
 disable the collection of errors data (keeping the collection of other events), and disables the 
-collection of all data, respectively. To learn more what data is collected in Ens0 alpha releases, 
+collection of all data, respectively. To learn more what data is collected in Enso alpha releases, 
 read the notes of the `Enso 2.0.0-alpha.1` release.
 
 
 
-## Enso 2.0.0-alpha.1
+# Enso 2.0.0-alpha.1
 This is the first release of Enso, a general-purpose programming language and environment for 
 interactive data processing. It is a tool that spans the entire stack, going from high-level 
 visualization and communication to the nitty-gritty of backend services, all in a single language.
 
-### Anonymous Data Collection
+## Anonymous Data Collection
 Please note that this release collects anonymous usage data which will be used to improve Enso and 
 prepare it for a stable release. We will switch to opt-in data collection in stable version 
 releases. The usage data will not contain your code (expressions above nodes), however, reported 

@@ -200,21 +200,21 @@ let uploadContentArtifacts = {
     if: `matrix.os == 'macOS-latest'`
 }
 
-function uploadBinArtifactsFor(name,sys,ext) {
+function uploadBinArtifactsFor(name,sys,ext,sfx) {
     return {
         name: `Upload Artifacts (${name}, ${ext})`,
         uses: "actions/upload-artifact@v1",
         with: {
-           name: `Enso (${name})`,
+           name: `Enso${sfx} (${name})`,
            path: `dist/client/Enso-2.0.0-alpha.0.${ext}`
         },
         if: `matrix.os == '${sys}-latest'`
     }
 }
 
-uploadBinArtifactsForMacOS   = uploadBinArtifactsFor('Linux','ubuntu','AppImage')
-uploadBinArtifactsForWindows = uploadBinArtifactsFor('Windows','windows','exe')
-uploadBinArtifactsForLinux   = uploadBinArtifactsFor('macOS','macos','dmg')
+uploadBinArtifactsForMacOS   = uploadBinArtifactsFor('Linux','ubuntu','AppImage','')
+uploadBinArtifactsForWindows = uploadBinArtifactsFor('Windows','windows','exe',' Setup')
+uploadBinArtifactsForLinux   = uploadBinArtifactsFor('macOS','macos','dmg','')
 
 let downloadArtifacts = {
     name: "Download artifacts",
@@ -365,6 +365,21 @@ fss.writeFileSync(path.join(paths.github.workflows,'gui-ci.yml'),release_workflo
 const CHANGELOG_FILE_NAME = 'CHANGELOG.md'
 const CHANGELOG_FILE      = path.join(paths.root,CHANGELOG_FILE_NAME)
 
+
+
+const semver = require('semver')
+
+class ChangelogEntry {
+    constructor(version,body) {
+        let semVersion = semver.valid(version)
+        if (version !== semVersion) {
+            throw `The version '${version}' is not a valid semantic varsion.`
+        }
+        this.version = version
+        this.body    = body
+    }
+}
+
 function extractChangelog(version) {
     let text    = '\n' + fss.readFileSync(CHANGELOG_FILE,"utf8")
     let chunks  = text.split(/\r?\n## /)
@@ -379,7 +394,45 @@ function extractChangelog(version) {
     throw `The changelog for version '${version}' was not found. Please update it in the ${CHANGELOG_FILE_NAME}.`
 }
 
-//let out = extractChangelog('2.0.0-alpha.3')
+function changelogSections() {
+    let text    = '\n' + fss.readFileSync(CHANGELOG_FILE,"utf8")
+    let chunks  = text.split(/\r?\n# /)
+    return chunks.filter((s) => s != '')
+}
+
+function changelogEntries() {
+    let sections = changelogSections()
+    let prefix   = "Enso "
+    let entries  = []
+    for (let section of sections) {
+        if (!section.startsWith(prefix)) {
+            throw `Improper changelog entry header: ${section}`
+        } else {
+            let splitPoint = section.indexOf('\n')
+            let body       = section.substring(splitPoint).trim()
+            let header     = section.substring(0,splitPoint).trim()
+            let version    = header.substring(prefix.length)
+            entries.push(new ChangelogEntry(version,body))
+        }
+    }
+
+    var lastVersion = null
+    for (let entry of entries) {
+        if (lastVersion !== null) {
+            if (!semver.lt(entry.version,lastVersion)) {
+                throw `Versions are not properly ordered in the changelog (${entry.version} >= ${lastVersion}).`
+            }
+        }
+        lastVersion = entry.version
+    }
+    return entries
+}
+
+function changelogNewestEntry() {
+    return changelogEntries()[0]
+}
+
+//let out = changelogNewestEntry()
 //console.log(out)
 
 
