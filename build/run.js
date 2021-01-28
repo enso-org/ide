@@ -280,7 +280,7 @@ function uploadReleaseTestFor() {
             GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         },
         with: {
-            files: "artifacts/*",
+            files: "./artifacts/*",
             body_path: "CURRENT_RELEASE_CHANGELOG.md",
         },
     }
@@ -316,7 +316,7 @@ let downloadArtifacts = {
 
 
 let release_workflow = {
-    name : "Release",
+    name : "GUI CI",
     on: {
         push: {
             tags: ['v*']
@@ -325,6 +325,11 @@ let release_workflow = {
     jobs: {
         build: job_on_all_platforms("Build", [
             installNode,
+//            installRust,
+//            installWasmPack,
+//            buildOnMacOS,
+//            buildOnWindows,
+//            buildOnLinux,
             uploadArtifactsTestForMacOs,
             uploadArtifactsTestForWindows,
             uploadArtifactsTestForLinux
@@ -332,6 +337,14 @@ let release_workflow = {
         upload_to_github: job_on_macos("Upload to GitHub", [
               downloadArtifacts,
               uploadRelease,
+//            uploadArtifactsForMacOS,
+//            uploadArtifactsForWindows,
+//            uploadArtifactsForLinux,
+        ],{
+            needs: "build"
+        }),
+        upload_to_cdn: job_on_macos("Upload to CDN", [
+              downloadArtifacts,
 //            installNode,
 //            installRust,
 //            installWasmPack,

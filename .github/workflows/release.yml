@@ -1,4 +1,4 @@
-name: Release
+name: GUI CI
 'on':
   push:
     tags:
@@ -58,6 +58,21 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: artifacts/*
+          files: ./artifacts/*
           body_path: CURRENT_RELEASE_CHANGELOG.md
+    needs: build
+  upload_to_cdn:
+    name: Upload to CDN
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - macOS-latest
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: artifacts
     needs: build
