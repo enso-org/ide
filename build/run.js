@@ -379,8 +379,8 @@ function extractChangelog(version) {
     throw `The changelog for version '${version}' was not found. Please update it in the ${CHANGELOG_FILE_NAME}.`
 }
 
-let out = extractChangelog('2.0.0-alpha.3')
-console.log(out)
+//let out = extractChangelog('2.0.0-alpha.3')
+//console.log(out)
 
 
 // ========================
