@@ -1,8 +1,6 @@
 name: GUI CI
 'on':
-  push:
-    tags:
-      - v*
+  - push
 jobs:
   build:
     name: Build
@@ -35,7 +33,7 @@ jobs:
           path: OUT_linux.txt
         if: matrix.os == 'ubuntu-latest'
   upload_to_github:
-    name: Upload to GitHub
+    name: GitHub Release
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -59,8 +57,9 @@ jobs:
           files: artifacts/**/*
           body_path: CURRENT_RELEASE_CHANGELOG.md
     needs: build
+    if: startsWith(github.ref, 'refs/tags/')
   upload_to_cdn:
-    name: Upload to CDN
+    name: CDN Release
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -74,3 +73,4 @@ jobs:
         with:
           path: artifacts
     needs: build
+    if: startsWith(github.ref, 'refs/tags/')

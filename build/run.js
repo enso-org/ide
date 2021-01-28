@@ -317,11 +317,7 @@ let downloadArtifacts = {
 
 let release_workflow = {
     name : "GUI CI",
-    on: {
-        push: {
-            tags: ['v*']
-        }
-    },
+    on: ['push'],
     jobs: {
         build: job_on_all_platforms("Build", [
 //            installNode,
@@ -334,7 +330,7 @@ let release_workflow = {
             uploadArtifactsTestForWindows,
             uploadArtifactsTestForLinux
         ]),
-        upload_to_github: job_on_macos("Upload to GitHub", [
+        upload_to_github: job_on_macos("GitHub Release", [
               downloadArtifacts,
               {
                   name: "ls artifacts",
@@ -345,9 +341,10 @@ let release_workflow = {
 //            uploadArtifactsForWindows,
 //            uploadArtifactsForLinux,
         ],{
-            needs: "build"
+            needs: "build",
+            if: "startsWith(github.ref, 'refs/tags/')",
         }),
-        upload_to_cdn: job_on_macos("Upload to CDN", [
+        upload_to_cdn: job_on_macos("CDN Release", [
               downloadArtifacts,
 //            installNode,
 //            installRust,
@@ -362,7 +359,8 @@ let release_workflow = {
 //            uploadReleaseForWindows,
 //            uploadReleaseForLinux
         ],{
-            needs: "build"
+            needs: "build",
+            if: "startsWith(github.ref, 'refs/tags/')",
         }),
     }
 }
