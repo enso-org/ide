@@ -214,13 +214,20 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           path: artifacts
+      - id: changelog
+        run: |2-
+
+                  content=`cat CURRENT_RELEASE_CHANGELOG.json`
+                  echo "::set-output name=content::$content"
+              
       - name: Upload GitHub Release
         uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: artifacts/**/Enso*
-          body_path: CURRENT_RELEASE_CHANGELOG.md
+          tag_name: v${{fromJson(steps.changelog.outputs.content).version}}
+          path: ${{fromJson(steps.changelog.outputs.content).body}}
     needs:
       - lint
       - test

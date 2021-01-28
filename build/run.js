@@ -233,7 +233,7 @@ let downloadArtifacts = {
 let getCurrentReleaseChangelogInfo = {
     id: 'changelog',
     run: `
-        content=`cat CURRENT_RELEASE_CHANGELOG.json`
+        content=\`cat CURRENT_RELEASE_CHANGELOG.json\`
         echo "::set-output name=content::$content"
     `
 }
@@ -246,7 +246,7 @@ let uploadGitHubRelease = {
     },
     with: {
         files:    "artifacts/**/Enso*",
-        tag_name: "v${{fromJson(steps.changelog.outputs.content).version}}"
+        tag_name: "v${{fromJson(steps.changelog.outputs.content).version}}",
         path:     "${{fromJson(steps.changelog.outputs.content).body}}",
     },
 }
@@ -448,6 +448,13 @@ console.log(out)
 
 fss.writeFileSync('CURRENT_RELEASE_CHANGELOG.json',JSON.stringify({version:out.version,body:out.body}))
 
+
+let foo = `
+                  content=\`cat CURRENT_RELEASE_CHANGELOG.json\`
+                  echo "::set-output name=content::$content"
+              `
+
+//console.log(foo)
 
 // ========================
 // === Global Variables ===
