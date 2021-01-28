@@ -2,6 +2,108 @@ name: GUI CI
 'on':
   - push
 jobs:
+  lint:
+    name: Linter
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - macOS-latest
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Node
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14.15.0
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2019-11-04
+          override: true
+      - name: Install Prettier
+        run: npm install --save-dev --save-exact prettier
+      - name: Install Clippy
+        run: rustup component add clippy
+      - name: Lint JavaScript sources
+        run: npx prettier --check 'src/**/*.js'
+      - name: Lint Rust sources
+        run: node ./run lint --skip-version-validation
+  test:
+    name: Tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - macOS-latest
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Node
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14.15.0
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2019-11-04
+          override: true
+      - name: Run tests (no WASM)
+        run: node ./run test --no-wasm --skip-version-validation
+  wasm-test:
+    name: WASM Tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - macOS-latest
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Node
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14.15.0
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2019-11-04
+          override: true
+      - name: Install wasm-pack (macOS)
+        env:
+          WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1
+          WASMPACKDIR: wasm-pack-v0.9.1-x86_64-apple-darwin
+        run: |2-
+
+                      curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
+                      mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
+                      rm -r $WASMPACKDIR
+        shell: bash
+        if: matrix.os == 'macOS-latest'
+      - name: Install wasm-pack (Windows)
+        env:
+          WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1
+          WASMPACKDIR: wasm-pack-v0.9.1-x86_64-pc-windows-msvc
+        run: |2-
+
+                      curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
+                      mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
+                      rm -r $WASMPACKDIR
+        shell: bash
+        if: matrix.os == 'windows-latest'
+      - name: Install wasm-pack (Linux)
+        env:
+          WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1
+          WASMPACKDIR: wasm-pack-v0.9.1-x86_64-unknown-linux-musl
+        run: |2-
+
+                      curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
+                      mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
+                      rm -r $WASMPACKDIR
+        shell: bash
+        if: matrix.os == 'ubuntu-latest'
+      - name: Run tests (WASM)
+        run: node ./run test --no-native --skip-version-validation
   build:
     name: Build
     runs-on: ${{ matrix.os }}
@@ -89,7 +191,11 @@ jobs:
           name: Enso (macOS)
           path: dist/client/Enso-*.dmg
         if: matrix.os == 'macos-latest'
-  upload_to_github:
+    if: >-
+      startsWith(github.ref,'refs/tags/') || github.ref == 'refs/heads/unstable'
+      || github.ref == 'refs/heads/stable' || github.ref ==
+      'refs/heads/wip/wd/ci'
+  release_to_github:
     name: GitHub Release
     runs-on: ${{ matrix.os }}
     strategy:
@@ -110,9 +216,13 @@ jobs:
         with:
           files: artifacts/**/Enso*
           body_path: CURRENT_RELEASE_CHANGELOG.md
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/')
-  upload_to_cdn:
+    needs:
+      - lint
+      - test
+      - wasm-test
+      - build
+    if: startsWith(github.ref,'refs/tags/')
+  release_to_cdn:
     name: CDN Release
     runs-on: ${{ matrix.os }}
     strategy:
@@ -183,5 +293,9 @@ jobs:
                       s3://ensocdn/ide/${{ env.DIST_VERSION }}/wasm_imports.js.gz --profile
                       s3-upload --acl public-read --content-encoding gzip
                   
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/')
+    needs:
+      - lint
+      - test
+      - wasm-test
+      - build
+    if: startsWith(github.ref,'refs/tags/')

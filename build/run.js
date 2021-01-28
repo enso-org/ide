@@ -319,6 +319,25 @@ let release_workflow = {
     name : "GUI CI",
     on: ['push'],
     jobs: {
+        lint: job_on_macos("Linter", [
+            installNode,
+            installRust,
+            installPrettier,
+            installClippy,
+            lintJavaScript,
+            lintRust
+        ]),
+        test: job_on_macos("Tests", [
+            installNode,
+            installRust,
+            testNoWASM,
+        ]),
+        "wasm-test": job_on_macos("WASM Tests", [
+            installNode,
+            installRust,
+            installWasmPack,
+            testWASM
+        ]),
         build: job_on_all_platforms("Build", [
             installNode,
             installRust,
@@ -326,22 +345,22 @@ let release_workflow = {
             buildOnMacOS,
             buildOnWindows,
             buildOnLinux,
-//            uploadArtifactsTestForMacOs,
-//            uploadArtifactsTestForWindows,
-//            uploadArtifactsTestForLinux
             uploadContentArtifacts,
             uploadBinArtifactsForMacOS,
             uploadBinArtifactsForWindows,
             uploadBinArtifactsForLinux,
-        ]),
-        upload_to_github: job_on_macos("GitHub Release", [
+        ],{
+            // FIXME:
+            if: "startsWith(github.ref,'refs/tags/') || github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/wip/wd/ci'",
+        }),
+        release_to_github: job_on_macos("GitHub Release", [
               downloadArtifacts,
               uploadGitHubRelease,
         ],{
-            needs: "build",
-            if: "startsWith(github.ref, 'refs/tags/')",
+            needs: ["lint","test","wasm-test","build"],
+            if: "startsWith(github.ref,'refs/tags/')",
         }),
-        upload_to_cdn: job_on_macos("CDN Release", [
+        release_to_cdn: job_on_macos("CDN Release", [
               downloadArtifacts,
               prepareDistributionVersionCDN,
               prepareAwsSessionCDN,
@@ -351,8 +370,8 @@ let release_workflow = {
               uploadToCDN('ide.wasm'),
               uploadToCDN('wasm_imports.js.gz'),
         ],{
-            needs: "build",
-            if: "startsWith(github.ref, 'refs/tags/')",
+            needs: ["lint","test","wasm-test","build"],
+            if: "startsWith(github.ref,'refs/tags/')",
         }),
     }
 }
