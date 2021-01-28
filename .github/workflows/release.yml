@@ -60,4 +60,4 @@ jobs:
         with:
           files: artifacts/*
           body_path: CURRENT_RELEASE_CHANGELOG.md
-    needs: create_release
+    needs: build

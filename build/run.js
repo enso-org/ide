@@ -345,7 +345,7 @@ let release_workflow = {
 //            uploadReleaseForWindows,
 //            uploadReleaseForLinux
         ],{
-            needs: "create_release"
+            needs: "build"
         }),
     }
 }
