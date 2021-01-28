@@ -114,7 +114,7 @@ buildOnWindows = buildOn('win','windows')
 buildOnLinux   = buildOn('linux','ubuntu')
 
 
-function uploadArtifactsFor(name,sys,ext) {
+function uploadBinArtifactsFor(name,sys,ext) {
     return {
         name: `Upload Artifacts (${name}, ${ext})`,
         uses: "actions/upload-artifact@v1",
@@ -126,9 +126,19 @@ function uploadArtifactsFor(name,sys,ext) {
     }
 }
 
-uploadArtifactsForMacOS   = uploadArtifactsFor('Linux','ubuntu','AppImage')
-uploadArtifactsForWindows = uploadArtifactsFor('Windows','windows','exe')
-uploadArtifactsForLinux   = uploadArtifactsFor('macOS','macos','dmg')
+let uploadContentArtifacts = {
+    name: `Upload Content Artifacts`,
+    uses: "actions/upload-artifact@v1",
+    with: {
+       name: 'content',
+       path: `dist/content`
+    },
+    if: `matrix.os == 'macOS-latest'`
+}
+
+uploadBinArtifactsForMacOS   = uploadBinArtifactsFor('Linux','ubuntu','AppImage')
+uploadBinArtifactsForWindows = uploadBinArtifactsFor('Windows','windows','exe')
+uploadBinArtifactsForLinux   = uploadBinArtifactsFor('macOS','macos','dmg')
 
 
 let lintJavaScript = {
@@ -198,9 +208,9 @@ let build_workflow = {
             buildOnMacOS,
             buildOnWindows,
             buildOnLinux,
-            uploadArtifactsForMacOS,
-            uploadArtifactsForWindows,
-            uploadArtifactsForLinux
+            uploadBinArtifactsForMacOS,
+            uploadBinArtifactsForWindows,
+            uploadBinArtifactsForLinux
         ])
     }
 }
@@ -251,7 +261,7 @@ function uploadArtifactsTestFor(name,sys,ext) {
         name: `Upload Artifacts (${name}, ${ext})`,
         uses: "actions/upload-artifact@v1",
         with: {
-           name: `OUT_${name}`,
+           name: `bin/OUT_${name}`,
            path: `OUT_${name}.txt`
         },
         if: `matrix.os == '${sys}-latest'`
@@ -297,7 +307,7 @@ function uploadToCDN(name) {
         name: `Upload '${name}' to CDN`,
         shell: "bash",
         run: `
-            aws s3 cp ./artifacts/ide-dist/assets/${name}
+            aws s3 cp ./artifacts/content/assets/${name}
             s3://ensocdn/ide/\${{ env.DIST_VERSION }}/${name} --profile
             s3-upload --acl public-read --content-encoding gzip
         `
@@ -319,13 +329,14 @@ let release_workflow = {
             uploadArtifactsTestForMacOs,
             uploadArtifactsTestForWindows,
             uploadArtifactsTestForLinux
+//            uploadContentArtifacts,
+//            uploadBinArtifactsForMacOS,
+//            uploadBinArtifactsForWindows,
+//            uploadBinArtifactsForLinux,
         ]),
         upload_to_github: job_on_macos("GitHub Release", [
               downloadArtifacts,
               uploadGitHubRelease,
-//            uploadArtifactsForMacOS,
-//            uploadArtifactsForWindows,
-//            uploadArtifactsForLinux,
         ],{
             needs: "build",
             if: "startsWith(github.ref, 'refs/tags/')",
