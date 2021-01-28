@@ -187,8 +187,8 @@ jobs:
       - name: Upload Artifacts (Windows, exe)
         uses: actions/upload-artifact@v1
         with:
-          name: Enso Setup (Windows)
-          path: dist/client/Enso-2.0.0-alpha.0.exe
+          name: Enso (Windows)
+          path: dist/client/Enso Setup 2.0.0-alpha.0.exe
         if: matrix.os == 'windows-latest'
       - name: Upload Artifacts (macOS, dmg)
         uses: actions/upload-artifact@v1

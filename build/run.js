@@ -205,16 +205,16 @@ function uploadBinArtifactsFor(name,sys,ext,sfx) {
         name: `Upload Artifacts (${name}, ${ext})`,
         uses: "actions/upload-artifact@v1",
         with: {
-           name: `Enso${sfx} (${name})`,
-           path: `dist/client/Enso-2.0.0-alpha.0.${ext}`
+           name: `Enso (${name})`,
+           path: `dist/client/Enso${sfx}2.0.0-alpha.0.${ext}`
         },
         if: `matrix.os == '${sys}-latest'`
     }
 }
 
-uploadBinArtifactsForMacOS   = uploadBinArtifactsFor('Linux','ubuntu','AppImage','')
-uploadBinArtifactsForWindows = uploadBinArtifactsFor('Windows','windows','exe',' Setup')
-uploadBinArtifactsForLinux   = uploadBinArtifactsFor('macOS','macos','dmg','')
+uploadBinArtifactsForMacOS   = uploadBinArtifactsFor('Linux','ubuntu','AppImage','-')
+uploadBinArtifactsForWindows = uploadBinArtifactsFor('Windows','windows','exe',' Setup ')
+uploadBinArtifactsForLinux   = uploadBinArtifactsFor('macOS','macos','dmg','-')
 
 let downloadArtifacts = {
     name: "Download artifacts",
