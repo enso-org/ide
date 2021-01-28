@@ -10,6 +10,8 @@ pub mod input;
 pub mod output;
 #[deny(missing_docs)]
 pub mod error;
+#[deny(missing_docs)]
+pub mod vcs;
 
 pub use expression::Expression;
 pub use error::Error;
@@ -245,8 +247,9 @@ ensogl::define_endpoints! {
         /// Set the expression USAGE type. This is not the definition type, which can be set with
         /// `set_expression` instead. In case the usage type is set to None, ports still may be
         /// colored if the definition type was present.
-        set_expression_usage_type (Crumbs,Option<Type>),
+        set_expression_usage_type        (Crumbs,Option<Type>),
         set_output_expression_visibility (bool),
+        set_vcs_status                   (Option<vcs::Status>),
     }
     Output {
         /// Press event. Emitted when user clicks on non-active part of the node, like its
@@ -349,6 +352,7 @@ pub struct NodeModel {
     pub output          : output::Area,
     pub visualization   : visualization::Container,
     pub action_bar      : action_bar::ActionBar,
+    pub vcs_indicator   : vcs::StatusIndicator,
 }
 
 impl NodeModel {
@@ -369,6 +373,8 @@ impl NodeModel {
         let error_text      = app.new_view::<text::Area>();
         edge::depth_sort_hack_2(scene);
 
+        let vcs_indicator   = vcs::StatusIndicator::new(app);
+
         input::area::depth_sort_hack(scene); // FIXME hack for sorting
 
         let display_object  = display::object::Instance::new(&logger);
@@ -376,6 +382,7 @@ impl NodeModel {
         display_object.add_child(&main_area);
         display_object.add_child(&error_indicator);
         display_object.add_child(&error_text);
+        display_object.add_child(&vcs_indicator);
 
         error_text.set_default_color.emit(color::Rgba::red());
         error_text.set_default_text_size(TextSize::from(TEXT_SIZE));
@@ -403,7 +410,7 @@ impl NodeModel {
 
         let app = app.clone_ref();
         Self {app,display_object,logger,main_area,drag_area,output,input,visualization,action_bar,
-              error_indicator,error_text}.init()
+              error_indicator,error_text,vcs_indicator}.init()
     }
 
     pub fn get_crumbs_by_id(&self, id:ast::Id) -> Option<Crumbs> {
@@ -444,10 +451,13 @@ impl NodeModel {
         self.main_area.shape.sprite.size.set(padded_size);
         self.drag_area.shape.sprite.size.set(padded_size);
         self.error_indicator.shape.sprite.size.set(padded_size);
+        self.vcs_indicator.set_size(padded_size);
         self.main_area.mod_position(|t| t.x = width/2.0);
         self.drag_area.mod_position(|t| t.x = width/2.0);
 
         self.error_indicator.set_position_x(width/2.0);
+        self.vcs_indicator.set_position_x(width/2.0);
+
         self.error_text.set_position_y(height + TEXT_SIZE);
         self.error_text.set_position_x(CORNER_RADIUS);
 
@@ -570,6 +580,13 @@ impl Node {
             eval bg_color_anim.value ((c)
                 model.main_area.shape.bg_color.set(color::Rgba::from(c).into())
             );
+
+
+            // === VCS Handling ===
+            model.vcs_indicator.frp.set_status <+ frp.set_vcs_status.unwrap();
+            has_status <- frp.set_vcs_status.map(|status| status.is_some());
+            model.vcs_indicator.frp.set_visibility <+ has_status;
+
         }
 
         frp.set_error.emit(None);
