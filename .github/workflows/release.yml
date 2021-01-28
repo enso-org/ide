@@ -14,24 +14,81 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v2
-      - name: Upload Artifacts (macos, dmg)
-        uses: actions/upload-artifact@v1
+      - name: Install Node
+        uses: actions/setup-node@v1
         with:
-          name: bin/OUT_macos
-          path: OUT_macos.txt
-        if: matrix.os == 'macos-latest'
-      - name: Upload Artifacts (windows, exe)
-        uses: actions/upload-artifact@v1
+          node-version: 14.15.0
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
         with:
-          name: bin/OUT_windows
-          path: OUT_windows.txt
+          toolchain: nightly-2019-11-04
+          override: true
+      - name: Install wasm-pack (macOS)
+        env:
+          WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1
+          WASMPACKDIR: wasm-pack-v0.9.1-x86_64-apple-darwin
+        run: |2-
+
+                      curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
+                      mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
+                      rm -r $WASMPACKDIR
+        shell: bash
+        if: matrix.os == 'macOS-latest'
+      - name: Install wasm-pack (Windows)
+        env:
+          WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1
+          WASMPACKDIR: wasm-pack-v0.9.1-x86_64-pc-windows-msvc
+        run: |2-
+
+                      curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
+                      mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
+                      rm -r $WASMPACKDIR
+        shell: bash
         if: matrix.os == 'windows-latest'
-      - name: Upload Artifacts (linux, AppImage)
+      - name: Install wasm-pack (Linux)
+        env:
+          WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1
+          WASMPACKDIR: wasm-pack-v0.9.1-x86_64-unknown-linux-musl
+        run: |2-
+
+                      curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
+                      mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
+                      rm -r $WASMPACKDIR
+        shell: bash
+        if: matrix.os == 'ubuntu-latest'
+      - name: Build (macos)
+        run: node ./run dist --skip-version-validation --target macos
+        if: matrix.os == 'macos-latest'
+      - name: Build (win)
+        run: node ./run dist --skip-version-validation --target win
+        if: matrix.os == 'windows-latest'
+      - name: Build (linux)
+        run: node ./run dist --skip-version-validation --target linux
+        if: matrix.os == 'ubuntu-latest'
+      - name: Upload Content Artifacts
         uses: actions/upload-artifact@v1
         with:
-          name: bin/OUT_linux
-          path: OUT_linux.txt
+          name: content
+          path: dist/content
+        if: matrix.os == 'macOS-latest'
+      - name: Upload Artifacts (Linux, AppImage)
+        uses: actions/upload-artifact@v1
+        with:
+          name: Enso (Linux)
+          path: dist/client/Enso-*.AppImage
         if: matrix.os == 'ubuntu-latest'
+      - name: Upload Artifacts (Windows, exe)
+        uses: actions/upload-artifact@v1
+        with:
+          name: Enso (Windows)
+          path: dist/client/Enso-*.exe
+        if: matrix.os == 'windows-latest'
+      - name: Upload Artifacts (macOS, dmg)
+        uses: actions/upload-artifact@v1
+        with:
+          name: Enso (macOS)
+          path: dist/client/Enso-*.dmg
+        if: matrix.os == 'macos-latest'
   upload_to_github:
     name: GitHub Release
     runs-on: ${{ matrix.os }}
@@ -51,7 +108,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: artifacts/**/*
+          files: artifacts/**/Enso*
           body_path: CURRENT_RELEASE_CHANGELOG.md
     needs: build
     if: startsWith(github.ref, 'refs/tags/')

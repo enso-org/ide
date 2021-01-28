@@ -250,7 +250,7 @@ let uploadGitHubRelease = {
         GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
     },
     with: {
-        files: "artifacts/**/*",
+        files: "artifacts/**/Enso*",
         body_path: "CURRENT_RELEASE_CHANGELOG.md",
     },
 }
@@ -261,7 +261,7 @@ function uploadArtifactsTestFor(name,sys,ext) {
         name: `Upload Artifacts (${name}, ${ext})`,
         uses: "actions/upload-artifact@v1",
         with: {
-           name: `bin/OUT_${name}`,
+           name: `OUT_${name}`,
            path: `OUT_${name}.txt`
         },
         if: `matrix.os == '${sys}-latest'`
@@ -320,19 +320,19 @@ let release_workflow = {
     on: ['push'],
     jobs: {
         build: job_on_all_platforms("Build", [
-//            installNode,
-//            installRust,
-//            installWasmPack,
-//            buildOnMacOS,
-//            buildOnWindows,
-//            buildOnLinux,
-            uploadArtifactsTestForMacOs,
-            uploadArtifactsTestForWindows,
-            uploadArtifactsTestForLinux
-//            uploadContentArtifacts,
-//            uploadBinArtifactsForMacOS,
-//            uploadBinArtifactsForWindows,
-//            uploadBinArtifactsForLinux,
+            installNode,
+            installRust,
+            installWasmPack,
+            buildOnMacOS,
+            buildOnWindows,
+            buildOnLinux,
+//            uploadArtifactsTestForMacOs,
+//            uploadArtifactsTestForWindows,
+//            uploadArtifactsTestForLinux
+            uploadContentArtifacts,
+            uploadBinArtifactsForMacOS,
+            uploadBinArtifactsForWindows,
+            uploadBinArtifactsForLinux,
         ]),
         upload_to_github: job_on_macos("GitHub Release", [
               downloadArtifacts,
