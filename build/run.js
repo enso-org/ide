@@ -120,7 +120,7 @@ function uploadArtifactsFor(name,sys,ext) {
         uses: "actions/upload-artifact@v1",
         with: {
            name: `Enso (${name})`,
-           path: "dist/client/Enso-2.0.0-alpha.0.${ext}"
+           path: `dist/client/Enso-2.0.0-alpha.0.${ext}`
         },
         if: `matrix.os == '${sys}-latest'`
     }
@@ -253,8 +253,8 @@ function uploadReleaseFor(name,sys,ext) {
         uses: "actions/upload-release-asset@v1",
         with: {
             upload_url: "${{ steps.create_release.outputs.upload_url }}",
-            asset_path: "dist/client/Enso-2.0.0-alpha.0.${ext}",
-            asset_name: "Enso-2.0.0-alpha.0.${ext}",
+            asset_path: `dist/client/Enso-2.0.0-alpha.0.${ext}`,
+            asset_name: `Enso-2.0.0-alpha.0.${ext}`,
             asset_content_type: "application/zip",
         },
         if: `matrix.os == '${sys}-latest'`
@@ -274,7 +274,7 @@ let release_workflow = {
         }
     },
     jobs: {
-        release: job_on_macos("Release", [
+        release: job_on_all_platforms("Release", [
             installNode,
             installRust,
             installWasmPack,

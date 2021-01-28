@@ -10,7 +10,9 @@ jobs:
     strategy:
       matrix:
         os:
+          - windows-latest
           - macOS-latest
+          - ubuntu-latest
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
@@ -69,19 +71,19 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: Enso (Linux)
-          path: dist/client/Enso-2.0.0-alpha.0.${ext}
+          path: dist/client/Enso-2.0.0-alpha.0.AppImage
         if: matrix.os == 'ubuntu-latest'
       - name: Upload Artifacts (Windows, exe)
         uses: actions/upload-artifact@v1
         with:
           name: Enso (Windows)
-          path: dist/client/Enso-2.0.0-alpha.0.${ext}
+          path: dist/client/Enso-2.0.0-alpha.0.exe
         if: matrix.os == 'windows-latest'
       - name: Upload Artifacts (macOS, dmg)
         uses: actions/upload-artifact@v1
         with:
           name: Enso (macOS)
-          path: dist/client/Enso-2.0.0-alpha.0.${ext}
+          path: dist/client/Enso-2.0.0-alpha.0.dmg
         if: matrix.os == 'macos-latest'
       - name: Create Release
         id: create_release
@@ -98,23 +100,23 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/client/Enso-2.0.0-alpha.0.${ext}
-          asset_name: Enso-2.0.0-alpha.0.${ext}
+          asset_path: dist/client/Enso-2.0.0-alpha.0.dmg
+          asset_name: Enso-2.0.0-alpha.0.dmg
           asset_content_type: application/zip
         if: matrix.os == 'macos-latest'
       - name: Upload Release (Windows, exe)
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/client/Enso-2.0.0-alpha.0.${ext}
-          asset_name: Enso-2.0.0-alpha.0.${ext}
+          asset_path: dist/client/Enso-2.0.0-alpha.0.exe
+          asset_name: Enso-2.0.0-alpha.0.exe
           asset_content_type: application/zip
         if: matrix.os == 'windows-latest'
       - name: Upload Release (Linux, AppImage)
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/client/Enso-2.0.0-alpha.0.${ext}
-          asset_name: Enso-2.0.0-alpha.0.${ext}
+          asset_path: dist/client/Enso-2.0.0-alpha.0.AppImage
+          asset_name: Enso-2.0.0-alpha.0.AppImage
           asset_content_type: application/zip
         if: matrix.os == 'ubuntu-latest'
