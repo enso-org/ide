@@ -38,139 +38,20 @@ mapping:
   C: 99
  `)
 
-function list(...args) {
-    let out = []
-    for (let arg of args) {
-        if (Array.isArray(arg)) {
-            out.push(...arg)
-        } else {
-            out.push(arg)
-        }
-    }
-    return out
-}
 
-let installRust = {
-    name: "Install Rust",
-    uses: "actions-rs/toolchain@v1",
-    with: {
-        toolchain: "nightly-2019-11-04",
-        override: true
-    }
-}
+// =================
+// === Constants ===
+// =================
 
-let installNode = {
-    name: "Install Node",
-    uses: "actions/setup-node@v1",
-    with: {
-        "node-version": '14.15.0',
-    }
-}
-
-let installPrettier = {
-    name: "Install Prettier",
-    run: "npm install --save-dev --save-exact prettier"
-}
-
-let installClippy = {
-    name: "Install Clippy",
-    run: "rustup component add clippy"
-}
+const NODE_VERSION      = '14.15.0'
+const RUST_VERSION      = 'nightly-2019-11-04'
+const WASM_PACK_VERSION = '0.9.1'
 
 
-function installWasmPackOn(name,sys,pkg) {
-    return {
-        name: `Install wasm-pack (${name})`,
-        env: {
-            WASMPACKURL: "https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1",
-            WASMPACKDIR: `wasm-pack-v0.9.1-x86_64-${pkg}`,
-        },
-        run: `
-            curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
-            mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
-            rm -r $WASMPACKDIR`,
-        shell: "bash",
-        if: `matrix.os == '${sys}-latest'`,
-    }
-}
 
-let installWasmPackOnMacOS   = installWasmPackOn('macOS','macOS','apple-darwin')
-let installWasmPackOnWindows = installWasmPackOn('Windows','windows','pc-windows-msvc')
-let installWasmPackOnLinux   = installWasmPackOn('Linux','ubuntu','unknown-linux-musl')
-
-// We could use cargo install wasm-pack, but that takes 3.5 minutes compared to few seconds.
-let installWasmPack = [installWasmPackOnMacOS, installWasmPackOnWindows, installWasmPackOnLinux]
-
-function buildOn(name,sys) {
-    return {
-        name: `Build (${name})`,
-        run: `node ./run dist --skip-version-validation --target ${name}`,
-        if: `matrix.os == '${sys}-latest'`
-    }
-}
-
-buildOnMacOS   = buildOn('macos','macos')
-buildOnWindows = buildOn('win','windows')
-buildOnLinux   = buildOn('linux','ubuntu')
-
-
-function uploadBinArtifactsFor(name,sys,ext) {
-    return {
-        name: `Upload Artifacts (${name}, ${ext})`,
-        uses: "actions/upload-artifact@v1",
-        with: {
-           name: `Enso (${name})`,
-           path: `dist/client/Enso-*.${ext}`
-        },
-        if: `matrix.os == '${sys}-latest'`
-    }
-}
-
-let uploadContentArtifacts = {
-    name: `Upload Content Artifacts`,
-    uses: "actions/upload-artifact@v1",
-    with: {
-       name: 'content',
-       path: `dist/content`
-    },
-    if: `matrix.os == 'macOS-latest'`
-}
-
-uploadBinArtifactsForMacOS   = uploadBinArtifactsFor('Linux','ubuntu','AppImage')
-uploadBinArtifactsForWindows = uploadBinArtifactsFor('Windows','windows','exe')
-uploadBinArtifactsForLinux   = uploadBinArtifactsFor('macOS','macos','dmg')
-
-
-let lintJavaScript = {
-    name: "Lint JavaScript sources",
-    run: "npx prettier --check 'src/**/*.js'",
-}
-
-let lintRust = {
-    name: "Lint Rust sources",
-    run: "node ./run lint --skip-version-validation",
-}
-
-let testNoWASM = {
-    name: "Run tests (no WASM)",
-    run: "node ./run test --no-wasm --skip-version-validation",
-}
-
-let testWASM = {
-    name: "Run tests (WASM)",
-    run: "node ./run test --no-native --skip-version-validation",
-}
-//let onPush = {
-//    on: ["push"]
-//}
-//
-//let onPushToMain = {
-//    on: {
-//        push: {
-//            branches: "main"
-//        }
-//    }
-//}
+// =============
+// === Utils ===
+// =============
 
 function job(platforms,name,steps,cfg) {
     if (!cfg) { cfg = {} }
@@ -192,56 +73,162 @@ function job_on_all_platforms(...args) {
     return job(["windows-latest", "macOS-latest", "ubuntu-latest"],...args)
 }
 
-
 function job_on_macos(...args) {
     return job(["macOS-latest"],...args)
 }
 
-let build_workflow = {
-    name : "GUI CI",
-    on: ["push"],
-    jobs: {
-        build: job_on_all_platforms("Build", [
-            installNode,
-            installRust,
-            installWasmPack,
-            buildOnMacOS,
-            buildOnWindows,
-            buildOnLinux,
-            uploadBinArtifactsForMacOS,
-            uploadBinArtifactsForWindows,
-            uploadBinArtifactsForLinux
-        ])
+function list(...args) {
+    let out = []
+    for (let arg of args) {
+        if (Array.isArray(arg)) {
+            out.push(...arg)
+        } else {
+            out.push(arg)
+        }
     }
-}
-
-let check_workflow = {
-    name : "Check",
-    on: ["push"],
-    jobs: {
-        lint: job_on_macos("Linter", [
-            installNode,
-            installRust,
-            installPrettier,
-            installClippy,
-            lintJavaScript,
-            lintRust
-        ]),
-        test: job_on_macos("Tests", [
-            installNode,
-            installRust,
-            testNoWASM,
-        ]),
-        "wasm-test": job_on_macos("WASM Tests", [
-            installNode,
-            installRust,
-            installWasmPack,
-            testWASM
-        ])
-    }
+    return out
 }
 
 
+
+// ====================
+// === Dependencies ===
+// ====================
+
+let installRust = {
+    name: "Install Rust",
+    uses: "actions-rs/toolchain@v1",
+    with: {
+        toolchain: RUST_VERSION,
+        override: true
+    }
+}
+
+let installNode = {
+    name: "Install Node",
+    uses: "actions/setup-node@v1",
+    with: {
+        "node-version": NODE_VERSION,
+    }
+}
+
+let installPrettier = {
+    name: "Install Prettier",
+    run: "npm install --save-dev --save-exact prettier"
+}
+
+let installClippy = {
+    name: "Install Clippy",
+    run: "rustup component add clippy"
+}
+
+
+function installWasmPackOn(name,sys,pkg) {
+    return {
+        name: `Install wasm-pack (${name})`,
+        env: {
+            WASMPACKURL: `https://github.com/rustwasm/wasm-pack/releases/download/v${WASM_PACK_VERSION}`,
+            WASMPACKDIR: `wasm-pack-v${WASM_PACK_VERSION}-x86_64-${pkg}`,
+        },
+        run: `
+            curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
+            mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
+            rm -r $WASMPACKDIR`,
+        shell: "bash",
+        if: `matrix.os == '${sys}-latest'`,
+    }
+}
+
+let installWasmPackOnMacOS   = installWasmPackOn('macOS','macOS','apple-darwin')
+let installWasmPackOnWindows = installWasmPackOn('Windows','windows','pc-windows-msvc')
+let installWasmPackOnLinux   = installWasmPackOn('Linux','ubuntu','unknown-linux-musl')
+
+// We could use cargo install wasm-pack, but that takes 3.5 minutes compared to few seconds.
+let installWasmPack = [installWasmPackOnMacOS, installWasmPackOnWindows, installWasmPackOnLinux]
+
+
+
+// =============================
+// === Build, Lint, and Test ===
+// =============================
+
+function buildOn(name,sys) {
+    return {
+        name: `Build (${name})`,
+        run: `node ./run dist --skip-version-validation --target ${name}`,
+        if: `matrix.os == '${sys}-latest'`
+    }
+}
+
+buildOnMacOS   = buildOn('macos','macos')
+buildOnWindows = buildOn('win','windows')
+buildOnLinux   = buildOn('linux','ubuntu')
+
+let lintJavaScript = {
+    name: "Lint JavaScript sources",
+    run: "npx prettier --check 'src/**/*.js'",
+}
+
+let lintRust = {
+    name: "Lint Rust sources",
+    run: "node ./run lint --skip-version-validation",
+}
+
+let testNoWASM = {
+    name: "Run tests (no WASM)",
+    run: "node ./run test --no-wasm --skip-version-validation",
+}
+
+let testWASM = {
+    name: "Run tests (WASM)",
+    run: "node ./run test --no-native --skip-version-validation",
+}
+
+
+
+// =================
+// === Artifacts ===
+// =================
+
+let uploadContentArtifacts = {
+    name: `Upload Content Artifacts`,
+    uses: "actions/upload-artifact@v1",
+    with: {
+       name: 'content',
+       path: `dist/content`
+    },
+    if: `matrix.os == 'macOS-latest'`
+}
+
+function uploadBinArtifactsFor(name,sys,ext) {
+    return {
+        name: `Upload Artifacts (${name}, ${ext})`,
+        uses: "actions/upload-artifact@v1",
+        with: {
+           name: `Enso (${name})`,
+           path: `dist/client/Enso-2.0.0-alpha.0.${ext}`
+        },
+        if: `matrix.os == '${sys}-latest'`
+    }
+}
+
+uploadBinArtifactsForMacOS   = uploadBinArtifactsFor('Linux','ubuntu','AppImage')
+uploadBinArtifactsForWindows = uploadBinArtifactsFor('Windows','windows','exe')
+uploadBinArtifactsForLinux   = uploadBinArtifactsFor('macOS','macos','dmg')
+
+let downloadArtifacts = {
+    name: "Download artifacts",
+    uses: "actions/download-artifact@v2",
+    with: {
+        path: "artifacts"
+    }
+}
+
+
+
+// ======================
+// === GitHub Release ===
+// ======================
 
 let uploadGitHubRelease = {
     name: `Upload GitHub Release`,
@@ -256,30 +243,10 @@ let uploadGitHubRelease = {
 }
 
 
-function uploadArtifactsTestFor(name,sys,ext) {
-    return {
-        name: `Upload Artifacts (${name}, ${ext})`,
-        uses: "actions/upload-artifact@v1",
-        with: {
-           name: `OUT_${name}`,
-           path: `OUT_${name}.txt`
-        },
-        if: `matrix.os == '${sys}-latest'`
-    }
-}
 
-let uploadArtifactsTestForMacOs   = uploadArtifactsTestFor('macos','macos','dmg')
-let uploadArtifactsTestForWindows = uploadArtifactsTestFor('windows','windows','exe')
-let uploadArtifactsTestForLinux   = uploadArtifactsTestFor('linux','ubuntu','AppImage')
-
-let downloadArtifacts = {
-    name: "Download artifacts",
-    uses: "actions/download-artifact@v2",
-    with: {
-        path: "artifacts"
-    }
-}
-
+// ===================
+// === CDN Release ===
+// ===================
 
 prepareDistributionVersionCDN = {
     shell: "bash",
@@ -315,7 +282,12 @@ function uploadToCDN(name) {
 }
 
 
-let release_workflow = {
+
+// ================
+// === Workflow ===
+// ================
+
+let workflow = {
     name : "GUI CI",
     on: ['push'],
     jobs: {
@@ -379,14 +351,36 @@ let release_workflow = {
 
 
 
+let header = `
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# DO NOT CHANGE THIS FILE. IT WAS GENERATED FROM 'workflows.js'. READ DOCS THERE TO LEARN MORE.
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+`
 
-let build_workflow_out = yaml.dump(build_workflow,{noRefs:true})
-let check_workflow_out = yaml.dump(check_workflow,{noRefs:true})
-let release_workflow_out = yaml.dump(release_workflow,{noRefs:true})
-//fss.writeFileSync(path.join(paths.github.workflows,'build.yml'),build_workflow_out)
-//fss.writeFileSync(path.join(paths.github.workflows,'check.yml'),check_workflow_out)
-fss.writeFileSync(path.join(paths.github.workflows,'release.yml'),release_workflow_out)
 
+let release_workflow_out = header + '\n' + yaml.dump(workflow,{noRefs:true})
+fss.writeFileSync(path.join(paths.github.workflows,'gui-ci.yml'),release_workflow_out)
+
+
+const CHANGELOG_FILE_NAME = 'CHANGELOG.md'
+const CHANGELOG_FILE      = path.join(paths.root,CHANGELOG_FILE_NAME)
+
+function extractChangelog(version) {
+    let text    = '\n' + fss.readFileSync(CHANGELOG_FILE,"utf8")
+    let chunks  = text.split(/\r?\n## /)
+    let entries = chunks.filter((s) => s != '')
+    let header  = `Enso ${version}`
+    for (let entry of entries) {
+        if (entry.startsWith(header)) {
+            let body = entry.split(header.length)
+            return body
+        }
+    }
+    throw `The changelog for version '${version}' was not found. Please update it in the ${CHANGELOG_FILE_NAME}.`
+}
+
+let out = extractChangelog('2.0.0-alpha.3')
+console.log(out)
 
 
 // ========================
