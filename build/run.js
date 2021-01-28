@@ -162,7 +162,8 @@ let testWASM = {
 //    }
 //}
 
-function job(platforms,name,steps) {
+function job(platforms,name,steps,cfg) {
+    if (!cfg) { cfg = {} }
     return {
         name: name,
         "runs-on": "${{ matrix.os }}",
@@ -172,7 +173,8 @@ function job(platforms,name,steps) {
             },
             "fail-fast": false
         },
-        steps : list({uses:"actions/checkout@v2"}, ...steps)
+        steps : list({uses:"actions/checkout@v2"}, ...steps),
+        ...cfg
     }
 }
 
@@ -271,7 +273,7 @@ function uploadReleaseTestFor(name,sys,ext) {
         name: `Upload Release (${name}, ${ext})`,
         uses: "actions/upload-release-asset@v1",
         with: {
-            upload_url: "${{ steps.create_release.outputs.upload_url }}",
+            upload_url: "${{needs.create_release.outputs.release_output}}",
             asset_path: `OUT_${name}.txt`,
             asset_name: `OUT_${name}.txt`,
             asset_content_type: "application/zip",
@@ -294,7 +296,11 @@ let release_workflow = {
     jobs: {
         "create_release": job_on_macos("Create Release", [
             createRelease
-        ]),
+        ],{
+            outputs: {
+                release_output: "${{ steps.create_release.outputs.upload_url }}",
+            }
+        }),
         release: job_on_all_platforms("Release", [
               uploadReleaseTestForMacOs,
               uploadReleaseTestForWindows,
@@ -311,7 +317,9 @@ let release_workflow = {
 //            uploadReleaseForMacOs,
 //            uploadReleaseForWindows,
 //            uploadReleaseForLinux
-        ]),
+        ],{
+            needs: "create_release"
+        }),
     }
 }
 
@@ -322,9 +330,9 @@ let release_workflow = {
 let build_workflow_out = yaml.dump(build_workflow,{noRefs:true})
 let check_workflow_out = yaml.dump(check_workflow,{noRefs:true})
 let release_workflow_out = yaml.dump(release_workflow,{noRefs:true})
-//fss.writeFileSync(path.join(paths.github.workflows,'build.yml'),build_workflow_out)
-//fss.writeFileSync(path.join(paths.github.workflows,'check.yml'),check_workflow_out)
-//fss.writeFileSync(path.join(paths.github.workflows,'release.yml'),release_workflow_out)
+fss.writeFileSync(path.join(paths.github.workflows,'build.yml'),build_workflow_out)
+fss.writeFileSync(path.join(paths.github.workflows,'check.yml'),check_workflow_out)
+fss.writeFileSync(path.join(paths.github.workflows,'release.yml'),release_workflow_out)
 
 
 

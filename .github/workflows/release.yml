@@ -25,6 +25,8 @@ jobs:
           body_path: CURRENT_RELEASE_CHANGELOG.md
           draft: false
           prerelease: false
+    outputs:
+      release_output: ${{ steps.create_release.outputs.upload_url }}
   release:
     name: Release
     runs-on: ${{ matrix.os }}
@@ -40,7 +42,7 @@ jobs:
       - name: Upload Release (macos, dmg)
         uses: actions/upload-release-asset@v1
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{needs.create_release.outputs.release_output}}
           asset_path: OUT_macos.txt
           asset_name: OUT_macos.txt
           asset_content_type: application/zip
@@ -48,7 +50,7 @@ jobs:
       - name: Upload Release (windows, exe)
         uses: actions/upload-release-asset@v1
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{needs.create_release.outputs.release_output}}
           asset_path: OUT_windows.txt
           asset_name: OUT_windows.txt
           asset_content_type: application/zip
@@ -56,8 +58,9 @@ jobs:
       - name: Upload Release (linux, AppImage)
         uses: actions/upload-release-asset@v1
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{needs.create_release.outputs.release_output}}
           asset_path: OUT_linux.txt
           asset_name: OUT_linux.txt
           asset_content_type: application/zip
         if: matrix.os == 'ubuntu-latest'
+    needs: create_release
