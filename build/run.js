@@ -120,7 +120,7 @@ function uploadArtifactsFor(name,sys,ext) {
         uses: "actions/upload-artifact@v1",
         with: {
            name: `Enso (${name})`,
-           path: `dist/client/Enso-2.0.0-alpha.0.${ext}`
+           path: `dist/client/Enso-*.${ext}`
         },
         if: `matrix.os == '${sys}-latest'`
     }
@@ -232,63 +232,19 @@ let check_workflow = {
 }
 
 
-createRelease = {
-    name: "Create Release",
-    id: "create_release",
-    uses: "actions/create-release@v1",
+
+let uploadGitHubRelease = {
+    name: `Upload GitHub Release`,
+    uses: "softprops/action-gh-release@v1",
     env: {
         GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
     },
     with: {
-        tag_name: "${{ github.ref }}",
-        release_name: "Enso ${{ github.ref }}",
+        files: "artifacts/**/*",
         body_path: "CURRENT_RELEASE_CHANGELOG.md",
-        draft: false,
-        prerelease: false,
-    }
+    },
 }
 
-
-function uploadReleaseFor(name,sys,ext) {
-    return {
-        name: `Upload Release (${name}, ${ext})`,
-        uses: "actions/upload-release-asset@v1",
-        env: {
-            GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-        },
-        with: {
-            upload_url: "${{ steps.create_release.outputs.upload_url }}",
-            asset_path: `dist/client/Enso-2.0.0-alpha.0.${ext}`, //FIXME
-            asset_name: `Enso-2.0.0-alpha.0.${ext}`,
-            asset_content_type: "application/zip",
-        },
-        if: `matrix.os == '${sys}-latest'`
-    }
-}
-
-let uploadReleaseForMacOs   = uploadReleaseFor('macOS','macos','dmg')
-let uploadReleaseForWindows = uploadReleaseFor('Windows','windows','exe')
-let uploadReleaseForLinux   = uploadReleaseFor('Linux','ubuntu','AppImage')
-
-
-function uploadReleaseTestFor() {
-    return {
-        name: `Upload GitHub Release`,
-        uses: "softprops/action-gh-release@v1",
-        if: "startsWith(github.ref, 'refs/tags/')",
-        env: {
-            GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-        },
-        with: {
-            files: "artifacts/**/*",
-            body_path: "CURRENT_RELEASE_CHANGELOG.md",
-        },
-    }
-}
-
-let uploadRelease   = uploadReleaseTestFor()
-//let uploadReleaseTestForWindows = uploadReleaseTestFor('windows','windows','exe')
-//let uploadReleaseTestForLinux   = uploadReleaseTestFor('linux','ubuntu','AppImage')
 
 function uploadArtifactsTestFor(name,sys,ext) {
     return {
@@ -315,6 +271,40 @@ let downloadArtifacts = {
 }
 
 
+prepareDistributionVersionCDN = {
+    shell: "bash",
+    run: `
+        ref=\${{ github.ref }}
+        refversion=\${ref#"refs/tags/ide-"}
+        echo "DIST_VERSION=$refversion" >> $GITHUB_ENV
+    `
+}
+
+prepareAwsSessionCDN = {
+    shell: "bash",
+    run: `
+        aws configure --profile s3-upload <<-EOF > /dev/null 2>&1
+        \${{ secrets.ARTEFACT_S3_ACCESS_KEY_ID }}
+        \${{ secrets.ARTEFACT_S3_SECRET_ACCESS_KEY }}
+        us-west-1
+        text
+        EOF
+    `
+}
+
+function uploadToCDN(name) {
+    return {
+        name: `Upload '${name}' to CDN`,
+        shell: "bash",
+        run: `
+            aws s3 cp ./artifacts/ide-dist/assets/${name}
+            s3://ensocdn/ide/\${{ env.DIST_VERSION }}/${name} --profile
+            s3-upload --acl public-read --content-encoding gzip
+        `
+    }
+}
+
+
 let release_workflow = {
     name : "GUI CI",
     on: ['push'],
@@ -332,11 +322,7 @@ let release_workflow = {
         ]),
         upload_to_github: job_on_macos("GitHub Release", [
               downloadArtifacts,
-              {
-                  name: "ls artifacts",
-                  run: 'ls -la artifacts'
-              },
-              uploadRelease,
+              uploadGitHubRelease,
 //            uploadArtifactsForMacOS,
 //            uploadArtifactsForWindows,
 //            uploadArtifactsForLinux,
@@ -346,18 +332,13 @@ let release_workflow = {
         }),
         upload_to_cdn: job_on_macos("CDN Release", [
               downloadArtifacts,
-//            installNode,
-//            installRust,
-//            installWasmPack,
-//            buildOnMacOS,
-//            buildOnWindows,
-//            buildOnLinux,
-//            uploadArtifactsForMacOS,
-//            uploadArtifactsForWindows,
-//            uploadArtifactsForLinux,
-//            uploadReleaseForMacOs,
-//            uploadReleaseForWindows,
-//            uploadReleaseForLinux
+              prepareDistributionVersionCDN,
+              prepareAwsSessionCDN,
+              uploadToCDN('index.js.gz'),
+              uploadToCDN('style.css'),
+              uploadToCDN('style.css'),
+              uploadToCDN('ide.wasm'),
+              uploadToCDN('wasm_imports.js.gz'),
         ],{
             needs: "build",
             if: "startsWith(github.ref, 'refs/tags/')",
