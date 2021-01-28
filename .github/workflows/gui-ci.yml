@@ -182,19 +182,19 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: Enso (Linux)
-          path: dist/client/Enso-*.AppImage
+          path: dist/client/Enso-2.0.0-alpha.0.AppImage
         if: matrix.os == 'ubuntu-latest'
       - name: Upload Artifacts (Windows, exe)
         uses: actions/upload-artifact@v1
         with:
           name: Enso (Windows)
-          path: dist/client/Enso-*.exe
+          path: dist/client/Enso-2.0.0-alpha.0.exe
         if: matrix.os == 'windows-latest'
       - name: Upload Artifacts (macOS, dmg)
         uses: actions/upload-artifact@v1
         with:
           name: Enso (macOS)
-          path: dist/client/Enso-*.dmg
+          path: dist/client/Enso-2.0.0-alpha.0.dmg
         if: matrix.os == 'macos-latest'
     if: >-
       startsWith(github.ref,'refs/tags/') || github.ref == 'refs/heads/unstable'
