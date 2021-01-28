@@ -258,7 +258,7 @@ function uploadReleaseFor(name,sys,ext) {
         },
         with: {
             upload_url: "${{ steps.create_release.outputs.upload_url }}",
-            asset_path: `dist/client/Enso-2.0.0-alpha.0.${ext}`,
+            asset_path: `dist/client/Enso-2.0.0-alpha.0.${ext}`, //FIXME
             asset_name: `Enso-2.0.0-alpha.0.${ext}`,
             asset_content_type: "application/zip",
         },
@@ -271,26 +271,49 @@ let uploadReleaseForWindows = uploadReleaseFor('Windows','windows','exe')
 let uploadReleaseForLinux   = uploadReleaseFor('Linux','ubuntu','AppImage')
 
 
-function uploadReleaseTestFor(name,sys,ext) {
+function uploadReleaseTestFor() {
     return {
-        name: `Upload Release (${name}, ${ext})`,
-        uses: "actions/upload-release-asset@v1",
+        name: `Upload GitHub Release`,
+        uses: "softprops/action-gh-release@v1",
+        if: "startsWith(github.ref, 'refs/tags/')",
         env: {
             GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         },
         with: {
-            upload_url: "${{needs.create_release.outputs.release_output}}",
-            asset_path: `OUT_${name}.txt`,
-            asset_name: `OUT_${name}.txt`,
-            asset_content_type: "application/zip",
+            files: "artifacts/*",
+            body_path: "CURRENT_RELEASE_CHANGELOG.md",
+        },
+    }
+}
+
+let uploadRelease   = uploadReleaseTestFor()
+//let uploadReleaseTestForWindows = uploadReleaseTestFor('windows','windows','exe')
+//let uploadReleaseTestForLinux   = uploadReleaseTestFor('linux','ubuntu','AppImage')
+
+function uploadArtifactsTestFor(name,sys,ext) {
+    return {
+        name: `Upload Artifacts (${name}, ${ext})`,
+        uses: "actions/upload-artifact@v1",
+        with: {
+           name: `OUT_${name}`,
+           path: `OUT_${name}.txt`
         },
         if: `matrix.os == '${sys}-latest'`
     }
 }
 
-let uploadReleaseTestForMacOs   = uploadReleaseTestFor('macos','macos','dmg')
-let uploadReleaseTestForWindows = uploadReleaseTestFor('windows','windows','exe')
-let uploadReleaseTestForLinux   = uploadReleaseTestFor('linux','ubuntu','AppImage')
+let uploadArtifactsTestForMacOs   = uploadArtifactsTestFor('macos','macos','dmg')
+let uploadArtifactsTestForWindows = uploadArtifactsTestFor('windows','windows','exe')
+let uploadArtifactsTestForLinux   = uploadArtifactsTestFor('linux','ubuntu','AppImage')
+
+let downloadArtifacts = {
+    name: "Download artifacts",
+    uses: "actions/download-artifact@v2",
+    with: {
+        path: "artifacts"
+    }
+}
+
 
 let release_workflow = {
     name : "Release",
@@ -300,17 +323,15 @@ let release_workflow = {
         }
     },
     jobs: {
-        "create_release": job_on_macos("Create Release", [
-            createRelease
-        ],{
-            outputs: {
-                release_output: "${{ steps.create_release.outputs.upload_url }}",
-            }
-        }),
-        release: job_on_all_platforms("Release", [
-              uploadReleaseTestForMacOs,
-              uploadReleaseTestForWindows,
-              uploadReleaseTestForLinux
+        build: job_on_all_platforms("Build", [
+            installNode,
+            uploadArtifactsTestForMacOs,
+            uploadArtifactsTestForWindows,
+            uploadArtifactsTestForLinux
+        ]),
+        upload_to_github: job_on_macos("Upload to GitHub", [
+              downloadArtifacts,
+              uploadRelease,
 //            installNode,
 //            installRust,
 //            installWasmPack,

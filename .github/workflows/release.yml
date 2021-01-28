@@ -4,31 +4,8 @@ name: Release
     tags:
       - v*
 jobs:
-  create_release:
-    name: Create Release
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os:
-          - macOS-latest
-      fail-fast: false
-    steps:
-      - uses: actions/checkout@v2
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Enso ${{ github.ref }}
-          body_path: CURRENT_RELEASE_CHANGELOG.md
-          draft: false
-          prerelease: false
-    outputs:
-      release_output: ${{ steps.create_release.outputs.upload_url }}
-  release:
-    name: Release
+  build:
+    name: Build
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -39,34 +16,48 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v2
-      - name: Upload Release (macos, dmg)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Node
+        uses: actions/setup-node@v1
         with:
-          upload_url: ${{needs.create_release.outputs.release_output}}
-          asset_path: OUT_macos.txt
-          asset_name: OUT_macos.txt
-          asset_content_type: application/zip
+          node-version: 14.15.0
+      - name: Upload Artifacts (macos, dmg)
+        uses: actions/upload-artifact@v1
+        with:
+          name: OUT_macos
+          path: OUT_macos.txt
         if: matrix.os == 'macos-latest'
-      - name: Upload Release (windows, exe)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Artifacts (windows, exe)
+        uses: actions/upload-artifact@v1
         with:
-          upload_url: ${{needs.create_release.outputs.release_output}}
-          asset_path: OUT_windows.txt
-          asset_name: OUT_windows.txt
-          asset_content_type: application/zip
+          name: OUT_windows
+          path: OUT_windows.txt
         if: matrix.os == 'windows-latest'
-      - name: Upload Release (linux, AppImage)
-        uses: actions/upload-release-asset@v1
+      - name: Upload Artifacts (linux, AppImage)
+        uses: actions/upload-artifact@v1
+        with:
+          name: OUT_linux
+          path: OUT_linux.txt
+        if: matrix.os == 'ubuntu-latest'
+  upload_to_github:
+    name: Upload to GitHub
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - macOS-latest
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: artifacts
+      - name: Upload GitHub Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{needs.create_release.outputs.release_output}}
-          asset_path: OUT_linux.txt
-          asset_name: OUT_linux.txt
-          asset_content_type: application/zip
-        if: matrix.os == 'ubuntu-latest'
+          files: artifacts/*
+          body_path: CURRENT_RELEASE_CHANGELOG.md
     needs: create_release
