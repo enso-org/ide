@@ -172,7 +172,7 @@ function job(platforms,name,steps) {
             },
             "fail-fast": false
         },
-        steps : list({uses:"actions/checkout@v1"}, ...steps)
+        steps : list({uses:"actions/checkout@v2"}, ...steps)
     }
 }
 
@@ -240,7 +240,7 @@ createRelease = {
     with: {
         tag_name: "${{ github.ref }}",
         release_name: "Enso ${{ github.ref }}",
-        body_path: "CHANGELOG.md",
+        body_path: "CURRENT_RELEASE_CHANGELOG.md",
         draft: false,
         prerelease: false,
     }
@@ -266,6 +266,24 @@ let uploadReleaseForWindows = uploadReleaseFor('Windows','windows','exe')
 let uploadReleaseForLinux   = uploadReleaseFor('Linux','ubuntu','AppImage')
 
 
+function uploadReleaseTestFor(name,sys,ext) {
+    return {
+        name: `Upload Release (${name}, ${ext})`,
+        uses: "actions/upload-release-asset@v1",
+        with: {
+            upload_url: "${{ steps.create_release.outputs.upload_url }}",
+            asset_path: `OUT_${name}.txt`,
+            asset_name: `OUT_${name}.txt`,
+            asset_content_type: "application/zip",
+        },
+        if: `matrix.os == '${sys}-latest'`
+    }
+}
+
+let uploadReleaseTestForMacOs   = uploadReleaseTestFor('macos','macos','dmg')
+let uploadReleaseTestForWindows = uploadReleaseTestFor('windows','windows','exe')
+let uploadReleaseTestForLinux   = uploadReleaseTestFor('linux','ubuntu','AppImage')
+
 let release_workflow = {
     name : "Release",
     on: {
@@ -274,20 +292,25 @@ let release_workflow = {
         }
     },
     jobs: {
+        "create_release": job_on_macos("Create Release", [
+            createRelease
+        ]),
         release: job_on_all_platforms("Release", [
-            installNode,
-            installRust,
-            installWasmPack,
-            buildOnMacOS,
-            buildOnWindows,
-            buildOnLinux,
-            uploadArtifactsForMacOS,
-            uploadArtifactsForWindows,
-            uploadArtifactsForLinux,
-            createRelease,
-            uploadReleaseForMacOs,
-            uploadReleaseForWindows,
-            uploadReleaseForLinux
+              uploadReleaseTestForMacOs,
+              uploadReleaseTestForWindows,
+              uploadReleaseTestForLinux
+//            installNode,
+//            installRust,
+//            installWasmPack,
+//            buildOnMacOS,
+//            buildOnWindows,
+//            buildOnLinux,
+//            uploadArtifactsForMacOS,
+//            uploadArtifactsForWindows,
+//            uploadArtifactsForLinux,
+//            uploadReleaseForMacOs,
+//            uploadReleaseForWindows,
+//            uploadReleaseForLinux
         ]),
     }
 }

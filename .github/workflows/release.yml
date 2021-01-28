@@ -4,6 +4,27 @@ name: Release
     tags:
       - v*
 jobs:
+  create_release:
+    name: Create Release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - macOS-latest
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v2
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Enso ${{ github.ref }}
+          body_path: CURRENT_RELEASE_CHANGELOG.md
+          draft: false
+          prerelease: false
   release:
     name: Release
     runs-on: ${{ matrix.os }}
@@ -15,108 +36,28 @@ jobs:
           - ubuntu-latest
       fail-fast: false
     steps:
-      - uses: actions/checkout@v1
-      - name: Install Node
-        uses: actions/setup-node@v1
-        with:
-          node-version: 14.15.0
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly-2019-11-04
-          override: true
-      - name: Install wasm-pack (macOS)
-        env:
-          WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1
-          WASMPACKDIR: wasm-pack-v0.9.1-x86_64-apple-darwin
-        run: |2-
-
-                      curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
-                      mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
-                      rm -r $WASMPACKDIR
-        shell: bash
-        if: matrix.os == 'macOS-latest'
-      - name: Install wasm-pack (Windows)
-        env:
-          WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1
-          WASMPACKDIR: wasm-pack-v0.9.1-x86_64-pc-windows-msvc
-        run: |2-
-
-                      curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
-                      mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
-                      rm -r $WASMPACKDIR
-        shell: bash
-        if: matrix.os == 'windows-latest'
-      - name: Install wasm-pack (Linux)
-        env:
-          WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1
-          WASMPACKDIR: wasm-pack-v0.9.1-x86_64-unknown-linux-musl
-        run: |2-
-
-                      curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
-                      mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
-                      rm -r $WASMPACKDIR
-        shell: bash
-        if: matrix.os == 'ubuntu-latest'
-      - name: Build (macos)
-        run: node ./run dist --skip-version-validation --target macos
-        if: matrix.os == 'macos-latest'
-      - name: Build (win)
-        run: node ./run dist --skip-version-validation --target win
-        if: matrix.os == 'windows-latest'
-      - name: Build (linux)
-        run: node ./run dist --skip-version-validation --target linux
-        if: matrix.os == 'ubuntu-latest'
-      - name: Upload Artifacts (Linux, AppImage)
-        uses: actions/upload-artifact@v1
-        with:
-          name: Enso (Linux)
-          path: dist/client/Enso-2.0.0-alpha.0.AppImage
-        if: matrix.os == 'ubuntu-latest'
-      - name: Upload Artifacts (Windows, exe)
-        uses: actions/upload-artifact@v1
-        with:
-          name: Enso (Windows)
-          path: dist/client/Enso-2.0.0-alpha.0.exe
-        if: matrix.os == 'windows-latest'
-      - name: Upload Artifacts (macOS, dmg)
-        uses: actions/upload-artifact@v1
-        with:
-          name: Enso (macOS)
-          path: dist/client/Enso-2.0.0-alpha.0.dmg
-        if: matrix.os == 'macos-latest'
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Enso ${{ github.ref }}
-          body_path: CHANGELOG.md
-          draft: false
-          prerelease: false
-      - name: Upload Release (macOS, dmg)
+      - uses: actions/checkout@v2
+      - name: Upload Release (macos, dmg)
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/client/Enso-2.0.0-alpha.0.dmg
-          asset_name: Enso-2.0.0-alpha.0.dmg
+          asset_path: OUT_macos.txt
+          asset_name: OUT_macos.txt
           asset_content_type: application/zip
         if: matrix.os == 'macos-latest'
-      - name: Upload Release (Windows, exe)
+      - name: Upload Release (windows, exe)
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/client/Enso-2.0.0-alpha.0.exe
-          asset_name: Enso-2.0.0-alpha.0.exe
+          asset_path: OUT_windows.txt
+          asset_name: OUT_windows.txt
           asset_content_type: application/zip
         if: matrix.os == 'windows-latest'
-      - name: Upload Release (Linux, AppImage)
+      - name: Upload Release (linux, AppImage)
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/client/Enso-2.0.0-alpha.0.AppImage
-          asset_name: Enso-2.0.0-alpha.0.AppImage
+          asset_path: OUT_linux.txt
+          asset_name: OUT_linux.txt
           asset_content_type: application/zip
         if: matrix.os == 'ubuntu-latest'
