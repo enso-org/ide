@@ -182,6 +182,7 @@ let testNoWASM = {
 let testWASM = {
     name: "Run tests (WASM)",
     run: "node ./run test --no-native --skip-version-validation",
+    "continue-on-error": true,
 }
 
 

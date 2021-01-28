@@ -109,6 +109,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
       - name: Run tests (WASM)
         run: node ./run test --no-native --skip-version-validation
+        continue-on-error: true
   build:
     name: Build
     runs-on: ${{ matrix.os }}
