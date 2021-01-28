@@ -280,7 +280,7 @@ function uploadReleaseTestFor() {
             GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         },
         with: {
-            files: "./artifacts/*",
+            files: "artifacts/**/*",
             body_path: "CURRENT_RELEASE_CHANGELOG.md",
         },
     }
@@ -324,7 +324,7 @@ let release_workflow = {
     },
     jobs: {
         build: job_on_all_platforms("Build", [
-            installNode,
+//            installNode,
 //            installRust,
 //            installWasmPack,
 //            buildOnMacOS,
