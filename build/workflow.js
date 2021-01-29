@@ -68,12 +68,12 @@ function list(...args) {
 
 let assertVersionUnstable = {
     name: "Assert Verstion Unstable",
-    run: "node ./run assert-version-unstable",
+    run: "node ./run assert-version-unstable --skip-version-validation",
 }
 
 let assertVersionStable = {
     name: "Assert Verstion Stable",
-    run: "node ./run assert-version-stable",
+    run: "node ./run assert-version-stable --skip-version-validation",
 }
 
 
@@ -286,11 +286,11 @@ let workflow = {
     name : "GUI CI",
     on: ['push'],
     jobs: {
-        assert_version_unstable: job_on_macos("Version Validator", [
+        assert_version_unstable: job_on_macos("Unstable Version Assertion", [
             assertVersionUnstable
             // FIXME:
         ],{if:`github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/wip/wd/ci'`}),
-        assert_version_stable: job_on_macos("Version Validator", [
+        assert_version_stable: job_on_macos("Stable Version Assertion", [
             assertVersionStable
         ],{if:`github.ref == 'refs/heads/stable'`}),
         lint: job_on_macos("Linter", [
