@@ -21,6 +21,8 @@ export class ProgressIndicator {
         this.dom.style.position = 'fixed'
         this.dom.style.top      = 0
         this.dom.style.left     = 0
+        // In the Cloud UI, all layers are stacked, and the progress
+        // indicator must be placed at the top layer.
         this.dom.style.zIndex   = top_layer_index
 
         let center = document.createElement('div')
