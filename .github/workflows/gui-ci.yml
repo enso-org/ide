@@ -183,24 +183,23 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: Enso (Linux)
-          path: dist/client/Enso-2.0.0-alpha.0.AppImage
+          path: dist/client/enso-linux-2.0.0-alpha.2.AppImage
         if: matrix.os == 'ubuntu-latest'
       - name: Upload Artifacts (Windows, exe)
         uses: actions/upload-artifact@v1
         with:
           name: Enso (Windows)
-          path: dist/client/Enso Setup 2.0.0-alpha.0.exe
+          path: dist/client/enso-win-2.0.0-alpha.2.exe
         if: matrix.os == 'windows-latest'
       - name: Upload Artifacts (macOS, dmg)
         uses: actions/upload-artifact@v1
         with:
           name: Enso (macOS)
-          path: dist/client/Enso-2.0.0-alpha.0.dmg
+          path: dist/client/enso-mac-2.0.0-alpha.2.dmg
         if: matrix.os == 'macos-latest'
     if: >-
-      startsWith(github.ref,'refs/tags/') || github.ref == 'refs/heads/unstable'
-      || github.ref == 'refs/heads/stable' || github.ref ==
-      'refs/heads/wip/wd/ci'
+      github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
+      || github.ref == 'refs/heads/wip/wd/ci'
   release_to_github:
     name: GitHub Release
     runs-on: ${{ matrix.os }}
@@ -227,14 +226,17 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: artifacts/**/Enso*
+          name: Enso ${{fromJson(steps.changelog.outputs.content).version}}
           tag_name: v${{fromJson(steps.changelog.outputs.content).version}}
-          path: ${{fromJson(steps.changelog.outputs.content).body}}
+          body: ${{fromJson(steps.changelog.outputs.content).body}}
     needs:
       - lint
       - test
       - wasm-test
       - build
-    if: startsWith(github.ref,'refs/tags/')
+    if: >-
+      github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
+      || github.ref == 'refs/heads/wip/wd/ci'
   release_to_cdn:
     name: CDN Release
     runs-on: ${{ matrix.os }}
@@ -252,13 +254,6 @@ jobs:
       - shell: bash
         run: |2-
 
-                  ref=${{ github.ref }}
-                  refversion=${ref#"refs/tags/ide-"}
-                  echo "DIST_VERSION=$refversion" >> $GITHUB_ENV
-              
-      - shell: bash
-        run: |2-
-
                   aws configure --profile s3-upload <<-EOF > /dev/null 2>&1
                   ${{ secrets.ARTEFACT_S3_ACCESS_KEY_ID }}
                   ${{ secrets.ARTEFACT_S3_SECRET_ACCESS_KEY }}
@@ -271,7 +266,7 @@ jobs:
         run: |2-
 
                       aws s3 cp ./artifacts/content/assets/index.js.gz
-                      s3://ensocdn/ide/${{ env.DIST_VERSION }}/index.js.gz --profile
+                      s3://ensocdn/ide/2.0.0-alpha.2/index.js.gz --profile
                       s3-upload --acl public-read --content-encoding gzip
                   
       - name: Upload 'style.css' to CDN
@@ -279,7 +274,7 @@ jobs:
         run: |2-
 
                       aws s3 cp ./artifacts/content/assets/style.css
-                      s3://ensocdn/ide/${{ env.DIST_VERSION }}/style.css --profile
+                      s3://ensocdn/ide/2.0.0-alpha.2/style.css --profile
                       s3-upload --acl public-read --content-encoding gzip
                   
       - name: Upload 'style.css' to CDN
@@ -287,7 +282,7 @@ jobs:
         run: |2-
 
                       aws s3 cp ./artifacts/content/assets/style.css
-                      s3://ensocdn/ide/${{ env.DIST_VERSION }}/style.css --profile
+                      s3://ensocdn/ide/2.0.0-alpha.2/style.css --profile
                       s3-upload --acl public-read --content-encoding gzip
                   
       - name: Upload 'ide.wasm' to CDN
@@ -295,7 +290,7 @@ jobs:
         run: |2-
 
                       aws s3 cp ./artifacts/content/assets/ide.wasm
-                      s3://ensocdn/ide/${{ env.DIST_VERSION }}/ide.wasm --profile
+                      s3://ensocdn/ide/2.0.0-alpha.2/ide.wasm --profile
                       s3-upload --acl public-read --content-encoding gzip
                   
       - name: Upload 'wasm_imports.js.gz' to CDN
@@ -303,7 +298,7 @@ jobs:
         run: |2-
 
                       aws s3 cp ./artifacts/content/assets/wasm_imports.js.gz
-                      s3://ensocdn/ide/${{ env.DIST_VERSION }}/wasm_imports.js.gz --profile
+                      s3://ensocdn/ide/2.0.0-alpha.2/wasm_imports.js.gz --profile
                       s3-upload --acl public-read --content-encoding gzip
                   
     needs:
@@ -311,4 +306,6 @@ jobs:
       - test
       - wasm-test
       - build
-    if: startsWith(github.ref,'refs/tags/')
+    if: >-
+      github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
+      || github.ref == 'refs/heads/wip/wd/ci'

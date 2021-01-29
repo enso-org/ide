@@ -43,7 +43,8 @@ let config = {
 config.build = {
     appId: 'org.enso',
     productName: 'Enso',
-    copyright: 'Copyright © 2020 ${author}.',
+    copyright: 'Copyright © 2021 ${author}.',
+    artifactName: 'enso-${os}-${version}.${ext}',
     mac: {
         icon: `${paths.dist.root}/icons/icon.icns`,
         category: 'public.app-category.developer-tools',

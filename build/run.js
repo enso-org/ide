@@ -28,15 +28,86 @@ async function gzip(input, output) {
 
 const yaml = require('js-yaml');
 
-let doc = yaml.load(`
-defaults: &defaults
-  A: 1
-  B: 2
-mapping:
-  << : *defaults
-  A: 23
-  C: 99
- `)
+
+
+
+const CHANGELOG_FILE_NAME = 'CHANGELOG.md'
+const CHANGELOG_FILE      = path.join(paths.root,CHANGELOG_FILE_NAME)
+
+
+
+const semver = require('semver')
+
+class ChangelogEntry {
+    constructor(version,body) {
+        let semVersion = semver.valid(version)
+        if (version !== semVersion) {
+            throw `The version '${version}' is not a valid semantic varsion.`
+        }
+        this.version = version
+        this.body    = body
+    }
+}
+
+class Changelog {
+    constructor() {
+        this.entries = changelogEntries()
+    }
+
+    newestEntry() {
+        return this.entries[0]
+    }
+
+    currentVersion() {
+        return this.newestEntry().version
+    }
+}
+
+let changelog = new Changelog
+let currentDistVersion = changelog.currentVersion()
+
+function changelogSections() {
+    let text    = '\n' + fss.readFileSync(CHANGELOG_FILE,"utf8")
+    let chunks  = text.split(/\r?\n# /)
+    return chunks.filter((s) => s != '')
+}
+
+function changelogEntries() {
+    let sections = changelogSections()
+    let prefix   = "Enso "
+    let entries  = []
+    for (let section of sections) {
+        if (!section.startsWith(prefix)) {
+            throw `Improper changelog entry header: ${section}`
+        } else {
+            let splitPoint = section.indexOf('\n')
+            let body       = section.substring(splitPoint).trim()
+            let header     = section.substring(0,splitPoint).trim()
+            let version    = header.substring(prefix.length)
+            entries.push(new ChangelogEntry(version,body))
+        }
+    }
+
+    var lastVersion = null
+    for (let entry of entries) {
+        if (lastVersion !== null) {
+            if (!semver.lt(entry.version,lastVersion)) {
+                throw `Versions are not properly ordered in the changelog (${entry.version} >= ${lastVersion}).`
+            }
+        }
+        lastVersion = entry.version
+    }
+    return entries
+}
+
+
+
+console.log(changelog.currentVersion())
+
+
+//fss.writeFileSync('CURRENT_RELEASE_CHANGELOG.json',JSON.stringify({version:out.version,body:out.body}))
+
+
 
 
 // =================
@@ -201,21 +272,21 @@ let uploadContentArtifacts = {
     if: `matrix.os == 'macOS-latest'`
 }
 
-function uploadBinArtifactsFor(name,sys,ext,sfx) {
+function uploadBinArtifactsFor(name,sys,ext,os) {
     return {
         name: `Upload Artifacts (${name}, ${ext})`,
         uses: "actions/upload-artifact@v1",
         with: {
            name: `Enso (${name})`,
-           path: `dist/client/Enso${sfx}2.0.0-alpha.0.${ext}`
+           path: `dist/client/enso-${os}-${currentDistVersion}.${ext}`
         },
         if: `matrix.os == '${sys}-latest'`
     }
 }
 
-uploadBinArtifactsForMacOS   = uploadBinArtifactsFor('Linux','ubuntu','AppImage','-')
-uploadBinArtifactsForWindows = uploadBinArtifactsFor('Windows','windows','exe',' Setup ')
-uploadBinArtifactsForLinux   = uploadBinArtifactsFor('macOS','macos','dmg','-')
+uploadBinArtifactsForMacOS   = uploadBinArtifactsFor('Linux','ubuntu','AppImage','linux')
+uploadBinArtifactsForWindows = uploadBinArtifactsFor('Windows','windows','exe','win')
+uploadBinArtifactsForLinux   = uploadBinArtifactsFor('macOS','macos','dmg','mac')
 
 let downloadArtifacts = {
     name: "Download artifacts",
@@ -247,8 +318,9 @@ let uploadGitHubRelease = {
     },
     with: {
         files:    "artifacts/**/Enso*",
+        name:     "Enso ${{fromJson(steps.changelog.outputs.content).version}}",
         tag_name: "v${{fromJson(steps.changelog.outputs.content).version}}",
-        path:     "${{fromJson(steps.changelog.outputs.content).body}}",
+        body:     "${{fromJson(steps.changelog.outputs.content).body}}",
     },
 }
 
@@ -258,14 +330,14 @@ let uploadGitHubRelease = {
 // === CDN Release ===
 // ===================
 
-prepareDistributionVersionCDN = {
-    shell: "bash",
-    run: `
-        ref=\${{ github.ref }}
-        refversion=\${ref#"refs/tags/ide-"}
-        echo "DIST_VERSION=$refversion" >> $GITHUB_ENV
-    `
-}
+//prepareDistributionVersionCDN = {
+//    shell: "bash",
+//    run: `
+//        ref=\${{ github.ref }}
+//        refversion=\${ref#"refs/tags/v"}
+//        echo "DIST_VERSION=$refversion" >> $GITHUB_ENV
+//    `
+//}
 
 prepareAwsSessionCDN = {
     shell: "bash",
@@ -285,17 +357,22 @@ function uploadToCDN(name) {
         shell: "bash",
         run: `
             aws s3 cp ./artifacts/content/assets/${name}
-            s3://ensocdn/ide/\${{ env.DIST_VERSION }}/${name} --profile
+            s3://ensocdn/ide/${currentDistVersion}/${name} --profile
             s3-upload --acl public-read --content-encoding gzip
         `
     }
 }
+
+// s3://ensocdn/ide/${{ env.DIST_VERSION }}/${name} --profile
 
 
 
 // ================
 // === Workflow ===
 // ================
+
+// FIXME:
+let releaseCondition = "github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/wip/wd/ci'"
 
 let workflow = {
     name : "GUI CI",
@@ -332,8 +409,7 @@ let workflow = {
             uploadBinArtifactsForWindows,
             uploadBinArtifactsForLinux,
         ],{
-            // FIXME:
-            if: "startsWith(github.ref,'refs/tags/') || github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/wip/wd/ci'",
+            if: releaseCondition,
         }),
         release_to_github: job_on_macos("GitHub Release", [
               downloadArtifacts,
@@ -341,11 +417,11 @@ let workflow = {
               uploadGitHubRelease,
         ],{
             needs: ["lint","test","wasm-test","build"],
-            if: "startsWith(github.ref,'refs/tags/')",
+            if: releaseCondition,
         }),
         release_to_cdn: job_on_macos("CDN Release", [
               downloadArtifacts,
-              prepareDistributionVersionCDN,
+//              prepareDistributionVersionCDN,
               prepareAwsSessionCDN,
               uploadToCDN('index.js.gz'),
               uploadToCDN('style.css'),
@@ -354,7 +430,7 @@ let workflow = {
               uploadToCDN('wasm_imports.js.gz'),
         ],{
             needs: ["lint","test","wasm-test","build"],
-            if: "startsWith(github.ref,'refs/tags/')",
+            if: releaseCondition,
         }),
     }
 }
@@ -373,89 +449,6 @@ let release_workflow_out = header + '\n' + yaml.dump(workflow,{noRefs:true})
 fss.writeFileSync(path.join(paths.github.workflows,'gui-ci.yml'),release_workflow_out)
 
 
-const CHANGELOG_FILE_NAME = 'CHANGELOG.md'
-const CHANGELOG_FILE      = path.join(paths.root,CHANGELOG_FILE_NAME)
-
-
-
-const semver = require('semver')
-
-class ChangelogEntry {
-    constructor(version,body) {
-        let semVersion = semver.valid(version)
-        if (version !== semVersion) {
-            throw `The version '${version}' is not a valid semantic varsion.`
-        }
-        this.version = version
-        this.body    = body
-    }
-}
-
-function extractChangelog(version) {
-    let text    = '\n' + fss.readFileSync(CHANGELOG_FILE,"utf8")
-    let chunks  = text.split(/\r?\n## /)
-    let entries = chunks.filter((s) => s != '')
-    let header  = `Enso ${version}`
-    for (let entry of entries) {
-        if (entry.startsWith(header)) {
-            let body = entry.split(header.length)
-            return body
-        }
-    }
-    throw `The changelog for version '${version}' was not found. Please update it in the ${CHANGELOG_FILE_NAME}.`
-}
-
-function changelogSections() {
-    let text    = '\n' + fss.readFileSync(CHANGELOG_FILE,"utf8")
-    let chunks  = text.split(/\r?\n# /)
-    return chunks.filter((s) => s != '')
-}
-
-function changelogEntries() {
-    let sections = changelogSections()
-    let prefix   = "Enso "
-    let entries  = []
-    for (let section of sections) {
-        if (!section.startsWith(prefix)) {
-            throw `Improper changelog entry header: ${section}`
-        } else {
-            let splitPoint = section.indexOf('\n')
-            let body       = section.substring(splitPoint).trim()
-            let header     = section.substring(0,splitPoint).trim()
-            let version    = header.substring(prefix.length)
-            entries.push(new ChangelogEntry(version,body))
-        }
-    }
-
-    var lastVersion = null
-    for (let entry of entries) {
-        if (lastVersion !== null) {
-            if (!semver.lt(entry.version,lastVersion)) {
-                throw `Versions are not properly ordered in the changelog (${entry.version} >= ${lastVersion}).`
-            }
-        }
-        lastVersion = entry.version
-    }
-    return entries
-}
-
-function changelogNewestEntry() {
-    return changelogEntries()[0]
-}
-
-let out = changelogNewestEntry()
-console.log(out)
-
-
-fss.writeFileSync('CURRENT_RELEASE_CHANGELOG.json',JSON.stringify({version:out.version,body:out.body}))
-
-
-let foo = `
-                  content=\`cat CURRENT_RELEASE_CHANGELOG.json\`
-                  echo "::set-output name=content::$content"
-              `
-
-//console.log(foo)
 
 // ========================
 // === Global Variables ===
@@ -810,7 +803,7 @@ for (let command of commandList) {
 
 function defaultConfig() {
     return {
-        version: "2.0.0-alpha.0",
+        version: currentDistVersion,
         author: {
             name: "Enso Team",
             email: "contact@enso.org"
