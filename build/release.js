@@ -1,3 +1,6 @@
+/// Package release utilities. Especially, utilities to load `CHANGELOG.md`, extract the newest
+/// entry, and use it to generate package version and description.
+
 const fss    = require('fs')
 const path   = require('path')
 const paths  = require('./paths')

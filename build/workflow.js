@@ -1,3 +1,7 @@
+/// GitHub workflow generator. We are using custom generator in order to re-use sub-steps. This
+/// may not be needed anymore after this feature request will be resolved by GitHub:
+/// https://github.community/t/support-for-yaml-anchors/16128
+
 const fss     = require('fs')
 const path    = require('path')
 const paths   = require('./paths')
@@ -173,7 +177,7 @@ function uploadBinArtifactsFor(name,sys,ext,os) {
         name: `Upload Artifacts (${name}, ${ext})`,
         uses: "actions/upload-artifact@v1",
         with: {
-           name: `Enso (${name})`,
+           name: `enso-${os}-${release.currentVersion()}.${ext}`,
            path: `dist/client/enso-${os}-${release.currentVersion()}.${ext}`
         },
         if: `matrix.os == '${sys}-latest'`
@@ -215,7 +219,7 @@ let uploadGitHubRelease = {
         GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
     },
     with: {
-        files:    "artifacts/**/Enso*",
+        files:    "artifacts/**/enso-*",
         name:     "Enso ${{fromJson(steps.changelog.outputs.content).version}}",
         tag_name: "v${{fromJson(steps.changelog.outputs.content).version}}",
         body:     "${{fromJson(steps.changelog.outputs.content).body}}",

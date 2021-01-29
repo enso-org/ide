@@ -182,19 +182,19 @@ jobs:
       - name: Upload Artifacts (Linux, AppImage)
         uses: actions/upload-artifact@v1
         with:
-          name: Enso (Linux)
+          name: enso-linux-2.0.0-alpha.2.AppImage
           path: dist/client/enso-linux-2.0.0-alpha.2.AppImage
         if: matrix.os == 'ubuntu-latest'
       - name: Upload Artifacts (Windows, exe)
         uses: actions/upload-artifact@v1
         with:
-          name: Enso (Windows)
+          name: enso-win-2.0.0-alpha.2.exe
           path: dist/client/enso-win-2.0.0-alpha.2.exe
         if: matrix.os == 'windows-latest'
       - name: Upload Artifacts (macOS, dmg)
         uses: actions/upload-artifact@v1
         with:
-          name: Enso (macOS)
+          name: enso-mac-2.0.0-alpha.2.dmg
           path: dist/client/enso-mac-2.0.0-alpha.2.dmg
         if: matrix.os == 'macos-latest'
     if: >-
@@ -227,7 +227,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: artifacts/**/Enso*
+          files: artifacts/**/enso-*
           name: Enso ${{fromJson(steps.changelog.outputs.content).version}}
           tag_name: v${{fromJson(steps.changelog.outputs.content).version}}
           body: ${{fromJson(steps.changelog.outputs.content).body}}
