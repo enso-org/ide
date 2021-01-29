@@ -284,8 +284,7 @@ function uploadToCDN(...names) {
 // === Workflow ===
 // ================
 
-// FIXME:
-let releaseCondition = `github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/wip/wd/ci'`
+let releaseCondition = `github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'`
 let buildCondition   = `github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || ${releaseCondition}`
 
 let workflow = {
@@ -294,8 +293,7 @@ let workflow = {
     jobs: {
         assert_version_unstable: job_on_macos("Unstable Version Assertion", [
             assertVersionUnstable
-            // FIXME:
-        ],{if:`github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/wip/wd/ci'`}),
+        ],{if:`github.ref == 'refs/heads/unstable'`}),
         assert_version_stable: job_on_macos("Stable Version Assertion", [
             assertVersionStable
         ],{if:`github.ref == 'refs/heads/stable'`}),
@@ -337,13 +335,14 @@ let workflow = {
         ],{ if:releaseCondition,
             needs:["assert_version_unstable","assert_version_stable","lint","test","wasm-test","build"]
         }),
-        release_to_cdn: job_on_macos("CDN Release", [
-            downloadArtifacts,
-            prepareAwsSessionCDN,
-            uploadToCDN('index.js.gz','style.css','ide.wasm','wasm_imports.js.gz'),
-        ],{ if:releaseCondition,
-            needs:["assert_version_unstable","assert_version_stable","lint","test","wasm-test","build"]
-        }),
+// FIXME: Commented until CDN gets fixed
+//        release_to_cdn: job_on_macos("CDN Release", [
+//            downloadArtifacts,
+//            prepareAwsSessionCDN,
+//            uploadToCDN('index.js.gz','style.css','ide.wasm','wasm_imports.js.gz'),
+//        ],{ if:releaseCondition,
+//            needs:["assert_version_unstable","assert_version_stable","lint","test","wasm-test","build"]
+//        }),
     }
 }
 
