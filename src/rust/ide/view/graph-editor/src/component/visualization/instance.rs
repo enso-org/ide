@@ -30,16 +30,14 @@ pub struct FrpInputs {
 #[allow(missing_docs)]
 pub struct Frp {
     #[shrinkwrap(main_field)]
-    pub inputs                : FrpInputs,
+    pub inputs                 : FrpInputs,
 
-    pub on_change             : frp::Stream<EnsoCode>,
-    pub on_preprocess_change  : frp::Stream<EnsoCode>,
-    pub on_data_receive_error : frp::Stream<Option<DataError>>,
-    pub is_active             : frp::Stream<bool>,
+    pub on_preprocessor_change : frp::Stream<EnsoCode>,
+    pub on_data_receive_error  : frp::Stream<Option<DataError>>,
+    pub is_active              : frp::Stream<bool>,
 
     pub data_receive_error    : frp::Source<Option<DataError>>,
-    pub change                : frp::Source<EnsoCode>,
-    pub preprocess_change     : frp::Source<EnsoCode>,
+    pub preprocessor_change: frp::Source<EnsoCode>,
     pub activate              : frp::Source,
     pub deactivate            : frp::Source,
 }
@@ -59,19 +57,17 @@ impl Frp {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
-            def change             = source();
-            def preprocess_change  = source();
-            def data_receive_error = source();
-            def activate           = source();
-            def deactivate         = source();
+            def preprocessor_change = source();
+            def data_receive_error  = source();
+            def activate            = source();
+            def deactivate          = source();
             is_active              <- bool(&deactivate,&activate);
         };
-        let on_change             = change.clone_ref().into();
-        let on_preprocess_change  = preprocess_change.clone_ref().into();
-        let on_data_receive_error = data_receive_error.clone_ref().into();
-        let inputs                = FrpInputs::new(&network);
-        Self {on_change,on_preprocess_change,on_data_receive_error,is_active,change,
-            preprocess_change,inputs,data_receive_error,activate,deactivate}
+        let on_preprocessor_change = preprocessor_change.clone_ref().into();
+        let on_data_receive_error  = data_receive_error.clone_ref().into();
+        let inputs                 = FrpInputs::new(&network);
+        Self {on_preprocessor_change,on_data_receive_error,is_active,preprocessor_change,inputs
+            ,data_receive_error,activate,deactivate}
     }
 
     /// Extend the FRP network with mechanism of passing all mouse and keyboard event to DOM when

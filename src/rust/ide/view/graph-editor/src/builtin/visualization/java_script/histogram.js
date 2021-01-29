@@ -6,7 +6,7 @@ loadStyle('https://fontlibrary.org/face/dejavu-sans-mono')
 let shortcuts = {
     zoomIn: (e) => (e.ctrlKey || e.metaKey) && e.key === 'z',
     showAll: (e) => (e.ctrlKey || e.metaKey) && e.key === 'a',
-    debugPreprocessor: (e) => (e.ctrlKey || e.metaKey) && e.key === 'e'
+    debugPreprocessor: (e) => (e.ctrlKey || e.metaKey) && e.key === 'd  '
 }
 
 const LABEL_STYLE = 'font-family: DejaVuSansMonoBook; font-size: 10px;'
@@ -229,6 +229,7 @@ class Histogram extends Visualization {
             if (shortcuts.debugPreprocessor(e)) {
                 console.error("WORKS")
                 this.setPreprocessor('x -> "[1,2,3,4]"')
+                e.preventDefault()
             }
         })
     }

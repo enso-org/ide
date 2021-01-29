@@ -107,8 +107,7 @@ fn init(app:&Application) {
 
     let network = enso_frp::Network::new("VisualizationExample");
     enso_frp::extend! { network
-        trace visualization.on_change;
-        trace visualization.on_preprocess_change;
+        trace visualization.on_preprocessor_change;
     };
     std::mem::forget(network);
 

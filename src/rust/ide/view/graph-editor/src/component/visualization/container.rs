@@ -394,13 +394,16 @@ impl ContainerModel {
         self.set_visibility(!self.is_active())
     }
 
-    fn set_visualization(&self, visualization:Option<visualization::Instance>) {
-        if let Some(visualization) = visualization {
-            let size = self.size.get();
-            visualization.set_size.emit(size);
-            self.view.add_child(&visualization);
-            self.visualization.replace(Some(visualization));
+    fn set_visualization
+    (&self, visualization:visualization::Instance, preprocessor:&frp::Any<EnsoCode>) {
+        let size = self.size.get();
+        visualization.set_size.emit(size);
+        let _vis_network = &visualization.network;
+        frp::extend! { _vis_network
+            preprocessor <+ visualization.on_preprocessor_change;
         }
+        self.view.add_child(&visualization);
+        self.visualization.replace(Some(visualization));
     }
 
     fn set_visualization_data(&self, data:&visualization::Data) {
@@ -527,11 +530,7 @@ impl Container {
                 if let Some(definition) = vis_definition {
                     match definition.new_instance(&scene) {
                         Ok(vis)  => {
-                            let _vis_network = &vis.network;
-                            frp::extend! { _vis_network
-                                preprocessor <+ vis.on_change;
-                            }
-                            model.set_visualization(Some(vis));
+                            model.set_visualization(vis,&preprocessor);
                             let path = Some(definition.signature.path.clone());
                             action_bar.set_selected_visualization.emit(path);
                         },
@@ -598,10 +597,12 @@ impl Container {
             selected_definition  <- action_bar.visualisation_selection.map(f!([registry](path)
                 path.as_ref().map(|path| registry.definition_from_path(path) ).flatten()
             ));
-            eval selected_definition([scene,model,logger](definition)  {
+            eval selected_definition([scene,model,logger,preprocessor](definition)  {
                 let vis = definition.as_ref().map(|d| d.new_instance(&scene));
                 match vis {
-                    Some(Ok(vis))  => model.set_visualization(Some(vis)),
+                    Some(Ok(vis))  => {
+                        model.set_visualization(vis,&preprocessor);
+                    }
                     Some(Err(err)) => {
                         warning!(logger,"Failed to instantiate visualisation: {err:?}");
                     },

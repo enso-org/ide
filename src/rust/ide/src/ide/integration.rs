@@ -235,7 +235,7 @@ impl Integration {
         // === Setting Visualization Preprocessor ===
 
         frp::extend! { network
-            eval editor_outs.visualization_code_changed ([model]((node_id,code)) {
+            eval editor_outs.visualization_preprocessor_changed ([model]((node_id,code)) {
                 if let Err(err) = model.visualization_preprocessor_changed(*node_id,code) {
                     error!(model.logger, "Error when handling request for setting new \
                         visualization's preprocessor code: {err}");
