@@ -86,7 +86,7 @@ function changelogEntries() {
     let entries  = []
     for (let section of sections) {
         if (!section.startsWith(prefix)) {
-            throw `Improper changelog entry header: ${section}`
+            throw `Improper changelog entry header: ${section}. It should start with`
         } else {
             let splitPoint = section.indexOf('\n')
             let body       = section.substring(splitPoint).trim()

@@ -48,6 +48,10 @@ function job_on_macos(...args) {
     return job(["macOS-latest"],...args)
 }
 
+function job_on_linux(...args) {
+    return job(["ubuntu-latest"],...args)
+}
+
 function list(...args) {
     let out = []
     for (let arg of args) {
@@ -67,12 +71,12 @@ function list(...args) {
 // ==================
 
 let assertVersionUnstable = {
-    name: "Assert Verstion Unstable",
+    name: "Assert Version Unstable",
     run: "node ./run assert-version-unstable --skip-version-validation",
 }
 
 let assertVersionStable = {
-    name: "Assert Verstion Stable",
+    name: "Assert Version Stable",
     run: "node ./run assert-version-stable --skip-version-validation",
 }
 
@@ -284,7 +288,8 @@ function uploadToCDN(...names) {
 // === Workflow ===
 // ================
 
-let releaseCondition = `github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'`
+// FIXME
+let releaseCondition = `github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/wip/wd/ci'`
 let buildCondition   = `github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || ${releaseCondition}`
 
 let workflow = {
@@ -335,14 +340,13 @@ let workflow = {
         ],{ if:releaseCondition,
             needs:["assert_version_unstable","assert_version_stable","lint","test","wasm-test","build"]
         }),
-// FIXME: Commented until CDN gets fixed
-//        release_to_cdn: job_on_macos("CDN Release", [
-//            downloadArtifacts,
-//            prepareAwsSessionCDN,
-//            uploadToCDN('index.js.gz','style.css','ide.wasm','wasm_imports.js.gz'),
-//        ],{ if:releaseCondition,
-//            needs:["assert_version_unstable","assert_version_stable","lint","test","wasm-test","build"]
-//        }),
+        release_to_cdn: job_on_linux("CDN Release", [
+            downloadArtifacts,
+            prepareAwsSessionCDN,
+            uploadToCDN('index.js.gz','style.css','ide.wasm','wasm_imports.js.gz'),
+        ],{ if:releaseCondition,
+            needs:["assert_version_unstable","assert_version_stable","lint","test","wasm-test","build"]
+        }),
     }
 }
 

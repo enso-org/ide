@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v2
-      - name: Assert Verstion Unstable
+      - name: Assert Version Unstable
         run: node ./run assert-version-unstable --skip-version-validation
     if: github.ref == 'refs/heads/unstable'
   assert_version_stable:
@@ -30,7 +30,7 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v2
-      - name: Assert Verstion Stable
+      - name: Assert Version Stable
         run: node ./run assert-version-stable --skip-version-validation
     if: github.ref == 'refs/heads/stable'
   lint:
@@ -226,6 +226,7 @@ jobs:
     if: >-
       github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' ||
       github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
+      || github.ref == 'refs/heads/wip/wd/ci'
   release_to_github:
     name: GitHub Release
     runs-on: ${{ matrix.os }}
@@ -258,7 +259,75 @@ jobs:
           tag_name: v${{fromJson(steps.changelog.outputs.content).version}}
           body: ${{fromJson(steps.changelog.outputs.content).body}}
           prerelease: ${{fromJson(steps.changelog.outputs.content).prerelease}}
-    if: github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
+    if: >-
+      github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
+      || github.ref == 'refs/heads/wip/wd/ci'
+    needs:
+      - assert_version_unstable
+      - assert_version_stable
+      - lint
+      - test
+      - wasm-test
+      - build
+  release_to_cdn:
+    name: CDN Release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: artifacts
+      - shell: bash
+        run: |2-
+
+                  aws configure --profile s3-upload <<-EOF > /dev/null 2>&1
+                  ${{ secrets.ARTEFACT_S3_ACCESS_KEY_ID }}
+                  ${{ secrets.ARTEFACT_S3_SECRET_ACCESS_KEY }}
+                  us-west-1
+                  text
+                  EOF
+              
+      - name: Upload 'index.js.gz' to CDN
+        shell: bash
+        run: |2-
+
+                          aws s3 cp ./artifacts/content/assets/index.js.gz
+                          s3://ensocdn/ide/2.0.0-alpha.2/index.js.gz --profile
+                          s3-upload --acl public-read --content-encoding gzip
+                          
+      - name: Upload 'style.css' to CDN
+        shell: bash
+        run: |2-
+
+                          aws s3 cp ./artifacts/content/assets/style.css
+                          s3://ensocdn/ide/2.0.0-alpha.2/style.css --profile
+                          s3-upload --acl public-read --content-encoding gzip
+                          
+      - name: Upload 'ide.wasm' to CDN
+        shell: bash
+        run: |2-
+
+                          aws s3 cp ./artifacts/content/assets/ide.wasm
+                          s3://ensocdn/ide/2.0.0-alpha.2/ide.wasm --profile
+                          s3-upload --acl public-read --content-encoding gzip
+                          
+      - name: Upload 'wasm_imports.js.gz' to CDN
+        shell: bash
+        run: |2-
+
+                          aws s3 cp ./artifacts/content/assets/wasm_imports.js.gz
+                          s3://ensocdn/ide/2.0.0-alpha.2/wasm_imports.js.gz --profile
+                          s3-upload --acl public-read --content-encoding gzip
+                          
+    if: >-
+      github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
+      || github.ref == 'refs/heads/wip/wd/ci'
     needs:
       - assert_version_unstable
       - assert_version_stable
