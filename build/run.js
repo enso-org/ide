@@ -311,7 +311,7 @@ commands.dist.js = async function() {
 commands['ci-gen'] = command(`Generate CI build related files`)
 commands['ci-gen'].rust = async function(argv) {
     let entry = release.changelog().newestEntry()
-    let obj   = {version:entry.version,body:entry.body};
+    let obj   = {version:entry.version, body:entry.body, prelease:entry.isPrelease()};
     let json  = JSON.stringify(obj)
     fss.writeFileSync(path.join(paths.root,'CURRENT_RELEASE_CHANGELOG.json'),json)
 }

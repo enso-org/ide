@@ -235,10 +235,11 @@ let uploadGitHubRelease = {
         GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
     },
     with: {
-        files:    "artifacts/**/enso-*",
-        name:     "Enso ${{fromJson(steps.changelog.outputs.content).version}}",
-        tag_name: "v${{fromJson(steps.changelog.outputs.content).version}}",
-        body:     "${{fromJson(steps.changelog.outputs.content).body}}",
+        files:      "artifacts/**/enso-*",
+        name:       "Enso ${{fromJson(steps.changelog.outputs.content).version}}",
+        tag_name:   "v${{fromJson(steps.changelog.outputs.content).version}}",
+        body:       "${{fromJson(steps.changelog.outputs.content).body}}",
+        prerelease: "${{fromJson(steps.changelog.outputs.content).prerelease}}",
     },
 }
 
@@ -260,16 +261,21 @@ prepareAwsSessionCDN = {
     `
 }
 
-function uploadToCDN(name) {
-    return {
-        name: `Upload '${name}' to CDN`,
-        shell: "bash",
-        run: `
-            aws s3 cp ./artifacts/content/assets/${name}
-            s3://ensocdn/ide/${release.currentVersion()}/${name} --profile
-            s3-upload --acl public-read --content-encoding gzip
-        `
+function uploadToCDN(...names) {
+    let actions = []
+    for (let name of names) {
+        let action = {
+            name: `Upload '${name}' to CDN`,
+            shell: "bash",
+            run: `
+                aws s3 cp ./artifacts/content/assets/${name}
+                s3://ensocdn/ide/${release.currentVersion()}/${name} --profile
+                s3-upload --acl public-read --content-encoding gzip
+                `
+        }
+        actions.push(action)
     }
+    return actions
 }
 
 
@@ -280,7 +286,7 @@ function uploadToCDN(name) {
 
 // FIXME:
 let releaseCondition = `github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/wip/wd/ci'`
-let buildCondition   = `github.ref == 'refs/heads/main' || ${releaseCondition}`
+let buildCondition   = `github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || ${releaseCondition}`
 
 let workflow = {
     name : "GUI CI",
@@ -325,20 +331,16 @@ let workflow = {
             uploadBinArtifactsForLinux,
         ],{if:buildCondition}),
         release_to_github: job_on_macos("GitHub Release", [
-              downloadArtifacts,
-              getCurrentReleaseChangelogInfo,
-              uploadGitHubRelease,
+            downloadArtifacts,
+            getCurrentReleaseChangelogInfo,
+            uploadGitHubRelease,
         ],{ if:releaseCondition,
             needs:["assert_version_unstable","assert_version_stable","lint","test","wasm-test","build"]
         }),
         release_to_cdn: job_on_macos("CDN Release", [
-              downloadArtifacts,
-              prepareAwsSessionCDN,
-              uploadToCDN('index.js.gz'),
-              uploadToCDN('style.css'),
-              uploadToCDN('style.css'),
-              uploadToCDN('ide.wasm'),
-              uploadToCDN('wasm_imports.js.gz'),
+            downloadArtifacts,
+            prepareAwsSessionCDN,
+            uploadToCDN('index.js.gz','style.css','ide.wasm','wasm_imports.js.gz'),
         ],{ if:releaseCondition,
             needs:["assert_version_unstable","assert_version_stable","lint","test","wasm-test","build"]
         }),

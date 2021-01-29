@@ -48,6 +48,10 @@ class ChangelogEntry {
             throw "Assertion failed. The version is unstable."
         }
     }
+
+    isPrelease() {
+        if (this.prelease) { return true } else { return false }
+    }
 }
 
 
