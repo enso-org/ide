@@ -1,452 +1,29 @@
-const cmd      = require('./cmd')
-const fs       = require('fs').promises
-const fss      = require('fs')
-const glob     = require('glob')
-const ncp      = require('ncp').ncp
-const os       = require('os')
-const path     = require('path')
-const paths    = require('./paths')
-const prettier = require("prettier")
-const stream   = require('stream')
-const yargs    = require('yargs')
-const zlib     = require('zlib')
+const cmd           = require('./cmd')
+const fs            = require('fs').promises
+const fss           = require('fs')
+const glob          = require('glob')
+const ncp           = require('ncp').ncp
+const os            = require('os')
+const path          = require('path')
+const paths         = require('./paths')
+const prettier      = require("prettier")
+const stream        = require('stream')
+const yargs         = require('yargs')
+const zlib          = require('zlib')
 const child_process = require('child_process')
-
-process.on('unhandledRejection', error => { throw(error) })
-process.chdir(paths.root)
-
-
+const release       = require('./release')
+const workflow      = require('./workflow')
 const { promisify } = require('util')
 const pipe = promisify(stream.pipeline)
 
-async function gzip(input, output) {
-  const gzip        = zlib.createGzip()
-  const source      = fss.createReadStream(input)
-  const destination = fss.createWriteStream(output)
-  await pipe(source,gzip,destination)
-}
 
-const yaml = require('js-yaml');
 
+// ==============
+// === Errors ===
+// ==============
 
-
-
-const CHANGELOG_FILE_NAME = 'CHANGELOG.md'
-const CHANGELOG_FILE      = path.join(paths.root,CHANGELOG_FILE_NAME)
-
-
-
-const semver = require('semver')
-
-class ChangelogEntry {
-    constructor(version,body) {
-        let semVersion = semver.valid(version)
-        if (version !== semVersion) {
-            throw `The version '${version}' is not a valid semantic varsion.`
-        }
-        this.version = version
-        this.body    = body
-    }
-}
-
-class Changelog {
-    constructor() {
-        this.entries = changelogEntries()
-    }
-
-    newestEntry() {
-        return this.entries[0]
-    }
-
-    currentVersion() {
-        return this.newestEntry().version
-    }
-}
-
-let changelog = new Changelog
-let currentDistVersion = changelog.currentVersion()
-
-function changelogSections() {
-    let text    = '\n' + fss.readFileSync(CHANGELOG_FILE,"utf8")
-    let chunks  = text.split(/\r?\n# /)
-    return chunks.filter((s) => s != '')
-}
-
-function changelogEntries() {
-    let sections = changelogSections()
-    let prefix   = "Enso "
-    let entries  = []
-    for (let section of sections) {
-        if (!section.startsWith(prefix)) {
-            throw `Improper changelog entry header: ${section}`
-        } else {
-            let splitPoint = section.indexOf('\n')
-            let body       = section.substring(splitPoint).trim()
-            let header     = section.substring(0,splitPoint).trim()
-            let version    = header.substring(prefix.length)
-            entries.push(new ChangelogEntry(version,body))
-        }
-    }
-
-    var lastVersion = null
-    for (let entry of entries) {
-        if (lastVersion !== null) {
-            if (!semver.lt(entry.version,lastVersion)) {
-                throw `Versions are not properly ordered in the changelog (${entry.version} >= ${lastVersion}).`
-            }
-        }
-        lastVersion = entry.version
-    }
-    return entries
-}
-
-
-
-console.log(changelog.currentVersion())
-
-
-//fss.writeFileSync('CURRENT_RELEASE_CHANGELOG.json',JSON.stringify({version:out.version,body:out.body}))
-
-
-
-
-// =================
-// === Constants ===
-// =================
-
-const NODE_VERSION      = '14.15.0'
-const RUST_VERSION      = 'nightly-2019-11-04'
-const WASM_PACK_VERSION = '0.9.1'
-
-
-
-// =============
-// === Utils ===
-// =============
-
-function job(platforms,name,steps,cfg) {
-    if (!cfg) { cfg = {} }
-    return {
-        name: name,
-        "runs-on": "${{ matrix.os }}",
-        strategy: {
-            matrix: {
-              os: platforms
-            },
-            "fail-fast": false
-        },
-        steps : list({uses:"actions/checkout@v2"}, ...steps),
-        ...cfg
-    }
-}
-
-function job_on_all_platforms(...args) {
-    return job(["windows-latest", "macOS-latest", "ubuntu-latest"],...args)
-}
-
-function job_on_macos(...args) {
-    return job(["macOS-latest"],...args)
-}
-
-function list(...args) {
-    let out = []
-    for (let arg of args) {
-        if (Array.isArray(arg)) {
-            out.push(...arg)
-        } else {
-            out.push(arg)
-        }
-    }
-    return out
-}
-
-
-
-// ====================
-// === Dependencies ===
-// ====================
-
-let installRust = {
-    name: "Install Rust",
-    uses: "actions-rs/toolchain@v1",
-    with: {
-        toolchain: RUST_VERSION,
-        override: true
-    }
-}
-
-let installNode = {
-    name: "Install Node",
-    uses: "actions/setup-node@v1",
-    with: {
-        "node-version": NODE_VERSION,
-    }
-}
-
-let installPrettier = {
-    name: "Install Prettier",
-    run: "npm install --save-dev --save-exact prettier"
-}
-
-let installClippy = {
-    name: "Install Clippy",
-    run: "rustup component add clippy"
-}
-
-
-function installWasmPackOn(name,sys,pkg) {
-    return {
-        name: `Install wasm-pack (${name})`,
-        env: {
-            WASMPACKURL: `https://github.com/rustwasm/wasm-pack/releases/download/v${WASM_PACK_VERSION}`,
-            WASMPACKDIR: `wasm-pack-v${WASM_PACK_VERSION}-x86_64-${pkg}`,
-        },
-        run: `
-            curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
-            mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
-            rm -r $WASMPACKDIR`,
-        shell: "bash",
-        if: `matrix.os == '${sys}-latest'`,
-    }
-}
-
-let installWasmPackOnMacOS   = installWasmPackOn('macOS','macOS','apple-darwin')
-let installWasmPackOnWindows = installWasmPackOn('Windows','windows','pc-windows-msvc')
-let installWasmPackOnLinux   = installWasmPackOn('Linux','ubuntu','unknown-linux-musl')
-
-// We could use cargo install wasm-pack, but that takes 3.5 minutes compared to few seconds.
-let installWasmPack = [installWasmPackOnMacOS, installWasmPackOnWindows, installWasmPackOnLinux]
-
-
-
-// =============================
-// === Build, Lint, and Test ===
-// =============================
-
-function buildOn(name,sys) {
-    return {
-        name: `Build (${name})`,
-        run: `node ./run dist --skip-version-validation --target ${name}`,
-        if: `matrix.os == '${sys}-latest'`
-    }
-}
-
-buildOnMacOS   = buildOn('macos','macos')
-buildOnWindows = buildOn('win','windows')
-buildOnLinux   = buildOn('linux','ubuntu')
-
-let lintJavaScript = {
-    name: "Lint JavaScript sources",
-    run: "npx prettier --check 'src/**/*.js'",
-}
-
-let lintRust = {
-    name: "Lint Rust sources",
-    run: "node ./run lint --skip-version-validation",
-}
-
-let testNoWASM = {
-    name: "Run tests (no WASM)",
-    run: "node ./run test --no-wasm --skip-version-validation",
-}
-
-let testWASM = {
-    name: "Run tests (WASM)",
-    run: "node ./run test --no-native --skip-version-validation",
-    "continue-on-error": true,
-}
-
-
-
-// =================
-// === Artifacts ===
-// =================
-
-let uploadContentArtifacts = {
-    name: `Upload Content Artifacts`,
-    uses: "actions/upload-artifact@v1",
-    with: {
-       name: 'content',
-       path: `dist/content`
-    },
-    if: `matrix.os == 'macOS-latest'`
-}
-
-function uploadBinArtifactsFor(name,sys,ext,os) {
-    return {
-        name: `Upload Artifacts (${name}, ${ext})`,
-        uses: "actions/upload-artifact@v1",
-        with: {
-           name: `Enso (${name})`,
-           path: `dist/client/enso-${os}-${currentDistVersion}.${ext}`
-        },
-        if: `matrix.os == '${sys}-latest'`
-    }
-}
-
-uploadBinArtifactsForMacOS   = uploadBinArtifactsFor('Linux','ubuntu','AppImage','linux')
-uploadBinArtifactsForWindows = uploadBinArtifactsFor('Windows','windows','exe','win')
-uploadBinArtifactsForLinux   = uploadBinArtifactsFor('macOS','macos','dmg','mac')
-
-let downloadArtifacts = {
-    name: "Download artifacts",
-    uses: "actions/download-artifact@v2",
-    with: {
-        path: "artifacts"
-    }
-}
-
-
-
-// ======================
-// === GitHub Release ===
-// ======================
-
-let getCurrentReleaseChangelogInfo = {
-    id: 'changelog',
-    run: `
-        content=\`cat CURRENT_RELEASE_CHANGELOG.json\`
-        echo "::set-output name=content::$content"
-    `
-}
-
-let uploadGitHubRelease = {
-    name: `Upload GitHub Release`,
-    uses: "softprops/action-gh-release@v1",
-    env: {
-        GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-    },
-    with: {
-        files:    "artifacts/**/Enso*",
-        name:     "Enso ${{fromJson(steps.changelog.outputs.content).version}}",
-        tag_name: "v${{fromJson(steps.changelog.outputs.content).version}}",
-        body:     "${{fromJson(steps.changelog.outputs.content).body}}",
-    },
-}
-
-
-
-// ===================
-// === CDN Release ===
-// ===================
-
-//prepareDistributionVersionCDN = {
-//    shell: "bash",
-//    run: `
-//        ref=\${{ github.ref }}
-//        refversion=\${ref#"refs/tags/v"}
-//        echo "DIST_VERSION=$refversion" >> $GITHUB_ENV
-//    `
-//}
-
-prepareAwsSessionCDN = {
-    shell: "bash",
-    run: `
-        aws configure --profile s3-upload <<-EOF > /dev/null 2>&1
-        \${{ secrets.ARTEFACT_S3_ACCESS_KEY_ID }}
-        \${{ secrets.ARTEFACT_S3_SECRET_ACCESS_KEY }}
-        us-west-1
-        text
-        EOF
-    `
-}
-
-function uploadToCDN(name) {
-    return {
-        name: `Upload '${name}' to CDN`,
-        shell: "bash",
-        run: `
-            aws s3 cp ./artifacts/content/assets/${name}
-            s3://ensocdn/ide/${currentDistVersion}/${name} --profile
-            s3-upload --acl public-read --content-encoding gzip
-        `
-    }
-}
-
-// s3://ensocdn/ide/${{ env.DIST_VERSION }}/${name} --profile
-
-
-
-// ================
-// === Workflow ===
-// ================
-
-// FIXME:
-let releaseCondition = "github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/wip/wd/ci'"
-
-let workflow = {
-    name : "GUI CI",
-    on: ['push'],
-    jobs: {
-        lint: job_on_macos("Linter", [
-            installNode,
-            installRust,
-            installPrettier,
-            installClippy,
-            lintJavaScript,
-            lintRust
-        ]),
-        test: job_on_macos("Tests", [
-            installNode,
-            installRust,
-            testNoWASM,
-        ]),
-        "wasm-test": job_on_macos("WASM Tests", [
-            installNode,
-            installRust,
-            installWasmPack,
-            testWASM
-        ]),
-        build: job_on_all_platforms("Build", [
-            installNode,
-            installRust,
-            installWasmPack,
-            buildOnMacOS,
-            buildOnWindows,
-            buildOnLinux,
-            uploadContentArtifacts,
-            uploadBinArtifactsForMacOS,
-            uploadBinArtifactsForWindows,
-            uploadBinArtifactsForLinux,
-        ],{
-            if: releaseCondition,
-        }),
-        release_to_github: job_on_macos("GitHub Release", [
-              downloadArtifacts,
-              getCurrentReleaseChangelogInfo,
-              uploadGitHubRelease,
-        ],{
-            needs: ["lint","test","wasm-test","build"],
-            if: releaseCondition,
-        }),
-        release_to_cdn: job_on_macos("CDN Release", [
-              downloadArtifacts,
-//              prepareDistributionVersionCDN,
-              prepareAwsSessionCDN,
-              uploadToCDN('index.js.gz'),
-              uploadToCDN('style.css'),
-              uploadToCDN('style.css'),
-              uploadToCDN('ide.wasm'),
-              uploadToCDN('wasm_imports.js.gz'),
-        ],{
-            needs: ["lint","test","wasm-test","build"],
-            if: releaseCondition,
-        }),
-    }
-}
-
-
-
-
-let header = `
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# DO NOT CHANGE THIS FILE. IT WAS GENERATED FROM 'workflows.js'. READ DOCS THERE TO LEARN MORE.
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-`
-
-
-let release_workflow_out = header + '\n' + yaml.dump(workflow,{noRefs:true})
-fss.writeFileSync(path.join(paths.github.workflows,'gui-ci.yml'),release_workflow_out)
+process.on('unhandledRejection', error => { throw(error) })
+process.chdir(paths.root)
 
 
 
@@ -467,6 +44,13 @@ let targetArgs = undefined
 // =============
 // === Utils ===
 // =============
+
+async function gzip(input, output) {
+  const gzip        = zlib.createGzip()
+  const source      = fss.createReadStream(input)
+  const destination = fss.createWriteStream(output)
+  await pipe(source,gzip,destination)
+}
 
 /// Copy files and directories.
 async function copy(src,tgt) {
@@ -516,6 +100,8 @@ function run_project_manager() {
        console.log(`Project manager running.`)
    })
 }
+
+
 
 // ================
 // === Commands ===
@@ -717,6 +303,20 @@ commands.dist.js = async function() {
 }
 
 
+// === CI Gen ===
+
+/// The command is used by CI to generate the file `CURRENT_RELEASE_CHANGELOG.json`, which contains
+/// information about the newest release. It is then used by CI to generate version and description
+/// of the product release.
+commands['ci-gen'] = command(`Generate CI build related files`)
+commands['ci-gen'].rust = async function(argv) {
+    let entry = release.changelog().newestEntry()
+    let obj   = {version:entry.version,body:entry.body};
+    let json  = JSON.stringify(obj)
+    fss.writeFileSync(path.join(paths.root,'CURRENT_RELEASE_CHANGELOG.json'),json)
+}
+
+
 
 // ===========================
 // === Command Line Parser ===
@@ -803,7 +403,7 @@ for (let command of commandList) {
 
 function defaultConfig() {
     return {
-        version: currentDistVersion,
+        version: release.currentVersion(),
         author: {
             name: "Enso Team",
             email: "contact@enso.org"
@@ -937,6 +537,7 @@ async function main () {
     let argv = optParser.parse()
     await updateBuildVersion(argv)
     await processPackageConfigs()
+    workflow.generate()
     let command = argv._[0]
     if(command === 'clean') {
         try {

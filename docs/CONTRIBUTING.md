@@ -227,3 +227,35 @@ have prepared several scripts which maximally automate the process:
 - **Linting**
   Please be sure to fix all errors reported by `node ./run lint` before
   creating a pull request to this repository.
+
+
+## Publishing Results
+All new changes should be proposed in the form of Pull Requests (PRs) to this repository. Each PR
+should contain changes to documentation and CHANGELOG.md if applicable.
+
+### Development Branches
+The following branches are used to develop the product:
+
+- **wip/[initials]/[feature]**  
+  Feature branches. These are temporary branches used by the team to develop a particular feature.
+  
+- **develop**  
+  Contains the most recent changes to the product. After successful review, the feature branches are 
+  merged here. Each commit to this branch will result in a nightly build of the product accessible
+  as CI artifacts.
+ 
+- **unstable**  
+  Contains only those commits which can be considered unstable product releases. Each commit to this
+  branch will result in an unstable release of the product and will be published on GitHub as a 
+  pre-release. The build version and build description will be automatically fetched from the newest 
+  `CHANGELOG.md` entry and will fail if the version will not be of the form 
+  `[major].[minor].[patch]-[sfx]`, where `[sfx]` is one of `alpha.[n]`, `beta.[n]`, or `rc.[n]`, 
+  where `[n]` is an unstable build number.
+
+- **stable**
+  Contains only those commits which can be considered stable product releases. Each commit to this
+  branch will result in a stable release of the product and will be published on GitHub as a 
+  release. The build version and build description will be automatically fetched from the newest 
+  `CHANGELOG.md` entry and will fail if the version will not be of the form 
+  `[major].[minor].[patch]`.
+  

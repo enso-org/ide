@@ -198,8 +198,8 @@ jobs:
           path: dist/client/enso-mac-2.0.0-alpha.2.dmg
         if: matrix.os == 'macos-latest'
     if: >-
-      github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
-      || github.ref == 'refs/heads/wip/wd/ci'
+      github.ref == 'refs/heads/main' || github.ref == 'refs/heads/unstable' ||
+      github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/wip/wd/ci'
   release_to_github:
     name: GitHub Release
     runs-on: ${{ matrix.os }}
@@ -214,9 +214,11 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           path: artifacts
-      - id: changelog
+      - name: Read changelog info
+        id: changelog
         run: |2-
 
+                  ./run ci-gen --skip-version-validation
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
               
