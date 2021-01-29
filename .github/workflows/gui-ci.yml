@@ -8,7 +8,7 @@ name: GUI CI
   - push
 jobs:
   assert_version_unstable:
-    name: Version Validator
+    name: Unstable Version Assertion
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -18,12 +18,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Assert Verstion Unstable
-        run: node ./run assert-version-unstable
+        run: node ./run assert-version-unstable --skip-version-validation
     if: >-
       github.ref == 'refs/heads/unstable' || github.ref ==
       'refs/heads/wip/wd/ci'
   assert_version_stable:
-    name: Version Validator
+    name: Stable Version Assertion
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -33,7 +33,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Assert Verstion Stable
-        run: node ./run assert-version-stable
+        run: node ./run assert-version-stable --skip-version-validation
     if: github.ref == 'refs/heads/stable'
   lint:
     name: Linter
