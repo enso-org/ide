@@ -338,14 +338,14 @@ let workflow = {
             getCurrentReleaseChangelogInfo,
             uploadGitHubRelease,
         ],{ if:releaseCondition,
-            needs:["assert_version_unstable","assert_version_stable","lint","test","wasm-test","build"]
+            needs:["lint","test","wasm-test","build"]
         }),
         release_to_cdn: job_on_linux("CDN Release", [
             downloadArtifacts,
             prepareAwsSessionCDN,
             uploadToCDN('index.js.gz','style.css','ide.wasm','wasm_imports.js.gz'),
         ],{ if:releaseCondition,
-            needs:["assert_version_unstable","assert_version_stable","lint","test","wasm-test","build"]
+            needs:["lint","test","wasm-test","build"]
         }),
     }
 }

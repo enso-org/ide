@@ -263,8 +263,6 @@ jobs:
       github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
       || github.ref == 'refs/heads/wip/wd/ci'
     needs:
-      - assert_version_unstable
-      - assert_version_stable
       - lint
       - test
       - wasm-test
@@ -329,8 +327,6 @@ jobs:
       github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
       || github.ref == 'refs/heads/wip/wd/ci'
     needs:
-      - assert_version_unstable
-      - assert_version_stable
       - lint
       - test
       - wasm-test
