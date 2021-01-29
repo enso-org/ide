@@ -19,9 +19,9 @@ let config = {
     dependencies: {
         "create-servers": "^3.1.0",
         "electron-is-dev": "^1.1.0",
-        "enso-studio-common": "2.0.0-alpha.0",
-        "enso-studio-content": "2.0.0-alpha.0",
-        "enso-studio-icons": "2.0.0-alpha.0",
+        "enso-studio-common": "1.0.0",
+        "enso-studio-content": "1.0.0",
+        "enso-studio-icons": "1.0.0",
         "yargs": "^15.3.0"
     },
 

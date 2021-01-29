@@ -877,7 +877,8 @@ async function installJsDeps() {
             await cmd.run('npm',['run','install'])
         })
         await fs.mkdir(paths.dist.root, {recursive:true})
-        await fs.open(paths.dist.init,'w')
+        let handle = await fs.open(paths.dist.init,'w')
+        await handle.close()
     }
 }
 
