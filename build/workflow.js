@@ -62,6 +62,22 @@ function list(...args) {
 
 
 
+// ==================
+// === Validators ===
+// ==================
+
+let assertVersionUnstable = {
+    name: "Assert Verstion Unstable",
+    run: "node ./run assert-version-unstable",
+}
+
+let assertVersionStable = {
+    name: "Assert Verstion Stable",
+    run: "node ./run assert-version-stable",
+}
+
+
+
 // ====================
 // === Dependencies ===
 // ====================
@@ -206,7 +222,7 @@ let getCurrentReleaseChangelogInfo = {
     name: 'Read changelog info',
     id: 'changelog',
     run: `
-        ./run ci-gen --skip-version-validation
+        node ./run ci-gen --skip-version-validation
         content=\`cat CURRENT_RELEASE_CHANGELOG.json\`
         echo "::set-output name=content::$content"
     `
@@ -257,6 +273,7 @@ function uploadToCDN(name) {
 }
 
 
+
 // ================
 // === Workflow ===
 // ================
@@ -269,6 +286,13 @@ let workflow = {
     name : "GUI CI",
     on: ['push'],
     jobs: {
+        assert_version_unstable: job_on_macos("Version Validator", [
+            assertVersionUnstable
+            // FIXME:
+        ],{if:`github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/wip/wd/ci'`}),
+        assert_version_stable: job_on_macos("Version Validator", [
+            assertVersionStable
+        ],{if:`github.ref == 'refs/heads/stable'`}),
         lint: job_on_macos("Linter", [
             installNode,
             installRust,
@@ -299,16 +323,13 @@ let workflow = {
             uploadBinArtifactsForMacOS,
             uploadBinArtifactsForWindows,
             uploadBinArtifactsForLinux,
-        ],{
-            if: buildCondition,
-        }),
+        ],{if:buildCondition}),
         release_to_github: job_on_macos("GitHub Release", [
               downloadArtifacts,
               getCurrentReleaseChangelogInfo,
               uploadGitHubRelease,
-        ],{
-            needs: ["lint","test","wasm-test","build"],
-            if: releaseCondition,
+        ],{ if:releaseCondition,
+            needs:["assert_version_unstable","assert_version_stable","lint","test","wasm-test","build"]
         }),
         release_to_cdn: job_on_macos("CDN Release", [
               downloadArtifacts,
@@ -318,9 +339,8 @@ let workflow = {
               uploadToCDN('style.css'),
               uploadToCDN('ide.wasm'),
               uploadToCDN('wasm_imports.js.gz'),
-        ],{
-            needs: ["lint","test","wasm-test","build"],
-            if: releaseCondition,
+        ],{ if:releaseCondition,
+            needs:["assert_version_unstable","assert_version_stable","lint","test","wasm-test","build"]
         }),
     }
 }

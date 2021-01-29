@@ -7,6 +7,34 @@ name: GUI CI
 'on':
   - push
 jobs:
+  assert_version_unstable:
+    name: Version Validator
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - macOS-latest
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v2
+      - name: Assert Verstion Unstable
+        run: node ./run assert-version-unstable
+    if: >-
+      github.ref == 'refs/heads/unstable' || github.ref ==
+      'refs/heads/wip/wd/ci'
+  assert_version_stable:
+    name: Version Validator
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - macOS-latest
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v2
+      - name: Assert Verstion Stable
+        run: node ./run assert-version-stable
+    if: github.ref == 'refs/heads/stable'
   lint:
     name: Linter
     runs-on: ${{ matrix.os }}
@@ -218,7 +246,7 @@ jobs:
         id: changelog
         run: |2-
 
-                  ./run ci-gen --skip-version-validation
+                  node ./run ci-gen --skip-version-validation
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
               
@@ -231,14 +259,16 @@ jobs:
           name: Enso ${{fromJson(steps.changelog.outputs.content).version}}
           tag_name: v${{fromJson(steps.changelog.outputs.content).version}}
           body: ${{fromJson(steps.changelog.outputs.content).body}}
+    if: >-
+      github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
+      || github.ref == 'refs/heads/wip/wd/ci'
     needs:
+      - assert_version_unstable
+      - assert_version_stable
       - lint
       - test
       - wasm-test
       - build
-    if: >-
-      github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
-      || github.ref == 'refs/heads/wip/wd/ci'
   release_to_cdn:
     name: CDN Release
     runs-on: ${{ matrix.os }}
@@ -303,11 +333,13 @@ jobs:
                       s3://ensocdn/ide/2.0.0-alpha.2/wasm_imports.js.gz --profile
                       s3-upload --acl public-read --content-encoding gzip
                   
+    if: >-
+      github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
+      || github.ref == 'refs/heads/wip/wd/ci'
     needs:
+      - assert_version_unstable
+      - assert_version_stable
       - lint
       - test
       - wasm-test
       - build
-    if: >-
-      github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
-      || github.ref == 'refs/heads/wip/wd/ci'

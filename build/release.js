@@ -23,12 +23,30 @@ const CHANGELOG_FILE      = path.join(paths.root,CHANGELOG_FILE_NAME)
 
 class ChangelogEntry {
     constructor(version,body) {
-        let semVersion = semver.valid(version)
+        let semVersion     = semver.valid(version)
+        let prelease       = semver.prerelease(version)
+        let validPreleases = ['alpha','beta','rc']
         if (version !== semVersion) {
-            throw `The version '${version}' is not a valid semantic varsion.`
+            throw `The version '${version}' is not a valid semantic version. It should be '${semVersion}'.`
         }
-        this.version = version
-        this.body    = body
+        if (prelease && !validPreleases.includes(prelease[0])) {
+            throw `The version '${version}' uses invalid prelease tag '${prelease[0]}'. Choose one of the following tags instead: ${validPreleases}.`
+        }
+        this.prelease = prelease
+        this.version  = version
+        this.body     = body
+    }
+
+    assert_is_unstable() {
+        if (!this.prelease) {
+            throw "Assertion failed. The version is stable."
+        }
+    }
+
+    assert_is_stable() {
+        if (this.prelease) {
+            throw "Assertion failed. The version is unstable."
+        }
     }
 }
 

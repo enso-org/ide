@@ -316,6 +316,18 @@ commands['ci-gen'].rust = async function(argv) {
     fss.writeFileSync(path.join(paths.root,'CURRENT_RELEASE_CHANGELOG.json'),json)
 }
 
+/// Asserts whether the current version of the package (newest in CHANGELOG.md) is unstable.
+commands['assert-version-unstable'] = command(`Assert the current version is unstable`)
+commands['assert-version-unstable'].rust = async function(argv) {
+    let entry = release.changelog().newestEntry().assert_is_unstable()
+}
+
+/// Asserts whether the current version of the package (newest in CHANGELOG.md) is stable.
+commands['assert-version-stable'] = command(`Assert the current version is stable`)
+commands['assert-version-stable'].rust = async function(argv) {
+    let entry = release.changelog().newestEntry().assert_is_stable()
+}
+
 
 
 // ===========================
