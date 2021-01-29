@@ -271,11 +271,9 @@ function uploadToCDN(...names) {
         let action = {
             name: `Upload '${name}' to CDN`,
             shell: "bash",
-            run: `
-                aws s3 cp ./artifacts/content/assets/${name}
-                s3://ensocdn/ide/${release.currentVersion()}/${name} --profile
-                s3-upload --acl public-read --content-encoding gzip
-                `
+            run: `aws s3 cp ./artifacts/content/assets/${name} `
+               + `s3://ensocdn/ide/${release.currentVersion()}/${name} --profile `
+               + `s3-upload --acl public-read --content-encoding gzip`
         }
         actions.push(action)
     }

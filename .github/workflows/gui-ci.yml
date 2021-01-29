@@ -293,36 +293,28 @@ jobs:
               
       - name: Upload 'index.js.gz' to CDN
         shell: bash
-        run: |2-
-
-                          aws s3 cp ./artifacts/content/assets/index.js.gz
-                          s3://ensocdn/ide/2.0.0-alpha.2/index.js.gz --profile
-                          s3-upload --acl public-read --content-encoding gzip
-                          
+        run: >-
+          aws s3 cp ./artifacts/content/assets/index.js.gz
+          s3://ensocdn/ide/2.0.0-alpha.2/index.js.gz --profile s3-upload --acl
+          public-read --content-encoding gzip
       - name: Upload 'style.css' to CDN
         shell: bash
-        run: |2-
-
-                          aws s3 cp ./artifacts/content/assets/style.css
-                          s3://ensocdn/ide/2.0.0-alpha.2/style.css --profile
-                          s3-upload --acl public-read --content-encoding gzip
-                          
+        run: >-
+          aws s3 cp ./artifacts/content/assets/style.css
+          s3://ensocdn/ide/2.0.0-alpha.2/style.css --profile s3-upload --acl
+          public-read --content-encoding gzip
       - name: Upload 'ide.wasm' to CDN
         shell: bash
-        run: |2-
-
-                          aws s3 cp ./artifacts/content/assets/ide.wasm
-                          s3://ensocdn/ide/2.0.0-alpha.2/ide.wasm --profile
-                          s3-upload --acl public-read --content-encoding gzip
-                          
+        run: >-
+          aws s3 cp ./artifacts/content/assets/ide.wasm
+          s3://ensocdn/ide/2.0.0-alpha.2/ide.wasm --profile s3-upload --acl
+          public-read --content-encoding gzip
       - name: Upload 'wasm_imports.js.gz' to CDN
         shell: bash
-        run: |2-
-
-                          aws s3 cp ./artifacts/content/assets/wasm_imports.js.gz
-                          s3://ensocdn/ide/2.0.0-alpha.2/wasm_imports.js.gz --profile
-                          s3-upload --acl public-read --content-encoding gzip
-                          
+        run: >-
+          aws s3 cp ./artifacts/content/assets/wasm_imports.js.gz
+          s3://ensocdn/ide/2.0.0-alpha.2/wasm_imports.js.gz --profile s3-upload
+          --acl public-read --content-encoding gzip
     if: >-
       github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
       || github.ref == 'refs/heads/wip/wd/ci'
