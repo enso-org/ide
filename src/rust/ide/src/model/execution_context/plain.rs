@@ -10,7 +10,8 @@ use crate::model::execution_context::VisualizationId;
 use crate::model::execution_context::VisualizationUpdateData;
 use crate::model::module;
 
-use enso_protocol::language_server::{MethodPointer, VisualisationConfiguration};
+use enso_protocol::language_server::MethodPointer;
+use enso_protocol::language_server::VisualisationConfiguration;
 use futures::future::LocalBoxFuture;
 
 

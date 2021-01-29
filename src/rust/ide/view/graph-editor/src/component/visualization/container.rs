@@ -398,7 +398,7 @@ impl ContainerModel {
     (&self, visualization:visualization::Instance, preprocessor:&frp::Any<EnsoCode>) {
         let size = self.size.get();
         visualization.set_size.emit(size);
-        let _vis_network = &visualization.network;
+        let _vis_network = visualization.network();
         frp::extend! { _vis_network
             preprocessor <+ visualization.on_preprocessor_change;
         }
@@ -600,9 +600,7 @@ impl Container {
             eval selected_definition([scene,model,logger,preprocessor](definition)  {
                 let vis = definition.as_ref().map(|d| d.new_instance(&scene));
                 match vis {
-                    Some(Ok(vis))  => {
-                        model.set_visualization(vis,&preprocessor);
-                    }
+                    Some(Ok(vis))  => model.set_visualization(vis,&preprocessor),
                     Some(Err(err)) => {
                         warning!(logger,"Failed to instantiate visualisation: {err:?}");
                     },

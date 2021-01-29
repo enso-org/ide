@@ -103,7 +103,7 @@ impl Frp {
 pub struct Instance {
     display_object : display::object::Instance,
     frp            : Frp,
-    pub(crate) network        : frp::Network,
+    network        : frp::Network,
 }
 
 impl Instance {
@@ -115,6 +115,10 @@ impl Instance {
         let network        = network.into();
         Self {display_object,frp,network}
     }
+
+    /// A [`frp::Network`] getter, used to extend the instance's network, or making a bridge
+    /// networks.
+    pub fn network(&self) -> &frp::Network { &self.network }
 }
 
 impl Deref for Instance {

@@ -423,7 +423,7 @@ pub mod test {
     }
 
     #[test]
-    fn modifying_visualizations_and_notifying() {
+    fn modifying_visualizations() {
         let vis = Visualization {
             id                   : model::execution_context::VisualizationId::new_v4(),
             ast_id               : model::execution_context::ExpressionId::new_v4(),
