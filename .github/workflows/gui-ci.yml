@@ -144,8 +144,8 @@ jobs:
       - name: Run tests (WASM)
         run: node ./run test --no-native --skip-version-validation
         continue-on-error: true
-  assert_wasm_size_limit:
-    name: Assert WASM size limit
+  simple_build:
+    name: Simple Build (WASM size limit check)
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -333,6 +333,7 @@ jobs:
       || github.ref == 'refs/heads/wip/wd/ci'
     needs:
       - version_assertions
+      - assert_wasm_size_limit
       - lint
       - test
       - wasm-test
@@ -398,6 +399,7 @@ jobs:
       || github.ref == 'refs/heads/wip/wd/ci'
     needs:
       - version_assertions
+      - assert_wasm_size_limit
       - lint
       - test
       - wasm-test

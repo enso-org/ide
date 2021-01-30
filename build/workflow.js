@@ -342,7 +342,7 @@ let workflow = {
             installWasmPack,
             testWASM
         ]),
-        assert_wasm_size_limit: job_on_macos("Assert WASM size limit", [
+        simple_build: job_on_macos("Simple Build (WASM size limit check)", [
             installNode,
             installRust,
             installWasmPack,
@@ -365,7 +365,7 @@ let workflow = {
             getCurrentReleaseChangelogInfo,
             uploadGitHubRelease,
         ],{ if:releaseCondition,
-            needs:['version_assertions','lint','test','wasm-test','build']
+            needs:['version_assertions','assert_wasm_size_limit','lint','test','wasm-test','build']
         }),
         release_to_cdn: job_on_linux("CDN Release", [
             downloadArtifacts,
@@ -373,7 +373,7 @@ let workflow = {
             prepareAwsSessionCDN,
             uploadToCDN('index.js.gz','style.css','ide.wasm','wasm_imports.js.gz'),
         ],{ if:releaseCondition,
-            needs:['version_assertions','lint','test','wasm-test','build']
+            needs:['version_assertions','assert_wasm_size_limit','lint','test','wasm-test','build']
         }),
     }
 }
