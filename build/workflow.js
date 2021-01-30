@@ -294,13 +294,8 @@ let assertReleaseDoNotExists = [
         }
     },
     {
-        name: 'Echo steps.checkCurrentReleaseTag.outputs.exists',
-        run: 'echo "${{ steps.checkCurrentReleaseTag.outputs.exists }}"',
-    },
-    {
         name: 'Fail if release already exists',
-        run: 'exit 1',
-        if: '${{ steps.checkCurrentReleaseTag.outputs.exists }} == "true"'
+        run: 'if [[ ${{ steps.checkCurrentReleaseTag.outputs.exists }} == "true" ]]; then exit 1; fi',
     }
 ]
 
