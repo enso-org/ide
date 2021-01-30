@@ -313,6 +313,10 @@ let workflow = {
     name : "GUI CI",
     on: ['push'],
     jobs: {
+        assert_version_not_already_published: job_on_macos("Already Published Version Assertion", [
+            getCurrentReleaseChangelogInfo,
+            failIfReleaseExistsAlready,
+        ],{if:releaseCondition}),
         assert_version_unstable: job_on_macos("Unstable Version Assertion", [
             assertVersionUnstable
         ],{if:`github.ref == 'refs/heads/unstable'`}),
@@ -353,21 +357,19 @@ let workflow = {
         release_to_github: job_on_macos("GitHub Release", [
             downloadArtifacts,
             getCurrentReleaseChangelogInfo,
-            failIfReleaseExistsAlready,
             uploadGitHubRelease,
         ],{ if:releaseCondition,
             // FIXME:
-            needs:["lint","test","wasm-test","build"]
+            needs:['assert_version_not_already_published','lint','test','wasm-test','build']
         }),
         release_to_cdn: job_on_linux("CDN Release", [
             downloadArtifacts,
             getCurrentReleaseChangelogInfo,
-            failIfReleaseExistsAlready,
             prepareAwsSessionCDN,
             uploadToCDN('index.js.gz','style.css','ide.wasm','wasm_imports.js.gz'),
         ],{ if:releaseCondition,
             // FIXME:
-            needs:["lint","test","wasm-test","build"]
+            needs:['assert_version_not_already_published','lint','test','wasm-test','build']
         }),
     }
 }
