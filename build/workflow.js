@@ -66,48 +66,6 @@ function list(...args) {
 
 
 
-// ==================
-// === Validators ===
-// ==================
-
-let assertVersionUnstable = {
-    name: "Assert Version Unstable",
-    run: "node ./run assert-version-unstable --skip-version-validation",
-    if: `github.ref == 'refs/heads/unstable'`
-}
-
-let assertVersionStable = {
-    name: "Assert Version Stable",
-    run: "node ./run assert-version-stable --skip-version-validation",
-    if: `github.ref == 'refs/heads/stable'`
-}
-
-let assertReleaseDoNotExists = [
-    {
-        id: 'checkCurrentReleaseTag',
-        uses: 'mukunku/tag-exists-action@v1.0.0',
-        env: {
-            GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-        },
-        with: {
-            tag: 'v${{fromJson(steps.changelog.outputs.content).version}}'
-        }
-    },
-    {
-        name: 'Fail if release already exists',
-        run: 'exit 1',
-        if: '${{ steps.checkCurrentReleaseTag.outputs.exists }} == "true"'
-    }
-]
-
-let assertions = list(
-    assertVersionUnstable,
-    assertVersionStable,
-    assertReleaseDoNotExists
-)
-
-
-
 // ====================
 // === Dependencies ===
 // ====================
@@ -305,6 +263,48 @@ function uploadToCDN(...names) {
     }
     return actions
 }
+
+
+
+// ==================
+// === Assertions ===
+// ==================
+
+let assertVersionUnstable = {
+    name: "Assert Version Unstable",
+    run: "node ./run assert-version-unstable --skip-version-validation",
+    if: `github.ref == 'refs/heads/unstable'`
+}
+
+let assertVersionStable = {
+    name: "Assert Version Stable",
+    run: "node ./run assert-version-stable --skip-version-validation",
+    if: `github.ref == 'refs/heads/stable'`
+}
+
+let assertReleaseDoNotExists = [
+    {
+        id: 'checkCurrentReleaseTag',
+        uses: 'mukunku/tag-exists-action@v1.0.0',
+        env: {
+            GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        },
+        with: {
+            tag: 'v${{fromJson(steps.changelog.outputs.content).version}}'
+        }
+    },
+    {
+        name: 'Fail if release already exists',
+        run: 'exit 1',
+        if: '${{ steps.checkCurrentReleaseTag.outputs.exists }} == "true"'
+    }
+]
+
+let assertions = list(
+    assertVersionUnstable,
+    assertVersionStable,
+    assertReleaseDoNotExists
+)
 
 
 

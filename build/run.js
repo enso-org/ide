@@ -147,6 +147,7 @@ commands.build.options = {
     }
 }
 commands.build.js = async function() {
+    await installJsDeps()
     console.log(`Building JS target.`)
     await run('npm',['run','build'])
 }
@@ -203,6 +204,7 @@ commands.start.rust = async function(argv) {
 }
 
 commands.start.js = async function (argv) {
+    await installJsDeps()
     console.log(`Building JS target.` + argv)
     const args = targetArgs.concat([
         `--backend-path ${paths.get_project_manager_path(paths.dist.bin)}`,
@@ -283,6 +285,7 @@ commands.watch.rust = async function(argv) {
 }
 
 commands.watch.js = async function() {
+    await installJsDeps()
     await cmd.with_cwd(paths.js.root, async () => {
         await run('npm',['run','watch'])
     })
@@ -297,6 +300,7 @@ commands.dist.rust = async function(argv) {
 }
 
 commands.dist.js = async function() {
+    await installJsDeps()
     await cmd.with_cwd(paths.js.root, async () => {
         await run('npm',['run','dist'])
     })
@@ -551,15 +555,6 @@ async function main () {
     await processPackageConfigs()
     workflow.generate()
     let command = argv._[0]
-    if(command === 'clean') {
-        try {
-            await fs.unlink(paths.dist.init)
-            await fs.unlink(paths.dist.buildInit)
-        } catch {}
-    } else {
-        await installJsDeps()
-    }
-
     await runCommand(command,argv)
 }
 
