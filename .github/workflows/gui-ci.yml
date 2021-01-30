@@ -1,6 +1,6 @@
 
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# DO NOT CHANGE THIS FILE. IT WAS GENERATED FROM 'workflows.js'. READ DOCS THERE TO LEARN MORE.
+# DO NOT CHANGE THIS FILE. IT WAS GENERATED FROM 'build/workflow.js'. READ DOCS THERE TO LEARN MORE.
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 name: GUI CI
@@ -249,6 +249,15 @@ jobs:
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
               
+      - id: checkCurrentReleaseTag
+        uses: mukunku/tag-exists-action@v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag: v${{fromJson(steps.changelog.outputs.content).version}}
+      - name: Fail if release already exists
+        run: exit 1
+        if: ${{ steps.checkCurrentReleaseTag.outputs.exists }}
       - name: Upload GitHub Release
         uses: softprops/action-gh-release@v1
         env:
@@ -281,6 +290,23 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           path: artifacts
+      - name: Read changelog info
+        id: changelog
+        run: |2-
+
+                  node ./run ci-gen --skip-version-validation
+                  content=`cat CURRENT_RELEASE_CHANGELOG.json`
+                  echo "::set-output name=content::$content"
+              
+      - id: checkCurrentReleaseTag
+        uses: mukunku/tag-exists-action@v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag: v${{fromJson(steps.changelog.outputs.content).version}}
+      - name: Fail if release already exists
+        run: exit 1
+        if: ${{ steps.checkCurrentReleaseTag.outputs.exists }}
       - shell: bash
         run: |2-
 
@@ -295,26 +321,26 @@ jobs:
         shell: bash
         run: >-
           aws s3 cp ./artifacts/content/assets/index.js.gz
-          s3://ensocdn/ide/2.0.0-alpha.2/index.js.gz --profile s3-upload --acl
-          public-read --content-encoding gzip
+          s3://ensocdn/ide/${{fromJson(steps.changelog.outputs.content).version}}/index.js.gz
+          --profile s3-upload --acl public-read --content-encoding gzip
       - name: Upload 'style.css' to CDN
         shell: bash
         run: >-
           aws s3 cp ./artifacts/content/assets/style.css
-          s3://ensocdn/ide/2.0.0-alpha.2/style.css --profile s3-upload --acl
-          public-read --content-encoding gzip
+          s3://ensocdn/ide/${{fromJson(steps.changelog.outputs.content).version}}/style.css
+          --profile s3-upload --acl public-read --content-encoding gzip
       - name: Upload 'ide.wasm' to CDN
         shell: bash
         run: >-
           aws s3 cp ./artifacts/content/assets/ide.wasm
-          s3://ensocdn/ide/2.0.0-alpha.2/ide.wasm --profile s3-upload --acl
-          public-read --content-encoding gzip
+          s3://ensocdn/ide/${{fromJson(steps.changelog.outputs.content).version}}/ide.wasm
+          --profile s3-upload --acl public-read --content-encoding gzip
       - name: Upload 'wasm_imports.js.gz' to CDN
         shell: bash
         run: >-
           aws s3 cp ./artifacts/content/assets/wasm_imports.js.gz
-          s3://ensocdn/ide/2.0.0-alpha.2/wasm_imports.js.gz --profile s3-upload
-          --acl public-read --content-encoding gzip
+          s3://ensocdn/ide/${{fromJson(steps.changelog.outputs.content).version}}/wasm_imports.js.gz
+          --profile s3-upload --acl public-read --content-encoding gzip
     if: >-
       github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
       || github.ref == 'refs/heads/wip/wd/ci'

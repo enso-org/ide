@@ -232,6 +232,25 @@ let getCurrentReleaseChangelogInfo = {
     `
 }
 
+let failIfReleaseExistsAlready = [
+    {
+        id: 'checkCurrentReleaseTag',
+        uses: 'mukunku/tag-exists-action@v1.0.0',
+        env: {
+            GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        },
+        with: {
+            tag: 'v${{fromJson(steps.changelog.outputs.content).version}}'
+        }
+    },
+    {
+        name: 'Fail if release already exists',
+        run: 'exit 1',
+        if: '${{ steps.checkCurrentReleaseTag.outputs.exists }}'
+    }
+]
+
+
 let uploadGitHubRelease = {
     name: `Upload GitHub Release`,
     uses: "softprops/action-gh-release@v1",
@@ -272,7 +291,7 @@ function uploadToCDN(...names) {
             name: `Upload '${name}' to CDN`,
             shell: "bash",
             run: `aws s3 cp ./artifacts/content/assets/${name} `
-               + `s3://ensocdn/ide/${release.currentVersion()}/${name} --profile `
+               + `s3://ensocdn/ide/\${{fromJson(steps.changelog.outputs.content).version}}/${name} --profile `
                + `s3-upload --acl public-read --content-encoding gzip`
         }
         actions.push(action)
@@ -334,15 +353,20 @@ let workflow = {
         release_to_github: job_on_macos("GitHub Release", [
             downloadArtifacts,
             getCurrentReleaseChangelogInfo,
+            failIfReleaseExistsAlready,
             uploadGitHubRelease,
         ],{ if:releaseCondition,
+            // FIXME:
             needs:["lint","test","wasm-test","build"]
         }),
         release_to_cdn: job_on_linux("CDN Release", [
             downloadArtifacts,
+            getCurrentReleaseChangelogInfo,
+            failIfReleaseExistsAlready,
             prepareAwsSessionCDN,
             uploadToCDN('index.js.gz','style.css','ide.wasm','wasm_imports.js.gz'),
         ],{ if:releaseCondition,
+            // FIXME:
             needs:["lint","test","wasm-test","build"]
         }),
     }
@@ -350,7 +374,7 @@ let workflow = {
 
 let header = `
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# DO NOT CHANGE THIS FILE. IT WAS GENERATED FROM 'workflows.js'. READ DOCS THERE TO LEARN MORE.
+# DO NOT CHANGE THIS FILE. IT WAS GENERATED FROM 'build/workflow.js'. READ DOCS THERE TO LEARN MORE.
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 `
 
