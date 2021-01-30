@@ -1,0 +1,7 @@
+<svg version="1.1" height="30" width="82" xmlns="http://www.w3.org/2000/svg">
+    <style>
+        .txt { font: 13px sans-serif; fill:white; }
+    </style>
+    <rect width="82" height="30" rx="15" fill="#e02424"/>
+    <text x="12" y="19" class="txt">Bug Fixes</text>
+</svg>
