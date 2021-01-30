@@ -295,7 +295,7 @@ let assertReleaseDoNotExists = [
     },
     {
         name: 'Fail if release already exists',
-        run: 'if [[ ${{ steps.checkCurrentReleaseTag.outputs.exists }} == "true" ]]; then exit 1; fi',
+        run: 'if [[ ${{ steps.checkCurrentReleaseTag.outputs.exists }} == true ]]; then exit 1; fi',
     }
 ]
 
@@ -313,7 +313,7 @@ let assertions = list(
 
 // FIXME
 let releaseCondition = `github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/wip/wd/ci'`
-let buildCondition   = `github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || ${releaseCondition}`
+let buildCondition   = `contains(github.event.head_commit.message,'[ci build]') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || ${releaseCondition}`
 
 let workflow = {
     name : "GUI CI",
@@ -322,7 +322,7 @@ let workflow = {
         version_assertions: job_on_macos("Version Assertions", [
             getCurrentReleaseChangelogInfo,
             assertions,
-        ],{if:releaseCondition}),
+        ],
         lint: job_on_macos("Linter", [
             installNode,
             installRust,
@@ -342,6 +342,12 @@ let workflow = {
             installWasmPack,
             testWASM
         ]),
+        assert_wasm_size_limit: job_on_macos("Assert WASM size limit", [
+            installNode,
+            installRust,
+            installWasmPack,
+            buildOnMacOS,
+        ],{if:`!(${buildCondition})`}),
         build: job_on_all_platforms("Build", [
             installNode,
             installRust,
