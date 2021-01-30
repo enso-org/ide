@@ -3,8 +3,8 @@ This update contains major performance improvements and exposes new privacy user
 work towards stabilizing it in the next weeks in order to make these updates be shipped in a stable
 release before the end of the year.
 
-<br/><!-- NEW FEATURES -->
-<img src="https://user-images.githubusercontent.com/1623053/106358135-7d6c3b80-630a-11eb-9dde-032b7db9a53f.png" height="34px">
+<br/>
+<img src="/docs/assets/tags/new_features.svg">
 
 #### Visual Environment
 - [You can now launch missiles directly from the GUI][79270]. It was technically possible since version
@@ -19,8 +19,8 @@ release before the end of the year.
 - [The new JSON library allows you to parse 2Gb files in 50ms][79274].
 - [The Regexp library exposes now methods to test the expressions directly on humans][79275].
 
-<br/><!-- BUG FIXES -->
-<img src="https://user-images.githubusercontent.com/1623053/106356796-8eb14a00-6302-11eb-9fb2-0b996be8c3c0.png" height="34px">
+<br/>
+<img src="/docs/assets/tags/bug_fixes.svg">
 
 #### Visual Environment
 - [You can now launch missiles directly from the GUI][79270]. It was technically possible since version
@@ -35,8 +35,8 @@ release before the end of the year.
 - [The new JSON library allows you to parse 2Gb files in 50ms][79274].
 - [The Regexp library exposes now methods to test the expressions directly on humans][79275].
 
-<br/><!-- NEW LEARNING RESOURCES -->
-<img src="https://user-images.githubusercontent.com/1623053/106358336-f15b1380-630b-11eb-8cb7-4ef902403853.png" height="34px">
+<br/>
+<img src="/docs/assets/tags/new_learning_resources.svg">
 
 #### Visual Environment
 - [You can now launch missiles directly from the GUI][79270]. It was technically possible since version
@@ -51,8 +51,8 @@ release before the end of the year.
 - [The new JSON library allows you to parse 2Gb files in 50ms][79274].
 - [The Regexp library exposes now methods to test the expressions directly on humans][79275].
 
-<br/><!-- RELEASE NOTES -->
-<img src="https://user-images.githubusercontent.com/1623053/106358477-c7562100-630c-11eb-86ca-26a48f0c2eed.png" height="34px">
+<br/>
+<img src="/docs/assets/tags/release_notes.svg">
 
 #### Visual Environment
 - [You can now launch missiles directly from the GUI][79270]. It was technically possible since version
@@ -82,8 +82,8 @@ This update contains major performance improvements and exposes new privacy user
 work towards stabilizing it in the next weeks in order to make these updates be shipped in a stable
 release before the end of the year.
 
-<br/><!-- NEW FEATURES -->
-<img src="https://user-images.githubusercontent.com/1623053/106358135-7d6c3b80-630a-11eb-9dde-032b7db9a53f.png" height="34px">
+<br/>
+<img src="/docs/assets/tags/new_features.svg">
 
 #### Visual Environment
 - [You can now launch missiles directly from the GUI][79270]. It was technically possible since version
@@ -98,8 +98,8 @@ release before the end of the year.
 - [The new JSON library allows you to parse 2Gb files in 50ms][79274].
 - [The Regexp library exposes now methods to test the expressions directly on humans][79275].
 
-<br/><!-- BUG FIXES -->
-<img src="https://user-images.githubusercontent.com/1623053/106356796-8eb14a00-6302-11eb-9fb2-0b996be8c3c0.png" height="34px">
+<br/>
+<img src="/docs/assets/tags/bug_fixes.svg">
 
 #### Visual Environment
 - [You can now launch missiles directly from the GUI][79270]. It was technically possible since version
@@ -114,8 +114,8 @@ release before the end of the year.
 - [The new JSON library allows you to parse 2Gb files in 50ms][79274].
 - [The Regexp library exposes now methods to test the expressions directly on humans][79275].
 
-<br/><!-- NEW LEARNING RESOURCES -->
-<img src="https://user-images.githubusercontent.com/1623053/106358336-f15b1380-630b-11eb-8cb7-4ef902403853.png" height="34px">
+<br/>
+<img src="/docs/assets/tags/new_learning_resources.svg">
 
 #### Visual Environment
 - [You can now launch missiles directly from the GUI][79270]. It was technically possible since version
@@ -130,8 +130,8 @@ release before the end of the year.
 - [The new JSON library allows you to parse 2Gb files in 50ms][79274].
 - [The Regexp library exposes now methods to test the expressions directly on humans][79275].
 
-<br/><!-- RELEASE NOTES -->
-<img src="https://user-images.githubusercontent.com/1623053/106358477-c7562100-630c-11eb-86ca-26a48f0c2eed.png" height="34px">
+<br/>
+<img src="/docs/assets/tags/release_notes.svg">
 
 #### Visual Environment
 - [You can now launch missiles directly from the GUI][79270]. It was technically possible since version
