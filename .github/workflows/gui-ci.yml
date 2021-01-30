@@ -343,7 +343,7 @@ jobs:
       || github.ref == 'refs/heads/wip/wd/ci'
     needs:
       - version_assertions
-      - assert_wasm_size_limit
+      - simple_build
       - lint
       - test
       - wasm-test
@@ -409,7 +409,7 @@ jobs:
       || github.ref == 'refs/heads/wip/wd/ci'
     needs:
       - version_assertions
-      - assert_wasm_size_limit
+      - simple_build
       - lint
       - test
       - wasm-test
