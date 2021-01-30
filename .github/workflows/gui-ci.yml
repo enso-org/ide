@@ -39,11 +39,8 @@ jobs:
           tag: v${{fromJson(steps.changelog.outputs.content).version}}
       - name: Fail if release already exists
         run: >-
-          if [[ ${{ steps.checkCurrentReleaseTag.outputs.exists }} == "true" ]];
+          if [[ ${{ steps.checkCurrentReleaseTag.outputs.exists }} == true ]];
           then exit 1; fi
-    if: >-
-      github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
-      || github.ref == 'refs/heads/wip/wd/ci'
   lint:
     name: Linter
     runs-on: ${{ matrix.os }}
@@ -147,6 +144,66 @@ jobs:
       - name: Run tests (WASM)
         run: node ./run test --no-native --skip-version-validation
         continue-on-error: true
+  assert_wasm_size_limit:
+    name: Assert WASM size limit
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - macOS-latest
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Node
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14.15.0
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2019-11-04
+          override: true
+      - name: Install wasm-pack (macOS)
+        env:
+          WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1
+          WASMPACKDIR: wasm-pack-v0.9.1-x86_64-apple-darwin
+        run: |2-
+
+                      curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
+                      mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
+                      rm -r $WASMPACKDIR
+        shell: bash
+        if: matrix.os == 'macOS-latest'
+      - name: Install wasm-pack (Windows)
+        env:
+          WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1
+          WASMPACKDIR: wasm-pack-v0.9.1-x86_64-pc-windows-msvc
+        run: |2-
+
+                      curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
+                      mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
+                      rm -r $WASMPACKDIR
+        shell: bash
+        if: matrix.os == 'windows-latest'
+      - name: Install wasm-pack (Linux)
+        env:
+          WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1
+          WASMPACKDIR: wasm-pack-v0.9.1-x86_64-unknown-linux-musl
+        run: |2-
+
+                      curl -L "$WASMPACKURL/$WASMPACKDIR.tar.gz" | tar -xz -C .
+                      mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
+                      rm -r $WASMPACKDIR
+        shell: bash
+        if: matrix.os == 'ubuntu-latest'
+      - name: Build (macos)
+        run: node ./run dist --skip-version-validation --target macos
+        if: matrix.os == 'macos-latest'
+    if: >-
+      !(contains(github.event.head_commit.message,'[ci build]') || github.ref ==
+      'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref ==
+      'refs/heads/unstable' || github.ref == 'refs/heads/stable' || github.ref
+      == 'refs/heads/wip/wd/ci')
   build:
     name: Build
     runs-on: ${{ matrix.os }}
@@ -235,9 +292,10 @@ jobs:
           path: dist/client/enso-mac-2.0.0-alpha.2.dmg
         if: matrix.os == 'macos-latest'
     if: >-
-      github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' ||
-      github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
-      || github.ref == 'refs/heads/wip/wd/ci'
+      contains(github.event.head_commit.message,'[ci build]') || github.ref ==
+      'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref ==
+      'refs/heads/unstable' || github.ref == 'refs/heads/stable' || github.ref
+      == 'refs/heads/wip/wd/ci'
   release_to_github:
     name: GitHub Release
     runs-on: ${{ matrix.os }}

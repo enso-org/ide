@@ -321,8 +321,8 @@ let workflow = {
     jobs: {
         version_assertions: job_on_macos("Version Assertions", [
             getCurrentReleaseChangelogInfo,
-            assertions,
-        ],
+            assertions
+        ]),
         lint: job_on_macos("Linter", [
             installNode,
             installRust,
