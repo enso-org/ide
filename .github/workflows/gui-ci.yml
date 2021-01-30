@@ -318,6 +318,16 @@ jobs:
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
               
+      - id: checkCurrentReleaseTag
+        uses: mukunku/tag-exists-action@v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag: v${{fromJson(steps.changelog.outputs.content).version}}
+      - name: Fail if release already exists
+        run: >-
+          if [[ ${{ steps.checkCurrentReleaseTag.outputs.exists }} == true ]];
+          then exit 1; fi
       - name: Upload GitHub Release
         uses: softprops/action-gh-release@v1
         env:

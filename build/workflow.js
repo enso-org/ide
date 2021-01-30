@@ -363,6 +363,10 @@ let workflow = {
         release_to_github: job_on_macos("GitHub Release", [
             downloadArtifacts,
             getCurrentReleaseChangelogInfo,
+            // This assertion is checked earlier, but we should double-check it in case several
+            // CI jobs wil be run on this branch and a release was created when this workflow was
+            // running.
+            assertReleaseDoNotExists,
             uploadGitHubRelease,
         ],{ if:releaseCondition,
             needs:['version_assertions','assert_wasm_size_limit','lint','test','wasm-test','build']
