@@ -36,7 +36,7 @@ release before the end of the year.
 - [The Regexp library exposes now methods to test the expressions directly on humans][79275].
 
 <br/>
-<img src="https://user-images.githubusercontent.com/1623053/106358265-6da12700-630b-11eb-9ac1-a72dc3839d5d.png" height="32px">
+<img src="https://user-images.githubusercontent.com/1623053/106358336-f15b1380-630b-11eb-8cb7-4ef902403853.png" height="32px">
 
 #### Visual Environment
 - [You can now launch missiles directly from the GUI][79270]. It was technically possible since version
@@ -68,7 +68,7 @@ work towards stabilizing it in the next weeks in order to make these updates be 
 release before the end of the year.
 
 <br/>
-<img src="https://user-images.githubusercontent.com/1623053/106358135-7d6c3b80-630a-11eb-9dde-032b7db9a53f.png" height="36px">
+<img src="https://user-images.githubusercontent.com/1623053/106358135-7d6c3b80-630a-11eb-9dde-032b7db9a53f.png" height="34px">
 
 #### Visual Environment
 - [You can now launch missiles directly from the GUI][79270]. It was technically possible since version
@@ -84,7 +84,7 @@ release before the end of the year.
 - [The Regexp library exposes now methods to test the expressions directly on humans][79275].
 
 <br/>
-<img src="https://user-images.githubusercontent.com/1623053/106356796-8eb14a00-6302-11eb-9fb2-0b996be8c3c0.png" height="36px">
+<img src="https://user-images.githubusercontent.com/1623053/106356796-8eb14a00-6302-11eb-9fb2-0b996be8c3c0.png" height="34px">
 
 #### Visual Environment
 - [You can now launch missiles directly from the GUI][79270]. It was technically possible since version
@@ -100,7 +100,7 @@ release before the end of the year.
 - [The Regexp library exposes now methods to test the expressions directly on humans][79275].
 
 <br/>
-<img src="https://user-images.githubusercontent.com/1623053/106358265-6da12700-630b-11eb-9ac1-a72dc3839d5d.png" height="36px">
+<img src="https://user-images.githubusercontent.com/1623053/106358336-f15b1380-630b-11eb-8cb7-4ef902403853.png" height="34px">
 
 #### Visual Environment
 - [You can now launch missiles directly from the GUI][79270]. It was technically possible since version
