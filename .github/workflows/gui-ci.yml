@@ -7,8 +7,8 @@ name: GUI CI
 'on':
   - push
 jobs:
-  assert_version_not_already_published:
-    name: Already Published Version Assertion
+  version_assertions:
+    name: Version Assertions
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -25,6 +25,12 @@ jobs:
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
               
+      - name: Assert Version Unstable
+        run: node ./run assert-version-unstable --skip-version-validation
+        if: github.ref == 'refs/heads/unstable'
+      - name: Assert Version Stable
+        run: node ./run assert-version-stable --skip-version-validation
+        if: github.ref == 'refs/heads/stable'
       - id: checkCurrentReleaseTag
         uses: mukunku/tag-exists-action@v1.0.0
         env:
@@ -33,36 +39,10 @@ jobs:
           tag: v${{fromJson(steps.changelog.outputs.content).version}}
       - name: Fail if release already exists
         run: exit 1
-        if: ${{ steps.checkCurrentReleaseTag.outputs.exists }}
+        if: ${{ steps.checkCurrentReleaseTag.outputs.exists }} == "true"
     if: >-
       github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
       || github.ref == 'refs/heads/wip/wd/ci'
-  assert_version_unstable:
-    name: Unstable Version Assertion
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os:
-          - macOS-latest
-      fail-fast: false
-    steps:
-      - uses: actions/checkout@v2
-      - name: Assert Version Unstable
-        run: node ./run assert-version-unstable --skip-version-validation
-    if: github.ref == 'refs/heads/unstable'
-  assert_version_stable:
-    name: Stable Version Assertion
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os:
-          - macOS-latest
-      fail-fast: false
-    steps:
-      - uses: actions/checkout@v2
-      - name: Assert Version Stable
-        run: node ./run assert-version-stable --skip-version-validation
-    if: github.ref == 'refs/heads/stable'
   lint:
     name: Linter
     runs-on: ${{ matrix.os }}
@@ -293,7 +273,7 @@ jobs:
       github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
       || github.ref == 'refs/heads/wip/wd/ci'
     needs:
-      - assert_version_not_already_published
+      - version_assertions
       - lint
       - test
       - wasm-test
@@ -358,7 +338,7 @@ jobs:
       github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
       || github.ref == 'refs/heads/wip/wd/ci'
     needs:
-      - assert_version_not_already_published
+      - version_assertions
       - lint
       - test
       - wasm-test

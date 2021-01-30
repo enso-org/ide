@@ -73,12 +73,38 @@ function list(...args) {
 let assertVersionUnstable = {
     name: "Assert Version Unstable",
     run: "node ./run assert-version-unstable --skip-version-validation",
+    if: `github.ref == 'refs/heads/unstable'`
 }
 
 let assertVersionStable = {
     name: "Assert Version Stable",
     run: "node ./run assert-version-stable --skip-version-validation",
+    if: `github.ref == 'refs/heads/stable'`
 }
+
+let assertReleaseDoNotExists = [
+    {
+        id: 'checkCurrentReleaseTag',
+        uses: 'mukunku/tag-exists-action@v1.0.0',
+        env: {
+            GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        },
+        with: {
+            tag: 'v${{fromJson(steps.changelog.outputs.content).version}}'
+        }
+    },
+    {
+        name: 'Fail if release already exists',
+        run: 'exit 1',
+        if: '${{ steps.checkCurrentReleaseTag.outputs.exists }} == "true"'
+    }
+]
+
+let assertions = list(
+    assertVersionUnstable,
+    assertVersionStable,
+    assertReleaseDoNotExists
+)
 
 
 
@@ -232,25 +258,6 @@ let getCurrentReleaseChangelogInfo = {
     `
 }
 
-let failIfReleaseExistsAlready = [
-    {
-        id: 'checkCurrentReleaseTag',
-        uses: 'mukunku/tag-exists-action@v1.0.0',
-        env: {
-            GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-        },
-        with: {
-            tag: 'v${{fromJson(steps.changelog.outputs.content).version}}'
-        }
-    },
-    {
-        name: 'Fail if release already exists',
-        run: 'exit 1',
-        if: '${{ steps.checkCurrentReleaseTag.outputs.exists }}'
-    }
-]
-
-
 let uploadGitHubRelease = {
     name: `Upload GitHub Release`,
     uses: "softprops/action-gh-release@v1",
@@ -313,16 +320,10 @@ let workflow = {
     name : "GUI CI",
     on: ['push'],
     jobs: {
-        assert_version_not_already_published: job_on_macos("Already Published Version Assertion", [
+        version_assertions: job_on_macos("Version Assertions", [
             getCurrentReleaseChangelogInfo,
-            failIfReleaseExistsAlready,
+            assertions,
         ],{if:releaseCondition}),
-        assert_version_unstable: job_on_macos("Unstable Version Assertion", [
-            assertVersionUnstable
-        ],{if:`github.ref == 'refs/heads/unstable'`}),
-        assert_version_stable: job_on_macos("Stable Version Assertion", [
-            assertVersionStable
-        ],{if:`github.ref == 'refs/heads/stable'`}),
         lint: job_on_macos("Linter", [
             installNode,
             installRust,
@@ -359,8 +360,7 @@ let workflow = {
             getCurrentReleaseChangelogInfo,
             uploadGitHubRelease,
         ],{ if:releaseCondition,
-            // FIXME:
-            needs:['assert_version_not_already_published','lint','test','wasm-test','build']
+            needs:['version_assertions','lint','test','wasm-test','build']
         }),
         release_to_cdn: job_on_linux("CDN Release", [
             downloadArtifacts,
@@ -368,8 +368,7 @@ let workflow = {
             prepareAwsSessionCDN,
             uploadToCDN('index.js.gz','style.css','ide.wasm','wasm_imports.js.gz'),
         ],{ if:releaseCondition,
-            // FIXME:
-            needs:['assert_version_not_already_published','lint','test','wasm-test','build']
+            needs:['version_assertions','lint','test','wasm-test','build']
         }),
     }
 }
