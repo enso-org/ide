@@ -3,8 +3,7 @@ This update contains major performance improvements and exposes new privacy user
 work towards stabilizing it in the next weeks in order to make these updates be shipped in a stable
 release before the end of the year.
 
-<br/>
-<img src="/docs/assets/tags/new_features.svg">
+<br/>![New Features](/docs/assets/tags/new_features.svg)
 
 #### Visual Environment
 - [You can now launch missiles directly from the GUI][79270]. It was technically possible since version
