@@ -13,14 +13,14 @@ use crate::graph_editor;
 use crate::project;
 
 use enso_frp as frp;
-use ensogl::display::navigation::navigator::Navigator;
-use ensogl::system::web;
 use ensogl::application::Application;
+use ensogl::display::navigation::navigator::Navigator;
 use ensogl::display::object::ObjectOps;
+use ensogl::system::web;
 use ensogl_text as text;
 use ensogl_theme as theme;
-use wasm_bindgen::prelude::*;
 use parser::Parser;
+use wasm_bindgen::prelude::*;
 
 
 

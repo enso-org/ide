@@ -1,13 +1,14 @@
 //! Functionality related to visualising the version control system status of a node.
 
-use crate::prelude::*;
-use ensogl::display::shape::*;
 use crate::component::node as node;
-use ensogl::gui::component::ShapeView;
-use ensogl::display;
-use ensogl::application::Application;
+use crate::prelude::*;
+
 use enso_frp as frp;
+use ensogl::application::Application;
 use ensogl::data::color;
+use ensogl::display::shape::*;
+use ensogl::display;
+use ensogl::gui::component::ShapeView;
 
 
 
