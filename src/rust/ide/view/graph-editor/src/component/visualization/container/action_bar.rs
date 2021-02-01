@@ -27,7 +27,7 @@ use ensogl_theme as theme;
 const HOVER_COLOR      : color::Rgba = color::Rgba::new(1.0,0.0,0.0,0.000_001);
 /// Gap between action bar and selection menu
 const MENU_GAP         : f32 = 5.0;
-const ACTION_ICON_SIZE : f32 = 15.0;
+const ACTION_ICON_SIZE : f32 = 20.0;
 
 
 
