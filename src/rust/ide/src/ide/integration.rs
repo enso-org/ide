@@ -1148,7 +1148,7 @@ impl Model {
         });
     }
 
-    fn visualization_preprocessor_changed(&self, node_id:graph_editor::NodeId, code:&graph_editor::data::EnsoCode)
+    fn visualization_preprocessor_changed(&self, node_id:graph_editor::NodeId, code:&graph_editor::data::enso::Code)
     -> FallibleResult {
         if let Some(visualization) = self.visualizations.get_copied(&node_id) {
             let logger      = self.logger.clone_ref();

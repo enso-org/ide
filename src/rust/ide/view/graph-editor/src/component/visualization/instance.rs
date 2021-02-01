@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::data::EnsoCode;
+use crate::data::enso;
 use crate::visualization::*;
 
 use enso_frp as frp;
@@ -21,8 +21,10 @@ use ensogl::display::Scene;
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct FrpInputs {
-    pub set_size  : frp::Source<Vector2>,
-    pub send_data : frp::Source<Data>,
+    pub set_size   : frp::Source<Vector2>,
+    pub send_data  : frp::Source<Data>,
+    pub activate   : frp::Source,
+    pub deactivate : frp::Source,
 }
 
 /// Visualization FRP network.
@@ -32,42 +34,46 @@ pub struct Frp {
     #[shrinkwrap(main_field)]
     pub inputs                 : FrpInputs,
 
-    pub on_preprocessor_change : frp::Stream<EnsoCode>,
+    pub on_preprocessor_change : frp::Stream<enso::Code>,
     pub on_data_receive_error  : frp::Stream<Option<DataError>>,
     pub is_active              : frp::Stream<bool>,
 
+    /// This event should be emitted when the received data are incorrect, or cause an internal
+    /// error.
     pub data_receive_error    : frp::Source<Option<DataError>>,
-    pub preprocessor_change: frp::Source<EnsoCode>,
-    pub activate              : frp::Source,
-    pub deactivate            : frp::Source,
+    /// This event should be emitted  should be emitted to set a new code of the preprocessor. The
+    /// preprocessor is a function called on the Engine side before sending data to IDE, allowing us
+    /// do some compression or filtering for the best performance. See also _Lazy Visualization_
+    /// section in `docs/product/visualizations.md`
+    pub preprocessor_change   : frp::Source<enso::Code>,
 }
 
 impl FrpInputs {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
         frp::extend! { network
-            set_size           <- source();
-            send_data          <- source();
+            set_size   <- source();
+            send_data  <- source();
+            activate   <- source();
+            deactivate <- source();
         };
-        Self {set_size,send_data}
+        Self {set_size,send_data,activate,deactivate}
     }
 }
 
 impl Frp {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
+        let inputs = FrpInputs::new(&network);
         frp::extend! { network
             def preprocessor_change = source();
             def data_receive_error  = source();
-            def activate            = source();
-            def deactivate          = source();
-            is_active              <- bool(&deactivate,&activate);
+            is_active              <- bool(&inputs.deactivate,&inputs.activate);
         };
         let on_preprocessor_change = preprocessor_change.clone_ref().into();
         let on_data_receive_error  = data_receive_error.clone_ref().into();
-        let inputs                 = FrpInputs::new(&network);
         Self {on_preprocessor_change,on_data_receive_error,is_active,preprocessor_change,inputs
-            ,data_receive_error,activate,deactivate}
+            ,data_receive_error}
     }
 
     /// Extend the FRP network with mechanism of passing all mouse and keyboard event to DOM when

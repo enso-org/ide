@@ -8,7 +8,7 @@ use crate::prelude::*;
 use crate::constants::VISUALIZATION_DIRECTORY;
 
 use enso_protocol::language_server;
-use ide_view::graph_editor::data;
+use ide_view::graph_editor::data::enso;
 use ide_view::graph_editor::component::visualization::definition;
 use ide_view::graph_editor::component::visualization;
 use std::rc::Rc;
@@ -137,7 +137,7 @@ impl Handle {
                 let js_code    = self.language_server_rpc.read_file(&path).await?.contents;
                 let identifier = visualization.clone();
                 let error      = |_| VisualizationError::InstantiationError {identifier}.into();
-                let module     = data::builtin_library(); // FIXME: provide real library name.
+                let module     = enso::builtin_library(); // FIXME: provide real library name.
                 // TODO: this is wrong. This is translated to InstantiationError and it is preparation error :
                 let js_class   = visualization::java_script::Definition::new(module,&js_code).map_err(error);
                 js_class.map(|t| t.into())

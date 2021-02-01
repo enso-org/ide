@@ -501,7 +501,7 @@ ensogl::define_endpoints! {
         visualization_enabled              (NodeId),
         visualization_disabled             (NodeId),
         visualization_enable_fullscreen    (NodeId),
-        visualization_preprocessor_changed ((NodeId,data::EnsoCode)),
+        visualization_preprocessor_changed ((NodeId,data::enso::Code)),
 
         on_visualization_select     (Switch<NodeId>),
         some_visualisation_selected (bool),

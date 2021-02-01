@@ -3,7 +3,7 @@
 use crate::graph_editor::component::visualization::Data;
 use crate::graph_editor::component::visualization;
 use crate::graph_editor::component::visualization::Registry;
-use crate::graph_editor::data;
+use crate::graph_editor::data::enso;
 
 use ensogl::application::Application;
 use ensogl::display::navigation::navigator::Navigator;
@@ -73,7 +73,7 @@ fn constructor_graph() -> visualization::java_script::Definition {
 
         return Graph
     "#;
-    visualization::java_script::Definition::new(data::builtin_library(),source).unwrap()
+    visualization::java_script::Definition::new(enso::builtin_library(),source).unwrap()
 }
 
 #[wasm_bindgen]

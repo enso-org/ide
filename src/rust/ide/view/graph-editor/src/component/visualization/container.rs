@@ -13,7 +13,7 @@ mod visualization_chooser;
 
 use crate::prelude::*;
 
-use crate::data::EnsoCode;
+use crate::data::enso;
 use crate::visualization;
 
 use action_bar::ActionBar;
@@ -166,7 +166,7 @@ ensogl::define_endpoints! {
     }
 
     Output {
-        preprocessor  (EnsoCode),
+        preprocessor  (enso::Code),
         visualisation (Option<visualization::Definition>),
         size          (Vector2),
         is_selected   (bool),
@@ -316,16 +316,20 @@ impl display::Object for FullscreenView {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct ContainerModel {
-    logger          : Logger,
-    display_object  : display::object::Instance,
-    visualization   : RefCell<Option<visualization::Instance>>,
-    scene           : Scene,
-    view            : View,
-    fullscreen_view : FullscreenView,
-    is_fullscreen   : Rc<Cell<bool>>,
-    registry        : visualization::Registry,
-    size            : Rc<Cell<Vector2>>,
-    action_bar      : ActionBar,
+    logger             : Logger,
+    display_object     : display::object::Instance,
+    visualization      : RefCell<Option<visualization::Instance>>,
+    /// A network containing connection between currently set `visualization` FRP endpoints and
+    /// container FRP. We keep a separate network for that, so we can manage life of such
+    /// connections reliably.
+    vis_frp_connection : RefCell<Option<frp::Network>>,
+    scene              : Scene,
+    view               : View,
+    fullscreen_view    : FullscreenView,
+    is_fullscreen      : Rc<Cell<bool>>,
+    registry           : visualization::Registry,
+    size               : Rc<Cell<Vector2>>,
+    action_bar         : ActionBar,
 }
 
 
@@ -335,20 +339,21 @@ impl ContainerModel {
     pub fn new
     (logger:&Logger, app:&Application, registry:visualization::Registry)
     -> Self {
-        let scene           = app.display.scene();
-        let logger          = Logger::sub(logger,"visualization_container");
-        let display_object  = display::object::Instance::new(&logger);
-        let visualization   = default();
-        let view            = View::new(&logger,scene);
-        let fullscreen_view = FullscreenView::new(&logger,scene);
-        let scene           = scene.clone_ref();
-        let is_fullscreen   = default();
-        let size            = default();
-        let action_bar      = ActionBar::new(&app,registry.clone_ref());
+        let scene              = app.display.scene();
+        let logger             = Logger::sub(logger,"visualization_container");
+        let display_object     = display::object::Instance::new(&logger);
+        let visualization      = default();
+        let vis_frp_connection = default();
+        let view               = View::new(&logger,scene);
+        let fullscreen_view    = FullscreenView::new(&logger,scene);
+        let scene              = scene.clone_ref();
+        let is_fullscreen      = default();
+        let size               = default();
+        let action_bar         = ActionBar::new(&app,registry.clone_ref());
         view.add_child(&action_bar);
 
-        Self {logger,visualization,display_object,view,fullscreen_view,scene,is_fullscreen,
-              action_bar,registry,size}.init()
+        Self {logger,visualization,vis_frp_connection,display_object,view,fullscreen_view,scene
+            ,is_fullscreen,action_bar,registry,size}.init()
     }
 
     fn init(self) -> Self {
@@ -395,15 +400,19 @@ impl ContainerModel {
     }
 
     fn set_visualization
-    (&self, visualization:visualization::Instance, preprocessor:&frp::Any<EnsoCode>) {
+    (&self, visualization:visualization::Instance, preprocessor:&frp::Any<enso::Code>) {
         let size = self.size.get();
         visualization.set_size.emit(size);
-        let _vis_network = visualization.network();
-        frp::extend! { _vis_network
-            preprocessor <+ visualization.on_preprocessor_change;
+        frp::new_network! { vis_frp_connection
+            // We need an additional "copy" node here. Doing simple
+            // `preprocessor <+ visualization.on_preprocessor_change` will not create any node in
+            // this network, so the connection will leak after setting new instance.
+            vis_preprocessor_change <- visualization.on_preprocessor_change.map(|x| x.clone());
+            preprocessor            <+ vis_preprocessor_change;
         }
         self.view.add_child(&visualization);
         self.visualization.replace(Some(visualization));
+        self.vis_frp_connection.replace(Some(vis_frp_connection));
     }
 
     fn set_visualization_data(&self, data:&visualization::Data) {
