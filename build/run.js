@@ -422,7 +422,7 @@ for (let command of commandList) {
 
 function defaultConfig() {
     return {
-        version: release.currentVersion(),
+        version: release.currentVersion().toLocalBuildVersion(),
         author: {
             name: "Enso Team",
             email: "contact@enso.org"
@@ -463,10 +463,10 @@ async function processPackageConfigs() {
 // ============
 
 async function updateBuildVersion (argv) {
-    const target =  get_target_platform(argv)
-    let config        = {}
-    let configPath    = paths.dist.buildInfo
-    let exists        = fss.existsSync(configPath)
+    const target   = get_target_platform(argv)
+    let config     = {}
+    let configPath = paths.dist.buildInfo
+    let exists     = fss.existsSync(configPath)
     if(exists) {
         let configFile = await fs.readFile(configPath)
         config         = JSON.parse(configFile)

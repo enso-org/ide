@@ -26,6 +26,10 @@ class NextReleaseVersion {
         return "next_release"
     }
 
+    toLocalBuildVersion() {
+        return "0.0.0"
+    }
+
     isPrerelease() {
         return true
     }
@@ -61,6 +65,10 @@ class Version {
             suffix = `-${this.tag}.${this.tagVersion}`
         }
         return `${this.major}.${this.minor}.${this.patch}${suffix}`
+    }
+
+    toLocalBuildVersion() {
+        return this.toString()
     }
 }
 
