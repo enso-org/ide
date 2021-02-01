@@ -1,4 +1,7 @@
-# Enso 2.0.0-alpha.2
+# NEXT RELEASE
+TODO: dodac daty
+TODO: https://github.com/fkirc/skip-duplicate-actions/#skip-duplicate-workflow-runs
+
 This is a minor update exposing more control over the anonymous data collection. You are now allowed 
 to run the application with `--no-errors-data-collection`, and `--no-data-collection`. The options 
 disable the collection of errors data (keeping the collection of other events), and disables the 

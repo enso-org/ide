@@ -233,8 +233,8 @@ have prepared several scripts which maximally automate the process:
 Please remember to update the `CHANGELOG.md` on every new bug fix or feature implementation. Please 
 note that `CHANGELOG.md` is used to establish the current product version (the `run` script extracts 
 it from the newest changelog entry). Thus, be sure to always increase the newest version in the 
-changelog after a release, otherwise CI will fail. Please use the `docs/CHANGELOG_TEMPLATE` as the
-template to create new changelog entries.
+changelog after a release, otherwise CI will fail. Please use the `docs/CHANGELOG_TEMPLATE.md` as 
+the template to create new changelog entries.
 
 
 ## Publishing Results
