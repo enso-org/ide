@@ -74,11 +74,10 @@ release before the end of the year.
 [79273]: http://github.com/ticket
 [79274]: http://github.com/ticket
 [79275]: http://github.com/ticket
-
-
-
-
 <br/>
+
+
+
 # Enso 47.0.0-alpha.9 (2049-01-27)
 This update contains major performance improvements and exposes new privacy user settings. We will
 work towards stabilizing it in the next weeks in order to make these updates be shipped in a stable
@@ -155,9 +154,9 @@ release before the end of the year.
 [79273]: http://github.com/ticket
 [79274]: http://github.com/ticket
 [79275]: http://github.com/ticket
-
-
-
 <br/>
+
+
+
 # Enso 47.0.0-alpha.8 (2049-01-24)
 ...

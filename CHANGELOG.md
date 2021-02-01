@@ -1,7 +1,4 @@
-# NEXT RELEASE
-TODO: dodac daty
-TODO: https://github.com/fkirc/skip-duplicate-actions/#skip-duplicate-workflow-runs
-
+# Next Release
 This is a minor update exposing more control over the anonymous data collection. You are now allowed 
 to run the application with `--no-errors-data-collection`, and `--no-data-collection`. The options 
 disable the collection of errors data (keeping the collection of other events), and disables the 
@@ -10,7 +7,7 @@ read the notes of the `Enso 2.0.0-alpha.1` release.
 
 
 
-# Enso 2.0.0-alpha.1
+# Enso 2.0.0-alpha.1 (2020-01-26)
 This is the first release of Enso, a general-purpose programming language and environment for 
 interactive data processing. It is a tool that spans the entire stack, going from high-level 
 visualization and communication to the nitty-gritty of backend services, all in a single language.
