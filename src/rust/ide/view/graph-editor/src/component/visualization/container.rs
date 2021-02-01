@@ -509,10 +509,10 @@ impl Container {
     pub fn new(logger:&Logger,app:&Application,registry:visualization::Registry) -> Self {
         let model = Rc::new(ContainerModel::new(logger,app,registry));
         let frp   = Frp::new();
-        Self {model,frp} . init()
+        Self{model,frp}.init(app)
     }
 
-    fn init(self) -> Self {
+    fn init(self, app:&Application) -> Self {
         let frp                 = &self.frp;
         let network             = &self.frp.network;
         let model               = &self.model;
@@ -623,13 +623,10 @@ impl Container {
                model.drag_root.set_position_xy(Vector2::zero());
             });
 
-            drag_action <- scene.mouse.frp.translation.map2(&action_bar.action_drag_container,
-                                                            |a,b| (*a,*b));
-            eval drag_action ([model]((mouse,offset)){
-               if let Some(offset) = *offset {
-                    model.drag_root.mod_position_xy(|pos| pos + (offset + *mouse));
-               }
-            });
+            previous_cursor <- app.cursor.frp.scene_position.previous();
+            position_change <- app.cursor.frp.scene_position.map2(&previous_cursor, |p1,p2| p2.xy() - p1.xy());
+            drag_action <- position_change.gate(&action_bar.action_drag_container);
+            eval drag_action ([model](mouse) model.drag_root.mod_position_xy(|pos| pos - *mouse));
         }
 
         // FIXME[mm]: If we set the size right here, we will see spurious shapes in some

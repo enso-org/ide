@@ -228,8 +228,8 @@ ensogl::define_endpoints! {
         mouse_over              (),
         mouse_out               (),
         action_reset_position   (),
-        /// Indicates whether the container should follow the mouse cursor with the given offset.
-        action_drag_container   (Option<Vector2>),
+        /// Indicates whether the container should follow the mouse cursor.
+        action_drag_container   (bool),
     }
 }
 
@@ -389,10 +389,11 @@ impl ActionBar {
             let reset_position_icon = &model.icons.reset_position_icon.events;
             frp.source.action_reset_position <+ reset_position_icon.mouse_down;
 
-            let drag_icon = &model.icons.drag_icon.events;
-            is_dragging <- frp.output.action_drag_container.map(|opt| opt.is_some());
-            frp.source.action_drag_container <+ drag_icon.mouse_down.constant(Some(Vector2::new(0.0,0.0)));
-            frp.source.action_drag_container <+ mouse.up.gate(&is_dragging).constant(None);
+            let drag_icon      = &model.icons.drag_icon.events;
+            let start_dragging = drag_icon.mouse_down.clone_ref();
+            end_dragging       <- mouse.up.gate(&frp.source.action_drag_container);
+            should_drag        <- bool(&end_dragging,&start_dragging);
+            frp.source.action_drag_container <+ should_drag;
         }
         self
     }
