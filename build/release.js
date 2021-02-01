@@ -22,11 +22,8 @@ const CHANGELOG_FILE      = path.join(paths.root,CHANGELOG_FILE_NAME)
 // ===============
 
 class NextReleaseVersion {
+    /// Version used for config files when building the package with "next version" in changelog.
     toString() {
-        return "next_release"
-    }
-
-    toLocalBuildVersion() {
         return "0.0.0"
     }
 
@@ -65,10 +62,6 @@ class Version {
             suffix = `-${this.tag}.${this.tagVersion}`
         }
         return `${this.major}.${this.minor}.${this.patch}${suffix}`
-    }
-
-    toLocalBuildVersion() {
-        return this.toString()
     }
 }
 
