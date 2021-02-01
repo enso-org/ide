@@ -39,12 +39,13 @@ use ensogl_theme as theme;
 // === Constants ===
 // =================
 
-const DEFAULT_SIZE      : (f32,f32) = (200.0,200.0);
-const CORNER_RADIUS     : f32       = super::super::node::CORNER_RADIUS;
-// Note[mm]: at the moment we use a CSS replacement shadow defined in the .visualization class of
-// `src/js/lib/content/src/index.html`. While that is in use this shadow is deactivated.
-const SHADOW_SIZE       : f32       = 0.0 * super::super::node::SHADOW_SIZE;
-const ACTION_BAR_HEIGHT : f32       = 2.0 * CORNER_RADIUS;
+/// Default width and height of the visualisation container.
+pub const DEFAULT_SIZE      : (f32,f32) = (200.0,200.0);
+    const CORNER_RADIUS     : f32       = super::super::node::CORNER_RADIUS;
+    // Note[mm]: at the moment we use a CSS replacement shadow defined in the .visualization class of
+    // `src/js/lib/content/src/index.html`. While that is in use this shadow is deactivated.
+    const SHADOW_SIZE       : f32       = 0.0 * super::super::node::SHADOW_SIZE;
+    const ACTION_BAR_HEIGHT : f32       = 2.0 * CORNER_RADIUS;
 
 
 
@@ -318,6 +319,9 @@ impl display::Object for FullscreenView {
 pub struct ContainerModel {
     logger          : Logger,
     display_object  : display::object::Instance,
+    /// Internal root for all sub-objects. Will be moved when the visualisation
+    /// container position is changed by dragging.
+    drag_root       : display::object::Instance,
     visualization   : RefCell<Option<visualization::Instance>>,
     scene           : Scene,
     view            : View,
@@ -338,6 +342,7 @@ impl ContainerModel {
         let scene           = app.display.scene();
         let logger          = Logger::sub(logger,"visualization_container");
         let display_object  = display::object::Instance::new(&logger);
+        let drag_root       = display::object::Instance::new(&logger);
         let visualization   = default();
         let view            = View::new(&logger,scene);
         let fullscreen_view = FullscreenView::new(&logger,scene);
@@ -348,10 +353,12 @@ impl ContainerModel {
         view.add_child(&action_bar);
 
         Self {logger,visualization,display_object,view,fullscreen_view,scene,is_fullscreen,
-              action_bar,registry,size}.init()
+              action_bar,registry,size,drag_root}.init()
     }
 
     fn init(self) -> Self {
+        self.display_object.add_child(&self.drag_root);
+
         self.update_shape_sizes();
         self.init_corner_roundness();
         // FIXME: These 2 lines fix a bug with display objects visible on stage.
@@ -373,12 +380,12 @@ impl ContainerModel {
 impl ContainerModel {
     fn set_visibility(&self, visibility:bool) {
         if visibility {
-            self.add_child(&self.view);
+            self.drag_root.add_child(&self.view);
             self.show_visualisation();
             self.scene.add_child(&self.fullscreen_view);
         }
         else {
-            self.remove_child(&self.view);
+            self.drag_root.remove_child(&self.view);
             self.scene.remove_child(&self.fullscreen_view);
         }
     }
@@ -606,6 +613,23 @@ impl Container {
             frp.source.visualisation <+ selected_definition;
             on_selected              <- selected_definition.map(|d|d.as_ref().map(|_|())).unwrap();
             eval_ on_selected ( action_bar.hide_icons.emit(()) );
+        }
+
+
+        // ===  Action bar actions ===
+        frp::extend! { network
+
+            eval_ action_bar.action_reset_position([model]{
+               model.drag_root.set_position_xy(Vector2::zero());
+            });
+
+            drag_action <- scene.mouse.frp.translation.map2(&action_bar.action_drag_container,
+                                                            |a,b| (*a,*b));
+            eval drag_action ([model]((mouse,offset)){
+               if let Some(offset) = *offset {
+                    model.drag_root.mod_position_xy(|pos| pos + (offset + *mouse));
+               }
+            });
         }
 
         // FIXME[mm]: If we set the size right here, we will see spurious shapes in some

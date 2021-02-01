@@ -388,7 +388,7 @@ impl NodeModel {
         let input = input::Area::new(&logger,app);
         let visualization = visualization::Container::new(&logger,&app,registry);
         visualization.mod_position(|t| {
-            t.x = 60.0;
+            t.x = visualization::container::DEFAULT_SIZE.0 / 2.0;
             t.y = -120.0;
         });
 
