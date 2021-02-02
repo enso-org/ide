@@ -102,6 +102,14 @@ impl StatusIndicatorModel {
     fn show(&self) {
         self.root.add_child(&self.shape);
     }
+
+    fn set_visibility(&self, visibility:bool) {
+        if visibility {
+            self.show()
+        } else {
+            self.hide()
+        }
+    }
 }
 
 impl display::Object for StatusIndicatorModel {
@@ -169,9 +177,7 @@ impl StatusIndicator {
                 model.shape.shape.sprite.size.set(*size);
             );
 
-            eval frp.input.set_visibility ([model](visible)
-                if *visible { model.show() } else { model.hide() }
-            );
+            eval frp.input.set_visibility ([model](visible) model.set_visibility(*visible));
         };
 
         frp.set_status.emit(Status::Unchanged);
