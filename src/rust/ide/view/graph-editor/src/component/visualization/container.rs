@@ -40,12 +40,12 @@ use ensogl_theme as theme;
 // =================
 
 /// Default width and height of the visualisation container.
-pub const DEFAULT_SIZE      : (f32,f32) = (200.0,200.0);
-    const CORNER_RADIUS     : f32       = super::super::node::CORNER_RADIUS;
-    // Note[mm]: at the moment we use a CSS replacement shadow defined in the .visualization class of
-    // `src/js/lib/content/src/index.html`. While that is in use this shadow is deactivated.
-    const SHADOW_SIZE       : f32       = 0.0 * super::super::node::SHADOW_SIZE;
-    const ACTION_BAR_HEIGHT : f32       = 2.0 * CORNER_RADIUS;
+pub const DEFAULT_SIZE  : (f32,f32) = (200.0,200.0);
+const CORNER_RADIUS     : f32       = super::super::node::CORNER_RADIUS;
+// Note[mm]: at the moment we use a CSS replacement shadow defined in the .visualization class of
+// `src/js/lib/content/src/index.html`. While that is in use this shadow is deactivated.
+const SHADOW_SIZE       : f32       = 0.0 * super::super::node::SHADOW_SIZE;
+const ACTION_BAR_HEIGHT : f32       = 2.0 * CORNER_RADIUS;
 
 
 
@@ -618,15 +618,9 @@ impl Container {
 
         // ===  Action bar actions ===
         frp::extend! { network
-
-            eval_ action_bar.action_reset_position([model]{
-               model.drag_root.set_position_xy(Vector2::zero());
-            });
-
-            previous_cursor <- app.cursor.frp.scene_position.previous();
-            position_change <- app.cursor.frp.scene_position.map2(&previous_cursor, |p1,p2| p2.xy() - p1.xy());
-            drag_action <- position_change.gate(&action_bar.action_drag_container);
-            eval drag_action ([model](mouse) model.drag_root.mod_position_xy(|pos| pos - *mouse));
+            eval_ action_bar.on_container_reset_position(model.drag_root.set_position_xy(Vector2::zero()));
+            drag_action <- app.cursor.frp.scene_position_delta.gate(&action_bar.container_drag_state);
+            eval drag_action ((mouse) model.drag_root.mod_position_xy(|pos| pos - mouse.xy()));
         }
 
         // FIXME[mm]: If we set the size right here, we will see spurious shapes in some

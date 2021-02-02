@@ -141,10 +141,6 @@ pub trait Shape : display::Object + CloneRef + Debug + Sized {
     type System : ShapeSystemInstance<Shape=Self>;
     /// Accessor for the underlying sprites.
     fn sprites(&self) -> Vec<&Sprite>;
-    /// Set the canvas size of this shape.
-    fn set_size(&self, size:Vector2<f32>) {
-        self.sprites().iter().for_each(move |sprite| sprite.size.set(size))
-    }
 }
 
 /// Accessor for the `Shape::System` associated type.

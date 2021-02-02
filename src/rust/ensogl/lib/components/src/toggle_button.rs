@@ -201,7 +201,7 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
              // === Input Processing ===
 
             eval frp.set_size ((size) {
-                model.icon.shape.set_size(*size)
+                model.icon.shape.sprites().iter().for_each(|sprite| sprite.size.set(*size))
             });
 
 

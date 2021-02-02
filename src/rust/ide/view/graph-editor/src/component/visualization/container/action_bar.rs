@@ -77,7 +77,8 @@ mod background {
 // === Action Bar Icons ===
 // ========================
 
-mod drag_icon {
+/// Icon that appears as four arrows pointing in each direction: up, down,left right.
+mod four_arrow_icon {
     use super::*;
 
     use std::f32::consts::PI;
@@ -116,8 +117,9 @@ mod drag_icon {
     }
 }
 
-
-mod reset_position_icon {
+/// Icon that appears as a pin with a head and a point, slanted so the pin points towards
+/// the bottom left.
+mod pin_icon {
     use super::*;
 
     use std::f32::consts::PI;
@@ -125,15 +127,15 @@ mod reset_position_icon {
 
     ensogl::define_shape_system! {
         (style:Style) {
-            let width              = Var::<Pixels>::from("input_size.x");
-            let height             = Var::<Pixels>::from("input_size.y");
-            let background         = Rect((&width,&height)).fill(HOVER_COLOR);
+            let width      = Var::<Pixels>::from("input_size.x");
+            let height     = Var::<Pixels>::from("input_size.y");
+            let background = Rect((&width,&height)).fill(HOVER_COLOR);
 
-            let pin_head_size  = &height / 3.0;
-            let pin_head_base  = Rect((&pin_head_size,&pin_head_size));
-            let pin_head_top   = Triangle(&pin_head_size * 1.5,&pin_head_size / 2.0) ;
-            let pin_head_top   = pin_head_top.translate_y(-&pin_head_size/2.0);
-            let pin_head       = (pin_head_base + pin_head_top).translate_y(&pin_head_size/2.0);
+            let pin_head_size = &height / 3.0;
+            let pin_head_base = Rect((&pin_head_size,&pin_head_size));
+            let pin_head_top  = Triangle(&pin_head_size * 1.5,&pin_head_size / 2.0) ;
+            let pin_head_top  = pin_head_top.translate_y(-&pin_head_size/2.0);
+            let pin_head      = (pin_head_base + pin_head_top).translate_y(&pin_head_size/2.0);
 
             let pin_thorn_size  = &height / 3.0;
             let pin_thorn_width = PIN_THORN_WIDTH.px();
@@ -156,8 +158,8 @@ mod reset_position_icon {
 struct Icons {
     display_object      : display::object::Instance,
     icon_root           : display::object::Instance,
-    reset_position_icon : ShapeView<reset_position_icon::Shape>,
-    drag_icon           : ShapeView<drag_icon::Shape>,
+    reset_position_icon : ShapeView<pin_icon::Shape>,
+    drag_icon           : ShapeView<four_arrow_icon::Shape>,
     size                : Rc<Cell<Vector2>>,
 }
 
@@ -181,7 +183,7 @@ impl Icons {
         let icon_size = self.icon_size();
         let index     = index as f32;
         view.mod_position(|p| p.x = index * icon_size.x + node::CORNER_RADIUS);
-        view.shape.set_size(icon_size);
+        view.shape.sprites().iter().for_each(move |sprite| sprite.size.set(icon_size))
     }
 
     fn icon_size(&self) -> Vector2 {
@@ -189,8 +191,8 @@ impl Icons {
     }
 
     fn init_layout(self) -> Self {
-        self.place_shape_in_slot(&self.drag_icon, 0);
-        self.place_shape_in_slot(&self.reset_position_icon, 1);
+        self.place_shape_in_slot(&self.drag_icon,0);
+        self.place_shape_in_slot(&self.reset_position_icon,1);
         self
     }
 
@@ -198,8 +200,7 @@ impl Icons {
         self.size.set(size);
         self.icon_root.set_position_x(-size.x/2.0);
         self.place_shape_in_slot(&self.drag_icon, 0);
-        self.place_shape_in_slot(&self.reset_position_icon, 1);
-
+        self.place_shape_in_slot(&self.reset_position_icon,1);
     }
 }
 
@@ -227,9 +228,9 @@ ensogl::define_endpoints! {
         visualisation_selection (Option<visualization::Path>),
         mouse_over              (),
         mouse_out               (),
-        action_reset_position   (),
+        on_container_reset_position   (),
         /// Indicates whether the container should follow the mouse cursor.
-        action_drag_container   (bool),
+        container_drag_state   (bool),
     }
 }
 
@@ -387,13 +388,13 @@ impl ActionBar {
             frp.source.visualisation_selection <+ visualization_chooser.chosen_entry;
 
             let reset_position_icon = &model.icons.reset_position_icon.events;
-            frp.source.action_reset_position <+ reset_position_icon.mouse_down;
+            frp.source.on_container_reset_position <+ reset_position_icon.mouse_down;
 
             let drag_icon      = &model.icons.drag_icon.events;
             let start_dragging = drag_icon.mouse_down.clone_ref();
-            end_dragging       <- mouse.up.gate(&frp.source.action_drag_container);
+            end_dragging       <- mouse.up.gate(&frp.source.container_drag_state);
             should_drag        <- bool(&end_dragging,&start_dragging);
-            frp.source.action_drag_container <+ should_drag;
+            frp.source.container_drag_state <+ should_drag;
         }
         self
     }
