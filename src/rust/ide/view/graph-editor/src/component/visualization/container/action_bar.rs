@@ -193,6 +193,7 @@ impl Icons {
     fn init_layout(self) -> Self {
         self.place_shape_in_slot(&self.drag_icon,0);
         self.place_shape_in_slot(&self.reset_position_icon,1);
+        self.set_reset_icon_visibility(false);
         self
     }
 
@@ -202,6 +203,15 @@ impl Icons {
         self.place_shape_in_slot(&self.drag_icon, 0);
         self.place_shape_in_slot(&self.reset_position_icon,1);
     }
+
+    fn set_reset_icon_visibility(&self, visibility:bool) {
+        if visibility {
+            self.icon_root.add_child(&self.reset_position_icon)
+        } else {
+            self.reset_position_icon.unset_parent()
+        }
+    }
+
 }
 
 impl display::Object for Icons {
@@ -395,6 +405,9 @@ impl ActionBar {
             end_dragging       <- mouse.up.gate(&frp.source.container_drag_state);
             should_drag        <- bool(&end_dragging,&start_dragging);
             frp.source.container_drag_state <+ should_drag;
+
+            show_reset_icon <- bool(&reset_position_icon.mouse_down,&start_dragging);
+            eval show_reset_icon((visibility) model.icons.set_reset_icon_visibility(*visibility));
         }
         self
     }
