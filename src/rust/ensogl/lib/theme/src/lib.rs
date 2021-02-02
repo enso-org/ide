@@ -203,7 +203,6 @@ define_themes! { [light:0, dark:1]
                 unchanged = Lcha::transparent(), Lcha::transparent();
                 added     = Lcha::green(0.8,1.0), Lcha::green(0.8,1.0);
                 edited    = Lcha::yellow(0.9,1.0), Lcha::yellow(0.9,1.0);
-
             }
         }
         visualization {

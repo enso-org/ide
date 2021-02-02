@@ -110,9 +110,11 @@ impl display::Object for StatusIndicatorModel {
     }
 }
 
-// ========================
-// === Status Indicator ===
-// ========================
+
+
+// =======================
+// === StatusIndicator ===
+// =======================
 
 ensogl::define_endpoints! {
     Input {
@@ -154,9 +156,9 @@ impl StatusIndicator {
         frp::extend! { network
             frp.source.status <+ frp.input.set_status;
 
-            status_color <- frp.set_status.map(f!([styles](status) {
+            status_color <- frp.set_status.map(f!([styles](status)
                 status.get_highlight_color_from_style(&styles)
-            }));
+            ));
             indicator_color.target <+ status_color;
 
             eval indicator_color.value ((c)

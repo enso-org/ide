@@ -2785,9 +2785,9 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
 
 
-    // ==================
+    // ================
     // === Node VCS ===
-    // ==================
+    // ================
     eval inputs.set_node_vcs_status([nodes]((node_id,status)) {
          if let Some(node) = nodes.get_cloned(node_id) {
              node.set_vcs_status.emit(status);
