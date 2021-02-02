@@ -25,6 +25,7 @@ jobs:
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
               
+        shell: bash
       - name: Assert Version Unstable
         run: node ./run assert-version-unstable --skip-version-validation
         if: github.ref == 'refs/heads/unstable'
@@ -224,6 +225,7 @@ jobs:
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
               
+        shell: bash
       - name: Install Node
         uses: actions/setup-node@v1
         with:
@@ -330,6 +332,7 @@ jobs:
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
               
+        shell: bash
       - id: checkCurrentReleaseTag
         uses: mukunku/tag-exists-action@v1.0.0
         env:
@@ -382,6 +385,7 @@ jobs:
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
               
+        shell: bash
       - shell: bash
         run: |2-
 

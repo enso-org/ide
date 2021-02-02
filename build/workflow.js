@@ -212,7 +212,8 @@ let getCurrentReleaseChangelogInfo = {
         node ./run ci-gen --skip-version-validation
         content=\`cat CURRENT_RELEASE_CHANGELOG.json\`
         echo "::set-output name=content::$content"
-    `
+    `,
+    shell: 'bash'
 }
 
 let uploadGitHubRelease = {
