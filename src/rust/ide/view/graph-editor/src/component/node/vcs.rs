@@ -18,12 +18,10 @@ use ensogl::gui::component::ShapeView;
 
 /// The version control system status of a node.
 #[derive(Debug,Copy,Clone)]
+#[allow(missing_docs)]
 pub enum Status {
-    /// The node has not been modified.
     Unchanged,
-    /// The node was added.
     Added,
-    /// The node was edited.
     Edited,
 }
 
@@ -49,7 +47,7 @@ impl Default for Status {
 // === Indicator Shape ===
 // =======================
 
-/// Shape used in the status indicator.
+/// Shape used in the status indicator. Appears as a colored border surrounding the node.
 mod status_indicator_shape {
     use super::*;
 
