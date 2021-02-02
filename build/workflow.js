@@ -2,11 +2,10 @@
 /// may not be needed anymore after this feature request will be resolved by GitHub:
 /// https://github.community/t/support-for-yaml-anchors/16128
 
-const fss     = require('fs')
-const path    = require('path')
-const paths   = require('./paths')
-const release = require('./release')
-const yaml    = require('js-yaml')
+const fss   = require('fs')
+const path  = require('path')
+const paths = require('./paths')
+const yaml  = require('js-yaml')
 
 
 
@@ -181,8 +180,8 @@ function uploadBinArtifactsFor(name,sys,ext,os) {
         name: `Upload Artifacts (${name}, ${ext})`,
         uses: "actions/upload-artifact@v1",
         with: {
-           name: `enso-${os}-${release.currentVersion()}.${ext}`,
-           path: `dist/client/enso-${os}-${release.currentVersion()}.${ext}`
+           name: `enso-${os}-\${{fromJson(steps.changelog.outputs.content).version}}.${ext}`,
+           path: `dist/client/enso-${os}-\${{fromJson(steps.changelog.outputs.content).version}}.${ext}`
         },
         if: `matrix.os == '${sys}-latest'`
     }
@@ -349,6 +348,7 @@ let workflow = {
             buildOnMacOS,
         ],{if:`!(${buildCondition})`}),
         build: job_on_all_platforms("Build", [
+            getCurrentReleaseChangelogInfo,
             installNode,
             installRust,
             installWasmPack,

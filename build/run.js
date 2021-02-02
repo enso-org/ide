@@ -422,7 +422,7 @@ for (let command of commandList) {
 
 function defaultConfig() {
     return {
-        version: release.currentVersion().toString(),
+        version: `${release.currentVersion()}`,
         author: {
             name: "Enso Team",
             email: "contact@enso.org"
