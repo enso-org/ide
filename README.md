@@ -25,8 +25,8 @@
 ### Overview
 
 <p>
-  <a href="http://chat.enso.org">
-    <img src="https://img.shields.io/discord/401396655599124480?label=Chat&color=2ec352&labelColor=2c3239"
+  <a href="https://discord.gg/PMtNMP46">
+    <img src="https://img.shields.io/discord/401396655599124480.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2"
          alt="Chat">
   </a>
   <a href="https://github.com/enso-org/enso/blob/main/LICENSE">
@@ -60,7 +60,7 @@ and [a high performance WebGL UI framework (EnsoGL)](https://github.com/enso-org
 Enso is distributed both in form of
 [pre-build packages for MacOS, Windows, or Linux](https://github.com/enso-org/ide/releases),
 as well as the [source code](https://github.com/enso-org). See the
-[demo scenes](http://TODO), and read the [documentation](http://TODO) to learn
+[demo scenes](http://TODO), and read the [documentation](docs/product) to learn
 more.
 
 Currently to start IDE you have to run **Enso Project Manager** first. For more
