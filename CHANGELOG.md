@@ -12,21 +12,21 @@ This is the first release of Enso, a general-purpose programming language and en
 interactive data processing. It is a tool that spans the entire stack, going from high-level 
 visualization and communication to the nitty-gritty of backend services, all in a single language.
 
-## Anonymous Data Collection
+<br/>![Release Notes](/docs/assets/tags/release_notes.svg)
+
+#### Anonymous Data Collection
 Please note that this release collects anonymous usage data which will be used to improve Enso and 
 prepare it for a stable release. We will switch to opt-in data collection in stable version 
 releases. The usage data will not contain your code (expressions above nodes), however, reported 
 errors may contain brief snippets of out of context code that specifically leads to the error, like 
-"the method 'foo' does not exist on Number".
-
-**The following data will be collected**:
+"the method 'foo' does not exist on Number". The following data will be collected:
 - Session length.
-- Graph editing events. An event when nodes are created, deleted, moved, connected, disconnected, 
-  collapsed, or edited. This will not include any information about node expressions used.
-- Navigation events. An event when the view is changed to show an inner or outer node scope.
-- Visualization events. An event when visualization is opened, closed, or switched. It does not 
-  include the data contained in the visualization or the rendered visualization itself.
-- Project management events. An event when a project was renamed.
-- Errors, including errors about IDE crashes, WASM panics, Project Manager errors, Language 
-  Server errors, Compiler errors, etc.
-- Performance statistics. Minimum, maximum, average GUI refresh rate (frames per second).
+- Graph editing events (node create, dele, position change, connect, disconnect, collapse, edit 
+  start, edit end). This will not include any information about node expressions used.
+- Navigation events (camera movement, scope change).
+- Visualization events (visualization open, close, switch). This will not include any information 
+  about the displayed data nor the rendered visualization itself.
+- Project management events (project open, close, rename).
+- Errors (IDE crashes, WASM panics, Project Manager errors, Language Server errors, Compiler 
+  errors).
+- Performance statistics (minimum, maximum, average GUI refresh rate).

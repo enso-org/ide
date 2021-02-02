@@ -144,7 +144,6 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
       - name: Run tests (WASM)
         run: node ./run test --no-native --skip-version-validation
-        continue-on-error: true
   simple_build:
     name: Simple Build (WASM size limit check)
     runs-on: ${{ matrix.os }}
@@ -203,8 +202,7 @@ jobs:
     if: >-
       !(contains(github.event.head_commit.message,'[ci build]') || github.ref ==
       'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref ==
-      'refs/heads/unstable' || github.ref == 'refs/heads/stable' || github.ref
-      == 'refs/heads/wip/wd/ci')
+      'refs/heads/unstable' || github.ref == 'refs/heads/stable')
   build:
     name: Build
     runs-on: ${{ matrix.os }}
@@ -308,8 +306,7 @@ jobs:
     if: >-
       contains(github.event.head_commit.message,'[ci build]') || github.ref ==
       'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref ==
-      'refs/heads/unstable' || github.ref == 'refs/heads/stable' || github.ref
-      == 'refs/heads/wip/wd/ci'
+      'refs/heads/unstable' || github.ref == 'refs/heads/stable'
   release_to_github:
     name: GitHub Release
     runs-on: ${{ matrix.os }}
@@ -353,9 +350,7 @@ jobs:
           tag_name: v${{fromJson(steps.changelog.outputs.content).version}}
           body: ${{fromJson(steps.changelog.outputs.content).body}}
           prerelease: ${{fromJson(steps.changelog.outputs.content).prerelease}}
-    if: >-
-      github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
-      || github.ref == 'refs/heads/wip/wd/ci'
+    if: github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
     needs:
       - version_assertions
       - lint
@@ -419,9 +414,7 @@ jobs:
           aws s3 cp ./artifacts/content/assets/wasm_imports.js.gz
           s3://ensocdn/ide/${{fromJson(steps.changelog.outputs.content).version}}/wasm_imports.js.gz
           --profile s3-upload --acl public-read --content-encoding gzip
-    if: >-
-      github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
-      || github.ref == 'refs/heads/wip/wd/ci'
+    if: github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
     needs:
       - version_assertions
       - lint

@@ -156,7 +156,6 @@ let testNoWASM = {
 let testWASM = {
     name: "Run tests (WASM)",
     run: "node ./run test --no-native --skip-version-validation",
-    "continue-on-error": true, // FIXME
 }
 
 
@@ -311,8 +310,7 @@ let assertions = list(
 // === Workflow ===
 // ================
 
-// FIXME
-let releaseCondition = `github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/wip/wd/ci'`
+let releaseCondition = `github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'`
 let buildCondition   = `contains(github.event.head_commit.message,'[ci build]') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || ${releaseCondition}`
 
 let workflow = {
@@ -340,7 +338,7 @@ let workflow = {
             installNode,
             installRust,
             installWasmPack,
-            testWASM // FIXME (inside def)
+            testWASM
         ]),
         simple_build: job_on_macos("Simple Build (WASM size limit check)", [
             installNode,
