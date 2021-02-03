@@ -394,10 +394,6 @@ impl NodeModel {
 
         let input = input::Area::new(&logger,app);
         let visualization = visualization::Container::new(&logger,&app,registry);
-        visualization.mod_position(|t| {
-            t.x = 60.0;
-            t.y = -120.0;
-        });
 
         display_object.add_child(&visualization);
         display_object.add_child(&input);
@@ -466,6 +462,12 @@ impl NodeModel {
             t.x = width + CORNER_RADIUS + action_bar_width / 2.0;
         });
         self.action_bar.frp.set_size(Vector2::new(action_bar_width,ACTION_BAR_HEIGHT));
+
+        self.visualization.mod_position(|t| {
+            t.x = width / 2.0;
+            t.y = -120.0;
+        });
+
         size
     }
 
