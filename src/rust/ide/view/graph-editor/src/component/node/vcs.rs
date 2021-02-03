@@ -124,12 +124,12 @@ impl display::Object for StatusIndicatorModel {
 
 ensogl::define_endpoints! {
     Input {
-        set_status     (Status),
+        set_status     (Option<Status>),
         set_size       (Vector2),
         set_visibility (bool),
     }
     Output {
-        status (Status),
+        status (Option<Status>),
     }
 }
 
@@ -162,7 +162,7 @@ impl StatusIndicator {
         frp::extend! { network
             frp.source.status <+ frp.input.set_status;
 
-            status_color <- frp.set_status.map(f!([styles](status)
+            status_color <- frp.set_status.unwrap().map(f!([styles](status)
                 status.get_highlight_color_from_style(&styles)
             ));
             indicator_color.target <+ status_color;
@@ -175,11 +175,13 @@ impl StatusIndicator {
                 model.shape.shape.sprite.size.set(*size);
             );
 
-            eval frp.input.set_visibility ([model](visible) model.set_visibility(*visible));
+            has_status <- frp.status.map(|status| status.is_some());
+            visible    <- and(&frp.input.set_visibility,&has_status);
+            eval visible ([model](visible) model.set_visibility(*visible));
         };
 
-        frp.set_status.emit(Status::Unchanged);
-        frp.set_visibility.emit(false);
+        frp.set_status.emit(None);
+        frp.set_visibility.emit(true);
         self
     }
 

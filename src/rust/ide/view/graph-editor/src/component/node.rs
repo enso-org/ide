@@ -583,9 +583,7 @@ impl Node {
 
 
             // === VCS Handling ===
-            model.vcs_indicator.frp.set_status <+ frp.set_vcs_status.unwrap();
-            has_status <- frp.set_vcs_status.map(|status| status.is_some());
-            model.vcs_indicator.frp.set_visibility <+ has_status;
+            model.vcs_indicator.frp.set_status <+ frp.set_vcs_status;
         }
 
         frp.set_error.emit(None);
