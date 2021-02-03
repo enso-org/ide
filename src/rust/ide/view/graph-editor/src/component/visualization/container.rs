@@ -404,9 +404,10 @@ impl ContainerModel {
         let size = self.size.get();
         visualization.set_size.emit(size);
         frp::new_network! { vis_frp_connection
-            // We need an additional "copy" node here. Doing simple
-            // `preprocessor <+ visualization.on_preprocessor_change` will not create any node in
-            // this network, so the connection will leak after setting new instance.
+            // We need an additional "copy" node here. We create a new network to manage lifetime of
+            // connection between `visualization.on_preprocessor_change` and `preprocessor`.
+            // However, doing simple `preprocessor <+ visualization.on_preprocessor_change` will not
+            // create any node in this network, so in fact ot won't manage the connection.
             vis_preprocessor_change <- visualization.on_preprocessor_change.map(|x| x.clone());
             preprocessor            <+ vis_preprocessor_change;
         }
@@ -532,7 +533,7 @@ impl Container {
         frp::extend! { network
             eval  frp.set_visibility    ((v) model.set_visibility(*v));
             eval_ frp.toggle_visibility (model.toggle_visibility());
-            let   preprocessor = &frp.source.preprocessor;
+            let preprocessor = &frp.source.preprocessor;
             frp.source.visualisation <+ frp.set_visualization.map(f!(
                 [model,action_bar,scene,logger,preprocessor](vis_definition) {
 

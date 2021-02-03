@@ -1153,7 +1153,7 @@ impl Model {
         if let Some(visualization) = self.visualizations.get_copied(&node_id) {
             let logger      = self.logger.clone_ref();
             let controller  = self.graph.clone_ref();
-            let code_string = AsRef::<String>::as_ref(code).clone();
+            let code_string = AsRef::<String>::as_ref(code).to_string();
             executor::global::spawn(async move {
                 let result = controller.set_visualization_preprocessor(visualization,code_string);
                 if let Err(err) = result.await {
