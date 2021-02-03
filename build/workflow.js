@@ -199,10 +199,9 @@ let downloadArtifacts = {
 }
 
 
-
-// ======================
-// === GitHub Release ===
-// ======================
+// =================
+// === Changelog ===
+// =================
 
 let getCurrentReleaseChangelogInfo = {
     name: 'Read changelog info',
@@ -214,6 +213,29 @@ let getCurrentReleaseChangelogInfo = {
     `,
     shell: 'bash'
 }
+
+
+
+// ===========
+// === Git ===
+// ===========
+
+let getListOfChangedFiles = {
+    name: 'Get list of changed files',
+    id: 'changed-files',
+    run: `
+        node ./run ci-gen --skip-version-validation
+        content=\`cat CURRENT_RELEASE_CHANGELOG.json\`
+        echo "::set-output name=content::$content"
+    `,
+    shell: 'bash'
+}
+
+
+
+// ======================
+// === GitHub Release ===
+// ======================
 
 let uploadGitHubRelease = {
     name: `Upload GitHub Release`,
