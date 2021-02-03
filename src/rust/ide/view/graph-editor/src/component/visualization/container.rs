@@ -39,7 +39,8 @@ use ensogl_theme as theme;
 // === Constants ===
 // =================
 
-const DEFAULT_SIZE      : (f32,f32) = (200.0,200.0);
+/// Default width and height of the visualisation container.
+pub const DEFAULT_SIZE  : (f32,f32) = (200.0,200.0);
 const CORNER_RADIUS     : f32       = super::super::node::CORNER_RADIUS;
 // Note[mm]: at the moment we use a CSS replacement shadow defined in the .visualization class of
 // `src/js/lib/content/src/index.html`. While that is in use this shadow is deactivated.
@@ -318,6 +319,9 @@ impl display::Object for FullscreenView {
 pub struct ContainerModel {
     logger             : Logger,
     display_object     : display::object::Instance,
+    /// Internal root for all sub-objects. Will be moved when the visualisation
+    /// container position is changed by dragging.
+    drag_root       : display::object::Instance,
     visualization      : RefCell<Option<visualization::Instance>>,
     /// A network containing connection between currently set `visualization` FRP endpoints and
     /// container FRP. We keep a separate network for that, so we can manage life of such
@@ -342,6 +346,7 @@ impl ContainerModel {
         let scene              = app.display.scene();
         let logger             = Logger::sub(logger,"visualization_container");
         let display_object     = display::object::Instance::new(&logger);
+        let drag_root          = display::object::Instance::new(&logger);
         let visualization      = default();
         let vis_frp_connection = default();
         let view               = View::new(&logger,scene);
@@ -352,11 +357,13 @@ impl ContainerModel {
         let action_bar         = ActionBar::new(&app,registry.clone_ref());
         view.add_child(&action_bar);
 
-        Self {logger,visualization,vis_frp_connection,display_object,view,fullscreen_view,scene
-            ,is_fullscreen,action_bar,registry,size}.init()
+        Self {logger,visualization,vis_frp_connection,display_object,drag_root,view,fullscreen_view
+            ,scene,is_fullscreen,action_bar,registry,size}.init()
     }
 
     fn init(self) -> Self {
+        self.display_object.add_child(&self.drag_root);
+
         self.update_shape_sizes();
         self.init_corner_roundness();
         // FIXME: These 2 lines fix a bug with display objects visible on stage.
@@ -378,12 +385,12 @@ impl ContainerModel {
 impl ContainerModel {
     fn set_visibility(&self, visibility:bool) {
         if visibility {
-            self.add_child(&self.view);
+            self.drag_root.add_child(&self.view);
             self.show_visualisation();
             self.scene.add_child(&self.fullscreen_view);
         }
         else {
-            self.remove_child(&self.view);
+            self.drag_root.remove_child(&self.view);
             self.scene.remove_child(&self.fullscreen_view);
         }
     }
@@ -515,10 +522,10 @@ impl Container {
     pub fn new(logger:&Logger,app:&Application,registry:visualization::Registry) -> Self {
         let model = Rc::new(ContainerModel::new(logger,app,registry));
         let frp   = Frp::new();
-        Self {model,frp} . init()
+        Self{model,frp}.init(app)
     }
 
-    fn init(self) -> Self {
+    fn init(self, app:&Application) -> Self {
         let frp                 = &self.frp;
         let network             = &self.frp.network;
         let model               = &self.model;
@@ -620,6 +627,14 @@ impl Container {
             frp.source.visualisation <+ selected_definition;
             on_selected              <- selected_definition.map(|d|d.as_ref().map(|_|())).unwrap();
             eval_ on_selected ( action_bar.hide_icons.emit(()) );
+        }
+
+
+        // ===  Action bar actions ===
+        frp::extend! { network
+            eval_ action_bar.on_container_reset_position(model.drag_root.set_position_xy(Vector2::zero()));
+            drag_action <- app.cursor.frp.scene_position_delta.gate(&action_bar.container_drag_state);
+            eval drag_action ((mouse) model.drag_root.mod_position_xy(|pos| pos - mouse.xy()));
         }
 
         // FIXME[mm]: If we set the size right here, we will see spurious shapes in some
