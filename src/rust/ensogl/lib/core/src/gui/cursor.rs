@@ -254,8 +254,8 @@ crate::define_endpoints! {
         position              (Vector3),
         screen_position       (Vector3),
         scene_position        (Vector3),
-         /// Change between the current and the previous screen position.
-        scene_position_delta (Vector3),
+         /// Change between the current and the previous scene position.
+        scene_position_delta  (Vector3),
     }
 }
 

@@ -77,7 +77,7 @@ mod background {
 // === Action Bar Icons ===
 // ========================
 
-/// Icon that appears as four arrows pointing in each direction: up, down,left right.
+/// Icon that appears as four arrows pointing in each direction: up, down, left and right.
 mod four_arrow_icon {
     use super::*;
 
@@ -89,7 +89,6 @@ mod four_arrow_icon {
             let width      = Var::<Pixels>::from("input_size.x");
             let height     = Var::<Pixels>::from("input_size.y");
             let background = Rect((&width,&height)).fill(HOVER_COLOR);
-
 
             let horizontal_bar_height = &height / 2.0;
             let horizontal_bar        = Rect((&horizontal_bar_height,ARROW_LINE_WIDTH.px()));
@@ -104,9 +103,9 @@ mod four_arrow_icon {
             let arrow_head        = arrow_head.translate_y(arrow_head_offset);
 
             let arrow_heads = &arrow_head;
-            let arrow_heads = arrow_heads + arrow_head.rotate(2.0  * (PI/4.0).radians());
-            let arrow_heads = arrow_heads + arrow_head.rotate(4.0  * (PI/4.0).radians());
-            let arrow_heads = arrow_heads + arrow_head.rotate(6.0  * (PI/4.0).radians());
+            let arrow_heads = arrow_heads + arrow_head.rotate(2.0 * (PI/4.0).radians());
+            let arrow_heads = arrow_heads + arrow_head.rotate(4.0 * (PI/4.0).radians());
+            let arrow_heads = arrow_heads + arrow_head.rotate(6.0 * (PI/4.0).radians());
 
             let color_path = theme::graph_editor::visualization::action_bar::icon;
             let fill_color = style.get_color(color_path);
@@ -235,12 +234,12 @@ ensogl::define_endpoints! {
     }
 
     Output {
-        visualisation_selection (Option<visualization::Path>),
-        mouse_over              (),
-        mouse_out               (),
-        on_container_reset_position   (),
+        visualisation_selection     (Option<visualization::Path>),
+        mouse_over                  (),
+        mouse_out                   (),
+        on_container_reset_position (),
         /// Indicates whether the container should follow the mouse cursor.
-        container_drag_state   (bool),
+        container_drag_state        (bool),
     }
 }
 
