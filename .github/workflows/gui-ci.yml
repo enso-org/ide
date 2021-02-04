@@ -53,8 +53,8 @@ jobs:
       - name: Assert if CHANGELOG.md was updated
         run: >-
           if [[ ${{ contains(steps.changed_files.outputs.list,"CHANGELOG.md") ||
-          contains(github.event.head_commit.message,[ci no changelog needed]) }}
-          == false ]]; then exit 1; fi
+          contains(github.event.head_commit.message,"[ci no changelog needed]")
+          }} == false ]]; then exit 1; fi
   lint:
     name: Linter
     runs-on: ${{ matrix.os }}
