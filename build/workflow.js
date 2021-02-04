@@ -13,10 +13,12 @@ const yaml  = require('js-yaml')
 // === Constants ===
 // =================
 
-const NODE_VERSION      = '14.15.0'
-const RUST_VERSION      = 'nightly-2019-11-04'
-const WASM_PACK_VERSION = '0.9.1'
+const NODE_VERSION             = '14.15.0'
+const RUST_VERSION             = 'nightly-2019-11-04'
+const WASM_PACK_VERSION        = '0.9.1'
 const FLAG_NO_CHANGELOG_NEEDED = '[ci no changelog needed]'
+const FLAG_FORCE_CI_BUILD      = '[ci build]'
+
 
 
 // =============
@@ -338,7 +340,7 @@ let assertions = list(
 // ================
 
 let releaseCondition = `github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'`
-let buildCondition   = `contains(github.event.head_commit.message,'[ci build]') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || ${releaseCondition}`
+let buildCondition   = `contains(github.event.head_commit.message,'${FLAG_FORCE_CI_BUILD}') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || ${releaseCondition}`
 
 let workflow = {
     name : "GUI CI",
