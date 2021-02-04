@@ -143,8 +143,7 @@ impl Model {
         } else {
             let parser        = parser::DocParser::new()?;
             let mut processed = string.to_string();
-            println!("DOC IN:\n{:?}",processed);
-            let lines = processed.lines().collect::<Vec<&str>>();
+            let lines         = processed.lines().collect::<Vec<&str>>();
             if lines.len() > 1 {
                 let mut indent = 0;
                 for char in lines[1].chars() {
@@ -153,13 +152,11 @@ impl Model {
                 }
                 processed = format!{"{}{}",String::from(" ").repeat(indent+2),processed};
             }
-            println!("DOC FIXED:\n{:?}",processed);
             let output = match input_type {
                 InputFormat::AST       => parser.generate_html_docs(processed),
                 InputFormat::Docstring => parser.generate_html_doc_pure(processed),
             };
             let output = output?;
-            println!("DOC OUT:\n{:?}",output);
             Ok( if output.is_empty() { PLACEHOLDER_STR.into() } else { output } )
         }
     }
