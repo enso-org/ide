@@ -68,10 +68,10 @@ impl ExecutionContextsRegistry {
     }
 
     /// Handles the update about expressions being computed.
-    pub fn handle_expression_values_computed
-    (&self, update:language_server::ExpressionValuesComputed) -> FallibleResult {
+    pub fn handle_expression_updates
+    (&self, update:language_server::ExpressionUpdates) -> FallibleResult {
         self.with_context(update.context_id, |ctx| {
-            ctx.handle_expression_values_computed(update)
+            ctx.handle_expression_updates(update)
         })
     }
 
@@ -248,21 +248,23 @@ impl Project {
             use enso_protocol::language_server::Event;
             use enso_protocol::language_server::Notification;
             match event {
-                Event::Notification(Notification::ExpressionValuesComputed(update)) => {
+                Event::Notification(Notification::ExpressionUpdates(updates)) => {
                     if let Some(execution_contexts) = weak_execution_contexts.upgrade() {
-                        let result = execution_contexts.handle_expression_values_computed(update);
+                        let result = execution_contexts.handle_expression_updates(updates);
                         if let Err(error) = result {
-                            error!(logger,"Failed to handle the expression values computed update: \
-                            {error}.");
+                            error!(logger,"Failed to handle the expression update: {error}");
                         }
                     } else {
-                        error!(logger,"Received a `ExpressionValuesComputed` update despite \
-                        execution context being already dropped.");
+                        error!(logger,"Received a `ExpressionUpdates` update despite execution \
+                            context being already dropped.");
                     }
+                }
+                Event::Notification(Notification::ExpressionValuesComputed(_)) => {
+                    // the notification is superseded by `ExpressionUpdates`.
                 }
                 Event::Notification(Notification::ExecutionFailed(update)) => {
                     error!(logger,"Execution failed in context {update.context_id}. Error: \
-                    {update.message}.");
+                        {update.message}.");
                 }
                 Event::Notification(Notification::SuggestionDatabaseUpdates(update)) => {
                     if let Some(suggestion_db) = weak_suggestion_db.upgrade() {
@@ -372,6 +374,7 @@ mod test {
     use enso_protocol::types::Sha3_224;
     use enso_protocol::language_server::response;
     use json_rpc::expect_call;
+    use enso_protocol::language_server::Notification::ExpressionUpdates;
 
     #[allow(unused)]
     struct Fixture {
@@ -484,14 +487,14 @@ mod test {
         assert!(result1.is_ok());
 
         // Context has no information about type.
-        let notification   = ExecutionFixture::mock_values_computed_update(&context_data);
+        let notification   = ExecutionFixture::mock_expression_updates(&context_data);
         let value_update   = &notification.updates[0];
         let expression_id  = value_update.expression_id;
         let value_registry = execution.computed_value_info_registry();
         assert!(value_registry.get(&expression_id).is_none());
 
         // Send notification with type information.
-        let event = Event::Notification(ExpressionValuesComputed(notification.clone()));
+        let event = Event::Notification(ExpressionUpdates(notification.clone()));
         json_events_sender.unbounded_send(event).unwrap();
         test.run_until_stalled();
 

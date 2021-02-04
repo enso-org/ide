@@ -9,7 +9,8 @@ use crate::model::module::QualifiedName as ModuleQualifiedName;
 use crate::notification::Publisher;
 
 use enso_protocol::language_server;
-use enso_protocol::language_server::ExpressionValueUpdate;
+use enso_protocol::language_server::ExpressionUpdate;
+use enso_protocol::language_server::ExpressionUpdatePayload;
 use enso_protocol::language_server::MethodPointer;
 use enso_protocol::language_server::SuggestionId;
 use enso_protocol::language_server::VisualisationConfiguration;
@@ -32,6 +33,35 @@ pub type ExpressionId = ast::Id;
 
 
 
+// ==========================
+// === ComputedError ===
+// ==========================
+
+#[derive(Clone,Debug)]
+pub struct ComputedError {
+    pub message : String,
+    pub trace   : Vec<ExpressionId>,
+}
+
+impl ComputedError {
+    pub fn from_payload(payload:ExpressionUpdatePayload) -> Option<Self> {
+        match payload {
+            ExpressionUpdatePayload::Value => {
+                None
+            },
+            ExpressionUpdatePayload::Panic {message,trace} => {
+                Some(Self{message,trace})
+            },
+            ExpressionUpdatePayload::DataflowError {trace} => {
+                let message = "Dataflow error.".to_owned();
+                Some(Self{message,trace})
+            },
+        }
+    }
+}
+
+
+
 // =========================
 // === ComputedValueInfo ===
 // =========================
@@ -41,20 +71,24 @@ pub type ExpressionId = ast::Id;
 /// Contains "meta-data" like type or method pointer, not the computed value representation itself.
 #[derive(Clone,Debug)]
 pub struct ComputedValueInfo {
-    /// The string representing the typename of the computed value, e.g. "Number" or "Unit".
-    pub typename:Option<ImString>,
+    /// The string representing the full qualified typename of the computed value, e.g.
+    /// "Base.Main.Number".
+    pub typename : Option<ImString>,
+    pub error    : Option<ComputedError>,
     /// If the expression is a method call (i.e. can be entered), this points to the target method.
-    pub method_call:Option<SuggestionId>,
+    pub method_call : Option<SuggestionId>,
 }
 
-impl From<ExpressionValueUpdate> for ComputedValueInfo {
-    fn from(update:ExpressionValueUpdate) -> Self {
+impl From<ExpressionUpdate> for ComputedValueInfo {
+    fn from(update:ExpressionUpdate) -> Self {
         ComputedValueInfo {
             typename    : update.typename.map(ImString::new),
             method_call : update.method_pointer,
+            error       : ComputedError::from_payload(update.payload),
         }
     }
 }
+
 
 /// Ids of expressions that were computed and received updates in this batch.
 pub type ComputedValueExpressions = Vec<ExpressionId>;
@@ -84,15 +118,13 @@ impl ComputedValueInfoRegistry {
     }
 
     /// Store the information from the given update received from the Language Server.
-    pub fn apply_updates(&self, values_computed:Vec<ExpressionValueUpdate>) {
-        let updated_expressions = values_computed.iter().map(|update| update.expression_id).collect();
-        with(self.map.borrow_mut(), |mut map| {
-            for update in values_computed {
-                let id   = update.expression_id;
-                let info = Rc::new(ComputedValueInfo::from(update));
-                map.insert(id,info);
-            };
-        });
+    pub fn apply_updates(&self, updates:Vec<ExpressionUpdate>) {
+        let updated_expressions = updates.iter().map(|update| update.expression_id).collect();
+        for update in updates {
+            let id   = update.expression_id;
+            let info = Rc::new(ComputedValueInfo::from(update));
+            self.map.borrow_mut().insert(id,info);
+        };
         self.emit(updated_expressions);
     }
 

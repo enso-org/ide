@@ -641,6 +641,12 @@ impl Model {
                 })
             });
             self.set_method_pointer(id,method_pointer);
+            if self.node_views.borrow().get_by_left(&id).contains(&&node_id) {
+                let error = info.and_then(|i| i.error.as_ref()).map(|e| node::error::Error {
+                    message: e.message.clone()
+                });
+                self.view.graph().set_node_error_status(node_id,error);
+            }
         }
     }
 
