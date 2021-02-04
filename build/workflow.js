@@ -223,7 +223,7 @@ let getListOfChangedFiles = {
     run: `
         list=\`git diff --name-only origin/develop HEAD\`
         echo $list
-        echo "::set-output name=list::$list"
+        echo "::set-output name=list::'$list'"
     `,
     shell: 'bash'
 }
