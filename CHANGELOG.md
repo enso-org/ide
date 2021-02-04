@@ -9,9 +9,9 @@ read the notes of the `Enso 2.0.0-alpha.1` release.
 <br/>![New Features](/docs/assets/tags/new_features.svg)
 
 #### Visual Environment
-- [Added the ability to reposition visualisations.][1096] There is no an icon in the visualisation action
-  bar that allows dragging the visualisation. Once it has been moved there appears another icon that
-  will reset the position to the original position.
+- [Added the ability to reposition visualisations.][1096] There is now an icon in the visualization 
+  action bar that allows dragging the visualization. Once the visualization has been moved, there 
+  appears another icon that will reset the position to the original position.
 
 [1096]: https://github.com/enso-org/ide/issues/1096
 
