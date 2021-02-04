@@ -47,7 +47,7 @@ async function writeFileChecksum(path,type) {
 // ================
 
 exports.default = async function () {
-    let files = glob.sync(paths.dist.client + '/*.zip')
+    let files = glob.sync(paths.dist.client + '/*.{dmg,exe,AppImage}')
     for (let file of files) {
         console.log(`Generating ${CHECKSUM_TYPE} checksum for ${file}.`)
         await writeFileChecksum(file,CHECKSUM_TYPE)

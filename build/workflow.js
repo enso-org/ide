@@ -188,9 +188,16 @@ function uploadBinArtifactsFor(name,sys,ext,os) {
     }
 }
 
-uploadBinArtifactsForMacOS   = uploadBinArtifactsFor('Linux','ubuntu','AppImage','linux')
+function uploadBinArtifactsWithChecksumsFor(name,sys,ext,os) {
+    return [
+        uploadBinArtifactsFor(name,sys,ext,os),
+        uploadBinArtifactsFor(name,sys,ext+'.sha256',os)
+    ]
+}
+
+uploadBinArtifactsForMacOS   = uploadBinArtifactsFor('Linux','ubuntu','dmg','linux')
+uploadBinArtifactsForLinux   = uploadBinArtifactsFor('macOS','macos','AppImage','mac')
 uploadBinArtifactsForWindows = uploadBinArtifactsFor('Windows','windows','exe','win')
-uploadBinArtifactsForLinux   = uploadBinArtifactsFor('macOS','macos','dmg','mac')
 
 let downloadArtifacts = {
     name: "Download artifacts",
@@ -340,7 +347,8 @@ let assertions = list(
 // ================
 
 let releaseCondition = `github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'`
-let buildCondition   = `contains(github.event.head_commit.message,'${FLAG_FORCE_CI_BUILD}') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || ${releaseCondition}`
+// FIXME:
+let buildCondition   = `github.ref == 'refs/heads/wip/wd/ci' || contains(github.event.head_commit.message,'${FLAG_FORCE_CI_BUILD}') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || ${releaseCondition}`
 
 let workflow = {
     name : "GUI CI",
