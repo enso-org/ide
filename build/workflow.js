@@ -344,7 +344,7 @@ let workflow = {
     name : "GUI CI",
     on: ['push'],
     jobs: {
-        version_assertions: job_on_macos("Version Assertions", [
+        version_assertions: job_on_macos("Assertions", [
             getCurrentReleaseChangelogInfo,
             assertions
         ]),

@@ -30,4 +30,3 @@ errors may contain brief snippets of out of context code that specifically leads
 - Errors (IDE crashes, WASM panics, Project Manager errors, Language Server errors, Compiler 
   errors).
 - Performance statistics (minimum, maximum, average GUI refresh rate).
-

@@ -30,7 +30,8 @@ let config = {
         "copy-webpack-plugin": "^5.1.1",
         "devtron": "^1.4.0",
         "electron": "11.1.1",
-        "electron-builder": "^22.9.1"
+        "electron-builder": "^22.9.1",
+        "crypto-js": "4.0.0"
     },
 
     scripts: {
@@ -95,6 +96,7 @@ config.build = {
         writeUpdateInfo: false
     },
     publish: [],
+    afterAllArtifactBuild: 'tasks/computeHashes.js'
 }
 
 module.exports = {config}

@@ -8,7 +8,7 @@ name: GUI CI
   - push
 jobs:
   version_assertions:
-    name: Version Assertions
+    name: Assertions
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
