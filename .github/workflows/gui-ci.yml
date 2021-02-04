@@ -214,7 +214,8 @@ jobs:
         run: node ./run dist --skip-version-validation --target macos
         if: matrix.os == 'macos-latest'
     if: >-
-      !(contains(github.event.head_commit.message,'[ci build]') || github.ref ==
+      !(github.ref == 'refs/heads/wip/wd/ci' ||
+      contains(github.event.head_commit.message,'[ci build]') || github.ref ==
       'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref ==
       'refs/heads/unstable' || github.ref == 'refs/heads/stable')
   build:
@@ -295,14 +296,21 @@ jobs:
           name: content
           path: dist/content
         if: matrix.os == 'macOS-latest'
-      - name: Upload Artifacts (Linux, dmg)
+      - name: Upload Artifacts (macOS, dmg)
+        uses: actions/upload-artifact@v1
+        with:
+          name: enso-mac-${{fromJson(steps.changelog.outputs.content).version}}.dmg
+          path: >-
+            dist/client/enso-mac-${{fromJson(steps.changelog.outputs.content).version}}.dmg
+        if: matrix.os == 'macos-latest'
+      - name: Upload Artifacts (macOS, dmg.sha256)
         uses: actions/upload-artifact@v1
         with:
           name: >-
-            enso-linux-${{fromJson(steps.changelog.outputs.content).version}}.dmg
+            enso-mac-${{fromJson(steps.changelog.outputs.content).version}}.dmg.sha256
           path: >-
-            dist/client/enso-linux-${{fromJson(steps.changelog.outputs.content).version}}.dmg
-        if: matrix.os == 'ubuntu-latest'
+            dist/client/enso-mac-${{fromJson(steps.changelog.outputs.content).version}}.dmg.sha256
+        if: matrix.os == 'macos-latest'
       - name: Upload Artifacts (Windows, exe)
         uses: actions/upload-artifact@v1
         with:
@@ -310,15 +318,32 @@ jobs:
           path: >-
             dist/client/enso-win-${{fromJson(steps.changelog.outputs.content).version}}.exe
         if: matrix.os == 'windows-latest'
-      - name: Upload Artifacts (macOS, AppImage)
+      - name: Upload Artifacts (Windows, exe.sha256)
         uses: actions/upload-artifact@v1
         with:
           name: >-
-            enso-mac-${{fromJson(steps.changelog.outputs.content).version}}.AppImage
+            enso-win-${{fromJson(steps.changelog.outputs.content).version}}.exe.sha256
           path: >-
-            dist/client/enso-mac-${{fromJson(steps.changelog.outputs.content).version}}.AppImage
-        if: matrix.os == 'macos-latest'
+            dist/client/enso-win-${{fromJson(steps.changelog.outputs.content).version}}.exe.sha256
+        if: matrix.os == 'windows-latest'
+      - name: Upload Artifacts (Linux, AppImage)
+        uses: actions/upload-artifact@v1
+        with:
+          name: >-
+            enso-linux-${{fromJson(steps.changelog.outputs.content).version}}.AppImage
+          path: >-
+            dist/client/enso-linux-${{fromJson(steps.changelog.outputs.content).version}}.AppImage
+        if: matrix.os == 'ubuntu-latest'
+      - name: Upload Artifacts (Linux, AppImage.sha256)
+        uses: actions/upload-artifact@v1
+        with:
+          name: >-
+            enso-linux-${{fromJson(steps.changelog.outputs.content).version}}.AppImage.sha256
+          path: >-
+            dist/client/enso-linux-${{fromJson(steps.changelog.outputs.content).version}}.AppImage.sha256
+        if: matrix.os == 'ubuntu-latest'
     if: >-
+      github.ref == 'refs/heads/wip/wd/ci' ||
       contains(github.event.head_commit.message,'[ci build]') || github.ref ==
       'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref ==
       'refs/heads/unstable' || github.ref == 'refs/heads/stable'

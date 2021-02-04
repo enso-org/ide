@@ -198,9 +198,9 @@ function uploadBinArtifactsWithChecksumsFor(name,sys,ext,os) {
     ]
 }
 
-uploadBinArtifactsForMacOS   = uploadBinArtifactsFor('macOS','macos','dmg','mac')
-uploadBinArtifactsForLinux   = uploadBinArtifactsFor('Linux','ubuntu','AppImage','linux')
-uploadBinArtifactsForWindows = uploadBinArtifactsFor('Windows','windows','exe','win')
+uploadBinArtifactsForMacOS   = uploadBinArtifactsWithChecksumsFor('macOS','macos','dmg','mac')
+uploadBinArtifactsForLinux   = uploadBinArtifactsWithChecksumsFor('Linux','ubuntu','AppImage','linux')
+uploadBinArtifactsForWindows = uploadBinArtifactsWithChecksumsFor('Windows','windows','exe','win')
 
 let downloadArtifacts = {
     name: "Download artifacts",
