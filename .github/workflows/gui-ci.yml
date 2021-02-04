@@ -51,12 +51,6 @@ jobs:
                   echo "::set-output name=list::'$list'"
               
         shell: bash
-      - name: TEST
-        run: |2-
-
-                      echo "the list is"
-                      echo ${{ steps.changed_files.outputs.list }}
-                  
       - name: Assert if CHANGELOG.md was updated
         run: >-
           if [[ ${{ contains(steps.changed_files.outputs.list,'CHANGELOG.md') ||
@@ -220,8 +214,7 @@ jobs:
         run: node ./run dist --skip-version-validation --target macos
         if: matrix.os == 'macos-latest'
     if: >-
-      !(github.ref == 'refs/heads/wip/wd/ci' ||
-      contains(github.event.head_commit.message,'[ci build]') || github.ref ==
+      !(contains(github.event.head_commit.message,'[ci build]') || github.ref ==
       'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref ==
       'refs/heads/unstable' || github.ref == 'refs/heads/stable')
   build:
@@ -326,7 +319,6 @@ jobs:
             dist/client/enso-mac-${{fromJson(steps.changelog.outputs.content).version}}.AppImage
         if: matrix.os == 'macos-latest'
     if: >-
-      github.ref == 'refs/heads/wip/wd/ci' ||
       contains(github.event.head_commit.message,'[ci build]') || github.ref ==
       'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref ==
       'refs/heads/unstable' || github.ref == 'refs/heads/stable'
