@@ -1,7 +1,8 @@
-<svg version="1.1" width="91" height="36" xmlns="http://www.w3.org/2000/svg">
-    <style>
-        .txt { font: 15px sans-serif; fill:white; }
+<svg version="1.1" width="89" height="36" xmlns="http://www.w3.org/2000/svg">
+    <style type='text/css'>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto');
+        .txt { font: 15px Roboto; fill:white; }
     </style>
-    <rect width="91" height="36" rx="18" fill="#e02424"/>
+    <rect width="89" height="36" rx="18" fill="#e02424"/>
     <text x="12" y="23" class="txt">Bug Fixes</text>
 </svg>
