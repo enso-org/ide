@@ -250,6 +250,7 @@ let assertChangelogWasUpdated = [
     {
         name: 'Assert if CHANGELOG.md was updated',
         run: `if [[ \${{ contains(steps.changed_files.outputs.list,'CHANGELOG.md') || contains(github.event.head_commit.message,'${FLAG_NO_CHANGELOG_NEEDED}') }} == false ]]; then exit 1; fi`,
+        if: `github.ref != 'refs/heads/develop' && github.ref != 'refs/heads/stable' && github.ref != 'refs/heads/unstable'`
     }
 ]
 
@@ -356,8 +357,7 @@ let assertions = list(
 // ================
 
 let releaseCondition = `github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'`
-// FIXME
-let buildCondition   = `github.ref == 'refs/heads/wip/wd/ci' || contains(github.event.head_commit.message,'${FLAG_FORCE_CI_BUILD}') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || ${releaseCondition}`
+let buildCondition   = `contains(github.event.head_commit.message,'${FLAG_FORCE_CI_BUILD}') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || ${releaseCondition}`
 
 let workflow = {
     name : "GUI CI",

@@ -56,6 +56,9 @@ jobs:
           if [[ ${{ contains(steps.changed_files.outputs.list,'CHANGELOG.md') ||
           contains(github.event.head_commit.message,'[ci no changelog needed]')
           }} == false ]]; then exit 1; fi
+        if: >-
+          github.ref != 'refs/heads/develop' && github.ref !=
+          'refs/heads/stable' && github.ref != 'refs/heads/unstable'
   lint:
     name: Linter
     runs-on: ${{ matrix.os }}
@@ -214,8 +217,7 @@ jobs:
         run: node ./run dist --skip-version-validation --target macos
         if: matrix.os == 'macos-latest'
     if: >-
-      !(github.ref == 'refs/heads/wip/wd/ci' ||
-      contains(github.event.head_commit.message,'[ci build]') || github.ref ==
+      !(contains(github.event.head_commit.message,'[ci build]') || github.ref ==
       'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref ==
       'refs/heads/unstable' || github.ref == 'refs/heads/stable')
   build:
@@ -343,7 +345,6 @@ jobs:
             dist/client/enso-linux-${{fromJson(steps.changelog.outputs.content).version}}.AppImage.sha256
         if: matrix.os == 'ubuntu-latest'
     if: >-
-      github.ref == 'refs/heads/wip/wd/ci' ||
       contains(github.event.head_commit.message,'[ci build]') || github.ref ==
       'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref ==
       'refs/heads/unstable' || github.ref == 'refs/heads/stable'
