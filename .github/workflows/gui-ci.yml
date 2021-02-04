@@ -46,7 +46,7 @@ jobs:
         id: changed_files
         run: |2-
 
-                  list=`git diff --name-only origin/develop HEAD`
+                  list=`git diff --name-only origin/develop HEAD | tr '\n' ' '`
                   echo $list
                   echo "::set-output name=list::'$list'"
               

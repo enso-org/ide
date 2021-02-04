@@ -216,12 +216,12 @@ let downloadArtifacts = {
 // === Git ===
 // ===========
 
-/// Gets a list of changed files between this commit and the `develop` branch.
+/// Gets a space-separated list of changed files between this commit and the `develop` branch.
 let getListOfChangedFiles = {
     name: 'Get list of changed files',
     id: 'changed_files',
     run: `
-        list=\`git diff --name-only origin/develop HEAD\`
+        list=\`git diff --name-only origin/develop HEAD | tr '\\n' ' '\`
         echo $list
         echo "::set-output name=list::'$list'"
     `,
