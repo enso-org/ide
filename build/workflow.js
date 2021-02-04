@@ -36,6 +36,9 @@ function job(platforms,name,steps,cfg) {
             },
             "fail-fast": false
         },
+        // WARNING!
+        // Do not update to `checkout@v2` because it is broken:
+        // https://github.com/actions/checkout/issues/438
         steps : list({uses:"actions/checkout@v1"}, ...steps),
         ...cfg
     }
@@ -246,6 +249,10 @@ let assertChangelogWasUpdated = [
     getListOfChangedFiles,
     {
         name: 'Assert if CHANGELOG.md was updated',
+        run: `
+            echo "the list is"
+            echo \${{ steps.changed_files.outputs.list,'CHANGELOG.md' }}
+        `,
         run: `if [[ \${{ contains(steps.changed_files.outputs.list,'CHANGELOG.md') || contains(github.event.head_commit.message,'${FLAG_NO_CHANGELOG_NEEDED}') }} == false ]]; then exit 1; fi`,
     }
 ]
