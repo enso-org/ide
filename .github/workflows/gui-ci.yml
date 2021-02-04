@@ -5,7 +5,7 @@
 
 name: GUI CI
 'on':
-  - push
+  - pull_request
 jobs:
   version_assertions:
     name: Assertions

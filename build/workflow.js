@@ -359,7 +359,7 @@ let buildCondition   = `github.ref == 'refs/heads/wip/wd/ci' || contains(github.
 
 let workflow = {
     name : "GUI CI",
-    on: ['push'],
+    on: ['pull_request'],
     jobs: {
         version_assertions: job_on_macos("Assertions", [
             getCurrentReleaseChangelogInfo,
