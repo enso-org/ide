@@ -459,7 +459,7 @@ impl Handle {
         let root_id     = project.content_root_id();
         let module_path = model::module::Path::from_method(root_id,&method)?;
         let module      = project.module(module_path).await?;
-        let definition  = module.lookup_method(&method)?;
+        let definition  = module.lookup_method(project.name().as_ref(),&method)?;
         Self::new(parent,module,project.suggestion_db(),project.parser(),definition)
     }
 
@@ -767,6 +767,7 @@ impl Handle {
     pub fn collapse
     (&self, nodes:impl IntoIterator<Item=node::Id>, new_method_name_base:&str)
     -> FallibleResult<node::Id> {
+        analytics::remote_log(analytics::AnonymousData("graph::collapse"));
         use double_representation::refactorings::collapse::collapse;
         use double_representation::refactorings::collapse::Collapsed;
         let nodes : Vec<_> = Result::from_iter(nodes.into_iter().map(|id| self.node(id)))?;

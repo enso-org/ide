@@ -116,26 +116,33 @@ impl Handle {
         Handle {logger,graph,execution_ctx,project,notifier}
     }
 
-    /// See `attach_visualization` in `ExecutionContext`.
+    /// See [`model::ExecutionContext::attach_visualization`].
     pub async fn attach_visualization
     (&self, visualization:Visualization)
     -> FallibleResult<impl Stream<Item=VisualizationUpdateData>> {
         self.execution_ctx.attach_visualization(visualization).await
     }
 
-    /// See `detach_visualization` in `ExecutionContext`.
+    /// See [`model::ExecutionContext::detach_visualization`].
     pub async fn detach_visualization(&self, id:VisualizationId) -> FallibleResult<Visualization> {
         self.execution_ctx.detach_visualization(id).await
     }
 
-    /// See `detach_all_visualizations` in `ExecutionContext`.
+    /// See [`model::ExecutionContext::detach_all_visualizations`].
     pub async fn detach_all_visualizations(&self) -> Vec<FallibleResult<Visualization>> {
         self.execution_ctx.detach_all_visualizations().await
     }
 
-    /// See `expression_info_registry` in `ExecutionContext`.
+    /// See [`model::ExecutionContext::expression_info_registry`].
     pub fn computed_value_info_registry(&self) -> &ComputedValueInfoRegistry {
         self.execution_ctx.computed_value_info_registry()
+    }
+
+    /// Modify preprocessor code in visualization. See also
+    /// [`model::ExecutionContext::modify_visualization`].
+    pub async fn set_visualization_preprocessor
+    (&self, id:VisualizationId, code:String) -> FallibleResult {
+        self.execution_ctx.modify_visualization(id,Some(code),None).await
     }
 
     /// Subscribe to updates about changes in this executed graph.
@@ -297,6 +304,7 @@ pub mod tests {
 
     use crate::model::execution_context::ExpressionId;
     use crate::model::module::NodeMetadata;
+    use crate::test;
 
     use enso_protocol::language_server::types::test::value_update_with_type;
     use enso_protocol::language_server::types::test::value_update_with_method_ptr;
@@ -317,20 +325,30 @@ pub mod tests {
 
     impl MockData {
         pub fn controller(&self) -> Handle {
+            info!(DefaultDebugLogger::new("Test"),"-- 1");
             let parser      = parser::Parser::new_or_panic();
+            info!(DefaultDebugLogger::new("Test"),"-- 2");
             let module      = self.module.plain(&parser);
+            info!(DefaultDebugLogger::new("Test"),"-- 3");
             let method      = self.graph.method();
+            info!(DefaultDebugLogger::new("Test"),"-- 4");
             let mut project = model::project::MockAPI::new();
+            info!(DefaultDebugLogger::new("Test"),"-- 5");
             let ctx         = Rc::new(self.ctx.create());
+            info!(DefaultDebugLogger::new("Test"),"-- 6");
+            model::project::test::expect_name(&mut project,test::mock::data::PROJECT_NAME);
             model::project::test::expect_parser(&mut project,&parser);
             model::project::test::expect_module(&mut project,module);
             model::project::test::expect_execution_ctx(&mut project,ctx);
+            info!(DefaultDebugLogger::new("Test"),"-- 7");
             // Root ID is needed to generate module path used to get the module.
             model::project::test::expect_root_id(&mut project,crate::test::mock::data::ROOT_ID);
             // Both graph controllers need suggestion DB to provide context to their span trees.
+            info!(DefaultDebugLogger::new("Test"),"-- 8");
             let suggestion_db = self.graph.suggestion_db();
+            info!(DefaultDebugLogger::new("Test"),"-- 9");
             model::project::test::expect_suggestion_db(&mut project,suggestion_db);
-
+            info!(DefaultDebugLogger::new("Test"),"-- 10");
             let project = Rc::new(project);
             Handle::new(Logger::new("test"),project.clone_ref(),method).boxed_local().expect_ok()
         }

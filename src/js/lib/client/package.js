@@ -19,9 +19,9 @@ let config = {
     dependencies: {
         "create-servers": "^3.1.0",
         "electron-is-dev": "^1.1.0",
-        "enso-studio-common": "2.0.0-alpha.0",
-        "enso-studio-content": "2.0.0-alpha.0",
-        "enso-studio-icons": "2.0.0-alpha.0",
+        "enso-studio-common": "1.0.0",
+        "enso-studio-content": "1.0.0",
+        "enso-studio-icons": "1.0.0",
         "yargs": "^15.3.0"
     },
 
@@ -43,7 +43,8 @@ let config = {
 config.build = {
     appId: 'org.enso',
     productName: 'Enso',
-    copyright: 'Copyright © 2020 ${author}.',
+    copyright: 'Copyright © 2021 ${author}.',
+    artifactName: 'enso-${os}-${version}.${ext}',
     mac: {
         icon: `${paths.dist.root}/icons/icon.icns`,
         category: 'public.app-category.developer-tools',
@@ -58,8 +59,10 @@ config.build = {
         category: 'Development',
     },
     files: [
-        { from: paths.dist.content, to: '.' },
-        { from: paths.dist.bin, to: '.' },
+        { from: paths.dist.content, to: '.' }
+    ],
+    extraResources: [
+        { from: paths.dist.bin, to: '.' , filter: ["!**.tar.gz", "!**.zip"]}
     ],
     fileAssociations: [
         {
@@ -70,6 +73,26 @@ config.build = {
     ],
     directories: {
         output: paths.dist.client,
+    },
+    nsis: {
+        // Disables "block map" generation during electron building. Block maps 
+        // can be used for incremental package update on client-side. However,
+        // their generation can take long time (even 30 mins), so we removed it
+        // for now. Moreover, we may probably never need them, as our updates
+        // are handled by us. More info: 
+        // https://github.com/electron-userland/electron-builder/issues/2851
+        // https://github.com/electron-userland/electron-builder/issues/2900
+        differentialPackage: false
+    },
+    dmg: {
+        // Disables "block map" generation during electron building. Block maps 
+        // can be used for incremental package update on client-side. However,
+        // their generation can take long time (even 30 mins), so we removed it
+        // for now. Moreover, we may probably never need them, as our updates
+        // are handled by us. More info: 
+        // https://github.com/electron-userland/electron-builder/issues/2851
+        // https://github.com/electron-userland/electron-builder/issues/2900
+        writeUpdateInfo: false
     },
     publish: [],
 }
