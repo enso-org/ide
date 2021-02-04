@@ -218,7 +218,7 @@ let getListOfChangedFiles = {
     name: 'Get list of changed files',
     id: 'changed_files',
     run: `
-        list=\`git diff --name-only develop\`
+        list=\`git diff --name-only origin/develop\`
         echo $list
         echo "::set-output name=list::$list"
     `,
