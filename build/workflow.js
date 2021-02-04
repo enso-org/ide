@@ -219,7 +219,7 @@ let getListOfChangedFiles = {
     name: 'Get list of changed files',
     id: 'changed_files',
     run: `
-        URL="https://api.github.com/repos/enso-org/ide/pulls/${{ github.event.pull_request.number }}/files"
+        URL="https://api.github.com/repos/enso-org/ide/pulls/\${{ github.event.pull_request.number }}/files"
         list=\`curl -s -X GET -G $URL | jq -r '.[] | .filename'\`
         echo "::set-output name=list::$list"
     `,
