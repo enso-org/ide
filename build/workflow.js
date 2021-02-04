@@ -199,6 +199,23 @@ let downloadArtifacts = {
 }
 
 
+
+// ===========
+// === Git ===
+// ===========
+
+let getListOfChangedFiles = {
+    name: 'Get list of changed files',
+    id: 'changed_files',
+    run: `
+        list=\`git diff --name-only HEAD^\`
+        echo "::set-output name=list::$list"
+    `,
+    shell: 'bash'
+}
+
+
+
 // =================
 // === Changelog ===
 // =================
@@ -221,22 +238,6 @@ let assertChangelogWasUpdated = [
         run: `if [[ \${{ contains(steps.changed_files.outputs.list,"CHANGELOG.md") || contains(github.event.head_commit.message,${FLAG_NO_CHANGELOG_NEEDED}) }} == false ]]; then exit 1; fi`,
     }
 ]
-
-
-
-// ===========
-// === Git ===
-// ===========
-
-let getListOfChangedFiles = {
-    name: 'Get list of changed files',
-    id: 'changed_files',
-    run: `
-        list=\`git diff --name-only HEAD^\`
-        echo "::set-output name=list::$list"
-    `,
-    shell: 'bash'
-}
 
 
 
