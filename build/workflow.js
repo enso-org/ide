@@ -16,7 +16,7 @@ const yaml  = require('js-yaml')
 const NODE_VERSION      = '14.15.0'
 const RUST_VERSION      = 'nightly-2019-11-04'
 const WASM_PACK_VERSION = '0.9.1'
-
+const FLAG_NO_CHANGELOG_NEEDED = '[ci no changelog needed]'
 
 
 // =============
@@ -214,6 +214,14 @@ let getCurrentReleaseChangelogInfo = {
     shell: 'bash'
 }
 
+let assertChangelogWasUpdated = [
+    getListOfChangedFiles,
+    {
+        name: 'Assert if CHANGELOG.md was updated',
+        run: `if [[ \${{ contains(steps.changed_files.outputs.list,"CHANGELOG.md") || contains(github.event.head_commit.message,${FLAG_NO_CHANGELOG_NEEDED}) }} == false ]]; then exit 1; fi`,
+    }
+]
+
 
 
 // ===========
@@ -222,11 +230,10 @@ let getCurrentReleaseChangelogInfo = {
 
 let getListOfChangedFiles = {
     name: 'Get list of changed files',
-    id: 'changed-files',
+    id: 'changed_files',
     run: `
-        node ./run ci-gen --skip-version-validation
-        content=\`cat CURRENT_RELEASE_CHANGELOG.json\`
-        echo "::set-output name=content::$content"
+        list=\`git diff --name-only HEAD^\`
+        echo "::set-output name=list::$list"
     `,
     shell: 'bash'
 }
@@ -323,7 +330,8 @@ let assertReleaseDoNotExists = [
 let assertions = list(
     assertVersionUnstable,
     assertVersionStable,
-    assertReleaseDoNotExists
+    assertReleaseDoNotExists,
+    assertChangelogWasUpdated
 )
 
 
