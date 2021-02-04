@@ -5,9 +5,14 @@ disable the collection of errors data (keeping the collection of other events), 
 collection of all data, respectively. To learn more what data is collected in Enso alpha releases, 
 read the notes of the `Enso 2.0.0-alpha.1` release.
 
-## Fixes
+
+<br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
+
+#### Visual Environment
 * The Electron application has keyboard shortcuts to close the application and to toggle the 
   developer tools working again.
+
+
 
 # Enso 2.0.0-alpha.1 (2020-01-26)
 This is the first release of Enso, a general-purpose programming language and environment for 
