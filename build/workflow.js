@@ -213,10 +213,17 @@ let downloadArtifacts = {
 // === Git ===
 // ===========
 
+/// Gets a list of changed file in **THIS PULL REQUEST**.
+/// Based on: https://github.community/t/get-list-of-files-on-pull-request-merge/17226
 let getListOfChangedFiles = {
     name: 'Get list of changed files',
-    uses: 'jitterbit/get-changed-files@v1',
-    id: 'changed_files'
+    id: 'changed_files',
+    run: `
+        URL="https://api.github.com/repos/enso-org/ide/pulls/${{ github.event.pull_request.number }}/files"
+        list=\`curl -s -X GET -G $URL | jq -r '.[] | .filename'\`
+        echo "::set-output name=list::$list"
+    `,
+    shell: 'bash'
 }
 
 
@@ -240,7 +247,7 @@ let assertChangelogWasUpdated = [
     getListOfChangedFiles,
     {
         name: 'Assert if CHANGELOG.md was updated',
-        run: `if [[ \${{ contains(steps.changed_files.outputs.all,'CHANGELOG.md') || contains(github.event.head_commit.message,'${FLAG_NO_CHANGELOG_NEEDED}') }} == false ]]; then exit 1; fi`,
+        run: `if [[ \${{ contains(steps.changed_files.outputs.list,'CHANGELOG.md') || contains(github.event.head_commit.message,'${FLAG_NO_CHANGELOG_NEEDED}') }} == false ]]; then exit 1; fi`,
     }
 ]
 
