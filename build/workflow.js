@@ -213,14 +213,13 @@ let downloadArtifacts = {
 // === Git ===
 // ===========
 
-/// Gets a list of changed file in **THIS PULL REQUEST**.
-/// Based on: https://github.community/t/get-list-of-files-on-pull-request-merge/17226
+/// Gets a list of changed files between this commit and the `develop` branch.
 let getListOfChangedFiles = {
     name: 'Get list of changed files',
     id: 'changed_files',
     run: `
-        URL="https://api.github.com/repos/enso-org/ide/pulls/\${{ github.event.pull_request.number }}/files"
-        list=\`curl -s -X GET -G $URL | jq -r '.[] | .filename'\`
+        list=\`git diff --name-only develop\`
+        echo $list
         echo "::set-output name=list::$list"
     `,
     shell: 'bash'
@@ -359,7 +358,7 @@ let buildCondition   = `github.ref == 'refs/heads/wip/wd/ci' || contains(github.
 
 let workflow = {
     name : "GUI CI",
-    on: ['pull_request'],
+    on: ['push'],
     jobs: {
         version_assertions: job_on_macos("Assertions", [
             getCurrentReleaseChangelogInfo,
