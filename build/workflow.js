@@ -36,7 +36,7 @@ function job(platforms,name,steps,cfg) {
             },
             "fail-fast": false
         },
-        steps : list({uses:"actions/checkout@v2"}, ...steps),
+        steps : list({uses:"actions/checkout@v1"}, ...steps),
         ...cfg
     }
 }

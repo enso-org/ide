@@ -16,7 +16,7 @@ jobs:
           - macOS-latest
       fail-fast: false
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v1
       - name: Read changelog info
         id: changelog
         run: |2-
@@ -65,7 +65,7 @@ jobs:
           - macOS-latest
       fail-fast: false
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v1
       - name: Install Node
         uses: actions/setup-node@v1
         with:
@@ -92,7 +92,7 @@ jobs:
           - macOS-latest
       fail-fast: false
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v1
       - name: Install Node
         uses: actions/setup-node@v1
         with:
@@ -113,7 +113,7 @@ jobs:
           - macOS-latest
       fail-fast: false
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v1
       - name: Install Node
         uses: actions/setup-node@v1
         with:
@@ -167,7 +167,7 @@ jobs:
           - macOS-latest
       fail-fast: false
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v1
       - name: Install Node
         uses: actions/setup-node@v1
         with:
@@ -229,7 +229,7 @@ jobs:
           - ubuntu-latest
       fail-fast: false
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v1
       - name: Read changelog info
         id: changelog
         run: |2-
@@ -333,7 +333,7 @@ jobs:
           - macOS-latest
       fail-fast: false
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v1
       - name: Download artifacts
         uses: actions/download-artifact@v2
         with:
@@ -383,7 +383,7 @@ jobs:
           - ubuntu-latest
       fail-fast: false
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v1
       - name: Download artifacts
         uses: actions/download-artifact@v2
         with:
