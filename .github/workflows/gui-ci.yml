@@ -55,7 +55,7 @@ jobs:
         run: |2-
 
                       echo "the list is"
-                      echo ${{ steps.changed_files.outputs.list,'CHANGELOG.md' }}
+                      echo ${{ steps.changed_files.outputs.list }}
                   
       - name: Assert if CHANGELOG.md was updated
         run: >-

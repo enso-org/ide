@@ -251,7 +251,7 @@ let assertChangelogWasUpdated = [
         name: 'TEST',
         run: `
             echo "the list is"
-            echo \${{ steps.changed_files.outputs.list,'CHANGELOG.md' }}
+            echo \${{ steps.changed_files.outputs.list }}
         `,
     },
     {
