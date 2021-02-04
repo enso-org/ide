@@ -248,11 +248,14 @@ let getCurrentReleaseChangelogInfo = {
 let assertChangelogWasUpdated = [
     getListOfChangedFiles,
     {
-        name: 'Assert if CHANGELOG.md was updated',
+        name: 'TEST',
         run: `
             echo "the list is"
             echo \${{ steps.changed_files.outputs.list,'CHANGELOG.md' }}
         `,
+    },
+    {
+        name: 'Assert if CHANGELOG.md was updated',
         run: `if [[ \${{ contains(steps.changed_files.outputs.list,'CHANGELOG.md') || contains(github.event.head_commit.message,'${FLAG_NO_CHANGELOG_NEEDED}') }} == false ]]; then exit 1; fi`,
     }
 ]

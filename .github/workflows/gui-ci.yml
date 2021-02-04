@@ -51,6 +51,12 @@ jobs:
                   echo "::set-output name=list::$list"
               
         shell: bash
+      - name: TEST
+        run: |2-
+
+                      echo "the list is"
+                      echo ${{ steps.changed_files.outputs.list,'CHANGELOG.md' }}
+                  
       - name: Assert if CHANGELOG.md was updated
         run: >-
           if [[ ${{ contains(steps.changed_files.outputs.list,'CHANGELOG.md') ||
