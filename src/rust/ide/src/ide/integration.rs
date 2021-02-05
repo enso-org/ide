@@ -9,7 +9,7 @@ use crate::prelude::*;
 use crate::controller::graph::NodeTrees;
 use crate::controller::searcher::action::MatchInfo;
 use crate::controller::searcher::Actions;
-use crate::model::execution_context::ComputedValueInfo;
+use crate::model::execution_context::{ComputedValueInfo, EvaluationError};
 use crate::model::execution_context::LocalCall;
 use crate::model::execution_context::ExpressionId;
 use crate::model::execution_context::Visualization;
@@ -26,7 +26,7 @@ use ensogl_gui_components::list_view;
 use ide_view::graph_editor;
 use ide_view::graph_editor::component::node;
 use ide_view::graph_editor::component::visualization;
-use ide_view::graph_editor::EdgeEndpoint;
+use ide_view::graph_editor::{EdgeEndpoint, NodeId};
 use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
 use utils::channel::process_stream_with_handle;
@@ -642,9 +642,15 @@ impl Model {
             });
             self.set_method_pointer(id,method_pointer);
             if self.node_views.borrow().get_by_left(&id).contains(&&node_id) {
-                let error = info.and_then(|i| i.error.as_ref()).map(|e| node::error::Error {
-                    message: e.message.clone()
-                });
+                let error = info.and_then(|i| i.error.as_ref()).map(|e|
+                    node::error::Error {
+                        message: if self.get_node_causing_error_on_current_graph(e).contains(&&node_id) {
+                            e.message.clone()
+                        } else {
+                            default()
+                        }
+                    }
+                );
                 self.view.graph().set_node_error_status(node_id,error);
             }
         }
@@ -660,6 +666,13 @@ impl Model {
     fn set_method_pointer(&self, id:ExpressionId, method:Option<graph_editor::MethodPointer>) {
         let event = (id,method);
         self.view.graph().frp.input.set_method_pointer.emit(&event);
+    }
+
+    /// Get the node being a main cause of some error from the current nodes on the scene. Returns
+    /// [`None`] if the error is not present on the scene at all.
+    fn get_node_causing_error_on_current_graph(&self, error:&EvaluationError) -> Option<NodeId> {
+        let node_views = self.node_views.borrow();
+        error.trace.iter().find_map(|expr_id| node_views.get_by_left(&expr_id).copied())
     }
 
     /// Set the position in the node's metadata.
