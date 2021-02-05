@@ -5,6 +5,13 @@ disable the collection of errors data (keeping the collection of other events), 
 collection of all data, respectively. To learn more what data is collected in Enso alpha releases, 
 read the notes of the `Enso 2.0.0-alpha.1` release.
 
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Visual Environment
+- [You can now see data frames in the table visualisation][1181]. Big tables get truncated to 2000 
+  entries.
+
+[1181]: https://github.com/enso-org/ide/pull/1181
 
 
 # Enso 2.0.0-alpha.1 (2020-01-26)
