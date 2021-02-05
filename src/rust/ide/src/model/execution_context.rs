@@ -33,25 +33,28 @@ pub type ExpressionId = ast::Id;
 
 
 
-// ==========================
-// === ComputedError ===
-// ==========================
+// ======================
+// === ExecutionError ===
+// ======================
 
+/// An error reported by Engine during evaluation of some expression.
+///
+/// The error may be caused by the expression directly, or be a propagation of error in some
+/// previous part of code the expression in question depends on.
 #[derive(Clone,Debug)]
-pub struct ComputedError {
+pub struct ExecutionError {
+    /// The short error description.
     pub message : String,
+    /// The trace of the error's root cause.
     pub trace   : Vec<ExpressionId>,
 }
 
-impl ComputedError {
+impl ExecutionError {
+    /// Create [`ExecutionError`] from the payload, or returns `None` if payload is not an error.
     pub fn from_payload(payload:ExpressionUpdatePayload) -> Option<Self> {
         match payload {
-            ExpressionUpdatePayload::Value => {
-                None
-            },
-            ExpressionUpdatePayload::Panic {message,trace} => {
-                Some(Self{message,trace})
-            },
+            ExpressionUpdatePayload::Value                 => None,
+            ExpressionUpdatePayload::Panic {message,trace} => Some(Self{message,trace}),
             ExpressionUpdatePayload::DataflowError {trace} => {
                 let message = "Dataflow error.".to_owned();
                 Some(Self{message,trace})
@@ -69,12 +72,13 @@ impl ComputedError {
 /// Information about some computed value.
 ///
 /// Contains "meta-data" like type or method pointer, not the computed value representation itself.
+#[allow(missing_docs)]
 #[derive(Clone,Debug)]
 pub struct ComputedValueInfo {
     /// The string representing the full qualified typename of the computed value, e.g.
     /// "Base.Main.Number".
     pub typename : Option<ImString>,
-    pub error    : Option<ComputedError>,
+    pub error    : Option<ExecutionError>,
     /// If the expression is a method call (i.e. can be entered), this points to the target method.
     pub method_call : Option<SuggestionId>,
 }
@@ -84,7 +88,7 @@ impl From<ExpressionUpdate> for ComputedValueInfo {
         ComputedValueInfo {
             typename    : update.typename.map(ImString::new),
             method_call : update.method_pointer,
-            error       : ComputedError::from_payload(update.payload),
+            error       : ExecutionError::from_payload(update.payload),
         }
     }
 }

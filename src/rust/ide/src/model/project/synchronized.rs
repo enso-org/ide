@@ -464,7 +464,6 @@ mod test {
     #[wasm_bindgen_test]
     fn execution_context_management() {
         use execution_context::synchronized::test::Fixture as ExecutionFixture;
-        use language_server::Notification::ExpressionValuesComputed;
         use language_server::Event;
 
         let context_data = execution_context::plain::test::MockData::new();
