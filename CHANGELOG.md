@@ -14,6 +14,8 @@ read the notes of the `Enso 2.0.0-alpha.1` release.
   appears another icon that will reset the position to the original position.
 
 [1096]: https://github.com/enso-org/ide/issues/1096
+<br/>
+
 
 
 # Enso 2.0.0-alpha.1 (2020-01-26)
