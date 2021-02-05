@@ -62,7 +62,7 @@ mod background {
     pub const CORNER_RADIUS_PX:f32 = selection::CORNER_RADIUS_PX;
 
     ensogl_core::define_shape_system! {
-        always_below = [selection];
+        below = [selection];
         (style:Style) {
             let sprite_width  : Var<Pixels> = "input_size.x".into();
             let sprite_height : Var<Pixels> = "input_size.y".into();

@@ -36,7 +36,7 @@ pub mod arrow {
     use super::*;
 
     ensogl_core::define_shape_system! {
-        always_below = [chooser_hover_area];
+        below = [chooser_hover_area];
         (style:Style) {
             let width            = Var::<Pixels>::from("input_size.x");
             let height           = Var::<Pixels>::from("input_size.y");

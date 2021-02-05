@@ -4,9 +4,13 @@ use crate::prelude::*;
 
 use enso_frp as frp;
 use ensogl_core::data::color;
-use ensogl_core::display::shape::system::DynamicShapeInternals;
 use ensogl_core::display;
 use ensogl_core::gui::component::ShapeView;
+
+// The 'internals' import is used to allow manual creation of [`ShapeView`]. Normally, this is
+// automatically used by the [`define_shape_system!`] macro, and it's not exposed to the developer.
+use ensogl_core::display::shape::system::DynamicShapeInternals;
+
 
 
 

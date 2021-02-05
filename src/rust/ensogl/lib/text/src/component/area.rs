@@ -668,7 +668,7 @@ impl Area {
     ///    can be rendered from more than one camera. Screen / object space location of events
     ///    should thus become much more primitive information / mechanisms.
     ///
-    /// Please note, that this function handles the selection management correctly now, as it uses
+    /// Please note, that this function handles the selection management correctly, as it uses
     /// the new shape system definition, and thus, inherits the scene layer settings from this
     /// display object.
     #[allow(non_snake_case)]
@@ -678,9 +678,11 @@ impl Area {
         layer.add_exclusive(self);
     }
 
-    /// Remove this component from view.
-    pub fn remove_from_view(&self, view:&display::scene::Layer) {
-        for symbol in self.symbols() { view.remove_symbol(&symbol); }
+    /// Remove this component from view. See [`add_to_scene_layer_DEPRECATED`] to learn more about
+    /// the deprecation.
+    #[allow(non_snake_case)]
+    pub fn remove_from_scene_layer_DEPRECATED(&self, layer:&display::scene::Layer) {
+        for symbol in self.symbols() { layer.remove_symbol(&symbol); }
     }
 
     fn symbols(&self) -> SmallVec<[display::Symbol;1]> {

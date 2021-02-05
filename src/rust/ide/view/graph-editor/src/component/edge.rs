@@ -14,6 +14,7 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::ShapeViewEvents;
 use ensogl_theme as theme;
+use nalgebra::Rotation2;
 
 
 
@@ -54,8 +55,8 @@ fn up() -> Vector2<f32> {
     Vector2(1.0,0.0)
 }
 
-fn point_rotation(point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
-    nalgebra::Rotation2::rotation_between(&point,&up())
+fn point_rotation(point:Vector2<f32>) -> Rotation2<f32> {
+    Rotation2::rotation_between(&point,&up())
 }
 
 
@@ -126,10 +127,10 @@ trait EdgeShape : display::Object {
 
     /// Return the angle perpendicular to the shape at the point given in the shapes local
     /// coordinate system . Defaults to zero, if not implemented.
-    fn normal_local(&self, _point:Vector2<f32>) -> nalgebra::Rotation2<f32>;
+    fn normal_local(&self, _point:Vector2<f32>) -> Rotation2<f32>;
 
     /// Return the angle perpendicular to the shape at the given point.
-    fn normal(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32>  {
+    fn normal(&self, point:Vector2<f32>) -> Rotation2<f32>  {
         let local = self.global_to_local_position(point);
         self.normal_local(local)
     }
@@ -146,13 +147,13 @@ trait EdgeShape : display::Object {
     fn global_to_local_position(&self, point:Vector2<f32>) -> Vector2<f32> {
         let base_rotation   = self.display_object().rotation().z;
         let local_unrotated = point - self.display_object().global_position().xy();
-        nalgebra::Rotation2::new(-base_rotation) * local_unrotated
+        Rotation2::new(-base_rotation) * local_unrotated
     }
 
     /// Convert the local position to the global coordinate system.
     fn local_to_global_position(&self, point:Vector2<f32>) -> Vector2<f32> {
         let base_rotation   = self.display_object().rotation().z;
-        let local_unrotated = nalgebra::Rotation2::new(base_rotation) * point;
+        let local_unrotated = Rotation2::new(base_rotation) * point;
         local_unrotated + self.display_object().global_position().xy()
     }
 }
@@ -307,7 +308,7 @@ fn corner_base_shape
     shape.into()
 }
 
-// FIXME [WD]: The 2 following impls are almost the same. Should be merged. This task should will
+// FIXME [WD]: The 2 following impls are almost the same. Should be merged. This task should be
 //             handled by Wojciech.
 macro_rules! define_corner_start { () => {
     /// Shape definition.
@@ -315,7 +316,7 @@ macro_rules! define_corner_start { () => {
         use super::*;
 
         ensogl::define_shape_system! {
-            always_below = [joint];
+            below = [joint];
             ( radius             : f32
             , angle              : f32
             , start_angle        : f32
@@ -370,15 +371,15 @@ macro_rules! define_corner_start { () => {
             }
 
             fn set_color(&self, color:color::Rgba) {
-                self.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
+                self.color_rgba.set(Vector4(color.red,color.green,color.blue,color.alpha));
             }
 
             fn set_color_focus(&self, color:color::Rgba) {
-                let color_vec = Vector4::new(color.red,color.green,color.blue,color.alpha);
+                let color_vec = Vector4(color.red,color.green,color.blue,color.alpha);
                 self.focus_color_rgba.set(color_vec);
             }
 
-            fn normal_local(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
+            fn normal_local(&self, point:Vector2<f32>) -> Rotation2<f32> {
                 point_rotation(point)
             }
 
@@ -390,14 +391,14 @@ macro_rules! define_corner_start { () => {
                 let point_to_center = point.xy() - center;
 
                 let closest_point = center + point_to_center / point_to_center.magnitude() * radius;
-                let vector_angle  = -nalgebra::Rotation2::rotation_between(&Vector2::new(0.0, 1.0),&closest_point).angle();
+                let vector_angle  = -Rotation2::rotation_between(&Vector2(0.0,1.0),&closest_point).angle();
                 let start_angle   =  self.start_angle.get();
                 let end_angle     =  start_angle + self.angle.get();
                 let upper_bound   = start_angle.max(end_angle);
                 let lower_bound   = start_angle.min(end_angle);
 
                 let correct_quadrant = lower_bound < vector_angle && upper_bound > vector_angle;
-                correct_quadrant.as_some(Vector2::new(closest_point.x, closest_point.y))
+                correct_quadrant.as_some(Vector2(closest_point.x, closest_point.y))
             }
         }
     }
@@ -409,7 +410,7 @@ macro_rules! define_corner_end { () => {
     pub mod corner {
         use super::*;
         ensogl::define_shape_system! {
-            always_below = [joint];
+            below = [joint];
             ( radius:f32
             , angle:f32
             , start_angle:f32
@@ -427,8 +428,8 @@ macro_rules! define_corner_end { () => {
 
                 let shadow_size = 10.px() + 1.px();
                 let node_radius = &shadow_size + 1.px() * dim.y();
-                let node_shape  = Rect(
-                    (&shadow_size*2.0 + 2.px() * dim.x(),&node_radius*2.0)).corners_radius(node_radius);
+                let node_shape  = Rect((&shadow_size*2.0 + 2.px() * dim.x(),&node_radius*2.0));
+                let node_shape  = node_shape.corners_radius(node_radius);
                 let node_shape  = node_shape.fill(color::Rgba::new(1.0,0.0,0.0,1.0));
                 let tx       = - 1.px() * pos.x();
                 let ty       = - 1.px() * pos.y();
@@ -461,14 +462,14 @@ macro_rules! define_corner_end { () => {
             }
 
             fn set_color(&self, color:color::Rgba) {
-                self.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
+                self.color_rgba.set(Vector4(color.red,color.green,color.blue,color.alpha));
             }
 
             fn set_color_focus(&self, color:color::Rgba) {
-                self.focus_color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
+                self.focus_color_rgba.set(Vector4(color.red,color.green,color.blue,color.alpha));
             }
 
-            fn normal_local(&self, point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
+            fn normal_local(&self, point:Vector2<f32>) -> Rotation2<f32> {
                 point_rotation(point)
             }
 
@@ -480,7 +481,7 @@ macro_rules! define_corner_end { () => {
                 let point_to_center = point.xy() - center;
 
                 let closest_point = center + point_to_center / point_to_center.magnitude() * radius;
-                let vector_angle  = -nalgebra::Rotation2::rotation_between(&Vector2::new(0.0, 1.0),&closest_point).angle();
+                let vector_angle  = -Rotation2::rotation_between(&Vector2(0.0, 1.0),&closest_point).angle();
                 let start_angle   = self.start_angle.get();
                 let end_angle     = start_angle + self.angle.get();
                 let upper_bound   = start_angle.max(end_angle);
@@ -488,7 +489,7 @@ macro_rules! define_corner_end { () => {
 
                 let correct_quadrant = lower_bound < vector_angle && upper_bound > vector_angle;
                 if correct_quadrant {
-                     Some(Vector2::new(closest_point.x, closest_point.y))
+                     Some(Vector2(closest_point.x, closest_point.y))
                 } else {
                     None
                 }
@@ -502,7 +503,7 @@ macro_rules! define_line { () => {
     pub mod line {
         use super::*;
         ensogl::define_shape_system! {
-            always_below = [joint];
+            below = [joint];
             (focus_split_center:Vector2<f32>, focus_split_angle:f32, color_rgba:Vector4<f32>,
              focus_color_rgba:Vector4<f32>) {
                 let width       = LINE_WIDTH.px();
@@ -532,15 +533,15 @@ macro_rules! define_line { () => {
             }
 
             fn set_color(&self, color:color::Rgba) {
-                self.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
+                self.color_rgba.set(Vector4(color.red,color.green,color.blue,color.alpha));
             }
 
             fn set_color_focus(&self, color:color::Rgba) {
-                self.focus_color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
+                self.focus_color_rgba.set(Vector4(color.red,color.green,color.blue,color.alpha));
             }
 
-            fn normal_local(&self, _:Vector2<f32>) -> nalgebra::Rotation2<f32> {
-                nalgebra::Rotation2::new(0.0)
+            fn normal_local(&self, _:Vector2<f32>) -> Rotation2<f32> {
+                Rotation2::new(0.0)
             }
 
             fn snap_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
@@ -548,7 +549,7 @@ macro_rules! define_line { () => {
                 // issue #689 is resolved.
                 let height = self.size.get().y;
                 let y      = point.y.clamp(-height/2.0, height/2.0);
-                Some(Vector2::new(0.0, y))
+                Some(Vector2(0.0, y))
             }
         }
     }
@@ -559,7 +560,7 @@ macro_rules! define_arrow { () => {
     pub mod arrow {
         use super::*;
         ensogl::define_shape_system! {
-            always_above = [joint];
+            above = [joint];
             (focus_split_center:Vector2<f32>, focus_split_angle:f32, color_rgba:Vector4<f32>,
              focus_color_rgba:Vector4<f32>) {
                 let width  : Var<Pixels> = "input_size.x".into();
@@ -598,23 +599,23 @@ macro_rules! define_arrow { () => {
             }
 
             fn set_color(&self, color:color::Rgba) {
-                self.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
+                self.color_rgba.set(Vector4(color.red,color.green,color.blue,color.alpha));
             }
 
             fn set_color_focus(&self, color:color::Rgba) {
-                self.focus_color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
+                self.focus_color_rgba.set(Vector4(color.red,color.green,color.blue,color.alpha));
             }
 
-            fn normal_local(&self, _:Vector2<f32>) -> nalgebra::Rotation2<f32> {
-                nalgebra::Rotation2::new(0.0)
+            fn normal_local(&self, _:Vector2<f32>) -> Rotation2<f32> {
+                Rotation2::new(0.0)
             }
 
-            fn normal(&self, _point:Vector2<f32>) -> nalgebra::Rotation2<f32> {
-                 nalgebra::Rotation2::new(-RIGHT_ANGLE)
+            fn normal(&self, _point:Vector2<f32>) -> Rotation2<f32> {
+                 Rotation2::new(-RIGHT_ANGLE)
             }
 
             fn snap_local(&self, point:Vector2<f32>) -> Option<Vector2<f32>> {
-                Some(Vector2::new(0.0, point.y))
+                Some(Vector2(0.0, point.y))
             }
         }
     }
@@ -851,7 +852,8 @@ enum LayoutState {
 }
 
 impl LayoutState {
-    /// Indicates whether the `OutputPort` is below the `InputPort` in the current layout configuration.
+    /// Indicates whether the `OutputPort` is below the `InputPort` in the current layout
+    /// configuration.
     fn is_output_above_input(self) -> bool {
         match self {
             LayoutState::UpLeft             => false,
@@ -1150,7 +1152,8 @@ impl Edge {
 
         frp::extend! { network
             eval input.target_position ((t) target_position.set(*t));
-            // FIXME This should be enabled for #672 (Edges created from Input Ports do not overlay nodes)
+            // FIXME This should be enabled for #672 (Edges created from Input Ports do not overlay
+            //       nodes)
             // eval input.source_attached ((t) source_attached.set(*t));
             eval input.target_attached ((t) target_attached.set(*t));
             eval input.source_width    ((t) source_width.set(*t));
@@ -1165,7 +1168,8 @@ impl Edge {
             // === Colors ===
 
             is_hovered      <- input.hover_position.map(|t| t.is_some());
-            new_color       <- all_with(&input.set_color,&input.set_disabled,f!((c,t) model.base_color(*c,*t)));
+            new_color       <- all_with(&input.set_color,&input.set_disabled,
+                f!((c,t)model.base_color(*c,*t)));
             new_focus_color <- new_color.map(f!((color) model.focus_color(*color)));
             focus_color     <- switch(&is_hovered,&new_color,&new_focus_color);
 
@@ -1236,7 +1240,8 @@ impl EdgeModelData {
         let back           = Back::new (Logger::sub(&logger,"back"));
         let joint          = joint::View::new(Logger::sub(&logger,"joint"));
 
-        let shape_system = scene.layers.main.shape_system_registry.shape_system(scene,PhantomData::<joint::DynamicShape>);
+        let shape_system = scene.layers.main.shape_system_registry.shape_system
+            (scene,PhantomData::<joint::DynamicShape>);
         shape_system.shape_system.set_pointer_events(false);
 
         display_object.add_child(&front);
@@ -1317,7 +1322,8 @@ impl EdgeModelData {
         match (fully_attached, self.hover_position.get(), self.hover_target.get()) {
             (true, Some(hover_position), Some(hover_target)) => {
                 let focus_part = self.port_to_detach_for_position(hover_position);
-                let focus_split_result = self.try_enable_focus_split(hover_position, hover_target, focus_part);
+                let focus_split_result = self.try_enable_focus_split
+                    (hover_position,hover_target,focus_part);
                 if let Ok(snap_data) = focus_split_result {
                     let joint_position = snap_data.position - self.display_object.position().xy();
                     self.joint.set_position_xy(joint_position);
@@ -1447,7 +1453,7 @@ impl EdgeModelData {
         let corner1_x      = corner1_target.x - corner1_radius;
 
         let corner1_x_loc       = corner1_x - source_node_circle.x;
-        let (y,angle)           = circle_intersection(corner1_x_loc, source_node_radius, corner1_radius);
+        let (y,angle)           = circle_intersection(corner1_x_loc,source_node_radius,corner1_radius);
         let corner1_y           = if is_down {-y} else {y};
         let corner1             = Vector2(corner1_x*side, corner1_y);
         let angle_overlap       = if corner1_x > node_half_width { 0.0 } else { 0.1 };

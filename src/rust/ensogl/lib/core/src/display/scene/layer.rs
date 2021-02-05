@@ -1,4 +1,6 @@
 //! Scene layers implementation. See docs of [`Layers`] to learn more.
+
+use crate::data::dirty::traits::*;
 use crate::prelude::*;
 
 use crate::data::OptVec;
@@ -18,8 +20,6 @@ use enso_data::dependency_graph::DependencyGraph;
 use enso_shapely::shared;
 use smallvec::alloc::collections::BTreeSet;
 use std::any::TypeId;
-
-use crate::data::dirty::traits::*;
 
 
 
@@ -77,9 +77,9 @@ impl {
         let system_id         = DynShapeSystemOf::<T>::id();
         let instance_id       = system.instantiate(shape);
         let symbol_id         = system.shape_system().sprite_system.symbol.id;
-        let always_above      = DynShapeSystemOf::<T>::always_above();
-        let always_below      = DynShapeSystemOf::<T>::always_below();
-        let ordering          = ShapeSystemStaticDepthOrdering {always_above,always_below};
+        let above             = DynShapeSystemOf::<T>::above();
+        let below             = DynShapeSystemOf::<T>::below();
+        let ordering          = ShapeSystemStaticDepthOrdering {above,below};
         let shape_system_info = ShapeSystemInfo::new(system_id,ordering);
         (shape_system_info,symbol_id,instance_id)
     }
@@ -103,8 +103,8 @@ pub type ShapeSystemSymbolInfo = ShapeSystemInfoTemplate<SymbolId>;
 /// Ordering Relations" section in docs of [`Layers`] to learn more.
 #[derive(Clone,Debug)]
 pub struct ShapeSystemStaticDepthOrdering {
-    always_above : Vec<ShapeSystemId>,
-    always_below : Vec<ShapeSystemId>,
+    above : Vec<ShapeSystemId>,
+    below : Vec<ShapeSystemId>,
 }
 
 /// [`ShapeSystemStaticDepthOrdering`] associated with an id.
@@ -329,11 +329,11 @@ impl LayerModel {
     /// # Future Improvements
     /// This implementation can be simplified to `S1:KnownShapeSystemId` (not using [`Content`] at
     /// all), after the compiler gets updated to newer version.
-    pub fn add_shapes_order_dependency<S1,S2>(&self) -> (PhantomData<S1>,PhantomData<S2>) where
-    S1          : HasContent,
-    S2          : HasContent,
-    Content<S1> : KnownShapeSystemId,
-    Content<S2> : KnownShapeSystemId {
+    pub fn add_shapes_order_dependency<S1,S2>(&self) -> (PhantomData<S1>,PhantomData<S2>)
+    where S1          : HasContent,
+          S2          : HasContent,
+          Content<S1> : KnownShapeSystemId,
+          Content<S2> : KnownShapeSystemId {
         let s1_id = <Content<S1>>::shape_system_id();
         let s2_id = <Content<S2>>::shape_system_id();
         self.add_elements_order_dependency(s1_id,s2_id);
@@ -349,11 +349,11 @@ impl LayerModel {
     /// This implementation can be simplified to `S1:KnownShapeSystemId` (not using [`Content`] at
     /// all), after the compiler gets updated to newer version.
     pub fn remove_shapes_order_dependency<S1,S2>
-    (&self) -> (bool,PhantomData<S1>,PhantomData<S2>) where
-    S1          : HasContent,
-    S2          : HasContent,
-    Content<S1> : KnownShapeSystemId,
-    Content<S2> : KnownShapeSystemId {
+    (&self) -> (bool,PhantomData<S1>,PhantomData<S2>)
+    where S1          : HasContent,
+          S2          : HasContent,
+          Content<S1> : KnownShapeSystemId,
+          Content<S2> : KnownShapeSystemId {
         let s1_id = <Content<S1>>::shape_system_id();
         let s2_id = <Content<S2>>::shape_system_id();
         let found = self.remove_elements_order_dependency(s1_id,s2_id);
@@ -468,8 +468,8 @@ impl LayerModel {
         for element in &*self.elements.borrow() {
             if let LayerElement::ShapeSystem(id) = element {
                 if let Some(info) = self.shape_system_to_symbol_info_map.borrow().get(&id) {
-                    for &id2 in &info.always_below { graph.insert_dependency(*element,id2.into()); }
-                    for &id2 in &info.always_above { graph.insert_dependency(id2.into(),*element); }
+                    for &id2 in &info.below { graph.insert_dependency(*element,id2.into()); }
+                    for &id2 in &info.above { graph.insert_dependency(id2.into(),*element); }
                 }
             }
         };
@@ -536,7 +536,7 @@ impl std::borrow::Borrow<LayerModel> for Layer {
 ///
 ///
 /// # Layer Ordering
-/// Layers can be ordered by using the `add_layers_order_dependency` and the
+/// Layers can be ordered by using the `add_layers_order_dependency`, and the
 /// `remove_layers_order_dependency` methods, respectively. The API allows defining a depth-order
 /// dependency graph which will be resolved during a frame update. All symbols from lower layers
 /// will be drawn to the screen before symbols from the upper layers.
@@ -545,7 +545,7 @@ impl std::borrow::Borrow<LayerModel> for Layer {
 /// # Symbols Ordering
 /// There are two ways to define symbol ordering in scene layers, a global, and local (per-layer)
 /// one. In order to define a global depth-order dependency, you can use the
-/// `add_elements_order_dependency` and the `remove_elements_order_dependency` methods respectively.
+/// `add_elements_order_dependency`, and the `remove_elements_order_dependency` methods respectively.
 /// In order to define local (per-layer) depth-order dependency, you can use methods of the same
 /// names in every layer instance. After changing a dependency graph, the layer management marks
 /// appropriate dirty flags and re-orders symbols on each new frame processed.
@@ -556,13 +556,13 @@ impl std::borrow::Borrow<LayerModel> for Layer {
 /// increasing with every new symbol created).
 ///
 /// Please note, that symbol ordering doesn't work cross-layer. Even if you define that symbol A has
-/// to be above symbol B, but you place symbol B on a layer above the layer of the symbol A, the
+/// to be above the symbol B, but you place symbol B on a layer above the layer of the symbol A, the
 /// symbol A will be drawn first, below symbol B!
 ///
 ///
 /// # Shapes Ordering
 /// Ordering of shapes is more tricky than ordering of [`Symbol`]s. Each shape instance will be
-/// assigned with an unique [`Symbol`] when placed on a stage, but the connection may change or can
+/// assigned with a unique [`Symbol`] when placed on a stage, but the connection may change or can
 /// be missing when the shape will be detached from the display object hierarchy or when the shape
 /// will be moved between the layers. Read the "Shape Management" section below to learn why.
 ///
@@ -571,8 +571,8 @@ impl std::borrow::Borrow<LayerModel> for Layer {
 /// [`DynamicShape`]s thanks to the [`LayerElement`] abstraction. Moreover, there is a special
 /// shapes ordering API allowing describing their dependencies without requiring references to their
 /// instances (unlike the API described above). You can add or remove depth-order dependencies for
-/// shapes based solely on their types by using the [`add_shapes_order_dependency`] and the
-/// [`remove_shapes_order_dependency`] methods, respectively.
+/// shapes based solely on their types by using the [`add_shapes_order_dependency`],and the
+/// [`remove_shapes_order_dependency`] methods, respectively. Please note, that
 ///
 /// Also, there is a macro [`shapes_order_dependencies!`] which allows convenient form for
 /// defining the depth-order dependency graph for shapes based on their types.
@@ -595,7 +595,7 @@ impl std::borrow::Borrow<LayerModel> for Layer {
 /// nice API. For example, [`Layer`] allows you to add symbols while removing them from other layers
 /// automatically. Although the [`LayersRegistry`] registers [`WeakLayer`], the weak form is used only
 /// to break cycles and never points to a dropped [`Layer`], as layers update the information on
-/// drop.
+/// a drop.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Layers {

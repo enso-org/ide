@@ -54,7 +54,7 @@ pub mod hover {
 pub mod viz {
     use super::*;
     ensogl::define_shape_system! {
-        always_above = [hover];
+        above = [hover];
         (style:Style, color:Vector4) {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
@@ -104,7 +104,8 @@ impl Shape {
 
         root.add_child(&hover);
         root.add_child(&viz);
-        let viz_shape_system = scene.layers.main.shape_system_registry.shape_system(scene,PhantomData::<viz::DynamicShape>);
+        let viz_shape_system = scene.layers.main.shape_system_registry.shape_system
+            (scene,PhantomData::<viz::DynamicShape>);
         viz_shape_system.shape_system.set_pointer_events(false);
 
         Self {root,hover,viz}

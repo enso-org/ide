@@ -185,6 +185,9 @@ ensogl::define_endpoints! {
 pub struct View {
     logger         : Logger,
     display_object : display::object::Instance,
+    // TODO : We do not use backgrounds because otherwise they would overlap JS
+    //        visualizations. Instead we added a HTML background to the `View`.
+    //        This should be further investigated while fixing rust visualization displaying. (#526)
     // background     : background::View,
     overlay        : overlay::View,
     background_dom : DomSymbol

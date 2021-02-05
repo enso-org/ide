@@ -40,7 +40,7 @@ mod hover_area {
     use super::*;
 
     ensogl::define_shape_system! {
-        always_below = [drop_down_menu::arrow];
+        below = [drop_down_menu::arrow];
         () {
             let width  : Var<Pixels> = "input_size.x".into();
             let height : Var<Pixels> = "input_size.y".into();
@@ -57,7 +57,7 @@ mod background {
     use super::*;
 
     ensogl::define_shape_system! {
-        always_below = [hover_area];
+        below = [hover_area];
         (style:Style) {
             let width              = Var::<Pixels>::from("input_size.x");
             let height             = Var::<Pixels>::from("input_size.y");

@@ -276,6 +276,8 @@ impl<Host> Model<Host> {
     , parent_scene_layers_changed : bool
     , parent_scene_layers         : &[LayerId]
     ) {
+        // === Scene Layers Update ===
+
         let this_scene_layers          = self.scene_layers.borrow();
         let this_scene_layers_slice    = this_scene_layers.as_slice();
         let self_scene_layers_changed  = self.dirty.scene_layer.check();
@@ -294,6 +296,9 @@ impl<Host> Model<Host> {
                 self.callbacks.on_scene_layers_changed(host,scene_layers);
             });
         }
+
+
+        // === Origin & Visibility Update ===
 
         self.update_visibility(host,parent_scene_layers);
         let has_new_parent      = self.dirty.parent.check();

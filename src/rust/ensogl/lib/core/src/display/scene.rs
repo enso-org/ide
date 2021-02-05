@@ -44,6 +44,7 @@ use crate::system::web;
 
 use enso_frp as frp;
 use enso_frp::io::js::CurrentJsEvent;
+use enso_shapely::shared;
 use std::any::TypeId;
 use web_sys::HtmlElement;
 
@@ -55,7 +56,6 @@ pub trait MouseTarget : Debug + 'static {
     fn mouse_out  (&self) -> &frp::Source;
 }
 
-use enso_shapely::shared;
 
 
 
@@ -66,10 +66,12 @@ use enso_shapely::shared;
 shared! { ShapeRegistry
 #[derive(Debug,Default)]
 pub struct ShapeRegistryData {
-    scene                : Option<Scene>,
-    shape_system_map     : HashMap<TypeId,Box<dyn Any>>,
-    dyn_shape_system_map : HashMap<TypeId,Box<dyn Any>>,
-    mouse_target_map     : HashMap<(SymbolId,attribute::InstanceIndex),Rc<dyn MouseTarget>>,
+    // FIXME[WD]: The only valid field here is the `mouse_target_map`. The rest should be removed
+    //            after proper implementation of text depth sorting, which is the only component
+    //            using the obsolete fields now.
+    scene            : Option<Scene>,
+    shape_system_map : HashMap<TypeId,Box<dyn Any>>,
+    mouse_target_map : HashMap<(SymbolId,attribute::InstanceIndex),Rc<dyn MouseTarget>>,
 }
 
 impl {
@@ -90,7 +92,8 @@ impl {
         self.get().unwrap_or_else(|| self.register())
     }
 
-    pub fn shape_system<T:display::shape::system::Shape>(&mut self, _phantom:PhantomData<T>) -> ShapeSystemOf<T> {
+    pub fn shape_system<T:display::shape::system::Shape>
+    (&mut self, _phantom:PhantomData<T>) -> ShapeSystemOf<T> {
         self.get_or_register::<ShapeSystemOf<T>>()
     }
 
@@ -99,12 +102,14 @@ impl {
         system.new_instance()
     }
 
-    pub fn insert_mouse_target<T:MouseTarget>(&mut self, symbol_id:SymbolId, instance_id:attribute::InstanceIndex, target:T) {
+    pub fn insert_mouse_target<T:MouseTarget>
+    (&mut self, symbol_id:SymbolId, instance_id:attribute::InstanceIndex, target:T) {
         let target = Rc::new(target);
         self.mouse_target_map.insert((symbol_id,instance_id),target);
     }
 
-    pub fn remove_mouse_target(&mut self, symbol_id:SymbolId, instance_id:attribute::InstanceIndex) {
+    pub fn remove_mouse_target
+    (&mut self, symbol_id:SymbolId, instance_id:attribute::InstanceIndex) {
         self.mouse_target_map.remove(&(symbol_id,instance_id));
     }
 
@@ -594,13 +599,13 @@ impl Renderer {
 // ==============
 
 /// Please note that currently the `Layers` structure is implemented in a hacky way. It assumes the
-/// existence of `main`, `overlay`, `cursor`, and `label` views, which are needed for the GUI to
-/// display shapes properly. This should be abstracted away in the future.
+/// existence of several layers, which are needed for the GUI to display shapes properly. This \
+/// should be abstracted away in the future.
 #[derive(Clone,CloneRef,Debug)]
 pub struct HardcodedLayers {
     pub viz            : Layer,
     pub below_main     : Layer,
-    // main
+    // main <- here is the 'main` layer inserted.
     pub cursor         : Layer,
     pub label          : Layer,
     pub viz_fullscreen : Layer,
@@ -634,14 +639,6 @@ impl HardcodedLayers {
         layers.add_layers_order_dependency(&label,&viz_fullscreen);
         layers.add_layers_order_dependency(&viz_fullscreen,&breadcrumbs);
         Self {layers,viz,cursor,label,viz_fullscreen,below_main,breadcrumbs}
-    }
-
-    pub fn all(&self) -> Vec<Layer> {
-        self.layers.all()
-    }
-
-    pub fn update(&self) {
-        self.layers.update();
     }
 }
 
@@ -776,7 +773,11 @@ impl SceneData {
         let bg_color_change      = bg_color_var.on_change(f!([dom](change){
             change.color().for_each(|color| {
                 let color = color::Rgba::from(color);
-                let color = format!("rgba({},{},{},{})",255.0*color.red,255.0*color.green,255.0*color.blue,255.0*color.alpha);
+                let red   = 255.0*color.red;
+                let green = 255.0*color.green;
+                let blue  = 255.0*color.blue;
+                let alpha = 255.0*color.alpha;
+                let color = iformat!("rgba({red},{green},{blue},{alpha})");
                 dom.root.set_style_or_panic("background-color",color);
             })
         }));

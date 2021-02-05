@@ -146,15 +146,12 @@ impl ProjectNameModel {
         text_field.set_default_text_size(text_size);
         text_field.single_line(true);
 
-        text_field.remove_from_view(&scene.layers.main);
+        text_field.remove_from_scene_layer_DEPRECATED(&scene.layers.main);
         text_field.add_to_scene_layer_DEPRECATED(&scene.layers.breadcrumbs);
         text_field.hover();
 
         let view_logger = Logger::sub(&logger,"view_logger");
         let view        = background::View::new(&view_logger);
-
-        // scene.layers.main.remove_shape_view_DEPRECATED(&view);
-        // scene.layers.breadcrumbs.add_shape_view_DEPRECATED(&view);
 
         scene.layers.breadcrumbs.add_exclusive(&view);
 

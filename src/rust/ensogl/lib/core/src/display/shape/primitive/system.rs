@@ -54,7 +54,7 @@ pub struct ShapeSystem {
 impl ShapeSystem {
     /// Constructor.
     pub fn new<'t,S,Sh>(scene:S, shape:Sh) -> Self
-        where S:Into<&'t Scene>, Sh:Into<def::AnyShape> {
+    where S:Into<&'t Scene>, Sh:Into<def::AnyShape> {
         let shape          = shape.into();
         let sprite_system  = SpriteSystem::new(scene);
         let material       = Rc::new(RefCell::new(Self::surface_material()));
@@ -142,15 +142,15 @@ pub trait ShapeSystemInstance : 'static + CloneRef {
     /// List of shape systems this shape system should always be drawn on above of. See the
     /// [`crate::display::scene::Layers`] documentation to learn more about compile time shapes
     /// ordering relations.
-    fn always_above() -> Vec<ShapeSystemId>;
+    fn above() -> Vec<ShapeSystemId>;
     /// List of shape system this shape system should always be drawn on below of. See the
     /// [`crate::display::scene::Layers`] documentation to learn more about compile time shapes
     /// ordering relations.
-    fn always_below() -> Vec<ShapeSystemId>;
+    fn below() -> Vec<ShapeSystemId>;
 }
 
-/// Trait for user defined shape systems. The easiest way to define custom shape system is by using
-/// the `define_shape_system` macro.
+/// Trait for static (scene-instantiated) shape systems. Read docs of [`ShapeSystemInstance`], and
+/// [`DynShapeSystemInstance`] to learn more.
 pub trait StaticShapeSystemInstance : ShapeSystemInstance {
     /// The shape type of this shape system definition.
     type Shape : Shape<System=Self>;
@@ -158,8 +158,8 @@ pub trait StaticShapeSystemInstance : ShapeSystemInstance {
     fn new_instance(&self) -> Self::Shape;
 }
 
-/// Trait for user defined shape systems. The easiest way to define custom shape system is by using
-/// the `define_shape_system` macro.
+/// Trait for dynamic (possibly scene-non-instantiated) shape systems. Read docs of
+/// [`ShapeSystemInstance`], and [`StaticShapeSystemInstance`] to learn more.
 pub trait DynShapeSystemInstance : ShapeSystemInstance {
     /// The dynamic shape type of this shape system definition.
     type DynamicShape : DynamicShape<System=Self>;
@@ -188,6 +188,10 @@ pub trait Shape : display::Object + CloneRef + Debug + Sized {
     type System : StaticShapeSystemInstance<Shape=Self>;
     /// Accessor for the underlying sprite.
     fn sprite(&self) -> &Sprite;
+    /// Check if given mouse-event-target means this shape.
+    fn is_this_target(&self, target:display::scene::PointerTarget) -> bool {
+        self.sprite().is_this_target(target)
+    }
 }
 
 /// Type for every shape which can, but does not have to be bound to a specific scene and GPU
@@ -217,9 +221,9 @@ pub trait DynamicShape : display::Object + CloneRef + Debug + Sized {
 }
 
 /// Internal utilities for managing [`DynamicShape`]s. You would normally not need to ever use it
-// explicitly, however, it is exposed as public interface as it is required for user-defined shape
-// systems. Again, instead of implementing shape systems from scratch, you'd rather use the
-// `define_shape_system!` macro.
+/// explicitly, however, it is exposed as public interface as it is required for user-defined shape
+/// systems. Again, instead of implementing shape systems from scratch, you'd rather use the
+/// `define_shape_system!` macro.
 pub trait DynamicShapeInternals : DynamicShape {
     /// Add a new [`Shape`] instance to this dynamic shape. Please note that dynamic shapes can be
     /// attached with multiple [`Shape`]s at the same time if they are placed on multiple scene
@@ -239,25 +243,6 @@ pub type ShapeSystemOf<T> = <T as Shape>::System;
 
 /// Accessor for the `Shape::System` associated type.
 pub type DynShapeSystemOf<T> = <T as DynamicShape>::System;
-
-
-
-// ================
-// === ShapeOps ===
-// ================
-
-/// Additional operations implemented for all structures implementing `Shape`.
-pub trait ShapeOps {
-    /// Check if given mouse-event-target means this shape.
-    fn is_this_target(&self, target:display::scene::PointerTarget) -> bool;
-}
-
-// FIXME: Move to Shape trait?
-impl<T:Shape> ShapeOps for T {
-    fn is_this_target(&self, target:display::scene::PointerTarget) -> bool {
-        self.sprite().is_this_target(target)
-    }
-}
 
 
 
@@ -331,25 +316,25 @@ where T:CellProperty, T::Item:Copy {
 #[macro_export]
 macro_rules! define_shape_system {
     (
-        $(always_above = [$($always_above_1:tt $(::$always_above_2:tt)*),*];)?
-        $(always_below = [$($always_below_1:tt $(::$always_below_2:tt)*),*];)?
+        $(above = [$($always_above_1:tt $(::$always_above_2:tt)*),*];)?
+        $(below = [$($always_below_1:tt $(::$always_below_2:tt)*),*];)?
         ($style:ident : Style $(,$gpu_param : ident : $gpu_param_type : ty)* $(,)?) {$($body:tt)*}
     ) => {
         $crate::_define_shape_system! {
-            $(always_above = [$($always_above_1 $(::$always_above_2)*),*];)?
-            $(always_below = [$($always_below_1 $(::$always_below_2)*),*];)?
+            $(above = [$($always_above_1 $(::$always_above_2)*),*];)?
+            $(below = [$($always_below_1 $(::$always_below_2)*),*];)?
             [$style] ($($gpu_param : $gpu_param_type),*){$($body)*}
         }
     };
 
     (
-        $(always_above = [$($always_above_1:tt $(::$always_above_2:tt)*),*];)?
-        $(always_below = [$($always_below_1:tt $(::$always_below_2:tt)*),*];)?
+        $(above = [$($always_above_1:tt $(::$always_above_2:tt)*),*];)?
+        $(below = [$($always_below_1:tt $(::$always_below_2:tt)*),*];)?
         ($($gpu_param : ident : $gpu_param_type : ty),* $(,)?) {$($body:tt)*}
     ) => {
         $crate::_define_shape_system! {
-            $(always_above = [$($always_above_1 $(::$always_above_2)*),*];)?
-            $(always_below = [$($always_below_1 $(::$always_below_2)*),*];)?
+            $(above = [$($always_above_1 $(::$always_above_2)*),*];)?
+            $(below = [$($always_below_1 $(::$always_below_2)*),*];)?
             [style] ($($gpu_param : $gpu_param_type),*){$($body)*}
         }
     }
@@ -359,8 +344,8 @@ macro_rules! define_shape_system {
 #[macro_export]
 macro_rules! _define_shape_system {
     (
-        $(always_above = [$($always_above_1:tt $(::$always_above_2:tt)*),*];)?
-        $(always_below = [$($always_below_1:tt $(::$always_below_2:tt)*),*];)?
+        $(above = [$($always_above_1:tt $(::$always_above_2:tt)*),*];)?
+        $(below = [$($always_below_1:tt $(::$always_below_2:tt)*),*];)?
         [$style:ident]
         ($($gpu_param : ident : $gpu_param_type : ty),* $(,)?)
         {$($body:tt)*}
@@ -372,6 +357,8 @@ macro_rules! _define_shape_system {
         pub use shape_system_definition::DynamicShapeParams;
         pub use shape_system_definition::View;
 
+        // FIXME: To be investigated why it's needed. We should not use shorter names, but it's not
+        //        obvious why they appear in the scope here.
         #[allow(unused_qualifications)]
         mod shape_system_definition {
             use super::*;
@@ -557,10 +544,10 @@ macro_rules! _define_shape_system {
                     &self.shape_system
                 }
 
-                fn always_above() -> Vec<ShapeSystemId> {
+                fn above() -> Vec<ShapeSystemId> {
                     vec![ $($($always_above_1 $(::$always_above_2)* :: ShapeSystem :: id()),*)? ]
                 }
-                fn always_below() -> Vec<ShapeSystemId> {
+                fn below() -> Vec<ShapeSystemId> {
                     vec![ $($($always_below_1 $(::$always_below_2)* :: ShapeSystem :: id()),*)? ]
                 }
             }

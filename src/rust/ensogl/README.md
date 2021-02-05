@@ -1,7 +1,12 @@
+
+## Overview
+
 EnsoGL is a blazing fast vector rendering engine that comes batteries included.
 
+### Vector Shapes
+
 - **Highest anti-aliasing quality possible**   
-  The shapes are always sooth and crisp. They are described using mathematical equations and do not 
+  The shapes are always smooth and crisp. They are described using mathematical equations and do not 
   use triangle-based approximation nor are they interpolated in any way. For example, after 
   subtracting two circles, no matter how much you scale the resulting shape, it will always render 
   smooth, crisp, and without any visual glitches and imperfections. It's worth noting that EnsoGL
@@ -23,11 +28,31 @@ EnsoGL is a blazing fast vector rendering engine that comes batteries included.
   these operations are very fast and do not depend on the shapes' complexity. Subtracting two 
   circles is as fast as subtracting two shapes build out of 100 circles each.
   
-- **Support for **
+- **Infinite amount of symbols instancing**
+  EnsoGL supports rendering of infinite amount of shapes instances at close-to-zero performance 
+  cost (a cost of a few GPU cycles for all instances altogether). The instancing is done by folding
+  the used coordinate system into cyclic space.
+
+- **Lab CIECH color management**
+  EnsoGL uses Lab CIECH color blending in order to output color blending results. Unlike HTML and 
+  CSS implementations in all popular browsers nowadays, EnsoGL do not produce [visual artifacts when
+  blending colors together][Blending in browsers].
+  
+- **Various coordinate systems**
+  EnsoGL supports various coordinate systems including Cartesian and Polar ones. You can freely 
+  switch between in order to for example bend some parts of the shapes around a given point.
    
- supporting boolean operations, a rich set of a GUI component library, a dedicated FRP (functional reactive programming) event system, . It is able to display millions of shapes 60 frames per second in a web
- browser on a modern laptop hardware. This is the main entry point to the library, which
- re-exports several components to a common namespace.
+
+### Signals
+
+EnsoGL ships with a state of the art [Functional Reactive Programming (FRP)][FRP] event processing
+system designed exclusively for the needs of GUI programming and optimized for Rust semantics. FRP
+systems allow designing even very complex event dependencies in a static, easy to debug way. Unlike
+old-school event-listener based approach, FRP does not cause [callback hell] nor leads to 
+'spaghetti' code, which is hard to read and extend.
+
+
+### Animation
 
  # Rendering Architecture
 

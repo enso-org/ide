@@ -45,9 +45,9 @@ shared! { AttributeScope
 /// WebGL specific information, like geometry information. The buffers are named for easy access.
 /// For example, the current geometry implementation uses [`AttributeScope`] to define logical
 /// attribute scopes named "point" and "instance". They contain information attached to points and
-/// geometry instances respectively. For example, the "point" [`AttributeScope`] can contain such
-/// buffers as "color", while "instance" [`AttributeScope`] can be created with a "position" buffer
-/// to allow controlling placement of each instance separately.
+/// geometry instances respectively. Also, the "point" [`AttributeScope`] can contain such buffers
+/// as "color", while "instance" [`AttributeScope`] can be created with a "position" buffer to allow
+/// controlling placement of each instance separately.
 ///
 ///
 /// # Internal Design (Memory management and ID re-use)
