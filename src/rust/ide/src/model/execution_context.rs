@@ -21,6 +21,14 @@ use uuid::Uuid;
 
 
 
+// =================
+// === Constants ===
+// =================
+
+const DATAFLOW_ERROR_MESSAGE:&str = "Dataflow error.";
+
+
+
 // ===============
 // === Aliases ===
 // ===============
@@ -42,21 +50,21 @@ pub type ExpressionId = ast::Id;
 /// The error may be caused by the expression directly, or be a propagation of error in some
 /// previous part of code the expression in question depends on.
 #[derive(Clone,Debug)]
-pub struct ExecutionError {
+pub struct EvaluationError {
     /// The short error description.
     pub message : String,
     /// The trace of the error's root cause.
     pub trace   : Vec<ExpressionId>,
 }
 
-impl ExecutionError {
+impl EvaluationError {
     /// Create [`ExecutionError`] from the payload, or returns `None` if payload is not an error.
     pub fn from_payload(payload:ExpressionUpdatePayload) -> Option<Self> {
         match payload {
             ExpressionUpdatePayload::Value                 => None,
             ExpressionUpdatePayload::Panic {message,trace} => Some(Self{message,trace}),
             ExpressionUpdatePayload::DataflowError {trace} => {
-                let message = "Dataflow error.".to_owned();
+                let message = DATAFLOW_ERROR_MESSAGE.to_owned();
                 Some(Self{message,trace})
             },
         }
@@ -78,7 +86,7 @@ pub struct ComputedValueInfo {
     /// The string representing the full qualified typename of the computed value, e.g.
     /// "Base.Main.Number".
     pub typename : Option<ImString>,
-    pub error    : Option<ExecutionError>,
+    pub error    : Option<EvaluationError>,
     /// If the expression is a method call (i.e. can be entered), this points to the target method.
     pub method_call : Option<SuggestionId>,
 }
@@ -88,7 +96,7 @@ impl From<ExpressionUpdate> for ComputedValueInfo {
         ComputedValueInfo {
             typename    : update.typename.map(ImString::new),
             method_call : update.method_pointer,
-            error       : ExecutionError::from_payload(update.payload),
+            error       : EvaluationError::from_payload(update.payload),
         }
     }
 }
@@ -375,7 +383,7 @@ mod tests {
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
-    use enso_protocol::language_server::types::test::value_update_with_type;
+    use enso_protocol::language_server::types::test::{value_update_with_type, value_update_with_dataflow_error, value_update_with_dataflow_panic};
 
     #[test]
     fn getting_future_type_from_registry() {
@@ -403,5 +411,63 @@ mod tests {
         drop(registry);
         assert!(weak.upgrade().is_none()); // make sure we had not leaked handles to registry
         assert_eq!(fixture.expect_completion(type_future2), None);
+    }
+
+    #[test]
+    fn converting_payload_to_evaluation_error() {
+        let panic_message = "A Test Panic";
+        let value         = ExpressionUpdatePayload::Value;
+        let error         = ExpressionUpdatePayload::DataflowError {
+            trace : vec![ExpressionId::new_v4(),ExpressionId::new_v4()],
+        };
+        let panic = ExpressionUpdatePayload::Panic {
+            message : panic_message.to_owned(),
+            trace   : vec![ExpressionId::new_v4()],
+        };
+
+        assert!(EvaluationError::from_payload(value).is_none());
+        let error_result = EvaluationError::from_payload(error).unwrap();
+        assert_eq!(error_result.trace.len(), 2);
+        let panic_result = EvaluationError::from_payload(panic).unwrap();
+        assert_eq!(panic_result.message, panic_message);
+        assert_eq!(panic_result.trace.len(), 1);
+    }
+
+    #[test]
+    fn applying_expression_update_in_registry() {
+        let mut test       = TestWithLocalPoolExecutor::set_up();
+        let registry       = ComputedValueInfoRegistry::default();
+        let mut subscriber = registry.subscribe();
+        let expr1          = ExpressionId::new_v4();
+        let expr2          = ExpressionId::new_v4();
+        let expr3          = ExpressionId::new_v4();
+
+        let typename1 = "Test.Typename1".to_owned();
+        let typename2 = "Test.Typename2".to_owned();
+        let error_msg = "Test Message".to_owned();
+
+        // Set two values.
+        let update1 = value_update_with_type(expr1,&typename1);
+        let update2 = value_update_with_type(expr2,&typename2);
+        registry.apply_updates(vec![update1,update2]);
+        assert_eq!(registry.get(&expr1).unwrap().typename, Some(typename1.clone().into()));
+        assert!(registry.get(&expr1).unwrap().error.is_none());
+        assert_eq!(registry.get(&expr2).unwrap().typename, Some(typename2.into()));
+        assert!(registry.get(&expr2).unwrap().error.is_none());
+        let notification = test.expect_completion(subscriber.next()).unwrap();
+        assert_eq!(notification, vec![expr1,expr2]);
+
+        // Set two errors. One of old values is overridden
+        let update1 = value_update_with_dataflow_error(expr2);
+        let update2 = value_update_with_dataflow_panic(expr3,&error_msg);
+        registry.apply_updates(vec![update1,update2]);
+        assert_eq!(registry.get(&expr1).unwrap().typename, Some(typename1.into()));
+        assert!(registry.get(&expr1).unwrap().error.is_none());
+        assert!(registry.get(&expr2).unwrap().typename.is_none());
+        assert_eq!(registry.get(&expr2).unwrap().error.as_ref().unwrap().message,DATAFLOW_ERROR_MESSAGE);
+        assert!(registry.get(&expr3).unwrap().typename.is_none());
+        assert_eq!(registry.get(&expr3).unwrap().error.as_ref().unwrap().message,error_msg);
+        let notification = test.expect_completion(subscriber.next()).unwrap();
+        assert_eq!(notification, vec![expr2,expr3]);
     }
 }

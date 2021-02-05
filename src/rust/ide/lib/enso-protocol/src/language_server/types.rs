@@ -885,7 +885,7 @@ pub mod test {
 
     use crate::language_server::ExpressionId;
 
-    /// Generate `ExpressionValueUpdate` with update for a single expression bringing only the
+    /// Generate [`ExpressionUpdate`] with an update for a single expression bringing only the
     /// typename.
     pub fn value_update_with_type(id:ExpressionId, typename:impl Into<String>) -> ExpressionUpdate {
         ExpressionUpdate {
@@ -898,7 +898,7 @@ pub mod test {
         }
     }
 
-    /// Generate `ExpressionValueUpdate` with update for a single expression bringing only the
+    /// Generate [`ExpressionUpdate`] with an update for a single expression bringing only the
     /// method pointer.
     pub fn value_update_with_method_ptr
     (id:ExpressionId, method_pointer:SuggestionId) -> ExpressionUpdate {
@@ -909,6 +909,37 @@ pub mod test {
             profiling_info : default(),
             from_cache     : false,
             payload        : ExpressionUpdatePayload::Value
+        }
+    }
+
+    /// Generate [`ExpressionUpdate`] with an update for a single expression which resulted in
+    /// a dataflow error.
+    pub fn value_update_with_dataflow_error
+    (id:ExpressionId) -> ExpressionUpdate {
+        let trace = default();
+        ExpressionUpdate {
+            expression_id  : id,
+            typename       : None,
+            method_pointer : None,
+            profiling_info : default(),
+            from_cache     : false,
+            payload        : ExpressionUpdatePayload::DataflowError {trace}
+        }
+    }
+
+    /// Generate [`ExpressionUpdate`] with an update for a single expression which resulted in
+    /// a dataflow panic.
+    pub fn value_update_with_dataflow_panic
+    (id:ExpressionId, message:impl Into<String>) -> ExpressionUpdate {
+        let trace   = default();
+        let message = message.into();
+        ExpressionUpdate {
+            expression_id  : id,
+            typename       : None,
+            method_pointer : None,
+            profiling_info : default(),
+            from_cache     : false,
+            payload        : ExpressionUpdatePayload::Panic {trace,message}
         }
     }
 }
