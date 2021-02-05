@@ -174,6 +174,10 @@
 .Tags .ADDED,
 .Tags .UPCOMING,
 .Tags .REMOVED,
+.Tags .PRIVATE,
+.Tags .ADVANCED,
+.Tags .TEXT_ONLY,
+.Tags .UNSTABLE,
 .Tags .UNRECOGNIZED {
     line-height: 1.5;
     font-weight: 400;
@@ -215,6 +219,10 @@
 .dark-theme .Tags .UNRECOGNIZED,
 .dark-theme .Tags .DEPRECATED,
 .dark-theme .Tags .MODIFIED,
+.dark-theme .Tags .PRIVATE,
+.dark-theme .Tags .ADVANCED,
+.dark-theme .Tags .TEXT_ONLY,
+.dark-theme .Tags .UNSTABLE,
 .dark-theme .Tags .ADDED{
     font-weight: 500;
     background-color: #42403e;

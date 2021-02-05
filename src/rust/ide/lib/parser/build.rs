@@ -27,7 +27,7 @@ const PARSER_PATH: &str = "./pkg/scala-parser.js";
 /// Commit from `enso` repository that will be used to obtain parser from.
 /// FIXME: Using commit not from Engine's main branch but from a backported branch as the AST in
 ///        this project hasn't been updated to conform to latest scala parser (#732).
-const PARSER_COMMIT: &str = "e3f6858acaf6abc6ebf030a5f98077319e5c0e0d";
+const PARSER_COMMIT: &str = "5e9fc006a99fe7b5d3031ee87be6da8a07a3269d";
 
 /// Magic code that needs to be prepended to ScalaJS generated parser due to:
 /// https://github.com/scala-js/scala-js/issues/3677/
