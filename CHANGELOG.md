@@ -5,6 +5,12 @@ disable the collection of errors data (keeping the collection of other events), 
 collection of all data, respectively. To learn more what data is collected in Enso alpha releases, 
 read the notes of the `Enso 2.0.0-alpha.1` release.
 
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Visual Environment
+- [There is now an API to show VCS status for node][1160].
+
+[1160]: https://github.com/enso-org/ide/pull/1160
 
 
 # Enso 2.0.0-alpha.1 (2020-01-26)
