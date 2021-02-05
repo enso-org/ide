@@ -197,6 +197,12 @@ impl Entry {
                 scope         : Scope::InModule {range:scope.into()},
             },
         };
+
+        if this.clone().documentation.is_some() && (this.clone().documentation.unwrap().contains("PRIVATE")
+            || this.clone().documentation.unwrap().contains("TEXT_ONLY")) {
+            let logger = Logger::new("Entry");
+            error!(&logger, "This object is private, hence won't be displayed in the searcher.");
+        }
         Ok(this)
     }
 
