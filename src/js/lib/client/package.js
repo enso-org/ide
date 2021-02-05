@@ -19,9 +19,9 @@ let config = {
     dependencies: {
         "create-servers": "^3.1.0",
         "electron-is-dev": "^1.1.0",
-        "enso-studio-common": "2.0.0-alpha.0",
-        "enso-studio-content": "2.0.0-alpha.0",
-        "enso-studio-icons": "2.0.0-alpha.0",
+        "enso-studio-common": "1.0.0",
+        "enso-studio-content": "1.0.0",
+        "enso-studio-icons": "1.0.0",
         "yargs": "^15.3.0"
     },
 
@@ -30,7 +30,8 @@ let config = {
         "copy-webpack-plugin": "^5.1.1",
         "devtron": "^1.4.0",
         "electron": "11.1.1",
-        "electron-builder": "^22.9.1"
+        "electron-builder": "^22.9.1",
+        "crypto-js": "4.0.0"
     },
 
     scripts: {
@@ -43,17 +44,24 @@ let config = {
 config.build = {
     appId: 'org.enso',
     productName: 'Enso',
-    copyright: 'Copyright © 2020 ${author}.',
+    copyright: 'Copyright © 2021 ${author}.',
+    artifactName: 'enso-${os}-${version}.${ext}',
     mac: {
+        // We do not use compression as the build time is huge and file size saving is almost zero.
+        target: ['dmg'],
         icon: `${paths.dist.root}/icons/icon.icns`,
         category: 'public.app-category.developer-tools',
         darkModeSupport: true,
         type: 'distribution',
     },
     win: {
+        // We do not use compression as the build time is huge and file size saving is almost zero.
+        target: ['nsis'],
         icon: `${paths.dist.root}/icons/icon.ico`,
     },
     linux: {
+        // We do not use compression as the build time is huge and file size saving is almost zero.
+        target: ['AppImage'],
         icon: `${paths.dist.root}/icons/png`,
         category: 'Development',
     },
@@ -73,7 +81,28 @@ config.build = {
     directories: {
         output: paths.dist.client,
     },
+    nsis: {
+        // Disables "block map" generation during electron building. Block maps 
+        // can be used for incremental package update on client-side. However,
+        // their generation can take long time (even 30 mins), so we removed it
+        // for now. Moreover, we may probably never need them, as our updates
+        // are handled by us. More info: 
+        // https://github.com/electron-userland/electron-builder/issues/2851
+        // https://github.com/electron-userland/electron-builder/issues/2900
+        differentialPackage: false
+    },
+    dmg: {
+        // Disables "block map" generation during electron building. Block maps 
+        // can be used for incremental package update on client-side. However,
+        // their generation can take long time (even 30 mins), so we removed it
+        // for now. Moreover, we may probably never need them, as our updates
+        // are handled by us. More info: 
+        // https://github.com/electron-userland/electron-builder/issues/2851
+        // https://github.com/electron-userland/electron-builder/issues/2900
+        writeUpdateInfo: false
+    },
     publish: [],
+    afterAllArtifactBuild: 'tasks/computeHashes.js'
 }
 
 module.exports = {config}
