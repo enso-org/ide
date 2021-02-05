@@ -3,8 +3,10 @@ class TableVisualization extends Visualization {
     static label = 'Table'
 
     onDataReceived(data) {
-        if (!this.isInit){
-            this.setPreprocessor('x -> (Json.from_pairs [["header", x.columns.map .name], ["data", x.columns.map .to_vector . map (x -> x.take_start 2000) ]]).to_text ')
+        if (!this.isInit) {
+            this.setPreprocessor(
+                'x -> (Json.from_pairs [["header", x.columns.map .name], ["data", x.columns.map .to_vector . map (x -> x.take_start 2000) ]]).to_text '
+            )
             this.isInit = true
         }
 
