@@ -204,6 +204,10 @@
 }
 .Tags .UPCOMING,
 .Tags .REMOVED,
+.Tags .PRIVATE,
+.Tags .ADVANCED,
+.Tags .TEXT_ONLY,
+.Tags .UNSTABLE,
 .Tags .UNRECOGNIZED {
     border: 1px solid #32302E;
     color: #32302E;
@@ -242,8 +246,12 @@
     color: rgb(15.32% 51.59% 84.81%);
 }
 .dark-theme .Tags .REMOVED {
-    color:  rgb(80.24% 34.06% 37.72%);
+    color: rgb(80.24% 34.06% 37.72%);
 }
+.dark-theme .Tags .PRIVATE,
+.dark-theme .Tags .ADVANCED,
+.dark-theme .Tags .TEXT_ONLY,
+.dark-theme .Tags .UNSTABLE,
 .dark-theme .Tags .UNRECOGNIZED {
     color: #fafafa;
 }
