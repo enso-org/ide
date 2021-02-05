@@ -5,6 +5,28 @@ disable the collection of errors data (keeping the collection of other events), 
 collection of all data, respectively. To learn more what data is collected in Enso alpha releases, 
 read the notes of the `Enso 2.0.0-alpha.1` release.
 
+<br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
+
+#### Visual Environment
+- Pressing and holding up and down arrow keys make the list view selection to move multiple times.
+- Cursors in text editors behave correctly now (they are not affected by scene pan and zoom). This
+  was possible because of a new multi-camera management system implemented in EnsoGL.
+- Fixes to some visual glitches, like small "pixel-like" things appearing sometimes on the screen.
+- The shortcuts to close the application and to toggle the developer tools at runtime are working
+  now on all supported platforms.
+  
+#### EnsoGL
+- New multi-camera management system, allowing the same shape systems be rendered on different 
+  layers from different cameras. The implementation automatically caches the same shape system
+  definitions per scene layer in order to minimize the amount of WebGL draw calls.
+- New symbols and shapes depth ordering mechanism. It is now possible to define depth order 
+  dependencies between symbols, shapes, and shape systems.
+- Various performance improvements, especially for the text rendering engine.
+- Display objects handle visibility correctly now. Display objects are not visible by default and 
+  need to be attached to a visible parent to be shown on the screen.
+
+<br/>
+  
 
 <br/>![New Features](/docs/assets/tags/new_features.svg)
 
