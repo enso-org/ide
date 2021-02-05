@@ -5,13 +5,39 @@ disable the collection of errors data (keeping the collection of other events), 
 collection of all data, respectively. To learn more what data is collected in Enso alpha releases, 
 read the notes of the `Enso 2.0.0-alpha.1` release.
 
+<br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
+
+#### Visual Environment
+- Pressing and holding up and down arrow keys make the list view selection to move multiple times.
+- Cursors in text editors behave correctly now (they are not affected by scene pan and zoom). This
+  was possible because of a new multi-camera management system implemented in EnsoGL.
+- Fixes to some visual glitches, like small "pixel-like" things appearing sometimes on the screen.
+- The shortcuts to close the application and to toggle the developer tools at runtime are working
+  now on all supported platforms.
+- [You can now see data frames in the table visualisation][1181]. Big tables get truncated to 2000 
+  entries.
+  
+#### EnsoGL
+- New multi-camera management system, allowing the same shape systems be rendered on different 
+  layers from different cameras. The implementation automatically caches the same shape system
+  definitions per scene layer in order to minimize the amount of WebGL draw calls.
+- New symbols and shapes depth ordering mechanism. It is now possible to define depth order 
+  dependencies between symbols, shapes, and shape systems.
+- Various performance improvements, especially for the text rendering engine.
+- Display objects handle visibility correctly now. Display objects are not visible by default and 
+  need to be attached to a visible parent to be shown on the screen.
+
 <br/>![New Features](/docs/assets/tags/new_features.svg)
 
 #### Visual Environment
-- [You can now see data frames in the table visualisation][1181]. Big tables get truncated to 2000 
-  entries.
+- [Added the ability to reposition visualisations.][1096] There is now an icon in the visualization 
+  action bar that allows dragging the visualization. Once the visualization has been moved, there 
+  appears another icon that will reset the position to the original position.
 
+[1096]: https://github.com/enso-org/ide/pull/1172
 [1181]: https://github.com/enso-org/ide/pull/1181
+<br/>
+
 
 
 # Enso 2.0.0-alpha.1 (2020-01-26)
