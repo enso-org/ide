@@ -120,10 +120,6 @@ impl {
 
 
 
-
-
-
-
 // ==============
 // === Target ===
 // ==============
@@ -826,6 +822,7 @@ impl SceneData {
 
     fn update_shape(&self) {
         if self.dirty.shape.check_all() {
+            println!("scene update shape");
             let screen = self.dom.shape();
             self.resize_canvas(screen);
             for layer in &*self.layers.all() {

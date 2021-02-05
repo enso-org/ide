@@ -90,6 +90,8 @@ fn init(app:&Application) {
     let camera    = scene.camera();
     let navigator = Navigator::new(&scene,&camera);
 
+    world.display_object().force_set_visibility(true);
+
     app.views.register::<project::View>();
     app.views.register::<text::Area>();
     app.views.register::<GraphEditor>();
@@ -133,12 +135,14 @@ fn init(app:&Application) {
     // === Types (Port Coloring) ===
 
     let mut dummy_type_generator = DummyTypeGenerator::default();
+
     expression_1.input_span_tree.root_ref().leaf_iter().for_each(|node|{
         if let Some(expr_id) = node.ast_id {
             let dummy_type = Some(dummy_type_generator.get_dummy_type());
             graph_editor.frp.set_expression_usage_type.emit((node1_id,expr_id,dummy_type));
         }
     });
+
     expression_1.output_span_tree.root_ref().leaf_iter().for_each(|node|{
         if let Some(expr_id) = node.ast_id {
             let dummy_type = Some(dummy_type_generator.get_dummy_type());
@@ -152,6 +156,7 @@ fn init(app:&Application) {
             graph_editor.frp.set_expression_usage_type.emit((node2_id,expr_id,dummy_type));
         }
     });
+
     expression_2.output_span_tree.root_ref().leaf_iter().for_each(|node|{
         if let Some(expr_id) = node.ast_id {
             let dummy_type = Some(dummy_type_generator.get_dummy_type());

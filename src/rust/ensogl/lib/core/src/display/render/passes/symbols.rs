@@ -49,7 +49,9 @@ impl RenderPass for SymbolsRenderPass {
 
         for layer in self.layers.all().iter() {
             self.target.set_camera(&layer.camera());
-            self.target.render_by_ids(&layer.symbols());
+            let symbols = layer.symbols();
+            // println!("RENDERING LAYER: {:?}",symbols);
+            self.target.render_by_ids(&symbols);
         }
     }
 }

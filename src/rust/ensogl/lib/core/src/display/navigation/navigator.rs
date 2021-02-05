@@ -41,15 +41,25 @@ impl NavigatorModel {
         let (simulator,resize_callback,_events) = Self::start_navigator_events
             (&scene,camera,min_zoom,max_zoom,Rc::clone(&zoom_speed),Rc::clone(&pan_speed),
              Rc::clone(&disable_events));
+        println!("-- 5");
+
         Self {simulator,_events,resize_callback,zoom_speed,pan_speed,disable_events}
     }
 
     fn create_simulator(camera:&Camera2d) -> physics::inertia::DynSimulator<Vector3> {
         let camera_ref = camera.clone_ref();
-        let on_step    = Box::new(move |p:Vector3| camera_ref.set_position(p));
+        let on_step    = Box::new(move |p:Vector3| {
+            println!("Navigator set position: {:?}",p);
+            camera_ref.set_position(p)
+        });
         let simulator  = physics::inertia::DynSimulator::new(on_step,(),());
+        // FIXME[WD]: This one is emitting camera position in next frame, which is not intended.
+        //            Shoiuld be fixed when reworking navigator to use FRP events.
+        println!("x -- 1");
         simulator.set_value(camera.position());
+        println!("x -- 2");
         simulator.set_target_value(camera.position());
+        println!("x -- 3");
         simulator
     }
 
@@ -62,8 +72,11 @@ impl NavigatorModel {
     , pan_speed      : SharedSwitch<f32>
     , disable_events : Rc<Cell<bool>>
     ) -> (physics::inertia::DynSimulator<Vector3>,callback::Handle,NavigatorEvents) {
+        println!("-- 1");
         let simulator        = Self::create_simulator(&camera);
+        println!("-- 2");
         let panning_callback = enclose!((scene,camera,mut simulator,pan_speed) move |pan: PanEvent| {
+            println!("panning_callback");
             let fovy_slope                  = camera.half_fovy_slope();
             let distance                    = camera.position().z;
             let distance_to_show_full_ui    = scene.shape().value().height / 2.0 / fovy_slope;
@@ -74,16 +87,20 @@ impl NavigatorModel {
             simulator.update_target_value(|p| p - diff);
         });
 
+        println!("-- 3");
         let resize_callback = camera.add_screen_update_callback(
             enclose!((mut simulator,camera) move |_:&Vector2<f32>| {
+                println!("resize_callback");
                 let position = camera.position();
                 simulator.set_value(position);
                 simulator.set_target_value(position);
                 simulator.set_velocity(default());
             })
         );
+        println!("-- 4");
 
         let zoom_callback = enclose!((scene,camera,simulator) move |zoom:ZoomEvent| {
+            println!("zoom_callback");
             let point       = zoom.focus;
             let normalized  = normalize_point2(point,scene.shape().value().into());
             let normalized  = normalized_to_range2(normalized, -1.0, 1.0);

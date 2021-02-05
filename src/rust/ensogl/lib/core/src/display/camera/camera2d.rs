@@ -35,6 +35,11 @@ impl Screen {
     pub fn aspect(self) -> f32 {
         self.width / self.height
     }
+
+    /// Check whether the screen size is zero or negative.
+    pub fn is_degenerated(self) -> bool {
+        self.width < std::f32::EPSILON || self.height < std::f32::EPSILON
+    }
 }
 
 
@@ -271,16 +276,25 @@ impl Camera2dData {
     }
 
     fn set_screen(&mut self, width:f32, height:f32) {
+        println!("--- set_screen {} x {} ---", width, height);
+        if self.screen.is_degenerated() {
+            self.zoom = 1.0;
+        }
         self.screen.width  = width;
         self.screen.height = height;
         self.dirty.projection.set();
 
         match &self.projection {
             Projection::Perspective {fov} => {
+
                 let zoom      = self.zoom;
+                println!("zoom {}",zoom);
                 let alpha     = fov / 2.0;
+                println!("alpha {}",alpha);
                 let z_zoom_1  = height / (2.0 * alpha.tan());
+                println!("z_zoom_1 {}",z_zoom_1);
                 self.z_zoom_1 = z_zoom_1;
+                println!("mod_position_keep_zoom -> z = {:?}", z_zoom_1 / zoom);
                 self.mod_position_keep_zoom(|t| t.z = z_zoom_1 / zoom);
             }
             _ => unimplemented!()
@@ -293,6 +307,11 @@ impl Camera2dData {
         self.zoom = 1.0;
         self.set_screen(self.screen.width,self.screen.height);
     }
+
+    /// Check whether the screen size is zero or negative.
+    fn is_degenerated(&self) -> bool {
+        self.screen.is_degenerated()
+    }
 }
 
 
@@ -300,15 +319,19 @@ impl Camera2dData {
 
 impl Camera2dData {
     fn mod_position<F:FnOnce(&mut Vector3<f32>)>(&mut self, f:F) {
+        println!("mod_position {:?}", self.display_object.position());
         self.mod_position_keep_zoom(f);
-        self.zoom = self.z_zoom_1 / self.display_object.position().z;
+        let z     = self.display_object.position().z.abs();
+        self.zoom = if z < std::f32::EPSILON { std::f32::INFINITY } else { self.z_zoom_1 / z };
     }
 
     fn set_position(&mut self, value:Vector3<f32>) {
+        println!("set_position {:?}", value);
         self.mod_position(|p| *p = value);
     }
 
     fn set_rotation(&mut self, yaw:f32, pitch:f32, roll:f32) {
+        println!("set_rotation");
         self.display_object.mod_rotation(|r| *r = Vector3::new(yaw,pitch,roll))
     }
 

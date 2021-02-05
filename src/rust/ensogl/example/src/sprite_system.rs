@@ -7,6 +7,7 @@ use ensogl_core::display::navigation::navigator::Navigator;
 use ensogl_core::display::symbol::geometry::Sprite;
 use ensogl_core::display::symbol::geometry::SpriteSystem;
 use ensogl_core::display::world::*;
+use ensogl_core::display::scene::Scene;
 use ensogl_core::prelude::*;
 use ensogl_core::system::web::forward_panic_hook_to_console;
 use ensogl_core::system::web::set_stdout;
@@ -20,33 +21,62 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 #[allow(dead_code)]
 pub fn entry_point_sprite_system() {
+    println!(">> 1");
     forward_panic_hook_to_console();
     set_stdout();
+    println!(">> 2");
 
     let world         = World::new(&web::get_html_element_by_id("root").unwrap());
+    world.display_object().force_set_visibility(true);
+    println!(">> 3");
+
     let scene         = world.scene();
     let camera        = scene.camera().clone_ref();
     let navigator     = Navigator::new(&scene,&camera);
     let sprite_system = SpriteSystem::new(&world);
+    println!(">> 4");
 
     let sprite1       = sprite_system.new_instance();
     sprite1.size.set(Vector2::new(10.0,10.0));
     sprite1.mod_position(|t| *t = Vector3::new(5.0,5.0,0.0));
+    println!(">> 5");
 
-    world.add_child(&sprite_system);
+    scene.add_child(&sprite_system);
 
     let mut sprites: Vec<Sprite> = default();
     let count = 100;
-    for _ in 0 .. count {
+    for i in 0 .. count {
         let sprite = sprite_system.new_instance();
+        // sprite.mod_position(|t| *t = Vector3::new(5.0 * (i as f32),0.0,0.0));
+        sprite.size.set(Vector2::new(1.0,1.0));
+
         sprites.push(sprite);
     }
+    println!(">> 6");
 
     world.keep_alive_forever();
+    let scene = world.scene().clone_ref();
 
     let mut iter:i32 = 0;
+    let mut i = 0;
     world.on_frame(move |time| {
+        i += 1;
+        if i <= 100 {
+            sprite1.mod_position(|p| p.x += 1.0);
+        }
+        // let _keep_alive = &scene;
+        let _keep_alive = &camera;
+        let _keep_alive = &iter;
+        let _keep_alive = &sprite1;
+        let _keep_alive = &sprites;
+        let _keep_alive = &sprite_system;
         let _keep_alive = &navigator;
+        // FIXME: these logs crash gui after some time!
+
+        // println!("sprite count: {:?}",sprites.len());
+        // println!("sprite_system is visible? {:?}",sprite_system.is_visible());
+        // println!("sprite[5] is visible? {:?}",sprites[5].is_visible());
+
         on_frame(&camera,time,&mut iter,&sprite1,&mut sprites,&sprite_system)
     }).forget();
 }
@@ -59,7 +89,8 @@ pub fn on_frame
 , iter          : &mut i32
 , sprite1       : &Sprite
 , sprites       : &mut Vec<Sprite>
-, sprite_system : &SpriteSystem) {
+, sprite_system : &SpriteSystem
+) {
     *iter += 1;
 
     let cycle_duration        = 300;
@@ -71,6 +102,7 @@ pub fn on_frame
     if *iter < cycle_duration {
         for _ in 0..sprite_diff_per_cycle {
             let sprite = sprite_system.new_instance();
+            sprite.size.set(Vector2::new(1.0,1.0));
             sprites.push(sprite);
         }
     } else if *iter < pause_duration + cycle_duration {

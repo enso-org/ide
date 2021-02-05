@@ -360,6 +360,8 @@ impl Symbol {
                     let count          = self.surface.point_scope().size()    as i32;
                     let instance_count = self.surface.instance_scope().size() as i32;
 
+                    // println!("rendering symbol {:?}. count {}, instance count {}",self.id,count,instance_count);
+
                     // FIXME: we should uncomment the following code in some pedantic debug mode. It
                     //        introduces severe performance overhead (0.8ms -> 3ms per frame) because
                     //        it requires GPU to sync. However, we should maintain a "pedantic mode" in

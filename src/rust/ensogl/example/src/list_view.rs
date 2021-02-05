@@ -98,20 +98,22 @@ fn init(app:&Application) {
     theme::builtin::light::register(&app);
     theme::builtin::light::enable(&app);
 
-    let select   = app.new_view::<list_view::ListView>();
-    let provider = list_view::entry::AnyModelProvider::from(MockEntries::new(app,1000));
-    select.frp.resize(Vector2(100.0,160.0));
-    select.frp.set_entries(provider);
-    app.display.add_child(&select);
+    let list_view = app.new_view::<list_view::ListView>();
+    let provider  = list_view::entry::AnyModelProvider::from(MockEntries::new(app,1000));
+    list_view.frp.resize(Vector2(100.0,160.0));
+    list_view.frp.set_entries(provider);
+    app.display.add_child(&list_view);
+    // FIXME[WD]: This should not be needed after text gets proper depth-handling.
+    app.display.scene().layers.below_main.add_exclusive(&list_view);
 
     let logger : Logger = Logger::new("SelectDebugScene");
     let network = enso_frp::Network::new("test");
     enso_frp::extend! {network
-        eval select.chosen_entry([logger](entry) {
+        eval list_view.chosen_entry([logger](entry) {
             info!(logger, "Chosen entry {entry:?}")
         });
     }
 
-    std::mem::forget(select);
+    std::mem::forget(list_view);
     std::mem::forget(network);
 }

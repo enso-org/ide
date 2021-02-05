@@ -18,6 +18,14 @@ use crate::system::gpu::types::*;
 
 
 
+// =================
+// === Constants ===
+// =================
+
+const DEFAULT_SPRITE_SIZE : (f32,f32) = (10.0,10.0);
+
+
+
 // ===================
 // === SpriteStats ===
 // ===================
@@ -167,6 +175,8 @@ impl Sprite {
         let stats          = Rc::new(SpriteStats::new(stats));
         let guard          = Rc::new(SpriteGuard::new(instance_id,&symbol,&size,&display_object));
         let size           = Size::new(size);
+        let default_size   = Vector2(DEFAULT_SPRITE_SIZE.0,DEFAULT_SPRITE_SIZE.1);
+        size.set(default_size);
         Self {symbol,instance_id,display_object,transform,size,stats,guard}.init()
     }
 
@@ -250,9 +260,7 @@ impl SpriteSystem {
         let instance_id  = self.symbol.surface().instance_scope().add_instance();
         let transform    = self.transform.at(instance_id);
         let size         = self.size.at(instance_id);
-        let default_size = Vector2::new(1.0,1.0);
-        size.set(default_size);
-        let sprite = Sprite::new(&self.symbol,instance_id,transform,size,&self.stats);
+        let sprite       = Sprite::new(&self.symbol,instance_id,transform,size,&self.stats);
         self.add_child(&sprite);
         sprite
     }
