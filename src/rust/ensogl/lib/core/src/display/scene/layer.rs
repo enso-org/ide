@@ -478,8 +478,8 @@ impl LayerModel {
 
     fn depth_sort(&self, global_element_depth_order:&DependencyGraph<LayerElement>) {
         let graph           = self.combined_depth_order_graph(global_element_depth_order);
-        let elements_rev    = self.elements.borrow().iter().copied().rev().collect_vec();
-        let sorted_elements = graph.into_unchecked_topo_sort(elements_rev);
+        let elements_sorted = self.elements.borrow().iter().copied().collect_vec();
+        let sorted_elements = graph.into_unchecked_topo_sort(elements_sorted);
         let sorted_symbols  = sorted_elements.into_iter().filter_map(|element| {
             match element {
                 LayerElement::Symbol(symbol_id) => Some(symbol_id),
@@ -682,9 +682,9 @@ impl LayersModel {
         if self.layers_depth_order_dirty.check() {
             self.layers_depth_order_dirty.unset();
             let model         = &mut *self.model.borrow_mut();
-            let layers        = model.registry.iter().filter_map(|t|t.upgrade().map(|t|t.id));
-            let layers_rev    = layers.rev().collect_vec();
-            let sorted_layers = model.layer_depth_order.unchecked_topo_sort(layers_rev);
+            let layers_sorted = model.registry.iter().filter_map(|t|t.upgrade().map(|t|t.id));
+            let layers_sorted = layers_sorted.collect_vec();
+            let sorted_layers = model.layer_depth_order.unchecked_topo_sort(layers_sorted);
             model.sorted_layers = sorted_layers;
         }
 
