@@ -1,7 +1,48 @@
+# Enso App Framework
+
 
 ## Overview
 
-EnsoGL is a blazing fast vector rendering engine that comes batteries included.
+Enso App Framework is a fully featured framework for building modern, blazing fast web applications
+in the Rust programming language. It comes batteries included, containing:
+
+- **[Enso Canvas], a WebGL-based vector shapes rendering engine**  
+  It is blazing-fast, pixel-perfect, uses a high-quality computational anti-aliasing, allows 
+  *almost zero-cost* boolean operations on shapes, and uses sophisticated Lab CIECH color management
+  system for unparalleled results.
+  
+- **[Enso Signals], a [functional reactive programming] signal processing engine designed exclusively 
+  for the needs of efficient GUI programming and optimized for Rust semantics.
+  
+- [Enso GUI], a rich set of modern GUI components, including iOS-like mouse cursor.
+- 
+
+EnsoGL is a blazing fast vector rendering engine that comes batteries included. It was developed
+as part of the [Enso](https://github.com/enso-org/enso) project.
+
+
+## Demo
+
+See the demo videos of [Enso](https://github.com/enso-org/enso) to see an example application based
+on EnsoGl
+
+
+## Features
+
+### High performance and small size
+- **No garbage collector**  
+  EnsoGL is written in Rust. All memory management is static, there is not garbage collection 
+  needed, and thus, you can be sure that your creations will run 60 frames per second without 
+  unexpected hiccups.
+  
+- **Small binary size**  
+  EnsoGL is a very feature rich library, however, it includes all aspects needed to build fully 
+  featured, production ready applications, including rich set of GUI elements, animation engine,
+  user events processing engine, keyboard shortcut management, mouse gesture management, and even
+  dedicated theme resolution engine. For example, [Enso](https://github.com/enso-org/enso), which
+  naturally uses EnsoGl for all client-side logic weights less than 4Mb in production mode build.
+
+
 
 ### Vector Shapes
 
@@ -33,7 +74,7 @@ EnsoGL is a blazing fast vector rendering engine that comes batteries included.
   cost (a cost of a few GPU cycles for all instances altogether). The instancing is done by folding
   the used coordinate system into cyclic space.
 
-- **Lab CIECH color management**
+- **Lab CIECH color space based color management**
   EnsoGL uses Lab CIECH color blending in order to output color blending results. Unlike HTML and 
   CSS implementations in all popular browsers nowadays, EnsoGL do not produce [visual artifacts when
   blending colors together][Blending in browsers].
@@ -53,6 +94,26 @@ old-school event-listener based approach, FRP does not cause [callback hell] nor
 
 
 ### Animation
+
+EnsoGL delivers a set of lightweight animation engines in a form of a reactive FRP API. It allows 
+attaching animations to every interface element simply by plugging an FRP event source to FRP 
+animation node. For example, the Inertia Simulator enables physical-based animations of positions
+and colors, allowing at the same time changing the destination values with smooth interpolation 
+between states. The Tween engine does not allow smooth destination value change, however, its so
+lightweight, that you can consider it non-existent from the performance point of view.
+
+
++ Mixing HTML elements
+
+### Modern GUI Components
+
+
+
+
+
+### Built-in performance statistics
+
+
 
  # Rendering Architecture
 
