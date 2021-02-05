@@ -25,9 +25,6 @@ read the notes of the `Enso 2.0.0-alpha.1` release.
 - Display objects handle visibility correctly now. Display objects are not visible by default and 
   need to be attached to a visible parent to be shown on the screen.
 
-<br/>
-  
-
 <br/>![New Features](/docs/assets/tags/new_features.svg)
 
 #### Visual Environment
