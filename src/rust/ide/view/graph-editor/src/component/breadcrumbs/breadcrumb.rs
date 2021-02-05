@@ -74,16 +74,16 @@ mod icon {
 
     ensogl::define_shape_system! {
         (red:f32,green:f32,blue:f32,alpha:f32) {
-                let outer_circle  = Circle((ICON_RADIUS).px());
-                let inner_circle  = Circle((ICON_RADIUS - ICON_RING_WIDTH).px());
-                let ring          = outer_circle - inner_circle;
-                let size          = ICON_ARROW_SIZE;
-                let arrow         = Triangle(size.px(),size.px()).rotate((PI/2.0).radians());
-                let arrow         = arrow.translate_x(0.5.px());
-                let shape         = ring + arrow;
-                let color         = format!("vec4({},{},{},{})",red,green,blue,alpha);
-                let color : Var<color::Rgba> = color.into();
-                shape.fill(color).into()
+            let outer_circle  = Circle((ICON_RADIUS).px());
+            let inner_circle  = Circle((ICON_RADIUS - ICON_RING_WIDTH).px());
+            let ring          = outer_circle - inner_circle;
+            let size          = ICON_ARROW_SIZE;
+            let arrow         = Triangle(size.px(),size.px()).rotate((PI/2.0).radians());
+            let arrow         = arrow.translate_x(0.5.px());
+            let shape         = ring + arrow;
+            let color         = format!("vec4({},{},{},{})",red,green,blue,alpha);
+            let color : Var<color::Rgba> = color.into();
+            shape.fill(color).into()
         }
     }
 }
@@ -290,16 +290,17 @@ impl BreadcrumbModel {
         let relative_position = default();
         let outputs           = frp.outputs.clone_ref();
 
+        scene.layers.breadcrumbs.add_exclusive(&view);
         let shape_system = scene.layers.breadcrumbs.shape_system_registry.shape_system(scene,PhantomData::<background::DynamicShape>);
         scene.layers.breadcrumbs.add_symbol_exclusive(&shape_system.shape_system.symbol);
 
+        scene.layers.breadcrumbs.add_exclusive(&icon);
         let shape_system = scene.layers.breadcrumbs.shape_system_registry.shape_system(scene,PhantomData::<icon::DynamicShape>);
         shape_system.shape_system.set_pointer_events(false);
-        scene.layers.breadcrumbs.add_symbol_exclusive(&shape_system.shape_system.symbol);
 
+        scene.layers.breadcrumbs.add_exclusive(&separator);
         let shape_system = scene.layers.breadcrumbs.shape_system_registry.shape_system(scene,PhantomData::<separator::DynamicShape>);
         shape_system.shape_system.set_pointer_events(false);
-        scene.layers.breadcrumbs.add_symbol_exclusive(&shape_system.shape_system.symbol);
 
         label.remove_from_view(&scene.layers.main);
         label.add_to_scene_layer_DEPRECATED(&scene.layers.breadcrumbs);

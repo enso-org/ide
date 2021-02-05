@@ -5,6 +5,11 @@ disable the collection of errors data (keeping the collection of other events), 
 collection of all data, respectively. To learn more what data is collected in Enso alpha releases, 
 read the notes of the `Enso 2.0.0-alpha.1` release.
 
+<br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
+
+#### Visual Environment
+- Pressing and holding up and down arrow keys make the list view selection to move mutlitple times.
+
 
 
 # Enso 2.0.0-alpha.1 (2020-01-26)
