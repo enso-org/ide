@@ -11,12 +11,10 @@ use enso_frp;
 use ensogl::application::Application;
 use ensogl::data::color;
 use ensogl::display::shape::*;
-use ensogl::display::shape::primitive::system::Shape;
 use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl::gui::component::ShapeView;
 use ensogl::display::shape::system::DynamicShape;
-use ensogl::gui::component;
 use ensogl_theme as theme;
 use ensogl_gui_components::drop_down_menu;
 

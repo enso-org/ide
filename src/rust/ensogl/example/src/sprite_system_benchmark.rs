@@ -7,7 +7,6 @@ use ensogl_core::display::navigation::navigator::Navigator;
 use ensogl_core::display::symbol::geometry::Sprite;
 use ensogl_core::display::symbol::geometry::SpriteSystem;
 use ensogl_core::display::world::*;
-use ensogl_core::display::scene::Scene;
 use ensogl_core::prelude::*;
 use ensogl_core::system::web::forward_panic_hook_to_console;
 use ensogl_core::system::web::set_stdout;
@@ -24,9 +23,7 @@ pub fn entry_point_sprite_system_benchmark() {
     forward_panic_hook_to_console();
     set_stdout();
 
-    let world = World::new(&web::get_html_element_by_id("root").unwrap());
-    world.display_object().force_set_visibility(true);
-
+    let world         = World::new(&web::get_html_element_by_id("root").unwrap());
     let scene         = world.scene();
     let camera        = scene.camera().clone_ref();
     let navigator     = Navigator::new(&scene,&camera);
@@ -40,16 +37,13 @@ pub fn entry_point_sprite_system_benchmark() {
 
     let mut sprites: Vec<Sprite> = default();
     let count = 100;
-    for i in 0 .. count {
+    for _ in 0 .. count {
         let sprite = sprite_system.new_instance();
-        // sprite.mod_position(|t| *t = Vector3::new(5.0 * (i as f32),0.0,0.0));
         sprite.size.set(Vector2::new(1.0,1.0));
-
         sprites.push(sprite);
     }
 
     world.keep_alive_forever();
-    let scene = world.scene().clone_ref();
 
     let mut iter:i32 = 0;
     let mut i = 0;
@@ -58,7 +52,6 @@ pub fn entry_point_sprite_system_benchmark() {
         if i <= 100 {
             sprite1.mod_position(|p| p.x += 1.0);
         }
-        // let _keep_alive = &scene;
         let _keep_alive = &camera;
         let _keep_alive = &iter;
         let _keep_alive = &sprite1;

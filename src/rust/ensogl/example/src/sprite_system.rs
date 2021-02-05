@@ -1,20 +1,14 @@
 #![allow(missing_docs)]
 
-use ensogl_core::traits::*;
+use ensogl_core::prelude::*;
+use wasm_bindgen::prelude::*;
 
-use ensogl_core::display::camera::Camera2d;
 use ensogl_core::display::navigation::navigator::Navigator;
-use ensogl_core::display::symbol::geometry::Sprite;
 use ensogl_core::display::symbol::geometry::SpriteSystem;
 use ensogl_core::display::world::*;
-use ensogl_core::prelude::*;
 use ensogl_core::system::web::forward_panic_hook_to_console;
 use ensogl_core::system::web::set_stdout;
 use ensogl_core::system::web;
-use ensogl_core::animation;
-use nalgebra::Vector2;
-use nalgebra::Vector3;
-use wasm_bindgen::prelude::*;
 
 
 #[wasm_bindgen]
@@ -24,8 +18,6 @@ pub fn entry_point_sprite_system() {
     set_stdout();
 
     let world         = World::new(&web::get_html_element_by_id("root").unwrap());
-    world.display_object().force_set_visibility(true);
-
     let scene         = world.scene();
     let camera        = scene.camera().clone_ref();
     let navigator     = Navigator::new(&scene,&camera);
@@ -40,7 +32,7 @@ pub fn entry_point_sprite_system() {
     world.keep_alive_forever();
 
     let mut i = 0;
-    world.on_frame(move |time| {
+    world.on_frame(move |_| {
         i += 1;
         let _keep_alive = &navigator;
         let _keep_alive = &sprite1;

@@ -1,3 +1,5 @@
+//! Example scene showing simple usage of a shape system.
+
 use ensogl_core::prelude::*;
 
 use ensogl_core::display::navigation::navigator::Navigator;
@@ -11,16 +13,28 @@ use ensogl_core::data::color;
 
 
 
+// ==============
+// === Shapes ===
+// ==============
+
+/// The shape definition.
 pub fn shape() -> AnyShape {
     let circle1    = Circle(50.px());
-    let circle_bg  = circle1.translate_x(-50.0.px());
-    let circle_sub = circle1.translate_y(-50.0.px());
+    let circle_bg  = circle1.translate_x(-(50.0.px()));
+    let circle_sub = circle1.translate_y(-(50.0.px()));
     let rect       = Rect((100.0.px(),100.0.px()));
     let shape      = circle_bg + rect - circle_sub;
     let shape      = shape.fill(color::Rgb::new(1.0,0.0,0.0));
     shape.into()
 }
 
+
+
+// ===================
+// === Entry Point ===
+// ===================
+
+/// The example entry point.
 #[wasm_bindgen]
 #[allow(dead_code)]
 pub fn entry_point_shape_system() {

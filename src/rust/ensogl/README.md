@@ -1,18 +1,29 @@
 EnsoGL is a blazing fast vector rendering engine that comes batteries included.
 
-- It has a very high output image quality. 
+- **Highest anti-aliasing quality possible**   
   The shapes are always sooth and crisp. They are described using mathematical equations and do not 
   use triangle-based approximation nor are they interpolated in any way. For example, after 
   subtracting two circles, no matter how much you scale the resulting shape, it will always render 
-  smooth, crisp, and without any visual glitches.
+  smooth, crisp, and without any visual glitches and imperfections. It's worth noting that EnsoGL
+  uses [Signed Distance Functions][SDF] to describe shapes and perform anti-aliasing, and thus do 
+  not need 
+  
+- **Pixel prefect**  
+  Shapes align perfectly with the pixels on the screen. Rendering a rectangle with integer position
+  will not produce any anti-aliased borders.
 
-- It provides a rich set of primitive shapes, including a circle, a rectangle, a rectangle with 
-   rounded corners, a triangle, a line, a bezier curve, and many others.
+- **Rich set of primitive shapes**  
+  Including a circle, a rectangle, a rectangle with rounded corners, a triangle, a line, a bezier 
+  curve, and many more. You can also define your own shapes by using [Signed Distance 
+  Functions][SDF].
 
-- It allows performing boolean operations on shapes, including subtracting shapes, finding common 
-  part of two shapes, or even merging shapes with rounded areas where shapes met. All these
-  operations are very fast and do not depend on the shapes complexity. Subtracting two circles is
-  as fast as subtracting two shapes build out of 100 circles each.
+- **Blazing fast boolean operations on shapes**  
+  EnsoGL allows performing boolean operations on shapes, including subtracting shapes, finding 
+  common part of two shapes, and even merging shapes with rounded intersection areas (bevels). All 
+  these operations are very fast and do not depend on the shapes' complexity. Subtracting two 
+  circles is as fast as subtracting two shapes build out of 100 circles each.
+  
+- **Support for **
    
  supporting boolean operations, a rich set of a GUI component library, a dedicated FRP (functional reactive programming) event system, . It is able to display millions of shapes 60 frames per second in a web
  browser on a modern laptop hardware. This is the main entry point to the library, which

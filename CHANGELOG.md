@@ -8,7 +8,10 @@ read the notes of the `Enso 2.0.0-alpha.1` release.
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
 #### Visual Environment
-- Pressing and holding up and down arrow keys make the list view selection to move mutlitple times.
+- Display objects are not visible by default and need to be attached to a visible parent to be shown
+  on the scene. This fixes some visual glitches, like small "pixel-like" things appearing sometimes
+  on the screen.
+- Pressing and holding up and down arrow keys make the list view selection to move multiple times.
 
 
 
