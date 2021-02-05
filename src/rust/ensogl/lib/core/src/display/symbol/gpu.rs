@@ -552,10 +552,9 @@ impl Symbol {
     /// Runs the provided function in a context of active program and active VAO. After the function
     /// is executed, both program and VAO are bound to None.
     fn with_program_mut<F:FnOnce(&Self, &WebGlProgram)>(&self, context:&Context, f:F) {
-        let this:&Self = self; // TODO: is this line needed?
-        if let Some(program) = this.shader.program().as_ref() {
+        if let Some(program) = self.shader.program().as_ref() {
             context.use_program(Some(program));
-            this.with_vao_mut(|this| { f(this,program) });
+            self.with_vao_mut(|this| { f(this,program) });
             context.use_program(None);
         }
     }

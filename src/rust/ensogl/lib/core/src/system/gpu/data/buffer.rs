@@ -236,15 +236,12 @@ impl<T:Storable> {
 
     /// Set the WebGL context. See the main architecture docs of this library to learn more.
     pub(crate) fn set_context(&mut self, context:Option<&Context>) {
-        match context {
-            None => {
-                self.gl = None;
-            }
-            Some(context) => {
-                let gl  = GlData::new(context);
-                self.gl = Some(gl);
-                self.resize_dirty.set();
-            }
+        self.gl = context.map(|ctx| {
+            self.resize_dirty.set();
+            GlData::new(ctx)
+        });
+        if self.gl.is_none() {
+            self.drop_stats()
         }
     }
 }}
@@ -332,6 +329,16 @@ impl<T:Storable> BufferData<T> {
 }
 
 
+// === Stats ===
+
+impl<T> BufferData<T> {
+    fn drop_stats(&self) {
+        self.stats.mod_gpu_memory_usage(|s| s - self.gpu_mem_usage);
+        self.stats.dec_buffer_count();
+    }
+}
+
+
 // === Smart Accessors ===
 
 impl<T:Storable> Buffer<T> {
@@ -361,9 +368,7 @@ impl<T> Drop for BufferData<T> {
     fn drop(&mut self) {
         if let Some(gl) = &self.gl {
             gl.context.delete_buffer(Some(&gl.buffer));
-            self.stats.mod_gpu_memory_usage(|s| s - self.gpu_mem_usage);
-            self.stats.dec_buffer_count();
-            // TODO: stats management on context loss
+            self.drop_stats();
         }
     }
 }

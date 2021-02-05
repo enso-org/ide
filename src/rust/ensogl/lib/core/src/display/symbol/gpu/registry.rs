@@ -80,6 +80,7 @@ impl SymbolRegistry {
         SymbolId::new(index as u32)
     }
 
+    /// Set the WebGL context. See the main architecture docs of this library to learn more.
     pub fn set_context(&self, context:Option<&Context>) {
         *self.context.borrow_mut() = context.cloned();
         for symbol in &*self.symbols.borrow() {

@@ -291,21 +291,25 @@ impl BreadcrumbModel {
         let outputs           = frp.outputs.clone_ref();
 
         scene.layers.breadcrumbs.add_exclusive(&view);
-        let shape_system = scene.layers.breadcrumbs.shape_system_registry.shape_system(scene,PhantomData::<background::DynamicShape>);
+        let shape_system = scene.layers.breadcrumbs.shape_system_registry.shape_system
+            (scene,PhantomData::<background::DynamicShape>);
         scene.layers.breadcrumbs.add_symbol_exclusive(&shape_system.shape_system.symbol);
 
         scene.layers.breadcrumbs.add_exclusive(&icon);
-        let shape_system = scene.layers.breadcrumbs.shape_system_registry.shape_system(scene,PhantomData::<icon::DynamicShape>);
+        let shape_system = scene.layers.breadcrumbs.shape_system_registry.shape_system
+            (scene,PhantomData::<icon::DynamicShape>);
         shape_system.shape_system.set_pointer_events(false);
 
         scene.layers.breadcrumbs.add_exclusive(&separator);
-        let shape_system = scene.layers.breadcrumbs.shape_system_registry.shape_system(scene,PhantomData::<separator::DynamicShape>);
+        let shape_system = scene.layers.breadcrumbs.shape_system_registry.shape_system
+            (scene,PhantomData::<separator::DynamicShape>);
         shape_system.shape_system.set_pointer_events(false);
 
         label.remove_from_scene_layer_DEPRECATED(&scene.layers.main);
         label.add_to_scene_layer_DEPRECATED(&scene.layers.breadcrumbs);
 
-        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
+        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape
+        //         system (#795)
         let style = StyleWatch::new(&scene.style_sheet);
         Self{logger,view,icon,separator,display_object,label,info,animations,style
             ,relative_position,outputs}.init()
@@ -463,7 +467,8 @@ impl Breadcrumb {
         let network = &frp.network;
         let scene   = app.display.scene();
 
-        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
+        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape
+        //         system (#795)
         let styles      = StyleWatch::new(&scene.style_sheet);
         let hover_color = styles.get_color(theme::graph_editor::breadcrumbs::hover);
         let hover_color = color::Rgba::from(hover_color);

@@ -89,9 +89,7 @@ fn init(app:&Application) {
     let scene     = world.scene();
     let camera    = scene.camera();
     let navigator = Navigator::new(&scene,&camera);
-
-    world.display_object().force_set_visibility(true);
-
+    
     app.views.register::<project::View>();
     app.views.register::<text::Area>();
     app.views.register::<GraphEditor>();
