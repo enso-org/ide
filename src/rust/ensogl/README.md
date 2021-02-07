@@ -1,6 +1,14 @@
 # Enso App Framework
 
 
+### Demo
+
+Enso App Framework was primarily designed to power [Enso], a visual and textual programming language
+for Data Science. See the [demo videos of Enso](https://github.com/enso-org/enso) to experience some
+possibilities of this framework!
+
+<br/>
+
 ### Overview
 
 Enso App Framework is a fully featured framework for building modern, blazing fast web applications
@@ -49,14 +57,6 @@ in the Rust programming language. It comes batteries included, containing:
   sliders, or text fields, and more sophisticated ones, including iOS-like morphing shape mouse
   cursor.
 </ul></ul></ul>
-
-<br/>
-
-### Demo
-
-Enso App Framework was primarily designed to power [Enso], a visual and textual programming language
-for Data Science. See the [demo videos of Enso](https://github.com/enso-org/enso) to experience some
-possibilities of this framework!
 
 <br/>
 
