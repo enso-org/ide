@@ -45,8 +45,8 @@ in the Rust programming language. It comes batteries included, containing:
     
 <img align="left" width="72px" src="https://raw.githubusercontent.com/enso-org/icons/master/it/web_apps/017-joystick.svg">
 <ul><ul><ul>
-    <b><a href="#">Enso Gestures<a/>. Shortcut and gesture recognition engine.</b><br/>
-    Enso Gestures is a shortcut and gesture recognition engine. It was designed to support all kinds
+    <b><a href="#">Enso Input Manager<a/>. Shortcut and gesture recognition engine for various input devices.</b><br/>
+    Enso Input Manager is a shortcut and gesture recognition engine. It was designed to support all kinds
   of input devices, like keyboard, mouse, or VR/AR controllers.
 </ul></ul></ul>
     
@@ -56,6 +56,12 @@ in the Rust programming language. It comes batteries included, containing:
     Enso GUI Components is a rich set of modern GUI components, including simple ones, like buttons,
   sliders, or text fields, and more sophisticated ones, including iOS-like morphing shape mouse
   cursor.
+</ul></ul></ul>
+    
+<img align="left" width="72px" src="https://raw.githubusercontent.com/enso-org/icons/master/it/web_apps/026-color.svg">
+<ul><ul><ul>
+    <b><a href="#">Enso Logger<a/>.</b><br/>
+    ...
 </ul></ul></ul>
 
 <br/>
