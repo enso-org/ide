@@ -34,9 +34,6 @@ in the Rust programming language. It comes batteries included, containing:
 <ul><dl><dl>
     <b><a href="#">Enso Canvas<a/>. Next generation WebGL-based vector shapes rendering engine.</b>
     <dd>
-    <ul>
-        <li>pixel perfect</li>
-    </ul>
     Enso Canvas is a pixel-perfect vector shapes rendering engine which uses a high-quality
     computational anti-aliasing, allows <b>almost zero-cost</b> boolean operations on shapes, provides
     programmable renderings pipeline, theme management, efficient pointer-shapes interaction (GPU
