@@ -32,6 +32,22 @@ in the Rust programming language. It comes batteries included, containing:
     unparalleled visuals results. Moreover, it is blazing fast. It allows the rasterization of
     millions of shapes 60 frames per second.
 </ol></ol>
+    
+<img align="left" width="36px" src="https://github.com/google/material-design-icons/blob/master/src/content/link/materialiconsround/24px.svg">
+<dl>
+    <dt><a href="#">Enso Canvas<a/>. Next generation WebGL-based vector shapes rendering engine.</dt>
+    <dd>
+    <ul>
+        <li>pixel perfect</li>
+    </ul>
+    Enso Canvas is a pixel-perfect vector shapes rendering engine which uses a high-quality
+    computational anti-aliasing, allows <b>almost zero-cost</b> boolean operations on shapes, provides
+    programmable renderings pipeline, theme management, efficient pointer-shapes interaction (GPU
+    picking), efficient depth ordering, and uses a sophisticated Lab CIECH color management system for
+    unparalleled visuals results. Moreover, it is blazing fast. It allows the rasterization of
+    millions of shapes 60 frames per second.
+    </dd>
+</dl>
 
 - **[Enso Canvas], a WebGL-based vector shapes rendering engine**  
   Enso Canvas is a pixel-perfect vector shapes rendering engine which uses a high-quality
