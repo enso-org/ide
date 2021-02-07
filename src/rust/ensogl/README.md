@@ -9,7 +9,7 @@ possibilities of this framework!
 
 <br/>
 
-### Overview
+### Components
 
 Enso App Framework is a fully featured framework for building modern, blazing fast web applications
 in the Rust programming language. It comes batteries included, containing:
