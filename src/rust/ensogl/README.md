@@ -6,9 +6,7 @@
 Enso App Framework is a fully featured framework for building modern, blazing fast web applications
 in the Rust programming language. It comes batteries included, containing:
 
-
-
-<img align="left" width="64px" src="https://raw.githubusercontent.com/enso-org/icons/master/web_apps/026-color.svg">
+<img align="left" width="72px" src="https://raw.githubusercontent.com/enso-org/icons/master/web_apps/026-color.svg">
 <ul><ul><ul>
     <b><a href="#">Enso Canvas<a/>. Next generation WebGL-based vector shapes rendering engine.</b><br/>
     Enso Canvas is a pixel-perfect vector shapes rendering engine which uses a high-quality
@@ -21,60 +19,36 @@ in the Rust programming language. It comes batteries included, containing:
     
 <img align="left" width="72px" src="https://raw.githubusercontent.com/enso-org/icons/master/web_apps/026-color.svg">
 <ul><ul><ul>
-    <b><a href="#">Enso Canvas<a/>. Next generation WebGL-based vector shapes rendering engine.</b><br/>
-    Enso Canvas is a pixel-perfect vector shapes rendering engine which uses a high-quality
-    computational anti-aliasing, allows <b>almost zero-cost</b> boolean operations on shapes, provides
-    programmable renderings pipeline, theme management, efficient pointer-shapes interaction (GPU
-    picking), efficient depth ordering, and uses a sophisticated Lab CIECH color management system for
-    unparalleled visuals results. Moreover, it is blazing fast. It allows the rasterization of
-    millions of shapes 60 frames per second.
-</ul></ul></ul>
-    
-<img align="left" width="76px" src="https://raw.githubusercontent.com/enso-org/icons/master/web_apps/026-color.svg">
-<ul><ul><ul>
-    <b><a href="#">Enso Canvas<a/>. Next generation WebGL-based vector shapes rendering engine.</b><br/>
-    Enso Canvas is a pixel-perfect vector shapes rendering engine which uses a high-quality
-    computational anti-aliasing, allows <b>almost zero-cost</b> boolean operations on shapes, provides
-    programmable renderings pipeline, theme management, efficient pointer-shapes interaction (GPU
-    picking), efficient depth ordering, and uses a sophisticated Lab CIECH color management system for
-    unparalleled visuals results. Moreover, it is blazing fast. It allows the rasterization of
-    millions of shapes 60 frames per second.
-</ul></ul></ul>
-
-- **[Enso Canvas], a WebGL-based vector shapes rendering engine**  
-  Enso Canvas is a pixel-perfect vector shapes rendering engine which uses a high-quality
-  computational anti-aliasing, allows *almost zero-cost* boolean operations on shapes, provides
-  programmable renderings pipeline, theme management, efficient pointer-shapes interaction (GPU
-  picking), efficient depth ordering, and uses a sophisticated Lab CIECH color management system for
-  unparalleled visuals results. Moreover, it is blazing fast. It allows the rasterization of
-  millions of shapes 60 frames per second.
-
-- **[Enso FRP], a reactive events processing engine**  
-  Enso FRP is a reactive events processing engine designed for efficient GUI events handling with
+    <b><a href="#">Enso FRP<a/>. Reactive events processing engine.</b><br/>
+    Enso FRP is a reactive events processing engine designed for efficient GUI events handling with
   built-in support for the mouse and the keyboard. It bases on the [functional reactive programming]
   paradigm delivering easy to debug, callback-hell free framework. It is optimized for the Rust
   semantics and allows high-performance events routing and processing.
-
-- **[Enso Animator], an animation engine**  
-  Enso Animator delivers a set of lightweight easing and physical-based animation engines. It allows
+</ul></ul></ul>
+    
+<img align="left" width="72px" src="https://raw.githubusercontent.com/enso-org/icons/master/web_apps/026-color.svg">
+<ul><ul><ul>
+    <b><a href="#">Enso Animator<a/>. Reactive animation engine.</b><br/>
+    Enso Animator delivers a set of lightweight easing and physical-based animation engines. It allows
   attaching programmable animations to every interface element property, like size, position, or
   color, allowing at the same time changing the destination values with smooth interpolation
   between states.
-
-- **[Enso Gestures], a shortcut and gesture recognition engine**  
-  Enso Gestures is a shortcut and gesture recognition engine. It was designed to support all kinds
+</ul></ul></ul>
+    
+<img align="left" width="72px" src="https://raw.githubusercontent.com/enso-org/icons/master/web_apps/026-color.svg">
+<ul><ul><ul>
+    <b><a href="#">Enso Gestures<a/>. Shortcut and gesture recognition engine.</b><br/>
+    Enso Gestures is a shortcut and gesture recognition engine. It was designed to support all kinds
   of input devices, like keyboard, mouse, or VR/AR controllers.
-
-- **[Enso GUI Components], a rich set of modern GUI components**  
-  Enso GUI Components is a rich set of modern GUI components, including simple ones, like buttons,
+</ul></ul></ul>
+    
+<img align="left" width="72px" src="https://raw.githubusercontent.com/enso-org/icons/master/web_apps/026-color.svg">
+<ul><ul><ul>
+    <b><a href="#">Enso GUI Components<a/>. Rich set of modern GUI components.</b><br/>
+    Enso GUI Components is a rich set of modern GUI components, including simple ones, like buttons,
   sliders, or text fields, and more sophisticated ones, including iOS-like morphing shape mouse
   cursor.
-
-[Enso Canvas]: https://google.com
-[Enso FRP]: https://google.com
-[Enso Animator]: https://google.com
-[Enso Gestures]: https://google.com
-[Enso GUI Components]: https://google.com
+</ul></ul></ul>
 
 ## Demo
 
