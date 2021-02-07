@@ -30,7 +30,7 @@ in the Rust programming language. It comes batteries included, containing:
     millions of shapes 60 frames per second.
 </ul></ul></ul>
     
-<img align="left" width="80px" src="https://raw.githubusercontent.com/enso-org/icons/master/web_apps/026-color.svg">
+<img align="left" width="76px" src="https://raw.githubusercontent.com/enso-org/icons/master/web_apps/026-color.svg">
 <ul><ul><ul>
     <b><a href="#">Enso Canvas<a/>. Next generation WebGL-based vector shapes rendering engine.</b><br/>
     Enso Canvas is a pixel-perfect vector shapes rendering engine which uses a high-quality
