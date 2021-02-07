@@ -35,6 +35,11 @@ in the Rust programming language. It comes batteries included, containing:
   sliders, or text fields, and more sophisticated ones, including iOS-like morphing shape mouse
   cursor.
 
+[Enso Canvas]: https://google.com
+[Enso FRP]: https://google.com
+[Enso Animator]: https://google.com
+[Enso Gestures]: https://google.com
+[Enso GUI Components]: https://google.com
 
 ## Demo
 
