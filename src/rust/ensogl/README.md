@@ -1,7 +1,7 @@
 # Enso App Framework
 
 
-## Overview
+### Overview
 
 Enso App Framework is a fully featured framework for building modern, blazing fast web applications
 in the Rust programming language. It comes batteries included, containing:
@@ -50,14 +50,17 @@ in the Rust programming language. It comes batteries included, containing:
   cursor.
 </ul></ul></ul>
 
-## Demo
+<br/>
+
+### Demo
 
 Enso App Framework was primarily designed to power [Enso], a visual and textual programming language
 for Data Science. See the [demo videos of Enso](https://github.com/enso-org/enso) to experience some
 possibilities of this framework!
 
+<br/>
 
-## Features
+### Features
 
 ### High performance and small size
 - **No garbage collector**  
