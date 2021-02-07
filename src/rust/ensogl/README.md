@@ -6,6 +6,13 @@
 Enso App Framework is a fully featured framework for building modern, blazing fast web applications
 in the Rust programming language. It comes batteries included, containing:
 
+<img align="left" width="36px" src="https://github.com/google/material-design-icons/blob/master/src/content/link/materialiconsround/24px.svg">
+<ul><ul>
+    <b><a href="#">Enso Canvas.<a/>Connect to all the tools you're already using</b><br/>
+    Enso ships with a robust set of libraries, allowing you to work with local
+    files, databases, HTTP services and other applications in a seamless fashion.
+</ul></ul>
+
 - **[Enso Canvas], a WebGL-based vector shapes rendering engine**  
   Enso Canvas is a pixel-perfect vector shapes rendering engine which uses a high-quality
   computational anti-aliasing, allows *almost zero-cost* boolean operations on shapes, provides
