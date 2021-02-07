@@ -20,7 +20,7 @@ in the Rust programming language. It comes batteries included, containing:
 </ul></ul>
     
 <img align="left" width="36px" src="https://raw.githubusercontent.com/enso-org/icons/master/web_apps/026-color.svg">
-<ul><div><ul>
+<ul><p><ul>
     <b><a href="#">Enso Canvas<a/>. Next generation WebGL-based vector shapes rendering engine.</b><br/>
     <ul>
         <li>pixel perfect</li>
@@ -31,7 +31,7 @@ in the Rust programming language. It comes batteries included, containing:
     picking), efficient depth ordering, and uses a sophisticated Lab CIECH color management system for
     unparalleled visuals results. Moreover, it is blazing fast. It allows the rasterization of
     millions of shapes 60 frames per second.
-</ul></div></ul>
+</ul></p></ul>
     
 <img align="left" width="36px" src="https://github.com/google/material-design-icons/blob/master/src/content/link/materialiconsround/24px.svg">
 <ul><dl><dl>
