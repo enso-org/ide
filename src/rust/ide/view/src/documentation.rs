@@ -154,16 +154,12 @@ impl Model {
 
     /// Fixes indentation in the first line of documentation by looking at next line, as documentation
     /// doesn't know what was its indentation in the Enso source file.
-    fn fix_indent_in_first_line(string: &str) -> String {
-        let mut processed = string.to_string();
+    fn fix_indent_in_first_line(string: impl Into<String>) -> String {
+        let mut processed = string.into();
         let lines = processed.lines().collect::<Vec<&str>>();
         if lines.len() > 1 {
-            let mut indent = 0;
-            for char in lines[1].chars() {
-                if char != ' ' { break; }
-                indent += 1;
-            }
-            processed = format! {"{}{}", String::from(" ").repeat(indent), processed};
+            let indentation = lines[1].chars().take_while(|c| *c == ' ').count();
+            processed       = format! {"{}{}", String::from(" ").repeat(indentation),processed};
         }
         processed
     }
