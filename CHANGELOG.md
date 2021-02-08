@@ -3,12 +3,6 @@ This is a minor update exposing more control over the anonymous data collection.
 to run the application with `--no-errors-data-collection`, and `--no-data-collection`. The options 
 disable the collection of errors data (keeping the collection of other events), and disables the 
 collection of all data, respectively.
-
-<br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
-
-#### Visual Environment
-- [Updated documentation parser][1098] with hotfixes for things such as misinterpreted tags or 
-  unknown characters that are commonly used.
   
 To learn more what data is collected in Enso alpha releases, 
 read the notes of the `Enso 2.0.0-alpha.1` release.
@@ -24,6 +18,8 @@ read the notes of the `Enso 2.0.0-alpha.1` release.
   now on all supported platforms.
 - [You can now see data frames in the table visualisation][1181]. Big tables get truncated to 2000 
   entries.
+- [Updated documentation parser][1098] with hotfixes for things such as misinterpreted tags or 
+  unknown characters that are commonly used.
   
 #### EnsoGL
 - New multi-camera management system, allowing the same shape systems be rendered on different 
