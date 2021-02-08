@@ -2,11 +2,16 @@
 This is a minor update exposing more control over the anonymous data collection. You are now allowed 
 to run the application with `--no-errors-data-collection`, and `--no-data-collection`. The options 
 disable the collection of errors data (keeping the collection of other events), and disables the 
-collection of all data, respectively. This release also includes updated documentation parser,
-with hotfixes for things such as misinterpreted tags or unknown characters that are commonly used.
+collection of all data, respectively.
+
+<br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
+
+#### Visual Environment
+- [Updated documentation parser][1098] with hotfixes for things such as misinterpreted tags or 
+  unknown characters that are commonly used.
+  
 To learn more what data is collected in Enso alpha releases, 
 read the notes of the `Enso 2.0.0-alpha.1` release.
-
 
 
 # Enso 2.0.0-alpha.1 (2020-01-26)
