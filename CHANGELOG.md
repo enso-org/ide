@@ -2,7 +2,7 @@
 This is a minor update exposing more control over the anonymous data collection. You are now allowed 
 to run the application with `--no-errors-data-collection`, and `--no-data-collection`. The options 
 disable the collection of errors data (keeping the collection of other events), and disables the 
-collection of all data, respectively. To learn more what data is collected in Enso alpha releases,
+collection of all data, respectively. To learn more what data is collected in Enso alpha releases, 
 read the notes of the `Enso 2.0.0-alpha.1` release.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
