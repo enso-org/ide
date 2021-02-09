@@ -444,6 +444,7 @@ pub enum Shape<T> {
     Var           { name : String            },
     Cons          { name : String            },
     Opr           { name : String            },
+    Annotation    { name : String            },
     Mod           { name : String            },
     InvalidSuffix { elem : T, suffix: String },
 
@@ -518,7 +519,7 @@ pub enum Shape<T> {
 macro_rules! with_shape_variants {
     ($f:ident) => {
         $f! { [Unrecognized] [Unexpected Ast] [InvalidQuote] [InlineBlock]
-              [Blank] [Var] [Cons] [Opr] [Mod] [InvalidSuffix Ast]
+              [Blank] [Var] [Cons] [Opr] [Annotation] [Mod] [InvalidSuffix Ast]
               [Number] [DanglingBase]
               [TextLineRaw] [TextLineFmt Ast] [TextBlockRaw] [TextBlockFmt Ast] [TextUnclosed Ast]
               [Prefix Ast] [Infix Ast] [SectionLeft Ast] [SectionRight Ast] [SectionSides Ast]
@@ -653,29 +654,30 @@ pub type MacroPattern = Rc<MacroPatternRaw>;
 
     // === Structural Patterns ===
     Nothing { },
-    Seq     { pat1 : MacroPattern , pat2    : MacroPattern                    },
-    Or      { pat1 : MacroPattern , pat2    : MacroPattern                    },
-    Many    { pat  : MacroPattern                                             },
-    Except  { not  : MacroPattern , pat     : MacroPattern                    },
+    Seq     { pat1 : MacroPattern , pat2    : MacroPattern      },
+    Or      { pat1 : MacroPattern , pat2    : MacroPattern      },
+    Many    { pat  : MacroPattern                               },
+    Except  { not  : MacroPattern , pat     : MacroPattern      },
 
     // === Meta Patterns ===
-    Build   { pat  : MacroPattern                                             },
-    Err     { msg  : String       , pat     : MacroPattern                    },
-    Tag     { tag  : String       , pat     : MacroPattern                    },
-    Cls     { cls  : PatternClass , pat     : MacroPattern                    },
+    Build   { pat  : MacroPattern                               },
+    Err     { msg  : String       , pat     : MacroPattern      },
+    Tag     { tag  : String       , pat     : MacroPattern      },
+    Cls     { cls  : PatternClass , pat     : MacroPattern      },
 
     // === Token Patterns ===
-    Tok     { spaced : Spaced     , ast     : Ast                             },
-    Blank   { spaced : Spaced                                                 },
-    Var     { spaced : Spaced                                                 },
-    Cons    { spaced : Spaced                                                 },
-    Opr     { spaced : Spaced     , max_prec : Option<usize>                  },
-    Mod     { spaced : Spaced                                                 },
-    Num     { spaced : Spaced                                                 },
-    Text    { spaced : Spaced                                                 },
-    Block   { spaced : Spaced                                                 },
-    Macro   { spaced : Spaced                                                 },
-    Invalid { spaced : Spaced                                                 },
+    Tok        { spaced : Spaced     , ast     : Ast            },
+    Blank      { spaced : Spaced                                },
+    Var        { spaced : Spaced                                },
+    Cons       { spaced : Spaced                                },
+    Opr        { spaced : Spaced     , max_prec : Option<usize> },
+    Annotation { spaced : Spaced                                },
+    Mod        { spaced : Spaced                                },
+    Num        { spaced : Spaced                                },
+    Text       { spaced : Spaced                                },
+    Block      { spaced : Spaced                                },
+    Macro      { spaced : Spaced                                },
+    Invalid    { spaced : Spaced                                },
 }
 
 #[ast] pub enum PatternClass { Normal, Pattern }
@@ -723,31 +725,32 @@ pub enum MacroPatternMatchRaw<T> {
     End     { pat: MacroPatternRawEnd   },
 
     // === Structural Matches ===
-    Nothing { pat: MacroPatternRawNothing                                     },
+    Nothing { pat: MacroPatternRawNothing                                      },
     Seq     { pat: MacroPatternRawSeq     , elem: (MacroPatternMatch<T>,
-                                                   MacroPatternMatch<T>)      },
-    Or      { pat: MacroPatternRawOr      , elem: Switch<MacroPatternMatch<T>>},
-    Many    { pat: MacroPatternRawMany    , elem: Vec<MacroPatternMatch<T>>   },
-    Except  { pat: MacroPatternRawExcept  , elem: MacroPatternMatch<T>        },
+                                                   MacroPatternMatch<T>)       },
+    Or      { pat: MacroPatternRawOr      , elem: Switch<MacroPatternMatch<T>> },
+    Many    { pat: MacroPatternRawMany    , elem: Vec<MacroPatternMatch<T>>    },
+    Except  { pat: MacroPatternRawExcept  , elem: MacroPatternMatch<T>         },
 
     // === Meta Matches ===
-    Build   { pat: MacroPatternRawBuild   , elem: T                           },
-    Err     { pat: MacroPatternRawErr     , elem: T                           },
-    Tag     { pat: MacroPatternRawTag     , elem: MacroPatternMatch<T>        },
-    Cls     { pat: MacroPatternRawCls     , elem: MacroPatternMatch<T>        },
+    Build   { pat: MacroPatternRawBuild   , elem: T                            },
+    Err     { pat: MacroPatternRawErr     , elem: T                            },
+    Tag     { pat: MacroPatternRawTag     , elem: MacroPatternMatch<T>         },
+    Cls     { pat: MacroPatternRawCls     , elem: MacroPatternMatch<T>         },
 
     // === Token Matches ===
-    Tok     { pat: MacroPatternRawTok     , elem: T                           },
-    Blank   { pat: MacroPatternRawBlank   , elem: T                           },
-    Var     { pat: MacroPatternRawVar     , elem: T                           },
-    Cons    { pat: MacroPatternRawCons    , elem: T                           },
-    Opr     { pat: MacroPatternRawOpr     , elem: T                           },
-    Mod     { pat: MacroPatternRawMod     , elem: T                           },
-    Num     { pat: MacroPatternRawNum     , elem: T                           },
-    Text    { pat: MacroPatternRawText    , elem: T                           },
-    Block   { pat: MacroPatternRawBlock   , elem: T                           },
-    Macro   { pat: MacroPatternRawMacro   , elem: T                           },
-    Invalid { pat: MacroPatternRawInvalid , elem: T                           },
+    Tok        { pat: MacroPatternRawTok        , elem: T                      },
+    Blank      { pat: MacroPatternRawBlank      , elem: T                      },
+    Var        { pat: MacroPatternRawVar        , elem: T                      },
+    Cons       { pat: MacroPatternRawCons       , elem: T                      },
+    Opr        { pat: MacroPatternRawOpr        , elem: T                      },
+    Annotation { pat: MacroPatternRawAnnotation , elem: T                      },
+    Mod        { pat: MacroPatternRawMod        , elem: T                      },
+    Num        { pat: MacroPatternRawNum        , elem: T                      },
+    Text       { pat: MacroPatternRawText       , elem: T                      },
+    Block      { pat: MacroPatternRawBlock      , elem: T                      },
+    Macro      { pat: MacroPatternRawMacro      , elem: T                      },
+    Invalid    { pat: MacroPatternRawInvalid    , elem: T                      },
 }
 
 // =============================================================================
