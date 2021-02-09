@@ -767,20 +767,22 @@ pub enum MacroPatternMatchRaw<T> {
     pub ast: T,
 }
 
+#[allow(non_snake_case)]
 #[ast] pub struct Import<T> {
     pub path:Vec<T>,
     pub rename:Option<T>,
-    pub is_all:bool,
-    pub only_names:Option<Vec<T>>,
-    pub hiding_names:Option<Vec<T>>,
+    pub isAll:bool,
+    pub onlyNames:Option<Vec<T>>,
+    pub hidingNames:Option<Vec<T>>,
 }
 
+#[allow(non_snake_case)]
 #[ast] pub struct Export<T> {
     pub path:Vec<T>,
     pub rename:Option<T>,
-    pub is_all:bool,
-    pub only_names:Option<Vec<T>>,
-    pub hiding_names:Option<Vec<T>>,
+    pub isAll:bool,
+    pub onlyNames:Option<Vec<T>>,
+    pub hidingNames:Option<Vec<T>>,
 }
 
 #[ast] pub struct JavaImport<T> {
