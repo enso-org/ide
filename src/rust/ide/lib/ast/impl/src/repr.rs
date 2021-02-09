@@ -377,7 +377,8 @@ mod tests {
     // === Import ===
 
     fn make_import() -> Shape<Ast> {
-        Import {path : Ast::var("Target")}.into()
+        let path = vec!(Ast::var("Target"));
+        Import { path,rename:None,isAll:false,onlyNames:None,hidingNames:None }.into()
     }
 
     #[test]

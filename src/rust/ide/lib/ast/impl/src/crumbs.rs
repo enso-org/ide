@@ -441,7 +441,7 @@ impl_crumbs!{
     ( Block         , BlockCrumb         , is_block          ),
     ( Match         , MatchCrumb         , is_match          ),
     ( Ambiguous     , AmbiguousCrumb     , is_ambiguous      ),
-    ( Import        , ImportCrumb        , is_import         ),
+    // ( Import        , ImportCrumb        , is_import         ),
     ( Mixfix        , MixfixCrumb        , is_mixfix         ),
     ( Group         , GroupCrumb         , is_group          ),
     ( Def           , DefCrumb           , is_def            )
@@ -1061,23 +1061,23 @@ impl Crumbable for crate::Ambiguous<Ast> {
     }
 }
 
-impl Crumbable for crate::Import<Ast> {
-    type Crumb = ImportCrumb;
-
-    fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
-        self.path.get(&crumb.0)
-    }
-
-    fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
-        let mut import = self.clone();
-        import.path    = self.path.set(&crumb.0,new_ast)?;
-        Ok(import)
-    }
-
-    fn iter_subcrumbs<'a>(&'a self) -> Box<dyn Iterator<Item = Self::Crumb> + 'a> {
-        Box::new(self.path.iter_subcrumbs().map(ImportCrumb::new))
-    }
-}
+// impl Crumbable for crate::Import<Ast> {
+//     type Crumb = ImportCrumb;
+//
+//     fn get(&self, crumb:&Self::Crumb) -> FallibleResult<&Ast> {
+//         self.path.get(&crumb.0)
+//     }
+//
+//     fn set(&self, crumb:&Self::Crumb, new_ast:Ast) -> FallibleResult<Self> {
+//         let mut import = self.clone();
+//         import.path    = self.path.set(&crumb.0,new_ast)?;
+//         Ok(import)
+//     }
+//
+//     fn iter_subcrumbs<'a>(&'a self) -> Box<dyn Iterator<Item = Self::Crumb> + 'a> {
+//         Box::new(self.path.iter_subcrumbs().map(ImportCrumb::new))
+//     }
+// }
 
 impl Crumbable for crate::Mixfix<Ast> {
     type Crumb = MixfixCrumb;
