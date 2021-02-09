@@ -330,7 +330,9 @@ has_tokens!(Ambiguous<T>, self.segs);
 // =====================
 
 spaceless_ast!(Comment);
+spaceless_ast!(Documented<T>);
 spaceless_ast!(Import<T>);
+spaceless_ast!(Export<T>);
 spaceless_ast!(JavaImport<T>);
 spaceless_ast!(Mixfix<T>);
 spaceless_ast!(Group<T>);

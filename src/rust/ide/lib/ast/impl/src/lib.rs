@@ -500,7 +500,9 @@ pub enum Shape<T> {
 
     // === Spaceless AST ===
     Comment        (Comment),
+    Documented     (Documented<T>),
     Import         (Import<T>),
+    Export         (Export<T>),
     JavaImport     (JavaImport<T>),
     Mixfix         (Mixfix<T>),
     Group          (Group<T>),
@@ -756,12 +758,31 @@ pub enum MacroPatternMatchRaw<T> {
     pub lines: Vec<String>
 }
 
+#[ast] pub struct Documented<T> {
+    pub doc: T,
+    pub emp: i32,
+    pub ast: T,
+}
+
 #[ast] pub struct Import<T> {
-    pub path:T
+    pub path:Vec<T>,
+    pub rename:Option<T>,
+    pub isAll:bool,
+    pub onlyNames:Option<Vec<T>>,
+    pub hidingNames:Option<Vec<T>>,
+}
+
+#[ast] pub struct Export<T> {
+    pub path:Vec<T>,
+    pub rename:Option<T>,
+    pub isAll:bool,
+    pub onlyNames:Option<Vec<T>>,
+    pub hidingNames:Option<Vec<T>>,
 }
 
 #[ast] pub struct JavaImport<T> {
     pub path:Vec<T>,
+    pub rename:Option<T>,
 }
 
 #[ast] pub struct Mixfix<T> {

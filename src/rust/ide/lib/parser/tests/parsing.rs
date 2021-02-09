@@ -370,6 +370,8 @@ impl Fixture {
             , "{x}"
             , "unsafe x", "private x"
             , "polyglot java import com.example.MyClass"
+            , "from foo import all hiding bar"
+            , "from baz export bo"
             , "foo -> bar"
             , "()"
             , "(foo -> bar)"
