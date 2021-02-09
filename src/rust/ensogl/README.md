@@ -14,7 +14,7 @@ possibilities of this framework!
 Enso App Framework is a fully featured framework for building modern, blazing fast web applications
 in the Rust programming language. It comes batteries included, containing:
 
-<img align="left" width="72px" src="https://raw.githubusercontent.com/enso-org/icons/master/it/web_apps/026-color.svg">
+<img align="left" width="72px" src="https://raw.githubusercontent.com/enso-org/icons/master/original/it/web_apps/026-color.svg">
 <ul><ul><ul>
     <b><a href="#">Enso Canvas<a/>. Next generation WebGL-based vector shapes rendering engine.</b><br/>
     Enso Canvas is a pixel-perfect vector shapes rendering engine which uses a high-quality
@@ -25,7 +25,7 @@ in the Rust programming language. It comes batteries included, containing:
     millions of shapes 60 frames per second.
 </ul></ul></ul>
     
-<img align="left" width="72px" src="https://raw.githubusercontent.com/enso-org/icons/master/it/web_apps/026-color.svg">
+<img align="left" width="72px" src="https://raw.githubusercontent.com/enso-org/icons/master/original/it/web_apps/026-color.svg">
 <ul><ul><ul>
     <b><a href="#">Enso FRP<a/>. Reactive events processing engine.</b><br/>
     Enso FRP is a reactive events processing engine designed for efficient GUI events handling with
@@ -34,7 +34,7 @@ in the Rust programming language. It comes batteries included, containing:
   semantics and allows high-performance events routing and processing.
 </ul></ul></ul>
     
-<img align="left" width="72px" src="https://raw.githubusercontent.com/enso-org/icons/master/it/web_apps/026-color.svg">
+<img align="left" width="72px" src="https://raw.githubusercontent.com/enso-org/icons/master/original/it/web_apps/026-color.svg">
 <ul><ul><ul>
     <b><a href="#">Enso Animator<a/>. Reactive animation engine.</b><br/>
     Enso Animator delivers a set of lightweight easing and physical-based animation engines. It allows
@@ -43,14 +43,14 @@ in the Rust programming language. It comes batteries included, containing:
   between states.
 </ul></ul></ul>
     
-<img align="left" width="72px" src="https://raw.githubusercontent.com/enso-org/icons/master/it/web_apps/017-joystick.svg">
+<img align="left" width="72px" src="https://raw.githubusercontent.com/enso-org/icons/master/original/it/web_apps/017-joystick.svg">
 <ul><ul><ul>
     <b><a href="#">Enso Input Manager<a/>. Shortcut and gesture recognition engine for various input devices.</b><br/>
     Enso Input Manager is a shortcut and gesture recognition engine. It was designed to support all kinds
   of input devices, like keyboard, mouse, or VR/AR controllers.
 </ul></ul></ul>
     
-<img align="left" width="72px" src="https://raw.githubusercontent.com/enso-org/icons/master/it/web_apps/026-color.svg">
+<img align="left" width="72px" src="https://raw.githubusercontent.com/enso-org/icons/master/original/it/web_apps/026-color.svg">
 <ul><ul><ul>
     <b><a href="#">Enso GUI Components<a/>. Rich set of modern GUI components.</b><br/>
     Enso GUI Components is a rich set of modern GUI components, including simple ones, like buttons,
@@ -58,7 +58,7 @@ in the Rust programming language. It comes batteries included, containing:
   cursor.
 </ul></ul></ul>
     
-<img align="left" width="72px" src="https://raw.githubusercontent.com/enso-org/icons/master/it/web_apps/026-color.svg">
+<img align="left" width="72px" src="https://raw.githubusercontent.com/enso-org/icons/master/original/it/web_apps/026-color.svg">
 <ul><ul><ul>
     <b><a href="#">Enso Logger<a/>.</b><br/>
     ...
