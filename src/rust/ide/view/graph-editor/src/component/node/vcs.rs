@@ -8,7 +8,6 @@ use ensogl::application::Application;
 use ensogl::data::color;
 use ensogl::display::shape::*;
 use ensogl::display;
-use ensogl::gui::component::ShapeView;
 
 
 
@@ -80,14 +79,13 @@ mod status_indicator_shape {
 /// Internal data of `StatusIndicator`.
 #[derive(Clone,CloneRef,Debug)]
 struct StatusIndicatorModel {
-    shape : ShapeView<status_indicator_shape::Shape>,
+    shape : status_indicator_shape::View,
     root  : display::object::Instance,
 }
 
 impl StatusIndicatorModel {
-    fn new(logger: &Logger, app:&Application) -> Self {
-        let scene  = app.display.scene();
-        let shape = ShapeView::<status_indicator_shape::Shape>::new(&logger,scene);
+    fn new(logger: &Logger) -> Self {
+        let shape = status_indicator_shape::View::new(logger);
         let root = display::object::Instance::new(&logger);
         root.add_child(&shape);
         StatusIndicatorModel{shape, root}
@@ -144,7 +142,7 @@ impl StatusIndicator {
     /// Constructor.
     pub fn new(app:&Application) -> Self {
         let logger = Logger::new("status_indicator");
-        let model  = Rc::new(StatusIndicatorModel::new(&logger,app));
+        let model  = Rc::new(StatusIndicatorModel::new(&logger));
         let frp    = Frp::new();
         Self {frp,model}.init_frp(app)
     }
@@ -168,11 +166,11 @@ impl StatusIndicator {
             indicator_color.target <+ status_color;
 
             eval indicator_color.value ((c)
-                model.shape.shape.color_rgba.set(color::Rgba::from(c).into())
+                model.shape.color_rgba.set(color::Rgba::from(c).into())
             );
 
             eval frp.input.set_size ((size)
-                model.shape.shape.sprite.size.set(*size);
+                model.shape.size.set(*size);
             );
 
             has_status <- frp.status.map(|status| status.is_some());

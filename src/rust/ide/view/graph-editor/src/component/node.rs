@@ -387,8 +387,6 @@ impl NodeModel {
         let error_text      = app.new_view::<text::Area>();
         let vcs_indicator   = vcs::StatusIndicator::new(app);
 
-        input::area::depth_sort_hack(scene); // FIXME hack for sorting
-
         let display_object  = display::object::Instance::new(&logger);
         display_object.add_child(&drag_area);
         display_object.add_child(&main_area);
