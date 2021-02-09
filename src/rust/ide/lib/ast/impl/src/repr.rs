@@ -380,7 +380,7 @@ mod tests {
 
     fn make_import() -> Shape<Ast> {
         let path = vec!(Ast::var("Target"));
-        Import { path,rename:None,isAll:false,onlyNames:None,hidingNames:None }.into()
+        Import { path,rename:None, is_all:false, only_names:None, hiding_names:None }.into()
     }
 
     #[test]

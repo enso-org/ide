@@ -770,17 +770,17 @@ pub enum MacroPatternMatchRaw<T> {
 #[ast] pub struct Import<T> {
     pub path:Vec<T>,
     pub rename:Option<T>,
-    pub isAll:bool,
-    pub onlyNames:Option<Vec<T>>,
-    pub hidingNames:Option<Vec<T>>,
+    pub is_all:bool,
+    pub only_names:Option<Vec<T>>,
+    pub hiding_names:Option<Vec<T>>,
 }
 
 #[ast] pub struct Export<T> {
     pub path:Vec<T>,
     pub rename:Option<T>,
-    pub isAll:bool,
-    pub onlyNames:Option<Vec<T>>,
-    pub hidingNames:Option<Vec<T>>,
+    pub is_all:bool,
+    pub only_names:Option<Vec<T>>,
+    pub hiding_names:Option<Vec<T>>,
 }
 
 #[ast] pub struct JavaImport<T> {
