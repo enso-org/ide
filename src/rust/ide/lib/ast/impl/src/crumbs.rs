@@ -307,6 +307,7 @@ pub enum PatternMatchCrumb {
     Var,
     Cons,
     Opr,
+    Annotation,
     Mod,
     Num,
     Text,
