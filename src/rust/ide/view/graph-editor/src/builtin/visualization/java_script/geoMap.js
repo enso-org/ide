@@ -109,6 +109,9 @@ const makeId = makeGenerator()
  *     }]
  * }]
  * }
+ *
+ * Can also consume an array of `Geo_Point` structures, or a dataframe that has the columns
+ * `latitude`, `longitude` and `label`.
  */
 class GeoMapVisualization extends Visualization {
     static inputType = 'Any'
