@@ -11,7 +11,8 @@ use enso_protocol::language_server;
 use enso_protocol::project_manager;
 use enso_protocol::project_manager::ProjectName;
 use uuid::Uuid;
-
+use ensogl::application::Application;
+use ensogl::system::web;
 
 
 // =================
@@ -64,13 +65,25 @@ impl Initializer {
         let executor = setup_global_executor();
         executor::global::spawn(async move {
             info!(self.logger, "Starting IDE with the following config: {self.config:?}");
+            let project_model = self.initialize_project_model();
+            let application   = Application::new(&web::get_html_element_by_id("root").unwrap());
+            let view          = application.new_view::<ide_view::project::View>();
+            view.graph().model.breadcrumbs.project_name(self.config.project_name.to_string());
+            let status_bar    = view.status_bar().clone_ref();
+            application.display.add_child(&view);
             // TODO [mwu] Once IDE gets some well-defined mechanism of reporting
             //      issues to user, such information should be properly passed
             //      in case of setup failure.
-            let project_model = self.initialize_project_model().await;
+            let project_model = project_model.await;
             let project_model = project_model.expect("Failed to setup project model.");
-            let ide           = Ide::new(project_model).await;
+            let ide           = Ide::new(application,view,project_model).await;
             let ide           = ide.expect("Failed to initialize project view.");
+
+            web::get_element_by_id("loader").map(|t| {
+                t.parent_node().map(|p| {
+                    p.remove_child(&t).unwrap()
+                })
+            }).ok();
             info!(self.logger,"Setup done.");
             std::mem::forget(ide);
         });
