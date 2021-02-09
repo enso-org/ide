@@ -142,7 +142,7 @@ impl Model {
             Ok(PLACEHOLDER_STR.into())
         } else {
             let parser    = parser::DocParser::new()?;
-            let processed = Model::fix_indent_in_first_line(string);
+            let processed = string.to_string();
             let output    = match input_type {
                 InputFormat::AST       => parser.generate_html_docs(processed),
                 InputFormat::Docstring => parser.generate_html_doc_pure(processed),
@@ -150,18 +150,6 @@ impl Model {
             let output = output?;
             Ok( if output.is_empty() { PLACEHOLDER_STR.into() } else { output } )
         }
-    }
-
-    /// Fixes indentation in the first line of documentation by looking at next line, as documentation
-    /// doesn't know what was its indentation in the Enso source file.
-    fn fix_indent_in_first_line(string: impl Into<String>) -> String {
-        let mut processed = string.into();
-        let lines = processed.lines().collect::<Vec<&str>>();
-        if lines.len() > 1 {
-            let indentation = lines[1].chars().take_while(|c| *c == ' ').count();
-            processed       = format! {"{}{}", String::from(" ").repeat(indentation),processed};
-        }
-        processed
     }
 
     /// Create a container for generated content and embed it with stylesheet.
