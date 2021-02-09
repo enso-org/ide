@@ -158,6 +158,17 @@ class GeoMapVisualization extends Visualization {
     }
 
     onDataReceived(data) {
+        if (!this.isInit) {
+            this.setPreprocessor(
+                `df -> (Json.from_pairs [['df_label',df.at 'label' . to_vector],['df_latitude', df.at 'latitude' . to_vector], ['df_longitude', df.at 'longitude' . to_vector]]).to_text`
+            )
+            this.isInit = true
+            // We discard this data as it is in the wrong format. We will get another update with
+            // the correct data that has been transformed by the preprocessor. (Which will be the
+            // same data format if it was not a data frame.
+            return
+        }
+
         let parsedData = data
         if (typeof data === 'string') {
             parsedData = JSON.parse(data)
@@ -171,12 +182,9 @@ class GeoMapVisualization extends Visualization {
      * Update the internal data with the new incoming data. Does not affect anything rendered.
      */
     updateState(data) {
-        let { latitude, longitude } = this.prepareDataPoints(
-            data,
-            this.dataPoints,
-            this.accentColor
-        )
+        updateDataPoints(data, this.dataPoints, this.accentColor)
 
+        const { latitude, longitude } = this.centerPoint()
         this.latitude = ok(data.latitude) ? data.latitude : latitude
         this.longitude = ok(data.longitude) ? data.longitude : longitude
 
@@ -249,113 +257,9 @@ class GeoMapVisualization extends Visualization {
         })
     }
 
-    /**
-     * Prepares data points to be shown on the map.
-     *
-     * It checks the type of input data, whether user wants to display single `GEO_POINT`, array of
-     * those, `SCATTERPLOT_LAYER` or a fully defined `GEO_MAP`, and prepares data field of deck.gl
-     * layer for given input.
-     *
-     * @param preparedDataPoints - List holding data points to push the GeoPoints into.
-     * @param parsedData         - All the parsed data to create points from.
-     * @param accentColor        - accent color of IDE if element doesn't specify one.
-     */
-    prepareDataPoints(parsedData, preparedDataPoints, accentColor) {
-        let latitude = 0.0
-        let longitude = 0.0
-
-        if (parsedData.type === GEO_POINT) {
-            this.pushGeoPoint(preparedDataPoints, parsedData, accentColor)
-            latitude = parsedData.latitude
-            longitude = parsedData.longitude
-        } else if (Array.isArray(parsedData) && parsedData.length) {
-            const computed = this.calculateExtremesAndPushPoints(
-                parsedData,
-                preparedDataPoints,
-                accentColor
-            )
-            latitude = computed.latitude
-            longitude = computed.longitude
-        } else {
-            if (
-                parsedData.type === SCATTERPLOT_LAYER &&
-                parsedData.data.length
-            ) {
-                const computed = this.calculateExtremesAndPushPoints(
-                    parsedData.data,
-                    preparedDataPoints,
-                    accentColor
-                )
-                latitude = computed.latitude
-                longitude = computed.longitude
-            } else if (parsedData.type === GEO_MAP && ok(parsedData.layers)) {
-                parsedData.layers.forEach((layer) => {
-                    if (layer.type === SCATTERPLOT_LAYER) {
-                        let dataPoints = layer.data || []
-                        const computed = this.calculateExtremesAndPushPoints(
-                            dataPoints,
-                            preparedDataPoints,
-                            accentColor
-                        )
-                        latitude = computed.latitude
-                        longitude = computed.longitude
-                    } else {
-                        console.warn(
-                            'Geo_Map: Currently unsupported deck.gl layer.'
-                        )
-                    }
-                })
-            }
-        }
-        return { latitude, longitude }
-    }
-
-    /**
-     * Helper for prepareDataPoints, pushes `GEO_POINT`'s to the list, and calculates central point.
-     * @returns {{latitude: number, longitude: number}} - center.
-     */
-    calculateExtremesAndPushPoints(
-        dataPoints,
-        preparedDataPoints,
-        accentColor
-    ) {
-        let latitudes = []
-        let longitudes = []
-        dataPoints.forEach((e) => {
-            if (e.type === GEO_POINT) {
-                this.pushGeoPoint(preparedDataPoints, e, accentColor)
-                latitudes.push(e.latitude)
-                longitudes.push(e.longitude)
-            }
-        })
-        let latitude = 0.0
-        let longitude = 0.0
-        if (latitudes.length && longitudes.length) {
-            let minLat = Math.min.apply(null, latitudes)
-            let maxLat = Math.max.apply(null, latitudes)
-            latitude = (minLat + maxLat) / 2
-            let minLon = Math.min.apply(null, longitudes)
-            let maxLon = Math.max.apply(null, longitudes)
-            longitude = (minLon + maxLon) / 2
-        }
-        return { latitude, longitude }
-    }
-
-    /**
-     * Pushes a new deck.gl-compatible point made out of `GEO_POINT`
-     *
-     * @param preparedDataPoints - List holding geoPoints to push the new element into.
-     * @param geoPoint           - `GEO_POINT` to create new deck.gl point from.
-     * @param accentColor        - accent color of IDE if `GEO_POINT` doesn't specify one.
-     */
-    pushGeoPoint(preparedDataPoints, geoPoint, accentColor) {
-        let position = [geoPoint.longitude, geoPoint.latitude]
-        let radius = isNaN(geoPoint.radius)
-            ? DEFAULT_POINT_RADIUS
-            : geoPoint.radius
-        let color = ok(geoPoint.color) ? geoPoint.color : accentColor
-        let label = ok(geoPoint.label) ? geoPoint.label : ''
-        preparedDataPoints.push({ position, color, radius, label })
+    centerPoint() {
+        const { x, y } = calculateCenterPoint(this.dataPoints)
+        return { latitude: x, longitude: y }
     }
 
     /**
@@ -371,6 +275,117 @@ class GeoMapVisualization extends Visualization {
             'width:' + size[0] + 'px;height: ' + size[1] + 'px;'
         )
     }
+}
+
+function prepareArray(parsedData, preparedDataPoints, accentColor) {
+    pushGeoPoints(parsedData, preparedDataPoints, accentColor)
+}
+
+function prepareGeoPoints(parsedData, preparedDataPoints, accentColor) {
+    pushGeoPoints(preparedDataPoints, parsedData, accentColor)
+    const latitude = parsedData.latitude
+    const longitude = parsedData.longitude
+    return { latitude, longitude }
+}
+
+function prepareDeckGLLayer(parsedData, preparedDataPoints, accentColor) {
+    if (parsedData.type === SCATTERPLOT_LAYER && parsedData.data.length) {
+        pushGeoPoints(parsedData.data, preparedDataPoints, accentColor)
+    } else if (parsedData.type === GEO_MAP && ok(parsedData.layers)) {
+        parsedData.layers.forEach((layer) => {
+            if (layer.type === SCATTERPLOT_LAYER) {
+                let dataPoints = layer.data || []
+                pushGeoPoints(dataPoints, preparedDataPoints, accentColor)
+            } else {
+                console.warn('Geo_Map: Currently unsupported deck.gl layer.')
+            }
+        })
+    }
+}
+
+function prepareDataFrame(parsedData, preparedDataPoints, accentColor) {
+    console.log('prepareDataFrame')
+    const geoPoints = parsedData.df_latitude.map(function (lat, i) {
+        const lon = parsedData.df_longitude[i]
+        const label = parsedData.df_label[i]
+        return { latitude: lat, longitude: lon, label }
+    })
+    pushGeoPoints(geoPoints, preparedDataPoints, accentColor)
+}
+
+function isDataFrame(data) {
+    return data.df_latitude !== undefined && data.df_longitude !== undefined
+}
+
+function isArray(data) {
+    return Array.isArray(data) && data.length
+}
+
+function isGeoPointData(data) {
+    return data.type === GEO_POINT
+}
+
+/**
+ * Prepares data points to be shown on the map.
+ *
+ * It checks the type of input data and prepares our internal data  (`GeoPoints') for consumption
+ * in deck.gl.
+ *
+ * @param parsedData         - All the parsed data to create points from.
+ * @param preparedDataPoints - List holding data points to push the GeoPoints into.
+ * @param accentColor        - accent color of IDE if element doesn't specify one.
+ */
+function updateDataPoints(parsedData, preparedDataPoints, accentColor) {
+    if (isDataFrame(parsedData)) {
+        prepareDataFrame(parsedData, preparedDataPoints, accentColor)
+    } else if (isGeoPointData(parsedData)) {
+        prepareGeoPoints(parsedData, preparedDataPoints, accentColor)
+    } else if (isArray(parsedData)) {
+        prepareArray(parsedData, preparedDataPoints, accentColor)
+    } else {
+        prepareDeckGLLayer(parsedData, preparedDataPoints, accentColor)
+    }
+}
+
+/**
+ * Transforms the `dataPoints` to the internal data format and appends them to the `targetList`.
+ * Also adds the `accentColor` for each point.
+ */
+function pushGeoPoints(dataPoints, targetList, accentColor) {
+    dataPoints.forEach((geoPoint) => {
+        let position = [geoPoint.longitude, geoPoint.latitude]
+        let radius = isNaN(geoPoint.radius)
+            ? DEFAULT_POINT_RADIUS
+            : geoPoint.radius
+        let color = ok(geoPoint.color) ? geoPoint.color : accentColor
+        let label = ok(geoPoint.label) ? geoPoint.label : ''
+        targetList.push({ position, color, radius, label })
+    })
+}
+
+/**
+ * Calculate the center of the bounding box of the given list of objects. The objects need to have
+ * a `position` attribute with two coordinates.
+ * @returns {{x: number, y: number}}
+ */
+function calculateCenterPoint(dataPoints) {
+    const xs = []
+    const ys = []
+    dataPoints.forEach((e) => {
+        xs.push(e.position[0])
+        ys.push(e.position[1])
+    })
+    let x = 0.0
+    let y = 0.0
+    if (xs.length && ys.length) {
+        let minX = Math.min(...xs)
+        let maxX = Math.max(...xs)
+        x = (minX + maxX) / 2
+        let minY = Math.min(...ys)
+        let maxY = Math.max(...ys)
+        y = (minY + maxY) / 2
+    }
+    return { x, y }
 }
 
 /**
