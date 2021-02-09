@@ -33,9 +33,12 @@ read the notes of the `Enso 2.0.0-alpha.1` release.
 - [Added the ability to reposition visualisations.][1096] There is now an icon in the visualization 
   action bar that allows dragging the visualization. Once the visualization has been moved, there 
   appears another icon that will reset the position to the original position.
+- [Allow Tables to feed the Geo Map visualisation.][1187] Tables that have `latitude`, `longitude`
+  and `label` columns can now be shown in a Gei Map visualisation where each row is mapped to a 
+  point of the map with the given label.
 
 [1096]: https://github.com/enso-org/ide/pull/1172
-[1181]: https://github.com/enso-org/ide/pull/1181
+[1187]: https://github.com/enso-org/ide/pull/1187
 <br/>
 
 
