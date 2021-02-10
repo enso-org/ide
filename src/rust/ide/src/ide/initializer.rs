@@ -22,8 +22,9 @@ use ensogl::system::web;
 // TODO[ao] We need to set a big timeout on Project Manager to make sure it will have time to
 //     download required version of Engine. This should be handled properly when implementing
 //     https://github.com/enso-org/ide/issues/1034
-const PROJECT_MANAGER_TIMEOUT_SEC     : u64          = 2 * 60 * 60;
-const ENGINE_VERSION_FOR_NEW_PROJECTS : Option<&str> = Some("0.2.1");
+const PROJECT_MANAGER_TIMEOUT_SEC     : u64  = 2 * 60 * 60;
+const ENGINE_VERSION_SUPPORTED        : &str = "^0.2.2";
+const ENGINE_VERSION_FOR_NEW_PROJECTS : &str = "0.2.2-SNAPSHOT";
 
 
 
@@ -76,6 +77,7 @@ impl Initializer {
             //      in case of setup failure.
             let project_model = project_model.await;
             let project_model = project_model.expect("Failed to setup project model.");
+            self.display_warning_on_unsupported_engine_version(&view,&project_model).expect("Internal Error");
             let ide           = Ide::new(application,view,project_model).await;
             let ide           = ide.expect("Failed to initialize project view.");
 
@@ -94,7 +96,7 @@ impl Initializer {
     ///
     /// This will setup all required connections to backend properly, according to the
     /// configuration.
-    pub async fn initialize_project_model(&self) -> FallibleResult<model::Project>{
+    pub async fn initialize_project_model(&self) -> FallibleResult<model::Project> {
         use crate::config::BackendService::*;
         match &self.config.backend {
             ProjectManager { endpoint } => {
@@ -109,10 +111,12 @@ impl Initializer {
                 let project_manager = None;
                 let json_endpoint   = json_endpoint.clone();
                 let binary_endpoint = binary_endpoint.clone();
+                // TODO[ao]: we should think how to handle engine's versions in cloud.
+                let version         = ENGINE_VERSION_FOR_NEW_PROJECTS.to_owned();
                 let project_id      = default();
                 let project_name    = self.config.project_name.clone();
                 let project_model   = create_project_model(logger,project_manager,json_endpoint
-                    ,binary_endpoint,project_id,project_name);
+                    ,binary_endpoint,version,project_id,project_name);
                 project_model.await
             }
         }
@@ -127,6 +131,18 @@ impl Initializer {
         project_manager.set_timeout(std::time::Duration::from_secs(PROJECT_MANAGER_TIMEOUT_SEC));
         executor::global::spawn(project_manager.runner());
         Ok(Rc::new(project_manager))
+    }
+
+    fn display_warning_on_unsupported_engine_version(&self, view:&ide_view::project::View, project:&model::Project) -> FallibleResult {
+        let requirements = semver::VersionReq::parse(ENGINE_VERSION_SUPPORTED)?;
+        let version      = project.engine_version();
+        if !requirements.matches(version) {
+            let message = format!("ERROR: Unsupported Enso Engine version - {} does not match {}. \
+                Please update engine_version in package.yaml.",version,requirements);
+            let label   = ide_view::status_bar::event::Label::from(message);
+            view.status_bar().add_event(label);
+        }
+        Ok(())
     }
 }
 
@@ -167,14 +183,15 @@ impl WithProjectManager {
         use project_manager::MissingComponentAction::*;
 
         let project_id      = self.get_project_or_create_new().await?;
-        let endpoints       = self.project_manager.open_project(&project_id,&Install).await?;
+        let opened_project  = self.project_manager.open_project(&project_id,&Install).await?;
         let logger          = &self.logger;
-        let json_endpoint   = endpoints.language_server_json_address.to_string();
-        let binary_endpoint = endpoints.language_server_binary_address.to_string();
+        let json_endpoint   = opened_project.language_server_json_address.to_string();
+        let binary_endpoint = opened_project.language_server_binary_address.to_string();
+        let engine_version  = opened_project.engine_version;
         let project_manager = Some(self.project_manager);
         let project_name    = self.project_name;
         let project_model   = create_project_model(logger,project_manager,json_endpoint
-            ,binary_endpoint,project_id,project_name);
+            ,binary_endpoint,engine_version,project_id,project_name);
         project_model.await
     }
 
@@ -182,7 +199,7 @@ impl WithProjectManager {
     pub async fn create_project(&self) -> FallibleResult<Uuid> {
         use project_manager::MissingComponentAction::Install;
         info!(self.logger,"Creating a new project named '{self.project_name}'.");
-        let version           = ENGINE_VERSION_FOR_NEW_PROJECTS.map(ToOwned::to_owned);
+        let version           = Some(ENGINE_VERSION_FOR_NEW_PROJECTS.to_owned());
         let ProjectName(name) = &self.project_name;
         let response          = self.project_manager.create_project(name,&version,&Install);
         Ok(response.await?.project_id)
@@ -224,12 +241,13 @@ pub fn setup_global_executor() -> executor::web::EventLoopExecutor {
 
 /// Initializes the json and binary connection to Language Server, and creates a Project Model
 async fn create_project_model
-( logger : &Logger
-, project_manager : Option<Rc<dyn project_manager::API>>
-, json_endpoint   : String
-, binary_endpoint : String
-, project_id      : Uuid
-, project_name    : ProjectName
+(logger : &Logger
+ , project_manager : Option<Rc<dyn project_manager::API>>
+ , json_endpoint   : String
+ , binary_endpoint : String
+ , engine_version  : String
+ , project_id      : Uuid
+ , project_name    : ProjectName
 ) -> FallibleResult<model::Project> {
     info!(logger, "Establishing Language Server connection.");
     let client_id     = Uuid::new_v4();
@@ -241,9 +259,10 @@ async fn create_project_model
     crate::executor::global::spawn(client_binary.runner());
     let connection_json   = language_server::Connection::new(client_json,client_id).await?;
     let connection_binary = binary::Connection::new(client_binary,client_id).await?;
+    let version           = semver::Version::parse(&engine_version)?;
     let ProjectName(name) = project_name;
     let project           = model::project::Synchronized::from_connections
-        (logger,project_manager,connection_json,connection_binary,project_id,name).await?;
+        (logger,project_manager,connection_json,connection_binary,version,project_id,name).await?;
     Ok(Rc::new(project))
 }
 

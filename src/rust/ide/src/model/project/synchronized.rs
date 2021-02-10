@@ -129,6 +129,7 @@ pub struct Project {
     pub project_manager     : Option<Rc<dyn project_manager::API>>,
     pub language_server_rpc : Rc<language_server::Connection>,
     pub language_server_bin : Rc<binary::Connection>,
+    pub engine_version      : Rc<semver::Version>,
     pub module_registry     : Rc<model::registry::Registry<module::Path,module::Synchronized>>,
     pub execution_contexts  : Rc<ExecutionContextsRegistry>,
     pub visualization       : controller::Visualization,
@@ -144,6 +145,7 @@ impl Project {
     , project_manager     : Option<Rc<dyn project_manager::API>>
     , language_server_rpc : Rc<language_server::Connection>
     , language_server_bin : Rc<binary::Connection>
+    , engine_version      : semver::Version
     , id                  : Uuid
     , name                : impl Str
     ) -> FallibleResult<Self> {
@@ -153,6 +155,7 @@ impl Project {
         let json_rpc_events         = language_server_rpc.events();
         let embedded_visualizations = default();
         let language_server         = language_server_rpc.clone();
+        let engine_version          = Rc::new(engine_version);
         let module_registry         = default();
         let execution_contexts      = default();
         let visualization           = controller::Visualization::new(language_server,embedded_visualizations);
@@ -164,8 +167,8 @@ impl Project {
         
         let data = Rc::new(Data {id,name});
 
-        let ret = Project {data,parser,project_manager,language_server_rpc,module_registry,
-            execution_contexts,language_server_bin,logger,visualization,suggestion_db};
+        let ret = Project {data,parser,project_manager,language_server_rpc,language_server_bin
+            ,engine_version,module_registry,execution_contexts,logger,visualization,suggestion_db};
 
         let binary_handler = ret.binary_event_handler();
         crate::executor::global::spawn(binary_protocol_events.for_each(binary_handler));
@@ -183,12 +186,14 @@ impl Project {
     , project_manager     : Option<Rc<dyn project_manager::API>>
     , language_server_rpc : language_server::Connection
     , language_server_bin : binary::Connection
+    , engine_version      : semver::Version
     , id                  : Uuid
     , name                : impl Str
     ) -> impl Future<Output=FallibleResult<Self>> {
         let language_server_rpc = Rc::new(language_server_rpc);
         let language_server_bin = Rc::new(language_server_bin);
-        Self::new(parent,project_manager,language_server_rpc,language_server_bin,id,name)
+        Self::new(parent,project_manager,language_server_rpc,language_server_bin,engine_version,id
+            ,name)
     }
 
     /// Returns a handling function capable of processing updates from the binary protocol.
@@ -312,6 +317,8 @@ impl model::project::API for Project {
         self.language_server_bin.clone_ref()
     }
 
+    fn engine_version(&self) -> &semver::Version { &*self.engine_version }
+
     fn parser(&self) -> Parser {
         self.parser.clone_ref()
     }
@@ -417,8 +424,9 @@ mod test {
             let project_manager   = Rc::new(project_manager);
             let logger            = Logger::new("Fixture");
             let id                = Uuid::new_v4();
+            let engine_version    = semver::Version::new(0,2,1);
             let project_fut       = Project::from_connections(logger,Some(project_manager),
-                json_connection,binary_connection,id,DEFAULT_PROJECT_NAME).boxed_local();
+                json_connection,binary_connection,engine_version,id,DEFAULT_PROJECT_NAME).boxed_local();
             let project = test.expect_completion(project_fut).unwrap();
             Fixture {test,project,binary_events_sender,json_events_sender}
         }
