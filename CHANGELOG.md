@@ -39,6 +39,7 @@ read the notes of the `Enso 2.0.0-alpha.1` release.
 
 [1096]: https://github.com/enso-org/ide/pull/1172
 [1181]: https://github.com/enso-org/ide/pull/1181
+[1186]: https://github.com/enso-org/ide/pull/1186
 [1190]: https://github.com/enso-org/ide/pull/1190
 <br/>
 
