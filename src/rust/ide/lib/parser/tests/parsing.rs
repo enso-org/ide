@@ -361,7 +361,7 @@ impl Fixture {
 
     /// Tests parsing a number of sample macro usages.
     ///
-    /// As macros geneerate usually really huge ASTs, this test only checks
+    /// As macros generate usually really huge ASTs, this test only checks
     /// that we are able to deserialize the response and that it is a macro
     /// match node. Node contents is not covered.
     fn deserialize_macro_matches(&mut self) {
@@ -370,14 +370,11 @@ impl Fixture {
             , "{x}"
             , "unsafe x", "private x"
             , "polyglot java import com.example.MyClass"
-            , "from foo import all hiding bar"
-            , "from baz export bo"
             , "foo -> bar"
             , "()"
             , "(foo -> bar)"
             , "a b c -> bar"
             , "type Maybe a\n    Just val:a"
-            , "foreign Python3\n  bar"
             , "if foo > 8 then 10 else 9"
             , "skip bar"
             , "freeze bar"
@@ -458,4 +455,20 @@ fn block_roundtrip() {
     for program in programs {
         roundtrip_program(program);
     }
+}
+
+/// Fixed test case, where we used to get invalid suffix, instead of infix.
+#[wasm_bindgen_test]
+fn extension_operator_methods() {
+    let ast = parser::Parser::new_or_panic().parse_line("Int.+").unwrap();
+
+    use ast::*;
+    if let Shape::Infix(Infix {larg:_larg,loff:_loff,opr,roff:_roff,rarg}, ..) = ast.shape() {
+        if let Shape::Opr(Opr{..}) = opr.shape() {
+            if let Shape::Var(Var{..}) = rarg.shape() {
+                return;
+            }
+        }
+    }
+    panic!("Should have matched into return.");
 }
