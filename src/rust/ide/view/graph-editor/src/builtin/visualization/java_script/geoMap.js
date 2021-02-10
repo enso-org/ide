@@ -163,10 +163,10 @@ class GeoMapVisualization extends Visualization {
     onDataReceived(data) {
         if (!this.isInit) {
             this.setPreprocessor(
-                "df ->\n" +
-                "    columns = df.select ['label', 'latitude', 'longitude'] . columns\n" +
-                "    serialized = columns.map (c -> ['df_' + c.name, c.to_vector])\n" +
-                "    Json.from_pairs serialized . to_text"
+                'df ->\n' +
+                    "    columns = df.select ['label', 'latitude', 'longitude'] . columns\n" +
+                    "    serialized = columns.map (c -> ['df_' + c.name, c.to_vector])\n" +
+                    '    Json.from_pairs serialized . to_text'
             )
             this.isInit = true
             // We discard this data as it is in the wrong format. We will get another update with
@@ -313,7 +313,7 @@ function prepareDataFrame(parsedData, preparedDataPoints, accentColor) {
     console.log('prepareDataFrame')
     const geoPoints = parsedData.df_latitude.map(function (lat, i) {
         const lon = parsedData.df_longitude[i]
-        let label = ok(parsedData.df_label) ?  parsedData.df_label[i] : undefined
+        let label = ok(parsedData.df_label) ? parsedData.df_label[i] : undefined
         return { latitude: lat, longitude: lon, label }
     })
     pushGeoPoints(geoPoints, preparedDataPoints, accentColor)
