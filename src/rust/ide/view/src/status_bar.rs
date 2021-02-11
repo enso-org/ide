@@ -3,7 +3,8 @@
 //! The component is currently rather a stub: it has endpoints for setting many events and
 //! processes and keep them in a list, but it shows only a label of the last event/process
 //! added.
-//TODO[ao] Implement the status bar according to
+//TODO[ao] Implement the status bar according to https://github.com/enso-org/ide/issues/1193
+//    description
 use crate::prelude::*;
 
 use ensogl::application::Application;
@@ -58,7 +59,7 @@ pub mod process {
 
     impl Id {
         /// Return the next id.
-        pub fn next(&self) -> Id {
+        pub fn next(self) -> Id {
             Id(self.0 + 1)
         }
     }
@@ -154,7 +155,7 @@ impl Model {
 /// The StatusBar component view.
 ///
 /// The status bar gathers information about events and processes occurring in the Application.
-// TODO: This is a stub. Extend it in
+// TODO: This is a stub. Extend it when doing https://github.com/enso-org/ide/issues/1193
 #[derive(Clone,CloneRef,Debug)]
 pub struct View {
     frp   : Frp,
