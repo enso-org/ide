@@ -16,7 +16,6 @@ read the notes of the `Enso 2.0.0-alpha.1` release.
   now on all supported platforms.
 - [You can now see data frames in the table visualisation][1181]. Big tables get truncated to 2000 
   entries.
-- [Updated AST][1186]. Introducing new import/export syntax, as well as annotations.
 
 #### EnsoGL
 - New multi-camera management system, allowing the same shape systems be rendered on different 
@@ -39,7 +38,6 @@ read the notes of the `Enso 2.0.0-alpha.1` release.
 
 [1096]: https://github.com/enso-org/ide/pull/1172
 [1181]: https://github.com/enso-org/ide/pull/1181
-[1186]: https://github.com/enso-org/ide/pull/1186
 [1190]: https://github.com/enso-org/ide/pull/1190
 <br/>
 
