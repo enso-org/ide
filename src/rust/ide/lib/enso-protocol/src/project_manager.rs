@@ -365,7 +365,7 @@ mod remote_client_tests {
         let open_result                    = response::OpenProject {engine_version
             ,language_server_json_address,language_server_binary_address};
         let open_result_json = json!({
-            "engineVersion" : "0.2.1.",
+            "engineVersion" : "0.2.1",
             "languageServerJsonAddress" : {
                 "host" : "localhost",
                 "port" : 27015
