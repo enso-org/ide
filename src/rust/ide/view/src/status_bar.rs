@@ -168,7 +168,11 @@ impl View {
         let frp         = Frp::new();
         let model       = Model::new(&app);
         let network     = &frp.network;
-        let scene_shape = app.display.scene().shape().clone_ref();
+        let scene       = app.display.scene();
+        let scene_shape = scene.shape().clone_ref();
+
+        model.label.remove_from_scene_layer_DEPRECATED(&scene.layers.main);
+        model.label.add_to_scene_layer_DEPRECATED(&scene.layers.breadcrumbs);
 
         enso_frp::extend! { network
             event_added       <- frp.add_event.map(f!((label) model.add_event(label)));
