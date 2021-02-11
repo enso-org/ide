@@ -16,7 +16,9 @@ read the notes of the `Enso 2.0.0-alpha.1` release.
   now on all supported platforms.
 - [You can now see data frames in the table visualisation][1181]. Big tables get truncated to 2000 
   entries.
-- [Fixing documentation layout in Searcher][1098]. Includes misinterpreted tags and unknown characters that are commonly used.
+- [Documentation in Searcher][1098]. Fixed cases where text would be misinterpreted as tag, added
+  support for new tag types, added support for more common characters, properly renders overflowing
+  text.
   
 #### EnsoGL
 - New multi-camera management system, allowing the same shape systems be rendered on different 

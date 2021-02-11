@@ -185,7 +185,7 @@ impl View {
         ensogl_theme::builtin::dark::register(app);
         ensogl_theme::builtin::light::register(app);
         // Should not be needed after proper theme management will be introduced:
-        ensogl_theme::builtin::light::enable(app);
+        ensogl_theme::builtin::dark::enable(app);
 
         let model                      = Model::new(app);
         let frp                        = Frp::new();
@@ -194,7 +194,7 @@ impl View {
         let network                    = &frp.network;
         let searcher_left_top_position = DEPRECATED_Animation::<Vector2<f32>>::new(network);
 
-        model.set_style(Theme::Light);
+        model.set_style(Theme::Dark);
 
         frp::extend!{ network
             // === Searcher Position and Size ===
