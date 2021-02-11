@@ -163,11 +163,13 @@ class GeoMapVisualization extends Visualization {
     onDataReceived(data) {
         if (!this.isInit) {
             this.setPreprocessor(
-                'df ->\n' +
-                    "    columns = df.select ['label', 'latitude', 'longitude'] . columns\n" +
+                'df -> match df\n' +
+                    "    case Table -> columns = df.select ['label', 'latitude', 'longitude'] . columns\n" +
                     "    serialized = columns.map (c -> ['df_' + c.name, c.to_vector])\n" +
-                    '    Json.from_pairs serialized . to_text'
-            )
+                    '    Json.from_pairs serialized . to_text' +
+                    ' _ -> df.to_string'
+
+        )
             this.isInit = true
             // We discard this data as it is in the wrong format. We will get another update with
             // the correct data that has been transformed by the preprocessor. (Which will be the
