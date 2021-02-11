@@ -180,7 +180,7 @@ pub struct ExpressionUpdate {
 /// types of information will be added in the future.
 #[derive(Clone,Debug,Deserialize,PartialEq,Serialize)]
 #[allow(missing_docs)]
-// Not sure what the future variants will be, and the copyness is not essential for this.
+// Not sure what the future variants will be, and implementing Copy is not essential for this.
 #[allow(missing_copy_implementations)]
 pub enum ProfilingInfo {
     #[serde(rename_all="camelCase")]

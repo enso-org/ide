@@ -25,6 +25,11 @@ use uuid::Uuid;
 // === Constants ===
 // =================
 
+/// Error message for dataflow errors.
+///
+/// The dataflow errors in ExpressionUpdates received from the Engine bear no message. The error
+/// detail should be taken from error's visualization, but this is a part of
+/// https://github.com/enso-org/ide/issues/1036.
 const DATAFLOW_ERROR_MESSAGE:&str = "Dataflow error.";
 
 
@@ -383,7 +388,9 @@ mod tests {
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
-    use enso_protocol::language_server::types::test::{value_update_with_type, value_update_with_dataflow_error, value_update_with_dataflow_panic};
+    use enso_protocol::language_server::types::test::value_update_with_dataflow_error;
+    use enso_protocol::language_server::types::test::value_update_with_dataflow_panic;
+    use enso_protocol::language_server::types::test::value_update_with_type;
 
     #[test]
     fn getting_future_type_from_registry() {

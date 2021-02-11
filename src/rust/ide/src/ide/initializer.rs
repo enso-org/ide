@@ -24,7 +24,7 @@ use ensogl::system::web;
 //     https://github.com/enso-org/ide/issues/1034
 const PROJECT_MANAGER_TIMEOUT_SEC     : u64  = 2 * 60 * 60;
 const ENGINE_VERSION_SUPPORTED        : &str = "^0.2.2";
-const ENGINE_VERSION_FOR_NEW_PROJECTS : &str = "0.2.2-SNAPSHOT";
+const ENGINE_VERSION_FOR_NEW_PROJECTS : &str = "0.2.2";
 
 
 
