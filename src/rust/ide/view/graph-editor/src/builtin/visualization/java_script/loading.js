@@ -27,7 +27,7 @@ function loadStyle(url, onload) {
  * Add css style from string to the DOM.
  */
 function loadStyleFromString(string) {
-    let style       = document.createElement('style')
+    let style = document.createElement('style')
     style.innerText = string
     document.head.appendChild(style)
 }
