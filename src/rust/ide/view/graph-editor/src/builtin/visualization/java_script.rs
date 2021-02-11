@@ -13,7 +13,10 @@ use crate::component::visualization;
 
 /// Return a `JavaScript` Table visualization.
 pub fn table_visualization() -> visualization::java_script::FallibleDefinition {
-    let source = include_str!("java_script/table.js");
+    let loading_scripts = include_str!("java_script/loading.js");
+    let scrollable      = include_str!("java_script/scrollable.js");
+    let source          = include_str!("java_script/table.js");
+    let source          = format!("{}{}{}",loading_scripts,scrollable,source);
 
     visualization::java_script::Definition::new(enso::builtin_library(),source)
 }
