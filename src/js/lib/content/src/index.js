@@ -448,14 +448,14 @@ API.main = async function (inputConfig) {
     remoteLog("download_content")
     let {wasm,loader} = await download_content(config)
     remoteLog("wasm_loaded")
-    // if (entryTarget) {
+    if (entryTarget) {
         let fn_name = wasm_entry_point_pfx + entryTarget
         let fn      = wasm[fn_name]
         if (fn) { fn() } else {
             loader.destroy()
             show_debug_screen(wasm,"Unknown entry point '" + entryTarget + "'. ")
         }
-    // } else {
-    //     show_debug_screen(wasm)
-    // }
+    } else {
+        show_debug_screen(wasm)
+    }
 }
