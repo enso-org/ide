@@ -36,8 +36,12 @@ read the notes of the `Enso 2.0.0-alpha.1` release.
 - [Allow Tables to feed the Geo Map visualisation.][1187] Tables that have `latitude`, `longitude`
   and `label` columns can now be shown in a Geo Map visualisation where each row is mapped to a 
   point of the map with the given label.
+- [A shortcut for reloading visualization files.][1190] The visible visualizations must be switched 
+  to another and switched back to see the effect.
 
 [1096]: https://github.com/enso-org/ide/pull/1172
+[1181]: https://github.com/enso-org/ide/pull/1181
+[1190]: https://github.com/enso-org/ide/pull/1190
 [1187]: https://github.com/enso-org/ide/pull/1187
 <br/>
 
