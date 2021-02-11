@@ -69,25 +69,36 @@ impl Initializer {
             let project_model = self.initialize_project_model();
             let application   = Application::new(&web::get_html_element_by_id("root").unwrap());
             let view          = application.new_view::<ide_view::project::View>();
-            view.graph().model.breadcrumbs.project_name(self.config.project_name.to_string());
             let status_bar    = view.status_bar().clone_ref();
+            view.graph().model.breadcrumbs.project_name(self.config.project_name.to_string());
             application.display.add_child(&view);
             // TODO [mwu] Once IDE gets some well-defined mechanism of reporting
             //      issues to user, such information should be properly passed
             //      in case of setup failure.
-            let project_model = project_model.await;
-            let project_model = project_model.expect("Failed to setup project model.");
-            self.display_warning_on_unsupported_engine_version(&view,&project_model).expect("Internal Error");
-            let ide           = Ide::new(application,view,project_model).await;
-            let ide           = ide.expect("Failed to initialize project view.");
+            let result = (async {
+                let project_model = project_model.await?;
+                self.display_warning_on_unsupported_engine_version(&view,&project_model)?;
+                Ide::new(application,view.clone_ref(),project_model).await
+            }).await;
+
+            match result {
+                Ok(ide) => {
+                    info!(self.logger,"Setup done.");
+                    std::mem::forget(ide);
+                },
+                Err(err) => {
+                    let message = iformat!("Failed to initialize application: {err}");
+                    error!(self.logger,"{message}");
+                    status_bar.add_event(ide_view::status_bar::event::Label::new(message));
+                    std::mem::forget(view);
+                }
+            }
 
             web::get_element_by_id("loader").map(|t| {
                 t.parent_node().map(|p| {
                     p.remove_child(&t).unwrap()
                 })
             }).ok();
-            info!(self.logger,"Setup done.");
-            std::mem::forget(ide);
         });
         std::mem::forget(executor);
     }

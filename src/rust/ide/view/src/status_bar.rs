@@ -1,19 +1,25 @@
 //! A module containing IDE status bar component definitions (frp, model, view, etc.)
+//!
+//! The component is currently rather a stub: it has endpoints for setting many events and
+//! processes and keep them in a list, but it shows only a label of the last event/process
+//! added.
+//TODO[ao] Implement the status bar according to
 use crate::prelude::*;
 
 use ensogl::application::Application;
 use ensogl::display;
 use ensogl::display::Scene;
 use ensogl_text as text;
-
+use std::future::Future;
 
 
 // =================
 // === Constants ===
 // =================
 
-pub const DEFAULT_WIDTH : f32 = 1024.0;
+/// The height of the status bar.
 pub const HEIGHT        : f32 = 40.0;
+/// Padding inside the status bar.
 pub const PADDING       : f32 = 12.0;
 
 
@@ -22,6 +28,7 @@ pub const PADDING       : f32 = 12.0;
 // === Event ===
 // =============
 
+/// Structures related to events in a status bar.
 pub mod event {
     use crate::prelude::*;
 
@@ -41,6 +48,7 @@ pub mod event {
 // === Process ===
 // ===============
 
+/// Structures related to processes in a status bar.
 pub mod process {
     use crate::prelude::*;
 
@@ -49,6 +57,7 @@ pub mod process {
     pub struct Id(pub u64);
 
     impl Id {
+        /// Return the next id.
         pub fn next(&self) -> Id {
             Id(self.0 + 1)
         }
@@ -58,28 +67,6 @@ pub mod process {
         /// A label assigned to some process displayed in a status bar.
         Label
     }
-
-    #[derive(Debug)]
-    pub struct Guard {
-        pub(crate) id                      : Id,
-        pub(crate) finish_process_endpoint : enso_frp::Any<Id>,
-    }
-
-    impl Drop for Guard {
-        fn drop(&mut self) {
-            self.finish_process_endpoint.emit(self.id);
-        }
-    }
-}
-
-
-
-// ==============
-// === Shapes ===
-// ==============
-
-mod background {
-    // TODO
 }
 
 
@@ -167,7 +154,7 @@ impl Model {
 /// The StatusBar component view.
 ///
 /// The status bar gathers information about events and processes occurring in the Application.
-// TODO: add notion about number of processes running.
+// TODO: This is a stub. Extend it in
 #[derive(Clone,CloneRef,Debug)]
 pub struct View {
     frp   : Frp,
@@ -180,13 +167,12 @@ impl View {
         let frp         = Frp::new();
         let model       = Model::new(&app);
         let network     = &frp.network;
-        let scene       = app.display.scene();
         let scene_shape = app.display.scene().shape().clone_ref();
 
         enso_frp::extend! { network
-            event_added      <- frp.add_event.map(f!((label) model.add_event(label)));
-            process_added    <- frp.add_process.map(f!((label) model.add_process(label)));
-            process_finished <- frp.finish_process.filter_map(f!([model](id)
+            event_added       <- frp.add_event.map(f!((label) model.add_event(label)));
+            process_added     <- frp.add_process.map(f!((label) model.add_process(label)));
+            _process_finished <- frp.finish_process.filter_map(f!([model](id)
                 model.finish_process(*id).as_some(*id)
             ));
             displayed_process_finished <- frp.finish_process.all(&frp.output.displayed_process).filter(|(fin,dis)| dis.contains(fin));
@@ -220,11 +206,20 @@ impl View {
         Self {frp,model}
     }
 
-    pub fn add_process(&self, label:process::Label) -> process::Guard {
-        self.frp.add_process(label);
-        let id = self.frp.last_process.value();
-        let finish_process_endpoint = self.frp.finish_process.clone_ref().into();
-        process::Guard {id,finish_process_endpoint}
+    /// Returns a future will add a new process to the status bar, evaluate `f` and then mark the
+    /// process as finished.
+    pub fn process<'f, F>(&self, label:process::Label, f:F) -> impl Future<Output=F::Output> + 'f
+    where F : Future + 'f {
+        let add_process    = self.frp.add_process.clone_ref();
+        let last_process   = self.frp.last_process.clone_ref();
+        let finish_process = self.frp.finish_process.clone_ref();
+        async move {
+            add_process.emit(label);
+            let id     = last_process.value();
+            let result = f.await;
+            finish_process.emit(id);
+            result
+        }
     }
 }
 

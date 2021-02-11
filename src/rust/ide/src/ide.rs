@@ -9,7 +9,6 @@ use crate::model::module::Path as ModulePath;
 use crate::ide::integration::Integration;
 
 use ensogl::application::Application;
-use ensogl::system::web;
 use enso_protocol::language_server::MethodPointer;
 use parser::Parser;
 
