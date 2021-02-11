@@ -1,5 +1,8 @@
 /**
  * Scrollbar style definitions for textual visualizations which need support for scrolling.
+ *
+ * The 11px width/height (depending on scrollbar orientation)
+ * is set so that it resembles macOS default scrollbar.
  */
 
 const scrollbarStyle = `
