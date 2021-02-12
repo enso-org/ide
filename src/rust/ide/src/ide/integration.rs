@@ -675,9 +675,9 @@ impl Model {
     fn set_error(&self, node_id:graph_editor::NodeId, error:Option<&EvaluationError>) {
         let error = error.map(|error| {
             let root_cause = self.get_node_causing_error_on_current_graph(error);
-            let message    = if root_cause.contains(&node_id) { error.message.clone() }
-            else                                              { default()             };
-            node::error::Error {message}
+            let message    = error.message.clone();
+            let propagated = !root_cause.contains(&node_id);
+            node::error::Error {message,propagated,trace:default()}
         });
         self.view.graph().set_node_error_status(node_id,error);
     }

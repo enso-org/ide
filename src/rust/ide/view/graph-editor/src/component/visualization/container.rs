@@ -170,6 +170,7 @@ ensogl::define_endpoints! {
         visualisation (Option<visualization::Definition>),
         size          (Vector2),
         is_selected   (bool),
+        visible       (bool),
     }
 }
 
@@ -314,7 +315,7 @@ pub struct ContainerModel {
     display_object     : display::object::Instance,
     /// Internal root for all sub-objects. Will be moved when the visualisation
     /// container position is changed by dragging.
-    drag_root       : display::object::Instance,
+    drag_root          : display::object::Instance,
     visualization      : RefCell<Option<visualization::Instance>>,
     /// A network containing connection between currently set `visualization` FRP endpoints and
     /// container FRP. We keep a separate network for that, so we can manage life of such
@@ -530,6 +531,8 @@ impl Container {
         frp::extend! { network
             eval  frp.set_visibility    ((v) model.set_visibility(*v));
             eval_ frp.toggle_visibility (model.toggle_visibility());
+            frp.source.visible <+ frp.set_visibility;
+            frp.source.visible <+ frp.toggle_visibility.map(f!((()) model.is_active()));
             let preprocessor = &frp.source.preprocessor;
             frp.source.visualisation <+ frp.set_visualization.map(f!(
                 [model,action_bar,scene,logger,preprocessor](vis_definition) {

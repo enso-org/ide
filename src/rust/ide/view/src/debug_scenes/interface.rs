@@ -7,6 +7,7 @@
 use crate::prelude::*;
 
 use crate::graph_editor;
+use crate::graph_editor::component::node::error;
 use crate::graph_editor::GraphEditor;
 use crate::graph_editor::Type;
 use crate::project;
@@ -119,7 +120,8 @@ fn init(app:&Application) {
 
     let expression_3 = expression_mock2();
     graph_editor.frp.set_node_expression.emit((node3_id,expression_3));
-    let error = "Runtime Error".to_string().into();
+    let message = Some("Runtime Error".to_owned());
+    let error   = graph_editor::component::node::Error {message,trace:default(),propagated:false};
     graph_editor.frp.set_node_error_status.emit((node3_id,Some(error)));
 
 

@@ -21,19 +21,6 @@ use uuid::Uuid;
 
 
 
-// =================
-// === Constants ===
-// =================
-
-/// Error message for dataflow errors.
-///
-/// The dataflow errors in ExpressionUpdates received from the Engine bear no message. The error
-/// detail should be taken from error's visualization, but this is a part of
-/// https://github.com/enso-org/ide/issues/1036.
-const DATAFLOW_ERROR_MESSAGE:&str = "Dataflow error.";
-
-
-
 // ===============
 // === Aliases ===
 // ===============
@@ -57,7 +44,7 @@ pub type ExpressionId = ast::Id;
 #[derive(Clone,Debug)]
 pub struct EvaluationError {
     /// The short error description.
-    pub message : String,
+    pub message : Option<String>,
     /// The trace of the error's root cause.
     pub trace   : Vec<ExpressionId>,
 }
@@ -65,13 +52,11 @@ pub struct EvaluationError {
 impl EvaluationError {
     /// Create [`ExecutionError`] from the payload, or returns `None` if payload is not an error.
     pub fn from_payload(payload:ExpressionUpdatePayload) -> Option<Self> {
+        use ExpressionUpdatePayload::*;
         match payload {
-            ExpressionUpdatePayload::Value                 => None,
-            ExpressionUpdatePayload::Panic {message,trace} => Some(Self{message,trace}),
-            ExpressionUpdatePayload::DataflowError {trace} => {
-                let message = DATAFLOW_ERROR_MESSAGE.to_owned();
-                Some(Self{message,trace})
-            },
+            Value                 => None,
+            Panic {message,trace} => Some(Self{message:Some(message),trace}),
+            DataflowError {trace} => Some(Self{message:None         ,trace}),
         }
     }
 }
@@ -435,8 +420,9 @@ mod tests {
         assert!(EvaluationError::from_payload(value).is_none());
         let error_result = EvaluationError::from_payload(error).unwrap();
         assert_eq!(error_result.trace.len(), 2);
+        assert!(error_result.message.is_none());
         let panic_result = EvaluationError::from_payload(panic).unwrap();
-        assert_eq!(panic_result.message, panic_message);
+        assert_eq!(panic_result.message.as_ref().map(AsRef::<str>::as_ref), Some(panic_message));
         assert_eq!(panic_result.trace.len(), 1);
     }
 
@@ -471,9 +457,9 @@ mod tests {
         assert_eq!(registry.get(&expr1).unwrap().typename, Some(typename1.into()));
         assert!(registry.get(&expr1).unwrap().error.is_none());
         assert!(registry.get(&expr2).unwrap().typename.is_none());
-        assert_eq!(registry.get(&expr2).unwrap().error.as_ref().unwrap().message,DATAFLOW_ERROR_MESSAGE);
+        assert!(registry.get(&expr2).unwrap().error.as_ref().unwrap().message.is_none());
         assert!(registry.get(&expr3).unwrap().typename.is_none());
-        assert_eq!(registry.get(&expr3).unwrap().error.as_ref().unwrap().message,error_msg);
+        assert_eq!(registry.get(&expr3).unwrap().error.as_ref().unwrap().message,Some(error_msg));
         let notification = test.expect_completion(subscriber.next()).unwrap();
         assert_eq!(notification, vec![expr2,expr3]);
     }

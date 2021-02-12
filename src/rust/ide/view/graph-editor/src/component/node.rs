@@ -8,7 +8,7 @@ pub mod action_bar;
 pub mod expression;
 pub mod input;
 pub mod output;
-#[deny(missing_docs)]
+#[warn(missing_docs)]
 pub mod error;
 #[deny(missing_docs)]
 pub mod vcs;
@@ -17,6 +17,8 @@ pub use expression::Expression;
 pub use error::Error;
 
 use crate::prelude::*;
+
+use crate::builtin::visualization::native as builtin_visualization;
 
 use enso_frp as frp;
 use enso_frp;
@@ -234,7 +236,7 @@ impl Default for Crumbs {
 
 // ============
 // === Node ===
-// ============
+// ============7
 
 ensogl::define_endpoints! {
     Input {
@@ -487,8 +489,9 @@ impl NodeModel {
     }
 
     fn set_error(&self, error:Option<&Error>) {
-        let message = error.map(|t| t.message.clone()).unwrap_or_default();
-        self.error_text.set_content.emit(message);
+        // TODO
+        // let message = error.map(|t| t.message.clone()).unwrap_or_default();
+        // self.error_text.set_content.emit(message);
 
     }
 }
@@ -564,17 +567,41 @@ impl Node {
 
             // === Set Node Error ===
 
-            error_color_anim.target <+ frp.set_error.map(f!((error) {
+            error_is_set   <- frp.set_error.filter(|err| err.is_some()).constant(());
+            error_is_unset <- frp.set_error.filter(|err| err.is_none()).constant(());
+
+            visualization_before_error <- model.visualization.frp.visualisation.sample(&error_is_set);
+            visibility_before_error    <- model.visualization.frp.visible.sample(&error_is_set);
+
+            eval frp.set_error ([model](error) {
                 model.set_error(error.as_ref());
-                match error.as_ref() {
-                    Some(error) => {
-                        let error_data:visualization::Data = error.clone().into();
+                if let Some(error) = error {
+                    let error_vis = builtin_visualization::Error::definition();
+                    model.visualization.frp.set_visualization(Some(error_vis));
+                    if let Some(error_data) = error.visualization_data() {
                         model.visualization.frp.set_data.emit(error_data);
-                        color::Lcha::from(color::Rgba::red())
-                    },
-                    None => color::Lcha::transparent(),
+                    }
+                    if !error.propagated {
+                        model.visualization.frp.set_visibility(true);
+                    }
                 }
-            }));
+            });
+
+            _eval <- error_is_unset.map3(&visualization_before_error,&visibility_before_error,
+                f!([model]((),visualization,was_visible) {
+                    model.visualization.frp.set_visualization(visualization.clone());
+                    if !was_visible {
+                        model.visualization.frp.set_visibility(false);
+                    }
+                })
+            );
+
+            error_color_anim.target <+ frp.set_error.map(|error|
+                match error.as_ref() {
+                    Some(_) => color::Lcha::from(color::Rgba::red()),
+                    None    => color::Lcha::transparent(),
+                }
+            );
 
             eval error_color_anim.value((value)
                 model.error_indicator.color_rgba.set(color::Rgba::from(value).into());
