@@ -10,7 +10,6 @@
  */
 const TOKEN =
     'pk.eyJ1IjoiZW5zby1vcmciLCJhIjoiY2tmNnh5MXh2MGlyOTJ5cWdubnFxbXo4ZSJ9.3KdAcCiiXJcSM18nwk09-Q'
-const GEO_POINT = 'Geo_Point'
 const GEO_MAP = 'Geo_Map'
 const SCATTERPLOT_LAYER = 'Scatterplot_Layer'
 const DEFAULT_POINT_RADIUS = 150
@@ -36,14 +35,14 @@ const LIGHT_ACCENT_COLOR = [1, 234, 146]
 // =====================================
 
 function loadScript(url) {
-    var script = document.createElement('script')
+    const script = document.createElement('script')
     script.src = url
 
     document.head.appendChild(script)
 }
 
 function loadStyle(url) {
-    var link = document.createElement('link')
+    const link = document.createElement('link')
     link.href = url
     link.rel = 'stylesheet'
 
@@ -87,7 +86,7 @@ const makeId = makeGenerator()
 // ============================
 
 /**
- * Provides a mapbox & deck.gl-based map visualization for IDE.
+ * Provides a mapbox & deck.gl-based map visualization.
  *
  * > Example creates a map with described properties with a scatter plot overlay:
  * {
@@ -96,11 +95,10 @@ const makeId = makeGenerator()
  * "longitude": -122.45,
  * "zoom": 15,
  * "controller": true,
- * "showingLabels": true, // Enables presenting labels when hovering over Geo_Point.
+ * "showingLabels": true, // Enables presenting labels when hovering over a point.
  * "layers": [{
  *     "type": "Scatterplot_Layer",
  *     "data": [{
- *         "type": "Geo_Point",
  *         "latitude": -122.45,
  *         "longitude": 37.8,
  *         "color": [255, 0, 0],
@@ -110,8 +108,7 @@ const makeId = makeGenerator()
  * }]
  * }
  *
- * Can also consume an array of `Geo_Point` structures, or a dataframe that has the columns
- * `latitude`, `longitude` and `label`.
+ * Can also consume a dataframe that has the columns `latitude`, `longitude` and optionally `label`.
  */
 class GeoMapVisualization extends Visualization {
     static inputType = 'Any'
@@ -163,17 +160,16 @@ class GeoMapVisualization extends Visualization {
     onDataReceived(data) {
         if (!this.isInit) {
             this.setPreprocessor(
-                'df -> match df\n' +
-                    "    case Table -> columns = df.select ['label', 'latitude', 'longitude'] . columns\n" +
-                    "    serialized = columns.map (c -> ['df_' + c.name, c.to_vector])\n" +
-                    '    Json.from_pairs serialized . to_text' +
-                    ' _ -> df.to_string'
-
-        )
+                'df -> case df of\n' +
+                "    Table.Table _ ->\n" +
+                "        columns = df.select ['label', 'latitude', 'longitude'] . columns\n" +
+                "        serialized = columns.map (c -> ['df_' + c.name, c.to_vector])\n" +
+                '        Json.from_pairs serialized . to_text\n' +
+                '    _ -> df . to_json . to_text'
+            )
             this.isInit = true
-            // We discard this data as it is in the wrong format. We will get another update with
-            // the correct data that has been transformed by the preprocessor. (Which will be the
-            // same data format if it was not a data frame.
+            // We discard this data the first time. We will get another update with
+            // the correct data that has been transformed by the preprocessor.
             return
         }
 
@@ -190,9 +186,9 @@ class GeoMapVisualization extends Visualization {
      * Update the internal data with the new incoming data. Does not affect anything rendered.
      */
     updateState(data) {
-        updateDataPoints(data, this.dataPoints, this.accentColor)
+        extractDataPoints(data, this.dataPoints, this.accentColor)
 
-        const { latitude, longitude } = this.centerPoint()
+        const {latitude, longitude} = this.centerPoint()
         this.latitude = ok(data.latitude) ? data.latitude : latitude
         this.longitude = ok(data.longitude) ? data.longitude : longitude
 
@@ -248,7 +244,7 @@ class GeoMapVisualization extends Visualization {
     updateLayers() {
         this.deckgl.setProps({
             layers: [this.makeScatterLayer()],
-            getTooltip: ({ object }) =>
+            getTooltip: ({object}) =>
                 object && {
                     html: `<div>${object.label}</div>`,
                     style: {
@@ -266,8 +262,8 @@ class GeoMapVisualization extends Visualization {
     }
 
     centerPoint() {
-        const { x, y } = calculateCenterPoint(this.dataPoints)
-        return { latitude: x, longitude: y }
+        const {x, y} = calculateCenterPoint(this.dataPoints)
+        return {latitude: x, longitude: y}
     }
 
     /**
@@ -285,25 +281,18 @@ class GeoMapVisualization extends Visualization {
     }
 }
 
-function prepareArray(parsedData, preparedDataPoints, accentColor) {
-    pushGeoPoints(parsedData, preparedDataPoints, accentColor)
-}
 
-function prepareGeoPoints(parsedData, preparedDataPoints, accentColor) {
-    pushGeoPoints(preparedDataPoints, parsedData, accentColor)
-    const latitude = parsedData.latitude
-    const longitude = parsedData.longitude
-    return { latitude, longitude }
-}
-
-function prepareDeckGLLayer(parsedData, preparedDataPoints, accentColor) {
+/**
+ * Extract the visualisation data from a full configuration object.
+ */
+function extractFromFullConfig(parsedData, preparedDataPoints, accentColor) {
     if (parsedData.type === SCATTERPLOT_LAYER && parsedData.data.length) {
-        pushGeoPoints(parsedData.data, preparedDataPoints, accentColor)
+        pushPoints(parsedData.data, preparedDataPoints, accentColor)
     } else if (parsedData.type === GEO_MAP && ok(parsedData.layers)) {
         parsedData.layers.forEach((layer) => {
             if (layer.type === SCATTERPLOT_LAYER) {
                 let dataPoints = layer.data || []
-                pushGeoPoints(dataPoints, preparedDataPoints, accentColor)
+                pushPoints(dataPoints, preparedDataPoints, accentColor)
             } else {
                 console.warn('Geo_Map: Currently unsupported deck.gl layer.')
             }
@@ -311,55 +300,46 @@ function prepareDeckGLLayer(parsedData, preparedDataPoints, accentColor) {
     }
 }
 
-function prepareDataFrame(parsedData, preparedDataPoints, accentColor) {
-    console.log('prepareDataFrame')
+/**
+ * Extract the visualisation data from a dataframe.
+ */
+function extractFromDataFrame(parsedData, preparedDataPoints, accentColor) {
     const geoPoints = parsedData.df_latitude.map(function (lat, i) {
         const lon = parsedData.df_longitude[i]
         let label = ok(parsedData.df_label) ? parsedData.df_label[i] : undefined
-        return { latitude: lat, longitude: lon, label }
+        return {latitude: lat, longitude: lon, label}
     })
-    pushGeoPoints(geoPoints, preparedDataPoints, accentColor)
+    pushPoints(geoPoints, preparedDataPoints, accentColor)
 }
 
 function isDataFrame(data) {
     return data.df_latitude !== undefined && data.df_longitude !== undefined
 }
 
-function isArray(data) {
-    return Array.isArray(data) && data.length
-}
-
-function isGeoPointData(data) {
-    return data.type === GEO_POINT
-}
-
 /**
- * Prepares data points to be shown on the map.
- *
- * It checks the type of input data and prepares our internal data  (`GeoPoints') for consumption
- * in deck.gl.
+ * Extracts the data form the given `parsedData`. Checks the type of input data and prepares our
+ * internal data  (`GeoPoints') for consumption in deck.gl.
  *
  * @param parsedData         - All the parsed data to create points from.
  * @param preparedDataPoints - List holding data points to push the GeoPoints into.
  * @param accentColor        - accent color of IDE if element doesn't specify one.
  */
-function updateDataPoints(parsedData, preparedDataPoints, accentColor) {
+function extractDataPoints(parsedData, preparedDataPoints, accentColor) {
     if (isDataFrame(parsedData)) {
-        prepareDataFrame(parsedData, preparedDataPoints, accentColor)
-    } else if (isGeoPointData(parsedData)) {
-        prepareGeoPoints(parsedData, preparedDataPoints, accentColor)
-    } else if (isArray(parsedData)) {
-        prepareArray(parsedData, preparedDataPoints, accentColor)
+        extractFromDataFrame(parsedData, preparedDataPoints, accentColor)
     } else {
-        prepareDeckGLLayer(parsedData, preparedDataPoints, accentColor)
+        extractFromFullConfig(parsedData, preparedDataPoints, accentColor)
     }
 }
 
 /**
  * Transforms the `dataPoints` to the internal data format and appends them to the `targetList`.
  * Also adds the `accentColor` for each point.
+ *
+ * Expects the `dataPoints` to be a list of objects that have a `longitude` and `latitude` and
+ * optionally `radius`, `color` and `label`.
  */
-function pushGeoPoints(dataPoints, targetList, accentColor) {
+function pushPoints(dataPoints, targetList, accentColor) {
     dataPoints.forEach((geoPoint) => {
         let position = [geoPoint.longitude, geoPoint.latitude]
         let radius = isNaN(geoPoint.radius)
@@ -367,7 +347,7 @@ function pushGeoPoints(dataPoints, targetList, accentColor) {
             : geoPoint.radius
         let color = ok(geoPoint.color) ? geoPoint.color : accentColor
         let label = ok(geoPoint.label) ? geoPoint.label : ''
-        targetList.push({ position, color, radius, label })
+        targetList.push({position, color, radius, label})
     })
 }
 
@@ -393,7 +373,7 @@ function calculateCenterPoint(dataPoints) {
         let maxY = Math.max(...ys)
         y = (minY + maxY) / 2
     }
-    return { x, y }
+    return {x, y}
 }
 
 /**
