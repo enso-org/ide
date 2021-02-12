@@ -19,9 +19,9 @@ use std::future::Future;
 // =================
 
 /// The height of the status bar.
-pub const HEIGHT        : f32 = 40.0;
+pub const HEIGHT:f32 = 40.0;
 /// Padding inside the status bar.
-pub const PADDING       : f32 = 12.0;
+pub const PADDING:f32 = 12.0;
 
 
 
@@ -177,7 +177,7 @@ impl View {
         enso_frp::extend! { network
             event_added       <- frp.add_event.map(f!((label) model.add_event(label)));
             process_added     <- frp.add_process.map(f!((label) model.add_process(label)));
-            _process_finished <- frp.finish_process.filter_map(f!([model](id)
+            _process_finished <- frp.finish_process.filter_map(f!((id)
                 model.finish_process(*id).as_some(*id)
             ));
             displayed_process_finished <- frp.finish_process.all(&frp.output.displayed_process).filter(|(fin,dis)| dis.contains(fin));

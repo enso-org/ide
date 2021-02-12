@@ -123,6 +123,7 @@ impl Initializer {
                 let json_endpoint   = json_endpoint.clone();
                 let binary_endpoint = binary_endpoint.clone();
                 // TODO[ao]: we should think how to handle engine's versions in cloud.
+                //     https://github.com/enso-org/ide/issues/1195
                 let version         = ENGINE_VERSION_FOR_NEW_PROJECTS.to_owned();
                 let project_id      = default();
                 let project_name    = self.config.project_name.clone();
@@ -144,7 +145,8 @@ impl Initializer {
         Ok(Rc::new(project_manager))
     }
 
-    fn display_warning_on_unsupported_engine_version(&self, view:&ide_view::project::View, project:&model::Project) -> FallibleResult {
+    fn display_warning_on_unsupported_engine_version
+    (&self, view:&ide_view::project::View, project:&model::Project) -> FallibleResult {
         let requirements = semver::VersionReq::parse(ENGINE_VERSION_SUPPORTED)?;
         let version      = project.engine_version();
         if !requirements.matches(version) {
