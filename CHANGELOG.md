@@ -34,7 +34,7 @@ read the notes of the `Enso 2.0.0-alpha.1` release.
   action bar that allows dragging the visualization. Once the visualization has been moved, there 
   appears another icon that will reset the position to the original position.
 - [Allow Tables to feed the Geo Map visualisation.][1187] Tables that have `latitude`, `longitude`
-  and optionally `label`. columns can now be shown in a Geo Map visualisation where each row is 
+  and optionally `label` columns can now be shown in a Geo Map visualisation where each row is 
   mapped to a point of the map with the given label.
 - [A shortcut for reloading visualization files.][1190] The visible visualizations must be switched 
   to another and switched back to see the effect.
