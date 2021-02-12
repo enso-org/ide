@@ -46,7 +46,6 @@ read the notes of the `Enso 2.0.0-alpha.1` release.
 <br/>
 
 
-
 # Enso 2.0.0-alpha.1 (2020-01-26)
 This is the first release of Enso, a general-purpose programming language and environment for 
 interactive data processing. It is a tool that spans the entire stack, going from high-level 
