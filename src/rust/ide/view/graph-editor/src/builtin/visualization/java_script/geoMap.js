@@ -161,11 +161,11 @@ class GeoMapVisualization extends Visualization {
         if (!this.isInit) {
             this.setPreprocessor(
                 'df -> case df of\n' +
-                "    Table.Table _ ->\n" +
-                "        columns = df.select ['label', 'latitude', 'longitude'] . columns\n" +
-                "        serialized = columns.map (c -> ['df_' + c.name, c.to_vector])\n" +
-                '        Json.from_pairs serialized . to_text\n' +
-                '    _ -> df . to_json . to_text'
+                    '    Table.Table _ ->\n' +
+                    "        columns = df.select ['label', 'latitude', 'longitude'] . columns\n" +
+                    "        serialized = columns.map (c -> ['df_' + c.name, c.to_vector])\n" +
+                    '        Json.from_pairs serialized . to_text\n' +
+                    '    _ -> df . to_json . to_text'
             )
             this.isInit = true
             // We discard this data the first time. We will get another update with
@@ -188,7 +188,7 @@ class GeoMapVisualization extends Visualization {
     updateState(data) {
         extractDataPoints(data, this.dataPoints, this.accentColor)
 
-        const {latitude, longitude} = this.centerPoint()
+        const { latitude, longitude } = this.centerPoint()
         this.latitude = ok(data.latitude) ? data.latitude : latitude
         this.longitude = ok(data.longitude) ? data.longitude : longitude
 
@@ -244,7 +244,7 @@ class GeoMapVisualization extends Visualization {
     updateLayers() {
         this.deckgl.setProps({
             layers: [this.makeScatterLayer()],
-            getTooltip: ({object}) =>
+            getTooltip: ({ object }) =>
                 object && {
                     html: `<div>${object.label}</div>`,
                     style: {
@@ -262,8 +262,8 @@ class GeoMapVisualization extends Visualization {
     }
 
     centerPoint() {
-        const {x, y} = calculateCenterPoint(this.dataPoints)
-        return {latitude: x, longitude: y}
+        const { x, y } = calculateCenterPoint(this.dataPoints)
+        return { latitude: x, longitude: y }
     }
 
     /**
@@ -280,7 +280,6 @@ class GeoMapVisualization extends Visualization {
         )
     }
 }
-
 
 /**
  * Extract the visualisation data from a full configuration object.
@@ -307,7 +306,7 @@ function extractFromDataFrame(parsedData, preparedDataPoints, accentColor) {
     const geoPoints = parsedData.df_latitude.map(function (lat, i) {
         const lon = parsedData.df_longitude[i]
         let label = ok(parsedData.df_label) ? parsedData.df_label[i] : undefined
-        return {latitude: lat, longitude: lon, label}
+        return { latitude: lat, longitude: lon, label }
     })
     pushPoints(geoPoints, preparedDataPoints, accentColor)
 }
@@ -347,7 +346,7 @@ function pushPoints(dataPoints, targetList, accentColor) {
             : geoPoint.radius
         let color = ok(geoPoint.color) ? geoPoint.color : accentColor
         let label = ok(geoPoint.label) ? geoPoint.label : ''
-        targetList.push({position, color, radius, label})
+        targetList.push({ position, color, radius, label })
     })
 }
 
@@ -373,7 +372,7 @@ function calculateCenterPoint(dataPoints) {
         let maxY = Math.max(...ys)
         y = (minY + maxY) / 2
     }
-    return {x, y}
+    return { x, y }
 }
 
 /**
