@@ -456,19 +456,3 @@ fn block_roundtrip() {
         roundtrip_program(program);
     }
 }
-
-/// Fixed test case, where we used to get invalid suffix, instead of infix.
-#[wasm_bindgen_test]
-fn extension_operator_methods() {
-    let ast = parser::Parser::new_or_panic().parse_line("Int.+").unwrap();
-
-    use ast::*;
-    if let Shape::Infix(Infix {larg:_larg,loff:_loff,opr,roff:_roff,rarg}, ..) = ast.shape() {
-        if let Shape::Opr(Opr{..}) = opr.shape() {
-            if let Shape::Var(Var{..}) = rarg.shape() {
-                return;
-            }
-        }
-    }
-    panic!("Should have matched into return.");
-}

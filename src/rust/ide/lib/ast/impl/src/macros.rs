@@ -20,6 +20,8 @@ use crate::known;
 pub const QUALIFIED_IMPORT_KEYWORD:&str = "import";
 /// The keyword introducing an unqualified import declaration.
 pub const UNQUALIFIED_IMPORT_KEYWORD:&str = "from";
+/// The keyword introducing an unqualified export declaration.
+pub const QUALIFIED_EXPORT_KEYWORD:&str = "export";
 
 /// If the given AST node is an import declaration, returns it as a Match (which is the only shape
 /// capable of storing import declarations). Returns `None` otherwise.
@@ -32,6 +34,7 @@ pub fn ast_as_import_match(ast:&Ast) -> Option<known::Match> {
 pub fn is_match_import(ast:&known::Match) -> bool {
     let segment = &ast.segs.head;
     let keyword = crate::identifier::name(&segment.head);
+    // TODO: check if not export when unqualified
     keyword.contains_if(|str| *str == QUALIFIED_IMPORT_KEYWORD || *str == UNQUALIFIED_IMPORT_KEYWORD)
 }
 

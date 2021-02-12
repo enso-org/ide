@@ -33,11 +33,14 @@ fn import_utilities() {
     expect_import("import Foo.Bar.Baz");
     expect_import("from Foo import Bar");
     expect_import("from Foo import all hiding Bar");
+    expect_import("from Base.Data.List import Cons, Nil, from_vector hiding Nil.Boo");
 
     expect_not_import("type Foo");
     expect_not_import("type Foo as Bar");
     expect_not_import("if Foo then Bar else Baz");
     expect_not_import("Foo.Bar.Baz");
+    expect_not_import("export Foo");
+    expect_not_import("from Foo export all hiding Bar");
 }
 
 #[wasm_bindgen_test]
