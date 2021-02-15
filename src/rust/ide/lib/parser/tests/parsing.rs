@@ -359,6 +359,13 @@ impl Fixture {
         });
     }
 
+    fn deserialize_annotation(&mut self) {
+        self.test_shape("@Tail_call",|annotation: &Annotation| {
+            let expected_var = Annotation {name:"@Tail_call".into()};
+            assert_eq!(annotation,&expected_var);
+        });
+    }
+
     /// Tests parsing a number of sample macro usages.
     ///
     /// As macros generate usually really huge ASTs, this test only checks
@@ -427,6 +434,7 @@ impl Fixture {
         self.deserialize_right();
         self.deserialize_sides();
         self.deserialize_block();
+        self.deserialize_annotation();
         self.deserialize_macro_matches();
         self.deserialize_macro_ambiguous();
     }
