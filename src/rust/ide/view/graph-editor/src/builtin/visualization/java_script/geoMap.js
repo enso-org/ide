@@ -287,7 +287,7 @@ class GeoMapVisualization extends Visualization {
 /**
  * Extract the visualisation data from a full configuration object.
  */
-function extractFromFullConfig(parsedData, preparedDataPoints, accentColor) {
+function extractisualizationDataFromFullConfig(parsedData, preparedDataPoints, accentColor) {
     if (parsedData.type === SCATTERPLOT_LAYER && parsedData.data.length) {
         pushPoints(parsedData.data, preparedDataPoints, accentColor)
     } else if (parsedData.type === GEO_MAP && ok(parsedData.layers)) {
@@ -305,7 +305,7 @@ function extractFromFullConfig(parsedData, preparedDataPoints, accentColor) {
 /**
  * Extract the visualisation data from a dataframe.
  */
-function extractFromDataFrame(parsedData, preparedDataPoints, accentColor) {
+function extractVisualizationDataFromDataFrame(parsedData, preparedDataPoints, accentColor) {
     const geoPoints = parsedData.df_latitude.map(function (lat, i) {
         const lon = parsedData.df_longitude[i]
         let label = ok(parsedData.df_label) ? parsedData.df_label[i] : undefined
@@ -328,9 +328,9 @@ function isDataFrame(data) {
  */
 function extractDataPoints(parsedData, preparedDataPoints, accentColor) {
     if (isDataFrame(parsedData)) {
-        extractFromDataFrame(parsedData, preparedDataPoints, accentColor)
+        extractVisualizationDataFromDataFrame(parsedData, preparedDataPoints, accentColor)
     } else {
-        extractFromFullConfig(parsedData, preparedDataPoints, accentColor)
+        extractisualizationDataFromFullConfig(parsedData, preparedDataPoints, accentColor)
     }
 }
 
