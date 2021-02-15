@@ -188,7 +188,7 @@ class GeoMapVisualization extends Visualization {
 
         console.log(this.dataPoints)
         const { latitude, longitude } = this.centerPoint()
-        console.log( this.centerPoint() )
+        console.log(this.centerPoint())
 
         this.latitude = ok(data.latitude) ? data.latitude : latitude
         this.longitude = ok(data.longitude) ? data.longitude : longitude
@@ -285,7 +285,11 @@ class GeoMapVisualization extends Visualization {
 /**
  * Extract the visualisation data from a full configuration object.
  */
-function extractVisualizationDataFromFullConfig(parsedData, preparedDataPoints, accentColor) {
+function extractVisualizationDataFromFullConfig(
+    parsedData,
+    preparedDataPoints,
+    accentColor
+) {
     if (parsedData.type === SCATTERPLOT_LAYER && parsedData.data.length) {
         pushPoints(parsedData.data, preparedDataPoints, accentColor)
     } else if (ok(parsedData.layers)) {
@@ -303,7 +307,11 @@ function extractVisualizationDataFromFullConfig(parsedData, preparedDataPoints, 
 /**
  * Extract the visualisation data from a dataframe.
  */
-function extractVisualizationDataFromDataFrame(parsedData, preparedDataPoints, accentColor) {
+function extractVisualizationDataFromDataFrame(
+    parsedData,
+    preparedDataPoints,
+    accentColor
+) {
     const geoPoints = parsedData.df_latitude.map(function (lat, i) {
         const lon = parsedData.df_longitude[i]
         let label = ok(parsedData.df_label) ? parsedData.df_label[i] : undefined
@@ -326,9 +334,17 @@ function isDataFrame(data) {
  */
 function extractDataPoints(parsedData, preparedDataPoints, accentColor) {
     if (isDataFrame(parsedData)) {
-        extractVisualizationDataFromDataFrame(parsedData, preparedDataPoints, accentColor)
+        extractVisualizationDataFromDataFrame(
+            parsedData,
+            preparedDataPoints,
+            accentColor
+        )
     } else {
-        extractVisualizationDataFromFullConfig(parsedData, preparedDataPoints, accentColor)
+        extractVisualizationDataFromFullConfig(
+            parsedData,
+            preparedDataPoints,
+            accentColor
+        )
     }
 }
 
