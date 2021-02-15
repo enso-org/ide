@@ -31,6 +31,8 @@ const DEFAULT_MAP_ZOOM = 11
 const DARK_ACCENT_COLOR = [222, 162, 47]
 const LIGHT_ACCENT_COLOR = [1, 234, 146]
 
+
+
 // =====================================
 // === Script & Style Initialisation ===
 // =====================================
