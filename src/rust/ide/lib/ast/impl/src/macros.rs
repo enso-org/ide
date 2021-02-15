@@ -35,7 +35,22 @@ pub fn is_match_import(ast:&known::Match) -> bool {
     let segment = &ast.segs.head;
     let keyword = crate::identifier::name(&segment.head);
     // TODO: check if not export when unqualified
-    keyword.contains_if(|str| *str == QUALIFIED_IMPORT_KEYWORD || *str == UNQUALIFIED_IMPORT_KEYWORD)
+    if keyword.contains_if(|str| *str == QUALIFIED_IMPORT_KEYWORD) {
+        return true;
+    }
+    if keyword.contains_if(|str| *str == UNQUALIFIED_IMPORT_KEYWORD) {
+        let second_segment = &ast.segs.tail.first();
+        match second_segment {
+            Some(seg)   => {
+                let keyword_2      = crate::identifier::name(&seg.head);
+                if keyword_2.contains_if(|str| *str == QUALIFIED_IMPORT_KEYWORD) {
+                    return true;
+                }
+            }
+            None          => return false
+        }
+    }
+    return false
 }
 
 /// Check if the given ast node is an import declaration.

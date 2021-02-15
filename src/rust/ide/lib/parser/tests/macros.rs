@@ -33,7 +33,7 @@ fn import_utilities() {
     expect_import("import Foo.Bar.Baz");
     expect_import("from Foo import Bar");
     expect_import("from Foo import all hiding Bar");
-    expect_import("from Base.Data.List import Cons, Nil, from_vector hiding Nil.Boo");
+    expect_import("from Base.Data.List import all hiding Cons, Nil");
 
     expect_not_import("type Foo");
     expect_not_import("type Foo as Bar");
