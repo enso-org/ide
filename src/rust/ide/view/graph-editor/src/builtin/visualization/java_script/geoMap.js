@@ -10,7 +10,6 @@
  */
 const TOKEN =
     'pk.eyJ1IjoiZW5zby1vcmciLCJhIjoiY2tmNnh5MXh2MGlyOTJ5cWdubnFxbXo4ZSJ9.3KdAcCiiXJcSM18nwk09-Q'
-const GEO_MAP = 'Geo_Map'
 const SCATTERPLOT_LAYER = 'Scatterplot_Layer'
 const DEFAULT_POINT_RADIUS = 555150
 
@@ -90,7 +89,6 @@ const makeId = makeGenerator()
  *
  * > Example creates a map with described properties with a scatter plot overlay:
  * {
- * "type": "Geo_Map",
  * "latitude": 37.8,
  * "longitude": -122.45,
  * "zoom": 15,
@@ -287,10 +285,10 @@ class GeoMapVisualization extends Visualization {
 /**
  * Extract the visualisation data from a full configuration object.
  */
-function extractisualizationDataFromFullConfig(parsedData, preparedDataPoints, accentColor) {
+function extractVisualizationDataFromFullConfig(parsedData, preparedDataPoints, accentColor) {
     if (parsedData.type === SCATTERPLOT_LAYER && parsedData.data.length) {
         pushPoints(parsedData.data, preparedDataPoints, accentColor)
-    } else if (parsedData.type === GEO_MAP && ok(parsedData.layers)) {
+    } else if (ok(parsedData.layers)) {
         parsedData.layers.forEach((layer) => {
             if (layer.type === SCATTERPLOT_LAYER) {
                 let dataPoints = layer.data || []
@@ -330,7 +328,7 @@ function extractDataPoints(parsedData, preparedDataPoints, accentColor) {
     if (isDataFrame(parsedData)) {
         extractVisualizationDataFromDataFrame(parsedData, preparedDataPoints, accentColor)
     } else {
-        extractisualizationDataFromFullConfig(parsedData, preparedDataPoints, accentColor)
+        extractVisualizationDataFromFullConfig(parsedData, preparedDataPoints, accentColor)
     }
 }
 
