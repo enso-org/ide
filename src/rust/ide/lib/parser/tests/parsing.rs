@@ -361,8 +361,8 @@ impl Fixture {
 
     fn deserialize_annotation(&mut self) {
         self.test_shape("@Tail_call",|annotation: &Annotation| {
-            let expected_var = Annotation {name:"@Tail_call".into()};
-            assert_eq!(annotation,&expected_var);
+            let expected_annotation = Annotation {name:"@Tail_call".into()};
+            assert_eq!(annotation,&expected_annotation);
         });
     }
 
