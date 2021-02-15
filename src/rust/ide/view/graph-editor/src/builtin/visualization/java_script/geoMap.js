@@ -11,7 +11,7 @@
 const TOKEN =
     'pk.eyJ1IjoiZW5zby1vcmciLCJhIjoiY2tmNnh5MXh2MGlyOTJ5cWdubnFxbXo4ZSJ9.3KdAcCiiXJcSM18nwk09-Q'
 const SCATTERPLOT_LAYER = 'Scatterplot_Layer'
-const DEFAULT_POINT_RADIUS = 555150
+const DEFAULT_POINT_RADIUS = 150
 
 const LABEL_FONT = 'DejaVuSansMonoBook, sans-serif'
 const LABEL_FONT_SIZE = '12px'
