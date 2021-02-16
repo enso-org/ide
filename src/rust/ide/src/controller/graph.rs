@@ -104,7 +104,7 @@ pub struct NewNodeInfo {
     pub id : Option<ast::Id>,
     /// Where line created by adding this node should appear.
     pub location_hint : LocationHint,
-    /// Introduce variable name for the node, even if `expression` is not an assignment.
+    /// Introduce variable name for the node, making it into an assignment line.
     pub introduce_pattern : bool,
 
 }

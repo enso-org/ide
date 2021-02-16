@@ -23,6 +23,16 @@ pub use action::Action;
 
 
 
+// =================
+// === Constants ===
+// =================
+
+/// If enabled, searcher will assign names for all nodes created with it, not only when it is
+/// needed. Currently enabled to trigger engine's caching of user-added nodes.
+/// See: https://github.com/enso-org/ide/issues/1067
+pub const ASSIGN_NAMES_FOR_NODES:bool = true;
+
+
 
 // ==============
 // === Errors ===
@@ -651,9 +661,7 @@ impl Searcher {
             Mode::NewNode {position} => {
                 let mut new_node           = NewNodeInfo::new_pushed_back(expression);
                 new_node.metadata          = Some(NodeMetadata {position,intended_method});
-                // We force introducing variables to enable engine's caching of user-added nodes.
-                // See: https://github.com/enso-org/ide/issues/1067
-                new_node.introduce_pattern = true;
+                new_node.introduce_pattern = ASSIGN_NAMES_FOR_NODES;
                 let graph         = self.graph.graph();
                 if let Some(this) = self.this_arg.deref().as_ref() {
                     this.introduce_pattern(graph.clone_ref())?;
