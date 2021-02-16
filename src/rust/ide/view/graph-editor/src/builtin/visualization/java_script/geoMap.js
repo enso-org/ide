@@ -186,9 +186,7 @@ class GeoMapVisualization extends Visualization {
     updateState(data) {
         extractDataPoints(data, this.dataPoints, this.accentColor)
 
-        console.log(this.dataPoints)
         const { latitude, longitude } = this.centerPoint()
-        console.log(this.centerPoint())
 
         this.latitude = ok(data.latitude) ? data.latitude : latitude
         this.longitude = ok(data.longitude) ? data.longitude : longitude
