@@ -16,6 +16,12 @@ read the notes of the `Enso 2.0.0-alpha.1` release.
   now on all supported platforms.
 - [You can now see data frames in the table visualisation][1181]. Big tables get truncated to 2000 
   entries.
+- [Documentation in Searcher][1098]. Fixed cases where text would be misinterpreted as tag, added
+  support for new tag types, added support for more common characters, properly renders overflowing
+  text.
+- [Assigning intermediate expressions to values][1067]. Nodes added with searcher will have their 
+  values automatically assigned to a newly generated variables. This allows Enso Engine to cache
+  intermediate values, improving visualization performance.
   
 #### EnsoGL
 - New multi-camera management system, allowing the same shape systems be rendered on different 
@@ -33,14 +39,23 @@ read the notes of the `Enso 2.0.0-alpha.1` release.
 - [Added the ability to reposition visualisations.][1096] There is now an icon in the visualization 
   action bar that allows dragging the visualization. Once the visualization has been moved, there 
   appears another icon that will reset the position to the original position.
+- [Allow Tables to feed the Geo Map visualisation.][1187] Tables that have `latitude`, `longitude`
+  and optionally `label` columns can now be shown in a Geo Map visualisation where each row is 
+  mapped to a point of the map with the given label.
+- [Erroneous nodes are highlighted.][1182] The error description appears above the node. The nodes 
+  affected by error originating from another node will be highlighted without any description.
+- [There is now an API to show VCS status for node][1160].
 - [A shortcut for reloading visualization files.][1190] The visible visualizations must be switched 
   to another and switched back to see the effect.
 
 [1096]: https://github.com/enso-org/ide/pull/1172
+[1098]: https://github.com/enso-org/ide/pull/1098
 [1181]: https://github.com/enso-org/ide/pull/1181
+[1182]: https://github.com/enso-org/ide/pull/1182
+[1160]: https://github.com/enso-org/ide/pull/1160
 [1190]: https://github.com/enso-org/ide/pull/1190
+[1187]: https://github.com/enso-org/ide/pull/1187
 <br/>
-
 
 
 # Enso 2.0.0-alpha.1 (2020-01-26)

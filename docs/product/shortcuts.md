@@ -32,7 +32,7 @@ further investigation.
 | Shortcut | Action |
 | -------- | ------ |
 | <kbd>cmd</kbd>+<kbd>alt</kbd>+<kbd>shift</kbd>+<kbd>t</kbd> | Toggle light/dark application style. Currently doesn't work properly, as the Theme Switcher is not created yet. (https://github.com/enso-org/ide/issues/795)|
-| <kbd>ctrl</kbd>+<kbd>`</kbd>                                | Show Code Editor |
+| <kbd>ctrl</kbd>+<kbd>`</kbd>                                | Show Code Editor. Please note that the Code Editor implementation is in a very early stage and you should not use it. Even just openning it can cause errors in the IDE. Do not try using the graph editor while having the code editor tab openned. |
 | <kbd>meta</kbd>+<kbd>s</kbd>                                | Save module |
 | <kbd>cmd</kbd>+<kbd>q</kbd>                                 | Close the application (MacOS) |
 | <kbd>ctrl</kbd>+<kbd>q</kbd>                                | Close the application (Linux) |
@@ -117,4 +117,4 @@ further investigation.
 | <kbd>ctrl</kbd> + <kbd>d</kbd>                                     | Send test data to the selected node. |
 | <kbd>ctrl</kbd> + <kbd>shift</kbd> + <kbd>enter</kbd>              | Push a hardcoded breadcrumb without navigating. |
 | <kbd>ctrl</kbd> + <kbd>shift</kbd> + <kbd>arrow up</kbd>           | Pop a breadcrumb without navigating. |
-| <kbd>cmd</kbd>  + <kbd>shift</kbd> + <kbd>alt</kbd> + <kbd>r</kbd> | Reload visualizations. To see the effect in the currently shown visualizations, you need to switch to another and switch back. |
+| <kbd>cmd</kbd>  + <kbd>i</kbd>                                     | Reload visualizations. To see the effect in the currently shown visualizations, you need to switch to another and switch back. |
