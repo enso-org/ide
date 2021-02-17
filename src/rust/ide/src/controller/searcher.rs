@@ -733,11 +733,11 @@ impl Searcher {
     fn add_required_imports(&self) -> FallibleResult {
         let data_borrowed = self.data.borrow();
         let fragments     = data_borrowed.fragments_added_by_picking.iter();
-        let imports       = fragments.map(|frag| &frag.picked_suggestion.module);
+        let imports       = fragments.filter_map(|frag| frag.picked_suggestion.required_import());
         let mut module    = self.module();
         let here          = self.module_qualified_name();
         for import in imports {
-            module.add_module_import(&here, &self.parser, &import);
+            module.add_module_import(&here, &self.parser, import);
         }
         self.graph.graph().module.update_ast(module.ast)
     }
@@ -1172,6 +1172,7 @@ pub mod test {
             };
             let entry9 = model::suggestion_database::Entry {
                 name : "testFunction2".to_string(),
+                module    : "Test.Test".to_owned().try_into().unwrap(),
                 arguments     : vec![
                     Argument {
                         repr_type     : "Text".to_string(),
@@ -1304,7 +1305,7 @@ pub mod test {
         searcher.set_input("testFunction2 'foo' 10 ".to_owned()).unwrap();
     }
 
-    #[wasm_bindgen_test]
+    #[test]
     fn non_picked_function_arg_suggestions() {
         let mut fixture = Fixture::new_custom(|data,client| {
             data.graph.module.code.insert_str(0,"import Test.Test\n\n");
@@ -1602,6 +1603,52 @@ pub mod test {
     }
 
     #[wasm_bindgen_test]
+    fn adding_imports_with_nodes() {
+        let Fixture{test:_test,mut searcher,entry1,entry2,entry3,entry4,entry9,..} = Fixture::new();
+
+        assert!(entry1.required_import().is_some());
+        assert!(entry2.required_import().is_some());
+        assert!(entry3.required_import().is_none()); // No imports needed, as it is a method.
+        assert!(entry4.required_import().is_none()); // No imports needed, as it is a method.
+        assert!(entry9.required_import().is_some());
+
+        let module      = searcher.graph.graph().module.clone_ref();
+        let initial_ast = module.ast();
+        let parser      = searcher.parser.clone_ref();
+
+        // Helper that returns import that got added when committing a node from given entry.
+        let mut import_added_for = |entry:action::Suggestion| {
+            let picked_method = FragmentAddedByPickingSuggestion {
+                id                : CompletedFragmentId::Function,
+                picked_suggestion : entry.clone(),
+            };
+            with(searcher.data.borrow_mut(), |mut data| {
+                data.fragments_added_by_picking.push(picked_method);
+                data.input = ParsedInput::new(entry.name.to_string(),&parser).unwrap();
+            });
+
+            // Add new node.
+            searcher.mode = Immutable(Mode::NewNode {position:None});
+            searcher.commit_node().unwrap();
+
+            let module_info = module.info();
+            let mut imports = module_info.iter_imports();
+            let ret = imports.next();
+            assert!(imports.next().is_none()); // at most one import insertion is expected
+            println!("{}",module.ast());
+            module.update_ast(initial_ast.clone()).unwrap();
+            ret
+        };
+
+        assert_eq!(import_added_for(entry1), None); // No import added, as we are the relevant module.
+        assert_eq!(import_added_for(entry2), None); // No import added, as we are the relevant module.
+        assert_eq!(import_added_for(entry3), None); // No import added, as this is a method entry.
+        assert_eq!(import_added_for(entry4), None); // No import added, as this is a method entry.
+        let import9 = import_added_for(entry9.clone_ref()).unwrap();
+        assert_eq!(import9.qualified_name().unwrap(), entry9.module);
+    }
+
+    #[wasm_bindgen_test]
     fn committing_node() {
         let Fixture{test:_test,mut searcher,entry4,..} = Fixture::new();
         let module                                     = searcher.graph.graph().module.clone_ref();
@@ -1621,7 +1668,7 @@ pub mod test {
         searcher.mode = Immutable(Mode::NewNode {position});
         searcher.commit_node().unwrap();
 
-        let expected_code = "import Test.Test\nmain = \n    2 + 2\n    operator1 = Test.testMethod1";
+        let expected_code = "main = \n    2 + 2\n    operator1 = Test.testMethod1";
         assert_eq!(module.ast().repr(), expected_code);
         let (node1,node2) = searcher.graph.graph().nodes().unwrap().expect_tuple();
         let expected_intended_method = Some(MethodId {
@@ -1634,7 +1681,7 @@ pub mod test {
         // Edit existing node.
         searcher.mode = Immutable(Mode::EditNode {node_id:node1.info.id()});
         searcher.commit_node().unwrap();
-        let expected_code = "import Test.Test\nmain = \n    Test.testMethod1\n    operator1 = Test.testMethod1";
+        let expected_code = "main = \n    Test.testMethod1\n    operator1 = Test.testMethod1";
         let (node1,_)     = searcher.graph.graph().nodes().unwrap().expect_tuple();
         assert_eq!(node1.metadata.unwrap().intended_method, expected_intended_method);
         assert_eq!(module.ast().repr(), expected_code);

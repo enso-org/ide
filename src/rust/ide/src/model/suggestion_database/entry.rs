@@ -114,6 +114,16 @@ impl Entry {
         }
     }
 
+    /// Module that needs to be imported to bring in this entry into the scope.
+    pub fn required_import(&self) -> Option<&module::QualifiedName> {
+        if self.kind == Kind::Method {
+            // Methods are found through lookup on `this`, no need for any additional imports.
+            None
+        } else {
+            Some(&self.module)
+        }
+    }
+
     /// Returns the code which should be inserted to Searcher input when suggestion is picked,
     /// omitting module name.
     pub fn code_to_insert_skip_module(&self) -> String {
