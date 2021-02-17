@@ -1067,6 +1067,7 @@ pub mod test {
         entry3   : action::Suggestion,
         entry4   : action::Suggestion,
         entry9   : action::Suggestion,
+        entry10  : action::Suggestion,
     }
 
     impl Fixture {
@@ -1172,7 +1173,6 @@ pub mod test {
             };
             let entry9 = model::suggestion_database::Entry {
                 name : "testFunction2".to_string(),
-                module    : "Test.Test".to_owned().try_into().unwrap(),
                 arguments     : vec![
                     Argument {
                         repr_type     : "Text".to_string(),
@@ -1191,6 +1191,12 @@ pub mod test {
                 ],
                 ..entry1.clone()
             };
+            let entry10 = model::suggestion_database::Entry {
+                name   : "testFunction3".to_string(),
+                module : "Test.Other".to_owned().try_into().unwrap(),
+                scope  : Scope::Everywhere,
+                ..entry9.clone()
+            };
 
             searcher.database.put_entry(1,entry1);
             let entry1 = searcher.database.lookup(1).unwrap();
@@ -1202,7 +1208,9 @@ pub mod test {
             let entry4 = searcher.database.lookup(4).unwrap();
             searcher.database.put_entry(9,entry9);
             let entry9 = searcher.database.lookup(9).unwrap();
-            Fixture{data,test,searcher,entry1,entry2,entry3,entry4,entry9}
+            searcher.database.put_entry(10,entry10);
+            let entry10 = searcher.database.lookup(10).unwrap();
+            Fixture{data,test,searcher,entry1,entry2,entry3,entry4,entry9,entry10}
         }
 
         fn new() -> Self {
@@ -1305,7 +1313,7 @@ pub mod test {
         searcher.set_input("testFunction2 'foo' 10 ".to_owned()).unwrap();
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn non_picked_function_arg_suggestions() {
         let mut fixture = Fixture::new_custom(|data,client| {
             data.graph.module.code.insert_str(0,"import Test.Test\n\n");
@@ -1604,13 +1612,14 @@ pub mod test {
 
     #[wasm_bindgen_test]
     fn adding_imports_with_nodes() {
-        let Fixture{test:_test,mut searcher,entry1,entry2,entry3,entry4,entry9,..} = Fixture::new();
+        let fixture = Fixture::new();
+        let Fixture{test:_test,mut searcher,entry1,entry2,entry3,entry4,entry10,..} = fixture;
 
         assert!(entry1.required_import().is_some());
         assert!(entry2.required_import().is_some());
         assert!(entry3.required_import().is_none()); // No imports needed, as it is a method.
         assert!(entry4.required_import().is_none()); // No imports needed, as it is a method.
-        assert!(entry9.required_import().is_some());
+        assert!(entry10.required_import().is_some());
 
         let module      = searcher.graph.graph().module.clone_ref();
         let initial_ast = module.ast();
@@ -1644,8 +1653,8 @@ pub mod test {
         assert_eq!(import_added_for(entry2), None); // No import added, as we are the relevant module.
         assert_eq!(import_added_for(entry3), None); // No import added, as this is a method entry.
         assert_eq!(import_added_for(entry4), None); // No import added, as this is a method entry.
-        let import9 = import_added_for(entry9.clone_ref()).unwrap();
-        assert_eq!(import9.qualified_name().unwrap(), entry9.module);
+        let import10 = import_added_for(entry10.clone_ref()).unwrap();
+        assert_eq!(import10.qualified_name().unwrap(), entry10.module);
     }
 
     #[wasm_bindgen_test]
