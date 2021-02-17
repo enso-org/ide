@@ -22,6 +22,8 @@ read the notes of the `Enso 2.0.0-alpha.1` release.
 - [Assigning intermediate expressions to values][1067]. Nodes added with searcher will have their 
   values automatically assigned to a newly generated variables. This allows Enso Engine to cache
   intermediate values, improving visualization performance.
+- [Not adding spurious imports][1209]. Fixed case where IDE would generate spurious import 
+  declarations when inserting method calls.
   
 #### EnsoGL
 - New multi-camera management system, allowing the same shape systems be rendered on different 
@@ -55,6 +57,8 @@ read the notes of the `Enso 2.0.0-alpha.1` release.
 [1160]: https://github.com/enso-org/ide/pull/1160
 [1190]: https://github.com/enso-org/ide/pull/1190
 [1187]: https://github.com/enso-org/ide/pull/1187
+[1067]: https://github.com/enso-org/ide/issues/1067
+[1209]: https://github.com/enso-org/ide/pull/1209
 <br/>
 
 
