@@ -1072,11 +1072,10 @@ impl GraphEditorModelWithNetwork {
             // === Visualizations ===
 
             let vis_changed    =  node.model.visualization.frp.visualisation.clone_ref();
-            let vis_visible    =  node.model.visualization.frp.set_visibility.clone_ref();
             let vis_fullscreen =  node.model.visualization.frp.enable_fullscreen.clone_ref();
 
-            vis_enabled  <- vis_visible.gate(&vis_visible);
-            vis_disabled <- vis_visible.gate_not(&vis_visible);
+            vis_enabled  <- node.visualization_enabled.gate(&node.visualization_enabled);
+            vis_disabled <- node.visualization_enabled.gate_not(&node.visualization_enabled);
 
             let vis_is_selected = node.model.visualization.frp.is_selected.clone_ref();
 
@@ -1320,19 +1319,17 @@ impl GraphEditorModel {
         self.set_input_connected(target,tp,status);
     }
 
-    // FIXME: make nicer
     fn enable_visualization(&self, node_id:impl Into<NodeId>) {
         let node_id = node_id.into();
         if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
-            node.model.visualization.frp.set_visibility.emit(true);
+            node.enable_visualization();
         }
     }
 
-    // FIXME: make nicer
     fn disable_visualization(&self, node_id:impl Into<NodeId>) {
         let node_id = node_id.into();
         if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
-            node.model.visualization.frp.set_visibility.emit(false);
+            node.disable_visualization();
         }
     }
 
@@ -2761,7 +2758,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     viz_tgt_nodes_off    <- viz_tgt_nodes.map(f!([model](node_ids) {
         node_ids.iter().cloned().filter(|node_id| {
             model.nodes.get_cloned_ref(node_id)
-                .map(|node| !node.model.visualization.is_active())
+                .map(|node| !node.visualization_enabled.value())
                 .unwrap_or_default()
         }).collect_vec()
     }));

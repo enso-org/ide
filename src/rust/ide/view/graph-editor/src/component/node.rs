@@ -240,13 +240,15 @@ impl Default for Crumbs {
 
 ensogl::define_endpoints! {
     Input {
-        select              (),
-        deselect            (),
-        set_visualization   (Option<visualization::Definition>),
-        set_disabled        (bool),
-        set_input_connected (span_tree::Crumbs,Option<Type>,bool),
-        set_expression      (Expression),
-        set_error           (Option<Error>),
+        select                (),
+        deselect              (),
+        enable_visualization  (),
+        disable_visualization (),
+        set_visualization     (Option<visualization::Definition>),
+        set_disabled          (bool),
+        set_input_connected   (span_tree::Crumbs,Option<Type>,bool),
+        set_expression        (Expression),
+        set_error             (Option<Error>),
         /// Set the expression USAGE type. This is not the definition type, which can be set with
         /// `set_expression` instead. In case the usage type is set to None, ports still may be
         /// colored if the definition type was present.
@@ -257,11 +259,13 @@ ensogl::define_endpoints! {
     Output {
         /// Press event. Emitted when user clicks on non-active part of the node, like its
         /// background. In edit mode, the whole node area is considered non-active.
-        background_press (),
-        expression       (Text),
-        skip             (bool),
-        freeze           (bool),
-        hover            (bool),
+        background_press      (),
+        expression            (Text),
+        skip                  (bool),
+        freeze                (bool),
+        hover                 (bool),
+        error                 (Option<Error>),
+        visualization_enabled (bool),
     }
 }
 
@@ -350,12 +354,13 @@ pub struct NodeModel {
     // TODO: This extra text field should not be required after #1026 has been finished.
     // Instead we should get the error content as normal node output that is visible in the
     // visualisation. Alternatively it might be extended to use a preview of the new information.
-    pub error_text      : text::Area,
-    pub input           : input::Area,
-    pub output          : output::Area,
-    pub visualization   : visualization::Container,
-    pub action_bar      : action_bar::ActionBar,
-    pub vcs_indicator   : vcs::StatusIndicator,
+    pub error_text          : text::Area,
+    pub input               : input::Area,
+    pub output              : output::Area,
+    pub visualization       : visualization::Container,
+    pub error_visualization : builtin_visualization::Error,
+    pub action_bar          : action_bar::ActionBar,
+    pub vcs_indicator       : vcs::StatusIndicator,
 }
 
 impl NodeModel {
@@ -411,6 +416,10 @@ impl NodeModel {
         display_object.add_child(&visualization);
         display_object.add_child(&input);
 
+        let error_visualization = builtin_visualization::Error::new(&scene);
+        error_visualization.set_position_y(-100.0);
+        error_visualization.inputs.set_size.emit(Vector2(200.0,200.0));
+
         let action_bar = action_bar::ActionBar::new(&logger,&app);
         display_object.add_child(&action_bar);
 
@@ -418,8 +427,8 @@ impl NodeModel {
         display_object.add_child(&output);
 
         let app = app.clone_ref();
-        Self {app,display_object,logger,main_area,drag_area,output,input,visualization,action_bar,
-              error_indicator,error_text,vcs_indicator}.init()
+        Self {app,display_object,logger,main_area,drag_area,output,input,visualization
+            ,error_visualization,action_bar,error_indicator,error_text,vcs_indicator}.init()
     }
 
     pub fn get_crumbs_by_id(&self, id:ast::Id) -> Option<Crumbs> {
@@ -489,9 +498,18 @@ impl NodeModel {
     }
 
     fn set_error(&self, error:Option<&Error>) {
-        // TODO
-        // let message = error.map(|t| t.message.clone()).unwrap_or_default();
-        // self.error_text.set_content.emit(message);
+        if let Some(error) = error {
+            if let Some(error_data) = error.visualization_data() {
+                self.error_visualization.inputs.send_data.emit(error_data);
+            }
+            if !error.propagated {
+                self.display_object.add_child(&self.error_visualization);
+            } else {
+                self.error_visualization.unset_parent();
+            }
+        } else {
+            self.error_visualization.unset_parent();
+        }
 
     }
 }
@@ -546,11 +564,6 @@ impl Node {
             model.output.set_expression_visibility <+ frp.set_output_expression_visibility;
 
 
-            // === Visualization ===
-
-            eval frp.set_visualization ((t) model.visualization.frp.set_visualization.emit(t));
-
-
             // === Size ===
 
             new_size <- model.input.frp.width.map(f!((w) model.set_width(*w)));
@@ -565,47 +578,32 @@ impl Node {
             eval out.hover ((t) action_bar.set_visibility(t));
 
 
-            // === Set Node Error ===
+            // === Errors on Node ===
 
-            error_is_set   <- frp.set_error.filter(|err| err.is_some()).constant(());
-            error_is_unset <- frp.set_error.filter(|err| err.is_none()).constant(());
+            is_error_set <- frp.error.map(|err| err.is_some());
 
-            visualization_before_error <- model.visualization.frp.visualisation.sample(&error_is_set);
-            visibility_before_error    <- model.visualization.frp.visible.sample(&error_is_set);
-
-            eval frp.set_error ([model](error) {
+            frp.source.error <+ frp.set_error.map(f!([model](error) {
                 model.set_error(error.as_ref());
-                if let Some(error) = error {
-                    let error_vis = builtin_visualization::Error::definition();
-                    model.visualization.frp.set_visualization(Some(error_vis));
-                    if let Some(error_data) = error.visualization_data() {
-                        model.visualization.frp.set_data.emit(error_data);
-                    }
-                    if !error.propagated {
-                        model.visualization.frp.set_visibility(true);
-                    }
-                }
-            });
+                error.clone()
+            }));
 
-            _eval <- error_is_unset.map3(&visualization_before_error,&visibility_before_error,
-                f!([model]((),visualization,was_visible) {
-                    model.visualization.frp.set_visualization(visualization.clone());
-                    if !was_visible {
-                        model.visualization.frp.set_visibility(false);
-                    }
-                })
-            );
-
-            error_color_anim.target <+ frp.set_error.map(|error|
-                match error.as_ref() {
-                    Some(_) => color::Lcha::from(color::Rgba::red()),
-                    None    => color::Lcha::transparent(),
-                }
+            error_color_anim.target <+ is_error_set.map(|is_error_set|
+                if *is_error_set { color::Lcha::from(color::Rgba::red()) }
+                else             { color::Lcha::transparent()            }
             );
 
             eval error_color_anim.value((value)
                 model.error_indicator.color_rgba.set(color::Rgba::from(value).into());
             );
+
+
+            // === Visualization ===
+
+            eval frp.set_visualization ((t) model.visualization.frp.set_visualization.emit(t));
+            visualization_enabled <- bool(&frp.disable_visualization,&frp.enable_visualization);
+            visualization_visible <- visualization_enabled.all_with(&is_error_set, |l,r| *l && !*r);
+            frp.source.visualization_enabled <+ visualization_enabled;
+            eval visualization_visible ((is_visible) model.visualization.frp.set_visibility(is_visible));
 
 
             // === Color Handling ===

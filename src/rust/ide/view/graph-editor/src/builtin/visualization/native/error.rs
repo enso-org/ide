@@ -31,19 +31,27 @@ const PADDING_TEXT: f32 = 10.0;
 // ===============
 
 /// Sample visualization that renders the given data as text. Useful for debugging and testing.
-#[derive(Debug,Shrinkwrap)]
+#[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Error {
-    #[shrinkwrap(main_field)]
     model   : Model,
     frp     : visualization::instance::Frp,
     network : frp::Network,
 }
 
+impl Deref for Error {
+    type Target = visualization::instance::Frp;
+
+    fn deref(&self) -> &Self::Target { &self.frp }
+}
+
 impl Error {
+
+    pub fn path() -> Path { Path::builtin("Error") }
+
     /// Definition of this visualization.
     pub fn definition() -> Definition {
-        let path = Path::builtin("Error");
+        let path = Self::path();
         Definition::new(
             Signature::new_for_any_type(path,Format::Json),
             |scene| { Ok(Self::new(scene).into()) }
@@ -70,6 +78,7 @@ impl Error {
                 }
              });
         }
+
         self
     }
 }
@@ -153,6 +162,6 @@ impl From<Error> for Instance {
 
 impl display::Object for Error {
     fn display_object(&self) -> &display::object::Instance {
-        &self.dom.display_object()
+        &self.model.dom.display_object()
     }
 }

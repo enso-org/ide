@@ -27,3 +27,14 @@ impl Error {
         Some(visualization::Data::Json {content})
     }
 }
+
+
+
+// // =================
+// // === Container ===
+// // =================
+//
+// pub struct Container {
+//     error_visualization : builtin_visualization::Error,
+// }
+//

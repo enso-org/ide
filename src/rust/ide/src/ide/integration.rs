@@ -680,6 +680,7 @@ impl Model {
             node::error::Error {message,propagated,trace:default()}
         });
         self.view.graph().set_node_error_status(node_id,error);
+
     }
 
     /// Get the node being a main cause of some error from the current nodes on the scene. Returns

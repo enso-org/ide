@@ -66,7 +66,7 @@ impl QualifiedName {
         let mut all_segments    = text.split('.');
         let project_name_str    = all_segments.next().ok_or_else(|| InvalidQualifiedName::EmptyName{source:text.clone()})?;
         let project_name        = ReferentName::new(project_name_str)?;
-        let name_str            = all_segments.next_back().ok_or_else(||InvalidQualifiedName::NoModuleName{source:text.clone()})?;
+        let name_str            = all_segments.next_back().ok_or_else(||InvalidQualifiedName::NoModuleName{source:text.clone()}).unwrap();
         let name                = name_str.to_owned();
         let mut module_segments = Vec::new();
         for segment in all_segments {
