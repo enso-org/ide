@@ -57,8 +57,10 @@ const ERROR_PATTERN_STRIPE_WIDTH     : f32       = 5.0;
 const ERROR_PATTERN_STRIPE_ANGLE     : f32       = 45.0;
 const ERROR_PATTERN_REPEAT_TILE_SIZE : (f32,f32) = (15.0,15.0);
 const ERROR_BORDER_WIDTH             : f32       = 10.0;
+const ERROR_VISUALIZATION_SIZE       : (f32,f32) = visualization::container::DEFAULT_SIZE;
 
 const TEXT_SIZE                      : f32       = 12.0;
+const VISUALIZATION_OFFSET_Y         : f32       = -120.0;
 
 
 
@@ -417,8 +419,8 @@ impl NodeModel {
         display_object.add_child(&input);
 
         let error_visualization = builtin_visualization::Error::new(&scene);
-        error_visualization.set_position_y(-100.0);
-        error_visualization.set_size.emit(Vector2(200.0,200.0));
+        let (x,y)               = ERROR_VISUALIZATION_SIZE;
+        error_visualization.set_size.emit(Vector2(x,y));
 
         let action_bar = action_bar::ActionBar::new(&logger,&app);
         display_object.add_child(&action_bar);
@@ -485,10 +487,9 @@ impl NodeModel {
         });
         self.action_bar.frp.set_size(Vector2::new(action_bar_width,ACTION_BAR_HEIGHT));
 
-        self.visualization.mod_position(|t| {
-            t.x = width / 2.0;
-            t.y = -120.0;
-        });
+        let visualization_pos = Vector2(width / 2.0, VISUALIZATION_OFFSET_Y);
+        self.error_visualization.set_position_xy(visualization_pos);
+        self.visualization.set_position_xy(visualization_pos);
 
         size
     }
@@ -500,9 +501,9 @@ impl NodeModel {
     fn set_error(&self, error:Option<&Error>) {
         if let Some(error) = error {
             if let Some(error_data) = error.visualization_data() {
-                self.error_visualization.send_data.emit(error_data);
+                self.error_visualization.set_data(&error_data);
             }
-            if !error.propagated {
+            if !*error.propagated {
                 self.display_object.add_child(&self.error_visualization);
             } else {
                 self.error_visualization.unset_parent();
@@ -587,9 +588,8 @@ impl Node {
                 error.clone()
             }));
 
-            error_color_anim.target <+ is_error_set.map(|is_error_set|
-                if *is_error_set { color::Lcha::from(color::Rgba::red()) }
-                else             { color::Lcha::transparent()            }
+            error_color_anim.target <+ frp.error.map(f!([style](error)
+                Self::error_color(error,&style))
             );
 
             eval error_color_anim.value((value)
@@ -627,6 +627,20 @@ impl Node {
         frp.set_error.emit(None);
         frp.set_disabled.emit(false);
         Self {frp,model}
+    }
+
+    fn error_color(error:&Option<error::Error>, style:&StyleWatch) -> color::Lcha {
+        use ensogl_theme::graph_editor::node::error as error_theme;
+
+        if let Some(error) = error {
+            let path = match *error.kind {
+                error::Kind::Panic    => error_theme::panic::color,
+                error::Kind::Dataflow => error_theme::dataflow::color,
+            };
+            style.get_color(path)
+        } else {
+            color::Lcha::transparent()
+        }
     }
 }
 

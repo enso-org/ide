@@ -10,7 +10,6 @@ use crate::controller::graph::NodeTrees;
 use crate::controller::searcher::action::MatchInfo;
 use crate::controller::searcher::Actions;
 use crate::model::execution_context::ComputedValueInfo;
-use crate::model::execution_context::EvaluationError;
 use crate::model::execution_context::ExpressionId;
 use crate::model::execution_context::LocalCall;
 use crate::model::execution_context::Visualization;
@@ -31,7 +30,7 @@ use ide_view::graph_editor::EdgeEndpoint;
 use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
 use utils::channel::process_stream_with_handle;
-
+use enso_protocol::language_server::ExpressionUpdatePayload;
 
 
 // ==============
@@ -633,7 +632,7 @@ impl Model {
             });
             self.set_method_pointer(id,method_pointer);
             if self.node_views.borrow().get_by_left(&id).contains(&&node_id) {
-                self.set_error(node_id,info.and_then(|info| info.error.as_ref()));
+                self.set_error(node_id,info.map(|info| &info.payload));
             }
         }
     }
@@ -650,31 +649,44 @@ impl Model {
         self.view.graph().frp.input.set_method_pointer.emit(&event);
     }
 
-    /// Mark node as erroneous. The node will have an error message if it is the main cause of
-    /// the error in the current scene.
-    fn set_error(&self, node_id:graph_editor::NodeId, error:Option<&EvaluationError>) -> FallibleResult {
-        let error = error.map(|error| {
-            let root_cause = self.get_node_causing_error_on_current_graph(error);
-            let message    = error.message.clone();
-            let propagated = !root_cause.contains(&node_id);
-            node::error::Error {message,propagated,trace:default()}
-        });
+    /// Mark node as erroneous if given payload contains an error.
+    fn set_error
+    (&self, node_id:graph_editor::NodeId, error:Option<&ExpressionUpdatePayload>) -> FallibleResult {
+        let error = self.convert_payload_to_error_view(error,node_id);
         self.view.graph().set_node_error_status(node_id,error.clone());
         if error.is_some() && !self.error_visualizations.contains_key(&node_id) {
             let endpoint = self.view.graph().frp.set_error_visualization_data.clone_ref();
             self.attach_visualization(node_id,endpoint,self.error_visualizations.clone_ref())?;
-        } else if self.error_visualizations.contains_key(&node_id) {
+        } else if error.is_none() && self.error_visualizations.contains_key(&node_id) {
             self.detach_visualization(node_id,self.error_visualizations.clone_ref())?;
         }
         Ok(())
     }
 
+    fn convert_payload_to_error_view
+    (&self, payload:Option<&ExpressionUpdatePayload>, node_id:graph_editor::NodeId)
+    -> Option<node::error::Error> {
+        use ExpressionUpdatePayload::*;
+        use node::error::Kind;
+        let (kind,message,trace) = match payload {
+            None                                                   |
+            Some(Value                  ) => None,
+            Some(DataflowError { trace }) => Some((Kind::Dataflow, None         ,trace)),
+            Some(Panic { message,trace }) => Some((Kind::Panic   , Some(message),trace)),
+        }?;
+        let root_cause = self.get_node_causing_error_on_current_graph(&trace);
+        let kind       = Immutable(kind);
+        let message    = Rc::new(message.cloned());
+        let propagated = Immutable(!root_cause.contains(&node_id));
+        Some(node::error::Error {kind,message,propagated})
+    }
+
     /// Get the node being a main cause of some error from the current nodes on the scene. Returns
     /// [`None`] if the error is not present on the scene at all.
     fn get_node_causing_error_on_current_graph
-    (&self, error:&EvaluationError) -> Option<graph_editor::NodeId> {
+    (&self, trace:&Vec<ExpressionId>) -> Option<graph_editor::NodeId> {
         let node_view_by_expression = self.node_view_by_expression.borrow();
-        error.trace.iter().find_map(|expr_id| node_view_by_expression.get(&expr_id).copied())
+        trace.iter().find_map(|expr_id| node_view_by_expression.get(&expr_id).copied())
     }
 
     /// Set the position in the node's metadata.

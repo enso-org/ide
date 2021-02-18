@@ -15,6 +15,8 @@ use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
 use ensogl_theme;
 use ensogl::system::web::AttributeSetter;
+use serde::Deserialize;
+use serde::Serialize;
 
 
 
@@ -22,13 +24,28 @@ use ensogl::system::web::AttributeSetter;
 // === Constants ===
 // =================
 
-const PADDING_TEXT: f32 = 10.0;
+const PADDING_TEXT:f32 = 10.0;
+const EXPRESSION:&str = r#"x -> '{ kind: "Dataflow", message: "`x.to_display`"}'"#;
 
 
 
-// ===============
-// === RawText ===
-// ===============
+// =============
+// === Input ===
+// =============
+
+pub use crate::component::node::error::Kind;
+
+#[derive(Clone,Debug,Deserialize,Serialize)]
+pub struct Input {
+    pub kind: Kind,
+    pub message: String,
+}
+
+
+
+// =============
+// === Error ===
+// =============
 
 /// Sample visualization that renders the given data as text. Useful for debugging and testing.
 #[derive(Clone,CloneRef,Debug)]
@@ -79,7 +96,13 @@ impl Error {
              });
         }
 
+        frp.preprocessor_change.emit(EXPRESSION);
+
         self
+    }
+
+    pub fn set_data(&self, input:&Input) {
+        self.model.set_data(input);
     }
 }
 
@@ -89,6 +112,8 @@ pub struct Model {
     logger : Logger,
     dom    : DomSymbol,
     size   : Rc<Cell<Vector2>>,
+    // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
+    styles : StyleWatch,
 }
 
 impl Model {
@@ -99,14 +124,7 @@ impl Model {
         let dom    = DomSymbol::new(&div);
         let size   = Rc::new(Cell::new(Vector2(200.0,200.0)));
 
-        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles       = StyleWatch::new(&scene.style_sheet);
-        let text_color   = styles.get_color(ensogl_theme::graph_editor::visualization::error::text);
-        let text_color   = color::Rgba::from(text_color);
-        let red         = text_color.red * 255.0;
-        let green       = text_color.green * 255.0;
-        let blue        = text_color.blue * 255.0;
-        let text_color   = format!("rgba({},{},{},{})",red,green,blue,text_color.alpha);
         let padding_text = format!("{}px",PADDING_TEXT);
 
         dom.dom().set_attribute_or_warn("class","visualization scrollable",&logger);
@@ -116,11 +134,10 @@ impl Model {
         dom.dom().set_style_or_warn("font-size"     ,"12px"               ,&logger);
         dom.dom().set_style_or_warn("padding-left"  ,&padding_text        ,&logger);
         dom.dom().set_style_or_warn("padding-top"   ,&padding_text        ,&logger);
-        dom.dom().set_style_or_warn("color"         ,text_color           ,&logger);
         dom.dom().set_style_or_warn("pointer-events","auto"               ,&logger);
 
         scene.dom.layers.back.manage(&dom);
-        Model{dom,logger,size}.init()
+        Model{dom,logger,size,styles}.init()
     }
 
     fn init(self) -> Self {
@@ -138,19 +155,39 @@ impl Model {
 
     fn receive_data(&self, data:&Data) -> Result<(),DataError> {
         if let Data::Json {content} = data {
-            let conversion_error = |e:serde_json::Error|
-                format!("<Cannot display error message: {}>", e);
-            let message = if let serde_json::Value::String(str) = content.deref() { str.clone() }
-                else { serde_json::to_string_pretty(&**content).unwrap_or_else(conversion_error) };
-            self.dom.dom().set_inner_text(&message);
+            let conversion_error = |e:serde_json::Error| Input {
+                kind    : Kind::Panic,
+                message : format!("<Cannot display error message: {}>", e),
+            };
+            let input:Input = serde_json::from_value(content.deref().clone()).unwrap_or_else(conversion_error);
+            self.set_data(&input);
             Ok(())
         } else {
             Err(DataError::InvalidDataType.into())
         }
     }
 
+    fn set_data(&self, input:&Input) {
+        let color_style = match input.kind {
+            Kind::Panic    => ensogl_theme::graph_editor::visualization::error::panic::text,
+            Kind::Dataflow => ensogl_theme::graph_editor::visualization::error::dataflow::text,
+        };
+        self.dom.dom().set_inner_text(&input.message);
+        self.set_text_color(color_style);
+    }
+
     fn reload_style(&self) {
         self.dom.set_size(self.size.get());
+    }
+
+    fn set_text_color(&self, color:impl Into<display::shape::style_watch::ColorSource>) {
+        let text_color   = self.styles.get_color(color);
+        let text_color   = color::Rgba::from(text_color);
+        let red          = text_color.red * 255.0;
+        let green        = text_color.green * 255.0;
+        let blue         = text_color.blue * 255.0;
+        let text_color   = format!("rgba({},{},{},{})",red,green,blue,text_color.alpha);
+        self.dom.dom().set_style_or_warn("color",text_color,&self.logger);
     }
 }
 

@@ -33,36 +33,6 @@ pub type ExpressionId = ast::Id;
 
 
 
-// ======================
-// === ExecutionError ===
-// ======================
-
-/// An error reported by Engine during evaluation of some expression.
-///
-/// The error may be caused by the expression directly, or be a propagation of error in some
-/// previous part of code the expression in question depends on.
-#[derive(Clone,Debug)]
-pub struct EvaluationError {
-    /// The short error description.
-    pub message : Option<String>,
-    /// The trace of the error's root cause.
-    pub trace   : Vec<ExpressionId>,
-}
-
-impl EvaluationError {
-    /// Create [`ExecutionError`] from the payload, or returns `None` if payload is not an error.
-    pub fn from_payload(payload:ExpressionUpdatePayload) -> Option<Self> {
-        use ExpressionUpdatePayload::*;
-        match payload {
-            Value                 => None,
-            Panic {message,trace} => Some(Self{message:Some(message),trace}),
-            DataflowError {trace} => Some(Self{message:None         ,trace}),
-        }
-    }
-}
-
-
-
 // =========================
 // === ComputedValueInfo ===
 // =========================
@@ -75,8 +45,8 @@ impl EvaluationError {
 pub struct ComputedValueInfo {
     /// The string representing the full qualified typename of the computed value, e.g.
     /// "Base.Main.Number".
-    pub typename : Option<ImString>,
-    pub error    : Option<EvaluationError>,
+    pub typename    : Option<ImString>,
+    pub payload     : ExpressionUpdatePayload,
     /// If the expression is a method call (i.e. can be entered), this points to the target method.
     pub method_call : Option<SuggestionId>,
 }
@@ -86,7 +56,7 @@ impl From<ExpressionUpdate> for ComputedValueInfo {
         ComputedValueInfo {
             typename    : update.typename.map(ImString::new),
             method_call : update.method_pointer,
-            error       : EvaluationError::from_payload(update.payload),
+            payload     : update.payload
         }
     }
 }
@@ -406,27 +376,6 @@ mod tests {
     }
 
     #[test]
-    fn converting_payload_to_evaluation_error() {
-        let panic_message = "A Test Panic";
-        let value         = ExpressionUpdatePayload::Value;
-        let error         = ExpressionUpdatePayload::DataflowError {
-            trace : vec![ExpressionId::new_v4(),ExpressionId::new_v4()],
-        };
-        let panic = ExpressionUpdatePayload::Panic {
-            message : panic_message.to_owned(),
-            trace   : vec![ExpressionId::new_v4()],
-        };
-
-        assert!(EvaluationError::from_payload(value).is_none());
-        let error_result = EvaluationError::from_payload(error).unwrap();
-        assert_eq!(error_result.trace.len(), 2);
-        assert!(error_result.message.is_none());
-        let panic_result = EvaluationError::from_payload(panic).unwrap();
-        assert_eq!(panic_result.message.as_ref().map(AsRef::<str>::as_ref), Some(panic_message));
-        assert_eq!(panic_result.trace.len(), 1);
-    }
-
-    #[test]
     fn applying_expression_update_in_registry() {
         let mut test       = TestWithLocalPoolExecutor::set_up();
         let registry       = ComputedValueInfoRegistry::default();
@@ -444,9 +393,9 @@ mod tests {
         let update2 = value_update_with_type(expr2,&typename2);
         registry.apply_updates(vec![update1,update2]);
         assert_eq!(registry.get(&expr1).unwrap().typename, Some(typename1.clone().into()));
-        assert!(registry.get(&expr1).unwrap().error.is_none());
+        assert!(matches!(registry.get(&expr1).unwrap().payload, ExpressionUpdatePayload::Value));
         assert_eq!(registry.get(&expr2).unwrap().typename, Some(typename2.into()));
-        assert!(registry.get(&expr2).unwrap().error.is_none());
+        assert!(matches!(registry.get(&expr2).unwrap().payload, ExpressionUpdatePayload::Value));
         let notification = test.expect_completion(subscriber.next()).unwrap();
         assert_eq!(notification, vec![expr1,expr2]);
 
@@ -455,11 +404,11 @@ mod tests {
         let update2 = value_update_with_dataflow_panic(expr3,&error_msg);
         registry.apply_updates(vec![update1,update2]);
         assert_eq!(registry.get(&expr1).unwrap().typename, Some(typename1.into()));
-        assert!(registry.get(&expr1).unwrap().error.is_none());
+        assert!(matches!(registry.get(&expr1).unwrap().payload, ExpressionUpdatePayload::Value));
         assert!(registry.get(&expr2).unwrap().typename.is_none());
-        assert!(registry.get(&expr2).unwrap().error.as_ref().unwrap().message.is_none());
+        assert!(matches!(registry.get(&expr2).unwrap().payload, ExpressionUpdatePayload::DataflowError {..}));
         assert!(registry.get(&expr3).unwrap().typename.is_none());
-        assert_eq!(registry.get(&expr3).unwrap().error.as_ref().unwrap().message,Some(error_msg));
+        assert!(matches!(registry.get(&expr3).unwrap().payload, ExpressionUpdatePayload::Panic {..}));
         let notification = test.expect_completion(subscriber.next()).unwrap();
         assert_eq!(notification, vec![expr2,expr3]);
     }
