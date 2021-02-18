@@ -8,6 +8,7 @@ use enso_data::text::ByteIndex;
 
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
+use serde::Deserializer;
 use serde::Serialize;
 
 pub use ast::Ast;
@@ -22,7 +23,7 @@ pub use ast::Ast;
 // === Metadata ===
 
 /// Things that are metadata.
-pub trait Metadata:Serialize+DeserializeOwned {}
+pub trait Metadata:Default+Serialize+DeserializeOwned {}
 
 /// Raw metadata.
 impl Metadata for serde_json::Value {}
@@ -128,6 +129,8 @@ pub struct ParsedSourceFile<Metadata> {
     /// Ast representation.
     pub ast: ast::known::Module,
     /// Raw metadata in json.
+    #[serde(bound(deserialize = "Metadata:Default+DeserializeOwned"))]
+    #[serde(deserialize_with="deserialize_or_default")]
     pub metadata: Metadata
 }
 
@@ -136,6 +139,14 @@ impl<M:Metadata> TryFrom<&ParsedSourceFile<M>> for String {
     fn try_from(val:&ParsedSourceFile<M>) -> std::result::Result<String,Self::Error> {
         Ok(val.serialize()?.content)
     }
+}
+
+/// Try to deserialize value of type `Ret`. In case of any error, it is ignored and the default
+/// value is returned instead.
+pub fn deserialize_or_default<'d,Ret,D>(d:D) -> std::result::Result<Ret,D::Error>
+where Ret : Default + Deserialize<'d>
+    , D   : Deserializer<'d> {
+    Ret::deserialize(d).or_else(|_error| Ok(Ret::default()))
 }
 
 
@@ -223,7 +234,7 @@ mod test {
 
 
 
-    #[derive(Clone,Debug,Deserialize,Serialize)]
+    #[derive(Clone,Debug,Default,Deserialize,Serialize)]
     struct Metadata {
         foo : usize,
     }
