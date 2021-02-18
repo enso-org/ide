@@ -70,6 +70,7 @@ struct VisualizationAlreadyAttached(graph_editor::NodeId);
 struct MissingSearcherController;
 
 
+
 // ====================
 // === FencedAction ===
 // ====================
@@ -555,29 +556,6 @@ impl Model {
         self.node_views.borrow_mut().insert(id, displayed_id);
     }
 
-    /// Return an asynchronous event processor that routes visualization update to the given's
-    /// visualization respective FRP endpoint.
-    fn visualization_update_handler
-    ( &self
-    , endpoint : frp::Any<(graph_editor::NodeId,visualization::Data)>
-    , node_id  : graph_editor::NodeId
-    ) -> impl FnMut(VisualizationUpdateData) -> futures::future::Ready<()> {
-        // TODO [mwu]
-        //  For now only JSON visualizations are supported, so we can just assume JSON data in the
-        //  binary package.
-        let logger = self.logger.clone_ref();
-        move |update| {
-            match Self::deserialize_visualization_data(update) {
-                Ok (data)  => endpoint.emit((node_id,data)),
-                Err(error) =>
-                    // TODO [mwu]
-                    //  We should consider having the visualization also accept error input.
-                    error!(logger, "Failed to deserialize visualization update. {error}"),
-            }
-            futures::future::ready(())
-        }
-    }
-
     fn deserialize_visualization_data
     (data:VisualizationUpdateData) -> FallibleResult<visualization::Data> {
         let binary  = data.as_ref();
@@ -682,29 +660,11 @@ impl Model {
             node::error::Error {message,propagated,trace:default()}
         });
         self.view.graph().set_node_error_status(node_id,error.clone());
-        if error.is_some() {
-            let visualization  = self.prepare_visualization(&node_id)?;
-            let id             = visualization.id;
-            let controller     = self.graph.clone();
-            let endpoint       = self.view.graph().frp.input.set_error_visualization_data.clone_ref();
-            let update_handler = self.visualization_update_handler(endpoint,node_id);
-            let logger         = self.logger.clone_ref();
-            let error_visualizations = self.error_visualizations.clone_ref();
-            // We cannot do this in the async block, as sometimes we will detach before server
-            // confirms that we actually have attached.
-            error_visualizations.insert(node_id.clone(),id);
-            let attach_action  = async move {
-                if let Ok(stream) = controller.attach_visualization(visualization).await {
-                    debug!(logger, "Successfully attached visualization {id} for node {node_id}.");
-                    let updates_handler = stream.for_each(update_handler);
-                    executor::global::spawn(updates_handler);
-                } else {
-                    error_visualizations.remove(&node_id);
-                }
-            };
-            executor::global::spawn(attach_action);
-        } else {
-            // TODO
+        if error.is_some() && !self.error_visualizations.contains_key(&node_id) {
+            let endpoint = self.view.graph().frp.set_error_visualization_data.clone_ref();
+            self.attach_visualization(node_id,endpoint,self.error_visualizations.clone_ref())?;
+        } else if self.error_visualizations.contains_key(&node_id) {
+            self.detach_visualization(node_id,self.error_visualizations.clone_ref())?;
         }
         Ok(())
     }
@@ -1054,96 +1014,16 @@ impl Model {
         Ok(())
     }
 
-    /// Create a controller-compatible description of the visualization based on the input received
-    /// from the graph editor endpoints.
-    fn prepare_visualization
-    (&self, node_id:&graph_editor::NodeId, metadata:&Option<visualization::Metadata>)
-    -> FallibleResult<Visualization> {
-        use crate::model::module::QualifiedName;
-        let metadata = metadata.as_ref();
-
-        // TODO [mwu]
-        //   Currently it is not possible to:
-        //    * enter other module than the initial (namely, "Main")
-        //    * describe that visualization's expression wishes to be evaluated in any other
-        //      context.
-        //   Because of that for now we will just hardcode the `visualization_module` using
-        //   fixed defaults. In future this will be changed, then the editor will also get access
-        //   to the customised values.
-        let project_name:String  = self.project.name().into();
-        let module_name          = crate::ide::INITIAL_MODULE_NAME;
-        let visualisation_module = QualifiedName::from_segments(project_name,&[module_name])?;
-        let id                   = VisualizationId::new_v4();
-        let metadata_expression  = metadata.and_then(|m| m.preprocessor.as_ref().map(|e| e.to_string()));
-        let default_expression   = crate::constants::SERIALIZE_TO_JSON_EXPRESSION;
-        let expression           = metadata_expression.unwrap_or_else(||default_expression.into());
-        let ast_id               = self.get_controller_node_id(*node_id)?;
-        Ok(Visualization{ast_id,expression,id,visualisation_module})
-    }
-
     fn visualization_enabled_in_ui
     (&self, (node_id,vis_metadata):&(graph_editor::NodeId,Option<visualization::Metadata>))
     -> FallibleResult {
-        // Do nothing if there is already a visualization attached.
-        let err = || VisualizationAlreadyAttached(*node_id);
-        self.get_controller_visualization_id(*node_id).is_err().ok_or_else(err)?;
-
-        debug!(self.logger, "Attaching visualization on {node_id}.");
-        let visualization  = self.prepare_visualization(node_id,vis_metadata)?;
-        let id             = visualization.id;
-        let node_id        = *node_id;
-        let controller     = self.graph.clone();
-        let endpoint       = self.view.graph().frp.input.set_visualization_data.clone_ref();
-        let update_handler = self.visualization_update_handler(endpoint,node_id);
-        let logger         = self.logger.clone_ref();
-        let visualizations = self.visualizations.clone_ref();
-
-        // We cannot do this in the async block, as the user may decide to detach before server
-        // confirms that we actually have attached.
-        visualizations.insert(node_id.clone(),id);
-
-        let attach_action  = async move {
-            if let Ok(stream) = controller.attach_visualization(visualization).await {
-                debug!(logger, "Successfully attached visualization {id} for node {node_id}.");
-                let updates_handler = stream.for_each(update_handler);
-                executor::global::spawn(updates_handler);
-            } else {
-                visualizations.remove(&node_id);
-            }
-        };
-        executor::global::spawn(attach_action);
+        let endpoint = self.view.graph().frp.input.set_visualization_data.clone_ref();
+        self.attach_visualization(*node_id,vis_metadata,endpoint,self.visualizations.clone_ref())?;
         Ok(())
     }
 
     fn visualization_disabled_in_ui(&self, node_id:&graph_editor::NodeId) -> FallibleResult {
-        debug!(self.logger,"Node editor wants to detach visualization on {node_id}.");
-        let id             = self.get_controller_visualization_id(*node_id)?;
-        let graph          = self.graph.clone_ref();
-        let logger         = self.logger.clone_ref();
-        let visualizations = self.visualizations.clone_ref();
-        let node_id        = *node_id;
-
-        // We first detach to allow re-attaching even before server confirms the operation.
-        visualizations.remove(&node_id);
-
-        let detach_action = async move {
-            if graph.detach_visualization(id).await.is_ok() {
-                debug!(logger,"Successfully detached visualization {id} from node {node_id}.");
-            } else {
-                error!(logger,"Failed to detach visualization {id} from node {node_id}.");
-                // TODO [mwu]
-                //   We should somehow deal with this but we have really no information, how to.
-                //   If this failed because e.g. the visualization was already removed (or another
-                //   reason to that effect), we should just do nothing.
-                //   But if it is issue like connectivity problem, then we should retry.
-                //   But even if had better error recognition, we won't always know.
-                //   So we should also handle errors like unexpected visualization updates and use
-                //   them to drive cleanups on such discrepancies.
-            }
-        };
-
-        crate::executor::global::spawn(detach_action);
-        Ok(())
+        self.detach_visualization(*node_id,self.visualizations.clone_ref())
     }
 
     fn expression_entered_in_ui
@@ -1279,15 +1159,125 @@ impl Model {
         })
     }
 
-    fn get_controller_visualization_id
-    (&self, node_id:graph_editor::NodeId) -> Result<VisualizationId,NoSuchVisualization> {
-        let err = || NoSuchVisualization(node_id);
-        self.visualizations.get_copied(&node_id).ok_or_else(err)
-    }
-
     fn lookup_computed_info(&self, id:&ExpressionId) -> Option<Rc<ComputedValueInfo>> {
         let registry = self.graph.computed_value_info_registry();
         registry.get(id)
+    }
+
+    fn attach_visualization
+    ( &self
+    , node_id               : graph_editor::NodeId
+    , receive_data_endpoint : frp::Any<(graph_editor::NodeId,visualization::Data)>
+    , visualizations_map    : SharedHashMap<graph_editor::NodeId,VisualizationId>
+    ) -> FallibleResult<VisualizationId> {
+        // Do nothing if there is already a visualization attached.
+        let err = || VisualizationAlreadyAttached(node_id);
+        (!visualizations_map.contains_key(&node_id)).ok_or_else(err)?;
+
+        debug!(self.logger, "Attaching visualization on {node_id}.");
+        let visualization  = self.prepare_visualization(node_id)?;
+        let id             = visualization.id;
+        let update_handler = self.visualization_update_handler(receive_data_endpoint,node_id);
+        let logger         = self.logger.clone_ref();
+        let controller     = self.graph.clone_ref();
+
+        // We cannot do this in the async block, as the user may decide to detach before server
+        // confirms that we actually have attached.
+        visualizations_map.insert(node_id,id);
+
+        executor::global::spawn(async move {
+            if let Ok(stream) = controller.attach_visualization(visualization).await {
+                debug!(logger, "Successfully attached visualization {id} for node {node_id}.");
+                let updates_handler = stream.for_each(update_handler);
+                executor::global::spawn(updates_handler);
+            } else {
+                visualizations_map.remove(&node_id);
+            }
+        });
+        Ok(id)
+    }
+
+    /// Return an asynchronous event processor that routes visualization update to the given's
+    /// visualization respective FRP endpoint.
+    fn visualization_update_handler
+    ( &self
+      , endpoint : frp::Any<(graph_editor::NodeId,visualization::Data)>
+      , node_id  : graph_editor::NodeId
+    ) -> impl FnMut(VisualizationUpdateData) -> futures::future::Ready<()> {
+        // TODO [mwu]
+        //  For now only JSON visualizations are supported, so we can just assume JSON data in the
+        //  binary package.
+        let logger = self.logger.clone_ref();
+        move |update| {
+            match Self::deserialize_visualization_data(update) {
+                Ok (data)  => endpoint.emit((node_id,data)),
+                Err(error) =>
+                // TODO [mwu]
+                //  We should consider having the visualization also accept error input.
+                    error!(logger, "Failed to deserialize visualization update. {error}"),
+            }
+            futures::future::ready(())
+        }
+    }
+
+    /// Create a controller-compatible description of the visualization based on the input received
+    /// from the graph editor endpoints.
+    fn prepare_visualization
+    (&self, node_id:&graph_editor::NodeId, metadata:&Option<visualization::Metadata>)
+     -> FallibleResult<Visualization> {
+        use crate::model::module::QualifiedName;
+        let metadata = metadata.as_ref();
+
+        // TODO [mwu]
+        //   Currently it is not possible to:
+        //    * enter other module than the initial (namely, "Main")
+        //    * describe that visualization's expression wishes to be evaluated in any other
+        //      context.
+        //   Because of that for now we will just hardcode the `visualization_module` using
+        //   fixed defaults. In future this will be changed, then the editor will also get access
+        //   to the customised values.
+        let project_name:String  = self.project.name().into();
+        let module_name          = crate::ide::INITIAL_MODULE_NAME;
+        let visualisation_module = QualifiedName::from_segments(project_name,&[module_name])?;
+        let id                   = VisualizationId::new_v4();
+        let metadata_expression  = metadata.and_then(|m| m.preprocessor.as_ref().map(|e| e.to_string()));
+        let default_expression   = crate::constants::SERIALIZE_TO_JSON_EXPRESSION;
+        let expression           = metadata_expression.unwrap_or_else(||default_expression.into());
+        let ast_id               = self.get_controller_node_id(*node_id)?;
+        Ok(Visualization{ast_id,expression,id,visualisation_module})
+    }
+
+    fn detach_visualization
+    ( &self
+    , node_id            : graph_editor::NodeId
+    , visualizations_map : SharedHashMap<graph_editor::NodeId,VisualizationId>
+    ) -> FallibleResult {
+        debug!(self.logger,"Node editor wants to detach visualization on {node_id}.");
+        let err            = || NoSuchVisualization(node_id);
+        let id             = visualizations_map.get_copied(&node_id).ok_or_else(err)?;
+        let logger         = self.logger.clone_ref();
+        let visualizations = self.visualizations.clone_ref();
+        let controller     = self.graph.clone_ref();
+
+        // We first detach to allow re-attaching even before the server confirms the operation.
+        visualizations_map.remove(&node_id);
+
+        executor::global::spawn(async move {
+            if controller.detach_visualization(id).await.is_ok() {
+                debug!(logger,"Successfully detached visualization {id} from node {node_id}.");
+            } else {
+                error!(logger,"Failed to detach visualization {id} from node {node_id}.");
+                // TODO [mwu]
+                //   We should somehow deal with this, but we have really no information, how to.
+                //   If this failed because e.g. the visualization was already removed (or another
+                //   reason to that effect), we should just do nothing.
+                //   However, if it is issue like connectivity problem, then we should retry.
+                //   However, even if had better error recognition, we won't always know.
+                //   So we should also handle errors like unexpected visualization updates and use
+                //   them to drive cleanups on such discrepancies.
+            }
+        });
+        Ok(())
     }
 }
 

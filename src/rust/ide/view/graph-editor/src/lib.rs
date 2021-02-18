@@ -277,6 +277,10 @@ where K:Eq+Hash, S:std::hash::BuildHasher {
     pub fn remove(&self, k:&K) -> Option<V> {
         self.raw.borrow_mut().remove(k)
     }
+
+    pub fn contains_key(&self, key:&K) -> bool {
+        self.raw.borrow().contains_key(key)
+    }
 }
 
 impl<K,V,S> SharedHashMap<K,V,S> {
