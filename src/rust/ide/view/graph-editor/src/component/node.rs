@@ -418,7 +418,7 @@ impl NodeModel {
 
         let error_visualization = builtin_visualization::Error::new(&scene);
         error_visualization.set_position_y(-100.0);
-        error_visualization.inputs.set_size.emit(Vector2(200.0,200.0));
+        error_visualization.set_size.emit(Vector2(200.0,200.0));
 
         let action_bar = action_bar::ActionBar::new(&logger,&app);
         display_object.add_child(&action_bar);
@@ -500,7 +500,7 @@ impl NodeModel {
     fn set_error(&self, error:Option<&Error>) {
         if let Some(error) = error {
             if let Some(error_data) = error.visualization_data() {
-                self.error_visualization.inputs.send_data.emit(error_data);
+                self.error_visualization.send_data.emit(error_data);
             }
             if !error.propagated {
                 self.display_object.add_child(&self.error_visualization);

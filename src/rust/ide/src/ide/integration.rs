@@ -177,6 +177,7 @@ struct Model {
     connection_views        : RefCell<BiMap<controller::graph::Connection,graph_editor::EdgeId>>,
     code_view               : CloneRefCell<ensogl_text::Text>,
     visualizations          : SharedHashMap<graph_editor::NodeId,VisualizationId>,
+    error_visualizations    : SharedHashMap<graph_editor::NodeId,VisualizationId>,
 }
 
 
@@ -403,10 +404,11 @@ impl Model {
         let expression_views        = default();
         let code_view               = default();
         let visualizations          = default();
+        let error_visualizations    = default();
         let searcher                = default();
         let this                    = Model
             {view,graph,text,searcher,node_views,expression_views,connection_views,code_view,logger
-            ,visualization,visualizations,project,node_view_by_expression};
+            ,visualization,visualizations,error_visualizations,project,node_view_by_expression};
 
         this.init_project_name();
         this.load_visualizations();
@@ -672,15 +674,39 @@ impl Model {
 
     /// Mark node as erroneous. The node will have an error message if it is the main cause of
     /// the error in the current scene.
-    fn set_error(&self, node_id:graph_editor::NodeId, error:Option<&EvaluationError>) {
+    fn set_error(&self, node_id:graph_editor::NodeId, error:Option<&EvaluationError>) -> FallibleResult {
         let error = error.map(|error| {
             let root_cause = self.get_node_causing_error_on_current_graph(error);
             let message    = error.message.clone();
             let propagated = !root_cause.contains(&node_id);
             node::error::Error {message,propagated,trace:default()}
         });
-        self.view.graph().set_node_error_status(node_id,error);
-
+        self.view.graph().set_node_error_status(node_id,error.clone());
+        if error.is_some() {
+            let visualization  = self.prepare_visualization(&node_id)?;
+            let id             = visualization.id;
+            let controller     = self.graph.clone();
+            let endpoint       = self.view.graph().frp.input.set_error_visualization_data.clone_ref();
+            let update_handler = self.visualization_update_handler(endpoint,node_id);
+            let logger         = self.logger.clone_ref();
+            let error_visualizations = self.error_visualizations.clone_ref();
+            // We cannot do this in the async block, as sometimes we will detach before server
+            // confirms that we actually have attached.
+            error_visualizations.insert(node_id.clone(),id);
+            let attach_action  = async move {
+                if let Ok(stream) = controller.attach_visualization(visualization).await {
+                    debug!(logger, "Successfully attached visualization {id} for node {node_id}.");
+                    let updates_handler = stream.for_each(update_handler);
+                    executor::global::spawn(updates_handler);
+                } else {
+                    error_visualizations.remove(&node_id);
+                }
+            };
+            executor::global::spawn(attach_action);
+        } else {
+            // TODO
+        }
+        Ok(())
     }
 
     /// Get the node being a main cause of some error from the current nodes on the scene. Returns

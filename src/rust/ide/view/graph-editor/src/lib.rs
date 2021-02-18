@@ -439,6 +439,7 @@ ensogl::define_endpoints! {
         set_visualization            ((NodeId,Option<visualization::Path>)),
         register_visualization       (Option<visualization::Definition>),
         set_visualization_data       ((NodeId,visualization::Data)),
+        set_error_visualization_data ((NodeId,visualization::Data)),
         enable_visualization         (NodeId),
 
         /// Remove from visualization registry all non-default visualizations.
@@ -2717,6 +2718,12 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
              node.model.visualization.frp.set_data.emit(data);
          }
      }));
+
+    def _set_data = inputs.set_error_visualization_data.map(f!([nodes]((node_id,data)) {
+        if let Some(node) = nodes.get_cloned(node_id) {
+            node.model.error_visualization.send_data.emit(data);
+        }
+    }));
 
      nodes_to_cycle <= inputs.cycle_visualization_for_selected_node.map(f_!(model.selected_nodes()));
      node_to_cycle  <- any(nodes_to_cycle,inputs.cycle_visualization);

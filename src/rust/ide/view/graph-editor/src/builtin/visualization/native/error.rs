@@ -40,9 +40,9 @@ pub struct Error {
 }
 
 impl Deref for Error {
-    type Target = visualization::instance::Frp;
+    type Target = visualization::instance::FrpInputs;
 
-    fn deref(&self) -> &Self::Target { &self.frp }
+    fn deref(&self) -> &Self::Target { &self.frp.inputs }
 }
 
 impl Error {
