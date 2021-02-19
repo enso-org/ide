@@ -141,7 +141,6 @@ impl<M:Metadata> TryFrom<&ParsedSourceFile<M>> for String {
 }
 
 
-
 // === Parsed Source File Serialization ===
 
 const NEWLINES_BEFORE_TAG:usize = 3;
