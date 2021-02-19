@@ -1047,7 +1047,7 @@ impl Model {
         let module_name          = crate::ide::INITIAL_MODULE_NAME;
         let visualisation_module = QualifiedName::from_segments(project_name,&[module_name])?;
         let id                   = VisualizationId::new_v4();
-        let metadata_expression  = metadata.and_then(|m| m.expression.as_ref().map(|e| e.to_string()));
+        let metadata_expression  = metadata.and_then(|m| m.preprocessor.as_ref().map(|e| e.to_string()));
         let default_expression   = crate::constants::SERIALIZE_TO_JSON_EXPRESSION;
         let expression           = metadata_expression.unwrap_or_else(||default_expression.into());
         let ast_id               = self.get_controller_node_id(*node_id)?;
