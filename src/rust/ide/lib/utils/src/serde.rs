@@ -9,8 +9,8 @@ use serde::Deserializer;
 /// Try to deserialize value of type `Ret`. In case of any error, it is ignored and the default
 /// value is returned instead.
 pub fn deserialize_or_default<'d,Ret,D>(d:D) -> Result<Ret,D::Error>
-    where for<'e> Ret : Default + Deserialize<'e>
-    ,         D   : Deserializer<'d> {
+where for<'e> Ret : Default + Deserialize<'e>
+,             D   : Deserializer<'d> {
     // We first parse as generic JSON value. This is necessary to consume parser input.
     // If we just tried parsing the desired type directly and ignored error, we would end up with
     // `trailing characters` error in non-trivial cases.
