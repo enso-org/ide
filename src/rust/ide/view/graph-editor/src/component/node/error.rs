@@ -13,6 +13,8 @@ use serde::Serialize;
 // === Error ===
 // =============
 
+/// An error kind.
+#[allow(missing_docs)]
 #[derive(Clone,Copy,Debug,Deserialize,Serialize)]
 pub enum Kind {Panic,Dataflow}
 

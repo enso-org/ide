@@ -26,7 +26,7 @@ use serde::Serialize;
 // =================
 
 const PADDING_TEXT:f32 = 10.0;
-pub const EXPRESSION:&str = r#"x -> '{ kind: "Dataflow", message: "`x.to_display`"}'"#;
+pub const EXPRESSION:&str = r#"x -> "{ kind: \"Dataflow\", message: \"" + x.to_display + "\"}""#;
 
 
 

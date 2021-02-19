@@ -1272,7 +1272,6 @@ impl Model {
         let err            = || NoSuchVisualization(node_id);
         let id             = visualizations_map.get_copied(&node_id).ok_or_else(err)?;
         let logger         = self.logger.clone_ref();
-        let visualizations = self.visualizations.clone_ref();
         let controller     = self.graph.clone_ref();
 
         // We first detach to allow re-attaching even before the server confirms the operation.

@@ -13,8 +13,8 @@ pub mod error;
 #[deny(missing_docs)]
 pub mod vcs;
 
-pub use expression::Expression;
 pub use error::Error;
+pub use expression::Expression;
 
 use crate::prelude::*;
 
@@ -629,7 +629,7 @@ impl Node {
         Self {frp,model}
     }
 
-    fn error_color(error:&Option<error::Error>, style:&StyleWatch) -> color::Lcha {
+    fn error_color(error:&Option<Error>, style:&StyleWatch) -> color::Lcha {
         use ensogl_theme::graph_editor::node::error as error_theme;
 
         if let Some(error) = error {
