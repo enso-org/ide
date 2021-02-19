@@ -22,24 +22,26 @@ where for<'e> Ret : Default + Deserialize<'e>
 mod tests {
     use super::*;
 
+    use serde::Serialize;
+
     #[test]
     fn deserialize_or_default_attribute_test() {
-        #[derive(Debug, Deserialize, PartialEq, Serialize)]
+        #[derive(Debug,Deserialize,PartialEq,Serialize)]
         // Two structures - same except for `deserialize_or_default` atribute.
         // One fails to deserialize, second one goes through.
         struct Foo {
-            blah: String,
-            boom: Vec<i32>,
+            blah : String,
+            boom : Vec<i32>,
         }
         ;
-        #[derive(Debug, Deserialize, PartialEq, Serialize)]
+        #[derive(Debug,Deserialize,PartialEq,Serialize)]
         struct Bar {
             #[serde(deserialize_with = "deserialize_or_default")]
-            blah: String,
-            boom: Vec<i32>,
+            blah : String,
+            boom : Vec<i32>,
         }
         ;
-        let code = r#"{"blah" : {}, "boom" : [1,2,3] }"#;
+        let code   = r#"{"blah" : {}, "boom" : [1,2,3] }"#;
         let result = serde_json::from_str::<Foo>(code);
         assert!(result.is_err());
 
