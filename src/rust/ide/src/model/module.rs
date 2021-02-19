@@ -582,7 +582,7 @@ pub mod test {
         assert_eq!(qualified.to_string(), "P.Foo.Bar");
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn outdated_metadata_parses() {
         // Metadata here will fail to serialize because `File` is not a valid qualified name.
         // Expected behavior is that invalid metadata parts will be filled with defaults.
