@@ -8,7 +8,6 @@ use enso_data::text::ByteIndex;
 
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
-use serde::Deserializer;
 use serde::Serialize;
 
 pub use ast::Ast;
@@ -130,7 +129,7 @@ pub struct ParsedSourceFile<Metadata> {
     pub ast: ast::known::Module,
     /// Raw metadata in json.
     #[serde(bound(deserialize = "Metadata:Default+DeserializeOwned"))]
-    #[serde(deserialize_with="deserialize_or_default")]
+    #[serde(deserialize_with="utils::serde::deserialize_or_default")]
     pub metadata: Metadata
 }
 
@@ -141,13 +140,6 @@ impl<M:Metadata> TryFrom<&ParsedSourceFile<M>> for String {
     }
 }
 
-/// Try to deserialize value of type `Ret`. In case of any error, it is ignored and the default
-/// value is returned instead.
-pub fn deserialize_or_default<'d,Ret,D>(d:D) -> std::result::Result<Ret,D::Error>
-where Ret : Default + Deserialize<'d>
-    , D   : Deserializer<'d> {
-    Ret::deserialize(d).or_else(|_error| Ok(Ret::default()))
-}
 
 
 // === Parsed Source File Serialization ===
