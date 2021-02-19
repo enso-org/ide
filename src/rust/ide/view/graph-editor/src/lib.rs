@@ -2717,17 +2717,17 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         }
     }));
 
-    def _set_data = inputs.set_visualization_data.map(f!([nodes]((node_id,data)) {
-         if let Some(node) = nodes.get_cloned(node_id) {
-             node.model.visualization.frp.set_data.emit(data);
-         }
-     }));
+    eval inputs.set_visualization_data ([nodes]((node_id,data)) {
+        if let Some(node) = nodes.get_cloned(node_id) {
+            node.model.visualization.frp.set_data.emit(data);
+        }
+    });
 
-    def _set_data = inputs.set_error_visualization_data.map(f!([nodes]((node_id,data)) {
+    eval inputs.set_error_visualization_data ([nodes]((node_id,data)) {
         if let Some(node) = nodes.get_cloned(node_id) {
             node.model.error_visualization.send_data.emit(data);
         }
-    }));
+    });
 
      nodes_to_cycle <= inputs.cycle_visualization_for_selected_node.map(f_!(model.selected_nodes()));
      node_to_cycle  <- any(nodes_to_cycle,inputs.cycle_visualization);

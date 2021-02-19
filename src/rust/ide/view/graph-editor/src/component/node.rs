@@ -28,9 +28,7 @@ use ensogl::data::color;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
-use ensogl::gui::text;
 use ensogl_text::Text;
-use ensogl_text::style::Size as TextSize;
 use ensogl_theme;
 
 use crate::Type;
@@ -59,7 +57,6 @@ const ERROR_PATTERN_REPEAT_TILE_SIZE : (f32,f32) = (15.0,15.0);
 const ERROR_BORDER_WIDTH             : f32       = 10.0;
 const ERROR_VISUALIZATION_SIZE       : (f32,f32) = visualization::container::DEFAULT_SIZE;
 
-const TEXT_SIZE                      : f32       = 12.0;
 const VISUALIZATION_OFFSET_Y         : f32       = -120.0;
 
 
@@ -347,16 +344,12 @@ impl Deref for Node {
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct NodeModel {
-    pub app             : Application,
-    pub display_object  : display::object::Instance,
-    pub logger          : Logger,
-    pub main_area       : shape::View,
-    pub drag_area       : drag_area::View,
-    pub error_indicator : error_shape::View,
-    // TODO: This extra text field should not be required after #1026 has been finished.
-    // Instead we should get the error content as normal node output that is visible in the
-    // visualisation. Alternatively it might be extended to use a preview of the new information.
-    pub error_text          : text::Area,
+    pub app                 : Application,
+    pub display_object      : display::object::Instance,
+    pub logger              : Logger,
+    pub main_area           : shape::View,
+    pub drag_area           : drag_area::View,
+    pub error_indicator     : error_shape::View,
     pub input               : input::Area,
     pub output              : output::Area,
     pub visualization       : visualization::Container,
@@ -393,19 +386,13 @@ impl NodeModel {
         let error_indicator = error_shape::View::new(&error_indicator_logger);
         let main_area       = shape::View::new(&main_logger);
         let drag_area       = drag_area::View::new(&drag_logger);
-        let error_text      = app.new_view::<text::Area>();
         let vcs_indicator   = vcs::StatusIndicator::new(app);
 
         let display_object  = display::object::Instance::new(&logger);
         display_object.add_child(&drag_area);
         display_object.add_child(&main_area);
         display_object.add_child(&error_indicator);
-        display_object.add_child(&error_text);
         display_object.add_child(&vcs_indicator);
-
-        error_text.set_default_color.emit(color::Rgba::red());
-        error_text.set_default_text_size(TextSize::from(TEXT_SIZE));
-
 
         // Disable shadows to allow interaction with the output port.
         let shape_system = scene.layers.main.shape_system_registry.shape_system
@@ -430,7 +417,7 @@ impl NodeModel {
 
         let app = app.clone_ref();
         Self {app,display_object,logger,main_area,drag_area,output,input,visualization
-            ,error_visualization,action_bar,error_indicator,error_text,vcs_indicator}.init()
+            ,error_visualization,action_bar,error_indicator,vcs_indicator}.init()
     }
 
     pub fn get_crumbs_by_id(&self, id:ast::Id) -> Option<Crumbs> {
@@ -477,9 +464,6 @@ impl NodeModel {
 
         self.error_indicator.set_position_x(width/2.0);
         self.vcs_indicator.set_position_x(width/2.0);
-
-        self.error_text.set_position_y(height + TEXT_SIZE);
-        self.error_text.set_position_x(CORNER_RADIUS);
 
         let action_bar_width = ACTION_BAR_WIDTH;
         self.action_bar.mod_position(|t| {
