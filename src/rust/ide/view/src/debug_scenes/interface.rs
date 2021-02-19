@@ -7,7 +7,6 @@
 use crate::prelude::*;
 
 use crate::graph_editor;
-use crate::graph_editor::component::node::error;
 use crate::graph_editor::GraphEditor;
 use crate::graph_editor::Type;
 use crate::project;

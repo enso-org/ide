@@ -1,7 +1,6 @@
 //! Contains a struct definition for error information on nodes.
 use crate::prelude::*;
 
-use crate::component::node::visualization;
 use crate::builtin::visualization::native::error as error_visualization;
 
 use serde::Deserialize;
@@ -31,6 +30,8 @@ pub struct Error {
 }
 
 impl Error {
+    /// Return data which should be sent to the Error Visualization to display this error.
+    /// Returns [`None`] if the data should arrive from the Engine.
     pub fn visualization_data(&self) -> Option<error_visualization::Input> {
         Some(error_visualization::Input {
             kind    : *self.kind,

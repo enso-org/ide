@@ -632,7 +632,10 @@ impl Model {
             });
             self.set_method_pointer(id,method_pointer);
             if self.node_views.borrow().get_by_left(&id).contains(&&node_id) {
-                self.set_error(node_id,info.map(|info| &info.payload));
+                let set_error_result = self.set_error(node_id,info.map(|info| &info.payload));
+                if let Err(error) = set_error_result {
+                    error!(self.logger, "Error when setting error on node: {error}");
+                }
             }
         }
     }
@@ -656,9 +659,9 @@ impl Model {
         self.view.graph().set_node_error_status(node_id,error.clone());
         if error.is_some() && !self.error_visualizations.contains_key(&node_id) {
             let endpoint   = self.view.graph().frp.set_error_visualization_data.clone_ref();
-            let expression = graph_editor::builtin::visualization::native::error::EXPRESSION;
-            let expression = Some(graph_editor::data::enso::Code::new(expression));
-            let metadata   = Some(visualization::Metadata {expression});
+            let preprocessor = graph_editor::builtin::visualization::native::error::PREPROCESSOR;
+            let preprocessor = Some(graph_editor::data::enso::Code::new(preprocessor));
+            let metadata   = Some(visualization::Metadata {preprocessor});
             self.attach_visualization(node_id,&metadata,endpoint,self.error_visualizations.clone_ref())?;
         } else if error.is_none() && self.error_visualizations.contains_key(&node_id) {
             self.detach_visualization(node_id,self.error_visualizations.clone_ref())?;
@@ -687,7 +690,7 @@ impl Model {
     /// Get the node being a main cause of some error from the current nodes on the scene. Returns
     /// [`None`] if the error is not present on the scene at all.
     fn get_node_causing_error_on_current_graph
-    (&self, trace:&Vec<ExpressionId>) -> Option<graph_editor::NodeId> {
+    (&self, trace:&[ExpressionId]) -> Option<graph_editor::NodeId> {
         let node_view_by_expression = self.node_view_by_expression.borrow();
         trace.iter().find_map(|expr_id| node_view_by_expression.get(&expr_id).copied())
     }

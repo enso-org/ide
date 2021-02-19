@@ -26,7 +26,9 @@ use serde::Serialize;
 // =================
 
 const PADDING_TEXT:f32 = 10.0;
-pub const EXPRESSION:&str = r#"x -> "{ kind: \"Dataflow\", message: \"" + x.to_display + "\"}""#;
+/// The Error Visualization preprocessor. See also _Lazy Visualization_ section
+/// [here](http://dev.enso.org/docs/ide/product/visualizations.html).
+pub const PREPROCESSOR:&str = r#"x -> "{ kind: \"Dataflow\", message: \"" + x.to_display + "\"}""#;
 
 
 
@@ -36,6 +38,8 @@ pub const EXPRESSION:&str = r#"x -> "{ kind: \"Dataflow\", message: \"" + x.to_d
 
 pub use crate::component::node::error::Kind;
 
+/// The input for Error Visualization.
+#[allow(missing_docs)]
 #[derive(Clone,Debug,Deserialize,Serialize)]
 pub struct Input {
     pub kind: Kind,
@@ -64,7 +68,7 @@ impl Deref for Error {
 }
 
 impl Error {
-
+    /// The visualization path.
     pub fn path() -> Path { Path::builtin("Error") }
 
     /// Definition of this visualization.
@@ -97,11 +101,13 @@ impl Error {
              });
         }
 
-        frp.preprocessor_change.emit(enso::Code::from(EXPRESSION));
+        frp.preprocessor_change.emit(enso::Code::from(PREPROCESSOR));
 
         self
     }
 
+    /// Sets the visualization data directly from the [`Input`] structure (not from the serialized
+    /// JSON).
     pub fn set_data(&self, input:&Input) {
         self.model.set_data(input);
     }
@@ -164,7 +170,7 @@ impl Model {
             self.set_data(&input);
             Ok(())
         } else {
-            Err(DataError::InvalidDataType.into())
+            Err(DataError::InvalidDataType)
         }
     }
 
