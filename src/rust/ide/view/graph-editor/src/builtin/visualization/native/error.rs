@@ -4,6 +4,7 @@ use crate::prelude::*;
 
 use crate::component::visualization::*;
 use crate::component::visualization;
+use crate::data::enso;
 
 use enso_frp as frp;
 use ensogl::data::color;
@@ -25,7 +26,7 @@ use serde::Serialize;
 // =================
 
 const PADDING_TEXT:f32 = 10.0;
-const EXPRESSION:&str = r#"x -> '{ kind: "Dataflow", message: "`x.to_display`"}'"#;
+pub const EXPRESSION:&str = r#"x -> '{ kind: "Dataflow", message: "`x.to_display`"}'"#;
 
 
 
@@ -96,7 +97,7 @@ impl Error {
              });
         }
 
-        frp.preprocessor_change.emit(EXPRESSION);
+        frp.preprocessor_change.emit(enso::Code::from(EXPRESSION));
 
         self
     }

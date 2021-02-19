@@ -655,8 +655,11 @@ impl Model {
         let error = self.convert_payload_to_error_view(error,node_id);
         self.view.graph().set_node_error_status(node_id,error.clone());
         if error.is_some() && !self.error_visualizations.contains_key(&node_id) {
-            let endpoint = self.view.graph().frp.set_error_visualization_data.clone_ref();
-            self.attach_visualization(node_id,endpoint,self.error_visualizations.clone_ref())?;
+            let endpoint   = self.view.graph().frp.set_error_visualization_data.clone_ref();
+            let expression = graph_editor::builtin::visualization::native::error::EXPRESSION;
+            let expression = Some(graph_editor::data::enso::Code::new(expression));
+            let metadata   = Some(visualization::Metadata {expression});
+            self.attach_visualization(node_id,&metadata,endpoint,self.error_visualizations.clone_ref())?;
         } else if error.is_none() && self.error_visualizations.contains_key(&node_id) {
             self.detach_visualization(node_id,self.error_visualizations.clone_ref())?;
         }
@@ -1179,6 +1182,7 @@ impl Model {
     fn attach_visualization
     ( &self
     , node_id               : graph_editor::NodeId
+    , vis_metadata          : &Option<visualization::Metadata>
     , receive_data_endpoint : frp::Any<(graph_editor::NodeId,visualization::Data)>
     , visualizations_map    : SharedHashMap<graph_editor::NodeId,VisualizationId>
     ) -> FallibleResult<VisualizationId> {
@@ -1187,7 +1191,7 @@ impl Model {
         (!visualizations_map.contains_key(&node_id)).ok_or_else(err)?;
 
         debug!(self.logger, "Attaching visualization on {node_id}.");
-        let visualization  = self.prepare_visualization(node_id)?;
+        let visualization  = self.prepare_visualization(node_id,vis_metadata)?;
         let id             = visualization.id;
         let update_handler = self.visualization_update_handler(receive_data_endpoint,node_id);
         let logger         = self.logger.clone_ref();
@@ -1235,7 +1239,7 @@ impl Model {
     /// Create a controller-compatible description of the visualization based on the input received
     /// from the graph editor endpoints.
     fn prepare_visualization
-    (&self, node_id:&graph_editor::NodeId, metadata:&Option<visualization::Metadata>)
+    (&self, node_id:graph_editor::NodeId, metadata:&Option<visualization::Metadata>)
      -> FallibleResult<Visualization> {
         use crate::model::module::QualifiedName;
         let metadata = metadata.as_ref();
@@ -1255,7 +1259,7 @@ impl Model {
         let metadata_expression  = metadata.and_then(|m| m.preprocessor.as_ref().map(|e| e.to_string()));
         let default_expression   = crate::constants::SERIALIZE_TO_JSON_EXPRESSION;
         let expression           = metadata_expression.unwrap_or_else(||default_expression.into());
-        let ast_id               = self.get_controller_node_id(*node_id)?;
+        let ast_id               = self.get_controller_node_id(node_id)?;
         Ok(Visualization{ast_id,expression,id,visualisation_module})
     }
 
