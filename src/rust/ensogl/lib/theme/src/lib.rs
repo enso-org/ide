@@ -206,8 +206,8 @@ define_themes! { [light:0, dark:1]
                 edited    = Lcha::yellow(0.9,1.0), Lcha::yellow(0.9,1.0);
             }
             error {
-                dataflow.color = Rgba(1.0,0.655,0.141,1.0), Rgba(1.0,0.655,0.141,1.0);
-                panic.color    = Rgba(1.0,0.341,0.125,1.0), Rgba(1.0,0.341,0.125,1.0);
+                dataflow = Rgba(1.0,0.655,0.141,1.0), Rgba(1.0,0.655,0.141,1.0);
+                panic    = Rgba(1.0,0.341,0.125,1.0), Rgba(1.0,0.341,0.125,1.0);
             }
         }
         visualization {

@@ -35,7 +35,7 @@ use crate::Type;
 use crate::component::visualization;
 
 use super::edge;
-
+use std::f32::EPSILON;
 
 
 // =================
@@ -391,7 +391,6 @@ impl NodeModel {
         let display_object  = display::object::Instance::new(&logger);
         display_object.add_child(&drag_area);
         display_object.add_child(&main_area);
-        display_object.add_child(&error_indicator);
         display_object.add_child(&vcs_indicator);
 
         // Disable shadows to allow interaction with the output port.
@@ -495,7 +494,15 @@ impl NodeModel {
         } else {
             self.error_visualization.unset_parent();
         }
+    }
 
+    fn set_error_color(&self, color:&color::Lcha) {
+        self.error_indicator.color_rgba.set(color::Rgba::from(color).into());
+        if color.alpha < EPSILON {
+            self.error_indicator.unset_parent();
+        } else {
+            self.display_object.add_child(&self.error_indicator);
+        }
     }
 }
 
@@ -576,16 +583,15 @@ impl Node {
                 Self::error_color(error,&style))
             );
 
-            eval error_color_anim.value((value)
-                model.error_indicator.color_rgba.set(color::Rgba::from(value).into());
-            );
+            eval error_color_anim.value ((value) model.set_error_color(value));
 
 
             // === Visualization ===
 
             eval frp.set_visualization ((t) model.visualization.frp.set_visualization.emit(t));
             visualization_enabled <- bool(&frp.disable_visualization,&frp.enable_visualization);
-            visualization_visible <- visualization_enabled.all_with(&is_error_set, |l,r| *l && !*r);
+            no_error_set          <- not(&is_error_set);
+            visualization_visible <- visualization_enabled && no_error_set;
             frp.source.visualization_enabled <+ visualization_enabled;
             eval visualization_visible ((is_visible) model.visualization.frp.set_visibility(is_visible));
 
@@ -618,8 +624,8 @@ impl Node {
 
         if let Some(error) = error {
             let path = match *error.kind {
-                error::Kind::Panic    => error_theme::panic::color,
-                error::Kind::Dataflow => error_theme::dataflow::color,
+                error::Kind::Panic    => error_theme::panic,
+                error::Kind::Dataflow => error_theme::dataflow,
             };
             style.get_color(path)
         } else {

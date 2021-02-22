@@ -662,7 +662,7 @@ impl Model {
             let endpoint   = self.view.graph().frp.set_error_visualization_data.clone_ref();
             let preprocessor = graph_editor::builtin::visualization::native::error::PREPROCESSOR;
             let preprocessor = Some(graph_editor::data::enso::Code::new(preprocessor));
-            let metadata   = Some(visualization::Metadata {preprocessor});
+            let metadata     = Some(visualization::Metadata {preprocessor});
             self.attach_visualization(node_id,&metadata,endpoint,self.error_visualizations.clone_ref())?;
         } else if error.is_none() && self.error_visualizations.contains_key(&node_id) {
             self.detach_visualization(node_id,self.error_visualizations.clone_ref())?;
@@ -676,10 +676,10 @@ impl Model {
         use ExpressionUpdatePayload::*;
         use node::error::Kind;
         let (kind,message,trace) = match payload {
-            None                                                   |
-            Some(Value                  ) => None,
-            Some(DataflowError { trace }) => Some((Kind::Dataflow, None         ,trace)),
-            Some(Panic { message,trace }) => Some((Kind::Panic   , Some(message),trace)),
+            None                                  |
+            Some(Value                          ) => None,
+            Some(DataflowError { trace         }) => Some((Kind::Dataflow, None         ,trace)),
+            Some(Panic         { message,trace }) => Some((Kind::Panic   , Some(message),trace)),
         }?;
         let propagated = if kind == Kind::Panic {
             let root_cause = self.get_node_causing_error_on_current_graph(&trace);
@@ -1201,7 +1201,7 @@ impl Model {
         let err = || VisualizationAlreadyAttached(node_id);
         (!visualizations_map.contains_key(&node_id)).ok_or_else(err)?;
 
-        debug!(self.logger, "Attaching visualization on {node_id}.");
+        debug!(self.logger, "Attaching visualization on node {node_id}.");
         let visualization  = self.prepare_visualization(node_id,vis_metadata)?;
         let id             = visualization.id;
         let update_handler = self.visualization_update_handler(receive_data_endpoint,node_id);
@@ -1228,8 +1228,8 @@ impl Model {
     /// visualization respective FRP endpoint.
     fn visualization_update_handler
     ( &self
-      , endpoint : frp::Any<(graph_editor::NodeId,visualization::Data)>
-      , node_id  : graph_editor::NodeId
+    , endpoint : frp::Any<(graph_editor::NodeId,visualization::Data)>
+    , node_id  : graph_editor::NodeId
     ) -> impl FnMut(VisualizationUpdateData) -> futures::future::Ready<()> {
         // TODO [mwu]
         //  For now only JSON visualizations are supported, so we can just assume JSON data in the
@@ -1269,7 +1269,7 @@ impl Model {
         let id                   = VisualizationId::new_v4();
         let metadata_expression  = metadata.and_then(|m| m.preprocessor.as_ref().map(|e| e.to_string()));
         let default_expression   = crate::constants::SERIALIZE_TO_JSON_EXPRESSION;
-        let expression           = metadata_expression.unwrap_or_else(||default_expression.into());
+        let expression           = metadata_expression.unwrap_or_else(|| default_expression.into());
         let ast_id               = self.get_controller_node_id(node_id)?;
         Ok(Visualization{ast_id,expression,id,visualisation_module})
     }
