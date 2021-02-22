@@ -38,7 +38,7 @@ pub struct Frp {
     #[shrinkwrap(main_field)]
     pub inputs                 : FrpInputs,
 
-    pub on_preprocessor_change : frp::Stream<enso::Code>,
+    pub on_preprocessor_change : frp::Sampler<enso::Code>,
     pub on_data_receive_error  : frp::Stream<Option<DataError>>,
     pub is_active              : frp::Stream<bool>,
 
@@ -71,10 +71,10 @@ impl Frp {
         let inputs = FrpInputs::new(&network);
         frp::extend! { network
             def preprocessor_change = source();
+            on_preprocessor_change  <- preprocessor_change.sampler();
             def data_receive_error  = source();
             is_active              <- bool(&inputs.deactivate,&inputs.activate);
         };
-        let on_preprocessor_change = preprocessor_change.clone_ref().into();
         let on_data_receive_error  = data_receive_error.clone_ref().into();
         Self {on_preprocessor_change,on_data_receive_error,is_active,preprocessor_change,inputs
             ,data_receive_error}

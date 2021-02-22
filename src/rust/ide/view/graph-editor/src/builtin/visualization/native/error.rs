@@ -28,7 +28,7 @@ use serde::Serialize;
 const PADDING_TEXT:f32 = 10.0;
 /// The Error Visualization preprocessor. See also _Lazy Visualization_ section
 /// [here](http://dev.enso.org/docs/ide/product/visualizations.html).
-pub const PREPROCESSOR:&str = r#"x -> "{ kind: \"Dataflow\", message: \"" + x.to_display + "\"}""#;
+pub const PREPROCESSOR:&str = r#"x -> "{ \"kind\": \"Dataflow\", \"message\": " + x.to_display.to_json.to_text + "}""#;
 
 
 
@@ -98,7 +98,7 @@ impl Error {
                 if let Err(e) = model.receive_data(data) {
                     frp.data_receive_error.emit(Some(e));
                 }
-             });
+            });
         }
 
         frp.preprocessor_change.emit(enso::Code::from(PREPROCESSOR));
@@ -135,8 +135,8 @@ impl Model {
         let padding_text = format!("{}px",PADDING_TEXT);
 
         dom.dom().set_attribute_or_warn("class","visualization scrollable",&logger);
+        dom.dom().set_style_or_warn("overflow-x"    ,"hidden"             ,&logger);
         dom.dom().set_style_or_warn("overflow-y"    ,"auto"               ,&logger);
-        dom.dom().set_style_or_warn("overflow-x"    ,"auto"               ,&logger);
         dom.dom().set_style_or_warn("font-family"   ,"DejaVuSansMonoBook" ,&logger);
         dom.dom().set_style_or_warn("font-size"     ,"12px"               ,&logger);
         dom.dom().set_style_or_warn("padding-left"  ,&padding_text        ,&logger);
@@ -179,6 +179,7 @@ impl Model {
             Kind::Panic    => ensogl_theme::graph_editor::visualization::error::panic::text,
             Kind::Dataflow => ensogl_theme::graph_editor::visualization::error::dataflow::text,
         };
+        println!("SETTING DATA: {:?}", input);
         self.dom.dom().set_inner_text(&input.message);
         self.set_text_color(color_style);
     }

@@ -206,8 +206,8 @@ define_themes! { [light:0, dark:1]
                 edited    = Lcha::yellow(0.9,1.0), Lcha::yellow(0.9,1.0);
             }
             error {
-                dataflow.color = Rgba(1.0,0.647,0.0,0.7), Rgba(1.0,0.647,0.0,0.7);
-                panic.color    = Rgba(1.0,0.27,0.0,0.7) , Rgba(1.0,0.27,0.0,0.7);
+                dataflow.color = Rgba(1.0,0.655,0.141,1.0), Rgba(1.0,0.655,0.141,1.0);
+                panic.color    = Rgba(1.0,0.341,0.125,1.0), Rgba(1.0,0.341,0.125,1.0);
             }
         }
         visualization {
@@ -224,8 +224,8 @@ define_themes! { [light:0, dark:1]
             text           = Lcha(0.0,0.0,0.0,0.7)   , Lcha(1.0,0.0,0.0,0.7);
             text.selection = Lcha(0.7,0.0,0.125,0.7) , Lcha(0.7,0.0,0.125,0.7);
             error {
-                dataflow.text = Rgba(1.0,0.647,0.0,0.7) , Rgba(1.0,0.647,0.0,0.7);
-                panic.text    = Rgba(1.0,0.27,0.0,0.7) , Rgba(1.0,0.27,0.0,0.7);
+                dataflow.text = Rgba(1.0,0.655,0.141,1.0), Rgba(1.0,0.655,0.141,1.0);
+                panic.text    = Rgba(1.0,0.341,0.125,1.0), Rgba(1.0,0.341,0.125,1.0);
             }
             action_bar {
                 background = Lcha(0.94,0.014,0.18,1.0) , Lcha(0.3,0.014,0.18,1.0);

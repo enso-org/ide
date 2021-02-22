@@ -51,9 +51,9 @@ pub const RADIUS            : f32 = 14.0;
 pub const SHADOW_SIZE       : f32 = 10.0;
 
 const INFINITE                       : f32       = 99999.0;
-const ERROR_PATTERN_STRIPE_WIDTH     : f32       = 5.0;
+const ERROR_PATTERN_STRIPE_WIDTH     : f32       = 10.0;
 const ERROR_PATTERN_STRIPE_ANGLE     : f32       = 45.0;
-const ERROR_PATTERN_REPEAT_TILE_SIZE : (f32,f32) = (15.0,15.0);
+const ERROR_PATTERN_REPEAT_TILE_SIZE : (f32,f32) = (20.0,20.0);
 const ERROR_BORDER_WIDTH             : f32       = 10.0;
 const ERROR_VISUALIZATION_SIZE       : (f32,f32) = visualization::container::DEFAULT_SIZE;
 

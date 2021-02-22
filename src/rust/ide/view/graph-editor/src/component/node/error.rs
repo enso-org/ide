@@ -14,7 +14,7 @@ use serde::Serialize;
 
 /// An error kind.
 #[allow(missing_docs)]
-#[derive(Clone,Copy,Debug,Deserialize,Serialize)]
+#[derive(Clone,Copy,Debug,Deserialize,Eq,PartialEq,Serialize)]
 pub enum Kind {Panic,Dataflow}
 
 /// Additional error information (beside the error value itself) for some erroneous node.

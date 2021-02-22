@@ -559,6 +559,7 @@ impl Model {
     (data:VisualizationUpdateData) -> FallibleResult<visualization::Data> {
         let binary  = data.as_ref();
         let as_text = std::str::from_utf8(binary)?;
+        iprintln!("Received update |{as_text}|");
         let as_json : serde_json::Value = serde_json::from_str(as_text)?;
         Ok(visualization::Data::from(as_json))
     }
@@ -680,10 +681,17 @@ impl Model {
             Some(DataflowError { trace }) => Some((Kind::Dataflow, None         ,trace)),
             Some(Panic { message,trace }) => Some((Kind::Panic   , Some(message),trace)),
         }?;
-        let root_cause = self.get_node_causing_error_on_current_graph(&trace);
+        let propagated = if kind == Kind::Panic {
+            let root_cause = self.get_node_causing_error_on_current_graph(&trace);
+            !root_cause.contains(&node_id)
+        } else {
+            // TODO[ao]: traces are not available for Dataflow errors.
+            false
+        };
+
         let kind       = Immutable(kind);
         let message    = Rc::new(message.cloned());
-        let propagated = Immutable(!root_cause.contains(&node_id));
+        let propagated = Immutable(propagated);
         Some(node::error::Error {kind,message,propagated})
     }
 

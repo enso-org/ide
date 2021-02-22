@@ -1092,8 +1092,11 @@ impl GraphEditorModelWithNetwork {
             output.source.on_visualization_select <+ deselected.constant(Switch::Off(node_id));
 
             metadata <- node.model.visualization.frp.preprocessor.map(move |code| {
-                let preprocessor = Some(code.clone());
-                Some(visualization::Metadata{preprocessor})
+                iprintln!("{code:?}");
+                (!code.is_empty()).as_some_from(|| {
+                    let preprocessor = Some(code.clone());
+                    visualization::Metadata{preprocessor}
+                })
             });
             // Ensure the graph editor knows about internal changes to the visualisation. If the
             // visualisation changes that should indicate that the old one has been disabled and a

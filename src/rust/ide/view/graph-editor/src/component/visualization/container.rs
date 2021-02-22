@@ -410,6 +410,7 @@ impl ContainerModel {
             vis_preprocessor_change <- visualization.on_preprocessor_change.map(|x| x.clone());
             preprocessor            <+ vis_preprocessor_change;
         }
+        preprocessor.emit(visualization.on_preprocessor_change.value());
         self.view.add_child(&visualization);
         self.visualization.replace(Some(visualization));
         self.vis_frp_connection.replace(Some(vis_frp_connection));
@@ -551,6 +552,7 @@ impl Container {
                 }
                 vis_definition.clone()
             }));
+
             eval  frp.set_data          ((t) model.set_visualization_data(t));
 
             eval_ frp.enable_fullscreen (model.set_visibility(true));
