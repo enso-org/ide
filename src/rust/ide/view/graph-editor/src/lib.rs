@@ -1654,7 +1654,10 @@ impl GraphEditorModel {
     }
 
     fn with_edge_map_source<T>(&self, id:EdgeId, f:impl FnOnce(EdgeEndpoint)->T) -> Option<T> {
-        self.with_edge(id,|edge| edge.source.borrow().clone().map(f)).flatten()
+        self.with_edge(id,|edge| {
+            let edge = edge.source.borrow().deref().clone();
+            edge.map(f)
+        }).flatten()
     }
 
     fn with_edge_map_target<T>(&self, id:EdgeId, f:impl FnOnce(EdgeEndpoint)->T) -> Option<T> {
@@ -1703,7 +1706,8 @@ impl GraphEditorModel {
 
     fn with_edge_source<T>(&self, id:EdgeId, f:impl FnOnce(EdgeEndpoint)->T) -> Option<T> {
         self.with_edge(id,|edge| {
-            edge.source.borrow().clone().map(f).map_none(
+            let source = edge.source.borrow().deref().clone();
+            source.map(f).map_none(
                 || warning!(&self.logger,"Trying to access nonexistent source of the edge {id}.")
             )
         }).flatten()
@@ -1711,7 +1715,8 @@ impl GraphEditorModel {
 
     fn with_edge_target<T>(&self, id:EdgeId, f:impl FnOnce(EdgeEndpoint)->T) -> Option<T> {
         self.with_edge(id,|edge| {
-            edge.target.borrow().clone().map(f).map_none(
+            let target = edge.target.borrow().deref().clone();
+            target.map(f).map_none(
                 || warning!(&self.logger,"Trying to access nonexistent target of the edge {id}.")
             )
         }).flatten()
