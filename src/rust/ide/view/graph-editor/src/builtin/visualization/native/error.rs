@@ -33,7 +33,7 @@ pub const PREPROCESSOR:&str = r#"x ->
     x.catch err->
         message = err.to_display_text
         Ref.put result ("{ \"kind\": \"Dataflow\", \"message\": " + message.to_json.to_text + "}")
-	Ref.get result
+    Ref.get result
 "#;
 
 
@@ -136,7 +136,7 @@ pub struct Model {
     size   : Rc<Cell<Vector2>>,
     // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
     styles    : StyleWatch,
-    // because the payloads (with panic messages) and visualization updates (with dataflow error
+    // Because the payloads (with panic messages) and visualization updates (with dataflow error
     // messages) are not synchronized, we need to keep both versions, always ready to switch them
     // when payload changes.
     displayed : Rc<CloneCell<Kind>>,

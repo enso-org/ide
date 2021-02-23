@@ -19,6 +19,8 @@ pub use expression::Expression;
 use crate::prelude::*;
 
 use crate::builtin::visualization::native as builtin_visualization;
+use crate::component::visualization;
+use crate::Type;
 
 use enso_frp as frp;
 use enso_frp;
@@ -30,12 +32,9 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl_text::Text;
 use ensogl_theme;
-
-use crate::Type;
-use crate::component::visualization;
+use std::f32::EPSILON;
 
 use super::edge;
-use std::f32::EPSILON;
 
 
 // =================
