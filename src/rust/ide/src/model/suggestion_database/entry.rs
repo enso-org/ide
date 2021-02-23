@@ -11,11 +11,12 @@ use data::text::TextLocation;
 use enso_protocol::language_server;
 use enso_protocol::language_server::FieldUpdate;
 use language_server::types::FieldAction;
+use std::collections::BTreeSet;
 
 pub use language_server::types::SuggestionEntryArgument as Argument;
 pub use language_server::types::SuggestionId as Id;
 pub use language_server::types::SuggestionsDatabaseUpdate as Update;
-use wasm_bindgen::__rt::std::collections::BTreeSet;
+
 
 
 // ==============
