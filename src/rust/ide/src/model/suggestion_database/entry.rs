@@ -15,7 +15,7 @@ use language_server::types::FieldAction;
 pub use language_server::types::SuggestionEntryArgument as Argument;
 pub use language_server::types::SuggestionId as Id;
 pub use language_server::types::SuggestionsDatabaseUpdate as Update;
-
+use wasm_bindgen::__rt::std::collections::BTreeSet;
 
 
 // ==============
@@ -74,6 +74,16 @@ pub enum Scope {
     InModule {range:RangeInclusive<TextLocation>}
 }
 
+/// Represents code snippet and the imports needed for it to work.
+/// Typically is module-specific, as different modules may require different imports.
+#[derive(Clone,Debug,Eq,PartialEq)]
+pub struct CodeToInsert {
+    /// Code to be inserted.
+    pub code    : String,
+    /// Modules that need to be imported when inserting this code.
+    pub imports : BTreeSet<module::QualifiedName>,
+}
+
 /// The Suggestion Database Entry.
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub struct Entry {
@@ -103,25 +113,45 @@ impl Entry {
         self.self_type.contains(self_type)
     }
 
-    /// Returns the code which should be inserted to Searcher input when suggestion is picked.
-    pub fn code_to_insert(&self, current_module:Option<&module::QualifiedName>) -> String {
-        if self.has_self_type(&self.module) {
-            let module_var = if current_module.contains(&&self.module) {keywords::HERE.to_owned()}
-                else {self.module.name().clone().into()};
-            format!("{}.{}",module_var,self.name)
-        } else {
-            self.name.clone()
+    /// Describes code insertion to be done when Searcher input suggestion is picked.
+    pub fn code_to_insert
+    (&self, current_module:Option<&module::QualifiedName>, generate_this:bool) -> CodeToInsert {
+        let mut imports = BTreeSet::new();
+
+        // Regular methods are found through this-lookup. Other entities need to be visible.
+        // Import if not already defined in this module.
+        if !self.is_regular_method() && !current_module.contains(&&self.module) {
+            imports.insert(self.module.clone());
         }
+
+        let this_expr = if generate_this && self.is_regular_module_method() {
+            if current_module.contains(&&self.module) {
+                // No additional import for `here`.
+                Some(keywords::HERE.to_owned())
+            } else {
+                // If we are inserting an additional `this` argument, the used name must be visible.
+                imports.insert(self.module.clone());
+                Some(self.module.name().into())
+            }
+        } else {
+            // TODO [mwu] Actually we could generate this expression here if its type is known to be
+            //            a nullary atom. This is automatically true for modules but also other
+            //            atoms could be supported.
+            None
+        };
+
+        let code = match this_expr {
+            Some(this_expr) => format!("{}{}{}",this_expr,ast::opr::predefined::ACCESS,self.name),
+            None            => self.name.clone(),
+        };
+
+        CodeToInsert {code,imports}
     }
 
-    /// Module that needs to be imported to bring in this entry into the scope.
-    pub fn required_import(&self) -> Option<&module::QualifiedName> {
-        if self.kind == Kind::Method {
-            // Methods are found through lookup on `this`, no need for any additional imports.
-            None
-        } else {
-            Some(&self.module)
-        }
+    /// Check if this is a non-extension module method.
+    // TODO [mwu] Currently we have no means to recognize module extension methods.
+    pub fn is_regular_module_method(&self) -> bool {
+        self.has_self_type(&self.module)
     }
 
     /// Returns the code which should be inserted to Searcher input when suggestion is picked,
@@ -163,6 +193,20 @@ impl Entry {
     /// Generate information about invoking this entity for span tree context.
     pub fn invocation_info(&self) -> span_tree::generate::context::CalledMethodInfo {
         self.into()
+    }
+
+    /// Check if this is a regular method (i.e. non-extension method).
+    pub fn is_regular_method(&self) -> bool {
+        println!("{:?}",self);
+        let is_method     = self.kind == Kind::Method;
+        let not_extension = self.self_type.contains_if(|this| this.in_module(&self.module))
+            || self.self_type.contains(&self.module);
+        is_method && not_extension
+    }
+
+    /// Get the full qualified name of the entry.
+    pub fn qualified_name(&self) -> tp::QualifiedName {
+        tp::QualifiedName::new_module_member(self.module.clone(), self.name.clone())
     }
 }
 
@@ -368,46 +412,91 @@ pub fn to_span_tree_param(param_info:&Argument) -> span_tree::ArgumentInfo {
 mod test {
     use super::*;
 
+
+    fn expect
+    ( entry            : &Entry
+    , current_module   : Option<&module::QualifiedName>
+    , generate_this    : bool
+    , expected_code    : &str
+    , expected_imports : &[&module::QualifiedName]) {
+        let CodeToInsert {code,imports} = entry.code_to_insert(current_module,generate_this);
+        assert_eq!(code,expected_code);
+        assert_eq!(imports.iter().collect_vec().as_slice(), expected_imports);
+    }
+
     #[test]
     fn code_from_entry() {
-        let module         = module::QualifiedName::from_text("Project.Main").unwrap();
+        let main_module    = module::QualifiedName::from_text("Project.Main").unwrap();
         let another_module = module::QualifiedName::from_text("Project.AnotherModule").unwrap();
-        let atom_entry = Entry {
+        let atom = Entry {
             name          : "Atom".to_string(),
             kind          : Kind::Atom,
-            module        : module.clone(),
+            module        : main_module.clone(),
             arguments     : vec![],
             return_type   : "Number".to_string(),
             documentation : None,
             self_type     : None,
             scope         : Scope::Everywhere,
         };
-        let method_entry = Entry {
+        let method = Entry {
             name      : "method".to_string(),
             kind      : Kind::Method,
             self_type : Some("Base.Main.Number".to_string().try_into().unwrap()),
-            ..atom_entry.clone()
+            ..atom.clone()
         };
-        let module_method_entry = Entry {
-            name      : "moduleMethod".to_string(),
-            self_type : Some(module.clone().into()),
-            ..method_entry.clone()
+        let module_method = Entry {
+            name      : "module_method".to_string(),
+            self_type : Some(main_module.clone().into()),
+            ..method.clone()
+        };
+        let module_extension = Entry {
+            module    : another_module.clone(),
+            name      : "module_extension".to_string(),
+            ..module_method.clone()
+        };
+        let atom_extension = Entry {
+            module    : another_module.clone(),
+            name      : "atom_extension".to_string(),
+            self_type : Some(atom.qualified_name()),
+            ..module_method.clone()
         };
 
-        let current_module = None;
-        assert_eq!(atom_entry.code_to_insert(current_module)         , "Atom");
-        assert_eq!(method_entry.code_to_insert(current_module)       , "method");
-        assert_eq!(module_method_entry.code_to_insert(current_module), "Main.moduleMethod");
+        expect(&atom, None,                  true,  "Atom", &[&main_module]);
+        expect(&atom, None,                  false, "Atom", &[&main_module]);
+        expect(&atom, Some(&main_module),    true,  "Atom", &[]);
+        expect(&atom, Some(&main_module),    false, "Atom", &[]);
+        expect(&atom, Some(&another_module), true,  "Atom", &[&main_module]);
+        expect(&atom, Some(&another_module), false, "Atom", &[&main_module]);
 
-        let current_module = Some(&module);
-        assert_eq!(atom_entry.code_to_insert(current_module)         , "Atom");
-        assert_eq!(method_entry.code_to_insert(current_module)       , "method");
-        assert_eq!(module_method_entry.code_to_insert(current_module), "here.moduleMethod");
+        expect(&method, None,                  true,  "method", &[&main_module]);
+        expect(&method, None,                  false, "method", &[&main_module]);
+        expect(&method, Some(&main_module),    true,  "method", &[]);
+        expect(&method, Some(&main_module),    false, "method", &[]);
+        expect(&method, Some(&another_module), true,  "method", &[&main_module]);
+        expect(&method, Some(&another_module), false, "method", &[&main_module]);
 
-        let current_module = Some(&another_module);
-        assert_eq!(atom_entry.code_to_insert(current_module)         , "Atom");
-        assert_eq!(method_entry.code_to_insert(current_module)       , "method");
-        assert_eq!(module_method_entry.code_to_insert(current_module), "Main.moduleMethod");
+        expect(&module_method, None,                  true,  "Main.module_method", &[&main_module]);
+        expect(&module_method, None,                  false, "module_method",      &[]);
+        expect(&module_method, Some(&main_module),    true,  "here.module_method", &[]);
+        expect(&module_method, Some(&main_module),    false, "module_method",      &[]);
+        expect(&module_method, Some(&another_module), true,  "Main.module_method", &[&main_module]);
+        expect(&module_method, Some(&another_module), false, "module_method",      &[]);
+
+        // TODO [mwu] Extensions on nullary atoms should also be able to generate this.
+        //            The tests below will need to be adjusted, once that behavior is fixed.
+        expect(&module_extension, None,                  true,  "module_extension", &[&another_module]);
+        expect(&module_extension, None,                  false, "module_extension", &[&another_module]);
+        expect(&module_extension, Some(&main_module),    true,  "module_extension", &[&another_module]);
+        expect(&module_extension, Some(&main_module),    false, "module_extension", &[&another_module]);
+        expect(&module_extension, Some(&another_module), true,  "module_extension", &[]);
+        expect(&module_extension, Some(&another_module), false, "module_extension", &[]);
+
+        expect(&atom_extension, None,                  true,  "atom_extension", &[&another_module]);
+        expect(&atom_extension, None,                  false, "atom_extension", &[&another_module]);
+        expect(&atom_extension, Some(&main_module),    true,  "atom_extension", &[&another_module]);
+        expect(&atom_extension, Some(&main_module),    false, "atom_extension", &[&another_module]);
+        expect(&atom_extension, Some(&another_module), true,  "atom_extension", &[]);
+        expect(&atom_extension, Some(&another_module), false, "atom_extension", &[]);
     }
 
     #[test]

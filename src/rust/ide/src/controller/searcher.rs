@@ -12,6 +12,7 @@ use crate::double_representation::node::NodeInfo;
 use crate::model::module::MethodId;
 use crate::model::module::NodeMetadata;
 use crate::model::module::Position;
+use crate::model::suggestion_database::entry::CodeToInsert;
 use crate::notification;
 
 use data::text::TextLocation;
@@ -362,8 +363,13 @@ impl FragmentAddedByPickingSuggestion {
     /// Check if the picked fragment is still unmodified by user.
     fn is_still_unmodified
     (&self, input:&ParsedInput, current_module:&QualifiedName) -> bool {
-        let expected_code = &self.picked_suggestion.code_to_insert(Some(current_module));
-        input.completed_fragment(self.id).contains(expected_code)
+        let expected = self.code_to_insert(current_module,&None);
+        input.completed_fragment(self.id).contains(&expected.code)
+    }
+
+    fn code_to_insert(&self, current_module:&QualifiedName, this_node:&Option<ThisNode>) -> CodeToInsert {
+        let generate_this = self.id != CompletedFragmentId::Function || this_node.is_none();
+        self.picked_suggestion.code_to_insert(Some(&current_module),generate_this)
     }
 }
 
@@ -536,14 +542,8 @@ impl Searcher {
     ///
     /// Code depends on the location, as the first fragment can introduce `this` variable access,
     /// and then we don't want to put any module name.
-    fn code_to_insert
-    (&self, suggestion:&action::Suggestion, loc:CompletedFragmentId) -> String {
-        let current_module = self.module_qualified_name();
-        if loc == CompletedFragmentId::Function && self.this_arg.is_some() {
-            suggestion.code_to_insert_skip_module()
-        } else {
-            suggestion.code_to_insert(Some(&current_module))
-        }
+    fn code_to_insert(&self, fragment:&FragmentAddedByPickingSuggestion) -> CodeToInsert {
+        fragment.code_to_insert(&self.module_qualified_name(), self.this_arg.as_ref())
     }
 
     /// Pick a completion suggestion.
@@ -555,9 +555,9 @@ impl Searcher {
     (&self, picked_suggestion: action::Suggestion) -> FallibleResult<String> {
         info!(self.logger, "Picking suggestion: {picked_suggestion:?}");
         let id                = self.data.borrow().input.next_completion_id();
-        let code_to_insert    = self.code_to_insert(&picked_suggestion,id);
-        let added_ast         = self.parser.parse_line(&code_to_insert)?;
         let picked_completion = FragmentAddedByPickingSuggestion {id,picked_suggestion};
+        let code_to_insert    = self.code_to_insert(&picked_completion).code;
+        let added_ast         = self.parser.parse_line(&code_to_insert)?;
         let pattern_offset    = self.data.borrow().input.pattern_offset;
         let new_expression    = match self.data.borrow_mut().input.expression.take() {
             None => {
@@ -730,14 +730,15 @@ impl Searcher {
         );
     }
 
+
     fn add_required_imports(&self) -> FallibleResult {
         let data_borrowed = self.data.borrow();
         let fragments     = data_borrowed.fragments_added_by_picking.iter();
-        let imports       = fragments.filter_map(|frag| frag.picked_suggestion.required_import());
+        let imports       = fragments.map(|frag| self.code_to_insert(frag).imports).flatten();
         let mut module    = self.module();
         let here          = self.module_qualified_name();
         for import in imports {
-            module.add_module_import(&here, &self.parser, import);
+            module.add_module_import(&here, &self.parser, &import);
         }
         self.graph.graph().module.update_ast(module.ast)
     }
@@ -994,6 +995,7 @@ pub mod test {
     use super::*;
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
+    use crate::model::SuggestionDatabase;
     use crate::model::suggestion_database::entry::Argument;
     use crate::model::suggestion_database::entry::Kind;
     use crate::model::suggestion_database::entry::Scope;
@@ -1005,7 +1007,6 @@ pub mod test {
     use json_rpc::expect_call;
     use utils::test::traits::*;
     use enso_protocol::language_server::SuggestionId;
-    use crate::model::SuggestionDatabase;
 
     pub fn completion_response(results:&[SuggestionId]) -> language_server::response::Completion {
         language_server::response::Completion {
@@ -1073,34 +1074,20 @@ pub mod test {
     impl Fixture {
         fn new_custom<F>(client_setup:F) -> Self
         where F : FnOnce(&mut MockData,&mut language_server::MockClient) {
-            info!(DefaultDebugLogger::new("Test"),"1");
             let test       = TestWithLocalPoolExecutor::set_up();
-            info!(DefaultDebugLogger::new("Test"),"2");
             let mut data   = MockData::default();
-            info!(DefaultDebugLogger::new("Test"),"3");
             let mut client = language_server::MockClient::default();
-            info!(DefaultDebugLogger::new("Test"),"4");
             client.require_all_calls();
-            info!(DefaultDebugLogger::new("Test"),"5");
             client_setup(&mut data,&mut client);
-            info!(DefaultDebugLogger::new("Test"),"6");
             let end_of_code = TextLocation::at_document_end(&data.graph.module.code);
             let code_range  = TextLocation::at_document_begin()..=end_of_code;
-            info!(DefaultDebugLogger::new("Test"),"7");
             let graph       = data.graph.controller();
-            info!(DefaultDebugLogger::new("Test"),"8");
             let node        = &graph.graph().nodes().unwrap()[0];
-            info!(DefaultDebugLogger::new("Test"),"9");
             let this        = ThisNode::new(vec![node.info.id()],&graph.graph());
-            info!(DefaultDebugLogger::new("Test"),"10");
             let this        = data.selected_node.and_option(this);
-            info!(DefaultDebugLogger::new("Test"),"11");
             let logger      = Logger::new("Searcher");// new_empty
-            info!(DefaultDebugLogger::new("Test"),"12");
             let database    = Rc::new(SuggestionDatabase::new_empty(&logger));
-            info!(DefaultDebugLogger::new("Test"),"13");
             let module_name = QualifiedName::from_segments(PROJECT_NAME, &[MODULE_NAME]).unwrap();
-            info!(DefaultDebugLogger::new("Test"),"14");
             let searcher = Searcher {
                 graph,logger,database,
                 data             : default(),
@@ -1612,21 +1599,11 @@ pub mod test {
 
     #[wasm_bindgen_test]
     fn adding_imports_with_nodes() {
-        let fixture = Fixture::new();
-        let Fixture{test:_test,mut searcher,entry1,entry2,entry3,entry4,entry10,..} = fixture;
+        fn expect_inserted_import_for(entry:&action::Suggestion, expected_import:Vec<&QualifiedName>) {
+            let Fixture{test:_test,mut searcher,..} = Fixture::new();
+            let module = searcher.graph.graph().module.clone_ref();
+            let parser = searcher.parser.clone_ref();
 
-        assert!(entry1.required_import().is_some());
-        assert!(entry2.required_import().is_some());
-        assert!(entry3.required_import().is_none()); // No imports needed, as it is a method.
-        assert!(entry4.required_import().is_none()); // No imports needed, as it is a method.
-        assert!(entry10.required_import().is_some());
-
-        let module      = searcher.graph.graph().module.clone_ref();
-        let initial_ast = module.ast();
-        let parser      = searcher.parser.clone_ref();
-
-        // Helper that returns import that got added when committing a node from given entry.
-        let mut import_added_for = |entry:action::Suggestion| {
             let picked_method = FragmentAddedByPickingSuggestion {
                 id                : CompletedFragmentId::Function,
                 picked_suggestion : entry.clone(),
@@ -1640,21 +1617,21 @@ pub mod test {
             searcher.mode = Immutable(Mode::NewNode {position:None});
             searcher.commit_node().unwrap();
 
-            let module_info = module.info();
-            let mut imports = module_info.iter_imports();
-            let ret = imports.next();
-            assert!(imports.next().is_none()); // at most one import insertion is expected
-            println!("{}",module.ast());
-            module.update_ast(initial_ast.clone()).unwrap();
-            ret
-        };
+            let module_info    = module.info();
+            let imported_names = module_info.iter_imports()
+                .map(|import| import.qualified_name().unwrap())
+                .collect_vec();
 
-        assert_eq!(import_added_for(entry1), None); // No import added, as we are the relevant module.
-        assert_eq!(import_added_for(entry2), None); // No import added, as we are the relevant module.
-        assert_eq!(import_added_for(entry3), None); // No import added, as this is a method entry.
-        assert_eq!(import_added_for(entry4), None); // No import added, as this is a method entry.
-        let import10 = import_added_for(entry10.clone_ref()).unwrap();
-        assert_eq!(import10.qualified_name().unwrap(), entry10.module);
+            let expected_import = expected_import.into_iter().cloned().collect_vec();
+            assert_eq!(imported_names,expected_import);
+        }
+
+        let Fixture{entry1,entry2,entry3,entry4,entry10,..} = Fixture::new();
+        expect_inserted_import_for(&entry1, vec![]);
+        expect_inserted_import_for(&entry2, vec![]);
+        expect_inserted_import_for(&entry3, vec![]);
+        expect_inserted_import_for(&entry4, vec![&entry4.module]);
+        expect_inserted_import_for(&entry10, vec![&entry10.module]);
     }
 
     #[wasm_bindgen_test]
@@ -1677,7 +1654,7 @@ pub mod test {
         searcher.mode = Immutable(Mode::NewNode {position});
         searcher.commit_node().unwrap();
 
-        let expected_code = "main = \n    2 + 2\n    operator1 = Test.testMethod1";
+        let expected_code = "import Test.Test\nmain = \n    2 + 2\n    operator1 = Test.testMethod1";
         assert_eq!(module.ast().repr(), expected_code);
         let (node1,node2) = searcher.graph.graph().nodes().unwrap().expect_tuple();
         let expected_intended_method = Some(MethodId {
@@ -1690,7 +1667,7 @@ pub mod test {
         // Edit existing node.
         searcher.mode = Immutable(Mode::EditNode {node_id:node1.info.id()});
         searcher.commit_node().unwrap();
-        let expected_code = "main = \n    Test.testMethod1\n    operator1 = Test.testMethod1";
+        let expected_code = "import Test.Test\nmain = \n    Test.testMethod1\n    operator1 = Test.testMethod1";
         let (node1,_)     = searcher.graph.graph().nodes().unwrap().expect_tuple();
         assert_eq!(node1.metadata.unwrap().intended_method, expected_intended_method);
         assert_eq!(module.ast().repr(), expected_code);
