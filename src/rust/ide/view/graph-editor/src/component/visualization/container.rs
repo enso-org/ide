@@ -535,6 +535,7 @@ impl Container {
             frp.source.visible <+ frp.set_visibility;
             frp.source.visible <+ frp.toggle_visibility.map(f!((()) model.is_active()));
             let preprocessor = &frp.source.preprocessor;
+            trace frp.source.preprocessor;
             frp.source.visualisation <+ frp.set_visualization.map(f!(
                 [model,action_bar,scene,logger,preprocessor](vis_definition) {
 

@@ -34,7 +34,7 @@ impl Error {
     /// Returns [`None`] if the data should arrive from the Engine.
     pub fn visualization_data(&self) -> Option<error_visualization::Input> {
         Some(error_visualization::Input {
-            kind    : *self.kind,
+            kind    : Some(*self.kind),
             message : self.message.as_ref().as_ref()?.clone(),
         })
     }

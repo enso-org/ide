@@ -513,7 +513,7 @@ ensogl::define_endpoints! {
         nodes_labels_visible      (bool),
 
 
-        visualization_enabled                   (NodeId,Option<visualization::Metadata>),
+        visualization_enabled                   (NodeId,visualization::Metadata),
         visualization_disabled                  (NodeId),
         visualization_enable_fullscreen         (NodeId),
         visualization_preprocessor_changed      ((NodeId,data::enso::Code)),
@@ -1091,13 +1091,12 @@ impl GraphEditorModelWithNetwork {
             output.source.on_visualization_select <+ selected.constant(Switch::On(node_id));
             output.source.on_visualization_select <+ deselected.constant(Switch::Off(node_id));
 
-            metadata <- node.model.visualization.frp.preprocessor.map(move |code| {
-                iprintln!("{code:?}");
-                (!code.is_empty()).as_some_from(|| {
-                    let preprocessor = Some(code.clone());
-                    visualization::Metadata{preprocessor}
-                })
+            metadata  <- any(...);
+            metadata <+ node.model.visualization.frp.preprocessor.map(move |code| {
+                let preprocessor = code.clone();
+                visualization::Metadata{preprocessor}
             });
+            trace metadata;
             // Ensure the graph editor knows about internal changes to the visualisation. If the
             // visualisation changes that should indicate that the old one has been disabled and a
             // new one has been enabled.
@@ -1112,7 +1111,10 @@ impl GraphEditorModelWithNetwork {
             output.source.visualization_disabled          <+ vis_disabled.constant(node_id);
             output.source.visualization_enable_fullscreen <+ vis_fullscreen.constant(node_id);
         }
-
+        let initial_metadata = visualization::Metadata {
+            preprocessor : node.model.visualization.frp.preprocessor.value()
+        };
+        metadata.emit(initial_metadata);
         self.nodes.insert(node_id,node);
         node_id
     }

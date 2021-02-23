@@ -29,8 +29,11 @@ const PADDING_TEXT:f32 = 10.0;
 /// The Error Visualization preprocessor. See also _Lazy Visualization_ section
 /// [here](http://dev.enso.org/docs/ide/product/visualizations.html).
 pub const PREPROCESSOR:&str = r#"x ->
-    message = x.catch .to_display_text
-    "{ \"kind\": \"Dataflow\", \"message\": " + message.to_json.to_text + "}"
+    result = Ref.new "{ message: \"\"}"
+    x.catch err->
+        message = err.to_display_text
+        Ref.put result ("{ \"kind\": \"Dataflow\", \"message\": " + message.to_json.to_text + "}")
+	Ref.get result
 "#;
 
 
@@ -45,7 +48,7 @@ pub use crate::component::node::error::Kind;
 #[allow(missing_docs)]
 #[derive(Clone,Debug,Deserialize,Serialize)]
 pub struct Input {
-    pub kind: Kind,
+    pub kind: Option<Kind>,
     pub message: String,
 }
 
@@ -165,11 +168,8 @@ impl Model {
 
     fn receive_data(&self, data:&Data) -> Result<(),DataError> {
         if let Data::Json {content} = data {
-            let conversion_error = |e:serde_json::Error| Input {
-                kind    : Kind::Panic,
-                message : format!("<Cannot display error message: {}>", e),
-            };
-            let input:Input = serde_json::from_value(content.deref().clone()).unwrap_or_else(conversion_error);
+            let input_result = serde_json::from_value(content.deref().clone());
+            let input:Input  = input_result.map_err(|_| DataError::InvalidDataType)?;
             self.set_data(&input);
             Ok(())
         } else {
@@ -178,13 +178,16 @@ impl Model {
     }
 
     fn set_data(&self, input:&Input) {
-        let color_style = match input.kind {
-            Kind::Panic    => ensogl_theme::graph_editor::visualization::error::panic::text,
-            Kind::Dataflow => ensogl_theme::graph_editor::visualization::error::dataflow::text,
-        };
-        println!("SETTING DATA: {:?}", input);
-        self.dom.dom().set_inner_text(&input.message);
-        self.set_text_color(color_style);
+        if let Some(kind) = &input.kind {
+            let color_style = match kind {
+                Kind::Panic    => ensogl_theme::graph_editor::visualization::error::panic::text,
+                Kind::Dataflow => ensogl_theme::graph_editor::visualization::error::dataflow::text,
+            };
+            self.dom.dom().set_inner_text(&input.message);
+            self.set_text_color(color_style);
+        }
+        // else we don't update the text, as the node does not contain error anymore. The
+        // visualization will be hidden once we receive expression update message.
     }
 
     fn reload_style(&self) {

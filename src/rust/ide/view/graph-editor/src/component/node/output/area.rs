@@ -245,7 +245,6 @@ impl Model {
     fn traverse_borrowed_expression_raw
     (&self, mut f:impl FnMut(bool, &PortRef, &mut PortLayerBuilder)) {
         let expression = self.expression.borrow();
-        println!("BORROWING {}", backtrace());
         expression.root_ref().dfs_with_layer_data(PortLayerBuilder::default(),|node,builder| {
             let is_leaf     = node.children.is_empty();
             let is_this     = node.is_this();
@@ -254,7 +253,6 @@ impl Model {
             f(is_a_port,node,builder);
             builder.nested()
         });
-        println!("DEBORROWING {}", backtrace());
     }
 
     fn count_ports(&self) -> usize {
