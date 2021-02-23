@@ -1185,6 +1185,23 @@ impl GraphEditorModelWithNetwork {
 
 
 
+// =====================================
+// === Segfault causing dummy struct ===
+// =====================================
+
+#[derive(Debug,Clone,Default)]
+struct Dummy {
+    dummy : [[[u8; 32];32];2],
+}
+
+impl CloneRef for Dummy {
+    fn clone_ref(&self) -> Self {
+        self.clone()
+    }
+}
+
+
+
 // ========================
 // === GraphEditorModel ===
 // ========================
@@ -1203,7 +1220,7 @@ pub struct GraphEditorModel {
     visualisations     : Visualisations,
     frp                : FrpEndpoints,
     navigator          : Navigator,
-
+    dummy              : Dummy
 }
 
 
@@ -1230,7 +1247,8 @@ impl GraphEditorModel {
         let navigator      = Navigator::new(&scene,&scene.camera());
         Self {
             logger,display_object,app,cursor,nodes,edges,touch_state,frp,breadcrumbs,
-            vis_registry,visualisations,navigator
+            vis_registry,visualisations,navigator,
+            dummy: default(),
         }.init()
     }
 
