@@ -1096,7 +1096,6 @@ impl GraphEditorModelWithNetwork {
                 let preprocessor = code.clone();
                 visualization::Metadata{preprocessor}
             });
-            trace metadata;
             // Ensure the graph editor knows about internal changes to the visualisation. If the
             // visualisation changes that should indicate that the old one has been disabled and a
             // new one has been enabled.

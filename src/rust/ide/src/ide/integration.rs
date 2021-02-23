@@ -559,7 +559,6 @@ impl Model {
     (data:VisualizationUpdateData) -> FallibleResult<visualization::Data> {
         let binary  = data.as_ref();
         let as_text = std::str::from_utf8(binary)?;
-        iprintln!("Received update |{as_text}|");
         let as_json : serde_json::Value = serde_json::from_str(as_text)?;
         Ok(visualization::Data::from(as_json))
     }

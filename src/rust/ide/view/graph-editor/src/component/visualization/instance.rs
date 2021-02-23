@@ -82,7 +82,6 @@ impl Frp {
         frp::extend! { network
             def preprocessor_change = source();
             on_preprocessor_change  <- preprocessor_change.sampler();
-            trace on_preprocessor_change;
             def data_receive_error  = source();
             is_active              <- bool(&inputs.deactivate,&inputs.activate);
         };
