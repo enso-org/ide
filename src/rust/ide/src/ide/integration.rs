@@ -534,7 +534,7 @@ impl Model {
             filtered.map(|(k,v)| (*k,*v)).collect_vec()
         };
         for (id,displayed_id) in to_remove {
-            self.view.graph().frp.input.remove_node.emit(&displayed_id);
+            self.view.graph().frp.input .remove_node.emit(&displayed_id);
             self.node_views.borrow_mut().remove_by_left(&id);
         }
     }
