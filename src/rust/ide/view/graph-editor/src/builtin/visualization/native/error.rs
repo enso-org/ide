@@ -43,6 +43,7 @@ pub const PREPROCESSOR:&str = r#"x ->
 // =============
 
 pub use crate::component::node::error::Kind;
+use crate::SharedHashMap;
 
 /// The input for Error Visualization.
 #[allow(missing_docs)]
@@ -117,6 +118,14 @@ impl Error {
     pub fn set_data(&self, input:&Input) {
         self.model.set_data(input);
     }
+
+    /// Switch displayed error kind.
+    ///
+    /// The visualization keep the messages received for each kind, because they may be not
+    /// synchronized with expression update payload informing us which kind we ought to display.
+    pub fn display_kind(&self, new:Kind) {
+        self.model.display_kind(new);
+    }
 }
 
 #[derive(Clone,CloneRef,Debug)]
@@ -126,16 +135,23 @@ pub struct Model {
     dom    : DomSymbol,
     size   : Rc<Cell<Vector2>>,
     // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
-    styles : StyleWatch,
+    styles    : StyleWatch,
+    // because the payloads (with panic messages) and visualization updates (with dataflow error
+    // messages) are not synchronized, we need to keep both versions, always ready to switch them
+    // when payload changes.
+    displayed : Rc<CloneCell<Kind>>,
+    messages  : SharedHashMap<Kind,ImString>,
 }
 
 impl Model {
     /// Constructor.
     fn new(scene:&Scene) -> Self {
-        let logger = Logger::new("RawText");
-        let div    = web::create_div();
-        let dom    = DomSymbol::new(&div);
-        let size   = Rc::new(Cell::new(Vector2(200.0,200.0)));
+        let logger    = Logger::new("RawText");
+        let div       = web::create_div();
+        let dom       = DomSymbol::new(&div);
+        let size      = Rc::new(Cell::new(Vector2(200.0,200.0)));
+        let displayed = Rc::new(CloneCell::new(Kind::Panic));
+        let messages  = default();
 
         let styles       = StyleWatch::new(&scene.style_sheet);
         let padding_text = format!("{}px",PADDING_TEXT);
@@ -150,7 +166,7 @@ impl Model {
         dom.dom().set_style_or_warn("pointer-events","auto"               ,&logger);
 
         scene.dom.layers.back.manage(&dom);
-        Model{dom,logger,size,styles}.init()
+        Model{dom,logger,size,styles,displayed,messages}.init()
     }
 
     fn init(self) -> Self {
@@ -167,6 +183,7 @@ impl Model {
     }
 
     fn receive_data(&self, data:&Data) -> Result<(),DataError> {
+        iprintln!("Receive data {data:?}");
         if let Data::Json {content} = data {
             let input_result = serde_json::from_value(content.deref().clone());
             let input:Input  = input_result.map_err(|_| DataError::InvalidDataType)?;
@@ -178,16 +195,27 @@ impl Model {
     }
 
     fn set_data(&self, input:&Input) {
-        if let Some(kind) = &input.kind {
-            let color_style = match kind {
-                Kind::Panic    => ensogl_theme::graph_editor::visualization::error::panic::text,
-                Kind::Dataflow => ensogl_theme::graph_editor::visualization::error::dataflow::text,
-            };
-            self.dom.dom().set_inner_text(&input.message);
-            self.set_text_color(color_style);
+        if let Some(kind) = input.kind {
+            self.messages.insert(kind,input.message.clone().into());
+            if kind == self.displayed.get() {
+                self.dom.dom().set_inner_text(&input.message);
+            }
         }
         // else we don't update the text, as the node does not contain error anymore. The
         // visualization will be hidden once we receive expression update message.
+    }
+
+    fn display_kind(&self, new:Kind) {
+        let color_style = match new {
+            Kind::Panic    => ensogl_theme::graph_editor::visualization::error::panic::text,
+            Kind::Dataflow => ensogl_theme::graph_editor::visualization::error::dataflow::text,
+        };
+        let default     = "";
+        let opt_message = self.messages.get_cloned_ref(&new);
+        let message     = opt_message.as_ref().map_or(default,|s| s.as_str());
+        self.dom.dom().set_inner_text(message);
+        self.set_text_color(color_style);
+        self.displayed.set(new);
     }
 
     fn reload_style(&self) {

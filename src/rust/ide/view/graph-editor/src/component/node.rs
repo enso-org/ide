@@ -483,6 +483,7 @@ impl NodeModel {
 
     fn set_error(&self, error:Option<&Error>) {
         if let Some(error) = error {
+            self.error_visualization.display_kind(*error.kind);
             if let Some(error_data) = error.visualization_data() {
                 self.error_visualization.set_data(&error_data);
             }
