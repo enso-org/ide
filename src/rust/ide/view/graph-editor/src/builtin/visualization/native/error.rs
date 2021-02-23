@@ -28,7 +28,10 @@ use serde::Serialize;
 const PADDING_TEXT:f32 = 10.0;
 /// The Error Visualization preprocessor. See also _Lazy Visualization_ section
 /// [here](http://dev.enso.org/docs/ide/product/visualizations.html).
-pub const PREPROCESSOR:&str = r#"x -> "{ \"kind\": \"Dataflow\", \"message\": " + x.to_display.to_json.to_text + "}""#;
+pub const PREPROCESSOR:&str = r#"x ->
+    message = x.catch .to_display_text
+    "{ \"kind\": \"Dataflow\", \"message\": " + message.to_json.to_text + "}"
+"#;
 
 
 
