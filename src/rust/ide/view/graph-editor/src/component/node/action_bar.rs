@@ -94,7 +94,6 @@ impl Icons {
     }
 
     fn set_visibility(&self, visible:bool) {
-        println!("THE WAT? {}",backtrace());
         self.freeze.frp.set_visibility(visible);
         self.skip.frp.set_visibility(visible);
         self.visibility.frp.set_visibility(visible);
