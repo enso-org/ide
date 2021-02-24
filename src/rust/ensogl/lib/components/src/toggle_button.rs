@@ -201,7 +201,7 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
         let color   = color::Animation::new(network);
         let icon    = &model.icon.events;
 
-        frp::extend! { TRACE_ALL network
+        frp::extend! { network
 
              // === Input Processing ===
 
