@@ -146,19 +146,19 @@ class GeoMapVisualization extends Visualization {
             //  (https://github.com/enso-org/ide/issues/1167) has been implemented.
             //  Use the previous version from the history again.
             this.setPreprocessor(
-                "df -> \n" +
-                "    get_cons_name : Any -> Text | Nothing\n" +
-                "    get_cons_name val =\n" +
-                "        meta_val = Meta.meta val\n" +
-                "        case meta_val of\n" +
-                "            Meta.Atom _ ->\n" +
-                "                cons = meta_val.constructor\n" +
-                "                Meta.Constructor cons . name \n" +
-                "            _ -> Nothing\n" +
-                "    if (((get_cons_name df)) == 'Table').not then (df . to_json . to_text) else\n" +
-                "         columns = df.select ['label', 'latitude', 'longitude'] . columns\n" +
-                "         serialized = columns.map (c -> ['df_' + c.name, c.to_vector])\n" +
-                "         Json.from_pairs serialized . to_text"
+                'df -> \n' +
+                    '    get_cons_name : Any -> Text | Nothing\n' +
+                    '    get_cons_name val =\n' +
+                    '        meta_val = Meta.meta val\n' +
+                    '        case meta_val of\n' +
+                    '            Meta.Atom _ ->\n' +
+                    '                cons = meta_val.constructor\n' +
+                    '                Meta.Constructor cons . name \n' +
+                    '            _ -> Nothing\n' +
+                    "    if (((get_cons_name df)) == 'Table').not then (df . to_json . to_text) else\n" +
+                    "         columns = df.select ['label', 'latitude', 'longitude'] . columns\n" +
+                    "         serialized = columns.map (c -> ['df_' + c.name, c.to_vector])\n" +
+                    '         Json.from_pairs serialized . to_text'
             )
             this.isInit = true
             // We discard this data the first time. We will get another update with
@@ -174,7 +174,6 @@ class GeoMapVisualization extends Visualization {
             this.updateMap()
             this.updateLayers()
         }
-
     }
 
     /**
