@@ -144,7 +144,13 @@ class GeoMapVisualization extends Visualization {
         if (!this.isInit) {
             // FIXME: This should be simplified when issue [#1167]
             //  (https://github.com/enso-org/ide/issues/1167) has been implemented.
-            //  Use the previous version from the history again.
+            //  Use the previous version again:
+            //  'df -> case df of\n' +
+            //      '    Table.Table _ ->\n' +
+            //      "        columns = df.select ['label', 'latitude', 'longitude'] . columns\n" +
+            //      "        serialized = columns.map (c -> ['df_' + c.name, c.to_vector])\n" +
+            //      '        Json.from_pairs serialized . to_text\n' +
+            //      '    _ -> df . to_json . to_text'
             this.setPreprocessor(
                 'df -> \n' +
                     '    get_cons_name : Any -> Text | Nothing\n' +
