@@ -5,7 +5,7 @@ pub mod integration;
 use crate::prelude::*;
 
 use crate::controller::FilePath;
-use crate::controller::graph::executed::Notification as GraphNotification:
+use crate::controller::graph::executed::Notification as GraphNotification;
 use crate::model::module::Path as ModulePath;
 use crate::ide::integration::Integration;
 
