@@ -90,6 +90,19 @@ impl Ide {
         let text          = controller::Text::new(&logger, &project, file_path).await?;
         let visualization = project.visualization().clone();
 
+        let status_bar        = view.status_bar().clone_ref();
+        status_bar.add_process(ide_view::status_bar::process::Label::new("Compiling standard library..."));
+        let compiling_process = status_bar.last_process.value();
+        let mut computed_value_notification = graph.subscribe().filter(|notification|
+            futures::future::ready(
+                matches!(notification, controller::graph::executed::Notification::ComputedValueInfo(_))
+            )
+        );
+        executor::global::spawn(async move {
+            computed_value_notification.next().await;
+            status_bar.finish_process(compiling_process);
+        });
+
         let integration = Integration::new(view,graph,text,visualization,project);
         Ok(Ide {application,integration})
     }
