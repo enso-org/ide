@@ -5,11 +5,13 @@ pub mod integration;
 use crate::prelude::*;
 
 use crate::controller::FilePath;
+use crate::controller::graph::executed::Notification as GraphNotification:
 use crate::model::module::Path as ModulePath;
 use crate::ide::integration::Integration;
 
 use ensogl::application::Application;
 use enso_protocol::language_server::MethodPointer;
+use ide_view::status_bar;
 use parser::Parser;
 
 pub use initializer::Initializer;
@@ -90,16 +92,15 @@ impl Ide {
         let text          = controller::Text::new(&logger, &project, file_path).await?;
         let visualization = project.visualization().clone();
 
-        let status_bar        = view.status_bar().clone_ref();
-        status_bar.add_process(ide_view::status_bar::process::Label::new("Compiling standard library..."));
-        let compiling_process = status_bar.last_process.value();
-        let mut computed_value_notification = graph.subscribe().filter(|notification|
-            futures::future::ready(
-                matches!(notification, controller::graph::executed::Notification::ComputedValueInfo(_))
-            )
+        let status_bar = view.status_bar().clone_ref();
+        status_bar.add_process(status_bar::process::Label::new("Compiling standard library..."));
+        let compiling_process                = status_bar.last_process.value();
+        let notifications                    = graph.subscribe();
+        let mut computed_value_notifications = notifications.filter(|notification|
+            futures::future::ready(matches!(notification, GraphNotification::ComputedValueInfo(_)))
         );
         executor::global::spawn(async move {
-            computed_value_notification.next().await;
+            computed_value_notifications.next().await;
             status_bar.finish_process(compiling_process);
         });
 
