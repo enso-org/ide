@@ -187,6 +187,10 @@ class GeoMapVisualization extends Visualization {
      * Returns true on a successful update and false if no valid data was provided.
      */
     updateState(data) {
+        // For now we assume every update has all data. If we move to incremental updates we need
+        // to keep the old state and do a proper update.
+        this.resetState()
+
         extractDataPoints(data, this.dataPoints, this.accentColor)
         if (this.dataPoints.length === 0) {
             // We have no valid data and should skip initialisation.
@@ -268,6 +272,7 @@ class GeoMapVisualization extends Visualization {
     }
 
     updateDeckGl() {
+        this.deckgl.viewState = this.viewState()
         this.deckgl.mapStyle = this.mapStyle
         this.deckgl.controller = this.controller
     }
