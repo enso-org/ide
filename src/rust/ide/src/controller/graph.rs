@@ -90,7 +90,7 @@ pub struct Node {
 impl Node {
 	/// Check if node has a specific position set in metadata.
     pub fn has_position(&self) -> bool {
-        self.metadata.as_ref().map(|m| m.position.is_some()).unwrap_or(false)
+        self.metadata.as_ref().map_or(false, |m| m.position.is_some())
     }
 }
 
