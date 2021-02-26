@@ -196,7 +196,6 @@ class GeoMapVisualization extends Visualization {
 
         this.latitude = ok(data.latitude) ? data.latitude : latitude
         this.longitude = ok(data.longitude) ? data.longitude : longitude
-
         // TODO : Compute zoom somehow from span of latitudes and longitudes.
         this.zoom = ok(data.zoom) ? data.zoom : DEFAULT_MAP_ZOOM
         this.mapStyle = ok(data.mapStyle) ? data.mapStyle : this.defaultMapStyle
@@ -233,13 +232,39 @@ class GeoMapVisualization extends Visualization {
     }
 
     initDeckGl() {
-        this.deckgl = new deck.DeckGL({
-            container: this.mapId,
-            mapboxApiAccessToken: TOKEN,
-            mapStyle: this.mapStyle,
-            initialViewState: this.viewState(),
-            controller: this.controller,
-        })
+        try {
+            this.deckgl = new deck.DeckGL({
+                container: this.mapId,
+                mapboxApiAccessToken: TOKEN,
+                mapStyle: this.mapStyle,
+                initialViewState: this.viewState(),
+                controller: this.controller,
+            })
+        } catch (error) {
+            console.error(error);
+            this.resetState()
+            this.resetDeckGl()
+        }
+    }
+
+    /**
+     * Reset the internal state of the visualisation, discarding all previous data updates.
+     */
+    resetState() {
+        // We only need to reset the data points as everything else will be overwritten when new
+        // data arrives.
+        this.dataPoints = []
+    }
+
+    resetDeckGl() {
+        this.deckgl = undefined
+        this.resetMapElement()
+    }
+
+    resetMapElement() {
+        while(this.mapElem.hasChildNodes()) {
+            this.mapElem.removeChild(this.mapElem.childNodes[0])
+        }
     }
 
     updateDeckGl() {
@@ -248,6 +273,9 @@ class GeoMapVisualization extends Visualization {
     }
 
     updateLayers() {
+        if (!ok(this.deckgl)) {
+            return
+        }
         this.deckgl.setProps({
             layers: [this.makeScatterLayer()],
             getTooltip: ({ object }) =>
