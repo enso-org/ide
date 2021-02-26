@@ -368,6 +368,11 @@ impl Position {
             default()
         }
     }
+
+    /// Order positions by `y` coordinate. `NaN`s are considered equal.
+    pub fn ord_by_y(pos1:&Position,pos2:&Position) -> std::cmp::Ordering {
+        pos1.vector.y.partial_cmp(&pos2.vector.y).unwrap_or(std::cmp::Ordering::Equal)
+    }
 }
 
 impl Add for Position {
