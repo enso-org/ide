@@ -241,7 +241,7 @@ class GeoMapVisualization extends Visualization {
                 controller: this.controller,
             })
         } catch (error) {
-            console.error(error);
+            console.error(error)
             this.resetState()
             this.resetDeckGl()
         }
@@ -262,7 +262,7 @@ class GeoMapVisualization extends Visualization {
     }
 
     resetMapElement() {
-        while(this.mapElem.hasChildNodes()) {
+        while (this.mapElem.hasChildNodes()) {
             this.mapElem.removeChild(this.mapElem.childNodes[0])
         }
     }
