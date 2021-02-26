@@ -65,7 +65,7 @@ fn recognizing_lambdas() {
     expect_lambda("a->b",       "a",    "b");
     expect_lambda("foo->4+(4)", "foo",  "4+(4)");
     expect_lambda("a->b->c",    "a",    "b->c");
-    expect_lambda("(a->b)->c", "(a->b)", "c");
+    expect_lambda("(a->b)->c",  "(a->b)", "c");
 
     expect_not_lambda("(a->b)");
     expect_not_lambda("a+b");
