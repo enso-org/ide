@@ -30,6 +30,9 @@ read the notes of the `Enso 2.0.0-alpha.1` release.
   acting as a loading progress indicator completed too quickly and stopped spinning before IDE was
   ready. Now it stays active, giving a visual indication that the initialization is still in 
   progress.
+- [Include parser fixes][1274]. The parser used in the IDE has been updated to the latest version. 
+  This resolves several issues with language constructs like `import`, lambdas and parentheses,
+  where upon entering certain text, the edit could be automatically reverted.
   
 #### EnsoGL
 - New multi-camera management system, allowing the same shape systems be rendered on different 
@@ -65,6 +68,7 @@ read the notes of the `Enso 2.0.0-alpha.1` release.
 [1187]: https://github.com/enso-org/ide/pull/1187
 [1214]: https://github.com/enso-org/ide/pull/1214
 [1237]: https://github.com/enso-org/ide/pull/1237
+[1237]: https://github.com/enso-org/ide/pull/1274
 <br/>
 
 
