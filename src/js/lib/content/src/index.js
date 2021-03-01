@@ -203,6 +203,7 @@ window.enso.remoteLog = remoteLog
 
 window.setInterval(() =>{remoteLog("alive");}, 1000 * 60)
 
+//Build data injected during the build process. See `webpack.config.js` for the source.
 window.enso.remoteLog("git_hash", {hash: GIT_HASH})
 window.enso.remoteLog("build_information", BUILD_INFO)
 window.enso.remoteLog("git_status", {satus: GIT_STATUS})

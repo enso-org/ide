@@ -40,13 +40,13 @@ extern "C" {
 
 /// Send the provided public event to our logging service.
 pub fn remote_log_event(message:&str) {
-    _remote_log(JsValue::from(message.to_string()), JsValue::UNDEFINED);
+    _remote_log(JsValue::from(message.to_string()),JsValue::UNDEFINED);
 }
 
 /// Send the provided public event with a named value to our logging service.
 pub fn remote_log_value
 <T:Loggable>(message:&str, field_name:&str, data:AnonymousData<T>) {
-    let msg = JsValue::from(message.to_string());
+    let msg        = JsValue::from(message.to_string());
     let field_name = JsValue::from(field_name.to_string());
-    _remote_log_value(msg, field_name, data.0.get());
+    _remote_log_value(msg,field_name,data.0.get());
 }

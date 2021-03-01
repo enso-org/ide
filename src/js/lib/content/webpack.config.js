@@ -3,17 +3,18 @@ const CompressionPlugin = require('compression-webpack-plugin')
 const path              = require('path')
 const webpack           = require('webpack')
 
-const thisPath = path.resolve(__dirname)
-const root     = path.resolve(thisPath,'..','..','..','..')
-const distPath = path.resolve(root,'dist')
-const wasmPath = path.resolve(distPath,'wasm')
+const thisPath  = path.resolve(__dirname)
+const root      = path.resolve(thisPath,'..','..','..','..')
+const distPath  = path.resolve(root,'dist')
+const wasmPath  = path.resolve(distPath,'wasm')
+const buildPath = path.resolve(distPath,'build.json')
 
 const child_process = require('child_process');
 function git(command) {
     return child_process.execSync(`git ${command}`, { encoding: 'utf8' }).trim();
 }
 
-const BUILD_INFO = JSON.parse(require('fs').readFileSync('../../../../dist/build.json', 'utf8'));
+const BUILD_INFO = JSON.parse(require('fs').readFileSync(buildPath, 'utf8'));
 
 module.exports = {
     entry: {
