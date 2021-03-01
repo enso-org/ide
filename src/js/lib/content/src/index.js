@@ -180,10 +180,12 @@ const MAX_MESSAGE_LENGTH = 500;
 function remoteLog(event,data) {
     if (mixpanel) {
         event = event.substr(0,MAX_MESSAGE_LENGTH)
-        if (data !== undefined) {
+        if (data !== undefined && data !== null) {
             data = JSON.stringify(data).substr(0,MAX_MESSAGE_LENGTH)
+            mixpanel.track(event,{data});
+        } else {
+            mixpanel.track(event);
         }
-        mixpanel.track(event,{data:data});
     } else {
         console.warn(`Failed to log the event '${event}'.`)
     }
@@ -205,9 +207,9 @@ window.enso.register = register
 
 window.setInterval(() =>{remoteLog("alive");}, 1000 * 60)
 
-window.enso.remoteLog("git_hash", GIT_HASH)
+window.enso.remoteLog("git_hash", {hash: GIT_HASH})
 window.enso.remoteLog("build_information", BUILD_INFO)
-window.enso.remoteLog("git_status", GIT_STATUS)
+window.enso.remoteLog("git_status", {satus: GIT_STATUS})
 
 // ======================
 // === Logs Buffering ===

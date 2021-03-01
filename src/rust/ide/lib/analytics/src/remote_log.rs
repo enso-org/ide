@@ -9,10 +9,15 @@ pub use wasm_bindgen::prelude::*;
 
 
 #[wasm_bindgen(inline_js="
-export function _remote_log(msg, data) {
+export function _remote_log(msg, value) {
     if (window !== undefined && window.enso !== undefined && window.enso.remoteLog !== undefined) {
         try {
-            window.enso.remoteLog(msg,{data})
+            if (value === undefined) {
+                window.enso.remoteLog(msg)
+            } else {
+                window.enso.remoteLog(msg,{value})
+            }
+
         } catch (error) {
             console.error(\"Error while logging message. \" + error );
         }
@@ -45,7 +50,7 @@ extern "C" {
 
 /// Send the provided public event to our logging service.
 pub fn remote_log(message:&str) {
-    _remote_log(JsValue::from(message.to_string()), JsValue::NULL);
+    _remote_log(JsValue::from(message.to_string()), JsValue::UNDEFINED);
 }
 
 /// Send the provided public event with data to our logging service.
