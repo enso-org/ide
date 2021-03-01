@@ -76,9 +76,9 @@ impl Ide {
     pub async fn new(application:Application, view:ide_view::project::View, project:model::Project) -> FallibleResult<Self> {
 
         #[cfg(debug_assertions)]
-        analytics::remote_log_data_field("debug_mode", "debug_mode_is_active", analytics::AnonymousData("true"));
+        analytics::remote_log_value("debug_mode", "debug_mode_is_active", analytics::AnonymousData("true"));
         #[cfg(not(debug_assertions))]
-        analytics::remote_log_data_field("debug_mode", "debug_mode_is_active", analytics::AnonymousData("false"));
+        analytics::remote_log_value("debug_mode", "debug_mode_is_active", analytics::AnonymousData("false"));
 
         let logger      = Logger::new("Ide");
         let module_path = initial_module_path(&project)?;

@@ -147,7 +147,7 @@ impl VisualizationChooser {
                     let name:&str =  entry.name.as_ref();
                     let field     = "visualisation_name";
                     let data      = analytics::AnonymousData(|| name.to_string());
-                    analytics::remote_log_data_field(event,field,data);
+                    analytics::remote_log_value(event,field,data);
                 }
             });
         }

@@ -1086,7 +1086,7 @@ impl Model {
                     let event = "integration::entering_node_failed";
                     let field = "error";
                     let data  = analytics::AnonymousData(|| e.to_string());
-                    analytics::remote_log_data_field(event,field,data)
+                    analytics::remote_log_value(event,field,data)
                 }
             };
             executor::global::spawn(enter_action);
@@ -1115,7 +1115,7 @@ impl Model {
                 let event = "integration::exiting_node_failed";
                 let field = "error";
                 let data  = analytics::AnonymousData(|| e.to_string());
-                analytics::remote_log_data_field(event,field,data)
+                analytics::remote_log_value(event,field,data)
             }
         };
         executor::global::spawn(exit_node_action);

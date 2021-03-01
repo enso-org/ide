@@ -27,43 +27,17 @@ export function _remote_log(msg, value) {
     }
 }
 
-export function _register(data) {
-    if (window !== undefined && window.enso !== undefined && window.enso.remoteLog !== undefined) {
-        try {
-            window.enso.register(msg,data)
-        } catch (error) {
-            console.error(\"Error while logging message. \" + error );
-        }
-
-    } else {
-        console.warn(\"Failed to send log message.\")
-    }
-}
-
-export function _remote_log_data_field(msg, field_name, value) {
-    if (window !== undefined && window.enso !== undefined && window.enso.remoteLog !== undefined) {
-        try {
-            const data = {}
-            data[field_name] = value
-            window.enso.remoteLog(msg,data)
-        } catch (error) {
-            console.error(\"Error while logging message. \" + error );
-        }
-
-    } else {
-        console.warn(\"Failed to send log message.\")
-    }
+export function _remote_log_value(msg, field_name, value) {
+    const data = {}
+    data[field_name] = value
+    _remote_log(msg,data)
 }
 ")]
 extern "C" {
-     #[allow(unsafe_code)]
-     fn _remote_log_data_field(msg:JsValue,field_name:JsValue,value:JsValue);
-
     #[allow(unsafe_code)]
-    fn _remote_log(msg:JsValue,data:JsValue);
-
+    fn _remote_log_value(msg:JsValue,field_name:JsValue,value:JsValue);
     #[allow(unsafe_code)]
-    fn _register(msg:JsValue);
+    fn _remote_log(msg:JsValue,value:JsValue);
 }
 
 /// Send the provided public event to our logging service.
@@ -71,22 +45,10 @@ pub fn remote_log_event(message:&str) {
     _remote_log(JsValue::from(message.to_string()), JsValue::UNDEFINED);
 }
 
-/// Send the provided public event with data to our logging service.
-pub fn remote_log_data_field
+/// Send the provided public event with a named value to our logging service.
+pub fn remote_log_value
 <T:Loggable>(message:&str, field_name:&str, data:AnonymousData<T>) {
     let msg = JsValue::from(message.to_string());
     let field_name = JsValue::from(field_name.to_string());
-    _remote_log_data_field(msg, field_name, data.0.get());
+    _remote_log_value(msg, field_name, data.0.get());
 }
-
-/// Send the provided public event with data to our logging service.
-pub fn remote_log
-<T:Loggable>(message:&str, data:AnonymousData<T>) {
-    _remote_log(JsValue::from(message.to_string()), data.0.get());
-}
-
-/// Send the provided public event to our logging service.
-pub fn register(message:&str) {
-    _register(JsValue::from(message.to_string()));
-}
-
