@@ -12,16 +12,14 @@ pub use wasm_bindgen::prelude::*;
 export function _remote_log(msg, value) {
     if (window !== undefined && window.enso !== undefined && window.enso.remoteLog !== undefined) {
         try {
-            if (value === undefined) {
+            if (value === undefined && value !== null) {
                 window.enso.remoteLog(msg)
             } else {
-                window.enso.remoteLog(msg,{value})
+                window.enso.remoteLog(msg,value)
             }
-
         } catch (error) {
             console.error(\"Error while logging message. \" + error );
         }
-
     } else {
         console.warn(\"Failed to send log message.\")
     }
