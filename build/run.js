@@ -482,6 +482,7 @@ async function updateBuildVersion (argv) {
     if (config.buildVersion !== commitHash || config.target !== target){
         config.target = target
         config.buildVersion = commitHash
+        config.args = argv
         await fs.mkdir(paths.dist.root, { recursive: true })
         await fs.writeFile(configPath, JSON.stringify(config, undefined, 2))
     }

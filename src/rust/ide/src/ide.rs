@@ -74,6 +74,12 @@ pub struct Ide {
 impl Ide {
     /// Constructor.
     pub async fn new(application:Application, view:ide_view::project::View, project:model::Project) -> FallibleResult<Self> {
+
+        #[cfg(debug_assertions)]
+        analytics::remote_log_data("debug_mode", analytics::AnonymousData("true"));
+        #[cfg(not(debug_assertions))]
+        analytics::remote_log_data("debug_mode", analytics::AnonymousData("false"));
+
         let logger      = Logger::new("Ide");
         let module_path = initial_module_path(&project)?;
         let file_path   = module_path.file_path().clone();

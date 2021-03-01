@@ -179,7 +179,7 @@ const MAX_MESSAGE_LENGTH = 500;
 
 function remoteLog(event,data) {
     if (mixpanel) {
-        event = JSON.stringify(event).substr(0,MAX_MESSAGE_LENGTH)
+        event = event.substr(0,MAX_MESSAGE_LENGTH)
         if (data !== undefined) {
             data = JSON.stringify(data).substr(0,MAX_MESSAGE_LENGTH)
         }
@@ -189,10 +189,25 @@ function remoteLog(event,data) {
     }
 }
 
-window.enso.remote_log = remoteLog
+function register(data) {
+    if (mixpanel) {
+        if (data !== undefined) {
+            data = JSON.stringify(data).substr(0,MAX_MESSAGE_LENGTH)
+        }
+        mixpanel.register(data);
+    } else {
+        console.warn(`Failed to register data '${data}'.`)
+    }
+}
+
+window.enso.remoteLog = remoteLog
+window.enso.register = register
 
 window.setInterval(() =>{remoteLog("alive");}, 1000 * 60)
 
+window.enso.remoteLog("git_hash", GIT_HASH)
+window.enso.remoteLog("build_information", BUILD_INFO)
+window.enso.remoteLog("git_status", GIT_STATUS)
 
 // ======================
 // === Logs Buffering ===
@@ -251,7 +266,7 @@ class LogRouter {
     }
 
     handleError(...args) {
-        remoteLog(args)
+        remoteLog("error", args)
     }
 }
 
