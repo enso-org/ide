@@ -107,7 +107,7 @@ impl Entry {
     pub fn code_to_insert(&self, current_module:Option<&module::QualifiedName>) -> String {
         if self.has_self_type(&self.module) {
             let module_var = if current_module.contains(&&self.module) {keywords::HERE.to_owned()}
-                else {self.module.name().clone().into()};
+                else {self.module.clone().remove_main_module_segment().name().into()};
             format!("{}.{}",module_var,self.name)
         } else {
             self.name.clone()
@@ -164,7 +164,7 @@ impl Entry {
     pub fn from_ls_entry(entry:language_server::types::SuggestionEntry)
                          -> FallibleResult<Self> {
         use language_server::types::SuggestionEntry::*;
-        let this = match entry {
+        let mut this = match entry {
             Atom {name,module,arguments,return_type,documentation,..} => Self {
                 name,arguments,return_type,documentation,
                 module        : module.try_into()?,
