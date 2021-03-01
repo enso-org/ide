@@ -145,8 +145,9 @@ impl VisualizationChooser {
                 if let Some(entry) = entry{
                     let event     = "graph_editor::visualization_chooser::vis_selected";
                     let name:&str =  entry.name.as_ref();
+                    let field     = "visualisation_name";
                     let data      = analytics::AnonymousData(|| name.to_string());
-                    analytics::remote_log_data(event,data);
+                    analytics::remote_log_data_field(event,field,data);
                 }
             });
         }
