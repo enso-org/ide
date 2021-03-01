@@ -13,7 +13,7 @@ function git(command) {
     return child_process.execSync(`git ${command}`, { encoding: 'utf8' }).trim();
 }
 
-const BUILD_INFO = require('fs').readFileSync('../../../../dist/build.json', 'utf8');
+const BUILD_INFO = JSON.parse(require('fs').readFileSync('../../../../dist/build.json', 'utf8'));
 
 module.exports = {
     entry: {
