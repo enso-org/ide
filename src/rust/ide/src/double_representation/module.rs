@@ -158,7 +158,7 @@ impl QualifiedName {
     /// Constructs a qualified name from its text representation.
     ///
     /// Fails, if the text is not a valid module's qualified name.
-    pub fn from_text(text:impl Str) -> FallibleResult<Self> {
+    pub fn from_text(text:impl AsRef<str>) -> FallibleResult<Self> {
         use ast::opr::predefined::ACCESS;
 
         let text     = text.as_ref();

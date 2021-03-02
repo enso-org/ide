@@ -56,7 +56,7 @@ use ensogl::gui::cursor;
 use ensogl::prelude::*;
 use ensogl::system::web;
 use ensogl_theme as theme;
-
+use crate::component::visualization::instance::PreprocessorConfiguration;
 
 
 // ===============
@@ -516,7 +516,7 @@ ensogl::define_endpoints! {
         visualization_enabled                   (NodeId,visualization::Metadata),
         visualization_disabled                  (NodeId),
         visualization_enable_fullscreen         (NodeId),
-        visualization_preprocessor_changed      ((NodeId,data::enso::Code)),
+        visualization_preprocessor_changed      ((NodeId,PreprocessorConfiguration)),
         visualization_registry_reload_requested (),
 
         on_visualization_select     (Switch<NodeId>),
@@ -1087,13 +1087,14 @@ impl GraphEditorModelWithNetwork {
             selected    <- vis_is_selected.on_true();
             deselected  <- vis_is_selected.on_false();
             output.source.visualization_preprocessor_changed <+
-                node.model.visualization.frp.preprocessor.map(move |code| (node_id,code.clone()));
+                node.model.visualization.frp.preprocessor.map(move |preprocessor|
+                    (node_id,preprocessor.clone()));
             output.source.on_visualization_select <+ selected.constant(Switch::On(node_id));
             output.source.on_visualization_select <+ deselected.constant(Switch::Off(node_id));
 
             metadata  <- any(...);
-            metadata <+ node.model.visualization.frp.preprocessor.map(move |code| {
-                let preprocessor = code.clone();
+            metadata <+ node.model.visualization.frp.preprocessor.map(move |preprocessor| {
+                let preprocessor = preprocessor.clone();
                 visualization::Metadata{preprocessor}
             });
             // Ensure the graph editor knows about internal changes to the visualisation. If the

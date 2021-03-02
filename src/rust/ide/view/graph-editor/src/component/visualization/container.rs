@@ -13,7 +13,6 @@ mod visualization_chooser;
 
 use crate::prelude::*;
 
-use crate::data::enso;
 use crate::visualization;
 
 use action_bar::ActionBar;
@@ -30,8 +29,7 @@ use ensogl::application::Application;
 use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
 use ensogl_theme as theme;
-
-
+use crate::component::visualization::instance::PreprocessorConfiguration;
 
 
 // =================
@@ -166,7 +164,7 @@ ensogl::define_endpoints! {
     }
 
     Output {
-        preprocessor  (enso::Code),
+        preprocessor  (PreprocessorConfiguration),
         visualisation (Option<visualization::Definition>),
         size          (Vector2),
         is_selected   (bool),
@@ -399,14 +397,14 @@ impl ContainerModel {
     }
 
     fn set_visualization
-    (&self, visualization:visualization::Instance, preprocessor:&frp::Any<enso::Code>) {
+    (&self, visualization:visualization::Instance, preprocessor:&frp::Any<PreprocessorConfiguration>) {
         let size = self.size.get();
         visualization.set_size.emit(size);
         frp::new_network! { vis_frp_connection
             // We need an additional "copy" node here. We create a new network to manage lifetime of
             // connection between `visualization.on_preprocessor_change` and `preprocessor`.
             // However, doing simple `preprocessor <+ visualization.on_preprocessor_change` will not
-            // create any node in this network, so in fact ot won't manage the connection.
+            // create any node in this network, so in fact it won't manage the connection.
             vis_preprocessor_change <- visualization.on_preprocessor_change.map(|x| x.clone());
             preprocessor            <+ vis_preprocessor_change;
         }
@@ -546,7 +544,7 @@ impl Container {
                             action_bar.set_selected_visualization.emit(path);
                         },
                         Err(err) => {
-                            warning!(logger,"Failed to instantiate visualisation: {err:?}");
+                            warning!(logger,"Failed to instantiate visualization: {err:?}");
                         },
                     };
                 }

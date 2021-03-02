@@ -3,8 +3,9 @@ export class Visualization {
         this.dom = api.root()
         this.__api__ = api
     }
-    setPreprocessor(code) {
-        this.__api__.emit_preprocessor_change(code)
+    setPreprocessor(code,module) {
+        console.debug(`Passing to rust: setPreprocessor(${code},${module})`)
+        this.__api__.emit_preprocessor_change(code,module)
     }
 }
 

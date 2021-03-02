@@ -10,6 +10,7 @@
 use crate::prelude::*;
 
 use crate::component::visualization::*;
+use crate::component::visualization::instance::PreprocessorConfiguration;
 use crate::component::visualization::java_script::binding::JsConsArgs;
 use crate::component::visualization::java_script::method;
 use crate::component::visualization;
@@ -76,7 +77,7 @@ pub type Result<T> = result::Result<T, Error>;
 // =====================
 
 /// Helper type for the callback used to set the preprocessor code.
-pub trait PreprocessorCallback = Fn(String);
+pub trait PreprocessorCallback = Fn(String,Option<String>);
 
 /// Internal helper type to store the preprocessor callback.
 type PreprocessorCallbackCell = Rc<RefCell<Option<Box<dyn PreprocessorCallback>>>>;
@@ -131,9 +132,9 @@ impl InstanceModel {
     () -> (PreprocessorCallbackCell,impl PreprocessorCallback) {
         let closure_cell      = PreprocessorCallbackCell::default();
         let weak_closure_cell = Rc::downgrade(&closure_cell);
-        let closure = move |s:String| {
+        let closure = move |code:String, module:Option<String>| {
             if let Some(callback) = weak_closure_cell.upgrade() {
-                callback.borrow().map_ref(|f|f(s));
+                callback.borrow().map_ref(|f|f(code,module));
             }
         };
         (closure_cell,closure)
@@ -253,7 +254,9 @@ impl Instance {
     fn inti_preprocessor_change_callback(self) -> Self {
         // FIXME Does it leak memory? To be checked.
         let change   = &self.frp.preprocessor_change;
-        let callback = f!((s:String) change.emit(&s.into()));
+        let callback = f!((code:String,module:Option<String>)
+            change.emit(PreprocessorConfiguration::new(code,module.unwrap_or_default()))
+        );
         let callback = Box::new(callback);
         self.model.preprocessor_change.borrow_mut().replace(callback);
         self

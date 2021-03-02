@@ -13,7 +13,8 @@ use enso_protocol::language_server;
 use mockall::automock;
 use parser::Parser;
 use uuid::Uuid;
-
+use crate::INITIAL_MODULE_NAME;
+use crate::double_representation::identifier::ReferentName;
 
 
 // =============
@@ -66,6 +67,10 @@ pub trait API:Debug {
     fn qualified_module_name
     (&self, path:&model::module::Path) -> crate::model::module::QualifiedName {
         path.qualified_module_name(self.name().deref())
+    }
+
+    fn main_module(&self) -> FallibleResult<model::module::QualifiedName> {
+        model::module::QualifiedName::from_segments(self.name(),std::iter::once(INITIAL_MODULE_NAME))
     }
 }
 

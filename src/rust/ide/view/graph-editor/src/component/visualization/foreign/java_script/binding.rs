@@ -38,7 +38,7 @@ extern "C" {
 
     #[allow(unsafe_code)]
     #[wasm_bindgen(method)]
-    fn setPreprocessor(this:&Visualization, code:String);
+    fn setPreprocessor(this:&Visualization, code:Option<String>);
 }
 
 /// Provides reference to the visualizations JavaScript base class.
@@ -85,8 +85,9 @@ impl JsConsArgs {
     }
 
     /// Helper method to emit an preprocessor change event from the visualisation.
-    pub fn emit_preprocessor_change(&self, code:String){
+    pub fn emit_preprocessor_change(&self, code:String, module:Option<String>){
+        error!(DefaultErrorLogger::new(""), "emit_preprocessor_change({code},{module:?})");
         let closure = &self.set_preprocessor;
-        (*closure)(code);
+        (*closure)(code,module);
     }
 }

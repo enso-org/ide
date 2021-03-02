@@ -4,7 +4,6 @@ use crate::prelude::*;
 
 use crate::component::visualization::*;
 use crate::component::visualization;
-use crate::data::enso;
 
 use enso_frp as frp;
 use ensogl::data::color;
@@ -28,7 +27,7 @@ use serde::Serialize;
 const PADDING_TEXT:f32 = 10.0;
 /// The Error Visualization preprocessor. See also _Lazy Visualization_ section
 /// [here](http://dev.enso.org/docs/ide/product/visualizations.html).
-pub const PREPROCESSOR:&str = r#"x ->
+pub const PREPROCESSOR_CODE:&str = r#"x ->
     result = Ref.new "{ message: \"\"}"
     x.catch err->
         message = err.to_display_text
@@ -44,6 +43,7 @@ pub const PREPROCESSOR:&str = r#"x ->
 
 pub use crate::component::node::error::Kind;
 use crate::SharedHashMap;
+use crate::component::visualization::instance::PreprocessorConfiguration;
 
 /// The input for Error Visualization.
 #[allow(missing_docs)]
@@ -108,7 +108,11 @@ impl Error {
             });
         }
 
-        frp.preprocessor_change.emit(enso::Code::from(PREPROCESSOR));
+        let preprocessor = PreprocessorConfiguration {
+            module : default(),
+            code   : PREPROCESSOR_CODE.into()
+        };
+        frp.preprocessor_change.emit(preprocessor);
 
         self
     }

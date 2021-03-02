@@ -33,7 +33,7 @@ use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
 use utils::channel::process_stream_with_handle;
 use utils::iter::split_by_predicate;
-
+use ide_view::graph_editor::component::visualization::instance::ContextModule;
 
 
 // ==============
@@ -246,8 +246,8 @@ impl Integration {
         // === Setting Visualization Preprocessor ===
 
         frp::extend! { network
-            eval editor_outs.visualization_preprocessor_changed ([model]((node_id,code)) {
-                if let Err(err) = model.visualization_preprocessor_changed(*node_id,code) {
+            eval editor_outs.visualization_preprocessor_changed ([model]((node_id,preprocessor)) {
+                if let Err(err) = model.visualization_preprocessor_changed(*node_id,preprocessor) {
                     error!(model.logger, "Error when handling request for setting new \
                         visualization's preprocessor code: {err}");
                 }
@@ -680,8 +680,8 @@ impl Model {
         self.view.graph().set_node_error_status(node_id,error.clone());
         if error.is_some() && !self.error_visualizations.contains_key(&node_id) {
             let endpoint   = self.view.graph().frp.set_error_visualization_data.clone_ref();
-            let preprocessor = graph_editor::builtin::visualization::native::error::PREPROCESSOR;
-            let preprocessor = graph_editor::data::enso::Code::new(preprocessor);
+            let code       = graph_editor::builtin::visualization::native::error::PREPROCESSOR_CODE;
+            let preprocessor = visualization::instance::PreprocessorConfiguration::from_code(code);
             let metadata     = visualization::Metadata {preprocessor};
             self.attach_visualization(node_id,&metadata,endpoint,self.error_visualizations.clone_ref())?;
         } else if error.is_none() && self.error_visualizations.contains_key(&node_id) {
@@ -1141,14 +1141,29 @@ impl Model {
         });
     }
 
-    fn visualization_preprocessor_changed(&self, node_id:graph_editor::NodeId, code:&graph_editor::data::enso::Code)
+    fn resolve_visualization_context(&self, context:&visualization::instance::ContextModule) -> FallibleResult<model::module::QualifiedName> {
+        use model::module::QualifiedName;
+        use visualization::instance::ContextModule::*;
+        match context {
+            ProjectMain => {
+                self.project.main_module()
+            },
+            Specific(module_name) => {
+                model::module::QualifiedName::from_text(module_name)
+            }
+        }
+    }
+
+    fn visualization_preprocessor_changed
+    (&self, node_id:graph_editor::NodeId, preprocessor:&visualization::instance::PreprocessorConfiguration)
     -> FallibleResult {
         if let Some(visualization) = self.visualizations.get_copied(&node_id) {
             let logger      = self.logger.clone_ref();
             let controller  = self.graph.clone_ref();
-            let code_string = AsRef::<String>::as_ref(code).to_string();
+            let code        = preprocessor.code.deref().into();
+            let module      = self.resolve_visualization_context(&preprocessor.module)?;
             executor::global::spawn(async move {
-                let result = controller.set_visualization_preprocessor(visualization,code_string);
+                let result = controller.set_visualization_preprocessor(visualization,code,module);
                 if let Err(err) = result.await {
                     error!(logger, "Error when setting visualization preprocessor: {err}");
                 }
@@ -1282,11 +1297,12 @@ impl Model {
         //   Because of that for now we will just hardcode the `visualization_module` using
         //   fixed defaults. In future this will be changed, then the editor will also get access
         //   to the customised values.
-        let project_name:String  = self.project.name().into();
-        let module_name          = crate::ide::INITIAL_MODULE_NAME;
-        let visualisation_module = QualifiedName::from_segments(project_name,&[module_name])?;
+        let visualisation_module = self.resolve_visualization_context(&ContextModule::ProjectMain)?;
+        // let project_name:String  = self.project.name().into();
+        // let module_name          = crate::ide::INITIAL_MODULE_NAME;
+        // let visualisation_module = QualifiedName::from_segments(project_name,&[module_name])?;
         let id                   = VisualizationId::new_v4();
-        let expression           = metadata.preprocessor.to_string();
+        let expression           = metadata.preprocessor.code.to_string();
         let ast_id               = self.get_controller_node_id(node_id)?;
         Ok(Visualization{ast_id,expression,id,visualisation_module})
     }
