@@ -144,7 +144,7 @@ impl VisualizationChooser {
             eval frp.source.chosen_entry([](entry){
                 if let Some(entry) = entry{
                     let event     = "graph_editor::visualization_chooser::vis_selected";
-                    let name:&str =  entry.name.as_ref();
+                    let name:&str = entry.name.as_ref();
                     let field     = "visualisation_name";
                     let data      = analytics::AnonymousData(|| name.to_string());
                     analytics::remote_log_value(event,field,data);
