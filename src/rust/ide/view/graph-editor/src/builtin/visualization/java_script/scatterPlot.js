@@ -195,16 +195,19 @@ class ScatterPlot extends Visualization {
         scatter,
         points
     ) {
-        let zoomClass = 'zoom'
-        let minScale = 0.5
-        let maxScale = 20
+        const minScale = 0.5
+        const maxScale = 20
         const extent = [minScale, maxScale]
-        let zoom = d3
+        const right_button = 2
+        const mid_button = 1
+        const scroll_wheel = 0
+        let start_pos;
+
+        const zoom = d3
             .zoom()
             .filter(function () {
-                let right_button = 2
-                let mid_button = 1
-                let scroll_wheel = 0
+
+                console.log('filter', d3.event)
                 switch (d3.event.type) {
                     case 'mousedown':
                         return (
@@ -217,17 +220,23 @@ class ScatterPlot extends Visualization {
                         return false
                 }
             })
+            .wheelDelta(function() {
+                const event = d3.event;
+                // This is the delta used by default in wheelData and which is modified by us.
+                const defaultWheelDelta = -event.deltaY * (event.deltaMode === 1 ? 0.05 : event.deltaMode ? 1 : 0.002);
+                return defaultWheelDelta * (event.ctrlKey ? 5 : 1);
+            })
             .scaleExtent(extent)
             .extent([
                 [0, 0],
                 [box_width, box_height],
             ])
-            .on(zoomClass, zoomed)
-        // .on("wheel.zoom", wheeled)
+            .on('zoom', zoomed)
+            .on('start', start_zoom)
 
-        let zoomElem = scatter
+        const zoomElem = scatter
             .append('g')
-            .attr('class', zoomClass)
+            .attr('class', 'zoom')
             .attr('width', box_width)
             .attr('height', box_height)
             .style('fill', 'none')
@@ -238,8 +247,21 @@ class ScatterPlot extends Visualization {
          * Helper function called on pan/scroll.
          */
         function zoomed() {
-            let new_xScale = d3.event.transform.rescaleX(scaleAndAxis.xScale)
-            let new_yScale = d3.event.transform.rescaleY(scaleAndAxis.yScale)
+            let new_xScale
+            let new_yScale
+            if ( d3.event.sourceEvent.buttons === right_button ) {
+                const zoom_amount = rmb_zoom_value(d3.event.sourceEvent) / 20.0
+                const scale = Math.exp(zoom_amount)
+                const focus = start_pos;
+                const distanceScale = d3.zoomIdentity.translate(focus.x,focus.y).scale(scale).translate(-focus.x,-focus.y)
+
+                console.log(d3.event.sourceEvent)
+                new_xScale = distanceScale.rescaleX(scaleAndAxis.xScale)
+                new_yScale = distanceScale.rescaleY(scaleAndAxis.yScale)
+            } else {
+                new_xScale = d3.event.transform.rescaleX(scaleAndAxis.xScale)
+                new_yScale = d3.event.transform.rescaleY(scaleAndAxis.yScale)
+            }
 
             scaleAndAxis.xAxis.call(
                 d3.axisBottom(new_xScale).ticks(box_width / x_axis_label_width)
@@ -266,19 +288,28 @@ class ScatterPlot extends Visualization {
         }
 
         /**
-         * Helper function called on pinch.
-         *
-         * May seem unintuitive at first, but here's the explanation of ctrl+wheel:
-         * https://medium.com/@auchenberg/detecting-multi-touch-trackpad-gestures-in-javascript-a2505babb10e
+         * Return the position of this event in localc anvas coordinates.
          */
-        function wheeled() {
-            let current_transform = d3.zoomTransform(scatter)
-            let delta_multiplier = 0.01
-            if (d3.event.ctrlKey) {
-                current_transform.k =
-                    current_transform.k - d3.event.deltaY * delta_multiplier
-            }
-            scatter.attr('transform', current_transform)
+       function get_pos(event) {
+            return {x:event.offsetX,y:event.offsetY}
+        }
+
+        /**
+         * Return the zoom value computed from the initial right-mouse-button event to the current
+         * right-mouse event.
+         */
+        function rmb_zoom_value(event) {
+            const end = get_pos(event)
+            let delta_x = end.x - start_pos.x
+            let delta_y = end.y - start_pos.y
+            return delta_x - delta_y
+        }
+
+        /**
+         * Helper function called when starting to pan/scroll.
+         */
+        function start_zoom() {
+            start_pos = get_pos(d3.event.sourceEvent)
         }
 
         return { zoomElem, zoom }
