@@ -31,9 +31,9 @@ impl Action {
     pub fn caption(&self) -> String {
         match self {
             Self::Suggestion(completion) => if let Some(self_type) = completion.self_type.as_ref() {
-                let should_put_library_name = self_type.name == constants::LIBRARIES_MAIN_MODULE
+                let should_put_project_name = self_type.name == constants::PROJECTS_MAIN_MODULE
                     && self_type.module_segments.is_empty();
-                let self_type_name = if should_put_library_name {
+                let self_type_name = if should_put_project_name {
                     self_type.project_name.as_ref()
                 } else { &self_type.name };
                 format!("{}.{}",self_type_name,completion.name)

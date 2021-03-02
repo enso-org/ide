@@ -107,7 +107,11 @@ impl Entry {
     pub fn code_to_insert(&self, current_module:Option<&module::QualifiedName>) -> String {
         if self.has_self_type(&self.module) {
             let module_var = if current_module.contains(&&self.module) {keywords::HERE.to_owned()}
-                else {self.module.clone().remove_main_module_segment().name().into()};
+            else {
+                let mut module = self.module.clone();
+                module.remove_main_module_segment();
+                module.name().into()
+            };
             format!("{}.{}",module_var,self.name)
         } else {
             self.name.clone()

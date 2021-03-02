@@ -3,7 +3,7 @@
 use crate::prelude::*;
 
 use crate::constants::keywords::HERE;
-use crate::constants::LIBRARIES_MAIN_MODULE;
+use crate::constants::PROJECTS_MAIN_MODULE;
 use crate::double_representation::definition;
 use crate::double_representation::definition::DefinitionProvider;
 use crate::double_representation::identifier;
@@ -112,7 +112,7 @@ impl Id {
     /// Get the name of a module identified by this value.
     pub fn name(&self) -> ReferentName {
         self.segments.iter().last().cloned().unwrap_or_else(
-            || ReferentName::new(LIBRARIES_MAIN_MODULE).unwrap()
+            || ReferentName::new(PROJECTS_MAIN_MODULE).unwrap()
         )
     }
 }
@@ -228,19 +228,22 @@ impl QualifiedName {
     ///
     /// ```
     /// # use ide::model::module::QualifiedName;
-    /// let name_with_main            = QualifiedName::from_text("Project.Main").unwrap();
-    /// let name_without_main         = QualifiedName::from_text("Project.Foo.Bar").unwrap();
-    /// let main_but_not_library_main = QualifiedName::from_text("Project.Foo.Main").unwrap();
+    /// let mut name_with_main            = QualifiedName::from_text("Project.Main").unwrap();
+    /// let mut name_without_main         = QualifiedName::from_text("Project.Foo.Bar").unwrap();
+    /// let mut main_but_not_project_main = QualifiedName::from_text("Project.Foo.Main").unwrap();
     ///
-    /// assert_eq!(name_with_main           .remove_main_module_segment().to_string(), "Project");
-    /// assert_eq!(name_without_main        .remove_main_module_segment().to_string(), "Project.Foo.Bar");
-    /// assert_eq!(main_but_not_library_main.remove_main_module_segment().to_string(), "Project.Foo.Main");
+    /// name_with_main            .remove_main_module_segment();
+    /// name_without_main         .remove_main_module_segment();
+    /// main_but_not_project_main .remove_main_module_segment();
+    ///
+    /// assert_eq!(name_with_main           .to_string(), "Project");
+    /// assert_eq!(name_without_main        .to_string(), "Project.Foo.Bar");
+    /// assert_eq!(main_but_not_project_main.to_string(), "Project.Foo.Main");
     /// ```
-    pub fn remove_main_module_segment(mut self) -> Self {
-        if self.id.segments.len() == 1 && self.id.segments.last().contains_if(|s| s == &&LIBRARIES_MAIN_MODULE) {
+    pub fn remove_main_module_segment(&mut self) {
+        if self.id.segments == [PROJECTS_MAIN_MODULE] {
             self.id.segments.pop();
         }
-        self
     }
 }
 
