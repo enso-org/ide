@@ -8,7 +8,6 @@ use crate::prelude::*;
 use crate::constants::VISUALIZATION_DIRECTORY;
 
 use enso_protocol::language_server;
-use ide_view::graph_editor::data::enso;
 use ide_view::graph_editor::component::visualization::definition;
 use ide_view::graph_editor::component::visualization;
 use std::rc::Rc;
@@ -22,14 +21,28 @@ use std::rc::Rc;
 /// Enumeration of errors used in `Visualization Controller`.
 #[derive(Debug,Fail)]
 #[allow(missing_docs)]
-pub enum VisualizationError {
+pub enum Error {
     #[fail(display = "Visualization \"{}\" not found.", identifier)]
     NotFound {
         identifier : VisualizationPath
     },
+    #[fail(display = "JavaScript visualization \"{}\" failed to be prepared.", identifier)]
+    Preparation {
+        identifier : VisualizationPath,
+        #[cause]
+        cause      : failure::Error,
+    },
     #[fail(display = "JavaScript visualization \"{}\" failed to be instantiated.", identifier)]
-    InstantiationError {
+    Instantiation {
         identifier : VisualizationPath
+    },
+}
+
+impl Error {
+    fn new_preparation_error
+    (identifier:VisualizationPath, cause:impl Into<failure::Error>) -> Self {
+        let cause      = cause.into();
+        Self::Preparation {identifier,cause}
     }
 }
 
@@ -130,21 +143,15 @@ impl Handle {
                 let embedded_visualizations = self.embedded_visualizations.borrow();
                 let result                  = embedded_visualizations.get(identifier);
                 let identifier              = visualization.clone();
-                let error                   = || VisualizationError::NotFound{identifier}.into();
+                let error                   = || Error::NotFound{identifier}.into();
                 result.cloned().ok_or_else(error)
             },
             VisualizationPath::File(path) => {
+                let project    = visualization::path::Project::CurrentProject;
                 let js_code    = self.language_server_rpc.read_file(&path).await?.contents;
-                let identifier = visualization.clone();
-                let error      = |_| VisualizationError::InstantiationError {identifier}.into();
-                // FIXME: provide real library name. The name set here is discarded anyway in
-                //     [`ide::integration::Model::prepare_visualization`] and set the Main of the
-                //     current project. All those should be fixed in
-                //     https://github.com/enso-org/ide/issues/1167
-                let module     = enso::builtin_library();
-                // TODO: this is wrong. This is translated to InstantiationError and it is preparation error :
-                let js_class   = visualization::java_script::Definition::new(module,&js_code).map_err(error);
-                js_class.map(|t| t.into())
+                visualization::java_script::Definition::new(project,&js_code)
+                    .map(Into::into)
+                    .map_err(|err| Error::new_preparation_error(visualization.clone(),err).into())
             }
         }
     }
@@ -226,8 +233,8 @@ mod tests {
         assert_eq!(visualizations[2], VisualizationPath::File(path1));
         assert_eq!(visualizations.len(),3);
 
-        let javascript_vis0 = visualization::java_script::Definition::new("builtin", &file_content0);
-        let javascript_vis1 = visualization::java_script::Definition::new("builtin", &file_content1);
+        let javascript_vis0 = visualization::java_script::Definition::new_builtin(&file_content0);
+        let javascript_vis1 = visualization::java_script::Definition::new_builtin(&file_content1);
         let javascript_vis0 = javascript_vis0.expect("Couldn't create visualization class.");
         let javascript_vis1 = javascript_vis1.expect("Couldn't create visualization class.");
         let javascript_vis0:visualization::Definition = javascript_vis0.into();

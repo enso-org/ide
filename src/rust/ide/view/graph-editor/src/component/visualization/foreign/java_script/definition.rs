@@ -103,7 +103,6 @@ use crate::prelude::*;
 use crate::component::visualization::InstantiationError;
 use crate::component::visualization::InstantiationResult;
 use crate::component::visualization;
-use crate::data::enso;
 use super::binding;
 use super::instance::Instance;
 
@@ -114,6 +113,7 @@ use js_sys;
 use wasm_bindgen::JsCast;
 use fmt::Formatter;
 use std::str::FromStr;
+use enso_frp::web::js_to_string;
 
 
 // =================
@@ -150,25 +150,29 @@ pub struct Definition {
 impl Definition {
 
     /// Create a visualization source from piece of JS source code. Signature needs to be inferred.
-    pub fn new (library:impl Into<enso::LibraryName>, source:impl AsRef<str>) -> Result<Self,Error> {
+    pub fn new(project:visualization::path::Project, source:impl AsRef<str>) -> Result<Self,Error> {
         let source       = source.as_ref();
         let source       = source;
         let context      = JsValue::NULL;
         let function     = js_sys::Function::new_with_args(binding::JS_CLASS_NAME,&source);
         let js_class     = binding::js_class();
-        let class        = function.call1(&context,&js_class).map_err(Error::InvalidFunction)?;
+        let class        = function.call1(&context,&js_class).map_err(Error::new_invalid_function)?;
 
-        let library      = library.into();
         let input_type   = try_str_field(&class,field::INPUT_TYPE).unwrap_or_default();
 
         let input_format = try_str_field(&class,field::INPUT_FORMAT).unwrap_or_default();
         let input_format = visualization::data::Format::from_str(&input_format).unwrap_or_default();
 
         let label        = label(&class)?;
-        let path         = visualization::Path::new(library,label);
+        let path         = visualization::Path::new(project,label);
         let signature    = visualization::Signature::new(path,input_type,input_format);
 
         Ok(Self{class,signature})
+    }
+
+    /// TODO
+    pub fn new_builtin(source:impl AsRef<str>) -> Result<Self,Error> {
+        Self::new(visualization::path::Project::Builtin,source)
     }
 
     fn new_instance(&self, scene:&Scene) -> InstantiationResult {
@@ -211,10 +215,10 @@ fn label(class:&JsValue) -> Result<String,Error> {
 pub type FallibleDefinition = Result<Definition,Error>;
 
 /// Error occurred during visualization definition.
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Fail)]
 #[allow(missing_docs)]
 pub enum Error {
-    InvalidFunction(JsValue),
+    InvalidFunction(String),
     InvalidClass(InvalidClass),
 }
 
@@ -222,12 +226,18 @@ impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Error::InvalidFunction(value)  => {
-                f.write_fmt(format_args!("Provided value is not a valid function: {:?}",value))
+                f.write_fmt(format_args!("Provided value is not a valid function: {}",value))
             },
             Error::InvalidClass(value)  => {
                 f.write_fmt(format_args!("Provided value is not a valid class: {:?}",value))
             },
         }
+    }
+}
+
+impl Error {
+    fn new_invalid_function(js_value:JsValue) -> Self {
+        Self::InvalidFunction(js_to_string(js_value))
     }
 }
 

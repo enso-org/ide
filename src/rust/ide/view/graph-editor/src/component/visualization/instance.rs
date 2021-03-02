@@ -8,7 +8,7 @@ use crate::visualization::*;
 use enso_frp as frp;
 use ensogl::display;
 use ensogl::display::Scene;
-
+use ast::prelude::default;
 
 
 // =================
@@ -24,10 +24,13 @@ pub const DEFAULT_VISUALIZATION_EXPRESSION:&str = "x -> x.to_default_visualizati
 // === FRP ===
 // ===========
 
+/// Designation of the module to be used as a context for preprocessor evaluation.
 #[derive(Clone,CloneRef,Debug)]
 pub enum ContextModule {
+    /// Current project's `Main` module.
     ProjectMain,
-    Specific(enso::Type)
+    /// Specific module of known name.
+    Specific(enso::Module)
 }
 
 impl Default for ContextModule {
@@ -36,20 +39,32 @@ impl Default for ContextModule {
     }
 }
 
+impl ContextModule {
+    /// Create a context from optional string with module's type.
+    ///
+    /// If there is no explicit module's type provided, the default (project's main) will be used.
+    pub fn new(module_type:Option<enso::Module>) -> Self {
+        module_type.map_or(default(),Self::Specific)
+    }
+}
+
+/// Information on how the preprocessor should be set up for the visualization.
 #[derive(Clone,CloneRef,Debug)]
-#[allow(missing_docs)]
 pub struct PreprocessorConfiguration {
+    /// The code of the preprocessor. Should be a lambda that transforms node value into whatever
+    /// that visualizations exptect.
     pub code   : enso::Code,
+    /// The module that provides context for `code` evaluation.
     pub module : ContextModule,
 }
 
 impl PreprocessorConfiguration {
-    pub fn new(code: impl AsRef<str>, module: impl AsRef<str>) -> Self {
-        Self {
-            code   : code.as_ref().into(),
-            module : ContextModule::Specific(module.as_ref().into()),
-        }
-    }
+    // pub fn new(code:impl AsRef<str>,module: impl AsRef<str>) -> Self {
+    //     Self {
+    //         code   : code.as_ref().into(),
+    //         module : ContextModule::Specific(module.as_ref().into()),
+    //     }
+    // }
 
     pub fn from_code(code:impl AsRef<str>) -> Self {
         Self {

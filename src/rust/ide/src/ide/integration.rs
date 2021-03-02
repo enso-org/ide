@@ -33,7 +33,6 @@ use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
 use utils::channel::process_stream_with_handle;
 use utils::iter::split_by_predicate;
-use ide_view::graph_editor::component::visualization::instance::ContextModule;
 
 
 // ==============
@@ -1297,7 +1296,7 @@ impl Model {
         //   Because of that for now we will just hardcode the `visualization_module` using
         //   fixed defaults. In future this will be changed, then the editor will also get access
         //   to the customised values.
-        let visualisation_module = self.resolve_visualization_context(&ContextModule::ProjectMain)?;
+        let visualisation_module = self.resolve_visualization_context(&visualization::instance::ContextModule::ProjectMain)?;
         // let project_name:String  = self.project.name().into();
         // let module_name          = crate::ide::INITIAL_MODULE_NAME;
         // let visualisation_module = QualifiedName::from_segments(project_name,&[module_name])?;

@@ -10,7 +10,7 @@
 use crate::prelude::*;
 
 use crate::component::visualization::*;
-use crate::component::visualization::instance::PreprocessorConfiguration;
+use crate::component::visualization::instance::{PreprocessorConfiguration, ContextModule};
 use crate::component::visualization::java_script::binding::JsConsArgs;
 use crate::component::visualization::java_script::method;
 use crate::component::visualization;
@@ -253,10 +253,13 @@ impl Instance {
 
     fn inti_preprocessor_change_callback(self) -> Self {
         // FIXME Does it leak memory? To be checked.
-        let change   = &self.frp.preprocessor_change;
-        let callback = f!((code:String,module:Option<String>)
-            change.emit(PreprocessorConfiguration::new(code,module.unwrap_or_default()))
-        );
+        let change   = self.frp.preprocessor_change.clone_ref();
+        let callback = move |code:String,module:Option<String>| {
+            let code   = code.into();
+            let module = ContextModule::new(module.map(Into::into));
+            let config = PreprocessorConfiguration {code,module};
+            change.emit(config)
+        };
         let callback = Box::new(callback);
         self.model.preprocessor_change.borrow_mut().replace(callback);
         self

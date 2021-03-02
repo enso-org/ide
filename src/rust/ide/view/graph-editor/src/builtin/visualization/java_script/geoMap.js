@@ -141,31 +141,20 @@ class GeoMapVisualization extends Visualization {
     }
 
     onDataReceived(data) {
+        console.error("received data:",data)
         if (!this.isInit) {
             // FIXME: This should be simplified when issue [#1167]
             //  (https://github.com/enso-org/ide/issues/1167) has been implemented.
             //  Use the previous version again:
-            //  'df -> case df of\n' +
-            //      '    Table.Table _ ->\n' +
-            //      "        columns = df.select ['label', 'latitude', 'longitude'] . columns\n" +
-            //      "        serialized = columns.map (c -> ['df_' + c.name, c.to_vector])\n" +
-            //      '        Json.from_pairs serialized . to_text\n' +
-            //      '    _ -> df . to_json . to_text'
+
             this.setPreprocessor(
-                'df -> \n' +
-                    '    get_cons_name : Any -> Text | Nothing\n' +
-                    '    get_cons_name val =\n' +
-                    '        meta_val = Meta.meta val\n' +
-                    '        case meta_val of\n' +
-                    '            Meta.Atom _ ->\n' +
-                    '                cons = meta_val.constructor\n' +
-                    '                Meta.Constructor cons . name \n' +
-                    '            _ -> Nothing\n' +
-                    "    if (((get_cons_name df)) == 'Table').not then (df . to_json . to_text) else\n" +
-                    "         columns = df.select ['label', 'latitude', 'longitude'] . columns\n" +
-                    "         serialized = columns.map (c -> ['df_' + c.name, c.to_vector])\n" +
-                    '         Json.from_pairs serialized . to_text'
-            )
+                'df -> case df of\n' +
+                    '    Table ->\n' +
+                    "        columns = df.select ['label', 'latitude', 'longitude'] . columns\n" +
+                    "        serialized = columns.map (c -> ['df_' + c.name, c.to_vector])\n" +
+                    '        Json.from_pairs serialized . to_text\n' +
+                    '    _ -> df . to_json . to_text'
+            , "Table.Main")
             this.isInit = true
             // We discard this data the first time. We will get another update with
             // the correct data that has been transformed by the preprocessor.
