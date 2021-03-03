@@ -102,6 +102,7 @@ class GeoMapVisualization extends Visualization {
         this.initMapElement()
         this.initStyle()
         this.dataPoints = []
+        this.preprocessorModule = "Table.Main"
         this.preprocessorCode = `
                 df -> case df of
                     Table.Table _ ->
@@ -110,7 +111,6 @@ class GeoMapVisualization extends Visualization {
                         Json.from_pairs serialized . to_text
                     _ -> 'not table'         
             `
-        this.preprocessorModule = "Table.Main"
     }
 
     initMapElement() {
@@ -151,23 +151,6 @@ class GeoMapVisualization extends Visualization {
 
     onDataReceived(data) {
         console.error("received data:",data)
-        if (!this.isInit) {
-            let preprocessor = `
-                df -> case df of
-                    Table.Table _ ->
-                        columns = df.select ['label', 'latitude', 'longitude'] . columns
-                        serialized = columns.map (c -> ['df_' + c.name, c.to_vector])
-                        Json.from_pairs serialized . to_text
-                    _ -> 'not table'         
-            `
-            let module = "Table.Main"
-            //this.setPreprocessor(preprocessor,module)
-            this.isInit = true
-            // We discard this data the first time. We will get another update with
-            // the correct data that has been transformed by the preprocessor.
-            //return
-        }
-
         let parsedData = data
         if (typeof data === 'string') {
             parsedData = JSON.parse(data)

@@ -59,6 +59,7 @@ pub struct PreprocessorConfiguration {
 }
 
 impl PreprocessorConfiguration {
+    /// Create a preprocessor configuration that runs given code in the default module context.
     pub fn from_code(code:impl AsRef<str>) -> Self {
         Self {
             code   : code.as_ref().into(),
