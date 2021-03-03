@@ -682,6 +682,7 @@ impl Model {
             let code       = graph_editor::builtin::visualization::native::error::PREPROCESSOR_CODE;
             let preprocessor = visualization::instance::PreprocessorConfiguration::from_code(code);
             let metadata     = visualization::Metadata {preprocessor};
+            // FIXME
             self.attach_visualization(node_id,&metadata,endpoint,self.error_visualizations.clone_ref())?;
         } else if error.is_none() && self.error_visualizations.contains_key(&node_id) {
             self.detach_visualization(node_id,self.error_visualizations.clone_ref())?;
@@ -1143,7 +1144,6 @@ impl Model {
     }
 
     fn resolve_visualization_context(&self, context:&visualization::instance::ContextModule) -> FallibleResult<model::module::QualifiedName> {
-        use model::module::QualifiedName;
         use visualization::instance::ContextModule::*;
         match context {
             ProjectMain => {
@@ -1233,12 +1233,15 @@ impl Model {
     , receive_data_endpoint : frp::Any<(graph_editor::NodeId,visualization::Data)>
     , visualizations_map    : SharedHashMap<graph_editor::NodeId,VisualizationId>
     ) -> FallibleResult<VisualizationId> {
+        error!(self.logger, "Attaching visualization {vis_metadata:?}.");
+
         // Do nothing if there is already a visualization attached.
         let err = || VisualizationAlreadyAttached(node_id);
         (!visualizations_map.contains_key(&node_id)).ok_or_else(err)?;
 
         debug!(self.logger, "Attaching visualization on node {node_id}.");
         let visualization  = self.prepare_visualization(node_id,vis_metadata)?;
+        error!(self.logger, "Prepared visualization {visualization:?}.");
         let id             = visualization.id;
         let update_handler = self.visualization_update_handler(receive_data_endpoint,node_id);
         let logger         = self.logger.clone_ref();
@@ -1288,20 +1291,8 @@ impl Model {
     fn prepare_visualization
     (&self, node_id:graph_editor::NodeId, metadata:&visualization::Metadata)
      -> FallibleResult<Visualization> {
-        use crate::model::module::QualifiedName;
-
-        // TODO [mwu]
-        //   Currently it is not possible to:
-        //    * enter other module than the initial (namely, "Main")
-        //    * describe that visualization's expression wishes to be evaluated in any other
-        //      context.
-        //   Because of that for now we will just hardcode the `visualization_module` using
-        //   fixed defaults. In future this will be changed, then the editor will also get access
-        //   to the customised values.
-        let visualisation_module = self.resolve_visualization_context(&visualization::instance::ContextModule::ProjectMain)?;
-        // let project_name:String  = self.project.name().into();
-        // let module_name          = crate::ide::INITIAL_MODULE_NAME;
-        // let visualisation_module = QualifiedName::from_segments(project_name,&[module_name])?;
+        let module_designation   = &metadata.preprocessor.module;
+        let visualisation_module = self.resolve_visualization_context(module_designation)?;
         let id                   = VisualizationId::new_v4();
         let expression           = metadata.preprocessor.code.to_string();
         let ast_id               = self.get_controller_node_id(node_id)?;

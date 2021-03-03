@@ -92,7 +92,8 @@ pub struct InstanceModel {
     pub logger              : Logger,
         on_data_received    : Rc<Option<js_sys::Function>>,
         set_size            : Rc<Option<js_sys::Function>>,
-        object              : Rc<js_sys::Object>,
+        #[derivative(Debug="ignore")]
+        object              : Rc<java_script::binding::Visualization>,
         #[derivative(Debug="ignore")]
         preprocessor_change : PreprocessorCallbackCell,
 }
@@ -141,7 +142,7 @@ impl InstanceModel {
     }
 
     fn instantiate_class_with_args(class:&JsValue, args:JsConsArgs)
-    -> result::Result<js_sys::Object,Error> {
+    -> result::Result<java_script::binding::Visualization,Error> {
         let js_new  = js_sys::Function::new_with_args("cls,arg", "return new cls(arg)");
         let context = JsValue::NULL;
         let object  = js_new.call2(&context,&class,&args.into())
@@ -149,7 +150,7 @@ impl InstanceModel {
         if !object.is_object() {
             return Err(Error::ValueIsNotAnObject { object } )
         }
-        let object:js_sys::Object = object.into();
+        let object:java_script::binding::Visualization = object.into();
         Ok(object)
     }
 
@@ -160,9 +161,9 @@ impl InstanceModel {
         let (preprocessor_change,closure) = Self::preprocessor_change_callback();
         let init_data                     = JsConsArgs::new(root_node.clone_ref(), closure);
         let object                        = Self::instantiate_class_with_args(class,init_data)?;
-        let on_data_received              = get_method(&object,method::ON_DATA_RECEIVED).ok();
+        let on_data_received              = get_method(object.as_ref(),method::ON_DATA_RECEIVED).ok();
         let on_data_received              = Rc::new(on_data_received);
-        let set_size                      = get_method(&object,method::SET_SIZE).ok();
+        let set_size                      = get_method(&object.as_ref(),method::SET_SIZE).ok();
         let set_size                      = Rc::new(set_size);
         let object                        = Rc::new(object);
         Ok(InstanceModel{object,on_data_received,set_size,root_node,logger,preprocessor_change})
@@ -181,20 +182,25 @@ impl InstanceModel {
         self.root_node.set_size(size);
     }
 
-   fn receive_data(&self, data:&Data) -> result::Result<(),DataError> {
-        let data_json = match data {
-           Data::Json {content} => content,
-           _ => todo!() // FIXME
-        };
-        let data_json:&serde_json::Value = data_json.deref();
-        let data_js   = match JsValue::from_serde(data_json) {
-            Ok(value) => value,
-            Err(_)    => return Err(DataError::InvalidDataType),
-        };
-        self.try_call1(&self.on_data_received, &data_js)
-            .map_err(|_| DataError::InternalComputationError)?;
-        Ok(())
-   }
+    fn receive_data(&self, data:&Data) -> result::Result<(),DataError> {
+         let data_json = match data {
+            Data::Json {content} => content,
+            _ => todo!() // FIXME
+         };
+         let data_json:&serde_json::Value = data_json.deref();
+         let data_js   = match JsValue::from_serde(data_json) {
+             Ok(value) => value,
+             Err(_)    => return Err(DataError::InvalidDataType),
+         };
+         self.try_call1(&self.on_data_received, &data_js)
+             .map_err(|_| DataError::InternalComputationError)?;
+         Ok(())
+    }
+
+    /// Prompt visualization JS object to emit preprocessor change with its currently desired state.
+    pub fn update_preprocessor(&self) {
+        self.object.emitPreprocessorChange()
+    }
 
     /// Helper method to call methods on the wrapped javascript object.
     fn try_call1(&self, method:&Option<js_sys::Function>, arg:&JsValue)
@@ -232,7 +238,7 @@ impl Instance {
         let frp     = visualization::instance::Frp::new(&network);
         let model   = InstanceModel::from_class(class,scene)?;
         model.set_dom_layer(&scene.dom.layers.back);
-        Ok(Instance{model,frp,network}.init_frp(&scene).inti_preprocessor_change_callback())
+        Ok(Instance{model,frp,network}.init_frp(&scene).init_preprocessor_change_callback())
     }
 
     fn init_frp(self, scene:&Scene) -> Self {
@@ -251,10 +257,12 @@ impl Instance {
         self
     }
 
-    fn inti_preprocessor_change_callback(self) -> Self {
+    fn init_preprocessor_change_callback(self) -> Self {
         // FIXME Does it leak memory? To be checked.
         let change   = self.frp.preprocessor_change.clone_ref();
+        let logger = self.model.logger.clone();
         let callback = move |code:String,module:Option<String>| {
+            error!(logger,"Called from JS: {module:?} {code}");
             let code   = code.into();
             let module = ContextModule::new(module.map(Into::into));
             let config = PreprocessorConfiguration {code,module};
@@ -262,6 +270,11 @@ impl Instance {
         };
         let callback = Box::new(callback);
         self.model.preprocessor_change.borrow_mut().replace(callback);
+        error!(self.model.logger,"Will emit preprocessor change");
+        self.model.update_preprocessor();
+        error!(self.model.logger,"Emitted preprocessor change");
+
+        error!(self.model.logger,"preprocessor initial value: {self.frp.on_preprocessor_change.upgrade().unwrap().value():?}");
         self
     }
 

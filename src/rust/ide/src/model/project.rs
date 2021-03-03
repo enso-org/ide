@@ -8,12 +8,13 @@ pub mod synchronized;
 
 use crate::prelude::*;
 
+use crate::double_representation::identifier::ReferentName;
+
 use enso_protocol::binary;
 use enso_protocol::language_server;
 use mockall::automock;
 use parser::Parser;
 use uuid::Uuid;
-use crate::INITIAL_MODULE_NAME;
 
 
 
@@ -69,8 +70,11 @@ pub trait API:Debug {
         path.qualified_module_name(self.name().deref())
     }
 
+    /// Get qualified name of the project's `Main` module.
+    ///
+    /// This module is special, as it needs to be referred by the project name itself.
     fn main_module(&self) -> FallibleResult<model::module::QualifiedName> {
-        model::module::QualifiedName::from_segments(self.name(),std::iter::once(INITIAL_MODULE_NAME))
+        ReferentName::try_from(self.name().as_str()).map(model::module::QualifiedName::new_main).map_err(Into::into)
     }
 }
 

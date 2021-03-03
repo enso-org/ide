@@ -30,6 +30,7 @@ extern "C" {
     fn __Visualization__() -> JsValue;
 
     #[allow(unsafe_code)]
+    #[wasm_bindgen(extends = js_sys::Object)]
     pub type Visualization;
 
     #[allow(unsafe_code)]
@@ -38,7 +39,7 @@ extern "C" {
 
     #[allow(unsafe_code)]
     #[wasm_bindgen(method)]
-    fn setPreprocessor(this:&Visualization, code:Option<String>);
+    pub fn emitPreprocessorChange(this:&Visualization);
 }
 
 /// Provides reference to the visualizations JavaScript base class.

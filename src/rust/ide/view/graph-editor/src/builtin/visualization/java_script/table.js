@@ -14,14 +14,16 @@ class TableVisualization extends Visualization {
     static inputType = 'Any'
     static label = 'Table'
 
-    onDataReceived(data) {
-        if (!this.isInit) {
-            this.setPreprocessor(
-                'x -> (Json.from_pairs [["header", x.columns.map .name], ["data", x.columns.map .to_vector . map (x -> x.take_start 2000) ]]).to_text '
-            )
-            this.isInit = true
-        }
+    constructor(data) {
+        super(data);
+        this.preprocessorCode = `
+        x -> 
+            pairs = [
+                ["header", x.columns.map .name], ["data", x.columns.map .to_vector . map (x -> x.take_start 2000) ]]
+            Json.from_pairs pairs . to_text`
+    }
 
+    onDataReceived(data) {
         function tableOf(content, level) {
             let open = '<table class="level' + level + '">'
             return open + content + '</table>'

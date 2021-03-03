@@ -102,6 +102,15 @@ class GeoMapVisualization extends Visualization {
         this.initMapElement()
         this.initStyle()
         this.dataPoints = []
+        this.preprocessorCode = `
+                df -> case df of
+                    Table.Table _ ->
+                        columns = df.select ['label', 'latitude', 'longitude'] . columns
+                        serialized = columns.map (c -> ['df_' + c.name, c.to_vector])
+                        Json.from_pairs serialized . to_text
+                    _ -> 'not table'         
+            `
+        this.preprocessorModule = "Table.Main"
     }
 
     initMapElement() {
@@ -143,22 +152,20 @@ class GeoMapVisualization extends Visualization {
     onDataReceived(data) {
         console.error("received data:",data)
         if (!this.isInit) {
-            // FIXME: This should be simplified when issue [#1167]
-            //  (https://github.com/enso-org/ide/issues/1167) has been implemented.
-            //  Use the previous version again:
-
-            this.setPreprocessor(
-                'df -> case df of\n' +
-                    '    Table ->\n' +
-                    "        columns = df.select ['label', 'latitude', 'longitude'] . columns\n" +
-                    "        serialized = columns.map (c -> ['df_' + c.name, c.to_vector])\n" +
-                    '        Json.from_pairs serialized . to_text\n' +
-                    '    _ -> df . to_json . to_text'
-            , "Table.Main")
+            let preprocessor = `
+                df -> case df of
+                    Table.Table _ ->
+                        columns = df.select ['label', 'latitude', 'longitude'] . columns
+                        serialized = columns.map (c -> ['df_' + c.name, c.to_vector])
+                        Json.from_pairs serialized . to_text
+                    _ -> 'not table'         
+            `
+            let module = "Table.Main"
+            //this.setPreprocessor(preprocessor,module)
             this.isInit = true
             // We discard this data the first time. We will get another update with
             // the correct data that has been transformed by the preprocessor.
-            return
+            //return
         }
 
         let parsedData = data

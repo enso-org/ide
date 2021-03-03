@@ -59,13 +59,6 @@ pub struct PreprocessorConfiguration {
 }
 
 impl PreprocessorConfiguration {
-    // pub fn new(code:impl AsRef<str>,module: impl AsRef<str>) -> Self {
-    //     Self {
-    //         code   : code.as_ref().into(),
-    //         module : ContextModule::Specific(module.as_ref().into()),
-    //     }
-    // }
-
     pub fn from_code(code:impl AsRef<str>) -> Self {
         Self {
             code   : code.as_ref().into(),
