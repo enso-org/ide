@@ -201,12 +201,11 @@ class ScatterPlot extends Visualization {
         const right_button = 2
         const mid_button = 1
         const scroll_wheel = 0
-        let start_pos;
+        let start_pos
 
         const zoom = d3
             .zoom()
             .filter(function () {
-
                 console.log('filter', d3.event)
                 switch (d3.event.type) {
                     case 'mousedown':
@@ -220,11 +219,13 @@ class ScatterPlot extends Visualization {
                         return false
                 }
             })
-            .wheelDelta(function() {
-                const event = d3.event;
+            .wheelDelta(function () {
+                const event = d3.event
                 // This is the delta used by default in wheelData and which is modified by us.
-                const defaultWheelDelta = -event.deltaY * (event.deltaMode === 1 ? 0.05 : event.deltaMode ? 1 : 0.002);
-                return defaultWheelDelta * (event.ctrlKey ? 5 : 1);
+                const defaultWheelDelta =
+                    -event.deltaY *
+                    (event.deltaMode === 1 ? 0.05 : event.deltaMode ? 1 : 0.002)
+                return defaultWheelDelta * (event.ctrlKey ? 5 : 1)
             })
             .scaleExtent(extent)
             .extent([
@@ -249,11 +250,14 @@ class ScatterPlot extends Visualization {
         function zoomed() {
             let new_xScale
             let new_yScale
-            if ( d3.event.sourceEvent.buttons === right_button ) {
+            if (d3.event.sourceEvent.buttons === right_button) {
                 const zoom_amount = rmb_zoom_value(d3.event.sourceEvent) / 20.0
                 const scale = Math.exp(zoom_amount)
-                const focus = start_pos;
-                const distanceScale = d3.zoomIdentity.translate(focus.x,focus.y).scale(scale).translate(-focus.x,-focus.y)
+                const focus = start_pos
+                const distanceScale = d3.zoomIdentity
+                    .translate(focus.x, focus.y)
+                    .scale(scale)
+                    .translate(-focus.x, -focus.y)
 
                 console.log(d3.event.sourceEvent)
                 new_xScale = distanceScale.rescaleX(scaleAndAxis.xScale)
@@ -290,8 +294,8 @@ class ScatterPlot extends Visualization {
         /**
          * Return the position of this event in localc anvas coordinates.
          */
-       function get_pos(event) {
-            return {x:event.offsetX,y:event.offsetY}
+        function get_pos(event) {
+            return { x: event.offsetX, y: event.offsetY }
         }
 
         /**
