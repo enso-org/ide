@@ -87,6 +87,13 @@ pub struct Node {
     pub metadata : Option<NodeMetadata>,
 }
 
+impl Node {
+	/// Check if node has a specific position set in metadata.
+    pub fn has_position(&self) -> bool {
+        self.metadata.as_ref().map_or(false, |m| m.position.is_some())
+    }
+}
+
 
 
 // ===================
@@ -143,7 +150,7 @@ pub struct Endpoint {
     /// Crumbs which locate the Var in the `port` ast node.
     ///
     /// In normal case this is an empty crumb (which means that the whole span of `port` is the
-    /// mentioned Var. However, span tree does not covers all the possible ast of node expression
+    /// mentioned Var. However, span tree does not cover all the possible ast of node expression
     /// (e.g. it does not decompose Blocks), but still we want to pass information about connection
     /// to such port and be able to remove it.
     pub var_crumbs: ast::Crumbs,
@@ -776,7 +783,7 @@ impl Handle {
     pub fn collapse
     (&self, nodes:impl IntoIterator<Item=node::Id>, new_method_name_base:&str)
     -> FallibleResult<node::Id> {
-        analytics::remote_log(analytics::AnonymousData("graph::collapse"));
+        analytics::remote_log_event("graph::collapse");
         use double_representation::refactorings::collapse::collapse;
         use double_representation::refactorings::collapse::Collapsed;
         let nodes : Vec<_> = Result::from_iter(nodes.into_iter().map(|id| self.node(id)))?;
