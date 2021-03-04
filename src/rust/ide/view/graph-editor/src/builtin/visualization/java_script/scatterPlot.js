@@ -71,8 +71,6 @@ class ScatterPlot extends Visualization {
                 'transform',
                 'translate(' + this.margin.left + ',' + this.margin.top + ')'
             )
-            .style("overflow", "scroll")
-            .style("-webkit-overflow-scrolling", "touch");
 
         let extremesAndDeltas = this.getExtremesAndDeltas(this.dataPoints)
         let scaleAndAxis = this.createAxes(
@@ -235,6 +233,7 @@ class ScatterPlot extends Visualization {
                 [box_width, box_height],
             ])
             .on('zoom', zoomed)
+            .on('mousewheel', zoomed)
             .on('start', start_zoom)
 
         const zoomElem = scatter

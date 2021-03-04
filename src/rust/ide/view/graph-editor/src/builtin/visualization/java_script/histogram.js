@@ -193,8 +193,6 @@ class Histogram extends Visualization {
                     this.canvas.margin.top +
                     ')'
             )
-            .style("overflow", "scroll")
-            .style("-webkit-overflow-scrolling", "touch");
 
         this.yAxis = this.svg.append('g').attr('style', LABEL_STYLE)
         this.xAxis = this.svg.append('g').attr('style', LABEL_STYLE)
@@ -240,7 +238,6 @@ class Histogram extends Visualization {
      */
     initPanAndZoom() {
         const canvas = this.canvas
-        const zoomClass = 'zoom'
         const minScale = 0.5
         const maxScale = 20
         const extent = [minScale, maxScale]
@@ -267,11 +264,12 @@ class Histogram extends Visualization {
                 [0, 0],
                 [canvas.inner.width, canvas.inner.height],
             ])
-            .on(zoomClass, zoomed)
+            .on('zoom', zoomed)
+            .on('mousewheel', zoomed)
 
         const zoomElem = this.svg
             .append('g')
-            .attr('class', zoomClass)
+            .attr('class', 'zoom')
             .attr('width', canvas.inner.width)
             .attr('height', canvas.inner.height)
             .style('fill', 'none')
