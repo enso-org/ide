@@ -68,6 +68,11 @@ function list(...args) {
     return out
 }
 
+fail = {
+    name: 'Fail',
+    run: 'exit 1'
+}
+
 
 
 // ============
@@ -453,6 +458,10 @@ let workflow = {
         ],{ if:releaseCondition,
             needs:['version_assertions','lint','test','wasm-test','build']
         }),
+        prevent_squash_commit:
+            job_on_macos("Don't use squash commits to 'stable' and 'unstable' branches.", [
+                fail
+            ],{ if:`github.base_ref == 'unstable' || github.base_ref == 'stable'` })
     }
 }
 
