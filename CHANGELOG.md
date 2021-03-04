@@ -1,47 +1,68 @@
-# Next Release
-This is a minor update exposing more control over the anonymous data collection. You are now allowed 
-to run the application with `--no-errors-data-collection`, and `--no-data-collection`. The options 
-disable the collection of errors data (keeping the collection of other events), and disables the 
-collection of all data, respectively. To learn more what data is collected in Enso alpha releases, 
-read the notes of the `Enso 2.0.0-alpha.1` release.
+# Enso 2.0.0-alpha.2 (2020-03-04)
+This is a bug-fixing, stability, and performance-focused release. It improves the performance of
+workflows and visualizations, and improves the look and feel of the graphical interface. Also, the
+graphical interface informs the users now about errors and their origin location.
+
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Visual Environment
+- [The errors are now displayed in the graphical interface][1215]. Previously, the errors were 
+  silently skipped, which was non-intuitive and hard to understand. Now, the IDE displays both
+  data-flow errors and panics in a nice and descriptive way. 
+- [Added geo map support for Tables (Data Frames).][1187] Tables that have `latitude`, `longitude`
+  and optionally `label` columns can now be shown in a geo map.
+- [Added the ability to reposition visualisations.][1096] There is now an icon in the visualization
+  action bar that allows dragging the visualization away from a node. Once the visualization has 
+  been moved, there appears another icon that will re-pin the visualization back to the node.
+- [Added a shortcut for reloading visualization files.][1190] It drastically improves how fast a new
+  visualizations can be tested during the development. However, after reloading visualization 
+  definitions, the currently visible visualizations must be switched to another and switched back to
+  refresh its content. See the [video podcast about building custom visualizations][podcast-custom-visualizations]  
+  to learn more.
+- [There is now an API to show Version Control System (like Git) status for nodes][1160].
+- [Added a visual indicator of the ongoing standard library compilation][1264]. Currently, each time
+  after IDE is started, backend needs to compile the standard library, before it can provide IDE
+  with type information and values. Because of that, not all functionalities are ready to work 
+  directly after starting the IDE. Now, there is a visible indication of the ongoing background
+  process.
+  
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
 #### Visual Environment
+- [You can now use the table visualization to display Data Frames][1181]. Please note, that big 
+  tables will get truncated to 2000 entries. This limitation will be lifted in future releases.
+- [Performance improvements during visual workflow][1067]. Nodes added with searcher will have their
+  values automatically assigned to a newly generated variables, which allows Enso Engine to cache
+  intermediate values, improving visualization performance.
+- [Minor documentation rendering fixes][1098]. Fixed cases where text would be misinterpreted as a
+  tag, added support for new tag types, added support for more common characters, properly renders
+  overflowing text.
+- [Improved handling of projects created with other IDE versions][1214]. IDE is now better at
+  dealing with incompatible metadata in files, which stores node visual positions, history of picked
+  searcher suggestions, etc. This will allow IDE to correctly open projects that were created
+  using a different IDE version and prevent unnecessary lose of metadata information.
 - Pressing and holding up and down arrow keys make the list view selection to move multiple times.
-- Cursors in text editors behave correctly now (they are not affected by scene pan and zoom). This
-  was possible because of a new multi-camera management system implemented in EnsoGL.
-- Fixes to some visual glitches, like small "pixel-like" things appearing sometimes on the screen.
 - The shortcuts to close the application and to toggle the developer tools at runtime are working
   now on all supported platforms.
-- [You can now see data frames in the table visualisation][1181]. Big tables get truncated to 2000 
-  entries.
-- [Documentation in Searcher][1098]. Fixed cases where text would be misinterpreted as tag, added
-  support for new tag types, added support for more common characters, properly renders overflowing
-  text.
-- [Assigning intermediate expressions to values][1067]. Nodes added with searcher will have their 
-  values automatically assigned to a newly generated variables. This allows Enso Engine to cache
-  intermediate values, improving visualization performance.
-- [Improved handling of projects created with other IDE versions][1214]. IDE is not better at 
-  dealing with incompatible node metadata (that store node visual positions, history of picked 
-  searcher suggestions, etc.). This will allow IDE to correctly open projects that were created 
-  using a different IDE version and prevent unnecessary lose of metadata information.
 - [Loading progress indicator remains visible while IDE initializes][1237]. Previously the spinner
   acting as a loading progress indicator completed too quickly and stopped spinning before IDE was
-  ready. Now it stays active, giving a visual indication that the initialization is still in 
+  ready. Now it stays active, giving a visual indication that the initialization is still in
   progress.
-- [Increased the default width of the IDE window][1264]. This was needed to correctly fit some IDE
-  notification messages.
-- [Fixed where node's text could be white on white background][1264]. Most notably this occurred 
-  with output node of the function generated by node collapse refactoring.
-- [Include parser fixes][1274]. The parser used in the IDE has been updated to the latest version. 
-  This resolves several issues with language constructs like `import`, lambdas and parentheses,
-  where upon entering certain text, the edit could be automatically reverted.
-- [The libraries' `Main` modules are omitted in expressions inserted by
-  searcher][1279]. For example, the `point` method of `Geo` library will be
+- [Fixed visual glitch where node's text was displayed white on white background][1264]. Most 
+  notably this occurred with output node of the function generated by node collapse refactoring.
+- Many visual glitches vere fixed, including small "pixel-like" artifacts appearing on the screen.
+- [Several parser improvements][1274]. The parser used in the IDE has been updated to the latest 
+  version. This resolves several issues with language constructs like `import`, lambdas and 
+  parentheses, where upon entering certain text, the edit could be automatically reverted.
+- [The auto-import functionality was improved][1279]. Libraries' `Main` modules are omitted in 
+  expressions inserted by searcher. For example, the `point` method of `Geo` library will be 
   displayed as `Geo.point` and will insert import `Geo` instead of `Geo.Main`.
+- Cursors in text editors behave correctly now (they are not affected by scene pan and zoom). This
+  was possible because of a new multi-camera management system implemented in EnsoGL.
   
-#### EnsoGL
+#### EnsoGL (rendering engine)
 - New multi-camera management system, allowing the same shape systems be rendered on different 
   layers from different cameras. The implementation automatically caches the same shape system
   definitions per scene layer in order to minimize the amount of WebGL draw calls.
@@ -51,25 +72,15 @@ read the notes of the `Enso 2.0.0-alpha.1` release.
 - Display objects handle visibility correctly now. Display objects are not visible by default and 
   need to be attached to a visible parent to be shown on the screen.
 
-<br/>![New Features](/docs/assets/tags/new_features.svg)
+  
 
-#### Visual Environment
-- [Added the ability to reposition visualisations.][1096] There is now an icon in the visualization 
-  action bar that allows dragging the visualization. Once the visualization has been moved, there 
-  appears another icon that will reset the position to the original position.
-- [Allow Tables to feed the Geo Map visualisation.][1187] Tables that have `latitude`, `longitude`
-  and optionally `label` columns can now be shown in a Geo Map visualisation where each row is 
-  mapped to a point of the map with the given label.
-- [Erroneous nodes are highlighted.][1215]. The description appears below. The nodes 
-  affected by error originating from another node will be highlighted without any description.
-- [There is now an API to show VCS status for node][1160].
-- [A shortcut for reloading visualization files.][1190] The visible visualizations must be switched 
-  to another and switched back to see the effect.
-- [Added a visual indicator of the ongoing standard library compilation][1264]. Currently each time
-  after IDE is started, backend needs to compile the standard library, before it can provide IDE
-  with type information and values. Because for that for a moment after starting IDE not all 
-  functionalities are ready to work. Now there is a visible indication of the ongoing background
-  process.
+<br/>![New Learning Resources](/docs/assets/tags/new_learning_resources.svg)
+
+- [Learn how to define custom data visualizations in Enso][podcast-custom-visualizations].
+- [Learn how to use Java libraries in Enso][podcast-java-interop].
+- [Learn how to use HTTP libraries in Enso to build custom server-side website rendering].
+- [Discover why Enso Compiler is so fast and how it was build to support a dual-representation langauge][podcast-compiler-internals].
+- [Learn more about the vision behind Enso and about its planned future][podcast-future-of-enso].
 
 [1096]: https://github.com/enso-org/ide/pull/1172
 [1098]: https://github.com/enso-org/ide/pull/1098
@@ -84,6 +95,12 @@ read the notes of the `Enso 2.0.0-alpha.1` release.
 [1264]: https://github.com/enso-org/ide/pull/1264
 [1274]: https://github.com/enso-org/ide/pull/1274
 [1279]: https://github.com/enso-org/ide/pull/1279
+
+[podcast-java-interop]: https://www.youtube.com/watch?v=bcpOEX1x06I&t=468s&ab_channel=Enso
+[podcast-compiler-internals]: https://www.youtube.com/watch?v=BibjcUjdkO4&ab_channel=Enso
+[podcast-custom-visualizations]: https://www.youtube.com/watch?v=wFkh5LgAZTs&t=5439s&ab_channel=Enso
+[podcast-http-server]: https://www.youtube.com/watch?v=BYUAL4ksEgY&ab_channel=Enso
+[podcast-future-of-enso]: https://www.youtube.com/watch?v=rF8DuJPOfTs&t=1863s&ab_channel=Enso
 <br/>
 
 
