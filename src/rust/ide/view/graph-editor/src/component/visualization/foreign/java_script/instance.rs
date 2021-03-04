@@ -10,7 +10,7 @@
 use crate::prelude::*;
 
 use crate::component::visualization::*;
-use crate::component::visualization::instance::{PreprocessorConfiguration, ContextModule};
+use crate::component::visualization::instance::PreprocessorConfiguration;
 use crate::component::visualization::java_script::binding::JsConsArgs;
 use crate::component::visualization::java_script::method;
 use crate::component::visualization;
@@ -77,7 +77,7 @@ pub type Result<T> = result::Result<T, Error>;
 // =====================
 
 /// Helper type for the callback used to set the preprocessor code.
-pub trait PreprocessorCallback = Fn(String,Option<String>);
+pub trait PreprocessorCallback = Fn(PreprocessorConfiguration);
 
 /// Internal helper type to store the preprocessor callback.
 type PreprocessorCallbackCell = Rc<RefCell<Option<Box<dyn PreprocessorCallback>>>>;
@@ -133,9 +133,9 @@ impl InstanceModel {
     () -> (PreprocessorCallbackCell,impl PreprocessorCallback) {
         let closure_cell      = PreprocessorCallbackCell::default();
         let weak_closure_cell = Rc::downgrade(&closure_cell);
-        let closure = move |code:String, module:Option<String>| {
+        let closure = move |preprocessor_config| {
             if let Some(callback) = weak_closure_cell.upgrade() {
-                callback.borrow().map_ref(|f|f(code,module));
+                callback.borrow().map_ref(|f|f(preprocessor_config));
             }
         };
         (closure_cell,closure)
@@ -198,7 +198,7 @@ impl InstanceModel {
     }
 
     /// Prompt visualization JS object to emit preprocessor change with its currently desired state.
-    pub fn update_preprocessor(&self) {
+    pub fn update_preprocessor(&self) -> result::Result<(),JsValue> {
         self.object.emitPreprocessorChange()
     }
 
@@ -261,16 +261,14 @@ impl Instance {
         // FIXME Does it leak memory? To be checked.
         let change   = self.frp.preprocessor_change.clone_ref();
         let logger = self.model.logger.clone();
-        let callback = move |code:String,module:Option<String>| {
-            error!(logger,"Called from JS: {module:?} {code}");
-            let code   = code.into();
-            let module = ContextModule::new(module.map(Into::into));
-            let config = PreprocessorConfiguration {code,module};
-            change.emit(config)
+        let callback = move |preprocessor_config| {
+            error!(logger,"Called from JS: {preprocessor_config:?}");
+            change.emit(preprocessor_config)
         };
         let callback = Box::new(callback);
         self.model.preprocessor_change.borrow_mut().replace(callback);
         error!(self.model.logger,"Will emit preprocessor change");
+        // FIXME handle error
         self.model.update_preprocessor();
         error!(self.model.logger,"Emitted preprocessor change");
 

@@ -1,31 +1,36 @@
 export class Visualization {
     constructor(api) {
-        this.dom = api.root()
-        this.__api__ = api
+        // These go before `api` assignment so the `undefined` is not emitted to IDE.
+        // First we will give deriving type a chance to overwrite them, then IDE will
+        // invoke `emitPreprocessorChange()` on this.
         this.__preprocessorCode__ = undefined
         this.__preprocessorModule__ = undefined
+
+        this.dom = api.root()
+        this.__api__ = api
     }
 
     emitPreprocessorChange() {
+        console.trace("Will emit",this.preprocessorCode,this.preprocessorModule)
         this.__api__.emit_preprocessor_change(this.preprocessorCode,this.preprocessorModule)
     }
 
-    get preprocessorCode() {
+    getPreprocessorCode() {
         return this.__preprocessorCode__
     }
 
-    set preprocessorCode(code) {
+    setPreprocessorCode(code) {
         if (code !== this.preprocessorCode) {
             this.__preprocessorCode__ = code
             this.emitPreprocessorChange()
         }
     }
 
-    get preprocessorModule() {
+    getPreprocessorModule() {
         return this.__preprocessorModule__
     }
 
-    set preprocessorModule(module) {
+    setPreprocessorModule(module) {
         if (module !== this.preprocessorModule) {
             this.__preprocessorModule__ = module
             this.emitPreprocessorChange()
@@ -33,7 +38,6 @@ export class Visualization {
     }
 
     // Meant to be used when both code and module need to be set as a single update.
-    // Otherwise `preprocessorCode` and `preprocessorModule` accessors should be preferred.
     setPreprocessor(code,module) {
         if (code !== this.preprocessorCode || code !== this.preprocessorModule) {
             this.__preprocessorCode__ = code

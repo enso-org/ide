@@ -16,11 +16,13 @@ class TableVisualization extends Visualization {
 
     constructor(data) {
         super(data);
-        this.preprocessorCode = `
+        this.setPreprocessorCode(`
         x -> 
-            pairs = [
-                ["header", x.columns.map .name], ["data", x.columns.map .to_vector . map (x -> x.take_start 2000) ]]
-            Json.from_pairs pairs . to_text`
+            header = ["header", x.columns.map .name]
+            data   = ["data",   x.columns.map .to_vector . map (x -> x.take_start 2000) ]
+            pairs  = [header,data]
+            Json.from_pairs pairs . to_text
+        `)
     }
 
     onDataReceived(data) {

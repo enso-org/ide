@@ -43,8 +43,8 @@ impl ContextModule {
     /// Create a context from optional string with module's type.
     ///
     /// If there is no explicit module's type provided, the default (project's main) will be used.
-    pub fn new(module_type:Option<enso::Module>) -> Self {
-        module_type.map_or(default(),Self::Specific)
+    pub fn new(module_type:impl Into<enso::Module>) -> Self {
+        Self::Specific(module_type.into())
     }
 }
 
@@ -52,25 +52,38 @@ impl ContextModule {
 #[derive(Clone,CloneRef,Debug)]
 pub struct PreprocessorConfiguration {
     /// The code of the preprocessor. Should be a lambda that transforms node value into whatever
-    /// that visualizations exptect.
+    /// that visualizations expect.
     pub code   : enso::Code,
     /// The module that provides context for `code` evaluation.
     pub module : ContextModule,
 }
 
 impl PreprocessorConfiguration {
-    /// Create a preprocessor configuration that runs given code in the default module context.
-    pub fn from_code(code:impl AsRef<str>) -> Self {
-        Self {
-            code   : code.as_ref().into(),
-            module : default(),
+    /// Like `new` but arguments are optional. If `None` is given, default value will be used.
+    pub fn from_options
+    (code:Option<impl Into<enso::Code>>, module:Option<impl Into<enso::Module>>) -> Self {
+        let mut ret = Self::default();
+        code  .map(|code|   ret.code   = code.into());
+        module.map(|module| ret.module = ContextModule::Specific(module.into()));
+        ret
+    }
+
+    /// Create a configuration that runs the given code in the context of the given module.
+    pub fn new
+    (code:impl Into<enso::Code>, module:impl Into<enso::Module>) -> PreprocessorConfiguration {
+        PreprocessorConfiguration {
+            module : ContextModule::Specific(module.into()),
+            code   : code.into(),
         }
     }
 }
 
 impl Default for PreprocessorConfiguration {
     fn default() -> Self {
-        Self::from_code(DEFAULT_VISUALIZATION_EXPRESSION)
+        Self {
+            code   : DEFAULT_VISUALIZATION_EXPRESSION.into(),
+            module : default(),
+        }
     }
 }
 

@@ -8,7 +8,7 @@ use ensogl::display::DomSymbol;
 use fmt::Formatter;
 use wasm_bindgen::prelude::*;
 use web_sys::HtmlDivElement;
-
+use crate::component::visualization::instance::PreprocessorConfiguration;
 
 
 // =================
@@ -38,8 +38,8 @@ extern "C" {
     fn new(init:JsConsArgs) -> Visualization;
 
     #[allow(unsafe_code)]
-    #[wasm_bindgen(method)]
-    pub fn emitPreprocessorChange(this:&Visualization);
+    #[wasm_bindgen(catch,method)]
+    pub fn emitPreprocessorChange(this:&Visualization) -> Result<(),JsValue>;
 }
 
 /// Provides reference to the visualizations JavaScript base class.
@@ -86,9 +86,10 @@ impl JsConsArgs {
     }
 
     /// Helper method to emit an preprocessor change event from the visualisation.
-    pub fn emit_preprocessor_change(&self, code:String, module:Option<String>){
-        error!(DefaultErrorLogger::new(""), "emit_preprocessor_change({code},{module:?})");
-        let closure = &self.set_preprocessor;
-        (*closure)(code,module);
+    pub fn emit_preprocessor_change(&self, code:Option<String>, module:Option<String>){
+        error!(DefaultErrorLogger::new(""), "emit_preprocessor_change({code:?},{module:?})");
+        let closure             = &self.set_preprocessor;
+        let preprocessor_config = PreprocessorConfiguration::from_options(code,module);
+        (*closure)(preprocessor_config);
     }
 }

@@ -39,9 +39,11 @@ pub enum Error {
 }
 
 impl Error {
-    fn new_preparation_error
-    (identifier:VisualizationPath, cause:impl Into<failure::Error>) -> Self {
-        let cause      = cause.into();
+    /// Construct a new error for preparing visualization.
+    pub fn js_preparation_error
+    (identifier:VisualizationPath, error:visualization::foreign::java_script::definition::Error)
+    -> Self {
+        let cause = failure::format_err!("{}",error);
         Self::Preparation {identifier,cause}
     }
 }
@@ -151,7 +153,7 @@ impl Handle {
                 let js_code    = self.language_server_rpc.read_file(&path).await?.contents;
                 visualization::java_script::Definition::new(project,&js_code)
                     .map(Into::into)
-                    .map_err(|err| Error::new_preparation_error(visualization.clone(),err).into())
+                    .map_err(|err| Error::js_preparation_error(visualization.clone(), err).into())
             }
         }
     }

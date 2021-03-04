@@ -674,16 +674,16 @@ impl Model {
 
     /// Mark node as erroneous if given payload contains an error.
     fn set_error
-    (&self, node_id:graph_editor::NodeId, error:Option<&ExpressionUpdatePayload>) -> FallibleResult {
+    (&self, node_id:graph_editor::NodeId, error:Option<&ExpressionUpdatePayload>)
+    -> FallibleResult {
         let error = self.convert_payload_to_error_view(error,node_id);
         self.view.graph().set_node_error_status(node_id,error.clone());
         if error.is_some() && !self.error_visualizations.contains_key(&node_id) {
-            let endpoint   = self.view.graph().frp.set_error_visualization_data.clone_ref();
-            let code       = graph_editor::builtin::visualization::native::error::PREPROCESSOR_CODE;
-            let preprocessor = visualization::instance::PreprocessorConfiguration::from_code(code);
-            let metadata     = visualization::Metadata {preprocessor};
-            // FIXME
-            self.attach_visualization(node_id,&metadata,endpoint,self.error_visualizations.clone_ref())?;
+            use graph_editor::builtin::visualization::native::error;
+            let endpoint = self.view.graph().frp.set_error_visualization_data.clone_ref();
+            let metadata = error::metadata();
+            let vis_map  = self.error_visualizations.clone_ref();
+            self.attach_visualization(node_id,&metadata,endpoint,vis_map)?;
         } else if error.is_none() && self.error_visualizations.contains_key(&node_id) {
             self.detach_visualization(node_id,self.error_visualizations.clone_ref())?;
         }
@@ -1158,6 +1158,10 @@ impl Model {
     fn visualization_preprocessor_changed
     (&self, node_id:graph_editor::NodeId, preprocessor:&visualization::instance::PreprocessorConfiguration)
     -> FallibleResult {
+        backtrace();
+        web_sys::console::trace(&js_sys::Array::new());
+        error!(self.logger, "===Preprocessor for node {node_id} changed: {preprocessor:?}");
+
         if let Some(visualization) = self.visualizations.get_copied(&node_id) {
             let logger      = self.logger.clone_ref();
             let controller  = self.graph.clone_ref();

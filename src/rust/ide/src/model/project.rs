@@ -8,8 +8,6 @@ pub mod synchronized;
 
 use crate::prelude::*;
 
-use crate::double_representation::identifier::ReferentName;
-
 use enso_protocol::binary;
 use enso_protocol::language_server;
 use mockall::automock;
@@ -26,6 +24,7 @@ use uuid::Uuid;
 #[automock]
 pub trait API:Debug {
     /// Project's name
+    // TODO [mwu] This should return Rc<ReferentName>.
     fn name(&self) -> ImString;
 
     /// Get Language Server JSON-RPC Connection for this project.
@@ -74,7 +73,13 @@ pub trait API:Debug {
     ///
     /// This module is special, as it needs to be referred by the project name itself.
     fn main_module(&self) -> FallibleResult<model::module::QualifiedName> {
-        ReferentName::try_from(self.name().as_str()).map(model::module::QualifiedName::new_main).map_err(Into::into)
+        let main = std::iter::once(crate::ide::INITIAL_MODULE_NAME);
+        model::module::QualifiedName::from_segments(self.name(),main)
+
+        // TODO [mwu] The code below likely should be preferred but doese not work:
+        //            See: https://github.com/enso-org/enso/issues/1543
+        // use model::module::QualifiedName;
+        // ReferentName::try_from(self.name().as_str()).map(QualifiedName::new_main).map_err(Into::into)
     }
 }
 

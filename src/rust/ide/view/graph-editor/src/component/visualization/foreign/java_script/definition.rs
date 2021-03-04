@@ -108,12 +108,12 @@ use super::instance::Instance;
 
 use ensogl::display::Scene;
 use ensogl::system::web::JsValue;
+use fmt::Formatter;
 use js_sys::JsString;
 use js_sys;
-use wasm_bindgen::JsCast;
-use fmt::Formatter;
 use std::str::FromStr;
-use enso_frp::web::js_to_string;
+use wasm_bindgen::JsCast;
+
 
 
 // =================
@@ -156,7 +156,7 @@ impl Definition {
         let context      = JsValue::NULL;
         let function     = js_sys::Function::new_with_args(binding::JS_CLASS_NAME,&source);
         let js_class     = binding::js_class();
-        let class        = function.call1(&context,&js_class).map_err(Error::new_invalid_function)?;
+        let class        = function.call1(&context,&js_class).map_err(Error::InvalidFunction)?;
 
         let input_type   = try_str_field(&class,field::INPUT_TYPE).unwrap_or_default();
 
@@ -215,10 +215,10 @@ fn label(class:&JsValue) -> Result<String,Error> {
 pub type FallibleDefinition = Result<Definition,Error>;
 
 /// Error occurred during visualization definition.
-#[derive(Clone,Debug,Fail)]
+#[derive(Clone,Debug)]
 #[allow(missing_docs)]
 pub enum Error {
-    InvalidFunction(String),
+    InvalidFunction(JsValue),
     InvalidClass(InvalidClass),
 }
 
@@ -226,18 +226,12 @@ impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Error::InvalidFunction(value)  => {
-                f.write_fmt(format_args!("Provided value is not a valid function: {}",value))
+                f.write_fmt(format_args!("Provided value is not a valid function: {:?}",value))
             },
             Error::InvalidClass(value)  => {
                 f.write_fmt(format_args!("Provided value is not a valid class: {:?}",value))
             },
         }
-    }
-}
-
-impl Error {
-    fn new_invalid_function(js_value:JsValue) -> Self {
-        Self::InvalidFunction(js_to_string(js_value))
     }
 }
 

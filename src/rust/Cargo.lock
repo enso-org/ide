@@ -1344,6 +1344,7 @@ dependencies = [
  "ensogl-text 0.1.0",
  "ensogl-text-msdf-sys 0.1.0",
  "ensogl-theme 0.1.0",
+ "failure 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "js-sys 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "nalgebra 0.21.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.116 (registry+https://github.com/rust-lang/crates.io-index)",

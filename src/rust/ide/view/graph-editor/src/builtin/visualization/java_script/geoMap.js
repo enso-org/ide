@@ -102,15 +102,15 @@ class GeoMapVisualization extends Visualization {
         this.initMapElement()
         this.initStyle()
         this.dataPoints = []
-        this.preprocessorModule = "Table.Main"
-        this.preprocessorCode = `
+        this.setPreprocessorModule("Table.Main")
+        this.setPreprocessorCode(`
                 df -> case df of
                     Table.Table _ ->
                         columns = df.select ['label', 'latitude', 'longitude'] . columns
                         serialized = columns.map (c -> ['df_' + c.name, c.to_vector])
                         Json.from_pairs serialized . to_text
                     _ -> 'not table'         
-            `
+            `)
     }
 
     initMapElement() {
