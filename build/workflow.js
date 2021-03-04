@@ -377,7 +377,9 @@ let workflow = {
     name : "GUI CI",
     on: ['push','pull_request'],
     jobs: {
-        dumpGitHubContext,
+        info: job_on_macos("Assertions", [
+            dumpGitHubContext
+        ]),
         version_assertions: job_on_macos("Assertions", [
             getCurrentReleaseChangelogInfo,
             assertions
