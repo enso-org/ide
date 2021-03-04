@@ -239,8 +239,9 @@ jobs:
         if: matrix.os == 'macos-latest'
     if: >-
       !(contains(github.event.head_commit.message,'[ci build]') || github.ref ==
-      'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref ==
-      'refs/heads/unstable' || github.ref == 'refs/heads/stable')
+      'refs/heads/main' || github.ref == 'refs/heads/develop' || (github.ref ==
+      'refs/heads/unstable' || github.ref == 'refs/heads/stable') &&
+      github.base_ref == '')
   build:
     name: Build
     runs-on: ${{ matrix.os }}
@@ -367,8 +368,9 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
     if: >-
       contains(github.event.head_commit.message,'[ci build]') || github.ref ==
-      'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref ==
-      'refs/heads/unstable' || github.ref == 'refs/heads/stable'
+      'refs/heads/main' || github.ref == 'refs/heads/develop' || (github.ref ==
+      'refs/heads/unstable' || github.ref == 'refs/heads/stable') &&
+      github.base_ref == ''
   release_to_github:
     name: GitHub Release
     runs-on: ${{ matrix.os }}
@@ -412,7 +414,9 @@ jobs:
           tag_name: v${{fromJson(steps.changelog.outputs.content).version}}
           body: ${{fromJson(steps.changelog.outputs.content).body}}
           prerelease: ${{fromJson(steps.changelog.outputs.content).prerelease}}
-    if: github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
+    if: >-
+      (github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable')
+      && github.base_ref == ''
     needs:
       - version_assertions
       - lint
@@ -476,7 +480,9 @@ jobs:
           aws s3 cp ./artifacts/content/assets/wasm_imports.js.gz
           s3://ensocdn/ide/${{fromJson(steps.changelog.outputs.content).version}}/wasm_imports.js.gz
           --profile s3-upload --acl public-read --content-encoding gzip
-    if: github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
+    if: >-
+      (github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable')
+      && github.base_ref == ''
     needs:
       - version_assertions
       - lint
