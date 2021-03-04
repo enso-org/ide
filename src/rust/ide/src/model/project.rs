@@ -76,10 +76,12 @@ pub trait API:Debug {
         let main = std::iter::once(crate::ide::INITIAL_MODULE_NAME);
         model::module::QualifiedName::from_segments(self.name(),main)
 
-        // TODO [mwu] The code below likely should be preferred but doese not work:
+        // TODO [mwu] The code below likely should be preferred but does not work:
         //            See: https://github.com/enso-org/enso/issues/1543
         // use model::module::QualifiedName;
-        // ReferentName::try_from(self.name().as_str()).map(QualifiedName::new_main).map_err(Into::into)
+        // ReferentName::try_from(self.name().as_str())
+        //     .map(QualifiedName::new_main)
+        //     .map_err(Into::into)
     }
 }
 

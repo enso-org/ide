@@ -150,7 +150,6 @@ class GeoMapVisualization extends Visualization {
     }
 
     onDataReceived(data) {
-        console.error("received data:",data)
         let parsedData = data
         if (typeof data === 'string') {
             parsedData = JSON.parse(data)

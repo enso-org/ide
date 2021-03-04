@@ -36,6 +36,7 @@ pub mod data;
 
 use crate::component::node;
 use crate::component::visualization;
+use crate::component::visualization::instance::PreprocessorConfiguration;
 use crate::component::visualization::MockDataGenerator3D;
 use crate::component::type_coloring;
 
@@ -56,7 +57,6 @@ use ensogl::gui::cursor;
 use ensogl::prelude::*;
 use ensogl::system::web;
 use ensogl_theme as theme;
-use crate::component::visualization::instance::PreprocessorConfiguration;
 
 
 // ===============

@@ -8,7 +8,7 @@ use crate::visualization::*;
 use enso_frp as frp;
 use ensogl::display;
 use ensogl::display::Scene;
-use ast::prelude::default;
+
 
 
 // =================
@@ -20,9 +20,11 @@ pub const DEFAULT_VISUALIZATION_EXPRESSION:&str = "x -> x.to_default_visualizati
 
 
 
-// ===========
-// === FRP ===
-// ===========
+// ====================
+// === Preprocessor ===
+// ====================
+
+// === ContextModule ===
 
 /// Designation of the module to be used as a context for preprocessor evaluation.
 #[derive(Clone,CloneRef,Debug)]
@@ -47,6 +49,9 @@ impl ContextModule {
         Self::Specific(module_type.into())
     }
 }
+
+
+// === PreprocessorConfiguration ===
 
 /// Information on how the preprocessor should be set up for the visualization.
 #[derive(Clone,CloneRef,Debug)]
@@ -86,6 +91,11 @@ impl Default for PreprocessorConfiguration {
         }
     }
 }
+
+
+// ===========
+// === FRP ===
+// ===========
 
 
 

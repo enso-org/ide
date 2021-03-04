@@ -46,7 +46,6 @@ pub struct Path {
 impl Path {
     /// Constructor.
     pub fn new(project:Project, name:impl Into<Name>) -> Self {
-        //let project = Immutable(project);
         let name    = name.into();
         Self {project,name}
     }
