@@ -12,7 +12,7 @@ export class Visualization {
 
     emitPreprocessorChange() {
         console.trace("Will emit",this.preprocessorCode,this.preprocessorModule)
-        this.__api__.emit_preprocessor_change(this.preprocessorCode,this.preprocessorModule)
+        this.__api__.emit_preprocessor_change(this.__preprocessorCode__,this.__preprocessorModule__)
     }
 
     getPreprocessorCode() {
@@ -20,7 +20,7 @@ export class Visualization {
     }
 
     setPreprocessorCode(code) {
-        if (code !== this.preprocessorCode) {
+        if (code !== this.__preprocessorCode__) {
             this.__preprocessorCode__ = code
             this.emitPreprocessorChange()
         }
@@ -31,15 +31,17 @@ export class Visualization {
     }
 
     setPreprocessorModule(module) {
-        if (module !== this.preprocessorModule) {
+        if (module !== this.__preprocessorModule__) {
             this.__preprocessorModule__ = module
             this.emitPreprocessorChange()
+        } else {
+            console.error("skipping, as",module," === ", this.__preprocessorModule__)
         }
     }
 
     // Meant to be used when both code and module need to be set as a single update.
     setPreprocessor(code,module) {
-        if (code !== this.preprocessorCode || code !== this.preprocessorModule) {
+        if (code !== this.__preprocessorCode__ || code !== this.__preprocessorModule__) {
             this.__preprocessorCode__ = code
             this.__preprocessorModule__ = module
             this.emitPreprocessorChange()

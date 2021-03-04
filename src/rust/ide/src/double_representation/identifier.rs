@@ -241,16 +241,14 @@ impl AsRef<str> for ReferentName {
 
 impl TryFrom<&str> for ReferentName {
     type Error = NotReferentName;
-
-    fn try_from(value:&str) -> Result<Self, Self::Error> {
+    fn try_from(value:&str) -> Result<Self,Self::Error> {
         Self::new(value)
     }
 }
 
 impl TryFrom<String> for ReferentName {
     type Error = NotReferentName;
-
-    fn try_from(value:String) -> Result<Self, Self::Error> {
+    fn try_from(value:String) -> Result<Self,Self::Error> {
         Self::new(value)
     }
 }

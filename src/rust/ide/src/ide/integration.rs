@@ -1143,25 +1143,21 @@ impl Model {
         });
     }
 
-    fn resolve_visualization_context(&self, context:&visualization::instance::ContextModule) -> FallibleResult<model::module::QualifiedName> {
+    fn resolve_visualization_context
+    (&self, context:&visualization::instance::ContextModule)
+    -> FallibleResult<model::module::QualifiedName> {
         use visualization::instance::ContextModule::*;
         match context {
-            ProjectMain => {
-                self.project.main_module()
-            },
-            Specific(module_name) => {
-                model::module::QualifiedName::from_text(module_name)
-            }
+            ProjectMain           => self.project.main_module(),
+            Specific(module_name) => model::module::QualifiedName::from_text(module_name),
         }
     }
 
     fn visualization_preprocessor_changed
-    (&self, node_id:graph_editor::NodeId, preprocessor:&visualization::instance::PreprocessorConfiguration)
-    -> FallibleResult {
-        backtrace();
-        web_sys::console::trace(&js_sys::Array::new());
-        error!(self.logger, "===Preprocessor for node {node_id} changed: {preprocessor:?}");
-
+    ( &self
+    , node_id      : graph_editor::NodeId
+    , preprocessor : &visualization::instance::PreprocessorConfiguration
+    ) -> FallibleResult {
         if let Some(visualization) = self.visualizations.get_copied(&node_id) {
             let logger      = self.logger.clone_ref();
             let controller  = self.graph.clone_ref();

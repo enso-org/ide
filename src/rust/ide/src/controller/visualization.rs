@@ -39,7 +39,7 @@ pub enum Error {
 }
 
 impl Error {
-    /// Construct a new error for preparing visualization.
+    /// Construct a new error regarding visualization preparation.
     pub fn js_preparation_error
     (identifier:VisualizationPath, error:visualization::foreign::java_script::definition::Error)
     -> Self {
@@ -151,9 +151,12 @@ impl Handle {
             VisualizationPath::File(path) => {
                 let project    = visualization::path::Project::CurrentProject;
                 let js_code    = self.language_server_rpc.read_file(&path).await?.contents;
+                let wrap_error = |err| {
+                    Error::js_preparation_error(visualization.clone(),err).into()
+                };
                 visualization::java_script::Definition::new(project,&js_code)
                     .map(Into::into)
-                    .map_err(|err| Error::js_preparation_error(visualization.clone(), err).into())
+                    .map_err(wrap_error)
             }
         }
     }

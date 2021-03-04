@@ -111,6 +111,7 @@ class GeoMapVisualization extends Visualization {
                         Json.from_pairs serialized . to_text
                     _ -> 'not table'         
             `)
+        throw  "blah"
     }
 
     initMapElement() {
