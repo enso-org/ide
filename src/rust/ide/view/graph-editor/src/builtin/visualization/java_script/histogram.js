@@ -265,7 +265,7 @@ class Histogram extends Visualization {
                 [canvas.inner.width, canvas.inner.height],
             ])
             .on('zoom', zoomed)
-            .on('mousewheel', zoomed)
+            // .on('mousewheel', zoomed)
 
         const zoomElem = this.svg
             .append('g')

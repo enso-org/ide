@@ -233,7 +233,7 @@ class ScatterPlot extends Visualization {
                 [box_width, box_height],
             ])
             .on('zoom', zoomed)
-            .on('mousewheel', zoomed)
+            // .on('mousewheel', zoomed)
             .on('start', start_zoom)
 
         const zoomElem = scatter
