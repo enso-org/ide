@@ -235,7 +235,7 @@ let getListOfChangedFiles = {
     name: 'Get list of changed files',
     id: 'changed_files',
     run: `
-        list=\`git diff --name-only origin/develop HEAD | tr '\\n' ' '\`
+        list=\`git diff --name-only origin/\${{github.base_ref}} HEAD | tr '\\n' ' '\`
         echo $list
         echo "::set-output name=list::'$list'"
     `,
@@ -262,9 +262,9 @@ let getCurrentReleaseChangelogInfo = {
 let assertChangelogWasUpdated = [
     getListOfChangedFiles,
     {
-        name: 'Assert if CHANGELOG.md was updated',
+        name: 'Assert if CHANGELOG.md was updated (on pull request)',
         run: `if [[ \${{ contains(steps.changed_files.outputs.list,'CHANGELOG.md') || contains(github.event.head_commit.message,'${FLAG_NO_CHANGELOG_NEEDED}') }} == false ]]; then exit 1; fi`,
-        if: `github.ref != 'refs/heads/develop' && github.ref != 'refs/heads/stable' && github.ref != 'refs/heads/unstable'`
+        if: `github.base_ref == 'develop' || github.base_ref == 'unstable' || github.base_ref == 'stable'`
     }
 ]
 
@@ -331,13 +331,13 @@ function uploadToCDN(...names) {
 let assertVersionUnstable = {
     name: "Assert Version Unstable",
     run: "node ./run assert-version-unstable --skip-version-validation",
-    if: `github.ref == 'refs/heads/unstable' || github.event.pull_request.base.ref == 'refs/heads/unstable'`
+    if: `github.ref == 'refs/heads/unstable' || github.base_ref == 'unstable'`
 }
 
 let assertVersionStable = {
     name: "Assert Version Stable",
     run: "node ./run assert-version-stable --skip-version-validation",
-    if: `github.ref == 'refs/heads/stable' || github.event.pull_request.base.ref == 'refs/heads/stable'`
+    if: `github.ref == 'refs/heads/stable' || github.base_ref == 'stable'`
 }
 
 let assertReleaseDoNotExists = [
@@ -377,7 +377,7 @@ let workflow = {
     name : "GUI CI",
     on: ['push','pull_request'],
     jobs: {
-        info: job_on_macos("Assertions", [
+        info: job_on_macos("Build Info", [
             dumpGitHubContext
         ]),
         version_assertions: job_on_macos("Assertions", [

@@ -9,7 +9,7 @@ name: GUI CI
   - pull_request
 jobs:
   info:
-    name: Assertions
+    name: Build Info
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -43,14 +43,10 @@ jobs:
         shell: bash
       - name: Assert Version Unstable
         run: node ./run assert-version-unstable --skip-version-validation
-        if: >-
-          github.ref == 'refs/heads/unstable' ||
-          github.event.pull_request.base.ref == 'refs/heads/unstable'
+        if: github.ref == 'refs/heads/unstable' || github.base_ref == 'unstable'
       - name: Assert Version Stable
         run: node ./run assert-version-stable --skip-version-validation
-        if: >-
-          github.ref == 'refs/heads/stable' ||
-          github.event.pull_request.base.ref == 'refs/heads/stable'
+        if: github.ref == 'refs/heads/stable' || github.base_ref == 'stable'
       - id: checkCurrentReleaseTag
         uses: mukunku/tag-exists-action@v1.0.0
         env:
@@ -65,19 +61,19 @@ jobs:
         id: changed_files
         run: |2-
 
-                  list=`git diff --name-only origin/develop HEAD | tr '\n' ' '`
+                  list=`git diff --name-only origin/${{github.base_ref}} HEAD | tr '\n' ' '`
                   echo $list
                   echo "::set-output name=list::'$list'"
               
         shell: bash
-      - name: Assert if CHANGELOG.md was updated
+      - name: Assert if CHANGELOG.md was updated (on pull request)
         run: >-
           if [[ ${{ contains(steps.changed_files.outputs.list,'CHANGELOG.md') ||
           contains(github.event.head_commit.message,'[ci no changelog needed]')
           }} == false ]]; then exit 1; fi
         if: >-
-          github.ref != 'refs/heads/develop' && github.ref !=
-          'refs/heads/stable' && github.ref != 'refs/heads/unstable'
+          github.base_ref == 'develop' || github.base_ref == 'unstable' ||
+          github.base_ref == 'stable'
   lint:
     name: Linter
     runs-on: ${{ matrix.os }}
