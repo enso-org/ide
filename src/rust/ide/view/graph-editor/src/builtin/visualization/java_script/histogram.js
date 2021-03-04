@@ -193,6 +193,8 @@ class Histogram extends Visualization {
                     this.canvas.margin.top +
                     ')'
             )
+            .style("overflow", "scroll")
+            .style("-webkit-overflow-scrolling", "touch");
 
         this.yAxis = this.svg.append('g').attr('style', LABEL_STYLE)
         this.xAxis = this.svg.append('g').attr('style', LABEL_STYLE)

@@ -71,6 +71,8 @@ class ScatterPlot extends Visualization {
                 'transform',
                 'translate(' + this.margin.left + ',' + this.margin.top + ')'
             )
+            .style("overflow", "scroll")
+            .style("-webkit-overflow-scrolling", "touch");
 
         let extremesAndDeltas = this.getExtremesAndDeltas(this.dataPoints)
         let scaleAndAxis = this.createAxes(
@@ -292,7 +294,7 @@ class ScatterPlot extends Visualization {
         }
 
         /**
-         * Return the position of this event in localc anvas coordinates.
+         * Return the position of this event in local canvas coordinates.
          */
         function get_pos(event) {
             return { x: event.offsetX, y: event.offsetY }
