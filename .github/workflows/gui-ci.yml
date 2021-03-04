@@ -5,8 +5,11 @@
 
 name: GUI CI
 'on':
-  - push
-  - pull_request
+  push:
+    branches:
+      - unstable
+      - stable
+  pull_request: {}
 jobs:
   info:
     name: Build Info

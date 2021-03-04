@@ -376,7 +376,12 @@ let buildCondition   = `contains(github.event.head_commit.message,'${FLAG_FORCE_
 
 let workflow = {
     name : "GUI CI",
-    on: ['push','pull_request'],
+    on: {
+        push: {
+            branches: ['unstable','stable']
+        },
+        pull_request: {}
+    },
     jobs: {
         info: job_on_macos("Build Info", [
             dumpGitHubContext
