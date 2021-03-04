@@ -170,7 +170,7 @@ impl Definition {
         Ok(Self{class,signature})
     }
 
-    /// TODO
+    /// Create a definition of visualization that is built into the IDE.
     pub fn new_builtin(source:impl AsRef<str>) -> Result<Self,Error> {
         Self::new(visualization::path::Project::Builtin,source)
     }

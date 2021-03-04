@@ -42,10 +42,12 @@ x ->
 /// The context module for the `PREPROCESSOR_CODE`. See there.
 pub const PREPROCESSOR_MODULE:&str = "Base.Main";
 
+/// Get preprocessor configuration for error visualization.
 pub fn preprocessor() -> instance::PreprocessorConfiguration {
     instance::PreprocessorConfiguration::new(PREPROCESSOR_CODE,PREPROCESSOR_MODULE)
 }
 
+/// Get metadata description for error visualization.
 pub fn metadata() -> Metadata {
     let preprocessor = preprocessor();
     Metadata {preprocessor}
@@ -193,13 +195,14 @@ impl Model {
 
     fn receive_data(&self, data:&Data) -> Result<(),DataError> {
         iprintln!("Receive data {data:?}");
-        if let Data::Json {content} = data {
-            let input_result = serde_json::from_value(content.deref().clone());
-            let input:Input  = input_result.map_err(|_| DataError::InvalidDataType)?;
-            self.set_data(&input);
-            Ok(())
-        } else {
-            Err(DataError::InvalidDataType)
+        match data {
+            Data::Json {content} => {
+                let input_result = serde_json::from_value(content.deref().clone());
+                let input:Input  = input_result.map_err(|_| DataError::InvalidDataType)?;
+                self.set_data(&input);
+                Ok(())
+            }
+            Data::Binary => Err(DataError::BinaryNotSupported)
         }
     }
 

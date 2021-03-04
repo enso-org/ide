@@ -194,9 +194,22 @@ In particular:
   `Visualization` class. Classes which do not extend it, will not be registered
   as visualizations. The superclass defines a default constructor and a set of
   utilities:
-  - The `setPreprocessor(code)` a method allowing setting an Enso code 
+  - The `setPreprocessorCode(code)` is a method allowing setting an Enso code 
     which will be evaluated on the server-side before sending data to 
-    visualization. See also [Lazy visualizations](#lazy-visualizations) section.
+    visualization. See also [Lazy visualizations](#lazy-visualizations) 
+    section. If not used, the default unspecified code will be used to 
+    serialize value to some JSON text representation.
+  - The `setPreprocessorModule(module)` is a method allowing defining in which
+    module's context the preprocessor code should be evaluated. If it is not 
+    used, the `Main` module of the project that defines visualization will be 
+    used.
+  - The `setPreprocessor(code,mode)` allows setting both code and its module 
+    context at once. If both need to be updated, using this method can save
+    an update processing and needless evaluation. 
+    Note that using both `setPreprocessorCode` and `setPreprocessorModule` 
+    from the visualization's custom constructor will not cause any unnecessary
+    updates, as the preprocessor is applied only after visualization is fully
+    constructed.
   - The `dom` field, which will be initialized in the constructor to the DOM
     symbol used to host the visualization content. You are free to modify the
     DOM element, including adding other elements as its children.

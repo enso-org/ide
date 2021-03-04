@@ -1233,15 +1233,12 @@ impl Model {
     , receive_data_endpoint : frp::Any<(graph_editor::NodeId,visualization::Data)>
     , visualizations_map    : SharedHashMap<graph_editor::NodeId,VisualizationId>
     ) -> FallibleResult<VisualizationId> {
-        error!(self.logger, "Attaching visualization {vis_metadata:?}.");
-
         // Do nothing if there is already a visualization attached.
         let err = || VisualizationAlreadyAttached(node_id);
         (!visualizations_map.contains_key(&node_id)).ok_or_else(err)?;
 
         debug!(self.logger, "Attaching visualization on node {node_id}.");
         let visualization  = self.prepare_visualization(node_id,vis_metadata)?;
-        error!(self.logger, "Prepared visualization {visualization:?}.");
         let id             = visualization.id;
         let update_handler = self.visualization_update_handler(receive_data_endpoint,node_id);
         let logger         = self.logger.clone_ref();

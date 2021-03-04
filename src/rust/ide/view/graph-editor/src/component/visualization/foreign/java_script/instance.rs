@@ -185,7 +185,7 @@ impl InstanceModel {
     fn receive_data(&self, data:&Data) -> result::Result<(),DataError> {
          let data_json = match data {
             Data::Json {content} => content,
-            _ => todo!() // FIXME
+            _                    => return Err(DataError::BinaryNotSupported),
          };
          let data_json:&serde_json::Value = data_json.deref();
          let data_js   = match JsValue::from_serde(data_json) {
@@ -260,19 +260,17 @@ impl Instance {
     fn init_preprocessor_change_callback(self) -> Self {
         // FIXME Does it leak memory? To be checked.
         let change   = self.frp.preprocessor_change.clone_ref();
-        let logger = self.model.logger.clone();
         let callback = move |preprocessor_config| {
-            error!(logger,"Called from JS: {preprocessor_config:?}");
             change.emit(preprocessor_config)
         };
         let callback = Box::new(callback);
         self.model.preprocessor_change.borrow_mut().replace(callback);
-        error!(self.model.logger,"Will emit preprocessor change");
-        // FIXME handle error
-        self.model.update_preprocessor();
-        error!(self.model.logger,"Emitted preprocessor change");
-
-        error!(self.model.logger,"preprocessor initial value: {self.frp.on_preprocessor_change.upgrade().unwrap().value():?}");
+        if let Err(js_error) = self.model.update_preprocessor() {
+            use enso_frp::web::js_to_string;
+            let logger = self.model.logger.clone();
+            error!(logger,
+                "Failed to trigger initial preprocessor update from JS: {js_to_string(js_error)}");
+        }
         self
     }
 

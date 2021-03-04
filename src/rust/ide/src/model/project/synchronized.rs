@@ -204,7 +204,7 @@ impl Project {
         let logger                  = self.logger.clone_ref();
         let weak_execution_contexts = Rc::downgrade(&self.execution_contexts);
         move |event| {
-            error!(logger, "Received an event from the binary protocol: {event:?}");
+            debug!(logger, "Received an event from the binary protocol: {event:?}");
             use enso_protocol::binary::client::Event;
             use enso_protocol::binary::Notification;
             match event {

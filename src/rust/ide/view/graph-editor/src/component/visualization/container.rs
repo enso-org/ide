@@ -14,6 +14,7 @@ mod visualization_chooser;
 use crate::prelude::*;
 
 use crate::visualization;
+use crate::component::visualization::instance::PreprocessorConfiguration;
 
 use action_bar::ActionBar;
 use enso_frp as frp;
@@ -29,7 +30,7 @@ use ensogl::application::Application;
 use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
 use ensogl_theme as theme;
-use crate::component::visualization::instance::PreprocessorConfiguration;
+
 
 
 // =================
