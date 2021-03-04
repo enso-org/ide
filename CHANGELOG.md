@@ -1,22 +1,22 @@
 # Enso 2.0.0-alpha.2 (2020-03-04)
-This is a bug-fixing, stability, and performance-focused release. It improves the performance of
-workflows and visualizations, and improves the look and feel of the graphical interface. Also, the
-graphical interface informs the users now about errors and their origin location.
+This is a release focused on bug-fixing, stability, and performance. It improves the performance of
+workflows and visualizations, and improves the look and feel of the graphical interface. In addition, the
+graphical interface informs the users now about errors and where they originate.
 
 
 <br/>![New Features](/docs/assets/tags/new_features.svg)
 
 #### Visual Environment
-- [The errors are now displayed in the graphical interface][1215]. Previously, the errors were 
+- [Errors in workflows are now displayed in the graphical interface][1215]. Previously, these errors were 
   silently skipped, which was non-intuitive and hard to understand. Now, the IDE displays both
-  data-flow errors and panics in a nice and descriptive way. 
-- [Added geo map support for Tables (Data Frames).][1187] Tables that have `latitude`, `longitude`
-  and optionally `label` columns can now be shown in a geo map.
+  dataflow errors and panics in a nice and descriptive way. 
+- [Added geographic map support for Tables (data frames).][1187] Tables that have `latitude`, `longitude`
+  and optionally `label` columns can now be shown as points on a map.
 - [Added the ability to reposition visualisations.][1096] There is now an icon in the visualization
   action bar that allows dragging the visualization away from a node. Once the visualization has 
-  been moved, there appears another icon that will re-pin the visualization back to the node.
-- [Added a shortcut for reloading visualization files.][1190] It drastically improves how fast a new
-  visualizations can be tested during the development. However, after reloading visualization 
+  been moved, another icon appears that can pin the visualization back to the node.
+- [Added a shortcut for live reloading of visualization files.][1190] It drastically improves how fast new
+  visualizations can be tested during their development. This is _currently_ limited in that, after reloading visualization 
   definitions, the currently visible visualizations must be switched to another and switched back to
   refresh its content. See the [video podcast about building custom visualizations][podcast-custom-visualizations]  
   to learn more.
@@ -31,42 +31,40 @@ graphical interface informs the users now about errors and their origin location
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
 #### Visual Environment
-- [You can now use the table visualization to display Data Frames][1181]. Please note, that big 
+- [You can now use the table visualization to display data frames][1181]. Please note, that large 
   tables will get truncated to 2000 entries. This limitation will be lifted in future releases.
-- [Performance improvements during visual workflow][1067]. Nodes added with searcher will have their
-  values automatically assigned to a newly generated variables, which allows Enso Engine to cache
-  intermediate values, improving visualization performance.
+- [Performance improvements during visual workflow][1067]. Nodes added with the searcher will have their
+  values automatically assigned to a newly generated variables, which allows the Enso Engine to cache
+  intermediate values and hence improve visualization performance.
 - [Minor documentation rendering fixes][1098]. Fixed cases where text would be misinterpreted as a
   tag, added support for new tag types, added support for more common characters, properly renders
   overflowing text.
-- [Improved handling of projects created with other IDE versions][1214]. IDE is now better at
-  dealing with incompatible metadata in files, which stores node visual positions, history of picked
+- [Improved handling of projects created with other IDE versions][1214]. The IDE is now better at
+  dealing with incompatible metadata in files, which stores node visual position information, the history of chosen
   searcher suggestions, etc. This will allow IDE to correctly open projects that were created
-  using a different IDE version and prevent unnecessary lose of metadata information.
-- Pressing and holding up and down arrow keys make the list view selection to move multiple times.
-- The shortcuts to close the application and to toggle the developer tools at runtime are working
-  now on all supported platforms.
-- [Loading progress indicator remains visible while IDE initializes][1237]. Previously the spinner
-  acting as a loading progress indicator completed too quickly and stopped spinning before IDE was
+  using a different IDE version and prevent unnecessary lose of metadata.
+- Pressing and holding up and down arrow keys make the list view selection move continuously.
+- The shortcuts to close the application and to toggle the developer tools at runtime now work on all supported platforms.
+- [The loading progress indicator remains visible while IDE initializes][1237]. Previously the loading progress indicator completed too quickly and stopped spinning before the IDE was
   ready. Now it stays active, giving a visual indication that the initialization is still in
   progress.
-- [Fixed visual glitch where node's text was displayed white on white background][1264]. Most 
-  notably this occurred with output node of the function generated by node collapse refactoring.
+- [Fixed visual glitch where a node's text was displayed as white on a white background][1264]. Most 
+  notably this occurred with the output node of a function generated using the node collapse refactoring.
 - Many visual glitches vere fixed, including small "pixel-like" artifacts appearing on the screen.
 - [Several parser improvements][1274]. The parser used in the IDE has been updated to the latest 
-  version. This resolves several issues with language constructs like `import`, lambdas and 
-  parentheses, where upon entering certain text, the edit could be automatically reverted.
+  version. This resolves several issues with language constructs like `import`, lambdas, and 
+  parentheses, where upon typing certain text the edit could be automatically reverted.
 - [The auto-import functionality was improved][1279]. Libraries' `Main` modules are omitted in 
   expressions inserted by searcher. For example, the `point` method of `Geo` library will be 
   displayed as `Geo.point` and will insert import `Geo` instead of `Geo.Main`.
 - Cursors in text editors behave correctly now (they are not affected by scene pan and zoom). This
-  was possible because of a new multi-camera management system implemented in EnsoGL.
+  was possible because of the new multi-camera management system implemented in EnsoGL.
   
 #### EnsoGL (rendering engine)
-- New multi-camera management system, allowing the same shape systems be rendered on different 
+- A new multi-camera management system, allowing the same shape systems be rendered on different 
   layers from different cameras. The implementation automatically caches the same shape system
-  definitions per scene layer in order to minimize the amount of WebGL draw calls.
-- New symbols and shapes depth ordering mechanism. It is now possible to define depth order 
+  definitions per scene layer in order to minimize the amount of WebGL draw calls and hence improve performance.
+- A new depth-ordering mechanism for symbols and shapes. It is now possible to define depth order 
   dependencies between symbols, shapes, and shape systems.
 - Various performance improvements, especially for the text rendering engine.
 - Display objects handle visibility correctly now. Display objects are not visible by default and 
@@ -78,7 +76,7 @@ graphical interface informs the users now about errors and their origin location
 
 - [Learn how to define custom data visualizations in Enso][podcast-custom-visualizations].
 - [Learn how to use Java libraries in Enso][podcast-java-interop].
-- [Learn how to use HTTP libraries in Enso to build custom server-side website rendering].
+- [Learn how to use HTTP libraries in Enso to build custom server-side website rendering][podcast-http-server].
 - [Discover why Enso Compiler is so fast and how it was build to support a dual-representation langauge][podcast-compiler-internals].
 - [Learn more about the vision behind Enso and about its planned future][podcast-future-of-enso].
 
