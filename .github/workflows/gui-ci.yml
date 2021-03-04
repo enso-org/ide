@@ -66,6 +66,9 @@ jobs:
                   echo "::set-output name=list::'$list'"
               
         shell: bash
+        if: >-
+          github.base_ref == 'develop' || github.base_ref == 'unstable' ||
+          github.base_ref == 'stable'
       - name: Assert if CHANGELOG.md was updated (on pull request)
         run: >-
           if [[ ${{ contains(steps.changed_files.outputs.list,'CHANGELOG.md') ||

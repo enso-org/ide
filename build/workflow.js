@@ -239,7 +239,8 @@ let getListOfChangedFiles = {
         echo $list
         echo "::set-output name=list::'$list'"
     `,
-    shell: 'bash'
+    shell: 'bash',
+    if: `github.base_ref == 'develop' || github.base_ref == 'unstable' || github.base_ref == 'stable'`
 }
 
 
