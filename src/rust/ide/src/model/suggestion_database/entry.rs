@@ -513,6 +513,7 @@ mod test {
 
         // TODO [mwu] Extensions on nullary atoms should also be able to generate this.
         //            The tests below will need to be adjusted, once that behavior is fixed.
+        //            See https://github.com/enso-org/ide/issues/1299
         expect(&module_extension, None,                  true,  "module_extension", &[&another_module]);
         expect(&module_extension, None,                  false, "module_extension", &[&another_module]);
         expect(&module_extension, Some(&main_module),    true,  "module_extension", &[&another_module]);
