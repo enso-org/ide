@@ -2,8 +2,8 @@ loadScript('https://d3js.org/d3.v4.min.js')
 loadStyle('https://fontlibrary.org/face/dejavu-sans-mono')
 
 let shortcuts = {
-    zoomIn: (e) => (e.ctrlKey || e.metaKey) && e.key === 'z',
-    showAll: (e) => (e.ctrlKey || e.metaKey) && event.key === 'a',
+    zoomIn: e => (e.ctrlKey || e.metaKey) && e.key === 'z',
+    showAll: e => (e.ctrlKey || e.metaKey) && event.key === 'a',
 }
 
 const label_style = 'font-family: DejaVuSansMonoBook; font-size: 10px;'
@@ -222,14 +222,14 @@ class ScatterPlot extends Visualization {
                 .selectAll('path')
                 .attr(
                     'transform',
-                    (d) => 'translate(' + new_xScale(d.x) + ',' + new_yScale(d.y) + ')'
+                    d => 'translate(' + new_xScale(d.x) + ',' + new_yScale(d.y) + ')'
                 )
 
             if (points.labels === visilbe_points) {
                 scatter
                     .selectAll('text')
-                    .attr('x', (d) => new_xScale(d.x) + point_label_padding_x)
-                    .attr('y', (d) => new_yScale(d.y) + point_label_padding_y)
+                    .attr('x', d => new_xScale(d.x) + point_label_padding_x)
+                    .attr('y', d => new_yScale(d.y) + point_label_padding_y)
             }
         }
 
@@ -293,7 +293,7 @@ class ScatterPlot extends Visualization {
             self.zoomingHelper(scaleAndAxis, box_width, scatter, points)
         }
 
-        const zoomInKeyEvent = (event) => {
+        const zoomInKeyEvent = event => {
             if (shortcuts.zoomIn(event)) {
                 zoomIn()
                 endBrushing()
@@ -322,7 +322,7 @@ class ScatterPlot extends Visualization {
         }
 
         let endEvents = ['click', 'auxclick', 'contextmenu', 'scroll']
-        endEvents.forEach((e) => document.addEventListener(e, endBrushing, false))
+        endEvents.forEach(e => document.addEventListener(e, endBrushing, false))
     }
 
     /**
@@ -344,8 +344,7 @@ class ScatterPlot extends Visualization {
             .duration(animation_duration)
             .attr(
                 'transform',
-                (d) =>
-                    'translate(' + scaleAndAxis.xScale(d.x) + ',' + scaleAndAxis.yScale(d.y) + ')'
+                d => 'translate(' + scaleAndAxis.xScale(d.x) + ',' + scaleAndAxis.yScale(d.y) + ')'
             )
 
         if (points.labels === visilbe_points) {
@@ -353,8 +352,8 @@ class ScatterPlot extends Visualization {
                 .selectAll('text')
                 .transition()
                 .duration(animation_duration)
-                .attr('x', (d) => scaleAndAxis.xScale(d.x) + point_label_padding_x)
-                .attr('y', (d) => scaleAndAxis.yScale(d.y) + point_label_padding_y)
+                .attr('x', d => scaleAndAxis.xScale(d.x) + point_label_padding_x)
+                .attr('y', d => scaleAndAxis.yScale(d.y) + point_label_padding_y)
         }
     }
 
@@ -385,14 +384,13 @@ class ScatterPlot extends Visualization {
             .append('path')
             .attr(
                 'd',
-                symbol.type(this.matchShape()).size((d) => (d.size || 1.0) * sizeScaleMultiplier)
+                symbol.type(this.matchShape()).size(d => (d.size || 1.0) * sizeScaleMultiplier)
             )
             .attr(
                 'transform',
-                (d) =>
-                    'translate(' + scaleAndAxis.xScale(d.x) + ',' + scaleAndAxis.yScale(d.y) + ')'
+                d => 'translate(' + scaleAndAxis.xScale(d.x) + ',' + scaleAndAxis.yScale(d.y) + ')'
             )
-            .style('fill', (d) => '#' + (d.color || '000000'))
+            .style('fill', d => '#' + (d.color || '000000'))
             .style('opacity', 0.5)
 
         if (points.labels === visilbe_points) {
@@ -401,9 +399,9 @@ class ScatterPlot extends Visualization {
                 .data(dataPoints)
                 .enter()
                 .append('text')
-                .text((d) => d.label)
-                .attr('x', (d) => scaleAndAxis.xScale(d.x) + point_label_padding_x)
-                .attr('y', (d) => scaleAndAxis.yScale(d.y) + point_label_padding_y)
+                .text(d => d.label)
+                .attr('x', d => scaleAndAxis.xScale(d.x) + point_label_padding_x)
+                .attr('y', d => scaleAndAxis.yScale(d.y) + point_label_padding_y)
                 .attr('style', label_style)
                 .attr('fill', 'black')
         }
@@ -415,7 +413,7 @@ class ScatterPlot extends Visualization {
      * Helper function to match d3 shape from string.
      */
     matchShape() {
-        return (d) => {
+        return d => {
             if (d.shape === 'cross') {
                 return d3.symbolCross
             }
@@ -547,7 +545,7 @@ class ScatterPlot extends Visualization {
         let yMin = dataPoints[0].y
         let yMax = dataPoints[0].y
 
-        dataPoints.forEach((d) => {
+        dataPoints.forEach(d => {
             if (d.x < xMin) {
                 xMin = d.x
             }
@@ -703,7 +701,7 @@ class ScatterPlot extends Visualization {
             self.zoomingHelper(scaleAndAxis, box_width, scatter, points)
         }
 
-        document.addEventListener('keydown', (e) => {
+        document.addEventListener('keydown', e => {
             if (shortcuts.showAll(e)) {
                 unzoom()
             }

@@ -18,7 +18,7 @@ class BubbleVisualization extends Visualization {
 
         this.dom.appendChild(svgElem)
 
-        data.forEach((data) => {
+        data.forEach(data => {
             const bubble = document.createElementNS(xmlns, 'circle')
             bubble.setAttributeNS(null, 'stroke', 'black')
             bubble.setAttributeNS(null, 'fill', 'red')

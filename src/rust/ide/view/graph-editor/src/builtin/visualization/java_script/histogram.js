@@ -4,9 +4,9 @@ loadScript('https://d3js.org/d3.v4.min.js')
 loadStyle('https://fontlibrary.org/face/dejavu-sans-mono')
 
 let shortcuts = {
-    zoomIn: (e) => (e.ctrlKey || e.metaKey) && e.key === 'z',
-    showAll: (e) => (e.ctrlKey || e.metaKey) && e.key === 'a',
-    debugPreprocessor: (e) => (e.ctrlKey || e.metaKey) && e.key === 'd',
+    zoomIn: e => (e.ctrlKey || e.metaKey) && e.key === 'z',
+    showAll: e => (e.ctrlKey || e.metaKey) && e.key === 'a',
+    debugPreprocessor: e => (e.ctrlKey || e.metaKey) && e.key === 'd',
 }
 
 const LABEL_STYLE = 'font-family: DejaVuSansMonoBook; font-size: 10px;'
@@ -217,7 +217,7 @@ class Histogram extends Visualization {
     }
 
     initDebugShortcut() {
-        document.addEventListener('keydown', (e) => {
+        document.addEventListener('keydown', e => {
             if (shortcuts.debugPreprocessor(e)) {
                 this.setPreprocessor('x -> "[1,2,3,4]"')
                 e.preventDefault()
@@ -320,7 +320,7 @@ class Histogram extends Visualization {
             self.rescale(self.scale, true)
         }
 
-        const zoomInKeyEvent = (event) => {
+        const zoomInKeyEvent = event => {
             if (shortcuts.zoomIn(event)) {
                 zoomIn()
                 endBrushing()
@@ -349,7 +349,7 @@ class Histogram extends Visualization {
         }
 
         let endEvents = ['click', 'auxclick', 'contextmenu', 'scroll']
-        endEvents.forEach((e) => document.addEventListener(e, endBrushing, false))
+        endEvents.forEach(e => document.addEventListener(e, endBrushing, false))
     }
 
     /**
@@ -367,7 +367,7 @@ class Histogram extends Visualization {
             .duration(animation_duration)
             .attr(
                 'transform',
-                (d) =>
+                d =>
                     'translate(' +
                     scale.x(d.x0) +
                     ',' +
@@ -409,16 +409,16 @@ class Histogram extends Visualization {
 
         const histogram = d3
             .histogram()
-            .value((d) => d)
+            .value(d => d)
             .domain(x.domain())
             .thresholds(x.ticks(this.binCount()))
 
         const bins = histogram(dataPoints)
 
         const y = d3.scaleLinear().range([this.canvas.inner.height, 0])
-        y.domain([0, d3.max(bins, (d) => d.length)])
+        y.domain([0, d3.max(bins, d => d.length)])
 
-        const yAxisTicks = y.ticks().filter((tick) => Number.isInteger(tick))
+        const yAxisTicks = y.ticks().filter(tick => Number.isInteger(tick))
 
         const yAxis = d3.axisLeft(y).tickValues(yAxisTicks).tickFormat(d3.format('d'))
 
@@ -436,9 +436,9 @@ class Histogram extends Visualization {
             .enter()
             .append('rect')
             .attr('x', 1)
-            .attr('transform', (d) => 'translate(' + x(d.x0) + ',' + y(d.length) + ')')
-            .attr('width', (d) => x(d.x1) - x(d.x0))
-            .attr('height', (d) => this.canvas.inner.height - y(d.length))
+            .attr('transform', d => 'translate(' + x(d.x0) + ',' + y(d.length) + ')')
+            .attr('width', d => x(d.x1) - x(d.x0))
+            .attr('height', d => this.canvas.inner.height - y(d.length))
             .style('fill', accentColor)
 
         items.exit().remove()
@@ -508,7 +508,7 @@ class Histogram extends Visualization {
         let xMin = dataPoints[0]
         let xMax = dataPoints[0]
 
-        dataPoints.forEach((value) => {
+        dataPoints.forEach(value => {
             if (value < xMin) {
                 xMin = value
             }
@@ -662,7 +662,7 @@ class Histogram extends Visualization {
             self.rescale(self.scale, true)
         }
 
-        document.addEventListener('keydown', (e) => {
+        document.addEventListener('keydown', e => {
             if (shortcuts.showAll(e)) {
                 reset_zoom_and_pan()
             }

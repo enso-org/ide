@@ -224,8 +224,8 @@ class GeoMapVisualization extends Visualization {
     makeScatterLayer() {
         return new deck.ScatterplotLayer({
             data: this.dataPoints,
-            getFillColor: (d) => d.color,
-            getRadius: (d) => d.radius,
+            getFillColor: d => d.color,
+            getRadius: d => d.radius,
             pickable: this.showingLabels,
         })
     }
@@ -322,7 +322,7 @@ function extractVisualizationDataFromFullConfig(parsedData, preparedDataPoints, 
     if (parsedData.type === SCATTERPLOT_LAYER && parsedData.data.length) {
         pushPoints(parsedData.data, preparedDataPoints, accentColor)
     } else if (ok(parsedData.layers)) {
-        parsedData.layers.forEach((layer) => {
+        parsedData.layers.forEach(layer => {
             if (layer.type === SCATTERPLOT_LAYER) {
                 let dataPoints = layer.data || []
                 pushPoints(dataPoints, preparedDataPoints, accentColor)
@@ -373,7 +373,7 @@ function extractDataPoints(parsedData, preparedDataPoints, accentColor) {
  * optionally `radius`, `color` and `label`.
  */
 function pushPoints(dataPoints, targetList, accentColor) {
-    dataPoints.forEach((geoPoint) => {
+    dataPoints.forEach(geoPoint => {
         let position = [geoPoint.longitude, geoPoint.latitude]
         let radius = isNaN(geoPoint.radius) ? DEFAULT_POINT_RADIUS : geoPoint.radius
         let color = ok(geoPoint.color) ? geoPoint.color : accentColor
@@ -389,7 +389,7 @@ function pushPoints(dataPoints, targetList, accentColor) {
 function calculateExtent(dataPoints) {
     const xs = []
     const ys = []
-    dataPoints.forEach((e) => {
+    dataPoints.forEach(e => {
         xs.push(e.position[0])
         ys.push(e.position[1])
     })
