@@ -1,0 +1,10 @@
+trailingComma: "es5"
+tabWidth: 4
+semi: false
+singleQuote: true
+printWidth: 100
+overrides:
+  - files: "*.md"
+    options:
+      printWidth: 80
+      proseWrap: "always"

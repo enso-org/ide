@@ -29,8 +29,7 @@ class TableVisualization extends Visualization {
 
         function hasExactlyKeys(keys, obj) {
             return (
-                Object.keys(obj).length === keys.length &&
-                keys.every((k) => obj.hasOwnProperty(k))
+                Object.keys(obj).length === keys.length && keys.every((k) => obj.hasOwnProperty(k))
             )
         }
 
@@ -53,9 +52,7 @@ class TableVisualization extends Visualization {
             )
             if (isNestable) {
                 let withNests = firstKeys.map((k) => key.concat([k]))
-                let furtherNestings = withNests.map((k) =>
-                    generateNestings(data, k)
-                )
+                let furtherNestings = withNests.map((k) => generateNestings(data, k))
                 return [].concat.apply([], furtherNestings)
             } else {
                 return [key]
@@ -133,12 +130,7 @@ class TableVisualization extends Visualization {
         function genGenericTable(data, level) {
             let result = ''
             data.forEach((point, ix) => {
-                result +=
-                    '<tr><th>' +
-                    ix +
-                    '</th>' +
-                    toTableCell(point, level) +
-                    '</tr>'
+                result += '<tr><th>' + ix + '</th>' + toTableCell(point, level) + '</tr>'
             })
             return tableOf(result, level)
         }
@@ -165,11 +157,7 @@ class TableVisualization extends Visualization {
             } else {
                 if (data === undefined || data === null) data = ''
                 let res = data.toString()
-                return (
-                    '<td class="plaintext">' +
-                    (res === '' ? 'N/A' : res) +
-                    '</td>'
-                )
+                return '<td class="plaintext">' + (res === '' ? 'N/A' : res) + '</td>'
             }
         }
 
@@ -280,11 +268,7 @@ class TableVisualization extends Visualization {
         if (document.getElementById('root').classList.contains('dark-theme')) {
             style = style_dark
         }
-        const table = genTable(
-            parsedData.data || parsedData,
-            0,
-            parsedData.header
-        )
+        const table = genTable(parsedData.data || parsedData, 0, parsedData.header)
         tabElem.innerHTML = style + table
     }
 

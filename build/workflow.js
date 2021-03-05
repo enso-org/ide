@@ -52,8 +52,12 @@ function job_on_macos(...args) {
     return job(["macOS-latest"],...args)
 }
 
-function job_on_linux(...args) {
+function job_on_ubuntu(...args) {
     return job(["ubuntu-latest"],...args)
+}
+
+function job_on_ubuntu_18_04(...args) {
+    return job(["ubuntu-18.04"],...args)
 }
 
 function list(...args) {
@@ -128,7 +132,7 @@ function installWasmPackOn(name,sys,pkg) {
             mv $WASMPACKDIR/wasm-pack ~/.cargo/bin
             rm -r $WASMPACKDIR`,
         shell: "bash",
-        if: `matrix.os == '${sys}-latest'`,
+        if: `startsWith(matrix.os,'${sys}')`,
     }
 }
 
@@ -149,7 +153,7 @@ function buildOn(name,sys) {
     return {
         name: `Build (${name})`,
         run: `node ./run dist --skip-version-validation --target ${name}`,
-        if: `matrix.os == '${sys}-latest'`
+        if: `startsWith(matrix.os,'${sys}')`
     }
 }
 
@@ -190,7 +194,7 @@ let uploadContentArtifacts = {
        name: 'content',
        path: `dist/content`
     },
-    if: `matrix.os == 'macOS-latest'`
+    if: `startsWith(matrix.os,'macOS')`
 }
 
 function uploadBinArtifactsFor(name,sys,ext,os) {
@@ -201,7 +205,7 @@ function uploadBinArtifactsFor(name,sys,ext,os) {
            name: `enso-${os}-\${{fromJson(steps.changelog.outputs.content).version}}.${ext}`,
            path: `dist/client/enso-${os}-\${{fromJson(steps.changelog.outputs.content).version}}.${ext}`
         },
-        if: `matrix.os == '${sys}-latest'`
+        if: `startsWith(matrix.os,'${sys}')`
     }
 }
 
@@ -275,20 +279,27 @@ let assertChangelogWasUpdated = [
 // === GitHub Release ===
 // ======================
 
-let uploadGitHubRelease = {
-    name: `Upload GitHub Release`,
-    uses: "softprops/action-gh-release@v1",
-    env: {
-        GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+let uploadGitHubRelease = [
+    installPrettier,
+    {
+        name: `Pretty print changelog.`,
+        run: "npx prettier --prose-wrap never CHANGELOG.md --write"
     },
-    with: {
-        files:      "artifacts/**/enso-*",
-        name:       "Enso ${{fromJson(steps.changelog.outputs.content).version}}",
-        tag_name:   "v${{fromJson(steps.changelog.outputs.content).version}}",
-        body:       "${{fromJson(steps.changelog.outputs.content).body}}",
-        prerelease: "${{fromJson(steps.changelog.outputs.content).prerelease}}",
-    },
-}
+    {
+        name: `Upload GitHub Release`,
+        uses: "softprops/action-gh-release@v1",
+        env: {
+            GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        },
+        with: {
+            files:      "artifacts/**/enso-*",
+            name:       "Enso ${{fromJson(steps.changelog.outputs.content).version}}",
+            tag_name:   "v${{fromJson(steps.changelog.outputs.content).version}}",
+            body:       "${{fromJson(steps.changelog.outputs.content).body}}",
+            prerelease: "${{fromJson(steps.changelog.outputs.content).prerelease}}",
+        },
+    }
+]
 
 
 
@@ -451,7 +462,7 @@ let workflow = {
         ],{ if:releaseCondition,
             needs:['version_assertions','lint','test','wasm-test','build']
         }),
-        release_to_cdn: job_on_linux("CDN Release", [
+        release_to_cdn: job_on_ubuntu_18_04("CDN Release", [
             downloadArtifacts,
             getCurrentReleaseChangelogInfo,
             prepareAwsSessionCDN,

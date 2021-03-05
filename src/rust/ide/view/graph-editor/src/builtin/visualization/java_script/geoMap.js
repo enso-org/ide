@@ -110,11 +110,7 @@ class GeoMapVisualization extends Visualization {
         const mapElem = document.createElement('div')
         this.mapId = makeId()
         mapElem.setAttributeNS(null, 'id', this.mapId)
-        mapElem.setAttributeNS(
-            null,
-            'style',
-            'width:' + width + 'px;height: ' + height + 'px;'
-        )
+        mapElem.setAttributeNS(null, 'style', 'width:' + width + 'px;height: ' + height + 'px;')
         this.dom.appendChild(mapElem)
         this.mapElem = mapElem
     }
@@ -126,8 +122,7 @@ class GeoMapVisualization extends Visualization {
         let labelColor = LABEL_LIGHT_COLOR
         let labelOutline = LABEL_LIGHT_OUTLINE
         if (document.getElementById('root').classList.contains('dark-theme')) {
-            defaultMapStyle =
-                'mapbox://styles/enso-org/ckiu0o0in2fpp19rpk0jfvg2s'
+            defaultMapStyle = 'mapbox://styles/enso-org/ckiu0o0in2fpp19rpk0jfvg2s'
             accentColor = DARK_ACCENT_COLOR
             labelBackgroundColor = LABEL_DARK_BACKGROUND
             labelColor = LABEL_DARK_COLOR
@@ -323,11 +318,7 @@ class GeoMapVisualization extends Visualization {
 /**
  * Extract the visualisation data from a full configuration object.
  */
-function extractVisualizationDataFromFullConfig(
-    parsedData,
-    preparedDataPoints,
-    accentColor
-) {
+function extractVisualizationDataFromFullConfig(parsedData, preparedDataPoints, accentColor) {
     if (parsedData.type === SCATTERPLOT_LAYER && parsedData.data.length) {
         pushPoints(parsedData.data, preparedDataPoints, accentColor)
     } else if (ok(parsedData.layers)) {
@@ -345,11 +336,7 @@ function extractVisualizationDataFromFullConfig(
 /**
  * Extract the visualisation data from a dataframe.
  */
-function extractVisualizationDataFromDataFrame(
-    parsedData,
-    preparedDataPoints,
-    accentColor
-) {
+function extractVisualizationDataFromDataFrame(parsedData, preparedDataPoints, accentColor) {
     const geoPoints = parsedData.df_latitude.map(function (lat, i) {
         const lon = parsedData.df_longitude[i]
         let label = ok(parsedData.df_label) ? parsedData.df_label[i] : undefined
@@ -372,17 +359,9 @@ function isDataFrame(data) {
  */
 function extractDataPoints(parsedData, preparedDataPoints, accentColor) {
     if (isDataFrame(parsedData)) {
-        extractVisualizationDataFromDataFrame(
-            parsedData,
-            preparedDataPoints,
-            accentColor
-        )
+        extractVisualizationDataFromDataFrame(parsedData, preparedDataPoints, accentColor)
     } else {
-        extractVisualizationDataFromFullConfig(
-            parsedData,
-            preparedDataPoints,
-            accentColor
-        )
+        extractVisualizationDataFromFullConfig(parsedData, preparedDataPoints, accentColor)
     }
 }
 
@@ -396,9 +375,7 @@ function extractDataPoints(parsedData, preparedDataPoints, accentColor) {
 function pushPoints(dataPoints, targetList, accentColor) {
     dataPoints.forEach((geoPoint) => {
         let position = [geoPoint.longitude, geoPoint.latitude]
-        let radius = isNaN(geoPoint.radius)
-            ? DEFAULT_POINT_RADIUS
-            : geoPoint.radius
+        let radius = isNaN(geoPoint.radius) ? DEFAULT_POINT_RADIUS : geoPoint.radius
         let color = ok(geoPoint.color) ? geoPoint.color : accentColor
         let label = ok(geoPoint.label) ? geoPoint.label : ''
         targetList.push({ position, color, radius, label })

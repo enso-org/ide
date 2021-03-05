@@ -86,9 +86,7 @@ class Histogram extends Visualization {
         if (isUpdate) {
             this._axisSpec = ok(data.axis) ? data.axis : this._axisSpec
             this._focus = ok(data.focus) ? data.focus : this._focus
-            this._dataValues = ok(data.data.values)
-                ? data.data.values
-                : this.data
+            this._dataValues = ok(data.data.values) ? data.data.values : this.data
             this._bins = ok(data.bins) ? data.bins : this._bins
         } else {
             this._axisSpec = data.axis
@@ -187,19 +185,13 @@ class Histogram extends Visualization {
             .append('g')
             .attr(
                 'transform',
-                'translate(' +
-                    this.canvas.margin.left +
-                    ',' +
-                    this.canvas.margin.top +
-                    ')'
+                'translate(' + this.canvas.margin.left + ',' + this.canvas.margin.top + ')'
             )
 
         this.yAxis = this.svg.append('g').attr('style', LABEL_STYLE)
         this.xAxis = this.svg.append('g').attr('style', LABEL_STYLE)
 
-        this.plot = this.svg
-            .append('g')
-            .attr('clip-path', 'url(#hist-clip-path)')
+        this.plot = this.svg.append('g').attr('clip-path', 'url(#hist-clip-path)')
 
         // Create clip path
         const defs = this.svg.append('defs')
@@ -250,10 +242,7 @@ class Histogram extends Visualization {
                 let scroll_wheel = 0
                 switch (d3.event.type) {
                     case 'mousedown':
-                        return (
-                            d3.event.button === right_button ||
-                            d3.event.button === mid_button
-                        )
+                        return d3.event.button === right_button || d3.event.button === mid_button
                     case 'wheel':
                         return d3.event.button === scroll_wheel
                     default:
@@ -310,10 +299,7 @@ class Histogram extends Visualization {
 
         // The brush element must be child of zoom element - this is only way we found to have both
         // zoom and brush events working at the same time. See https://stackoverflow.com/a/59757276 .
-        const brushElem = zoom.zoomElem
-            .append('g')
-            .attr('class', brushClass)
-            .call(brush)
+        const brushElem = zoom.zoomElem.append('g').attr('class', brushClass).call(brush)
 
         const self = this
 
@@ -363,9 +349,7 @@ class Histogram extends Visualization {
         }
 
         let endEvents = ['click', 'auxclick', 'contextmenu', 'scroll']
-        endEvents.forEach((e) =>
-            document.addEventListener(e, endBrushing, false)
-        )
+        endEvents.forEach((e) => document.addEventListener(e, endBrushing, false))
     }
 
     /**
@@ -417,10 +401,7 @@ class Histogram extends Visualization {
             }
         }
 
-        const x = d3
-            .scaleLinear()
-            .domain(domain_x)
-            .range([0, this.canvas.inner.width])
+        const x = d3.scaleLinear().domain(domain_x).range([0, this.canvas.inner.width])
 
         this.xAxis
             .attr('transform', 'translate(0,' + this.canvas.inner.height + ')')
@@ -439,10 +420,7 @@ class Histogram extends Visualization {
 
         const yAxisTicks = y.ticks().filter((tick) => Number.isInteger(tick))
 
-        const yAxis = d3
-            .axisLeft(y)
-            .tickValues(yAxisTicks)
-            .tickFormat(d3.format('d'))
+        const yAxis = d3.axisLeft(y).tickValues(yAxisTicks).tickFormat(d3.format('d'))
 
         this.yAxis.call(yAxis)
 
@@ -458,10 +436,7 @@ class Histogram extends Visualization {
             .enter()
             .append('rect')
             .attr('x', 1)
-            .attr(
-                'transform',
-                (d) => 'translate(' + x(d.x0) + ',' + y(d.length) + ')'
-            )
+            .attr('transform', (d) => 'translate(' + x(d.x0) + ',' + y(d.length) + ')')
             .attr('width', (d) => x(d.x1) - x(d.x0))
             .attr('height', (d) => this.canvas.inner.height - y(d.length))
             .style('fill', accentColor)
@@ -496,28 +471,15 @@ class Histogram extends Visualization {
         const fontStyle = '10px DejaVuSansMonoBook'
         if (axis.x.label !== undefined) {
             this.xAxisLabel
-                .attr(
-                    'y',
-                    canvas.inner.height +
-                        canvas.margin.bottom -
-                        X_AXIS_LABEL_WIDTH / 2.0
-                )
-                .attr(
-                    'x',
-                    canvas.inner.width / 2.0 +
-                        this.textWidth(axis.x.label, fontStyle) / 2
-                )
+                .attr('y', canvas.inner.height + canvas.margin.bottom - X_AXIS_LABEL_WIDTH / 2.0)
+                .attr('x', canvas.inner.width / 2.0 + this.textWidth(axis.x.label, fontStyle) / 2)
                 .text(axis.x.label)
         }
         // Note: y axis is rotated by 90 degrees, so x/y is switched.
         if (axis.y.label !== undefined) {
             this.yAxisLabel
                 .attr('y', -canvas.margin.left + Y_AXIS_LABEL_WIDTH)
-                .attr(
-                    'x',
-                    -canvas.inner.height / 2 +
-                        this.textWidth(axis.y.label, fontStyle) / 2
-                )
+                .attr('x', -canvas.inner.height / 2 + this.textWidth(axis.y.label, fontStyle) / 2)
                 .text(axis.y.label)
         }
     }
@@ -602,11 +564,7 @@ class Histogram extends Visualization {
     createOuterContainerWithStyle(width, height) {
         const divElem = document.createElementNS(null, 'div')
         divElem.setAttributeNS(null, 'class', 'vis-histogram')
-        divElem.setAttributeNS(
-            null,
-            'viewBox',
-            0 + ' ' + 0 + ' ' + width + ' ' + height
-        )
+        divElem.setAttributeNS(null, 'viewBox', 0 + ' ' + 0 + ' ' + width + ' ' + height)
         divElem.setAttributeNS(null, 'width', '100%')
         divElem.setAttributeNS(null, 'height', '100%')
 
@@ -692,10 +650,7 @@ class Histogram extends Visualization {
 
         const self = this
         const reset_zoom_and_pan = () => {
-            zoom.zoomElem
-                .transition()
-                .duration(0)
-                .call(zoom.zoom.transform, d3.zoomIdentity)
+            zoom.zoomElem.transition().duration(0).call(zoom.zoom.transform, d3.zoomIdentity)
 
             let domain_x = [
                 extremesAndDeltas.xMin - extremesAndDeltas.paddingX,
