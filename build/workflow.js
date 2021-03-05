@@ -161,6 +161,11 @@ buildOnMacOS   = buildOn('macos','macos')
 buildOnWindows = buildOn('win','windows')
 buildOnLinux   = buildOn('linux','ubuntu')
 
+let lintMarkdown = {
+    name: "Lint Markdown sources",
+    run: "npx prettier --check '*.md'",
+}
+
 let lintJavaScript = {
     name: "Lint JavaScript sources",
     run: "npx prettier --check 'src/**/*.js'",
@@ -418,6 +423,7 @@ let workflow = {
             installRust,
             installPrettier,
             installClippy,
+            lintMarkdown,
             lintJavaScript,
             lintRust
         ]),
