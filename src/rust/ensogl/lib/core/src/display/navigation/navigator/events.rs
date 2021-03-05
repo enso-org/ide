@@ -243,7 +243,7 @@ impl NavigatorEvents {
                     let position   = data.mouse_position();
                     let zoom_speed = data.zoom_speed();
                     let movement   = Vector2::new(event.delta_x() as f32, -event.delta_y() as f32);
-                    let amount     = -movement_to_zoom(movement);
+                    let amount     = movement_to_zoom(movement);
                     let zoom_event = ZoomEvent::new(position,amount,zoom_speed);
                     data.on_zoom(zoom_event);
                 } else {
@@ -339,6 +339,8 @@ impl NavigatorEvents {
 
 fn movement_to_zoom(v:Vector2<f32>) -> f32 {
     let len  = v.magnitude();
-    let sign = if v.x + v.y < 0.0 { -1.0 } else { 1.0 };
+    // The zoom amount is a movement of camera along Z-axis, so positive values zoom out, and
+    // negative zoom in.
+    let sign = if v.x + v.y < 0.0 { 1.0 } else { -1.0 };
     sign * len
 }

@@ -119,8 +119,10 @@ impl Entry {
     (&self, current_module:Option<&module::QualifiedName>, generate_this:bool) -> CodeToInsert {
         let mut imports = BTreeSet::new();
 
-        // Regular methods are found through this-lookup. Other entities need to be visible.
-        // Import if not already defined in this module.
+        // Entry import should be skipped when:
+        // * it is a regular (i.e. non extension) method, as it will bee found dynamically through
+        //   the `this` argument;
+        // * it is an entry defined in the current module, so it is already visible.
         if !self.is_regular_method() && !current_module.contains(&&self.module) {
             imports.insert(self.module.clone());
         }
@@ -132,7 +134,9 @@ impl Entry {
             } else {
                 // If we are inserting an additional `this` argument, the used name must be visible.
                 imports.insert(self.module.clone());
-                Some(self.module.name().into())
+                let mut module = self.module.clone();
+                module.remove_main_module_segment();
+                Some(module.name().into())
             }
         } else {
             // TODO [mwu] Actually we could generate this expression here if its type is known to be
@@ -428,13 +432,13 @@ mod test {
     #[test]
     fn code_from_entry() {
         let main_module    = module::QualifiedName::from_text("Project.Main").unwrap();
-        let another_module = module::QualifiedName::from_text("Project.AnotherModule").unwrap();
+        let another_module = module::QualifiedName::from_text("Project.Another_Module").unwrap();
         let atom = Entry {
-            name          : "Atom".to_string(),
+            name          : "Atom".to_owned(),
             kind          : Kind::Atom,
             module        : main_module.clone(),
             arguments     : vec![],
-            return_type   : "Number".to_string(),
+            return_type   : "Number".to_owned(),
             documentation : None,
             self_type     : None,
             scope         : Scope::Everywhere,
@@ -446,9 +450,14 @@ mod test {
             ..atom.clone()
         };
         let module_method = Entry {
-            name      : "module_method".to_string(),
+            name      : "module_method".to_owned(),
             self_type : Some(main_module.clone().into()),
             ..method.clone()
+        };
+        let another_module_method = Entry {
+            module    : another_module.clone(),
+            self_type : Some(another_module.clone().into()),
+            ..module_method.clone()
         };
         let module_extension = Entry {
             module    : another_module.clone(),
@@ -468,6 +477,8 @@ mod test {
         expect(&atom, Some(&main_module),    false, "Atom", &[]);
         expect(&atom, Some(&another_module), true,  "Atom", &[&main_module]);
         expect(&atom, Some(&another_module), false, "Atom", &[&main_module]);
+        expect(&atom, Some(&another_module), true,  "Atom", &[&main_module]);
+        expect(&atom, Some(&another_module), false, "Atom", &[&main_module]);
 
         expect(&method, None,                  true,  "method", &[&main_module]);
         expect(&method, None,                  false, "method", &[&main_module]);
@@ -476,12 +487,19 @@ mod test {
         expect(&method, Some(&another_module), true,  "method", &[&main_module]);
         expect(&method, Some(&another_module), false, "method", &[&main_module]);
 
-        expect(&module_method, None,                  true,  "Main.module_method", &[&main_module]);
+        expect(&module_method, None,                  true,  "Project.module_method", &[&main_module]);
         expect(&module_method, None,                  false, "module_method",      &[]);
         expect(&module_method, Some(&main_module),    true,  "here.module_method", &[]);
         expect(&module_method, Some(&main_module),    false, "module_method",      &[]);
-        expect(&module_method, Some(&another_module), true,  "Main.module_method", &[&main_module]);
+        expect(&module_method, Some(&another_module), true,  "Project.module_method", &[&main_module]);
         expect(&module_method, Some(&another_module), false, "module_method",      &[]);
+
+        expect(&another_module_method, None,                  true,  "Another_Module.module_method", &[&another_module]);
+        expect(&another_module_method, None,                  false, "module_method", &[]);
+        expect(&another_module_method, Some(&main_module),    true,  "Another_Module.module_method", &[&another_module]);
+        expect(&another_module_method, Some(&main_module),    false, "module_method", &[]);
+        expect(&another_module_method, Some(&another_module), true,  "here.module_method", &[]);
+        expect(&another_module_method, Some(&another_module), false, "module_method", &[]);
 
         // TODO [mwu] Extensions on nullary atoms should also be able to generate this.
         //            The tests below will need to be adjusted, once that behavior is fixed.

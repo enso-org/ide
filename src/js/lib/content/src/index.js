@@ -51,6 +51,14 @@ async function download_content(config) {
     let loader =
         new loader_module.Loader([wasm_glue_fetch,wasm_fetch], config)
 
+    // TODO [mwu]
+    // Progress indication for WASM loading is hereby capped at 30%.
+    // The remaining 70% is meant for IDE initialization. Currently we have no means of tracking
+    // it, so we keep spinner running at 30% to denote ongoing initialization.
+    // See https://github.com/enso-org/ide/issues/1237 for an immediate reason.
+    // See https://github.com/enso-org/ide/issues/1105 for a broader context.
+    loader.cap_progress_at = 0.3
+    
     loader.done.then(() => {
         console.groupEnd()
         console.log("Download finished. Finishing WASM compilation.")
@@ -169,22 +177,36 @@ mixpanel.init("5b541aeab5e08f313cdc1d1bbebc12ac", { "api_host": "https://api-eu.
 
 const MAX_MESSAGE_LENGTH = 500;
 
+function trim_message(message) {
+    let trimmed = message.substr(0,MAX_MESSAGE_LENGTH)
+    if (trimmed.length < message.length) {
+        trimmed += "..."
+    }
+    return trimmed
+}
+
 function remoteLog(event,data) {
     if (mixpanel) {
-        event = JSON.stringify(event).substr(0,MAX_MESSAGE_LENGTH)
-        if (data !== undefined) {
-            data = JSON.stringify(data).substr(0,MAX_MESSAGE_LENGTH)
+        event = trim_message(event)
+        if (data !== undefined && data !== null) {
+            data = trim_message(JSON.stringify(data))
+            mixpanel.track(event,{data});
+        } else {
+            mixpanel.track(event);
         }
-        mixpanel.track(event,{data:data});
     } else {
         console.warn(`Failed to log the event '${event}'.`)
     }
 }
 
-window.enso.remote_log = remoteLog
+window.enso.remoteLog = remoteLog
 
 window.setInterval(() =>{remoteLog("alive");}, 1000 * 60)
 
+//Build data injected during the build process. See `webpack.config.js` for the source.
+window.enso.remoteLog("git_hash", {hash: GIT_HASH})
+window.enso.remoteLog("build_information", BUILD_INFO)
+window.enso.remoteLog("git_status", {satus: GIT_STATUS})
 
 // ======================
 // === Logs Buffering ===
@@ -243,7 +265,7 @@ class LogRouter {
     }
 
     handleError(...args) {
-        remoteLog(args)
+        remoteLog("error", args)
     }
 }
 
@@ -391,7 +413,7 @@ async function reportCrash(message) {
 
 function style_root() {
     let root = document.getElementById('root')
-    root.style.backgroundColor = '#f6f3f199'
+    root.style.backgroundColor = '#f6f3f1'
 }
 
 function getUrlParams() {

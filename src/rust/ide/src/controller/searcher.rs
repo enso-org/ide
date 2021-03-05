@@ -737,7 +737,8 @@ impl Searcher {
         let imports       = fragments.map(|frag| self.code_to_insert(frag).imports).flatten();
         let mut module    = self.module();
         let here          = self.module_qualified_name();
-        for import in imports {
+        for mut import in imports {
+            import.remove_main_module_segment();
             module.add_module_import(&here, &self.parser, &import);
         }
         self.graph.graph().module.update_ast(module.ast)
