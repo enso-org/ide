@@ -39,7 +39,7 @@ extern "C" {
     fn new(init:JsConsArgs) -> Visualization;
 
     #[allow(unsafe_code)]
-    #[wasm_bindgen(catch,method)]
+    #[wasm_bindgen(catch, js_name = __emitPreprocessorChange__, method)]
     pub fn emitPreprocessorChange(this:&Visualization) -> Result<(),JsValue>;
 }
 

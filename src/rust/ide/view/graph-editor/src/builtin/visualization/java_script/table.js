@@ -15,7 +15,7 @@ class TableVisualization extends Visualization {
     static label = 'Table'
 
     constructor(data) {
-        super(data);
+        super(data)
         this.setPreprocessorCode(`
         x -> 
             header = ["header", x.columns.map .name]

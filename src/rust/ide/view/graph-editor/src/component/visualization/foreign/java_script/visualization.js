@@ -10,19 +10,21 @@ export class Visualization {
         this.__api__ = api
     }
 
-    emitPreprocessorChange() {
-        console.trace("Will emit",this.preprocessorCode,this.preprocessorModule)
-        this.__api__.emit_preprocessor_change(this.__preprocessorCode__,this.__preprocessorModule__)
+    __emitPreprocessorChange__() {
+        this.__api__.emit_preprocessor_change(
+            this.__preprocessorCode__,
+            this.__preprocessorModule__
+        )
     }
 
     getPreprocessorCode() {
-        return this.__preprocessorCode__
+        return this.__preprocessorCode__cd
     }
 
     setPreprocessorCode(code) {
         if (code !== this.__preprocessorCode__) {
             this.__preprocessorCode__ = code
-            this.emitPreprocessorChange()
+            this.__emitPreprocessorChange__()
         }
     }
 
@@ -33,18 +35,26 @@ export class Visualization {
     setPreprocessorModule(module) {
         if (module !== this.__preprocessorModule__) {
             this.__preprocessorModule__ = module
-            this.emitPreprocessorChange()
+            this.__emitPreprocessorChange__()
         } else {
-            console.error("skipping, as",module," === ", this.__preprocessorModule__)
+            console.error(
+                'skipping, as',
+                module,
+                ' === ',
+                this.__preprocessorModule__
+            )
         }
     }
 
     // Meant to be used when both code and module need to be set as a single update.
-    setPreprocessor(code,module) {
-        if (code !== this.__preprocessorCode__ || code !== this.__preprocessorModule__) {
+    setPreprocessor(code, module) {
+        if (
+            code !== this.__preprocessorCode__ ||
+            code !== this.__preprocessorModule__
+        ) {
             this.__preprocessorCode__ = code
             this.__preprocessorModule__ = module
-            this.emitPreprocessorChange()
+            this.__emitPreprocessorChange__()
         }
     }
 }

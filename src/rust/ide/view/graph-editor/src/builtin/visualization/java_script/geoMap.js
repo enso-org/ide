@@ -102,7 +102,7 @@ class GeoMapVisualization extends Visualization {
         this.initMapElement()
         this.initStyle()
         this.dataPoints = []
-        this.setPreprocessorModule("Table.Main")
+        this.setPreprocessorModule('Table.Main')
         this.setPreprocessorCode(`
                 df -> case df of
                     Table.Table _ ->
