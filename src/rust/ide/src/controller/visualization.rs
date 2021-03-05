@@ -24,17 +24,17 @@ use std::rc::Rc;
 pub enum Error {
     #[fail(display = "Visualization \"{}\" not found.", identifier)]
     NotFound {
-        identifier : VisualizationPath
+        identifier:VisualizationPath
     },
     #[fail(display = "JavaScript visualization \"{}\" failed to be prepared.", identifier)]
     Preparation {
-        identifier : VisualizationPath,
+        identifier:VisualizationPath,
         #[cause]
-        cause      : failure::Error,
+        cause:failure::Error,
     },
     #[fail(display = "JavaScript visualization \"{}\" failed to be instantiated.", identifier)]
     Instantiation {
-        identifier : VisualizationPath
+        identifier:VisualizationPath
     },
 }
 

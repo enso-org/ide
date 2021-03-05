@@ -3,8 +3,8 @@ export class Visualization {
         // These go before `api` assignment so the `undefined` is not emitted to IDE.
         // First we will give deriving type a chance to overwrite them, then IDE will
         // invoke `emitPreprocessorChange()` on this.
-        this.__preprocessorCode__ = undefined
-        this.__preprocessorModule__ = undefined
+        this.__preprocessorCode__ = null
+        this.__preprocessorModule__ = null
 
         this.dom = api.root()
         this.__api__ = api

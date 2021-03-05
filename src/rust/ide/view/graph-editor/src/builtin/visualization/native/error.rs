@@ -194,7 +194,6 @@ impl Model {
     }
 
     fn receive_data(&self, data:&Data) -> Result<(),DataError> {
-        iprintln!("Receive data {data:?}");
         match data {
             Data::Json {content} => {
                 let input_result = serde_json::from_value(content.deref().clone());

@@ -76,8 +76,10 @@ pub trait API:Debug {
         let main = std::iter::once(crate::ide::INITIAL_MODULE_NAME);
         model::module::QualifiedName::from_segments(self.name(),main)
 
-        // TODO [mwu] The code below likely should be preferred but does not work:
-        //            See: https://github.com/enso-org/enso/issues/1543
+        // TODO [mwu] The code below likely should be preferred but does not work
+        //            because language server does not support using project name
+        //            for project's main module in some contexts.
+        //            This is tracked by: https://github.com/enso-org/enso/issues/1543
         // use model::module::QualifiedName;
         // ReferentName::try_from(self.name().as_str())
         //     .map(QualifiedName::new_main)

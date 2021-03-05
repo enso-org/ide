@@ -2,14 +2,14 @@
 
 use crate::prelude::*;
 
-use super::PreprocessorCallback;
-
+use crate::component::visualization::foreign::java_script::PreprocessorCallback;
 use crate::component::visualization::instance::PreprocessorConfiguration;
 
 use ensogl::display::DomSymbol;
 use fmt::Formatter;
 use wasm_bindgen::prelude::*;
 use web_sys::HtmlDivElement;
+
 
 
 // =================
