@@ -68,11 +68,6 @@ function list(...args) {
     return out
 }
 
-fail = {
-    name: 'Fail',
-    run: 'exit 1'
-}
-
 
 
 // ============
@@ -363,11 +358,17 @@ let assertReleaseDoNotExists = [
     }
 ]
 
+assertNoSquashCommitForRelease = {
+    name: `Fail if squash commit to the 'unstable' or the 'stable' branch.`,
+    run: 'if [[ ${{ github.base_ref }} == "unstable" || ${{ github.base_ref }} == "stable" ]]; then exit 1; fi',
+}
+
 let assertions = list(
     assertVersionUnstable,
     assertVersionStable,
     assertReleaseDoNotExists,
-    assertChangelogWasUpdated
+    assertChangelogWasUpdated,
+    assertNoSquashCommitForRelease,
 )
 
 
@@ -457,11 +458,7 @@ let workflow = {
             uploadToCDN('index.js.gz','style.css','ide.wasm','wasm_imports.js.gz'),
         ],{ if:releaseCondition,
             needs:['version_assertions','lint','test','wasm-test','build']
-        }),
-        prevent_squash_commit:
-            job_on_macos("Don't use squash commits to 'stable' and 'unstable' branches.", [
-                fail
-            ],{ if:`github.base_ref == 'unstable' || github.base_ref == 'stable'` })
+        })
     }
 }
 
