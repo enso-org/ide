@@ -5,9 +5,26 @@
 
 name: GUI CI
 'on':
-  - push
-  - pull_request
+  push:
+    branches:
+      - unstable
+      - stable
+  pull_request: {}
 jobs:
+  info:
+    name: Build Info
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - macOS-latest
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v1
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: echo "$GITHUB_CONTEXT"
   version_assertions:
     name: Assertions
     runs-on: ${{ matrix.os }}
@@ -29,14 +46,10 @@ jobs:
         shell: bash
       - name: Assert Version Unstable
         run: node ./run assert-version-unstable --skip-version-validation
-        if: >-
-          github.ref == 'refs/heads/unstable' ||
-          github.event.pull_request.base.ref == 'refs/heads/unstable'
+        if: github.ref == 'refs/heads/unstable' || github.base_ref == 'unstable'
       - name: Assert Version Stable
         run: node ./run assert-version-stable --skip-version-validation
-        if: >-
-          github.ref == 'refs/heads/stable' ||
-          github.event.pull_request.base.ref == 'refs/heads/stable'
+        if: github.ref == 'refs/heads/stable' || github.base_ref == 'stable'
       - id: checkCurrentReleaseTag
         uses: mukunku/tag-exists-action@v1.0.0
         env:
@@ -51,19 +64,26 @@ jobs:
         id: changed_files
         run: |2-
 
-                  list=`git diff --name-only origin/develop HEAD | tr '\n' ' '`
+                  list=`git diff --name-only origin/${{github.base_ref}} HEAD | tr '\n' ' '`
                   echo $list
                   echo "::set-output name=list::'$list'"
               
         shell: bash
-      - name: Assert if CHANGELOG.md was updated
+        if: >-
+          github.base_ref == 'develop' || github.base_ref == 'unstable' ||
+          github.base_ref == 'stable'
+      - name: Assert if CHANGELOG.md was updated (on pull request)
         run: >-
           if [[ ${{ contains(steps.changed_files.outputs.list,'CHANGELOG.md') ||
           contains(github.event.head_commit.message,'[ci no changelog needed]')
           }} == false ]]; then exit 1; fi
         if: >-
-          github.ref != 'refs/heads/develop' && github.ref !=
-          'refs/heads/stable' && github.ref != 'refs/heads/unstable'
+          github.base_ref == 'develop' || github.base_ref == 'unstable' ||
+          github.base_ref == 'stable'
+      - name: Fail if squash commit to the 'unstable' or the 'stable' branch.
+        run: >-
+          if [[ "${{ github.base_ref }}" == "unstable" || "${{ github.base_ref
+          }}" == "stable" ]]; then exit 1; fi
   lint:
     name: Linter
     runs-on: ${{ matrix.os }}
@@ -222,9 +242,10 @@ jobs:
         run: node ./run dist --skip-version-validation --target macos
         if: matrix.os == 'macos-latest'
     if: >-
-      !(contains(github.event.head_commit.message,'[ci build]') || github.ref ==
-      'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref ==
-      'refs/heads/unstable' || github.ref == 'refs/heads/stable')
+      !(contains(github.event.head_commit.message,'[ci build]') ||
+      github.base_ref == 'develop' || github.base_ref == 'unstable' ||
+      github.base_ref == 'stable' || github.ref == 'refs/heads/unstable' ||
+      github.ref == 'refs/heads/stable')
   build:
     name: Build
     runs-on: ${{ matrix.os }}
@@ -350,9 +371,10 @@ jobs:
             dist/client/enso-linux-${{fromJson(steps.changelog.outputs.content).version}}.AppImage.sha256
         if: matrix.os == 'ubuntu-latest'
     if: >-
-      contains(github.event.head_commit.message,'[ci build]') || github.ref ==
-      'refs/heads/main' || github.ref == 'refs/heads/develop' || github.ref ==
-      'refs/heads/unstable' || github.ref == 'refs/heads/stable'
+      contains(github.event.head_commit.message,'[ci build]') || github.base_ref
+      == 'develop' || github.base_ref == 'unstable' || github.base_ref ==
+      'stable' || github.ref == 'refs/heads/unstable' || github.ref ==
+      'refs/heads/stable'
   release_to_github:
     name: GitHub Release
     runs-on: ${{ matrix.os }}

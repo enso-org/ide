@@ -70,6 +70,20 @@ function list(...args) {
 
 
 
+// ============
+// === Info ===
+// ============
+
+dumpGitHubContext = {
+    name: 'Dump GitHub context',
+    env: {
+        GITHUB_CONTEXT: '${{ toJson(github) }}'
+    },
+    run: 'echo "$GITHUB_CONTEXT"'
+}
+
+
+
 // ====================
 // === Dependencies ===
 // ====================
@@ -221,11 +235,12 @@ let getListOfChangedFiles = {
     name: 'Get list of changed files',
     id: 'changed_files',
     run: `
-        list=\`git diff --name-only origin/develop HEAD | tr '\\n' ' '\`
+        list=\`git diff --name-only origin/\${{github.base_ref}} HEAD | tr '\\n' ' '\`
         echo $list
         echo "::set-output name=list::'$list'"
     `,
-    shell: 'bash'
+    shell: 'bash',
+    if: `github.base_ref == 'develop' || github.base_ref == 'unstable' || github.base_ref == 'stable'`
 }
 
 
@@ -248,9 +263,9 @@ let getCurrentReleaseChangelogInfo = {
 let assertChangelogWasUpdated = [
     getListOfChangedFiles,
     {
-        name: 'Assert if CHANGELOG.md was updated',
+        name: 'Assert if CHANGELOG.md was updated (on pull request)',
         run: `if [[ \${{ contains(steps.changed_files.outputs.list,'CHANGELOG.md') || contains(github.event.head_commit.message,'${FLAG_NO_CHANGELOG_NEEDED}') }} == false ]]; then exit 1; fi`,
-        if: `github.ref != 'refs/heads/develop' && github.ref != 'refs/heads/stable' && github.ref != 'refs/heads/unstable'`
+        if: `github.base_ref == 'develop' || github.base_ref == 'unstable' || github.base_ref == 'stable'`
     }
 ]
 
@@ -317,13 +332,13 @@ function uploadToCDN(...names) {
 let assertVersionUnstable = {
     name: "Assert Version Unstable",
     run: "node ./run assert-version-unstable --skip-version-validation",
-    if: `github.ref == 'refs/heads/unstable' || github.event.pull_request.base.ref == 'refs/heads/unstable'`
+    if: `github.ref == 'refs/heads/unstable' || github.base_ref == 'unstable'`
 }
 
 let assertVersionStable = {
     name: "Assert Version Stable",
     run: "node ./run assert-version-stable --skip-version-validation",
-    if: `github.ref == 'refs/heads/stable' || github.event.pull_request.base.ref == 'refs/heads/stable'`
+    if: `github.ref == 'refs/heads/stable' || github.base_ref == 'stable'`
 }
 
 let assertReleaseDoNotExists = [
@@ -343,26 +358,46 @@ let assertReleaseDoNotExists = [
     }
 ]
 
+assertNoSquashCommitForRelease = {
+    name: `Fail if squash commit to the 'unstable' or the 'stable' branch.`,
+    run: 'if [[ "${{ github.base_ref }}" == "unstable" || "${{ github.base_ref }}" == "stable" ]]; then exit 1; fi',
+}
+
 let assertions = list(
     assertVersionUnstable,
     assertVersionStable,
     assertReleaseDoNotExists,
-    assertChangelogWasUpdated
+    assertChangelogWasUpdated,
+    assertNoSquashCommitForRelease,
 )
 
 
 
-// ================
+// ===============
 // === Workflow ===
-// ================
+// ===============
 
+/// Make a release only if it was a push to 'unstable' or 'stable'. Even if it was a pull request
+/// FROM these branches, the `github.ref` will be different.
 let releaseCondition = `github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'`
-let buildCondition   = `contains(github.event.head_commit.message,'${FLAG_FORCE_CI_BUILD}') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || ${releaseCondition}`
+
+/// Make a full build if one of the following conditions is true:
+/// 1. There was a `FLAG_FORCE_CI_BUILD` flag set in the commit message (see its docs for more info).
+/// 2. It was a pull request to 'develop', 'unstable', or 'stable'.
+let buildCondition = `contains(github.event.head_commit.message,'${FLAG_FORCE_CI_BUILD}') || github.base_ref == 'develop' || github.base_ref == 'unstable' || github.base_ref == 'stable' || ${releaseCondition}`
 
 let workflow = {
     name : "GUI CI",
-    on: ['push','pull_request'],
+    on: {
+        push: {
+            branches: ['unstable','stable']
+        },
+        pull_request: {}
+    },
     jobs: {
+        info: job_on_macos("Build Info", [
+            dumpGitHubContext
+        ]),
         version_assertions: job_on_macos("Assertions", [
             getCurrentReleaseChangelogInfo,
             assertions
@@ -423,7 +458,7 @@ let workflow = {
             uploadToCDN('index.js.gz','style.css','ide.wasm','wasm_imports.js.gz'),
         ],{ if:releaseCondition,
             needs:['version_assertions','lint','test','wasm-test','build']
-        }),
+        })
     }
 }
 
