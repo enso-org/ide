@@ -367,7 +367,7 @@ let assertions = list(
     assertVersionUnstable,
     assertVersionStable,
     assertReleaseDoNotExists,
-    assertChangelogWasUpdated,
+//    assertChangelogWasUpdated,
     assertNoSquashCommitForRelease,
 )
 
@@ -481,4 +481,3 @@ function generate() {
 // ===============
 
 module.exports = {generate}
-
