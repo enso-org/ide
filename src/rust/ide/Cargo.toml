@@ -13,7 +13,7 @@ enso-args = { path = "lib/args" }
 enso-callback = { path = "../lib/callback" }
 enso-data = { version = "0.1.4" }
 enso-frp = { path = "../lib/frp" }
-enso-logger = { version = "0.2.2" }
+enso-logger = { version = "0.2.3" }
 enso-prelude = { version = "0.1.10" }
 enso-shapely = { version = "0.1.4" }
 ensogl = { path = "../ensogl" }
