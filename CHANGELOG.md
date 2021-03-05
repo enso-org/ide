@@ -7,106 +7,104 @@ users about errors and where they originate.
 
 <br/>![New Learning Resources](/docs/assets/tags/new_learning_resources.svg)
 
--   [Learn how to define custom data visualizations in
-    Enso][podcast-custom-visualizations].
--   [Learn how to use Java libraries in Enso, to build a
-    webserver][podcast-java-interop].
--   [Learn how to use Javascript libraries in Enso, to build custom server-side
-    website rendering][podcast-http-server].
--   [Discover why Enso Compiler is so fast and how it was built to support a
-    dual-representation language][podcast-compiler-internals].
--   [Learn more about the vision behind Enso and about its planned
-    future][podcast-future-of-enso].
+- [Learn how to define custom data visualizations in
+  Enso][podcast-custom-visualizations].
+- [Learn how to use Java libraries in Enso, to build a
+  webserver][podcast-java-interop].
+- [Learn how to use Javascript libraries in Enso, to build custom server-side
+  website rendering][podcast-http-server].
+- [Discover why Enso Compiler is so fast and how it was built to support a
+  dual-representation language][podcast-compiler-internals].
+- [Learn more about the vision behind Enso and about its planned
+  future][podcast-future-of-enso].
 
 <br/>![New Features](/docs/assets/tags/new_features.svg)
 
 #### Visual Environment
 
--   [Errors in workflows are now displayed in the graphical interface][1215].
-    Previously, these errors were silently skipped, which was non-intuitive and
-    hard to understand. Now, the IDE displays both dataflow errors and panics in
-    a nice and descriptive fashion.
--   [Added geographic map support for Tables (data frames).][1187] Tables that
-    have `latitude`, `longitude`, and optionally `label` columns can now be
-    shown as points on a map.
--   [Added a shortcut for live reloading of visualization files.][1190] This
-    drastically improves how quickly new visualizations can be tested during
-    their development. This is _currently_ limited in that, after reloading
-    visualization definitions, the currently visible visualizations must be
-    switched to another and switched back to refresh their content. See the
-    [video podcast about building custom
-    visualizations][podcast-custom-visualizations] to learn more.
--   [Added a visual indicator of the ongoing standard library
-    compilation][1264]. Currently, each time IDE is started, the backend needs
-    to compile the standard library before it can provide IDE with type
-    information and values. Because of that, not all functionalities are ready
-    to work directly after starting the IDE. Now, there is a visible indication
-    of the ongoing background process.
--   [Added the ability to reposition visualisations.][1096] There is now an icon
-    in the visualization action bar that allows dragging the visualization away
-    from a node. Once the visualization has been moved, another icon appears
-    that can pin the visualization back to the node.
--   [There is now an API to show Version Control System (like Git) status for
-    nodes][1160].
+- [Errors in workflows are now displayed in the graphical interface][1215].
+  Previously, these errors were silently skipped, which was non-intuitive and
+  hard to understand. Now, the IDE displays both dataflow errors and panics in a
+  nice and descriptive fashion.
+- [Added geographic map support for Tables (data frames).][1187] Tables that
+  have `latitude`, `longitude`, and optionally `label` columns can now be shown
+  as points on a map.
+- [Added a shortcut for live reloading of visualization files.][1190] This
+  drastically improves how quickly new visualizations can be tested during their
+  development. This is _currently_ limited in that, after reloading
+  visualization definitions, the currently visible visualizations must be
+  switched to another and switched back to refresh their content. See the [video
+  podcast about building custom visualizations][podcast-custom-visualizations]
+  to learn more.
+- [Added a visual indicator of the ongoing standard library compilation][1264].
+  Currently, each time IDE is started, the backend needs to compile the standard
+  library before it can provide IDE with type information and values. Because of
+  that, not all functionalities are ready to work directly after starting the
+  IDE. Now, there is a visible indication of the ongoing background process.
+- [Added the ability to reposition visualisations.][1096] There is now an icon
+  in the visualization action bar that allows dragging the visualization away
+  from a node. Once the visualization has been moved, another icon appears that
+  can pin the visualization back to the node.
+- [There is now an API to show Version Control System (like Git) status for
+  nodes][1160].
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
 #### Visual Environment
 
--   [You can now use the table visualization to display data frames][1181].
-    Please note, that large tables will get truncated to 2000 entries. This
-    limitation will be lifted in future releases.
--   [Performance improvements during visual workflow][1067]. Nodes added with
-    the searcher will have their values automatically assigned to newly
-    generated variables, which allows the Enso Engine to cache intermediate
-    values and hence improve visualization performance.
--   [Minor documentation rendering fixes][1098]. Fixed cases where text would be
-    misinterpreted as a tag, added support for new tag types, added support for
-    more common characters, properly renders overflowing text.
--   [Improved handling of projects created with other IDE versions][1214]. The
-    IDE is now better at dealing with incompatible metadata in files, which
-    stores node visual position information, the history of chosen searcher
-    suggestions, etc. This will allow IDE to correctly open projects that were
-    created using a different IDE version and prevent unnecessary loss of
-    metadata.
--   Pressing and holding up and down arrow keys make the list view selection
-    move continuously.
--   The shortcuts to close the application and to toggle the developer tools at
-    runtime now work on all supported platforms.
--   [The loading progress indicator remains visible while IDE
-    initializes][1237]. Previously the loading progress indicator completed too
-    quickly and stopped spinning before the IDE was ready. Now it stays active,
-    giving a visual indication that the initialization is still in progress.
--   [Fixed visual glitch where a node's text was displayed as white on a white
-    background][1264]. Most notably this occurred with the output node of a
-    function generated using the node collapse refactoring.
--   Many visual glitches were fixed, including small "pixel-like" artifacts
-    appearing on the screen.
--   [Several parser improvements][1274]. The parser used in the IDE has been
-    updated to the latest version. This resolves several issues with language
-    constructs like `import`, lambdas, and parentheses, whereupon typing certain
-    text the edit could be automatically reverted.
--   [The auto-import functionality was improved][1279]. Libraries' `Main`
-    modules are omitted in expressions inserted by the searcher. For example,
-    the `point` method of `Geo` library will be displayed as `Geo.point` and
-    will insert import `Geo` instead of `Geo.Main`.
--   Cursors in text editors behave correctly now (they are not affected by scene
-    pan and zoom). This was possible because of the new multi-camera management
-    system implemented in EnsoGL.
+- [You can now use the table visualization to display data frames][1181]. Please
+  note, that large tables will get truncated to 2000 entries. This limitation
+  will be lifted in future releases.
+- [Performance improvements during visual workflow][1067]. Nodes added with the
+  searcher will have their values automatically assigned to newly generated
+  variables, which allows the Enso Engine to cache intermediate values and hence
+  improve visualization performance.
+- [Minor documentation rendering fixes][1098]. Fixed cases where text would be
+  misinterpreted as a tag, added support for new tag types, added support for
+  more common characters, properly renders overflowing text.
+- [Improved handling of projects created with other IDE versions][1214]. The IDE
+  is now better at dealing with incompatible metadata in files, which stores
+  node visual position information, the history of chosen searcher suggestions,
+  etc. This will allow IDE to correctly open projects that were created using a
+  different IDE version and prevent unnecessary loss of metadata.
+- Pressing and holding up and down arrow keys make the list view selection move
+  continuously.
+- The shortcuts to close the application and to toggle the developer tools at
+  runtime now work on all supported platforms.
+- [The loading progress indicator remains visible while IDE initializes][1237].
+  Previously the loading progress indicator completed too quickly and stopped
+  spinning before the IDE was ready. Now it stays active, giving a visual
+  indication that the initialization is still in progress.
+- [Fixed visual glitch where a node's text was displayed as white on a white
+  background][1264]. Most notably this occurred with the output node of a
+  function generated using the node collapse refactoring.
+- Many visual glitches were fixed, including small "pixel-like" artifacts
+  appearing on the screen.
+- [Several parser improvements][1274]. The parser used in the IDE has been
+  updated to the latest version. This resolves several issues with language
+  constructs like `import`, lambdas, and parentheses, whereupon typing certain
+  text the edit could be automatically reverted.
+- [The auto-import functionality was improved][1279]. Libraries' `Main` modules
+  are omitted in expressions inserted by the searcher. For example, the `point`
+  method of `Geo` library will be displayed as `Geo.point` and will insert
+  import `Geo` instead of `Geo.Main`.
+- Cursors in text editors behave correctly now (they are not affected by scene
+  pan and zoom). This was possible because of the new multi-camera management
+  system implemented in EnsoGL.
 
 #### EnsoGL (rendering engine)
 
--   A new multi-camera management system, allowing the same shape systems to be
-    rendered on different layers from different cameras. The implementation
-    automatically caches the same shape system definitions per scene layer in
-    order to minimize the amount of WebGL draw calls and hence improve
-    performance.
--   A new depth-ordering mechanism for symbols and shapes. It is now possible to
-    define depth order dependencies between symbols, shapes, and shape systems.
--   Various performance improvements, especially for the text rendering engine.
--   Display objects handle visibility correctly now. Display objects are not
-    visible by default and need to be attached to a visible parent to be shown
-    on the screen.
+- A new multi-camera management system, allowing the same shape systems to be
+  rendered on different layers from different cameras. The implementation
+  automatically caches the same shape system definitions per scene layer in
+  order to minimize the amount of WebGL draw calls and hence improve
+  performance.
+- A new depth-ordering mechanism for symbols and shapes. It is now possible to
+  define depth order dependencies between symbols, shapes, and shape systems.
+- Various performance improvements, especially for the text rendering engine.
+- Display objects handle visibility correctly now. Display objects are not
+  visible by default and need to be attached to a visible parent to be shown on
+  the screen.
 
 #### Enso Compiler
 
@@ -129,15 +127,15 @@ you can find their release notes
 [1274]: https://github.com/enso-org/ide/pull/1274
 [1279]: https://github.com/enso-org/ide/pull/1279
 [podcast-java-interop]:
-    https://www.youtube.com/watch?v=bcpOEX1x06I&t=468s&ab_channel=Enso
+  https://www.youtube.com/watch?v=bcpOEX1x06I&t=468s&ab_channel=Enso
 [podcast-compiler-internals]:
-    https://www.youtube.com/watch?v=BibjcUjdkO4&ab_channel=Enso
+  https://www.youtube.com/watch?v=BibjcUjdkO4&ab_channel=Enso
 [podcast-custom-visualizations]:
-    https://www.youtube.com/watch?v=wFkh5LgAZTs&t=5439s&ab_channel=Enso
+  https://www.youtube.com/watch?v=wFkh5LgAZTs&t=5439s&ab_channel=Enso
 [podcast-http-server]:
-    https://www.youtube.com/watch?v=BYUAL4ksEgY&ab_channel=Enso
+  https://www.youtube.com/watch?v=BYUAL4ksEgY&ab_channel=Enso
 [podcast-future-of-enso]:
-    https://www.youtube.com/watch?v=rF8DuJPOfTs&t=1863s&ab_channel=Enso
+  https://www.youtube.com/watch?v=rF8DuJPOfTs&t=1863s&ab_channel=Enso
 
 <br/>
 
@@ -159,15 +157,15 @@ code (expressions above nodes), however, reported errors may contain brief
 snippets of out of context code that specifically leads to the error, like "the
 method 'foo' does not exist on Number". The following data will be collected:
 
--   Session length.
--   Graph editing events (node create, dele, position change, connect,
-    disconnect, collapse, edit start, edit end). This will not include any
-    information about node expressions used.
--   Navigation events (camera movement, scope change).
--   Visualization events (visualization open, close, switch). This will not
-    include any information about the displayed data nor the rendered
-    visualization itself.
--   Project management events (project open, close, rename).
--   Errors (IDE crashes, WASM panics, Project Manager errors, Language Server
-    errors, Compiler errors).
--   Performance statistics (minimum, maximum, average GUI refresh rate).
+- Session length.
+- Graph editing events (node create, dele, position change, connect, disconnect,
+  collapse, edit start, edit end). This will not include any information about
+  node expressions used.
+- Navigation events (camera movement, scope change).
+- Visualization events (visualization open, close, switch). This will not
+  include any information about the displayed data nor the rendered
+  visualization itself.
+- Project management events (project open, close, rename).
+- Errors (IDE crashes, WASM panics, Project Manager errors, Language Server
+  errors, Compiler errors).
+- Performance statistics (minimum, maximum, average GUI refresh rate).
