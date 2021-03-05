@@ -371,6 +371,7 @@ let assertReleaseDoNotExists = [
     {
         name: 'Fail if release already exists',
         run: 'if [[ ${{ steps.checkCurrentReleaseTag.outputs.exists }} == true ]]; then exit 1; fi',
+        if: `github.base_ref == 'unstable' || github.base_ref == 'stable'`
     }
 ]
 

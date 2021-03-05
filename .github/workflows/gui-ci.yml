@@ -60,6 +60,7 @@ jobs:
         run: >-
           if [[ ${{ steps.checkCurrentReleaseTag.outputs.exists }} == true ]];
           then exit 1; fi
+        if: github.base_ref == 'unstable' || github.base_ref == 'stable'
       - name: Get list of changed files
         id: changed_files
         run: |2-
@@ -410,6 +411,7 @@ jobs:
         run: >-
           if [[ ${{ steps.checkCurrentReleaseTag.outputs.exists }} == true ]];
           then exit 1; fi
+        if: github.base_ref == 'unstable' || github.base_ref == 'stable'
       - name: Install Prettier
         run: npm install --save-dev --save-exact prettier
       - name: Pretty print changelog.
