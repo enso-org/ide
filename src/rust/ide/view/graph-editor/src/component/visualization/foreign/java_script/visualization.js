@@ -18,7 +18,7 @@ export class Visualization {
     }
 
     getPreprocessorCode() {
-        return this.__preprocessorCode__cd
+        return this.__preprocessorCode__
     }
 
     setPreprocessorCode(code) {
