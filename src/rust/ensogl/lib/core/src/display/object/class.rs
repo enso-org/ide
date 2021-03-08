@@ -606,7 +606,7 @@ impl<Host> Instance<Host> {
     }
 
     /// Add this object to the provided scene layer and remove it from all other layers. Do not use
-    //     /// this method explicitly. Use layers' methods instead.
+    /// this method explicitly. Use layers' methods instead.
     pub(crate) fn add_to_scene_layer_exclusive(&self, layer:LayerId) {
         self.dirty.scene_layer.set();
         *self.scene_layers.borrow_mut() = vec![layer];

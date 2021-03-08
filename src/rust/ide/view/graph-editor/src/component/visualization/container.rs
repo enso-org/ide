@@ -8,8 +8,9 @@
 // FIXME separate camera (view?) per visualization? This is also connected to a question how to
 // FIXME create efficient dashboard view.
 
-mod action_bar;
-mod visualization_chooser;
+pub mod action_bar;
+pub mod visualization_chooser;
+pub mod fullscreen;
 
 use crate::prelude::*;
 
@@ -99,30 +100,7 @@ pub mod background {
     }
 }
 
-/// Container background shape definition.
-///
-/// Provides a backdrop and outline for visualisations. Can indicate the selection status of the
-/// container.
-/// TODO : We do not use backgrounds because otherwise they would overlap JS
-///        visualizations. Instead we added a HTML background to the `View`.
-///        This should be further investigated while fixing rust visualization displaying. (#526)
-pub mod fullscreen_background {
-    use super::*;
 
-    ensogl::define_shape_system! {
-        (style:Style,selected:f32,radius:f32,roundness:f32) {
-            let width  : Var<Pixels> = "input_size.x".into();
-            let height : Var<Pixels> = "input_size.y".into();
-            let radius        = 1.px() * &radius;
-            let color_path    = theme::graph_editor::visualization::background;
-            let color_bg      = style.get_color(color_path);
-            let corner_radius = &radius * &roundness;
-            let background    = Rect((&width,&height)).corners_radius(&corner_radius);
-            let background    = background.fill(color::Rgba::from(color_bg));
-            background.into()
-        }
-    }
-}
 
 /// Container overlay shape definition. Used to capture events over the visualisation within the
 /// container.
@@ -161,7 +139,6 @@ ensogl::define_endpoints! {
         set_size           (Vector2),
         enable_fullscreen  (),
         disable_fullscreen (),
-        scene_shape        (scene::Shape),
     }
 
     Output {
@@ -246,63 +223,6 @@ impl display::Object for View {
 
 
 // ======================
-// === FullscreenView ===
-// ======================
-
-/// View of the visualization container meant to be used in fullscreen mode. Its components are
-/// rendered on top-level layers of the stage.
-#[derive(Debug)]
-#[allow(missing_docs)]
-pub struct FullscreenView {
-    logger         : Logger,
-    display_object : display::object::Instance,
-    // background     : fullscreen_background::View,
-    background_dom : DomSymbol
-}
-
-impl FullscreenView {
-    /// Constructor.
-    pub fn new(logger:&Logger, scene:&Scene) -> Self {
-        let logger         = Logger::sub(logger,"fullscreen_view");
-        let display_object = display::object::Instance::new(&logger);
-        let shape_system   = scene.shapes.shape_system(PhantomData::<fullscreen_background::Shape>);
-        scene.layers.main.remove_symbol(&shape_system.shape_system.symbol);
-        scene.layers.viz_fullscreen.add_symbol_exclusive(&shape_system.shape_system.symbol);
-
-        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
-        let styles   = StyleWatch::new(&scene.style_sheet);
-        let bg_color = styles.get_color(ensogl_theme::graph_editor::visualization::background);
-        let bg_color = color::Rgba::from(bg_color);
-        let bg_hex   = format!("rgba({},{},{},{})",bg_color.red*255.0,bg_color.green*255.0,bg_color.blue*255.0,bg_color.alpha);
-
-        let div            = web::create_div();
-        let background_dom = DomSymbol::new(&div);
-        // TODO : We added a HTML background to the `View`, because "shape" background was overlapping
-        //        the JS visualization. This should be further investigated while fixing rust
-        //        visualization displaying. (#796)
-        background_dom.dom().set_style_or_warn("width"        ,"0"   ,&logger);
-        background_dom.dom().set_style_or_warn("height"       ,"0"   ,&logger);
-        background_dom.dom().set_style_or_warn("z-index"      ,"1"   ,&logger);
-        background_dom.dom().set_style_or_warn("overflow-y"   ,"auto",&logger);
-        background_dom.dom().set_style_or_warn("overflow-x"   ,"auto",&logger);
-        background_dom.dom().set_style_or_warn("background"   ,bg_hex,&logger);
-        background_dom.dom().set_style_or_warn("border-radius","0"   ,&logger);
-        display_object.add_child(&background_dom);
-        scene.dom.layers.back.manage(&background_dom);
-
-        Self {logger,display_object,background_dom}
-    }
-}
-
-impl display::Object for FullscreenView {
-    fn display_object(&self) -> &display::object::Instance {
-        &self.display_object
-    }
-}
-
-
-
-// ======================
 // === ContainerModel ===
 // ======================
 
@@ -322,7 +242,7 @@ pub struct ContainerModel {
     vis_frp_connection : RefCell<Option<frp::Network>>,
     scene              : Scene,
     view               : View,
-    fullscreen_view    : FullscreenView,
+    fullscreen_view    : fullscreen::Panel,
     is_fullscreen      : Rc<Cell<bool>>,
     registry           : visualization::Registry,
     size               : Rc<Cell<Vector2>>,
@@ -341,7 +261,7 @@ impl ContainerModel {
         let visualization      = default();
         let vis_frp_connection = default();
         let view               = View::new(&logger,scene);
-        let fullscreen_view    = FullscreenView::new(&logger,scene);
+        let fullscreen_view    = fullscreen::Panel::new(&logger,scene);
         let scene              = scene.clone_ref();
         let is_fullscreen      = default();
         let size               = default();
@@ -389,7 +309,8 @@ impl ContainerModel {
     fn enable_fullscreen(&self) {
         self.is_fullscreen.set(true);
         if let Some(viz) = &*self.visualization.borrow() {
-            self.fullscreen_view.add_child(viz)
+            self.fullscreen_view.add_child(viz);
+            viz.inputs.activate.emit(());
         }
     }
 
@@ -524,6 +445,7 @@ impl Container {
         let size                = DEPRECATED_Animation::<Vector2>::new(network);
         let fullscreen_position = DEPRECATED_Animation::<Vector3>::new(network);
         let scene               = &self.model.scene;
+        let scene_shape         = scene.shape();
         let logger              = &self.model.logger;
         let action_bar          = &model.action_bar.frp;
         let registry            = &model.registry;
@@ -560,7 +482,7 @@ impl Container {
             eval  frp.set_size          ((s) size.set_target_value(*s));
 
             mouse_down_target <- scene.mouse.frp.down.map(f_!(scene.mouse.target.get()));
-            selected <= mouse_down_target.map(f!([model] (target){
+            selected_by_click <= mouse_down_target.map(f!([model] (target){
                 let vis        = &model.visualization;
                 let activate   = || vis.borrow().as_ref().map(|v| v.activate.clone_ref());
                 let deactivate = || vis.borrow().as_ref().map(|v| v.deactivate.clone_ref());
@@ -569,19 +491,23 @@ impl Container {
                         activate.emit(());
                         return Some(true);
                     }
-                } else if let Some(deactivate) = deactivate() {
-                    deactivate.emit(());
-                    return Some(false);
+                } else if !model.is_fullscreen.get() {
+                    if let Some(deactivate) = deactivate() {
+                        deactivate.emit(());
+                        return Some(false);
+                    }
                 }
                 None
             }));
+            selected_by_going_fullscreen <- frp.enable_fullscreen.constant(true);
+            selected                     <- any(selected_by_click,selected_by_going_fullscreen);
 
             is_selected_changed <= selected.map2(&frp.output.is_selected, |&new,&old| {
                 (new != old).as_some(new)
             });
             frp.source.is_selected <+ is_selected_changed;
 
-            _eval <- fullscreen.value.all_with3(&size.value,&frp.scene_shape,
+            _eval <- fullscreen.value.all_with3(&size.value,scene_shape,
                 f!([model] (weight,viz_size,scene_size) {
                     let weight_inv           = 1.0 - weight;
                     let scene_size : Vector2 = scene_size.into();
@@ -649,6 +575,10 @@ impl Container {
         frp.set_size.emit(Vector2(DEFAULT_SIZE.0,DEFAULT_SIZE.1));
         frp.set_visualization.emit(Some(visualization::Registry::default_visualisation()));
         self
+    }
+
+    pub fn fullscreen_visualization(&self) -> &fullscreen::Panel {
+        &self.model.fullscreen_view
     }
 }
 
