@@ -194,8 +194,7 @@ class ScatterPlot extends Visualization {
                 const event = d3.event
                 // This is the delta used by default in wheelData and which is modified by us.
                 const defaultWheelDelta =
-                    -event.deltaY *
-                    (event.deltaMode === 1 ? 0.05 : event.deltaMode ? 1 : 0.002)
+                    -event.deltaY * (event.deltaMode === 1 ? 0.05 : event.deltaMode ? 1 : 0.002)
                 return defaultWheelDelta * (event.ctrlKey ? 5 : 1)
             })
             .scaleExtent(extent)
