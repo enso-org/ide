@@ -68,8 +68,12 @@ impl PreprocessorConfiguration {
     pub fn from_options
     (code:Option<impl Into<enso::Code>>, module:Option<impl Into<enso::Module>>) -> Self {
         let mut ret = Self::default();
-        code  .map(|code|   ret.code   = code.into());
-        module.map(|module| ret.module = ContextModule::Specific(module.into()));
+        if let Some(code) = code {
+            ret.code = code.into()
+        }
+        if let Some(module) = module {
+            ret.module = ContextModule::Specific(module.into())
+        }
         ret
     }
 
