@@ -16,7 +16,9 @@
   accidental name collision.
 - [Visualizations can define context for preprocessor evaluation][1291]. Users
   can now decide what module's context should be used for visualization
-  preprocessor. This allows providing visualization with standard library functionalities or defining utilities that are shared between multiple visualizations.
+  preprocessor. This allows providing visualization with standard library
+  functionalities or defining utilities that are shared between multiple
+  visualizations.
 
 #### EnsoGL (rendering engine)
 
