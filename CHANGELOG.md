@@ -1,28 +1,21 @@
-# Next Release 
-
-
+# Next Release
 
 <br/>![New Learning Resources](/docs/assets/tags/new_learning_resources.svg)
-
-
 
 <br/>![New Features](/docs/assets/tags/new_features.svg)
 
 #### Visual Environment
 
-
-
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
 #### Visual Environment
 
-- [Not adding spurious imports][1209]. Fixed cases when IDE was adding unnecessary library 
-  imports when selecting hints from node searcher. This makes the generated textual code easier to
-  read and reduces likelihood of accidental name collision.
+- [Not adding spurious imports][1209]. Fixed cases when IDE was adding
+  unnecessary library imports when selecting hints from node searcher. This
+  makes the generated textual code easier to read and reduces likelihood of
+  accidental name collision.
 
 #### EnsoGL (rendering engine)
-
-
 
 #### Enso Compiler
 
