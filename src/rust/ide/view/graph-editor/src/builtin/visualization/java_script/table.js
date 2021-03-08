@@ -16,12 +16,15 @@ class TableVisualization extends Visualization {
 
     constructor(data) {
         super(data)
+        this.setPreprocessorModule('Table.Main')
         this.setPreprocessorCode(`
-        x -> 
-            header = ["header", x.columns.map .name]
-            data   = ["data",   x.columns.map .to_vector . map (x -> x.take_start 2000) ]
-            pairs  = [header,data]
-            Json.from_pairs pairs . to_text
+        x -> case x of
+            Table.Table _ ->
+                header = ["header", x.columns.map .name]
+                data   = ["data",   x.columns.map .to_vector . map (x -> x.take_start 2000) ]
+                pairs  = [header,data]
+                Json.from_pairs pairs . to_text
+            _ -> x . to_json . to_text
         `)
     }
 
