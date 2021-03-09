@@ -1,6 +1,3 @@
-loadScript('https://d3js.org/d3.v4.min.js')
-loadStyle('https://fontlibrary.org/face/dejavu-sans-mono')
-
 let shortcuts = {
     zoomIn: e => (e.ctrlKey || e.metaKey) && e.key === 'z',
     showAll: e => (e.ctrlKey || e.metaKey) && event.key === 'a',
@@ -179,7 +176,8 @@ class ScatterPlot extends Visualization {
         const mid_button = 1
         const scroll_wheel = 0
         const extent = [minScale, maxScale]
-        let zoom = d3
+        let start_pos
+        const zoom = d3
             .zoom()
             .filter(function () {
                 console.log('filter', d3.event)
@@ -205,8 +203,7 @@ class ScatterPlot extends Visualization {
                 [box_width, box_height],
             ])
             .on('zoom', zoomed)
-            // .on('scroll', zoomed)
-            // .on('start', start_zoom)
+            .on('start', start_zoom)
 
         const zoomElem = scatter
             .append('g')
@@ -223,22 +220,20 @@ class ScatterPlot extends Visualization {
         function zoomed() {
             let new_xScale
             let new_yScale
-            // if (d3.event.sourceEvent.buttons === right_button) {
-            //     const zoom_amount = rmb_zoom_value(d3.event.sourceEvent) / 20.0
-            //     const scale = Math.exp(zoom_amount)
-            //     const focus = start_pos
-            //     const distanceScale = d3.zoomIdentity
-            //         .translate(focus.x, focus.y)
-            //         .scale(scale)
-            //         .translate(-focus.x, -focus.y)
-            //
-            //     console.log(d3.event.sourceEvent)
-            //     new_xScale = distanceScale.rescaleX(scaleAndAxis.xScale)
-            //     new_yScale = distanceScale.rescaleY(scaleAndAxis.yScale)
-            // } else {
+            if (d3.event.sourceEvent != null && d3.event.sourceEvent.buttons === right_button) {
+                const zoom_amount = rmb_zoom_value(d3.event.sourceEvent) / 100.0
+                const scale = Math.exp(zoom_amount)
+                const focus = start_pos
+                const distanceScale = d3.zoomIdentity
+                    .translate(focus.x, focus.y)
+                    .scale(scale)
+                    .translate(-focus.x, -focus.y)
+                new_xScale = distanceScale.rescaleX(scaleAndAxis.xScale)
+                new_yScale = distanceScale.rescaleY(scaleAndAxis.yScale)
+            } else {
                 new_xScale = d3.event.transform.rescaleX(scaleAndAxis.xScale)
                 new_yScale = d3.event.transform.rescaleY(scaleAndAxis.yScale)
-            // }
+            }
 
             scaleAndAxis.xAxis.call(d3.axisBottom(new_xScale).ticks(box_width / x_axis_label_width))
             scaleAndAxis.yAxis.call(d3.axisLeft(new_yScale))
