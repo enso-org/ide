@@ -204,18 +204,6 @@ class ScatterPlot extends Visualization {
             ])
             .on('zoom', zoomed)
             .on('start', start_zoom)
-        // .wheelDeltaX(function () {
-        //     const event = d3.event
-        //     const defaultWheelDeltaX =
-        //         -event.deltaX * (event.deltaMode === 1 ? 0.05 : event.deltaMode ? 1 : 0.002)
-        //     return defaultWheelDeltaX
-        // })
-        // .wheelDeltaY(function () {
-        //     const event = d3.event
-        //     const defaultWheelDeltaY =
-        //         -event.deltaY * (event.deltaMode === 1 ? 0.05 : event.deltaMode ? 1 : 0.002)
-        //     return defaultWheelDeltaY
-        // })
 
         const zoomElem = scatter
             .append('g')
@@ -242,17 +230,19 @@ class ScatterPlot extends Visualization {
                     .translate(-focus.x, -focus.y)
                 new_xScale = distanceScale.rescaleX(scaleAndAxis.xScale)
                 new_yScale = distanceScale.rescaleY(scaleAndAxis.yScale)
-            } else if (d3.event.sourceEvent.type === "wheel") {
-                if (d3.event.sourceEvent.ctrlKey){
+            } else if (d3.event.sourceEvent.type === 'wheel') {
+                if (d3.event.sourceEvent.ctrlKey) {
                     new_xScale = d3.event.transform.rescaleX(scaleAndAxis.xScale)
                     new_yScale = d3.event.transform.rescaleY(scaleAndAxis.yScale)
                 } else {
-                    const distanceScale = d3.zoomIdentity
-                        .translate(-d3.event.sourceEvent.deltaX, -d3.event.sourceEvent.deltaY)
+                    const distanceScale = d3.zoomIdentity.translate(
+                        -d3.event.sourceEvent.deltaX,
+                        -d3.event.sourceEvent.deltaY
+                    )
                     new_xScale = distanceScale.rescaleX(scaleAndAxis.xScale)
                     new_yScale = distanceScale.rescaleY(scaleAndAxis.yScale)
-                    // scaleAndAxis.xScale = new_xScale
-                    // scaleAndAxis.yScale = new_yScale
+                    scaleAndAxis.xScale = new_xScale
+                    scaleAndAxis.yScale = new_yScale
                 }
             } else {
                 new_xScale = d3.event.transform.rescaleX(scaleAndAxis.xScale)
@@ -274,7 +264,6 @@ class ScatterPlot extends Visualization {
                     .attr('x', d => new_xScale(d.x) + point_label_padding_x)
                     .attr('y', d => new_yScale(d.y) + point_label_padding_y)
             }
-
         }
 
         /**
