@@ -2,3 +2,4 @@
 
 pub mod component;
 pub mod cursor;
+#[macro_use] pub mod style;
