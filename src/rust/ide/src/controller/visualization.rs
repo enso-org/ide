@@ -176,6 +176,7 @@ mod tests {
     use enso_protocol::language_server::Path;
     use ide_view::graph_editor::builtin;
     use ide_view::graph_editor::component::visualization;
+    use ide_view::graph_editor::component::visualization::java_script as js_vis;
     use json_rpc::expect_call;
 
     use wasm_bindgen_test::wasm_bindgen_test_configure;
@@ -185,6 +186,7 @@ mod tests {
 
     #[wasm_bindgen_test(async)]
     async fn list_and_load() {
+
         let mock_client = language_server::MockClient::default();
 
         let root_id = uuid::Uuid::default();
@@ -238,8 +240,9 @@ mod tests {
         assert_eq!(visualizations[2], VisualizationPath::File(path1));
         assert_eq!(visualizations.len(),3);
 
-        let javascript_vis0 = visualization::java_script::Definition::new_builtin(&file_content0);
-        let javascript_vis1 = visualization::java_script::Definition::new_builtin(&file_content1);
+        let owner           = visualization::Project::CurrentProject;
+        let javascript_vis0 = js_vis::Definition::new(owner.clone_ref(),&file_content0);
+        let javascript_vis1 = js_vis::Definition::new(owner,&file_content1);
         let javascript_vis0 = javascript_vis0.expect("Couldn't create visualization class.");
         let javascript_vis1 = javascript_vis1.expect("Couldn't create visualization class.");
         let javascript_vis0:visualization::Definition = javascript_vis0.into();
