@@ -32,11 +32,11 @@ const PADDING_TEXT:f32 = 10.0;
 /// [here](http://dev.enso.org/docs/ide/product/visualizations.html).
 pub const PREPROCESSOR_CODE:&str = r#"
 x ->
-    result = Ref.new "{ message: \"\"}"
+    result = Builtins.Ref.new "{ message: \"\"}"
     x.catch err->
         message = err.to_display_text
-        Ref.put result ("{ \"kind\": \"Dataflow\", \"message\": " + message.to_json.to_text + "}")
-    Ref.get result
+        Builtins.Ref.put result ("{ \"kind\": \"Dataflow\", \"message\": " + message.to_json.to_text + "}")
+    Builtins.Ref.get result
 "#;
 
 /// The context module for the `PREPROCESSOR_CODE`. See there.
