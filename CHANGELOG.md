@@ -19,6 +19,8 @@
   preprocessor. This allows providing visualization with standard library
   functionalities or defining utilities that are shared between multiple
   visualizations.
+- [Ensure correct port is used to connect to IDE server.][1314]. This avoids collisions with other 
+  applications and allows multiple instances of the IDE to run in parallel.
 
 #### EnsoGL (rendering engine)
 
@@ -30,7 +32,7 @@ you can find their release notes
 
 [1209]: https://github.com/enso-org/ide/pull/1209
 [1291]: https://github.com/enso-org/ide/pull/1291
-
+[1314]: https://github.com/enso-org/ide/pull/1314
 <br/>
 
 # Enso 2.0.0-alpha.2 (2020-03-04)

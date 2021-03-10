@@ -363,6 +363,7 @@ let hideInsteadOfQuit = false
 
 let server     = null
 let mainWindow = null
+let origin     = null
 
 async function main() {
     runBackend()
@@ -372,6 +373,8 @@ async function main() {
         serverCfg.dir      = root
         serverCfg.fallback = '/assets/index.html'
         server             = await Server.create(serverCfg)
+        const port         = server.port
+        origin             = `http://localhost:${port}`
     }
     mainWindow = createWindow()
     mainWindow.on("close", (evt) => {
@@ -381,11 +384,6 @@ async function main() {
        }
    })
 }
-
-let port = Server.DEFAULT_PORT
-if      (server)    { port = server.port }
-else if (args.port) { port = args.port }
-let origin = `http://localhost:${port}`
 
 function urlParamsFromObject(obj) {
     let params = []
