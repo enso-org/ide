@@ -232,21 +232,28 @@ class Histogram extends Visualization {
         const canvas = this.canvas
         const minScale = 0.5
         const maxScale = 20
+        const rightButton = 2
+        const midButton = 1
+        const scrollWheel = 0
         const extent = [minScale, maxScale]
         const zoom = d3
             .zoom()
             .filter(function () {
-                let right_button = 2
-                let mid_button = 1
-                let scroll_wheel = 0
                 switch (d3.event.type) {
                     case 'mousedown':
-                        return d3.event.button === right_button || d3.event.button === mid_button
+                        return d3.event.button === rightButton || d3.event.button === midButton
                     case 'wheel':
-                        return d3.event.button === scroll_wheel
+                        return d3.event.button === scrollWheel
                     default:
                         return false
                 }
+            })
+            .wheelDelta(function () {
+                const event = d3.event
+                // This is the delta used by default in wheelData and which is modified by us.
+                const defaultWheelDelta =
+                    -event.deltaY * (event.deltaMode === 1 ? 0.05 : event.deltaMode ? 1 : 0.002)
+                return defaultWheelDelta * (event.ctrlKey ? 5 : 1)
             })
             .scaleExtent(extent)
             .extent([
@@ -254,7 +261,6 @@ class Histogram extends Visualization {
                 [canvas.inner.width, canvas.inner.height],
             ])
             .on('zoom', zoomed)
-        // .on('mousewheel', zoomed)
 
         const zoomElem = this.svg
             .append('g')
