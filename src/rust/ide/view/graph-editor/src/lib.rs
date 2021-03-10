@@ -396,6 +396,8 @@ ensogl::define_endpoints! {
         release_visualization_visibility(),
         /// Cycle the visualization for the selected nodes.
         cycle_visualization_for_selected_node(),
+        /// The visualization currently displayed as fullscreen is
+        close_fullscreen_visualization(),
 
 
         // === Scene Navigation ===
@@ -519,7 +521,8 @@ ensogl::define_endpoints! {
 
         visualization_enabled                   (NodeId,visualization::Metadata),
         visualization_disabled                  (NodeId),
-        visualization_enable_fullscreen         (NodeId),
+        visualization_fullscreen                (Option<NodeId>),
+        is_fs_visualization_displayed           (bool),
         visualization_preprocessor_changed      ((NodeId,PreprocessorConfiguration)),
         visualization_registry_reload_requested (),
 
@@ -1082,11 +1085,9 @@ impl GraphEditorModelWithNetwork {
 
             // === Visualizations ===
 
-            let vis_changed    =  node.model.visualization.frp.visualisation.clone_ref();
-            let vis_fullscreen =  node.model.visualization.frp.enable_fullscreen.clone_ref();
-
-            vis_enabled  <- node.visualization_enabled.gate(&node.visualization_enabled);
-            vis_disabled <- node.visualization_enabled.gate_not(&node.visualization_enabled);
+            let vis_changed =  node.model.visualization.frp.visualisation.clone_ref();
+            vis_enabled     <- node.visualization_enabled.gate(&node.visualization_enabled);
+            vis_disabled    <- node.visualization_enabled.gate_not(&node.visualization_enabled);
 
             let vis_is_selected = node.model.visualization.frp.is_selected.clone_ref();
 
@@ -1108,14 +1109,13 @@ impl GraphEditorModelWithNetwork {
             // new one has been enabled.
             // TODO: Create a better API for updating the controller about visualisation changes
             // (see #896)
-            output.source.visualization_disabled          <+ vis_changed.constant(node_id);
-            output.source.visualization_enabled           <+
+            output.source.visualization_disabled <+ vis_changed.constant(node_id);
+            output.source.visualization_enabled  <+
                 vis_changed.map2(&metadata,move |_,metadata| (node_id,metadata.clone()));
 
-            output.source.visualization_enabled           <+
+            output.source.visualization_enabled <+
                 vis_enabled.map2(&metadata,move |_,metadata| (node_id,metadata.clone()));
-            output.source.visualization_disabled          <+ vis_disabled.constant(node_id);
-            output.source.visualization_enable_fullscreen <+ vis_fullscreen.constant(node_id);
+            output.source.visualization_disabled <+ vis_disabled.constant(node_id);
         }
         let initial_metadata = visualization::Metadata {
             preprocessor : node.model.visualization.frp.preprocessor.value()
@@ -1361,6 +1361,13 @@ impl GraphEditorModel {
         let node_id = node_id.into();
         if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
             node.model.visualization.frp.enable_fullscreen.emit(());
+        }
+    }
+
+    fn disable_visualization_fullscreen(&self, node_id:impl Into<NodeId>) {
+        let node_id = node_id.into();
+        if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
+            node.model.visualization.frp.disable_fullscreen.emit(());
         }
     }
 
@@ -1872,10 +1879,11 @@ impl application::View for GraphEditor {
           , (Press   , ""              , "cmd g"             , "collapse_selected_nodes")
 
           // === Visualization ===
-          , (Press       , "!node_editing" , "space" , "press_visualization_visibility")
-          , (DoublePress , "!node_editing" , "space" , "double_press_visualization_visibility")
-          , (Release     , "!node_editing" , "space" , "release_visualization_visibility")
-          , (Press       , ""              , "cmd i" , "reload_visualization_registry")
+          , (Press       , "!node_editing & !is_fs_visualization_displayed" , "space" , "press_visualization_visibility"       )
+          , (DoublePress , "!node_editing & !is_fs_visualization_displayed" , "space" , "double_press_visualization_visibility")
+          , (Release     , "!node_editing & !is_fs_visualization_displayed" , "space" , "release_visualization_visibility"     )
+          , (Press       , ""                                               , "cmd i" , "reload_visualization_registry"        )
+          , (Press       , "is_fs_visualization_displayed"                  , "space" , "close_fullscreen_visualization"       )
 
           // === Selection ===
           , (Press   , "" , "shift"                   , "enable_node_multi_select")
@@ -2711,6 +2719,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
        }
    }));
+   }
 
 
    // === Vis Selection ===
@@ -2731,6 +2740,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Vis Update Data ===
 
+    frp::extend! { network
     // TODO remove this once real data is available.
     let sample_data_generator = MockDataGenerator3D::default();
     def _set_dumy_data = inputs.debug_set_test_visualization_data_for_selected_node.map(f!([nodes,inputs](_) {
@@ -2810,6 +2820,21 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     eval viz_disable         ((id) model.disable_visualization(id));
     eval viz_preview_disable ((id) model.disable_visualization(id));
     eval viz_fullscreen_on   ((id) model.enable_visualization_fullscreen(id));
+
+    trace out.visualization_fullscreen;
+    viz_fs_to_close <- out.visualization_fullscreen.sample(&inputs.close_fullscreen_visualization);
+    trace viz_fs_to_close;
+    eval viz_fs_to_close ([model](vis) {
+        if let Some(vis) = vis {
+            model.disable_visualization_fullscreen(vis);
+        }
+    });
+
+    out.source.visualization_fullscreen <+ viz_fullscreen_on.map(|id| Some(*id));
+    out.source.visualization_fullscreen <+ inputs.close_fullscreen_visualization.constant(None);
+
+    out.source.is_fs_visualization_displayed <+ out.visualization_fullscreen.map(Option::is_some);
+    trace out.is_fs_visualization_displayed;
 
 
     // === Register Visualization ===

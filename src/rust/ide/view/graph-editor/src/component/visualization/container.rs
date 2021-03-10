@@ -314,6 +314,15 @@ impl ContainerModel {
         }
     }
 
+    fn disable_fullscreen(&self) {
+        self.is_fullscreen.set(false);
+        if let Some(viz) = &*self.visualization.borrow() {
+            self.view.add_child(viz);
+            viz.inputs.deactivate.emit(());
+        }
+    }
+
+
     fn toggle_visibility(&self) {
         self.set_visibility(!self.is_active())
     }
@@ -476,10 +485,12 @@ impl Container {
 
             eval  frp.set_data          ((t) model.set_visualization_data(t));
 
-            eval_ frp.enable_fullscreen (model.set_visibility(true));
-            eval_ frp.enable_fullscreen (model.enable_fullscreen());
-            eval_ frp.enable_fullscreen (fullscreen.set_target_value(1.0));
-            eval  frp.set_size          ((s) size.set_target_value(*s));
+            eval_ frp.enable_fullscreen  (model.set_visibility(true));
+            eval_ frp.enable_fullscreen  (model.enable_fullscreen());
+            eval_ frp.enable_fullscreen  (fullscreen.set_target_value(1.0));
+            eval_ frp.disable_fullscreen (model.disable_fullscreen());
+            eval_ frp.disable_fullscreen (fullscreen.set_target_value(0.0));
+            eval  frp.set_size           ((s) size.set_target_value(*s));
 
             mouse_down_target <- scene.mouse.frp.down.map(f_!(scene.mouse.target.get()));
             selected_by_click <= mouse_down_target.map(f!([model] (target){
@@ -499,7 +510,7 @@ impl Container {
                 }
                 None
             }));
-            selected_by_going_fullscreen <- frp.enable_fullscreen.constant(true);
+            selected_by_going_fullscreen <- bool(&frp.disable_fullscreen,&frp.enable_fullscreen);
             selected                     <- any(selected_by_click,selected_by_going_fullscreen);
 
             is_selected_changed <= selected.map2(&frp.output.is_selected, |&new,&old| {

@@ -167,8 +167,6 @@ ensogl::define_endpoints! {
         toggle_style(),
         /// Saves the currently opened module to file.
         save_module(),
-        /// Hide the fullscreen visualization. Graph editor will be displayed again.
-        hide_fullscreen_visualization(),
     }
 
     Output {
@@ -324,10 +322,14 @@ impl View {
 
             // === Fullscreen Visualization ===
 
-            eval  graph.visualization_enable_fullscreen ((node_id) model.show_fullscreen_visualization(*node_id));
-            trace graph.visualization_enable_fullscreen;
-            eval_ frp.hide_fullscreen_visualization     (model.hide_fullscreen_visualization());
-            trace frp.hide_fullscreen_visualization;
+            trace graph.visualization_fullscreen;
+            eval  graph.visualization_fullscreen ([model](node_id) {
+                if let Some(node_id) = node_id {
+                    model.show_fullscreen_visualization(*node_id)
+                } else {
+                    model.hide_fullscreen_visualization()
+                }
+            });
         }
 
         Self{model,frp}
@@ -367,7 +369,6 @@ impl application::View for View {
         use shortcut::ActionType::*;
         (&[ (Press   , "!editing_node"                 , "tab"             , "add_new_node")
           , (Press   , "editing_node"                  , "escape"          , "abort_node_editing")
-          , (Press   , "fullscreen_visualization_shown", "escape"          , "hide_fullscreen_visualization")
           , (Press   , ""                              , "cmd alt shift t" , "toggle_style")
           , (Press   , ""                              , "cmd s"           , "save_module")
           ]).iter().map(|(a,b,c,d)|Self::self_shortcut_when(*a,*c,*d,*b)).collect()
