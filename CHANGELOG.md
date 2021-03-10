@@ -19,8 +19,8 @@
   preprocessor. This allows providing visualization with standard library
   functionalities or defining utilities that are shared between multiple
   visualizations.
-- [JS visualizations have consistent gestures with the IDE][1291]. Panning
-  and zooming now works just as expected on trackpad and mouse.
+- [JS visualizations have consistent gestures with the IDE][1291]. Panning and
+  zooming now works just as expected on trackpad and mouse.
 
 #### EnsoGL (rendering engine)
 
