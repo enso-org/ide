@@ -1,3 +1,8 @@
+/** ScatterPlot Visualization. */
+// TODO refactor this to avoid loading on startup. See issue #985 .
+loadScript('https://d3js.org/d3.v4.min.js')
+loadStyle('https://fontlibrary.org/face/dejavu-sans-mono')
+
 let shortcuts = {
     zoomIn: e => (e.ctrlKey || e.metaKey) && e.key === 'z',
     showAll: e => (e.ctrlKey || e.metaKey) && event.key === 'a',
@@ -562,10 +567,10 @@ class ScatterPlot extends Visualization {
 
         if (focus !== undefined) {
             if (focus.x !== undefined && focus.y !== undefined && focus.zoom !== undefined) {
-                let paddingY = extremesAndDeltas.dx * (1 / (2 * focus.zoom))
-                let paddingY = extremesAndDeltas.dy * (1 / (2 * focus.zoom))
-                domainX = [focus.x - paddingY, focus.x + paddingY]
-                domainY = [focus.y - paddingY, focus.y + paddingY]
+                let newPaddingX = extremesAndDeltas.dx * (1 / (2 * focus.zoom))
+                let newPaddingY = extremesAndDeltas.dy * (1 / (2 * focus.zoom))
+                domainX = [focus.x - newPaddingY, focus.x + newPaddingY]
+                domainY = [focus.y - newPaddingY, focus.y + newPaddingY]
             }
         }
         return { domainX, domainY }

@@ -9,16 +9,16 @@ let shortcuts = {
     debugPreprocessor: e => (e.ctrlKey || e.metaKey) && e.key === 'd',
 }
 
-const LABEL_STYLE = 'font-family: DejaVuSansMonoBook; font-size: 10px;'
-const MARGIN = 25
-const X_AXIS_LABEL_WIDTH = 10
-const Y_AXIS_LABEL_WIDTH = 10
-const ANIMATION_DURATION = 1000
-const LINEAR_SCALE = 'linear'
-const LIGHT_PLOT_COLOR = '#00E890'
-const DARK_PLOT_COLOR = '#E0A63B'
-const DEFAULT_NUMBER_OF_BINS = 10
-const BUTTON_HEIGHT = 25
+const labelStyle = 'font-family: DejaVuSansMonoBook; font-size: 10px;'
+const margin = 25
+const xAxisLabelWidth = 10
+const yAxisLabelWidth = 10
+const animationDuration = 1000
+const linearScale = 'linear'
+const lightPlotColor = '#00E890'
+const darkPlotColor = '#E0A63B'
+const defaultNumberOfBins = 10
+const buttonHeight = 25
 
 /**
  * A d3.js histogram visualization.
@@ -32,10 +32,10 @@ const BUTTON_HEIGHT = 25
    },
    "focus" { "x" : 1.7, "y" : 2.1, "zoom" : 3.0 },
    "color" :  "rgb(1.0,0.0,0.0)" },
-   "bins" : 10,
-   "data" : [
-     "values" : [0.1, 0.2, 0.1, 0.15, 0.7],
-   ]
+ "bins" : 10,
+ "data" : [
+ "values" : [0.1, 0.2, 0.1, 0.15, 0.7],
+ ]
  }
  */
 class Histogram extends Visualization {
@@ -119,8 +119,8 @@ class Histogram extends Visualization {
     axisSpec() {
         return (
             this._axisSpec || {
-                x: { scale: LINEAR_SCALE },
-                y: { scale: LINEAR_SCALE },
+                x: { scale: linearScale },
+                y: { scale: linearScale },
             }
         )
     }
@@ -137,7 +137,7 @@ class Histogram extends Visualization {
      */
     binCount() {
         if (!ok(this._bins)) {
-            return DEFAULT_NUMBER_OF_BINS
+            return defaultNumberOfBins
         } else {
             return Math.max(1, self._bins)
         }
@@ -150,7 +150,7 @@ class Histogram extends Visualization {
     canvasDimensions() {
         const width = this.dom.getAttributeNS(null, 'width')
         let height = this.dom.getAttributeNS(null, 'height')
-        height = height - BUTTON_HEIGHT
+        height = height - buttonHeight
         const margin = this.margins()
         return {
             inner: {
@@ -188,8 +188,8 @@ class Histogram extends Visualization {
                 'translate(' + this.canvas.margin.left + ',' + this.canvas.margin.top + ')'
             )
 
-        this.yAxis = this.svg.append('g').attr('style', LABEL_STYLE)
-        this.xAxis = this.svg.append('g').attr('style', LABEL_STYLE)
+        this.yAxis = this.svg.append('g').attr('style', labelStyle)
+        this.xAxis = this.svg.append('g').attr('style', labelStyle)
 
         this.plot = this.svg.append('g').attr('clip-path', 'url(#hist-clip-path)')
 
@@ -361,16 +361,16 @@ class Histogram extends Visualization {
     /**
      * Helper function for rescaling the data points with a new scale.
      */
-    rescale(scale, with_animation) {
-        const animation_duration = with_animation ? ANIMATION_DURATION : 0.0
+    rescale(scale, withAnimation) {
+        const duration = withAnimation ? animationDuration : 0.0
         this.xAxis
             .transition()
-            .duration(animation_duration)
+            .duration(duration)
             .call(d3.axisBottom(scale.x).ticks(this.binCount()))
         this.plot
             .selectAll('rect')
             .transition()
-            .duration(animation_duration)
+            .duration(duration)
             .attr(
                 'transform',
                 d =>
@@ -395,19 +395,19 @@ class Histogram extends Visualization {
         const dataPoints = this.data()
         const focus = this.focus()
 
-        let domain_x = [
+        let domainX = [
             extremesAndDeltas.xMin - extremesAndDeltas.paddingX,
             extremesAndDeltas.xMax + extremesAndDeltas.paddingX,
         ]
 
         if (focus !== undefined) {
             if (focus.x !== undefined && focus.zoom !== undefined) {
-                let padding_x = extremesAndDeltas.dx * (1 / (2 * focus.zoom))
-                domain_x = [focus.x - padding_x, focus.x + padding_x]
+                let paddingX = extremesAndDeltas.dx * (1 / (2 * focus.zoom))
+                domainX = [focus.x - paddingX, focus.x + paddingX]
             }
         }
 
-        const x = d3.scaleLinear().domain(domain_x).range([0, this.canvas.inner.width])
+        const x = d3.scaleLinear().domain(domainX).range([0, this.canvas.inner.width])
 
         this.xAxis
             .attr('transform', 'translate(0,' + this.canvas.inner.height + ')')
@@ -430,10 +430,10 @@ class Histogram extends Visualization {
 
         this.yAxis.call(yAxis)
 
-        let accentColor = LIGHT_PLOT_COLOR
+        let accentColor = lightPlotColor
 
         if (document.getElementById('root').classList.contains('dark')) {
-            accentColor = DARK_PLOT_COLOR
+            accentColor = darkPlotColor
         }
 
         const items = this.plot.selectAll('rect').data(bins)
@@ -459,12 +459,12 @@ class Histogram extends Visualization {
         this.yAxisLabel = this.svg
             .append('text')
             .attr('text-anchor', 'end')
-            .attr('style', LABEL_STYLE)
+            .attr('style', labelStyle)
             .attr('transform', 'rotate(-90)')
         this.xAxisLabel = this.svg
             .append('text')
             .attr('text-anchor', 'end')
-            .attr('style', LABEL_STYLE)
+            .attr('style', labelStyle)
     }
 
     /**
@@ -477,14 +477,14 @@ class Histogram extends Visualization {
         const fontStyle = '10px DejaVuSansMonoBook'
         if (axis.x.label !== undefined) {
             this.xAxisLabel
-                .attr('y', canvas.inner.height + canvas.margin.bottom - X_AXIS_LABEL_WIDTH / 2.0)
+                .attr('y', canvas.inner.height + canvas.margin.bottom - xAxisLabelWidth / 2.0)
                 .attr('x', canvas.inner.width / 2.0 + this.textWidth(axis.x.label, fontStyle) / 2)
                 .text(axis.x.label)
         }
         // Note: y axis is rotated by 90 degrees, so x/y is switched.
         if (axis.y.label !== undefined) {
             this.yAxisLabel
-                .attr('y', -canvas.margin.left + Y_AXIS_LABEL_WIDTH)
+                .attr('y', -canvas.margin.left + yAxisLabelWidth)
                 .attr('x', -canvas.inner.height / 2 + this.textWidth(axis.y.label, fontStyle) / 2)
                 .text(axis.y.label)
         }
@@ -537,30 +537,30 @@ class Histogram extends Visualization {
         const noXAxis = axis.x.label === undefined
         const noYAxis = axis.y.label === undefined
 
-        const top = MARGIN / 2.0
-        const right = MARGIN / 2.0
+        const top = margin / 2.0
+        const right = margin / 2.0
         if (noXAxis && noYAxis) {
-            return { top, right, bottom: MARGIN, left: MARGIN }
+            return { top, right, bottom: margin, left: margin }
         } else if (noYAxis) {
             return {
                 top,
                 right,
-                bottom: MARGIN + X_AXIS_LABEL_WIDTH,
-                left: MARGIN,
+                bottom: margin + xAxisLabelWidth,
+                left: margin,
             }
         } else if (noXAxis) {
             return {
                 top,
                 right,
-                bottom: MARGIN,
-                left: MARGIN + Y_AXIS_LABEL_WIDTH,
+                bottom: margin,
+                left: margin + yAxisLabelWidth,
             }
         }
         return {
             top,
             right,
-            bottom: MARGIN + X_AXIS_LABEL_WIDTH,
-            left: MARGIN + Y_AXIS_LABEL_WIDTH,
+            bottom: margin + xAxisLabelWidth,
+            left: margin + yAxisLabelWidth,
         }
     }
 
@@ -655,26 +655,26 @@ class Histogram extends Visualization {
         btn.appendChild(text)
 
         const self = this
-        const reset_zoom_and_pan = () => {
+        const resetZoomAndPan = () => {
             zoom.zoomElem.transition().duration(0).call(zoom.zoom.transform, d3.zoomIdentity)
 
-            let domain_x = [
+            let domainX = [
                 extremesAndDeltas.xMin - extremesAndDeltas.paddingX,
                 extremesAndDeltas.xMax + extremesAndDeltas.paddingX,
             ]
 
-            self.scale.x.domain(domain_x)
+            self.scale.x.domain(domainX)
             self.scale.zoom = 1.0
             self.rescale(self.scale, true)
         }
 
         document.addEventListener('keydown', e => {
             if (shortcuts.showAll(e)) {
-                reset_zoom_and_pan()
+                resetZoomAndPan()
             }
         })
 
-        btn.addEventListener('click', reset_zoom_and_pan)
+        btn.addEventListener('click', resetZoomAndPan)
         this.dom.appendChild(btn)
     }
 
