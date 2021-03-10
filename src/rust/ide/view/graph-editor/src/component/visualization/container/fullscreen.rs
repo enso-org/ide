@@ -63,7 +63,7 @@ impl Panel {
     pub fn new(logger:&Logger, scene:&Scene) -> Self {
         let logger         = Logger::sub(logger,"fullscreen_view");
         let display_object = display::object::Instance::new(&logger);
-        scene.layers.viz_fullscreen.add_exclusive(&display_object);
+        // scene.layers.viz_fullscreen.add_exclusive(&display_object);
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles   = StyleWatch::new(&scene.style_sheet);
@@ -84,7 +84,7 @@ impl Panel {
         background_dom.dom().set_style_or_warn("background"   ,bg_hex,&logger);
         background_dom.dom().set_style_or_warn("border-radius","0"   ,&logger);
         display_object.add_child(&background_dom);
-        scene.dom.layers.back.manage(&background_dom);
+        scene.dom.layers.fullscreen_vis.manage(&background_dom);
 
         Self {logger,display_object,background_dom}
     }

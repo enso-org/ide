@@ -178,8 +178,16 @@ impl DomScene {
     /// Creates a new instance of DomSymbol and adds it to parent.
     pub fn manage(&self, object:&DomSymbol) {
         let dom  = object.dom();
+        if object.is_visible() {
+            println!("Switching while visible {}", dom.class_name());
+            dom.remove();
+            // self.view_projection_dom.append_or_panic(&dom);
+        }
         let data = &self.data;
-        object.display_object().set_on_hide(f_!(dom.remove()));
+        object.display_object().set_on_hide(f_!([dom] {
+            println!("Hiding DOM {}", dom.class_name());
+            dom.remove()
+        }));
         object.display_object().set_on_show(f__!([data,dom] {
             data.view_projection_dom.append_or_panic(&dom)
         }));

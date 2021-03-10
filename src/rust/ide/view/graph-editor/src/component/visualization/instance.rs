@@ -7,6 +7,7 @@ use crate::visualization::*;
 
 use enso_frp as frp;
 use ensogl::display;
+use ensogl::display::DomSymbol;
 use ensogl::display::Scene;
 
 
@@ -162,7 +163,6 @@ impl Frp {
             on_preprocessor_change  <- preprocessor_change.sampler();
             def data_receive_error  = source();
             is_active              <- bool(&inputs.deactivate,&inputs.activate);
-            trace is_active;
         };
         preprocessor_change.emit(PreprocessorConfiguration::default());
         let on_data_receive_error  = data_receive_error.clone_ref().into();
@@ -204,21 +204,32 @@ pub struct Instance {
     display_object : display::object::Instance,
     frp            : Frp,
     network        : frp::Network,
+    root_dom       : Immutable<Option<DomSymbol>>,
 }
 
 impl Instance {
     /// Constructor.
-    pub fn new(display_object:impl display::Object, frp:impl Into<Frp>,
-               network:impl Into<frp::Network>) -> Self {
+    pub fn new
+    ( display_object : impl display::Object
+    , frp            : impl Into<Frp>
+    , network        : impl Into<frp::Network>
+    , root_dom       : Option<DomSymbol>
+    ) -> Self {
         let display_object = display_object.display_object().clone_ref();
         let frp            = frp.into();
         let network        = network.into();
-        Self {display_object,frp,network}
+        let root_dom       = Immutable(root_dom);
+        Self {display_object,frp,network,root_dom}
     }
 
     /// A [`frp::Network`] getter, used to extend the instance's network, or making a bridge
     /// networks.
     pub fn network(&self) -> &frp::Network { &self.network }
+
+    /// Get the root dom of visualization if exists.
+    pub fn root_dom(&self) -> &Option<DomSymbol> {
+        self.root_dom.deref()
+    }
 }
 
 impl Deref for Instance {

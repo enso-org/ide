@@ -18,6 +18,8 @@ use transform::CachedTransform;
 
 
 
+type Logger = DefaultTraceLogger;
+
 // ==================
 // === ParentBind ===
 // ==================
@@ -1219,6 +1221,13 @@ mod tests {
         node2.add_child(&node3);
         node1.update(&());
         assert_eq!(node3.is_visible(),true);
+        node3.unset_parent();
+        assert!(node3.is_orphan());
+        node3.add_child(&node2);
+        assert!(node3.is_orphan());
+        node1.update(&());
+        assert_eq!(node3.is_visible(),false);
+        assert_eq!(node2.is_visible(),false);
     }
 
     #[test]

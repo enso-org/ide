@@ -310,6 +310,9 @@ impl ContainerModel {
         self.is_fullscreen.set(true);
         if let Some(viz) = &*self.visualization.borrow() {
             self.fullscreen_view.add_child(viz);
+            if let Some(dom) = viz.root_dom() {
+                self.scene.dom.layers.fullscreen_vis.manage(&dom);
+            }
             viz.inputs.activate.emit(());
         }
     }
@@ -318,6 +321,14 @@ impl ContainerModel {
         self.is_fullscreen.set(false);
         if let Some(viz) = &*self.visualization.borrow() {
             self.view.add_child(viz);
+            self.view.unset_parent();
+            self.display_object.add_child(&self.view);
+            self.view.unset_parent();
+            println!("DISABLING");
+            if let Some(dom) = viz.root_dom() {
+                println!("Manage back");
+                self.scene.dom.layers.back.manage(&dom);
+            }
             viz.inputs.deactivate.emit(());
         }
     }
