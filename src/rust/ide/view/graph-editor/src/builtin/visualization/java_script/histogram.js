@@ -2,7 +2,6 @@
 // TODO refactor this to avoid loading on startup. See issue #985 .
 loadScript('https://d3js.org/d3.v4.min.js')
 loadStyle('https://fontlibrary.org/face/dejavu-sans-mono')
-
 let shortcuts = {
     zoomIn: e => (e.ctrlKey || e.metaKey) && e.key === 'z',
     showAll: e => (e.ctrlKey || e.metaKey) && e.key === 'a',
@@ -236,6 +235,7 @@ class Histogram extends Visualization {
         const midButton = 1
         const scrollWheel = 0
         const extent = [minScale, maxScale]
+        let startPos
         const zoom = d3
             .zoom()
             .filter(function () {
@@ -261,6 +261,7 @@ class Histogram extends Visualization {
                 [canvas.inner.width, canvas.inner.height],
             ])
             .on('zoom', zoomed)
+            .on('start', startZoom)
 
         const zoomElem = this.svg
             .append('g')
@@ -272,14 +273,67 @@ class Histogram extends Visualization {
             .call(zoom)
 
         const self = this
+
         /**
          * Helper function called on pan/scroll.
          */
         function zoomed() {
-            self.scale.zoom = d3.event.transform.k
             let tmpScale = Object.assign({}, self.scale)
-            tmpScale.x = d3.event.transform.rescaleX(self.scale.x)
+            if (d3.event.sourceEvent != null && d3.event.sourceEvent.buttons === rightButton) {
+                const zoomAmount = rmbZoomValue(d3.event.sourceEvent) / 100.0
+                const scale = Math.exp(zoomAmount)
+                const focus = startPos
+                const distanceScale = d3.zoomIdentity
+                    .translate(focus.x, focus.y)
+                    .scale(scale)
+                    .translate(-focus.x, -focus.y)
+                tmpScale.x = distanceScale.rescaleX(self.scale.x)
+                // tmpScale.y = distanceScale.rescaleY(self.scale.y)
+            } else if (d3.event.sourceEvent.type === 'wheel') {
+                if (d3.event.sourceEvent.ctrlKey) {
+                    tmpScale.x = d3.event.transform.rescaleX(self.scale.x)
+                    // tmpScale.y =d3.event.transform.rescaleY(self.scale.y)
+                } else {
+                    const distanceScale = d3.zoomIdentity.translate(
+                        -d3.event.sourceEvent.deltaX,
+                        -d3.event.sourceEvent.deltaY
+                    )
+                    tmpScale.x = distanceScale.rescaleX(self.scale.x)
+                    // tmpScale.y = distanceScale.rescaleY(self.scale.y)
+                    self.scale.x = tmpScale.x
+                    self.scale.y = tmpScale.y
+                }
+            } else {
+                tmpScale.x = d3.event.transform.rescaleX(self.scale.x)
+                // tmpScale.y = d3.event.transform.rescaleY(self.scale.y)
+            }
+
             self.rescale(tmpScale, false)
+        }
+
+        /**
+         * Return the position of this event in local canvas coordinates.
+         */
+        function getPos(event) {
+            return { x: event.offsetX, y: event.offsetY }
+        }
+
+        /**
+         * Return the zoom value computed from the initial right-mouse-button event to the current
+         * right-mouse event.
+         */
+        function rmbZoomValue(event) {
+            const end = getPos(event)
+            const dX = end.x - startPos.x
+            const dY = end.y - startPos.y
+            return dX - dY
+        }
+
+        /**
+         * Helper function called when starting to pan/scroll.
+         */
+        function startZoom() {
+            startPos = getPos(d3.event.sourceEvent)
         }
 
         return { zoomElem, zoom }
