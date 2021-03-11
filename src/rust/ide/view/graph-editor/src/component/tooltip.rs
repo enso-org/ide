@@ -101,9 +101,6 @@ impl Model {
         let root    = display::object::Instance::new(&logger);
         root.add_child(&tooltip);
 
-        let tgt_layer = &app.display.scene().layers.cursor;
-        tgt_layer.add_exclusive(&tooltip);
-
         Self{tooltip,root}
     }
 
