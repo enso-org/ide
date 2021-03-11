@@ -373,8 +373,7 @@ async function main() {
         serverCfg.dir      = root
         serverCfg.fallback = '/assets/index.html'
         server             = await Server.create(serverCfg)
-        const port         = server.port
-        origin             = `http://localhost:${port}`
+        origin             = `http://localhost:${server.port}`
     }
     mainWindow = createWindow()
     mainWindow.on("close", (evt) => {
