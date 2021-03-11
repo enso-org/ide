@@ -76,7 +76,7 @@ impl Default for Offset {
 
 ensogl::define_endpoints! {
     Input {
-        set_style    (Option<Style>),
+        set_style    (Style),
         set_location (Vector2),
         set_offset   (Offset)
     }
@@ -127,13 +127,11 @@ impl Model {
         self.tooltip.set_position_xy(base_positions + layout_offset)
     }
 
-    fn set_content(&self,update:&Option<Style>) {
-        if let Some(tooltip_update) = update {
-            if let Some(style) = tooltip_update.text.as_ref() {
-                let text = style.value.clone().flatten();
-                if let Some(text) = text {
-                    self.tooltip.frp.set_content(text)
-                }
+    fn set_style(&self, update:&Style) {
+        if let Some(style) = update.text.as_ref() {
+            let text = style.value.clone().flatten();
+            if let Some(text) = text {
+                self.tooltip.frp.set_content(text)
             }
         }
     }
@@ -182,20 +180,26 @@ impl Tooltip {
 
         frp::extend! { network
 
-             eval frp.set_style ((t) model.set_content(t));
 
-             show_text         <- frp.set_style.unwrap().map(|c| c.has_text());
+            // === Style ===
+
+             eval frp.set_style ((t) model.set_style(t));
+             show_text         <- frp.set_style.map(|c| c.has_text());
              on_has_content    <- show_text.on_true();
              on_has_no_content <- show_text.on_false();
+
+
+            // === Location ===
+
+             location_update <- all(frp.set_location,model.tooltip.frp.size,frp.set_offset);
+             eval location_update (((pos,size,offset)) model.set_location(*pos,*size,*offset));
+
+
+            // === Transition ===
 
              hysteretic_transition.to_start <+ on_has_content;
              hysteretic_transition.to_end   <+ on_has_no_content;
 
-             location_update <- all(frp.set_location,model.tooltip.frp.size,frp.set_offset);
-             eval location_update (((pos,size,offset)) model.set_location(*pos,*size,*offset));
-        }
-
-        frp::extend! { network
              eval hysteretic_transition.value ([model](value) {
                 model.set_opacity(*value);
                 if *value >= 0.0 {
@@ -208,6 +212,7 @@ impl Tooltip {
 
         // Reset appearance to avoid artifacts when first shown.
         model.set_opacity(0.0);
+        model.set_style(&Style::default());
         self
     }
 }
