@@ -19,8 +19,8 @@
   preprocessor. This allows providing visualization with standard library
   functionalities or defining utilities that are shared between multiple
   visualizations.
-- [Ensure correct port is used to connect to IDE server.][1314]. This avoids collisions with other 
-  applications and allows multiple instances of the IDE to run in parallel.
+- [Fix issue with multiple instances of the IDE running.][1314]. This fixes an issue where multiple
+  instances of the IDE (or even other applications) could lead to the IDE not working. 
 
 #### EnsoGL (rendering engine)
 
