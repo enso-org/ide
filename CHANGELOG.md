@@ -25,7 +25,7 @@
 - [Fix mouse cursor offset on systems with fractional display scaling][1064].
   Instead of there being an offset between visible cursor and cursor selection
   this works now with any display scaling.
-  
+
 #### EnsoGL (rendering engine)
 
 #### Enso Compiler
