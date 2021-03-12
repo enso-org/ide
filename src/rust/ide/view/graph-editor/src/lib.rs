@@ -35,7 +35,7 @@ pub mod builtin;
 pub mod data;
 
 use crate::component::node;
-use crate::component::tooltip::Offset;
+use crate::component::tooltip::Placement;
 use crate::component::tooltip::Tooltip;
 use crate::component::visualization::instance::PreprocessorConfiguration;
 use crate::component::tooltip;
@@ -1260,7 +1260,7 @@ impl GraphEditorModel {
         self.breadcrumbs.set_position_x(x_offset);
         self.breadcrumbs.set_position_y(-5.0);
 
-        self.tooltip.frp.set_offset(Offset::Bottom);
+        self.tooltip.frp.set_offset(Placement::Bottom);
         self.scene().add_child(&self.tooltip);
         self
     }
@@ -2980,12 +2980,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // ===============
 
     frp::extend! { network
-        eval cursor.frp.scene_position ([model](pos) {
-            model.tooltip.frp.set_location(pos.xy())
-        });
-        eval node_tooltip ([model](tooltip_update) {
-            model.tooltip.frp.set_style(tooltip_update)
-        });
+        eval cursor.frp.scene_position ((pos)  model.tooltip.frp.set_location(pos.xy()) );
+        eval node_tooltip ((tooltip_update) model.tooltip.frp.set_style(tooltip_update) );
     }
 
     GraphEditor {model,frp}

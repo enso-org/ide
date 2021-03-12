@@ -21,7 +21,7 @@ crate::define_endpoints! {
         to_end(),
     }
     Output {
-          /// Represents the numeric state of the animation in the range 0..1.
+        /// Represents the numeric state of the animation in the range 0..1.
         value(f32),
         /// Triggered when the state reaches 1.0.
         on_end(),
@@ -65,8 +65,7 @@ pub struct HystereticAnimation {
 impl HystereticAnimation {
     /// Constructor.
     pub fn new(network:&frp::Network, start_delay_duration:f32, end_delay_duration:f32) -> Self {
-        let frp     = Frp::extend(network);
-
+        let frp         = Frp::extend(network);
         let start_delay = Easing::new(network);
         let end_delay   = Easing::new(network);
         start_delay.set_duration(start_delay_duration);

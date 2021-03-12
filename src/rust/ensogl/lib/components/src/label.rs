@@ -1,4 +1,4 @@
-//! Text label component. Appears as text with background.
+//! Label component. Appears as text with background.
 
 use crate::prelude::*;
 
@@ -10,6 +10,7 @@ use ensogl_core::display::shape::*;
 use ensogl_core::display::traits::*;
 use ensogl_core::display;
 use ensogl_text as text;
+
 
 
 // ==========================
@@ -156,24 +157,23 @@ impl Model {
 
 
 
-// ============================
-// === Text Label Component ===
-// ============================
+// =======================
+// === Label Component ===
+// =======================
 
 #[allow(missing_docs)]
 #[derive(Clone,CloneRef,Debug)]
-pub struct TextLabel {
+pub struct Label {
     model   : Rc<Model>,
     pub frp : Rc<Frp>,
 }
 
-
-impl TextLabel {
+impl Label {
     /// Constructor.
     pub fn new(app:Application) -> Self {
         let frp   = Rc::new(Frp::new());
         let model = Rc::new(Model::new(app.clone_ref()));
-        TextLabel {frp,model}.init()
+        Label {frp,model}.init()
     }
 
     fn init(self) -> Self {
@@ -193,6 +193,6 @@ impl TextLabel {
     }
 }
 
-impl display::Object for TextLabel {
+impl display::Object for Label {
     fn display_object(&self) -> &display::object::Instance { &self.model.display_object }
 }

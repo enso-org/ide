@@ -18,7 +18,7 @@
 
 pub mod drop_down_menu;
 pub mod list_view;
-pub mod text_label;
+pub mod label;
 pub mod toggle_button;
 
 /// Commonly used types and functions.

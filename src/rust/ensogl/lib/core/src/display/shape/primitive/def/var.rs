@@ -649,7 +649,10 @@ impl Var<color::Rgba> {
                 Var::Static(color::Rgba::new(t.data.red,t.data.green,t.data.blue,*alpha))
             },
             (t, alpha) => {
-                Var::Dynamic(format!("srgba({0}.raw.x,{0}.raw.y,{0}.raw.z,{1})",t.glsl(),alpha.glsl()).into())
+                let t     = t.glsl();
+                let alpha = alpha.glsl();
+                let var   = format!("srgba({0}.raw.x,{0}.raw.y,{0}.raw.z,{1})",t,alpha);
+                Var::Dynamic(var.into())
             },
         }
     }
@@ -659,10 +662,14 @@ impl Var<color::Rgba> {
     pub fn multiply_alpha(self, alpha:&Var<f32>) -> Self {
         match (self, alpha) {
             (Var::Static  (t), Var::Static(alpha)) => {
-                Var::Static(color::Rgba::new(t.data.red,t.data.green,t.data.blue,*alpha*t.data.alpha))
+                let var = color::Rgba::new(t.data.red,t.data.green,t.data.blue,*alpha*t.data.alpha);
+                Var::Static(var)
             },
             (t, alpha) => {
-                Var::Dynamic(format!("srgba({0}.raw.x,{0}.raw.y,{0}.raw.z,{0}.raw.w*{1})",t.glsl(),alpha.glsl()).into())
+                let t     = t.glsl();
+                let alpha = alpha.glsl();
+                let var   = format!("srgba({0}.raw.x,{0}.raw.y,{0}.raw.z,{0}.raw.w*{1})",t,alpha);
+                Var::Dynamic(var.into())
             },
         }
     }
@@ -670,8 +677,8 @@ impl Var<color::Rgba> {
     /// Transform to LinearRgba.
     pub fn into_linear(self) -> Var<color::LinearRgba> {
         match self {
-            Var::Static(c) =>  Var::Static(c.into()),
-            Var::Dynamic(c) =>  Var::Dynamic(format!("rgba({0})",c.glsl()).into())
+            Var::Static(c)  => Var::Static(c.into()),
+            Var::Dynamic(c) => Var::Dynamic(format!("rgba({0})",c.glsl()).into())
         }
     }
 }

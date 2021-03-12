@@ -8,7 +8,7 @@ use ensogl::prelude::*;
 use ensogl::gui::style::*;
 use ensogl::define_style;
 
-use ensogl_gui_components::text_label::TextLabel;
+use ensogl_gui_components::label::Label;
 use ensogl::animation::hysteretic::HystereticAnimation;
 
 
@@ -22,7 +22,7 @@ const SHOW_DELAY_DURATION_MS : f32 = 150.0;
 
 
 
-// ==============
+// =============
 // === Style ===
 // =============
 
@@ -30,7 +30,7 @@ define_style! {
     /// Host defines an object which the cursor position is bound to. It is used to implement
     /// label selection. After setting the host to the label, cursor will not follow mouse anymore,
     /// it will inherit its position from the label instead.
-    text   : Option<String>,
+    text : Option<String>,
 }
 
 impl Style {
@@ -63,14 +63,14 @@ impl Style {
 
 #[derive(Clone,Copy,Debug)]
 #[allow(missing_docs)]
-/// Indicates the position of the tooltip relative to the cursor location.
-pub enum Offset {
+/// Indicates the placement of the tooltip relative to the base position location.
+pub enum Placement {
     Top, Bottom, Left, Right
 }
 
-impl Default for Offset {
+impl Default for Placement {
     fn default() -> Self {
-        Offset::Bottom
+        Placement::Top
     }
 }
 
@@ -78,7 +78,7 @@ ensogl::define_endpoints! {
     Input {
         set_style    (Style),
         set_location (Vector2),
-        set_offset   (Offset)
+        set_offset   (Placement)
     }
 }
 
@@ -90,34 +90,26 @@ ensogl::define_endpoints! {
 
 #[derive(Clone,Debug)]
 struct Model {
-    tooltip : TextLabel,
+    tooltip : Label,
     root    : display::object::Instance,
 }
 
 impl Model {
     fn new(app:&Application) -> Self {
         let logger  = Logger::new("TooltipModel");
-        let tooltip = TextLabel::new(app.clone_ref());
+        let tooltip = Label::new(app.clone_ref());
         let root    = display::object::Instance::new(&logger);
         root.add_child(&tooltip);
 
         Self{tooltip,root}
     }
 
-    fn set_location(&self, position:Vector2, size:Vector2, layout: Offset) {
+    fn set_location(&self, position:Vector2, size:Vector2, layout: Placement) {
         let layout_offset = match layout {
-            Offset::Top => {
-                Vector2::new(0.0,size.y * 0.5)
-            }
-            Offset::Bottom => {
-                Vector2::new(0.0,-size.y * 0.5)
-            }
-            Offset::Left => {
-              Vector2::new(-size.x / 2.0,0.0)
-            }
-            Offset::Right => {
-               Vector2::new(size.x / 2.0,0.0)
-            }
+            Placement::Top    => Vector2::new(0.0, size.y * 0.5),
+            Placement::Bottom => Vector2::new(0.0, -size.y * 0.5),
+            Placement::Left   => Vector2::new(-size.x / 2.0, 0.0),
+            Placement::Right  => Vector2::new(size.x / 2.0, 0.0),
         };
 
         let base_positions = position.xy();
@@ -169,11 +161,12 @@ impl Tooltip {
     }
 
     fn init(self,) -> Self {
-        let frp        = &self.frp;
-        let network    = &frp.network;
-        let model      = &self.model;
+        let frp     = &self.frp;
+        let network = &frp.network;
+        let model   = &self.model;
 
-        let hysteretic_transition = HystereticAnimation::new(&network,HIDE_DELAY_DURATION_MS,SHOW_DELAY_DURATION_MS);
+        let hysteretic_transition = HystereticAnimation::new(
+            &network,HIDE_DELAY_DURATION_MS,SHOW_DELAY_DURATION_MS);
 
         frp::extend! { network
 

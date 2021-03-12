@@ -448,7 +448,9 @@ impl Model {
 
             on_hover  <- frp.on_hover.on_true();
             non_hover <- frp.on_hover.on_false();
-            frp.source.tooltip <+ frp.tp.sample(&on_hover).unwrap().map(|tp| tooltip::Style::set_label(tp.to_string()));
+            frp.source.tooltip <+ frp.tp.sample(&on_hover).unwrap().map(|tp| {
+                tooltip::Style::set_label(tp.to_string())
+            });
             frp.source.tooltip <+ non_hover.constant(tooltip::Style::unset_label());
         }
 
