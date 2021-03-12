@@ -76,9 +76,10 @@ impl Default for Placement {
 
 ensogl::define_endpoints! {
     Input {
-        set_style    (Style),
-        set_location (Vector2),
-        set_offset   (Placement)
+        set_style     (Style),
+        set_location  (Vector2),
+        set_placement (Placement),
+        set_offset    (Vector2),
     }
 }
 
@@ -181,8 +182,14 @@ impl Tooltip {
 
             // === Location ===
 
-             location_update <- all(frp.set_location,model.tooltip.frp.size,frp.set_offset);
-             eval location_update (((pos,size,offset)) model.set_location(*pos,*size,*offset));
+             location_update <- all(frp.set_location,
+                                    model.tooltip.frp.size,
+                                    frp.set_offset,
+                                    frp.set_placement);
+             eval location_update ([model]((pos,size,offset,placement)) {
+                let base_position = pos+offset;
+                model.set_location(base_position,*size,*placement)
+             });
 
 
             // === Transition ===

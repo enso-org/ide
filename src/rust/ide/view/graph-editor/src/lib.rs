@@ -1260,7 +1260,7 @@ impl GraphEditorModel {
         self.breadcrumbs.set_position_x(x_offset);
         self.breadcrumbs.set_position_y(-5.0);
 
-        self.tooltip.frp.set_offset(Placement::Bottom);
+        self.tooltip.frp.set_placement(Placement::Bottom);
         self.scene().add_child(&self.tooltip);
         self
     }
