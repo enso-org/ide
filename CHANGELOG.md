@@ -19,6 +19,9 @@
   preprocessor. This allows providing visualization with standard library
   functionalities or defining utilities that are shared between multiple
   visualizations.
+- [Fix issue with multiple instances of the IDE running.][1314]. This fixes an
+  issue where multiple instances of the IDE (or even other applications) could
+  lead to the IDE not working.
 - [JS visualizations have consistent gestures with the IDE][1291]. Panning and
   zooming now works just as expected on trackpad and mouse.
 
@@ -32,6 +35,7 @@ you can find their release notes
 
 [1209]: https://github.com/enso-org/ide/pull/1209
 [1291]: https://github.com/enso-org/ide/pull/1291
+[1314]: https://github.com/enso-org/ide/pull/1314
 [1311]: https://github.com/enso-org/ide/pull/1311
 
 <br/>
