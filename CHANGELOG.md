@@ -28,9 +28,9 @@
 - [Fix issue with multiple instances of the IDE running.][1314] This fixes an
   issue where multiple instances of the IDE (or even other applications) could
   lead to the IDE not working.
-- [Allow JS to log arbitrary objects.][1313] Previously using `console.log` in
-  a visualisation or during development woudl crash the IDE. Now it correctly
-  logs the string representation of the object.
+- [Allow JS to log arbitrary objects.][1313] Previously using `console.log` in a
+  visualisation or during development woudl crash the IDE. Now it correctly logs
+  the string representation of the object.
 - [Disable area selection][1318]. The area selection was visible despite being
   non-functional. To avoid confusion, area selection has been disabled until it
   is [correctly implemented][479].
