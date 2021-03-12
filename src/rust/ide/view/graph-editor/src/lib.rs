@@ -1214,6 +1214,9 @@ pub struct GraphEditorModel {
     pub nodes          : Nodes,
     pub edges          : Edges,
     pub vis_registry   : visualization::Registry,
+    // FIXME[MM]: The tooltip should live next to the cursor in `Application`. This does not
+    //  currently work, however, because the `Application` lives in enso-core, and the tooltip
+    //  requires enso-text, which in turn depends on enso-core, creating a cyclic dependency.
     tooltip            : Tooltip,
     touch_state        : TouchState,
     visualisations     : Visualisations,
