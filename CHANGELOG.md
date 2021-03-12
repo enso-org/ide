@@ -19,7 +19,7 @@
   preprocessor. This allows providing visualization with standard library
   functionalities or defining utilities that are shared between multiple
   visualizations.
-- [Fix issue with multiple instances of the IDE running.][1314]. This fixes an
+- [Fix issue with multiple instances of the IDE running.][1314] This fixes an
   issue where multiple instances of the IDE (or even other applications) could
   lead to the IDE not working.
 - [Allow JS to log arbitrary objects.][1313] Previously using `console.log` in an
