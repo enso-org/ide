@@ -22,6 +22,9 @@
 - [Fix issue with multiple instances of the IDE running.][1314]. This fixes an
   issue where multiple instances of the IDE (or even other applications) could
   lead to the IDE not working.
+- [Allow JS to log arbitrary objects][1313] Previously using `console.log` in an
+  visualisation or during development woudl crash the IDE. Now it correctly
+  logs the string representation of the object.
 
 #### EnsoGL (rendering engine)
 
@@ -34,6 +37,8 @@ you can find their release notes
 [1209]: https://github.com/enso-org/ide/pull/1209
 [1291]: https://github.com/enso-org/ide/pull/1291
 [1314]: https://github.com/enso-org/ide/pull/1314
+[1313]: https://github.com/enso-org/ide/pull/1313
+
 
 <br/>
 
