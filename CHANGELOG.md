@@ -35,7 +35,6 @@
   non-functional. To avoid confusion, area selection has been disabled until it
   is [correctly implemented][479].
 
-
 #### EnsoGL (rendering engine)
 
 #### Enso Compiler
