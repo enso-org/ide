@@ -22,7 +22,7 @@
 - [Fix issue with multiple instances of the IDE running.][1314]. This fixes an
   issue where multiple instances of the IDE (or even other applications) could
   lead to the IDE not working.
-- [Allow JS to log arbitrary objects][1313] Previously using `console.log` in an
+- [Allow JS to log arbitrary objects.][1313] Previously using `console.log` in an
   visualisation or during development woudl crash the IDE. Now it correctly
   logs the string representation of the object.
 
