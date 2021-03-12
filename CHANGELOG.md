@@ -31,6 +31,9 @@
 - [Allow JS to log arbitrary objects.][1313] Previously using `console.log` in a
   visualisation or during development woudl crash the IDE. Now it correctly logs
   the string representation of the object.
+- [Fix mouse cursor offset on systems with fractional display scaling][1064].
+  Instead of there being an offset between visible cursor and cursor selection
+  this works now with any display scaling.
 - [Disable area selection][1318]. The area selection was visible despite being
   non-functional. To avoid confusion, area selection has been disabled until it
   is [correctly implemented][479].
@@ -48,6 +51,7 @@ you can find their release notes
 [1291]: https://github.com/enso-org/ide/pull/1291
 [1314]: https://github.com/enso-org/ide/pull/1314
 [1313]: https://github.com/enso-org/ide/pull/1313
+[1064]: https://github.com/enso-org/ide/pull/1064
 [1316]: https://github.com/enso-org/ide/pull/1316
 [1318]: https://github.com/enso-org/ide/pull/1318
 
