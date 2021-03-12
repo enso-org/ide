@@ -21,7 +21,8 @@
   makes the generated textual code easier to read and reduces likelihood of
   accidental name collision.
 - [Hovering over an output port shows a pop-up with the result type of a node]
-  [1312].
+  [1312]. This allows discovering the result type of a node which can help with
+  debugging and development.
 - [Visualizations can define context for preprocessor evaluation][1291]. Users
   can now decide what module's context should be used for visualization
   preprocessor. This allows providing visualization with standard library

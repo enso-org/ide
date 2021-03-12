@@ -148,13 +148,13 @@ impl Model {
 #[derive(Clone,CloneRef,Debug)]
 pub struct Tooltip {
     model   : Rc<Model>,
-    /// Public FRP api.
+    #[allow(missing_docs)]
     pub frp : Rc<Frp>
 }
 
 impl Tooltip {
-    /// Constructor.
-    pub fn new(app : &Application) -> Self {
+    #[allow(missing_docs)]
+    pub fn new(app: &Application) -> Self {
         let model = Rc::new(Model::new(app));
         let frp   = Rc::new(Frp::new());
         Self{model,frp}.init()
