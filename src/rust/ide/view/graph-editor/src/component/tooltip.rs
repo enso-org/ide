@@ -10,15 +10,7 @@ use ensogl::define_style;
 
 use ensogl_gui_components::label::Label;
 use ensogl::animation::hysteretic::HystereticAnimation;
-
-
-
-// =================
-// === Constants ===
-// =================
-
-const HIDE_DELAY_DURATION_MS : f32 = 150.0;
-const SHOW_DELAY_DURATION_MS : f32 = 150.0;
+use ensogl::display::shape::StyleWatch;
 
 
 
@@ -158,16 +150,24 @@ impl Tooltip {
     pub fn new(app: &Application) -> Self {
         let model = Rc::new(Model::new(app));
         let frp   = Rc::new(Frp::new());
-        Self{model,frp}.init()
+        Self{model,frp}.init(app)
     }
 
-    fn init(self,) -> Self {
+    fn init(self,app: &Application) -> Self {
         let frp     = &self.frp;
         let network = &frp.network;
         let model   = &self.model;
 
+        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape
+        // system (#795)
+        let styles                 = StyleWatch::new(&app.display.scene().style_sheet);
+        let hide_delay_duration_ms = styles.get_number_or(
+            ensogl_theme::application::tooltip::hide_delay_duration_ms,0.0);
+        let show_delay_duration_ms = styles.get_number_or(
+            ensogl_theme::application::tooltip::show_delay_duration_ms,0.0);
+
         let hysteretic_transition = HystereticAnimation::new(
-            &network,HIDE_DELAY_DURATION_MS,SHOW_DELAY_DURATION_MS);
+            &network,hide_delay_duration_ms,show_delay_duration_ms);
 
         frp::extend! { network
 
