@@ -2,6 +2,7 @@
 // TODO refactor this to avoid loading on startup. See issue #985 .
 loadScript('https://d3js.org/d3.v4.min.js')
 loadStyle('https://fontlibrary.org/face/dejavu-sans-mono')
+
 let shortcuts = {
     zoomIn: e => (e.ctrlKey || e.metaKey) && e.key === 'z',
     showAll: e => (e.ctrlKey || e.metaKey) && e.key === 'a',
@@ -274,41 +275,38 @@ class Histogram extends Visualization {
 
         const self = this
 
+        let transformedScale = Object.assign({}, self.scale)
+
         /**
          * Helper function called on pan/scroll.
          */
         function zoomed() {
-            let tmpScale = Object.assign({}, self.scale)
             if (d3.event.sourceEvent != null && d3.event.sourceEvent.buttons === rightButton) {
-                const zoomAmount = rmbZoomValue(d3.event.sourceEvent) / 100.0
+                const zoomAmount = rmbZoomValue(d3.event.sourceEvent) / 5000.0
                 const scale = Math.exp(zoomAmount)
                 const focus = startPos
                 const distanceScale = d3.zoomIdentity
                     .translate(focus.x, focus.y)
                     .scale(scale)
                     .translate(-focus.x, -focus.y)
-                tmpScale.x = distanceScale.rescaleX(self.scale.x)
-                // tmpScale.y = distanceScale.rescaleY(self.scale.y)
+                transformedScale.x = distanceScale.rescaleX(transformedScale.x)
             } else if (d3.event.sourceEvent.type === 'wheel') {
                 if (d3.event.sourceEvent.ctrlKey) {
-                    tmpScale.x = d3.event.transform.rescaleX(self.scale.x)
-                    // tmpScale.y =d3.event.transform.rescaleY(self.scale.y)
+                    const scale = Math.exp(-d3.event.sourceEvent.deltaY / 100.0)
+                    const distanceScale = d3.zoomIdentity.scale(scale)
+                    transformedScale.x = distanceScale.rescaleX(transformedScale.x)
                 } else {
                     const distanceScale = d3.zoomIdentity.translate(
                         -d3.event.sourceEvent.deltaX,
                         -d3.event.sourceEvent.deltaY
                     )
-                    tmpScale.x = distanceScale.rescaleX(self.scale.x)
-                    // tmpScale.y = distanceScale.rescaleY(self.scale.y)
-                    self.scale.x = tmpScale.x
-                    self.scale.y = tmpScale.y
+                    transformedScale.x = distanceScale.rescaleX(transformedScale.x)
                 }
             } else {
-                tmpScale.x = d3.event.transform.rescaleX(self.scale.x)
-                // tmpScale.y = d3.event.transform.rescaleY(self.scale.y)
+                transformedScale.x = d3.event.transform.rescaleX(transformedScale.x)
             }
 
-            self.rescale(tmpScale, false)
+            self.rescale(transformedScale, false)
         }
 
         /**

@@ -218,52 +218,58 @@ class ScatterPlot extends Visualization {
             .style('pointer-events', 'all')
             .call(zoom)
 
+        let transformedXScale = scaleAndAxis.xScale
+        let transformedYScale = scaleAndAxis.yScale
+
         /**
          * Helper function called on pan/scroll.
          */
         function zoomed() {
-            let newXScale
-            let newYScale
             if (d3.event.sourceEvent != null && d3.event.sourceEvent.buttons === rightButton) {
-                const zoomAmount = rmbZoomValue(d3.event.sourceEvent) / 100.0
+                const zoomAmount = rmbZoomValue(d3.event.sourceEvent) / 5000.0
                 const scale = Math.exp(zoomAmount)
                 const focus = startPos
                 const distanceScale = d3.zoomIdentity
                     .translate(focus.x, focus.y)
                     .scale(scale)
                     .translate(-focus.x, -focus.y)
-                newXScale = distanceScale.rescaleX(scaleAndAxis.xScale)
-                newYScale = distanceScale.rescaleY(scaleAndAxis.yScale)
+                transformedXScale = distanceScale.rescaleX(transformedXScale)
+                transformedYScale = distanceScale.rescaleY(transformedYScale)
             } else if (d3.event.sourceEvent.type === 'wheel') {
                 if (d3.event.sourceEvent.ctrlKey) {
-                    newXScale = d3.event.transform.rescaleX(scaleAndAxis.xScale)
-                    newYScale = d3.event.transform.rescaleY(scaleAndAxis.yScale)
+                    const scale = Math.exp(-d3.event.sourceEvent.deltaY / 100.0)
+                    const distanceScale = d3.zoomIdentity.scale(scale)
+                    transformedXScale = distanceScale.rescaleX(transformedXScale)
+                    transformedYScale = distanceScale.rescaleY(transformedYScale)
                 } else {
                     const distanceScale = d3.zoomIdentity.translate(
                         -d3.event.sourceEvent.deltaX,
                         -d3.event.sourceEvent.deltaY
                     )
-                    newXScale = distanceScale.rescaleX(scaleAndAxis.xScale)
-                    newYScale = distanceScale.rescaleY(scaleAndAxis.yScale)
-                    scaleAndAxis.xScale = newXScale
-                    scaleAndAxis.yScale = newYScale
+                    transformedXScale = distanceScale.rescaleX(transformedXScale)
+                    transformedYScale = distanceScale.rescaleY(transformedYScale)
                 }
             } else {
-                newXScale = d3.event.transform.rescaleX(scaleAndAxis.xScale)
-                newYScale = d3.event.transform.rescaleY(scaleAndAxis.yScale)
+                transformedXScale = d3.event.transform.rescaleX(transformedXScale)
+                transformedYScale = d3.event.transform.rescaleY(transformedYScale)
             }
 
-            scaleAndAxis.xAxis.call(d3.axisBottom(newXScale).ticks(boxWidth / xAxisLabelWidth))
-            scaleAndAxis.yAxis.call(d3.axisLeft(newYScale))
+            scaleAndAxis.xAxis.call(
+                d3.axisBottom(transformedXScale).ticks(boxWidth / xAxisLabelWidth)
+            )
+            scaleAndAxis.yAxis.call(d3.axisLeft(transformedYScale))
             scatter
                 .selectAll('path')
-                .attr('transform', d => 'translate(' + newXScale(d.x) + ',' + newYScale(d.y) + ')')
+                .attr(
+                    'transform',
+                    d => 'translate(' + transformedXScale(d.x) + ',' + transformedYScale(d.y) + ')'
+                )
 
             if (points.labels === visilbePoints) {
                 scatter
                     .selectAll('text')
-                    .attr('x', d => newXScale(d.x) + pointLabelPaddingX)
-                    .attr('y', d => newYScale(d.y) + pointLabelPaddingY)
+                    .attr('x', d => transformedXScale(d.x) + pointLabelPaddingX)
+                    .attr('y', d => transformedYScale(d.y) + pointLabelPaddingY)
             }
         }
 
