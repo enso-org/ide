@@ -298,4 +298,9 @@ impl<C> Alpha<C> {
         let alpha = self.alpha * alpha;
         Color(Alpha{alpha, opaque: self.opaque })
     }
+
+    /// Modify the color's alpha channel.
+    pub fn mod_alpha<F:FnOnce(&mut f32)>(&mut self, f:F) {
+        f(&mut self.alpha)
+    }
 }
