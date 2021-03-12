@@ -103,12 +103,16 @@ impl Model {
         let display_object = display::object::Instance::new(&logger);
         let label          = app.new_view::<text::Area>();
         let background     = background::View::new(&logger);
+
+        // FIXME[MM/WD]: Depth sorting of labels to in front of everything else in the scene.
+        //  Temporary solution. The depth management needs to allow defining relative position of
+        //  the text and background and let the whole component to be set to am an arbitrary layer.
+        label.remove_from_scene_layer_DEPRECATED(&scene.layers.main);
+        label.add_to_scene_layer_DEPRECATED(&scene.layers.tooltip_text);
+        scene.layers.tooltip_background.add_exclusive(&background);
+
         display_object.add_child(&background);
         display_object.add_child(&label);
-
-        // Depth sorting of labels to in front of the background.
-        label.remove_from_scene_layer_DEPRECATED(&scene.layers.main);
-        label.add_to_scene_layer_DEPRECATED(&scene.layers.label);
 
         let style = StyleWatch::new(&app.display.scene().style_sheet);
 
