@@ -6,6 +6,7 @@ import * as loader_module from 'enso-studio-common/src/loader'
 import * as html_utils    from 'enso-studio-common/src/html_utils'
 import * as animation     from 'enso-studio-common/src/animation'
 import * as globalConfig  from '../../../../config.yaml'
+import cfg                from '../../../config'
 
 
 
@@ -15,8 +16,6 @@ import * as globalConfig  from '../../../../config.yaml'
 
 let API = {}
 window[globalConfig.windowAppScopeName] = API
-
-import cfg from '../../../config'
 
 
 
@@ -103,7 +102,7 @@ let wasm_entry_point_pfx = "entry_point_"
 
 /// Displays a debug screen which allows the user to run one of predefined debug examples.
 function show_debug_screen(wasm,msg) {
-    mixpanel.track("show_debug_screen")
+    API.remoteLog("show_debug_screen")
     let names = []
     for (let fn of Object.getOwnPropertyNames(wasm)) {
         if (fn.startsWith(wasm_entry_point_pfx)) {
@@ -199,15 +198,6 @@ function remoteLog(event,data) {
     }
 }
 
-window.enso.remoteLog = remoteLog
-
-window.setInterval(() =>{remoteLog("alive");}, 1000 * 60)
-
-//Build data injected during the build process. See `webpack.config.js` for the source.
-window.enso.remoteLog("git_hash", {hash: GIT_HASH})
-window.enso.remoteLog("build_information", BUILD_INFO)
-window.enso.remoteLog("git_status", {satus: GIT_STATUS})
-
 // ======================
 // === Logs Buffering ===
 // ======================
@@ -270,7 +260,7 @@ class LogRouter {
     }
 
     handleError(...args) {
-        remoteLog("error", args)
+        API.remoteLog("error", args)
     }
 }
 
@@ -344,7 +334,7 @@ function setupCrashDetection() {
 }
 
 function handleCrash(message) {
-    remoteLog("crash", message)
+    API.remoteLog("crash", message)
     if (document.getElementById(crashBannerId) === null) {
         storeLastCrashMessage(message)
         location.reload()
@@ -399,7 +389,7 @@ function showCrashBanner(message) {
 }
 
 async function reportCrash(message) {
-    const crashReportHost = getUrlParams().crashReportHost || cfg.defaultLogServerHost
+    const crashReportHost = API[globalConfig.windowAppScopeConfigName].crashReportHost
     await fetch(`http://${crashReportHost}/`, {
         method: 'POST',
         mode: 'no-cors',
@@ -421,17 +411,6 @@ function style_root() {
     root.style.backgroundColor = '#f6f3f1'
 }
 
-function getUrlParams() {
-    let url    = window.location.search
-    let query  = url.substr(1)
-    let result = {}
-    query.split("&").forEach(function(part) {
-        let item = part.split("=")
-        result[item[0]] = decodeURIComponent(item[1])
-    })
-    return result
-}
-
 /// Waits for the window to finish its show animation. It is used when the website is run in
 /// Electron. Please note that it returns immediately in the web browser.
 async function windowShowAnimation() {
@@ -450,18 +429,28 @@ function ok(value) {
 
 /// Main entry point. Loads WASM, initializes it, chooses the scene to run.
 API.main = async function (inputConfig) {
-    remoteLog("main")
     let defaultConfig = {
-        use_loader    : true,
-        wasm_url      : '/assets/ide.wasm',
-        wasm_glue_url : '/assets/wasm_imports.js'
+        use_loader     : true,
+        wasm_url       : '/assets/ide.wasm',
+        wasm_glue_url  : '/assets/wasm_imports.js',
+        crashReportHost: cfg.defaultLogServerHost,
+        noDataGathering: false,
     }
     let urlParams = new URLSearchParams(window.location.search);
     let urlConfig = Object.fromEntries(urlParams.entries())
     let config    = Object.assign(defaultConfig,inputConfig,urlConfig)
     API[globalConfig.windowAppScopeConfigName] = config
 
-    //initCrashHandling()
+    API.remoteLog = config.noDataGathering
+                    ? function () {}
+                    : remoteLog
+    window.setInterval(() =>{API.remoteLog("alive");}, 1000 * 60)
+    //Build data injected during the build process. See `webpack.config.js` for the source.
+    API.remoteLog("git_hash", {hash: GIT_HASH})
+    API.remoteLog("build_information", BUILD_INFO)
+    API.remoteLog("git_status", {satus: GIT_STATUS})
+
+    // initCrashHandling()
     style_root()
     printScamWarning()
     hideLogs()
@@ -470,11 +459,11 @@ API.main = async function (inputConfig) {
     let entryTarget = ok(config.entry) ? config.entry : main_entry_point
     config.use_loader = config.use_loader && (entryTarget === main_entry_point)
 
-    remoteLog("window_show_animation")
+    API.remoteLog("window_show_animation")
     await windowShowAnimation()
-    remoteLog("download_content")
+    API.remoteLog("download_content")
     let {wasm,loader} = await download_content(config)
-    remoteLog("wasm_loaded")
+    API.remoteLog("wasm_loaded")
     if (entryTarget) {
         let fn_name = wasm_entry_point_pfx + entryTarget
         let fn      = wasm[fn_name]

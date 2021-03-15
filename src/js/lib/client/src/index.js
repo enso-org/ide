@@ -172,7 +172,12 @@ optParser.options('crash-report-host', {
     describe    : 'The address of the server that will receive crash reports. ' +
                   'Consists of a hostname, optionally followed by a ":" and a port number',
     requiresArg : true,
-    default: cfg.defaultLogServerHost
+    default     : cfg.defaultLogServerHost
+})
+
+optParser.options('no-data-gathering', {
+    describe    : 'Disable the sharing of any usage data with the Enso developers',
+    default     : false
 })
 
 
@@ -439,6 +444,7 @@ function createWindow() {
         dark_theme      : Electron.nativeTheme.shouldUseDarkColors,
         high_contrast   : Electron.nativeTheme.shouldUseHighContrastColors,
         crashReportHost : args.crashReportHost,
+        noDataGathering : args.noDataGathering,
     }
 
     if (args.project)    { urlCfg.project = args.project }
