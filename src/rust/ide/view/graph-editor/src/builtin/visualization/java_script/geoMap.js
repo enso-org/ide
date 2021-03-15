@@ -68,10 +68,15 @@ const makeId = makeGenerator()
 class MapController extends deck.MapController {
     handleEvent(event) {
         if (event.type === 'wheel') {
-            if (event.srcEvent.ctrlKey) {
-                console.log('PINCH')
+            if (!event.srcEvent.ctrlKey){
+                // this.controllerStateProps.latitude += event.srcEvent.deltaX
+                // this.controllerStateProps.longitude += event.srcEvent.deltaY
+                // this.updateViewport(this.controllerStateProps, {transitionDuration: 0}, {
+                //     isDragging: true,
+                //     isPanning: true
+                // });
             } else {
-                console.log('PAN')
+                super.handleEvent(event)
             }
         } else {
             super.handleEvent(event)
