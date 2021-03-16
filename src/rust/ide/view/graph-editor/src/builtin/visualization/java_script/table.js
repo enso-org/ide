@@ -274,16 +274,18 @@ class TableVisualization extends Visualization {
             style = style_dark
         }
         const table = genTable(parsedData.data || parsedData, 0, parsedData.header)
-        const allRowsCount = parsedData.all_rows_count
-        const includedRowsCount = parsedData.data.length > 0 ? parsedData.data[0].length : 0
-        const hiddenCount = allRowsCount - includedRowsCount
         let suffix = ''
-        if (hiddenCount > 0) {
-            let rows = 'rows'
-            if (hiddenCount == 1) {
-                rows = 'row'
+        const allRowsCount = parsedData.all_rows_count
+        if (allRowsCount !== undefined) {
+            const includedRowsCount = parsedData.data.length > 0 ? parsedData.data[0].length : 0
+            const hiddenCount = allRowsCount - includedRowsCount
+            if (hiddenCount > 0) {
+                let rows = 'rows'
+                if (hiddenCount == 1) {
+                    rows = 'row'
+                }
+                suffix = '<span class="hiddenrows">and ' + hiddenCount + ' hidden ' + rows + '.</span>'
             }
-            suffix = '<span class="hiddenrows">and ' + hiddenCount + ' hidden ' + rows + '.</span>'
         }
         tabElem.innerHTML = style + table + suffix
     }
