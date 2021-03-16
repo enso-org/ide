@@ -193,7 +193,7 @@ class TableVisualization extends Visualization {
             background-clip: padding-box;
         }
         
-        th {
+        th, .hiddenrows {
             color: rgba(255, 255, 255, 0.7);
             font-weight: 400;
         }
@@ -204,8 +204,8 @@ class TableVisualization extends Visualization {
         }
 
         .hiddenrows {
-            color: rgba(0, 0, 0, 0.8);
-            margin-left: 12px;
+            margin-left: 5px;
+            margin-top: 5px;
         }
         </style>
         `
@@ -233,7 +233,7 @@ class TableVisualization extends Visualization {
             background-clip: padding-box;
         }
 
-        th {
+        th, .hiddenrows {
             color: rgba(0, 0, 0, 0.9);
             font-weight: 400;
         }
@@ -244,8 +244,8 @@ class TableVisualization extends Visualization {
         }
 
         .hiddenrows {
-            color: rgba(0, 0, 0, 0.8);
-            margin-left: 12px;
+            margin-left: 5px;
+            margin-top: 5px;
         }
         </style>`
 
@@ -277,13 +277,13 @@ class TableVisualization extends Visualization {
         const allRowsCount = parsedData.all_rows_count
         const includedRowsCount = parsedData.data.length > 0 ? parsedData.data[0].length : 0
         const hiddenCount = allRowsCount - includedRowsCount
-        let suffix = ""
+        let suffix = ''
         if (hiddenCount > 0) {
-            let rows = "rows"
+            let rows = 'rows'
             if (hiddenCount == 1) {
-                rows = "row"
+                rows = 'row'
             }
-            suffix = "<span>and " + hiddenCount + " hidden " + rows + ".</span>"
+            suffix = '<span class="hiddenrows">and ' + hiddenCount + ' hidden ' + rows + '.</span>'
         }
         tabElem.innerHTML = style + table + suffix
     }
