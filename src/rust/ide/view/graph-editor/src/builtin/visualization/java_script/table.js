@@ -284,7 +284,8 @@ class TableVisualization extends Visualization {
                 if (hiddenCount == 1) {
                     rows = 'row'
                 }
-                suffix = '<span class="hiddenrows">and ' + hiddenCount + ' hidden ' + rows + '.</span>'
+                suffix =
+                    '<span class="hiddenrows">and ' + hiddenCount + ' hidden ' + rows + '.</span>'
             }
         }
         tabElem.innerHTML = style + table + suffix

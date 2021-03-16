@@ -1,8 +1,8 @@
 loadScript('https://cdnjs.cloudflare.com/ajax/libs/sql-formatter/4.0.2/sql-formatter.min.js')
 
 class SqlVisualization extends Visualization {
-    static inputType = "Any"
-    static label = "SQL"
+    static inputType = 'Any'
+    static label = 'SQL'
 
     constructor(api) {
         super(api)
@@ -17,7 +17,7 @@ class SqlVisualization extends Visualization {
 
     onDataReceived(data) {
         while (this.dom.firstChild) {
-            this.dom.removeChild(this.dom.lastChild);
+            this.dom.removeChild(this.dom.lastChild)
         }
         let parsedData = data
         if (typeof data === 'string') {
@@ -54,7 +54,7 @@ class SqlVisualization extends Visualization {
         function renderParameter(param) {
             const item = param[0]
             if (typeof item === 'string') {
-                return '<span class="string">"' + item + '"</span>'
+                return '<span class="string">\'' + item + "'</span>"
             } else if (typeof item === 'number') {
                 return '<span class="number">' + item + '</span>'
             } else if (typeof item === 'boolean') {
@@ -65,11 +65,14 @@ class SqlVisualization extends Visualization {
         }
 
         const params = parsedData.interpolations.map(renderParameter)
-        let language = "sql"
-        if (parsedData.dialect == "postgresql") {
-            language = "postgresql"
+        let language = 'sql'
+        if (parsedData.dialect == 'postgresql') {
+            language = 'postgresql'
         }
-        const formatted = sqlFormatter.format(parsedData.sql, {params: params, language: language})
+        const formatted = sqlFormatter.format(parsedData.sql, {
+            params: params,
+            language: language,
+        })
 
         const width = this.dom.getAttributeNS(null, 'width')
         const height = this.dom.getAttributeNS(null, 'height')
@@ -89,8 +92,8 @@ class SqlVisualization extends Visualization {
     }
 
     setSize(size) {
-        this.dom.setAttributeNS(null, "width", size[0])
-        this.dom.setAttributeNS(null, "height", size[1])
+        this.dom.setAttributeNS(null, 'width', size[0])
+        this.dom.setAttributeNS(null, 'height', size[1])
     }
 }
 
