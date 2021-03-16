@@ -16,16 +16,8 @@ class TableVisualization extends Visualization {
 
     constructor(data) {
         super(data)
-        this.setPreprocessorModule('Standard.Table')
-        this.setPreprocessorCode(`
-        x -> case x of
-            Table.Table _ ->
-                header = ["header", x.columns.map .name]
-                data   = ["data",   x.columns.map .to_vector . map (x -> x.take_start 2000) ]
-                pairs  = [header,data]
-                Json.from_pairs pairs . to_text
-            _ -> x . to_json . to_text
-        `)
+        this.setPreprocessorModule('Standard.Visualization.Table.Visualization')
+        this.setPreprocessorCode(`x -> here.prepare_visualization x 1000`)
     }
 
     onDataReceived(data) {
@@ -180,7 +172,7 @@ class TableVisualization extends Visualization {
 
         const style_dark = `
         <style>
-        table {
+        table, .hiddenrows {
             font-family: DejaVuSansMonoBook, sans-serif;
             font-size: 12px;
         }
@@ -210,12 +202,17 @@ class TableVisualization extends Visualization {
         th {
             background-color: rgba(255, 255, 255, 0.03);
         }
+
+        .hiddenrows {
+            color: rgba(0, 0, 0, 0.8);
+            margin-left: 12px;
+        }
         </style>
         `
 
         const style_light = `
         <style>
-        table {
+        table, .hiddenrows {
             font-family: DejaVuSansMonoBook, sans-serif;
             font-size: 12px;
         }
@@ -245,6 +242,11 @@ class TableVisualization extends Visualization {
         th {
             background-color: rgba(0, 0, 0, 0.025);
         }
+
+        .hiddenrows {
+            color: rgba(0, 0, 0, 0.8);
+            margin-left: 12px;
+        }
         </style>`
 
         const width = this.dom.getAttributeNS(null, 'width')
@@ -272,7 +274,18 @@ class TableVisualization extends Visualization {
             style = style_dark
         }
         const table = genTable(parsedData.data || parsedData, 0, parsedData.header)
-        tabElem.innerHTML = style + table
+        const allRowsCount = parsedData.all_rows_count
+        const includedRowsCount = parsedData.data.length > 0 ? parsedData.data[0].length : 0
+        const hiddenCount = allRowsCount - includedRowsCount
+        let suffix = ""
+        if (hiddenCount > 0) {
+            let rows = "rows"
+            if (hiddenCount == 1) {
+                rows = "row"
+            }
+            suffix = "<span>and " + hiddenCount + " hidden " + rows + ".</span>"
+        }
+        tabElem.innerHTML = style + table + suffix
     }
 
     setSize(size) {
