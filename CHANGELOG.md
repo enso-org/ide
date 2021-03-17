@@ -37,6 +37,10 @@
 - [Disable area selection][1318]. The area selection was visible despite being
   non-functional. To avoid confusion, area selection has been disabled until it
   is [correctly implemented][479].
+- [Inform the engine about new imports before they are used][#1332]. When the
+  user adds or changes a node through the searcher, the necessary imports are
+  added first, the node content afterwards. This avoids an invalid intermediate
+  state.
 
 #### EnsoGL (rendering engine)
 
