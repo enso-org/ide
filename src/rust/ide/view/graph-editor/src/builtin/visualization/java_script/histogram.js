@@ -281,6 +281,9 @@ class Histogram extends Visualization {
          * Helper function called on pan/scroll.
          */
         function zoomed() {
+            // TODO:
+            // - When zooming, fix bins to show data properly
+            // - when panning, dont let user go less than 0 on Y scale, as it wont make sense.
             if (d3.event.sourceEvent != null && d3.event.sourceEvent.buttons === rightButton) {
                 const zoomAmount = rmbZoomValue(d3.event.sourceEvent) / 5000.0
                 const scale = Math.exp(zoomAmount)
@@ -290,20 +293,28 @@ class Histogram extends Visualization {
                     .scale(scale)
                     .translate(-focus.x, -focus.y)
                 transformedScale.x = distanceScale.rescaleX(transformedScale.x)
+                // transformedScale.y = distanceScale.rescaleY(transformedScale.y)
             } else if (d3.event.sourceEvent != null && d3.event.sourceEvent.type === 'wheel') {
                 if (d3.event.sourceEvent.ctrlKey) {
                     const scale = Math.exp(-d3.event.sourceEvent.deltaY / 100.0)
-                    const distanceScale = d3.zoomIdentity.scale(scale)
+                    const focus = startPos
+                    const distanceScale = d3.zoomIdentity
+                        .translate(focus.x, focus.y)
+                        .scale(scale)
+                        .translate(-focus.x, -focus.y)
                     transformedScale.x = distanceScale.rescaleX(transformedScale.x)
+                    // transformedScale.y = distanceScale.rescaleY(transformedScale.y)
                 } else {
                     const distanceScale = d3.zoomIdentity.translate(
                         -d3.event.sourceEvent.deltaX,
                         -d3.event.sourceEvent.deltaY
                     )
                     transformedScale.x = distanceScale.rescaleX(transformedScale.x)
+                    transformedScale.y = distanceScale.rescaleY(transformedScale.y)
                 }
             } else {
                 transformedScale.x = d3.event.transform.rescaleX(transformedScale.x)
+                transformedScale.y = d3.event.transform.rescaleY(transformedScale.y)
             }
 
             self.rescale(transformedScale, false)
@@ -419,6 +430,10 @@ class Histogram extends Visualization {
             .transition()
             .duration(duration)
             .call(d3.axisBottom(scale.x).ticks(this.binCount()))
+        this.yAxis
+            .transition()
+            .duration(duration)
+            .call(d3.axisLeft(scale.y))
         this.plot
             .selectAll('rect')
             .transition()

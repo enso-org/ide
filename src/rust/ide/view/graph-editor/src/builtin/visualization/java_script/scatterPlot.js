@@ -222,7 +222,11 @@ class ScatterPlot extends Visualization {
             } else if (d3.event.sourceEvent != null && d3.event.sourceEvent.type === 'wheel') {
                 if (d3.event.sourceEvent.ctrlKey) {
                     const scale = Math.exp(-d3.event.sourceEvent.deltaY / 100.0)
-                    const distanceScale = d3.zoomIdentity.scale(scale)
+                    const focus = startPos
+                    const distanceScale = d3.zoomIdentity
+                        .translate(focus.x, focus.y)
+                        .scale(scale)
+                        .translate(-focus.x, -focus.y)
                     transformedScale.xScale = distanceScale.rescaleX(transformedScale.xScale)
                     transformedScale.yScale = distanceScale.rescaleY(transformedScale.yScale)
                 } else {
