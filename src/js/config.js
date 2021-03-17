@@ -1,5 +1,5 @@
 /**
- * Configuration options that are only used by the JavaScript part of the project
+ * Configuration options that are only used by the JavaScript part of the project.
  */
 
 exports.defaultLogServerPort = 20060

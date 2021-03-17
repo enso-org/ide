@@ -5,7 +5,6 @@ import * as assert    from 'assert'
 import * as buildCfg  from '../../../../../dist/build.json'
 import * as Electron  from 'electron'
 import * as isDev     from 'electron-is-dev'
-import * as minimist  from 'minimist'
 import * as path      from 'path'
 import * as pkg       from '../package.json'
 import * as rootCfg   from '../../../package.json'
@@ -176,7 +175,7 @@ optParser.options('crash-report-host', {
 })
 
 optParser.options('no-data-gathering', {
-    describe    : 'Disable the sharing of any usage data with the Enso developers',
+    describe    : 'Disable anonymous data collection',
     default     : false
 })
 

@@ -10,6 +10,14 @@ import cfg                from '../../../config'
 
 
 
+// =================
+// === Constants ===
+// =================
+
+const ALIVE_LOG_INTERVAL = 1000 * 60
+
+
+
 // ==================
 // === Global API ===
 // ==================
@@ -171,30 +179,33 @@ function printScamWarning() {
 // === Remote Logging ===
 // ======================
 
-const mixpanel = require('mixpanel-browser');
-mixpanel.init("5b541aeab5e08f313cdc1d1bbebc12ac", { "api_host": "https://api-eu.mixpanel.com" }, "");
-
-const MAX_MESSAGE_LENGTH = 500;
-
-function trim_message(message) {
-    let trimmed = message.substr(0,MAX_MESSAGE_LENGTH)
-    if (trimmed.length < message.length) {
-        trimmed += "..."
+class MixpanelLogger {
+    constructor() {
+        this.mixpanel = require('mixpanel-browser');
+        this.mixpanel.init("5b541aeab5e08f313cdc1d1bbebc12ac", { "api_host": "https://api-eu.mixpanel.com" }, "");
     }
-    return trimmed
-}
 
-function remoteLog(event,data) {
-    if (mixpanel) {
-        event = trim_message(event)
-        if (data !== undefined && data !== null) {
-            data = trim_message(JSON.stringify(data))
-            mixpanel.track(event,{data});
+    log(event,data) {
+        if (this.mixpanel) {
+            event = MixpanelLogger.trim_message(event)
+            if (data !== undefined && data !== null) {
+                data = MixpanelLogger.trim_message(JSON.stringify(data))
+                this.mixpanel.track(event,{data});
+            } else {
+                this.mixpanel.track(event);
+            }
         } else {
-            mixpanel.track(event);
+            console.warn(`Failed to log the event '${event}'.`)
         }
-    } else {
-        console.warn(`Failed to log the event '${event}'.`)
+    }
+
+    static trim_message(message) {
+        const MAX_MESSAGE_LENGTH = 500;
+        let trimmed = message.substr(0,MAX_MESSAGE_LENGTH)
+        if (trimmed.length < message.length) {
+            trimmed += "..."
+        }
+        return trimmed
     }
 }
 
@@ -441,16 +452,20 @@ API.main = async function (inputConfig) {
     let config    = Object.assign(defaultConfig,inputConfig,urlConfig)
     API[globalConfig.windowAppScopeConfigName] = config
 
-    API.remoteLog = config.noDataGathering
-                    ? function () {}
-                    : remoteLog
-    window.setInterval(() =>{API.remoteLog("alive");}, 1000 * 60)
+    if (config.noDataGathering) {
+        API.remoteLog = function (_event, _data) {}
+    } else {
+        let logger = new MixpanelLogger
+        API.remoteLog = function (event,data) {logger.log(event,data)}
+    }
+
+    window.setInterval(() =>{API.remoteLog("alive");}, ALIVE_LOG_INTERVAL)
     //Build data injected during the build process. See `webpack.config.js` for the source.
     API.remoteLog("git_hash", {hash: GIT_HASH})
     API.remoteLog("build_information", BUILD_INFO)
     API.remoteLog("git_status", {satus: GIT_STATUS})
 
-    // initCrashHandling()
+    //initCrashHandling()
     style_root()
     printScamWarning()
     hideLogs()
