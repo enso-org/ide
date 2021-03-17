@@ -290,7 +290,7 @@ class Histogram extends Visualization {
                     .scale(scale)
                     .translate(-focus.x, -focus.y)
                 transformedScale.x = distanceScale.rescaleX(transformedScale.x)
-            } else if (d3.event.sourceEvent.type === 'wheel') {
+            } else if (d3.event.sourceEvent != null && d3.event.sourceEvent.type === 'wheel') {
                 if (d3.event.sourceEvent.ctrlKey) {
                     const scale = Math.exp(-d3.event.sourceEvent.deltaY / 100.0)
                     const distanceScale = d3.zoomIdentity.scale(scale)
@@ -334,7 +334,7 @@ class Histogram extends Visualization {
             startPos = getPos(d3.event.sourceEvent)
         }
 
-        return { zoomElem, zoom }
+        return { zoomElem, zoom, transformedScale }
     }
 
     /**
@@ -368,14 +368,14 @@ class Histogram extends Visualization {
          * Section "Brushing for zooming".
          */
         const zoomIn = () => {
-            const xMin = self.scale.x.invert(extent[0])
-            const xMax = self.scale.x.invert(extent[1])
+            const xMin = zoom.transformedScale.x.invert(extent[0])
+            const xMax = zoom.transformedScale.x.invert(extent[1])
 
-            self.scale.x.domain([xMin, xMax])
+            zoom.transformedScale.x.domain([xMin, xMax])
             const dx = extent[1] - extent[0]
             self.scale.zoom = self.scale.zoom * (self.canvas.inner.width / dx)
 
-            self.rescale(self.scale, true)
+            self.rescale(zoom.transformedScale, true)
         }
 
         const zoomInKeyEvent = event => {
@@ -715,9 +715,9 @@ class Histogram extends Visualization {
                 extremesAndDeltas.xMax + extremesAndDeltas.paddingX,
             ]
 
-            self.scale.x.domain(domainX)
+            zoom.transformedScale.x.domain(domainX)
             self.scale.zoom = 1.0
-            self.rescale(self.scale, true)
+            self.rescale(zoom.transformedScale, true)
         }
 
         document.addEventListener('keydown', e => {
