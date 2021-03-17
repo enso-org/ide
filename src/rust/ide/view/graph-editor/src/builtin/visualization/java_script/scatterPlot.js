@@ -99,24 +99,9 @@ class ScatterPlot extends Visualization {
         // TODO [MM]: In task specification buttons were on top of the visualization, but because
         //            the visualization selector obfuscated them, they're now on the bottom.
         //            This should be fixed in (#898).
-        this.createButtonFitAll(
-            scaleAndAxis,
-            scatter,
-            this.points,
-            extremesAndDeltas,
-            zoom,
-            this.boxWidth
-        )
+        this.createButtonFitAll(scatter, this.points, extremesAndDeltas, zoom, this.boxWidth)
         let selectedZoomBtn = this.createButtonScaleToPoints()
-        this.addBrushing(
-            this.boxWidth,
-            this.boxHeight,
-            scatter,
-            scaleAndAxis,
-            selectedZoomBtn,
-            this.points,
-            zoom
-        )
+        this.addBrushing(this.boxWidth, this.boxHeight, scatter, selectedZoomBtn, this.points, zoom)
     }
 
     canvasWidth() {
@@ -218,8 +203,7 @@ class ScatterPlot extends Visualization {
             .style('pointer-events', 'all')
             .call(zoom)
 
-        let transformedXScale = scaleAndAxis.xScale
-        let transformedYScale = scaleAndAxis.yScale
+        let transformedScale = Object.assign({}, scaleAndAxis)
 
         /**
          * Helper function called on pan/scroll.
@@ -233,43 +217,48 @@ class ScatterPlot extends Visualization {
                     .translate(focus.x, focus.y)
                     .scale(scale)
                     .translate(-focus.x, -focus.y)
-                transformedXScale = distanceScale.rescaleX(transformedXScale)
-                transformedYScale = distanceScale.rescaleY(transformedYScale)
-            } else if (d3.event.sourceEvent.type === 'wheel') {
+                transformedScale.xScale = distanceScale.rescaleX(transformedScale.xScale)
+                transformedScale.yScale = distanceScale.rescaleY(transformedScale.yScale)
+            } else if (d3.event.sourceEvent != null && d3.event.sourceEvent.type === 'wheel') {
                 if (d3.event.sourceEvent.ctrlKey) {
                     const scale = Math.exp(-d3.event.sourceEvent.deltaY / 100.0)
                     const distanceScale = d3.zoomIdentity.scale(scale)
-                    transformedXScale = distanceScale.rescaleX(transformedXScale)
-                    transformedYScale = distanceScale.rescaleY(transformedYScale)
+                    transformedScale.xScale = distanceScale.rescaleX(transformedScale.xScale)
+                    transformedScale.yScale = distanceScale.rescaleY(transformedScale.yScale)
                 } else {
                     const distanceScale = d3.zoomIdentity.translate(
                         -d3.event.sourceEvent.deltaX,
                         -d3.event.sourceEvent.deltaY
                     )
-                    transformedXScale = distanceScale.rescaleX(transformedXScale)
-                    transformedYScale = distanceScale.rescaleY(transformedYScale)
+                    transformedScale.xScale = distanceScale.rescaleX(transformedScale.xScale)
+                    transformedScale.yScale = distanceScale.rescaleY(transformedScale.yScale)
                 }
             } else {
-                transformedXScale = d3.event.transform.rescaleX(transformedXScale)
-                transformedYScale = d3.event.transform.rescaleY(transformedYScale)
+                transformedScale.xScale = d3.event.transform.rescaleX(transformedScale.xScale)
+                transformedScale.yScale = d3.event.transform.rescaleY(transformedScale.yScale)
             }
 
             scaleAndAxis.xAxis.call(
-                d3.axisBottom(transformedXScale).ticks(boxWidth / xAxisLabelWidth)
+                d3.axisBottom(transformedScale.xScale).ticks(boxWidth / xAxisLabelWidth)
             )
-            scaleAndAxis.yAxis.call(d3.axisLeft(transformedYScale))
+            scaleAndAxis.yAxis.call(d3.axisLeft(transformedScale.yScale))
             scatter
                 .selectAll('path')
                 .attr(
                     'transform',
-                    d => 'translate(' + transformedXScale(d.x) + ',' + transformedYScale(d.y) + ')'
+                    d =>
+                        'translate(' +
+                        transformedScale.xScale(d.x) +
+                        ',' +
+                        transformedScale.yScale(d.y) +
+                        ')'
                 )
 
             if (points.labels === visilbePoints) {
                 scatter
                     .selectAll('text')
-                    .attr('x', d => transformedXScale(d.x) + pointLabelPaddingX)
-                    .attr('y', d => transformedYScale(d.y) + pointLabelPaddingY)
+                    .attr('x', d => transformedScale.xScale(d.x) + pointLabelPaddingX)
+                    .attr('y', d => transformedScale.yScale(d.y) + pointLabelPaddingY)
             }
         }
 
@@ -298,7 +287,7 @@ class ScatterPlot extends Visualization {
             startPos = getPos(d3.event.sourceEvent)
         }
 
-        return { zoomElem, zoom }
+        return { zoomElem, zoom, transformedScale }
     }
 
     /**
@@ -307,7 +296,7 @@ class ScatterPlot extends Visualization {
      * Brush is a tool which enables user to select points, and zoom into selection via
      * keyboard shortcut or button event.
      */
-    addBrushing(boxWidth, boxHeight, scatter, scaleAndAxis, selectedZoomBtn, points, zoom) {
+    addBrushing(boxWidth, boxHeight, scatter, selectedZoomBtn, points, zoom) {
         let extent
         let brushClass = 'brush'
 
@@ -332,15 +321,15 @@ class ScatterPlot extends Visualization {
          * Section "Brushing for zooming".
          */
         const zoomIn = () => {
-            let xMin = scaleAndAxis.xScale.invert(extent[0][0])
-            let xMax = scaleAndAxis.xScale.invert(extent[1][0])
-            let yMin = scaleAndAxis.yScale.invert(extent[1][1])
-            let yMax = scaleAndAxis.yScale.invert(extent[0][1])
+            let xMin = zoom.transformedScale.xScale.invert(extent[0][0])
+            let xMax = zoom.transformedScale.xScale.invert(extent[1][0])
+            let yMin = zoom.transformedScale.yScale.invert(extent[1][1])
+            let yMax = zoom.transformedScale.yScale.invert(extent[0][1])
 
-            scaleAndAxis.xScale.domain([xMin, xMax])
-            scaleAndAxis.yScale.domain([yMin, yMax])
+            zoom.transformedScale.xScale.domain([xMin, xMax])
+            zoom.transformedScale.yScale.domain([yMin, yMax])
 
-            self.zoomingHelper(scaleAndAxis, boxWidth, scatter, points)
+            self.zoomingHelper(zoom.transformedScale, boxWidth, scatter, points)
         }
 
         const zoomInKeyEvent = event => {
@@ -717,7 +706,7 @@ class ScatterPlot extends Visualization {
     /**
      * Creates a button to fit all points on plot.
      */
-    createButtonFitAll(scaleAndAxis, scatter, points, extremesAndDeltas, zoom, boxWidth) {
+    createButtonFitAll(scatter, points, extremesAndDeltas, zoom, boxWidth) {
         const btn = this.createBtnHelper()
 
         let text = document.createTextNode('Fit all')
@@ -736,10 +725,10 @@ class ScatterPlot extends Visualization {
                 extremesAndDeltas.yMax + extremesAndDeltas.paddingY,
             ]
 
-            scaleAndAxis.xScale.domain(domainX)
-            scaleAndAxis.yScale.domain(domainY)
+            zoom.transformedScale.xScale.domain(domainX)
+            zoom.transformedScale.yScale.domain(domainY)
 
-            self.zoomingHelper(scaleAndAxis, boxWidth, scatter, points)
+            self.zoomingHelper(zoom.transformedScale, boxWidth, scatter, points)
         }
 
         document.addEventListener('keydown', e => {
