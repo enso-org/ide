@@ -1,7 +1,7 @@
 loadScript('https://cdnjs.cloudflare.com/ajax/libs/sql-formatter/4.0.2/sql-formatter.min.js')
 
 class SqlVisualization extends Visualization {
-    static inputType = 'Any' // 'Standard.Database.Data.Table.Table | Standard.Database.Data.Column.Column' // TODO change this once sum types are supported
+    static inputType = 'Any' // 'Standard.Database.Data.Table.Table | Standard.Database.Data.Column.Column'
     static label = 'SQL Query'
 
     constructor(api) {

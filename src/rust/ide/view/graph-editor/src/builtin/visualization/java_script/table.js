@@ -166,6 +166,33 @@ class TableVisualization extends Visualization {
             }
         }
 
+        function genDataframe(parsedData) {
+            let result = ''
+            function addHeader(content) {
+                result += '<th>' + content + '</th>'
+            }
+            function addCell(content) {
+                result += '<td class="plaintext">' + content + '</td>'
+            }
+            result += '<tr>'
+            parsedData.indices_header.forEach(addHeader)
+            parsedData.header.forEach(addHeader)
+            result += '</tr>'
+            let rows = 0
+            if (parsedData.data.length > 0) {
+                rows = parsedData.data[0].length
+            } else if (parsedData.indices.length > 0) {
+                rows = parsedData.indices[0].length
+            }
+            for (let i = 0; i < rows; ++i) {
+                result += '<tr>'
+                parsedData.indices.forEach(ix => addHeader(ix[i]))
+                parsedData.data.forEach(col => addCell(col[i]))
+                result += '</tr>'
+            }
+            return tableOf(result, 0)
+        }
+
         while (this.dom.firstChild) {
             this.dom.removeChild(this.dom.lastChild)
         }
@@ -273,22 +300,34 @@ class TableVisualization extends Visualization {
         if (document.getElementById('root').classList.contains('dark-theme')) {
             style = style_dark
         }
-        const table = genTable(parsedData.data || parsedData, 0, parsedData.header)
-        let suffix = ''
-        const allRowsCount = parsedData.all_rows_count
-        if (allRowsCount !== undefined) {
-            const includedRowsCount = parsedData.data.length > 0 ? parsedData.data[0].length : 0
-            const hiddenCount = allRowsCount - includedRowsCount
-            if (hiddenCount > 0) {
-                let rows = 'rows'
-                if (hiddenCount == 1) {
-                    rows = 'row'
+
+        if (parsedData.error !== undefined) {
+            tabElem.innerHTML = 'Error: ' + parsedData.error
+        } else if (parsedData.json !== undefined) {
+            const table = genTable(parsedData.json, 0, undefined)
+            tabElem.innerHTML = style + table
+        } else {
+            const table = genDataframe(parsedData)
+            let suffix = ''
+            const allRowsCount = parsedData.all_rows_count
+            if (allRowsCount !== undefined) {
+                const includedRowsCount = parsedData.data.length > 0 ? parsedData.data[0].length : 0
+                const hiddenCount = allRowsCount - includedRowsCount
+                if (hiddenCount > 0) {
+                    let rows = 'rows'
+                    if (hiddenCount == 1) {
+                        rows = 'row'
+                    }
+                    suffix =
+                        '<span class="hiddenrows">&#8230; and ' +
+                        hiddenCount +
+                        ' more ' +
+                        rows +
+                        '.</span>'
                 }
-                suffix =
-                    '<span class="hiddenrows">and ' + hiddenCount + ' hidden ' + rows + '.</span>'
             }
+            tabElem.innerHTML = style + table + suffix
         }
-        tabElem.innerHTML = style + table + suffix
     }
 
     setSize(size) {
