@@ -569,7 +569,16 @@ impl Area {
             eval_ sels_cut (m.buffer.frp.delete_left());
 
             eval_ input.paste (m.paste());
-            eval input.paste_string ((s) m.buffer.frp.paste(m.decode_paste(s)));
+            eval input.paste_string([m](s) {
+                let mut fragments = m.decode_paste(s);
+                if m.single_line.get() {
+                    fragments = fragments
+                        .iter()
+                        .map(|fragment| fragment.lines().next().unwrap_or("").to_string())
+                        .collect();
+                }
+                m.buffer.frp.paste(fragments);
+            });
 
 
             eval_ m.buffer.frp.text_change (m.redraw(true));
