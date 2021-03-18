@@ -40,6 +40,9 @@
 - [Disable area selection][1318]. The area selection was visible despite being
   non-functional. To avoid confusion, area selection has been disabled until it
   is [correctly implemented][479].
+- [Fix pasting multiline code in nodes][1348]. Since nodes contain only a
+  single line, the first copied line will be inserted and all additional lines
+  will be ignored.
 
 #### EnsoGL (rendering engine)
 
