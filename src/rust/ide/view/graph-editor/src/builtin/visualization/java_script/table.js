@@ -124,9 +124,13 @@ class TableVisualization extends Visualization {
 
         function genGenericTable(data, level) {
             let result = ''
-            data.forEach((point, ix) => {
-                result += '<tr><th>' + ix + '</th>' + toTableCell(point, level) + '</tr>'
-            })
+            if (Array.isArray(data)) {
+                data.forEach((point, ix) => {
+                    result += '<tr><th>' + ix + '</th>' + toTableCell(point, level) + '</tr>'
+                })
+            } else {
+                result += '<tr>' + toTableCell(data, level) + '</tr>'
+            }
             return tableOf(result, level)
         }
 
