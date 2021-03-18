@@ -1,3 +1,5 @@
+//! A module containing the fullscreen view of visualization.
+
 use crate::prelude::*;
 
 use ensogl::data::color;

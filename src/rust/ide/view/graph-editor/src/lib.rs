@@ -1879,11 +1879,12 @@ impl application::View for GraphEditor {
           , (Press   , ""              , "cmd g"             , "collapse_selected_nodes")
 
           // === Visualization ===
-          , (Press       , "!node_editing & !is_fs_visualization_displayed" , "space" , "press_visualization_visibility"       )
-          , (DoublePress , "!node_editing & !is_fs_visualization_displayed" , "space" , "double_press_visualization_visibility")
-          , (Release     , "!node_editing & !is_fs_visualization_displayed" , "space" , "release_visualization_visibility"     )
-          , (Press       , ""                                               , "cmd i" , "reload_visualization_registry"        )
-          , (Press       , "is_fs_visualization_displayed"                  , "space" , "close_fullscreen_visualization"       )
+          , (Press       , "!node_editing"                 , "space" , "press_visualization_visibility"       )
+            , (DoublePress , "!node_editing"                 , "space" , "double_press_visualization_visibility")
+            , (Press , "!node_editing"                 , "cmd k" , "double_press_visualization_visibility")
+          , (Release     , "!node_editing"                 , "space" , "release_visualization_visibility"     )
+          , (Press       , ""                              , "cmd i" , "reload_visualization_registry"        )
+          , (Press       , "is_fs_visualization_displayed" , "space" , "close_fullscreen_visualization"       )
 
           // === Selection ===
           , (Press   , "" , "shift"                   , "enable_node_multi_select")
@@ -1898,7 +1899,7 @@ impl application::View for GraphEditor {
           , (Release , "" , "shift ctrl alt"          , "toggle_node_inverse_select")
 
           // === Navigation ===
-          , (Press       , ""              , "ctrl space"        , "cycle_visualization_for_selected_node")
+          , (Press       , "!is_fs_visualization_displayed"              , "ctrl space"        , "cycle_visualization_for_selected_node")
           , (DoublePress , ""              , "left-mouse-button" , "enter_hovered_node")
           , (Press       , "!node_editing" , "enter"             , "enter_selected_node")
           , (Press       , ""              , "alt enter"         , "exit_node")
@@ -2791,16 +2792,21 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     let viz_press_ev      = inputs.press_visualization_visibility.clone_ref();
     let viz_d_press_ev    = inputs.double_press_visualization_visibility.clone_ref();
-    let viz_release       = inputs.release_visualization_visibility.clone_ref();
-    viz_pressed          <- bool(&viz_release,&viz_press_ev);
+    let viz_release_ev    = inputs.release_visualization_visibility.clone_ref();
+    trace viz_press_ev;
+    trace viz_d_press_ev;
+    trace viz_release_ev;
+    viz_pressed          <- bool(&viz_release_ev,&viz_press_ev);
     viz_was_pressed      <- viz_pressed.previous();
     viz_press            <- viz_press_ev.gate_not(&viz_was_pressed);
+    viz_release          <- viz_release_ev.gate(&viz_was_pressed);
     viz_press_time       <- viz_press   . map(|_| web::performance().now() as f32);
     viz_release_time     <- viz_release . map(|_| web::performance().now() as f32);
     viz_press_time_diff  <- viz_release_time.map2(&viz_press_time,|t1,t0| t1-t0);
+    trace viz_press_time_diff;
     viz_preview_mode     <- viz_press_time_diff.map(|t| *t > VIZ_PREVIEW_MODE_TOGGLE_TIME_MS);
-    viz_preview_mode_end <- viz_release.gate(&viz_preview_mode);
-    viz_tgt_nodes        <- viz_press.map(f_!(model.selected_nodes()));
+    viz_preview_mode_end <- viz_release.gate(&viz_preview_mode).gate_not(&out.is_fs_visualization_displayed);
+    viz_tgt_nodes        <- viz_press.gate_not(&out.is_fs_visualization_displayed).map(f_!(model.selected_nodes()));
     viz_tgt_nodes_off    <- viz_tgt_nodes.map(f!([model](node_ids) {
         node_ids.iter().cloned().filter(|node_id| {
             model.nodes.get_cloned_ref(node_id)
@@ -2827,6 +2833,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     eval viz_fs_to_close ([model](vis) {
         if let Some(vis) = vis {
             model.disable_visualization_fullscreen(vis);
+            model.enable_visualization(vis);
         }
     });
 

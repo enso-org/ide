@@ -18,8 +18,6 @@ use transform::CachedTransform;
 
 
 
-type Logger = DefaultTraceLogger;
-
 // ==================
 // === ParentBind ===
 // ==================
@@ -344,22 +342,26 @@ impl<Host> Model<Host> {
 
     /// Hide all removed children and show this display object if it was attached to a new parent.
     fn update_visibility(&self, host:&Host, parent_scene_layers:&[LayerId]) {
-        self.take_removed_children_and_hide_orphans(host);
+        self.take_removed_children_and_update_their_visibility(host);
         let parent_changed = self.dirty.parent.check();
         if parent_changed && !self.is_orphan() {
             self.set_vis_true(host,parent_scene_layers)
         }
     }
 
-    fn take_removed_children_and_hide_orphans(&self, host:&Host) {
+    fn take_removed_children_and_update_their_visibility(&self, host:&Host) {
         if self.dirty.removed_children.check_all() {
             debug!(self.logger, "Updating removed children.", || {
                 for child in self.dirty.removed_children.take().into_iter() {
                     if let Some(child) = child.upgrade() {
-                        if child.is_orphan() {
+                        if !child.has_visible_parent() {
                             child.set_vis_false(host);
-                            child.take_removed_children_and_hide_orphans(host);
                         }
+                        // Even if the child is visible at this point, it does not mean that it
+                        // should be visible after the entire update. Therefore, we must ensure that
+                        // "removed children" lists in its subtree will be managed.
+                        // See also test `visibility_test3`.
+                        child.take_removed_children_and_update_their_visibility(host);
                     }
                 }
             })
@@ -682,6 +684,11 @@ impl<Host> Instance<Host> {
 impl<Host> Instance<Host> {
     fn parent_index(&self) -> Option<usize> {
         self.parent_bind.borrow().as_ref().map(|t| t.index)
+    }
+
+    fn has_visible_parent(&self) -> bool {
+        let parent = self.parent_bind.borrow().as_ref().and_then(|b| b.parent.upgrade());
+        parent.map_or(false, |parent| parent.is_visible())
     }
 }
 
@@ -1221,13 +1228,6 @@ mod tests {
         node2.add_child(&node3);
         node1.update(&());
         assert_eq!(node3.is_visible(),true);
-        node3.unset_parent();
-        assert!(node3.is_orphan());
-        node3.add_child(&node2);
-        assert!(node3.is_orphan());
-        node1.update(&());
-        assert_eq!(node3.is_visible(),false);
-        assert_eq!(node2.is_visible(),false);
     }
 
     #[test]
@@ -1246,6 +1246,46 @@ mod tests {
         assert_eq!(node1.is_visible(),true);
         assert_eq!(node2.is_visible(),true);
     }
+
+    #[test]
+    fn visibility_test3() {
+        let node1 = Instance::<()>::new(Logger::new("node1"));
+        let node2 = Instance::<()>::new(Logger::new("node2"));
+        let node3 = Instance::<()>::new(Logger::new("node3"));
+        node1.force_set_visibility(true);
+        node1.add_child(&node2);
+        node2.add_child(&node3);
+        node1.update(&());
+
+        node3.unset_parent();
+        node3.add_child(&node2);
+        node1.update(&());
+        assert_eq!(node2.is_visible(),false);
+        assert_eq!(node3.is_visible(),false);
+    }
+
+    #[test]
+    fn visibility_test4() {
+        let node1 = Instance::<()>::new(Logger::new("node1"));
+        let node2 = Instance::<()>::new(Logger::new("node2"));
+        let node3 = Instance::<()>::new(Logger::new("node3"));
+        let node4 = Instance::<()>::new(Logger::new("node4"));
+        node1.force_set_visibility(true);
+        node1.add_child(&node2);
+        node2.add_child(&node3);
+        node1.update(&());
+
+        node2.unset_parent();
+        node1.add_child(&node2);
+        node2.add_child(&node3);
+        node1.update(&());
+        node1.add_child(&node4);
+        node4.add_child(&node3);
+        node1.update(&());
+        assert_eq!(node2.is_visible(),true);
+        assert_eq!(node3.is_visible(),true);
+    }
+
 
     #[test]
     fn deep_hierarchy_test() {

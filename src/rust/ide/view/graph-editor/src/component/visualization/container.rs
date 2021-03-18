@@ -31,7 +31,7 @@ use ensogl::application::Application;
 use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
 use ensogl_theme as theme;
-
+use ast::prelude::backtrace;
 
 
 // =================
@@ -298,11 +298,8 @@ impl ContainerModel {
         if visibility {
             self.drag_root.add_child(&self.view);
             self.show_visualisation();
-            self.scene.add_child(&self.fullscreen_view);
-        }
-        else {
+        } else {
             self.drag_root.remove_child(&self.view);
-            self.scene.remove_child(&self.fullscreen_view);
         }
     }
 
@@ -311,6 +308,7 @@ impl ContainerModel {
         if let Some(viz) = &*self.visualization.borrow() {
             self.fullscreen_view.add_child(viz);
             if let Some(dom) = viz.root_dom() {
+                println!("Manage dom in fullscreen");
                 self.scene.dom.layers.fullscreen_vis.manage(&dom);
             }
             viz.inputs.activate.emit(());
@@ -321,18 +319,13 @@ impl ContainerModel {
         self.is_fullscreen.set(false);
         if let Some(viz) = &*self.visualization.borrow() {
             self.view.add_child(viz);
-            self.view.unset_parent();
-            self.display_object.add_child(&self.view);
-            self.view.unset_parent();
-            println!("DISABLING");
             if let Some(dom) = viz.root_dom() {
-                println!("Manage back");
+                println!("Manage dom in back");
                 self.scene.dom.layers.back.manage(&dom);
             }
             viz.inputs.deactivate.emit(());
         }
     }
-
 
     fn toggle_visibility(&self) {
         self.set_visibility(!self.is_active())
@@ -351,7 +344,13 @@ impl ContainerModel {
             preprocessor            <+ vis_preprocessor_change;
         }
         preprocessor.emit(visualization.on_preprocessor_change.value());
-        self.view.add_child(&visualization);
+        if self.is_fullscreen.get() {
+            println!("V FS set_visualization");
+            self.fullscreen_view.add_child(&visualization)
+        } else {
+            println!("V set_visualization {}", backtrace());
+            self.view.add_child(&visualization);
+        }
         self.visualization.replace(Some(visualization));
         self.vis_frp_connection.replace(Some(vis_frp_connection));
     }
@@ -414,7 +413,13 @@ impl ContainerModel {
 
     fn show_visualisation(&self) {
         if let Some(vis) = self.visualization.borrow().as_ref() {
-            self.view.add_child(vis);
+            if self.is_fullscreen.get() {
+                println!("V FS show_visualization");
+                self.fullscreen_view.add_child(vis);
+            } else {
+                println!("V show_visualization");
+                self.view.add_child(vis);
+            }
         }
     }
 
@@ -496,13 +501,13 @@ impl Container {
 
             eval  frp.set_data          ((t) model.set_visualization_data(t));
 
-            eval_ frp.enable_fullscreen  (model.set_visibility(true));
             eval_ frp.enable_fullscreen  (model.enable_fullscreen());
             eval_ frp.enable_fullscreen  (fullscreen.set_target_value(1.0));
             eval_ frp.disable_fullscreen (model.disable_fullscreen());
             eval_ frp.disable_fullscreen (fullscreen.set_target_value(0.0));
             eval  frp.set_size           ((s) size.set_target_value(*s));
 
+            trace frp.set_visualization;
             mouse_down_target <- scene.mouse.frp.down.map(f_!(scene.mouse.target.get()));
             selected_by_click <= mouse_down_target.map(f!([model] (target){
                 let vis        = &model.visualization;
@@ -599,6 +604,7 @@ impl Container {
         self
     }
 
+    /// Get the visualization panel view.
     pub fn fullscreen_visualization(&self) -> &fullscreen::Panel {
         &self.model.fullscreen_view
     }
