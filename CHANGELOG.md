@@ -31,6 +31,8 @@
   `Column` datatypes are properly visualized. Scatter Plot can display points of
   different color, shape and size, all as defined by the data within the
   `Table`.
+- [Signed builds.][1366] Our builds are signed and will hav fewer annoyances
+  upon running. You can trust us.
 - [Many small visual improvements.][1419] See the source issue for more details.
 - The dark theme is officially supported now. You can start the IDE with the
   `--theme=dark` option to enable it.
@@ -151,6 +153,7 @@ you can find their release notes
 [1358]: https://github.com/enso-org/ide/pull/1358
 [1377]: https://github.com/enso-org/ide/pull/1377
 [1411]: https://github.com/enso-org/ide/pull/1411
+[1366]: https://github.com/enso-org/ide/pull/1366
 [1412]: https://github.com/enso-org/ide/pull/1412
 [1419]: https://github.com/enso-org/ide/pull/1419
 [1413]: https://github.com/enso-org/ide/pull/1413

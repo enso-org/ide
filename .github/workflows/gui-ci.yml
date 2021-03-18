@@ -242,14 +242,25 @@ jobs:
                       rm -r $WASMPACKDIR
         shell: bash
         if: startsWith(matrix.os,'ubuntu')
+      - uses: actions/setup-java@v2
+        with:
+          distribution: adopt
+          java-version: '11'
       - name: Build (macos)
+        env:
+          CSC_LINK: ${{secrets.APPLE_CODE_SIGNING_CERT}}
+          CSC_KEY_PASSWORD: ${{secrets.APPLE_CODE_SIGNING_CERT_PASSWORD}}
+          CSC_IDENTITY_AUTO_DISCOVERY: true
+          APPLEID: ${{secrets.APPLE_NOTARIZATION_USERNAME}}
+          APPLEIDPASS: ${{secrets.APPLE_NOTARIZATION_PASSWORD}}
         run: node ./run dist --skip-version-validation --target macos
         if: startsWith(matrix.os,'macos')
     if: >-
-      !(contains(github.event.head_commit.message,'[ci build]') || github.ref ==
+      !(contains(github.event.pull_request.body,'[ci build]') ||
+      contains(github.event.head_commit.message,'[ci build]') || github.ref ==
       'refs/heads/develop' || github.base_ref == 'unstable' || github.base_ref
-      == 'stable' || github.ref == 'refs/heads/unstable' || github.ref ==
-      'refs/heads/stable')
+      == 'stable' || (github.ref == 'refs/heads/unstable' || github.ref ==
+      'refs/heads/stable'))
   build:
     name: Build
     runs-on: ${{ matrix.os }}
@@ -313,10 +324,23 @@ jobs:
                       rm -r $WASMPACKDIR
         shell: bash
         if: startsWith(matrix.os,'ubuntu')
+      - uses: actions/setup-java@v2
+        with:
+          distribution: adopt
+          java-version: '11'
       - name: Build (macos)
+        env:
+          CSC_LINK: ${{secrets.APPLE_CODE_SIGNING_CERT}}
+          CSC_KEY_PASSWORD: ${{secrets.APPLE_CODE_SIGNING_CERT_PASSWORD}}
+          CSC_IDENTITY_AUTO_DISCOVERY: true
+          APPLEID: ${{secrets.APPLE_NOTARIZATION_USERNAME}}
+          APPLEIDPASS: ${{secrets.APPLE_NOTARIZATION_PASSWORD}}
         run: node ./run dist --skip-version-validation --target macos
         if: startsWith(matrix.os,'macos')
       - name: Build (win)
+        env:
+          WIN_CSC_LINK: ${{secrets.MICROSOFT_CODE_SIGNING_CERT}}
+          WIN_CSC_KEY_PASSWORD: ${{secrets.MICROSOFT_CODE_SIGNING_CERT_PASSWORD}}
         run: node ./run dist --skip-version-validation --target win
         if: startsWith(matrix.os,'windows')
       - name: Build (linux)
@@ -375,10 +399,11 @@ jobs:
             dist/client/enso-linux-${{fromJson(steps.changelog.outputs.content).version}}.AppImage.sha256
         if: startsWith(matrix.os,'ubuntu')
     if: >-
+      contains(github.event.pull_request.body,'[ci build]') ||
       contains(github.event.head_commit.message,'[ci build]') || github.ref ==
       'refs/heads/develop' || github.base_ref == 'unstable' || github.base_ref
-      == 'stable' || github.ref == 'refs/heads/unstable' || github.ref ==
-      'refs/heads/stable'
+      == 'stable' || (github.ref == 'refs/heads/unstable' || github.ref ==
+      'refs/heads/stable')
   release_to_github:
     name: GitHub Release
     runs-on: ${{ matrix.os }}
