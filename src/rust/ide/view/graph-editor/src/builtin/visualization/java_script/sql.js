@@ -1,7 +1,7 @@
 loadScript('https://cdnjs.cloudflare.com/ajax/libs/sql-formatter/4.0.2/sql-formatter.min.js')
 
 class SqlVisualization extends Visualization {
-    static inputType = 'Any' // 'Standard.Database.Data.Table.Table | Standard.Database.Data.Column.Column'
+    static inputType = 'Any' // 'Standard.Database.Data.Table.Table | Standard.Database.Data.Column.Column' // TODO change this once sum types are supported
     static label = 'SQL Query'
 
     constructor(api) {
@@ -49,24 +49,23 @@ class SqlVisualization extends Visualization {
             padding:1px 2px 1px 2px;
             display: inline;
         }
-        .mismatch {
-            /*border-style: solid;
-            border-width: 1px;
-            border-color: rgba(255, 255, 255, 1);*/
+        .modulepath {
+            color: rgba(150, 150, 150, 0.9);
         }
         .tooltip {
             font-family: DejaVuSansMonoBook, sans-serif;
             font-size: 12px;
             opacity: 0;
             transition: opacity 0.2s;
-            width: 220px;
-            background-color: black;
-            color: #fff;
-            text-align: center;
+            display: inline-block;
+            white-space: nowrap;
+            background-color: rgba(245, 245, 245, 1);
+            box-shadow: 0 0 16px rgba(0, 0, 0, 0.16);
+            text-align: left;
             border-radius: 6px;
             padding: 5px;
             position: absolute;
-            z-index: 99999 !important;
+            z-index: 99999;
             pointer-events: none;
         }
         </style>
@@ -79,12 +78,13 @@ class SqlVisualization extends Visualization {
         const bgAlpha = 0.25
         const theme = this.theme
 
-        function simplifyTypeName(name) {
-            const builtinPrefix = 'Builtins.Main.'
-            if (name.startsWith(builtinPrefix)) {
-                return name.slice(builtinPrefix.length)
+        function splitTypeName(name) {
+            var ix = name.lastIndexOf('.')
+            if (ix < 0) {
+                return ['', name]
             }
-            return name
+
+            return [name.substr(0, ix + 1), name.substr(ix + 1)]
         }
 
         function renderParameter(param) {
@@ -92,10 +92,11 @@ class SqlVisualization extends Visualization {
             let value = param.value
 
             if (actualType == 'Builtins.Main.Text') {
-                value = "'" + value.replace("'", "''") + "'"
+                value = "'" + value.replaceAll("'", "''") + "'"
             }
 
-            const fgColor = theme.getColorForType()
+            const actualTypeColor = theme.getColorForType(actualType)
+            const fgColor = actualTypeColor
             let bgColor = [...fgColor.slice(0, 3), bgAlpha]
             const expectedEnsoType = param.expected_enso_type
 
@@ -116,16 +117,30 @@ class SqlVisualization extends Visualization {
                     expectedType = 'Standard.Database.Data.Sql.Sql_Type.' + param.expected_sql_type
                 }
 
-                const hoverBgColor = theme.getColorForType(expectedType)
+                const expectedTypeColor = theme.getColorForType(expectedType)
+                const hoverBgColor = expectedTypeColor
                 bgColor = [...hoverBgColor.slice(0, 3), bgAlpha]
                 const hoverFgColor = theme.getForegroundColorForType(expectedType)
 
-                const message =
-                    'Got ' +
-                    simplifyTypeName(actualType) +
-                    ', but ' +
-                    simplifyTypeName(expectedType) +
-                    ' was expected. The database engine may perform a conversion.'
+                const received = splitTypeName(actualType)
+                const expected = splitTypeName(expectedType)
+                let message =
+                    'Received <span class="modulepath">' +
+                    received[0] +
+                    '</span><span style="color: ' +
+                    renderColor(actualTypeColor) +
+                    '">' +
+                    received[1] +
+                    '</span><br>'
+                message +=
+                    'Expected <span class="modulepath">' +
+                    expected[0] +
+                    '</span><span style="color: ' +
+                    renderColor(expectedTypeColor) +
+                    '">' +
+                    expected[1] +
+                    '</span><br>'
+                message += 'The database may perform an auto conversion.'
 
                 html += '<div class="interpolation mismatch"'
                 html +=
@@ -198,8 +213,12 @@ class SqlVisualization extends Visualization {
             tooltipOwner = this
             tooltip.innerHTML = message
             tooltip.style.opacity = 1
-            const x = this.offsetLeft - tooltip.offsetWidth / 2 + this.offsetWidth / 2
-            const y = this.offsetTop - this.parentElement.offsetHeight - tooltip.offsetHeight + 15
+            const pre = this.parentElement
+            const scrollElement = this.parentElement.parentElement
+            const scrollX = scrollElement.scrollLeft
+            const scrollY = scrollElement.scrollTop
+            const x = this.offsetLeft - tooltip.offsetWidth / 2 + this.offsetWidth / 2 - scrollX
+            const y = this.offsetTop - elem.offsetTop - pre.offsetTop - scrollY - 160
             console.log(x, y)
             tooltip.style.transform = 'translate(' + x + 'px, ' + y + 'px)'
         }
@@ -221,31 +240,6 @@ class SqlVisualization extends Visualization {
             mismatches[i].addEventListener('mouseenter', interpolationMouseEnter)
             mismatches[i].addEventListener('mouseleave', interpolationMouseLeave)
         }
-
-        // listeners.forEach(function(obj) {
-        //     const elem = document.getElementById(obj.id)
-        //     console.log(elem)
-        //     console.log(tooltip)
-
-        //     elem.addEventListener('mouseenter', (e) => {
-        //         elem.style.color = renderColor(obj.hover[0])
-        //         elem.style.backgroundColor = renderColor(obj.hover[1])
-        //         const bound = elem.getBoundingClientRect()
-        //         const x = (bound.left - 10) + 'px';
-        //         const y = (bound.top - 20) + 'px';
-        //         tooltip.style.transform = 'translate(' + x + ',' + y + ')'
-        //         console.log(bound)
-        //         console.log(tooltip.style)
-        //         tooltip.innerHTML = "ABCDEF"
-        //         tooltip.style.opacity = 1
-        //     })
-
-        //     elem.addEventListener('mouseleave', () => {
-        //         elem.style.color = renderColor(obj.regular[0])
-        //         elem.style.backgroundColor = renderColor(obj.regular[1])
-        //         tooltip.style.opacity = 0
-        //     })
-        // })
     }
 
     setSize(size) {
