@@ -51,13 +51,69 @@ class ScatterPlot extends Visualization {
         while (this.dom.firstChild) {
             this.dom.removeChild(this.dom.lastChild)
         }
-
-        const divElem = this.createDivElem(this.canvasWidth(), this.canvasHeight())
-        this.dom.appendChild(divElem)
-
         let parsedData = this.parseData(data)
         this.updateState(parsedData)
+        this.drawScatterplot()
+    }
 
+    canvasWidth() {
+        return this.dom.getAttributeNS(null, 'width')
+    }
+
+    canvasHeight() {
+        let height = this.dom.getAttributeNS(null, 'height')
+        return height - buttonsHeight
+    }
+
+    updateState(parsedData) {
+        this.axis = parsedData.axis || {
+            x: { scale: linear_scale },
+            y: { scale: linear_scale },
+        }
+        this.focus = parsedData.focus
+        this.points = parsedData.points || { labels: 'invisible' }
+        this.dataPoints = this.extractValues(parsedData)
+        this.updateBox()
+    }
+
+    updateBox() {
+        this.margin = this.getMargins(this.axis)
+        this.box_width = this.canvasWidth() - this.margin.left - this.margin.right
+        this.box_height = this.canvasHeight() - this.margin.top - this.margin.bottom
+    }
+
+    extractValues(data) {
+        /// Note this is a workaround for #1006, we allow raw arrays and JSON objects to be consumed.
+        if (Array.isArray(data)) {
+            return this.arrayAsValues(data)
+        }
+        return data.data || {}
+    }
+
+    /**
+     * Return a array of values as valid scatterplot input.
+     * Uses the values of the array as y-coordinate and the index of the value as its x-coordinate.
+     */
+    arrayAsValues(dataArray) {
+        return dataArray.map((y, ix) => {
+            return { x: ix, y }
+        })
+    }
+
+    parseData(data) {
+        let parsedData
+        /// Note this is a workaround for #1006, we allow raw arrays and JSON objects to be consumed.
+        if (typeof data === 'string' || data instanceof String) {
+            parsedData = JSON.parse(data)
+        } else {
+            parsedData = data
+        }
+        return parsedData
+    }
+
+    drawScatterplot() {
+        const divElem = this.createDivElem(this.canvasWidth(), this.canvasHeight())
+        this.dom.appendChild(divElem)
         let svg = d3
             .select(divElem)
             .append('svg')
@@ -115,58 +171,6 @@ class ScatterPlot extends Visualization {
             this.points,
             zoom
         )
-    }
-
-    canvasWidth() {
-        return this.dom.getAttributeNS(null, 'width')
-    }
-
-    canvasHeight() {
-        let height = this.dom.getAttributeNS(null, 'height')
-        return height - buttonsHeight
-    }
-
-    updateState(parsedData) {
-        this.axis = parsedData.axis || {
-            x: { scale: linear_scale },
-            y: { scale: linear_scale },
-        }
-        this.focus = parsedData.focus
-        this.points = parsedData.points || { labels: 'invisible' }
-        this.dataPoints = this.extractValues(parsedData)
-
-        this.margin = this.getMargins(this.axis)
-        this.box_width = this.canvasWidth() - this.margin.left - this.margin.right
-        this.box_height = this.canvasHeight() - this.margin.top - this.margin.bottom
-    }
-
-    extractValues(data) {
-        /// Note this is a workaround for #1006, we allow raw arrays and JSON objects to be consumed.
-        if (Array.isArray(data)) {
-            return this.arrayAsValues(data)
-        }
-        return data.data || {}
-    }
-
-    /**
-     * Return a array of values as valid scatterplot input.
-     * Uses the values of the array as y-coordinate and the index of the value as its x-coordinate.
-     */
-    arrayAsValues(dataArray) {
-        return dataArray.map((y, ix) => {
-            return { x: ix, y }
-        })
-    }
-
-    parseData(data) {
-        let parsedData
-        /// Note this is a workaround for #1006, we allow raw arrays and JSON objects to be consumed.
-        if (typeof data === 'string' || data instanceof String) {
-            parsedData = JSON.parse(data)
-        } else {
-            parsedData = data
-        }
-        return parsedData
     }
 
     /**
@@ -728,8 +732,14 @@ class ScatterPlot extends Visualization {
      * Sets size of this DOM object.
      */
     setSize(size) {
+        while (this.dom.firstChild) {
+            this.dom.removeChild(this.dom.lastChild)
+        }
+
         this.dom.setAttributeNS(null, 'width', size[0])
         this.dom.setAttributeNS(null, 'height', size[1])
+        this.updateBox()
+        this.drawScatterplot()
     }
 }
 
