@@ -294,6 +294,7 @@ class Histogram extends Visualization {
                     .translate(-focus.x, -focus.y)
                 transformedScale.x = distanceScale.rescaleX(transformedScale.x)
                 // transformedScale.y = distanceScale.rescaleY(transformedScale.y)
+                transformedScale.zoom = transformedScale.zoom * scale
             } else if (d3.event.sourceEvent != null && d3.event.sourceEvent.type === 'wheel') {
                 if (d3.event.sourceEvent.ctrlKey) {
                     const scale = Math.exp(-d3.event.sourceEvent.deltaY / 100.0)
@@ -304,6 +305,7 @@ class Histogram extends Visualization {
                         .translate(-focus.x, -focus.y)
                     transformedScale.x = distanceScale.rescaleX(transformedScale.x)
                     // transformedScale.y = distanceScale.rescaleY(transformedScale.y)
+                    transformedScale.zoom = transformedScale.zoom * scale
                 } else {
                     const distanceScale = d3.zoomIdentity.translate(
                         -d3.event.sourceEvent.deltaX,
@@ -385,6 +387,7 @@ class Histogram extends Visualization {
             zoom.transformedScale.x.domain([xMin, xMax])
             const dx = extent[1] - extent[0]
             self.scale.zoom = self.scale.zoom * (self.canvas.inner.width / dx)
+            zoom.transformedScale.zoom = self.scale.zoom
 
             self.rescale(zoom.transformedScale, true)
         }
@@ -732,6 +735,7 @@ class Histogram extends Visualization {
 
             zoom.transformedScale.x.domain(domainX)
             self.scale.zoom = 1.0
+            zoom.transformedScale.zoom = self.scale.zoom
             self.rescale(zoom.transformedScale, true)
         }
 
