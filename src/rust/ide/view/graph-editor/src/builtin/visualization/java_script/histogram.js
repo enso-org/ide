@@ -433,10 +433,7 @@ class Histogram extends Visualization {
             .transition()
             .duration(duration)
             .call(d3.axisBottom(scale.x).ticks(this.binCount()))
-        this.yAxis
-            .transition()
-            .duration(duration)
-            .call(d3.axisLeft(scale.y))
+        this.yAxis.transition().duration(duration).call(d3.axisLeft(scale.y))
         this.plot
             .selectAll('rect')
             .transition()
