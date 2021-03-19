@@ -175,7 +175,7 @@ optParser.options('crash-report-host', {
 })
 
 optParser.options('no-data-gathering', {
-    describe    : 'Disable anonymous data collection',
+    describe    : 'Disable the sharing of any usage data',
     default     : false
 })
 
