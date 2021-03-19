@@ -40,7 +40,7 @@
 - [Disable area selection][1318]. The area selection was visible despite being
   non-functional. To avoid confusion, area selection has been disabled until it
   is [correctly implemented][479].
-- [Fix error after adding a node][1332]. Sometimes, after picking a suggestion 
+- [Fix error after adding a node][1332]. Sometimes, after picking a suggestion
   the inserted node was annotated with "The name could not be found" error.
 - [Handle syntax errors in custom-defined visualizations][1341]. The IDE is now
   able to run properly, even if some of the custom-defined visualisations inside
