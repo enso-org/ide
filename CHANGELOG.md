@@ -20,6 +20,9 @@
   unnecessary library imports when selecting hints from node searcher. This
   makes the generated textual code easier to read and reduces likelihood of
   accidental name collision.
+- [Hovering over an output port shows a pop-up with the result type of a node]
+  [1312]. This allows discovering the result type of a node which can help with
+  debugging and development.
 - [Visualizations can define context for preprocessor evaluation][1291]. Users
   can now decide what module's context should be used for visualization
   preprocessor. This allows providing visualization with standard library
@@ -37,6 +40,9 @@
 - [Disable area selection][1318]. The area selection was visible despite being
   non-functional. To avoid confusion, area selection has been disabled until it
   is [correctly implemented][479].
+- [Handle syntax errors in custom-defined visualizations][#1341]. The IDE is now
+  able to run properly, even if some of the custom-defined visualisations inside
+  a project contain syntax errors.
 - [Users can opt out of anonymous data gathering.][1328] This can be done with
   the `--no-data-gathering` command-line flag during the startup of the IDE.
 
@@ -197,6 +203,7 @@ you can find their release notes
   https://www.youtube.com/watch?v=BYUAL4ksEgY&ab_channel=Enso
 [podcast-future-of-enso]:
   https://www.youtube.com/watch?v=rF8DuJPOfTs&t=1863s&ab_channel=Enso
+[1312]: https://github.com/enso-org/ide/pull/1312
 
 <br/>
 
