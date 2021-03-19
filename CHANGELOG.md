@@ -37,10 +37,8 @@
 - [Disable area selection][1318]. The area selection was visible despite being
   non-functional. To avoid confusion, area selection has been disabled until it
   is [correctly implemented][479].
-- [Inform the engine about new imports before they are used][#1332]. When the
-  user adds or changes a node through the searcher, the necessary imports are
-  added first, the node content afterwards. This avoids an invalid intermediate
-  state.
+- [Fix error after adding a node][1332]. Sometimes, after picking a suggestion 
+  the inserted node was annotated with "The name could not be found" error.
 
 #### EnsoGL (rendering engine)
 
@@ -58,6 +56,7 @@ you can find their release notes
 [1064]: https://github.com/enso-org/ide/pull/1064
 [1316]: https://github.com/enso-org/ide/pull/1316
 [1318]: https://github.com/enso-org/ide/pull/1318
+[1332]: https://github.com/enso-org/ide/pull/1332
 
 <br/>
 
