@@ -569,16 +569,7 @@ impl Area {
             eval_ sels_cut (m.buffer.frp.delete_left());
 
             eval_ input.paste (m.paste());
-            eval input.paste_string([m](s) {
-                let mut fragments = m.decode_paste(s);
-                if m.single_line.get() {
-                    fragments = fragments
-                        .iter()
-                        .map(|fragment| fragment.lines().next().unwrap_or("").to_string())
-                        .collect();
-                }
-                m.buffer.frp.paste(fragments);
-            });
+            eval input.paste_string([m](s) m.paste_string(s));
 
 
             eval_ m.buffer.frp.text_change (m.redraw(true));
@@ -962,9 +953,23 @@ impl AreaModel {
         let paste_string = self.frp_endpoints.input.paste_string.clone_ref();
         clipboard::read_text(move |t| paste_string.emit(t));
     }
+    
+    fn paste_string(&self, s: &str) {
+        let mut chunks = self.decode_paste(s);
+        if self.single_line.get() {
+            for f in &mut chunks {
+                Self::drop_all_but_first_line(f);
+            }
+        }
+        self.buffer.frp.paste(chunks);
+    }
 
     fn decode_paste(&self, encoded:&str) -> Vec<String> {
         encoded.split(RECORD_SEPARATOR).map(|s|s.into()).collect()
+    }
+
+    fn drop_all_but_first_line(s: &mut String) {
+        *s = s.lines().nth(0).unwrap_or("").to_string();
     }
 
     fn key_to_string(&self, key:&Key) -> Option<String> {
