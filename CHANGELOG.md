@@ -11,6 +11,8 @@
   will be lost. In this build we added notification in statusbar to signalize
   that the connection was lost and IDE must be restarted. In future IDE will try
   to automatically reconnect.
+- [Visualization can be extended to the whole screen][1355] by selecting
+  the node and pressing space twice. To quit this view, press space again.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
@@ -62,6 +64,7 @@ you can find their release notes
 [1064]: https://github.com/enso-org/ide/pull/1064
 [1316]: https://github.com/enso-org/ide/pull/1316
 [1318]: https://github.com/enso-org/ide/pull/1318
+[1355]: https://github.com/enso-org/ide/pull/1355
 
 <br/>
 

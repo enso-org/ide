@@ -267,7 +267,6 @@ class TableVisualization extends Visualization {
         }
         const table = genTable(parsedData.data || parsedData, 0, parsedData.header)
         tabElem.innerHTML = style + table
-
     }
 
     updateTableSize() {
