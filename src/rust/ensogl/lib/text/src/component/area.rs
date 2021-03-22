@@ -953,7 +953,13 @@ impl AreaModel {
         let paste_string = self.frp_endpoints.input.paste_string.clone_ref();
         clipboard::read_text(move |t| paste_string.emit(t));
     }
-    
+
+    /// Paste new text in the place of current selections / cursors. In case of pasting multiple
+    /// chunks (e.g. after copying multiple selections), the chunks will be pasted into subsequent
+    /// selections. In case there are more chunks than selections, end chunks will be dropped. In
+    /// case there is more selections than chunks, end selections will be replaced with empty
+    /// strings. I `self.single_line` is set to true then each chunk will be truncated to its first
+    /// line.
     fn paste_string(&self, s: &str) {
         let mut chunks = self.decode_paste(s);
         if self.single_line.get() {
