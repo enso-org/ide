@@ -159,7 +159,9 @@ impl InstanceModel {
         let logger                        = Logger::new("Instance");
         let root_node                     = Self::create_root(scene,&logger)?;
         let (preprocessor_change,closure) = Self::preprocessor_change_callback();
-        let init_data                     = JsConsArgs::new(root_node.clone_ref(), closure);
+        let init_data                     = JsConsArgs::new(root_node.clone_ref(),
+                                                            StyleWatch::new(&scene.style_sheet),
+                                                            closure);
         let object                        = Self::instantiate_class_with_args(class,init_data)?;
         let on_data_received              = get_method(object.as_ref(),method::ON_DATA_RECEIVED).ok();
         let on_data_received              = Rc::new(on_data_received);
