@@ -26,7 +26,6 @@ use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
-use ensogl::DEPRECATED_Animation;
 use ensogl::application::Application;
 use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
@@ -466,9 +465,6 @@ impl Container {
         let frp                 = &self.frp;
         let network             = &self.frp.network;
         let model               = &self.model;
-        let fullscreen          = DEPRECATED_Animation::new(network);
-        let size                = DEPRECATED_Animation::<Vector2>::new(network);
-        let fullscreen_position = DEPRECATED_Animation::<Vector3>::new(network);
         let scene               = &self.model.scene;
         let scene_shape         = scene.shape();
         let logger              = &self.model.logger;
@@ -499,13 +495,13 @@ impl Container {
                 vis_definition.clone()
             }));
 
-            eval  frp.set_data          ((t) model.set_visualization_data(t));
-
+            eval  frp.set_data           ((t) model.set_visualization_data(t));
             eval_ frp.enable_fullscreen  (model.enable_fullscreen());
-            eval_ frp.enable_fullscreen  (fullscreen.set_target_value(1.0));
             eval_ frp.disable_fullscreen (model.disable_fullscreen());
-            eval_ frp.disable_fullscreen (fullscreen.set_target_value(0.0));
-            eval  frp.set_size           ((s) size.set_target_value(*s));
+            fullscreen_enabled_weight  <- frp.enable_fullscreen.constant(1.0);
+            fullscreen_disabled_weight <- frp.disable_fullscreen.constant(0.0);
+            fullscreen_weight          <- any(fullscreen_enabled_weight,fullscreen_disabled_weight);
+            frp.source.size            <+ frp.set_size;
 
             trace frp.set_visualization;
             mouse_down_target <- scene.mouse.frp.down.map(f_!(scene.mouse.target.get()));
@@ -534,7 +530,7 @@ impl Container {
             });
             frp.source.is_selected <+ is_selected_changed;
 
-            _eval <- fullscreen.value.all_with3(&size.value,scene_shape,
+            _eval <- fullscreen_weight.all_with3(&frp.size,scene_shape,
                 f!([model] (weight,viz_size,scene_size) {
                     let weight_inv           = 1.0 - weight;
                     let scene_size : Vector2 = scene_size.into();
@@ -551,8 +547,6 @@ impl Container {
                     let current_pos = pp * weight_inv;
                     model.fullscreen_view.set_position(current_pos);
             }));
-
-            eval fullscreen_position.value ((p) model.fullscreen_view.set_position(*p));
         }
 
 
