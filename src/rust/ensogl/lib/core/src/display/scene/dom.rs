@@ -179,18 +179,11 @@ impl DomScene {
     pub fn manage(&self, object:&DomSymbol) {
         let dom  = object.dom();
         let data = &self.data;
-        let ptr:*const DomSceneData = &**data;
-        let ptr = ptr as usize;
         if object.is_visible() {
-            println!("Switching while visible {} to {}",dom.class_name(),ptr);
             self.view_projection_dom.append_or_panic(&dom);
         }
-        object.display_object().set_on_hide(f_!([dom,ptr] {
-            println!("Hiding DOM {} in {}",dom.class_name(), ptr);
-            dom.remove()
-        }));
-        object.display_object().set_on_show(f__!([data,dom,ptr] {
-            println!("Showing DOM {} in {}",dom.class_name(), ptr);
+        object.display_object().set_on_hide(f_!(dom.remove()));
+        object.display_object().set_on_show(f__!([data,dom] {
             data.view_projection_dom.append_or_panic(&dom)
         }));
     }

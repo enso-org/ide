@@ -322,7 +322,6 @@ impl View {
 
             // === Fullscreen Visualization ===
 
-            trace graph.visualization_fullscreen;
             eval  graph.visualization_fullscreen ([model](node_id) {
                 if let Some(node_id) = node_id {
                     model.show_fullscreen_visualization(*node_id)

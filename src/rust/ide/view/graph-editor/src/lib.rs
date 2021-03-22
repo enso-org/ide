@@ -2793,9 +2793,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     let viz_press_ev      = inputs.press_visualization_visibility.clone_ref();
     let viz_d_press_ev    = inputs.double_press_visualization_visibility.clone_ref();
     let viz_release_ev    = inputs.release_visualization_visibility.clone_ref();
-    trace viz_press_ev;
-    trace viz_d_press_ev;
-    trace viz_release_ev;
     viz_pressed          <- bool(&viz_release_ev,&viz_press_ev);
     viz_was_pressed      <- viz_pressed.previous();
     viz_press            <- viz_press_ev.gate_not(&viz_was_pressed);
@@ -2803,7 +2800,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     viz_press_time       <- viz_press   . map(|_| web::performance().now() as f32);
     viz_release_time     <- viz_release . map(|_| web::performance().now() as f32);
     viz_press_time_diff  <- viz_release_time.map2(&viz_press_time,|t1,t0| t1-t0);
-    trace viz_press_time_diff;
     viz_preview_mode     <- viz_press_time_diff.map(|t| *t > VIZ_PREVIEW_MODE_TOGGLE_TIME_MS);
     viz_preview_mode_end <- viz_release.gate(&viz_preview_mode).gate_not(&out.is_fs_visualization_displayed);
     viz_tgt_nodes        <- viz_press.gate_not(&out.is_fs_visualization_displayed).map(f_!(model.selected_nodes()));
@@ -2827,9 +2823,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     eval viz_preview_disable ((id) model.disable_visualization(id));
     eval viz_fullscreen_on   ((id) model.enable_visualization_fullscreen(id));
 
-    trace out.visualization_fullscreen;
     viz_fs_to_close <- out.visualization_fullscreen.sample(&inputs.close_fullscreen_visualization);
-    trace viz_fs_to_close;
     eval viz_fs_to_close ([model](vis) {
         if let Some(vis) = vis {
             model.disable_visualization_fullscreen(vis);
@@ -2841,7 +2835,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     out.source.visualization_fullscreen <+ inputs.close_fullscreen_visualization.constant(None);
 
     out.source.is_fs_visualization_displayed <+ out.visualization_fullscreen.map(Option::is_some);
-    trace out.is_fs_visualization_displayed;
 
 
     // === Register Visualization ===

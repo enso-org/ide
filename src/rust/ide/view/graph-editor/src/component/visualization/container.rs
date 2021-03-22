@@ -30,7 +30,7 @@ use ensogl::application::Application;
 use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
 use ensogl_theme as theme;
-use ast::prelude::backtrace;
+
 
 
 // =================
@@ -307,7 +307,6 @@ impl ContainerModel {
         if let Some(viz) = &*self.visualization.borrow() {
             self.fullscreen_view.add_child(viz);
             if let Some(dom) = viz.root_dom() {
-                println!("Manage dom in fullscreen");
                 self.scene.dom.layers.fullscreen_vis.manage(&dom);
             }
             viz.inputs.activate.emit(());
@@ -319,7 +318,6 @@ impl ContainerModel {
         if let Some(viz) = &*self.visualization.borrow() {
             self.view.add_child(viz);
             if let Some(dom) = viz.root_dom() {
-                println!("Manage dom in back");
                 self.scene.dom.layers.back.manage(&dom);
             }
             viz.inputs.deactivate.emit(());
@@ -344,10 +342,8 @@ impl ContainerModel {
         }
         preprocessor.emit(visualization.on_preprocessor_change.value());
         if self.is_fullscreen.get() {
-            println!("V FS set_visualization");
             self.fullscreen_view.add_child(&visualization)
         } else {
-            println!("V set_visualization {}", backtrace());
             self.view.add_child(&visualization);
         }
         self.visualization.replace(Some(visualization));
@@ -413,10 +409,8 @@ impl ContainerModel {
     fn show_visualisation(&self) {
         if let Some(vis) = self.visualization.borrow().as_ref() {
             if self.is_fullscreen.get() {
-                println!("V FS show_visualization");
                 self.fullscreen_view.add_child(vis);
             } else {
-                println!("V show_visualization");
                 self.view.add_child(vis);
             }
         }
@@ -503,7 +497,6 @@ impl Container {
             fullscreen_weight          <- any(fullscreen_enabled_weight,fullscreen_disabled_weight);
             frp.source.size            <+ frp.set_size;
 
-            trace frp.set_visualization;
             mouse_down_target <- scene.mouse.frp.down.map(f_!(scene.mouse.target.get()));
             selected_by_click <= mouse_down_target.map(f!([model] (target){
                 let vis        = &model.visualization;
