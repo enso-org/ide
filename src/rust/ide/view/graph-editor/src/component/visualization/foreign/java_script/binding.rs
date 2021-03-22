@@ -96,7 +96,7 @@ impl JsConsArgs {
 
     /// Getter for the theming API that we expose to JS visualizations
     pub fn theme(&self) -> JsTheme {
-        self.theme.clone().into()
+        self.theme.clone()
     }
 
     /// Helper method to emit an preprocessor change event from the visualisation.

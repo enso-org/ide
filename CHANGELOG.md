@@ -45,6 +45,8 @@
   a project contain syntax errors.
 - [Users can opt out of anonymous data gathering.][1328] This can be done with
   the `--no-data-gathering` command-line flag during the startup of the IDE.
+- [Provide a theming API for JavaScript visualizations][1358]. This API can be
+  used to obtain the colors associated with a type or a class GUI elements.
 
 #### EnsoGL (rendering engine)
 
