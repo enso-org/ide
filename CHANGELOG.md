@@ -11,6 +11,15 @@
   will be lost. In this build we added notification in statusbar to signalize
   that the connection was lost and IDE must be restarted. In future IDE will try
   to automatically reconnect.
+- [Visualization preview on output port hover.][1363] There is now a quick
+  preview for visualizations and error descriptions. Hovering a node output will
+  first show a tooltip with the type information and then after some time, will
+  show the visualization of the node. The preview visualization will be located
+  above other nodes, whereas the normal view, will be shown below nodes. Errors
+  will show the preview visualization immediately. Nodes without type
+  information will also show the visualization immediately. You can enter a
+  quick preview mode by pressing ctrl, which will show the preview visualization
+  immediately for all nodes.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
@@ -73,6 +82,7 @@ you can find their release notes
 [1341]: https://github.com/enso-org/ide/pull/1341
 [1348]: https://github.com/enso-org/ide/pull/1348
 [1353]: https://github.com/enso-org/ide/pull/1353
+[1363]: https://github.com/enso-org/ide/pull/1363
 
 <br/>
 
