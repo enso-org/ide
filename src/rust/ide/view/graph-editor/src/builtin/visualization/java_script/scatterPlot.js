@@ -8,14 +8,14 @@ let shortcuts = {
     showAll: e => (e.ctrlKey || e.metaKey) && event.key === 'a',
 }
 
-const labelStyle = 'font-family: DejaVuSansMonoBook; font-size: 10px;'
-const xAxisLabelWidth = 30
-const pointLabelPaddingX = 7
-const pointLabelPaddingY = 2
-const animationDuration = 1000
-const linearScale = 'linear'
-const visilbePoints = 'visible'
-const buttonsHeight = 25
+const LABEL_STYLE = 'font-family: DejaVuSansMonoBook; font-size: 10px;'
+const X_AXIS_LABEL_WIDTH = 30
+const POINT_LABEL_PADDING_X = 7
+const POINT_LABEL_PADDING_Y = 2
+const ANIMATION_DURATION = 1000
+const LINEAR_SCALE = 'linear'
+const VISIBLE_POINTS = 'visible'
+const BUTTONS_HEIGHT = 25
 
 /**
  * A d3.js ScatterPlot visualization.
@@ -110,13 +110,13 @@ class ScatterPlot extends Visualization {
 
     canvasHeight() {
         let height = this.dom.getAttributeNS(null, 'height')
-        return height - buttonsHeight
+        return height - BUTTONS_HEIGHT
     }
 
     updateState(parsedData) {
         this.axis = parsedData.axis || {
-            x: { scale: linearScale },
-            y: { scale: linearScale },
+            x: { scale: LINEAR_SCALE },
+            y: { scale: LINEAR_SCALE },
         }
         this.focus = parsedData.focus
         this.points = parsedData.points || { labels: 'invisible' }
@@ -243,7 +243,7 @@ class ScatterPlot extends Visualization {
             }
 
             scaleAndAxis.xAxis.call(
-                d3.axisBottom(transformedScale.xScale).ticks(boxWidth / xAxisLabelWidth)
+                d3.axisBottom(transformedScale.xScale).ticks(boxWidth / X_AXIS_LABEL_WIDTH)
             )
             scaleAndAxis.yAxis.call(d3.axisLeft(transformedScale.yScale))
             scatter
@@ -258,11 +258,11 @@ class ScatterPlot extends Visualization {
                         ')'
                 )
 
-            if (points.labels === visilbePoints) {
+            if (points.labels === VISIBLE_POINTS) {
                 scatter
                     .selectAll('text')
-                    .attr('x', d => transformedScale.xScale(d.x) + pointLabelPaddingX)
-                    .attr('y', d => transformedScale.yScale(d.y) + pointLabelPaddingY)
+                    .attr('x', d => transformedScale.xScale(d.x) + POINT_LABEL_PADDING_X)
+                    .attr('y', d => transformedScale.yScale(d.y) + POINT_LABEL_PADDING_Y)
             }
         }
 
@@ -374,29 +374,29 @@ class ScatterPlot extends Visualization {
     zoomingHelper(scaleAndAxis, boxWidth, scatter, points) {
         scaleAndAxis.xAxis
             .transition()
-            .duration(animationDuration)
-            .call(d3.axisBottom(scaleAndAxis.xScale).ticks(boxWidth / xAxisLabelWidth))
+            .duration(ANIMATION_DURATION)
+            .call(d3.axisBottom(scaleAndAxis.xScale).ticks(boxWidth / X_AXIS_LABEL_WIDTH))
         scaleAndAxis.yAxis
             .transition()
-            .duration(animationDuration)
+            .duration(ANIMATION_DURATION)
             .call(d3.axisLeft(scaleAndAxis.yScale))
 
         scatter
             .selectAll('path')
             .transition()
-            .duration(animationDuration)
+            .duration(ANIMATION_DURATION)
             .attr(
                 'transform',
                 d => 'translate(' + scaleAndAxis.xScale(d.x) + ',' + scaleAndAxis.yScale(d.y) + ')'
             )
 
-        if (points.labels === visilbePoints) {
+        if (points.labels === VISIBLE_POINTS) {
             scatter
                 .selectAll('text')
                 .transition()
-                .duration(animationDuration)
-                .attr('x', d => scaleAndAxis.xScale(d.x) + pointLabelPaddingX)
-                .attr('y', d => scaleAndAxis.yScale(d.y) + pointLabelPaddingY)
+                .duration(ANIMATION_DURATION)
+                .attr('x', d => scaleAndAxis.xScale(d.x) + POINT_LABEL_PADDING_X)
+                .attr('y', d => scaleAndAxis.yScale(d.y) + POINT_LABEL_PADDING_Y)
         }
     }
 
@@ -436,16 +436,16 @@ class ScatterPlot extends Visualization {
             .style('fill', d => '#' + (d.color || '000000'))
             .style('opacity', 0.5)
 
-        if (points.labels === visilbePoints) {
+        if (points.labels === VISIBLE_POINTS) {
             scatter
                 .selectAll('dataPoint')
                 .data(dataPoints)
                 .enter()
                 .append('text')
                 .text(d => d.label)
-                .attr('x', d => scaleAndAxis.xScale(d.x) + pointLabelPaddingX)
-                .attr('y', d => scaleAndAxis.yScale(d.y) + pointLabelPaddingY)
-                .attr('style', labelStyle)
+                .attr('x', d => scaleAndAxis.xScale(d.x) + POINT_LABEL_PADDING_X)
+                .attr('y', d => scaleAndAxis.yScale(d.y) + POINT_LABEL_PADDING_Y)
+                .attr('style', LABEL_STYLE)
                 .attr('fill', 'black')
         }
 
@@ -485,7 +485,7 @@ class ScatterPlot extends Visualization {
             let paddingY = 20
             svg.append('text')
                 .attr('text-anchor', 'end')
-                .attr('style', labelStyle)
+                .attr('style', LABEL_STYLE)
                 .attr('x', margin.left + this.getTextWidth(axis.x.label, fontStyle) / 2)
                 .attr('y', boxHeight + margin.top + paddingY)
                 .text(axis.x.label)
@@ -495,7 +495,7 @@ class ScatterPlot extends Visualization {
             let paddingY = 15
             svg.append('text')
                 .attr('text-anchor', 'end')
-                .attr('style', labelStyle)
+                .attr('style', LABEL_STYLE)
                 .attr('transform', 'rotate(-90)')
                 .attr('y', -margin.left + paddingY)
                 .attr(
@@ -525,7 +525,7 @@ class ScatterPlot extends Visualization {
         let { domainX, domainY } = this.getDomains(extremesAndDeltas, focus)
 
         let xScale = d3.scaleLinear()
-        if (axis.x.scale !== linearScale) {
+        if (axis.x.scale !== LINEAR_SCALE) {
             xScale = d3.scaleLog()
         }
 
@@ -533,16 +533,16 @@ class ScatterPlot extends Visualization {
         let xAxis = svg
             .append('g')
             .attr('transform', 'translate(0,' + boxHeight + ')')
-            .attr('style', labelStyle)
-            .call(d3.axisBottom(xScale).ticks(boxWidth / xAxisLabelWidth))
+            .attr('style', LABEL_STYLE)
+            .call(d3.axisBottom(xScale).ticks(boxWidth / X_AXIS_LABEL_WIDTH))
 
         let yScale = d3.scaleLinear()
-        if (axis.y.scale !== linearScale) {
+        if (axis.y.scale !== LINEAR_SCALE) {
             yScale = d3.scaleLog()
         }
 
         yScale.domain(domainY).range([boxHeight, 0])
-        let yAxis = svg.append('g').attr('style', labelStyle).call(d3.axisLeft(yScale))
+        let yAxis = svg.append('g').attr('style', LABEL_STYLE).call(d3.axisLeft(yScale))
         return { xScale: xScale, yScale: yScale, xAxis: xAxis, yAxis: yAxis }
     }
 

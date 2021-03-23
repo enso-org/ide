@@ -9,16 +9,16 @@ let shortcuts = {
     debugPreprocessor: e => (e.ctrlKey || e.metaKey) && e.key === 'd',
 }
 
-const labelStyle = 'font-family: DejaVuSansMonoBook; font-size: 10px;'
-const margin = 25
-const xAxisLabelWidth = 10
-const yAxisLabelWidth = 10
-const animationDuration = 1000
-const linearScale = 'linear'
-const lightPlotColor = '#00E890'
-const darkPlotColor = '#E0A63B'
-const defaultNumberOfBins = 10
-const buttonHeight = 25
+const LABEL_STYLE = 'font-family: DejaVuSansMonoBook; font-size: 10px;'
+const MARGIN = 25
+const X_AXIS_LABEL_WIDTH = 10
+const Y_AXIS_LABEL_WIDTH = 10
+const ANIMATION_DURATION = 1000
+const LINEAR_SCALE = 'linear'
+const LIGHT_PLOT_COLOR = '#00E890'
+const DARK_PLOT_COLOR = '#E0A63B'
+const DEFAULT_NUMBER_OF_BINS = 10
+const BUTTON_HEIGHT = 25
 
 /**
  * A d3.js histogram visualization.
@@ -119,8 +119,8 @@ class Histogram extends Visualization {
     axisSpec() {
         return (
             this._axisSpec || {
-                x: { scale: linearScale },
-                y: { scale: linearScale },
+                x: { scale: LINEAR_SCALE },
+                y: { scale: LINEAR_SCALE },
             }
         )
     }
@@ -137,7 +137,7 @@ class Histogram extends Visualization {
      */
     binCount() {
         if (!ok(this._bins)) {
-            return defaultNumberOfBins
+            return DEFAULT_NUMBER_OF_BINS
         } else {
             return Math.max(1, self._bins)
         }
@@ -150,7 +150,7 @@ class Histogram extends Visualization {
     canvasDimensions() {
         const width = this.dom.getAttributeNS(null, 'width')
         let height = this.dom.getAttributeNS(null, 'height')
-        height = height - buttonHeight
+        height = height - BUTTON_HEIGHT
         const margin = this.margins()
         return {
             inner: {
@@ -188,8 +188,8 @@ class Histogram extends Visualization {
                 'translate(' + this.canvas.margin.left + ',' + this.canvas.margin.top + ')'
             )
 
-        this.yAxis = this.svg.append('g').attr('style', labelStyle)
-        this.xAxis = this.svg.append('g').attr('style', labelStyle)
+        this.yAxis = this.svg.append('g').attr('style', LABEL_STYLE)
+        this.xAxis = this.svg.append('g').attr('style', LABEL_STYLE)
 
         this.plot = this.svg.append('g').attr('clip-path', 'url(#hist-clip-path)')
 
@@ -282,7 +282,6 @@ class Histogram extends Visualization {
          */
         function zoomed() {
             // TODO:
-            // - When zooming, fix bins to show data properly
             // - when panning, dont let user go less than 0 on Y scale, as it wont make sense.
             if (d3.event.sourceEvent != null && d3.event.sourceEvent.buttons === rightButton) {
                 const zoomAmount = rmbZoomValue(d3.event.sourceEvent) / 5000.0
@@ -428,7 +427,7 @@ class Histogram extends Visualization {
      * Helper function for rescaling the data points with a new scale.
      */
     rescale(scale, withAnimation) {
-        const duration = withAnimation ? animationDuration : 0.0
+        const duration = withAnimation ? ANIMATION_DURATION : 0.0
         this.xAxis
             .transition()
             .duration(duration)
@@ -497,10 +496,10 @@ class Histogram extends Visualization {
 
         this.yAxis.call(yAxis)
 
-        let accentColor = lightPlotColor
+        let accentColor = LIGHT_PLOT_COLOR
 
         if (document.getElementById('root').classList.contains('dark')) {
-            accentColor = darkPlotColor
+            accentColor = DARK_PLOT_COLOR
         }
 
         const items = this.plot.selectAll('rect').data(bins)
@@ -526,12 +525,12 @@ class Histogram extends Visualization {
         this.yAxisLabel = this.svg
             .append('text')
             .attr('text-anchor', 'end')
-            .attr('style', labelStyle)
+            .attr('style', LABEL_STYLE)
             .attr('transform', 'rotate(-90)')
         this.xAxisLabel = this.svg
             .append('text')
             .attr('text-anchor', 'end')
-            .attr('style', labelStyle)
+            .attr('style', LABEL_STYLE)
     }
 
     /**
@@ -544,14 +543,14 @@ class Histogram extends Visualization {
         const fontStyle = '10px DejaVuSansMonoBook'
         if (axis.x.label !== undefined) {
             this.xAxisLabel
-                .attr('y', canvas.inner.height + canvas.margin.bottom - xAxisLabelWidth / 2.0)
+                .attr('y', canvas.inner.height + canvas.margin.bottom - X_AXIS_LABEL_WIDTH / 2.0)
                 .attr('x', canvas.inner.width / 2.0 + this.textWidth(axis.x.label, fontStyle) / 2)
                 .text(axis.x.label)
         }
         // Note: y axis is rotated by 90 degrees, so x/y is switched.
         if (axis.y.label !== undefined) {
             this.yAxisLabel
-                .attr('y', -canvas.margin.left + yAxisLabelWidth)
+                .attr('y', -canvas.margin.left + Y_AXIS_LABEL_WIDTH)
                 .attr('x', -canvas.inner.height / 2 + this.textWidth(axis.y.label, fontStyle) / 2)
                 .text(axis.y.label)
         }
@@ -604,30 +603,30 @@ class Histogram extends Visualization {
         const noXAxis = axis.x.label === undefined
         const noYAxis = axis.y.label === undefined
 
-        const top = margin / 2.0
-        const right = margin / 2.0
+        const top = MARGIN / 2.0
+        const right = MARGIN / 2.0
         if (noXAxis && noYAxis) {
-            return { top, right, bottom: margin, left: margin }
+            return { top, right, bottom: MARGIN, left: MARGIN }
         } else if (noYAxis) {
             return {
                 top,
                 right,
-                bottom: margin + xAxisLabelWidth,
-                left: margin,
+                bottom: MARGIN + X_AXIS_LABEL_WIDTH,
+                left: MARGIN,
             }
         } else if (noXAxis) {
             return {
                 top,
                 right,
-                bottom: margin,
-                left: margin + yAxisLabelWidth,
+                bottom: MARGIN,
+                left: MARGIN + Y_AXIS_LABEL_WIDTH,
             }
         }
         return {
             top,
             right,
-            bottom: margin + xAxisLabelWidth,
-            left: margin + yAxisLabelWidth,
+            bottom: MARGIN + X_AXIS_LABEL_WIDTH,
+            left: MARGIN + Y_AXIS_LABEL_WIDTH,
         }
     }
 
