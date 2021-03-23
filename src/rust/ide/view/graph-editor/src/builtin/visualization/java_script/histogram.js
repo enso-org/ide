@@ -24,18 +24,18 @@ const BUTTON_HEIGHT = 25
  * A d3.js histogram visualization.
  *
  *
- * Data format (json):
+ * Data format (JSON):
  {
    "axis" : {
       "x" : { "label" : "x-axis label", "scale" : "linear" },
       "y" : { "label" : "y-axis label", "scale" : "logarithmic" },
    },
-   "focus" { "x" : 1.7, "y" : 2.1, "zoom" : 3.0 },
-   "color" :  "rgb(1.0,0.0,0.0)" },
- "bins" : 10,
- "data" : [
- "values" : [0.1, 0.2, 0.1, 0.15, 0.7],
- ]
+   "focus" : { "x" : 1.7, "y" : 2.1, "zoom" : 3.0 },
+   "color" : "rgb(1.0,0.0,0.0)",
+   "bins"  : 10,
+   "data"  : [
+      "values" : [0.1, 0.2, 0.1, 0.15, 0.7],
+   ]
  }
  */
 class Histogram extends Visualization {

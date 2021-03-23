@@ -65,6 +65,10 @@ function makeGenerator() {
 
 const makeId = makeGenerator()
 
+/**
+ * Custom Map Controller, enabling us to redefine mouse gestures.
+ * TODO: Make 2-finger panning behave like in IDE, and RMB zooming.
+ */
 class MapController extends deck.MapController {
     handleEvent(event) {
         if (event.type === 'wheel') {

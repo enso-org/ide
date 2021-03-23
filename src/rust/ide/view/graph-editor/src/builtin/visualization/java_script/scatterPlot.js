@@ -27,7 +27,7 @@ const BUTTONS_HEIGHT = 25
  * To zoom out click "Fit all" or use key combination "ctrl/cmd+a".
  * To zoom into selection click appropriate button or use key combination "ctrl/cmd+z".
  *
- * Data format (json):
+ * Data format (JSON):
  * {
  *  "axis":{
  *     "x":{"label":"x-axis label""scale":"linear"},
