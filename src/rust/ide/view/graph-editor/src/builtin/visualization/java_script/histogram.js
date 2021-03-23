@@ -286,9 +286,9 @@ class Histogram extends Visualization {
                 const scale = Math.exp(zoomAmount)
                 const focus = startPos
                 const distanceScale = d3.zoomIdentity
-                    .translate(focus.x, focus.y)
+                    .translate(focus.x - (Y_AXIS_LABEL_WIDTH + MARGIN), focus.y - MARGIN)
                     .scale(scale)
-                    .translate(-focus.x, -focus.y)
+                    .translate(-focus.x + (Y_AXIS_LABEL_WIDTH + MARGIN), -focus.y + MARGIN)
                 transformedScale.x = distanceScale.rescaleX(transformedScale.x)
                 // transformedScale.y = distanceScale.rescaleY(transformedScale.y)
                 transformedScale.zoom = transformedScale.zoom * scale
@@ -297,9 +297,9 @@ class Histogram extends Visualization {
                     const scale = Math.exp(-d3.event.sourceEvent.deltaY / 100.0)
                     const focus = startPos
                     const distanceScale = d3.zoomIdentity
-                        .translate(focus.x, focus.y)
+                        .translate(focus.x - (Y_AXIS_LABEL_WIDTH + MARGIN), focus.y - MARGIN)
                         .scale(scale)
-                        .translate(-focus.x, -focus.y)
+                        .translate(-focus.x + (Y_AXIS_LABEL_WIDTH + MARGIN), -focus.y + MARGIN)
                     transformedScale.x = distanceScale.rescaleX(transformedScale.x)
                     // transformedScale.y = distanceScale.rescaleY(transformedScale.y)
                     transformedScale.zoom = transformedScale.zoom * scale

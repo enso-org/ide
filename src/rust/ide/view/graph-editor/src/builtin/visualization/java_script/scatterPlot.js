@@ -204,6 +204,7 @@ class ScatterPlot extends Visualization {
             .call(zoom)
 
         let transformedScale = Object.assign({}, scaleAndAxis)
+        const self = this
 
         /**
          * Helper function called on pan/scroll.
@@ -214,9 +215,9 @@ class ScatterPlot extends Visualization {
                 const scale = Math.exp(zoomAmount)
                 const focus = startPos
                 const distanceScale = d3.zoomIdentity
-                    .translate(focus.x, focus.y)
+                    .translate(focus.x - self.margin.left, focus.y - self.margin.top)
                     .scale(scale)
-                    .translate(-focus.x, -focus.y)
+                    .translate(-focus.x + self.margin.left, -focus.y + self.margin.top)
                 transformedScale.xScale = distanceScale.rescaleX(transformedScale.xScale)
                 transformedScale.yScale = distanceScale.rescaleY(transformedScale.yScale)
             } else if (d3.event.sourceEvent != null && d3.event.sourceEvent.type === 'wheel') {
@@ -224,9 +225,9 @@ class ScatterPlot extends Visualization {
                     const scale = Math.exp(-d3.event.sourceEvent.deltaY / 100.0)
                     const focus = startPos
                     const distanceScale = d3.zoomIdentity
-                        .translate(focus.x, focus.y)
+                        .translate(focus.x - self.margin.left, focus.y - self.margin.top)
                         .scale(scale)
-                        .translate(-focus.x, -focus.y)
+                        .translate(-focus.x + self.margin.left, -focus.y + self.margin.top)
                     transformedScale.xScale = distanceScale.rescaleX(transformedScale.xScale)
                     transformedScale.yScale = distanceScale.rescaleY(transformedScale.yScale)
                 } else {
