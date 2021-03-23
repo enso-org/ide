@@ -211,7 +211,8 @@ class ScatterPlot extends Visualization {
          */
         function zoomed() {
             if (d3.event.sourceEvent != null && d3.event.sourceEvent.buttons === rightButton) {
-                const zoomAmount = rmbZoomValue(d3.event.sourceEvent) / 5000.0
+                const rmbDivider = 5000.0
+                const zoomAmount = rmbZoomValue(d3.event.sourceEvent) / rmbDivider
                 const scale = Math.exp(zoomAmount)
                 const focus = startPos
                 const distanceScale = d3.zoomIdentity
@@ -222,7 +223,9 @@ class ScatterPlot extends Visualization {
                 transformedScale.yScale = distanceScale.rescaleY(transformedScale.yScale)
             } else if (d3.event.sourceEvent != null && d3.event.sourceEvent.type === 'wheel') {
                 if (d3.event.sourceEvent.ctrlKey) {
-                    const scale = Math.exp(-d3.event.sourceEvent.deltaY / 100.0)
+                    const pinchDivider = 100.0
+                    const zoomAmount = -d3.event.sourceEvent.deltaY / pinchDivider
+                    const scale = Math.exp(zoomAmount)
                     const focus = startPos
                     const distanceScale = d3.zoomIdentity
                         .translate(focus.x - self.margin.left, focus.y - self.margin.top)
