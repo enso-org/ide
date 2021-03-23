@@ -291,7 +291,7 @@ define_themes! { [light:0, dark:1]
                 size   = 12.0, 12.0;
             }
             padding = 15.0, 15.0;
-            height  = 36.0, 36.0;
+            height  = 30.0, 30.0;
         }
     }
 }

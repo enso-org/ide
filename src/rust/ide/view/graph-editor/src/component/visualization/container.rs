@@ -162,6 +162,7 @@ ensogl::define_endpoints! {
         enable_fullscreen  (),
         disable_fullscreen (),
         scene_shape        (scene::Shape),
+        set_layer          (visualization::Layer),
     }
 
     Output {
@@ -190,12 +191,13 @@ pub struct View {
     //        This should be further investigated while fixing rust visualization displaying. (#526)
     // background     : background::View,
     overlay        : overlay::View,
-    background_dom : DomSymbol
+    background_dom : DomSymbol,
+    scene          : Scene,
 }
 
 impl View {
     /// Constructor.
-    pub fn new(logger:&Logger, scene:&Scene) -> Self {
+    pub fn new(logger:&Logger, scene:Scene) -> Self {
         let logger         = Logger::sub(logger,"view");
         let display_object = display::object::Instance::new(&logger);
         let overlay        = overlay::View::new(&logger);
@@ -226,13 +228,19 @@ impl View {
         background_dom.dom().set_style_or_warn("box-shadow"   ,shadow,&logger);
         display_object.add_child(&background_dom);
 
-        scene.dom.layers.back.manage(&background_dom);
-
-        Self {logger,display_object,overlay,background_dom} . init(scene)
+        Self {logger,display_object,overlay,background_dom,scene}.init()
     }
 
-    fn init(self, scene:&Scene) -> Self {
-        scene.layers.viz.add_exclusive(&self);
+    fn set_layer(&self, layer:visualization::Layer) {
+        match layer {
+            visualization::Layer::Default => self.scene.dom.layers.back.manage(&self.background_dom),
+            visualization::Layer::Front   => self.scene.dom.layers.front.manage(&self.background_dom),
+        }
+    }
+
+    fn init(self) -> Self {
+        self.set_layer(visualization::Layer::Default);
+        self.scene.layers.viz.add_exclusive(&self);
         self
     }
 }
@@ -340,7 +348,7 @@ impl ContainerModel {
         let drag_root          = display::object::Instance::new(&logger);
         let visualization      = default();
         let vis_frp_connection = default();
-        let view               = View::new(&logger,scene);
+        let view               = View::new(&logger,scene.clone_ref());
         let fullscreen_view    = FullscreenView::new(&logger,scene);
         let scene              = scene.clone_ref();
         let is_fullscreen      = default();
@@ -558,6 +566,12 @@ impl Container {
             eval_ frp.enable_fullscreen (model.enable_fullscreen());
             eval_ frp.enable_fullscreen (fullscreen.set_target_value(1.0));
             eval  frp.set_size          ((s) size.set_target_value(*s));
+            eval  frp.set_layer         ([model](l) {
+                if let Some(vis) = model.visualization.borrow().as_ref() {
+                    vis.set_layer.emit(l)
+                }
+                model.view.set_layer(*l);
+            });
 
             mouse_down_target <- scene.mouse.frp.down.map(f_!(scene.mouse.target.get()));
             selected <= mouse_down_target.map(f!([model] (target){

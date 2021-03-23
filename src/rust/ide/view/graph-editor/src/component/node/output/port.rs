@@ -2,6 +2,7 @@
 use crate::prelude::*;
 
 use crate::tooltip;
+use crate::tooltip::Placement;
 use crate::Type;
 use crate::component::node;
 use crate::component::type_coloring;
@@ -449,7 +450,7 @@ impl Model {
             on_hover  <- frp.on_hover.on_true();
             non_hover <- frp.on_hover.on_false();
             frp.source.tooltip <+ frp.tp.sample(&on_hover).unwrap().map(|tp| {
-                tooltip::Style::set_label(tp.to_string())
+                tooltip::Style::set_label(tp.to_string()).with_placement(Placement::Right)
             });
             frp.source.tooltip <+ non_hover.constant(tooltip::Style::unset_label());
         }

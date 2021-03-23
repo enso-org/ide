@@ -133,6 +133,7 @@ ensogl::define_endpoints! {
         on_port_hover        (Switch<Crumbs>),
         on_port_type_change  (Crumbs,Option<Type>),
         port_size_multiplier (f32),
+        /// Indicates whether any part of the area is hovered.
         body_hover           (bool),
         tooltip              (tooltip::Style),
     }

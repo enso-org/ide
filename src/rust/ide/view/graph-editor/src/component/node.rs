@@ -26,6 +26,7 @@ use crate::tooltip;
 use enso_frp as frp;
 use enso_frp;
 use ensogl::Animation;
+use ensogl::animation::delayed::DelayedAnimation;
 use ensogl::application::Application;
 use ensogl::data::color;
 use ensogl::display::shape::*;
@@ -58,6 +59,9 @@ const ERROR_BORDER_WIDTH             : f32       = 10.0;
 const ERROR_VISUALIZATION_SIZE       : (f32,f32) = visualization::container::DEFAULT_SIZE;
 
 const VISUALIZATION_OFFSET_Y         : f32       = -120.0;
+
+const VIS_PREVIEW_ONSET_MS   : f32 = 3000.0;
+const ERROR_PREVIEW_ONSET_MS : f32 = 0000.0;
 
 
 
@@ -254,6 +258,8 @@ ensogl::define_endpoints! {
         set_expression_usage_type        (Crumbs,Option<Type>),
         set_output_expression_visibility (bool),
         set_vcs_status                   (Option<vcs::Status>),
+        /// Indicate whether preview visualisations should be delayed or immediate.
+        quick_preview_vis                    (bool),
     }
     Output {
         /// Press event. Emitted when user clicks on non-active part of the node, like its
@@ -405,7 +411,7 @@ impl NodeModel {
         display_object.add_child(&visualization);
         display_object.add_child(&input);
 
-        let error_visualization = builtin_visualization::Error::new(&scene);
+        let error_visualization = builtin_visualization::Error::new(scene.clone_ref());
         let (x,y)               = ERROR_VISUALIZATION_SIZE;
         error_visualization.set_size.emit(Vector2(x,y));
 
@@ -570,34 +576,78 @@ impl Node {
             out.source.skip   <+ action_bar.action_skip;
             out.source.freeze <+ action_bar.action_freeze;
             eval out.hover ((t) action_bar.set_visibility(t));
+       }
 
 
-            // === Errors on Node ===
+        // === Visualizations & Errors ===
 
+        let hover_onset_delay = DelayedAnimation::new(network);
+        hover_onset_delay.set_delay(VIS_PREVIEW_ONSET_MS);
+        hover_onset_delay.set_duration(0.0);
+
+        frp::extend! { network
+
+            frp.source.error <+ frp.set_error;
             is_error_set <- frp.error.map(|err| err.is_some());
-
-            frp.source.error <+ frp.set_error.map(f!([model](error) {
-                model.set_error(error.as_ref());
-                error.clone()
-            }));
-
+            no_error_set <- not(&is_error_set);
             error_color_anim.target <+ frp.error.map(f!([style](error)
                 Self::error_color(error,&style))
             );
 
-            eval error_color_anim.value ((value) model.set_error_color(value));
-
-
-            // === Visualization ===
-
             eval frp.set_visualization ((t) model.visualization.frp.set_visualization.emit(t));
             visualization_enabled_frp <- bool(&frp.disable_visualization,&frp.enable_visualization);
             eval visualization_enabled_frp ((enabled) model.action_bar.set_action_visibility_state(enabled));
-            no_error_set          <- not(&is_error_set);
+
+            // Show preview visualisation after some delay, depending on whether we show an error
+            // or are in quick preview mode. Also, omit the delay if we don't have a tooltip to show.
+            has_tooltip <- model.output.frp.tooltip.map(|tt| tt.has_content());
+            preview_show_delay <- all3(&frp.quick_preview_vis,&is_error_set,&has_tooltip).map(
+                |(quick_preview,is_error,has_tooltip)| {
+                if !has_tooltip {
+                    return 0.0;
+                }
+                match(is_error,quick_preview) {
+                    (true,_)      => ERROR_PREVIEW_ONSET_MS,
+                    (false,false) => VIS_PREVIEW_ONSET_MS,
+                    (false,true)  => 0.0
+                }
+            });
+            hover_onset_delay.set_delay <+ preview_show_delay;
+            hide_tooltip                <- preview_show_delay.map(|&delay| delay <= EPSILON);
+
+            hover_onset_delay.start <+ model.output.body_hover.on_true();
+            hover_onset_delay.reset <+ model.output.body_hover.on_false();
+            preview_visible         <- bool(&hover_onset_delay.on_reset,&hover_onset_delay.on_end).on_change();
+
             visualization_visible <- visualization_enabled && no_error_set;
-            frp.source.visualization_enabled <+ visualization_enabled;
+            visualization_visible <- visualization_visible || preview_visible;
+            visualization_visible <- visualization_visible.on_change();
+            frp.source.visualization_enabled <+ visualization_enabled || preview_visible;
             eval visualization_visible ((is_visible) model.visualization.frp.set_visibility(is_visible));
 
+            // Ensure the preview is visible above all other elements, but the normal visualisation
+            // is below nodes.
+            layer_on_hover     <- preview_visible.on_false().map(|_| visualization::Layer::Default);
+            layer_on_not_hover <- preview_visible.on_true().map(|_| visualization::Layer::Front);
+            layer              <- any(layer_on_hover,layer_on_not_hover);
+            model.visualization.frp.set_layer <+ layer;
+            eval layer ((l) model.error_visualization.frp.set_layer.emit(l));
+
+
+            update_error <- all(frp.set_error,visualization_visible);
+            eval update_error([model]((error,visible)){
+                if *visible {
+                     model.set_error(error.as_ref());
+                } else {
+                     model.set_error(None);
+                }
+            });
+
+            eval error_color_anim.value ((value) model.set_error_color(value));
+
+        }
+
+        frp::extend! { network
 
             // === Color Handling ===
 
@@ -612,7 +662,15 @@ impl Node {
                 model.main_area.bg_color.set(color::Rgba::from(c).into())
             );
 
-            frp.source.tooltip <+ model.output.frp.tooltip;
+
+            // === Tooltip ===
+
+            // Hide tooltip if we show the preview vis.
+            frp.source.tooltip <+ preview_visible.on_true().constant(tooltip::Style::unset_label());
+            // Propagate output tooltip. Only if it is not hidden, or to disable it.
+            block_tooltip      <- hide_tooltip && has_tooltip;
+            frp.source.tooltip <+ model.output.frp.tooltip.gate_not(&block_tooltip);
+
 
             // === VCS Handling ===
             model.vcs_indicator.frp.set_status <+ frp.set_vcs_status;
