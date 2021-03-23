@@ -281,8 +281,6 @@ class Histogram extends Visualization {
          * Helper function called on pan/scroll.
          */
         function zoomed() {
-            // TODO:
-            // - when panning, dont let user go less than 0 on Y scale, as it wont make sense.
             if (d3.event.sourceEvent != null && d3.event.sourceEvent.buttons === rightButton) {
                 const zoomAmount = rmbZoomValue(d3.event.sourceEvent) / 5000.0
                 const scale = Math.exp(zoomAmount)
@@ -311,11 +309,15 @@ class Histogram extends Visualization {
                         -d3.event.sourceEvent.deltaY
                     )
                     transformedScale.x = distanceScale.rescaleX(transformedScale.x)
-                    transformedScale.y = distanceScale.rescaleY(transformedScale.y)
+                    if (distanceScale.rescaleY(transformedScale.y).domain()[0] >= 0) {
+                        transformedScale.y = distanceScale.rescaleY(transformedScale.y)
+                    }
                 }
             } else {
                 transformedScale.x = d3.event.transform.rescaleX(transformedScale.x)
-                transformedScale.y = d3.event.transform.rescaleY(transformedScale.y)
+                if (d3.event.transform.rescaleY(transformedScale.y).domain()[0] >= 0) {
+                    transformedScale.y = d3.event.transform.rescaleY(transformedScale.y)
+                }
             }
 
             self.rescale(transformedScale, false)
