@@ -569,7 +569,7 @@ impl Area {
             eval_ sels_cut (m.buffer.frp.delete_left());
 
             eval_ input.paste (m.paste());
-            eval input.paste_string([m](s) m.paste_string(s));
+            eval input.paste_string((s) m.paste_string(s));
 
 
             eval_ m.buffer.frp.text_change (m.redraw(true));
