@@ -207,31 +207,54 @@ class TableVisualization extends Visualization {
             font-family: DejaVuSansMonoBook, sans-serif;
             font-size: 12px;
         }
-        
+
+        table tr:first-child th:first-child,
+        table tr:first-child td:first-child {
+            border-top-left-radius: 9px;
+        }
+
+        table tr:first-child th:last-child,
+        table tr:first-child td:last-child {
+            border-top-right-radius: 9px;
+        }
+
+        table tr:last-child th:first-child,
+        table tr:last-child td:first-child {
+            border-bottom-left-radius: 9px;
+        }
+
+        table tr:last-child th:last-child,
+        table tr:last-child td:last-child {
+            border-bottom-right-radius: 9px;
+        }
+
         td {
             color: rgba(255, 255, 255, 0.9);
             padding: 0;
         }
-        
+
         td.plaintext,
         th {
             padding: 5px;
         }
-        
+
         th,
         td {
             border: 1px solid transparent;
             background-clip: padding-box;
         }
-        
+
         th, .hiddenrows {
             color: rgba(255, 255, 255, 0.7);
             font-weight: 400;
         }
-        
-        td,
-        th {
+
+        td {
             background-color: rgba(255, 255, 255, 0.03);
+        }
+
+        th {
+            background-color: rgba(255, 255, 200, 0.1);
         }
 
         .hiddenrows {
@@ -246,6 +269,26 @@ class TableVisualization extends Visualization {
         table, .hiddenrows {
             font-family: DejaVuSansMonoBook, sans-serif;
             font-size: 12px;
+        }
+
+        table tr:first-child th:first-child,
+        table tr:first-child td:first-child {
+            border-top-left-radius: 9px;
+        }
+
+        table tr:first-child th:last-child,
+        table tr:first-child td:last-child {
+            border-top-right-radius: 9px;
+        }
+
+        table tr:last-child th:first-child,
+        table tr:last-child td:first-child {
+            border-bottom-left-radius: 9px;
+        }
+
+        table tr:last-child th:last-child,
+        table tr:last-child td:last-child {
+            border-bottom-right-radius: 9px;
         }
 
         td {
@@ -269,9 +312,12 @@ class TableVisualization extends Visualization {
             font-weight: 400;
         }
 
-        td,
-        th {
+        td {
             background-color: rgba(0, 0, 0, 0.025);
+        }
+
+        th {
+            background-color: rgba(30, 30, 20, 0.1);
         }
 
         .hiddenrows {
