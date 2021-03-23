@@ -47,6 +47,10 @@
   the `--no-data-gathering` command-line flag during the startup of the IDE.
 - [Provide a theming API for JavaScript visualizations][1358]. This API can be
   used to obtain the colors associated with a type or a class GUI elements.
+- [You can now start the IDE service without window again.][1353] The command
+  line arguyment `--no-window` now starts all the required backend services
+  again, and prints the port on the command line, allowing you to open the IDE
+  with a browser of your choice.
 
 #### EnsoGL (rendering engine)
 
@@ -64,6 +68,7 @@ you can find their release notes
 [1064]: https://github.com/enso-org/ide/pull/1064
 [1316]: https://github.com/enso-org/ide/pull/1316
 [1318]: https://github.com/enso-org/ide/pull/1318
+[1353]: https://github.com/enso-org/ide/pull/1353
 
 <br/>
 
