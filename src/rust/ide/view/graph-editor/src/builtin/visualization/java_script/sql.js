@@ -220,7 +220,7 @@ class SqlVisualization extends Visualization {
         const dom = this.dom
         let tooltipOwner = null
         function interpolationMouseEnter(event) {
-            const target = this.parentElement.getElementsByClassName("mismatch")[0]
+            const target = this.parentElement.getElementsByClassName('mismatch')[0]
             const fg = target.getAttribute('data-fgColorHover')
             const bg = target.getAttribute('data-bgColorHover')
             const message = decodeURIComponent(target.getAttribute('data-message'))
@@ -235,12 +235,13 @@ class SqlVisualization extends Visualization {
             const scrollElement = pre.parentElement
             const scrollX = scrollElement.scrollLeft
             const scrollY = scrollElement.scrollTop
-            const x = container.offsetLeft - tooltip.offsetWidth / 2 + container.offsetWidth / 2 - scrollX
+            const x =
+                container.offsetLeft - tooltip.offsetWidth / 2 + container.offsetWidth / 2 - scrollX
             const y = container.offsetTop - elem.offsetTop - pre.offsetTop - scrollY - 160
             tooltip.style.transform = 'translate(' + x + 'px, ' + y + 'px)'
         }
         function interpolationMouseLeave(event) {
-            const target = this.parentElement.getElementsByClassName("mismatch")[0]
+            const target = this.parentElement.getElementsByClassName('mismatch')[0]
             const fg = target.getAttribute('data-fgColor')
             const bg = target.getAttribute('data-bgColor')
             target.style.color = fg
