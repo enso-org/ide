@@ -47,6 +47,10 @@
   a project contain syntax errors.
 - [Users can opt out of anonymous data gathering.][1328] This can be done with
   the `--no-data-gathering` command-line flag during the startup of the IDE.
+- [You can now start the IDE service without window again.][1353] The command
+  line arguyment `--no-window` now starts all the required backend services
+  again, and prints the port on the command line, allowing you to open the IDE
+  with a browser of your choice.
 
 #### EnsoGL (rendering engine)
 
@@ -66,6 +70,7 @@ you can find their release notes
 [1318]: https://github.com/enso-org/ide/pull/1318
 [1332]: https://github.com/enso-org/ide/pull/1332
 [1341]: https://github.com/enso-org/ide/pull/1341
+[1353]: https://github.com/enso-org/ide/pull/1353
 
 <br/>
 
