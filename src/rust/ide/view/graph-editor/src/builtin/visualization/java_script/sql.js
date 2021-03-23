@@ -49,6 +49,22 @@ class SqlVisualization extends Visualization {
             padding:1px 2px 1px 2px;
             display: inline;
         }
+        .mismatch-parent {
+            position: relative;
+            display: inline-flex;
+            justify-content: center;
+        }
+        .mismatch-mouse-area {
+            display: inline;
+            position: absolute;
+            width: 150%;
+            height: 150%;
+            align-self: center;
+            z-index: 0;
+        }
+        .mismatch {
+            z-index: 1;
+        }
         .modulepath {
             color: rgba(150, 150, 150, 0.9);
         }
@@ -59,7 +75,7 @@ class SqlVisualization extends Visualization {
             transition: opacity 0.2s;
             display: inline-block;
             white-space: nowrap;
-            background-color: rgba(245, 245, 245, 1);
+            background-color: rgba(249, 249, 249, 1);
             box-shadow: 0 0 16px rgba(0, 0, 0, 0.16);
             text-align: left;
             border-radius: 6px;
@@ -142,6 +158,8 @@ class SqlVisualization extends Visualization {
                     '</span><br>'
                 message += 'The database may perform an auto conversion.'
 
+                html += '<div class="mismatch-parent">'
+                html += '<div class="mismatch-mouse-area"></div>'
                 html += '<div class="interpolation mismatch"'
                 html +=
                     ' style="color:' +
@@ -157,11 +175,11 @@ class SqlVisualization extends Visualization {
                 html += '>'
                 html += value
                 html += '</div>'
+                html += '</div>'
             }
             return html
         }
 
-        console.log(parsedData)
         let visHtml = style
         if (parsedData.error !== undefined) {
             visHtml += parsedData.error
@@ -202,40 +220,44 @@ class SqlVisualization extends Visualization {
         const dom = this.dom
         let tooltipOwner = null
         function interpolationMouseEnter(event) {
-            const fg = this.getAttribute('data-fgColorHover')
-            const bg = this.getAttribute('data-bgColorHover')
-            console.log(fg, bg)
-            const message = decodeURIComponent(this.getAttribute('data-message'))
-            console.log(message)
-            this.style.color = fg
-            this.style.backgroundColor = bg
+            const target = this.parentElement.getElementsByClassName("mismatch")[0]
+            const fg = target.getAttribute('data-fgColorHover')
+            const bg = target.getAttribute('data-bgColorHover')
+            const message = decodeURIComponent(target.getAttribute('data-message'))
+            target.style.color = fg
+            target.style.backgroundColor = bg
             const tooltip = dom.getElementsByClassName('tooltip')[0]
-            tooltipOwner = this
+            tooltipOwner = target
             tooltip.innerHTML = message
             tooltip.style.opacity = 1
-            const pre = this.parentElement
-            const scrollElement = this.parentElement.parentElement
+            const container = target.parentElement
+            const pre = container.parentElement
+            const scrollElement = pre.parentElement
             const scrollX = scrollElement.scrollLeft
             const scrollY = scrollElement.scrollTop
-            const x = this.offsetLeft - tooltip.offsetWidth / 2 + this.offsetWidth / 2 - scrollX
-            const y = this.offsetTop - elem.offsetTop - pre.offsetTop - scrollY - 160
-            console.log(x, y)
+            const x = container.offsetLeft - tooltip.offsetWidth / 2 + container.offsetWidth / 2 - scrollX
+            const y = container.offsetTop - elem.offsetTop - pre.offsetTop - scrollY - 160
             tooltip.style.transform = 'translate(' + x + 'px, ' + y + 'px)'
         }
         function interpolationMouseLeave(event) {
-            const fg = this.getAttribute('data-fgColor')
-            const bg = this.getAttribute('data-bgColor')
-            console.log(fg, bg)
-            this.style.color = fg
-            this.style.backgroundColor = bg
+            const target = this.parentElement.getElementsByClassName("mismatch")[0]
+            const fg = target.getAttribute('data-fgColor')
+            const bg = target.getAttribute('data-bgColor')
+            target.style.color = fg
+            target.style.backgroundColor = bg
             dom.getElementsByClassName('tooltip')[0].style.opacity = 0
-            if (tooltipOwner === null || tooltipOwner == this) {
+            if (tooltipOwner === null || tooltipOwner == target) {
                 const tooltip = dom.getElementsByClassName('tooltip')[0]
                 tooltipOwner = null
                 tooltip.style.opacity = 0
             }
         }
-        const mismatches = this.dom.getElementsByClassName('mismatch')
+        let mismatches = this.dom.getElementsByClassName('mismatch')
+        for (let i = 0; i < mismatches.length; ++i) {
+            mismatches[i].addEventListener('mouseenter', interpolationMouseEnter)
+            mismatches[i].addEventListener('mouseleave', interpolationMouseLeave)
+        }
+        mismatches = this.dom.getElementsByClassName('mismatch-mouse-area')
         for (let i = 0; i < mismatches.length; ++i) {
             mismatches[i].addEventListener('mouseenter', interpolationMouseEnter)
             mismatches[i].addEventListener('mouseleave', interpolationMouseLeave)

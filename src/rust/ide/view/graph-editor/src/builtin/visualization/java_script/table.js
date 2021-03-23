@@ -334,8 +334,8 @@ class TableVisualization extends Visualization {
         tabElem.setAttributeNS(null, 'viewBox', '0 0 ' + width + ' ' + height)
         tabElem.setAttributeNS(null, 'width', '100%')
         tabElem.setAttributeNS(null, 'height', '100%')
-        const tblViewStyle = `width: ${width - 10}px;
-             height: ${height - 10}px;
+        const tblViewStyle = `width: ${width - 5}px;
+             height: ${height - 5}px;
              overflow: scroll;
              padding:2.5px;`
         tabElem.setAttributeNS(null, 'style', tblViewStyle)
