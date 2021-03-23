@@ -36,6 +36,8 @@ async function get_project_manager_url(): Promise<string> {
     const config = await get_build_config()
     const target_platform = config.target
     console.log('webpack target ' + target_platform)
+    // Usually it is a good idea to synchronize this constant with `ENGINE_VERSION_FOR_NEW_PROJECTS` in
+    // src/rust/ide/src/ide/initializer.rs. See also https://github.com/enso-org/ide/issues/1359
     const version = '0.2.8'
     let base_url: string = 'https://github.com/enso-org/'
     base_url += 'enso/releases/download/'
