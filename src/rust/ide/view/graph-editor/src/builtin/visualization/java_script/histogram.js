@@ -251,10 +251,12 @@ class Histogram extends Visualization {
             })
             .wheelDelta(function () {
                 const event = d3.event
-                // This is the delta used by default in wheelData and which is modified by us.
-                const defaultWheelDelta =
-                    -event.deltaY * (event.deltaMode === 1 ? 0.05 : event.deltaMode ? 1 : 0.002)
-                return defaultWheelDelta * (event.ctrlKey ? 5 : 1)
+                const minDelta = 0.002
+                const medDelta = 0.05
+                const maxDelta = 1
+                const wheelSpeedMultiplier =
+                    event.deltaMode === 1 ? medDelta : event.deltaMode ? maxDelta : minDelta
+                return -event.deltaY * wheelSpeedMultiplier
             })
             .scaleExtent(extent)
             .extent([
@@ -388,8 +390,7 @@ class Histogram extends Visualization {
 
             zoom.transformedScale.x.domain([xMin, xMax])
             const dx = extent[1] - extent[0]
-            self.scale.zoom = self.scale.zoom * (self.canvas.inner.width / dx)
-            zoom.transformedScale.zoom = self.scale.zoom
+            zoom.transformedScale.zoom = zoom.transformedScale.zoom * (self.canvas.inner.width / dx)
 
             self.rescale(zoom.transformedScale, true)
         }
