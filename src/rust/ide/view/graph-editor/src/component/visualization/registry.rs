@@ -66,10 +66,13 @@ impl Registry {
 
     /// Return all `visualization::Class`es that can create a visualization for the given datatype.
     pub fn valid_sources(&self, tp:&enso::Type) -> Vec<visualization::Definition>{
-        let type_map   = self.type_map.borrow();
+        let type_map = self.type_map.borrow();
+        let any_type = enso::Type::any();
         let mut result:Vec<visualization::Definition> = type_map.get(tp).cloned().unwrap_or_default();
-        if let Some(vis_for_any) = type_map.get(&enso::Type::any()) {
-            result.extend(vis_for_any.iter().cloned());
+        if tp != &any_type {
+            if let Some(vis_for_any) = type_map.get(&any_type) {
+                result.extend(vis_for_any.iter().cloned());
+            }
         }
         result
     }
