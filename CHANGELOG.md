@@ -18,8 +18,8 @@
   above other nodes, whereas the normal view, will be shown below nodes. Errors
   will show the preview visualization immediately. Nodes without type
   information will also show the visualization immediately. You can enter a
-  quick preview mode by pressing ctrl, which will show the preview visualization
-  immediately for all nodes.
+  quick preview mode by pressing ctrl (or command on macOS), which will show the
+  preview visualization immediately for any hovered node output.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
@@ -58,7 +58,7 @@
 - [Users can opt out of anonymous data gathering.][1328] This can be done with
   the `--no-data-gathering` command-line flag during the startup of the IDE.
 - [You can now start the IDE service without window again.][1353] The command
-  line arguyment `--no-window` now starts all the required backend services
+  line argument `--no-window` now starts all the required backend services
   again, and prints the port on the command line, allowing you to open the IDE
   with a browser of your choice.
 
