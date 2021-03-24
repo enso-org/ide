@@ -14,7 +14,6 @@ class SqlVisualization extends Visualization {
         super(api)
         this.setPreprocessorModule('Standard.Visualization.Sql.Visualization')
         this.setPreprocessorCode(`x -> here.prepare_visualization x`)
-        this.theme = themeMock // TODO remove once themes are merged (see below)
     }
 
     onDataReceived(data) {
@@ -113,15 +112,23 @@ function splitQualifiedTypeName(name) {
  * Renders a 4-element array representing a color into a CSS-compatible rgba string.
  */
 function renderColor(color) {
-    return 'rgba(' + color[0] + ',' + color[1] + ',' + color[2] + ',' + color[3] + ')'
+    const r = 255 * color.red
+    const g = 255 * color.green
+    const b = 255 * color.blue
+    const a = color.alpha
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')'
 }
 
 /** Changes the alpha component of a color (represented as a 4-element array),
  * returning a new color.
  */
 function changeAlpha(color, newAlpha) {
-    const baseChannels = 3
-    return [...color.slice(0, baseChannels), newAlpha]
+    return {
+        red: color.red,
+        green: color.green,
+        blue: color.blue,
+        alpha: newAlpha,
+    }
 }
 
 /**
@@ -272,8 +279,6 @@ class Tooltip {
         if (this.tooltipOwner === null || this.tooltipOwner == actor) {
             this.tooltipOwner = null
             this.tooltip.style.opacity = 0
-        } else {
-            console.log('Tooltip hide request by', actor, 'but it is owned by', this.tooltipOwner)
         }
     }
 
@@ -334,25 +339,6 @@ function setupMouseInteractionForMismatches(tooltip, elements) {
         elements[i].addEventListener('mouseenter', interpolationMouseEnter)
         elements[i].addEventListener('mouseleave', interpolationMouseLeave)
     }
-}
-
-// Mocks theme support that will be added in #1358.
-// This will be removed before this PR is merged.
-function hash(s) {
-    let sum = 0
-    for (let i = 0; i < s.length; ++i) {
-        sum = (sum + 31 * s.charCodeAt(i)) % 255
-    }
-    return sum
-}
-function getColor(name) {
-    return [hash('r' + name), hash('g' + name), hash('b' + name), 1]
-}
-const themeMock = {
-    getColorForType: getColor,
-    getForegroundColorForType: function (x) {
-        return [255, 255, 255, 1]
-    },
 }
 
 const visualizationStyle = `
