@@ -1,268 +1,88 @@
 loadScript('https://cdnjs.cloudflare.com/ajax/libs/sql-formatter/4.0.2/sql-formatter.min.js')
 
+/**
+ * A visualization that pretty-prints generated SQL code and displays type hints related to
+ * interpolated query parameters.
+ */
 class SqlVisualization extends Visualization {
-    static inputType = 'Any' // 'Standard.Database.Data.Table.Table | Standard.Database.Data.Column.Column' // TODO change this once sum types are properly supported
+    // TODO Change the type below once #837 is done:
+    // 'Standard.Database.Data.Table.Table | Standard.Database.Data.Column.Column'
+    static inputType = 'Any'
     static label = 'SQL Query'
 
     constructor(api) {
         super(api)
         this.setPreprocessorModule('Standard.Visualization.Sql.Visualization')
         this.setPreprocessorCode(`x -> here.prepare_visualization x`)
-
-        // mock theme
-        function hash(s) {
-            let sum = 0
-            for (let i = 0; i < s.length; ++i) {
-                sum = (sum + 31 * s.charCodeAt(i)) % 255
-            }
-            return sum
-        }
-        function getColor(name) {
-            return [hash('r' + name), hash('g' + name), hash('b' + name), 1]
-        }
-        this.theme = {
-            getColorForType: getColor,
-            getForegroundColorForType: function (x) {
-                return [255, 255, 255, 1]
-            },
-        }
+        this.theme = themeMock // TODO remove once themes are merged (see below)
     }
 
     onDataReceived(data) {
         while (this.dom.firstChild) {
             this.dom.removeChild(this.dom.lastChild)
         }
+
         let parsedData = data
         if (typeof data === 'string') {
             parsedData = JSON.parse(data)
         }
 
-        const style = `
-        <style>
-        .sql {
-            font-family: DejaVuSansMonoBook, sans-serif;
-            font-size: 12px;
-            margin-left: 7px;
-        }
-        .interpolation {
-            border-radius: 6px;
-            padding:1px 2px 1px 2px;
-            display: inline;
-        }
-        .mismatch-parent {
-            position: relative;
-            display: inline-flex;
-            justify-content: center;
-        }
-        .mismatch-mouse-area {
-            display: inline;
-            position: absolute;
-            width: 150%;
-            height: 150%;
-            align-self: center;
-            z-index: 0;
-        }
-        .mismatch {
-            z-index: 1;
-        }
-        .modulepath {
-            color: rgba(150, 150, 150, 0.9);
-        }
-        .tooltip {
-            font-family: DejaVuSansMonoBook, sans-serif;
-            font-size: 12px;
-            opacity: 0;
-            transition: opacity 0.2s;
-            display: inline-block;
-            white-space: nowrap;
-            background-color: rgba(249, 249, 249, 1);
-            box-shadow: 0 0 16px rgba(0, 0, 0, 0.16);
-            text-align: left;
-            border-radius: 6px;
-            padding: 5px;
-            position: absolute;
-            z-index: 99999;
-            pointer-events: none;
-        }
-        </style>
-        `
-
-        function renderColor(color) {
-            return 'rgba(' + color[0] + ',' + color[1] + ',' + color[2] + ',' + color[3] + ')'
-        }
-
-        const bgAlpha = 0.25
-        const theme = this.theme
-
-        function splitTypeName(name) {
-            var ix = name.lastIndexOf('.')
-            if (ix < 0) {
-                return ['', name]
-            }
-
-            return [name.substr(0, ix + 1), name.substr(ix + 1)]
-        }
-
-        function renderParameter(param) {
-            const actualType = param.actual_type
-            let value = param.value
-
-            if (actualType == 'Builtins.Main.Text') {
-                value = "'" + value.replaceAll("'", "''") + "'"
-            }
-
-            const actualTypeColor = theme.getColorForType(actualType)
-            const fgColor = actualTypeColor
-            let bgColor = [...fgColor.slice(0, 3), bgAlpha]
-            const expectedEnsoType = param.expected_enso_type
-
-            let html = ''
-            if (actualType == expectedEnsoType) {
-                const elem = document.createElement('div')
-                html +=
-                    '<div class="interpolation" style="color:' +
-                    renderColor(fgColor) +
-                    ';background-color:' +
-                    renderColor(bgColor) +
-                    ';">'
-                html += value
-                html += '</div>'
-            } else {
-                let expectedType = expectedEnsoType
-                if (expectedType === null) {
-                    expectedType = 'Standard.Database.Data.Sql.Sql_Type.' + param.expected_sql_type
-                }
-
-                const expectedTypeColor = theme.getColorForType(expectedType)
-                const hoverBgColor = expectedTypeColor
-                bgColor = [...hoverBgColor.slice(0, 3), bgAlpha]
-                const hoverFgColor = theme.getForegroundColorForType(expectedType)
-
-                const received = splitTypeName(actualType)
-                const expected = splitTypeName(expectedType)
-                let message =
-                    'Received <span class="modulepath">' +
-                    received[0] +
-                    '</span><span style="color: ' +
-                    renderColor(actualTypeColor) +
-                    '">' +
-                    received[1] +
-                    '</span><br>'
-                message +=
-                    'Expected <span class="modulepath">' +
-                    expected[0] +
-                    '</span><span style="color: ' +
-                    renderColor(expectedTypeColor) +
-                    '">' +
-                    expected[1] +
-                    '</span><br>'
-                message += 'The database may perform an auto conversion.'
-
-                html += '<div class="mismatch-parent">'
-                html += '<div class="mismatch-mouse-area"></div>'
-                html += '<div class="interpolation mismatch"'
-                html +=
-                    ' style="color:' +
-                    renderColor(fgColor) +
-                    ';background-color:' +
-                    renderColor(bgColor) +
-                    ';"'
-                html += ' data-fgColor="' + renderColor(fgColor) + '"'
-                html += ' data-bgColor="' + renderColor(bgColor) + '"'
-                html += ' data-fgColorHover="' + renderColor(hoverFgColor) + '"'
-                html += ' data-bgColorHover="' + renderColor(hoverBgColor) + '"'
-                html += ' data-message="' + encodeURIComponent(message) + '"'
-                html += '>'
-                html += value
-                html += '</div>'
-                html += '</div>'
-            }
-            return html
-        }
-
-        let visHtml = style
+        let visHtml = visualizationStyle
         if (parsedData.error !== undefined) {
             visHtml += parsedData.error
         } else {
-            const params = parsedData.interpolations.map(renderParameter)
+            const params = parsedData.interpolations.map(param =>
+                renderInterpolationParameter(this.theme, param)
+            )
+
             let language = 'sql'
             if (parsedData.dialect == 'postgresql') {
                 language = 'postgresql'
             }
+
             const formatted = sqlFormatter.format(parsedData.code, {
                 params: params,
                 language: language,
             })
-            visHtml += '<pre class="sql">' + formatted + '</pre>'
+
+            const codeRepresentation = '<pre class="sql">' + formatted + '</pre>'
+            visHtml += codeRepresentation
         }
-        const container = document.createElement('div')
-        container.setAttributeNS(null, 'style', 'position: relative;')
+
+        const containers = this.createContainers()
+        const parentContainer = containers[0]
+        const scrollable = containers[1]
+        scrollable.innerHTML = visHtml
+        this.dom.appendChild(parentContainer)
+
+        const tooltip = new Tooltip(parentContainer)
+        const baseMismatches = this.dom.getElementsByClassName('mismatch')
+        const extendedMismatchAreas = this.dom.getElementsByClassName('mismatch-mouse-area')
+        setupMouseInteractionForMismatches(tooltip, baseMismatches)
+        setupMouseInteractionForMismatches(tooltip, extendedMismatchAreas)
+    }
+
+    /**
+     * Creates containers for the visualization.
+     */
+    createContainers() {
+        const parentContainer = document.createElement('div')
+        parentContainer.setAttributeNS(null, 'style', 'position: relative;')
         const width = this.dom.getAttributeNS(null, 'width')
         const height = this.dom.getAttributeNS(null, 'height')
-        const elem = document.createElement('div')
-        elem.setAttributeNS(null, 'id', 'vis-sql-view')
-        elem.setAttributeNS(null, 'class', 'scrollable')
-        elem.setAttributeNS(null, 'viewBox', '0 0 ' + width + ' ' + height)
-        elem.setAttributeNS(null, 'width', '100%')
-        elem.setAttributeNS(null, 'height', '100%')
+        const scrollable = document.createElement('div')
+        scrollable.setAttributeNS(null, 'id', 'vis-sql-view')
+        scrollable.setAttributeNS(null, 'class', 'scrollable')
+        scrollable.setAttributeNS(null, 'viewBox', '0 0 ' + width + ' ' + height)
+        scrollable.setAttributeNS(null, 'width', '100%')
+        scrollable.setAttributeNS(null, 'height', '100%')
         const viewStyle = `width: ${width - 10}px;
              height: ${height - 10}px;
              overflow: scroll;
              padding:2.5px;`
-        elem.setAttributeNS(null, 'style', viewStyle)
-        elem.innerHTML = visHtml
-        const tooltip = document.createElement('div')
-        tooltip.setAttributeNS(null, 'class', 'tooltip')
-        container.appendChild(elem)
-        container.appendChild(tooltip)
-        this.dom.appendChild(container)
-
-        const dom = this.dom
-        let tooltipOwner = null
-        function interpolationMouseEnter(event) {
-            const target = this.parentElement.getElementsByClassName('mismatch')[0]
-            const fg = target.getAttribute('data-fgColorHover')
-            const bg = target.getAttribute('data-bgColorHover')
-            const message = decodeURIComponent(target.getAttribute('data-message'))
-            target.style.color = fg
-            target.style.backgroundColor = bg
-            const tooltip = dom.getElementsByClassName('tooltip')[0]
-            tooltipOwner = target
-            tooltip.innerHTML = message
-            tooltip.style.opacity = 1
-            const container = target.parentElement
-            const pre = container.parentElement
-            const scrollElement = pre.parentElement
-            const scrollX = scrollElement.scrollLeft
-            const scrollY = scrollElement.scrollTop
-            const x =
-                container.offsetLeft - tooltip.offsetWidth / 2 + container.offsetWidth / 2 - scrollX
-            const y = container.offsetTop - elem.offsetTop - pre.offsetTop - scrollY - 160
-            tooltip.style.transform = 'translate(' + x + 'px, ' + y + 'px)'
-        }
-        function interpolationMouseLeave(event) {
-            const target = this.parentElement.getElementsByClassName('mismatch')[0]
-            const fg = target.getAttribute('data-fgColor')
-            const bg = target.getAttribute('data-bgColor')
-            target.style.color = fg
-            target.style.backgroundColor = bg
-            dom.getElementsByClassName('tooltip')[0].style.opacity = 0
-            if (tooltipOwner === null || tooltipOwner == target) {
-                const tooltip = dom.getElementsByClassName('tooltip')[0]
-                tooltipOwner = null
-                tooltip.style.opacity = 0
-            }
-        }
-        let mismatches = this.dom.getElementsByClassName('mismatch')
-        for (let i = 0; i < mismatches.length; ++i) {
-            mismatches[i].addEventListener('mouseenter', interpolationMouseEnter)
-            mismatches[i].addEventListener('mouseleave', interpolationMouseLeave)
-        }
-        mismatches = this.dom.getElementsByClassName('mismatch-mouse-area')
-        for (let i = 0; i < mismatches.length; ++i) {
-            mismatches[i].addEventListener('mouseenter', interpolationMouseEnter)
-            mismatches[i].addEventListener('mouseleave', interpolationMouseLeave)
-        }
+        scrollable.setAttributeNS(null, 'style', viewStyle)
+        parentContainer.appendChild(scrollable)
+        return [parentContainer, scrollable]
     }
 
     setSize(size) {
@@ -270,5 +90,319 @@ class SqlVisualization extends Visualization {
         this.dom.setAttributeNS(null, 'height', size[1])
     }
 }
+
+/**
+ * Splits a qualified type name into a module prefix and the typename itself.
+ */
+function splitQualifiedTypeName(name) {
+    var ix = name.lastIndexOf('.')
+    if (ix < 0) {
+        return {
+            prefix: '',
+            name: name,
+        }
+    }
+
+    return {
+        prefix: name.substr(0, ix + 1),
+        name: name.substr(ix + 1),
+    }
+}
+
+/**
+ * Renders a 4-element array representing a color into a CSS-compatible rgba string.
+ */
+function renderColor(color) {
+    return 'rgba(' + color[0] + ',' + color[1] + ',' + color[2] + ',' + color[3] + ')'
+}
+
+/** Changes the alpha component of a color (represented as a 4-element array),
+ * returning a new color.
+ */
+function changeAlpha(color, newAlpha) {
+    const baseChannels = 3
+    return [...color.slice(0, baseChannels), newAlpha]
+}
+
+/**
+ * Renders a HTML representation of a message to be displayed in a tooltip,
+ * which explains a type mismatch.
+ */
+function renderTypeHintMessage(
+    receivedTypeName,
+    expectedTypeName,
+    receivedTypeColor,
+    expectedTypeColor
+) {
+    const received = splitQualifiedTypeName(receivedTypeName)
+    const expected = splitQualifiedTypeName(expectedTypeName)
+
+    const receivedPrefix = '<span class="modulepath">' + received.prefix + '</span>'
+    const receivedStyledSpan = '<span style="color: ' + renderColor(receivedTypeColor) + '">'
+    const receivedSuffix = receivedStyledSpan + received.name + '</span>'
+
+    const expectedPrefix = '<span class="modulepath">' + expected.prefix + '</span>'
+    const expectedStyledSpan = '<span style="color: ' + renderColor(expectedTypeColor) + '">'
+    const expectedSuffix = expectedStyledSpan + expected.name + '</span>'
+
+    let message = 'Received ' + receivedPrefix + receivedSuffix + '<br>'
+    message += 'Expected ' + expectedPrefix + expectedSuffix + '<br>'
+    message += 'The database may perform an auto conversion.'
+    return message
+}
+
+const textType = 'Builtins.Main.Text'
+const customSqlTypePrefix = 'Standard.Database.Data.Sql.Sql_Type.'
+
+/** Specifies opacity of interpolation background color. */
+const interpolationBacgroundOpacity = 0.3
+
+/**
+ * Renders HTML for displaying an Enso parameter that is interpolated into the SQL code.
+ */
+function renderInterpolationParameter(theme, param) {
+    const actualType = param.actual_type
+    let value = param.value
+
+    if (actualType == textType) {
+        value = "'" + value.replaceAll("'", "''") + "'"
+    }
+
+    const actualTypeColor = theme.getColorForType(actualType)
+    const fgColor = actualTypeColor
+    let bgColor = changeAlpha(fgColor, interpolationBacgroundOpacity)
+    const expectedEnsoType = param.expected_enso_type
+
+    if (actualType == expectedEnsoType) {
+        return renderRegularInterpolation(value, fgColor, bgColor)
+    } else {
+        let expectedType = expectedEnsoType
+        if (expectedType === null) {
+            expectedType = customSqlTypePrefix + param.expected_sql_type
+        }
+
+        const expectedTypeColor = theme.getColorForType(expectedType)
+        const hoverBgColor = expectedTypeColor
+        bgColor = changeAlpha(hoverBgColor, interpolationBacgroundOpacity)
+        const hoverFgColor = theme.getForegroundColorForType(expectedType)
+
+        const message = renderTypeHintMessage(
+            actualType,
+            expectedType,
+            actualTypeColor,
+            expectedTypeColor
+        )
+
+        return renderMismatchedInterpolation(
+            value,
+            message,
+            fgColor,
+            bgColor,
+            hoverFgColor,
+            hoverBgColor
+        )
+    }
+}
+
+/**
+ * A helper that renders the HTML representation of a regular SQL interpolation.
+ */
+function renderRegularInterpolation(value, fgColor, bgColor) {
+    let html =
+        '<div class="interpolation" style="color:' +
+        renderColor(fgColor) +
+        ';background-color:' +
+        renderColor(bgColor) +
+        ';">'
+    html += value
+    html += '</div>'
+    return html
+}
+
+/**
+ * A helper that renders the HTML representation of a type-mismatched SQL interpolation.
+ *
+ * This only prepares the HTML code, to setup the interactions, `setupMouseInteractionForMismatches`
+ * must be called after these HTML elements are added to the DOM.
+ */
+function renderMismatchedInterpolation(
+    value,
+    message,
+    fgColor,
+    bgColor,
+    hoverFgColor,
+    hoverBgColor
+) {
+    let html = '<div class="mismatch-parent">'
+    html += '<div class="mismatch-mouse-area"></div>'
+    html += '<div class="interpolation mismatch"'
+    html +=
+        ' style="color:' + renderColor(fgColor) + ';background-color:' + renderColor(bgColor) + ';"'
+    html += ' data-fgColor="' + renderColor(fgColor) + '"'
+    html += ' data-bgColor="' + renderColor(bgColor) + '"'
+    html += ' data-fgColorHover="' + renderColor(hoverFgColor) + '"'
+    html += ' data-bgColorHover="' + renderColor(hoverBgColor) + '"'
+    html += ' data-message="' + encodeURIComponent(message) + '"'
+    html += '>'
+    html += value
+    html += '</div>'
+    html += '</div>'
+    return html
+}
+
+/**
+ * A hint tooltip that can be displayed above elements.
+ */
+class Tooltip {
+    constructor(container) {
+        this.tooltip = document.createElement('div')
+        this.tooltip.setAttributeNS(null, 'class', 'tooltip')
+        container.appendChild(this.tooltip)
+        this.tooltipOwner = null
+    }
+
+    /**
+     * Hides the tooltip.
+     *
+     * The actor parameter specifies who is initiating the hiding.
+     * If this method is called but the tooltip has got a new owner in the meantime, the call is
+     * ignored.
+     */
+    hide(actor) {
+        if (this.tooltipOwner === null || this.tooltipOwner == actor) {
+            this.tooltipOwner = null
+            this.tooltip.style.opacity = 0
+        } else {
+            console.log('Tooltip hide request by', actor, 'but it is owned by', this.tooltipOwner)
+        }
+    }
+
+    /**
+     * Shows the tooltip above the element represented by `actor`.
+     *
+     * Tooltip content is specified by the `message` which can include arbitrary HTML.
+     */
+    show(actor, message) {
+        this.tooltipOwner = actor
+        this.tooltip.innerHTML = message
+        this.tooltip.style.opacity = 1
+
+        const interpolantContainer = actor.parentElement
+        const codeContainer = interpolantContainer.parentElement
+        const scrollElement = codeContainer.parentElement
+
+        const scrollOffsetX = scrollElement.scrollLeft
+        const scrollOffsetY = scrollElement.scrollTop + scrollElement.offsetHeight
+
+        const interpolantOffsetX = interpolantContainer.offsetLeft
+        const interpolantOffsetY = interpolantContainer.offsetTop
+
+        const centeringOffset = (interpolantContainer.offsetWidth - this.tooltip.offsetWidth) / 2
+        const belowPadding = 3
+        const belowOffset = interpolantContainer.offsetHeight + belowPadding
+
+        const x = interpolantOffsetX - scrollOffsetX + centeringOffset
+        const y = interpolantOffsetY - scrollOffsetY + belowOffset
+
+        this.tooltip.style.transform = 'translate(' + x + 'px, ' + y + 'px)'
+    }
+}
+
+/**
+ * Sets up mouse events for the interpolated parameters that have a type mismatch.
+ */
+function setupMouseInteractionForMismatches(tooltip, elements) {
+    function interpolationMouseEnter(event) {
+        const target = this.parentElement.getElementsByClassName('mismatch')[0]
+        const fg = target.getAttribute('data-fgColorHover')
+        const bg = target.getAttribute('data-bgColorHover')
+        const message = decodeURIComponent(target.getAttribute('data-message'))
+        tooltip.show(target, message)
+        target.style.color = fg
+        target.style.backgroundColor = bg
+    }
+    function interpolationMouseLeave(event) {
+        const target = this.parentElement.getElementsByClassName('mismatch')[0]
+        const fg = target.getAttribute('data-fgColor')
+        const bg = target.getAttribute('data-bgColor')
+        target.style.color = fg
+        target.style.backgroundColor = bg
+        tooltip.hide(target)
+    }
+
+    for (let i = 0; i < elements.length; ++i) {
+        elements[i].addEventListener('mouseenter', interpolationMouseEnter)
+        elements[i].addEventListener('mouseleave', interpolationMouseLeave)
+    }
+}
+
+// Mocks theme support that will be added in #1358.
+// This will be removed before this PR is merged.
+function hash(s) {
+    let sum = 0
+    for (let i = 0; i < s.length; ++i) {
+        sum = (sum + 31 * s.charCodeAt(i)) % 255
+    }
+    return sum
+}
+function getColor(name) {
+    return [hash('r' + name), hash('g' + name), hash('b' + name), 1]
+}
+const themeMock = {
+    getColorForType: getColor,
+    getForegroundColorForType: function (x) {
+        return [255, 255, 255, 1]
+    },
+}
+
+const visualizationStyle = `
+    <style>
+    .sql {
+        font-family: DejaVuSansMonoBook, sans-serif;
+        font-size: 12px;
+        margin-left: 7px;
+    }
+    .interpolation {
+        border-radius: 6px;
+        padding:1px 2px 1px 2px;
+        display: inline;
+    }
+    .mismatch-parent {
+        position: relative;
+        display: inline-flex;
+        justify-content: center;
+    }
+    .mismatch-mouse-area {
+        display: inline;
+        position: absolute;
+        width: 150%;
+        height: 150%;
+        align-self: center;
+        z-index: 0;
+    }
+    .mismatch {
+        z-index: 1;
+    }
+    .modulepath {
+        color: rgba(150, 150, 150, 0.9);
+    }
+    .tooltip {
+        font-family: DejaVuSansMonoBook, sans-serif;
+        font-size: 12px;
+        opacity: 0;
+        transition: opacity 0.2s;
+        display: inline-block;
+        white-space: nowrap;
+        background-color: rgba(249, 249, 249, 1);
+        box-shadow: 0 0 16px rgba(0, 0, 0, 0.16);
+        text-align: left;
+        border-radius: 6px;
+        padding: 5px;
+        position: absolute;
+        z-index: 99999;
+        pointer-events: none;
+    }
+    </style>
+    `
 
 return SqlVisualization
