@@ -112,7 +112,7 @@ class MapController extends deck.MapController {
  * Can also consume a dataframe that has the columns `latitude`, `longitude` and optionally `label`.
  */
 class GeoMapVisualization extends Visualization {
-    static inputType = 'Any'
+    static inputType = 'Table.Data.Table'
     static label = 'Geo Map'
 
     constructor(api) {

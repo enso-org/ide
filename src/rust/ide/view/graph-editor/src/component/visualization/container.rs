@@ -13,6 +13,7 @@ mod visualization_chooser;
 
 use crate::prelude::*;
 
+use crate::data::enso;
 use crate::visualization;
 use crate::component::visualization::instance::PreprocessorConfiguration;
 
@@ -162,6 +163,7 @@ ensogl::define_endpoints! {
         enable_fullscreen  (),
         disable_fullscreen (),
         scene_shape        (scene::Shape),
+        set_vis_input_type (Option<enso::Type>),
     }
 
     Output {
@@ -621,6 +623,9 @@ impl Container {
             frp.source.visualisation <+ selected_definition;
             on_selected              <- selected_definition.map(|d|d.as_ref().map(|_|())).unwrap();
             eval_ on_selected ( action_bar.hide_icons.emit(()) );
+            eval frp.set_vis_input_type (
+                (tp) model.action_bar.visualization_chooser().frp.set_vis_input_type(tp)
+            );
         }
 
 

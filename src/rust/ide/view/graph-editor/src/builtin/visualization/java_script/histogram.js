@@ -39,7 +39,7 @@ const BUTTON_HEIGHT = 25
  }
  */
 class Histogram extends Visualization {
-    static inputType = 'Any'
+    static inputType = 'Table.Data.Table | Vector'
     static label = 'Histogram'
 
     onDataReceived(data) {
