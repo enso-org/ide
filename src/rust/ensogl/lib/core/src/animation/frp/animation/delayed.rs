@@ -73,8 +73,10 @@ impl DelayedAnimation {
 
             // Output bindings.
             frp.source.value    <+ transition.value;
-            frp.source.on_reset <+ transition.value.map(|t| (t - 0.0).abs() < std::f32::EPSILON).on_true();
-            frp.source.on_end   <+ transition.value.map(|t| (t - 1.0).abs() < std::f32::EPSILON).on_true();
+            frp.source.on_reset <+ transition.value.map(|t|
+                (t - 0.0).abs() < std::f32::EPSILON).on_true();
+            frp.source.on_end   <+ transition.value.map(|t|
+                (t - 1.0).abs() < std::f32::EPSILON).on_true();
         }
 
         Self{frp}

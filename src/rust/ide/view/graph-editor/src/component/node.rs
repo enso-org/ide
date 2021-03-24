@@ -259,7 +259,7 @@ ensogl::define_endpoints! {
         set_output_expression_visibility (bool),
         set_vcs_status                   (Option<vcs::Status>),
         /// Indicate whether preview visualisations should be delayed or immediate.
-        quick_preview_vis                    (bool),
+        quick_preview_vis                (bool),
     }
     Output {
         /// Press event. Emitted when user clicks on non-active part of the node, like its
@@ -411,7 +411,7 @@ impl NodeModel {
         display_object.add_child(&visualization);
         display_object.add_child(&input);
 
-        let error_visualization = builtin_visualization::Error::new(scene.clone_ref());
+        let error_visualization = builtin_visualization::Error::new(scene);
         let (x,y)               = ERROR_VISUALIZATION_SIZE;
         error_visualization.set_size.emit(Vector2(x,y));
 
@@ -596,16 +596,15 @@ impl Node {
 
             eval frp.set_visualization ((t) model.visualization.frp.set_visualization.emit(t));
             visualization_enabled_frp <- bool(&frp.disable_visualization,&frp.enable_visualization);
-            eval visualization_enabled_frp ((enabled) model.action_bar.set_action_visibility_state(enabled));
+            eval visualization_enabled_frp ((enabled)
+                model.action_bar.set_action_visibility_state(enabled)
+            );
 
             // Show preview visualisation after some delay, depending on whether we show an error
             // or are in quick preview mode. Also, omit the delay if we don't have a tooltip to show.
             has_tooltip <- model.output.frp.tooltip.map(|tt| tt.has_content());
-            preview_show_delay <- all3(&frp.quick_preview_vis,&is_error_set,&has_tooltip).map(
-                |(quick_preview,is_error,has_tooltip)| {
-                if !has_tooltip {
-                    return 0.0;
-                }
+            preview_show_delay <- all(&frp.quick_preview_vis,&is_error_set);
+            preview_show_delay <- preview_show_delay.map(|(quick_preview,is_error)| {
                 match(is_error,quick_preview) {
                     (true,_)      => ERROR_PREVIEW_ONSET_MS,
                     (false,false) => VIS_PREVIEW_ONSET_MS,
@@ -617,13 +616,16 @@ impl Node {
 
             hover_onset_delay.start <+ model.output.body_hover.on_true();
             hover_onset_delay.reset <+ model.output.body_hover.on_false();
-            preview_visible         <- bool(&hover_onset_delay.on_reset,&hover_onset_delay.on_end).on_change();
+            preview_visible         <- bool(&hover_onset_delay.on_reset,&hover_onset_delay.on_end);
+            preview_visible         <- preview_visible.on_change();
 
             visualization_visible <- visualization_enabled && no_error_set;
             visualization_visible <- visualization_visible || preview_visible;
             visualization_visible <- visualization_visible.on_change();
             frp.source.visualization_enabled <+ visualization_enabled || preview_visible;
-            eval visualization_visible ((is_visible) model.visualization.frp.set_visibility(is_visible));
+            eval visualization_visible ((is_visible)
+                model.visualization.frp.set_visibility(is_visible)
+            );
 
             // Ensure the preview is visible above all other elements, but the normal visualisation
             // is below nodes.

@@ -95,15 +95,15 @@ impl Error {
         let path = Self::path();
         Definition::new(
             Signature::new_for_any_type(path,Format::Json),
-            |scene| { Ok(Self::new(scene.clone_ref()).into()) }
+            |scene| { Ok(Self::new(scene).into()) }
         )
     }
 
     /// Constructor.
-    pub fn new(scene:Scene) -> Self {
+    pub fn new(scene:&Scene) -> Self {
         let network = frp::Network::new("js_visualization_raw_text");
         let frp     = visualization::instance::Frp::new(&network);
-        let model   = Model::new(scene);
+        let model   = Model::new(scene.clone_ref());
         Self {model,frp,network} . init()
     }
 

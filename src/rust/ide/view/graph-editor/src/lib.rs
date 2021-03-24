@@ -1012,7 +1012,7 @@ impl Deref for GraphEditorModelWithNetwork {
 
 /// Context data required to create a new node.
 #[derive(Debug)]
-struct NodeContext<'a> {
+struct NodeCreationContext<'a> {
     pointer_style  : &'a frp::Source<cursor::Style>,
     tooltip_update : &'a frp::Source<tooltip::Style>,
     output_press   : &'a frp::Source<EdgeEndpoint>,
@@ -1027,7 +1027,7 @@ impl GraphEditorModelWithNetwork {
         Self {model,network}
     }
 
-    fn new_node(&self, ctx:&NodeContext) -> NodeId {
+    fn new_node(&self, ctx:&NodeCreationContext) -> NodeId {
         let view    = component::Node::new(&self.app,self.vis_registry.clone_ref());
         let node    = Node::new(view);
         let node_id = node.id();
@@ -1036,7 +1036,7 @@ impl GraphEditorModelWithNetwork {
         let touch = &self.touch_state;
         let model = &self.model;
 
-        let NodeContext{pointer_style,tooltip_update,output_press,input_press,output} = ctx;
+        let NodeCreationContext {pointer_style,tooltip_update,output_press,input_press,output} = ctx;
 
         frp::new_bridge_network! { [self.network, node.frp.network] graph_node_bridge
             eval_ node.frp.background_press(touch.nodes.down.emit(node_id));
@@ -1887,8 +1887,8 @@ impl application::View for GraphEditor {
           // , (DoublePress , "!node_editing" , "space" , "double_press_visualization_visibility")
           , (Release     , "!node_editing" , "space" , "release_visualization_visibility")
           , (Press       , ""              , "cmd i" , "reload_visualization_registry")
-          , (Press       , ""              , "ctrl" , "enable_quick_visualization_preview")
-          , (Release     , ""              , "ctrl" , "disable_quick_visualization_preview")
+          , (Press       , ""              , "cmd" , "enable_quick_visualization_preview")
+          , (Release     , ""              , "cmd" , "disable_quick_visualization_preview")
 
 
           // === Selection ===
@@ -2389,7 +2389,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     let add_node_at_cursor = inputs.add_node_at_cursor.clone_ref();
     add_node <- any (inputs.add_node,add_node_at_cursor);
     new_node <- add_node.map(f_!([model,node_pointer_style,node_tooltip,out] {
-        let ctx = NodeContext {
+        let ctx = NodeCreationContext {
             pointer_style  : &node_pointer_style,
             tooltip_update : &node_tooltip,
             output_press   : &node_output_touch.down,

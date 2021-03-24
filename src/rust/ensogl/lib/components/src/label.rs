@@ -170,7 +170,7 @@ pub struct Label {
 
 impl Label {
     /// Constructor.
-    pub fn new(app:Application) -> Self {
+    pub fn new(app:&Application) -> Self {
         let frp   = Rc::new(Frp::new());
         let model = Rc::new(Model::new(app.clone_ref()));
         Label {frp,model}.init()
