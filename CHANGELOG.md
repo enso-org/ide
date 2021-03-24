@@ -11,8 +11,8 @@
   will be lost. In this build we added notification in statusbar to signalize
   that the connection was lost and IDE must be restarted. In future IDE will try
   to automatically reconnect.
-- [Visualization can be extended to the whole screen][1355] by selecting
-  the node and pressing space twice. To quit this view, press space again.
+- [Visualization can be extended to the whole screen][1355] by selecting the
+  node and pressing space twice. To quit this view, press space again.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
