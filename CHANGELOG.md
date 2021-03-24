@@ -11,6 +11,12 @@
   will be lost. In this build we added notification in statusbar to signalize
   that the connection was lost and IDE must be restarted. In future IDE will try
   to automatically reconnect.
+- [Image visualizations][1367]. Visualizations for the Enso Image library. New
+  image visualization can display a JSON with an image encoded as a base64
+  string. Histogram visualization has a new feature allowing to display the
+  values of the precomputed bins. It is useful when the dataset is relatively
+  big, and it's cheaper to send the precomputed bins rather than the entire
+  dataset.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
@@ -77,6 +83,7 @@ you can find their release notes
 [1341]: https://github.com/enso-org/ide/pull/1341
 [1348]: https://github.com/enso-org/ide/pull/1348
 [1353]: https://github.com/enso-org/ide/pull/1353
+[1367]: https://github.com/enso-org/ide/pull/1367
 
 <br/>
 
