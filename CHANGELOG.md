@@ -42,11 +42,20 @@
 - [Disable area selection][1318]. The area selection was visible despite being
   non-functional. To avoid confusion, area selection has been disabled until it
   is [correctly implemented][479].
-- [Handle syntax errors in custom-defined visualizations][#1341]. The IDE is now
+- [Fix error after adding a node][1332]. Sometimes, after picking a suggestion
+  the inserted node was annotated with "The name could not be found" error.
+- [Handle syntax errors in custom-defined visualizations][1341]. The IDE is now
   able to run properly, even if some of the custom-defined visualisations inside
   a project contain syntax errors.
+- [Fix issues with pasting multi-line text into single-line text fields][1348].
+  The first copied line will be inserted and all additional lines will be
+  ignored.
 - [Users can opt out of anonymous data gathering.][1328] This can be done with
   the `--no-data-gathering` command-line flag during the startup of the IDE.
+- [You can now start the IDE service without window again.][1353] The command
+  line arguyment `--no-window` now starts all the required backend services
+  again, and prints the port on the command line, allowing you to open the IDE
+  with a browser of your choice.
 
 #### EnsoGL (rendering engine)
 
@@ -65,6 +74,12 @@ you can find their release notes
 [1316]: https://github.com/enso-org/ide/pull/1316
 [1318]: https://github.com/enso-org/ide/pull/1318
 [1355]: https://github.com/enso-org/ide/pull/1355
+[1332]: https://github.com/enso-org/ide/pull/1332
+[1341]: https://github.com/enso-org/ide/pull/1341
+[1328]: https://github.com/enso-org/ide/pull/1328
+[1341]: https://github.com/enso-org/ide/pull/1341
+[1348]: https://github.com/enso-org/ide/pull/1348
+[1353]: https://github.com/enso-org/ide/pull/1353
 
 <br/>
 
