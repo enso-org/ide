@@ -335,7 +335,7 @@ impl Mouse {
         let on_move         = mouse_manager.on_move.add(current_js_event.make_event_handler(
             f!([frp,scene_frp,position,last_position] (event:&mouse::OnMove) {
                 let shape       = scene_frp.shape.value();
-                let pixel_ratio = shape.pixel_ratio as i32;
+                let pixel_ratio = shape.pixel_ratio;
                 let screen_x    = event.client_x();
                 let screen_y    = event.client_y();
 
@@ -343,7 +343,7 @@ impl Mouse {
                 let pos_changed = new_pos != last_position.get();
                 if pos_changed {
                     last_position.set(new_pos);
-                    let new_canvas_position = new_pos * pixel_ratio;
+                    let new_canvas_position = new_pos.map(|v| (v as f32 *  pixel_ratio) as i32);
                     position.set(new_canvas_position);
                     let position = Vector2(new_pos.x as f32,new_pos.y as f32) - shape.center();
                     frp.position.emit(position);
@@ -603,11 +603,15 @@ impl Renderer {
 /// should be abstracted away in the future.
 #[derive(Clone,CloneRef,Debug)]
 pub struct HardcodedLayers {
-    pub viz            : Layer,
-    pub below_main     : Layer,
+    pub viz              : Layer,
+    pub below_main       : Layer,
     // main <- here is the 'main` layer inserted.
-    pub cursor         : Layer,
-    pub label          : Layer,
+    pub cursor           : Layer,
+    pub label            : Layer,
+
+    pub tooltip_background : Layer,
+    pub tooltip_text       : Layer,
+
     pub viz_fullscreen : Layer,
     pub breadcrumbs    : Layer,
     layers             : Layers,
@@ -622,23 +626,30 @@ impl Deref for HardcodedLayers {
 
 impl HardcodedLayers {
     pub fn new(logger:impl AnyLogger) -> Self {
-        let layers         = Layers::new(logger);
-        let viz            = layers.new_layer();
-        let cursor         = layers.new_layer();
-        let label          = layers.new_layer();
-        let viz_fullscreen = layers.new_layer();
-        let below_main     = layers.new_layer();
-        let breadcrumbs    = layers.new_layer();
+        let layers             = Layers::new(logger);
+        let viz                = layers.new_layer();
+        let cursor             = layers.new_layer();
+        let label              = layers.new_layer();
+        let tooltip_background = layers.new_layer();
+        let tooltip_text       = layers.new_layer();
+        let viz_fullscreen     = layers.new_layer();
+        let below_main         = layers.new_layer();
+        let breadcrumbs        = layers.new_layer();
         viz.set_camera(layers.main.camera());
         label.set_camera(layers.main.camera());
+        tooltip_background.set_camera(layers.main.camera());
+        tooltip_text.set_camera(layers.main.camera());
         below_main.set_camera(layers.main.camera());
         layers.add_layers_order_dependency(&viz,&below_main);
         layers.add_layers_order_dependency(&below_main,&layers.main);
         layers.add_layers_order_dependency(&layers.main,&cursor);
         layers.add_layers_order_dependency(&cursor,&label);
-        layers.add_layers_order_dependency(&label,&viz_fullscreen);
+        layers.add_layers_order_dependency(&label,&tooltip_background);
+        layers.add_layers_order_dependency(&tooltip_background,&tooltip_text);
+        layers.add_layers_order_dependency(&tooltip_text,&viz_fullscreen);
         layers.add_layers_order_dependency(&viz_fullscreen,&breadcrumbs);
-        Self {layers,viz,cursor,label,viz_fullscreen,below_main,breadcrumbs}
+        Self {layers,viz,cursor,label,viz_fullscreen,below_main,breadcrumbs,tooltip_background,
+              tooltip_text}
     }
 }
 

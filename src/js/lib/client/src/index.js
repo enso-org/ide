@@ -5,7 +5,6 @@ import * as assert    from 'assert'
 import * as buildCfg  from '../../../../../dist/build.json'
 import * as Electron  from 'electron'
 import * as isDev     from 'electron-is-dev'
-import * as minimist  from 'minimist'
 import * as path      from 'path'
 import * as pkg       from '../package.json'
 import * as rootCfg   from '../../../package.json'
@@ -172,7 +171,12 @@ optParser.options('crash-report-host', {
     describe    : 'The address of the server that will receive crash reports. ' +
                   'Consists of a hostname, optionally followed by a ":" and a port number',
     requiresArg : true,
-    default: cfg.defaultLogServerHost
+    default     : cfg.defaultLogServerHost
+})
+
+optParser.options('no-data-gathering', {
+    describe    : 'Disable the sharing of any usage data',
+    default     : false
 })
 
 
@@ -365,9 +369,9 @@ let server     = null
 let mainWindow = null
 let origin     = null
 
-async function main() {
+async function main(args) {
     runBackend()
-    console.log("Starting the IDE.")
+    console.log("Starting the IDE service.")
     if(args.server !== false) {
         let serverCfg      = Object.assign({},args)
         serverCfg.dir      = root
@@ -375,13 +379,16 @@ async function main() {
         server             = await Server.create(serverCfg)
         origin             = `http://localhost:${server.port}`
     }
-    mainWindow = createWindow()
-    mainWindow.on("close", (evt) => {
-       if (hideInsteadOfQuit) {
-           evt.preventDefault()
-           mainWindow.hide()
-       }
-   })
+    if(args.window !== false) {
+        console.log("Starting the IDE client.")
+        mainWindow = createWindow()
+        mainWindow.on("close", (evt) => {
+            if (hideInsteadOfQuit) {
+                evt.preventDefault()
+                mainWindow.hide()
+            }
+        })
+    }
 }
 
 function urlParamsFromObject(obj) {
@@ -439,6 +446,7 @@ function createWindow() {
         dark_theme      : Electron.nativeTheme.shouldUseDarkColors,
         high_contrast   : Electron.nativeTheme.shouldUseHighContrastColors,
         crashReportHost : args.crashReportHost,
+        noDataGathering : args.noDataGathering,
     }
 
     if (args.project)    { urlCfg.project = args.project }
@@ -510,9 +518,7 @@ Electron.app.on('ready', () => {
     } else if (args.info) {
         printDebugInfo()
     } else {
-        if(args.window !== false) {
-            main()
-        }
+        main(args)
     }
 })
 
