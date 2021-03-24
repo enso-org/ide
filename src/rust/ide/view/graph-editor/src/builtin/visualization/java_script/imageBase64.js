@@ -28,7 +28,6 @@ class ImageBase64Visualization extends Visualization {
         const height = this.dom.getAttributeNS(null, 'height')
         const tabElem = document.createElement('div')
         tabElem.setAttributeNS(null, 'id', 'vis-image-view')
-        tabElem.setAttributeNS(null, 'class', 'scrollable')
         tabElem.setAttributeNS(null, 'viewBox', '0 0 ' + width + ' ' + height)
         tabElem.setAttributeNS(null, 'width', '100%')
         tabElem.setAttributeNS(null, 'height', '100%')
