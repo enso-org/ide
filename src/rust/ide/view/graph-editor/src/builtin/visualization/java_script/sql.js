@@ -76,8 +76,8 @@ class SqlVisualization extends Visualization {
         scrollable.setAttributeNS(null, 'viewBox', '0 0 ' + width + ' ' + height)
         scrollable.setAttributeNS(null, 'width', '100%')
         scrollable.setAttributeNS(null, 'height', '100%')
-        const viewStyle = `width: ${width - 10}px;
-             height: ${height - 10}px;
+        const viewStyle = `width: ${width - 5}px;
+             height: ${height - 5}px;
              overflow: scroll;
              padding:2.5px;`
         scrollable.setAttributeNS(null, 'style', viewStyle)
@@ -361,6 +361,7 @@ const visualizationStyle = `
         font-family: DejaVuSansMonoBook, sans-serif;
         font-size: 12px;
         margin-left: 7px;
+        margin-top: 5px;
     }
     .interpolation {
         border-radius: 6px;
