@@ -49,8 +49,7 @@ pub mod background {
 // === FullscreenView ===
 // ======================
 
-/// View of the visualization container meant to be used in fullscreen mode. Its components are
-/// rendered on top-level layers of the stage.
+/// View of the visualization container meant to be used in fullscreen mode.
 #[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Panel {
@@ -65,13 +64,15 @@ impl Panel {
     pub fn new(logger:&Logger, scene:&Scene) -> Self {
         let logger         = Logger::sub(logger,"fullscreen_view");
         let display_object = display::object::Instance::new(&logger);
-        // scene.layers.viz_fullscreen.add_exclusive(&display_object);
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles   = StyleWatch::new(&scene.style_sheet);
         let bg_color = styles.get_color(ensogl_theme::graph_editor::visualization::background);
         let bg_color = color::Rgba::from(bg_color);
-        let bg_hex   = format!("rgba({},{},{},{})",bg_color.red*255.0,bg_color.green*255.0,bg_color.blue*255.0,bg_color.alpha);
+        let red      = bg_color.red * 255.0;
+        let green    = bg_color.green * 255.0;
+        let blue     = bg_color.blue * 255.0;
+        let bg_hex   = format!("rgba({},{},{},{})",red,green,blue,bg_color.alpha);
 
         let div            = web::create_div();
         let background_dom = DomSymbol::new(&div);

@@ -322,6 +322,13 @@ impl View {
 
             // === Fullscreen Visualization ===
 
+            // TODO[ao]: All DOM elements in visualizations ale displayed below canvas, because
+            //     The mouse cursor must be displayed over them. But fullscreen visualization should
+            //     be displayed "above" nodes. The workaround is to hide whole graph editor except
+            //     fullscreen visualization, and bring it back when fullscreen is closed.
+            //
+            //     The workaround should be replaced with proper solution being a part of
+            //     https://github.com/enso-org/ide/issues/526
             eval  graph.visualization_fullscreen ([model](node_id) {
                 if let Some(node_id) = node_id {
                     model.show_fullscreen_visualization(*node_id)

@@ -689,7 +689,6 @@ class Histogram extends Visualization {
      * Sets size of the main parent DOM object.
      */
     setSize(size) {
-        console.warn('setting size', size)
         this.dom.setAttributeNS(null, 'width', size[0])
         this.dom.setAttributeNS(null, 'height', size[1])
 
