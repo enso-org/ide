@@ -208,23 +208,28 @@ class TableVisualization extends Visualization {
             font-size: 12px;
         }
 
-        table tr:first-child th:first-child,
-        table tr:first-child td:first-child {
+        table {
+            border-spacing: 1px;
+            padding: 1px;
+        }
+
+        table > tbody > tr:first-child > th:first-child,
+        table > tbody > tr:first-child > td:first-child {
             border-top-left-radius: 9px;
         }
 
-        table tr:first-child th:last-child,
-        table tr:first-child td:last-child {
+        table > tbody > tr:first-child > th:last-child,
+        table > tbody > tr:first-child > td:last-child {
             border-top-right-radius: 9px;
         }
 
-        table tr:last-child th:first-child,
-        table tr:last-child td:first-child {
+        table > tbody > tr:last-child > th:first-child,
+        table > tbody > tr:last-child > td:first-child {
             border-bottom-left-radius: 9px;
         }
 
-        table tr:last-child th:last-child,
-        table tr:last-child td:last-child {
+        table > tbody > tr:last-child > th:last-child,
+        table > tbody > tr:last-child > td:last-child {
             border-bottom-right-radius: 9px;
         }
 
@@ -271,23 +276,28 @@ class TableVisualization extends Visualization {
             font-size: 12px;
         }
 
-        table tr:first-child th:first-child,
-        table tr:first-child td:first-child {
+        table {
+            border-spacing: 1px;
+            padding: 1px;
+        }
+
+        table > tbody > tr:first-child > th:first-child,
+        table > tbody > tr:first-child > td:first-child {
             border-top-left-radius: 9px;
         }
 
-        table tr:first-child th:last-child,
-        table tr:first-child td:last-child {
+        table > tbody > tr:first-child > th:last-child,
+        table > tbody > tr:first-child > td:last-child {
             border-top-right-radius: 9px;
         }
 
-        table tr:last-child th:first-child,
-        table tr:last-child td:first-child {
+        table > tbody > tr:last-child > th:first-child,
+        table > tbody > tr:last-child > td:first-child {
             border-bottom-left-radius: 9px;
         }
 
-        table tr:last-child th:last-child,
-        table tr:last-child td:last-child {
+        table > tbody > tr:last-child > th:last-child,
+        table > tbody > tr:last-child > td:last-child {
             border-bottom-right-radius: 9px;
         }
 
