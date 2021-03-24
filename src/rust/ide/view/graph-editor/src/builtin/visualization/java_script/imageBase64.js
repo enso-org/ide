@@ -3,9 +3,14 @@ class ImageBase64Visualization extends Visualization {
     static label = 'Image'
 
     onDataReceived(data) {
-
         function image(mediaType, base64Data) {
-            return '<img style="max-height:100%; max-width:100%;" src="data:' + mediaType + ';base64,' + base64Data + '" />'
+            return (
+                '<img style="max-height:100%; max-width:100%;" src="data:' +
+                mediaType +
+                ';base64,' +
+                base64Data +
+                '" />'
+            )
         }
 
         while (this.dom.firstChild) {

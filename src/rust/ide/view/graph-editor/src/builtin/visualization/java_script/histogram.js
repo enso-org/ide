@@ -389,7 +389,7 @@ class Histogram extends Visualization {
     createBins(values) {
         let bins = []
         for (let i = 0; i < values.length; i++) {
-            bins.push({x0: i, x1: i+1, length: values[i]})
+            bins.push({ x0: i, x1: i + 1, length: values[i] })
         }
         return bins
     }
@@ -427,10 +427,10 @@ class Histogram extends Visualization {
             bins = this.createBins(this._dataBins)
         } else {
             const histogram = d3
-                  .histogram()
-                  .value(d => d)
-                  .domain(x.domain())
-                  .thresholds(x.ticks(this.binCount()))
+                .histogram()
+                .value(d => d)
+                .domain(x.domain())
+                .thresholds(x.ticks(this.binCount()))
 
             bins = histogram(this._dataValues)
         }
