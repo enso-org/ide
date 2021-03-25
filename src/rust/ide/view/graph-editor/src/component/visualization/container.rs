@@ -329,6 +329,14 @@ pub struct ContainerModel {
     action_bar         : ActionBar,
 }
 
+impl Drop for ContainerModel {
+    fn drop(&mut self) {
+        if let Some(viz) = &*self.visualization.borrow() {
+            viz.on_hide.emit(());
+        }
+    }
+}
+
 impl ContainerModel {
     /// Constructor.
     pub fn new
@@ -381,6 +389,9 @@ impl ContainerModel {
             self.scene.add_child(&self.fullscreen_view);
         }
         else {
+            if let Some(viz) = &*self.visualization.borrow() {
+                viz.on_hide.emit(());
+            }
             self.drag_root.remove_child(&self.view);
             self.scene.remove_child(&self.fullscreen_view);
         }
@@ -411,6 +422,9 @@ impl ContainerModel {
         }
         preprocessor.emit(visualization.on_preprocessor_change.value());
         self.view.add_child(&visualization);
+        if let Some(viz) = &*self.visualization.borrow() {
+            viz.on_hide.emit(());
+        }
         self.visualization.replace(Some(visualization));
         self.vis_frp_connection.replace(Some(vis_frp_connection));
     }

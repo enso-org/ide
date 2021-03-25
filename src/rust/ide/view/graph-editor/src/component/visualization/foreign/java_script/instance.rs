@@ -92,6 +92,7 @@ pub struct InstanceModel {
     pub logger              : Logger,
         on_data_received    : Rc<Option<js_sys::Function>>,
         set_size            : Rc<Option<js_sys::Function>>,
+        on_hide             : Rc<Option<js_sys::Function>>,
         #[derivative(Debug="ignore")]
         object              : Rc<java_script::binding::Visualization>,
         #[derivative(Debug="ignore")]
@@ -118,7 +119,6 @@ impl InstanceModel {
         let bg_blue  = bg_color.blue*255.0;
         let bg_hex   = format!("rgba({},{},{},{})",bg_red,bg_green,bg_blue,bg_color.alpha);
         root_node.dom().set_style_or_warn("background",bg_hex,logger);
-
         Ok(root_node)
     }
 
@@ -165,8 +165,18 @@ impl InstanceModel {
         let on_data_received              = Rc::new(on_data_received);
         let set_size                      = get_method(&object.as_ref(),method::SET_SIZE).ok();
         let set_size                      = Rc::new(set_size);
+        let on_hide                       = get_method(&object.as_ref(), method::ON_HIDE).ok();
+        let on_hide                       = Rc::new(on_hide);
         let object                        = Rc::new(object);
-        Ok(InstanceModel{object,on_data_received,set_size,root_node,logger,preprocessor_change})
+        Ok(InstanceModel {
+            object,
+            on_data_received,
+            set_size,
+            on_hide,
+            root_node,
+            logger,
+            preprocessor_change
+        })
     }
 
     /// Hooks the root node into the given scene.
@@ -180,6 +190,13 @@ impl InstanceModel {
         let data_json = JsValue::from_serde(&size).unwrap();
         let _         = self.try_call1(&self.set_size,&data_json);
         self.root_node.set_size(size);
+    }
+
+    fn on_hide(&self) {
+        if let Some(f) = &*self.on_hide {
+            let context = &JsValue::NULL;
+            let _ = f.call0(context);
+        }
     }
 
     fn receive_data(&self, data:&Data) -> result::Result<(),DataError> {
@@ -247,6 +264,7 @@ impl Instance {
         let frp     = self.frp.clone_ref();
         frp::extend! { network
             eval frp.set_size  ((size) model.set_size(*size));
+            eval_ frp.on_hide (model.on_hide());
             eval frp.send_data ([frp](data) {
                 if let Err(e) = model.receive_data(data) {
                     frp.data_receive_error.emit(Some(e));
