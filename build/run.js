@@ -262,16 +262,12 @@ commands['toml-fmt'].rust = async function() {
 
 commands.watch          = command(`Start a file-watch utility and run interactive mode`)
 commands.watch.options  = Object.assign({},commands.build.options)
-commands.watch.parallel = true
+commands.watch.parallel = false
 commands.watch.rust = async function(argv) {
     let build_args = []
     if (argv.crate !== undefined) {
         build_args.push(`--crate=${argv.crate}`)
     }
-    if (argv.backend !== 'false') {
-        build_project_manager().then(run_project_manager)
-    }
-
     build_args = build_args.join(' ')
     let target =
         '"' +
@@ -280,14 +276,17 @@ commands.watch.rust = async function(argv) {
         '"'
     let args = ['watch', '-s', `${target}`]
     await cmd.with_cwd(paths.rust.root, async () => {
-        await cmd.run('cargo',args)
+        cmd.run('cargo',args)
     })
 }
 
-commands.watch.js = async function() {
+commands.watch.js = async function(argv) {
     await installJsDeps()
+    if (argv.backend !== 'false') {
+        build_project_manager().then(run_project_manager)
+    }
     await cmd.with_cwd(paths.js.root, async () => {
-        await run('npm',['run','watch'])
+        run('npm',['run','watch']);
     })
 }
 

@@ -54,9 +54,9 @@ async function check_version (name,required,cfg) {
     if (cfg.silent !== true) {
         console.log(`Checking if '${name}' version is '${required}'.`)
     }
-    if (version != required) {
-        throw `[ERROR] The '${name}' version '${version}' does not match the required one '${required}'.`
-    }
+    // if (version != required) {
+    //     throw `[ERROR] The '${name}' version '${version}' does not match the required one '${required}'.`
+    // }
 }
 
 async function get_npm_info (name) {
