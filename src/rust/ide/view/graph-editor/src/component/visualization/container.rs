@@ -491,7 +491,12 @@ impl ContainerModel {
     -> Option<visualization::Definition> {
         let input_type_or_any = input_type.clone().unwrap_or_else(enso::Type::any);
         let vis_list          = self.registry.valid_sources(&input_type_or_any);
-        let next_on_list      = current_vis.as_ref().and_then(|vis| vis_list.iter().skip_while(|x| vis.signature.path != x.signature.path).skip(1).next());
+        let next_on_list      = current_vis.as_ref().and_then(|vis| {
+            let mut from_current = vis_list.iter().skip_while(
+                |x| vis.signature.path != x.signature.path
+            );
+            from_current.nth(1)
+        });
         next_on_list.or_else(|| vis_list.first()).cloned()
     }
 }
