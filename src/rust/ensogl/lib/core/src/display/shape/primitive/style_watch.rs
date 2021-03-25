@@ -68,17 +68,24 @@ impl StyleWatch {
 
     /// Queries style sheet value for a value.
     pub fn get(&self, path:impl Into<Path>) -> Option<style::Data> {
-        let var      = self.sheet.var(path);
+        let path     = path.into();
+        let var      = self.sheet.var(path.clone());
         let value    = var.value();
         let callback = self.callback.clone_ref();
-        var.on_change(move |_:&Option<style::Data>| (callback.borrow())());
+        let handle   = var.on_change(move |_:&Option<style::Data>| (callback.borrow())());
         self.vars.borrow_mut().push(var);
+        self.handles.borrow_mut().push(handle);
         value
     }
 
     /// Queries style sheet number value, if not found gets fallback.
     pub fn get_number_or(&self, path:impl Into<Path>, fallback:f32) -> f32 {
         self.get(path).number().unwrap_or(fallback)
+    }
+
+    /// A debug check of how many stylesheet variables are registered in this style watch.
+    pub fn debug_var_count(&self) -> usize {
+        self.vars.borrow().len()
     }
 }
 

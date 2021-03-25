@@ -87,7 +87,7 @@ impl ManagerData {
         let diff        = self.combined.tree.zip_clone(&combined.tree);
         for (segments,values) in &diff {
             let path   = Path::from_rev_segments(segments);
-            let first  = values.first().and_then(|t|t.as_ref());
+            let first   = values.first().and_then(|t|t.as_ref());
             let second = values.second().and_then(|t|t.as_ref());
             if !values.same() {
                 match (first,second) {
@@ -156,6 +156,12 @@ impl From<&style::Sheet> for Manager {
     fn from(style_sheet:&style::Sheet) -> Self {
         let rc = Rc::new(RefCell::new(style_sheet.into()));
         Self {rc}
+    }
+}
+
+impl AsRef<Manager> for Manager {
+    fn as_ref(&self) -> &Manager {
+        self
     }
 }
 

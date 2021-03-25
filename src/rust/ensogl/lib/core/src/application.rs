@@ -64,3 +64,9 @@ impl display::Object for Application {
         self.display.display_object()
     }
 }
+
+impl AsRef<theme::Manager> for Application {
+    fn as_ref(&self) -> &theme::Manager {
+        &self.themes
+    }
+}

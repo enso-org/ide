@@ -95,15 +95,15 @@ macro_rules! _define_theme_wrapper_and_literals {
             use ensogl_core::display::style::theme;
 
             /// Registers the theme in the application.
-            pub fn register(app:&Application) {
+            pub fn register(theme_manager:impl AsRef<theme::Manager>) {
                 let mut $name = theme::Theme::new();
                 _define_theme_literals!{$id $name [] $($t)*}
-                app.themes.register(stringify!($name),$name);
+                theme_manager.as_ref().register(stringify!($name),$name);
             }
 
-            /// Enables current theme.
-            pub fn enable(app:&Application) {
-                app.themes.set_enabled(&[stringify!($name)]);
+            /// Enables the current theme.
+            pub fn enable(theme_manager:impl AsRef<theme::Manager>) {
+                theme_manager.as_ref().set_enabled(&[stringify!($name)]);
             }
         }
     };

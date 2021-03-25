@@ -870,7 +870,8 @@ impl Sheet {
 impl Sheet {
     /// Runs callbacks registered for the given variable id.
     fn run_callbacks_for(&self, query_index:Index<Query>) {
-        if let Some(callbacks) = self.callbacks.borrow().get(&query_index).map(|t| t.clone_ref()) {
+        let callbacks_opt = self.callbacks.borrow().get(&query_index).map(|t| t.clone_ref());
+        if let Some(callbacks) = callbacks_opt {
             // FIXME: The value should not be cloned here.
             let value = self.rc.borrow().query_value(query_index).cloned();
             callbacks.run_all(&value)
@@ -957,10 +958,41 @@ mod tests {
 
     #[test]
     pub fn single_variable() {
-        let sheet     = Sheet::new();
-        let val       = Rc::new(RefCell::new(None));
-        let var       = sheet.var("button.size");
-        let handle    = var.on_change(f!([val](v:&Option<Data>) *val.borrow_mut() = v.clone()));
+        let sheet  = Sheet::new();
+        let val    = Rc::new(RefCell::new(None));
+        let var    = sheet.var("button_size");
+        let handle = var.on_change(f!([val](v:&Option<Data>) *val.borrow_mut() = v.clone()));
+        assert_query_sheet_count(&sheet,1,1);
+        assert_eq!(var.value(),None);
+        sheet.set("size",data(1.0));
+        assert_query_sheet_count(&sheet,1,2);
+        assert_eq!(*val.borrow(),None);
+        assert_eq!(var.value(),None);
+        sheet.set("button_size",data(2.0));
+        assert_query_sheet_count(&sheet,1,2);
+        assert_eq!(*val.borrow(),Some(data(2.0)));
+        assert_eq!(var.value(),Some(data(2.0)));
+        drop(handle);
+        sheet.set("button_size",data(3.0));
+        assert_query_sheet_count(&sheet,1,2);
+        assert_eq!(*val.borrow(),Some(data(2.0)));
+        assert_eq!(var.value(),Some(data(3.0)));
+        sheet.unset("button_size");
+        assert_query_sheet_count(&sheet,1,2);
+        assert_eq!(*val.borrow(),Some(data(2.0)));
+        assert_eq!(var.value(),None);
+        drop(var);
+        assert_query_sheet_count(&sheet,0,1);
+        sheet.unset("size");
+        assert_query_sheet_count(&sheet,0,0);
+    }
+
+    #[test]
+    pub fn single_nested_variable() {
+        let sheet  = Sheet::new();
+        let val    = Rc::new(RefCell::new(None));
+        let var    = sheet.var("button.size");
+        let handle = var.on_change(f!([val](v:&Option<Data>) *val.borrow_mut() = v.clone()));
         assert_query_sheet_count(&sheet,1,2);
         assert_eq!(var.value(),None);
         sheet.set("size",data(1.0));

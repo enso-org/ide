@@ -221,12 +221,12 @@ class LogRouter {
         this.raw       = {}
         this.autoFlush = true
         console.autoFlush = true
-        for (let name of logsFns) {
-            this.raw[name] = console[name]
-            console[name] = (...args) => {
-                this.handle(name,args)
-            }
-        }
+//        for (let name of logsFns) {
+//            this.raw[name] = console[name]
+//            console[name] = (...args) => {
+//                this.handle(name,args)
+//            }
+//        }
     }
 
     auto_flush_on() {
