@@ -12,9 +12,10 @@
   that the connection was lost and IDE must be restarted. In future IDE will try
   to automatically reconnect.
 - [Database Visualizations][1335]. Visualizations for the Database library have
-  been added: the Table visualization now automatically executes the underlying
-  query to display its results in a table and a SQL Query visualization allows
-  to see the query that is going to be run in the database.
+  been added. The Table visualization now automatically executes the underlying
+  query to display its results in a table. In addition, the SQL Query
+  visualization allows the user to see the query that is going to be run against
+  the database.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 

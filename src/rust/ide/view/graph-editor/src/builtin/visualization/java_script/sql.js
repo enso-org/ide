@@ -1,4 +1,79 @@
+/** SQL visualization. */
+
+// =================
+// === Constants ===
+// =================
+
+/** The qualified name of the Text type. */
+const textType = 'Builtins.Main.Text'
+
+/** The module prefix added for unknown SQL types. */
+const customSqlTypePrefix = 'Standard.Database.Data.Sql.Sql_Type.'
+
+/** Specifies opacity of interpolation background color. */
+const interpolationBacgroundOpacity = 0.3
+
+/** The CSS styles for the visualization. */
+const visualizationStyle = `
+    <style>
+    .sql {
+        font-family: DejaVuSansMonoBook, sans-serif;
+        font-size: 12px;
+        margin-left: 7px;
+        margin-top: 5px;
+    }
+    .interpolation {
+        border-radius: 6px;
+        padding:1px 2px 1px 2px;
+        display: inline;
+    }
+    .mismatch-parent {
+        position: relative;
+        display: inline-flex;
+        justify-content: center;
+    }
+    .mismatch-mouse-area {
+        display: inline;
+        position: absolute;
+        width: 150%;
+        height: 150%;
+        align-self: center;
+        z-index: 0;
+    }
+    .mismatch {
+        z-index: 1;
+    }
+    .modulepath {
+        color: rgba(150, 150, 150, 0.9);
+    }
+    .tooltip {
+        font-family: DejaVuSansMonoBook, sans-serif;
+        font-size: 12px;
+        opacity: 0;
+        transition: opacity 0.2s;
+        display: inline-block;
+        white-space: nowrap;
+        background-color: rgba(249, 249, 249, 1);
+        box-shadow: 0 0 16px rgba(0, 0, 0, 0.16);
+        text-align: left;
+        border-radius: 6px;
+        padding: 5px;
+        position: absolute;
+        z-index: 99999;
+        pointer-events: none;
+    }
+    </style>
+    `
+
+// =============================
+// === Script Initialisation ===
+// =============================
+
 loadScript('https://cdnjs.cloudflare.com/ajax/libs/sql-formatter/4.0.2/sql-formatter.min.js')
+
+// ===========================
+// === Table visualization ===
+// ===========================
 
 /**
  * A visualization that pretty-prints generated SQL code and displays type hints related to
@@ -17,9 +92,7 @@ class SqlVisualization extends Visualization {
     }
 
     onDataReceived(data) {
-        while (this.dom.firstChild) {
-            this.dom.removeChild(this.dom.lastChild)
-        }
+        this.removeAllChildren()
 
         let parsedData = data
         if (typeof data === 'string') {
@@ -49,9 +122,8 @@ class SqlVisualization extends Visualization {
         }
 
         const containers = this.createContainers()
-        const parentContainer = containers[0]
-        const scrollable = containers[1]
-        scrollable.innerHTML = visHtml
+        const parentContainer = containers.parent
+        containers.scrollable.innerHTML = visHtml
         this.dom.appendChild(parentContainer)
 
         const tooltip = new Tooltip(parentContainer)
@@ -59,6 +131,17 @@ class SqlVisualization extends Visualization {
         const extendedMismatchAreas = this.dom.getElementsByClassName('mismatch-mouse-area')
         setupMouseInteractionForMismatches(tooltip, baseMismatches)
         setupMouseInteractionForMismatches(tooltip, extendedMismatchAreas)
+    }
+
+    /**
+     * Removes all children of this visualization's DOM.
+     *
+     * May be used to reset the visualization's content.
+     */
+    removeAllChildren() {
+        while (this.dom.firstChild) {
+            this.dom.removeChild(this.dom.lastChild)
+        }
     }
 
     /**
@@ -81,7 +164,10 @@ class SqlVisualization extends Visualization {
              padding:2.5px;`
         scrollable.setAttributeNS(null, 'style', viewStyle)
         parentContainer.appendChild(scrollable)
-        return [parentContainer, scrollable]
+        return {
+            parent: parentContainer,
+            scrollable: scrollable,
+        }
     }
 
     setSize(size) {
@@ -90,28 +176,12 @@ class SqlVisualization extends Visualization {
     }
 }
 
-/**
- * Splits a qualified type name into a module prefix and the typename itself.
- */
-function splitQualifiedTypeName(name) {
-    var ix = name.lastIndexOf('.')
-    if (ix < 0) {
-        return {
-            prefix: '',
-            name: name,
-        }
-    }
-
-    return {
-        prefix: name.substr(0, ix + 1),
-        name: name.substr(ix + 1),
-    }
-}
+// === Handling Colors ===
 
 /**
  * Renders a 4-element array representing a color into a CSS-compatible rgba string.
  */
-function renderColor(color) {
+function convertColorToRgba(color) {
     const r = 255 * color.red
     const g = 255 * color.green
     const b = 255 * color.blue
@@ -119,10 +189,10 @@ function renderColor(color) {
     return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')'
 }
 
-/** Changes the alpha component of a color (represented as a 4-element array),
+/** Replaces the alpha component of a color (represented as a 4-element array),
  * returning a new color.
  */
-function changeAlpha(color, newAlpha) {
+function replaceAlpha(color, newAlpha) {
     return {
         red: color.red,
         green: color.green,
@@ -130,6 +200,8 @@ function changeAlpha(color, newAlpha) {
         alpha: newAlpha,
     }
 }
+
+// === HTML Rendering Helpers ===
 
 /**
  * Renders a HTML representation of a message to be displayed in a tooltip,
@@ -141,15 +213,21 @@ function renderTypeHintMessage(
     receivedTypeColor,
     expectedTypeColor
 ) {
-    const received = splitQualifiedTypeName(receivedTypeName)
-    const expected = splitQualifiedTypeName(expectedTypeName)
+    const received = new QualifiedTypeName(receivedTypeName)
+    const expected = new QualifiedTypeName(expectedTypeName)
 
-    const receivedPrefix = '<span class="modulepath">' + received.prefix + '</span>'
-    const receivedStyledSpan = '<span style="color: ' + renderColor(receivedTypeColor) + '">'
+    let receivedPrefix = ''
+    if (received.moduleName !== null) {
+        receivedPrefix = '<span class="modulepath">' + received.moduleName + '.</span>'
+    }
+    const receivedStyledSpan = '<span style="color: ' + convertColorToRgba(receivedTypeColor) + '">'
     const receivedSuffix = receivedStyledSpan + received.name + '</span>'
 
-    const expectedPrefix = '<span class="modulepath">' + expected.prefix + '</span>'
-    const expectedStyledSpan = '<span style="color: ' + renderColor(expectedTypeColor) + '">'
+    let expectedPrefix = ''
+    if (expected.moduleName !== null) {
+        expectedPrefix = '<span class="modulepath">' + expected.moduleName + '.</span>'
+    }
+    const expectedStyledSpan = '<span style="color: ' + convertColorToRgba(expectedTypeColor) + '">'
     const expectedSuffix = expectedStyledSpan + expected.name + '</span>'
 
     let message = 'Received ' + receivedPrefix + receivedSuffix + '<br>'
@@ -158,11 +236,26 @@ function renderTypeHintMessage(
     return message
 }
 
-const textType = 'Builtins.Main.Text'
-const customSqlTypePrefix = 'Standard.Database.Data.Sql.Sql_Type.'
-
-/** Specifies opacity of interpolation background color. */
-const interpolationBacgroundOpacity = 0.3
+/**
+ * Wraps a qualified type name.
+ *
+ * The `moduleName` field is the name of the module the type is from. It may be null if the original
+ * type name did not contain a module name.
+ * The `name` field is the simple name of the type itself.
+ */
+class QualifiedTypeName {
+    /** Creates a QualifiedTypeName instance from a string representation. */
+    constructor(typeName) {
+        let ix = typeName.lastIndexOf('.')
+        if (ix < 0) {
+            this.moduleName = null
+            this.name = typeName
+        } else {
+            this.moduleName = typeName.substr(0, ix)
+            this.name = typeName.substr(ix + 1)
+        }
+    }
+}
 
 /**
  * Renders HTML for displaying an Enso parameter that is interpolated into the SQL code.
@@ -177,7 +270,7 @@ function renderInterpolationParameter(theme, param) {
 
     const actualTypeColor = theme.getColorForType(actualType)
     const fgColor = actualTypeColor
-    let bgColor = changeAlpha(fgColor, interpolationBacgroundOpacity)
+    let bgColor = replaceAlpha(fgColor, interpolationBacgroundOpacity)
     const expectedEnsoType = param.expected_enso_type
 
     if (actualType == expectedEnsoType) {
@@ -190,7 +283,7 @@ function renderInterpolationParameter(theme, param) {
 
         const expectedTypeColor = theme.getColorForType(expectedType)
         const hoverBgColor = expectedTypeColor
-        bgColor = changeAlpha(hoverBgColor, interpolationBacgroundOpacity)
+        bgColor = replaceAlpha(hoverBgColor, interpolationBacgroundOpacity)
         const hoverFgColor = theme.getForegroundColorForType(expectedType)
 
         const message = renderTypeHintMessage(
@@ -217,9 +310,9 @@ function renderInterpolationParameter(theme, param) {
 function renderRegularInterpolation(value, fgColor, bgColor) {
     let html =
         '<div class="interpolation" style="color:' +
-        renderColor(fgColor) +
+        convertColorToRgba(fgColor) +
         ';background-color:' +
-        renderColor(bgColor) +
+        convertColorToRgba(bgColor) +
         ';">'
     html += value
     html += '</div>'
@@ -243,12 +336,13 @@ function renderMismatchedInterpolation(
     let html = '<div class="mismatch-parent">'
     html += '<div class="mismatch-mouse-area"></div>'
     html += '<div class="interpolation mismatch"'
-    html +=
-        ' style="color:' + renderColor(fgColor) + ';background-color:' + renderColor(bgColor) + ';"'
-    html += ' data-fgColor="' + renderColor(fgColor) + '"'
-    html += ' data-bgColor="' + renderColor(bgColor) + '"'
-    html += ' data-fgColorHover="' + renderColor(hoverFgColor) + '"'
-    html += ' data-bgColorHover="' + renderColor(hoverBgColor) + '"'
+    let style = 'color:' + convertColorToRgba(fgColor) + ';'
+    style += 'background-color:' + convertColorToRgba(bgColor) + ';'
+    html += ' style="' + style + '"'
+    html += ' data-fgColor="' + convertColorToRgba(fgColor) + '"'
+    html += ' data-bgColor="' + convertColorToRgba(bgColor) + '"'
+    html += ' data-fgColorHover="' + convertColorToRgba(hoverFgColor) + '"'
+    html += ' data-bgColorHover="' + convertColorToRgba(hoverBgColor) + '"'
     html += ' data-message="' + encodeURIComponent(message) + '"'
     html += '>'
     html += value
@@ -256,6 +350,8 @@ function renderMismatchedInterpolation(
     html += '</div>'
     return html
 }
+
+// === Tooltip ===
 
 /**
  * A hint tooltip that can be displayed above elements.
@@ -340,56 +436,5 @@ function setupMouseInteractionForMismatches(tooltip, elements) {
         elements[i].addEventListener('mouseleave', interpolationMouseLeave)
     }
 }
-
-const visualizationStyle = `
-    <style>
-    .sql {
-        font-family: DejaVuSansMonoBook, sans-serif;
-        font-size: 12px;
-        margin-left: 7px;
-        margin-top: 5px;
-    }
-    .interpolation {
-        border-radius: 6px;
-        padding:1px 2px 1px 2px;
-        display: inline;
-    }
-    .mismatch-parent {
-        position: relative;
-        display: inline-flex;
-        justify-content: center;
-    }
-    .mismatch-mouse-area {
-        display: inline;
-        position: absolute;
-        width: 150%;
-        height: 150%;
-        align-self: center;
-        z-index: 0;
-    }
-    .mismatch {
-        z-index: 1;
-    }
-    .modulepath {
-        color: rgba(150, 150, 150, 0.9);
-    }
-    .tooltip {
-        font-family: DejaVuSansMonoBook, sans-serif;
-        font-size: 12px;
-        opacity: 0;
-        transition: opacity 0.2s;
-        display: inline-block;
-        white-space: nowrap;
-        background-color: rgba(249, 249, 249, 1);
-        box-shadow: 0 0 16px rgba(0, 0, 0, 0.16);
-        text-align: left;
-        border-radius: 6px;
-        padding: 5px;
-        position: absolute;
-        z-index: 99999;
-        pointer-events: none;
-    }
-    </style>
-    `
 
 return SqlVisualization
