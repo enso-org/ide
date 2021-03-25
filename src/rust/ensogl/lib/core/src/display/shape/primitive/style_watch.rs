@@ -5,7 +5,6 @@ use crate::prelude::*;
 use crate::control::callback;
 use crate::data::color;
 use crate::display::style::Path;
-use crate::display::style::StaticPath;
 use crate::display::style::data::DataMatch;
 use crate::display::style;
 use enso_frp as frp;

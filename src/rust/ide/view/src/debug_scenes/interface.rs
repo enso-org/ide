@@ -20,6 +20,7 @@ use ensogl_text as text;
 use ensogl_theme as theme;
 use wasm_bindgen::prelude::*;
 use parser::Parser;
+use ensogl::display::style;
 
 
 
@@ -187,6 +188,9 @@ fn init(app:&Application) {
             graph_editor.frp.set_expression_usage_type.emit((node2_id,expr_id,dummy_type));
         }
     });
+
+    // app.themes;
+    style::javascript::expose_to_window(&app.themes);
 
 
     // let tgt_type = dummy_type_generator.get_dummy_type();

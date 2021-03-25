@@ -67,9 +67,14 @@ impl ManagerData {
         default()
     }
 
-    /// Returns names of all enabled themes.
+    /// Return names of all enabled themes.
     pub fn enabled(&self) -> &Vec<String> {
         &self.enabled
+    }
+
+    /// Return a reference to the theme of the given name.
+    pub fn get(&self, name:&str) -> Option<&Theme> {
+        self.all.get(name)
     }
 
     /// Sets a new set of enabled themes.
@@ -139,6 +144,11 @@ impl Manager {
     pub fn new() -> Self {
         default()
     }
+
+    // /// Return a reference to the theme of the given name.
+    // pub fn get(&self, name:&str) -> Option<&Theme> {
+    //     self.rc.borrow().get(name).cloned()
+    // }
 
     /// Registers a new theme.
     pub fn register<T:Into<Theme>>(&self, name:impl Str, theme:T) {
