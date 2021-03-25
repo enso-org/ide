@@ -11,6 +11,8 @@
   will be lost. In this build we added notification in statusbar to signalize
   that the connection was lost and IDE must be restarted. In future IDE will try
   to automatically reconnect.
+- [Histogram and Scatter Plot now support Dataframes.][1377] The `Table` and `Column` datatypes are properly visualized. Scatter Plot can display points of different color, shape and size, all as defined by the data within the `Table`.
+
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
@@ -77,6 +79,7 @@ you can find their release notes
 [1341]: https://github.com/enso-org/ide/pull/1341
 [1348]: https://github.com/enso-org/ide/pull/1348
 [1353]: https://github.com/enso-org/ide/pull/1353
+[1377]: https://github.com/enso-org/ide/pull/1377
 
 <br/>
 
