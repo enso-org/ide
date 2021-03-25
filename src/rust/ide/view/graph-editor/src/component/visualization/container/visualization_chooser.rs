@@ -66,7 +66,7 @@ impl Model {
 
     pub fn entries(&self, input_type:&Option<enso::Type>) -> Vec<visualization::Path> {
         let input_type_or_any = input_type.clone().unwrap_or_else(enso::Type::any);
-        let definitions_iter   = self.registry.valid_sources(&input_type_or_any).into_iter();
+        let definitions_iter  = self.registry.valid_sources(&input_type_or_any).into_iter();
         definitions_iter.map(|d| d.signature.path).collect_vec()
     }
 }

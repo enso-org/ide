@@ -153,25 +153,27 @@ pub mod overlay {
 
 ensogl::define_endpoints! {
     Input {
-        set_visibility     (bool),
-        toggle_visibility  (),
-        set_visualization  (Option<visualization::Definition>),
-        set_data           (visualization::Data),
-        select             (),
-        deselect           (),
-        set_size           (Vector2),
-        enable_fullscreen  (),
-        disable_fullscreen (),
-        scene_shape        (scene::Shape),
-        set_vis_input_type (Option<enso::Type>),
+        set_visibility      (bool),
+        toggle_visibility   (),
+        set_visualization   (Option<visualization::Definition>),
+        cycle_visualization (),
+        set_data            (visualization::Data),
+        select              (),
+        deselect            (),
+        set_size            (Vector2),
+        enable_fullscreen   (),
+        disable_fullscreen  (),
+        scene_shape         (scene::Shape),
+        set_vis_input_type  (Option<enso::Type>),
     }
 
     Output {
-        preprocessor  (PreprocessorConfiguration),
-        visualisation (Option<visualization::Definition>),
-        size          (Vector2),
-        is_selected   (bool),
-        visible       (bool),
+        preprocessor   (PreprocessorConfiguration),
+        visualisation  (Option<visualization::Definition>),
+        size           (Vector2),
+        is_selected    (bool),
+        visible        (bool),
+        vis_input_type (Option<enso::Type>)
     }
 }
 
@@ -483,6 +485,15 @@ impl ContainerModel {
     fn is_this_target(&self, target:scene::PointerTarget) -> bool {
         self.view.overlay.is_this_target(target)
     }
+
+    fn next_visualization
+    (&self, current_vis:&Option<visualization::Definition>, input_type:&Option<enso::Type>)
+    -> Option<visualization::Definition> {
+        let input_type_or_any = input_type.clone().unwrap_or_else(enso::Type::any);
+        let vis_list          = self.registry.valid_sources(&input_type_or_any);
+        let next_on_list      = current_vis.as_ref().and_then(|vis| vis_list.iter().skip_while(|x| vis.signature.path != x.signature.path).skip(1).next());
+        next_on_list.or_else(|| vis_list.first()).cloned()
+    }
 }
 
 impl display::Object for ContainerModel {
@@ -533,10 +544,26 @@ impl Container {
         frp::extend! { network
             eval  frp.set_visibility    ((v) model.set_visibility(*v));
             eval_ frp.toggle_visibility (model.toggle_visibility());
+            eval  frp.set_data          ((t) model.set_visualization_data(t));
+            eval  frp.set_size          ((s) size.set_target_value(*s));
             frp.source.visible <+ frp.set_visibility;
             frp.source.visible <+ frp.toggle_visibility.map(f!((()) model.is_active()));
-            let preprocessor = &frp.source.preprocessor;
-            frp.source.visualisation <+ frp.set_visualization.map(f!(
+        }
+
+
+        // === Cycling Visualizations ===
+        frp::extend! { network
+            vis_after_cycling <- frp.cycle_visualization.map3(&frp.visualisation,&frp.vis_input_type,
+                f!(((),vis,input_type) model.next_visualization(vis,input_type))
+            );
+        }
+
+
+        // === Switching Visualizations ===
+        frp::extend! { network
+            new_vis_definition <- any(frp.set_visualization,vis_after_cycling);
+            let preprocessor   =  &frp.source.preprocessor;
+            frp.source.visualisation <+ new_vis_definition.map(f!(
                 [model,action_bar,scene,logger,preprocessor](vis_definition) {
 
                 if let Some(definition) = vis_definition {
@@ -553,14 +580,11 @@ impl Container {
                 }
                 vis_definition.clone()
             }));
+        }
 
-            eval  frp.set_data          ((t) model.set_visualization_data(t));
 
-            eval_ frp.enable_fullscreen (model.set_visibility(true));
-            eval_ frp.enable_fullscreen (model.enable_fullscreen());
-            eval_ frp.enable_fullscreen (fullscreen.set_target_value(1.0));
-            eval  frp.set_size          ((s) size.set_target_value(*s));
-
+        // === Selecting Visualization ===
+        frp::extend! { network
             mouse_down_target <- scene.mouse.frp.down.map(f_!(scene.mouse.target.get()));
             selected <= mouse_down_target.map(f!([model] (target){
                 let vis        = &model.visualization;
@@ -582,6 +606,14 @@ impl Container {
                 (new != old).as_some(new)
             });
             frp.source.is_selected <+ is_selected_changed;
+        }
+
+
+        // === Fullscreen View ===
+        frp::extend! { network
+            eval_ frp.enable_fullscreen (model.set_visibility(true));
+            eval_ frp.enable_fullscreen (model.enable_fullscreen());
+            eval_ frp.enable_fullscreen (fullscreen.set_target_value(1.0));
 
             _eval <- fullscreen.value.all_with3(&size.value,&frp.scene_shape,
                 f!([model] (weight,viz_size,scene_size) {
@@ -623,6 +655,7 @@ impl Container {
             frp.source.visualisation <+ selected_definition;
             on_selected              <- selected_definition.map(|d|d.as_ref().map(|_|())).unwrap();
             eval_ on_selected ( action_bar.hide_icons.emit(()) );
+            frp.source.vis_input_type <+ frp.set_vis_input_type;
             eval frp.set_vis_input_type (
                 (tp) model.action_bar.visualization_chooser().frp.set_vis_input_type(tp)
             );

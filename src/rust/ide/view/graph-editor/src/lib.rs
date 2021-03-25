@@ -2757,21 +2757,13 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         }
     });
 
-     nodes_to_cycle <= inputs.cycle_visualization_for_selected_node.map(f_!(model.selected_nodes()));
-     node_to_cycle  <- any(nodes_to_cycle,inputs.cycle_visualization);
-
-    let cycle_count = Rc::new(Cell::new(0));
-    def _cycle_visualization = node_to_cycle.map(f!([inputs,vis_registry,logger](node_id) {
-        let visualizations = vis_registry.valid_sources(&"Any".into());
-        cycle_count.set(cycle_count.get() % visualizations.len());
-        if let Some(vis) = visualizations.get(cycle_count.get()) {
-            let path = vis.signature.path.clone();
-            inputs.set_visualization.emit((*node_id,Some(path)));
-        } else {
-            warning!(logger,"Failed to get visualization while cycling.");
-        };
-        cycle_count.set(cycle_count.get() + 1);
-    }));
+    nodes_to_cycle <= inputs.cycle_visualization_for_selected_node.map(f_!(model.selected_nodes()));
+    node_to_cycle  <- any(nodes_to_cycle,inputs.cycle_visualization);
+    eval node_to_cycle ([model](node_id) {
+        if let Some(node) = model.nodes.get_cloned_ref(node_id) {
+            node.view.model.visualization.frp.cycle_visualization();
+        }
+    });
 
 
     // === Visualization toggle ===
