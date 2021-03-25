@@ -92,6 +92,8 @@ const makeId = makeGenerator()
  * }
  *
  * Can also consume a dataframe that has the columns `latitude`, `longitude` and optionally `label`.
+ *
+ * TODO: Make 2-finger panning behave like in IDE, and RMB zooming. [#1368]
  */
 class GeoMapVisualization extends Visualization {
     static inputType = 'Any'
