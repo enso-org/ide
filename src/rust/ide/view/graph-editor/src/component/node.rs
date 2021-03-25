@@ -357,6 +357,7 @@ pub struct NodeModel {
     pub error_visualization : builtin_visualization::Error,
     pub action_bar          : action_bar::ActionBar,
     pub vcs_indicator       : vcs::StatusIndicator,
+    pub style               : StyleWatchFrp,
 }
 
 impl NodeModel {
@@ -415,9 +416,11 @@ impl NodeModel {
         let output = output::Area::new(&logger,app);
         display_object.add_child(&output);
 
+        let style = StyleWatchFrp::new(&app.display.scene().style_sheet);
+
         let app = app.clone_ref();
         Self {app,display_object,logger,main_area,drag_area,output,input,visualization
-            ,error_visualization,action_bar,error_indicator,vcs_indicator}.init()
+            ,error_visualization,action_bar,error_indicator,vcs_indicator,style}.init()
     }
 
     pub fn get_crumbs_by_id(&self, id:ast::Id) -> Option<Crumbs> {
@@ -519,6 +522,7 @@ impl Node {
         let bg_color_anim    = color::Animation::new(network);
         let error_color_anim = color::Animation::new(network);
         let style            = StyleWatch::new(&app.display.scene().style_sheet);
+        let style_frp        = &model.style;
         let action_bar       = &model.action_bar.frp;
 
         frp::extend! { network
@@ -601,12 +605,19 @@ impl Node {
 
             // === Color Handling ===
 
-            bg_color <- frp.set_disabled.map(f!([model,style](disabled) {
+            let bgg = style_frp.get_color(ensogl_theme::graph_editor::node::background);
+
+            bg_color <- all_with(&bgg,&frp.set_disabled,f!([model,style](bgg,disabled) {
                 model.input.frp.set_disabled(*disabled);
-                let bg_color_path = ensogl_theme::graph_editor::node::background;
-                if *disabled { style.get_color_dim(bg_color_path) }
-                else         { style.get_color(bg_color_path) }
+                *bgg
             }));
+
+            // bg_color <- frp.set_disabled.map(f!([model,style](disabled) {
+            //     model.input.frp.set_disabled(*disabled);
+            //     let bg_color_path = ensogl_theme::graph_editor::node::background;
+            //     if *disabled { style.get_color_dim(bg_color_path) }
+            //     else         { style.get_color(bg_color_path) }
+            // }));
             bg_color_anim.target <+ bg_color;
             eval bg_color_anim.value ((c)
                 model.main_area.bg_color.set(color::Rgba::from(c).into())
