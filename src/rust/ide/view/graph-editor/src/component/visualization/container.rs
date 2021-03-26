@@ -557,6 +557,7 @@ impl Container {
 
 
         // === Cycling Visualizations ===
+
         frp::extend! { network
             vis_after_cycling <- frp.cycle_visualization.map3(&frp.visualisation,&frp.vis_input_type,
                 f!(((),vis,input_type) model.next_visualization(vis,input_type))
@@ -565,6 +566,7 @@ impl Container {
 
 
         // === Switching Visualizations ===
+        
         frp::extend! { network
             new_vis_definition <- any(frp.set_visualization,vis_after_cycling);
             let preprocessor   =  &frp.source.preprocessor;
@@ -589,6 +591,7 @@ impl Container {
 
 
         // === Selecting Visualization ===
+
         frp::extend! { network
             mouse_down_target <- scene.mouse.frp.down.map(f_!(scene.mouse.target.get()));
             selected <= mouse_down_target.map(f!([model] (target){
@@ -615,6 +618,7 @@ impl Container {
 
 
         // === Fullscreen View ===
+
         frp::extend! { network
             eval_ frp.enable_fullscreen (model.set_visibility(true));
             eval_ frp.enable_fullscreen (model.enable_fullscreen());
@@ -643,6 +647,7 @@ impl Container {
 
 
         // ===  Visualisation chooser frp bindings ===
+
         frp::extend! { network
             selected_definition  <- action_bar.visualisation_selection.map(f!([registry](path)
                 path.as_ref().map(|path| registry.definition_from_path(path) ).flatten()
@@ -668,6 +673,7 @@ impl Container {
 
 
         // ===  Action bar actions ===
+
         frp::extend! { network
             eval_ action_bar.on_container_reset_position(model.drag_root.set_position_xy(Vector2::zero()));
             drag_action <- app.cursor.frp.scene_position_delta.gate(&action_bar.container_drag_state);

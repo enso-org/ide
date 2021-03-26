@@ -66,8 +66,8 @@
 - [JS visualizations have consistent gestures with the IDE][1291]. Panning and
   zooming now works just as expected on trackpad and mouse.
 - [The `inputType` field of visualizations is actually taken into consideration]
-  [1384]. The visualization chooser shows entries accepting the node's 
-  output's type only.
+  [1384]. The visualization chooser shows entries accepting the node's output's
+  type only.
 - [Fix applying selected node output to the expression of new node][1385]. For
   example, having selected node with Table output and adding a new node with
   expression `at "x" == "y"` the selected node was applied to the right side of
