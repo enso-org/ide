@@ -566,7 +566,7 @@ impl Container {
 
 
         // === Switching Visualizations ===
-        
+
         frp::extend! { network
             new_vis_definition <- any(frp.set_visualization,vis_after_cycling);
             let preprocessor   =  &frp.source.preprocessor;
