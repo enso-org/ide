@@ -92,7 +92,7 @@ pub struct InstanceModel {
     pub logger              : Logger,
         on_data_received    : Rc<Option<js_sys::Function>>,
         set_size            : Rc<Option<js_sys::Function>>,
-        on_hide             : Rc<Option<js_sys::Function>>,
+        display_object      : display::object::Instance,
         #[derivative(Debug="ignore")]
         object              : Rc<java_script::binding::Visualization>,
         #[derivative(Debug="ignore")]
@@ -167,12 +167,20 @@ impl InstanceModel {
         let set_size                      = Rc::new(set_size);
         let on_hide                       = get_method(&object.as_ref(), method::ON_HIDE).ok();
         let on_hide                       = Rc::new(on_hide);
+        let display_object                = display::object::Instance::new(Logger::new(""));
+        display_object.add_child(root_node.display_object());
+        display_object.set_on_hide(move |_| {
+            if let Some(f) = &*on_hide {
+                let context = &JsValue::NULL;
+                let _ = f.call0(context);
+            }
+        });
         let object                        = Rc::new(object);
         Ok(InstanceModel {
             object,
             on_data_received,
             set_size,
-            on_hide,
+            display_object,
             root_node,
             logger,
             preprocessor_change
@@ -190,13 +198,6 @@ impl InstanceModel {
         let data_json = JsValue::from_serde(&size).unwrap();
         let _         = self.try_call1(&self.set_size,&data_json);
         self.root_node.set_size(size);
-    }
-
-    fn on_hide(&self) {
-        if let Some(f) = &*self.on_hide {
-            let context = &JsValue::NULL;
-            let _ = f.call0(context);
-        }
     }
 
     fn receive_data(&self, data:&Data) -> result::Result<(),DataError> {
@@ -264,7 +265,6 @@ impl Instance {
         let frp     = self.frp.clone_ref();
         frp::extend! { network
             eval frp.set_size  ((size) model.set_size(*size));
-            eval_ frp.on_hide (model.on_hide());
             eval frp.send_data ([frp](data) {
                 if let Err(e) = model.receive_data(data) {
                     frp.data_receive_error.emit(Some(e));
@@ -302,7 +302,7 @@ impl From<Instance> for visualization::Instance {
 
 impl display::Object for Instance {
     fn display_object(&self) -> &display::object::Instance {
-        &self.model.root_node.display_object()
+        &self.model.display_object
     }
 }
 
