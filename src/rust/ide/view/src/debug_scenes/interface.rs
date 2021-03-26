@@ -22,6 +22,8 @@ use wasm_bindgen::prelude::*;
 use parser::Parser;
 use ensogl::display::style;
 
+use ensogl::data::color;
+
 
 
 const STUB_MODULE:&str = "from Base import all\n\nmain = IO.println \"Hello\"\n";
@@ -200,6 +202,7 @@ fn init(app:&Application) {
     let mut to_theme_switch = 100;
     let app = app.clone_ref();
     // let mut j = 3;
+
     world.on_frame(move |_| {
         let _keep_alive = &navigator;
         let _keep_alive = &project_view;
@@ -208,6 +211,8 @@ fn init(app:&Application) {
         if to_theme_switch == 0 {
             println!("THEME SWITCH !!!");
             ensogl_theme::builtin::dark::enable(&app);
+
+            println!(">>> {:?}", "lcha(1,0,0,1)".parse::<color::Lcha>());
         }
         to_theme_switch -= 1;
 

@@ -28,7 +28,7 @@ macro_rules! _define_theme_literals {
             }
     };
     ($id:tt $theme:ident [$($path:ident)*] $var:ident = $($e:expr),* $(;$($rest:tt)*)?) => {
-        $theme.insert(stringify!($($path.)*$var), _select_theme_expr!{$id $($e),*});
+        $theme.set(stringify!($($path.)*$var), _select_theme_expr!{$id $($e),*});
         _define_theme_literals!{$id $theme [$($path)*] $($($rest)*)?}
     };
     ($id:tt $theme:ident [$($path:ident)*] $path_segment:ident {$($t:tt)*} $($rest:tt)*) => {
@@ -96,7 +96,7 @@ macro_rules! _define_theme_wrapper_and_literals {
 
             /// Registers the theme in the application.
             pub fn register(theme_manager:impl AsRef<theme::Manager>) {
-                let mut $name = theme::Theme::new();
+                let $name = theme::Theme::new();
                 _define_theme_literals!{$id $name [] $($t)*}
                 theme_manager.as_ref().register(stringify!($name),$name);
             }

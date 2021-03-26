@@ -607,7 +607,7 @@ impl Node {
 
             let bgg = style_frp.get_color(ensogl_theme::graph_editor::node::background);
 
-            bg_color <- all_with(&bgg,&frp.set_disabled,f!([model,style](bgg,disabled) {
+            bg_color <- all_with(&bgg,&frp.set_disabled,f!([model](bgg,disabled) {
                 model.input.frp.set_disabled(*disabled);
                 *bgg
             }));

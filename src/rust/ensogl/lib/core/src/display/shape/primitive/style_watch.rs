@@ -56,9 +56,8 @@ impl StyleWatchFrp {
             source <- source::<Option<style::Data>>();
         }
         let path     = path.into();
-        let var      = self.sheet.var(path.clone());
+        let var      = self.sheet.var(path);
         let current  = var.value();
-        let callback = self.callback.clone_ref();
         let handle   = var.on_change(f!((data:&Option<style::Data>) source.emit(data.clone())));
         self.vars.borrow_mut().push(var);
         self.handles.borrow_mut().push(handle);
@@ -132,7 +131,7 @@ impl StyleWatch {
     /// Queries style sheet value for a value.
     pub fn get(&self, path:impl Into<Path>) -> Option<style::Data> {
         let path     = path.into();
-        let var      = self.sheet.var(path.clone());
+        let var      = self.sheet.var(path);
         let value    = var.value();
         let callback = self.callback.clone_ref();
         let handle   = var.on_change(move |_:&Option<style::Data>| (callback.borrow())());

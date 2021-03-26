@@ -164,6 +164,58 @@ impl Rgba {
     }
 }
 
+#[derive(Debug,Clone)]
+pub struct ParseError(String);
+
+impl From<std::num::ParseFloatError> for ParseError {
+    fn from(t:std::num::ParseFloatError) -> Self {
+        ParseError("Improper numeric argument.".into())
+    }
+}
+
+fn uppercase_first_letter(s:&str) -> String {
+    let mut c = s.chars();
+    match c.next() {
+        None => String::new(),
+        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+    }
+}
+
+fn generic_parse(s:&str) -> Result<(String,Vec<f32>),ParseError> {
+    let mut splitter = s.splitn(2,'(');
+    match splitter.next() {
+        None       => Err(ParseError("Empty input.".into())),
+        Some(head) => {
+            match splitter.next() {
+                None       => Err(ParseError("No arguments provided.".into())),
+                Some(rest) => {
+                    let head = uppercase_first_letter(&head.to_lowercase());
+                    if !rest.ends_with(')') {
+                        Err(ParseError("Expression does not end with ')'.".into()))
+                    } else {
+                        let rest = &rest[..rest.len()-1];
+                        let args : Result<Vec<f32>,std::num::ParseFloatError> =
+                            rest.split(',').map(|t|t.parse::<f32>()).collect();
+                        let args = args?;
+                        Ok((head,args))
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl std::str::FromStr for Lcha {
+    type Err = ParseError;
+    fn from_str(s:&str) -> Result<Self, Self::Err> {
+        let (head,args) = generic_parse(s)?;
+        if &head != "Lcha" || args.len() != 4 {
+            return Err(ParseError("No 'Lcha' header found.".into()))
+        }
+        Ok(Lcha::new(args[0],args[1],args[2],args[3]))
+    }
+}
+
 
 
 // =================

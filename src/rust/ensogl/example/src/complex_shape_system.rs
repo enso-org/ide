@@ -56,19 +56,19 @@ pub fn entry_point_complex_shape_system() {
 
     let theme_manager = theme::Manager::from(&scene.style_sheet);
 
-    let mut theme1 = theme::Theme::new();
-    theme1.insert("base_color", color::Rgba::new(0.0,0.0,1.0,1.0));
-    theme1.insert("animation.duration", 0.5);
-    theme1.insert("graph.node.shadow.color", 5.0);
-    theme1.insert("graph.node.shadow.size", 5.0);
-    theme1.insert("mouse.pointer.color", color::Rgba::new(0.3,0.3,0.3,1.0));
+    let theme1 = theme::Theme::new();
+    theme1.set("base_color", color::Rgba::new(0.0,0.0,1.0,1.0));
+    theme1.set("animation.duration", 0.5);
+    theme1.set("graph.node.shadow.color", 5.0);
+    theme1.set("graph.node.shadow.size", 5.0);
+    theme1.set("mouse.pointer.color", color::Rgba::new(0.3,0.3,0.3,1.0));
 
-    let mut theme2 = theme::Theme::new();
-    theme2.insert("base_color", color::Rgba::new(0.0,1.0,0.0,1.0));
-    theme2.insert("animation.duration", 0.7);
-    theme2.insert("graph.node.shadow.color", 5.0);
-    theme2.insert("graph.node.shadow.size", 5.0);
-    theme2.insert("mouse.pointer.color", color::Rgba::new(0.3,0.3,0.3,1.0));
+    let theme2 = theme::Theme::new();
+    theme2.set("base_color", color::Rgba::new(0.0,1.0,0.0,1.0));
+    theme2.set("animation.duration", 0.7);
+    theme2.set("graph.node.shadow.color", 5.0);
+    theme2.set("graph.node.shadow.size", 5.0);
+    theme2.set("mouse.pointer.color", color::Rgba::new(0.3,0.3,0.3,1.0));
 
     theme_manager.register("theme1",theme1);
     theme_manager.register("theme2",theme2);
