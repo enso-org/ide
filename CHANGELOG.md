@@ -69,6 +69,7 @@
   example, having selected node with Table output and adding a new node with
   expression `at "x" == "y"` the selected node was applied to the right side of
   `==`: `at "x" == operator1."y"` instead of `operator1.at "x" == "y"`.
+- [`Enso_Project.data` is visible in searcher][]
 
 #### EnsoGL (rendering engine)
 
