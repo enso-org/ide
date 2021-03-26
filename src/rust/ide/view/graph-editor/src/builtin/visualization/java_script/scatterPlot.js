@@ -164,6 +164,7 @@ class ScatterPlot extends Visualization {
         const maxScale = 20
         const rightButton = 2
         const midButton = 1
+        const midButtonClicked = 4
         const scrollWheel = 0
         const extent = [minScale, maxScale]
         let startPos
@@ -243,6 +244,13 @@ class ScatterPlot extends Visualization {
                     transformedScale.xScale = distanceScale.rescaleX(transformedScale.xScale)
                     transformedScale.yScale = distanceScale.rescaleY(transformedScale.yScale)
                 }
+            } else if (d3.event.sourceEvent != null && d3.event.sourceEvent.buttons === midButtonClicked) {
+                const distanceScale = d3.zoomIdentity.translate(
+                    d3.event.sourceEvent.movementX/2,
+                    d3.event.sourceEvent.movementY/2
+                )
+                transformedScale.xScale = distanceScale.rescaleX(transformedScale.xScale)
+                transformedScale.yScale = distanceScale.rescaleY(transformedScale.yScale)
             } else {
                 transformedScale.xScale = d3.event.transform.rescaleX(transformedScale.xScale)
                 transformedScale.yScale = d3.event.transform.rescaleY(transformedScale.yScale)
