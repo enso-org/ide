@@ -40,6 +40,12 @@ where color::Color<C> : Into<color::Lcha> {
     }
 }
 
+// FIXME: Should be TryFrom
+impl From<String> for Data {
+    fn from(s:String) -> Self {
+        Data::Color(s.parse::<color::AnyColor>().unwrap().into()) // FIXME unwrap
+    }
+}
 
 
 // === Impls ===

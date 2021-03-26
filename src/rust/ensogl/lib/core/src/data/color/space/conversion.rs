@@ -84,6 +84,18 @@ macro_rules! color_convert_via {
                 <Color<Alpha<$via>>>::from(src).into()
             }
         }
+
+        impl From<Color<Alpha<$src>>> for Color<$tgt> {
+            fn from(src:Color<Alpha<$src>>) -> Self {
+                <Color<$via>>::from(src.opaque).into()
+            }
+        }
+
+        impl From<Color<$src>> for Color<Alpha<$tgt>> {
+            fn from(src:Color<$src>) -> Self {
+                <Color<Alpha<$src>>>::from(src).into()
+            }
+        }
     }
 }
 
