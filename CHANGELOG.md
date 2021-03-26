@@ -11,6 +11,11 @@
   will be lost. In this build we added notification in statusbar to signalize
   that the connection was lost and IDE must be restarted. In future IDE will try
   to automatically reconnect.
+- [Database Visualizations][1335]. Visualizations for the Database library have
+  been added. The Table visualization now automatically executes the underlying
+  query to display its results in a table. In addition, the SQL Query
+  visualization allows the user to see the query that is going to be run against
+  the database.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
@@ -63,6 +68,10 @@
 - [The `inputType` field of visualizations is actually taken into consideration]
   [1384]. The visualization chooser shows entries accepting the node's 
   output's type only.
+- [Fix applying selected node output to the expression of new node][1385]. For
+  example, having selected node with Table output and adding a new node with
+  expression `at "x" == "y"` the selected node was applied to the right side of
+  `==`: `at "x" == operator1."y"` instead of `operator1.at "x" == "y"`.
 
 #### EnsoGL (rendering engine)
 
@@ -88,6 +97,7 @@ you can find their release notes
 [1348]: https://github.com/enso-org/ide/pull/1348
 [1353]: https://github.com/enso-org/ide/pull/1353
 [1384]: https://github.com/enso-org/ide/pull/1384
+[1385]: https://github.com/enso-org/ide/pull/1385
 
 <br/>
 
