@@ -601,8 +601,11 @@ impl Node {
             );
 
             // Show preview visualisation after some delay, depending on whether we show an error
-            // or are in quick preview mode. Also, omit the delay if we don't have a tooltip to show.
-            has_tooltip <- model.output.frp.tooltip.map(|tt| tt.has_content());
+            // or are in quick preview mode. Also, omit the preview if we don't have an
+            // expression.
+            has_tooltip    <- model.output.frp.tooltip.map(|tt| tt.has_content());
+            has_expression <- frp.set_expression.map(|expr| *expr != Expression::default());
+
             preview_show_delay <- all(&frp.quick_preview_vis,&is_error_set);
             preview_show_delay <- preview_show_delay.map(|(quick_preview,is_error)| {
                 match(is_error,quick_preview) {
@@ -617,6 +620,7 @@ impl Node {
             hover_onset_delay.start <+ model.output.body_hover.on_true();
             hover_onset_delay.reset <+ model.output.body_hover.on_false();
             preview_visible         <- bool(&hover_onset_delay.on_reset,&hover_onset_delay.on_end);
+            preview_visible         <- preview_visible && has_expression;
             preview_visible         <- preview_visible.on_change();
 
             visualization_visible <- visualization_enabled && no_error_set;
