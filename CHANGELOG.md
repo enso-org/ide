@@ -60,6 +60,9 @@
   with a browser of your choice.
 - [JS visualizations have consistent gestures with the IDE][1291]. Panning and
   zooming now works just as expected on trackpad and mouse.
+- [Running `watch` command works on first try.][1395]. Running the build command
+  `run watch` would fail if it was run as the first command on a clean
+  repository. This now works.
 
 #### EnsoGL (rendering engine)
 
@@ -84,6 +87,7 @@ you can find their release notes
 [1341]: https://github.com/enso-org/ide/pull/1341
 [1348]: https://github.com/enso-org/ide/pull/1348
 [1353]: https://github.com/enso-org/ide/pull/1353
+[1395]: https://github.com/enso-org/ide/pull/1395
 
 <br/>
 
