@@ -11,6 +11,11 @@
   will be lost. In this build we added notification in statusbar to signalize
   that the connection was lost and IDE must be restarted. In future IDE will try
   to automatically reconnect.
+- [Database Visualizations][1335]. Visualizations for the Database library have
+  been added. The Table visualization now automatically executes the underlying
+  query to display its results in a table. In addition, the SQL Query
+  visualization allows the user to see the query that is going to be run against
+  the database.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
@@ -63,6 +68,14 @@
 - [Running `watch` command works on first try.][1395]. Running the build command
   `run watch` would fail if it was run as the first command on a clean
   repository. This now works.
+- [Fix applying selected node output to the expression of new node][1385]. For
+  example, having selected node with Table output and adding a new node with
+  expression `at "x" == "y"` the selected node was applied to the right side of
+  `==`: `at "x" == operator1."y"` instead of `operator1.at "x" == "y"`.
+- [`Enso_Project.data` is visible in searcher][1393].
+- [Geo Map visualization recognizes columns regardless of their name letter
+  case][1392]. This allows visualizing tables with columns like `LONGITUDE` or
+  `Longitude`, where previously only `longitude` was recognized.
 
 #### EnsoGL (rendering engine)
 
@@ -88,6 +101,9 @@ you can find their release notes
 [1348]: https://github.com/enso-org/ide/pull/1348
 [1353]: https://github.com/enso-org/ide/pull/1353
 [1395]: https://github.com/enso-org/ide/pull/1395
+[1385]: https://github.com/enso-org/ide/pull/1385
+[1393]: https://github.com/enso-org/ide/pull/1393
+[1392]: https://github.com/enso-org/ide/pull/1392
 
 <br/>
 

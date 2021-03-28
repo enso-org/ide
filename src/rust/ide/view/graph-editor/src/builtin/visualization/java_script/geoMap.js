@@ -65,24 +65,6 @@ function makeGenerator() {
 
 const makeId = makeGenerator()
 
-/**
- * Custom Map Controller, enabling us to redefine mouse gestures.
- * TODO: Make 2-finger panning behave like in IDE, and RMB zooming. [#1368]
- */
-class MapController extends deck.MapController {
-    handleEvent(event) {
-        if (event.type === 'wheel') {
-            if (!event.srcEvent.ctrlKey) {
-                super.handleEvent(event)
-            } else {
-                super.handleEvent(event)
-            }
-        } else {
-            super.handleEvent(event)
-        }
-    }
-}
-
 // ============================
 // === MapViewVisualization ===
 // ============================
@@ -110,6 +92,8 @@ class MapController extends deck.MapController {
  * }
  *
  * Can also consume a dataframe that has the columns `latitude`, `longitude` and optionally `label`.
+ *
+ * TODO: Make 2-finger panning behave like in IDE, and RMB zooming. [#1368]
  */
 class GeoMapVisualization extends Visualization {
     static inputType = 'Any'
@@ -124,10 +108,14 @@ class GeoMapVisualization extends Visualization {
         this.setPreprocessorCode(`
                 df -> case df of
                     Table.Table _ ->
-                        columns = df.select ['label', 'latitude', 'longitude'] . columns
-                        serialized = columns.map (c -> ['df_' + c.name, c.to_vector])
-                        Json.from_pairs serialized . to_text
-                    _ -> df . to_json . to_text   
+                        names = ['label', 'latitude', 'longitude']
+                        look_for name = 
+                            is_matching column = column.name.equals_ignore_case name
+                            ["df_" + name, df.columns.find is_matching . to_vector]
+                        valid_column pair = pair.at 1 . is_error . not
+                        pairs = names.map look_for . filter valid_column
+                        Json.from_pairs pairs . to_text
+                    _ -> df . to_json . to_text
             `)
     }
 
@@ -195,7 +183,7 @@ class GeoMapVisualization extends Visualization {
         this.zoom = ok(data.zoom) ? data.zoom : DEFAULT_MAP_ZOOM
         this.mapStyle = ok(data.mapStyle) ? data.mapStyle : this.defaultMapStyle
         this.pitch = ok(data.pitch) ? data.pitch : 0
-        this.controller = ok(data.controller) ? data.controller : { type: MapController }
+        this.controller = ok(data.controller) ? data.controller : true
         this.showingLabels = ok(data.showingLabels) ? data.showingLabels : false
         return true
     }
