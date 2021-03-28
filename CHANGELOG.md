@@ -20,6 +20,11 @@
   information will also show the visualization immediately. You can enter a
   quick preview mode by pressing ctrl (or command on macOS), which will show the
   preview visualization immediately for any hovered node output.
+- [Database Visualizations][1335]. Visualizations for the Database library have
+  been added. The Table visualization now automatically executes the underlying
+  query to display its results in a table. In addition, the SQL Query
+  visualization allows the user to see the query that is going to be run against
+  the database.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
@@ -69,6 +74,14 @@
   with a browser of your choice.
 - [JS visualizations have consistent gestures with the IDE][1291]. Panning and
   zooming now works just as expected on trackpad and mouse.
+- [Fix applying selected node output to the expression of new node][1385]. For
+  example, having selected node with Table output and adding a new node with
+  expression `at "x" == "y"` the selected node was applied to the right side of
+  `==`: `at "x" == operator1."y"` instead of `operator1.at "x" == "y"`.
+- [`Enso_Project.data` is visible in searcher][1393].
+- [Geo Map visualization recognizes columns regardless of their name letter
+  case][1392]. This allows visualizing tables with columns like `LONGITUDE` or
+  `Longitude`, where previously only `longitude` was recognized.
 
 #### EnsoGL (rendering engine)
 
@@ -94,6 +107,9 @@ you can find their release notes
 [1348]: https://github.com/enso-org/ide/pull/1348
 [1353]: https://github.com/enso-org/ide/pull/1353
 [1363]: https://github.com/enso-org/ide/pull/1363
+[1385]: https://github.com/enso-org/ide/pull/1385
+[1393]: https://github.com/enso-org/ide/pull/1393
+[1392]: https://github.com/enso-org/ide/pull/1392
 
 <br/>
 
