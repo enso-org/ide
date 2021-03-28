@@ -215,7 +215,7 @@ impl Manager {
         for name in names {
             self.enabled_dirty.set(name.to_string())
         }
-        // TODO[WD]: This impl should be uncommented and the `self.update()` line removed,
+        // TODO[WD]: This impl should be uncommented, and the `self.update()` line removed,
         //   but now it causes project name to be red (to be investigated).
         // // First theme set can skip lazy change, as this is normally done on app startup.
         // // It will also make the startup faster, as the theme will not be updated on the next

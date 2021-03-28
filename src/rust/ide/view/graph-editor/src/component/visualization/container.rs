@@ -77,20 +77,15 @@ pub mod background {
 
             // === Shadow ===
 
-            let border_size_f = 16.0;
             let corner_radius = corner_radius*1.75;
             let width         = &width  + SHADOW_SIZE.px() * 2.0;
             let height        = &height + SHADOW_SIZE.px() * 2.0;
             let shadow        = Rect((&width,&height)).corners_radius(&corner_radius).shrink(1.px());
             let base_color    = style.get_color(visualization_theme::shadow);
             let fading_color  = style.get_color(visualization_theme::shadow::fading);
-            let exponent      = style.get_number_or(visualization_theme::shadow::exponent,2.0);
-            let shadow_color  = color::LinearGradient::new()
-                .add(0.0,color::Rgba::from(fading_color).into_linear())
-                .add(1.0,color::Rgba::from(base_color).into_linear());
-            let shadow_color = color::SdfSampler::new(shadow_color)
-                .max_distance(border_size_f)
-                .slope(color::Slope::Exponent(exponent));
+            let exp           = style.get_number_or(visualization_theme::shadow::exponent,2.0);
+            let shadow_color  = color::gradient::Linear::<color::LinearRgba>::new(fading_color,base_color);
+            let shadow_color  = shadow_color.sdf_sampler().size(SHADOW_SIZE).exponent(exp);
             let shadow        = shadow.fill(shadow_color);
 
             let out = shadow + background;

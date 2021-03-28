@@ -226,7 +226,7 @@ impl LabData {
     }
 }
 
-/// Please note that the LAB values were normalized to the [-1 .. 1] range.
+// Please note that the LAB values were normalized to the [-1 .. 1] range.
 color_conversion! {
 impl From<XyzData> for LabData {
     fn from(xyz:XyzData) -> Self {
@@ -288,7 +288,7 @@ impl LchData {
     }
 }
 
-/// Please note that the LCH values were normalized to approximately [0 .. 1] ranges.
+// Please note that the LCH values were normalized to approximately [0 .. 1] ranges.
 color_conversion! {
 impl From<LabData> for LchData {
     fn from(color:LabData) -> Self {

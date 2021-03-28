@@ -188,6 +188,8 @@ define_themes! { [light:0, dark:1]
             shadow {
                 fading   = Lcha(0.0,0.0,0.0,0.0) , Lcha(0.0,0.0,0.0,0.0);
                 exponent = 2.0 , 2.0;
+                offset_x = 0.0 , 0.0;
+                offset_y = 2.0 , 2.0;
             }
             selection      = Lcha(0.83,0.63,0.436,1.0) , Lcha(0.72,0.54,0.22,1.0);
             selection.size = 9.0 , 9.0;

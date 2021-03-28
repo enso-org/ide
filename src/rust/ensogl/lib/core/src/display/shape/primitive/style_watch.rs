@@ -145,6 +145,11 @@ impl StyleWatch {
         self.get(path).number().unwrap_or(fallback)
     }
 
+    /// Queries style sheet number value. Returns 0 if not found.
+    pub fn get_number(&self, path:impl Into<Path>) -> f32 {
+        self.get_number_or(path,0.0)
+    }
+
     /// A debug check of how many stylesheet variables are registered in this style watch.
     pub fn debug_var_count(&self) -> usize {
         self.vars.borrow().len()
