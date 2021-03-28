@@ -23,6 +23,7 @@ use parser::Parser;
 use ensogl::display::style;
 
 use ensogl::data::color;
+use ensogl::display::shape::StyleWatch;
 
 
 
@@ -202,6 +203,7 @@ fn init(app:&Application) {
     let mut to_theme_switch = 100;
     let app = app.clone_ref();
     // let mut j = 3;
+    let scene = scene.clone_ref();
 
     world.on_frame(move |_| {
         let _keep_alive = &navigator;
@@ -209,7 +211,8 @@ fn init(app:&Application) {
         let graph_editor = project_view.graph();
 
         if to_theme_switch == 0 {
-            // println!("THEME SWITCH !!!");
+            println!("THEME SWITCH !!!");
+            scene.style_sheet.set("application.background",color::Rgba(0.0,0.0,0.0,1.0));
             // ensogl_theme::builtin::dark::enable(&app);
             //
             // println!(">>> {:?}", "lcha(1,0,0,1)".parse::<color::Lcha>());

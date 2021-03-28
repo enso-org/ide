@@ -150,7 +150,7 @@ impl ManagerData {
         self.all.insert(name,theme);
     }
 
-    /// Removes the theme from the regitry.
+    /// Removes the theme from the registry.
     pub fn remove(&mut self, name:impl Str) {
         let name = name.as_ref();
         self.all.remove(name);

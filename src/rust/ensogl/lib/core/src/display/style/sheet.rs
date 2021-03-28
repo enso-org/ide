@@ -781,6 +781,30 @@ impl Var {
         let rc = Rc::new(VarData::new(sheet,query_index,callbacks));
         Self {rc}
     }
+
+    /// Return weak reference to this var.
+    pub fn downgrade(&self) -> WeakVar {
+        WeakVar {weak:Rc::downgrade(&self.rc)}
+    }
+}
+
+
+
+// ===============
+// === WeakVar ===
+// ===============
+
+/// Weak reference to [`Var`].
+#[derive(Clone,CloneRef,Debug,Deref)]
+pub struct WeakVar {
+    weak : Weak<VarData>
+}
+
+impl WeakVar {
+    /// Upgrade this weak reference to strong var reference.
+    pub fn upgrade(&self) -> Option<Var> {
+        self.weak.upgrade().map(|rc| Var{rc})
+    }
 }
 
 
@@ -796,6 +820,10 @@ impl Var {
 #[derive(Clone,CloneRef,Debug,Default)]
 pub struct Sheet {
     rc        : Rc<RefCell<SheetData>>,
+    /// Keeps already used variables. When dropping the last variable for a given path, it's
+    /// associated [`Query`] is dropped as well, so it's necessary to provide the same variable
+    /// for the given [`Path`]. See the [`var`] method to learn more.
+    cache     : Rc<RefCell<HashMap<String,WeakVar>>>,
     callbacks : Rc<RefCell<HashMap<Index<Query>,CallbackRegistry>>>
 }
 
@@ -808,12 +836,20 @@ impl Sheet {
         default()
     }
 
-    /// Creates a new style sheet `Var`.
+    /// Creates a new style sheet `Var`. It creates a clone-ref of an existing variable (in case not
+    /// all references were dropped so far).
     pub fn var<P>(&self, path:P) -> Var
     where P:Into<Path> {
-        let query_index  = self.rc.borrow_mut().unmanaged_query(path);
-        let callback_reg = self.callbacks.borrow_mut().entry(query_index).or_default().clone_ref();
-        Var::new(self,query_index,callback_reg)
+        let path     = path.into();
+        let path_str = path.to_string();
+        let opt_var = self.cache.borrow().get(&path_str).and_then(|t|t.upgrade());
+        opt_var.unwrap_or_else(|| {
+            let query_ix     = self.rc.borrow_mut().unmanaged_query(path);
+            let callback_reg = self.callbacks.borrow_mut().entry(query_ix).or_default().clone_ref();
+            let var          = Var::new(self,query_ix,callback_reg);
+            self.cache.borrow_mut().insert(path_str,var.downgrade());
+            var
+        })
     }
 
     /// Sets the value by the given path.
@@ -1000,6 +1036,11 @@ mod tests {
         let val    = Rc::new(RefCell::new(None));
         let var    = sheet.var("button.size");
         let handle = var.on_change(f!([val](v:&Option<Data>) *val.borrow_mut() = v.clone()));
+        assert_query_sheet_count(&sheet,1,2);
+        {
+            let var2 = sheet.var("button.size");
+            assert_query_sheet_count(&sheet,1,2);
+        }
         assert_query_sheet_count(&sheet,1,2);
         assert_eq!(var.value(),None);
         sheet.set("size",data(1.0));
