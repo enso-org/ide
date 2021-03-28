@@ -5,6 +5,8 @@ use crate::prelude::*;
 use wasm_bindgen::prelude::*;
 
 use super::theme::Manager;
+use super::sheet::Value;
+use super::sheet::Data;
 
 use crate::system::web;
 use wasm_bindgen::prelude::Closure;
@@ -24,8 +26,15 @@ mod js {
             return {choose,get}
         }
 
-        export function create_theme_ref(set) {
-            let interactive_mode = () => {
+        export function add_debug_style(path,value) {
+            let element = document.getElementById('colors-debug')
+            let name    = `--${path.replaceAll('.','-')}`
+            element.style.cssText += `${name}: ${value}`
+        }
+
+        export function create_theme_ref(set, rust_interactive_mode) {
+            let interactiveMode = () => {
+                rust_interactive_mode()
                 let element = document.getElementById('colors-debug')
                 let observer = new MutationObserver(() => {
                     let vars = element.style.cssText.split(';').map((t) => t.trim().slice(2).replaceAll('-','.').split(':'))
@@ -34,8 +43,24 @@ mod js {
                     for(let [key,val] of vars) {
                         let num = parseFloat(val)
                         if(isNaN(num)) {
-                            let colorMatch = val.split('(')[1].split(')')[0].split(' ')
-                            let normColor  = `rgb(${colorMatch[0]/255},${colorMatch[1]/255},${colorMatch[2]/255})`
+                            // Chrome inspector returns colors in the form of 'rgb(255 0 0 / 26%)'
+                            let colorMatch = val.split('(')[1].split(')')[0].split(/[, ]+/)
+
+                            let r = parseInt(colorMatch[0])/255
+                            let g = parseInt(colorMatch[1])/255
+                            let b = parseInt(colorMatch[2])/255
+                            let a = 1
+
+                            if (colorMatch.length === 5) {
+                                // Format of 'rgb(255 0 0 / 26%)'.
+                                colorMatch.splice(3,1) // removing '/'
+                                a = parseFloat(colorMatch[3].replace('%',''))/100
+                            } else if (colorMatch.length === 4) {
+                                // Format of 'rgb(255,0,0,0.2)'.
+                                a = parseFloat(colorMatch[3])
+                            }
+
+                            let normColor = `rgba(${r},${g},${b},${a})`
                             changes.push([key,normColor])
                         } else {
                             changes.push([key,`${num}`])
@@ -47,7 +72,7 @@ mod js {
                 })
                 observer.observe(element,{attributes:true})
             }
-            return {set,interactive_mode}
+            return {set,interactiveMode}
         }
     ")]
     extern "C" {
@@ -55,12 +80,16 @@ mod js {
         pub fn create_theme_manager_ref(choose:&Choose, get:&Get) -> JsValue;
 
         #[allow(unsafe_code)]
-        pub fn create_theme_ref(set:&Set) -> JsValue;
+        pub fn create_theme_ref(set:&Set, interactive_mode:&InteractiveMode) -> JsValue;
+
+        #[allow(unsafe_code)]
+        pub fn add_debug_style(path:String, value:String);
     }
 
-    pub type Choose = Closure<dyn Fn(String)>;
-    pub type Get    = Closure<dyn Fn(String)->JsValue>;
-    pub type Set    = Closure<dyn Fn(String,String)>;
+    pub type Choose          = Closure<dyn Fn(String)>;
+    pub type Get             = Closure<dyn Fn(String)->JsValue>;
+    pub type Set             = Closure<dyn Fn(String,String)>;
+    pub type InteractiveMode = Closure<dyn Fn()>;
 }
 
 
@@ -79,9 +108,26 @@ pub fn expose_to_window(manager:&Manager) {
     let owned_manager = manager.clone_ref();
     let get : js::Get = Closure::new(move |name:String| {
         let theme         = owned_manager.get(&name).unwrap();
-        let set : js::Set = Closure::new(move |name,value| theme.set(name,value));
-        let theme_ref     = js::create_theme_ref(&set);
+        let owned_theme   = theme.clone_ref();
+        let set : js::Set = Closure::new(move |name,value| {owned_theme.set(name,value);});
+        let interactive_mode : js::InteractiveMode = Closure::new(move || {
+            let mut values = theme.values();
+            values.sort_by_key(|(path,_)|path.clone());
+            for (path,value) in values {
+                match value {
+                    Value::Data(Data::Color(c)) => {
+                        let color = color::Rgba::from(c);
+                        let js_color = color.to_javascript_string();
+                        js::add_debug_style(path,color::Rgba::from(c).to_javascript_string())
+                    },
+                    Value::Data(Data::Number(f)) => js::add_debug_style(path,f.to_string()),
+                    _ => {}
+                }
+            }
+        });
+        let theme_ref = js::create_theme_ref(&set,&interactive_mode);
         mem::forget(set);
+        mem::forget(interactive_mode);
         theme_ref
     });
 

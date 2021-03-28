@@ -198,7 +198,10 @@ impl View {
         let network                    = &frp.network;
         let searcher_left_top_position = DEPRECATED_Animation::<Vector2<f32>>::new(network);
 
+        // FIXME[WD]: Think how to refactor it, as it needs to be done before model, as we do not
+        //   want shader recompilation. Model uses styles already.
         model.set_style(Theme::Light);
+        app.themes.update(); // TODO[WD]: This should not be needed.
 
         frp::extend!{ network
             // === Searcher Position and Size ===

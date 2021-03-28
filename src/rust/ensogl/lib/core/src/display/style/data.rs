@@ -40,10 +40,18 @@ where color::Color<C> : Into<color::Lcha> {
     }
 }
 
-// FIXME: Should be TryFrom
-impl From<String> for Data {
-    fn from(s:String) -> Self {
-        Data::Color(s.parse::<color::AnyColor>().unwrap().into()) // FIXME unwrap
+impl TryFrom<String> for Data {
+    type Error = ();
+    fn try_from(s:String) -> Result<Self,Self::Error> {
+        match s.parse::<f32>() {
+            Ok(t) => Ok(Data::Number(t)),
+            _     => {
+                match s.parse::<color::AnyColor>() {
+                    Ok(t) => Ok(Data::Color(t.into())),
+                    _     => Err(())
+                }
+            }
+        }
     }
 }
 

@@ -5,12 +5,13 @@ use crate::prelude::*;
 use crate::data::HashMapTree;
 use crate::data::color;
 
-use super::sheet::Path;
-use super::sheet::Change;
-use super::sheet::Value;
-use super::sheet as style;
-
 use crate::control::callback;
+use crate::data::dirty::traits::*;
+use crate::data::dirty;
+use super::sheet as style;
+use super::sheet::Change;
+use super::sheet::Path;
+use super::sheet::Value;
 
 
 
@@ -33,18 +34,39 @@ impl Theme {
         default()
     }
 
-    /// Insert a new style in the theme.
-    pub fn set<P,E>(&self, path:P, entry:E)
-    where P:Into<Path>, E:Into<Value> {
+    /// Insert a new style in the theme. Returns [`true`] if the operation was successful. It can
+    /// fail if provided with malformed value, for example with a string "rgba(foo)". In such a
+    /// case, the value will not be applied and the function will return [`false`].
+    pub fn set<P,E>(&self, path:P, value:E) -> bool
+    where P:Into<Path>, E:TryInto<Value> {
         let path  = path.into();
-        let entry = entry.into();
-        self.tree.borrow_mut().set(&path.rev_segments,Some(entry));
-        self.on_mut.run_all();
+        let value = value.try_into();
+        if let Ok(value) = value {
+            self.tree.borrow_mut().set(&path.rev_segments,Some(value));
+            self.on_mut.run_all();
+            true
+        } else {
+            false
+        }
     }
 
     /// Add a new callback which will be triggered everytime this theme is modified.
     pub fn on_mut(&self, callback:impl callback::CallbackMutFn) -> callback::Handle {
         self.on_mut.add(callback)
+    }
+
+    pub fn value_tree(&self) -> HashMapTree<String,Option<Value>> {
+        self.tree.borrow().clone()
+    }
+
+    pub fn values(&self) -> Vec<(String,Value)> {
+        self.tree.borrow().iter().filter_map(|(path,opt_val)|
+            opt_val.as_ref().map(|val| {
+                let path = path.into_iter().rev().map(|s|s.clone()).collect_vec().join(".");
+                let val  = val.clone();
+                (path,val)
+            })
+        ).collect_vec()
     }
 }
 
@@ -149,16 +171,26 @@ impl From<&style::Sheet> for ManagerData {
 // ===============
 
 /// Theme manager. Allows registering themes by names, enabling, and disabling them.
-#[derive(Clone,CloneRef,Debug,Default)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct Manager {
-    data    : Rc<RefCell<ManagerData>>,
-    handles : Rc<RefCell<HashMap<String,callback::Handle>>>,
+    logger        : Logger,
+    data          : Rc<RefCell<ManagerData>>,
+    handles       : Rc<RefCell<HashMap<String,callback::Handle>>>,
+    current_dirty : dirty::SharedBool,
+    enabled_dirty : dirty::SharedVector<String>,
+    initialized   : Rc<Cell<bool>>,
 }
 
 impl Manager {
     /// Constructor.
     pub fn new() -> Self {
-        default()
+        let logger        = Logger::new("Theme Manager");
+        let current_dirty = dirty::SharedBool::new(Logger::sub(&logger,"dirty"),());
+        let enabled_dirty = dirty::SharedVector::new(Logger::sub(&logger,"enabled_dirty"),());
+        let data          = default();
+        let handles       = default();
+        let initialized   = default();
+        Self {logger,data,handles,current_dirty,enabled_dirty,initialized}
     }
 
     /// Return a theme of the given name.
@@ -168,14 +200,10 @@ impl Manager {
 
     /// Registers a new theme.
     pub fn register<T:Into<Theme>>(&self, name:impl Str, theme:T) {
-        let name      = name.into();
-        let theme     = theme.into();
-        let weak_data = Rc::downgrade(&self.data);
-        let handle    = theme.on_mut(move || {
-            if let Some(data) = weak_data.upgrade() {
-                data.borrow_mut().refresh()
-            }
-        });
+        let name   = name.into();
+        let theme  = theme.into();
+        let dirty  = self.current_dirty.clone_ref();
+        let handle = theme.on_mut(move || dirty.set());
         self.data.borrow_mut().register(&name,theme);
         self.handles.borrow_mut().insert(name,handle);
     }
@@ -183,15 +211,46 @@ impl Manager {
     /// Sets a new set of enabled themes.
     pub fn set_enabled<N>(&self, names:N)
     where N:IntoIterator, N::Item:ToString {
-        self.data.borrow_mut().set_enabled(names)
+        self.enabled_dirty.unset_all();
+        for name in names {
+            self.enabled_dirty.set(name.to_string())
+        }
+        // TODO[WD]: This impl should be uncommented and the `self.update()` line removed,
+        //   but now it causes project name to be red (to be investigated).
+        // // First theme set can skip lazy change, as this is normally done on app startup.
+        // // It will also make the startup faster, as the theme will not be updated on the next
+        // // frame, which would make all shaders re-compile.
+        // if self.initialized.get() {
+        //     self.initialized.set(true);
+        //     self.update()
+        // }
+        self.update()
+    }
+
+    /// Update the theme manager. This should be done once per an animation frame.
+    pub fn update(&self) {
+        if self.enabled_dirty.check_all() {
+            self.current_dirty.take();
+            let names = self.enabled_dirty.take().vec;
+            self.data.borrow_mut().set_enabled(&names);
+        } else if self.current_dirty.take().check() {
+            self.data.borrow_mut().refresh()
+        }
+    }
+}
+
+impl Default for Manager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
 impl From<&style::Sheet> for Manager {
     fn from(style_sheet:&style::Sheet) -> Self {
-        let data    = Rc::new(RefCell::new(style_sheet.into()));
-        let handles = default();
-        Self {data,handles}
+        let mut this = Self::default();
+        this.data    = Rc::new(RefCell::new(style_sheet.into()));
+        this.handles = default();
+        this
     }
 }
 

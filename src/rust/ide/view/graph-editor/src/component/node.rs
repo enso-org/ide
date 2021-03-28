@@ -73,16 +73,14 @@ pub mod shape {
         (style:Style, selection:f32, bg_color:Vector4) {
             use ensogl_theme::graph_editor::node as node_theme;
 
-            let bg_color      = Var::<color::Rgba>::from(bg_color);
-            let border_size_f = 16.0;
-
-            let width  = Var::<Pixels>::from("input_size.x");
-            let height = Var::<Pixels>::from("input_size.y");
-            let width  = width  - PADDING.px() * 2.0;
-            let height = height - PADDING.px() * 2.0;
-            let radius = RADIUS.px();
-            let shape  = Rect((&width,&height)).corners_radius(&radius);
-            let shape  = shape.fill(bg_color);
+            let bg_color = Var::<color::Rgba>::from(bg_color);
+            let width    = Var::<Pixels>::from("input_size.x");
+            let height   = Var::<Pixels>::from("input_size.y");
+            let width    = width  - PADDING.px() * 2.0;
+            let height   = height - PADDING.px() * 2.0;
+            let radius   = RADIUS.px();
+            let shape    = Rect((&width,&height)).corners_radius(&radius);
+            let shape    = shape.fill(bg_color);
 
 
             // === Shadow ===
@@ -99,7 +97,7 @@ pub mod shape {
                 .add(0.0,color::Rgba::from(fading_color).into_linear())
                 .add(1.0,color::Rgba::from(base_color).into_linear());
             let shadow_color = color::SdfSampler::new(shadow_color)
-                .max_distance(border_size_f)
+                .max_distance(SHADOW_SIZE)
                 .slope(color::Slope::Exponent(exponent));
             let shadow        = shadow.fill(shadow_color);
 

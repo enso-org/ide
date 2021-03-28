@@ -209,10 +209,10 @@ fn init(app:&Application) {
         let graph_editor = project_view.graph();
 
         if to_theme_switch == 0 {
-            println!("THEME SWITCH !!!");
-            ensogl_theme::builtin::dark::enable(&app);
-
-            println!(">>> {:?}", "lcha(1,0,0,1)".parse::<color::Lcha>());
+            // println!("THEME SWITCH !!!");
+            // ensogl_theme::builtin::dark::enable(&app);
+            //
+            // println!(">>> {:?}", "lcha(1,0,0,1)".parse::<color::Lcha>());
         }
         to_theme_switch -= 1;
 

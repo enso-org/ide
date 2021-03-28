@@ -152,17 +152,29 @@ macro_rules! define_color_space {
             }
         }
 
-        impl Debug for $name {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        impl Display for $name {
+            fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 let comps = vec![$(self.$comp.to_string()),*].join(",");
                 write!(f,"{}({})",stringify!($name),comps)
             }
         }
 
-        impl Debug for $a_name {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        impl Display for $a_name {
+            fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 let comps = vec![$(self.$comp.to_string()),*,self.alpha.to_string()].join(",");
                 write!(f,"{}({})",stringify!($a_name),comps)
+            }
+        }
+
+        impl Debug for $name {
+            fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                <Self as Display>::fmt(self,f)
+            }
+        }
+
+        impl Debug for $a_name {
+            fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                <Self as Display>::fmt(self,f)
             }
         }
 
@@ -365,6 +377,14 @@ impl Rgb {
     pub fn into_linear(self) -> LinearRgb {
         self.into()
     }
+
+    /// Convert the color to JavaScript representation.
+    pub fn to_javascript_string(&self) -> String {
+        let red   = (self.red*255.0) as i32;
+        let green = (self.green*255.0) as i32;
+        let blue  = (self.blue*255.0) as i32;
+        format!("rgb({},{},{})",red,green,blue)
+    }
 }
 
 impl Rgba {
@@ -388,9 +408,17 @@ impl Rgba {
         Self::new(0.0,0.0,0.0,0.0)
     }
 
-    /// Converts the color to `LinearRgba` representation.
+    /// Convert the color to `LinearRgba` representation.
     pub fn into_linear(self) -> LinearRgba {
         self.into()
+    }
+
+    /// Convert the color to JavaScript representation.
+    pub fn to_javascript_string(&self) -> String {
+        let red   = (self.red*255.0) as i32;
+        let green = (self.green*255.0) as i32;
+        let blue  = (self.blue*255.0) as i32;
+        format!("rgba({},{},{},{})",red,green,blue,self.alpha)
     }
 }
 
