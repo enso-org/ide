@@ -327,7 +327,7 @@ IDE comes with a set of predefined visualizations, including charts.
 ### Dataframes Support
 
 Some of the predefined visualizations have some special support for `Table` from
-Enso Dataframes library. By placing r
+Enso Dataframes library.
 
 #### Histogram
 
