@@ -317,10 +317,13 @@ class Histogram extends Visualization {
                         transformedScale.y = distanceScale.rescaleY(transformedScale.y)
                     }
                 }
-            } else if (d3.event.sourceEvent != null && d3.event.sourceEvent.buttons === midButtonClicked) {
+            } else if (
+                d3.event.sourceEvent != null &&
+                d3.event.sourceEvent.buttons === midButtonClicked
+            ) {
                 const distanceScale = d3.zoomIdentity.translate(
-                    d3.event.sourceEvent.movementX/2,
-                    d3.event.sourceEvent.movementY/2
+                    d3.event.sourceEvent.movementX / 2,
+                    d3.event.sourceEvent.movementY / 2
                 )
                 transformedScale.x = distanceScale.rescaleX(transformedScale.x)
                 if (distanceScale.rescaleY(transformedScale.y).domain()[0] >= 0) {

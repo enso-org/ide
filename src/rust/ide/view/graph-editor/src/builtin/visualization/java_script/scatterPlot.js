@@ -244,10 +244,13 @@ class ScatterPlot extends Visualization {
                     transformedScale.xScale = distanceScale.rescaleX(transformedScale.xScale)
                     transformedScale.yScale = distanceScale.rescaleY(transformedScale.yScale)
                 }
-            } else if (d3.event.sourceEvent != null && d3.event.sourceEvent.buttons === midButtonClicked) {
+            } else if (
+                d3.event.sourceEvent != null &&
+                d3.event.sourceEvent.buttons === midButtonClicked
+            ) {
                 const distanceScale = d3.zoomIdentity.translate(
-                    d3.event.sourceEvent.movementX/2,
-                    d3.event.sourceEvent.movementY/2
+                    d3.event.sourceEvent.movementX / 2,
+                    d3.event.sourceEvent.movementY / 2
                 )
                 transformedScale.xScale = distanceScale.rescaleX(transformedScale.xScale)
                 transformedScale.yScale = distanceScale.rescaleY(transformedScale.yScale)
