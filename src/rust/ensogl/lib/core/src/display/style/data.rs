@@ -52,7 +52,7 @@ impl TryFrom<String> for Data {
         match s.parse::<f32>() {
             Ok(t) => Ok(Data::Number(t)),
             _     => {
-                match s.parse::<color::AnyColor>() {
+                match s.parse::<color::AnyFormat>() {
                     Ok(t) => Ok(Data::Color(t.into())),
                     _     => Err(())
                 }

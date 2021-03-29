@@ -7,7 +7,6 @@ use crate::Type;
 
 use ensogl::data::color;
 use ensogl::display::shape::StyleWatch;
-use ensogl::display::shape::StyleWatchFrp;
 use ensogl::display::style::data::DataMatch;
 use ensogl_theme as theme;
 use std::collections::hash_map::DefaultHasher;
@@ -43,10 +42,12 @@ use std::hash::Hasher;
 /// parametrization, other mechanisms should be used. For example, `Point Float` and `Point Number`
 /// should have similar colors, completely distinct from their parameter types.
 pub fn compute(tp:&Type, styles:&StyleWatch) -> color::Lcha {
-    println!("Type coloring for: '{}",tp.as_str());
+    // FIXME: Left for performance debug purposes.
+    // println!("Type coloring for: '{}",tp.as_str());
     let types_path = theme::code::types::overriden::HERE.path();
-    let type_path  = types_path.into_subs(tp.as_str().split("."));
-    println!("Path: {:?}",type_path);
+    let type_path  = types_path.into_subs(tp.as_str().split('.'));
+    // FIXME: Left for performance debug purposes.
+    // println!("Path: {:?}",type_path);
     let hue = styles.get(type_path.sub("hue")).number_or_else(|| auto_hue(tp,styles));
     let lightness = styles.get(type_path.sub("lightness")).number_or_else(||
         styles.get_number_or(theme::code::types::lightness,0.85));

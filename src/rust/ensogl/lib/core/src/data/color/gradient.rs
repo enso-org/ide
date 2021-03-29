@@ -50,7 +50,7 @@ impl<Color> Linear<Color> {
 
     /// Constructor.
     pub fn new(start:impl Into<Color>, end:impl Into<Color>) -> Self {
-        let mut this = Self::empty();
+        let this = Self::empty();
         this.add(0.0,start).add(1.0,end)
     }
 

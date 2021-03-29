@@ -26,6 +26,12 @@ const FALLBACK_COLOR              : color::Lcha = color::Lcha::new(0.5,1.0,0.5,0
 
 
 
+// ==================
+// === StyleWatch ===
+// ==================
+
+/// FRP-based style watch utility. Whenever a style sheet value is accessed, the value reference is
+/// being remembered and tracked. Whenever it changes, the FRP event is emitted.
 #[derive(Clone,CloneRef,Derivative)]
 #[derivative(Debug)]
 pub struct StyleWatchFrp {
@@ -49,7 +55,7 @@ impl StyleWatchFrp {
         Self {network,sheet,vars,handles,callback}
     }
 
-    pub fn get_raw
+    fn get_internal
     (&self, path:impl Into<Path>) -> (frp::Source<Option<style::Data>>,Option<style::Data>) {
         let network = &self.network;
         frp::extend! { network
@@ -64,9 +70,10 @@ impl StyleWatchFrp {
         (source,current)
     }
 
+    /// Queries style sheet value for a value.
     pub fn get(&self, path:impl Into<Path>) -> frp::Sampler<Option<style::Data>> {
         let network          = &self.network;
-        let (source,current) = self.get_raw(path);
+        let (source,current) = self.get_internal(path);
         frp::extend! { network
             sampler <- source.sampler();
         }
@@ -74,9 +81,10 @@ impl StyleWatchFrp {
         sampler
     }
 
+    /// Queries style sheet color, if not found fallbacks to [`FALLBACK_COLOR`].
     pub fn get_color<T:Into<Path>>(&self, path:T) -> frp::Sampler<color::Lcha> {
         let network          = &self.network;
-        let (source,current) = self.get_raw(path);
+        let (source,current) = self.get_internal(path);
         frp::extend! { network
             value   <- source.map(|t| t.color().unwrap_or_else(|| FALLBACK_COLOR));
             sampler <- value.sampler();
@@ -163,10 +171,9 @@ impl StyleWatch {
 // ====================
 
 impl StyleWatch {
-    /// Queries style sheet color, if not found fallbacks to red.
+    /// Queries style sheet color, if not found fallbacks to [`FALLBACK_COLOR`].
     pub fn get_color<T:Into<Path>>(&self, path:T) -> color::Lcha {
-        let fallback = color::Rgba::new(1.0,0.0,0.0,1.0).into();
-        self.get(path).color().unwrap_or_else(|| fallback)
+        self.get(path).color().unwrap_or_else(|| FALLBACK_COLOR)
     }
 
     /// Return the dimmed version for either a `Path` or a specific color.

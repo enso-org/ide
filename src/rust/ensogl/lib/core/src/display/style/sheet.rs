@@ -227,7 +227,7 @@ where T:Into<Data> {
 impl TryFrom<String> for Value {
     type Error = <Data as TryFrom<String>>::Error;
     fn try_from(s:String) -> Result<Self,Self::Error> {
-        s.try_into().map(|t|Self::Data(t))
+        s.try_into().map(Self::Data)
     }
 }
 
@@ -252,6 +252,7 @@ impl PartialSemigroup<Value> for Value {
 /// Defines a change to a style sheet. Style sheets allow bulk-application of changes in order to
 /// optimize the amount of necessary computations.
 #[derive(Debug)]
+#[allow(missing_docs)]
 pub struct Change {
     pub path  : Path,
     pub value : Option<Value>

@@ -151,5 +151,5 @@ pub fn expose_to_window(manager:&Manager) {
     mem::forget(diff);
     mem::forget(get);
 
-    js_sys::Reflect::set(&window,&"theme".into(),&theme_manger_ref);
+    js_sys::Reflect::set(&window,&"theme".into(),&theme_manger_ref).ok();
 }

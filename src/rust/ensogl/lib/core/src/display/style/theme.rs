@@ -62,14 +62,16 @@ impl Theme {
         self.on_mut.add(callback)
     }
 
+    /// Get a copy of the value tree of this theme.
     pub fn value_tree(&self) -> HashMapTree<String,Option<Value>> {
         self.tree.borrow().clone()
     }
 
+    /// Get a list of all paths and values of this theme.
     pub fn values(&self) -> Vec<(String,Value)> {
         self.tree.borrow().iter().filter_map(|(path,opt_val)|
             opt_val.as_ref().map(|val| {
-                let path = path.into_iter().rev().map(|s|s.clone()).collect_vec().join(".");
+                let path = path.into_iter().rev().cloned().collect_vec().join(".");
                 let val  = val.clone();
                 (path,val)
             })

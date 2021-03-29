@@ -207,12 +207,12 @@ define_themes! { [light:0, dark:1]
                 offset_x = shadow::offset_x , shadow::offset_x;
                 offset_y = shadow::offset_y , shadow::offset_y;
             }
-            selection      = Rgba(0.776,0.8,0.81,0.57) , Lcha(0.72,0.54,0.22,1.0);
+            selection      = selection, selection;
             selection {
                 size = 10.0 , 5.0;
                 offset = 0.0 , 5.0;
             }
-            text           = Lcha(0.0,0.0,0.0,0.7) , Lcha(1.0,0.0,0.0,0.7);
+            text           = Lcha(0.0,0.0,0.0,0.6) , Lcha(1.0,0.0,0.0,0.7);
             text {
                 missing_arg    = Lcha(0.0,0.0,0.0,0.3) , Lcha(1.0,0.0,0.0,0.3);
                 variant.dimmed = Lcha(0.7,0.0,0.0,0.7) , Lcha(0.25,0.014,0.18,1.0);
@@ -280,12 +280,12 @@ define_themes! { [light:0, dark:1]
     }
     widget {
         list_view {
-            background = Lcha(0.98,0.014,0.18,1.0) , Lcha(0.2,0.014,0.18,1.0);
-            highlight  = Lcha(0.83,0.63,0.436,1.0) , Lcha(0.72,0.54,0.22,1.0);
-            shadow     = Lcha(0.0,0.0,0.0,0.20) , Lcha(0.0,0.0,0.0,0.20);
+            background = graph_editor::node::background , graph_editor::node::background;
+            highlight  = selection , selection;
+            shadow     = shadow , shadow;
             shadow {
-                fading   = Lcha(0.0,0.0,0.0,0.0) , Lcha(0.0,0.0,0.0,0.0);
-                exponent = 2.0 , 2.0;
+                fading   = shadow::fading , shadow::fading;
+                exponent = shadow::exponent , shadow::exponent;
             }
             text = Lcha(0.0,0.0,0.0,0.7) , Lcha(1.0,0.0,0.0,0.7);
             text {
@@ -322,6 +322,7 @@ define_themes! { [light:0, dark:1]
 
     // === Generics ===
 
+    selection = Rgba(0.776,0.8,0.81,0.57) , Lcha(0.72,0.54,0.22,1.0);
     shadow = Rgba(0.13,0.08,0.26,0.14) , Lcha(0.0,0.0,0.0,0.20);
     shadow {
         size     = 10.0 , 10.0;

@@ -17,7 +17,7 @@ macro_rules! define_color_parsing {
             fn from_str(s:&str) -> Result<Self, Self::Err> {
                 let (head,args) = generic_parse(s)?;
                 if &head != stringify!($name) {
-                    return Err(ParseError(format!("No '{}' header found.",stringify!($name))))
+                    return Err(ParseError::new(format!("No '{}' header found.",stringify!($name))))
                 }
                 Ok($name::from_slice(&args))
             }
@@ -29,21 +29,24 @@ macro_rules! define_color_spaces {
     ($($(#$meta:tt)* $name:ident $a_name:ident $data_name:ident $comps:tt)*) => {
         $(define_color_space!{ $(#$meta)* $name $a_name $data_name $comps })*
 
-        pub enum AnyColor {
+        /// A struct that can contain color in any supported format, like Rgba, or Lch.
+        #[derive(Clone,Copy,Debug,PartialEq)]
+        #[allow(missing_docs)]
+        pub enum AnyFormat {
             $(
                 $name($name),
                 $a_name($a_name),
             )*
         }
 
-        impl std::str::FromStr for AnyColor {
+        impl std::str::FromStr for AnyFormat {
             type Err = ParseError;
             fn from_str(s:&str) -> Result<Self, Self::Err> {
                 let (head,args) = generic_parse(s)?;
                 match head.as_str() {
                     $(
-                        stringify!($name)   => Ok(AnyColor::$name($name::from_slice(&args))),
-                        stringify!($a_name) => Ok(AnyColor::$a_name($a_name::from_slice(&args))),
+                        stringify!($name)   => Ok(AnyFormat::$name($name::from_slice(&args))),
+                        stringify!($a_name) => Ok(AnyFormat::$a_name($a_name::from_slice(&args))),
                     )*
                     _ => panic!("Impossible.")
                 }
@@ -52,16 +55,16 @@ macro_rules! define_color_spaces {
 
         // TODO[WD]: This should be uncommented in the future. See the TODO comment below to
         //   learn more.
-        // impl<C> From<AnyColor> for Color<C>
+        // impl<C> From<AnyFormat> for Color<C>
         // where $(
         //     $name   : Into<Color<C>>,
         //     $a_name : Into<Color<C>>,
         // )* {
-        //     fn from(c:AnyColor) -> Self {
+        //     fn from(c:AnyFormat) -> Self {
         //         match c {
         //             $(
-        //                 AnyColor::$name(t)   => t.into(),
-        //                 AnyColor::$a_name(t) => t.into(),
+        //                 AnyFormat::$name(t)   => t.into(),
+        //                 AnyFormat::$a_name(t) => t.into(),
         //             )*
         //         }
         //     }
@@ -69,15 +72,15 @@ macro_rules! define_color_spaces {
     }
 }
 
-impl<C> From<AnyColor> for Color<C>
+impl<C> From<AnyFormat> for Color<C>
 where Rgb: Into<Color<C>>, Rgba: Into<Color<C>>,
       Lch: Into<Color<C>>, Lcha: Into<Color<C>> {
-    fn from(c: AnyColor) -> Self {
+    fn from(c: AnyFormat) -> Self {
         match c {
-            AnyColor::Rgb(t)  => t.into(),
-            AnyColor::Rgba(t) => t.into(),
-            AnyColor::Lch(t)  => t.into(),
-            AnyColor::Lcha(t) => t.into(),
+            AnyFormat::Rgb(t)  => t.into(),
+            AnyFormat::Rgba(t) => t.into(),
+            AnyFormat::Lch(t)  => t.into(),
+            AnyFormat::Lcha(t) => t.into(),
             // TODO[WD]: This should be implemented by the commented out macro above, however,
             //   it requires a lot more conversions than we support currently. To be implemented
             //   one day.
@@ -612,12 +615,24 @@ fn lch_lightness_to_max_chroma_in_srgb(l:f32) -> f32 {
 // === Parsing ===
 // ===============
 
+/// String to color parse error.
 #[derive(Debug,Clone)]
-pub struct ParseError(String);
+#[allow(missing_docs)]
+pub struct ParseError {
+    pub reason:String
+}
+
+impl ParseError {
+    /// Constructor.
+    pub fn new(reason:impl Into<String>) -> Self {
+        let reason = reason.into();
+        Self {reason}
+    }
+}
 
 impl From<std::num::ParseFloatError> for ParseError {
-    fn from(t:std::num::ParseFloatError) -> Self {
-        ParseError("Improper numeric argument.".into())
+    fn from(_:std::num::ParseFloatError) -> Self {
+        ParseError::new("Improper numeric argument.")
     }
 }
 
@@ -632,14 +647,14 @@ fn uppercase_first_letter(s:&str) -> String {
 fn generic_parse(s:&str) -> Result<(String,Vec<f32>),ParseError> {
     let mut splitter = s.splitn(2,'(');
     match splitter.next() {
-        None       => Err(ParseError("Empty input.".into())),
+        None       => Err(ParseError::new("Empty input.")),
         Some(head) => {
             match splitter.next() {
-                None       => Err(ParseError("No arguments provided.".into())),
+                None       => Err(ParseError::new("No arguments provided.")),
                 Some(rest) => {
                     let head = uppercase_first_letter(&head.to_lowercase());
                     if !rest.ends_with(')') {
-                        Err(ParseError("Expression does not end with ')'.".into()))
+                        Err(ParseError::new("Expression does not end with ')'."))
                     } else {
                         let rest = &rest[..rest.len()-1];
                         let args : Result<Vec<f32>,std::num::ParseFloatError> =

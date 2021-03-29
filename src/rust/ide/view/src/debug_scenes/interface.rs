@@ -20,10 +20,6 @@ use ensogl_text as text;
 use ensogl_theme as theme;
 use wasm_bindgen::prelude::*;
 use parser::Parser;
-use ensogl::display::style;
-
-use ensogl::data::color;
-use ensogl::display::shape::StyleWatch;
 
 
 
@@ -196,16 +192,11 @@ fn init(app:&Application) {
     // let tgt_type = dummy_type_generator.get_dummy_type();
     let mut was_rendered = false;
     let mut loader_hidden = false;
-    let mut i = 100;
     let mut to_theme_switch = 100;
-    let app = app.clone_ref();
-    // let mut j = 3;
-    let scene = scene.clone_ref();
 
     world.on_frame(move |_| {
         let _keep_alive = &navigator;
         let _keep_alive = &project_view;
-        let graph_editor = project_view.graph();
 
         if to_theme_switch == 0 {
             // println!("THEME SWITCH !!!");
