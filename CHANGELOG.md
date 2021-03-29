@@ -16,8 +16,10 @@
   query to display its results in a table. In addition, the SQL Query
   visualization allows the user to see the query that is going to be run against
   the database.
-- [Histogram and Scatter Plot now support Dataframes.][1377] The `Table` and `Column` datatypes are properly visualized. Scatter Plot can display points of different color, shape and size, all as defined by the data within the `Table`.
-
+- [Histogram and Scatter Plot now support Dataframes.][1377] The `Table` and
+  `Column` datatypes are properly visualized. Scatter Plot can display points of
+  different color, shape and size, all as defined by the data within the
+  `Table`.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
