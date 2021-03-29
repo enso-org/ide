@@ -402,32 +402,32 @@ impl SheetData {
 
 impl SheetData {
     /// Sets the value by the given path. Returns indexes of all affected queries.
-    pub fn set<P,V>(&mut self, path:P, value:V) -> HashSet::<Index<Query>>
+    pub fn set<P,V>(&mut self, path:P, value:V) -> HashSet<Index<Query>>
     where P:Into<Path>, V:Into<Value> {
         let value = value.into();
         self.apply_change(Change::new(path,Some(value)))
     }
 
     /// Removes the value by the given path. Returns indexes of all affected queries.
-    pub fn unset<P>(&mut self, path:P) -> HashSet::<Index<Query>>
+    pub fn unset<P>(&mut self, path:P) -> HashSet<Index<Query>>
     where P:Into<Path> {
         self.apply_change(Change::new(path,None))
     }
 
     /// Changes the value by the given path. Providing `None` as the value means that the value
     /// will be removed. Returns indexes of all affected queries.
-    pub fn change<P>(&mut self, path:P, value:Option<Value>) -> HashSet::<Index<Query>>
+    pub fn change<P>(&mut self, path:P, value:Option<Value>) -> HashSet<Index<Query>>
     where P:Into<Path> {
         self.apply_change(Change::new(path,value))
     }
 
     /// Apply a `Change`. Returns indexes of all affected queries.
-    pub fn apply_change(&mut self, change:Change) -> HashSet::<Index<Query>> {
+    pub fn apply_change(&mut self, change:Change) -> HashSet<Index<Query>> {
         self.apply_changes(iter::once(change))
     }
 
     /// Apply a set of `Change`s. Returns indexes of all affected queries.
-    pub fn apply_changes<I>(&mut self, changes:I) -> HashSet::<Index<Query>>
+    pub fn apply_changes<I>(&mut self, changes:I) -> HashSet<Index<Query>>
     where I:IntoIterator<Item=Change> {
         let mut changed_queries  = HashSet::<Index<Query>>::new();
         let mut possible_orphans = Vec::<Index<SheetNode>>::new();

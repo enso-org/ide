@@ -64,14 +64,12 @@ const VISUALIZATION_OFFSET_Y         : f32       = -120.0;
 // === Shape ===
 // =============
 
-/// Canvas node shape definition.
-pub mod shape {
+/// Node background definition.
+pub mod background {
     use super::*;
 
     ensogl::define_shape_system! {
-        (style:Style, selection:f32, bg_color:Vector4) {
-            use ensogl_theme::graph_editor::node as node_theme;
-
+        (style:Style, bg_color:Vector4) {
             let bg_color = Var::<color::Rgba>::from(bg_color);
             let width    = Var::<Pixels>::from("input_size.x");
             let height   = Var::<Pixels>::from("input_size.y");
@@ -80,12 +78,28 @@ pub mod shape {
             let radius   = RADIUS.px();
             let shape    = Rect((&width,&height)).corners_radius(&radius);
             let shape    = shape.fill(bg_color);
+            shape.into()
+        }
+    }
+}
 
+/// Node backdrop. Contains shadow and selection.
+pub mod backdrop {
+    use super::*;
+
+    ensogl::define_shape_system! {
+        (style:Style, selection:f32) {
+            use ensogl_theme::graph_editor::node as node_theme;
+
+            let width  = Var::<Pixels>::from("input_size.x");
+            let height = Var::<Pixels>::from("input_size.y");
+            let width  = width  - PADDING.px() * 2.0;
+            let height = height - PADDING.px() * 2.0;
 
             // === Shadow ===
 
             let shadow_size   = style.get_number(node_theme::shadow::size);
-            let shadow_offset = style.get_number(node_theme::shadow::offset);
+            let shadow_spread = style.get_number(node_theme::shadow::spread);
             let shadow_width  = &width  + &shadow_size.px() * 2.0;
             let shadow_height = &height + &shadow_size.px() * 2.0;
             let shadow_radius = &shadow_height / 2.0;
@@ -97,24 +111,23 @@ pub mod shape {
             let fading_color  = style.get_color(node_theme::shadow::fading);
             let exp           = style.get_number(node_theme::shadow::exponent);
             let shadow_color  = color::gradient::Linear::<color::LinearRgba>::new(fading_color,base_color);
-            let shadow_color  = shadow_color.sdf_sampler().size(shadow_size).offset(shadow_offset).exponent(exp);
+            let shadow_color  = shadow_color.sdf_sampler().size(shadow_size).offset(shadow_spread).exponent(exp);
             let shadow        = shadow.fill(shadow_color);
 
 
             // === Selection ===
 
-            let sel_color = style.get_color(ensogl_theme::graph_editor::node::selection);
-            let sel_size  = style.get_number_or(ensogl_theme::graph_editor::node::selection::size,9.0);
+            let sel_color  = style.get_color(ensogl_theme::graph_editor::node::selection);
+            let sel_size   = style.get_number(ensogl_theme::graph_editor::node::selection::size);
+            let sel_offset = style.get_number(ensogl_theme::graph_editor::node::selection::offset);
 
-            let sel_offset  = 5.px();
-            let sel_size    = sel_size.px();
-            let sel_width   = &width  - 2.px() + &sel_offset * 2.0 * &selection;
-            let sel_height  = &height - 2.px() + &sel_offset * 2.0 * &selection;
+            let sel_width   = &width  - 2.px() + &sel_offset.px() * 2.0 * &selection;
+            let sel_height  = &height - 2.px() + &sel_offset.px() * 2.0 * &selection;
             let sel_radius  = &sel_height / 2.0;
             let select      = Rect((&sel_width,&sel_height)).corners_radius(&sel_radius);
 
-            let sel2_width  = &width  - 2.px() + &sel_size * 2.0 * &selection;
-            let sel2_height = &height - 2.px() + &sel_size * 2.0 * &selection;
+            let sel2_width  = &width  - 2.px() + &(sel_size + sel_offset).px() * 2.0 * &selection;
+            let sel2_height = &height - 2.px() + &(sel_size + sel_offset).px() * 2.0 * &selection;
             let sel2_radius = &sel2_height / 2.0;
             let select2     = Rect((&sel2_width,&sel2_height)).corners_radius(&sel2_radius);
 
@@ -136,7 +149,7 @@ pub mod shape {
 
             // === Final Shape ===
 
-            let out = select + shadow + shape;
+            let out = select + shadow;
             out.into()
         }
     }
@@ -232,7 +245,7 @@ impl Default for Crumbs {
 
 // ============
 // === Node ===
-// ============7
+// ============
 
 ensogl::define_endpoints! {
     Input {
@@ -345,7 +358,8 @@ pub struct NodeModel {
     pub app                 : Application,
     pub display_object      : display::object::Instance,
     pub logger              : Logger,
-    pub main_area           : shape::View,
+    pub backdrop            : backdrop::View,
+    pub background          : background::View,
     pub drag_area           : drag_area::View,
     pub error_indicator     : error_shape::View,
     pub input               : input::Area,
@@ -362,11 +376,13 @@ impl NodeModel {
     pub fn new(app:&Application, registry:visualization::Registry) -> Self {
         ensogl::shapes_order_dependencies! {
             app.display.scene() => {
-                edge::back::corner        -> shape;
-                edge::back::line          -> shape;
-                output::port::single_port -> shape;
-                output::port::multi_port  -> shape;
-                shape                     -> drag_area;
+                edge::back::corner        -> backdrop;
+                edge::back::line          -> backdrop;
+                backdrop                  -> output::port::single_port;
+                backdrop                  -> output::port::multi_port;
+                output::port::single_port -> background;
+                output::port::multi_port  -> background;
+                background                -> drag_area;
                 drag_area                 -> edge::front::corner;
                 drag_area                 -> edge::front::line;
                 edge::front::corner       -> input::port::hover;
@@ -383,18 +399,20 @@ impl NodeModel {
         let error_indicator_logger  = Logger::sub(&logger,"error_indicator");
 
         let error_indicator = error_shape::View::new(&error_indicator_logger);
-        let main_area       = shape::View::new(&main_logger);
+        let backdrop        = backdrop::View::new(&main_logger);
+        let background      = background::View::new(&main_logger);
         let drag_area       = drag_area::View::new(&drag_logger);
         let vcs_indicator   = vcs::StatusIndicator::new(app);
-
         let display_object  = display::object::Instance::new(&logger);
+
         display_object.add_child(&drag_area);
-        display_object.add_child(&main_area);
+        display_object.add_child(&backdrop);
+        display_object.add_child(&background);
         display_object.add_child(&vcs_indicator);
 
         // Disable shadows to allow interaction with the output port.
         let shape_system = scene.layers.main.shape_system_registry.shape_system
-            (&scene,PhantomData::<shape::DynamicShape>);
+            (&scene,PhantomData::<backdrop::DynamicShape>);
         shape_system.shape_system.set_pointer_events(false);
 
         let input = input::Area::new(&logger,app);
@@ -416,7 +434,7 @@ impl NodeModel {
         let style = StyleWatchFrp::new(&app.display.scene().style_sheet);
 
         let app = app.clone_ref();
-        Self {app,display_object,logger,main_area,drag_area,output,input,visualization
+        Self {app,display_object,logger,backdrop,background,drag_area,output,input,visualization
             ,error_visualization,action_bar,error_indicator,vcs_indicator,style}.init()
     }
 
@@ -455,11 +473,13 @@ impl NodeModel {
         let height      = self.height();
         let size        = Vector2(width,height);
         let padded_size = size + Vector2(PADDING,PADDING) * 2.0;
-        self.main_area.size.set(padded_size);
+        self.backdrop.size.set(padded_size);
+        self.background.size.set(padded_size);
         self.drag_area.size.set(padded_size);
         self.error_indicator.size.set(padded_size);
         self.vcs_indicator.set_size(padded_size);
-        self.main_area.mod_position(|t| t.x = width/2.0);
+        self.backdrop.mod_position(|t| t.x = width/2.0);
+        self.background.mod_position(|t| t.x = width/2.0);
         self.drag_area.mod_position(|t| t.x = width/2.0);
 
         self.error_indicator.set_position_x(width/2.0);
@@ -547,7 +567,7 @@ impl Node {
             deselect_target  <- frp.deselect.constant(0.0);
             select_target    <- frp.select.constant(1.0);
             selection.target <+ any(&deselect_target,&select_target);
-            eval selection.value ((t) model.main_area.selection.set(*t));
+            eval selection.value ((t) model.backdrop.selection.set(*t));
 
 
             // === Expression ===
@@ -609,6 +629,7 @@ impl Node {
                 *bgg
             }));
 
+            // FIXME:
             // bg_color <- frp.set_disabled.map(f!([model,style](disabled) {
             //     model.input.frp.set_disabled(*disabled);
             //     let bg_color_path = ensogl_theme::graph_editor::node::background;
@@ -617,7 +638,7 @@ impl Node {
             // }));
             bg_color_anim.target <+ bg_color;
             eval bg_color_anim.value ((c)
-                model.main_area.bg_color.set(color::Rgba::from(c).into())
+                model.background.bg_color.set(color::Rgba::from(c).into())
             );
 
             frp.source.tooltip <+ model.output.frp.tooltip;

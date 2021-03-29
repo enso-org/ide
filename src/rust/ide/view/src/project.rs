@@ -191,6 +191,8 @@ impl View {
         // Should not be needed after proper theme management will be introduced:
         ensogl_theme::builtin::light::enable(app);
 
+        display::style::javascript::expose_to_window(&app.themes);
+
         let model                      = Model::new(app);
         let frp                        = Frp::new();
         let searcher                   = &model.searcher.frp;

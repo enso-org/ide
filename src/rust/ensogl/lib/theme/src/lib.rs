@@ -122,6 +122,7 @@ macro_rules! define_themes {
         #[allow(missing_docs)]
         #[allow(non_snake_case)]
         pub mod vars {
+            use ensogl_core::display::style::StaticPath;
             _define_theme_modules!{[] $($t)*}
         }
         pub use vars::*;
@@ -170,33 +171,47 @@ define_themes! { [light:0, dark:1]
             selection = Lcha(0.7,0.0,0.125,0.7) , Lcha(0.7,0.0,0.125,0.7);
         }
         types {
-            luminance     = 0.8 , 0.75;
-            chroma        = 0.6 , 0.4;
+            hue_steps     = 512.0 , 512.0;
+            hue_shift     = 0.0, 0.0;
+            lightness     = 0.72 , 0.75;
+            chroma        = 0.7 , 0.4;
             any           = code::syntax::base , Lcha(0.5,1.0,0.0,1.0);
             any.selection = Lcha(0.8,0.0,0.0,1.0) , Lcha(0.5,1.0,0.0,1.0);
             selected      = graph_editor::node::background , graph_editor::node::background;
             overriden {
-                Text.hue   = 0.22 , 0.217;
-                Number.hue = 0.68 , 0.68;
+                Builtins {
+                    Main {
+                        Unresolved_Symbol {
+                            hue       = 0.68, 0.0;
+                            lightness = 0.09, 0.09;
+                            chroma    = 0.0, 0.0;
+                        }
+                        Integer.hue = 0.68 , 0.68;
+                        Number.hue = 0.68 , 0.68;
+                        Text.hue = 0.22 , 0.217;
+                    }
+                }
             }
         }
     }
     graph_editor {
         node {
-            // Lcha(0.98,0.014,0.18,1.0)
             background         = Rgba(0.945,0.937,0.933,1.0) , Lcha(0.2,0.014,0.18,1.0);
             background.skipped = Lcha(0.98,0.014,0.18,1.0) , Lcha(0.15,0.014,0.18,1.0);
             shadow             = Rgba(0.13,0.08,0.26,0.14) , Lcha(0.0,0.0,0.0,0.20);
             shadow {
-                size     = 10.0 , 10.0;
-                offset   = 5.0 , 0.0;
-                fading   = Lcha(0.0,0.0,0.0,0.0) , Lcha(0.0,0.0,0.0,0.0);
-                exponent = 3.0 , 2.0;
-                offset_x = 0.0 , 0.0;
-                offset_y = -3.0 , -2.0;
+                size     = shadow::size     , shadow::size;
+                spread   = shadow::spread   , shadow::spread;
+                fading   = shadow::fading   , shadow::fading;
+                exponent = shadow::exponent , shadow::exponent;
+                offset_x = shadow::offset_x , shadow::offset_x;
+                offset_y = shadow::offset_y , shadow::offset_y;
             }
-            selection      = Lcha(0.83,0.63,0.436,1.0) , Lcha(0.72,0.54,0.22,1.0);
-            selection.size = 9.0 , 9.0;
+            selection      = Rgba(0.776,0.8,0.81,0.57) , Lcha(0.72,0.54,0.22,1.0);
+            selection {
+                size = 10.0 , 5.0;
+                offset = 0.0 , 5.0;
+            }
             text           = Lcha(0.0,0.0,0.0,0.7) , Lcha(1.0,0.0,0.0,0.7);
             text {
                 missing_arg    = Lcha(0.0,0.0,0.0,0.3) , Lcha(1.0,0.0,0.0,0.3);
@@ -303,4 +318,18 @@ define_themes! { [light:0, dark:1]
             height  = 36.0, 36.0;
         }
     }
+
+
+    // === Generics ===
+
+    shadow = Rgba(0.13,0.08,0.26,0.14) , Lcha(0.0,0.0,0.0,0.20);
+    shadow {
+        size     = 10.0 , 10.0;
+        spread   = 5.0 , 0.0;
+        fading   = Lcha(0.0,0.0,0.0,0.0) , Lcha(0.0,0.0,0.0,0.0);
+        exponent = 3.0 , 2.0;
+        offset_x = 0.0 , 0.0;
+        offset_y = -3.0 , -2.0;
+    }
+
 }
