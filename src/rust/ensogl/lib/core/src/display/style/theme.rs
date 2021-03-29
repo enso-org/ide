@@ -34,6 +34,13 @@ impl Theme {
         default()
     }
 
+    /// A deep clone of this theme.
+    pub fn deep_clone(&self) -> Self {
+        let tree   = Rc::new(RefCell::new(self.tree.borrow().clone()));
+        let on_mut = default();
+        Self {tree,on_mut}
+    }
+
     /// Insert a new style in the theme. Returns [`true`] if the operation was successful. It can
     /// fail if provided with malformed value, for example with a string "rgba(foo)". In such a
     /// case, the value will not be applied and the function will return [`false`].
@@ -67,6 +74,25 @@ impl Theme {
                 (path,val)
             })
         ).collect_vec()
+    }
+
+    /// Compute changes between this and a target theme.
+    pub fn diff(&self, tgt:&Theme) -> Vec<Change> {
+        let mut changes = Vec::<Change>::new();
+        let diff        = self.tree.borrow().zip_clone(&tgt.tree.borrow());
+        for (segments,values) in &diff {
+            let path   = Path::from_rev_segments(segments);
+            let first   = values.first().and_then(|t|t.as_ref());
+            let second = values.second().and_then(|t|t.as_ref());
+            if !values.same() {
+                match (first,second) {
+                    (None,None)     => {}
+                    (Some(_),None)  => changes.push(Change::new(path,None)),
+                    (_,Some(value)) => changes.push(Change::new(path,Some(value.clone()))),
+                }
+            }
+        }
+        changes
     }
 }
 
@@ -107,33 +133,39 @@ impl ManagerData {
         self.all.get(name)
     }
 
+    /// Return all registered theme names.
+    pub fn keys(&self) -> Vec<String> {
+        self.all.keys().cloned().collect_vec()
+    }
+
     /// Sets a new set of enabled themes.
     pub fn set_enabled<N>(&mut self, names:N)
     where N:IntoIterator, N::Item:ToString {
+        self.enabled  = names.into_iter().map(|name| name.to_string()).collect();
+        let combined  = self.combine(&self.enabled);
+        let changes   = self.combined.diff(&combined);
+        self.combined = combined;
+        self.style_sheet.apply_changes(changes);
+    }
+
+    /// Compute changes between the source and the target theme.
+    pub fn diff(&self, src:&str, tgt:&str) -> Vec<Change> {
+        match (self.get(src), self.get(tgt)) {
+            (Some(src),Some(tgt)) => src.diff(tgt),
+            _ => default()
+        }
+    }
+
+    /// Combine several themes into one.
+    pub fn combine<N>(&self, names:N) -> Theme
+    where N:IntoIterator, N::Item:AsRef<str> {
         let mut combined = Theme::new();
-        self.enabled = names.into_iter().map(|name| name.to_string()).collect();
-        for name in &self.enabled {
-            if let Some(theme) = self.all.get(name) {
+        for name in names {
+            if let Some(theme) = self.all.get(name.as_ref()) {
                 combined.concat_mut(theme);
             }
         };
-
-        let mut changes = Vec::<Change>::new();
-        let diff        = self.combined.tree.borrow().zip_clone(&combined.tree.borrow());
-        for (segments,values) in &diff {
-            let path   = Path::from_rev_segments(segments);
-            let first   = values.first().and_then(|t|t.as_ref());
-            let second = values.second().and_then(|t|t.as_ref());
-            if !values.same() {
-                match (first,second) {
-                    (None,None)     => {}
-                    (Some(_),None)  => changes.push(Change::new(path,None)),
-                    (_,Some(value)) => changes.push(Change::new(path,Some(value.clone()))),
-                }
-            }
-        }
-        self.combined = combined;
-        self.style_sheet.apply_changes(changes);
+        combined
     }
 
     /// Reload the currently selected themes. This function is automatically called when an used
@@ -198,10 +230,31 @@ impl Manager {
         self.data.borrow().get(name).cloned()
     }
 
+    /// Return all registered theme names.
+    pub fn keys(&self) -> Vec<String> {
+        self.data.borrow().keys()
+    }
+
     /// Registers a new theme.
     pub fn register<T:Into<Theme>>(&self, name:impl Str, theme:T) {
-        let name   = name.into();
-        let theme  = theme.into();
+        self.register_internal(name.into(),theme.into())
+    }
+
+    /// Compute changes between the source and the target theme.
+    pub fn diff(&self, src:&str, tgt:&str) -> Vec<Change> {
+        self.data.borrow().diff(src,tgt)
+    }
+
+    /// Make a snapshot of the current theme and save it with the provided name. It also sets the
+    /// newly created theme as current theme.
+    pub fn snapshot(&self, name:impl Str) {
+        let name  = name.into();
+        let theme = self.data.borrow().combined.deep_clone();
+        self.register_internal(name.clone(),theme);
+        self.set_enabled(&[name]);
+    }
+
+    fn register_internal(&self, name:String, theme:Theme) {
         let dirty  = self.current_dirty.clone_ref();
         let handle = theme.on_mut(move || dirty.set());
         self.data.borrow_mut().register(&name,theme);

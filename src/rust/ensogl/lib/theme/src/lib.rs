@@ -155,7 +155,8 @@ impl Default for Theme {
 
 define_themes! { [light:0, dark:1]
     application {
-        background = Lcha(0.96,0.014,0.18,1.0) , Lcha(0.13,0.014,0.18,1.0);
+        // Lcha(0.96,0.014,0.18,1.0)
+        background = Rgba(0.9,0.894,0.886,1.0) , Lcha(0.13,0.014,0.18,1.0);
         tooltip {
             hide_delay_duration_ms = 150.0, 150.0;
             show_delay_duration_ms = 150.0, 150.0;
@@ -182,14 +183,17 @@ define_themes! { [light:0, dark:1]
     }
     graph_editor {
         node {
-            background         = Lcha(0.98,0.014,0.18,1.0) , Lcha(0.2,0.014,0.18,1.0);
+            // Lcha(0.98,0.014,0.18,1.0)
+            background         = Rgba(0.945,0.937,0.933,1.0) , Lcha(0.2,0.014,0.18,1.0);
             background.skipped = Lcha(0.98,0.014,0.18,1.0) , Lcha(0.15,0.014,0.18,1.0);
-            shadow             = Lcha(0.0,0.0,0.0,0.20) , Lcha(0.0,0.0,0.0,0.20);
+            shadow             = Rgba(0.13,0.08,0.26,0.14) , Lcha(0.0,0.0,0.0,0.20);
             shadow {
+                size     = 10.0 , 10.0;
+                offset   = 5.0 , 0.0;
                 fading   = Lcha(0.0,0.0,0.0,0.0) , Lcha(0.0,0.0,0.0,0.0);
-                exponent = 2.0 , 2.0;
+                exponent = 3.0 , 2.0;
                 offset_x = 0.0 , 0.0;
-                offset_y = 2.0 , 2.0;
+                offset_y = -3.0 , -2.0;
             }
             selection      = Lcha(0.83,0.63,0.436,1.0) , Lcha(0.72,0.54,0.22,1.0);
             selection.size = 9.0 , 9.0;
@@ -220,6 +224,9 @@ define_themes! { [light:0, dark:1]
             background = Lcha(0.98,0.014,0.18,1.0) , Lcha(0.2,0.014,0.18,1.0);
             shadow     = Lcha(0.0,0.0,0.0,0.20) , Lcha(0.0,0.0,0.0,0.20);
             shadow {
+                // Note[mm]: at the moment we use a CSS replacement shadow defined in the .visualization class of
+                // `src/js/lib/content/src/index.html`. While that is in use this shadow is deactivated.
+                size     = 0.0, 0.0;
                 fading   = Lcha(0.0,0.0,0.0,0.0) , Lcha(0.0,0.0,0.0,0.0);
                 exponent = 2.0 , 2.0;
                 html {

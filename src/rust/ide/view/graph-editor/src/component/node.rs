@@ -48,7 +48,6 @@ pub const CORNER_RADIUS     : f32 = 14.0;
 pub const HEIGHT            : f32 = 28.0;
 pub const PADDING           : f32 = 40.0;
 pub const RADIUS            : f32 = 14.0;
-pub const SHADOW_SIZE       : f32 = 10.0;
 
 const INFINITE                       : f32       = 99999.0;
 const ERROR_PATTERN_STRIPE_WIDTH     : f32       = 10.0;
@@ -85,9 +84,10 @@ pub mod shape {
 
             // === Shadow ===
 
-            let shadow_size   = SHADOW_SIZE.px();
-            let shadow_width  = &width  + &shadow_size * 2.0;
-            let shadow_height = &height + &shadow_size * 2.0;
+            let shadow_size   = style.get_number(node_theme::shadow::size);
+            let shadow_offset = style.get_number(node_theme::shadow::offset);
+            let shadow_width  = &width  + &shadow_size.px() * 2.0;
+            let shadow_height = &height + &shadow_size.px() * 2.0;
             let shadow_radius = &shadow_height / 2.0;
             let shadow_off_x  = style.get_number(node_theme::shadow::offset_x).px();
             let shadow_off_y  = style.get_number(node_theme::shadow::offset_y).px();
@@ -97,7 +97,7 @@ pub mod shape {
             let fading_color  = style.get_color(node_theme::shadow::fading);
             let exp           = style.get_number(node_theme::shadow::exponent);
             let shadow_color  = color::gradient::Linear::<color::LinearRgba>::new(fading_color,base_color);
-            let shadow_color  = shadow_color.sdf_sampler().size(SHADOW_SIZE).exponent(exp);
+            let shadow_color  = shadow_color.sdf_sampler().size(shadow_size).offset(shadow_offset).exponent(exp);
             let shadow        = shadow.fill(shadow_color);
 
 

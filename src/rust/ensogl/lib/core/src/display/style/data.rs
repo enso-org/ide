@@ -33,6 +33,12 @@ impl From<f32> for Data {
     }
 }
 
+impl From<i32> for Data {
+    fn from(t:i32) -> Data {
+        Data::Number(t as f32)
+    }
+}
+
 impl<C> From<color::Color<C>> for Data
 where color::Color<C> : Into<color::Lcha> {
     fn from(color:color::Color<C>) -> Data {

@@ -22,8 +22,8 @@ use crate::data::color;
 mod js {
     use super::*;
     #[wasm_bindgen(inline_js = "
-        export function create_theme_manager_ref(choose,get) {
-            return {choose,get}
+        export function create_theme_manager_ref(list,choose,get,snapshot,diff) {
+            return {list,choose,get,snapshot,diff}
         }
 
         export function add_debug_style(path,value) {
@@ -37,10 +37,12 @@ mod js {
                 rust_interactive_mode()
                 let element = document.getElementById('colors-debug')
                 let observer = new MutationObserver(() => {
-                    let vars = element.style.cssText.split(';').map((t) => t.trim().slice(2).replaceAll('-','.').split(':'))
-                    vars.pop()
+                    let entries = element.style.cssText.split(';')
+                    entries.pop() // last empty one
+                    entries = entries.map((t) => t.trim().slice(2).split(':'))
+                    entries = entries.map(([key,val]) => [key.replaceAll('-','.'),val])
                     let changes = []
-                    for(let [key,val] of vars) {
+                    for(let [key,val] of entries) {
                         let num = parseFloat(val)
                         if(isNaN(num)) {
                             // Chrome inspector returns colors in the form of 'rgb(255 0 0 / 26%)'
@@ -77,7 +79,8 @@ mod js {
     ")]
     extern "C" {
         #[allow(unsafe_code)]
-        pub fn create_theme_manager_ref(choose:&Choose, get:&Get) -> JsValue;
+        pub fn create_theme_manager_ref
+        (list:&List, choose:&Choose, get:&Get, snapshot:&Snapshot, diff:&Diff) -> JsValue;
 
         #[allow(unsafe_code)]
         pub fn create_theme_ref(set:&Set, interactive_mode:&InteractiveMode) -> JsValue;
@@ -86,7 +89,10 @@ mod js {
         pub fn add_debug_style(path:String, value:String);
     }
 
+    pub type List            = Closure<dyn Fn()->String>;
     pub type Choose          = Closure<dyn Fn(String)>;
+    pub type Snapshot        = Closure<dyn Fn(String)>;
+    pub type Diff            = Closure<dyn Fn(String,String)->String>;
     pub type Get             = Closure<dyn Fn(String)->JsValue>;
     pub type Set             = Closure<dyn Fn(String,String)>;
     pub type InteractiveMode = Closure<dyn Fn()>;
@@ -102,8 +108,14 @@ mod js {
 pub fn expose_to_window(manager:&Manager) {
     let window = web::window();
 
-    let owned_manager = manager.clone_ref();
-    let choose : js::Choose = Closure::new(move |name| owned_manager.set_enabled(&[name]));
+    let list     : js::List     = Closure::new(f!([manager]() format!("{:?}",manager.keys())));
+    let choose   : js::Choose   = Closure::new(f!((name) manager.set_enabled(&[name])));
+    let snapshot : js::Snapshot = Closure::new(f!((name) manager.snapshot(name)));
+
+    let diff : js::Diff = Closure::new(f!([manager](src:String,tgt:String) {
+        let diff = manager.diff(&src,&tgt);
+        diff.iter().map(|t| format!("{} = {:?}",t.path,t.value)).join("\n")
+    }));
 
     let owned_manager = manager.clone_ref();
     let get : js::Get = Closure::new(move |name:String| {
@@ -116,9 +128,9 @@ pub fn expose_to_window(manager:&Manager) {
             for (path,value) in values {
                 match value {
                     Value::Data(Data::Color(c)) => {
-                        let color = color::Rgba::from(c);
+                        let color    = color::Rgba::from(c);
                         let js_color = color.to_javascript_string();
-                        js::add_debug_style(path,color::Rgba::from(c).to_javascript_string())
+                        js::add_debug_style(path,js_color)
                     },
                     Value::Data(Data::Number(f)) => js::add_debug_style(path,f.to_string()),
                     _ => {}
@@ -131,9 +143,12 @@ pub fn expose_to_window(manager:&Manager) {
         theme_ref
     });
 
-    let theme_manger_ref = js::create_theme_manager_ref(&choose,&get);
+    let theme_manger_ref = js::create_theme_manager_ref(&list,&choose,&get,&snapshot,&diff);
 
+    mem::forget(list);
     mem::forget(choose);
+    mem::forget(snapshot);
+    mem::forget(diff);
     mem::forget(get);
 
     js_sys::Reflect::set(&window,&"theme".into(),&theme_manger_ref);

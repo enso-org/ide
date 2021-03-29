@@ -211,8 +211,8 @@ fn init(app:&Application) {
         let graph_editor = project_view.graph();
 
         if to_theme_switch == 0 {
-            println!("THEME SWITCH !!!");
-            scene.style_sheet.set("application.background",color::Rgba(0.0,0.0,0.0,1.0));
+            // println!("THEME SWITCH !!!");
+            // scene.style_sheet.set("application.background",color::Rgba(0.0,0.0,0.0,1.0));
             // ensogl_theme::builtin::dark::enable(&app);
             //
             // println!(">>> {:?}", "lcha(1,0,0,1)".parse::<color::Lcha>());

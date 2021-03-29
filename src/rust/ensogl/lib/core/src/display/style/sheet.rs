@@ -253,8 +253,8 @@ impl PartialSemigroup<Value> for Value {
 /// optimize the amount of necessary computations.
 #[derive(Debug)]
 pub struct Change {
-    path  : Path,
-    value : Option<Value>
+    pub path  : Path,
+    pub value : Option<Value>
 }
 
 impl Change {
