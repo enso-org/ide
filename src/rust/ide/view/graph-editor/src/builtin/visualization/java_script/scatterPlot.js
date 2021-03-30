@@ -160,7 +160,6 @@ class ScatterPlot extends Visualization {
         this.addBrushing(this.boxWidth, this.boxHeight, scatter, selectedZoomBtn, this.points, zoom)
     }
 
-
     /**
      * Adds panning and zooming functionality to the visualization.
      */
