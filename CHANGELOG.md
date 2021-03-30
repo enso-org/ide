@@ -13,6 +13,11 @@
   to automatically reconnect.
 - [Visualization can be extended to the whole screen][1355] by selecting the
   node and pressing space twice. To quit this view, press space again.
+- [Database Visualizations][1335]. Visualizations for the Database library have
+  been added. The Table visualization now automatically executes the underlying
+  query to display its results in a table. In addition, the SQL Query
+  visualization allows the user to see the query that is going to be run against
+  the database.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
@@ -52,10 +57,24 @@
   ignored.
 - [Users can opt out of anonymous data gathering.][1328] This can be done with
   the `--no-data-gathering` command-line flag during the startup of the IDE.
+- [Provide a theming API for JavaScript visualizations][1358]. It is now
+  possible to use the Enso theming engine while developing custom visualizations
+  in JavaScript. You can query it for all IDE colors, including the colors used
+  to represent types.
 - [You can now start the IDE service without window again.][1353] The command
   line arguyment `--no-window` now starts all the required backend services
   again, and prints the port on the command line, allowing you to open the IDE
   with a browser of your choice.
+- [JS visualizations have consistent gestures with the IDE][1291]. Panning and
+  zooming now works just as expected on trackpad and mouse.
+- [Fix applying selected node output to the expression of new node][1385]. For
+  example, having selected node with Table output and adding a new node with
+  expression `at "x" == "y"` the selected node was applied to the right side of
+  `==`: `at "x" == operator1."y"` instead of `operator1.at "x" == "y"`.
+- [`Enso_Project.data` is visible in searcher][1393].
+- [Geo Map visualization recognizes columns regardless of their name letter
+  case][1392]. This allows visualizing tables with columns like `LONGITUDE` or
+  `Longitude`, where previously only `longitude` was recognized.
 
 #### EnsoGL (rendering engine)
 
@@ -70,6 +89,7 @@ you can find their release notes
 [1291]: https://github.com/enso-org/ide/pull/1291
 [1314]: https://github.com/enso-org/ide/pull/1314
 [1313]: https://github.com/enso-org/ide/pull/1313
+[1311]: https://github.com/enso-org/ide/pull/1311
 [1064]: https://github.com/enso-org/ide/pull/1064
 [1316]: https://github.com/enso-org/ide/pull/1316
 [1318]: https://github.com/enso-org/ide/pull/1318
@@ -80,6 +100,11 @@ you can find their release notes
 [1341]: https://github.com/enso-org/ide/pull/1341
 [1348]: https://github.com/enso-org/ide/pull/1348
 [1353]: https://github.com/enso-org/ide/pull/1353
+[1385]: https://github.com/enso-org/ide/pull/1385
+[1393]: https://github.com/enso-org/ide/pull/1393
+[1392]: https://github.com/enso-org/ide/pull/1392
+[1335]: https://github.com/enso-org/ide/pull/1335
+[1358]: https://github.com/enso-org/ide/pull/1358
 
 <br/>
 
