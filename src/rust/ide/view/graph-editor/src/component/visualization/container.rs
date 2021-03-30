@@ -141,7 +141,7 @@ ensogl::define_endpoints! {
         enable_fullscreen   (),
         disable_fullscreen  (),
         set_vis_input_type  (Option<enso::Type>),
-        set_layer          (visualization::Layer),
+        set_layer           (visualization::Layer),
     }
 
     Output {
@@ -212,10 +212,7 @@ impl View {
     }
 
     fn set_layer(&self, layer:visualization::Layer) {
-        match layer {
-            visualization::Layer::Default => self.scene.dom.layers.back.manage(&self.background_dom),
-            visualization::Layer::Front   => self.scene.dom.layers.front.manage(&self.background_dom),
-        }
+        layer.apply_for_html_component(&self.scene, &self.background_dom);
     }
 
     fn init(self) -> Self {
