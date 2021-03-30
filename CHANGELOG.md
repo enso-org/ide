@@ -210,6 +210,7 @@ users about errors and where they originate.
 - Cursors in text editors behave correctly now (they are not affected by scene
   pan and zoom). This was possible because of the new multi-camera management
   system implemented in EnsoGL.
+- [Fixed method names highlighted in pink][1408]
 
 #### EnsoGL (rendering engine)
 
@@ -256,6 +257,7 @@ you can find their release notes
 [podcast-future-of-enso]:
   https://www.youtube.com/watch?v=rF8DuJPOfTs&t=1863s&ab_channel=Enso
 [1312]: https://github.com/enso-org/ide/pull/1312
+[1408]: https://github.com/enso-org/ide/pull/1408
 
 <br/>
 
