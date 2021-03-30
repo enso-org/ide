@@ -11,11 +11,17 @@
   will be lost. In this build we added notification in statusbar to signalize
   that the connection was lost and IDE must be restarted. In future IDE will try
   to automatically reconnect.
+- [Visualization can be extended to the whole screen][1355] by selecting the
+  node and pressing space twice. To quit this view, press space again.
 - [Database Visualizations][1335]. Visualizations for the Database library have
   been added. The Table visualization now automatically executes the underlying
   query to display its results in a table. In addition, the SQL Query
   visualization allows the user to see the query that is going to be run against
   the database.
+- [Histogram and Scatter Plot now support Dataframes.][1377] The `Table` and
+  `Column` datatypes are properly visualized. Scatter Plot can display points of
+  different color, shape and size, all as defined by the data within the
+  `Table`.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
@@ -91,6 +97,7 @@ you can find their release notes
 [1064]: https://github.com/enso-org/ide/pull/1064
 [1316]: https://github.com/enso-org/ide/pull/1316
 [1318]: https://github.com/enso-org/ide/pull/1318
+[1355]: https://github.com/enso-org/ide/pull/1355
 [1332]: https://github.com/enso-org/ide/pull/1332
 [1341]: https://github.com/enso-org/ide/pull/1341
 [1328]: https://github.com/enso-org/ide/pull/1328
@@ -100,6 +107,9 @@ you can find their release notes
 [1385]: https://github.com/enso-org/ide/pull/1385
 [1393]: https://github.com/enso-org/ide/pull/1393
 [1392]: https://github.com/enso-org/ide/pull/1392
+[1335]: https://github.com/enso-org/ide/pull/1335
+[1358]: https://github.com/enso-org/ide/pull/1358
+[1377]: https://github.com/enso-org/ide/pull/1377
 
 <br/>
 
