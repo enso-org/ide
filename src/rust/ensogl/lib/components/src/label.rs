@@ -27,7 +27,7 @@ mod background {
 
             let width   = Var::<Pixels>::from("input_size.x");
             let height  = Var::<Pixels>::from("input_size.y");
-            let padding = style.get_number_or(theme::padding_outer, 0.0);
+            let padding = style.get_number_or(theme::padding_outer,0.0);
             let width   = width  - padding.px() * 2.0;
             let height  = height - padding.px() * 2.0;
             let radius  = &height / 2.0;
