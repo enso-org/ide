@@ -82,12 +82,12 @@
 - [Geo Map visualization recognizes columns regardless of their name letter
   case][1392]. This allows visualizing tables with columns like `LONGITUDE` or
   `Longitude`, where previously only `longitude` was recognized.
-- [It is possible now to switch themes][1390]. Also, theme manager was 
+- [It is possible now to switch themes][1390]. Also, theme manager was
   integrated with the FRP event engine, which was a long-standing issue in the
   IDE. Themes management was exposed to JavaScript with the `window.theme`
   variable. It is even possible to change and develop themes live by editing
-  theme variables directly in the Chrome Inspector. Use the following command
-  to start: `theme.snapshot("t1"); theme.get("t1").interactiveMode()`.
+  theme variables directly in the Chrome Inspector. Use the following command to
+  start: `theme.snapshot("t1"); theme.get("t1").interactiveMode()`.
 
 #### EnsoGL (rendering engine)
 
