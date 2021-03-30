@@ -374,11 +374,6 @@ jobs:
           path: >-
             dist/client/enso-linux-${{fromJson(steps.changelog.outputs.content).version}}.AppImage.sha256
         if: startsWith(matrix.os,'ubuntu')
-    if: >-
-      contains(github.event.head_commit.message,'[ci build]') || github.ref ==
-      'refs/heads/develop' || github.base_ref == 'unstable' || github.base_ref
-      == 'stable' || github.ref == 'refs/heads/unstable' || github.ref ==
-      'refs/heads/stable'
   release_to_github:
     name: GitHub Release
     runs-on: ${{ matrix.os }}
