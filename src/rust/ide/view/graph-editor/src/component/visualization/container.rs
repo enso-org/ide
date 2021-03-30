@@ -8,11 +8,13 @@
 // FIXME separate camera (view?) per visualization? This is also connected to a question how to
 // FIXME create efficient dashboard view.
 
-mod action_bar;
-mod visualization_chooser;
+pub mod action_bar;
+pub mod visualization_chooser;
+pub mod fullscreen;
 
 use crate::prelude::*;
 
+use crate::data::enso;
 use crate::visualization;
 use crate::component::visualization::instance::PreprocessorConfiguration;
 
@@ -25,7 +27,6 @@ use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
 use ensogl::display;
-use ensogl::DEPRECATED_Animation;
 use ensogl::application::Application;
 use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
@@ -99,30 +100,7 @@ pub mod background {
     }
 }
 
-/// Container background shape definition.
-///
-/// Provides a backdrop and outline for visualisations. Can indicate the selection status of the
-/// container.
-/// TODO : We do not use backgrounds because otherwise they would overlap JS
-///        visualizations. Instead we added a HTML background to the `View`.
-///        This should be further investigated while fixing rust visualization displaying. (#526)
-pub mod fullscreen_background {
-    use super::*;
 
-    ensogl::define_shape_system! {
-        (style:Style,selected:f32,radius:f32,roundness:f32) {
-            let width  : Var<Pixels> = "input_size.x".into();
-            let height : Var<Pixels> = "input_size.y".into();
-            let radius        = 1.px() * &radius;
-            let color_path    = theme::graph_editor::visualization::background;
-            let color_bg      = style.get_color(color_path);
-            let corner_radius = &radius * &roundness;
-            let background    = Rect((&width,&height)).corners_radius(&corner_radius);
-            let background    = background.fill(color::Rgba::from(color_bg));
-            background.into()
-        }
-    }
-}
 
 /// Container overlay shape definition. Used to capture events over the visualisation within the
 /// container.
@@ -152,25 +130,27 @@ pub mod overlay {
 
 ensogl::define_endpoints! {
     Input {
-        set_visibility     (bool),
-        toggle_visibility  (),
-        set_visualization  (Option<visualization::Definition>),
-        set_data           (visualization::Data),
-        select             (),
-        deselect           (),
-        set_size           (Vector2),
-        enable_fullscreen  (),
-        disable_fullscreen (),
-        scene_shape        (scene::Shape),
+        set_visibility      (bool),
+        toggle_visibility   (),
+        set_visualization   (Option<visualization::Definition>),
+        cycle_visualization (),
+        set_data            (visualization::Data),
+        select              (),
+        deselect            (),
+        set_size            (Vector2),
+        enable_fullscreen   (),
+        disable_fullscreen  (),
+        set_vis_input_type  (Option<enso::Type>),
         set_layer          (visualization::Layer),
     }
 
     Output {
-        preprocessor  (PreprocessorConfiguration),
-        visualisation (Option<visualization::Definition>),
-        size          (Vector2),
-        is_selected   (bool),
-        visible       (bool),
+        preprocessor   (PreprocessorConfiguration),
+        visualisation  (Option<visualization::Definition>),
+        size           (Vector2),
+        is_selected    (bool),
+        visible        (bool),
+        vis_input_type (Option<enso::Type>)
     }
 }
 
@@ -254,63 +234,6 @@ impl display::Object for View {
 
 
 // ======================
-// === FullscreenView ===
-// ======================
-
-/// View of the visualization container meant to be used in fullscreen mode. Its components are
-/// rendered on top-level layers of the stage.
-#[derive(Debug)]
-#[allow(missing_docs)]
-pub struct FullscreenView {
-    logger         : Logger,
-    display_object : display::object::Instance,
-    // background     : fullscreen_background::View,
-    background_dom : DomSymbol
-}
-
-impl FullscreenView {
-    /// Constructor.
-    pub fn new(logger:&Logger, scene:&Scene) -> Self {
-        let logger         = Logger::sub(logger,"fullscreen_view");
-        let display_object = display::object::Instance::new(&logger);
-        let shape_system   = scene.shapes.shape_system(PhantomData::<fullscreen_background::Shape>);
-        scene.layers.main.remove_symbol(&shape_system.shape_system.symbol);
-        scene.layers.viz_fullscreen.add_symbol_exclusive(&shape_system.shape_system.symbol);
-
-        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
-        let styles   = StyleWatch::new(&scene.style_sheet);
-        let bg_color = styles.get_color(ensogl_theme::graph_editor::visualization::background);
-        let bg_color = color::Rgba::from(bg_color);
-        let bg_hex   = format!("rgba({},{},{},{})",bg_color.red*255.0,bg_color.green*255.0,bg_color.blue*255.0,bg_color.alpha);
-
-        let div            = web::create_div();
-        let background_dom = DomSymbol::new(&div);
-        // TODO : We added a HTML background to the `View`, because "shape" background was overlapping
-        //        the JS visualization. This should be further investigated while fixing rust
-        //        visualization displaying. (#796)
-        background_dom.dom().set_style_or_warn("width"        ,"0"   ,&logger);
-        background_dom.dom().set_style_or_warn("height"       ,"0"   ,&logger);
-        background_dom.dom().set_style_or_warn("z-index"      ,"1"   ,&logger);
-        background_dom.dom().set_style_or_warn("overflow-y"   ,"auto",&logger);
-        background_dom.dom().set_style_or_warn("overflow-x"   ,"auto",&logger);
-        background_dom.dom().set_style_or_warn("background"   ,bg_hex,&logger);
-        background_dom.dom().set_style_or_warn("border-radius","0"   ,&logger);
-        display_object.add_child(&background_dom);
-        scene.dom.layers.back.manage(&background_dom);
-
-        Self {logger,display_object,background_dom}
-    }
-}
-
-impl display::Object for FullscreenView {
-    fn display_object(&self) -> &display::object::Instance {
-        &self.display_object
-    }
-}
-
-
-
-// ======================
 // === ContainerModel ===
 // ======================
 
@@ -330,7 +253,7 @@ pub struct ContainerModel {
     vis_frp_connection : RefCell<Option<frp::Network>>,
     scene              : Scene,
     view               : View,
-    fullscreen_view    : FullscreenView,
+    fullscreen_view    : fullscreen::Panel,
     is_fullscreen      : Rc<Cell<bool>>,
     registry           : visualization::Registry,
     size               : Rc<Cell<Vector2>>,
@@ -349,7 +272,7 @@ impl ContainerModel {
         let visualization      = default();
         let vis_frp_connection = default();
         let view               = View::new(&logger,scene.clone_ref());
-        let fullscreen_view    = FullscreenView::new(&logger,scene);
+        let fullscreen_view    = fullscreen::Panel::new(&logger,scene);
         let scene              = scene.clone_ref();
         let is_fullscreen      = default();
         let size               = default();
@@ -386,18 +309,30 @@ impl ContainerModel {
         if visibility {
             self.drag_root.add_child(&self.view);
             self.show_visualisation();
-            self.scene.add_child(&self.fullscreen_view);
-        }
-        else {
+        } else {
             self.drag_root.remove_child(&self.view);
-            self.scene.remove_child(&self.fullscreen_view);
         }
     }
 
     fn enable_fullscreen(&self) {
         self.is_fullscreen.set(true);
         if let Some(viz) = &*self.visualization.borrow() {
-            self.fullscreen_view.add_child(viz)
+            self.fullscreen_view.add_child(viz);
+            if let Some(dom) = viz.root_dom() {
+                self.scene.dom.layers.fullscreen_vis.manage(&dom);
+            }
+            viz.inputs.activate.emit(());
+        }
+    }
+
+    fn disable_fullscreen(&self) {
+        self.is_fullscreen.set(false);
+        if let Some(viz) = &*self.visualization.borrow() {
+            self.view.add_child(viz);
+            if let Some(dom) = viz.root_dom() {
+                self.scene.dom.layers.back.manage(&dom);
+            }
+            viz.inputs.deactivate.emit(());
         }
     }
 
@@ -418,7 +353,11 @@ impl ContainerModel {
             preprocessor            <+ vis_preprocessor_change;
         }
         preprocessor.emit(visualization.on_preprocessor_change.value());
-        self.view.add_child(&visualization);
+        if self.is_fullscreen.get() {
+            self.fullscreen_view.add_child(&visualization)
+        } else {
+            self.view.add_child(&visualization);
+        }
         self.visualization.replace(Some(visualization));
         self.vis_frp_connection.replace(Some(vis_frp_connection));
     }
@@ -481,13 +420,31 @@ impl ContainerModel {
 
     fn show_visualisation(&self) {
         if let Some(vis) = self.visualization.borrow().as_ref() {
-            self.view.add_child(vis);
+            if self.is_fullscreen.get() {
+                self.fullscreen_view.add_child(vis);
+            } else {
+                self.view.add_child(vis);
+            }
         }
     }
 
     /// Check if given mouse-event-target means this visualization.
     fn is_this_target(&self, target:scene::PointerTarget) -> bool {
         self.view.overlay.is_this_target(target)
+    }
+
+    fn next_visualization
+    (&self, current_vis:&Option<visualization::Definition>, input_type:&Option<enso::Type>)
+    -> Option<visualization::Definition> {
+        let input_type_or_any = input_type.clone().unwrap_or_else(enso::Type::any);
+        let vis_list          = self.registry.valid_sources(&input_type_or_any);
+        let next_on_list      = current_vis.as_ref().and_then(|vis| {
+            let mut from_current = vis_list.iter().skip_while(
+                |x| vis.signature.path != x.signature.path
+            );
+            from_current.nth(1)
+        });
+        next_on_list.or_else(|| vis_list.first()).cloned()
     }
 }
 
@@ -528,10 +485,8 @@ impl Container {
         let frp                 = &self.frp;
         let network             = &self.frp.network;
         let model               = &self.model;
-        let fullscreen          = DEPRECATED_Animation::new(network);
-        let size                = DEPRECATED_Animation::<Vector2>::new(network);
-        let fullscreen_position = DEPRECATED_Animation::<Vector3>::new(network);
         let scene               = &self.model.scene;
+        let scene_shape         = scene.shape();
         let logger              = &self.model.logger;
         let action_bar          = &model.action_bar.frp;
         let registry            = &model.registry;
@@ -539,10 +494,34 @@ impl Container {
         frp::extend! { network
             eval  frp.set_visibility    ((v) model.set_visibility(*v));
             eval_ frp.toggle_visibility (model.toggle_visibility());
+            eval  frp.set_data          ((t) model.set_visualization_data(t));
+            frp.source.size    <+ frp.set_size;
             frp.source.visible <+ frp.set_visibility;
             frp.source.visible <+ frp.toggle_visibility.map(f!((()) model.is_active()));
-            let preprocessor = &frp.source.preprocessor;
-            frp.source.visualisation <+ frp.set_visualization.map(f!(
+            eval  frp.set_layer         ([model](l) {
+                if let Some(vis) = model.visualization.borrow().as_ref() {
+                    vis.set_layer.emit(l)
+                }
+                model.view.set_layer(*l);
+            });
+        }
+
+
+        // === Cycling Visualizations ===
+
+        frp::extend! { network
+            vis_after_cycling <- frp.cycle_visualization.map3(&frp.visualisation,&frp.vis_input_type,
+                f!(((),vis,input_type) model.next_visualization(vis,input_type))
+            );
+        }
+
+
+        // === Switching Visualizations ===
+
+        frp::extend! { network
+            new_vis_definition <- any(frp.set_visualization,vis_after_cycling);
+            let preprocessor   =  &frp.source.preprocessor;
+            frp.source.visualisation <+ new_vis_definition.map(f!(
                 [model,action_bar,scene,logger,preprocessor](vis_definition) {
 
                 if let Some(definition) = vis_definition {
@@ -559,22 +538,14 @@ impl Container {
                 }
                 vis_definition.clone()
             }));
+        }
 
-            eval  frp.set_data          ((t) model.set_visualization_data(t));
 
-            eval_ frp.enable_fullscreen (model.set_visibility(true));
-            eval_ frp.enable_fullscreen (model.enable_fullscreen());
-            eval_ frp.enable_fullscreen (fullscreen.set_target_value(1.0));
-            eval  frp.set_size          ((s) size.set_target_value(*s));
-            eval  frp.set_layer         ([model](l) {
-                if let Some(vis) = model.visualization.borrow().as_ref() {
-                    vis.set_layer.emit(l)
-                }
-                model.view.set_layer(*l);
-            });
+        // === Selecting Visualization ===
 
+        frp::extend! { network
             mouse_down_target <- scene.mouse.frp.down.map(f_!(scene.mouse.target.get()));
-            selected <= mouse_down_target.map(f!([model] (target){
+            selected_by_click <= mouse_down_target.map(f!([model] (target){
                 let vis        = &model.visualization;
                 let activate   = || vis.borrow().as_ref().map(|v| v.activate.clone_ref());
                 let deactivate = || vis.borrow().as_ref().map(|v| v.deactivate.clone_ref());
@@ -583,19 +554,35 @@ impl Container {
                         activate.emit(());
                         return Some(true);
                     }
-                } else if let Some(deactivate) = deactivate() {
-                    deactivate.emit(());
-                    return Some(false);
+                } else if !model.is_fullscreen.get() {
+                    if let Some(deactivate) = deactivate() {
+                        deactivate.emit(());
+                        return Some(false);
+                    }
                 }
                 None
             }));
+            selected_by_going_fullscreen <- bool(&frp.disable_fullscreen,&frp.enable_fullscreen);
+            selected                     <- any(selected_by_click,selected_by_going_fullscreen);
 
             is_selected_changed <= selected.map2(&frp.output.is_selected, |&new,&old| {
                 (new != old).as_some(new)
             });
             frp.source.is_selected <+ is_selected_changed;
+        }
 
-            _eval <- fullscreen.value.all_with3(&size.value,&frp.scene_shape,
+
+        // === Fullscreen View ===
+
+        frp::extend! { network
+            eval_ frp.enable_fullscreen  (model.enable_fullscreen());
+            eval_ frp.disable_fullscreen (model.disable_fullscreen());
+            fullscreen_enabled_weight  <- frp.enable_fullscreen.constant(1.0);
+            fullscreen_disabled_weight <- frp.disable_fullscreen.constant(0.0);
+            fullscreen_weight          <- any(fullscreen_enabled_weight,fullscreen_disabled_weight);
+            frp.source.size            <+ frp.set_size;
+
+            _eval <- fullscreen_weight.all_with3(&frp.size,scene_shape,
                 f!([model] (weight,viz_size,scene_size) {
                     let weight_inv           = 1.0 - weight;
                     let scene_size : Vector2 = scene_size.into();
@@ -612,12 +599,11 @@ impl Container {
                     let current_pos = pp * weight_inv;
                     model.fullscreen_view.set_position(current_pos);
             }));
-
-            eval fullscreen_position.value ((p) model.fullscreen_view.set_position(*p));
         }
 
 
         // ===  Visualisation chooser frp bindings ===
+
         frp::extend! { network
             selected_definition  <- action_bar.visualisation_selection.map(f!([registry](path)
                 path.as_ref().map(|path| registry.definition_from_path(path) ).flatten()
@@ -635,10 +621,15 @@ impl Container {
             frp.source.visualisation <+ selected_definition;
             on_selected              <- selected_definition.map(|d|d.as_ref().map(|_|())).unwrap();
             eval_ on_selected ( action_bar.hide_icons.emit(()) );
+            frp.source.vis_input_type <+ frp.set_vis_input_type;
+            eval frp.set_vis_input_type (
+                (tp) model.action_bar.visualization_chooser().frp.set_vis_input_type(tp)
+            );
         }
 
 
         // ===  Action bar actions ===
+
         frp::extend! { network
             eval_ action_bar.on_container_reset_position(model.drag_root.set_position_xy(Vector2::zero()));
             drag_action <- app.cursor.frp.scene_position_delta.gate(&action_bar.container_drag_state);
@@ -663,6 +654,11 @@ impl Container {
         frp.set_size.emit(Vector2(DEFAULT_SIZE.0,DEFAULT_SIZE.1));
         frp.set_visualization.emit(Some(visualization::Registry::default_visualisation()));
         self
+    }
+
+    /// Get the visualization panel view.
+    pub fn fullscreen_visualization(&self) -> &fullscreen::Panel {
+        &self.model.fullscreen_view
     }
 }
 
