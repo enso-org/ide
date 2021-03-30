@@ -22,20 +22,32 @@ use crate::data::color;
 mod js {
     use super::*;
     #[wasm_bindgen(inline_js = "
+        function interactiveModeDivId(name) {
+            return `theme-interactive-mode-${name}`
+        }
+
         export function create_theme_manager_ref(list,choose,get,snapshot,diff) {
             return {list,choose,get,snapshot,diff}
         }
 
-        export function add_debug_style(path,value) {
-            let element = document.getElementById('colors-debug')
-            let name    = `--${path.replaceAll('.','-')}`
-            element.style.cssText += `${name}: ${value}`
+        export function add_interactive_mode_style(name,path,value) {
+            let element = document.getElementById(interactiveModeDivId(name))
+            if (element) {
+                let key = `--${path.replaceAll('.','-')}`
+                element.style.cssText += `${key}: ${value}`
+            }
         }
 
-        export function create_theme_ref(set, rust_interactive_mode) {
+        export function create_theme_ref(name,set,populate_styles) {
             let interactiveMode = () => {
-                rust_interactive_mode()
-                let element = document.getElementById('colors-debug')
+                let id       = interactiveModeDivId(name)
+                let element  = document.getElementById(id)
+                if (!element) {
+                    element = document.createElement('div')
+                    element.id = id
+                    document.body.appendChild(element)
+                }
+                populate_styles()
                 let observer = new MutationObserver(() => {
                     let entries = element.style.cssText.split(';')
                     entries.pop() // last empty one
@@ -83,10 +95,11 @@ mod js {
         (list:&List, choose:&Choose, get:&Get, snapshot:&Snapshot, diff:&Diff) -> JsValue;
 
         #[allow(unsafe_code)]
-        pub fn create_theme_ref(set:&Set, interactive_mode:&InteractiveMode) -> JsValue;
+        pub fn create_theme_ref
+        (name:String, set:&Set, interactive_mode:&InteractiveMode) -> JsValue;
 
         #[allow(unsafe_code)]
-        pub fn add_debug_style(path:String, value:String);
+        pub fn add_interactive_mode_style(name:String, path:String, value:String);
     }
 
     pub type List            = Closure<dyn Fn()->String>;
@@ -122,6 +135,7 @@ pub fn expose_to_window(manager:&Manager) {
         let theme         = owned_manager.get(&name).unwrap();
         let owned_theme   = theme.clone_ref();
         let set : js::Set = Closure::new(move |name,value| {owned_theme.set(name,value);});
+        let name2         = name.clone();
         let interactive_mode : js::InteractiveMode = Closure::new(move || {
             let mut values = theme.values();
             values.sort_by_key(|(path,_)|path.clone());
@@ -130,14 +144,15 @@ pub fn expose_to_window(manager:&Manager) {
                     Value::Data(Data::Color(c)) => {
                         let color    = color::Rgba::from(c);
                         let js_color = color.to_javascript_string();
-                        js::add_debug_style(path,js_color)
+                        js::add_interactive_mode_style(name2.clone(),path,js_color)
                     },
-                    Value::Data(Data::Number(f)) => js::add_debug_style(path,f.to_string()),
+                    Value::Data(Data::Number(f)) =>
+                        js::add_interactive_mode_style(name2.clone(),path,f.to_string()),
                     _ => {}
                 }
             }
         });
-        let theme_ref = js::create_theme_ref(&set,&interactive_mode);
+        let theme_ref = js::create_theme_ref(name,&set,&interactive_mode);
         mem::forget(set);
         mem::forget(interactive_mode);
         theme_ref

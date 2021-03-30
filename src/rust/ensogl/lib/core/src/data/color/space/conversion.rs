@@ -339,6 +339,7 @@ mod tests {
     // TODO[WD]: Investigate why this test fails.
     //    For example, converting `rgb(0,0,111)` to LCH and back, gives us `rgb(6,0,110)`.
     //    This should not happen (probably).
+    //    https://github.com/enso-org/ide/issues/1403
     #[test]
     fn test_rgb_to_and_from_lch() {
         for r in 0 .. 10 {

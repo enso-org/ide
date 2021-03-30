@@ -26,9 +26,9 @@ const FALLBACK_COLOR              : color::Lcha = color::Lcha::new(0.5,1.0,0.5,0
 
 
 
-// ==================
-// === StyleWatch ===
-// ==================
+// =====================
+// === StyleWatchFrp ===
+// =====================
 
 /// FRP-based style watch utility. Whenever a style sheet value is accessed, the value reference is
 /// being remembered and tracked. Whenever it changes, the FRP event is emitted.

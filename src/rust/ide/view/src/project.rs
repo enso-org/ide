@@ -203,7 +203,9 @@ impl View {
         // FIXME[WD]: Think how to refactor it, as it needs to be done before model, as we do not
         //   want shader recompilation. Model uses styles already.
         model.set_style(Theme::Light);
-        app.themes.update(); // TODO[WD]: This should not be needed.
+        // TODO[WD]: This should not be needed after the theme switching issue is implemented.
+        //   See: https://github.com/enso-org/ide/issues/795
+        app.themes.update();
 
         frp::extend!{ network
             // === Searcher Position and Size ===

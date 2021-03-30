@@ -84,6 +84,7 @@ where Rgb: Into<Color<C>>, Rgba: Into<Color<C>>,
             // TODO[WD]: This should be implemented by the commented out macro above, however,
             //   it requires a lot more conversions than we support currently. To be implemented
             //   one day.
+            //   https://github.com/enso-org/ide/issues/1404
             _ => panic!("Not implemented.")
         }
     }

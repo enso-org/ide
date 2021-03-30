@@ -630,7 +630,7 @@ impl Node {
                 *bgg
             }));
 
-            // FIXME:
+            // FIXME [WD]: Uncomment when implementing disabled icon.
             // bg_color <- frp.set_disabled.map(f!([model,style](disabled) {
             //     model.input.frp.set_disabled(*disabled);
             //     let bg_color_path = ensogl_theme::graph_editor::node::background;

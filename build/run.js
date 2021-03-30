@@ -278,10 +278,7 @@ commands.watch.rust = async function(argv) {
         `node ${paths.script.main} build --skip-version-validation --no-js --dev ${build_args} -- ` +
         cargoArgs.join(' ') +
         '"'
-    // The following ignore list is the same as in `src/rust/.gitignore`, but are written with
-    // qualified paths. This is a test if this will prevent some infinite-loop compilation with the
-    // Cargo Watch tool. If so, an error should be reported to their bugtracker.
-    let args = ['watch', '-i', 'src/rust/target', '-i', 'src/rust/ensogl/msdf-sys/msdfgen_wasm.js', '-i', 'src/rust/ide/parser/pkg/', '-s', `${target}`]
+    let args = ['watch', '-s', `${target}`]
     await cmd.with_cwd(paths.rust.root, async () => {
         await cmd.run('cargo',args)
     })

@@ -156,7 +156,6 @@ impl Default for Theme {
 
 define_themes! { [light:0, dark:1]
     application {
-        // Lcha(0.96,0.014,0.18,1.0)
         background = Rgba(0.914,0.91,0.91,1.0) , Lcha(0.13,0.014,0.18,1.0);
         tooltip {
             hide_delay_duration_ms = 150.0, 150.0;
