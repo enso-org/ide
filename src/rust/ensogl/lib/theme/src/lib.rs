@@ -156,7 +156,7 @@ impl Default for Theme {
 
 define_themes! { [light:0, dark:1]
     application {
-        background = Rgba(0.914,0.91,0.91,1.0) , Lcha(0.13,0.014,0.18,1.0);
+        background = Rgba(0.961,0.965,0.969,1.0) , Lcha(0.13,0.014,0.18,1.0);
         tooltip {
             hide_delay_duration_ms = 150.0, 150.0;
             show_delay_duration_ms = 150.0, 150.0;
@@ -195,25 +195,25 @@ define_themes! { [light:0, dark:1]
     }
     graph_editor {
         node {
-            background         = Rgba(0.957,0.953,0.949,1.0) , Lcha(0.2,0.014,0.18,1.0);
+            background         = Rgba(0.984,0.992,1.0,1.0) , Lcha(0.2,0.014,0.18,1.0);
             background.skipped = Lcha(0.98,0.014,0.18,1.0) , Lcha(0.15,0.014,0.18,1.0);
-            shadow = shadow, shadow;
-            shadow {
-                size     = shadow::size     , shadow::size;
-                spread   = shadow::spread   , shadow::spread;
-                fading   = shadow::fading   , shadow::fading;
-                exponent = shadow::exponent , shadow::exponent;
-                offset_x = shadow::offset_x , shadow::offset_x;
-                offset_y = shadow::offset_y , shadow::offset_y;
-            }
+            shadow = Rgba(0.078,0.067,0.137,0.04) , Lcha(0.0,0.0,0.0,0.20);
+    shadow {
+        size     = 13.0 , 13.0;
+        spread   = -2.0 , -2.0;
+        fading   = Rgba(0.078,0.067,0.137,0.0) , Lcha(0.0,0.0,0.0,0.0);
+        exponent = 2.0 , 2.0;
+        offset_x = 0.0 , 0.0;
+        offset_y = -2.0 , -2.0;
+    }
             selection      = selection, selection;
             selection {
                 size = 10.0 , 5.0;
                 offset = 0.0 , 5.0;
             }
-            text           = Lcha(0.0,0.0,0.0,0.6) , Lcha(1.0,0.0,0.0,0.7);
+            text           = Rgba(0.078,0.067,0.137,0.85) , Lcha(1.0,0.0,0.0,0.7);
             text {
-                missing_arg    = Lcha(0.0,0.0,0.0,0.3) , Lcha(1.0,0.0,0.0,0.3);
+                missing_arg    = Rgba(0.078,0.067,0.137,0.25) , Lcha(1.0,0.0,0.0,0.3);
                 variant.dimmed = Lcha(0.7,0.0,0.0,0.7) , Lcha(0.25,0.014,0.18,1.0);
                 selection      = Lcha(0.7,0.0,0.125,0.7) , Lcha(0.7,0.0,0.125,0.7);
             }

@@ -221,12 +221,12 @@ class LogRouter {
         this.raw       = {}
         this.autoFlush = true
         console.autoFlush = true
-//        for (let name of logsFns) {
-//            this.raw[name] = console[name]
-//            console[name] = (...args) => {
-//                this.handle(name,args)
-//            }
-//        }
+        for (let name of logsFns) {
+            this.raw[name] = console[name]
+            console[name] = (...args) => {
+                this.handle(name,args)
+            }
+        }
     }
 
     auto_flush_on() {
@@ -419,7 +419,7 @@ async function reportCrash(message) {
 
 function style_root() {
     let root = document.getElementById('root')
-    root.style.backgroundColor = 'rgb(233,232,232)'
+    root.style.backgroundColor = 'rgb(247,246,246)'
 }
 
 /// Waits for the window to finish its show animation. It is used when the website is run in

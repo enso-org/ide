@@ -74,8 +74,10 @@ mod js {
                                 a = parseFloat(colorMatch[3])
                             }
 
-                            let normColor = `rgba(${r},${g},${b},${a})`
-                            changes.push([key,normColor])
+                            if(!isNaN(r) && !isNaN(g) && !isNaN(b) && !isNaN(a)) {
+                                let normColor = `rgba(${r},${g},${b},${a})`
+                                changes.push([key,normColor])
+                            }
                         } else {
                             changes.push([key,`${num}`])
                         }
