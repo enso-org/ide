@@ -197,15 +197,15 @@ define_themes! { [light:0, dark:1]
         node {
             background         = Rgba(0.984,0.992,1.0,1.0) , Lcha(0.2,0.014,0.18,1.0);
             background.skipped = Lcha(0.98,0.014,0.18,1.0) , Lcha(0.15,0.014,0.18,1.0);
-            shadow = Rgba(0.078,0.067,0.137,0.04) , Lcha(0.0,0.0,0.0,0.20);
-    shadow {
-        size     = 13.0 , 13.0;
-        spread   = -2.0 , -2.0;
-        fading   = Rgba(0.078,0.067,0.137,0.0) , Lcha(0.0,0.0,0.0,0.0);
-        exponent = 2.0 , 2.0;
-        offset_x = 0.0 , 0.0;
-        offset_y = -2.0 , -2.0;
-    }
+            shadow = shadow , shadow;
+            shadow {
+                size     = shadow::size , shadow::size;
+                spread   = shadow::spread , shadow::spread;
+                fading   = shadow::fading , shadow::fading;
+                exponent = shadow::exponent , shadow::exponent;
+                offset_x = shadow::offset_x , shadow::offset_x;
+                offset_y = shadow::offset_y , shadow::offset_y;
+            }
             selection      = selection, selection;
             selection {
                 size = 10.0 , 5.0;
@@ -327,13 +327,13 @@ define_themes! { [light:0, dark:1]
     // === Generics ===
 
     selection = Rgba(0.776,0.8,0.81,0.57) , Lcha(0.72,0.54,0.22,1.0);
-    shadow = Rgba(0.267,0.239,0.227,0.09) , Lcha(0.0,0.0,0.0,0.20);
+    shadow = Rgba(0.078,0.067,0.137,0.07) , Lcha(0.0,0.0,0.0,0.20); // a 0.04
     shadow {
-        size     = 13.0 , 13.0;
+        size     = 14.0 , 14.0;  // 13
         spread   = -2.0 , -2.0;
-        fading   = Rgba(0.267,0.239,0.227,0.0) , Lcha(0.0,0.0,0.0,0.0);
-        exponent = 3.0 , 3.0;
+        fading   = Rgba(0.078,0.067,0.137,0.0) , Lcha(0.0,0.0,0.0,0.0);
+        exponent = 3.0 , 3.0; // 2
         offset_x = 0.0 , 0.0;
-        offset_y = -3.0 , -3.0;
+        offset_y = -2.0 , -2.0;
     }
 }
