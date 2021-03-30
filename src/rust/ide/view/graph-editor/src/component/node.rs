@@ -617,8 +617,9 @@ impl Node {
             hover_onset_delay.set_delay <+ preview_show_delay;
             hide_tooltip                <- preview_show_delay.map(|&delay| delay <= EPSILON);
 
-            hover_onset_delay.start <+ model.output.body_hover.on_true();
-            hover_onset_delay.reset <+ model.output.body_hover.on_false();
+            outout_hover            <- model.output.on_port_hover.map(|s| s.is_on());
+            hover_onset_delay.start <+ outout_hover.on_true();
+            hover_onset_delay.reset <+ outout_hover.on_false();
             preview_visible         <- bool(&hover_onset_delay.on_reset,&hover_onset_delay.on_end);
             preview_visible         <- preview_visible && has_expression;
             preview_visible         <- preview_visible.on_change();
