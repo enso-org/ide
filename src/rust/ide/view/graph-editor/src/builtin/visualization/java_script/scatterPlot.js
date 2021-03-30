@@ -87,8 +87,8 @@ class ScatterPlot extends Visualization {
 
     updateBox() {
         this.margin = this.getMargins(this.axis)
-        this.box_width = this.canvasWidth() - this.margin.left - this.margin.right
-        this.box_height = this.canvasHeight() - this.margin.top - this.margin.bottom
+        this.boxWidth = this.canvasWidth() - this.margin.left - this.margin.right
+        this.boxHeight = this.canvasHeight() - this.margin.top - this.margin.bottom
     }
 
     extractValues(data) {

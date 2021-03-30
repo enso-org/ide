@@ -385,14 +385,16 @@ class TableVisualization extends Visualization {
     }
 
     updateTableSize() {
-        const width = this.dom.getAttributeNS(null, 'width')
-        const height = this.dom.getAttributeNS(null, 'height')
-        const tblViewStyle = `width: ${width - 5}px;
-             height: ${height - 5}px;
-             overflow: scroll;
-             padding:2.5px;`
-        tabElem.setAttributeNS(null, 'style', tblViewStyle)
-        this.tabElem.setAttributeNS(null, 'viewBox', '0 0 ' + width + ' ' + height)
+        if (this.tabElem !== undefined) {
+            const width = this.dom.getAttributeNS(null, 'width')
+            const height = this.dom.getAttributeNS(null, 'height')
+            const tblViewStyle = `width: ${width - 5}px;
+                 height: ${height - 5}px;
+                 overflow: scroll;
+                 padding:2.5px;`
+            this.tabElem.setAttributeNS(null, 'style', tblViewStyle)
+            this.tabElem.setAttributeNS(null, 'viewBox', '0 0 ' + width + ' ' + height)
+        }
     }
 
     setSize(size) {
