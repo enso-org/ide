@@ -85,7 +85,7 @@ where [Color:RefInto<Glsl>] {
 // ==================
 
 /// Default start distance of the distance gradient.
-pub const DEFAULT_DISTANCE_GRADIENT_OFFSET : f32 = 0.0;
+pub const DEFAULT_DISTANCE_GRADIENT_SPREAD : f32 = 0.0;
 
 /// Default end distance of the distance gradient.
 pub const DEFAULT_DISTANCE_GRADIENT_SIZE : f32 = 10.0;
@@ -96,7 +96,7 @@ pub const DEFAULT_DISTANCE_GRADIENT_SIZE : f32 = 10.0;
 #[derive(Clone,Debug)]
 pub struct SdfSampler<Gradient> {
     /// The distance from the shape border at which the gradient should start.
-    pub offset : f32,
+    pub spread : f32,
     /// The size of the gradient in the SDF space.
     pub size : f32,
     /// The gradient slope modifier. Defines how fast the gradient values change.
@@ -106,18 +106,18 @@ pub struct SdfSampler<Gradient> {
 }
 
 impl<Gradient> SdfSampler<Gradient> {
-    /// Constructs a new gradient with `offset` and `size` set to
-    /// `DEFAULT_DISTANCE_GRADIENT_OFFSET` and `DEFAULT_DISTANCE_GRADIENT_SIZE` respectively.
+    /// Constructs a new gradient with `spread` and `size` set to
+    /// `DEFAULT_DISTANCE_GRADIENT_SPREAD` and `DEFAULT_DISTANCE_GRADIENT_SIZE` respectively.
     pub fn new(gradient:Gradient) -> Self {
-        let offset = DEFAULT_DISTANCE_GRADIENT_OFFSET;
+        let spread = DEFAULT_DISTANCE_GRADIENT_SPREAD;
         let size   = DEFAULT_DISTANCE_GRADIENT_SIZE;
         let slope  = Slope::Smooth;
-        Self {offset,size,slope,gradient}
+        Self {spread,size,slope,gradient}
     }
 
-    /// Constructor setter for the `offset` field.
-    pub fn offset(mut self, t:f32) -> Self {
-        self.offset = t;
+    /// Constructor setter for the `spread` field.
+    pub fn spread(mut self, t:f32) -> Self {
+        self.spread = t;
         self
     }
 
@@ -151,7 +151,7 @@ impls! {[G:RefInto<Glsl>] From< SdfSampler<G>> for Glsl { |g| { (&g).into() } }}
 impls! {[G:RefInto<Glsl>] From<&SdfSampler<G>> for Glsl {
     |g| {
         let size   = iformat!("{g.size.glsl()}");
-        let offset = iformat!("-shape.sdf.distance - {g.offset.glsl()}");
+        let offset = iformat!("-shape.sdf.distance + {g.spread.glsl()}");
         let norm   = iformat!("clamp(({offset}) / ({size}))");
         let t      = match g.slope {
             Slope::Linear        => norm,

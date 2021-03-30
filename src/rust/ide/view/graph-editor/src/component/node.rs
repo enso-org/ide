@@ -50,10 +50,6 @@ pub const PADDING           : f32 = 40.0;
 pub const RADIUS            : f32 = 14.0;
 
 const INFINITE                       : f32       = 99999.0;
-const ERROR_PATTERN_STRIPE_WIDTH     : f32       = 10.0;
-const ERROR_PATTERN_STRIPE_ANGLE     : f32       = 45.0;
-const ERROR_PATTERN_REPEAT_TILE_SIZE : (f32,f32) = (20.0,20.0);
-const ERROR_BORDER_WIDTH             : f32       = 10.0;
 const ERROR_VISUALIZATION_SIZE       : (f32,f32) = visualization::container::DEFAULT_SIZE;
 
 const VISUALIZATION_OFFSET_Y         : f32       = -120.0;
@@ -111,7 +107,7 @@ pub mod backdrop {
             let fading_color  = style.get_color(node_theme::shadow::fading);
             let exp           = style.get_number(node_theme::shadow::exponent);
             let shadow_color  = color::gradient::Linear::<color::LinearRgba>::new(fading_color,base_color);
-            let shadow_color  = shadow_color.sdf_sampler().size(shadow_size).offset(shadow_spread).exponent(exp);
+            let shadow_color  = shadow_color.sdf_sampler().size(shadow_size).spread(shadow_spread).exponent(exp);
             let shadow        = shadow.fill(shadow_color);
 
 
@@ -185,6 +181,8 @@ pub mod error_shape {
 
     ensogl::define_shape_system! {
         (style:Style,color_rgba:Vector4<f32>) {
+            use ensogl_theme::graph_editor::node as node_theme;
+
             let width  = Var::<Pixels>::from("input_size.x");
             let height = Var::<Pixels>::from("input_size.y");
             let zoom   = Var::<f32>::from("1.0/zoom()");
@@ -192,15 +190,18 @@ pub mod error_shape {
             let height = height - PADDING.px() * 2.0;
             let radius = RADIUS.px();
 
-            let (repeat_x,repeat_y) = ERROR_PATTERN_REPEAT_TILE_SIZE;
-            let repeat              = Var::<Vector2<Pixels>>::from((repeat_x.px(),repeat_y.px()));
-            let error_width         = Var::<Pixels>::from(zoom * ERROR_PATTERN_STRIPE_WIDTH);
-            let stripe_red          = Rect((error_width,INFINITE.px()));
-            let stripe_angle_rad    = ERROR_PATTERN_STRIPE_ANGLE.radians();
+            let error_width         = style.get_number(node_theme::error::width).px();
+            let repeat_x            = style.get_number(node_theme::error::repeat_x).px();
+            let repeat_y            = style.get_number(node_theme::error::repeat_y).px();
+            let stripe_width        = style.get_number(node_theme::error::stripe_width);
+            let stripe_angle        = style.get_number(node_theme::error::stripe_angle);
+            let repeat              = Var::<Vector2<Pixels>>::from((repeat_x,repeat_y));
+            let stripe_width        = Var::<Pixels>::from(zoom * stripe_width);
+            let stripe_red          = Rect((&stripe_width,INFINITE.px()));
+            let stripe_angle_rad    = stripe_angle.radians();
             let pattern             = stripe_red.repeat(repeat).rotate(stripe_angle_rad);
-            let pattern_width       = ERROR_BORDER_WIDTH.px();
             let mask                = Rect((&width,&height)).corners_radius(&radius);
-            let mask                = mask.grow(pattern_width);
+            let mask                = mask.grow(error_width);
             let pattern             = mask.intersection(pattern).fill(color_rgba);
 
             pattern.into()
@@ -658,7 +659,7 @@ impl Node {
 
         if let Some(error) = error {
             let path = match *error.kind {
-                error::Kind::Panic    => error_theme::panic,
+                error::Kind::Panic   => error_theme::panic,
                 error::Kind::Dataflow => error_theme::dataflow,
             };
             style.get_color(path)
