@@ -14,6 +14,7 @@ const POINT_LABEL_PADDING_X = 7
 const POINT_LABEL_PADDING_Y = 2
 const ANIMATION_DURATION = 1000
 const LINEAR_SCALE = 'linear'
+const LOGARITHMIC_SCALE = 'logarithmic'
 const VISIBLE_POINTS = 'visible'
 const BUTTONS_HEIGHT = 25
 
@@ -43,8 +44,13 @@ const BUTTONS_HEIGHT = 25
  * }
  */
 class ScatterPlot extends Visualization {
-    static inputType = 'Any'
+    static inputType = 'Standard.Table.Data.Table.Table | Standard.Base.Data.Vector.Vector'
     static label = 'Scatter Plot'
+
+    constructor(data) {
+        super(data)
+        this.setPreprocessor('here.process_to_json_text', 'Standard.Visualization.Scatter_Plot')
+    }
 
     /**
      * Presents a scatterplot visualization after receiving `data`.
@@ -53,13 +59,70 @@ class ScatterPlot extends Visualization {
         while (this.dom.firstChild) {
             this.dom.removeChild(this.dom.lastChild)
         }
-
-        const divElem = this.createDivElem(this.canvasWidth(), this.canvasHeight())
-        this.dom.appendChild(divElem)
-
         let parsedData = this.parseData(data)
         this.updateState(parsedData)
+        this.drawScatterplot()
+    }
 
+    canvasWidth() {
+        return this.dom.getAttributeNS(null, 'width')
+    }
+
+    canvasHeight() {
+        let height = this.dom.getAttributeNS(null, 'height')
+        return height - BUTTONS_HEIGHT
+    }
+
+    updateState(parsedData) {
+        this.axis = parsedData.axis ?? {
+            x: { scale: LINEAR_SCALE },
+            y: { scale: LINEAR_SCALE },
+        }
+        this.focus = parsedData.focus
+        this.points = parsedData.points ?? { labels: 'visible' }
+        this.dataPoints = this.extractValues(parsedData)
+        this.dataPoints = this.dataPoints.filter(pt => isValidNumber(pt.x) && isValidNumber(pt.y))
+        this.updateBox()
+    }
+
+    updateBox() {
+        this.margin = this.getMargins(this.axis)
+        this.boxWidth = this.canvasWidth() - this.margin.left - this.margin.right
+        this.boxHeight = this.canvasHeight() - this.margin.top - this.margin.bottom
+    }
+
+    extractValues(data) {
+        /// Note this is a workaround for #1006, we allow raw arrays and JSON objects to be consumed.
+        if (Array.isArray(data)) {
+            return this.arrayAsValues(data)
+        }
+        return data.data ?? []
+    }
+
+    /**
+     * Return a array of values as valid scatterplot input.
+     * Uses the values of the array as y-coordinate and the index of the value as its x-coordinate.
+     */
+    arrayAsValues(dataArray) {
+        return dataArray.map((y, ix) => {
+            return { x: ix, y }
+        })
+    }
+
+    parseData(data) {
+        let parsedData
+        /// Note this is a workaround for #1006, we allow raw arrays and JSON objects to be consumed.
+        if (typeof data === 'string' || data instanceof String) {
+            parsedData = JSON.parse(data)
+        } else {
+            parsedData = data
+        }
+        return parsedData
+    }
+
+    drawScatterplot() {
+        const divElem = this.createDivElem(this.canvasWidth(), this.canvasHeight())
+        this.dom.appendChild(divElem)
         let svg = d3
             .select(divElem)
             .append('svg')
@@ -102,58 +165,6 @@ class ScatterPlot extends Visualization {
         this.createButtonFitAll(scatter, this.points, extremesAndDeltas, zoom, this.boxWidth)
         let selectedZoomBtn = this.createButtonScaleToPoints()
         this.addBrushing(this.boxWidth, this.boxHeight, scatter, selectedZoomBtn, this.points, zoom)
-    }
-
-    canvasWidth() {
-        return this.dom.getAttributeNS(null, 'width')
-    }
-
-    canvasHeight() {
-        let height = this.dom.getAttributeNS(null, 'height')
-        return height - BUTTONS_HEIGHT
-    }
-
-    updateState(parsedData) {
-        this.axis = parsedData.axis || {
-            x: { scale: LINEAR_SCALE },
-            y: { scale: LINEAR_SCALE },
-        }
-        this.focus = parsedData.focus
-        this.points = parsedData.points || { labels: 'invisible' }
-        this.dataPoints = this.extractValues(parsedData)
-
-        this.margin = this.getMargins(this.axis)
-        this.boxWidth = this.canvasWidth() - this.margin.left - this.margin.right
-        this.boxHeight = this.canvasHeight() - this.margin.top - this.margin.bottom
-    }
-
-    extractValues(data) {
-        /// Note this is a workaround for #1006, we allow raw arrays and JSON objects to be consumed.
-        if (Array.isArray(data)) {
-            return this.arrayAsValues(data)
-        }
-        return data.data || {}
-    }
-
-    /**
-     * Return a array of values as valid scatterplot input.
-     * Uses the values of the array as y-coordinate and the index of the value as its x-coordinate.
-     */
-    arrayAsValues(dataArray) {
-        return dataArray.map((y, ix) => {
-            return { x: ix, y }
-        })
-    }
-
-    parseData(data) {
-        let parsedData
-        /// Note this is a workaround for #1006, we allow raw arrays and JSON objects to be consumed.
-        if (typeof data === 'string' || data instanceof String) {
-            parsedData = JSON.parse(data)
-        } else {
-            parsedData = data
-        }
-        return parsedData
     }
 
     /**
@@ -433,14 +444,13 @@ class ScatterPlot extends Visualization {
             .append('path')
             .attr(
                 'd',
-                symbol.type(this.matchShape()).size(d => (d.size || 1.0) * sizeScaleMultiplier)
+                symbol.type(this.matchShape()).size(d => (d.size ?? 1.0) * sizeScaleMultiplier)
             )
             .attr(
                 'transform',
                 d => 'translate(' + scaleAndAxis.xScale(d.x) + ',' + scaleAndAxis.yScale(d.y) + ')'
             )
-            .style('fill', d => '#' + (d.color || '000000'))
-            .style('opacity', 0.5)
+            .style('fill', d => d.color ?? '#00000080')
 
         if (points.labels === VISIBLE_POINTS) {
             scatter
@@ -525,16 +535,31 @@ class ScatterPlot extends Visualization {
     }
 
     /**
+     * Construct either linear or logarithmic D3 scale.
+     *
+     * The scale kind is selected depending on update contents.
+     *
+     * @param axis Axis information as received in the visualization update.
+     * @returns D3 scale.
+     */
+    axisD3Scale(axis) {
+        switch (axis?.scale) {
+            case LINEAR_SCALE:
+                return d3.scaleLinear()
+            case LOGARITHMIC_SCALE:
+                return d3.scaleLog()
+            default:
+                return d3.scaleLinear()
+        }
+    }
+
+    /**
      * Creates plot's axes.
      */
     createAxes(axis, extremesAndDeltas, boxWidth, boxHeight, svg, focus) {
         let { domainX, domainY } = this.getDomains(extremesAndDeltas, focus)
 
-        let xScale = d3.scaleLinear()
-        if (axis.x.scale !== LINEAR_SCALE) {
-            xScale = d3.scaleLog()
-        }
-
+        let xScale = this.axisD3Scale(axis?.x)
         xScale.domain(domainX).range([0, boxWidth])
         let xAxis = svg
             .append('g')
@@ -542,11 +567,7 @@ class ScatterPlot extends Visualization {
             .attr('style', LABEL_STYLE)
             .call(d3.axisBottom(xScale).ticks(boxWidth / X_AXIS_LABEL_WIDTH))
 
-        let yScale = d3.scaleLinear()
-        if (axis.y.scale !== LINEAR_SCALE) {
-            yScale = d3.scaleLog()
-        }
-
+        let yScale = this.axisD3Scale(axis?.y)
         yScale.domain(domainY).range([boxHeight, 0])
         let yAxis = svg.append('g').attr('style', LABEL_STYLE).call(d3.axisLeft(yScale))
         return { xScale: xScale, yScale: yScale, xAxis: xAxis, yAxis: yAxis }
@@ -589,10 +610,10 @@ class ScatterPlot extends Visualization {
      * than the container.
      */
     getExtremesAndDeltas(dataPoints) {
-        let xMin = dataPoints[0].x
-        let xMax = dataPoints[0].x
-        let yMin = dataPoints[0].y
-        let yMax = dataPoints[0].y
+        let xMin = dataPoints[0]?.x ?? 0
+        let xMax = dataPoints[0]?.x ?? 0
+        let yMin = dataPoints[0]?.y ?? 0
+        let yMax = dataPoints[0]?.y ?? 0
 
         dataPoints.forEach(d => {
             if (d.x < xMin) {
@@ -622,11 +643,13 @@ class ScatterPlot extends Visualization {
      * Helper function getting margins for plot's box.
      */
     getMargins(axis) {
-        if (axis.x.label === undefined && axis.y.label === undefined) {
+        let x_label = axis?.x?.label
+        let y_label = axis?.y?.label
+        if (x_label === undefined && y_label === undefined) {
             return { top: 20, right: 20, bottom: 20, left: 45 }
-        } else if (axis.y.label === undefined) {
+        } else if (y_label === undefined) {
             return { top: 10, right: 20, bottom: 35, left: 35 }
-        } else if (axis.x.label === undefined) {
+        } else if (x_label === undefined) {
             return { top: 20, right: 10, bottom: 20, left: 55 }
         }
         return { top: 10, right: 10, bottom: 35, left: 55 }
@@ -768,8 +791,14 @@ class ScatterPlot extends Visualization {
      * Sets size of this DOM object.
      */
     setSize(size) {
+        while (this.dom.firstChild) {
+            this.dom.removeChild(this.dom.lastChild)
+        }
+
         this.dom.setAttributeNS(null, 'width', size[0])
         this.dom.setAttributeNS(null, 'height', size[1])
+        this.updateBox()
+        this.drawScatterplot()
     }
 }
 
