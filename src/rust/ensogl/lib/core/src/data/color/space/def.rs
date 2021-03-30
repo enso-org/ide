@@ -640,11 +640,13 @@ impl From<std::num::ParseFloatError> for ParseError {
 fn uppercase_first_letter(s:&str) -> String {
     let mut c = s.chars();
     match c.next() {
-        None => String::new(),
+        None    => String::new(),
         Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
     }
 }
 
+/// Consume the input string and return the header and list of args. For example, for the input
+/// `rgba(1.0,0.0,0.0,0.5)`, the header will be `"rgba"`, and the nubers will be arguments.
 fn generic_parse(s:&str) -> Result<(String,Vec<f32>),ParseError> {
     let mut splitter = s.splitn(2,'(');
     match splitter.next() {

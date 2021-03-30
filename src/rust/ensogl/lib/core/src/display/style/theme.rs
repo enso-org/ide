@@ -271,7 +271,8 @@ impl Manager {
             self.enabled_dirty.set(name.to_string())
         }
         // TODO[WD]: This impl should be uncommented, and the `self.update()` line removed,
-        //   but now it causes project name to be red (to be investigated).
+        //   but now it causes project name to be red (to be investigated). This should be fixed
+        //   after whole theme manager is finished: https://github.com/enso-org/ide/issues/795
         // // First theme set can skip lazy change, as this is normally done on app startup.
         // // It will also make the startup faster, as the theme will not be updated on the next
         // // frame, which would make all shaders re-compile.
