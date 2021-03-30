@@ -114,7 +114,6 @@ impl Model {
         let root    = display::object::Instance::new(&logger);
         root.add_child(&tooltip);
         let placement = default();
-
         Self{tooltip,root,placement}
     }
 
