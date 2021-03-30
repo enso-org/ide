@@ -40,7 +40,7 @@ x ->
 "#;
 
 /// The context module for the `PREPROCESSOR_CODE`. See there.
-pub const PREPROCESSOR_MODULE:&str = "Base.Main";
+pub const PREPROCESSOR_MODULE:&str = "Standard.Base";
 
 /// Get preprocessor configuration for error visualization.
 pub fn preprocessor() -> instance::PreprocessorConfiguration {
@@ -246,7 +246,7 @@ impl Model {
 
 impl From<Error> for Instance {
     fn from(t: Error) -> Self {
-        Self::new(&t,&t.frp,&t.network)
+        Self::new(&t,&t.frp,&t.network,Some(t.model.dom.clone_ref()))
     }
 }
 
