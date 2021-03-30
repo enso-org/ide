@@ -286,15 +286,25 @@ class Histogram extends Visualization {
          * Helper function called on pan/scroll.
          */
         function zoomed() {
+            function rescale(transformEvent) {
+                transformedScale.x = transformEvent.rescaleX(transformedScale.x)
+                if (transformEvent.rescaleY(transformedScale.y).domain()[0] >= 0) {
+                    transformedScale.y = transformEvent.rescaleY(transformedScale.y)
+                }
+            }
+
+            function getScale(scale, focus) {
+                return d3.zoomIdentity
+                    .translate(focus.x - (Y_AXIS_LABEL_WIDTH + MARGIN), focus.y - MARGIN)
+                    .scale(scale)
+                    .translate(-focus.x + (Y_AXIS_LABEL_WIDTH + MARGIN), -focus.y + MARGIN)
+            }
+
             if (d3.event.sourceEvent != null && d3.event.sourceEvent.buttons === rightButton) {
                 const rmbDivider = 5000.0
                 const zoomAmount = rmbZoomValue(d3.event.sourceEvent) / rmbDivider
                 const scale = Math.exp(zoomAmount)
-                const focus = startPos
-                const distanceScale = d3.zoomIdentity
-                    .translate(focus.x - (Y_AXIS_LABEL_WIDTH + MARGIN), focus.y - MARGIN)
-                    .scale(scale)
-                    .translate(-focus.x + (Y_AXIS_LABEL_WIDTH + MARGIN), -focus.y + MARGIN)
+                const distanceScale = getScale(scale, startPos)
                 transformedScale.x = distanceScale.rescaleX(transformedScale.x)
                 transformedScale.zoom = transformedScale.zoom * scale
             } else if (d3.event.sourceEvent != null && d3.event.sourceEvent.type === 'wheel') {
@@ -302,11 +312,7 @@ class Histogram extends Visualization {
                     const pinchDivider = 100.0
                     const zoomAmount = -d3.event.sourceEvent.deltaY / pinchDivider
                     const scale = Math.exp(zoomAmount)
-                    const focus = startPos
-                    const distanceScale = d3.zoomIdentity
-                        .translate(focus.x - (Y_AXIS_LABEL_WIDTH + MARGIN), focus.y - MARGIN)
-                        .scale(scale)
-                        .translate(-focus.x + (Y_AXIS_LABEL_WIDTH + MARGIN), -focus.y + MARGIN)
+                    const distanceScale = getScale(scale, startPos)
                     transformedScale.x = distanceScale.rescaleX(transformedScale.x)
                     transformedScale.zoom = transformedScale.zoom * scale
                 } else {
@@ -314,28 +320,20 @@ class Histogram extends Visualization {
                         -d3.event.sourceEvent.deltaX,
                         -d3.event.sourceEvent.deltaY
                     )
-                    transformedScale.x = distanceScale.rescaleX(transformedScale.x)
-                    if (distanceScale.rescaleY(transformedScale.y).domain()[0] >= 0) {
-                        transformedScale.y = distanceScale.rescaleY(transformedScale.y)
-                    }
+                    rescale(distanceScale)
                 }
             } else if (
                 d3.event.sourceEvent != null &&
                 d3.event.sourceEvent.buttons === midButtonClicked
             ) {
+                const movementFactor = 2
                 const distanceScale = d3.zoomIdentity.translate(
-                    d3.event.sourceEvent.movementX / 2,
-                    d3.event.sourceEvent.movementY / 2
+                    d3.event.sourceEvent.movementX / movementFactor,
+                    d3.event.sourceEvent.movementY / movementFactor
                 )
-                transformedScale.x = distanceScale.rescaleX(transformedScale.x)
-                if (distanceScale.rescaleY(transformedScale.y).domain()[0] >= 0) {
-                    transformedScale.y = distanceScale.rescaleY(transformedScale.y)
-                }
+                rescale(distanceScale)
             } else {
-                transformedScale.x = d3.event.transform.rescaleX(transformedScale.x)
-                if (d3.event.transform.rescaleY(transformedScale.y).domain()[0] >= 0) {
-                    transformedScale.y = d3.event.transform.rescaleY(transformedScale.y)
-                }
+                rescale(d3.event.transform)
             }
 
             self.rescale(transformedScale, false)
