@@ -298,7 +298,10 @@ class ScatterPlot extends Visualization {
          * Return the position of this event in local canvas coordinates.
          */
         function getPos(event) {
-            return { x: event.offsetX, y: event.offsetY }
+            if (event != null) {
+                return {x: event.offsetX, y: event.offsetY}
+            }
+            return  {x: 0, y: 0}
         }
 
         /**
