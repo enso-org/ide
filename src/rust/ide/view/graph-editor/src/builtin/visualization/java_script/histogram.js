@@ -293,7 +293,7 @@ class Histogram extends Visualization {
                 }
             }
 
-            function getScale(scale, focus) {
+            function getScaleForZoom(scale, focus) {
                 return d3.zoomIdentity
                     .translate(focus.x - (Y_AXIS_LABEL_WIDTH + MARGIN), focus.y - MARGIN)
                     .scale(scale)
@@ -304,7 +304,7 @@ class Histogram extends Visualization {
                 const rmbDivider = 5000.0
                 const zoomAmount = rmbZoomValue(d3.event.sourceEvent) / rmbDivider
                 const scale = Math.exp(zoomAmount)
-                const distanceScale = getScale(scale, startPos)
+                const distanceScale = getScaleForZoom(scale, startPos)
                 transformedScale.x = distanceScale.rescaleX(transformedScale.x)
                 transformedScale.zoom = transformedScale.zoom * scale
             } else if (d3.event.sourceEvent != null && d3.event.sourceEvent.type === 'wheel') {
@@ -312,7 +312,7 @@ class Histogram extends Visualization {
                     const pinchDivider = 100.0
                     const zoomAmount = -d3.event.sourceEvent.deltaY / pinchDivider
                     const scale = Math.exp(zoomAmount)
-                    const distanceScale = getScale(scale, startPos)
+                    const distanceScale = getScaleForZoom(scale, startPos)
                     transformedScale.x = distanceScale.rescaleX(transformedScale.x)
                     transformedScale.zoom = transformedScale.zoom * scale
                 } else {

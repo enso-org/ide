@@ -224,50 +224,50 @@ class ScatterPlot extends Visualization {
          * Helper function called on pan/scroll.
          */
         function zoomed() {
+            function rescale(distanceScale) {
+                transformedScale.xScale = distanceScale.rescaleX(transformedScale.xScale)
+                transformedScale.yScale = distanceScale.rescaleY(transformedScale.yScale)
+            }
+
+            function getScaleForZoom(scale, focus) {
+                return d3.zoomIdentity
+                    .translate(focus.x - self.margin.left, focus.y - self.margin.top)
+                    .scale(scale)
+                    .translate(-focus.x + self.margin.left, -focus.y + self.margin.top)
+            }
+
             if (d3.event.sourceEvent != null && d3.event.sourceEvent.buttons === rightButton) {
                 const rmbDivider = 5000.0
                 const zoomAmount = rmbZoomValue(d3.event.sourceEvent) / rmbDivider
                 const scale = Math.exp(zoomAmount)
-                const focus = startPos
-                const distanceScale = d3.zoomIdentity
-                    .translate(focus.x - self.margin.left, focus.y - self.margin.top)
-                    .scale(scale)
-                    .translate(-focus.x + self.margin.left, -focus.y + self.margin.top)
-                transformedScale.xScale = distanceScale.rescaleX(transformedScale.xScale)
-                transformedScale.yScale = distanceScale.rescaleY(transformedScale.yScale)
+                const distanceScale = getScaleForZoom(scale, startPos)
+                rescale(distanceScale)
             } else if (d3.event.sourceEvent != null && d3.event.sourceEvent.type === 'wheel') {
                 if (d3.event.sourceEvent.ctrlKey) {
                     const pinchDivider = 100.0
                     const zoomAmount = -d3.event.sourceEvent.deltaY / pinchDivider
                     const scale = Math.exp(zoomAmount)
-                    const focus = startPos
-                    const distanceScale = d3.zoomIdentity
-                        .translate(focus.x - self.margin.left, focus.y - self.margin.top)
-                        .scale(scale)
-                        .translate(-focus.x + self.margin.left, -focus.y + self.margin.top)
-                    transformedScale.xScale = distanceScale.rescaleX(transformedScale.xScale)
-                    transformedScale.yScale = distanceScale.rescaleY(transformedScale.yScale)
+                    const distanceScale = getScaleForZoom(scale, startPos)
+                    rescale(distanceScale)
                 } else {
                     const distanceScale = d3.zoomIdentity.translate(
                         -d3.event.sourceEvent.deltaX,
                         -d3.event.sourceEvent.deltaY
                     )
-                    transformedScale.xScale = distanceScale.rescaleX(transformedScale.xScale)
-                    transformedScale.yScale = distanceScale.rescaleY(transformedScale.yScale)
+                    rescale(distanceScale)
                 }
             } else if (
                 d3.event.sourceEvent != null &&
                 d3.event.sourceEvent.buttons === midButtonClicked
             ) {
+                const movementFactor = 2
                 const distanceScale = d3.zoomIdentity.translate(
-                    d3.event.sourceEvent.movementX / 2,
-                    d3.event.sourceEvent.movementY / 2
+                    d3.event.sourceEvent.movementX / movementFactor,
+                    d3.event.sourceEvent.movementY / movementFactor
                 )
-                transformedScale.xScale = distanceScale.rescaleX(transformedScale.xScale)
-                transformedScale.yScale = distanceScale.rescaleY(transformedScale.yScale)
+                rescale(distanceScale)
             } else {
-                transformedScale.xScale = d3.event.transform.rescaleX(transformedScale.xScale)
-                transformedScale.yScale = d3.event.transform.rescaleY(transformedScale.yScale)
+                rescale(d3.event.transform)
             }
 
             scaleAndAxis.xAxis.call(
