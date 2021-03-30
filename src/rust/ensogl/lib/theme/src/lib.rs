@@ -161,6 +161,9 @@ define_themes! { [light:0, dark:1]
             hide_delay_duration_ms = 150.0, 150.0;
             show_delay_duration_ms = 150.0, 150.0;
         }
+        searcher {
+            action_list_gap = 5.0, 5.0;
+        }
     }
     code {
         syntax {
