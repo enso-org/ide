@@ -59,8 +59,8 @@ const ERROR_VISUALIZATION_SIZE       : (f32,f32) = visualization::container::DEF
 
 const VISUALIZATION_OFFSET_Y         : f32       = -120.0;
 
-/// A type of unresolved methods. We filter them out, because they are not helpful from the UX
-/// perspective.
+/// A type of unresolved methods. We filter them out, because we don't want to treat them as types
+/// for ports and edges coloring (due to bad UX otherwise).
 const UNRESOLVED_SYMBOL_TYPE : &str = "Builtins.Main.Unresolved_Symbol";
 
 
