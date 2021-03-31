@@ -89,10 +89,10 @@ type PreprocessorCallbackCell = Rc<RefCell<Option<Box<dyn PreprocessorCallback>>
 #[allow(missing_docs)]
 pub struct InstanceModel {
     pub root_node           : DomSymbol,
+        display_object      : display::object::Instance,
     pub logger              : Logger,
         on_data_received    : Rc<Option<js_sys::Function>>,
         set_size            : Rc<Option<js_sys::Function>>,
-        display_object      : display::object::Instance,
         #[derivative(Debug="ignore")]
         object              : Rc<java_script::binding::Visualization>,
         #[derivative(Debug="ignore")]
@@ -167,18 +167,17 @@ impl InstanceModel {
         let on_data_received              = Rc::new(on_data_received);
         let set_size                      = get_method(&object.as_ref(),method::SET_SIZE).ok();
         let set_size                      = Rc::new(set_size);
-        let on_hide                       = get_method(&object.as_ref(), method::ON_HIDE).ok();
-        let on_hide                       = Rc::new(on_hide);
-        let display_object                = display::object::Instance::new(Logger::new(""));
-        display_object.add_child(root_node.display_object());
-        display_object.set_on_hide(move |_| {
-            if let Some(f) = &*on_hide {
-                let context = &JsValue::NULL;
-                let _ = f.call0(context);
-            }
-        });
         let object                        = Rc::new(object);
         let scene                         = scene.clone_ref();
+        let display_object                = display::object::Instance::new(Logger::new(""));
+        display_object.add_child(root_node.display_object());
+        let on_hide                       = get_method(&object.as_ref(), method::ON_HIDE).ok();
+        if let Some(f) = on_hide {
+            display_object.set_on_hide(move |_| {
+                let context = &JsValue::NULL;
+                let _ = f.call0(context);
+            });
+        }
         Ok(InstanceModel{object,on_data_received,set_size,root_node,logger,preprocessor_change,
                          display_object, scene})
     }
