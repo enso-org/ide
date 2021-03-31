@@ -505,7 +505,8 @@ impl<Host> Model<Host> {
     }
 
     /// Sets a callback which will be called with a reference to scene when the object will be
-    /// hidden (detached from display object graph).
+    /// hidden (detached from display object graph). This will also happen when the last `Instance`
+    /// referring to the object gets dropped.
     pub fn set_on_hide<F>(&self, f:F)
     where F : Fn(&Host) + 'static{
         self.callbacks.on_hide.set(Box::new(f))
