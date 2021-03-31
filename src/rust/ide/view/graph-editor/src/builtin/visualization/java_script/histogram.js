@@ -281,6 +281,7 @@ class Histogram extends Visualization {
         const self = this
 
         let transformedScale = Object.assign({}, self.scale)
+        let tempRmbScale = Object.assign({}, scaleAndAxis)
 
         /**
          * Helper function called on pan/scroll.
@@ -301,7 +302,9 @@ class Histogram extends Visualization {
             }
 
             if (d3.event.sourceEvent != null && d3.event.sourceEvent.buttons === rightButton) {
-                const rmbDivider = 5000.0
+                transformedScale.xScale = tempRmbScale.xScale
+                transformedScale.yScale = tempRmbScale.yScale
+                const rmbDivider = 100.0
                 const zoomAmount = rmbZoomValue(d3.event.sourceEvent) / rmbDivider
                 const scale = Math.exp(zoomAmount)
                 const distanceScale = getScaleForZoom(scale, startPos)
@@ -365,6 +368,7 @@ class Histogram extends Visualization {
          */
         function startZoom() {
             startPos = getPos(d3.event.sourceEvent)
+            tempRmbScale = Object.assign({}, transformedScale)
         }
 
         return { zoomElem, zoom, transformedScale }
