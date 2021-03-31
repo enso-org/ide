@@ -31,6 +31,9 @@
   `Column` datatypes are properly visualized. Scatter Plot can display points of
   different color, shape and size, all as defined by the data within the
   `Table`.
+- [`onHide callback for visualizations][1383]. JavaScript visualizations can now
+  implement a method `onHide()` that will be called whenever the visualization
+  is hidden or closed on screen.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
@@ -80,6 +83,9 @@
   with a browser of your choice.
 - [JS visualizations have consistent gestures with the IDE][1291]. Panning and
   zooming now works just as expected on trackpad and mouse.
+- [Running `watch` command works on first try.][1395]. Running the build command
+  `run watch` would fail if it was run as the first command on a clean
+  repository. This now works.
 - [The `inputType` field of visualizations is actually taken into consideration]
   [1384]. The visualization chooser shows entries accepting the node's output's
   type only.
@@ -126,6 +132,7 @@ you can find their release notes
 [1341]: https://github.com/enso-org/ide/pull/1341
 [1348]: https://github.com/enso-org/ide/pull/1348
 [1353]: https://github.com/enso-org/ide/pull/1353
+[1395]: https://github.com/enso-org/ide/pull/1395
 [1363]: https://github.com/enso-org/ide/pull/1363
 [1384]: https://github.com/enso-org/ide/pull/1384
 [1385]: https://github.com/enso-org/ide/pull/1385
