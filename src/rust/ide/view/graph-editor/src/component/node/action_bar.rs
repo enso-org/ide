@@ -87,9 +87,12 @@ impl Icons {
         let freeze         = ToggleButton::new(&logger);
         let visibility     = ToggleButton::new(&logger);
         let skip           = ToggleButton::new(&logger);
-        display_object.add_child(&freeze);
         display_object.add_child(&visibility);
-        display_object.add_child(&skip);
+        // Note: Disabled for https://github.com/enso-org/ide/issues/1397
+        //  Re-enable when they are needed again.
+        //
+        // display_object.add_child(&freeze);
+        // display_object.add_child(&skip);
         Self {display_object,freeze,visibility,skip}
     }
 
