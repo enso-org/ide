@@ -38,7 +38,7 @@ pub const SHADOW_PX:f32 = 10.0;
 mod selection {
     use super::*;
 
-    pub const CORNER_RADIUS_PX:f32 = entry::PADDING * 2.0;
+    pub const CORNER_RADIUS_PX:f32 = entry::LABEL_SIZE;
 
     ensogl_core::define_shape_system! {
         (style:Style) {
