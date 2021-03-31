@@ -13,6 +13,9 @@ const customSqlTypePrefix = 'Standard.Database.Data.Sql.Sql_Type.'
 /** Specifies opacity of interpolation background color. */
 const interpolationBacgroundOpacity = 0.3
 
+/** A regular expression for parsing CSS transforms. */
+const matrixRegex = /matrix(3d)?\(.*?\)/
+
 /** The CSS styles for the visualization. */
 const visualizationStyle = `
     <style>
@@ -80,8 +83,6 @@ loadScript('https://cdnjs.cloudflare.com/ajax/libs/sql-formatter/4.0.2/sql-forma
  * interpolated query parameters.
  */
 class SqlVisualization extends Visualization {
-    // TODO Change the type below once #837 is done:
-    // 'Standard.Database.Data.Table.Table | Standard.Database.Data.Column.Column'
     static inputType = 'Standard.Database.Data.Table.Table | Standard.Database.Data.Column.Column'
     static label = 'SQL Query'
 
@@ -89,6 +90,8 @@ class SqlVisualization extends Visualization {
         super(api)
         this.setPreprocessorModule('Standard.Visualization.Sql.Visualization')
         this.setPreprocessorCode(`x -> here.prepare_visualization x`)
+
+        this.tooltip = null
     }
 
     onDataReceived(data) {
@@ -126,7 +129,9 @@ class SqlVisualization extends Visualization {
         containers.scrollable.innerHTML = visHtml
         this.dom.appendChild(parentContainer)
 
-        const tooltip = new Tooltip(parentContainer)
+        const tooltipParent = document.querySelector('#root > .scene > .front > .view_projection')
+        const tooltip = new Tooltip(tooltipParent)
+        this.tooltip = tooltip
         const baseMismatches = this.dom.getElementsByClassName('mismatch')
         const extendedMismatchAreas = this.dom.getElementsByClassName('mismatch-mouse-area')
         setupMouseInteractionForMismatches(tooltip, baseMismatches)
@@ -142,6 +147,7 @@ class SqlVisualization extends Visualization {
         while (this.dom.firstChild) {
             this.dom.removeChild(this.dom.lastChild)
         }
+        this.removeTooltip()
     }
 
     /**
@@ -167,6 +173,18 @@ class SqlVisualization extends Visualization {
         return {
             parent: parentContainer,
             scrollable: scrollable,
+        }
+    }
+
+    onHide() {
+        this.removeTooltip()
+    }
+
+    /** Removes the tooltip element, if it has been created. */
+    removeTooltip() {
+        if (this.tooltip !== null) {
+            this.tooltip.destroy()
+            this.tooltip = null
         }
     }
 
@@ -372,6 +390,10 @@ class Tooltip {
      * ignored.
      */
     hide(actor) {
+        if (this.tooltip == null) {
+            console.log('hide called on destroyed tooltip')
+            return
+        }
         if (this.tooltipOwner === null || this.tooltipOwner == actor) {
             this.tooltipOwner = null
             this.tooltip.style.opacity = 0
@@ -384,6 +406,11 @@ class Tooltip {
      * Tooltip content is specified by the `message` which can include arbitrary HTML.
      */
     show(actor, message) {
+        if (this.tooltip == null) {
+            console.log('show called on destroyed tooltip')
+            return
+        }
+
         this.tooltipOwner = actor
         this.tooltip.innerHTML = message
         this.tooltip.style.opacity = 1
@@ -393,7 +420,7 @@ class Tooltip {
         const scrollElement = codeContainer.parentElement
 
         const scrollOffsetX = scrollElement.scrollLeft
-        const scrollOffsetY = scrollElement.scrollTop + scrollElement.offsetHeight
+        const scrollOffsetY = scrollElement.scrollTop
 
         const interpolantOffsetX = interpolantContainer.offsetLeft
         const interpolantOffsetY = interpolantContainer.offsetTop
@@ -402,11 +429,36 @@ class Tooltip {
         const belowPadding = 3
         const belowOffset = interpolantContainer.offsetHeight + belowPadding
 
-        const x = interpolantOffsetX - scrollOffsetX + centeringOffset
-        const y = interpolantOffsetY - scrollOffsetY + belowOffset
+        const visualization = actor.closest('.visualization')
+        const visMatrix = getMatrix(visualization)
+
+        const x = visMatrix.m41 + interpolantOffsetX - scrollOffsetX + centeringOffset
+        const y = visMatrix.m42 + interpolantOffsetY - scrollOffsetY + belowOffset
 
         this.tooltip.style.transform = 'translate(' + x + 'px, ' + y + 'px)'
     }
+
+    /** Removes the element itself.
+     *
+     * The tooltip instance is not usable after this has been called.
+     */
+    destroy() {
+        this.tooltipOwner = null
+        if (this.tooltip == null) {
+            console.log('destroy called twice on a tooltip')
+            return
+        }
+        this.tooltip.remove()
+        this.tooltip = null
+    }
+}
+
+/** A helper function that returns a parsed CSS transformation matrix for a given element. */
+function getMatrix(element) {
+    const transform = window.getComputedStyle(element).transform
+    const matrixString = transform.match(matrixRegex)[0]
+    const matrix = new DOMMatrix(matrixString)
+    return matrix
 }
 
 /**

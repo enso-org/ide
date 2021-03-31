@@ -31,9 +31,11 @@
   `Column` datatypes are properly visualized. Scatter Plot can display points of
   different color, shape and size, all as defined by the data within the
   `Table`.
-- [`onHide callback for visualizations][1383]. JavaScript visualizations can now
-  implement a method `onHide()` that will be called whenever the visualization
-  is hidden or closed on screen.
+- [`onHide` callback for visualizations][1383]. JavaScript visualizations can
+  now implement a method `onHide()` that will be called whenever the
+  visualization is hidden or closed on screen.
+- [Tooltip for SQL Visualization][1414]. The tooltip for SQL Visualization is
+  now correctly displayed over other nodes.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
