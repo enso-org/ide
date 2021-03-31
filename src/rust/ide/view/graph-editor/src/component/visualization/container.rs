@@ -20,14 +20,16 @@ use crate::component::visualization::instance::PreprocessorConfiguration;
 
 use action_bar::ActionBar;
 use enso_frp as frp;
+use ensogl::Animation;
 use ensogl::application::Application;
 use ensogl::data::color;
+use ensogl::display;
 use ensogl::display::DomSymbol;
 use ensogl::display::scene::Scene;
 use ensogl::display::scene;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
-use ensogl::{display, Animation};
+
 use ensogl::system::web::StyleSetter;
 use ensogl::system::web;
 use ensogl_gui_components::shadow;
