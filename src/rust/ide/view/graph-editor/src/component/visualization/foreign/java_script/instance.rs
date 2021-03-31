@@ -173,9 +173,9 @@ impl InstanceModel {
         display_object.add_child(root_node.display_object());
         let on_hide                       = get_method(&object.as_ref(), method::ON_HIDE).ok();
         if let Some(f) = on_hide {
+            let object_clone = object.clone();
             display_object.set_on_hide(move |_| {
-                let context = &JsValue::NULL;
-                let _       = f.call0(context);
+                let _       = f.call0(&object_clone);
             });
         }
         Ok(InstanceModel{object,on_data_received,set_size,root_node,logger,preprocessor_change,
