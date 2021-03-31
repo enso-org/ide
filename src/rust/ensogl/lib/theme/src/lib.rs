@@ -164,6 +164,9 @@ define_themes! { [light:0, dark:1]
         searcher {
             action_list_gap = 5.0, 5.0;
         }
+        status_bar {
+            text = text, text;
+        }
     }
     code {
         syntax {
@@ -318,5 +321,9 @@ define_themes! { [light:0, dark:1]
             blur   = 10.0 , 10.0;
             spread = -2.0 , -2.0;
         }
+    }
+    text = Rgba(0.078,0.067,0.137,0.85) , Lcha(1.0,0.0,0.0,0.7);
+    text {
+        size   = 12.0, 12.0;
     }
 }

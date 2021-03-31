@@ -8,10 +8,12 @@
 use crate::prelude::*;
 
 use ensogl::application::Application;
-use ensogl::display;
 use ensogl::display::Scene;
+use ensogl::display;
 use ensogl_text as text;
+use ensogl_theme as theme;
 use std::future::Future;
+
 
 
 // =================
@@ -117,6 +119,10 @@ impl Model {
         let processes       = default();
         let next_process_id = default();
         display_object.add_child(&label);
+
+        let text_color_path = theme::application::status_bar::text;
+        label.set_text_color_from_style(&text_color_path.into());
+
         Self {logger,display_object,label,events,processes,next_process_id}
     }
 
