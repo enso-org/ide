@@ -1459,4 +1459,23 @@ mod tests {
         assert_eq!(node5.is_visible(),false);
         assert_eq!(node6.is_visible(),false);
     }
+
+    #[test]
+    fn hide_after_drop_test() {
+        let node1 = Instance::<()>::new(Logger::new("node1"));
+        let node2 = Instance::<()>::new(Logger::new("node2"));
+        node1.add_child(&node2);
+
+        node1.force_set_visibility(true);
+        node1.update(&());
+        assert!(node2.is_visible());
+
+        let node1_was_hidden = Rc::new(Cell::new(false));
+        let node1_was_hidden_clone = node1_was_hidden.clone();
+        node2.set_on_hide(move |_| node1_was_hidden_clone.set(true));
+
+        drop(node2);
+        node1.update(&());
+        assert!(node1_was_hidden.get());
+    }
 }
