@@ -281,7 +281,7 @@ class Histogram extends Visualization {
         const self = this
 
         let transformedScale = Object.assign({}, self.scale)
-        let tempRmbScale = Object.assign({}, scaleAndAxis)
+        let tempRmbScale = Object.assign({}, self.scale)
 
         /**
          * Helper function called on pan/scroll.
@@ -302,14 +302,13 @@ class Histogram extends Visualization {
             }
 
             if (d3.event.sourceEvent != null && d3.event.sourceEvent.buttons === rightButton) {
-                transformedScale.xScale = tempRmbScale.xScale
-                transformedScale.yScale = tempRmbScale.yScale
+                transformedScale.x = tempRmbScale.x
                 const rmbDivider = 100.0
                 const zoomAmount = rmbZoomValue(d3.event.sourceEvent) / rmbDivider
                 const scale = Math.exp(zoomAmount)
                 const distanceScale = getScaleForZoom(scale, startPos)
                 transformedScale.x = distanceScale.rescaleX(transformedScale.x)
-                transformedScale.zoom = transformedScale.zoom * scale
+                transformedScale.zoom = tempRmbScale.zoom * scale
             } else if (d3.event.sourceEvent != null && d3.event.sourceEvent.type === 'wheel') {
                 if (d3.event.sourceEvent.ctrlKey) {
                     const pinchDivider = 100.0
