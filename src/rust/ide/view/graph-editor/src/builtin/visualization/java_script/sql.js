@@ -84,7 +84,7 @@ loadScript('https://cdnjs.cloudflare.com/ajax/libs/sql-formatter/4.0.2/sql-forma
  */
 class SqlVisualization extends Visualization {
     static inputType = 'Standard.Database.Data.Table.Table | Standard.Database.Data.Column.Column'
-    static label = 'SQL Query (dev)'
+    static label = 'SQL Query'
 
     constructor(api) {
         super(api)
@@ -130,7 +130,6 @@ class SqlVisualization extends Visualization {
         this.dom.appendChild(parentContainer)
 
         const tooltipParent = document.querySelector('#root > .scene > .front > .view_projection')
-        console.log(tooltipParent)
         const tooltip = new Tooltip(tooltipParent)
         this.tooltip = tooltip
         const baseMismatches = this.dom.getElementsByClassName('mismatch')
@@ -457,7 +456,6 @@ class Tooltip {
 /** A helper function that returns a parsed CSS transformation matrix for a given element. */
 function getMatrix(element) {
     const transform = window.getComputedStyle(element).transform
-    console.log(transform)
     const matrixString = transform.match(matrixRegex)[0]
     const matrix = new DOMMatrix(matrixString)
     return matrix
