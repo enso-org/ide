@@ -347,9 +347,9 @@ class Histogram extends Visualization {
          */
         function getPos(event) {
             if (ok(event)) {
-                return {x: event.offsetX, y: event.offsetY}
+                return { x: event.offsetX, y: event.offsetY }
             }
-            return  {x: 0, y: 0}
+            return { x: 0, y: 0 }
         }
 
         /**
