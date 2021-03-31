@@ -340,6 +340,7 @@ impl display::Object for Model {
 ///    |--------------------------------|
 ///
 /// ```
+#[allow(missing_docs)]
 #[derive(Clone,CloneRef,Debug)]
 pub struct ActionBar {
     pub frp : Frp,
@@ -407,6 +408,9 @@ impl ActionBar {
         }
         self
     }
+
+    /// Visualization Chooser component getter.
+    pub fn visualization_chooser(&self) -> &VisualizationChooser { &self.model.visualization_chooser }
 }
 
 impl display::Object for ActionBar {
