@@ -1,6 +1,7 @@
 //! Label component. Appears as text with background.
 
 use crate::prelude::*;
+use crate::shadow;
 
 use enso_frp as frp;
 use enso_frp;
@@ -25,39 +26,16 @@ mod background {
     ensogl_core::define_shape_system! {
         (style:Style,bg_color:Vector4) {
 
-            let width   = Var::<Pixels>::from("input_size.x");
-            let height  = Var::<Pixels>::from("input_size.y");
-            let padding = style.get_number_or(theme::padding, 0.0);
-            let width   = width  - padding.px() * 2.0;
-            let height  = height - padding.px() * 2.0;
-            let radius  = &height / 2.0;
-            let shape   = Rect((&width,&height)).corners_radius(&radius);
-            let shape   = shape.fill(Var::<color::Rgba>::from(bg_color.clone()));
-
-
-            // === Shadow ===
-            let alpha         = Var::<f32>::from(format!("({0}.w)",bg_color));
-            let border_size_f = 16.0;
-            let shaow_size    = style.get_number_or(theme::shadow::size,0.0);
-            let shadow_size   = shaow_size.px();
-            let shadow_width  = &width  + &shadow_size * 2.0;
-            let shadow_height = &height + &shadow_size * 2.0;
-            let shadow_radius = &shadow_height / 2.0;
-            let shadow        = Rect((shadow_width,shadow_height)).corners_radius(shadow_radius);
-            let base_color    = color::Rgba::from(style.get_color(theme::shadow));
-            let base_color    = Var::<color::Rgba>::from(base_color);
-            let base_color    = base_color.multiply_alpha(&alpha);
-            let fading_color  = color::Rgba::from(style.get_color(theme::shadow::fading));
-            let fading_color  = Var::<color::Rgba>::from(fading_color);
-            let fading_color  = fading_color.multiply_alpha(&alpha);
-            let exponent      = style.get_number_or(theme::shadow::exponent,2.0);
-            let shadow_color  = color::LinearGradient::new()
-                .add(0.0,fading_color.into_linear())
-                .add(1.0,base_color.into_linear());
-            let shadow_color = color::SdfSampler::new(shadow_color)
-                .max_distance(border_size_f)
-                .slope(color::Slope::Exponent(exponent));
-            let shadow        = shadow.fill(shadow_color);
+            let width      = Var::<Pixels>::from("input_size.x");
+            let height     = Var::<Pixels>::from("input_size.y");
+            let padding    = style.get_number_or(theme::padding_outer, 0.0);
+            let width      = width  - padding.px() * 2.0;
+            let height     = height - padding.px() * 2.0;
+            let radius     = &height / 2.0;
+            let base_shape = Rect((&width,&height)).corners_radius(&radius);
+            let shape      = base_shape.fill(Var::<color::Rgba>::from(bg_color.clone()));
+            let alpha      = Var::<f32>::from(format!("({0}.w)",bg_color));
+            let shadow     = shadow::from_shape_with_alpha(base_shape.into(),&alpha,style);
 
             (shadow+shape).into()
         }
@@ -124,14 +102,19 @@ impl Model {
     }
 
     fn set_width(&self, width:f32) -> Vector2 {
-        let padding     = self.style.get_number_or(theme::padding,0.0);
-        let text_size   = self.style.get_number_or(theme::text::size,0.0);
-        let text_offset = self.style.get_number_or(theme::text::offset,0.0);
-        let height      = self.height();
-        let size        = Vector2(width * 1.25,height);
-        let padded_size = size + Vector2(padding,padding) * 2.0;
+        let padding_outer   = self.style.get_number_or(theme::padding_outer,0.0);
+        let padding_inner_x = self.style.get_number_or(theme::padding_inner_x,0.0);
+        let padding_inner_y = self.style.get_number_or(theme::padding_inner_y,0.0);
+        let padding_x       = padding_outer + padding_inner_x;
+        let padding_y       = padding_outer + padding_inner_y;
+        let padding         = Vector2(padding_x,padding_y);
+        let text_size       = self.style.get_number_or(theme::text::size,0.0);
+        let text_offset     = self.style.get_number_or(theme::text::offset,0.0);
+        let height          = self.height();
+        let size            = Vector2(width,height);
+        let padded_size     = size + padding * 2.0;
         self.background.size.set(padded_size);
-        let text_origin = Vector2(padding / 2.0 + text_offset - size.x/2.0, text_size /2.0);
+        let text_origin = Vector2(text_offset - size.x/2.0, text_size /2.0);
         self.label.set_position_xy(text_origin);
         padded_size
     }
@@ -170,7 +153,7 @@ pub struct Label {
 
 impl Label {
     /// Constructor.
-    pub fn new(app:Application) -> Self {
+    pub fn new(app:&Application) -> Self {
         let frp   = Rc::new(Frp::new());
         let model = Rc::new(Model::new(app.clone_ref()));
         Label {frp,model}.init()

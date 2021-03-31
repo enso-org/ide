@@ -11,11 +11,29 @@
   will be lost. In this build we added notification in statusbar to signalize
   that the connection was lost and IDE must be restarted. In future IDE will try
   to automatically reconnect.
+  - [Visualization can be extended to the whole screen][1355] by selecting the
+    node and pressing space twice. To quit this view, press space again.
+- [Visualization preview on output port hover.][1363] There is now a quick
+  preview for visualizations and error descriptions. Hovering a node output will
+  first show a tooltip with the type information and then after some time, will
+  show the visualization of the node. The preview visualization will be located
+  above other nodes, whereas the normal view, will be shown below nodes. Errors
+  will show the preview visualization immediately. Nodes without type
+  information will also show the visualization immediately. You can enter a
+  quick preview mode by pressing ctrl (or command on macOS), which will show the
+  preview visualization immediately for any hovered node output.
 - [Database Visualizations][1335]. Visualizations for the Database library have
   been added. The Table visualization now automatically executes the underlying
   query to display its results in a table. In addition, the SQL Query
   visualization allows the user to see the query that is going to be run against
   the database.
+- [Histogram and Scatter Plot now support Dataframes.][1377] The `Table` and
+  `Column` datatypes are properly visualized. Scatter Plot can display points of
+  different color, shape and size, all as defined by the data within the
+  `Table`.
+- [`onHide callback for visualizations][1383]. JavaScript visualizations can now
+  implement a method `onHide()` that will be called whenever the visualization
+  is hidden or closed on screen.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
@@ -60,7 +78,7 @@
   in JavaScript. You can query it for all IDE colors, including the colors used
   to represent types.
 - [You can now start the IDE service without window again.][1353] The command
-  line arguyment `--no-window` now starts all the required backend services
+  line argument `--no-window` now starts all the required backend services
   again, and prints the port on the command line, allowing you to open the IDE
   with a browser of your choice.
 - [JS visualizations have consistent gestures with the IDE][1291]. Panning and
@@ -68,6 +86,9 @@
 - [Running `watch` command works on first try.][1395]. Running the build command
   `run watch` would fail if it was run as the first command on a clean
   repository. This now works.
+- [The `inputType` field of visualizations is actually taken into consideration]
+  [1384]. The visualization chooser shows entries accepting the node's output's
+  type only.
 - [Fix applying selected node output to the expression of new node][1385]. For
   example, having selected node with Table output and adding a new node with
   expression `at "x" == "y"` the selected node was applied to the right side of
@@ -76,8 +97,17 @@
 - [Geo Map visualization recognizes columns regardless of their name letter
   case][1392]. This allows visualizing tables with columns like `LONGITUDE` or
   `Longitude`, where previously only `longitude` was recognized.
+- [It is possible now to switch themes][1390]. Also, theme manager was
+  integrated with the FRP event engine, which was a long-standing issue in the
+  IDE. Themes management was exposed to JavaScript with the `window.theme`
+  variable. It is even possible to change and develop themes live by editing
+  theme variables directly in the Chrome Inspector. Use the following command to
+  start: `theme.snapshot("t1"); theme.get("t1").interactiveMode()`.
 
 #### EnsoGL (rendering engine)
+
+- [Unified shadow generation][1411]. Added a toolset to create shadows for  
+  arbitrary UI components.
 
 #### Enso Compiler
 
@@ -85,25 +115,33 @@ If you're interested in the enhancements and fixes made to the Enso compiler,
 you can find their release notes
 [here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
 
-[479]: https://github.com/enso-org/ide/issues/479
+[1064]: https://github.com/enso-org/ide/pull/1064
 [1209]: https://github.com/enso-org/ide/pull/1209
 [1291]: https://github.com/enso-org/ide/pull/1291
-[1314]: https://github.com/enso-org/ide/pull/1314
-[1313]: https://github.com/enso-org/ide/pull/1313
 [1311]: https://github.com/enso-org/ide/pull/1311
-[1064]: https://github.com/enso-org/ide/pull/1064
+[1313]: https://github.com/enso-org/ide/pull/1313
+[1314]: https://github.com/enso-org/ide/pull/1314
 [1316]: https://github.com/enso-org/ide/pull/1316
 [1318]: https://github.com/enso-org/ide/pull/1318
+[1328]: https://github.com/enso-org/ide/pull/1328
+[1355]: https://github.com/enso-org/ide/pull/1355
 [1332]: https://github.com/enso-org/ide/pull/1332
 [1341]: https://github.com/enso-org/ide/pull/1341
-[1328]: https://github.com/enso-org/ide/pull/1328
 [1341]: https://github.com/enso-org/ide/pull/1341
 [1348]: https://github.com/enso-org/ide/pull/1348
 [1353]: https://github.com/enso-org/ide/pull/1353
 [1395]: https://github.com/enso-org/ide/pull/1395
+[1363]: https://github.com/enso-org/ide/pull/1363
+[1384]: https://github.com/enso-org/ide/pull/1384
 [1385]: https://github.com/enso-org/ide/pull/1385
-[1393]: https://github.com/enso-org/ide/pull/1393
+[1390]: https://github.com/enso-org/ide/pull/1390
 [1392]: https://github.com/enso-org/ide/pull/1392
+[1393]: https://github.com/enso-org/ide/pull/1393
+[479]: https://github.com/enso-org/ide/issues/479
+[1335]: https://github.com/enso-org/ide/pull/1335
+[1358]: https://github.com/enso-org/ide/pull/1358
+[1377]: https://github.com/enso-org/ide/pull/1377
+[1411]: https://github.com/enso-org/ide/pull/1411
 
 <br/>
 
@@ -200,6 +238,9 @@ users about errors and where they originate.
 - Cursors in text editors behave correctly now (they are not affected by scene
   pan and zoom). This was possible because of the new multi-camera management
   system implemented in EnsoGL.
+- [Fixed method names highlighted in pink.][1408] There was a bug introduced
+  after one of the latest Engine updates, that sent `Unresolved_symbol` types,
+  which made all methods pink. This is fixed now.
 
 #### EnsoGL (rendering engine)
 
@@ -246,6 +287,7 @@ you can find their release notes
 [podcast-future-of-enso]:
   https://www.youtube.com/watch?v=rF8DuJPOfTs&t=1863s&ab_channel=Enso
 [1312]: https://github.com/enso-org/ide/pull/1312
+[1408]: https://github.com/enso-org/ide/pull/1408
 
 <br/>
 
