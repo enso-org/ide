@@ -19,9 +19,9 @@ use ensogl_theme as theme;
 // === Constants  ===
 // ==================
 
-const BUTTON_PADDING : f32 = 0.5;
-const BUTTON_OFFSET  : f32 = 0.5;
-
+const BUTTON_PADDING  : f32 = 0.5;
+const BUTTON_OFFSET   : f32 = 0.5;
+const HOVER_PADDING_X : f32 = 15.0;
 
 
 // ===============
@@ -178,12 +178,13 @@ impl Model {
         let offset         = BUTTON_OFFSET;
         let hover_padding  = 1.0;
         let button_width   = self.icon_size().x;
-        let hover_width    = button_width * (button_count + hover_padding + offset + padding);
+        let hover_width    = button_width * (button_count + hover_padding + offset + padding)
+            + HOVER_PADDING_X;
         let hover_height   = button_width * 2.0;
         let hover_ara_size = Vector2::new(hover_width,hover_height);
         self.hover_area.size.set(hover_ara_size);
         let center_offset  = -size.x / 2.0 + hover_ara_size.x / 2.0;
-        let padding_offset = - 0.5 * hover_padding * button_width;
+        let padding_offset = - 0.5 * hover_padding * button_width - HOVER_PADDING_X / 2.0;
         self.hover_area.set_position_x(center_offset + padding_offset);
     }
 
@@ -191,11 +192,15 @@ impl Model {
         self.size.set(size);
         self.icons.set_position_x(-size.x/2.0);
 
+        // Note: Disabled for https://github.com/enso-org/ide/issues/1397
+        //  Re-enable when they are needed again. Also increase the number in
+        // the call to `layout_hover_area_to_cover_buttons` belolw.
         self.place_button_in_slot(&self.icons.visibility , 0);
-        self.place_button_in_slot(&self.icons.skip       , 1);
-        self.place_button_in_slot(&self.icons.freeze     , 2);
+        // self.place_button_in_slot(&self.icons.skip       , 1);
+        // self.place_button_in_slot(&self.icons.freeze     , 2);
 
-        self.layout_hover_area_to_cover_buttons(3);
+        // Note: needs increasing to 3 when re-enabling the above buttons.
+        self.layout_hover_area_to_cover_buttons(1);
 
         // The appears smaller than the other ones, so this is an aesthetic adjustment.
         self.icons.visibility.set_scale_xy(Vector2::new(1.2,1.2));
