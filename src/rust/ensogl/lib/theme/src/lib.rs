@@ -278,7 +278,7 @@ define_themes! { [light:0, dark:1]
             highlight  = selection , selection;
             text = Lcha(0.0,0.0,0.0,0.7) , Lcha(1.0,0.0,0.0,0.7);
             text {
-                highlight = Lcha(0.8,0.0,0.0,1.0) , Lcha(0.7,0.0,0.0,1.0);
+                highlight = Lcha(0.7,0.4,0.74,1.0) , Lcha(0.7,0.4,0.74,1.0);
                 selection = Lcha(0.7,0.0,0.125,0.7) , Lcha(0.7,0.0,0.125,0.7);
             }
         }
