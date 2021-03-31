@@ -175,11 +175,11 @@ impl InstanceModel {
         if let Some(f) = on_hide {
             display_object.set_on_hide(move |_| {
                 let context = &JsValue::NULL;
-                let _ = f.call0(context);
+                let _       = f.call0(context);
             });
         }
         Ok(InstanceModel{object,on_data_received,set_size,root_node,logger,preprocessor_change,
-                         display_object, scene})
+                         display_object,scene})
     }
 
     /// Hooks the root node into the given scene.
