@@ -327,7 +327,7 @@ define_themes! { [light:0, dark:1]
         offset_x = 0.0 , 0.0;
         offset_y = -2.0 , -2.0;
         html {
-            alpha  = 0.14  , 0.14;
+            alpha  = 0.10  , 0.10;
             blur   = 10.0 , 10.0;
             spread = -2.0 , -2.0;
         }

@@ -391,7 +391,9 @@ impl ListView {
 
 
             // === Resize ===
-            frp.source.size <+ frp.resize;
+            frp.source.size <+ frp.resize.map(f!([model](size)
+                size - Vector2(model.padding(),model.padding()))
+            );
 
 
             // === Update Entries ===
