@@ -9,7 +9,6 @@ pub use visualization::container::overlay;
 
 use ast::prelude::FallibleResult;
 use enso_frp as frp;
-use ensogl::data::color;
 use ensogl::display::DomSymbol;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::primitive::StyleWatch;

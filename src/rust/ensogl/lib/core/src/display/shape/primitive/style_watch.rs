@@ -182,9 +182,8 @@ impl StyleWatch {
     pub fn get_color_for_css<T:Into<Path>>(&self, path:T) -> String {
         let color      = self.get_color(path);
         let color_rgba = color::Rgba::from(color);
-        let color_css  = format!("rgba({},{},{},{})",color_rgba.red*255.0,color_rgba.green*255.0,
-                                 color_rgba.blue*255.0,color_rgba.alpha);
-        return color_css
+        format!("rgba({},{},{},{})",
+                color_rgba.red*255.0,color_rgba.green*255.0, color_rgba.blue*255.0,color_rgba.alpha)
     }
 
     /// Return the dimmed version for either a `Path` or a specific color.
