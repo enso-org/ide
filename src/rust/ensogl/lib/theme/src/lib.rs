@@ -164,6 +164,9 @@ define_themes! { [light:0, dark:1]
         searcher {
             action_list_gap = 5.0, 5.0;
         }
+        documentation {
+            background = Rgba(0.984,0.992,1.0,1.0) , Lcha(0.2,0.014,0.18,1.0);
+        }
         status_bar {
             text = text, text;
         }

@@ -177,6 +177,16 @@ impl StyleWatch {
         self.get(path).color().unwrap_or_else(|| FALLBACK_COLOR)
     }
 
+    /// Queries style sheet color and returns it as a string to be used in CSS properties.
+    /// If the path is not found fallbacks to [`FALLBACK_COLOR`].
+    pub fn get_color_for_css<T:Into<Path>>(&self, path:T) -> String {
+        let color      = self.get_color(path);
+        let color_rgba = color::Rgba::from(color);
+        let color_css  = format!("rgba({},{},{},{})",color_rgba.red*255.0,color_rgba.green*255.0,
+                                 color_rgba.blue*255.0,color_rgba.alpha);
+        return color_css
+    }
+
     /// Return the dimmed version for either a `Path` or a specific color.
     pub fn get_color_dim<T:Into<Path>>(&self, path:T) -> color::Lcha {
         self.get_color_from_path_dim(path)
