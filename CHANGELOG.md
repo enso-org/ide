@@ -31,8 +31,7 @@
   `Column` datatypes are properly visualized. Scatter Plot can display points of
   different color, shape and size, all as defined by the data within the
   `Table`.
-- [Many small visual improvements.][1419] See the source issue for more 
-  details. 
+- [Many small visual improvements.][1419] See the source issue for more details.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
