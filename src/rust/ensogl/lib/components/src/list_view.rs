@@ -26,8 +26,6 @@ use ensogl_theme as theme;
 
 // === Constants ===
 
-/// The distance between sprite and displayed component edge, needed to proper antialiasing.
-pub const PADDING_PX:f32 = 1.0;
 /// The size of shadow under element. It is not counted in the component width and height.
 pub const SHADOW_PX:f32 = 10.0;
 
@@ -44,8 +42,10 @@ mod selection {
         (style:Style) {
             let sprite_width  : Var<Pixels> = "input_size.x".into();
             let sprite_height : Var<Pixels> = "input_size.y".into();
-            let width         = sprite_width  - 2.0.px() * PADDING_PX;
-            let height        = sprite_height - 2.0.px() * PADDING_PX;
+            let padding_inner = style.get_number_or(ensogl_theme::application::searcher::selection::padding::horizontal,0.0);
+            let padding       = style.get_number_or(ensogl_theme::application::searcher::searcher,0.0);
+            let width         = sprite_width  - 2.0.px() * padding - 2.0.px() * padding_inner;
+            let height        = sprite_height - 2.0.px() * padding;
             let color         = style.get_color(ensogl_theme::widget::list_view::highlight);
             let rect          = Rect((&width,&height)).corners_radius(CORNER_RADIUS_PX.px());
             let shape         = rect.fill(color::Rgba::from(color));
@@ -67,8 +67,9 @@ mod background {
         (style:Style) {
             let sprite_width  : Var<Pixels> = "input_size.x".into();
             let sprite_height : Var<Pixels> = "input_size.y".into();
-            let width         = sprite_width - SHADOW_PX.px() * 2.0 - PADDING_PX.px() * 2.0;
-            let height        = sprite_height - SHADOW_PX.px() * 2.0 - PADDING_PX.px() * 2.0;
+            let padding       = style.get_number_or(ensogl_theme::application::searcher::searcher,0.0);
+            let width         = sprite_width - SHADOW_PX.px() * 2.0 - padding.px() * 2.0;
+            let height        = sprite_height - SHADOW_PX.px() * 2.0 - padding.px() * 2.0;
             let color         = style.get_color(theme::widget::list_view::background);
             let rect          = Rect((&width,&height)).corners_radius(CORNER_RADIUS_PX.px());
             let shape         = rect.fill(color::Rgba::from(color));
@@ -120,13 +121,22 @@ impl Model {
         Model{app,entries,selection,background,display_object,scrolled_area}
     }
 
+    fn padding(&self) -> f32 {
+        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape
+        // system (#795)
+        let styles   = StyleWatch::new(&self.app.display.scene().style_sheet);
+        styles.get_number_or(ensogl_theme::application::searcher::searcher,0.0)
+    }
+
     /// Update the displayed entries list when _view_ has changed - the list was scrolled or
     /// resized.
     fn update_after_view_change(&self, view:&View) {
         let visible_entries = Self::visible_entries(view,self.entries.entry_count());
-        let padding         = Vector2(2.0 * PADDING_PX, 2.0 * PADDING_PX);
+        let padding_px      = self.padding();
+        let padding         = Vector2(2.0 * padding_px, 2.0 * padding_px);
         let shadow          = Vector2(2.0 * SHADOW_PX,  2.0 * SHADOW_PX);
         self.entries.set_position_x(-view.size.x / 2.0);
+        self.entries.set_position_y(-padding_px);
         self.background.size.set(view.size + padding + shadow);
         self.scrolled_area.set_position_y(view.size.y / 2.0 - view.position_y);
         self.entries.update_entries(visible_entries);
@@ -329,9 +339,9 @@ impl ListView {
             target_selection_y <- frp.selected_entry.map(|id|
                 id.map_or(0.0,entry::List::position_y_of_entry)
             );
-            target_selection_height <- frp.selected_entry.map(|id|
-                if id.is_some() {entry::HEIGHT + 2.0 * PADDING_PX} else {0.0}
-            );
+            target_selection_height <- frp.selected_entry.map(f!([model](id)
+                if id.is_some() {entry::HEIGHT + 2.0 * model.padding()} else {0.0}
+            ));
             eval target_selection_y      ((y) selection_y.set_target_value(*y));
             eval target_selection_height ((h) selection_height.set_target_value(*h));
             eval frp.set_entries         ([selection_y,selection_height](_) {
@@ -342,10 +352,10 @@ impl ListView {
                 |y,h| y + (entry::HEIGHT - h) / 2.0
             );
             eval selectin_sprite_y ((y) model.selection.set_position_y(*y));
-            selection_size <- all_with(&frp.size,&selection_height.value,|size,height| {
-                let width = size.x + 2.0 * PADDING_PX;
+            selection_size <- all_with(&frp.size,&selection_height.value,f!([model](size,height) {
+                let width = size.x + 2.0 * model.padding();
                 Vector2(width,*height)
-            });
+            }));
             eval selection_size ((size) model.selection.size.set(*size));
 
 
