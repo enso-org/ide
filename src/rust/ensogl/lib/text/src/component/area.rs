@@ -692,15 +692,6 @@ impl Area {
         //TODO[ao] we cannot move selection symbol, as it is global for all the text areas.
         SmallVec::from_buf([text_symbol,/*selection_symbol*/])
     }
-
-    /// Set the text color based on the given theme path. Updates the existing text and future text.
-    pub fn set_text_color_from_style(&self, path:&display::style::path::Path) {
-        let style      = StyleWatch::new(&self.data.app.display.scene().style_sheet);
-        let text_color = style.get_color(path);
-        let text_color = color::Rgba::from(text_color);
-        self.frp.set_color_all.emit(text_color);
-        self.frp.set_default_color.emit(text_color);
-    }
 }
 
 

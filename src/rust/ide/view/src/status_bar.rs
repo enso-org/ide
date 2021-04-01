@@ -8,7 +8,9 @@
 use crate::prelude::*;
 
 use ensogl::application::Application;
+use ensogl::data::color;
 use ensogl::display::Scene;
+use ensogl::display::shape::StyleWatch;
 use ensogl::display;
 use ensogl_text as text;
 use ensogl_theme as theme;
@@ -121,7 +123,11 @@ impl Model {
         display_object.add_child(&label);
 
         let text_color_path = theme::application::status_bar::text;
-        label.set_text_color_from_style(&text_color_path.into());
+        let style           = StyleWatch::new(&app.display.scene().style_sheet);
+        let text_color      = style.get_color(text_color_path);
+        let text_color      = color::Rgba::from(text_color);
+        label.frp.set_color_all.emit(text_color);
+        label.frp.set_default_color.emit(text_color);
 
         Self {logger,display_object,label,events,processes,next_process_id}
     }

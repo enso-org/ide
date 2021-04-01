@@ -42,8 +42,8 @@ mod selection {
         (style:Style) {
             let sprite_width  : Var<Pixels> = "input_size.x".into();
             let sprite_height : Var<Pixels> = "input_size.y".into();
-            let padding_inner = style.get_number_or(ensogl_theme::application::searcher::selection::padding::horizontal,0.0);
-            let padding       = style.get_number_or(ensogl_theme::application::searcher::searcher,0.0);
+            let padding_inner = style.get_number(ensogl_theme::application::searcher::selection::padding::horizontal);
+            let padding       = style.get_number(ensogl_theme::application::searcher::searcher);
             let width         = sprite_width  - 2.0.px() * padding - 2.0.px() * padding_inner;
             let height        = sprite_height - 2.0.px() * padding;
             let color         = style.get_color(ensogl_theme::widget::list_view::highlight);
@@ -67,7 +67,7 @@ mod background {
         (style:Style) {
             let sprite_width  : Var<Pixels> = "input_size.x".into();
             let sprite_height : Var<Pixels> = "input_size.y".into();
-            let padding       = style.get_number_or(ensogl_theme::application::searcher::searcher,0.0);
+            let padding       = style.get_number(ensogl_theme::application::searcher::searcher);
             let width         = sprite_width - SHADOW_PX.px() * 2.0 - padding.px() * 2.0;
             let height        = sprite_height - SHADOW_PX.px() * 2.0 - padding.px() * 2.0;
             let color         = style.get_color(theme::widget::list_view::background);
@@ -125,7 +125,7 @@ impl Model {
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape
         // system (#795)
         let styles   = StyleWatch::new(&self.app.display.scene().style_sheet);
-        styles.get_number_or(ensogl_theme::application::searcher::searcher,0.0)
+        styles.get_number(ensogl_theme::application::searcher::searcher)
     }
 
     /// Update the displayed entries list when _view_ has changed - the list was scrolled or
