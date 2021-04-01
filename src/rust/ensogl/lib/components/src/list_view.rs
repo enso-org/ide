@@ -136,7 +136,6 @@ impl Model {
         let padding         = Vector2(padding, padding);
         let shadow          = Vector2(2.0 * SHADOW_PX,  2.0 * SHADOW_PX);
         self.entries.set_position_x(-view.size.x / 2.0);
-        // self.entries.set_position_y(-padding_px);
         self.background.size.set(view.size + padding + shadow);
         self.scrolled_area.set_position_y(view.size.y / 2.0 - view.position_y);
         self.entries.update_entries(visible_entries);
