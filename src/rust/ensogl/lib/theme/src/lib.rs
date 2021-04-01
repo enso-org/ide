@@ -162,10 +162,13 @@ define_themes! { [light:0, dark:1]
             show_delay_duration_ms = 150.0, 150.0;
         }
         searcher {
-            action_list_gap = 5.0, 5.0;
-            searcher = 5.0, 5.0;
+            action_list_gap = 10.0, 10.0;
+            padding = 5.0, 5.0;
             selection {
-                padding.horizontal = 5.0, 5.0;
+                padding {
+                    horizontal = 2.0, 2.0;
+                    vertical   = 2.0, 2.0
+                }
             }
         }
         documentation {
@@ -324,7 +327,7 @@ define_themes! { [light:0, dark:1]
         offset_x = 0.0 , 0.0;
         offset_y = -2.0 , -2.0;
         html {
-            alpha  = 0.16  , 0.16;
+            alpha  = 0.14  , 0.14;
             blur   = 10.0 , 10.0;
             spread = -2.0 , -2.0;
         }
