@@ -332,28 +332,47 @@ Electron.app.on('web-contents-created', (event,contents) => {
 // === Project Manager ===
 // =======================
 
-async function withBackend(opts) {
+function projectManagerPath() {
     let binPath = args['backend-path']
     if (!binPath) {
         binPath = paths.get_project_manager_path(resources)
     }
     let binExists = fss.existsSync(binPath)
     assert(binExists, `Could not find the project manager binary at ${binPath}.`)
+    return binPath
+}
 
-    let out = await execFile(binPath,opts).catch(function(err) {throw err})
+async function execProjectManager(args) {
+    let binPath = projectManagerPath()
+    return await execFile(binPath,args).catch(function(err) {throw err})
+}
+
+function spawnProjectManager(args) { 
+    let binPath = projectManagerPath()
+    let stdin = 'pipe'
+    let stdout = 'inherit'
+    let stderr = 'inherit'
+    let opts = {
+        stdio: [stdin,stdout,stderr]
+    }
+    let out = child_process.spawn(binPath,args,opts)
+    console.log(`Project Manager has been spawned, pid = ${out.pid}.`) 
+    out.on('exit', (code) => {
+        console.log(`Project Manager exited with code ${code}.`)
+    })
     return out
 }
 
 function runBackend() {
     if(args.backend !== false) {
         console.log("Starting the backend process.")
-        withBackend()
+        return spawnProjectManager()
     }
 }
 
 async function backendVersion() {
     if(args.backend !== false) {
-        return await withBackend(['--version']).then((t) => t.stdout)
+        return await execProjectManager(['--version']).then((t) => t.stdout)
     }
 }
 
