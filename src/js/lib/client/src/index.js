@@ -342,11 +342,31 @@ function projectManagerPath() {
     return binPath
 }
 
+/**
+ * Executes the Project Manager with given arguments.
+ * 
+ * Note that this function captures all the Project Manager output into a fixed
+ * size buffer. If too much output is produced, it will fail and Project 
+ * Manager process will prematurely close.
+ * 
+ * @param {string[]} args Project Manager command line arguments.
+ * @returns Promise with captured standard output and error contents.
+ */
 async function execProjectManager(args) {
     let binPath = projectManagerPath()
     return await execFile(binPath,args).catch(function(err) {throw err})
 }
 
+/**
+ * Spawn process with Project Manager,
+ * 
+ * The standard output and error handles will be inherited, i.e. will be
+ * redirected to the electron's app output and error handles. Input is piped
+ * to this process, so it will not be closed, until this process finished.
+ * 
+ * @param {string[]} args 
+ * @returns Handle to the spawned process.
+ */
 function spawnProjectManager(args) { 
     let binPath = projectManagerPath()
     let stdin = 'pipe'
