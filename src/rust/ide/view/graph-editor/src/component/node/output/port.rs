@@ -1,8 +1,8 @@
 
 use crate::prelude::*;
 
-use crate::tooltip;
-use crate::tooltip::Placement;
+// use crate::tooltip;
+// use crate::tooltip::Placement;
 use crate::Type;
 use crate::component::node;
 use crate::component::type_coloring;
@@ -20,7 +20,7 @@ use ensogl::display::shape::StyleWatch;
 use ensogl::display::shape::Var;
 use ensogl::display::shape::primitive::def::class::ShapeOps;
 use ensogl::display;
-use ensogl::gui::component;
+use ensogl::gui::{component, text};
 
 
 
@@ -34,8 +34,9 @@ const PORT_OPACITY_NOT_HOVERED : f32 = 0.25;
 const SEGMENT_GAP_WIDTH        : f32 = 2.0;
 const HOVER_AREA_PADDING       : f32 = 20.0;
 const INFINITE                 : f32 = 99999.0;
+const LABEL_OFFSET             : f32 = -20.0;
 
-const TOOLTIP_LOCATION : Placement = Placement::Bottom;
+// const TOOLTIP_LOCATION : Placement = Placement::Bottom;
 
 
 
@@ -143,6 +144,8 @@ pub mod single_port {
 // =====================
 
 pub use multi_port::View as MultiPortView;
+use ensogl::application::Application;
+use std::f32::consts::PI;
 
 /// Implements the shape for a segment of the OutputPort with multiple output ports.
 pub mod multi_port {
@@ -368,13 +371,14 @@ ensogl::define_endpoints! {
         set_size_multiplier (f32),
         set_definition_type (Option<Type>),
         set_usage_type      (Option<Type>),
+        label_visibility    (bool)
     }
 
     Output {
         tp       (Option<Type>),
         on_hover (bool),
         on_press (),
-        tooltip  (tooltip::Style),
+        // tooltip  (tooltip::Style),
     }
 }
 
@@ -382,18 +386,23 @@ ensogl::define_endpoints! {
 pub struct Model {
     pub frp    : Option<Frp>,
     pub shape  : Option<PortShapeView>,
+    pub label  : Option<text::Area>,
+    pub display_object : Option<display::object::Instance>,
     pub index  : usize,
     pub length : usize,
+    port_count : usize,
+    port_index : usize,
 }
 
 impl Model {
     pub fn init_shape
     ( &mut self
     , logger     : impl AnyLogger
+    , app        : &Application
     , styles     : &StyleWatch
     , port_index : usize
     , port_count : usize
-    ) -> (PortShapeView,Frp) {
+    ) -> (display::object::Instance,Frp) {
         let logger_name = format!("port({},{})",self.index,self.length);
         let logger      = Logger::sub(logger,logger_name);
         let shape       = PortShapeView::new(port_count,&logger);
@@ -406,18 +415,31 @@ impl Model {
         shape.set_port_count(port_count);
         shape.set_padding_left(padding_left);
         shape.set_padding_right(padding_right);
+        self.shape = Some(shape.clone());
 
-        self.init_frp(&shape,styles);
-        self.shape = Some(shape);
-        (self.shape.as_ref().unwrap().clone_ref(),self.frp.as_ref().unwrap().clone_ref())
+        self.port_count = max(port_count, 1);
+        self.port_index = port_index;
+        let label = app.new_view::<text::Area>();
+        label.frp.set_content("foo");
+        label.set_position_y(LABEL_OFFSET);
+        self.label = Some(label.clone());
+
+        let display_object = display::object::Instance::new(logger);
+        display_object.add_child(&shape);
+        display_object.add_child(&label);
+        self.display_object = Some(display_object.clone());
+
+        self.init_frp(&shape,&label,styles);
+        (display_object,self.frp.as_ref().unwrap().clone_ref())
     }
 
-    fn init_frp(&mut self, shape:&PortShapeView, styles:&StyleWatch) {
+    fn init_frp(&mut self, shape:&PortShapeView, label:&text::Area, styles:&StyleWatch) {
         let frp     = Frp::new();
         let network = &frp.network;
         let events  = shape.events();
         let opacity = Animation::<f32>::new(network);
         let color   = color::Animation::new(network);
+        let label_opacity = Animation::<f32>::new(network);
 
         frp::extend! { network
 
@@ -434,6 +456,16 @@ impl Model {
             eval opacity.value ((t) shape.set_opacity(*t));
 
 
+            // === Label Opacity ===
+            // TODO: Respect label_visibility
+            label_opacity.target <+ events.mouse_over.constant(PORT_OPACITY_HOVERED);
+            label_opacity.target <+ events.mouse_out.constant(0.0);
+            // TODO: map2 does not seem to update for color.value
+            label_color <- label_opacity.value.map2(&color.value,
+                |&opacity,color| color::Rgba::from(color.opaque.with_alpha(opacity)));
+            eval label_color ((t) label.set_color_all(*t));
+
+
             // === Size ===
 
             eval frp.set_size_multiplier ((t) shape.set_size_multiplier(*t));
@@ -446,15 +478,23 @@ impl Model {
             );
 
             color_tgt <- frp.tp.map(f!([styles](t) type_coloring::compute_for_selection(t.as_ref(),&styles)));
+            label.set_content <+ frp.tp.map(f!([](t) {
+                if let Some(t) = t {
+                    t.to_string()
+                } else {
+                    "".to_string()
+                }
+            }));
+            // TODO: Update position of label when content changes
             color.target <+ color_tgt;
             eval color.value ((t) shape.set_color(t.into()));
 
             on_hover  <- frp.on_hover.on_true();
             non_hover <- frp.on_hover.on_false();
-            frp.source.tooltip <+ frp.tp.sample(&on_hover).unwrap().map(|tp| {
-                tooltip::Style::set_label(tp.to_string()).with_placement(TOOLTIP_LOCATION)
-            });
-            frp.source.tooltip <+ non_hover.constant(tooltip::Style::unset_label());
+            // frp.source.tooltip <+ frp.tp.sample(&on_hover).unwrap().map(|tp| {
+            //     tooltip::Style::set_label(tp.to_string()).with_placement(TOOLTIP_LOCATION)
+            // });
+            // frp.source.tooltip <+ non_hover.constant(tooltip::Style::unset_label());
         }
 
         opacity.target.emit(PORT_OPACITY_NOT_HOVERED);
@@ -465,7 +505,20 @@ impl Model {
 
     pub fn set_size(&self, size:Vector2) {
         if let Some(shape) = &self.shape {
-            shape.set_size(size + Vector2(HOVER_AREA_PADDING,HOVER_AREA_PADDING) * 2.0);
+            shape.set_size(size.clone() + Vector2(HOVER_AREA_PADDING,HOVER_AREA_PADDING) * 2.0);
+        }
+        self.update_label_position(size);
+    }
+
+    fn update_label_position(&self,size:Vector2) {
+        if let Some(label) = &self.label {
+            let corner_circumference  = node::RADIUS * 2.0 * PI;
+            let corner_segment_length = corner_circumference * 0.25;
+            let center_segment_length = size.x - node::RADIUS * 2.0;
+            let shape_border_length   = center_segment_length + corner_segment_length * 2.0;
+            let offset_relative = (self.port_index as f32 + 0.5) / (self.port_count as f32) - 0.5;
+            let offset  = offset_relative * shape_border_length;
+            label.set_position_x(-label.frp.width.value()/2.0 + offset);
         }
     }
 }

@@ -18,7 +18,7 @@ use crate::Type;
 use crate::component::node::input;
 use crate::component::node::output::port;
 use crate::component::node;
-use crate::tooltip;
+// use crate::tooltip;
 
 
 
@@ -126,6 +126,8 @@ ensogl::define_endpoints! {
         /// `set_expression` instead. In case the usage type is set to None, ports still may be
         /// colored if the definition type was present.
         set_expression_usage_type (Crumbs,Option<Type>),
+
+        port_label_visibility     (bool),
     }
 
     Output {
@@ -134,7 +136,7 @@ ensogl::define_endpoints! {
         on_port_type_change  (Crumbs,Option<Type>),
         port_size_multiplier (f32),
         body_hover           (bool),
-        tooltip              (tooltip::Style),
+        // tooltip              (tooltip::Style),
     }
 }
 
@@ -296,7 +298,7 @@ impl Model {
                 let crumbs = port.crumbs.clone_ref();
                 let logger = &self.logger;
                 let (port_shape,port_frp) = port.payload_mut()
-                    .init_shape(logger,&self.styles,port_index,port_count);
+                    .init_shape(logger,&self.app,&self.styles,port_index,port_count);
                 let port_network = &port_frp.network;
 
                 frp::extend! { port_network
@@ -305,7 +307,8 @@ impl Model {
                     self.frp.source.on_port_press <+ port_frp.on_press.constant(crumbs.clone());
                     port_frp.set_size_multiplier <+ self.frp.port_size_multiplier;
                     self.frp.source.on_port_type_change <+ port_frp.tp.map(move |t|(crumbs.clone(),t.clone()));
-                    self.frp.source.tooltip <+ port_frp.tooltip;
+                    // self.frp.source.tooltip <+ port_frp.tooltip;
+                    port_frp.label_visibility <+ self.frp.port_label_visibility;
                 }
 
                 self.ports.add_child(&port_shape);
@@ -318,6 +321,7 @@ impl Model {
     fn init_definition_types(&self) {
         let port_count          = self.port_count.get();
         let whole_expr_type     = self.expression.borrow().whole_expr_type.clone();
+        // Why do we collect those?
         let mut signals_to_emit = Vec::<(frp::Any<Option<Type>>,Option<Type>)>::new();
         self.traverse_borrowed_expression(|_,node,_| {
             if let Some(port_frp) = &node.payload.frp {
