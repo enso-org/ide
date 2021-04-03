@@ -468,7 +468,7 @@ class ScatterPlot extends Visualization {
                 'transform',
                 d => 'translate(' + scaleAndAxis.xScale(d.x) + ',' + scaleAndAxis.yScale(d.y) + ')'
             )
-            .style('fill', d => d.color ?? '#00000080')
+            .style('fill', d => d.color ?? "rgba(78,165,253,0.8)")
 
         if (points.labels === VISIBLE_POINTS) {
             scatter
