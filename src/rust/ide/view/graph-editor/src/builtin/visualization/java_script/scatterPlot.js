@@ -455,8 +455,8 @@ class ScatterPlot extends Visualization {
 
         let sizeScaleMultiplier = 100
 
-        let color = this.theme.get("accent")
-        let fillColor = `rgba(${color.red},${color.green},${color.blue},0.8)`
+        let color = this.theme.get('accent')
+        let fillColor = `rgba(${color.red * 255},${color.green * 255},${color.blue * 255},0.8)`
 
         scatter
             .selectAll('dataPoint')

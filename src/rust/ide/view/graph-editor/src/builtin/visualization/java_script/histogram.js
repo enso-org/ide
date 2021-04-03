@@ -514,7 +514,8 @@ class Histogram extends Visualization {
 
         this.yAxis.call(yAxis)
 
-        const fill = d3.scaleSequential()
+        const fill = d3
+            .scaleSequential()
             .interpolator(d3.interpolateViridis)
             .domain([0, d3.max(bins, d => d.x0)])
 
@@ -527,7 +528,7 @@ class Histogram extends Visualization {
             .attr('transform', d => 'translate(' + x(d.x0) + ',' + y(d.length) + ')')
             .attr('width', d => x(d.x1) - x(d.x0))
             .attr('height', d => this.canvas.inner.height - y(d.length))
-            .style('fill', d =>  fill(d.x0))
+            .style('fill', d => fill(d.x0))
 
         items.exit().remove()
 
