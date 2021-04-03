@@ -156,7 +156,7 @@ impl Default for Theme {
 
 define_themes! { [light:0, dark:1]
     application {
-        background = Rgba(0.961,0.965,0.969,1.0) , Lcha(0.13,0.014,0.18,1.0);
+        background = Rgba(0.976,0.98,0.9684,1.0) , Lcha(0.13,0.014,0.18,1.0); // rgb(249,250,251)
         tooltip {
             hide_delay_duration_ms = 150.0, 150.0;
             show_delay_duration_ms = 150.0, 150.0;
@@ -211,7 +211,7 @@ define_themes! { [light:0, dark:1]
     }
     graph_editor {
         node {
-            background         = Rgba(0.984,0.992,1.0,1.0) , Lcha(0.2,0.014,0.18,1.0);
+            background         = Rgba(0.992,0.996,1.0,1.0) , Lcha(0.2,0.014,0.18,1.0); // rgb(253,254,255)
             background.skipped = graph_editor::node::background , Lcha(0.15,0.014,0.18,1.0);
             selection      = selection, selection;
             selection {
@@ -318,14 +318,14 @@ define_themes! { [light:0, dark:1]
     // === Generics ===
 
     selection = Rgba(0.776,0.8,0.81,0.57) , Lcha(0.72,0.54,0.22,1.0);
-    shadow = Rgba(0.078,0.067,0.137,0.07) , Lcha(0.0,0.0,0.0,0.20); // a 0.04
+    shadow = Rgba(0.09,0.055,0.125,0.09) , Lcha(0.0,0.0,0.0,0.20); // rgba(23,14,32,0.09)
     shadow {
-        size     = 14.0 , 14.0;  // 13
-        spread   = -2.0 , -2.0;
-        fading   = Rgba(0.078,0.067,0.137,0.0) , Lcha(0.0,0.0,0.0,0.0);
-        exponent = 3.0 , 3.0; // 2
+        size     = 25.0 , 25.0;
+        spread   = -5.0 , -5.0;
+        fading   = Rgba(0.09,0.055,0.125,0.0) , Lcha(0.0,0.0,0.0,0.0);
+        exponent = 3.0 , 3.0;
         offset_x = 0.0 , 0.0;
-        offset_y = -2.0 , -2.0;
+        offset_y = -5.0 , -5.0;
         html {
             alpha  = 0.10  , 0.10;
             blur   = 10.0 , 10.0;

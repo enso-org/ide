@@ -62,10 +62,10 @@ impl StyleWatchFrp {
         frp::extend! { network
             source <- source::<Option<style::Data>>();
         }
-        let path     = path.into();
-        let var      = self.sheet.var(path);
-        let current  = var.value();
-        let handle   = var.on_change(f!((data:&Option<style::Data>) source.emit(data.clone())));
+        let path    = path.into();
+        let var     = self.sheet.var(path);
+        let current = var.value();
+        let handle  = var.on_change(f!((data:&Option<style::Data>) source.emit(data.clone())));
         self.vars.borrow_mut().push(var);
         self.handles.borrow_mut().push(handle);
         (source,current)
