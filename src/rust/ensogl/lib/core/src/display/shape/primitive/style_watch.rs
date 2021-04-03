@@ -23,7 +23,7 @@ const VARIANT_PATH_PREFIX         : &str        = "variant";
 // require a cyclic import from the `ensogl-theme` crate.
 const COLOR_LIGHTNESS_FACTOR_PATH : &str        = "theme.vars.colors.dimming.lightness_factor";
 const COLOR_CHROMA_FACTOR_PATH    : &str        = "theme.vars.colors.dimming.chroma_factor";
-const FALLBACK_COLOR              : color::Lcha = color::Lcha::new(0.5,1.0,0.5,0.5);
+const FALLBACK_COLOR              : color::Rgba = color::Rgba::new(1.0,0.0,0.0,0.5);
 
 
 
@@ -83,7 +83,7 @@ impl StyleWatchFrp {
     }
 
     /// Queries style sheet color, if not found fallbacks to [`FALLBACK_COLOR`].
-    pub fn get_color<T:Into<Path>>(&self, path:T) -> frp::Sampler<color::Lcha> {
+    pub fn get_color<T:Into<Path>>(&self, path:T) -> frp::Sampler<color::Rgba> {
         let network          = &self.network;
         let (source,current) = self.get_internal(path);
         frp::extend! { network
@@ -173,38 +173,38 @@ impl StyleWatch {
 
 impl StyleWatch {
     /// Queries style sheet color, if not found fallbacks to [`FALLBACK_COLOR`].
-    pub fn get_color<T:Into<Path>>(&self, path:T) -> color::Lcha {
+    pub fn get_color<T:Into<Path>>(&self, path:T) -> color::Rgba {
         self.get(path).color().unwrap_or_else(|| FALLBACK_COLOR)
     }
 
-    /// Return the dimmed version for either a `Path` or a specific color.
-    pub fn get_color_dim<T:Into<Path>>(&self, path:T) -> color::Lcha {
-        self.get_color_from_path_dim(path)
-    }
+    // /// Return the dimmed version for either a `Path` or a specific color.
+    // pub fn get_color_dim<T:Into<Path>>(&self, path:T) -> color::Rgba {
+    //     self.get_color_from_path_dim(path)
+    // }
 
-    /// Queries style sheet color, if not found fallbacks to red.
-    fn get_color_from_path_dim<T:Into<Path>>(&self, path:T) -> color::Lcha {
-        let path = path.into();
-        match self.try_get_color_variant(path.clone(),THEME_KEY_DIMMED) {
-            None        => {
-                let base_color = self.get_color(path);
-                self.make_color_dim(base_color)
-            },
-            Some(color) => color,
-        }
-    }
-
-    /// Create a dimmed version of the given color value. The exact values to be used for dimming
-    /// are derived from the theme.
-    fn make_color_dim<T:Into<color::Lcha>+From<color::Lcha>>(&self, color:T) -> T {
-        let color : color::Lcha    = color.into();
-        let color_lightness_factor = self.get_number_or(COLOR_LIGHTNESS_FACTOR_PATH, 0.0);
-        let color_chroma_factor    = self.get_number_or(COLOR_CHROMA_FACTOR_PATH, 0.0);
-        let lightness              = color.lightness * color_lightness_factor;
-        let chroma                 = color.chroma * color_chroma_factor;
-        let color                  = color::Lcha::new(lightness,chroma,color.hue,color.alpha);
-        color.into()
-    }
+    // /// Queries style sheet color, if not found fallbacks to red.
+    // fn get_color_from_path_dim<T:Into<Path>>(&self, path:T) -> color::Lcha {
+    //     let path = path.into();
+    //     match self.try_get_color_variant(path.clone(),THEME_KEY_DIMMED) {
+    //         None        => {
+    //             let base_color = self.get_color(path);
+    //             self.make_color_dim(base_color)
+    //         },
+    //         Some(color) => color,
+    //     }
+    // }
+    //
+    // /// Create a dimmed version of the given color value. The exact values to be used for dimming
+    // /// are derived from the theme.
+    // fn make_color_dim<T:Into<color::Lcha>+From<color::Lcha>>(&self, color:T) -> T {
+    //     let color : color::Lcha    = color.into();
+    //     let color_lightness_factor = self.get_number_or(COLOR_LIGHTNESS_FACTOR_PATH, 0.0);
+    //     let color_chroma_factor    = self.get_number_or(COLOR_CHROMA_FACTOR_PATH, 0.0);
+    //     let lightness              = color.lightness * color_lightness_factor;
+    //     let chroma                 = color.chroma * color_chroma_factor;
+    //     let color                  = color::Lcha::new(lightness,chroma,color.hue,color.alpha);
+    //     color.into()
+    // }
 
     /// Return the path where we look for alternative shades or scheme variants of a color in the
     /// theme (for example, "dimmed").
@@ -217,8 +217,8 @@ impl StyleWatch {
         Path::from_segments(segments)
     }
 
-    fn try_get_color_variant<T:Into<Path>>(&self, path:T, id:&str) -> Option<color::Lcha> {
-        let path  = Self::color_variant_path(path.into(), id.to_string());
+    fn try_get_color_variant<T:Into<Path>>(&self, path:T, id:&str) -> Option<color::Rgba> {
+        let path = Self::color_variant_path(path.into(), id.to_string());
         self.get(path).color()
     }
 }
