@@ -7,7 +7,7 @@ loadStyle('https://fontlibrary.org/face/dejavu-sans-mono')
  * A d3.js heatmap visualization.
  */
 class Heatmap extends Visualization {
-    static inputType = 'Any'
+    static inputType = 'Standard.Table.Data.Table.Table | Standard.Base.Data.Vector.Vector'
     static label = 'Heatmap'
 
     constructor(data) {
