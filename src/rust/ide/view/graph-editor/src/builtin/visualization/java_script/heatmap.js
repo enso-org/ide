@@ -10,6 +10,12 @@ class Heatmap extends Visualization {
     static inputType = 'Any'
     static label = 'Heatmap'
 
+    constructor(data) {
+        super(data)
+        this.setPreprocessorModule('Standard.Visualization.Table.Visualization')
+        this.setPreprocessorCode(`x -> here.prepare_visualization x 1000`)
+    }
+
     onDataReceived(data) {
         const { parsedData, isUpdate } = this.parseData(data)
         if (!ok(parsedData)) {
@@ -23,6 +29,8 @@ class Heatmap extends Visualization {
         } else {
             this.initHeatmap(parsedData)
         }
+
+        console.log(this.theme.get("accent"))
     }
 
     parseData(data) {
@@ -94,7 +102,7 @@ class Heatmap extends Visualization {
     /**
      * Creates HTML div element as container for plot.
      */
-     createOuterContainerWithStyle(width, height) {
+    createOuterContainerWithStyle(width, height) {
         const divElem = document.createElementNS(null, 'div')
         divElem.setAttributeNS(null, 'class', 'vis-histogram')
         divElem.setAttributeNS(null, 'viewBox', 0 + ' ' + 0 + ' ' + width + ' ' + height)
@@ -135,10 +143,10 @@ class Heatmap extends Visualization {
      * Initialise the heatmap with the current data and settings.
      */
     initHeatmap(parsedData) {
-        let data = parsedData.columns //this.data()
+        let data = parsedData.data
         // Labels of row and columns
-        let myGroups = d3.map(data[0].data, d => d).keys()
-        let myVars = d3.map(data[1].data, d => d).keys()
+        let myGroups = d3.map(data[0], d => d).keys()
+        let myVars = d3.map(data[1], d => d).keys()
 
         // Build X scales and axis:
         let x = d3.scaleBand()
@@ -164,21 +172,21 @@ class Heatmap extends Visualization {
         // Build color scale
         let fill = d3.scaleSequential()
             .interpolator(d3.interpolateViridis)
-            .domain([0, d3.max(data[2].data, d => d)])
-        
-        let indices = Array.from(Array(data[0].data.length).keys())
+            .domain([0, d3.max(data[2], d => d)])
+
+        let indices = Array.from(Array(data[0].length).keys())
 
         this.svg.selectAll()
-            .data(indices, d => data[0].data[d]+':'+data[1].data[d])
+            .data(indices, d => data[0][d]+':'+data[1][d])
             .enter()
             .append("rect")
-            .attr("x", d => x(data[0].data[d]))
-            .attr("y", d => y(data[1].data[d]))
+            .attr("x", d => x(data[0][d]))
+            .attr("y", d => y(data[1][d]))
             .attr("rx", 4)
             .attr("ry", 4)
             .attr("width", x.bandwidth() )
             .attr("height", y.bandwidth() )
-            .style("fill", d => fill(data[2].data[d]))
+            .style("fill", d => fill(data[2][d]))
             .style("stroke-width", 4)
             .style("stroke", "none")
             .style("opacity", 0.8)

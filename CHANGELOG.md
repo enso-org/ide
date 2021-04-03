@@ -32,7 +32,7 @@
   different color, shape and size, all as defined by the data within the
   `Table`.
 - [Many small visual improvements.][1419] See the source issue for more details.
-- [Added Heatmap visualization prototype.][1438]
+- [Added Heatmap visualization.][1438]
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
