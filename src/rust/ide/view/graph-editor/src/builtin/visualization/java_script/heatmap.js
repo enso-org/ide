@@ -30,7 +30,7 @@ class Heatmap extends Visualization {
             this.initHeatmap(parsedData)
         }
 
-        console.log(this.theme.get("accent"))
+        console.log(this.theme.get('accent'))
     }
 
     parseData(data) {
@@ -80,7 +80,6 @@ class Heatmap extends Visualization {
         return this._dataValues || {}
     }
 
-
     /**
      * Return the layout measurements for the plot. This includes the outer dimensions of the
      * drawing area as well as the inner dimensions of the plotting area and the margins.
@@ -88,7 +87,7 @@ class Heatmap extends Visualization {
     canvasDimensions() {
         const width = this.dom.getAttributeNS(null, 'width')
         const height = this.dom.getAttributeNS(null, 'height')
-        const margin = {top: 20, right: 20, bottom: 20, left: 25}
+        const margin = { top: 20, right: 20, bottom: 20, left: 25 }
         return {
             inner: {
                 width: width - margin.left - margin.right,
@@ -149,47 +148,47 @@ class Heatmap extends Visualization {
         let myVars = d3.map(data[1], d => d).keys()
 
         // Build X scales and axis:
-        let x = d3.scaleBand()
-            .range([ 0, this.canvas.inner.width ])
-            .domain(myGroups)
-            .padding(0.05);
-        this.svg.append("g")
+        let x = d3.scaleBand().range([0, this.canvas.inner.width]).domain(myGroups).padding(0.05)
+        this.svg
+            .append('g')
             .attr('style', 'font-family: DejaVuSansMonoBook; font-size: 10px;')
-            .attr("transform", "translate(0," + this.canvas.inner.height + ")")
+            .attr('transform', 'translate(0,' + this.canvas.inner.height + ')')
             .call(d3.axisBottom(x).tickSize(0))
-            .select(".domain").remove()
+            .select('.domain')
+            .remove()
 
         // Build Y scales and axis:
-        let y = d3.scaleBand()
-            .range([ this.canvas.inner.height, 0 ])
-            .domain(myVars)
-            .padding(0.05);
-        this.svg.append("g")
+        let y = d3.scaleBand().range([this.canvas.inner.height, 0]).domain(myVars).padding(0.05)
+        this.svg
+            .append('g')
             .attr('style', 'font-family: DejaVuSansMonoBook; font-size: 10px;')
             .call(d3.axisLeft(y).tickSize(0))
-            .select(".domain").remove()
+            .select('.domain')
+            .remove()
 
         // Build color scale
-        let fill = d3.scaleSequential()
+        let fill = d3
+            .scaleSequential()
             .interpolator(d3.interpolateViridis)
             .domain([0, d3.max(data[2], d => d)])
 
         let indices = Array.from(Array(data[0].length).keys())
 
-        this.svg.selectAll()
-            .data(indices, d => data[0][d]+':'+data[1][d])
+        this.svg
+            .selectAll()
+            .data(indices, d => data[0][d] + ':' + data[1][d])
             .enter()
-            .append("rect")
-            .attr("x", d => x(data[0][d]))
-            .attr("y", d => y(data[1][d]))
-            .attr("rx", 4)
-            .attr("ry", 4)
-            .attr("width", x.bandwidth() )
-            .attr("height", y.bandwidth() )
-            .style("fill", d => fill(data[2][d]))
-            .style("stroke-width", 4)
-            .style("stroke", "none")
-            .style("opacity", 0.8)
+            .append('rect')
+            .attr('x', d => x(data[0][d]))
+            .attr('y', d => y(data[1][d]))
+            .attr('rx', 4)
+            .attr('ry', 4)
+            .attr('width', x.bandwidth())
+            .attr('height', y.bandwidth())
+            .style('fill', d => fill(data[2][d]))
+            .style('stroke-width', 4)
+            .style('stroke', 'none')
+            .style('opacity', 0.8)
     }
 
     /**
