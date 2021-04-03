@@ -455,6 +455,9 @@ class ScatterPlot extends Visualization {
 
         let sizeScaleMultiplier = 100
 
+        let color = this.theme.get("accent")
+        let fillColor = `rgba(${color.red},${color.green},${color.blue},0.8)`
+
         scatter
             .selectAll('dataPoint')
             .data(dataPoints)
@@ -468,7 +471,7 @@ class ScatterPlot extends Visualization {
                 'transform',
                 d => 'translate(' + scaleAndAxis.xScale(d.x) + ',' + scaleAndAxis.yScale(d.y) + ')'
             )
-            .style('fill', d => d.color ?? "rgba(78,165,253,0.8)")
+            .style('fill', d => d.color ?? fillColor)
 
         if (points.labels === VISIBLE_POINTS) {
             scatter
