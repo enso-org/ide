@@ -25,12 +25,9 @@ class Heatmap extends Visualization {
 
         if (!this.isInitialised()) {
             this.initCanvas()
-            this.initHeatmap(parsedData)
-        } else {
-            this.initHeatmap(parsedData)
         }
 
-        console.log(this.theme.get('accent'))
+        this.initHeatmap()
     }
 
     parseData(data) {
@@ -57,7 +54,7 @@ class Heatmap extends Visualization {
      */
     updateState(data, isUpdate) {
         if (isUpdate) {
-            this._dataValues = ok(data.data.values) ? data.data.values : this.data
+            this._dataValues = ok(data.data) ? data.data : this.data
         } else {
             this._dataValues = this.extractValues(data)
         }
@@ -66,7 +63,7 @@ class Heatmap extends Visualization {
     extractValues(rawData) {
         /// Note this is a workaround for #1006, we allow raw arrays and JSON objects to be consumed.
         if (ok(rawData.data)) {
-            return rawData.data.values
+            return rawData.data
         } else if (Array.isArray(rawData)) {
             return rawData
         }
@@ -103,7 +100,7 @@ class Heatmap extends Visualization {
      */
     createOuterContainerWithStyle(width, height) {
         const divElem = document.createElementNS(null, 'div')
-        divElem.setAttributeNS(null, 'class', 'vis-histogram')
+        divElem.setAttributeNS(null, 'class', 'vis-heatmap')
         divElem.setAttributeNS(null, 'viewBox', 0 + ' ' + 0 + ' ' + width + ' ' + height)
         divElem.setAttributeNS(null, 'width', '100%')
         divElem.setAttributeNS(null, 'height', '100%')
@@ -141,17 +138,18 @@ class Heatmap extends Visualization {
     /**
      * Initialise the heatmap with the current data and settings.
      */
-    initHeatmap(parsedData) {
-        let data = parsedData.data
+    initHeatmap() {
+        let data = this.data()
         // Labels of row and columns
         let myGroups = d3.map(data[0], d => d).keys()
         let myVars = d3.map(data[1], d => d).keys()
+        let labelStyle = 'font-family: DejaVuSansMonoBook; font-size: 10px;'
 
         // Build X scales and axis:
         let x = d3.scaleBand().range([0, this.canvas.inner.width]).domain(myGroups).padding(0.05)
         this.svg
             .append('g')
-            .attr('style', 'font-family: DejaVuSansMonoBook; font-size: 10px;')
+            .attr('style', labelStyle)
             .attr('transform', 'translate(0,' + this.canvas.inner.height + ')')
             .call(d3.axisBottom(x).tickSize(0))
             .select('.domain')
@@ -161,7 +159,7 @@ class Heatmap extends Visualization {
         let y = d3.scaleBand().range([this.canvas.inner.height, 0]).domain(myVars).padding(0.05)
         this.svg
             .append('g')
-            .attr('style', 'font-family: DejaVuSansMonoBook; font-size: 10px;')
+            .attr('style', labelStyle)
             .call(d3.axisLeft(y).tickSize(0))
             .select('.domain')
             .remove()
