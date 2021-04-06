@@ -506,11 +506,7 @@ impl NodeModel {
             if let Some(error_data) = error.visualization_data() {
                 self.error_visualization.set_data(&error_data);
             }
-            if !*error.propagated {
-                self.display_object.add_child(&self.error_visualization);
-            } else {
-                self.error_visualization.unset_parent();
-            }
+            self.display_object.add_child(&self.error_visualization);
         } else {
             self.error_visualization.unset_parent();
         }
@@ -606,7 +602,7 @@ impl Node {
             frp.source.error <+ frp.set_error;
             is_error_set <- frp.error.map(|err| err.is_some());
             no_error_set <- not(&is_error_set);
-            error_color_anim.target <+ frp.error.map(f!([style](error)
+                error_color_anim.target <+ frp.error.map(f!([style](error)
                 Self::error_color(error,&style))
             );
 
@@ -640,8 +636,8 @@ impl Node {
             preview_visible         <- preview_visible && has_expression;
             preview_visible         <- preview_visible.on_change();
 
-            visualization_visible <- visualization_enabled && no_error_set;
-            visualization_visible <- visualization_visible || preview_visible;
+            visualization_visible <- visualization_enabled || preview_visible;
+            visualization_visible <- visualization_visible && no_error_set;
             visualization_visible <- visualization_visible.on_change();
             frp.source.visualization_enabled <+ visualization_enabled || preview_visible;
             eval visualization_visible ((is_visible)
@@ -657,7 +653,7 @@ impl Node {
             eval layer ((l) model.error_visualization.frp.set_layer.emit(l));
 
 
-            update_error <- all(frp.set_error,visualization_visible);
+            update_error <- all(frp.set_error,preview_visible);
             eval update_error([model]((error,visible)){
                 if *visible {
                      model.set_error(error.as_ref());
