@@ -193,7 +193,7 @@ impl Model {
     }
 
     fn set_label(&self, content:impl Into<String>) {
-        self.label.set_content(content.into());
+        self.label.set_content("");
         self.label.set_position_x(-self.label.width.value() - input::area::TEXT_OFFSET);
     }
 
