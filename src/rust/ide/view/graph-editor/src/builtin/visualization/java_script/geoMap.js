@@ -27,15 +27,15 @@ const LABEL_LIGHT_COLOR = `rgba(0, 0, 0, 0.8)`
 
 const DEFAULT_MAP_ZOOM = 11
 const DARK_ACCENT_COLOR = [222, 162, 47]
-const LIGHT_ACCENT_COLOR = [1, 234, 146]
+const LIGHT_ACCENT_COLOR = [78, 165, 253]
 
 // =====================================
 // === Script & Style Initialisation ===
 // =====================================
 
-loadScript('https://unpkg.com/deck.gl@8.3/dist.min.js')
-loadScript('https://api.tiles.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.js')
-loadStyle('https://api.tiles.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.css')
+loadScript('https://unpkg.com/deck.gl@8.4/dist.min.js')
+loadScript('https://api.mapbox.com/mapbox-gl-js/v2.1.1/mapbox-gl.js')
+loadStyle('https://api.mapbox.com/mapbox-gl-js/v2.1.1/mapbox-gl.css')
 
 const mapboxStyle = `
 .mapboxgl-map {
@@ -92,9 +92,11 @@ const makeId = makeGenerator()
  * }
  *
  * Can also consume a dataframe that has the columns `latitude`, `longitude` and optionally `label`.
+ *
+ * TODO: Make 2-finger panning behave like in IDE, and RMB zooming. [#1368]
  */
 class GeoMapVisualization extends Visualization {
-    static inputType = 'Any'
+    static inputType = 'Standard.Table.Data.Table.Table'
     static label = 'Geo Map'
 
     constructor(api) {
@@ -106,10 +108,14 @@ class GeoMapVisualization extends Visualization {
         this.setPreprocessorCode(`
                 df -> case df of
                     Table.Table _ ->
-                        columns = df.select ['label', 'latitude', 'longitude'] . columns
-                        serialized = columns.map (c -> ['df_' + c.name, c.to_vector])
-                        Json.from_pairs serialized . to_text
-                    _ -> df . to_json . to_text   
+                        names = ['label', 'latitude', 'longitude']
+                        look_for name = 
+                            is_matching column = column.name.equals_ignore_case name
+                            ["df_" + name, df.columns.find is_matching . to_vector]
+                        valid_column pair = pair.at 1 . is_error . not
+                        pairs = names.map look_for . filter valid_column
+                        Json.from_pairs pairs . to_text
+                    _ -> df . to_json . to_text
             `)
     }
 

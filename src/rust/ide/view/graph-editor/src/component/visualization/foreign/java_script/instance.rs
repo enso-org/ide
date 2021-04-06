@@ -96,14 +96,14 @@ pub struct InstanceModel {
         object              : Rc<java_script::binding::Visualization>,
         #[derivative(Debug="ignore")]
         preprocessor_change : PreprocessorCallbackCell,
+        scene               : Scene,
 }
 
 impl InstanceModel {
 
     fn get_background_color(scene:&Scene) -> color::Rgba {
         let styles   = StyleWatch::new(&scene.style_sheet);
-        let bg_color = styles.get_color(ensogl_theme::graph_editor::visualization::background);
-        color::Rgba::from(bg_color)
+        styles.get_color(ensogl_theme::graph_editor::visualization::background)
     }
 
     fn create_root(scene:&Scene,logger:&Logger) -> result::Result<DomSymbol, Error> {
@@ -159,14 +159,17 @@ impl InstanceModel {
         let logger                        = Logger::new("Instance");
         let root_node                     = Self::create_root(scene,&logger)?;
         let (preprocessor_change,closure) = Self::preprocessor_change_callback();
-        let init_data                     = JsConsArgs::new(root_node.clone_ref(), closure);
+        let styles                        = StyleWatch::new(&scene.style_sheet);
+        let init_data                     = JsConsArgs::new(root_node.clone_ref(), styles, closure);
         let object                        = Self::instantiate_class_with_args(class,init_data)?;
         let on_data_received              = get_method(object.as_ref(),method::ON_DATA_RECEIVED).ok();
         let on_data_received              = Rc::new(on_data_received);
         let set_size                      = get_method(&object.as_ref(),method::SET_SIZE).ok();
         let set_size                      = Rc::new(set_size);
         let object                        = Rc::new(object);
-        Ok(InstanceModel{object,on_data_received,set_size,root_node,logger,preprocessor_change})
+        let scene                         = scene.clone_ref();
+        Ok(InstanceModel{object,on_data_received,set_size,root_node,logger,preprocessor_change,
+                         scene})
     }
 
     /// Hooks the root node into the given scene.
@@ -213,6 +216,10 @@ impl InstanceModel {
         }
         Ok(())
     }
+
+    fn set_layer(&self, layer:Layer) {
+        layer.apply_for_html_component(&self.scene,&self.root_node)
+    }
 }
 
 
@@ -247,11 +254,12 @@ impl Instance {
         let frp     = self.frp.clone_ref();
         frp::extend! { network
             eval frp.set_size  ((size) model.set_size(*size));
-            eval frp.send_data ([frp](data) {
+            eval frp.send_data ([frp,model](data) {
                 if let Err(e) = model.receive_data(data) {
                     frp.data_receive_error.emit(Some(e));
                 }
             });
+            eval frp.set_layer ((layer) model.set_layer(*layer));
         }
         frp.pass_events_to_dom_if_active(scene,network);
         self
@@ -278,7 +286,7 @@ impl Instance {
 
 impl From<Instance> for visualization::Instance {
     fn from(t:Instance) -> Self {
-        Self::new(&t,&t.frp,&t.network)
+        Self::new(&t,&t.frp,&t.network,Some(t.model.root_node.clone_ref()))
     }
 }
 

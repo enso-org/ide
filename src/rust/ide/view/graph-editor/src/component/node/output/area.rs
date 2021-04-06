@@ -97,7 +97,7 @@ impl From<node::Expression> for Expression {
     fn from(expr:node::Expression) -> Self {
         let code            = expr.pattern.clone();
         let whole_expr_type = expr.input_span_tree.root.tp().map(|t|t.to_owned().into());
-        let whole_expr_id   = expr.input_span_tree.root.ast_id;
+        let whole_expr_id   = expr.whole_expression_id;
         let mut span_tree   = expr.output_span_tree.map(|_| port::Model::default());
         span_tree.root_ref_mut().dfs_with_layer_data((),|node,()| {
             let span    = node.span();
@@ -183,7 +183,7 @@ impl Model {
         self.label.single_line(true);
         self.label.disable_command("cursor_move_up");
         self.label.disable_command("cursor_move_down");
-        self.label.set_default_color(color::Rgba::from(text_color));
+        self.label.set_default_color(text_color);
         self.label.set_default_text_size(text::Size(input::area::TEXT_SIZE));
         self.label.remove_all_cursors();
 
@@ -410,7 +410,7 @@ impl Area {
 
             // === Label Color ===
 
-            let label_vis_color = model.styles.get_color(theme::graph_editor::node::text);
+            let label_vis_color = color::Lcha::from(model.styles.get_color(theme::graph_editor::node::text));
             let label_vis_alpha = label_vis_color.alpha;
             port_hover               <- frp.on_port_hover.map(|t| t.is_on());
             frp.source.body_hover    <+ frp.set_hover || port_hover;
