@@ -1,11 +1,11 @@
 class ImageBase64Visualization extends Visualization {
-    static inputType = 'Any'
+    static inputType = ' Standard.Image.Data.Image.Image'
     static label = 'Image'
 
     onDataReceived(data) {
         function image(mediaType, base64Data) {
             return (
-                '<img style="max-height:100%; max-width:100%;" src="data:' +
+                '<img style="max-height:100%; max-width:100%; border-radius: 14px;" src="data:' +
                 mediaType +
                 ';base64,' +
                 base64Data +
