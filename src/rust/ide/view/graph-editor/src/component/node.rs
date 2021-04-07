@@ -602,7 +602,7 @@ impl Node {
             frp.source.error <+ frp.set_error;
             is_error_set <- frp.error.map(|err| err.is_some());
             no_error_set <- not(&is_error_set);
-                error_color_anim.target <+ frp.error.map(f!([style](error)
+            error_color_anim.target <+ frp.error.map(f!([style](error)
                 Self::error_color(error,&style))
             );
 
