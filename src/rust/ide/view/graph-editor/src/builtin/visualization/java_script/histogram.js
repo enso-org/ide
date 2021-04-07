@@ -37,7 +37,7 @@ const BUTTON_HEIGHT = 25
  }
  */
 class Histogram extends Visualization {
-    static inputType = 'Standard.Table.Data.Table.Table | Standard.Base.Data.Vector.Vector'
+    static inputType = 'Standard.Table.Data.Table.Table | Standard.Base.Data.Vector.Vector | Standard.Image.Data.Histogram.Histogram'
     static label = 'Histogram'
 
     constructor(data) {
