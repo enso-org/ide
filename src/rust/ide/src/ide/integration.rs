@@ -182,6 +182,7 @@ struct Model {
     node_views              : RefCell<BiMap<ast::Id,graph_editor::NodeId>>,
     node_view_by_expression : RefCell<HashMap<ast::Id,graph_editor::NodeId>>,
     expression_views        : RefCell<HashMap<graph_editor::NodeId,graph_editor::component::node::Expression>>,
+    expression_types        : SharedHashMap<ExpressionId,Option<graph_editor::Type>>,
     connection_views        : RefCell<BiMap<controller::graph::Connection,graph_editor::EdgeId>>,
     code_view               : CloneRefCell<ensogl_text::Text>,
     visualizations          : SharedHashMap<graph_editor::NodeId,VisualizationId>,
@@ -427,13 +428,15 @@ impl Model {
         let node_view_by_expression = default();
         let connection_views        = default();
         let expression_views        = default();
+        let expression_types        = default();
         let code_view               = default();
         let visualizations          = default();
         let error_visualizations    = default();
         let searcher                = default();
         let this                    = Model
-            {view,graph,text,searcher,node_views,expression_views,connection_views,code_view,logger
-            ,visualization,visualizations,error_visualizations,project,node_view_by_expression};
+            {view,graph,text,searcher,node_views,expression_views,expression_types,connection_views
+            ,code_view,logger,visualization,visualizations,error_visualizations,project
+            ,node_view_by_expression};
 
         this.init_project_name();
         this.load_visualizations();
@@ -678,8 +681,11 @@ impl Model {
 
     /// Set given type (or lack of such) on the given sub-expression.
     fn set_type(&self, node_id:graph_editor::NodeId, id:ExpressionId, typename:Option<graph_editor::Type>) {
-        let event = (node_id,id,typename);
-        self.view.graph().frp.input.set_expression_usage_type.emit(&event);
+        let previous_type_opt = self.expression_types.insert(id,typename.clone());
+        if previous_type_opt.as_ref() != Some(&typename) {
+            let event = (node_id,id,typename);
+            self.view.graph().frp.input.set_expression_usage_type.emit(&event);
+        }
     }
 
     /// Set given method pointer (or lack of such) on the given sub-expression.

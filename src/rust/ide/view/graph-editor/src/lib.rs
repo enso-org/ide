@@ -3040,5 +3040,3 @@ impl display::Object for GraphEditor {
         self.model.display_object()
     }
 }
-
-
