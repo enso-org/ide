@@ -37,12 +37,11 @@
 - You can hide the node labels with `--no-node-labels` option. This is useful
   when creating demo videos.
 - [Added Heatmap visualization.][1438]
-- [Image visualization.][1367]. Visualizations for the Enso Image library. 
-  Now You can display Image type and string with image encoded in base64.
-  Histogram visualization has been adjusted, allowing to display the
-  values of the precomputed bins, which is useful when the dataset is relatively
-  big, and it's cheaper to send the precomputed bins rather than the entire
-  dataset.
+- [Image visualization.][1367]. Visualizations for the Enso Image library. Now
+  You can display Image type and string with image encoded in base64. Histogram
+  visualization has been adjusted, allowing to display the values of the
+  precomputed bins, which is useful when the dataset is relatively big, and it's
+  cheaper to send the precomputed bins rather than the entire dataset.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
