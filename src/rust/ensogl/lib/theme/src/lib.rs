@@ -156,6 +156,7 @@ impl Default for Theme {
 
 define_themes! { [light:0, dark:1]
     application {
+        // Original RGB values (for reference after fixing color-conversion issues)
         // light: rgb(249,250,251), old-dark: Lcha(0.13,0.014,0.18,1.0), dark: rgb(32,34,36)
         background = Rgba(0.976,0.98,0.984,1.0) , Rgba(0.125,0.133,0.141,1.0);
         tooltip {
@@ -212,6 +213,7 @@ define_themes! { [light:0, dark:1]
     }
     graph_editor {
         node {
+            // Original RGB values (for reference after fixing color-conversion issues)
             // light: rgb(253,254,255), old-dark: Lcha(0.2,0.014,0.18,1.0), dark: rgb(47,48,50)
             background         = Rgba(0.992,0.996,1.0,1.0), Rgba(0.182,0.188,0.196,1.0);
             background.skipped = graph_editor::node::background , graph_editor::node::background;
@@ -257,11 +259,15 @@ define_themes! { [light:0, dark:1]
                 panic.text    = Rgba(1.0,0.341,0.125,1.0), Rgba(1.0,0.341,0.125,1.0);
             }
             action_bar {
-                background = Rgba(0.929,0.941,0.953,1.0) , Lcha(1.0,0.0,0.0,0.1); // rgb(237 240 243)
+                // Original RGB values (for reference after fixing color-conversion issues)
+                // rgb(237 240 243)
+                background = Rgba(0.929,0.941,0.953,1.0) , Lcha(1.0,0.0,0.0,0.1);
                 icon       = Lcha(0.0,0.0,0.0,0.7) , Lcha(1.0,0.0,0.0,0.7);
                 text       = Lcha(0.0,0.0,0.0,0.7) , Lcha(1.0,0.0,0.0,0.7);
             }
-            selection = Rgba(0.306,0.647,0.992,0.14) , Rgba(0.137,0.16,0.184,1.0); // ... , rgb(35 41 47)
+            // Original RGB values (for reference after fixing color-conversion issues)
+            // ... , rgb(35 41 47)
+            selection = Rgba(0.306,0.647,0.992,0.14) , Rgba(0.137,0.16,0.184,1.0);
             selection {
                 size = 8.0 , 8.0;
                 offset = 0.0 , 0.0;
