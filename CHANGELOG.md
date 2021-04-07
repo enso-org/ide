@@ -11,8 +11,8 @@
   will be lost. In this build we added notification in statusbar to signalize
   that the connection was lost and IDE must be restarted. In future IDE will try
   to automatically reconnect.
-  - [Visualization can be extended to the whole screen][1355] by selecting the
-    node and pressing space twice. To quit this view, press space again.
+- [Visualization can be extended to the whole screen][1355] by selecting the
+  node and pressing space twice. To quit this view, press space again.
 - [Visualization preview on output port hover.][1363] There is now a quick
   preview for visualizations and error descriptions. Hovering a node output will
   first show a tooltip with the type information and then after some time, will
@@ -36,6 +36,7 @@
   `--theme=dark` option to enable it.
 - You can hide the node labels with `--no-node-labels` option. This is useful
   when creating demo videos.
+- [Added Heatmap visualization.][1438]
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
@@ -154,6 +155,7 @@ you can find their release notes
 [1419]: https://github.com/enso-org/ide/pull/1419
 [1413]: https://github.com/enso-org/ide/pull/1413
 [1428]: https://github.com/enso-org/ide/pull/1428
+[1438]: https://github.com/enso-org/ide/pull/1438
 
 <br/>
 
