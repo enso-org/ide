@@ -10,19 +10,20 @@ pub use breadcrumb::Breadcrumb;
 pub use project_name::ProjectName;
 
 use crate::LocalCall;
+use crate::component::breadcrumbs::project_name::LINE_HEIGHT;
 
+use enso_args::ARGS;
 use enso_frp as frp;
 use enso_protocol::language_server::MethodPointer;
 use ensogl::application::Application;
-use ensogl::data::color;
 use ensogl::display::camera::Camera2d;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::shape::*;
 use ensogl::display;
 use ensogl::gui::cursor;
+use ensogl_gui_components::shadow;
 use logger::Logger;
 use std::cmp::Ordering;
-
 
 
 // =================
@@ -30,10 +31,26 @@ use std::cmp::Ordering;
 // =================
 
 // FIXME[dg] hardcoded literal for glyph of height 12.0. Copied from port.rs
-const GLYPH_WIDTH       : f32 = 7.224_609_4;
-const VERTICAL_MARGIN   : f32 = GLYPH_WIDTH;
-const HORIZONTAL_MARGIN : f32 = GLYPH_WIDTH;
-const TEXT_SIZE         : f32 = 12.0;
+const GLYPH_WIDTH                      : f32 = 7.224_609_4;
+const VERTICAL_MARGIN                  : f32 = GLYPH_WIDTH;
+const HORIZONTAL_MARGIN                : f32 = GLYPH_WIDTH;
+const TEXT_SIZE                        : f32 = 12.0;
+const HEIGHT                           : f32 = VERTICAL_MARGIN
+                                             + breadcrumb::VERTICAL_MARGIN
+                                             + breadcrumb::PADDING
+                                             + LINE_HEIGHT
+                                             + breadcrumb::PADDING
+                                             + breadcrumb::VERTICAL_MARGIN
+                                             + VERTICAL_MARGIN;
+
+const MACOS_TRAFFIC_LIGHTS_CONTENT     : f32 = 52.0;
+const MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET : f32 = 13.0;
+const MACOS_TRAFFIC_LIGHTS_WIDTH       : f32 =
+    MACOS_TRAFFIC_LIGHTS_CONTENT + 2.0 * MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET;
+// This should be as large as the shadow around the background.
+const MAGIC_SHADOW_MARGIN              : f32 = 40.0;
+
+const PADDING_RIGHT                    : f32 = MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET;
 
 
 
@@ -57,10 +74,29 @@ mod background {
     use super::*;
 
     ensogl::define_shape_system! {
-        () {
-            let gray     = 34.0/255.0;
-            let bg_color = color::Rgba::new(gray,gray,gray,1.0);
-            Plane().fill(bg_color).into()
+        (style:Style) {
+            let width         = Var::<Pixels>::from("input_size.x");
+            let height        = Var::<Pixels>::from("input_size.y");
+
+            let corner_radius = style.get_number
+                                (ensogl_theme::graph_editor::breadcrumbs::background
+                                ::corner_radius);
+            // The shape will reach outside the screen to the left and the top by the amount of
+            // MAGIC_SHADOW_MARGIN. This is necessary because those parts outside the screen might
+            // still cast shadows on screen.
+            let shape_width   = width - MAGIC_SHADOW_MARGIN.px();
+            let shape_height  = height - MAGIC_SHADOW_MARGIN.px();
+            let shape         = Rect((&shape_width,&shape_height))
+                                .corners_radiuses(0.px(),0.px(),0.px(),corner_radius.px())
+                                .translate_x(-MAGIC_SHADOW_MARGIN.px()/2.0)
+                                .translate_y(MAGIC_SHADOW_MARGIN.px()/2.0);
+
+            let bg_color      = style.get_color
+                                (ensogl_theme::graph_editor::breadcrumbs::background::color);
+            let bg            = shape.fill(bg_color);
+            let shadow        = shadow::from_shape(shape.into(),style);
+
+            (shadow + bg).into()
         }
     }
 }
@@ -138,7 +174,7 @@ pub struct BreadcrumbsModel {
     display_object        : display::object::Instance,
     background            : background::View,
     project_name          : ProjectName,
-    root                   : display::object::Instance,
+    content               : display::object::Instance,
     /// A container for all the breadcrumbs after project name. This contained and all its
     /// breadcrumbs are moved when project name component is resized.
     breadcrumbs_container : display::object::Instance,
@@ -156,7 +192,7 @@ impl BreadcrumbsModel {
         let project_name          = app.new_view();
         let logger                = Logger::new("Breadcrumbs");
         let display_object        = display::object::Instance::new(&logger);
-        let root                  = display::object::Instance::new(&logger);
+        let content               = display::object::Instance::new(&logger);
         let breadcrumbs_container = display::object::Instance::new(&logger);
         let scene                 = scene.clone_ref();
         let breadcrumbs           = default();
@@ -165,14 +201,20 @@ impl BreadcrumbsModel {
         let camera                = scene.camera().clone_ref();
         let background            = background::View::new(&logger);
 
-        Self{logger,display_object,root,app,breadcrumbs,project_name,breadcrumbs_container,
+        scene.layers.breadcrumbs_background.add_exclusive(&background);
+
+        Self{logger,display_object,content,app,breadcrumbs,project_name,breadcrumbs_container,
             frp_inputs,current_index,camera,background}.init()
     }
 
     fn init(self) -> Self {
-        self.add_child(&self.root);
-        self.root.add_child(&self.project_name);
-        self.root.add_child(&self.breadcrumbs_container);
+        self.add_child(&self.content);
+        self.content.add_child(&self.project_name);
+        self.content.add_child(&self.breadcrumbs_container);
+        self.add_child(&self.background);
+
+        self.update_layout();
+
         self
     }
 
@@ -181,15 +223,33 @@ impl BreadcrumbsModel {
         let screen     = camera.screen();
         let x_position = -screen.width/2.0;
         let y_position = screen.height/2.0;
-        self.root.set_position(Vector3(x_position.round(),y_position.round(),0.0));
+        self.set_position(Vector3(x_position.round(), y_position.round(), 0.0));
     }
 
-    fn width(&self) -> f32 {
+    fn breadcrumbs_container_size(&self) -> f32 {
         self.breadcrumbs.borrow().iter().map(|breadcrumb| breadcrumb.width()).sum()
     }
 
-    fn relayout_for_project_name_width(&self, width:f32) {
-        self.breadcrumbs_container.set_position_x(width.round());
+    fn update_layout(&self) {
+        let is_macos     = ARGS.platform.map(|p|p.is_macos()) == Some(true);
+        let is_frameless = ARGS.frame == Some(false);
+        let x_offset     = if is_macos && is_frameless { MACOS_TRAFFIC_LIGHTS_WIDTH }
+                           else                        { MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET };
+        self.content.set_position_x(x_offset);
+
+        self.breadcrumbs_container.set_position_x(self.project_name.width.value().round());
+
+        let background_left   = 0.0;
+        let background_right  = self.content.position().x
+                              + self.breadcrumbs_container.position().x
+                              + self.breadcrumbs_container_size()
+                              + PADDING_RIGHT;
+        let background_width  = background_right - background_left;
+        let background_height = HEIGHT;
+        self.background.size.set(Vector2(background_width+MAGIC_SHADOW_MARGIN*2.0,
+            background_height+MAGIC_SHADOW_MARGIN*2.0));
+        self.background.set_position_x(background_width/2.0);
+        self.background.set_position_y(-background_height/2.0);
     }
 
     fn get_breadcrumb(&self, index:usize) -> Option<Breadcrumb> {
@@ -259,11 +319,12 @@ impl BreadcrumbsModel {
                 }
 
                 debug!(self.logger, "Pushing {breadcrumb.info.method_pointer.name} breadcrumb.");
-                breadcrumb.set_position_x(self.width().round());
+                breadcrumb.set_position_x(self.breadcrumbs_container_size().round());
                 self.breadcrumbs_container.add_child(&breadcrumb);
                 self.breadcrumbs.borrow_mut().push(breadcrumb);
             }
             self.current_index.set(new_index);
+            self.update_layout();
             (old_index,new_index)
         })
     }
@@ -324,6 +385,7 @@ impl BreadcrumbsModel {
             let old_index = self.current_index.get();
             let new_index = old_index - 1;
             self.current_index.set(new_index);
+            self.update_layout();
             (old_index,new_index)
         })
     }
@@ -333,6 +395,7 @@ impl BreadcrumbsModel {
             debug!(self.logger, "Removing {breadcrumb.info.method_pointer.name}.");
             breadcrumb.unset_parent();
         }
+        self.update_layout();
     }
 }
 
@@ -420,12 +483,6 @@ impl Breadcrumbs {
             frp.source.project_name_hovered <+ model.project_name.is_hovered;
             frp.source.project_mouse_down   <+ model.project_name.mouse_down;
 
-            // === GUI Update ===
-
-            eval model.project_name.frp.output.width((width)
-                model.relayout_for_project_name_width(*width)
-            );
-
 
             // === User Interaction ===
 
@@ -458,10 +515,7 @@ impl Breadcrumbs {
             // === Relayout ===
 
             eval_ scene.frp.camera_changed(model.camera_changed());
-
-            eval model.project_name.frp.output.width ((width) {
-                model.relayout_for_project_name_width(*width)
-            });
+            eval_ model.project_name.frp.output.width (model.update_layout());
 
 
             // === Pointer style ===

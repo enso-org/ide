@@ -176,6 +176,10 @@ define_themes! { [light:0, dark:1]
         }
         status_bar {
             text = text, text;
+            background {
+                color = graph_editor::node::background, graph_editor::node::background;
+                corner_radius = 14.0, 14.0;
+            }
         }
     }
     code {
@@ -273,6 +277,10 @@ define_themes! { [light:0, dark:1]
             deselected  {
                 left  = Lcha(0.0,0.0,0.0,0.5) , Lcha(1.0,0.0,0.0,0.5);
                 right = Lcha(0.0,0.0,0.0,0.2) , Lcha(1.0,0.0,0.0,0.2);
+            }
+            background {
+                color = graph_editor::node::background, graph_editor::node::background;
+                corner_radius = 14.0, 14.0;
             }
         }
         edge {
