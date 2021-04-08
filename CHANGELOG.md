@@ -33,6 +33,8 @@
   `Table`.
 - [Many small visual improvements.][1419] See the source issue for more details.
 - [Added Heatmap visualization.][1438]
+- [Add backgrounds to the project name and status bar][1447]. Both now have a
+  background with drop shadow for better readability.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
