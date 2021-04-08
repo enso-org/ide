@@ -27,7 +27,7 @@ const LABEL_LIGHT_COLOR = `rgba(0, 0, 0, 0.8)`
 
 const DEFAULT_MAP_ZOOM = 11
 const DARK_ACCENT_COLOR = [222, 162, 47]
-const LIGHT_ACCENT_COLOR = [1, 234, 146]
+const LIGHT_ACCENT_COLOR = [78, 165, 253]
 
 // =====================================
 // === Script & Style Initialisation ===
@@ -184,7 +184,7 @@ class GeoMapVisualization extends Visualization {
         this.mapStyle = ok(data.mapStyle) ? data.mapStyle : this.defaultMapStyle
         this.pitch = ok(data.pitch) ? data.pitch : 0
         this.controller = ok(data.controller) ? data.controller : true
-        this.showingLabels = ok(data.showingLabels) ? data.showingLabels : false
+        this.showingLabels = ok(data.showingLabels) ? data.showingLabels : true
         return true
     }
 

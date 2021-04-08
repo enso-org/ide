@@ -11,8 +11,8 @@
   will be lost. In this build we added notification in statusbar to signalize
   that the connection was lost and IDE must be restarted. In future IDE will try
   to automatically reconnect.
-  - [Visualization can be extended to the whole screen][1355] by selecting the
-    node and pressing space twice. To quit this view, press space again.
+- [Visualization can be extended to the whole screen][1355] by selecting the
+  node and pressing space twice. To quit this view, press space again.
 - [Visualization preview on output port hover.][1363] There is now a quick
   preview for visualizations and error descriptions. Hovering a node output will
   first show a tooltip with the type information and then after some time, will
@@ -31,6 +31,17 @@
   `Column` datatypes are properly visualized. Scatter Plot can display points of
   different color, shape and size, all as defined by the data within the
   `Table`.
+- [Many small visual improvements.][1419] See the source issue for more details.
+- The dark theme is officially supported now. You can start the IDE with the
+  `--theme=dark` option to enable it.
+- You can hide the node labels with `--no-node-labels` option. This is useful
+  when creating demo videos.
+- [Added Heatmap visualization.][1438]
+- [Image visualization.][1367]. Visualizations for the Enso Image library. Now
+  You can display Image type and string with image encoded in base64. Histogram
+  visualization has been adjusted, allowing to display the values of the
+  precomputed bins, which is useful when the dataset is relatively big, and it's
+  cheaper to send the precomputed bins rather than the entire dataset.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
@@ -80,6 +91,9 @@
   with a browser of your choice.
 - [JS visualizations have consistent gestures with the IDE][1291]. Panning and
   zooming now works just as expected on trackpad and mouse.
+- [Running `watch` command works on first try.][1395]. Running the build command
+  `run watch` would fail if it was run as the first command on a clean
+  repository. This now works.
 - [The `inputType` field of visualizations is actually taken into consideration]
   [1384]. The visualization chooser shows entries accepting the node's output's
   type only.
@@ -97,6 +111,12 @@
   variable. It is even possible to change and develop themes live by editing
   theme variables directly in the Chrome Inspector. Use the following command to
   start: `theme.snapshot("t1"); theme.get("t1").interactiveMode()`.
+- [The active visualization is highlighted.][1412] Now it is clearly visible
+  when the mouse events are passed to the visualization.
+- [Fixed an issue when projects containing certain language constructs failed to
+  load.][1413]
+- [Fixed a case where IDE could lose connection to the backend after some
+  time.][1428]
 
 #### EnsoGL (rendering engine)
 
@@ -124,6 +144,7 @@ you can find their release notes
 [1341]: https://github.com/enso-org/ide/pull/1341
 [1348]: https://github.com/enso-org/ide/pull/1348
 [1353]: https://github.com/enso-org/ide/pull/1353
+[1395]: https://github.com/enso-org/ide/pull/1395
 [1363]: https://github.com/enso-org/ide/pull/1363
 [1384]: https://github.com/enso-org/ide/pull/1384
 [1385]: https://github.com/enso-org/ide/pull/1385
@@ -135,6 +156,12 @@ you can find their release notes
 [1358]: https://github.com/enso-org/ide/pull/1358
 [1377]: https://github.com/enso-org/ide/pull/1377
 [1411]: https://github.com/enso-org/ide/pull/1411
+[1412]: https://github.com/enso-org/ide/pull/1412
+[1419]: https://github.com/enso-org/ide/pull/1419
+[1413]: https://github.com/enso-org/ide/pull/1413
+[1428]: https://github.com/enso-org/ide/pull/1428
+[1438]: https://github.com/enso-org/ide/pull/1438
+[1367]: https://github.com/enso-org/ide/pull/1367
 
 <br/>
 

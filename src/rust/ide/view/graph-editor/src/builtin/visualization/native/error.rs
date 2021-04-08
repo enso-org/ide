@@ -9,7 +9,6 @@ use crate::component::visualization;
 use crate::SharedHashMap;
 
 use enso_frp as frp;
-use ensogl::data::color;
 use ensogl::display::DomSymbol;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::primitive::StyleWatch;
@@ -237,7 +236,6 @@ impl Model {
 
     fn set_text_color(&self, color:impl Into<display::style::Path>) {
         let text_color   = self.styles.get_color(color);
-        let text_color   = color::Rgba::from(text_color);
         let red          = text_color.red * 255.0;
         let green        = text_color.green * 255.0;
         let blue         = text_color.blue * 255.0;

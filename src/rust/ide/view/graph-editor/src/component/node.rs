@@ -123,7 +123,7 @@ pub mod backdrop {
             let select2     = Rect((&sel2_width,&sel2_height)).corners_radius(&sel2_radius);
 
             let select = select2 - select;
-            let select = select.fill(color::Rgba::from(sel_color));
+            let select = select.fill(sel_color);
 
 
              // === Error Pattern  Alternative ===
@@ -506,11 +506,7 @@ impl NodeModel {
             if let Some(error_data) = error.visualization_data() {
                 self.error_visualization.set_data(&error_data);
             }
-            if !*error.propagated {
-                self.display_object.add_child(&self.error_visualization);
-            } else {
-                self.error_visualization.unset_parent();
-            }
+            self.display_object.add_child(&self.error_visualization);
         } else {
             self.error_visualization.unset_parent();
         }
@@ -534,7 +530,6 @@ impl Node {
         let model     = Rc::new(NodeModel::new(app,registry));
         let selection = Animation::<f32>::new(network);
 
-        let bg_color_anim    = color::Animation::new(network);
         let error_color_anim = color::Animation::new(network);
         let style            = StyleWatch::new(&app.display.scene().style_sheet);
         let style_frp        = &model.style;
@@ -641,8 +636,8 @@ impl Node {
             preview_visible         <- preview_visible && has_expression;
             preview_visible         <- preview_visible.on_change();
 
-            visualization_visible <- visualization_enabled && no_error_set;
-            visualization_visible <- visualization_visible || preview_visible;
+            visualization_visible <- visualization_enabled || preview_visible;
+            visualization_visible <- visualization_visible && no_error_set;
             visualization_visible <- visualization_visible.on_change();
             frp.source.visualization_enabled <+ visualization_enabled || preview_visible;
             eval visualization_visible ((is_visible)
@@ -658,7 +653,7 @@ impl Node {
             eval layer ((l) model.error_visualization.frp.set_layer.emit(l));
 
 
-            update_error <- all(frp.set_error,visualization_visible);
+            update_error <- all(frp.set_error,preview_visible);
             eval update_error([model]((error,visible)){
                 if *visible {
                      model.set_error(error.as_ref());
@@ -689,10 +684,12 @@ impl Node {
             //     if *disabled { style.get_color_dim(bg_color_path) }
             //     else         { style.get_color(bg_color_path) }
             // }));
-            bg_color_anim.target <+ bg_color;
-            eval bg_color_anim.value ((c)
-                model.background.bg_color.set(color::Rgba::from(c).into())
-            );
+            // bg_color_anim.target <+ bg_color;
+            // eval bg_color_anim.value ((c)
+            //     model.background.bg_color.set(color::Rgba::from(c).into())
+            // );
+
+            eval bg_color ((c) model.background.bg_color.set(c.into()));
 
 
             // === Tooltip ===
@@ -723,7 +720,7 @@ impl Node {
                 error::Kind::Panic   => error_theme::panic,
                 error::Kind::Dataflow => error_theme::dataflow,
             };
-            style.get_color(path)
+            style.get_color(path).into()
         } else {
             color::Lcha::transparent()
         }

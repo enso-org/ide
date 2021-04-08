@@ -15,8 +15,6 @@ const X_AXIS_LABEL_WIDTH = 10
 const Y_AXIS_LABEL_WIDTH = 10
 const ANIMATION_DURATION = 1000
 const LINEAR_SCALE = 'linear'
-const LIGHT_PLOT_COLOR = '#00E890'
-const DARK_PLOT_COLOR = '#E0A63B'
 const DEFAULT_NUMBER_OF_BINS = 50
 const BUTTON_HEIGHT = 25
 
@@ -39,7 +37,8 @@ const BUTTON_HEIGHT = 25
  }
  */
 class Histogram extends Visualization {
-    static inputType = 'Standard.Table.Data.Table.Table | Standard.Base.Data.Vector.Vector'
+    static inputType =
+        'Standard.Table.Data.Table.Table | Standard.Base.Data.Vector.Vector | Standard.Image.Data.Histogram.Histogram'
     static label = 'Histogram'
 
     constructor(data) {
@@ -97,6 +96,7 @@ class Histogram extends Visualization {
             this._axisSpec = data.axis
             this._focus = data.focus
             this._dataValues = this.extractValues(data)
+            this._dataBins = this.extractBins(data)
             this._bins = data.bins
         }
 
@@ -110,6 +110,13 @@ class Histogram extends Visualization {
         } else {
             return rawData.data.values ?? []
         }
+    }
+
+    extractBins(rawData) {
+        if (ok(rawData.data)) {
+            return rawData.data.bins
+        }
+        return null
     }
 
     /**
@@ -236,6 +243,7 @@ class Histogram extends Visualization {
         const maxScale = 20
         const rightButton = 2
         const midButton = 1
+        const midButtonClicked = 4
         const scrollWheel = 0
         const extent = [minScale, maxScale]
         let startPos
@@ -280,32 +288,40 @@ class Histogram extends Visualization {
         const self = this
 
         let transformedScale = Object.assign({}, self.scale)
+        let tempRmbScale = Object.assign({}, self.scale)
 
         /**
          * Helper function called on pan/scroll.
          */
         function zoomed() {
-            if (d3.event.sourceEvent != null && d3.event.sourceEvent.buttons === rightButton) {
-                const rmbDivider = 5000.0
-                const zoomAmount = rmbZoomValue(d3.event.sourceEvent) / rmbDivider
-                const scale = Math.exp(zoomAmount)
-                const focus = startPos
-                const distanceScale = d3.zoomIdentity
+            function rescale(transformEvent) {
+                transformedScale.x = transformEvent.rescaleX(transformedScale.x)
+                if (transformEvent.rescaleY(transformedScale.y).domain()[0] >= 0) {
+                    transformedScale.y = transformEvent.rescaleY(transformedScale.y)
+                }
+            }
+
+            function getScaleForZoom(scale, focus) {
+                return d3.zoomIdentity
                     .translate(focus.x - (Y_AXIS_LABEL_WIDTH + MARGIN), focus.y - MARGIN)
                     .scale(scale)
                     .translate(-focus.x + (Y_AXIS_LABEL_WIDTH + MARGIN), -focus.y + MARGIN)
+            }
+
+            if (d3.event.sourceEvent != null && d3.event.sourceEvent.buttons === rightButton) {
+                transformedScale.x = tempRmbScale.x
+                const rmbDivider = 100.0
+                const zoomAmount = rmbZoomValue(d3.event.sourceEvent) / rmbDivider
+                const scale = Math.exp(zoomAmount)
+                const distanceScale = getScaleForZoom(scale, startPos)
                 transformedScale.x = distanceScale.rescaleX(transformedScale.x)
-                transformedScale.zoom = transformedScale.zoom * scale
+                transformedScale.zoom = tempRmbScale.zoom * scale
             } else if (d3.event.sourceEvent != null && d3.event.sourceEvent.type === 'wheel') {
                 if (d3.event.sourceEvent.ctrlKey) {
                     const pinchDivider = 100.0
                     const zoomAmount = -d3.event.sourceEvent.deltaY / pinchDivider
                     const scale = Math.exp(zoomAmount)
-                    const focus = startPos
-                    const distanceScale = d3.zoomIdentity
-                        .translate(focus.x - (Y_AXIS_LABEL_WIDTH + MARGIN), focus.y - MARGIN)
-                        .scale(scale)
-                        .translate(-focus.x + (Y_AXIS_LABEL_WIDTH + MARGIN), -focus.y + MARGIN)
+                    const distanceScale = getScaleForZoom(scale, startPos)
                     transformedScale.x = distanceScale.rescaleX(transformedScale.x)
                     transformedScale.zoom = transformedScale.zoom * scale
                 } else {
@@ -313,16 +329,20 @@ class Histogram extends Visualization {
                         -d3.event.sourceEvent.deltaX,
                         -d3.event.sourceEvent.deltaY
                     )
-                    transformedScale.x = distanceScale.rescaleX(transformedScale.x)
-                    if (distanceScale.rescaleY(transformedScale.y).domain()[0] >= 0) {
-                        transformedScale.y = distanceScale.rescaleY(transformedScale.y)
-                    }
+                    rescale(distanceScale)
                 }
+            } else if (
+                d3.event.sourceEvent != null &&
+                d3.event.sourceEvent.buttons === midButtonClicked
+            ) {
+                const movementFactor = 2
+                const distanceScale = d3.zoomIdentity.translate(
+                    d3.event.sourceEvent.movementX / movementFactor,
+                    d3.event.sourceEvent.movementY / movementFactor
+                )
+                rescale(distanceScale)
             } else {
-                transformedScale.x = d3.event.transform.rescaleX(transformedScale.x)
-                if (d3.event.transform.rescaleY(transformedScale.y).domain()[0] >= 0) {
-                    transformedScale.y = d3.event.transform.rescaleY(transformedScale.y)
-                }
+                rescale(d3.event.transform)
             }
 
             self.rescale(transformedScale, false)
@@ -332,7 +352,10 @@ class Histogram extends Visualization {
          * Return the position of this event in local canvas coordinates.
          */
         function getPos(event) {
-            return { x: event.offsetX, y: event.offsetY }
+            if (ok(event)) {
+                return { x: event.offsetX, y: event.offsetY }
+            }
+            return { x: 0, y: 0 }
         }
 
         /**
@@ -351,6 +374,7 @@ class Histogram extends Visualization {
          */
         function startZoom() {
             startPos = getPos(d3.event.sourceEvent)
+            tempRmbScale = Object.assign({}, transformedScale)
         }
 
         return { zoomElem, zoom, transformedScale }
@@ -453,6 +477,14 @@ class Histogram extends Visualization {
             )
     }
 
+    createBins(values) {
+        let bins = []
+        for (let i = 0; i < values.length; i++) {
+            bins.push({ x0: i, x1: i + 1, length: values[i] })
+        }
+        return bins
+    }
+
     /**
      * Update the d3 histogram with the current data.
      *
@@ -461,7 +493,6 @@ class Histogram extends Visualization {
      */
     updateHistogram() {
         const extremesAndDeltas = this.extremesAndDeltas()
-        const dataPoints = this.data()
         const focus = this.focus()
 
         let domainX = [
@@ -482,13 +513,18 @@ class Histogram extends Visualization {
             .attr('transform', 'translate(0,' + this.canvas.inner.height + ')')
             .call(d3.axisBottom(x))
 
-        const histogram = d3
-            .histogram()
-            .value(d => d)
-            .domain(x.domain())
-            .thresholds(x.ticks(this.binCount()))
+        let bins
+        if (ok(this._dataBins)) {
+            bins = this.createBins(this._dataBins)
+        } else {
+            const histogram = d3
+                .histogram()
+                .value(d => d)
+                .domain(x.domain())
+                .thresholds(x.ticks(this.binCount()))
 
-        const bins = histogram(dataPoints)
+            bins = histogram(this._dataValues)
+        }
 
         const y = d3.scaleLinear().range([this.canvas.inner.height, 0])
         y.domain([0, d3.max(bins, d => d.length)])
@@ -499,11 +535,10 @@ class Histogram extends Visualization {
 
         this.yAxis.call(yAxis)
 
-        let accentColor = LIGHT_PLOT_COLOR
-
-        if (document.getElementById('root').classList.contains('dark')) {
-            accentColor = DARK_PLOT_COLOR
-        }
+        const fill = d3
+            .scaleSequential()
+            .interpolator(d3.interpolateViridis)
+            .domain([0, d3.max(bins, d => d.x0)])
 
         const items = this.plot.selectAll('rect').data(bins)
 
@@ -514,7 +549,7 @@ class Histogram extends Visualization {
             .attr('transform', d => 'translate(' + x(d.x0) + ',' + y(d.length) + ')')
             .attr('width', d => x(d.x1) - x(d.x0))
             .attr('height', d => this.canvas.inner.height - y(d.length))
-            .style('fill', accentColor)
+            .style('fill', d => fill(d.x0))
 
         items.exit().remove()
 
@@ -579,19 +614,26 @@ class Histogram extends Visualization {
      * than the container.
      */
     extremesAndDeltas() {
-        const dataPoints = this.data()
-        let xMin = dataPoints[0] ?? 0
-        let xMax = dataPoints[0] ?? 0
+        let xMin
+        let xMax
+        if (ok(this._dataBins)) {
+            const dataBins = this._dataBins
+            xMin = 0
+            xMax = dataBins.length - 1
+        } else {
+            const dataPoints = this._dataValues
+            xMin = dataPoints[0]
+            xMax = dataPoints[0]
 
-        dataPoints.forEach(value => {
-            if (value < xMin) {
-                xMin = value
-            }
-            if (value > xMax) {
-                xMax = value
-            }
-        })
-
+            dataPoints.forEach(value => {
+                if (value < xMin) {
+                    xMin = value
+                }
+                if (value > xMax) {
+                    xMax = value
+                }
+            })
+        }
         const dx = xMax - xMin
         const paddingX = 0.1 * dx
 
@@ -640,7 +682,7 @@ class Histogram extends Visualization {
         addStyleToElem(
             'button',
             `
-            margin-left: 5px; 
+            margin-left: 5px;
             margin-bottom: 5px;
             display: inline-block;
             padding: 2px 10px;

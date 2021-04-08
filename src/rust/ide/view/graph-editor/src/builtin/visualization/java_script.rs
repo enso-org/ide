@@ -50,6 +50,16 @@ pub fn histogram_visualization() -> visualization::java_script::FallibleDefiniti
     visualization::java_script::Definition::new_builtin(source)
 }
 
+/// Return a `JavaScript` Heatmap visualization.
+pub fn heatmap_visualization() -> visualization::java_script::FallibleDefinition {
+    let loading_scripts = include_str!("java_script/helpers/loading.js");
+    let number          = include_str!("java_script/helpers/number.js");
+    let source          = include_str!("java_script/heatmap.js");
+    let source          = format!("{}{}{}",loading_scripts,number,source);
+
+    visualization::java_script::Definition::new_builtin(source)
+}
+
 /// Return a `JavaScript` Map visualization.
 pub fn geo_map_visualization() -> visualization::java_script::FallibleDefinition {
     let loading_scripts = include_str!("java_script/helpers/loading.js");
@@ -62,6 +72,15 @@ pub fn geo_map_visualization() -> visualization::java_script::FallibleDefinition
 /// Return a `JavaScript` Bubble visualization. This should not be used as it is a demo visualization.
 pub fn bubble_visualization() -> visualization::java_script::FallibleDefinition {
     let source = include_str!("java_script/bubbleVisualization.js");
+
+    visualization::java_script::Definition::new_builtin(source)
+}
+
+/// Return a `JavaScript` Image visualization.
+pub fn image_base64_visualization() -> visualization::java_script::FallibleDefinition {
+    let loading_scripts = include_str!("java_script/helpers/loading.js");
+    let source          = include_str!("java_script/imageBase64.js");
+    let source          = format!("{}{}", loading_scripts, source);
 
     visualization::java_script::Definition::new_builtin(source)
 }

@@ -175,6 +175,7 @@ class ScatterPlot extends Visualization {
         const maxScale = 20
         const rightButton = 2
         const midButton = 1
+        const midButtonClicked = 4
         const scrollWheel = 0
         const extent = [minScale, maxScale]
         let startPos
@@ -217,46 +218,59 @@ class ScatterPlot extends Visualization {
             .call(zoom)
 
         let transformedScale = Object.assign({}, scaleAndAxis)
+        let tempRmbScale = Object.assign({}, scaleAndAxis)
         const self = this
 
         /**
          * Helper function called on pan/scroll.
          */
         function zoomed() {
-            if (d3.event.sourceEvent != null && d3.event.sourceEvent.buttons === rightButton) {
-                const rmbDivider = 5000.0
-                const zoomAmount = rmbZoomValue(d3.event.sourceEvent) / rmbDivider
-                const scale = Math.exp(zoomAmount)
-                const focus = startPos
-                const distanceScale = d3.zoomIdentity
+            function rescale(distanceScale) {
+                transformedScale.xScale = distanceScale.rescaleX(transformedScale.xScale)
+                transformedScale.yScale = distanceScale.rescaleY(transformedScale.yScale)
+            }
+
+            function getScaleForZoom(scale, focus) {
+                return d3.zoomIdentity
                     .translate(focus.x - self.margin.left, focus.y - self.margin.top)
                     .scale(scale)
                     .translate(-focus.x + self.margin.left, -focus.y + self.margin.top)
-                transformedScale.xScale = distanceScale.rescaleX(transformedScale.xScale)
-                transformedScale.yScale = distanceScale.rescaleY(transformedScale.yScale)
+            }
+
+            if (d3.event.sourceEvent != null && d3.event.sourceEvent.buttons === rightButton) {
+                transformedScale.xScale = tempRmbScale.xScale
+                transformedScale.yScale = tempRmbScale.yScale
+                const rmbDivider = 100.0
+                const zoomAmount = rmbZoomValue(d3.event.sourceEvent) / rmbDivider
+                const scale = Math.exp(zoomAmount)
+                const distanceScale = getScaleForZoom(scale, startPos)
+                rescale(distanceScale)
             } else if (d3.event.sourceEvent != null && d3.event.sourceEvent.type === 'wheel') {
                 if (d3.event.sourceEvent.ctrlKey) {
                     const pinchDivider = 100.0
                     const zoomAmount = -d3.event.sourceEvent.deltaY / pinchDivider
                     const scale = Math.exp(zoomAmount)
-                    const focus = startPos
-                    const distanceScale = d3.zoomIdentity
-                        .translate(focus.x - self.margin.left, focus.y - self.margin.top)
-                        .scale(scale)
-                        .translate(-focus.x + self.margin.left, -focus.y + self.margin.top)
-                    transformedScale.xScale = distanceScale.rescaleX(transformedScale.xScale)
-                    transformedScale.yScale = distanceScale.rescaleY(transformedScale.yScale)
+                    const distanceScale = getScaleForZoom(scale, startPos)
+                    rescale(distanceScale)
                 } else {
                     const distanceScale = d3.zoomIdentity.translate(
                         -d3.event.sourceEvent.deltaX,
                         -d3.event.sourceEvent.deltaY
                     )
-                    transformedScale.xScale = distanceScale.rescaleX(transformedScale.xScale)
-                    transformedScale.yScale = distanceScale.rescaleY(transformedScale.yScale)
+                    rescale(distanceScale)
                 }
+            } else if (
+                d3.event.sourceEvent != null &&
+                d3.event.sourceEvent.buttons === midButtonClicked
+            ) {
+                const movementFactor = 2
+                const distanceScale = d3.zoomIdentity.translate(
+                    d3.event.sourceEvent.movementX / movementFactor,
+                    d3.event.sourceEvent.movementY / movementFactor
+                )
+                rescale(distanceScale)
             } else {
-                transformedScale.xScale = d3.event.transform.rescaleX(transformedScale.xScale)
-                transformedScale.yScale = d3.event.transform.rescaleY(transformedScale.yScale)
+                rescale(d3.event.transform)
             }
 
             scaleAndAxis.xAxis.call(
@@ -287,7 +301,10 @@ class ScatterPlot extends Visualization {
          * Return the position of this event in local canvas coordinates.
          */
         function getPos(event) {
-            return { x: event.offsetX, y: event.offsetY }
+            if (event != null) {
+                return { x: event.offsetX, y: event.offsetY }
+            }
+            return { x: 0, y: 0 }
         }
 
         /**
@@ -306,6 +323,7 @@ class ScatterPlot extends Visualization {
          */
         function startZoom() {
             startPos = getPos(d3.event.sourceEvent)
+            tempRmbScale = Object.assign({}, transformedScale)
         }
 
         return { zoomElem, zoom, transformedScale }
@@ -437,6 +455,9 @@ class ScatterPlot extends Visualization {
 
         let sizeScaleMultiplier = 100
 
+        let color = this.theme.get('accent')
+        let fillColor = `rgba(${color.red * 255},${color.green * 255},${color.blue * 255},0.8)`
+
         scatter
             .selectAll('dataPoint')
             .data(dataPoints)
@@ -450,7 +471,7 @@ class ScatterPlot extends Visualization {
                 'transform',
                 d => 'translate(' + scaleAndAxis.xScale(d.x) + ',' + scaleAndAxis.yScale(d.y) + ')'
             )
-            .style('fill', d => d.color ?? '#00000080')
+            .style('fill', d => d.color ?? fillColor)
 
         if (points.labels === VISIBLE_POINTS) {
             scatter

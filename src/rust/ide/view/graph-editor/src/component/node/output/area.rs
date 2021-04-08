@@ -18,7 +18,8 @@ use crate::Type;
 use crate::component::node::input;
 use crate::component::node::output::port;
 use crate::component::node;
-// use crate::tooltip;
+use crate::tooltip;
+use enso_args::ARGS;
 
 
 
@@ -185,7 +186,7 @@ impl Model {
         self.label.single_line(true);
         self.label.disable_command("cursor_move_up");
         self.label.disable_command("cursor_move_down");
-        self.label.set_default_color(color::Rgba::from(text_color));
+        self.label.set_default_color(text_color);
         self.label.set_default_text_size(text::Size(input::area::TEXT_SIZE));
         self.label.remove_all_cursors();
 
@@ -195,7 +196,8 @@ impl Model {
     }
 
     fn set_label(&self, content:impl Into<String>) {
-        self.label.set_content(content.into());
+        let str = if ARGS.node_labels.unwrap_or(true) { content.into() } else { default() };
+        self.label.set_content(str);
         self.label.set_position_x(-self.label.width.value() - input::area::TEXT_OFFSET);
     }
 
@@ -414,7 +416,7 @@ impl Area {
 
             // === Label Color ===
 
-            let label_vis_color = model.styles.get_color(theme::graph_editor::node::text);
+            let label_vis_color = color::Lcha::from(model.styles.get_color(theme::graph_editor::node::text));
             let label_vis_alpha = label_vis_color.alpha;
             port_hover               <- frp.on_port_hover.map(|t| t.is_on());
             frp.source.body_hover    <+ frp.set_hover || port_hover;

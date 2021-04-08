@@ -94,9 +94,11 @@ impl Registry {
         self.add(builtin::visualization::native::RawText::definition());
         self.try_add_java_script(builtin::visualization::java_script::scatter_plot_visualization());
         self.try_add_java_script(builtin::visualization::java_script::histogram_visualization());
+        self.try_add_java_script(builtin::visualization::java_script::heatmap_visualization());
         self.try_add_java_script(builtin::visualization::java_script::table_visualization());
         self.try_add_java_script(builtin::visualization::java_script::sql_visualization());
         self.try_add_java_script(builtin::visualization::java_script::geo_map_visualization());
+        self.try_add_java_script(builtin::visualization::java_script::image_base64_visualization());
     }
 
     /// Return a default visualisation definition.
