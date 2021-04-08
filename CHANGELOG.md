@@ -32,9 +32,18 @@
   different color, shape and size, all as defined by the data within the
   `Table`.
 - [Many small visual improvements.][1419] See the source issue for more details.
+- The dark theme is officially supported now. You can start the IDE with the
+  `--theme=dark` option to enable it.
+- You can hide the node labels with `--no-node-labels` option. This is useful
+  when creating demo videos.
 - [Added Heatmap visualization.][1438]
 - [Add backgrounds to the project name and status bar][1447]. Both now have a
   background with drop shadow for better readability.
+- [Image visualization.][1367]. Visualizations for the Enso Image library. Now
+  You can display Image type and string with image encoded in base64. Histogram
+  visualization has been adjusted, allowing to display the values of the
+  precomputed bins, which is useful when the dataset is relatively big, and it's
+  cheaper to send the precomputed bins rather than the entire dataset.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
@@ -154,6 +163,7 @@ you can find their release notes
 [1413]: https://github.com/enso-org/ide/pull/1413
 [1428]: https://github.com/enso-org/ide/pull/1428
 [1438]: https://github.com/enso-org/ide/pull/1438
+[1367]: https://github.com/enso-org/ide/pull/1367
 
 <br/>
 
