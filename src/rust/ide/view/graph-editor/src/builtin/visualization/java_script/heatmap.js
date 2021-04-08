@@ -66,6 +66,8 @@ class Heatmap extends Visualization {
             return rawData.data
         } else if (Array.isArray(rawData)) {
             return rawData
+        } else if (ok(rawData.json) && Array.isArray(rawData.json)) {
+            return rawData.json
         }
         return []
     }
@@ -151,6 +153,17 @@ class Heatmap extends Visualization {
      */
     initHeatmap() {
         let data = this.data()
+        if (ok(data.length) && data.length === 2 && Array.isArray(data[1])) {
+            let indices = Array.from(Array(data[1].length).keys())
+            data = [data[0], indices, data[1]]
+        } else if (!Array.isArray(data[0])) {
+            let indices = Array.from(Array(data.length).keys())
+            data = [indices, [1], data]
+        } else if (ok(data.length) && data.length === 1 && Array.isArray(data[0])) {
+            let indices = Array.from(Array(data[0].length).keys())
+            data = [indices, [1], data[0]]
+        }
+
         // Labels of row and columns
         let myGroups = d3.map(data[0], d => d).keys()
         let myVars = d3.map(data[1], d => d).keys()
