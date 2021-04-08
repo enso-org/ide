@@ -29,7 +29,9 @@ use std::future::Future;
 const HEIGHT              : f32 = 28.0;
 /// Padding inside the status bar.
 pub const PADDING         : f32 = 12.0;
-// This should be as large as the shadow around the background.
+/// Margin between status bar and edge of the screen
+const MARGIN              : f32 = 12.0;
+/// This should be as large as the shadow around the background.
 const MAGIC_SHADOW_MARGIN : f32 = 40.0;
 
 
@@ -90,25 +92,23 @@ mod background {
 
     ensogl::define_shape_system! {
         (style:Style) {
-            let width         = Var::<Pixels>::from("input_size.x");
-            let height        = Var::<Pixels>::from("input_size.y");
+            let width             = Var::<Pixels>::from("input_size.x");
+            let height            = Var::<Pixels>::from("input_size.y");
 
-            let corner_radius = style.get_number
-                                (ensogl_theme::application::status_bar::background::corner_radius);
-            // The shape will reach outside the screen to the left and the top by the amount of
-            // MAGIC_SHADOW_MARGIN. This is necessary because those parts outside the screen might
-            // still cast shadows on screen.
-            let shape_width   = width - MAGIC_SHADOW_MARGIN.px();
-            let shape_height  = height - MAGIC_SHADOW_MARGIN.px();
-            let shape         = Rect((&shape_width,&shape_height))
-                                .corners_radiuses(0.px(),corner_radius.px(),0.px(),0.px())
-                                .translate_x(-MAGIC_SHADOW_MARGIN.px()/2.0)
-                                .translate_y(-MAGIC_SHADOW_MARGIN.px()/2.0);
+            let corner_radius     = style.get_number
+                                    (ensogl_theme::application::status_bar::background::corner_radius);
+            let shape_width       = width  - MAGIC_SHADOW_MARGIN.px() * 2.0;
+            let shape_height      = height - MAGIC_SHADOW_MARGIN.px() * 2.0;
+            let shape             = Rect((&shape_width,&shape_height))
+                                    .corners_radius(corner_radius.px());
 
-            let bg_color      = style.get_color
-                                (ensogl_theme::application::status_bar::background::color);
-            let bg            = shape.fill(bg_color);
-            let shadow        = shadow::from_shape(shape.into(),style);
+            let bg_color          = style.get_color
+                                    (ensogl_theme::application::status_bar::background);
+            let bg                = shape.fill(bg_color);
+            let shadow_parameters = shadow::parameters_from_style_path
+                (style,ensogl_theme::application::status_bar::background::shadow);
+            let shadow            = shadow::from_shape_with_parameters
+                (shape.into(),shadow_parameters);
 
             (shadow + bg).into()
         }
@@ -146,6 +146,7 @@ ensogl::define_endpoints! {
 struct Model {
     logger          : Logger,
     display_object  : display::object::Instance,
+    root            : display::object::Instance,
     background      : background::View,
     label           : text::Area,
     events          : Rc<RefCell<Vec<event::Label>>>,
@@ -159,6 +160,7 @@ impl Model {
         let scene           = app.display.scene();
         let logger          = Logger::new("StatusBar");
         let display_object  = display::object::Instance::new(&logger);
+        let root            = display::object::Instance::new(&logger);
         let background      = background::View::new(&logger);
         let label           = text::Area::new(app);
         let events          = default();
@@ -176,24 +178,27 @@ impl Model {
         label.frp.set_color_all.emit(text_color);
         label.frp.set_default_color.emit(text_color);
 
-        Self {logger,display_object,background,label,events,processes,next_process_id,camera}.init()
+        Self {logger,display_object,root,background,label,events,processes,next_process_id,camera}
+            .init()
     }
 
     fn init(self) -> Self {
-        self.display_object.add_child(&self.background);
-        self.display_object.add_child(&self.label);
+        self.display_object.add_child(&self.root);
+        self.root.add_child(&self.background);
+        self.root.add_child(&self.label);
 
         self.update_layout();
+        self.camera_changed();
 
         self
     }
 
     fn camera_changed(&self) {
         let screen = self.camera.screen();
-        let x = -screen.width/2.0;
-        let y = -screen.height/2.0;
-        self.display_object.set_position_x(x.round());
-        self.display_object.set_position_y(y.round());
+        let x = -screen.width/2.0 + MARGIN;
+        let y = -screen.height/2.0 + MARGIN;
+        self.root.set_position_x(x.round());
+        self.root.set_position_y(y.round());
     }
 
     fn update_layout(&self) {
