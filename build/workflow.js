@@ -467,7 +467,7 @@ let workflow = {
             installWasmPack,
             installJava,
             buildOnMacOS,
-        ],{if:`!(${buildCondition})`}),
+        ]),
         build: job_on_all_platforms("Build", [
             getCurrentReleaseChangelogInfo,
             installNode,
