@@ -36,7 +36,8 @@
   `--theme=dark` option to enable it.
 - You can hide the node labels with `--no-node-labels` option. This is useful
   when creating demo videos.
-- [Added Heatmap visualization.][1438]
+- [Added Heatmap visualization.][1438] Just as Scatter Plot, it supports
+  visualizing Table, and vectors.
 - [Image visualization.][1367]. Visualizations for the Enso Image library. Now
   You can display Image type and string with image encoded in base64. Histogram
   visualization has been adjusted, allowing to display the values of the
