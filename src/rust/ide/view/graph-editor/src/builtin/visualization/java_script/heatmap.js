@@ -105,6 +105,17 @@ class Heatmap extends Visualization {
         divElem.setAttributeNS(null, 'width', '100%')
         divElem.setAttributeNS(null, 'height', '100%')
 
+        const addStyleToElem = (attr, stl) => {
+            const style = document.createElement('style')
+            style.innerText = attr + '{' + stl + '}'
+
+            divElem.appendChild(style)
+        }
+
+        const darkStrokeColor = `rgba(255,255,255,0.7)`
+
+        addStyleToElem('.dark-theme text', `fill: ${darkStrokeColor};`)
+
         return divElem
     }
 
@@ -193,8 +204,14 @@ class Heatmap extends Visualization {
      * Sets size of the main parent DOM object.
      */
     setSize(size) {
+        while (this.dom.firstChild) {
+            this.dom.removeChild(this.dom.lastChild)
+        }
+
         this.dom.setAttributeNS(null, 'width', size[0])
         this.dom.setAttributeNS(null, 'height', size[1])
+        this.initCanvas()
+        this.initHeatmap()
     }
 }
 
