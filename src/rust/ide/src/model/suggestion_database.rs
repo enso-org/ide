@@ -139,11 +139,11 @@ impl SuggestionDatabase {
                         error!(self.logger, "Received Remove event for nonexistent id: {id}");
                     }
                 },
-                entry::Update::Modify {id,arguments,return_type,documentation,scope,..} => {
+                entry::Update::Modify
+                    {id,modification,..} => {
                     if let Some(old_entry) = entries.get_mut(&id) {
                         let entry  = Rc::make_mut(old_entry);
-                        let errors = entry.apply_modifications
-                            (arguments,return_type,documentation,scope);
+                        let errors = entry.apply_modifications(*modification);
                         for error in errors {
                             error!(self.logger
                                 ,"Error when applying update for entry {id}: {error:?}");
