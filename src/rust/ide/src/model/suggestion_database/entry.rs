@@ -9,7 +9,8 @@ use crate::model::module::MethodId;
 
 use data::text::TextLocation;
 use enso_protocol::language_server;
-use enso_protocol::language_server::{FieldUpdate, SuggestionsDatabaseModification};
+use enso_protocol::language_server::FieldUpdate;
+use enso_protocol::language_server::SuggestionsDatabaseModification;
 use language_server::types::FieldAction;
 use std::collections::BTreeSet;
 
