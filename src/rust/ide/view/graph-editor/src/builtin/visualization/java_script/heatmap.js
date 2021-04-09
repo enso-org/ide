@@ -177,7 +177,9 @@ class Heatmap extends Visualization {
             .tickSize(0)
             .tickValues(
                 myGroups.filter((d, i) => {
-                    if (i == myGroups.length-1){ return 1 }
+                    if (i == myGroups.length - 1) {
+                        return 1
+                    }
                     let divisor = (5 * self.canvas.outer.width) / 200
                     return !(i % Math.round(myGroups.length / divisor))
                 })
@@ -198,7 +200,9 @@ class Heatmap extends Visualization {
             .tickSize(0)
             .tickValues(
                 myVars.filter((d, i) => {
-                    if (i == myVars.length-1){ return 1 }
+                    if (i == myVars.length - 1) {
+                        return 1
+                    }
                     let divisor = (9 * self.canvas.outer.height) / 200
                     return !(i % Math.round(myVars.length / divisor))
                 })
