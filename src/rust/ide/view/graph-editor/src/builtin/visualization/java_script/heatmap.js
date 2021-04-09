@@ -158,10 +158,10 @@ class Heatmap extends Visualization {
             data = [data[0], indices, data[1]]
         } else if (!Array.isArray(data[0])) {
             let indices = Array.from(Array(data.length).keys())
-            data = [indices, [1], data]
+            data = [indices, [], data]
         } else if (ok(data.length) && data.length === 1 && Array.isArray(data[0])) {
             let indices = Array.from(Array(data[0].length).keys())
-            data = [indices, [1], data[0]]
+            data = [indices, [], data[0]]
         }
 
         // Labels of row and columns
