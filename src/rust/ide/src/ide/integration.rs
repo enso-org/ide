@@ -659,12 +659,12 @@ impl Model {
     /// graph editor view.
     ///
     /// The computed value information includes the expression type and the target method pointer.
-    fn refresh_computed_info(&self, id:ExpressionId, force_refresh:bool) {
+    fn refresh_computed_info(&self, id:ExpressionId, force_type_info_refresh:bool) {
         let info     = self.lookup_computed_info(&id);
         let info     = info.as_ref();
         let typename = info.and_then(|info| info.typename.clone().map(graph_editor::Type));
         if let Some(node_id) = self.node_view_by_expression.borrow().get(&id).cloned() {
-            self.set_type(node_id,id,typename,force_refresh);
+            self.set_type(node_id,id,typename, force_type_info_refresh);
             let method_pointer = info.and_then(|info| {
                 info.method_call.and_then(|entry_id| {
                     let opt_method = self.project.suggestion_db().lookup_method_ptr(entry_id).ok();
