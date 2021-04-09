@@ -18,6 +18,7 @@ use ensogl::application::Application;
 use ensogl::display::camera::Camera2d;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::shape::*;
+use ensogl::display::style;
 use ensogl::display;
 use ensogl::gui::cursor;
 use ensogl_gui_components::shadow;
@@ -33,7 +34,6 @@ use std::cmp::Ordering;
 const GLYPH_WIDTH        : f32 = 7.224_609_4;
 const VERTICAL_MARGIN    : f32 = GLYPH_WIDTH;
 const HORIZONTAL_MARGIN  : f32 = GLYPH_WIDTH;
-const OUTER_MARGIN       : f32 = 12.0;
 const HORIZONTAL_PADDING : f32 = 12.0;
 const TEXT_SIZE          : f32 = 12.0;
 const HEIGHT             : f32 = VERTICAL_MARGIN
@@ -70,22 +70,20 @@ mod background {
 
     ensogl::define_shape_system! {
         (style:Style) {
+            let theme             = ensogl_theme::graph_editor::breadcrumbs::background;
+            let theme             = style::Path::from(&theme);
             let width             = Var::<Pixels>::from("input_size.x");
             let height            = Var::<Pixels>::from("input_size.y");
 
-            let corner_radius     = style.get_number
-                                    (ensogl_theme::graph_editor::breadcrumbs::background
-                                    ::corner_radius);
-            let shape_width       = width - MAGIC_SHADOW_MARGIN.px() * 2.0;
+            let corner_radius     = style.get_number(theme.sub("corner_radius"));
+            let shape_width       = width  - MAGIC_SHADOW_MARGIN.px() * 2.0;
             let shape_height      = height - MAGIC_SHADOW_MARGIN.px() * 2.0;
-            let shape             = Rect((&shape_width,&shape_height))
-                                    .corners_radius(corner_radius.px());
+            let shape             = Rect((&shape_width,&shape_height));
+            let shape             = shape.corners_radius(corner_radius.px());
 
-            let bg_color          = style.get_color
-                                    (ensogl_theme::graph_editor::breadcrumbs::background);
+            let bg_color          = style.get_color(&theme);
             let bg                = shape.fill(bg_color);
-            let shadow_parameters = shadow::parameters_from_style_path
-                (style,ensogl_theme::graph_editor::breadcrumbs::background::shadow);
+            let shadow_parameters = shadow::parameters_from_style_path(style,theme.sub("shadow"));
             let shadow            = shadow::from_shape_with_parameters
                 (shape.into(),shadow_parameters);
 
@@ -167,7 +165,7 @@ pub struct BreadcrumbsModel {
     display_object        : display::object::Instance,
     background            : background::View,
     project_name          : ProjectName,
-    root: display::object::Instance,
+    root                  : display::object::Instance,
     /// A container for all the breadcrumbs after project name. This contained and all its
     /// breadcrumbs are moved when project name component is resized.
     breadcrumbs_container : display::object::Instance,
@@ -214,8 +212,8 @@ impl BreadcrumbsModel {
     fn camera_changed(&self) {
         let camera     = &self.camera;
         let screen     = camera.screen();
-        let x_position = -screen.width/2.0 + OUTER_MARGIN;
-        let y_position = screen.height/2.0 - OUTER_MARGIN;
+        let x_position = -screen.width/2.0;
+        let y_position = screen.height/2.0;
         self.root.set_position(Vector3(x_position.round(), y_position.round(), 0.0));
     }
 

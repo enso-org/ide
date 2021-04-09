@@ -13,6 +13,7 @@ use ensogl::application::Application;
 use ensogl::display::camera::Camera2d;
 use ensogl::display::Scene;
 use ensogl::display::shape::*;
+use ensogl::display::style;
 use ensogl::display;
 use ensogl_gui_components::shadow;
 use ensogl_text as text;
@@ -92,21 +93,20 @@ mod background {
 
     ensogl::define_shape_system! {
         (style:Style) {
+            let theme             = ensogl_theme::application::status_bar::background;
+            let theme             = style::Path::from(theme);
             let width             = Var::<Pixels>::from("input_size.x");
             let height            = Var::<Pixels>::from("input_size.y");
 
-            let corner_radius     = style.get_number
-                                    (ensogl_theme::application::status_bar::background::corner_radius);
+            let corner_radius     = style.get_number(theme.sub("corner_radius"));
             let shape_width       = width  - MAGIC_SHADOW_MARGIN.px() * 2.0;
             let shape_height      = height - MAGIC_SHADOW_MARGIN.px() * 2.0;
-            let shape             = Rect((&shape_width,&shape_height))
-                                    .corners_radius(corner_radius.px());
+            let shape             = Rect((&shape_width,&shape_height));
+            let shape             = shape.corners_radius(corner_radius.px());
 
-            let bg_color          = style.get_color
-                                    (ensogl_theme::application::status_bar::background);
+            let bg_color          = style.get_color(&theme);
             let bg                = shape.fill(bg_color);
-            let shadow_parameters = shadow::parameters_from_style_path
-                (style,ensogl_theme::application::status_bar::background::shadow);
+            let shadow_parameters = shadow::parameters_from_style_path(style,theme.sub("shadow"));
             let shadow            = shadow::from_shape_with_parameters
                 (shape.into(),shadow_parameters);
 

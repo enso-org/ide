@@ -2,7 +2,8 @@
 use crate::prelude::*;
 
 use ensogl_core::data::color;
-use ensogl_core::display::{DomSymbol, style};
+use ensogl_core::display::DomSymbol;
+use ensogl_core::display::style;
 use ensogl_core::display::shape::*;
 use ensogl_core::display::shape::AnyShape;
 use ensogl_core::system::web::StyleSetter;
