@@ -18,7 +18,6 @@ use crate::Type;
 use crate::component::node::input;
 use crate::component::node::output::port;
 use crate::component::node;
-use crate::tooltip;
 use enso_args::ARGS;
 
 
@@ -122,22 +121,21 @@ ensogl::define_endpoints! {
         set_hover                 (bool),
         set_expression            (node::Expression),
         set_expression_visibility (bool),
+        set_port_label_visibility (bool),
 
         /// Set the expression USAGE type. This is not the definition type, which can be set with
         /// `set_expression` instead. In case the usage type is set to None, ports still may be
         /// colored if the definition type was present.
         set_expression_usage_type (Crumbs,Option<Type>),
-
-        port_label_visibility     (bool),
     }
 
     Output {
-        on_port_press        (Crumbs),
-        on_port_hover        (Switch<Crumbs>),
-        on_port_type_change  (Crumbs,Option<Type>),
-        port_size_multiplier (f32),
-        body_hover           (bool),
-        // tooltip              (tooltip::Style),
+        on_port_press         (Crumbs),
+        on_port_hover         (Switch<Crumbs>),
+        on_port_type_change   (Crumbs,Option<Type>),
+        port_size_multiplier  (f32),
+        body_hover            (bool),
+        port_label_visibility (bool),
     }
 }
 
@@ -309,10 +307,10 @@ impl Model {
                     self.frp.source.on_port_press <+ port_frp.on_press.constant(crumbs.clone());
                     port_frp.set_size_multiplier <+ self.frp.port_size_multiplier;
                     self.frp.source.on_port_type_change <+ port_frp.tp.map(move |t|(crumbs.clone(),t.clone()));
-                    // self.frp.source.tooltip <+ port_frp.tooltip;
-                    port_frp.label_visibility <+ self.frp.port_label_visibility;
+                    port_frp.set_label_visibility <+ self.frp.port_label_visibility;
                 }
 
+                port_frp.set_label_visibility.emit(self.frp.port_label_visibility.value());
                 self.ports.add_child(&port_shape);
                 port_index += 1;
             }
@@ -323,7 +321,6 @@ impl Model {
     fn init_definition_types(&self) {
         let port_count          = self.port_count.get();
         let whole_expr_type     = self.expression.borrow().whole_expr_type.clone();
-        // Why do we collect those?
         let mut signals_to_emit = Vec::<(frp::Any<Option<Type>>,Option<Type>)>::new();
         self.traverse_borrowed_expression(|_,node,_| {
             if let Some(port_frp) = &node.payload.frp {
@@ -406,6 +403,8 @@ impl Area {
 
             frp.source.port_size_multiplier <+ hysteretic_transition.value;
             eval frp.set_size ((t) model.set_size(*t));
+
+            frp.source.port_label_visibility <+ frp.set_port_label_visibility;
 
 
             // === Expression ===

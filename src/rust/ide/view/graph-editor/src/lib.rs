@@ -1040,7 +1040,7 @@ impl GraphEditorModelWithNetwork {
         let touch = &self.touch_state;
         let model = &self.model;
 
-        let NodeCreationContext {pointer_style,tooltip_update,output_press,input_press,output} = ctx;
+        let NodeCreationContext {pointer_style,tooltip_update:_,output_press,input_press,output} = ctx;
 
         frp::new_bridge_network! { [self.network, node.frp.network] graph_node_bridge
             eval_ node.frp.background_press(touch.nodes.down.emit(node_id));
@@ -1050,7 +1050,6 @@ impl GraphEditorModelWithNetwork {
 
             node.set_output_expression_visibility <+ self.frp.nodes_labels_visible;
 
-            eval node.frp.tooltip ((tooltip) tooltip_update.emit(tooltip));
             eval node.model.input.frp.pointer_style ((style) pointer_style.emit(style));
             eval node.model.output.frp.on_port_press ([output_press](crumbs){
                 let target = EdgeEndpoint::new(node_id,crumbs.clone());
@@ -3024,7 +3023,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     frp::extend! { network
         eval cursor.frp.scene_position ((pos)  model.tooltip.frp.set_location(pos.xy()) );
-        eval node_tooltip ((tooltip_update) model.tooltip.frp.set_style(tooltip_update) );
 
         quick_visualization_preview <- bool(&frp.disable_quick_visualization_preview,
                                             &frp.enable_quick_visualization_preview);
