@@ -196,7 +196,7 @@ const toSign = [
 const extra = [
     'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/MacOS/libjli.dylib',
     'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/languages/llvm/native/bin/ld.lld',
-    'enso/runtime/graalvm-ce-java11-21.0.0.2',
+    // 'enso/runtime/graalvm-ce-java11-21.0.0.2',
 ]
 
 exports.default = async function () {
