@@ -18,9 +18,8 @@ pub use expression::Expression;
 
 use crate::prelude::*;
 
-use crate::Type;
-use crate::builtin::visualization::native as builtin_visualization;
 use crate::component::visualization;
+use crate::Type;
 
 use enso_frp as frp;
 use enso_frp;
@@ -361,7 +360,7 @@ pub struct NodeModel {
     pub input               : input::Area,
     pub output              : output::Area,
     pub visualization       : visualization::Container,
-    pub error_visualization : builtin_visualization::Error,
+    pub error_visualization : error::Container,
     pub action_bar          : action_bar::ActionBar,
     pub vcs_indicator       : vcs::StatusIndicator,
     pub style               : StyleWatchFrp,
@@ -417,7 +416,7 @@ impl NodeModel {
         display_object.add_child(&visualization);
         display_object.add_child(&input);
 
-        let error_visualization = builtin_visualization::Error::new(scene);
+        let error_visualization = error::Container::new(scene);
         let (x,y)               = ERROR_VISUALIZATION_SIZE;
         error_visualization.set_size.emit(Vector2(x,y));
 
@@ -697,6 +696,8 @@ impl Node {
 
             model.vcs_indicator.frp.set_status <+ frp.set_vcs_status;
         }
+        
+        model.error_visualization.set_layer(visualization::Layer::Front);
 
         // Those three lines initialize the values that are necessary for port labels to show.
         // All three are needed in this order, for reasons that I do not understand.
