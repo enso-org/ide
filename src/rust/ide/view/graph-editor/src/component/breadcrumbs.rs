@@ -217,22 +217,24 @@ impl BreadcrumbsModel {
         self.root.set_position(Vector3(x_position.round(), y_position.round(), 0.0));
     }
 
-    fn breadcrumbs_container_size(&self) -> f32 {
+    fn breadcrumbs_container_width(&self) -> f32 {
         self.breadcrumbs.borrow().iter().map(|breadcrumb| breadcrumb.width()).sum()
     }
 
     fn update_layout(&self) {
+        let project_name_width = self.project_name.width.value().round();
+
         self.project_name.set_position_x(HORIZONTAL_PADDING);
-        self.breadcrumbs_container.set_position_x(
-            HORIZONTAL_PADDING + self.project_name.width.value().round());
+        self.breadcrumbs_container.set_position_x(HORIZONTAL_PADDING + project_name_width);
 
         let background_width  = HORIZONTAL_PADDING
-                              + self.project_name.width.value().round()
-                              + self.breadcrumbs_container_size()
+                              + project_name_width
+                              + self.breadcrumbs_container_width()
                               + HORIZONTAL_PADDING;
         let background_height = HEIGHT;
-        self.background.size.set(Vector2(background_width+MAGIC_SHADOW_MARGIN*2.0,
-            background_height+MAGIC_SHADOW_MARGIN*2.0));
+        let width_with_shadow = background_width + MAGIC_SHADOW_MARGIN * 2.0;
+        let height_with_shadow = background_height + MAGIC_SHADOW_MARGIN * 2.0;
+        self.background.size.set(Vector2(width_with_shadow,height_with_shadow));
         self.background.set_position_x(background_width/2.0);
         self.background.set_position_y(-background_height/2.0);
     }
@@ -304,7 +306,7 @@ impl BreadcrumbsModel {
                 }
 
                 debug!(self.logger, "Pushing {breadcrumb.info.method_pointer.name} breadcrumb.");
-                breadcrumb.set_position_x(self.breadcrumbs_container_size().round());
+                breadcrumb.set_position_x(self.breadcrumbs_container_width().round());
                 self.breadcrumbs_container.add_child(&breadcrumb);
                 self.breadcrumbs.borrow_mut().push(breadcrumb);
             }
