@@ -168,25 +168,42 @@ class Heatmap extends Visualization {
         let myGroups = d3.map(data[0], d => d).keys()
         let myVars = d3.map(data[1], d => d).keys()
         let labelStyle = 'font-family: DejaVuSansMonoBook; font-size: 10px;'
+        let self = this
 
         // Build X scales and axis:
         let x = d3.scaleBand().range([0, this.canvas.inner.width]).domain(myGroups).padding(0.05)
+        let xAxis = d3
+            .axisBottom(x)
+            .tickSize(0)
+            .tickValues(
+                myGroups.filter((d, i) => {
+                    if (i == myGroups.length-1){ return 1 }
+                    let divisor = (5 * self.canvas.outer.width) / 200
+                    return !(i % Math.round(myGroups.length / divisor))
+                })
+            )
+
         this.svg
             .append('g')
             .attr('style', labelStyle)
             .attr('transform', 'translate(0,' + this.canvas.inner.height + ')')
-            .call(d3.axisBottom(x).tickSize(0))
+            .call(xAxis)
             .select('.domain')
             .remove()
 
         // Build Y scales and axis:
         let y = d3.scaleBand().range([this.canvas.inner.height, 0]).domain(myVars).padding(0.05)
-        this.svg
-            .append('g')
-            .attr('style', labelStyle)
-            .call(d3.axisLeft(y).tickSize(0))
-            .select('.domain')
-            .remove()
+        let yAxis = d3
+            .axisLeft(y)
+            .tickSize(0)
+            .tickValues(
+                myVars.filter((d, i) => {
+                    if (i == myVars.length-1){ return 1 }
+                    let divisor = (9 * self.canvas.outer.height) / 200
+                    return !(i % Math.round(myVars.length / divisor))
+                })
+            )
+        this.svg.append('g').attr('style', labelStyle).call(yAxis).select('.domain').remove()
 
         // Build color scale
         let fill = d3
