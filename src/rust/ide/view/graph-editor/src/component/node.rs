@@ -649,8 +649,6 @@ impl Node {
             layer_on_not_hover <- preview_visible.on_true().map(|_| visualization::Layer::Front);
             layer              <- any(layer_on_hover,layer_on_not_hover);
             model.visualization.frp.set_layer <+ layer;
-            eval layer ((l) model.error_visualization.set_layer(*l));
-
 
             update_error <- all(frp.set_error,preview_visible);
             eval update_error([model]((error,visible)){
@@ -702,9 +700,9 @@ impl Node {
 
             // === VCS Handling ===
             model.vcs_indicator.frp.set_status <+ frp.set_vcs_status;
-
         }
 
+        model.error_visualization.set_layer(visualization::Layer::Front);
         frp.set_error.emit(None);
         frp.set_disabled.emit(false);
         Self {frp,model}

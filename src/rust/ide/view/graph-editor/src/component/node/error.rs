@@ -57,6 +57,8 @@ impl Error {
 // === Constants ===
 
 const SIZE          : (f32,f32) = super::super::visualization::container::DEFAULT_SIZE;
+const Z_INDEX       : usize     = 1;
+const BORDER_RADIUS : f32       = 14.0;
 
 
 // === Container ===
@@ -110,13 +112,15 @@ impl Container {
         let (width,height) = SIZE;
         let width          = format!("{}.px", width);
         let height         = format!("{}.px", height);
-        background_dom.dom().set_style_or_warn("width"        ,width ,&logger);
-        background_dom.dom().set_style_or_warn("height"       ,height,&logger);
-        background_dom.dom().set_style_or_warn("z-index"      ,"1"   ,&logger);
-        background_dom.dom().set_style_or_warn("overflow-y"   ,"auto",&logger);
-        background_dom.dom().set_style_or_warn("overflow-x"   ,"auto",&logger);
-        background_dom.dom().set_style_or_warn("background"   ,bg_hex,&logger);
-        background_dom.dom().set_style_or_warn("border-radius","14px",&logger);
+        let z_index        = Z_INDEX.to_string();
+        let border_radius  = format!("{}.px", BORDER_RADIUS);
+        background_dom.dom().set_style_or_warn("width"        ,width        ,&logger);
+        background_dom.dom().set_style_or_warn("height"       ,height       ,&logger);
+        background_dom.dom().set_style_or_warn("z-index"      ,z_index      ,&logger);
+        background_dom.dom().set_style_or_warn("overflow-y"   ,"auto"       ,&logger);
+        background_dom.dom().set_style_or_warn("overflow-x"   ,"auto"       ,&logger);
+        background_dom.dom().set_style_or_warn("background"   ,bg_hex       ,&logger);
+        background_dom.dom().set_style_or_warn("border-radius",border_radius,&logger);
         shadow::add_to_dom_element(&background_dom,&styles,&logger);
         background_dom
     }
