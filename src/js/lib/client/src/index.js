@@ -402,7 +402,7 @@ function spawnProjectManager(args) {
 function runBackend() {
     if(args.backend !== false) {
         console.log("Starting the backend process.")
-        return spawnProjectManager()
+        return spawnProjectManager(['-vv'])
     }
 }
 
