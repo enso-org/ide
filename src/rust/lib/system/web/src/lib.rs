@@ -2,8 +2,6 @@
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 #![feature(trait_alias)]
-#![feature(set_stdio)]
-#![feature(slice_patterns)]
 
 pub mod clipboard;
 pub mod closure;
@@ -492,7 +490,7 @@ extern "C" {
 
 type PrintFn = fn(&str) -> std::io::Result<()>;
 
-struct Printer {
+struct  Printer {
     printfn: PrintFn,
     buffer: String,
     is_buffered: bool,
@@ -548,15 +546,15 @@ fn _print(msg: &str) -> std::io::Result<()> {
 }
 
 
-pub fn set_stdout() {
-    let printer = Printer::new(_print, true);
-    std::io::set_print(Some(Box::new(printer)));
-}
-
-pub fn set_stdout_unbuffered() {
-    let printer = Printer::new(_print, false);
-    std::io::set_print(Some(Box::new(printer)));
-}
+// pub fn set_stdout() {
+//     let printer = Printer::new(_print, true);
+//     std::io::set_print(Some(Box::new(printer)));
+// }
+//
+// pub fn set_stdout_unbuffered() {
+//     let printer = Printer::new(_print, false);
+//     std::io::set_print(Some(Box::new(printer)));
+// }
 
 #[wasm_bindgen(inline_js = "
 export function set_stack_trace_limit() {

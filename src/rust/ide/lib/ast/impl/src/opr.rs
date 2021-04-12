@@ -79,7 +79,7 @@ pub fn as_access_chain(ast:&Ast) -> Option<Chain> {
 /// If given Ast is a specific infix operator application, returns it.
 pub fn to_specific_infix(ast:&Ast, name:&str) -> Option<known::Infix> {
     let infix = known::Infix::try_from(ast).ok()?;
-    is_opr_named(&infix.opr,name).then(infix)
+    is_opr_named(&infix.opr,name).then_some(infix)
 }
 
 /// If given Ast is an assignment infix expression, returns it as Some known::Infix.

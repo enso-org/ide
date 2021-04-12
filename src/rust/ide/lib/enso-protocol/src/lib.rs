@@ -5,7 +5,7 @@
 #![feature(coerce_unsized)]
 #![feature(matches_macro)]
 #![feature(trait_alias)]
-#![feature(type_alias_impl_trait)]
+#![feature(min_type_alias_impl_trait)]
 #![warn(missing_docs)]
 #![warn(trivial_casts)]
 #![warn(trivial_numeric_casts)]

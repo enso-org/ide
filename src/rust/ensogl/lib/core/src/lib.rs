@@ -12,14 +12,12 @@
 #![feature(const_type_id)]
 #![feature(drain_filter)]
 #![feature(fn_traits)]
-#![feature(overlapping_marker_traits)]
-#![feature(slice_patterns)]
 #![feature(specialization)]
 #![feature(trait_alias)]
 #![feature(try_trait)]
-#![feature(type_alias_impl_trait)]
+#![feature(marker_trait_attr)] // TODO needed?
+#![feature(min_type_alias_impl_trait)]
 #![feature(unboxed_closures)]
-#![feature(vec_remove_item)]
 #![feature(weak_into_raw)]
 
 #![warn(missing_copy_implementations)]

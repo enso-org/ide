@@ -599,7 +599,7 @@ impl<Host> Instance<Host> {
 impl<Host> Instance<Host> {
     /// ID getter of this display object.
     pub fn _id(&self) -> Id {
-        Id(Rc::downgrade(&self.rc).as_raw() as *const() as usize)
+        Id(Rc::downgrade(&self.rc).as_ptr() as *const() as usize)
     }
 
     /// Add this object to the provided scene layer and remove it from all other layers. Do not use

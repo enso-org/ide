@@ -545,7 +545,7 @@ impl<Def:HasOutputStatic> ValueProvider for WeakNode<Def> {
 
 impl<Out> HasId for Stream<Out> {
     fn id(&self) -> Id {
-        let raw = self.data.as_raw() as *const() as usize;
+        let raw = self.data.as_ptr() as *const() as usize;
         raw.into()
     }
 }

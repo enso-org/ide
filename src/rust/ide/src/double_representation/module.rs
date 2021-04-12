@@ -373,7 +373,7 @@ impl ImportInfo {
 
     /// Construct from a macro match AST. Fails if the Ast is not an import declaration.
     pub fn from_match(ast:known::Match) -> Option<Self> {
-        ast::macros::is_match_import(&ast).then_with(|| {
+        ast::macros::is_match_import(&ast).then(|| {
             ImportInfo::from_target_str(ast.segs.head.body.repr().trim())
         })
     }

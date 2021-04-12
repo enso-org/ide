@@ -779,7 +779,7 @@ impl Searcher {
         let this    = self.this_arg.clone_ref();
         async move {
             let is_function_fragment = next_id == CompletedFragmentId::Function;
-            is_function_fragment.then(())?;
+            is_function_fragment.then_some(())?;
             let ThisNode {id,..} = this.deref().as_ref()?;
             let opt_type         = graph.expression_type(*id).await.map(Into::into);
             opt_type.map_none(move || error!(logger, "Failed to obtain type for this node."))

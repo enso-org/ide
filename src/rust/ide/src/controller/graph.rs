@@ -863,7 +863,7 @@ impl span_tree::generate::Context for Handle {
         } else {
             true
         };
-        matching.then_with(|| db_entry.invocation_info())
+        matching.then(|| db_entry.invocation_info())
     }
 }
 

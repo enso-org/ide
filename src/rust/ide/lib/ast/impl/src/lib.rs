@@ -2,7 +2,7 @@
 #![feature(bool_to_option)]
 #![feature(generators, generator_trait)]
 #![feature(trivial_bounds)]
-#![feature(type_alias_impl_trait)]
+#![feature(min_type_alias_impl_trait)]
 #![feature(matches_macro)]
 
 #[warn(missing_docs)]
