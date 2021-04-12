@@ -1040,7 +1040,7 @@ impl GraphEditorModelWithNetwork {
         let touch = &self.touch_state;
         let model = &self.model;
 
-        let NodeCreationContext {pointer_style,tooltip_update:_,output_press,input_press,output} = ctx;
+        let NodeCreationContext {pointer_style,output_press,input_press,output,..} = ctx;
 
         frp::new_bridge_network! { [self.network, node.frp.network] graph_node_bridge
             eval_ node.frp.background_press(touch.nodes.down.emit(node_id));
