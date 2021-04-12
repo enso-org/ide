@@ -264,6 +264,17 @@ impl SpriteSystem {
         self.add_child(&sprite);
         sprite
     }
+    /// Creates a new sprite instance.
+    pub fn new_instances(&self, sprite_count:usize) -> Vec<Sprite> {
+        let instance_ids  = self.symbol.surface().instance_scope().add_instances(sprite_count);
+        instance_ids.iter().map(|&id| {
+            let transform    = self.transform.at(id);
+            let size         = self.size.at(id);
+            let sprite       = Sprite::new(&self.symbol,id,transform,size,&self.stats);
+            self.add_child(&sprite);
+            sprite
+        }).collect()
+    }
 
     /// Hide the symbol. Hidden symbols will not be rendered.
     pub fn hide(&self) {

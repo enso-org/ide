@@ -443,6 +443,7 @@ crate::with_all_prim_types!([[define_any_buffer] []]);
 pub trait IsBuffer {
     fn set_context           (&self, context:Option<&Context>);
     fn add_element           (&self);
+    fn add_elements          (&self, count:usize);
     fn len                   (&self) -> usize;
     fn is_empty              (&self) -> bool;
     fn update                (&self);

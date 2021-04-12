@@ -171,6 +171,17 @@ impl {
         })
     }
 
+    /// Add a new instance to every buffer in the scope.
+    pub fn add_instances(&mut self, instance_count:usize) -> Vec<InstanceIndex> {
+        debug!(self.logger, "Adding {instance_count} instance(s).", || {
+            let ix_start = self.size;
+            self.size += instance_count;
+            self.buffers.iter_mut().for_each(|t| t.add_elements(instance_count));
+            let indexes:Vec<InstanceIndex> = (ix_start..self.size).map(|ix| ix.into()).collect();
+            indexes
+        })
+    }
+
     /// Dispose instance for reuse in the future. All data in all buffers at the provided `id` will
     /// be set to default.
     pub fn dispose(&mut self, ix:InstanceIndex) {

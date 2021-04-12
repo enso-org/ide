@@ -278,9 +278,9 @@ class LogRouter {
 let logRouter = new LogRouter()
 
 function hideLogs() {
-    console.log('All subsequent logs will be hidden. Eval `showLogs()` to reveal them.')
-    logRouter.autoFlush = false
-    console.autoFlush = false
+    // console.log('All subsequent logs will be hidden. Eval `showLogs()` to reveal them.')
+    // logRouter.autoFlush = false
+    // console.autoFlush = false
 }
 
 function showLogs() {
