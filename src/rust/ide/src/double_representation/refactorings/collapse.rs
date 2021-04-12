@@ -67,9 +67,9 @@ pub struct Collapsed {
 pub struct NoNodesSelected;
 
 #[allow(missing_docs)]
+#[derive(Clone,Copy,Debug,Fail)]
 #[fail(display="Internal refactoring error: Endpoint refers to node {} that cannot be resolved.",
 _0)]
-#[derive(Clone,Copy,Debug,Fail)]
 pub struct CannotResolveEndpointNode(node::Id);
 
 #[allow(missing_docs)]
@@ -78,8 +78,8 @@ pub struct CannotResolveEndpointNode(node::Id);
 pub struct CannotConstructCollapsedNode;
 
 #[allow(missing_docs)]
-#[fail(display="Internal refactoring error: Cannot resolve identifier for the endpoint {:?}",_0)]
 #[derive(Clone,Debug,Fail)]
+#[fail(display="Internal refactoring error: Cannot resolve identifier for the endpoint {:?}",_0)]
 pub struct EndpointIdentifierCannotBeResolved(Endpoint);
 
 #[allow(missing_docs)]

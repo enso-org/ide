@@ -3,7 +3,6 @@
 #![feature(generators, generator_trait)]
 #![feature(trivial_bounds)]
 #![feature(min_type_alias_impl_trait)]
-#![feature(matches_macro)]
 
 #[warn(missing_docs)]
 pub mod assoc;

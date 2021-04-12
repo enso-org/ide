@@ -46,22 +46,22 @@ const ENSO_PROJECT_SPECIAL_MODULE:&str = "Standard.Base.Enso_Project";
 
 
 #[allow(missing_docs)]
-#[fail(display="No action entry with the index {}.", index)]
 #[derive(Copy,Clone,Debug,Fail)]
+#[fail(display="No action entry with the index {}.", index)]
 pub struct NoSuchAction {
     index : usize,
 }
 
 #[allow(missing_docs)]
-#[fail(display="Action entry with index {} is not a suggestion.", index)]
 #[derive(Copy,Clone,Debug,Fail)]
+#[fail(display="Action entry with index {} is not a suggestion.", index)]
 pub struct NotASuggestion {
     index : usize,
 }
 
 #[allow(missing_docs)]
-#[fail(display="An action cannot be executed when searcher is in \"edit node\" mode.")]
 #[derive(Copy,Clone,Debug,Fail)]
+#[fail(display="An action cannot be executed when searcher is in \"edit node\" mode.")]
 pub struct CannotExecuteWhenEditingNode;
 
 

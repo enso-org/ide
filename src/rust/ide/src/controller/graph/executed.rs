@@ -25,13 +25,13 @@ pub use crate::controller::graph::Connections;
 // ==============
 
 #[allow(missing_docs)]
-#[fail(display = "The node {} has not been evaluated yet.", _0)]
 #[derive(Debug,Fail,Clone,Copy)]
+#[fail(display = "The node {} has not been evaluated yet.", _0)]
 pub struct NotEvaluatedYet(double_representation::node::Id);
 
 #[allow(missing_docs)]
-#[fail(display = "The node {} does not resolve to a method call.", _0)]
 #[derive(Debug,Fail,Clone,Copy)]
+#[fail(display = "The node {} does not resolve to a method call.", _0)]
 pub struct NoResolvedMethod(double_representation::node::Id);
 
 

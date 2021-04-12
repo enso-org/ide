@@ -5,7 +5,6 @@
 //! be of poor quality. Expect drastic changes.
 
 #![feature(associated_type_defaults)]
-#![feature(clamp)]
 #![feature(drain_filter)]
 #![feature(entry_insert)]
 #![feature(fn_traits)]
@@ -15,7 +14,6 @@
 #![feature(trait_alias)]
 #![feature(min_type_alias_impl_trait)]
 #![feature(unboxed_closures)]
-#![feature(weak_into_raw)]
 
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]

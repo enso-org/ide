@@ -157,7 +157,6 @@
 #![feature(specialization)]
 #![feature(trait_alias)]
 #![feature(unboxed_closures)]
-#![feature(weak_into_raw)]
 
 #![recursion_limit="512"]
 

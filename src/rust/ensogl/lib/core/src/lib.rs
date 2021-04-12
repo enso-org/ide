@@ -8,7 +8,6 @@
 
 #![feature(associated_type_defaults)]
 #![feature(cell_update)]
-#![feature(clamp)]
 #![feature(const_type_id)]
 #![feature(drain_filter)]
 #![feature(fn_traits)]
@@ -18,7 +17,6 @@
 #![feature(marker_trait_attr)] // TODO needed?
 #![feature(min_type_alias_impl_trait)]
 #![feature(unboxed_closures)]
-#![feature(weak_into_raw)]
 
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]

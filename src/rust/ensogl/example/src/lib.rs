@@ -4,7 +4,6 @@
 //! the FRP endpoints to communicate with controllers. It also have a mocked debug scenes of IDE.
 
 #![feature(associated_type_defaults)]
-#![feature(clamp)]
 #![feature(drain_filter)]
 #![feature(entry_insert)]
 #![feature(fn_traits)]
@@ -13,7 +12,6 @@
 #![feature(trait_alias)]
 #![feature(min_type_alias_impl_trait)]
 #![feature(unboxed_closures)]
-#![feature(weak_into_raw)]
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 #![warn(missing_docs)]

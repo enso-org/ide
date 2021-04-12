@@ -498,7 +498,7 @@ impl Info {
     /// Typically used to place lines with definitions in the module.
     pub fn add_ast(&mut self, ast:Ast, location:Placement) -> FallibleResult {
         #[derive(Clone,Copy,Debug,Eq,PartialEq)]
-        enum BlankLinePlacement {Before,After,None};
+        enum BlankLinePlacement {Before,After,None}
         let blank_line = match location {
             _ if self.ast.lines.is_empty() => BlankLinePlacement::None,
             Placement::Begin               => BlankLinePlacement::After,

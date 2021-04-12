@@ -69,16 +69,16 @@ define_in_out_easing_fns! {
     fn Back    back    |t| { back_in_params(t, 1.70158) }
     fn Elastic elastic |t| { elastic_in_params(t, 0.3, 1.0) }
     fn Bounce  bounce  |t| {
-        if t < 1.0 / 2.75 { (7.5625 * t * t) }
+        if t < 1.0 / 2.75 { 7.5625 * t * t }
         else if t < 2.0 / 2.75 {
             let t = t - 1.5 / 2.75;
-            (7.5625 * t * t + 0.75)
+            7.5625 * t * t + 0.75
         } else if t < 2.5 / 2.75 {
             let t = t - 2.25 / 2.75;
-            (7.5625 * t * t + 0.9375)
+            7.5625 * t * t + 0.9375
         } else {
             let t = t - 2.625 / 2.75;
-            (7.5625 * t * t + 0.984_375)
+            7.5625 * t * t + 0.984_375
         }
     }
 }
