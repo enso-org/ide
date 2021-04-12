@@ -123,6 +123,8 @@
   time.][1428]
 - [Improved performance of the graph editor, particularly when opening a project
   for a first time.][1445]
+- [Visualizations will be sharp and handle mouse input correctly]
+  [https://github.com/enso-org/ide/pull/1465]
 
 #### EnsoGL (rendering engine)
 
