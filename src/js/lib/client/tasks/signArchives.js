@@ -16,7 +16,7 @@ const contentRoot = path.join(dist.root, 'client', 'mac', 'Enso.app', 'Contents'
 const resRoot = path.join(contentRoot, 'Resources')
 
 // TODO: Remove this once https://github.com/enso-org/ide/issues/1359 has been implemented.
-const ENGINE = '0.2.10'
+const ENGINE = '0.5.22'
 const ID = '"Developer ID Application: New Byte Order Sp. z o. o. (NM77WTZJFQ)"'
 // Placeholder name for temporary archives.
 const tmpArchive = 'compressed.zip'
