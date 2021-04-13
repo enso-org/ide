@@ -215,7 +215,8 @@ impl BreadcrumbsModel {
         let camera     = &self.camera;
         let screen     = camera.screen();
         let x_position = -screen.width/2.0;
-        let y_position = screen.height/2.0;
+        // We add half a pixel to the y offset as a quick fix for misaligned text.
+        let y_position = screen.height/2.0 - 0.5;
         self.root.set_position(Vector3(x_position.round(), y_position.round(), 0.0));
     }
 
