@@ -1,3 +1,5 @@
+<h1>If you came here looking for Enso's community hub, it's found in the <a href="https://github.com/enso-org/enso">Enso  repository</a> instead. We'll be glad to see you there!</h1>
+
 <p align="center">
   <br/>
   <a href="http://enso.org">
@@ -53,10 +55,6 @@ consists of several sub-projects, including the
 [Enso Integrated Development Environment (IDE)](https://github.com/enso-org/ide),
 and
 [a high performance WebGL UI framework (EnsoGL)](https://github.com/enso-org/ide/tree/main/src/rust/ensogl).
-
-> **If you came here looking for Enso's community hub, it's found in the
-> [Enso Engine](https://github.com/enso-org/enso) repository instead. We'll be
-> glad to see you there!**
 
 <br/>
 
