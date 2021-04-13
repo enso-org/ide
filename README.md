@@ -54,6 +54,10 @@ consists of several sub-projects, including the
 and
 [a high performance WebGL UI framework (EnsoGL)](https://github.com/enso-org/ide/tree/main/src/rust/ensogl).
 
+> **If you came here looking for Enso's community hub, it's found in the
+> [Enso Engine](https://github.com/enso-org/enso) repository instead. We'll be
+> glad to see you there!**
+
 <br/>
 
 ### Getting Started
