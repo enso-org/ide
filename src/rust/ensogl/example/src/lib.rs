@@ -29,6 +29,7 @@
 #[allow(clippy::option_map_unit_fn)]
 
 pub mod animation;
+pub mod close_button;
 pub mod dom_symbols;
 pub mod easing_animator;
 pub mod glyph_system;

@@ -377,6 +377,10 @@ define_color_spaces! {
 // ===========
 
 impl Rgb {
+    pub fn from_integral(r:i32, g:i32, b:i32) -> Self {
+        Self::new(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0)
+    }
+
     /// Converts the color to `LinearRgb` representation.
     pub fn into_linear(self) -> LinearRgb {
         self.into()
@@ -426,6 +430,35 @@ impl Rgba {
     }
 }
 
+
+
+// ===========
+// === Hsl ===
+// ===========
+
+impl From<Hsl> for Rgb {
+    fn from(hsl:Hsl) -> Self {
+        let HslData{hue,lightness,saturation} = hsl.data;
+        let c = (1.0 - f32::abs(2.0 * lightness - 1.0)) * saturation;
+        let x = c * (1.0 - f32::abs((hue * 6.0) % 2.0 - 1.0));
+        let m = lightness - c / 2.0;
+        let (r,g,b) = if hue < 1.0 / 6.0 {
+            (c,x,0.0)
+        } else if hue < 2.0 / 6.0 {
+            (x,c,0.0)
+        } else if hue < 3.0 / 6.0 {
+            (0.0,c,x)
+        } else if hue < 4.0 / 6.0 {
+            (0.0,x,c)
+        } else if hue < 5.0 / 6.0 {
+            (x,0.0,c)
+        } else {
+            (c,0.0,x)
+        };
+
+        Rgb::new(r+m, g+m, b+m)
+    }
+}
 
 
 // =================
