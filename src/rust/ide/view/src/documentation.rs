@@ -42,6 +42,17 @@ const PADDING           : f32  = 5.0;
 const CODE_BLOCK_CLASS  : &str = "CodeBlock";
 const COPY_BUTTON_CLASS : &str = "copyCodeBtn";
 
+/// Get documentation view stylesheet from a CSS file.
+///
+/// TODO [MM] : This file is generated currently from Tailwind CSS file.
+///             It should be somehow gathered from website repo.
+fn documentation_style() -> String {
+    format!("<style>{}</style>", include_str!("documentation/style.css"))
+        .replace("theme-light", "light-theme")
+        .replace("theme-dark", "dark-theme")
+        .replace("body,html{font-family:var(--global-font)}", "body,html{font-family:\"DejaVuSansMonoBook\"}")
+}
+
 
 
 // =============
@@ -137,7 +148,7 @@ impl Model {
 
     /// Create a container for generated content and embed it with stylesheet.
     fn push_to_dom(&self, content:String) {
-        let data_str = format!(r#"<div class="docVis">{}</div>"#,content);
+        let data_str = format!(r#"{}{}"#,documentation_style(),content);
         self.dom.dom().set_inner_html(&data_str);
     }
 
