@@ -42,7 +42,7 @@ struct Model {
     logger         : Logger,
     display_object : display::object::Instance,
     /// Close button is present only in a cloud environment.
-    close_button   : Immutable<Option<close_button::View<close_button::Test>>>,
+    close_button   : Immutable<Option<crate::top_buttons::close::View>>,
     graph_editor   : GraphEditor,
     searcher       : searcher::View,
     code_editor    : code_editor::View,
@@ -60,7 +60,7 @@ impl Model {
         let status_bar     = status_bar::View::new(app);
         let fullscreen_vis = default();
         let close_button   = ARGS.is_in_cloud.unwrap_or_default().as_some_from(|| {
-            let close_button   = app.new_view::<close_button::View<close_button::Test>>();
+            let close_button   = app.new_view::<crate::top_buttons::close::View>();
             display_object.add_child(&close_button);
             app.display.scene().layers.breadcrumbs_text.add_exclusive(&close_button);
             close_button

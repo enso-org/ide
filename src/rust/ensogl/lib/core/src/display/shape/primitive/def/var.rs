@@ -80,17 +80,19 @@ pub enum Var<T> {
 // === Constructors ===
 
 impl Var<Pixels> {
+    /// Get the current shape's width.
     pub fn input_width() -> Var<Pixels> {
         "input_size.x".into()
     }
 
+    /// Get the current shape's height.
     pub fn input_height() -> Var<Pixels> {
-        "input_size.x".into()
+        "input_size.y".into()
     }
 }
 
-
 impl Var<color::Rgba> {
+    /// Build a color from its components.
     pub fn srgba(r:impl Into<Var<f32>>, g:impl Into<Var<f32>>, b:impl Into<Var<f32>>, a:impl Into<Var<f32>>)
     -> Var<color::Rgba> {
         format!("srgba({},{},{},{})",
@@ -100,13 +102,6 @@ impl Var<color::Rgba> {
                 a.into().glsl()
         ).into()
     }
-
-    // pub fn srgba<'a>(r:impl IntoGlsl<'a>, g:impl IntoGlsl<'a>, b:impl IntoGlsl<'a>, a:impl IntoGlsl<'a>)
-    // -> Var<color::Rgba>
-    // where T:'a {
-    //     let code = format!("srgba({},{},{},{})", r.glsl(), g.glsl(), b.glsl(), a.glsl());
-    //     code.into()
-    // }
 }
 
 impl<T,S> From<T> for Var<S>
