@@ -51,6 +51,7 @@ fn documentation_style() -> String {
         .replace("theme-light", "light-theme")
         .replace("theme-dark", "dark-theme")
         .replace("body,html{font-family:var(--global-font)}", "body,html{font-family:\"DejaVuSansMonoBook\"}")
+        .replace(".doc .tags{display:flex;font-size:16px}", ".doc .tags{display:flex;font-size:13px}")
 }
 
 
