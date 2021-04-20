@@ -316,6 +316,10 @@ ensogl::define_endpoints! {
         cancel(),
 
 
+        // === Layout ===
+        space_for_project_buttons (Vector2<f32>),
+
+
         // === Node Selection ===
 
         /// Node press event
@@ -1270,15 +1274,21 @@ impl GraphEditorModel {
 
     fn init(self) -> Self {
         self.add_child(&self.breadcrumbs);
+        self.position_breadcrumbs(0.0);
+        self.scene().add_child(&self.tooltip);
+        self
+    }
+
+    fn position_breadcrumbs(&self, project_buttons_width:f32) {
+        println!("Positioning breadcrumbs with offset {}", project_buttons_width);
         let is_macos     = ARGS.platform.map(|p|p.is_macos()) == Some(true);
         let is_frameless = ARGS.frame == Some(false);
         let x_offset     = if is_macos && is_frameless { MACOS_TRAFFIC_LIGHTS_WIDTH }
-                           else                        { MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET };
+                           else                        { project_buttons_width + MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET };
         let y_offset     = -MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET;
         self.breadcrumbs.set_position_x(x_offset);
         self.breadcrumbs.set_position_y(y_offset);
-        self.scene().add_child(&self.tooltip);
-        self
+
     }
 
     pub fn all_nodes(&self) -> Vec<NodeId> {
@@ -2015,12 +2025,14 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     let any_type_sel_color = color::Lcha::from(styles.get_color(theme::code::types::any::selection));
 
 
+    // frp.space_for_project_buttons
 
     // ========================
     // === Scene Navigation ===
     // ========================
 
     frp::extend! { network
+        eval inputs.space_for_project_buttons ((size) model.position_breadcrumbs(size.x));
         no_vis_selected   <- out.some_visualisation_selected.on_false();
         some_vis_selected <- out.some_visualisation_selected.on_true();
 

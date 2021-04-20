@@ -85,7 +85,7 @@ impl Network {
         self.register(OwnedSample::new(label,behavior,event))
     }
 
-    /// Passes the incoming event of the fisrt stream only if the value of the second stream is
+    /// Passes the incoming event of the first stream only if the value of the second stream is
     /// true.
     pub fn gate<T1,T2>(&self, label:Label, event:&T1, behavior:&T2) -> Stream<Output<T1>>
         where T1:EventOutput, T2:EventOutput<Output=bool> {

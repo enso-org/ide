@@ -400,7 +400,7 @@ function showCrashBanner(message) {
 }
 
 async function reportCrash(message) {
-    const crashReportHost = API[globalConfig.windowAppScopeConfigName].crashReportHost
+    const crashReportHost = API[globalConfig.windowAppScopeConfigName].crash_report_host
     await fetch(`http://${crashReportHost}/`, {
         method: 'POST',
         mode: 'no-cors',
@@ -444,19 +444,27 @@ API.main = async function (inputConfig) {
         use_loader     : true,
         wasm_url       : '/assets/ide.wasm',
         wasm_glue_url  : '/assets/wasm_imports.js',
-        crashReportHost: cfg.defaultLogServerHost,
-        noDataGathering: false,
+        crash_report_host: cfg.defaultLogServerHost,
+        no_data_gathering: false,
+        is_in_cloud    : true,
     }
     let urlParams = new URLSearchParams(window.location.search);
     let urlConfig = Object.fromEntries(urlParams.entries())
     let config    = Object.assign(defaultConfig,inputConfig,urlConfig)
     API[globalConfig.windowAppScopeConfigName] = config
+    console.log("Config",config)
 
-    if (config.noDataGathering) {
+    if (config.no_data_gathering) {
+        console.log("Won't collect data")
         API.remoteLog = function (_event, _data) {}
     } else {
+        console.log("Will collect data")
         let logger = new MixpanelLogger
         API.remoteLog = function (event,data) {logger.log(event,data)}
+    }
+    
+    API.close = function() {
+        console.log("Will close the project, if in cloud.")
     }
 
     window.setInterval(() =>{API.remoteLog("alive");}, ALIVE_LOG_INTERVAL)

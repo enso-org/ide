@@ -79,6 +79,36 @@ pub enum Var<T> {
 
 // === Constructors ===
 
+impl Var<Pixels> {
+    pub fn input_width() -> Var<Pixels> {
+        "input_size.x".into()
+    }
+
+    pub fn input_height() -> Var<Pixels> {
+        "input_size.x".into()
+    }
+}
+
+
+impl Var<color::Rgba> {
+    pub fn srgba(r:impl Into<Var<f32>>, g:impl Into<Var<f32>>, b:impl Into<Var<f32>>, a:impl Into<Var<f32>>)
+    -> Var<color::Rgba> {
+        format!("srgba({},{},{},{})",
+                r.into().glsl(),
+                g.into().glsl(),
+                b.into().glsl(),
+                a.into().glsl()
+        ).into()
+    }
+
+    // pub fn srgba<'a>(r:impl IntoGlsl<'a>, g:impl IntoGlsl<'a>, b:impl IntoGlsl<'a>, a:impl IntoGlsl<'a>)
+    // -> Var<color::Rgba>
+    // where T:'a {
+    //     let code = format!("srgba({},{},{},{})", r.glsl(), g.glsl(), b.glsl(), a.glsl());
+    //     code.into()
+    // }
+}
+
 impl<T,S> From<T> for Var<S>
     where T : VarInitializer<Var<S>> {
     default fn from(t:T) -> Self {
@@ -111,7 +141,21 @@ impls! {[T:Into<Glsl>] From<Var<T>> for Glsl { |t|
     }
 }}
 
+impl<T:Copy+PartialOrd+RefInto<Glsl>> Var<T> {
+    pub fn max(a:Var<T>, b:Var<T>) -> Var<T> {
+        match (&a,&b) {
+            (Var::Static(a),Var::Static(b)) => Var::Static(max(*a,*b)),
+            _ => Var::Dynamic(format!("max({},{})",a.glsl(),b.glsl()).into()),
+        }
+    }
 
+    pub fn min(a:Var<T>, b:Var<T>) -> Var<T> {
+        match (&a,&b) {
+            (Var::Static(a),Var::Static(b)) => Var::Static(min(*a,*b)),
+            _ => Var::Dynamic(format!("min({},{})",a.glsl(),b.glsl()).into()),
+        }
+    }
+}
 
 // ==================
 // === Operations ===

@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::code_editor;
+use crate::{code_editor, close_button};
 use crate::graph_editor::component::node;
 use crate::graph_editor::component::node::Expression;
 use crate::graph_editor::component::visualization;
@@ -20,7 +20,7 @@ use ensogl::DEPRECATED_Animation;
 use ensogl::system::web;
 use ensogl_theme::Theme as Theme;
 use enso_args::ARGS;
-
+use ensogl::system::web::dom;
 
 
 // =================
@@ -41,6 +41,8 @@ struct Model {
     app            : Application,
     logger         : Logger,
     display_object : display::object::Instance,
+    /// Close button is present only in a cloud environment.
+    close_button   : Immutable<Option<close_button::View<close_button::Test>>>,
     graph_editor   : GraphEditor,
     searcher       : searcher::View,
     code_editor    : code_editor::View,
@@ -57,13 +59,21 @@ impl Model {
         let code_editor    = app.new_view::<code_editor::View>();
         let status_bar     = status_bar::View::new(app);
         let fullscreen_vis = default();
+        let close_button   = ARGS.is_in_cloud.unwrap_or_default().as_some_from(|| {
+            let close_button   = app.new_view::<close_button::View<close_button::Test>>();
+            display_object.add_child(&close_button);
+            app.display.scene().layers.breadcrumbs_text.add_exclusive(&close_button);
+            close_button
+        });
+        let close_button = Immutable(close_button);
+
         display_object.add_child(&graph_editor);
         display_object.add_child(&code_editor);
         display_object.add_child(&searcher);
         display_object.add_child(&status_bar);
         display_object.remove_child(&searcher);
         let app = app.clone_ref();
-        Self{app,logger,display_object,graph_editor,searcher,code_editor,status_bar,fullscreen_vis}
+        Self{app,logger,display_object,close_button,graph_editor,searcher,code_editor,status_bar,fullscreen_vis}
     }
 
     /// Sets style of IDE to the one defined by parameter `theme`.
@@ -150,6 +160,19 @@ impl Model {
             self.display_object.add_child(&self.graph_editor);
         }
     }
+
+    fn on_shape_changed(&self, shape:&dom::shape::Shape) {
+        println!("Shape changed {:?}", shape);
+        if let Some(close_button) = &*self.close_button {
+            close_button.set_position_x(-shape.width / 2.0 + 13.0);
+            close_button.set_position_y(shape.height / 2.0 - 13.0);
+        }
+    }
+
+    fn on_close_clicked(&self) {
+        println!("Closing the project!");
+        js::close();
+    }
 }
 
 
@@ -168,6 +191,8 @@ ensogl::define_endpoints! {
         toggle_style(),
         /// Saves the currently opened module to file.
         save_module(),
+        /// Saves the currently opened module to file.
+        scene_shape(dom::Shape),
     }
 
     Output {
@@ -180,6 +205,28 @@ ensogl::define_endpoints! {
         code_editor_shown              (bool),
         style                          (Theme),
         fullscreen_visualization_shown (bool)
+    }
+}
+
+
+
+
+mod js {
+    use super::*;
+    use wasm_bindgen::prelude::*;
+
+    #[wasm_bindgen(inline_js="
+    export function close(msg, value) {
+        try {
+            window.enso.close()
+        } catch (error) {
+            console.error(\"Error while logging message. \" + error );
+        }
+    }
+    ")]
+    extern "C" {
+        #[allow(unsafe_code)]
+        pub fn close();
     }
 }
 
@@ -236,7 +283,34 @@ impl View {
         //   See: https://github.com/enso-org/ide/issues/795
         app.themes.update();
 
+        println!("ARGS? {:?}",*enso_args::ARGS);
+
+        fn calculate_space_for_buttons(size:&Vector2<f32>) -> Vector2<f32> {
+            Vector2(size.x + 13.0, size.y)
+        }
+
+
+        if let Some(close_button) = &*model.close_button {
+            println!("Initial button size: {:?}", close_button.size.value());
+            model.graph_editor.input.space_for_project_buttons(calculate_space_for_buttons(&close_button.size.value()));
+            frp::extend! { network
+                eval_ close_button.clicked (model.on_close_clicked());
+                graph.space_for_project_buttons <+ close_button.size.map(calculate_space_for_buttons);
+            }
+        }
+
+        let shape = app.display.scene().shape().clone_ref();
         frp::extend!{ network
+            eval shape ((shape) model.on_shape_changed(shape));
+            //
+            // if let Some(close_button) = &*model.close_button {
+            //     //eval_ close_button.clicked (model.on_close_clicked());
+            //     def _hlp = close_button.clicked.map(|_| model.select(id));
+            // };
+            // scene_shape <+ scene.shape();
+
+            // eval scene_shape ((shape) model.on_shape_changed(shape));
+
             // === Searcher Position and Size ===
 
             _eval <- all_with(&searcher_left_top_position.value,&searcher.size,f!([model](lt,size) {

@@ -28,16 +28,7 @@ mod shape {
     define_shape_system! {
         () {
             let circle_color = color::Rgb::from_integral(0xEC,0x6A,0x5F);
-            let circle    = Circle(12.px());
-            let circle    = circle.fill(color::Rgb::from(circle_color));
-            let angle     = Radians::from(45.0.degrees());
-
-            let cross_color = color::Rgb::from_integral(0x8D,0x1A,0x10);
-            let bar = Rect((16.pixels(), 2.5.px()))
-                .corners_radius(2.px())
-                .fill(color::Rgb::from(cross_color));
-            let cross      = bar.rotate(angle) + bar.rotate(-angle);
-            (circle + cross).into()
+            Circle(100.px()).fill(color::Rgb(1.0,0.0,0.0)).into()
         }
     }
 }
@@ -161,7 +152,6 @@ pub fn entry_point_close_button() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
     run_once_initialized(|| {
-        println!("Initializing");
         let app = Application::new(&web::get_html_element_by_id("root").unwrap());
 
         let shape:View = app.new_view();
@@ -184,6 +174,5 @@ pub fn entry_point_close_button() {
         std::mem::forget(network);
         std::mem::forget(navigator);
         mem::forget(app);
-        println!("Initializing");
     });
 }

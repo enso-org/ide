@@ -161,6 +161,33 @@ macro_rules! gen_abs {
 gen_abs!([f32,f64,i32,i64]);
 
 
+//
+// // ===========
+// // === Min ===
+// // ===========
+//
+// /// Types which have an absolute value.
+// pub trait Min {
+//     /// Absolute value.
+//     fn min(a:&Self, b:&Self) -> Self;
+// }
+//
+//
+// // === Impls ===
+//
+// macro_rules! gen_min {
+//     ([$($ty:ident),*]) => {$(
+//         impl Min for $ty {
+//             fn min(a:&Self, b:&Self) -> Self {
+//                 $ty::min(*a,*b)
+//             }
+//         }
+//     )*};
+// }
+//
+// gen_min!([f32,f64,i32,i64,usize]);
+
+
 
 // ===========
 // === Pow ===
