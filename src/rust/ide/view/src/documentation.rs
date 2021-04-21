@@ -54,6 +54,8 @@ fn documentation_style() -> String {
         .replace(".doc .tags{display:flex;font-size:16px}", ".doc .tags{display:flex;font-size:13px}")
         .replace("margin-left:15px", "margin-left:0px")
         .replace("doc-copy-btn{display:none", "doc-copy-btn{")
+        .replace("padding:2px 6px 3px;", "padding:2px 6px;line-height:1.35")
+        .replace("font-size:15px;", "font-size:13px;")
 }
 
 
