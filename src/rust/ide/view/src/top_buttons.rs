@@ -95,7 +95,7 @@ impl LayoutParams<frp::Sampler<f32>> {
     }
 
     /// Join all member frp streams into a single stream with aggregated values.
-    fn flatten(&self, network:&frp::Network) -> frp::Stream<LayoutParams<f32>> {
+    pub fn flatten(&self, network:&frp::Network) -> frp::Stream<LayoutParams<f32>> {
         // Be careful: order of args in the function must match order of args in the network below.
         fn to_layout
         (spacing:&f32, padding_left:&f32, padding_top:&f32, padding_right:&f32, padding_bottom:&f32)
@@ -120,7 +120,7 @@ impl LayoutParams<frp::Sampler<f32>> {
 
 /// An internal model of Status Bar component
 #[derive(Clone,CloneRef,Debug)]
-struct Model {
+pub struct Model {
     app             : Application,
     logger          : DefaultTraceLogger,
     display_object  : display::object::Instance,
@@ -157,23 +157,18 @@ impl Model {
     }
 
     pub fn set_layout(&self, layout:LayoutParams<f32>) -> Vector2 {
-        println!("Updating layout: {:?}",layout);
         let LayoutParams{spacing,padding_left,padding_top,padding_right,padding_bottom} = layout;
-        let close_size = self.close.size.value();
+        let close_size      = self.close.size.value();
         let fullscreen_size = self.fullscreen.size.value();
 
         self.close.set_position_xy(Vector2(padding_left,-padding_top));
         let fullscreen_x = padding_left + close_size.x + spacing;
         self.fullscreen.set_position_xy(Vector2(fullscreen_x,-padding_top));
 
-        let width = fullscreen_x + fullscreen_size.x + padding_right;
+        let width  = fullscreen_x + fullscreen_size.x + padding_right;
         let height = padding_top + max(close_size.y, fullscreen_size.y) + padding_bottom;
-        println!("Close size {:?}", close_size);
-        println!("Fullscreen size {:?}", fullscreen_size);
-        println!("==={} {} {}", fullscreen_x,width,height);
 
         let size = Vector2(width, height);
-        println!("+++{:?}", size);
         self.shape.set_position_xy(Vector2(size.x, -size.y) / 2.0);
         self.shape.size.set(size);
         size
@@ -216,15 +211,12 @@ pub struct View {
 impl View {
     /// Constructor.
     pub fn new(app: &Application) -> Self {
-        let frp = Frp::new();
-        let model = Model::new(app);
+        let frp     = Frp::new();
+        let model   = Model::new(app);
         let network = &frp.network;
 
-        let style = StyleWatchFrp::new(&app.display.scene().style_sheet);
-        let style_frp = LayoutParams::from_theme(&style);
-        let initial_style = style_frp.value();
-        let initial_size = model.set_layout(initial_style);
-        frp.source.size.emit(initial_size);
+        let style        = StyleWatchFrp::new(&app.display.scene().style_sheet);
+        let style_frp    = LayoutParams::from_theme(&style);
         let layout_style = style_frp.flatten(&network);
 
         frp::extend! { TRACE_ALL network
@@ -246,8 +238,11 @@ impl View {
             frp.source.fullscreen <+ model.fullscreen.clicked;
         }
 
-        let ret = Self { frp, model };
-        ret
+        let initial_style = style_frp.value();
+        let initial_size  = model.set_layout(initial_style);
+        frp.source.size.emit(initial_size);
+
+        Self { frp, model }
     }
 }
 

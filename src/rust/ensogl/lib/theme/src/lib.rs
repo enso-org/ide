@@ -187,31 +187,31 @@ define_themes! { [light:0, dark:1]
 
             close {
                 normal {
-                    background_color         = Rgb::new(1.0, 0.33, 0.33), Rgb::new(1.0, 0.33, 0.33);
-                    icon_color               = Rgba::new(0.0,0.0,0.0,0.0), Rgba::new(0.0,0.0,0.0,0.0);
+                    background_color = Rgb::new(1.0, 0.33, 0.33),  Rgb::new(1.0, 0.33, 0.33);
+                    icon_color       = Rgba::new(0.0,0.0,0.0,0.0), Rgba::new(0.0,0.0,0.0,0.0);
                 }
                 hovered {
-                    background_color         = application::top_buttons::close::normal::background_color, application::top_buttons::close::normal::background_color;
-                    icon_color               = Rgba::new(0.385,0.0,0.0,1.0), Rgba::new(0.385,0.0,0.0,1.0);
+                    background_color = application::top_buttons::close::normal::background_color, application::top_buttons::close::normal::background_color;
+                    icon_color       = Rgba::new(0.385,0.0,0.0,1.0), Rgba::new(0.385,0.0,0.0,1.0);
                 }
                 pressed {
-                    background_color         = Rgb::new(1.0, 0.5, 0.5), Rgb::new(1.0, 0.5, 0.5);
-                    icon_color               = Rgb::new(0.549,0.098,0.063), Rgb::new(0.549,0.098,0.063);
+                    background_color = Rgb::new(1.0, 0.5, 0.5),     Rgb::new(1.0, 0.5, 0.5);
+                    icon_color       = Rgb::new(0.549,0.098,0.063), Rgb::new(0.549,0.098,0.063);
                 }
             }
 
             fullscreen {
                 normal {
-                    background_color         = Rgb::new(0.18, 0.75, 0.25), Rgb::new(0.18, 0.75, 0.25);
-                    icon_color               = Rgba::new(0.0,0.,0.0,0.0), Rgba::new(0.0,0.0,0.0,0.0);
+                    background_color = Rgb::new(0.18, 0.75, 0.25), Rgb::new(0.18, 0.75, 0.25);
+                    icon_color       = Rgba::new(0.0,0.,0.0,0.0),  Rgba::new(0.0,0.0,0.0,0.0);
                 }
                 hovered {
-                    background_color         = application::top_buttons::fullscreen::normal::background_color, application::top_buttons::fullscreen::normal::background_color;
-                    icon_color               = Rgba::new(0.0,0.37,0.0,1.0), Rgba::new(0.0,0.37,0.0,1.0);
+                    background_color = application::top_buttons::fullscreen::normal::background_color, application::top_buttons::fullscreen::normal::background_color;
+                    icon_color       = Rgba::new(0.0,0.37,0.0,1.0), Rgba::new(0.0,0.37,0.0,1.0);
                 }
                 pressed {
-                    background_color         = Rgb::new(0.3, 0.96, 0.39), Rgb::new(0.3, 0.96, 0.39);
-                    icon_color               = Rgb::new(0.0,0.38,0.0), Rgb::new(0.0,0.38,0.0);
+                    background_color = Rgb::new(0.3, 0.96, 0.39), Rgb::new(0.3, 0.96, 0.39);
+                    icon_color       = Rgb::new(0.0,0.38,0.0),    Rgb::new(0.0,0.38,0.0);
                 }
             }
         }

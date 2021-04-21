@@ -90,7 +90,7 @@ impl Var<Pixels> {
         "input_size.y".into()
     }
 
-    /// Get the current shape's height.
+    /// Get the current shape's sizes.
     pub fn input_size() -> Var<Vector2<Pixels>> {
         "input_size".into()
     }

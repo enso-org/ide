@@ -29,7 +29,6 @@ pub mod prelude {
     pub use crate::top_buttons::common::State;
     pub use crate::top_buttons::common::shape::shape;
 
-
     pub use ensogl::system::gpu::shader::glsl::traits::IntoGlsl;
     pub use ensogl::display::shape::*;
     pub use ensogl::display::style::StaticPath;

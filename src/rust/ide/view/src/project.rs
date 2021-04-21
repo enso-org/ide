@@ -11,6 +11,7 @@ use crate::graph_editor::NodeId;
 use crate::searcher;
 use crate::status_bar;
 
+use enso_args::ARGS;
 use enso_frp as frp;
 use ensogl::application;
 use ensogl::application::Application;
@@ -18,9 +19,9 @@ use ensogl::application::shortcut;
 use ensogl::display;
 use ensogl::DEPRECATED_Animation;
 use ensogl::system::web;
-use ensogl_theme::Theme as Theme;
-use enso_args::ARGS;
 use ensogl::system::web::dom;
+use ensogl_theme::Theme as Theme;
+
 
 
 // =================
@@ -59,8 +60,8 @@ impl Model {
         let code_editor    = app.new_view::<code_editor::View>();
         let status_bar     = status_bar::View::new(app);
         let fullscreen_vis = default();
-        let top_buttons   = ARGS.is_in_cloud.unwrap_or_default().as_some_from(|| {
-            let top_buttons   = app.new_view::<crate::top_buttons::View>();
+        let top_buttons    = ARGS.is_in_cloud.unwrap_or_default().as_some_from(|| {
+            let top_buttons = app.new_view::<crate::top_buttons::View>();
             display_object.add_child(&top_buttons);
             app.display.scene().layers.breadcrumbs_text.add_exclusive(&top_buttons);
             top_buttons
@@ -161,11 +162,10 @@ impl Model {
         }
     }
 
-    fn on_shape_changed(&self, shape:&dom::shape::Shape) {
-        println!("Shape changed {:?}", shape);
+    fn on_dom_shape_changed(&self, shape:&dom::shape::Shape) {
+        // Top buttons must always stay in top-left corner.
         if let Some(top_buttons) = &*self.top_buttons {
-            let pos = Vector2(-shape.width / 2.0, shape.height / 2.0);
-            println!("Top buttons new position {:?}", pos);
+            let pos = Vector2(-shape.width, shape.height) / 2.0;
             top_buttons.set_position_xy(pos);
         }
     }
@@ -195,8 +195,6 @@ ensogl::define_endpoints! {
         toggle_style(),
         /// Saves the currently opened module to file.
         save_module(),
-        /// Saves the currently opened module to file.
-        scene_shape(dom::Shape),
     }
 
     Output {
@@ -294,13 +292,8 @@ impl View {
         //   See: https://github.com/enso-org/ide/issues/795
         app.themes.update();
 
-        fn calculate_space_for_buttons(size:&Vector2<f32>) -> Vector2<f32> {
-            Vector2(size.x + 13.0, size.y)
-        }
-
-
         if let Some(top_buttons) = &*model.top_buttons {
-            let initial_size = calculate_space_for_buttons(&top_buttons.size.value());
+            let initial_size = &top_buttons.size.value();
             model.graph_editor.input.space_for_project_buttons(initial_size);
             frp::extend! { network
                 graph.space_for_project_buttons <+ top_buttons.size;
@@ -311,7 +304,7 @@ impl View {
 
         let shape = app.display.scene().shape().clone_ref();
         frp::extend!{ network
-            eval shape ((shape) model.on_shape_changed(shape));
+            eval shape ((shape) model.on_dom_shape_changed(shape));
 
             // === Searcher Position and Size ===
 

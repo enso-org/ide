@@ -455,17 +455,14 @@ API.main = async function (inputConfig) {
     console.log("Config",config)
 
     if (config.no_data_gathering) {
-        console.log("Won't collect data")
         API.remoteLog = function (_event, _data) {}
     } else {
-        console.log("Will collect data")
         let logger = new MixpanelLogger
         API.remoteLog = function (event,data) {logger.log(event,data)}
     }
     
     API.close = function() {
-        console.log("Will close the project, if in cloud.")
-        throw "ahgfusigvbuis"
+        // TODO [mwu] Here the code for closing IDE when in cloud should be attached.
     }
 
     window.setInterval(() =>{API.remoteLog("alive");}, ALIVE_LOG_INTERVAL)

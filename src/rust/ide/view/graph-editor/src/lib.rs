@@ -1283,12 +1283,14 @@ impl GraphEditorModel {
         println!("Positioning breadcrumbs with offset {}", project_buttons_width);
         let is_macos     = ARGS.platform.map(|p|p.is_macos()) == Some(true);
         let is_frameless = ARGS.frame == Some(false);
-        let x_offset     = if is_macos && is_frameless { MACOS_TRAFFIC_LIGHTS_WIDTH }
-                           else                        { project_buttons_width + MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET };
+        let x_offset     = if is_macos && is_frameless {
+            MACOS_TRAFFIC_LIGHTS_WIDTH
+        } else {
+            project_buttons_width + MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET
+        };
         let y_offset     = -MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET;
         self.breadcrumbs.set_position_x(x_offset);
         self.breadcrumbs.set_position_y(y_offset);
-
     }
 
     pub fn all_nodes(&self) -> Vec<NodeId> {
@@ -2025,7 +2027,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     let any_type_sel_color = color::Lcha::from(styles.get_color(theme::code::types::any::selection));
 
 
-    // frp.space_for_project_buttons
 
     // ========================
     // === Scene Navigation ===
@@ -2033,6 +2034,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     frp::extend! { network
         eval inputs.space_for_project_buttons ((size) model.position_breadcrumbs(size.x));
+
         no_vis_selected   <- out.some_visualisation_selected.on_false();
         some_vis_selected <- out.some_visualisation_selected.on_true();
 
