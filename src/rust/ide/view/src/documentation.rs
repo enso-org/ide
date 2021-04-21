@@ -154,7 +154,9 @@ impl Model {
 
     /// Create a container for generated content and embed it with stylesheet.
     fn push_to_dom(&self, content:String) {
-        let data_str = format!(r#"{}{}"#,documentation_style(),content);
+        let no_doc_txt = "<p style=\"color: #a3a6a9;\">No documentation available</p>";
+        let content    = content.replace("<p>No documentation available</p>",no_doc_txt);
+        let data_str   = format!(r#"{}{}"#,documentation_style(),content);
         self.dom.dom().set_inner_html(&data_str);
     }
 
