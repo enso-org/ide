@@ -235,7 +235,7 @@ impl Model {
         let padding     = (size.x.min(size.y) / 2.0).min(PADDING);
         self.dom.set_size(Vector2(size.x,size.y));
         self.dom.dom().set_style_or_warn("padding",format!("{}px",padding),&self.logger);
-        self.dom.dom().set_style_or_warn("padding-top","5px",&logger);
+        self.dom.dom().set_style_or_warn("padding-top","5px",&self.logger);
     }
 }
 
