@@ -96,7 +96,11 @@ impl LayoutParams<frp::Sampler<f32>> {
 
     /// Join all member frp streams into a single stream with aggregated values.
     pub fn flatten(&self, network:&frp::Network) -> frp::Stream<LayoutParams<f32>> {
-        // Be careful: order of args in the function must match order of args in the network below.
+        /// Helper method that puts back LayoutParams from its fields.
+        /// Be careful, as the arguments must be in the same order as they are in `all_with5`
+        /// invocation below.
+        // We intentionally take references to f32 for seamless usage in FRP.
+        #[allow(clippy::trivially_copy_pass_by_ref)]
         fn to_layout
         (spacing:&f32, padding_left:&f32, padding_top:&f32, padding_right:&f32, padding_bottom:&f32)
         -> LayoutParams<f32> {
@@ -104,11 +108,8 @@ impl LayoutParams<frp::Sampler<f32>> {
             ret.map(|v| **v)
         };
 
-        frp::extend! { network
-            style <- all_with5(&self.spacing, &self.padding_left, &self.padding_top,
-                &self.padding_right, &self.padding_bottom, to_layout);
-            return style;
-        }
+        network.all_with5("TopButtonsLayoutStyle", &self.spacing, &self.padding_left,
+            &self.padding_top,&self.padding_right, &self.padding_bottom, to_layout)
     }
 }
 
@@ -130,8 +131,8 @@ pub struct Model {
 }
 
 impl Model {
+    /// Constructor.
     pub fn new(app:&Application) -> Self {
-
         let app            = app.clone_ref();
         let logger         = DefaultTraceLogger::new("TopButtons");
         let display_object = display::object::Instance::new(&logger);
@@ -148,14 +149,14 @@ impl Model {
         let fullscreen = fullscreen::View::new(&app);
         display_object.add_child(&fullscreen);
 
-        let shape          = shape::View::new(&logger);
-        shape.set_position(default());
+        let shape = shape::View::new(&logger);
         display_object.add_child(&shape);
 
-        let ret = Self{app,logger,display_object,shape,close,fullscreen};
-        ret
+        Self{app,logger,display_object,shape,close,fullscreen}
     }
 
+    /// Updates positions of the buttons and sizes of the mouse area.
+    /// Returns the new size of the panel (being also the size of mouse area).
     pub fn set_layout(&self, layout:LayoutParams<f32>) -> Vector2 {
         let LayoutParams{spacing,padding_left,padding_top,padding_right,padding_bottom} = layout;
         let close_size      = self.close.size.value();

@@ -441,12 +441,12 @@ function ok(value) {
 /// Main entry point. Loads WASM, initializes it, chooses the scene to run.
 API.main = async function (inputConfig) {
     let defaultConfig = {
-        use_loader     : true,
-        wasm_url       : '/assets/ide.wasm',
-        wasm_glue_url  : '/assets/wasm_imports.js',
-        crash_report_host: cfg.defaultLogServerHost,
-        no_data_gathering: false,
-        is_in_cloud    : true,
+        use_loader        : true,
+        wasm_url          : '/assets/ide.wasm',
+        wasm_glue_url     : '/assets/wasm_imports.js',
+        crash_report_host : cfg.defaultLogServerHost,
+        no_data_gathering : false,
+        is_in_cloud       : false,
     }
     let urlParams = new URLSearchParams(window.location.search);
     let urlConfig = Object.fromEntries(urlParams.entries())

@@ -1,19 +1,17 @@
-//! Example scene showing simple usage of a shape system.
+//! Example scene showing simple shape component that logs all its mouse events.
 
 use ensogl_core::prelude::*;
-
-use ensogl_core::display::navigation::navigator::Navigator;
-use ensogl_core::system::web;
 use wasm_bindgen::prelude::*;
-use ensogl_core::display::object::ObjectOps;
-use ensogl_core::{display, application};
-use ensogl_core::display::shape::ShapeSystem;
-use ensogl_core::display::world::*;
-use ensogl_core::display::shape::*;
+
+use ensogl_core::system::web;
+use ensogl_core::application;
+use ensogl_core::application::Application;
 use ensogl_core::data::color;
-use std::f32::consts::PI;
 use ensogl_core::define_shape_system;
-use ensogl_core::application::{Application, shortcut};
+use ensogl_core::display;
+use ensogl_core::display::navigation::navigator::Navigator;
+use ensogl_core::display::object::ObjectOps;
+use ensogl_core::display::shape::*;
 
 use enso_frp as frp;
 use ensogl_text_msdf_sys::run_once_initialized;
@@ -27,29 +25,29 @@ mod shape {
 
     define_shape_system! {
         () {
-            let circle_color = color::Rgb::from_integral(0xEC,0x6A,0x5F);
             Circle(100.px()).fill(color::Rgb(1.0,0.0,0.0)).into()
         }
     }
 }
 
+
+
 // =============
 // === Model ===
 // =============
 
-/// An internal model of Status Bar component
 #[derive(Clone,CloneRef,Debug)]
 struct Model {
-    app   : Application,
+    app             : Application,
     logger          : DefaultTraceLogger,
     display_object  : display::object::Instance,
     shape           : shape::View,
 }
 
 impl Model {
-    pub fn new(app:&Application) -> Self {
+    fn new(app:&Application) -> Self {
         let app            = app.clone_ref();
-        let logger         = DefaultTraceLogger::new("CloseButton");
+        let logger         = DefaultTraceLogger::new("Button");
         let display_object = display::object::Instance::new(&logger);
         let shape          = shape::View::new(&logger);
         shape.size.set(Vector2::new(100.0, 100.0));
@@ -66,11 +64,8 @@ impl Model {
 
 ensogl_core::define_endpoints! { [TRACE_ALL]
     Input {
-        enabled (bool),
     }
     Output {
-        clicked (),
-        is_hovered (bool),
     }
 }
 
@@ -80,12 +75,8 @@ ensogl_core::define_endpoints! { [TRACE_ALL]
 // === View ===
 // ============
 
-/// The StatusBar component view.
-///
-/// The status bar gathers information about events and processes occurring in the Application.
-// TODO: This is a stub. Extend it when doing https://github.com/enso-org/ide/issues/1193
 #[derive(Clone,CloneRef,Debug)]
-pub struct View {
+struct View {
     frp   : Frp,
     model : Model,
 }
@@ -93,31 +84,19 @@ pub struct View {
 impl View {
     /// Constructor.
     pub fn new(app: &Application) -> Self {
-        println!("Setting View up");
-        let frp = Frp::new();
-        let model = Model::new(app);
-        let network = &frp.network;
-        let scene = app.display.scene();
-
-        let events = &model.shape.events;
-
-        let foo = || println!("Hello 3");
-
+        let frp     = Frp::new();
+        let model   = Model::new(app);
+        let events  = &model.shape.events;
+        let network = &events.network;
         frp::extend! { network
             trace model.shape.events.mouse_up;
             trace model.shape.events.mouse_down;
             trace model.shape.events.mouse_over;
             trace model.shape.events.mouse_out;
             trace model.shape.events.on_drop;
-
-            frp.source.is_hovered <+ bool(&events.mouse_out,&events.mouse_over);
-
-            trace scene.mouse.frp.down_primary;
-            eval_ model.shape.events.mouse_down(frp.source.clicked.emit(()));
-            eval_ model.shape.events.mouse_down([]foo());
         }
 
-        Self { frp, model }
+        Self {frp,model }
     }
 }
 
@@ -135,7 +114,7 @@ impl application::command::FrpNetworkProvider for View {
 }
 
 impl application::View for View {
-    fn label() -> &'static str { "CloseButton" }
+    fn label() -> &'static str { "Circul" }
     fn new(app:&Application) -> Self { View::new(app) }
     fn app(&self) -> &Application { &self.model.app }
 }
@@ -148,7 +127,7 @@ impl application::View for View {
 /// The example entry point.
 #[wasm_bindgen]
 #[allow(dead_code)]
-pub fn entry_point_close_button() {
+pub fn entry_point_mouse_events() {
     web::forward_panic_hook_to_console();
     web::set_stdout();
     run_once_initialized(|| {
@@ -158,20 +137,11 @@ pub fn entry_point_close_button() {
         shape.model.shape.size.set(Vector2::new(300.0, 300.0));
         app.display.add_child(&shape);
 
-        let scene         = app.display.scene();
-        let camera        = scene.camera().clone_ref();
-        let navigator     = Navigator::new(&scene,&camera);
-
-        let logger : Logger = Logger::new("CloseButton");
-        let network = enso_frp::Network::new("test");
-        enso_frp::extend! {network
-            eval shape.clicked([logger](()) {
-                info!(logger, "Clicked")
-            });
-        }
+        let scene     = app.display.scene();
+        let camera    = scene.camera().clone_ref();
+        let navigator = Navigator::new(&scene,&camera);
 
         std::mem::forget(shape);
-        std::mem::forget(network);
         std::mem::forget(navigator);
         mem::forget(app);
     });

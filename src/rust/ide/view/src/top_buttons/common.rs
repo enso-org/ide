@@ -128,8 +128,8 @@ pub struct Model<Shape> {
     shape          : ShapeView<Shape>,
 }
 
-#[allow(missing_docs)]
 impl<Shape: ButtonShape> Model<Shape> {
+    /// Construct a button's model.
     pub fn new(app:&Application) -> Self {
         let app    = app.clone_ref();
         let logger = DefaultTraceLogger::new(Shape::debug_name());
@@ -139,18 +139,22 @@ impl<Shape: ButtonShape> Model<Shape> {
         Self{app,logger,display_object,shape}
     }
 
+    /// Set the background (i.e. the circle) color.
     pub fn set_background_color(&self, color:impl Into<Rgba>) {
         self.shape.background_color().set(color.into().into());
     }
 
+    /// Set the icon (i.e. the shape on the circle) color.
     pub fn set_icon_color(&self, color:impl Into<Rgba>) {
         self.shape.icon_color().set(color.into().into());
     }
 
+    /// Retrieves circle radius value from an frp sampler event.
     fn get_radius(radius:&Option<style::data::Data>) -> f32 {
         radius.as_ref().and_then(DataMatch::number).unwrap_or(RADIUS_FALLBACK)
     }
 
+    /// Set radius, updating the shape sizes and position.
     pub fn set_radius(&self, radius:&Option<style::data::Data>) -> Vector2<f32> {
         let radius = Self::get_radius(radius);
         let size   = Self::size_for_radius(radius);
@@ -160,12 +164,9 @@ impl<Shape: ButtonShape> Model<Shape> {
         size
     }
 
+    /// Calculate the size of button for a given radius value.
     pub fn size_for_radius(radius:f32) -> Vector2<f32> {
         Vector2(radius,radius) * 2.0
-    }
-
-    pub fn size_for_radius_event(radius:&Option<style::data::Data>) -> Vector2<f32> {
-        Self::size_for_radius(Self::get_radius(radius))
     }
 }
 

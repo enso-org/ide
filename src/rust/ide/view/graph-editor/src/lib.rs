@@ -1285,10 +1285,12 @@ impl GraphEditorModel {
         let is_frameless = ARGS.frame == Some(false);
         let x_offset     = if is_macos && is_frameless {
             MACOS_TRAFFIC_LIGHTS_WIDTH
+        } else if project_buttons_width != 0.0 {
+            project_buttons_width
         } else {
-            project_buttons_width + MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET
+            MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET
         };
-        let y_offset     = -MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET;
+        let y_offset = -MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET;
         self.breadcrumbs.set_position_x(x_offset);
         self.breadcrumbs.set_position_y(y_offset);
     }

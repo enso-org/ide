@@ -750,7 +750,7 @@ impl DynamicNetwork {
     }
 
     pub fn apply5<T1,T2,T3,T4,T5,F,T>
-    (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4, t5:&T5, f:F) -> OwnedStream<T>
+    (self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4, t5:&T5, f:F) -> OwnedStream<T>
     where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput, T5:EventOutput,
           T:Data, F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>,&Output<T5>)->T {
         OwnedAllWith5::new(label,t1,t2,t3,t4,t5,f).into()
