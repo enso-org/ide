@@ -32,16 +32,16 @@ impl ButtonShape for shape::DynamicShape {
     fn background_color_path(state:State) -> StaticPath {
         match state {
             State::Unconcerned => theme::normal::background_color,
-            State::Hovered => theme::hovered::background_color,
-            State::Pressed => theme::pressed::background_color,
+            State::Hovered     => theme::hovered::background_color,
+            State::Pressed     => theme::pressed::background_color,
         }
     }
 
     fn icon_color_path(state:State) -> StaticPath {
         match state {
             State::Unconcerned => theme::normal::icon_color,
-            State::Hovered => theme::hovered::icon_color,
-            State::Pressed => theme::pressed::icon_color,
+            State::Hovered     => theme::hovered::icon_color,
+            State::Pressed     => theme::pressed::icon_color,
         }
     }
 

@@ -13,12 +13,12 @@ pub mod shape {
 
     ensogl::define_shape_system! {
         (background_color:Vector4<f32>, icon_color:Vector4<f32>) {
-            let radius = Min::min(Var::input_width(),Var::input_height()) / 2.0;
-            let angle = Radians::from(45.0.degrees());
+            let radius     = Min::min(Var::input_width(),Var::input_height()) / 2.0;
+            let angle      = Radians::from(45.0.degrees());
             let bar_length = &radius * 4.0 / 3.0;
-            let bar_width = &bar_length / 6.5;
-            let bar = Rect((bar_length, &bar_width)).corners_radius(bar_width);
-            let cross = (bar.rotate(angle) + bar.rotate(-angle)).into();
+            let bar_width  = &bar_length / 6.5;
+            let bar        = Rect((bar_length, &bar_width)).corners_radius(bar_width);
+            let cross      = (bar.rotate(angle) + bar.rotate(-angle)).into();
             shape(background_color, icon_color, cross, radius)
         }
     }
@@ -32,16 +32,16 @@ impl ButtonShape for shape::DynamicShape {
     fn background_color_path(state:State) -> StaticPath {
         match state {
             State::Unconcerned => theme::normal::background_color,
-            State::Hovered => theme::hovered::background_color,
-            State::Pressed => theme::pressed::background_color,
+            State::Hovered     => theme::hovered::background_color,
+            State::Pressed     => theme::pressed::background_color,
         }
     }
 
     fn icon_color_path(state:State) -> StaticPath {
         match state {
             State::Unconcerned => theme::normal::icon_color,
-            State::Hovered => theme::hovered::icon_color,
-            State::Pressed => theme::pressed::icon_color,
+            State::Hovered     => theme::hovered::icon_color,
+            State::Pressed     => theme::pressed::icon_color,
         }
     }
 

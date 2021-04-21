@@ -87,21 +87,21 @@ mod tests {
 
     #[test]
     fn degree_radian_conversions() {
-        fn should_be_close(deg:Degrees,rad:Radians) {
+        fn assert_equivalence(deg:Degrees, rad:Radians) {
             let deg_from_rad = Degrees::from(rad);
             let rad_from_deg = Radians::from(deg);
             assert_eq!(deg, deg_from_rad);
             assert_eq!(rad, rad_from_deg);
         };
 
-        should_be_close(720.0.degrees(), (PI * 4.0).radians());
-        should_be_close(360.0.degrees(), (PI * 2.0).radians());
-        should_be_close(270.0.degrees(), (PI * 3.0 / 2.0).radians());
-        should_be_close(180.0.degrees(), PI.radians());
-        should_be_close(90.0.degrees(), (PI / 2.0).radians());
-        should_be_close(60.0.degrees(), (PI / 3.0).radians());
-        should_be_close(45.0.degrees(), (PI / 4.0).radians());
-        should_be_close(0.0.degrees(), 0.0.radians());
-        should_be_close(-180.0.degrees(), -PI.radians());
+        assert_equivalence(720.0.degrees(),  (PI * 4.0).radians());
+        assert_equivalence(360.0.degrees(),  (PI * 2.0).radians());
+        assert_equivalence(270.0.degrees(),  (PI * 3.0 / 2.0).radians());
+        assert_equivalence(180.0.degrees(),  PI.radians());
+        assert_equivalence(90.0.degrees(),   (PI / 2.0).radians());
+        assert_equivalence(60.0.degrees(),   (PI / 3.0).radians());
+        assert_equivalence(45.0.degrees(),   (PI / 4.0).radians());
+        assert_equivalence(0.0.degrees(),    0.0.radians());
+        assert_equivalence(-180.0.degrees(), -PI.radians());
     }
 }

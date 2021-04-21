@@ -176,12 +176,12 @@ define_themes! { [light:0, dark:1]
         }
 
         top_buttons {
-            radius = 48.0, 6.5;
-            spacing = application::top_buttons::radius, 13.0;
+            radius  = 6.5, 6.5;
+            spacing = application::top_buttons::radius, application::top_buttons::radius;
             padding {
-                left = 13.0, 13.0;
-                top = 13.0, 13.0;
-                right = 13.0, 13.0;
+                left   = 13.0, 13.0;
+                top    = 13.0, 13.0;
+                right  = 13.0, 13.0;
                 bottom = 13.0, 13.0;
             }
 
