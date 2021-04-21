@@ -39,8 +39,8 @@ pub const VIEW_HEIGHT : f32 = 300.0;
 const PLACEHOLDER_STR   : &str = "<h3>Documentation Viewer</h3><p>No documentation available</p>";
 const CORNER_RADIUS     : f32  = crate::graph_editor::component::node::CORNER_RADIUS;
 const PADDING           : f32  = 15.0;
-const CODE_BLOCK_CLASS  : &str = "CodeBlock";
-const COPY_BUTTON_CLASS : &str = "copyCodeBtn";
+const CODE_BLOCK_CLASS  : &str = "doc-code-container";
+const COPY_BUTTON_CLASS : &str = "doc-copy-btn";
 
 /// Get documentation view stylesheet from a CSS file.
 ///
@@ -231,10 +231,8 @@ impl Model {
 
     fn reload_style(&self) {
         let size        = self.size.get();
-        let real_width  = (size.x - 2.0 * PADDING).max(0.0);
-        let real_height = (size.y - 2.0 * PADDING).max(0.0);
         let padding     = (size.x.min(size.y) / 2.0).min(PADDING);
-        self.dom.set_size(Vector2(real_width,real_height));
+        self.dom.set_size(Vector2(size.x,size.y));
         self.dom.dom().set_style_or_warn("padding",format!("{}px",padding),&self.logger);
     }
 }
