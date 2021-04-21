@@ -1,7 +1,11 @@
+//! The close button in the Top Button panel.
+
 use crate::top_buttons::common::prelude::*;
 
 pub use ensogl_theme::application::top_buttons::close as theme;
-pub type View = crate::top_buttons::common::View<shape::DynamicShape>;
+
+/// The view component with the close button.
+pub type View = common::View<shape::DynamicShape>;
 
 /// The shape for "close" button. It places X-lie cross on a circle.
 pub mod shape {

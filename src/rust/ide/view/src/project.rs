@@ -171,8 +171,11 @@ impl Model {
     }
 
     fn on_close_clicked(&self) {
-        println!("Closing the project!");
         js::close();
+    }
+
+    fn on_fullscreen_clicked(&self) {
+        js::fullscreen();
     }
 }
 
@@ -217,17 +220,24 @@ mod js {
     use wasm_bindgen::prelude::*;
 
     #[wasm_bindgen(inline_js="
-    export function close(msg, value) {
-        try {
-            window.enso.close()
-        } catch (error) {
-            console.error(\"Error while logging message. \" + error );
-        }
+    export function close() {
+        try { window.enso.close(); }
+        catch(e) { console.error('Exception thrown from window.enso.close:',e) }
+    }")]
+    extern "C" {
+        #[allow(unsafe_code)]
+        pub fn close();
+    }
+
+
+    #[wasm_bindgen(inline_js="
+    export function fullscreen() {
+        document.documentElement.requestFullscreen()
     }
     ")]
     extern "C" {
         #[allow(unsafe_code)]
-        pub fn close();
+        pub fn fullscreen();
     }
 }
 
@@ -290,25 +300,18 @@ impl View {
 
 
         if let Some(top_buttons) = &*model.top_buttons {
-            println!("Initial button size: {:?}", top_buttons.size.value());
-            model.graph_editor.input.space_for_project_buttons(calculate_space_for_buttons(&top_buttons.size.value()));
+            let initial_size = calculate_space_for_buttons(&top_buttons.size.value());
+            model.graph_editor.input.space_for_project_buttons(initial_size);
             frp::extend! { network
-                eval_ top_buttons.close (model.on_close_clicked());
                 graph.space_for_project_buttons <+ top_buttons.size;
+                eval_ top_buttons.close      (model.on_close_clicked());
+                eval_ top_buttons.fullscreen (model.on_fullscreen_clicked());
             }
         }
 
         let shape = app.display.scene().shape().clone_ref();
         frp::extend!{ network
             eval shape ((shape) model.on_shape_changed(shape));
-            //
-            // if let Some(close_button) = &*model.close_button {
-            //     //eval_ close_button.clicked (model.on_close_clicked());
-            //     def _hlp = close_button.clicked.map(|_| model.select(id));
-            // };
-            // scene_shape <+ scene.shape();
-
-            // eval scene_shape ((shape) model.on_shape_changed(shape));
 
             // === Searcher Position and Size ===
 

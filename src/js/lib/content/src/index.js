@@ -465,6 +465,7 @@ API.main = async function (inputConfig) {
     
     API.close = function() {
         console.log("Will close the project, if in cloud.")
+        throw "ahgfusigvbuis"
     }
 
     window.setInterval(() =>{API.remoteLog("alive");}, ALIVE_LOG_INTERVAL)

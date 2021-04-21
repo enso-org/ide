@@ -1,3 +1,5 @@
+//! The component with buttons in the top left corner. See [[View]].
+
 pub mod close;
 pub mod common;
 pub mod fullscreen;
@@ -201,10 +203,10 @@ ensogl::define_endpoints! { [TRACE_ALL]
 // === View ===
 // ============
 
-/// The StatusBar component view.
+/// The Top Buttons Panel component.
 ///
-/// The status bar gathers information about events and processes occurring in the Application.
-// TODO: This is a stub. Extend it when doing https://github.com/enso-org/ide/issues/1193
+/// The panel contains two buttons: one for closing IDE and one for toggling the fullscreen mode.
+/// The panel is meant to be displayed only when IDE runs in a cloud environment.
 #[derive(Clone,CloneRef,Debug)]
 pub struct View {
     frp   : Frp,
@@ -214,7 +216,6 @@ pub struct View {
 impl View {
     /// Constructor.
     pub fn new(app: &Application) -> Self {
-        println!("Setting View up");
         let frp = Frp::new();
         let model = Model::new(app);
         let network = &frp.network;
