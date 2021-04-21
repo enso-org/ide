@@ -3,6 +3,8 @@ use crate::top_buttons::common::prelude::*;
 pub use ensogl_theme::application::top_buttons::fullscreen as theme;
 pub type View = crate::top_buttons::common::View<shape::DynamicShape>;
 
+/// The shape for "fullscreen" button. The icon consists if two triangles ◤◢ centered around single
+/// point.
 pub mod shape {
     use super::*;
     ensogl::define_shape_system! {
@@ -22,6 +24,7 @@ impl ButtonShape for shape::DynamicShape {
     fn debug_name() -> &'static str {
         "FullscreenButton"
     }
+
     fn background_color_path(state:State) -> StaticPath {
         match state {
             State::Unconcerned => theme::normal::background_color,
@@ -35,7 +38,6 @@ impl ButtonShape for shape::DynamicShape {
             State::Unconcerned => theme::normal::icon_color,
             State::Hovered => theme::hovered::icon_color,
             State::Pressed => theme::pressed::icon_color,
-            _ => theme::normal::icon_color,
         }
     }
 

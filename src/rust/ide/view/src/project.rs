@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::{code_editor};
+use crate::code_editor;
 use crate::graph_editor::component::node;
 use crate::graph_editor::component::node::Expression;
 use crate::graph_editor::component::visualization;
@@ -213,7 +213,7 @@ ensogl::define_endpoints! {
 
 
 mod js {
-    use super::*;
+    // use super::*;
     use wasm_bindgen::prelude::*;
 
     #[wasm_bindgen(inline_js="
@@ -283,8 +283,6 @@ impl View {
         // TODO[WD]: This should not be needed after the theme switching issue is implemented.
         //   See: https://github.com/enso-org/ide/issues/795
         app.themes.update();
-
-        println!("ARGS? {:?}",*enso_args::ARGS);
 
         fn calculate_space_for_buttons(size:&Vector2<f32>) -> Vector2<f32> {
             Vector2(size.x + 13.0, size.y)

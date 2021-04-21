@@ -141,21 +141,7 @@ impls! {[T:Into<Glsl>] From<Var<T>> for Glsl { |t|
     }
 }}
 
-impl<T:Copy+PartialOrd+RefInto<Glsl>> Var<T> {
-    pub fn max(a:Var<T>, b:Var<T>) -> Var<T> {
-        match (&a,&b) {
-            (Var::Static(a),Var::Static(b)) => Var::Static(max(*a,*b)),
-            _ => Var::Dynamic(format!("max({},{})",a.glsl(),b.glsl()).into()),
-        }
-    }
 
-    pub fn min(a:Var<T>, b:Var<T>) -> Var<T> {
-        match (&a,&b) {
-            (Var::Static(a),Var::Static(b)) => Var::Static(min(*a,*b)),
-            _ => Var::Dynamic(format!("min({},{})",a.glsl(),b.glsl()).into()),
-        }
-    }
-}
 
 // ==================
 // === Operations ===
@@ -167,6 +153,34 @@ where T:Abs {
         match self {
             Self::Static  (t) => Var::Static(t.abs()),
             Self::Dynamic (t) => Var::Dynamic(format!("abs({})",t).into())
+        }
+    }
+}
+
+impl<T> Min for Var<T>
+where T:Min+Into<Glsl> {
+    fn min(a:Self, b:Self) -> Self {
+        match (a,b) {
+            (Var::Static(a), Var::Static(b)) => Var::Static(Min::min(a,b)),
+            (a,b) => {
+                let a:Glsl = a.into();
+                let b:Glsl = b.into();
+                Var::Dynamic(format!("min({},{})", a.glsl(), b.glsl()).into())
+            },
+        }
+    }
+}
+
+impl<T> Max for Var<T>
+    where T:Max+Into<Glsl> {
+    fn max(a:Self, b:Self) -> Self {
+        match (a,b) {
+            (Var::Static(a), Var::Static(b)) => Var::Static(Max::max(a,b)),
+            (a,b) => {
+                let a:Glsl = a.into();
+                let b:Glsl = b.into();
+                Var::Dynamic(format!("max({},{})", a.glsl(), b.glsl()).into())
+            },
         }
     }
 }

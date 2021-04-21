@@ -5,22 +5,16 @@ pub mod fullscreen;
 
 use ensogl::prelude::*;
 
-use ensogl::display::navigation::navigator::Navigator;
-use ensogl::system::web;
-use wasm_bindgen::prelude::*;
 use ensogl::display::object::ObjectOps;
 use ensogl::{display, application};
-use ensogl::display::shape::ShapeSystem;
-use ensogl::display::world::*;
 use ensogl::display::shape::*;
 use ensogl::data::color;
-use std::f32::consts::PI;
 use ensogl::define_shape_system;
-use ensogl::application::{Application, shortcut};
+use ensogl::application::Application;
 
 use enso_frp as frp;
-use ensogl_text_msdf_sys::run_once_initialized;
-use ensogl::display::geometry::glsl::Layout;
+
+
 
 // ==============
 // === Shapes ===
@@ -31,11 +25,21 @@ mod shape {
 
     define_shape_system! {
         () {
-            Plane().fill(color::Rgb(0.0,0.2,0.0)).into()
+            // Almost transparent - to not be visible but still catch mouse events.
+            let faux_color = color::Rgba::new(0.0,0.0,0.0,0.000_001);
+            Plane().fill(faux_color).into()
         }
     }
 }
 
+
+
+// ==============
+// === Layout ===
+// ==============
+
+/// Information on how to layout shapes in the top buttons panel, as defined in the theme.
+#[allow(missing_docs)]
 #[derive(Clone,Copy,Debug)]
 pub struct LayoutParams<T> {
     pub spacing        : T,
@@ -58,7 +62,8 @@ impl Default for LayoutParams<f32> {
 }
 
 impl<T> LayoutParams<T> {
-    fn map<U>(&self, f:impl Fn(&T)->U) -> LayoutParams<U> {
+    /// Applies a given function over all stored values and return layout with resulting values.
+    pub fn map<U>(&self, f:impl Fn(&T)->U) -> LayoutParams<U> {
         LayoutParams {
             spacing        : f(&self.spacing),
             padding_left   : f(&self.padding_left),
@@ -67,38 +72,46 @@ impl<T> LayoutParams<T> {
             padding_bottom : f(&self.padding_bottom),
         }
     }
-
-    fn track_style(&self, network:&frp::Network, style:&StyleWatchFrp) {
-
-    }
-
-    fn from_tuple(tuple:(T,T,T,T,T)) -> LayoutParams<T> {
-        let (spacing,padding_left,padding_top,padding_right,padding_bottom) = tuple;
-        LayoutParams {spacing,padding_left,padding_top,padding_right,padding_bottom}
-    }
 }
 
 impl LayoutParams<frp::Sampler<f32>> {
-    fn from_theme(style:&StyleWatchFrp) -> Self {
+    /// Get layout from theme. Each layout parameter will be an frp sampler.
+    pub fn from_theme(style:&StyleWatchFrp) -> Self {
+        use ensogl_theme::application::top_buttons as theme;
         let default        = LayoutParams::default();
-        let spacing        = style.get_number_or(ensogl_theme::application::top_buttons::spacing, default.spacing);
-        let padding_left   = style.get_number_or(ensogl_theme::application::top_buttons::padding::left, default.padding_left);
-        let padding_top    = style.get_number_or(ensogl_theme::application::top_buttons::padding::top, default.padding_top);
-        let padding_right  = style.get_number_or(ensogl_theme::application::top_buttons::padding::right, default.padding_right);
-        let padding_bottom = style.get_number_or(ensogl_theme::application::top_buttons::padding::bottom, default.padding_bottom);
+        let spacing        = style.get_number_or(theme::spacing,         default.spacing);
+        let padding_left   = style.get_number_or(theme::padding::left,   default.padding_left);
+        let padding_top    = style.get_number_or(theme::padding::top,    default.padding_top);
+        let padding_right  = style.get_number_or(theme::padding::right,  default.padding_right);
+        let padding_bottom = style.get_number_or(theme::padding::bottom, default.padding_bottom);
         Self {spacing,padding_left,padding_top,padding_right,padding_bottom}
     }
 
-    fn sample_value(&self) -> LayoutParams<f32> {
+    /// Take values from the parameters' samplers.
+    pub fn value(&self) -> LayoutParams<f32> {
         self.map(|sampler| sampler.value())
     }
 
+    /// Join all member frp streams into a single stream with aggregated values.
     fn flatten(&self, network:&frp::Network) -> frp::Stream<LayoutParams<f32>> {
-        let style_tuple = network.all5("layout_style", &self.spacing, &self.padding_left, &self.padding_top, &self.padding_right, &self.padding_bottom);
-        let style = network.map("layout_style",&style_tuple, |v| LayoutParams::from_tuple(*v));
-        style
+        // Be careful: order of args in the function must match order of args in the network below.
+        fn to_layout
+        (spacing:&f32, padding_left:&f32, padding_top:&f32, padding_right:&f32, padding_bottom:&f32)
+        -> LayoutParams<f32> {
+            let ret = LayoutParams{spacing,padding_left,padding_top,padding_right,padding_bottom};
+            ret.map(|v| **v)
+        };
+
+        frp::extend! { network
+            style <- all_with5(&self.spacing, &self.padding_left, &self.padding_top,
+                &self.padding_right, &self.padding_bottom, to_layout);
+            return style;
+        }
     }
 }
+
+
+
 // =============
 // === Model ===
 // =============
@@ -179,7 +192,6 @@ ensogl::define_endpoints! { [TRACE_ALL]
         close(),
         fullscreen(),
         size(Vector2<f32>),
-        mouse_near_buttons(bool),
     }
 }
 
@@ -206,27 +218,31 @@ impl View {
         let frp = Frp::new();
         let model = Model::new(app);
         let network = &frp.network;
-        let scene = app.display.scene();
-
-        let events = &model.shape.events;
-
-
-        let fallback = 13.0;
 
         let style = StyleWatchFrp::new(&app.display.scene().style_sheet);
         let style_frp = LayoutParams::from_theme(&style);
-        let initial_style = style_frp.sample_value();
+        let initial_style = style_frp.value();
         let initial_size = model.set_layout(initial_style);
         frp.source.size.emit(initial_size);
         let layout_style = style_frp.flatten(&network);
 
-
         frp::extend! { TRACE_ALL network
-            button_resized <- any_(&model.close.size,&model.fullscreen.size);
+            // Layout
+            button_resized          <- any_(&model.close.size,&model.fullscreen.size);
             layout_on_button_change <- sample(&layout_style,&button_resized);
-            need_relayout <- any(&layout_style,&layout_on_button_change);
-            frp.source.size <+ need_relayout.map(f!((layout) model.set_layout(*layout)));
-            frp.source.mouse_near_buttons <+ bool(&model.shape.events.mouse_out,&model.shape.events.mouse_over);
+            need_relayout           <- any(&layout_style,&layout_on_button_change);
+            frp.source.size         <+ need_relayout.map(f!((layout) model.set_layout(*layout)));
+
+            // Handle the panel-wide hover
+            mouse_near_buttons            <- bool(&model.shape.events.mouse_out,&model.shape.events.mouse_over);
+            mouse_on_any_buttton          <- model.close.is_hovered.or(&model.fullscreen.is_hovered);
+            mouse_nearby                  <- mouse_near_buttons.or(&mouse_on_any_buttton);
+            model.close.mouse_nearby      <+ mouse_nearby;
+            model.fullscreen.mouse_nearby <+ mouse_nearby;
+
+            // === Handle buttons' clicked events ===
+            frp.source.close      <+ model.close.clicked;
+            frp.source.fullscreen <+ model.fullscreen.clicked;
         }
 
         let ret = Self { frp, model };
@@ -248,7 +264,7 @@ impl application::command::FrpNetworkProvider for View {
 }
 
 impl application::View for View {
-    fn label() -> &'static str { "CloseButton" }
+    fn label() -> &'static str { "TopButtons" }
     fn new(app:&Application) -> Self { View::new(app) }
     fn app(&self) -> &Application { &self.model.app }
 }

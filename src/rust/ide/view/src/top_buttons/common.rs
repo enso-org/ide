@@ -1,10 +1,10 @@
 use prelude::*;
 
 use ensogl::display::object::ObjectOps;
-use ensogl::{display, application, Animation};
-use ensogl::display::{style};
+use ensogl::application;
+use ensogl::display;
+use ensogl::display::style;
 use ensogl::display::shape::*;
-use ensogl::define_shape_system;
 use ensogl::application::Application;
 
 use enso_frp as frp;
@@ -66,12 +66,12 @@ impl Default for State {
 }
 
 
-pub trait ButtonShape: CloneRef + display::object::class::Object + display::shape::system::DynamicShapeInternals +'static  {
+pub trait ButtonShape: CloneRef + display::object::class::Object + DynamicShapeInternals +'static  {
     fn debug_name() -> &'static str;
 
-    fn background_color_path(state:State) -> style::StaticPath;
+    fn background_color_path(state:State) -> StaticPath;
 
-    fn icon_color_path(state:State) -> style::StaticPath;
+    fn icon_color_path(state:State) -> StaticPath;
 
     fn background_color(&self) -> &DynamicParam<Attribute<Vector4<f32>>>;
 
@@ -88,11 +88,11 @@ pub mod shape {
     use super::*;
 
     pub fn shape(background_color:Var<Vector4<f32>>, icon_color:Var<Vector4<f32>>
-             , icon:display::shape::primitive::def::AnyShape
+             , icon:AnyShape
              , radius:Var<Pixels>)
-             -> display::shape::primitive::def::AnyShape {
-        let background_color = Var::<color::Rgba>::from(background_color);
-        let icon_color = Var::<color::Rgba>::from(icon_color);
+             -> AnyShape {
+        let background_color = Var::<Rgba>::from(background_color);
+        let icon_color = Var::<Rgba>::from(icon_color);
         let circle = Circle(radius).fill(background_color);
         let icon   = icon.fill(icon_color);
         (circle + icon).into()
@@ -167,9 +167,11 @@ impl<Shape: ButtonShape> Model<Shape> {
 ensogl::define_endpoints! { [TRACE_ALL]
     Input {
         enabled (bool),
+        mouse_nearby (bool),
     }
     Output {
         clicked (),
+        is_hovered (bool),
         state(State),
         size (Vector2<f32>),
     }
@@ -237,8 +239,8 @@ impl<Shape:ButtonShape> View<Shape> {
         println!("Initial color from style path {:?}",Shape::background_color_path(State::Unconcerned));
         println!("Initial color from style {:?}",background_unconcerned_color.value());
         model.set_background_color(background_unconcerned_color.value());
-
         let events = &model.shape.events;
+
         frp::extend! { TRACE_ALL network
 
             // Radius
@@ -246,30 +248,25 @@ impl<Shape:ButtonShape> View<Shape> {
             frp.source.size <+ radius_frp.map(Model::<Shape>::size_for_radius_event);
 
             // Mouse
-            is_hovered <- bool(&events.mouse_out,&events.mouse_over);
-            tracking_for_release <- gate(&model.shape.events.mouse_down,&is_hovered);
+            frp.source.is_hovered <+ bool(&events.mouse_out,&events.mouse_over);
+            pressed_on_me         <- model.shape.events.mouse_down.gate(&frp.is_hovered);
+            tracking_for_release  <- bool(&mouse.up_primary,&pressed_on_me);
+            mouse_released_on_me  <- mouse.up_primary.gate(&frp.is_hovered);
+            was_clicked           <- tracking_for_release.previous();
+            frp.source.clicked    <+ mouse_released_on_me.gate(&was_clicked);
 
 
+            state <- all_with3(&frp.is_hovered,&frp.mouse_nearby,&tracking_for_release,
+                |strict_hover,nearby_hover,clicked| {
+                    match (strict_hover,nearby_hover,clicked)  {
+                            (true , _    , true) => State::Pressed,
+                            (_    , true , _   ) => State::Hovered,
+                            (_    , _    , true) => State::Hovered,
+                            _                    => State::Unconcerned,
+                        }
+                    });
 
-            //released <- gate(&mouse.up_primary,&is_pressed);
-
-            is_mouse_pressed <- bool(&mouse.up_primary,&model.shape.events.mouse_down);
-            is_pressed <- sample(&is_hovered, &model.shape.events.mouse_down);
-
-
-            frp.source.clicked <+ gate(&model.shape.events.mouse_up,&is_hovered);
-
-            //frp.source.clicked <+ gate(&model.shape.events.mouse_up,&is_hovered);
-
-            mouse_state <- all(&is_hovered, &is_pressed);
-            frp.source.state <+ mouse_state.map(|(hovered,pressed)| {
-                match (hovered,pressed) {
-                    (false,false) => State::Unconcerned,
-                    (true,false) => State::Hovered,
-                    (false,true) => State::Unconcerned, //PressedButMovedOut,
-                    (true,true) => State::Pressed,
-                }
-            });
+            frp.source.state <+ state;
 
             // Color animations
             background_color_helper <- all4(&frp.source.state,&background_unconcerned_color,&background_hovered_color,&background_pressed_color);

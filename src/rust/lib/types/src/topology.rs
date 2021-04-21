@@ -35,6 +35,12 @@ impl pixels::Into for &&i32 {
     fn pixels(self) -> Pixels { self.into() }
 }
 
+impl Min for Pixels {
+    fn min(a: Self, b: Self) -> Self {
+        Pixels::from(min(a.value,b.value))
+    }
+}
+
 
 // === Degrees ===
 
