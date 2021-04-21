@@ -38,7 +38,7 @@ pub const VIEW_HEIGHT : f32 = 300.0;
 /// Content in the documentation view when there is no data available.
 const PLACEHOLDER_STR   : &str = "<h3>Documentation Viewer</h3><p>No documentation available</p>";
 const CORNER_RADIUS     : f32  = crate::graph_editor::component::node::CORNER_RADIUS;
-const PADDING           : f32  = 5.0;
+const PADDING           : f32  = 15.0;
 const CODE_BLOCK_CLASS  : &str = "CodeBlock";
 const COPY_BUTTON_CLASS : &str = "copyCodeBtn";
 
@@ -52,6 +52,8 @@ fn documentation_style() -> String {
         .replace("theme-dark", "dark-theme")
         .replace("body,html{font-family:var(--global-font)}", "body,html{font-family:\"DejaVuSansMonoBook\"}")
         .replace(".doc .tags{display:flex;font-size:16px}", ".doc .tags{display:flex;font-size:13px}")
+        .replace("margin-left:15px", "margin-left:0px")
+        .replace("doc-copy-btn{display:none", "doc-copy-btn{")
 }
 
 
