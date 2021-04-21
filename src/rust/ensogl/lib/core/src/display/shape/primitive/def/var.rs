@@ -89,6 +89,11 @@ impl Var<Pixels> {
     pub fn input_height() -> Var<Pixels> {
         "input_size.y".into()
     }
+
+    /// Get the current shape's height.
+    pub fn input_size() -> Var<Vector2<Pixels>> {
+        "input_size".into()
+    }
 }
 
 impl Var<color::Rgba> {

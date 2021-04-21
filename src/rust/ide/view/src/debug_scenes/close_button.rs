@@ -25,7 +25,7 @@ pub fn entry_point_close_button() {
         let app = Application::new(&web::get_html_element_by_id("root").unwrap());
 
         let shape:crate::top_buttons::close::View = app.new_view();
-        shape.model.shape.size.set(Vector2::new(300.0, 300.0));
+        // FIXME shape.display_object().set(Vector2::new(300.0, 300.0));
         app.display.add_child(&shape);
 
         let scene         = app.display.scene();

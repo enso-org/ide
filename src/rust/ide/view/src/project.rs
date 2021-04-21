@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::{code_editor, close_button};
+use crate::{code_editor};
 use crate::graph_editor::component::node;
 use crate::graph_editor::component::node::Expression;
 use crate::graph_editor::component::visualization;
@@ -41,8 +41,8 @@ struct Model {
     app            : Application,
     logger         : Logger,
     display_object : display::object::Instance,
-    /// Close button is present only in a cloud environment.
-    close_button   : Immutable<Option<crate::top_buttons::close::View>>,
+    /// These buttons are present only in a cloud environment.
+    top_buttons   : Immutable<Option<crate::top_buttons::View>>,
     graph_editor   : GraphEditor,
     searcher       : searcher::View,
     code_editor    : code_editor::View,
@@ -59,13 +59,13 @@ impl Model {
         let code_editor    = app.new_view::<code_editor::View>();
         let status_bar     = status_bar::View::new(app);
         let fullscreen_vis = default();
-        let close_button   = ARGS.is_in_cloud.unwrap_or_default().as_some_from(|| {
-            let close_button   = app.new_view::<crate::top_buttons::close::View>();
-            display_object.add_child(&close_button);
-            app.display.scene().layers.breadcrumbs_text.add_exclusive(&close_button);
-            close_button
+        let top_buttons   = ARGS.is_in_cloud.unwrap_or_default().as_some_from(|| {
+            let top_buttons   = app.new_view::<crate::top_buttons::View>();
+            display_object.add_child(&top_buttons);
+            app.display.scene().layers.breadcrumbs_text.add_exclusive(&top_buttons);
+            top_buttons
         });
-        let close_button = Immutable(close_button);
+        let top_buttons = Immutable(top_buttons);
 
         display_object.add_child(&graph_editor);
         display_object.add_child(&code_editor);
@@ -73,7 +73,7 @@ impl Model {
         display_object.add_child(&status_bar);
         display_object.remove_child(&searcher);
         let app = app.clone_ref();
-        Self{app,logger,display_object,close_button,graph_editor,searcher,code_editor,status_bar,fullscreen_vis}
+        Self{app,logger,display_object,top_buttons,graph_editor,searcher,code_editor,status_bar,fullscreen_vis}
     }
 
     /// Sets style of IDE to the one defined by parameter `theme`.
@@ -163,9 +163,10 @@ impl Model {
 
     fn on_shape_changed(&self, shape:&dom::shape::Shape) {
         println!("Shape changed {:?}", shape);
-        if let Some(close_button) = &*self.close_button {
-            close_button.set_position_x(-shape.width / 2.0 + 13.0);
-            close_button.set_position_y(shape.height / 2.0 - 13.0);
+        if let Some(top_buttons) = &*self.top_buttons {
+            let pos = Vector2(-shape.width / 2.0, shape.height / 2.0);
+            println!("Top buttons new position {:?}", pos);
+            top_buttons.set_position_xy(pos);
         }
     }
 
@@ -290,12 +291,12 @@ impl View {
         }
 
 
-        if let Some(close_button) = &*model.close_button {
-            println!("Initial button size: {:?}", close_button.size.value());
-            model.graph_editor.input.space_for_project_buttons(calculate_space_for_buttons(&close_button.size.value()));
+        if let Some(top_buttons) = &*model.top_buttons {
+            println!("Initial button size: {:?}", top_buttons.size.value());
+            model.graph_editor.input.space_for_project_buttons(calculate_space_for_buttons(&top_buttons.size.value()));
             frp::extend! { network
-                eval_ close_button.clicked (model.on_close_clicked());
-                graph.space_for_project_buttons <+ close_button.size.map(calculate_space_for_buttons);
+                eval_ top_buttons.close (model.on_close_clicked());
+                graph.space_for_project_buttons <+ top_buttons.size;
             }
         }
 

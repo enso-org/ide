@@ -404,6 +404,14 @@ impl Network {
         self.register(OwnedAll4::new(label,t1,t2,t3,t4))
     }
 
+    /// Specialized version of `all`.
+    pub fn all5<T1,T2,T3,T4,T5>
+    (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4, t5:&T5)
+     -> Stream<(Output<T1>,Output<T2>,Output<T3>,Output<T4>,Output<T5>)>
+        where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput, T5:EventOutput {
+        self.register(OwnedAll5::new(label,t1,t2,t3,t4,t5))
+    }
+
 
     // === Filter ===
 
@@ -1795,6 +1803,67 @@ where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput {
             , Link::mixed(&self.src2)
             , Link::mixed(&self.src3)
             , Link::mixed(&self.src4)
+            ]
+    }
+}
+
+
+
+// ============
+// === All5 ===
+// ============
+
+#[derive(Debug)]
+pub struct All5Data <T1,T2,T3,T4,T5>
+{src1:watch::Ref<T1>, src2:watch::Ref<T2>, src3:watch::Ref<T3>, src4:watch::Ref<T4>, src5:watch::Ref<T5>}
+pub type   OwnedAll5 <T1,T2,T3,T4,T5> = stream::Node     <All5Data<T1,T2,T3,T4,T5>>;
+pub type   WeakAll5  <T1,T2,T3,T4,T5> = stream::WeakNode <All5Data<T1,T2,T3,T4,T5>>;
+
+impl<T1,T2,T3,T4,T5> HasOutput for All5Data<T1,T2,T3,T4,T5>
+    where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput, T5:EventOutput {
+    type Output = (Output<T1>,Output<T2>,Output<T3>,Output<T4>,Output<T5>);
+}
+
+impl<T1,T2,T3,T4,T5> OwnedAll5<T1,T2,T3,T4,T5>
+    where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput, T5:EventOutput {
+    /// Constructor.
+    pub fn new(label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4, t5:&T5) -> Self {
+        let src1 = watch_stream(t1);
+        let src2 = watch_stream(t2);
+        let src3 = watch_stream(t3);
+        let src4 = watch_stream(t4);
+        let src5 = watch_stream(t5);
+        let def   = All5Data {src1,src2,src3,src4,src5};
+        let this  = Self::construct(label,def);
+        let weak  = this.downgrade();
+        t1.register_target(weak.clone_ref().into());
+        t2.register_target(weak.clone_ref().into());
+        t3.register_target(weak.clone_ref().into());
+        t4.register_target(weak.into());
+        this
+    }
+}
+
+impl<T1,T2,T3,T4,T5,Out> stream::EventConsumer<Out> for OwnedAll5<T1,T2,T3,T4,T5>
+    where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput, T5:EventOutput {
+    fn on_event(&self, stack:CallStack, _:&Out) {
+        let value1 = self.src1.value();
+        let value2 = self.src2.value();
+        let value3 = self.src3.value();
+        let value4 = self.src4.value();
+        let value5 = self.src5.value();
+        self.emit_event(stack,&(value1,value2,value3,value4,value5));
+    }
+}
+
+impl<T1,T2,T3,T4,T5> stream::InputBehaviors for All5Data<T1,T2,T3,T4,T5>
+    where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput, T5:EventOutput {
+    fn input_behaviors(&self) -> Vec<Link> {
+        vec![ Link::mixed(&self.src1)
+            , Link::mixed(&self.src2)
+            , Link::mixed(&self.src3)
+            , Link::mixed(&self.src4)
+            , Link::mixed(&self.src5)
             ]
     }
 }

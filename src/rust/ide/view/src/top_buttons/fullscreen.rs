@@ -8,8 +8,10 @@ pub mod shape {
     ensogl::define_shape_system! {
         (background_color:Vector4<f32>, icon_color:Vector4<f32>) {
             let radius = Var::min(Var::input_width(),Var::input_height()) / 2.0;
-            let triangle_size = &radius * 2.0 / 3.0;
-            let icon = Triangle(triangle_size.glsl(), triangle_size.glsl());
+            let rect = Rect((&radius,&radius));
+            //let middle_strip = Rect(())
+            let strip = Rect((&radius * 0.2,2000.0.px())).rotate(Radians::from(45.0.degrees()));
+            let icon = rect - strip;
 
             shape(background_color, icon_color, icon.into(), radius)
         }

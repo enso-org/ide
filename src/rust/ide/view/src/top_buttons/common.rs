@@ -189,9 +189,9 @@ ensogl::define_endpoints! { [TRACE_ALL]
 #[clone_ref(bound="Shape:CloneRef")]
 #[allow(missing_docs)]
 pub struct View<Shape> {
-    pub frp   : Frp,
-    pub model : Model<Shape>,
-    pub style  : StyleWatchFrp,
+    frp   : Frp,
+    model : Model<Shape>,
+    style : StyleWatchFrp,
 }
 
 impl<Shape:ButtonShape> View<Shape> {
