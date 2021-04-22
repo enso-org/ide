@@ -2060,7 +2060,12 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     frp::extend! { network
         // === Layout ===
-        eval inputs.space_for_project_buttons((size) model.breadcrumbs.gap_width.emit(size.x));
+        eval inputs.space_for_project_buttons([model](size) {
+            // The breadcrumbs apply their own spacing next to the gap, so we need to omit padding.
+            let width         = size.x;
+            let right_padding = styles.get_number(theme::application::top_buttons::padding::right);
+            model.breadcrumbs.gap_width.emit(width - right_padding)
+        });
 
 
         // === Debugging ===
