@@ -203,6 +203,8 @@ you can find their release notes
 [1438]: https://github.com/enso-org/ide/pull/1438
 [1367]: https://github.com/enso-org/ide/pull/1367
 [1445]: https://github.com/enso-org/ide/pull/1445
+[1447]: https://github.com/enso-org/ide/pull/1447
+[1471]: https://github.com/enso-org/ide/pull/1471
 [1511]: https://github.com/enso-org/ide/pull/1511
 
 <br/>
