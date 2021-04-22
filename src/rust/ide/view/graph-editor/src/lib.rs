@@ -88,7 +88,7 @@ const MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET     : f32 = 13.0;
 const MACOS_TRAFFIC_LIGHTS_VERTICAL_CENTER : f32 =
     - MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET - MACOS_TRAFFIC_LIGHTS_CONTENT_HEIGHT / 2.0;
 
-fn breadcrumbs_gap_width() -> f32 {
+fn traffic_lights_gap_width() -> f32 {
     let is_macos     = ARGS.platform.map(|p|p.is_macos()) == Some(true);
     let is_frameless = ARGS.frame == Some(false);
     if is_macos && is_frameless {
@@ -1273,7 +1273,7 @@ impl GraphEditorModel {
         let vis_registry   = visualization::Registry::with_default_visualizations();
         let visualisations = default();
         let touch_state    = TouchState::new(network,&scene.mouse.frp);
-        let breadcrumbs    = component::Breadcrumbs::new(app.clone_ref(),breadcrumbs_gap_width());
+        let breadcrumbs    = component::Breadcrumbs::new(app.clone_ref());
         let app            = app.clone_ref();
         let frp            = frp.output.clone_ref();
         let navigator      = Navigator::new(&scene,&scene.camera());
@@ -1287,27 +1287,13 @@ impl GraphEditorModel {
 
     fn init(self) -> Self {
         self.add_child(&self.breadcrumbs);
-        self.position_breadcrumbs(0.0);
-        self.scene().add_child(&self.tooltip);
-        self
-    }
-
-    fn position_breadcrumbs(&self, project_buttons_width:f32) {
-        println!("Positioning breadcrumbs with offset {}", project_buttons_width);
-        let is_macos     = ARGS.platform.map(|p|p.is_macos()) == Some(true);
-        let is_frameless = ARGS.frame == Some(false);
-        let x_offset     = if is_macos && is_frameless {
-            MACOS_TRAFFIC_LIGHTS_WIDTH
-        } else if project_buttons_width != 0.0 {
-            project_buttons_width
-        } else {
-            MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET
-        };
-        let y_offset = MACOS_TRAFFIC_LIGHTS_VERTICAL_CENTER + component::breadcrumbs::HEIGHT / 2.0;;
         let x_offset = MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET;
         let y_offset = MACOS_TRAFFIC_LIGHTS_VERTICAL_CENTER + component::breadcrumbs::HEIGHT / 2.0;
         self.breadcrumbs.set_position_x(x_offset);
         self.breadcrumbs.set_position_y(y_offset);
+        self.breadcrumbs.gap_width(traffic_lights_gap_width());
+        self.scene().add_child(&self.tooltip);
+        self
     }
 
     pub fn all_nodes(&self) -> Vec<NodeId> {
@@ -2050,8 +2036,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // ========================
 
     frp::extend! { network
-        eval inputs.space_for_project_buttons ((size) model.position_breadcrumbs(size.x));
-
         no_vis_selected   <- out.some_visualisation_selected.on_false();
         some_vis_selected <- out.some_visualisation_selected.on_true();
 
@@ -2069,6 +2053,20 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     }
 
 
+
+    // ===================
+    // === Breadcrumbs ===
+    // ===================
+
+    frp::extend! { network
+        // === Layout ===
+        eval inputs.space_for_project_buttons((size) model.breadcrumbs.gap_width.emit(size.x));
+
+
+        // === Debugging ===
+        eval_ inputs.debug_push_breadcrumb(model.breadcrumbs.debug_push_breadcrumb.emit(None));
+        eval_ inputs.debug_pop_breadcrumb (model.breadcrumbs.debug_pop_breadcrumb.emit(()));
+    }
 
     // =============================
     // === Breadcrumbs Debugging ===
