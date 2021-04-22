@@ -7,12 +7,13 @@ pub mod fullscreen;
 
 use ensogl::prelude::*;
 
-use ensogl::display::object::ObjectOps;
-use ensogl::{display, application};
-use ensogl::display::shape::*;
+use ensogl::application;
+use ensogl::application::Application;
 use ensogl::data::color;
 use ensogl::define_shape_system;
-use ensogl::application::Application;
+use ensogl::display;
+use ensogl::display::object::ObjectOps;
+use ensogl::display::shape::*;
 
 use enso_frp as frp;
 

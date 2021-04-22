@@ -2068,15 +2068,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         eval_ inputs.debug_pop_breadcrumb (model.breadcrumbs.debug_pop_breadcrumb.emit(()));
     }
 
-    // =============================
-    // === Breadcrumbs Debugging ===
-    // =============================
-
-    frp::extend! { network
-        eval_ inputs.debug_push_breadcrumb(model.breadcrumbs.debug_push_breadcrumb.emit(None));
-        eval_ inputs.debug_pop_breadcrumb (model.breadcrumbs.debug_pop_breadcrumb.emit(()));
-    }
-
 
 
     // =============================
