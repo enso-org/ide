@@ -176,7 +176,7 @@ impl<Shape: ButtonShape> Model<Shape> {
 // === FRP ===
 // ===========
 
-ensogl::define_endpoints! { [TRACE_ALL]
+ensogl::define_endpoints! {
     Input {
         enabled (bool),
         mouse_nearby (bool),
@@ -250,7 +250,7 @@ impl<Shape:ButtonShape> View<Shape> {
         model.set_background_color(background_unconcerned_color.value());
         let events = &model.shape.events;
 
-        frp::extend! { TRACE_ALL network
+        frp::extend! { network
 
             // Radius
             frp.source.size <+ radius_frp.map(f!((radius) model.set_radius(radius)));

@@ -183,7 +183,7 @@ impl Model {
 // === FRP ===
 // ===========
 
-ensogl::define_endpoints! { [TRACE_ALL]
+ensogl::define_endpoints! {
     Input {
         enabled (bool),
     }
@@ -221,7 +221,7 @@ impl View {
         let style_frp    = LayoutParams::from_theme(&style);
         let layout_style = style_frp.flatten(&network);
 
-        frp::extend! { TRACE_ALL network
+        frp::extend! { network
             // Layout
             button_resized          <- any_(&model.close.size,&model.fullscreen.size);
             layout_on_button_change <- sample(&layout_style,&button_resized);
