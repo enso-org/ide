@@ -1,4 +1,4 @@
-# Enso next release
+# Next Release
 
 <br/>![New Learning Resources](/docs/assets/tags/new_learning_resources.svg)
 
