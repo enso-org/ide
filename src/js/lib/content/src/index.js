@@ -460,10 +460,6 @@ API.main = async function (inputConfig) {
         let logger = new MixpanelLogger
         API.remoteLog = function (event,data) {logger.log(event,data)}
     }
-    
-    API.close = function() {
-        // TODO [mwu] Here the code for closing IDE when in cloud should be attached.
-    }
 
     window.setInterval(() =>{API.remoteLog("alive");}, ALIVE_LOG_INTERVAL)
     //Build data injected during the build process. See `webpack.config.js` for the source.

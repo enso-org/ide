@@ -377,9 +377,9 @@ define_color_spaces! {
 // ===========
 
 impl Rgb {
-    /// Construct RGB color from integral components of [0 – 255] range.
-    pub fn from_integral(r:i32, g:i32, b:i32) -> Self {
-        Self::new(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0)
+    /// Construct RGB color by mapping [0 – 255] value range into [0.0 – 1.0].
+    pub fn from_integral_range(r:impl Into<f32>, g:impl Into<f32>, b:impl Into<f32>) -> Self {
+        Self::new(r.into() / 255.0, g.into() / 255.0, b.into() / 255.0)
     }
 
     /// Converts the color to `LinearRgb` representation.
