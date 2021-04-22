@@ -48,6 +48,9 @@
   values of the precomputed bins, which is useful when the dataset is relatively
   big, and it's cheaper to send the precomputed bins rather than the entire
   dataset.
+- [Window management buttons.][1511]. The IDE now has components for
+  "fullscreen" nad "close" buttons. They will be available only when running IDE
+  in a cloud environment.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
@@ -175,6 +178,7 @@ you can find their release notes
 [1438]: https://github.com/enso-org/ide/pull/1438
 [1367]: https://github.com/enso-org/ide/pull/1367
 [1445]: https://github.com/enso-org/ide/pull/1445
+[1511]: https://github.com/enso-org/ide/pull/1511
 
 <br/>
 
