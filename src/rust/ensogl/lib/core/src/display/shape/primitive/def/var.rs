@@ -80,18 +80,8 @@ pub enum Var<T> {
 // === Constructors ===
 
 impl Var<Pixels> {
-    /// Get the current shape's width.
-    pub fn input_width() -> Var<Pixels> {
-        "input_size.x".into()
-    }
-
-    /// Get the current shape's height.
-    pub fn input_height() -> Var<Pixels> {
-        "input_size.y".into()
-    }
-
     /// Get the current shape's sizes.
-    pub fn input_size() -> Var<Vector2<Pixels>> {
+    pub fn canvas_size() -> Var<Vector2<Pixels>> {
         "input_size".into()
     }
 }

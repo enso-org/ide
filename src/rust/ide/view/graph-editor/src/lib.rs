@@ -330,7 +330,7 @@ ensogl::define_endpoints! {
 
 
         // === Layout ===
-        space_for_project_buttons (Vector2<f32>),
+        space_for_window_buttons (Vector2<f32>),
 
 
         // === Node Selection ===
@@ -2060,10 +2060,11 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     frp::extend! { network
         // === Layout ===
-        eval inputs.space_for_project_buttons([model](size) {
+        eval inputs.space_for_window_buttons([model](size) {
             // The breadcrumbs apply their own spacing next to the gap, so we need to omit padding.
             let width         = size.x;
-            let right_padding = styles.get_number(theme::application::top_buttons::padding::right);
+            let path          = theme::application::window_control_buttons::padding::right;
+            let right_padding = styles.get_number(path);
             model.breadcrumbs.gap_width.emit(width - right_padding)
         });
 

@@ -39,34 +39,34 @@ pub const NEW_NODE_Y_GAP:f32 = 60.0;
 
 #[derive(Clone,CloneRef,Debug)]
 struct Model {
-    app            : Application,
-    logger         : Logger,
-    display_object : display::object::Instance,
+    app                    : Application,
+    logger                 : Logger,
+    display_object         : display::object::Instance,
     /// These buttons are present only in a cloud environment.
-    top_buttons   : Immutable<Option<crate::top_buttons::View>>,
-    graph_editor   : GraphEditor,
-    searcher       : searcher::View,
-    code_editor    : code_editor::View,
-    status_bar     : status_bar::View,
-    fullscreen_vis : Rc<RefCell<Option<visualization::fullscreen::Panel>>>,
+    window_control_buttons : Immutable<Option<crate::window_control_buttons::View>>,
+    graph_editor           : GraphEditor,
+    searcher               : searcher::View,
+    code_editor            : code_editor::View,
+    status_bar             : status_bar::View,
+    fullscreen_vis         : Rc<RefCell<Option<visualization::fullscreen::Panel>>>,
 }
 
 impl Model {
     fn new(app:&Application) -> Self {
-        let logger         = Logger::new("project::View");
-        let display_object = display::object::Instance::new(&logger);
-        let searcher       = app.new_view::<searcher::View>();
-        let graph_editor   = app.new_view::<GraphEditor>();
-        let code_editor    = app.new_view::<code_editor::View>();
-        let status_bar     = status_bar::View::new(app);
-        let fullscreen_vis = default();
-        let top_buttons    = ARGS.is_in_cloud.unwrap_or_default().as_some_from(|| {
-            let top_buttons = app.new_view::<crate::top_buttons::View>();
-            display_object.add_child(&top_buttons);
-            app.display.scene().layers.breadcrumbs_text.add_exclusive(&top_buttons);
-            top_buttons
+        let logger                 = Logger::new("project::View");
+        let display_object         = display::object::Instance::new(&logger);
+        let searcher               = app.new_view::<searcher::View>();
+        let graph_editor           = app.new_view::<GraphEditor>();
+        let code_editor            = app.new_view::<code_editor::View>();
+        let status_bar             = status_bar::View::new(app);
+        let fullscreen_vis         = default();
+        let window_control_buttons = ARGS.is_in_cloud.unwrap_or_default().as_some_from(|| {
+            let window_control_buttons = app.new_view::<crate::window_control_buttons::View>();
+            display_object.add_child(&window_control_buttons);
+            app.display.scene().layers.breadcrumbs_text.add_exclusive(&window_control_buttons);
+            window_control_buttons
         });
-        let top_buttons = Immutable(top_buttons);
+        let window_control_buttons = Immutable(window_control_buttons);
 
         display_object.add_child(&graph_editor);
         display_object.add_child(&code_editor);
@@ -74,7 +74,8 @@ impl Model {
         display_object.add_child(&status_bar);
         display_object.remove_child(&searcher);
         let app = app.clone_ref();
-        Self{app,logger,display_object,top_buttons,graph_editor,searcher,code_editor,status_bar,fullscreen_vis}
+        Self{app,logger,display_object,window_control_buttons,graph_editor,searcher,code_editor,
+            status_bar,fullscreen_vis}
     }
 
     /// Sets style of IDE to the one defined by parameter `theme`.
@@ -164,14 +165,14 @@ impl Model {
 
     fn on_dom_shape_changed(&self, shape:&dom::shape::Shape) {
         // Top buttons must always stay in top-left corner.
-        if let Some(top_buttons) = &*self.top_buttons {
+        if let Some(window_control_buttons) = &*self.window_control_buttons {
             let pos = Vector2(-shape.width, shape.height) / 2.0;
-            top_buttons.set_position_xy(pos);
+            window_control_buttons.set_position_xy(pos);
         }
     }
 
     fn on_close_clicked(&self) {
-        js::close();
+        js::close(enso_config::CONFIG.window_app_scope_name);
     }
 
     fn on_fullscreen_clicked(&self) {
@@ -218,13 +219,15 @@ mod js {
     use wasm_bindgen::prelude::*;
 
     #[wasm_bindgen(inline_js="
-    export function close() {
-        try { window.enso.close(); }
-        catch(e) { console.error('Exception thrown from window.enso.close:',e) }
+    export function close(windowAppScopeConfigName) {
+        try { window[windowAppScopeConfigName].close(); }
+        catch(e) {
+            console.error(`Exception thrown from window['${windowAppScopeConfigName}'].close:`,e)
+        }
     }")]
     extern "C" {
         #[allow(unsafe_code)]
-        pub fn close();
+        pub fn close(window_app_scope_name:&str);
     }
 
 
@@ -292,13 +295,13 @@ impl View {
         //   See: https://github.com/enso-org/ide/issues/795
         app.themes.update();
 
-        if let Some(top_buttons) = &*model.top_buttons {
-            let initial_size = &top_buttons.size.value();
-            model.graph_editor.input.space_for_project_buttons(initial_size);
+        if let Some(window_control_buttons) = &*model.window_control_buttons {
+            let initial_size = &window_control_buttons.size.value();
+            model.graph_editor.input.space_for_window_buttons(initial_size);
             frp::extend! { network
-                graph.space_for_project_buttons <+ top_buttons.size;
-                eval_ top_buttons.close      (model.on_close_clicked());
-                eval_ top_buttons.fullscreen (model.on_fullscreen_clicked());
+                graph.space_for_window_buttons <+ window_control_buttons.size;
+                eval_ window_control_buttons.close      (model.on_close_clicked());
+                eval_ window_control_buttons.fullscreen (model.on_fullscreen_clicked());
             }
         }
 

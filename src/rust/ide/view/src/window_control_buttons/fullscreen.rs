@@ -1,8 +1,8 @@
 //! The fullscreen button in the Top Button panel.
 
-use crate::top_buttons::common::prelude::*;
+use crate::window_control_buttons::common::prelude::*;
 
-pub use ensogl_theme::application::top_buttons::fullscreen as theme;
+pub use ensogl_theme::application::window_control_buttons::fullscreen as theme;
 
 /// The view component with the fullscreen button.
 pub type View = common::View<shape::DynamicShape>;
@@ -13,7 +13,8 @@ pub mod shape {
     use super::*;
     ensogl::define_shape_system! {
         (background_color:Vector4<f32>, icon_color:Vector4<f32>) {
-            let radius      = Var::min(Var::input_width(),Var::input_height()) / 2.0;
+            let size        = Var::canvas_size();
+            let radius      = Min::min(size.x(),size.y()) / 2.0;
             let round       = &radius / 6.0;
             let rect        = Rect((&radius,&radius)).corners_radius(&round);
             let strip_sizes = (&radius * 2.0 / 9.0, &radius*2.0);

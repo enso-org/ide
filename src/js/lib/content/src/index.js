@@ -452,7 +452,6 @@ API.main = async function (inputConfig) {
     let urlConfig = Object.fromEntries(urlParams.entries())
     let config    = Object.assign(defaultConfig,inputConfig,urlConfig)
     API[globalConfig.windowAppScopeConfigName] = config
-    console.log("Config",config)
 
     if (config.no_data_gathering) {
         API.remoteLog = function (_event, _data) {}

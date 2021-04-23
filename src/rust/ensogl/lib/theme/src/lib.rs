@@ -175,9 +175,9 @@ define_themes! { [light:0, dark:1]
             }
         }
 
-        top_buttons {
+        window_control_buttons {
             radius  = 6.5, 6.5;
-            spacing = application::top_buttons::radius, application::top_buttons::radius;
+            spacing = application::window_control_buttons::radius, application::window_control_buttons::radius;
             padding {
                 left   = 13.0, 13.0;
                 top    = 13.0, 13.0;
@@ -191,7 +191,7 @@ define_themes! { [light:0, dark:1]
                     icon_color       = Rgba::new(0.0,0.0,0.0,0.0), Rgba::new(0.0,0.0,0.0,0.0);
                 }
                 hovered {
-                    background_color = application::top_buttons::close::normal::background_color, application::top_buttons::close::normal::background_color;
+                    background_color = application::window_control_buttons::close::normal::background_color, application::window_control_buttons::close::normal::background_color;
                     icon_color       = Rgba::new(0.385,0.0,0.0,1.0), Rgba::new(0.385,0.0,0.0,1.0);
                 }
                 pressed {
@@ -206,7 +206,7 @@ define_themes! { [light:0, dark:1]
                     icon_color       = Rgba::new(0.0,0.,0.0,0.0),  Rgba::new(0.0,0.0,0.0,0.0);
                 }
                 hovered {
-                    background_color = application::top_buttons::fullscreen::normal::background_color, application::top_buttons::fullscreen::normal::background_color;
+                    background_color = application::window_control_buttons::fullscreen::normal::background_color, application::window_control_buttons::fullscreen::normal::background_color;
                     icon_color       = Rgba::new(0.0,0.37,0.0,1.0), Rgba::new(0.0,0.37,0.0,1.0);
                 }
                 pressed {

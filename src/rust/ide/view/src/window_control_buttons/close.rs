@@ -1,8 +1,8 @@
 //! The close button in the Top Button panel.
 
-use crate::top_buttons::common::prelude::*;
+use crate::window_control_buttons::common::prelude::*;
 
-pub use ensogl_theme::application::top_buttons::close as theme;
+pub use ensogl_theme::application::window_control_buttons::close as theme;
 
 /// The view component with the close button.
 pub type View = common::View<shape::DynamicShape>;
@@ -13,7 +13,8 @@ pub mod shape {
 
     ensogl::define_shape_system! {
         (background_color:Vector4<f32>, icon_color:Vector4<f32>) {
-            let radius     = Min::min(Var::input_width(),Var::input_height()) / 2.0;
+            let size       = Var::canvas_size();
+            let radius     = Min::min(size.x(),size.y()) / 2.0;
             let angle      = Radians::from(45.0.degrees());
             let bar_length = &radius * 4.0 / 3.0;
             let bar_width  = &bar_length / 6.5;

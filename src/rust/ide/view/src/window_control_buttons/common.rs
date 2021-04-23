@@ -24,10 +24,10 @@ use enso_frp as frp;
 pub mod prelude {
     pub use crate::prelude::*;
 
-    pub use crate::top_buttons::common;
-    pub use crate::top_buttons::common::ButtonShape;
-    pub use crate::top_buttons::common::State;
-    pub use crate::top_buttons::common::shape::shape;
+    pub use crate::window_control_buttons::common;
+    pub use crate::window_control_buttons::common::ButtonShape;
+    pub use crate::window_control_buttons::common::State;
+    pub use crate::window_control_buttons::common::shape::shape;
 
     pub use ensogl::system::gpu::shader::glsl::traits::IntoGlsl;
     pub use ensogl::display::shape::*;
@@ -236,7 +236,7 @@ impl<Shape:ButtonShape> View<Shape> {
         model.set_icon_color(default_background_color);
 
         // Radius initialization
-        let radius_frp = style.get(ensogl_theme::application::top_buttons::radius);
+        let radius_frp = style.get(ensogl_theme::application::window_control_buttons::radius);
 
         // Style's relevant color FRP endpoints.
         let background_unconcerned_color = style.get_color(Shape::background_color_path(State::Unconcerned));
