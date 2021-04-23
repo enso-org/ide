@@ -46,9 +46,6 @@
   visualization has been adjusted, allowing to display the values of the
   precomputed bins, which is useful when the dataset is relatively big, and it's
   cheaper to send the precomputed bins rather than the entire dataset.
-- [Hovering over the output port of a node shows the node's output type][1427].
-  This allows discovering the result type of a node which can help with
-  debugging and development.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
@@ -58,6 +55,9 @@
   unnecessary library imports when selecting hints from node searcher. This
   makes the generated textual code easier to read and reduces likelihood of
   accidental name collision.
+- [Hovering over an output port shows a pop-up with the result type of a node]
+  [1312]. This allows discovering the result type of a node which can help with
+  debugging and development.
 - [Visualizations can define context for preprocessor evaluation][1291]. Users
   can now decide what module's context should be used for visualization
   preprocessor. This allows providing visualization with standard library

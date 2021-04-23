@@ -33,7 +33,7 @@ const PORT_OPACITY_NOT_HOVERED : f32 = 0.25;
 const SEGMENT_GAP_WIDTH        : f32 = 2.0;
 const HOVER_AREA_PADDING       : f32 = 20.0;
 const INFINITE                 : f32 = 99999.0;
-const LABEL_OFFSET             : f32 = -30.0;
+const TYPE_LABEL_OFFSET        : f32 = -30.0;
 
 
 
@@ -107,6 +107,24 @@ impl AllPortsShape {
     }
 }
 
+fn shape_border_length<T>(corner_radius: T, width: T) -> T
+    where T: Clone + Mul<f32,Output=T> + Sub<Output=T> + Add<Output=T> {
+    let corner_segment_length = corner_segment_length(corner_radius.clone());
+    let center_segment_length = center_segment_length(corner_radius, width);
+    center_segment_length + corner_segment_length * 2.0
+}
+
+fn corner_segment_length<T>(corner_radius: T) -> T
+    where T: Mul<f32,Output=T> {
+    let corner_circumference  = corner_radius * 2.0 * PI;
+    corner_circumference * 0.25
+}
+
+fn center_segment_length<T>(corner_radius: T, width: T) -> T
+    where T: Mul<f32,Output=T> + Sub<Output=T> {
+    width - corner_radius * 2.0
+}
+
 
 
 // ======================
@@ -148,7 +166,6 @@ use std::f32::consts::PI;
 pub mod multi_port {
     use super::*;
     use ensogl::display::shape::*;
-    use std::f32::consts::PI;
 
     /// Compute the angle perpendicular to the shape border.
     fn compute_border_perpendicular_angle
@@ -214,10 +231,9 @@ pub mod multi_port {
     , corner_radius   : &Var<f32>
     , position_offset : &Var<f32>
     ) -> AnyShape {
-        let corner_circumference  = corner_radius * 2.0 * PI;
-        let corner_segment_length = &corner_circumference * 0.25;
-        let center_segment_length = width - corner_radius * 2.0;
-        let shape_border_length   = &center_segment_length + &corner_segment_length * 2.0;
+        let corner_segment_length = corner_segment_length(corner_radius.clone());
+        let center_segment_length = center_segment_length(corner_radius.clone(), width.clone());
+        let shape_border_length   = shape_border_length(corner_radius.clone(), width.clone());
 
         let position_relative = index / port_num;
         let crop_segment_pos  = &position_relative * &shape_border_length + position_offset;
@@ -365,11 +381,11 @@ impl display::Object for PortShapeView {
 
 ensogl::define_endpoints! {
     Input {
-        set_size_multiplier  (f32),
-        set_definition_type  (Option<Type>),
-        set_usage_type       (Option<Type>),
-        set_label_visibility (bool),
-        set_size             (Vector2),
+        set_size_multiplier       (f32),
+        set_definition_type       (Option<Type>),
+        set_usage_type            (Option<Type>),
+        set_type_label_visibility (bool),
+        set_size                  (Vector2),
     }
 
     Output {
@@ -384,7 +400,7 @@ ensogl::define_endpoints! {
 pub struct Model {
     pub frp            : Option<Frp>,
     pub shape          : Option<PortShapeView>,
-    pub label          : Option<text::Area>,
+    pub type_label     : Option<text::Area>,
     pub display_object : Option<display::object::Instance>,
     pub index          : usize,
     pub length         : usize,
@@ -415,31 +431,31 @@ impl Model {
         shape.set_padding_right(padding_right);
         self.shape = Some(shape.clone());
 
-        let label = app.new_view::<text::Area>();
-        label.set_position_y(LABEL_OFFSET);
-        self.label = Some(label.clone());
+        let type_label = app.new_view::<text::Area>();
+        type_label.set_position_y(TYPE_LABEL_OFFSET);
+        self.type_label = Some(type_label.clone());
 
         let display_object = display::object::Instance::new(logger);
         display_object.add_child(&shape);
-        display_object.add_child(&label);
+        display_object.add_child(&type_label);
         self.display_object = Some(display_object.clone());
 
         self.port_count = max(port_count, 1);
         self.port_index = port_index;
 
-        self.init_frp(&shape,&label,styles);
+        self.init_frp(&shape,&type_label,styles);
         (display_object,self.frp.as_ref().unwrap().clone_ref())
     }
 
-    fn init_frp(&mut self, shape:&PortShapeView, label:&text::Area, styles:&StyleWatch) {
-        let frp           = Frp::new();
-        let network       = &frp.network;
-        let events        = shape.events();
-        let opacity       = Animation::<f32>::new(network);
-        let color         = color::Animation::new(network);
-        let label_opacity = Animation::<f32>::new(network);
-        let port_count    = self.port_count;
-        let port_index    = self.port_index;
+    fn init_frp(&mut self,shape:&PortShapeView,type_label:&text::Area,styles:&StyleWatch) {
+        let frp                = Frp::new();
+        let network            = &frp.network;
+        let events             = shape.events();
+        let opacity            = Animation::<f32>::new(network);
+        let color              = color::Animation::new(network);
+        let type_label_opacity = Animation::<f32>::new(network);
+        let port_count         = self.port_count;
+        let port_index         = self.port_index;
 
         frp::extend! { network
 
@@ -458,13 +474,13 @@ impl Model {
 
             // === Label Opacity ===
 
-            label_visibility        <- frp.on_hover.and(&frp.set_label_visibility);
-            label_opacity.target    <+ label_visibility.on_true().constant(PORT_OPACITY_HOVERED);
-            label_opacity.target    <+ label_visibility.on_false().constant(0.0);
-            label_color             <- all_with(&color.value,&label_opacity.value,
+            type_label_visibility        <- frp.on_hover.and(&frp.set_type_label_visibility);
+            type_label_opacity.target    <+ type_label_visibility.on_true().constant(PORT_OPACITY_HOVERED);
+            type_label_opacity.target    <+ type_label_visibility.on_false().constant(0.0);
+            type_label_color             <- all_with(&color.value,&type_label_opacity.value,
                 |color,&opacity| color.opaque.with_alpha(opacity).into());
-            label.set_color_all     <+ label_color;
-            label.set_default_color <+ label_color;
+            type_label.set_color_all     <+ type_label_color;
+            type_label.set_default_color <+ type_label_color;
 
 
             // === Size ===
@@ -472,17 +488,14 @@ impl Model {
             frp.source.size <+ frp.set_size;
             eval frp.size ((&s)
                 shape.set_size(s + Vector2(HOVER_AREA_PADDING,HOVER_AREA_PADDING) * 2.0));
-            set_label_x <- all_with(&frp.size,&label.width,
-                f!([port_count,port_index](port_size,label_width) {
-                    let corner_circumference  = node::RADIUS * 2.0 * PI;
-                    let corner_segment_length = corner_circumference * 0.25;
-                    let center_segment_length = port_size.x - node::RADIUS * 2.0;
-                    let shape_border_length   = center_segment_length + corner_segment_length * 2.0;
-                    let relative_x = (port_index as f32 + 0.5) / (port_count as f32) - 0.5;
-                    let center_x = relative_x * shape_border_length;
-                    center_x - label_width/2.0
+            set_type_label_x <- all_with(&frp.size,&type_label.width,
+                f!([port_count,port_index](port_size,type_label_width) {
+                    let shape_border_length = shape_border_length(node::RADIUS, port_size.x);
+                    let relative_x          = (port_index as f32 + 0.5) / (port_count as f32) - 0.5;
+                    let center_x            = relative_x * shape_border_length;
+                    center_x - type_label_width/2.0
                 }));
-            eval set_label_x ((&t) label.set_position_x(t));
+            eval set_type_label_x ((&t) type_label.set_position_x(t));
             eval frp.set_size_multiplier ((t) shape.set_size_multiplier(*t));
 
 
@@ -491,14 +504,8 @@ impl Model {
             frp.source.tp <+ all_with(&frp.set_usage_type,&frp.set_definition_type,
                 |usage_tp,def_tp| usage_tp.clone().or_else(|| def_tp.clone())
             );
-
-            label.set_content <+ frp.tp.map(f!([](tp)
-                if let Some(tp) = tp {
-                    tp.to_string()
-                } else {
-                    "".to_string()
-                }
-            ));
+            type_label.set_content <+ frp.tp.map(|tp|
+                tp.as_ref().map_or_else(|| default(),|s| s.to_string()));
 
             color_tgt <- frp.tp.map(f!([styles](t) type_coloring::compute_for_selection(t.as_ref(),&styles)));
             color.target <+ color_tgt;

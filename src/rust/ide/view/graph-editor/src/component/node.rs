@@ -581,7 +581,7 @@ impl Node {
 
             // === Action Bar ===
 
-            let visualization_enabled = action_bar.action_visbility.clone_ref();
+            let visualization_enabled = action_bar.action_visibility.clone_ref();
             out.source.skip   <+ action_bar.action_skip;
             out.source.freeze <+ action_bar.action_freeze;
             eval out.hover ((t) action_bar.set_visibility(t));
@@ -631,11 +631,11 @@ impl Node {
             preview_visible         <- preview_visible && has_expression;
             preview_visible         <- preview_visible.on_change();
 
-            visualization_visible <- visualization_enabled || preview_visible;
-            visualization_visible <- visualization_visible && no_error_set;
-            visualization_visible <- visualization_visible.on_change();
+            visualization_visible            <- visualization_enabled || preview_visible;
+            visualization_visible            <- visualization_visible && no_error_set;
+            visualization_visible_on_change  <- visualization_visible.on_change();
             frp.source.visualization_enabled <+ visualization_enabled || preview_visible;
-            eval visualization_visible ((is_visible)
+            eval visualization_visible_on_change ((is_visible)
                 model.visualization.frp.set_visibility(is_visible)
             );
 
@@ -645,7 +645,6 @@ impl Node {
             layer_on_not_hover <- preview_visible.on_true().map(|_| visualization::Layer::Front);
             layer              <- any(layer_on_hover,layer_on_not_hover);
             model.visualization.frp.set_layer <+ layer;
-            eval layer ((l) model.error_visualization.frp.set_layer.emit(l));
 
             update_error <- all(frp.set_error,preview_visible);
             eval update_error([model]((error,visible)){
@@ -688,7 +687,7 @@ impl Node {
 
             // === Output Label ===
 
-            model.output.set_port_label_visibility
+            model.output.set_type_label_visibility
                 <+ visualization_visible.not().and(&no_error_set);
 
 
@@ -696,15 +695,9 @@ impl Node {
 
             model.vcs_indicator.frp.set_status <+ frp.set_vcs_status;
         }
-        
+
         model.error_visualization.set_layer(visualization::Layer::Front);
-
-        // Those three lines initialize the values that are necessary for port labels to show.
-        // All three are needed in this order, for reasons that I do not understand.
-        frp.set_error(None);
-        frp.enable_visualization();
-        frp.disable_visualization();
-
+        frp.set_error.emit(None);
         frp.set_disabled.emit(false);
         Self {frp,model}
     }
