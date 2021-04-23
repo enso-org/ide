@@ -222,7 +222,7 @@ mod js {
     export function close(windowAppScopeConfigName) {
         try { window[windowAppScopeConfigName].close(); }
         catch(e) {
-            console.error(`Exception thrown from window['${windowAppScopeConfigName}'].close:`,e)
+            console.error(`Exception thrown from window.${windowAppScopeConfigName}.close:`,e)
         }
     }")]
     extern "C" {

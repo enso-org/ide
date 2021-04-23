@@ -162,7 +162,7 @@ where T:Min+Into<Glsl> {
 }
 
 impl<T> Max for Var<T>
-    where T:Max+Into<Glsl> {
+where T:Max+Into<Glsl> {
     fn max(a:Self, b:Self) -> Self {
         match (a,b) {
             (Var::Static(a), Var::Static(b)) => Var::Static(Max::max(a,b)),

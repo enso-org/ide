@@ -124,7 +124,7 @@ impl LayoutParams<frp::Sampler<f32>> {
 #[derive(Clone,CloneRef,Debug)]
 pub struct Model {
     app             : Application,
-    logger          : DefaultTraceLogger,
+    logger          : Logger,
     display_object  : display::object::Instance,
     shape           : shape::View,
     close           : close::View,
@@ -135,7 +135,7 @@ impl Model {
     /// Constructor.
     pub fn new(app:&Application) -> Self {
         let app            = app.clone_ref();
-        let logger         = DefaultTraceLogger::new("TopButtons");
+        let logger         = Logger::new("TopButtons");
         let display_object = display::object::Instance::new(&logger);
 
         ensogl::shapes_order_dependencies! {
@@ -208,6 +208,7 @@ ensogl::define_endpoints! {
 pub struct View {
     frp   : Frp,
     model : Model,
+    style : StyleWatchFrp,
 }
 
 impl View {
@@ -244,7 +245,7 @@ impl View {
         let initial_size  = model.set_layout(initial_style);
         frp.source.size.emit(initial_size);
 
-        Self { frp, model }
+        Self {frp,model,style}
     }
 }
 

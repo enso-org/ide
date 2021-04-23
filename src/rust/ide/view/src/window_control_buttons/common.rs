@@ -178,7 +178,6 @@ impl<Shape: ButtonShape> Model<Shape> {
 
 ensogl::define_endpoints! {
     Input {
-        enabled (bool),
         mouse_nearby (bool),
     }
     Output {
@@ -195,10 +194,17 @@ ensogl::define_endpoints! {
 // === View ===
 // ============
 
-/// The StatusBar component view.
+/// The Control Button component view.
 ///
-/// The status bar gathers information about events and processes occurring in the Application.
-// TODO: This is a stub. Extend it when doing https://github.com/enso-org/ide/issues/1193
+/// This is a clickable button styled after macOS, i.e. consists of an icon shape placed on top of
+/// a circle. The icon is visible when button or its neighborhood (as provided by `mouse_nearby`
+/// input) is hovered.
+///
+/// When clicked, it emits `clicked` frp event. The click requires the mouse to be both pressed and
+/// released on the button. It is allowed to temporarily move mouse out of the button while holding
+/// the primary mouse button pressed without interrupting the click.
+///
+/// The button is fully theme-aware and dynamically sized.
 #[derive(Clone,CloneRef,Debug)]
 #[clone_ref(bound="Shape:CloneRef")]
 #[allow(missing_docs)]
@@ -218,8 +224,6 @@ impl<Shape:ButtonShape> View<Shape> {
         let scene   = app.display.scene();
         let style   = StyleWatchFrp::new(&scene.style_sheet);
         let mouse   = &scene.mouse.frp;
-
-        frp.enabled(true);
 
         // Icon color initialization
         let default_icon_color_path = Shape::icon_color_path(State::Unconcerned);
