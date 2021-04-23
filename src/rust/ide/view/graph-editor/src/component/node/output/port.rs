@@ -505,7 +505,7 @@ impl Model {
                 |usage_tp,def_tp| usage_tp.clone().or_else(|| def_tp.clone())
             );
             type_label.set_content <+ frp.tp.map(|tp|
-                tp.as_ref().map_or_else(|| default(),|s| s.to_string()));
+                tp.as_ref().map_or_else(default,|s| s.to_string()));
 
             color_tgt <- frp.tp.map(f!([styles](t) type_coloring::compute_for_selection(t.as_ref(),&styles)));
             color.target <+ color_tgt;
