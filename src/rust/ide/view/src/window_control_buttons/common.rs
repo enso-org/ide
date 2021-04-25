@@ -243,9 +243,12 @@ impl<Shape:ButtonShape> View<Shape> {
         let radius_frp = style.get(ensogl_theme::application::window_control_buttons::radius);
 
         // Style's relevant color FRP endpoints.
-        let background_unconcerned_color = style.get_color(Shape::background_color_path(State::Unconcerned));
-        let background_hovered_color     = style.get_color(Shape::background_color_path(State::Hovered));
-        let background_pressed_color     = style.get_color(Shape::background_color_path(State::Pressed));
+        let background_unconcerned_color =
+            style.get_color(Shape::background_color_path(State::Unconcerned));
+        let background_hovered_color =
+            style.get_color(Shape::background_color_path(State::Hovered));
+        let background_pressed_color =
+            style.get_color(Shape::background_color_path(State::Pressed));
 
         let icon_unconcerned_color = style.get_color(Shape::icon_color_path(State::Unconcerned));
         let icon_hovered_color     = style.get_color(Shape::icon_color_path(State::Hovered));

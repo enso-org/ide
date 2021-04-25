@@ -88,7 +88,7 @@ impl Var<Pixels> {
 
 impl Var<color::Rgba> {
     /// Build a color from its components.
-    pub fn srgba(r:impl Into<Var<f32>>, g:impl Into<Var<f32>>, b:impl Into<Var<f32>>, a:impl Into<Var<f32>>)
+    pub fn rgba(r:impl Into<Var<f32>>, g:impl Into<Var<f32>>, b:impl Into<Var<f32>>, a:impl Into<Var<f32>>)
     -> Var<color::Rgba> {
         format!("srgba({},{},{},{})",
                 r.into().glsl(),

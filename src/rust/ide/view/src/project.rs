@@ -233,7 +233,14 @@ mod js {
 
     #[wasm_bindgen(inline_js="
     export function fullscreen() {
-        document.documentElement.requestFullscreen()
+        try {
+            if(document.fullscreenElement === null)
+                document.documentElement.requestFullscreen()
+            else
+                document.exitFullscreen()
+        } catch (e) {
+            console.error('Exception thrown when toggling fullscreen display mode:',e)
+        }
     }
     ")]
     extern "C" {
