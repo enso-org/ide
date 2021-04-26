@@ -49,6 +49,14 @@
   big, and it's cheaper to send the precomputed bins rather than the entire
   dataset.
 
+#### EnsoGL (rendering engine)
+
+- [Unified shadow generation][1411]. Added a toolset to create shadows for
+  arbitrary UI components.
+- [Components for picking numbers and ranges.][1524]. We now have some internal
+  re-usable UI components for selecting numbers or a range. Stay tuned for them
+  appearing in the IDE.
+
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
 #### Visual Environment
@@ -130,11 +138,6 @@
 - [Improved the performance of the graph editor, particularly when opening a
   project for the first time.][1445]
 
-#### EnsoGL (rendering engine)
-
-- [Unified shadow generation][1411]. Added a toolset to create shadows for
-  arbitrary UI components.
-
 #### Enso Compiler
 
 If you're interested in the enhancements and fixes made to the Enso compiler,
@@ -175,6 +178,7 @@ you can find their release notes
 [1438]: https://github.com/enso-org/ide/pull/1438
 [1367]: https://github.com/enso-org/ide/pull/1367
 [1445]: https://github.com/enso-org/ide/pull/1445
+[1524]: https://github.com/enso-org/ide/pull/1524
 
 <br/>
 
