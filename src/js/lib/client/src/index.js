@@ -64,7 +64,9 @@ ${pkg.build.productName} ${rootCfg.version} command line interface.
 Usage: ${pkg.build.productName} [options] [--] [backend args]...
 `
 
-let epilogue = `Arguments that follow the two dashes (\`--\`) will be passed to the backend process (if it is spawned).`
+let epilogue = `
+Arguments that follow the two dashes (\`--\`) will be passed to the backend process. They are used\
+ if IDE spawns backend, i.e. if '--backend false' has not been set.`
 
 let optParser = yargs
     .scriptName("")
@@ -121,7 +123,7 @@ let debugOptionsGroup = 'Debug Options:'
 
 optParser.options('verbose', {
     group    : debugOptionsGroup,
-    describe : `Increase logs verbosity.`,
+    describe : `Increase logs verbosity. Affects both IDE and the backend.`,
     default  : false,
     type     : `boolean`
 })
