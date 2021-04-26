@@ -15,7 +15,7 @@ use ide_view::status_bar;
 use parser::Parser;
 
 pub use initializer::Initializer;
-
+use crate::model::manager::ProjectId;
 
 
 // =================
@@ -69,21 +69,42 @@ pub fn main_method_ptr(project_name:impl Str, module_path:&model::module::Path) 
 ///
 /// This structure is a root of all objects in our application. It includes both layers:
 /// Controllers and Views, and an integration between them.
-#[derive(Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct Ide {
     application : Application,
-    integration : Integration,
+    integration : Rc<CloneCell<Option<Integration>>>,
+    manager     : model::manager::Manager,
 }
 
 impl Ide {
     /// Constructor.
-    pub async fn new(application:Application, view:ide_view::project::View, project:model::Project) -> FallibleResult<Self> {
+    pub fn new(application:Application,manager:model::manager::Manager) -> Self {
         let logger      = Logger::new("Ide");
+        let integration = default();
+        Ide {application,integration,manager}
+    }
+
+    pub async fn display_initial_project(&self) -> FallibleResult {
+        let project = self.manager.initial_project().await?;
+        self.prepare_and_display_project(project).await
+    }
+
+    pub async fn open_new_project(&self, id:ProjectId) -> FallibleResult {
+        let project     = self.manager.open_project(id).await?;
+        self.prepare_and_display_project(project).await
+    }
+
+    pub async fn create_new_project(&self, id:ProjectId) -> FallibleResult {
+        let project     = self.manager.(id).await?;
+        self.prepare_and_display_project(project).await
+    }
+
+    async fn prepare_and_display_project(&self, project:model::Project) -> FallibleResult {
         let module_path = initial_module_path(&project)?;
         let file_path   = module_path.file_path().clone();
         // TODO [mwu] This solution to recreate missing main file should be considered provisional
         //   until proper decision is made. See: https://github.com/enso-org/enso/issues/1050
-        recreate_if_missing(&project, &file_path, default_main_method_code()).await?;
+        project.recreate_if_missing(&project, &file_path, default_main_method_code()).await?;
 
         let method = main_method_ptr(project.name(),&module_path);
         let module = project.module(module_path).await?;
@@ -109,8 +130,8 @@ impl Ide {
             status_bar.finish_process(compiling_process);
         });
 
-        let integration = Integration::new(view,graph,text,visualization,project);
-        Ok(Ide {application,integration})
+        self.integration.set(Some(Integration::new(view,graph,text,visualization,project)));
+        Ok(())
     }
 }
 
@@ -120,15 +141,7 @@ pub fn initial_module_path(project:&model::Project) -> FallibleResult<ModulePath
     model::module::Path::from_name_segments(project.content_root_id(),&[INITIAL_MODULE_NAME])
 }
 
-/// Create a file with default content if it does not already exist.
-pub async fn recreate_if_missing(project:&model::Project, path:&FilePath, default_content:String)
--> FallibleResult {
-    let rpc = project.json_rpc();
-    if !rpc.file_exists(path).await?.exists {
-        rpc.write_file(path,&default_content).await?;
-    }
-    Ok(())
-}
+
 
 /// Add main method definition to the given module, if the method is not already defined.
 ///

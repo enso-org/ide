@@ -95,7 +95,7 @@ impl Default for Startup {
     fn default() -> Self {
         Self {
             backend      : default(),
-            project_name : ProjectName(constants::DEFAULT_PROJECT_NAME.to_owned()),
+            project_name : ProjectName(constants::UNNAMED_PROJECT_NAME.to_owned()),
         }
     }
 }
@@ -105,7 +105,7 @@ impl Startup {
     pub fn from_web_arguments() -> FallibleResult<Startup> {
         let backend      = BackendService::from_web_arguments(&ARGS)?;
         let project_name = ARGS.project.clone().map(|t|t.into()).unwrap_or_else(||
-            ProjectName::new(constants::DEFAULT_PROJECT_NAME)
+            ProjectName::new(constants::UNNAMED_PROJECT_NAME)
         );
         Ok(Startup{backend,project_name})
     }

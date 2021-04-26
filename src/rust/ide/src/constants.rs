@@ -12,8 +12,7 @@ pub const SOURCE_DIRECTORY:&str = "src";
 /// Endpoint used by default by a locally run Project Manager.
 pub const PROJECT_MANAGER_ENDPOINT:&str = "ws://127.0.0.1:30535";
 
-/// Default project name used by IDE on startup.
-pub const DEFAULT_PROJECT_NAME:&str = "Unnamed";
+pub const UNNAMED_PROJECT_NAME:&str = "Unnamed";
 
 /// The name of the main module in each project. The main module is explicitly imported when the
 /// import statement has the project name only.

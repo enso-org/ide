@@ -20,6 +20,7 @@
 //! mutability" pattern.
 
 pub mod execution_context;
+pub mod manager;
 pub mod module;
 pub mod registry;
 pub mod suggestion_database;
@@ -37,4 +38,5 @@ pub mod traits {
     pub use execution_context::API as TRAIT_ExecutionContextApi;
     pub use module::API            as TRAIT_ModuleApi;
     pub use project::API           as TRAIT_ProjectApi;
+    pub use manager::API           as TRAIT_ManagerApi;
 }

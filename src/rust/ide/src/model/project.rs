@@ -2,8 +2,8 @@
 
 //! Project controller.
 //!
-//! Responsible for owning any remote connection clients, and providing controllers for specific
-//! files and modules. Expected to live as long as the project remains open in the IDE.
+//! The root model for opened project, providing models for modules, execution contexts, and others.
+//! Expected to live as long as the project remains open in the IDE.
 pub mod synchronized;
 
 use crate::prelude::*;
@@ -14,7 +14,35 @@ use flo_stream::Subscriber;
 use mockall::automock;
 use parser::Parser;
 use uuid::Uuid;
+use crate::controller::FilePath;
 
+
+
+// =================
+// === Constants ===
+// =================
+
+/// The name of the module initially opened in the project view.
+///
+/// Currently this name is hardcoded in the engine services and is populated for each project
+/// created using engine's Project Picker service.
+///
+/// TODO [mwu] Name of the module that will be initially opened in the text editor.
+///      Provisionally the Project View is hardcoded to open with a single text
+///      editor and it will be connected with a file with module of this name.
+///      To be replaced with better mechanism once we decide how to describe
+///      default initial layout for the project.
+pub const INITIAL_MODULE_NAME:&str = "Main";
+
+/// Name of the main definition.
+///
+/// This is the definition whose graph will be opened on IDE start.
+pub const MAIN_DEFINITION_NAME:&str = "main";
+
+/// The code with definition of the default `main` method.
+pub fn default_main_method_code() -> String {
+    format!(r#"{} = "Hello, World!""#, MAIN_DEFINITION_NAME)
+}
 
 
 // =============
@@ -59,6 +87,9 @@ pub trait API:Debug {
     /// Set a new project name.
     fn rename_project<'a>(&'a self, name:String) -> BoxFuture<'a,FallibleResult<()>>;
 
+    /// Subscribe for notifications about project-level events.
+    fn subscribe(&self) -> Subscriber<Notification>;
+
     /// Returns the primary content root id for this project.
     fn content_root_id(&self) -> Uuid {
         self.json_rpc().content_root()
@@ -87,8 +118,15 @@ pub trait API:Debug {
         //     .map_err(Into::into)
     }
 
-    /// Subscribe for notifications about project-level events.
-    fn subscribe(&self) -> Subscriber<Notification>;
+    /// Create a file with default content if it does not already exist.
+    async fn recreate_if_missing
+    (self, path:&FilePath, default_content:String) -> FallibleResult {
+        let rpc = project.json_rpc();
+        if !rpc.file_exists(path).await?.exists {
+            rpc.write_file(path,&default_content).await?;
+        }
+        Ok(())
+    }
 }
 
 impl Debug for MockAPI {
@@ -98,7 +136,7 @@ impl Debug for MockAPI {
 }
 
 /// The general, shared Project Model handle.
-pub type Project      = Rc<dyn API>;
+pub type Project = Rc<dyn API>;
 /// Project Model which synchronizes all changes with Language Server.
 pub type Synchronized = synchronized::Project;
 

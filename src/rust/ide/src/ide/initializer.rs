@@ -204,24 +204,6 @@ impl WithProjectManager {
         Self {logger,project_manager,project_name}
     }
 
-    /// Create and initialize a new Project Model, for a project with name passed in constructor.
-    ///
-    /// If the project with given name does not exist yet, it will be created.
-    pub async fn initialize_project_model(self) -> FallibleResult<model::Project> {
-        use project_manager::MissingComponentAction::*;
-
-        let project_id      = self.get_project_or_create_new().await?;
-        let opened_project  = self.project_manager.open_project(&project_id,&Install).await?;
-        let logger          = &self.logger;
-        let json_endpoint   = opened_project.language_server_json_address.to_string();
-        let binary_endpoint = opened_project.language_server_binary_address.to_string();
-        let engine_version  = opened_project.engine_version;
-        let project_manager = Some(self.project_manager);
-        let project_name    = self.project_name;
-        let project_model   = create_project_model(logger,project_manager,json_endpoint
-            ,binary_endpoint,engine_version,project_id,project_name);
-        project_model.await
-    }
 
     /// Creates a new project and returns its id, so the newly connected project can be opened.
     pub async fn create_project(&self) -> FallibleResult<Uuid> {
@@ -265,33 +247,6 @@ pub fn setup_global_executor() -> executor::web::EventLoopExecutor {
     let executor = executor::web::EventLoopExecutor::new_running();
     executor::global::set_spawner(executor.spawner.clone());
     executor
-}
-
-/// Initializes the json and binary connection to Language Server, and creates a Project Model
-async fn create_project_model
-(logger : &Logger
- , project_manager : Option<Rc<dyn project_manager::API>>
- , json_endpoint   : String
- , binary_endpoint : String
- , engine_version  : String
- , project_id      : Uuid
- , project_name    : ProjectName
-) -> FallibleResult<model::Project> {
-    info!(logger, "Establishing Language Server connection.");
-    let client_id     = Uuid::new_v4();
-    let json_ws       = WebSocket::new_opened(logger,json_endpoint).await?;
-    let binary_ws     = WebSocket::new_opened(logger,binary_endpoint).await?;
-    let client_json   = language_server::Client::new(json_ws);
-    let client_binary = binary::Client::new(logger,binary_ws);
-    crate::executor::global::spawn(client_json.runner());
-    crate::executor::global::spawn(client_binary.runner());
-    let connection_json   = language_server::Connection::new(client_json,client_id).await?;
-    let connection_binary = binary::Connection::new(client_binary,client_id).await?;
-    let version           = semver::Version::parse(&engine_version)?;
-    let ProjectName(name) = project_name;
-    let project           = model::project::Synchronized::from_connections
-        (logger,project_manager,connection_json,connection_binary,version,project_id,name).await?;
-    Ok(Rc::new(project))
 }
 
 

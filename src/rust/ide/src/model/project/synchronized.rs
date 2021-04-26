@@ -395,7 +395,7 @@ impl model::project::API for Project {
 mod test {
     use super::*;
 
-    use crate::constants::DEFAULT_PROJECT_NAME;
+    use crate::constants::UNNAMED_PROJECT_NAME;
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
     use enso_protocol::types::Sha3_224;
@@ -448,8 +448,8 @@ mod test {
             let logger            = Logger::new("Fixture");
             let id                = Uuid::new_v4();
             let engine_version    = semver::Version::new(0,2,1);
-            let project_fut       = Project::from_connections(logger,Some(project_manager),
-                json_connection,binary_connection,engine_version,id,DEFAULT_PROJECT_NAME).boxed_local();
+            let project_fut       = Project::from_connections(logger, Some(project_manager),
+                                                              json_connection, binary_connection, engine_version, id, UNNAMED_PROJECT_NAME).boxed_local();
             let project = test.expect_completion(project_fut).unwrap();
             Fixture {test,project,binary_events_sender,json_events_sender}
         }

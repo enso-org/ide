@@ -29,7 +29,7 @@ async fn failure_to_open_project_is_reported() {
         let logger          = Logger::new("test");
         let project_manager = Rc::new(project_manager::Client::new(transport));
         executor::global::spawn(project_manager.runner());
-        let name        = ProjectName(crate::constants::DEFAULT_PROJECT_NAME.to_owned());
+        let name        = ProjectName(crate::constants::UNNAMED_PROJECT_NAME.to_owned());
         let initializer = ide::initializer::WithProjectManager::new(logger,project_manager,name);
         let result      = initializer.initialize_project_model().await;
         result.expect_err("Error should have been reported.");
