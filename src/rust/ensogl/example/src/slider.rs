@@ -1,0 +1,94 @@
+//! A debug scene which shows the number and range selector.
+
+use crate::prelude::*;
+use wasm_bindgen::prelude::*;
+
+use ensogl_core::application::Application;
+use ensogl_core::display::object::ObjectOps;
+use ensogl_core::system::web;
+use ensogl_gui_components::selector;
+use ensogl_text_msdf_sys::run_once_initialized;
+use ensogl_theme as theme;
+
+
+
+// ===================
+// === Entry Point ===
+// ===================
+
+/// An entry point.
+#[wasm_bindgen]
+#[allow(dead_code)]
+pub fn entry_point_slider() {
+    web::forward_panic_hook_to_console();
+    web::set_stdout();
+    web::set_stack_trace_limit();
+    run_once_initialized(|| {
+        let app = Application::new(&web::get_html_element_by_id("root").unwrap());
+        init(&app);
+        mem::forget(app);
+    });
+}
+
+fn make_number_picker(app:&Application) -> NeverDrop<selector::NumberPicker> {
+    let slider = app.new_view::<selector::NumberPicker>();
+    slider.frp.resize(Vector2(200.0,50.0));
+    app.display.add_child(&slider);
+    NeverDrop::new(slider)
+}
+
+fn make_range_picker(app:&Application) -> NeverDrop<selector::NumberRangePicker> {
+    let slider = app.new_view::<selector::NumberRangePicker>();
+    slider.frp.resize(Vector2(400.0,50.0));
+    app.display.add_child(&slider);
+    NeverDrop::new(slider)
+}
+
+// Utility struct that leaks a struct instead of dropping it. Will cause memory leaks.
+struct NeverDrop<T> {
+    value: Option<T>
+}
+
+impl<T> NeverDrop<T> {
+    fn new(value:T) -> Self {
+        NeverDrop{value:Some(value)}
+    }
+    fn inner(&self) -> &T {
+        self.value.as_ref().unwrap()
+    }
+}
+
+impl<T> Drop for NeverDrop<T> {
+    fn drop(&mut self) {
+        std::mem::forget(self.value.take());
+    }
+}
+
+
+
+// ========================
+// === Init Application ===
+// ========================
+
+fn init(app:&Application) {
+    theme::builtin::dark::register(&app);
+    theme::builtin::light::register(&app);
+    theme::builtin::light::enable(&app);
+
+    let slider1 = make_number_picker(app);
+    slider1.inner().frp.allow_click_selection(true);
+    let slider2 = make_number_picker(app);
+    slider2.inner().frp.resize(Vector2(400.0,50.0));
+    slider2.inner().frp.set_bounds.emit((-100.0,100.0));
+    slider2.inner().set_position_y(50.0);
+    slider2.inner().frp.use_overflow_bounds((-150.0,200.0));
+    slider2.inner().frp.set_caption(Some("Value:".to_string()));
+
+    let slider3 = make_range_picker(app);
+    slider3.inner().set_position_y(-100.0);
+
+    let slider4 = make_range_picker(app);
+    slider4.inner().set_position_y(-200.0);
+    slider4.inner().frp.use_overflow_bounds((-2.0,3.0));
+    slider4.inner().frp.set_caption(Some("Caption".to_string()));
+}
