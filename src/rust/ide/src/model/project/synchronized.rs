@@ -187,7 +187,7 @@ impl Project {
     }
 
     /// Initializes the json and binary connection to Language Server, and creates a Project Model
-    async fn new_connected
+    pub async fn new_connected
     ( parent : &Logger
     , project_manager     : Option<Rc<dyn project_manager::API>>
     , language_server_rpc : String
@@ -210,7 +210,7 @@ impl Project {
         Self::from_connections(parent,project_manager,language_server_rpc,language_server_bin,version,id,name).await
     }
 
-    async fn new_opened
+    pub async fn new_opened
     ( parent          : &Logger
     , project_manager : Rc<dyn project_manager::API>
     , id              : Uuid
