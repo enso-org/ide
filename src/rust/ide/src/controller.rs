@@ -12,11 +12,11 @@
 //! Primarily views are considered owners of their respective controllers.
 //! Additionally, controllers are allowed to keep strong handle "upwards".
 //!
-//! Controllers store their handles using `utils::cell` handle types to ensure
-//! that mutable state is safely accessed.
+//TODO[ao] is this docs still valid?
 
 pub mod graph;
 pub mod module;
+pub mod project_manager;
 pub mod text;
 pub mod visualization;
 pub mod searcher;

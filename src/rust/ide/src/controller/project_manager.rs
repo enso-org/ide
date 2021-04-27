@@ -31,7 +31,7 @@ pub trait API {
     fn manage_projects(&self) -> Option<&dyn ManagingAPI>;
 }
 
-pub type Manager = Rc<dyn API>;
+pub type Ide = Rc<dyn API>;
 
 
 

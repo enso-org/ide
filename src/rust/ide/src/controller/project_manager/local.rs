@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use crate::model::manager::{ProjectId, ENGINE_VERSION_FOR_NEW_PROJECTS, ManagingAPI, create_project_model};
+use crate::model::project_manager::{ProjectId, ENGINE_VERSION_FOR_NEW_PROJECTS, ManagingAPI, create_project_model};
 use enso_protocol::{project_manager, language_server, binary};
 use enso_protocol::project_manager::{ProjectName, MissingComponentAction};
 use crate::constants::UNNAMED_PROJECT_NAME;
@@ -22,7 +22,7 @@ impl Manager {
     }
 }
 
-impl model::manager::ManagingAPI for Manager {
+impl model::project_manager::ManagingAPI for Manager {
     fn create_new_unnamed_project<'a>(&'a self) -> BoxFuture<'a, FallibleResult<model::Project>> {
         async {
             let list = self.project_manager.list_projects(&None).await?;
@@ -40,7 +40,7 @@ impl model::manager::ManagingAPI for Manager {
     }
 }
 
-impl model::manager::API for Manager {
+impl model::project_manager::API for Manager {
     fn initial_project<'a>(&'a self) -> BoxFuture<'a, FallibleResult<model::Project>> {
         self.create_new_unnamed_project()
     }

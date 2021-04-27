@@ -15,7 +15,7 @@ use ide_view::status_bar;
 use parser::Parser;
 
 pub use initializer::Initializer;
-use crate::model::manager::ProjectId;
+use crate::model::project_manager::ProjectId;
 
 
 // =================
@@ -73,12 +73,12 @@ pub fn main_method_ptr(project_name:impl Str, module_path:&model::module::Path) 
 pub struct Ide {
     application : Application,
     integration : Rc<CloneCell<Option<Integration>>>,
-    manager     : model::manager::Manager,
+    manager     : model::project_manager::Manager,
 }
 
 impl Ide {
     /// Constructor.
-    pub fn new(application:Application,manager:model::manager::Manager) -> Self {
+    pub fn new(application:Application, manager:model::project_manager::Manager) -> Self {
         let logger      = Logger::new("Ide");
         let integration = default();
         Ide {application,integration,manager}

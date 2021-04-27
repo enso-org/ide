@@ -38,5 +38,5 @@ pub mod traits {
     pub use execution_context::API as TRAIT_ExecutionContextApi;
     pub use module::API            as TRAIT_ModuleApi;
     pub use project::API           as TRAIT_ProjectApi;
-    pub use manager::API           as TRAIT_ManagerApi;
+    pub use project_manager::API           as TRAIT_ManagerApi;
 }

@@ -1,15 +1,18 @@
 use crate::prelude::*;
+
+use crate::controller::project_manager::create_project_model;
+use crate::controller::project_manager::ENGINE_VERSION_FOR_NEW_PROJECTS;
+
 use futures::future::LocalBoxFuture;
-use crate::model::manager::{ENGINE_VERSION_FOR_NEW_PROJECTS, create_project_model};
 
 #[derive(Clone,CloneRef,Debug)]
-pub struct Manager {
+pub struct ProjectManager {
     logger          : Logger,
     json_endpoint   : ImString,
     binary_endpoint : ImString,
 }
 
-impl Manager {
+impl ProjectManager {
     pub fn new(json_endpoint:impl Into<ImString>, binary_endpoint:impl Into<ImString>) -> Self {
         Self {
             logger          : Logger::new("cloud::Manager"),
@@ -19,7 +22,7 @@ impl Manager {
     }
 }
 
-impl model::manager::API for Manager {
+impl controller::project_manager::API for ProjectManager {
     fn initial_project<'a>(&'a self) -> LocalBoxFuture<'a, FallibleResult<model::Project>> {
         let logger          = &self.logger;
         let project_manager = None;
@@ -34,5 +37,5 @@ impl model::manager::API for Manager {
             .boxed()
     }
 
-    fn manage_projects(&self) -> Option<&dyn model::manager::ManagingAPI> { None }
+    fn manage_projects(&self) -> Option<&dyn model::project_manager::ManagingAPI> { None }
 }
