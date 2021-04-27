@@ -17,7 +17,8 @@ use enso_protocol::language_server::MethodPointer;
 use enso_protocol::project_manager;
 use flo_stream::Subscriber;
 use parser::Parser;
-
+use crate::transport::web::WebSocket;
+use enso_protocol::project_manager::MissingComponentAction;
 
 
 // =================================
@@ -185,20 +186,40 @@ impl Project {
         Ok(ret)
     }
 
-    /// Create a project model from owned LS connections.
-    pub fn from_connections
-    ( parent              : impl AnyLogger
+    /// Initializes the json and binary connection to Language Server, and creates a Project Model
+    async fn new_connected
+    ( parent : &Logger
     , project_manager     : Option<Rc<dyn project_manager::API>>
-    , language_server_rpc : language_server::Connection
-    , language_server_bin : binary::Connection
-    , engine_version      : semver::Version
+    , language_server_rpc : String
+    , language_server_bin : String
     , id                  : Uuid
     , name                : impl Str
-    ) -> impl Future<Output=FallibleResult<Self>> {
-        let language_server_rpc = Rc::new(language_server_rpc);
-        let language_server_bin = Rc::new(language_server_bin);
-        Self::new(parent,project_manager,language_server_rpc,language_server_bin,engine_version,id
-            ,name)
+    ) -> FallibleResult<model::Project> {
+        let client_id     = Uuid::new_v4();
+        let json_ws       = WebSocket::new_opened(logger,json_endpoint).await?;
+        let binary_ws     = WebSocket::new_opened(logger,binary_endpoint).await?;
+        let client_json   = language_server::Client::new(json_ws);
+        let client_binary = binary::Client::new(logger,binary_ws);
+        crate::executor::global::spawn(client_json.runner());
+        crate::executor::global::spawn(client_binary.runner());
+        let connection_json   = language_server::Connection::new(language_server_rpc,client_id).await?;
+        let connection_binary = binary::Connection::new(language_server_bin,client_id).await?;
+        let version           = semver::Version::parse(&engine_version)?;
+        let language_server_rpc = Rc::new(connection_json);
+        let language_server_bin = Rc::new(connection_binary);
+        Self::from_connections(parent,project_manager,language_server_rpc,language_server_bin,version,id,name).await
+    }
+
+    async fn new_opened
+    ( parent          : &Logger
+    , project_manager : Rc<dyn project_manager::API>
+    , id              : Uuid
+    , name            : impl Str
+    ) -> FallibleResult<model::Project> {
+        let action = MissingComponentAction::Install;
+        let opened = project_manager.open_project(&id,&action).await?;
+        // let project_manager::response::OpenProject { engine_version, language_server_json_address, language_server_binary_address } = opened;
+        Self::new_connected(parent, Some(project_manager),opened.language_server_json_address.to_string(),opened.language_server_binary_address.to_string(),id,name)
     }
 
     /// Returns a handling function capable of processing updates from the binary protocol.

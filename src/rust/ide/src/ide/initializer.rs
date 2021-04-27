@@ -267,33 +267,6 @@ pub fn setup_global_executor() -> executor::web::EventLoopExecutor {
     executor
 }
 
-/// Initializes the json and binary connection to Language Server, and creates a Project Model
-async fn create_project_model
-(logger : &Logger
- , project_manager : Option<Rc<dyn project_manager::API>>
- , json_endpoint   : String
- , binary_endpoint : String
- , engine_version  : String
- , project_id      : Uuid
- , project_name    : ProjectName
-) -> FallibleResult<model::Project> {
-    info!(logger, "Establishing Language Server connection.");
-    let client_id     = Uuid::new_v4();
-    let json_ws       = WebSocket::new_opened(logger,json_endpoint).await?;
-    let binary_ws     = WebSocket::new_opened(logger,binary_endpoint).await?;
-    let client_json   = language_server::Client::new(json_ws);
-    let client_binary = binary::Client::new(logger,binary_ws);
-    crate::executor::global::spawn(client_json.runner());
-    crate::executor::global::spawn(client_binary.runner());
-    let connection_json   = language_server::Connection::new(client_json,client_id).await?;
-    let connection_binary = binary::Connection::new(client_binary,client_id).await?;
-    let version           = semver::Version::parse(&engine_version)?;
-    let ProjectName(name) = project_name;
-    let project           = model::project::Synchronized::from_connections
-        (logger,project_manager,connection_json,connection_binary,version,project_id,name).await?;
-    Ok(Rc::new(project))
-}
-
 
 
 // =============

@@ -14,8 +14,10 @@
 //!
 //! Controllers store their handles using `utils::cell` handle types to ensure
 //! that mutable state is safely accessed.
+//TODO check if this docs is still valid
 
 pub mod graph;
+pub mod ide;
 pub mod module;
 pub mod text;
 pub mod visualization;
