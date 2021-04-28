@@ -43,6 +43,10 @@ impl Bounds {
             self.clone()
         }
     }
+
+    pub fn width(&self) -> f32 {
+        (self.end - self.start)
+    }
 }
 
 impl From<(f32,f32)> for Bounds {
@@ -53,25 +57,30 @@ impl From<(f32,f32)> for Bounds {
 
 /// Frp utility method to normalise the given value to the given Bounds.
 pub fn normalise_value((value,bounds):&(f32,Bounds)) -> f32 {
-    (value - bounds.start) / (bounds.end - bounds.start)
+    let width = bounds.width();
+    if width == 0.0 { return 0.0 }
+    (value - bounds.start) / width
 }
 
 /// Frp utility method to compute the absolute value from a normalised value.
 /// Inverse of `normalise_value`.
 pub fn absolute_value((bounds,normalised_value):&(Bounds,f32)) -> f32 {
-    ((normalised_value * (bounds.end - bounds.start)) + bounds.start)
+    ((normalised_value * bounds.width()) + bounds.start)
 }
 
-/// Returns the normalised value that correspond to the click posiiton on the shape.
+/// Returns the normalised value that correspond to the click position on the shape.
+/// Note that the shape is centered on (0,0), thus half the width extends into the negative values.
 /// For use in FRP `map` method, thus taking references.
 #[allow(clippy::trivially_copy_pass_by_ref)]
 pub fn position_to_normalised_value(pos:&Vector2,width:&f32) -> f32 {
-    ((pos.x / (width/2.0)) + 1.0) / 2.0
+    if *width == 0.0 { return 0.0 }
+    ((pos.x / (width / 2.0)) + 1.0) / 2.0
 }
 
-/// Check whether the given value is within the given bounds. End points are exclusive.
+/// Check whether the given value is within the given bounds.
 fn value_in_bounds(value:f32, bounds:Bounds) -> bool {
-    value > bounds.start && value < bounds.end
+    let bounds_sorted = bounds.sorted();
+    value >= bounds_sorted.start && value <= bounds_sorted.end
 }
 
 /// Check whether the given bounds are completely contained in the second bounds.
@@ -91,7 +100,7 @@ pub fn clamp_with_overflow(value:&f32, overflow_bounds:&Option<Bounds>) -> f32 {
     }
 }
 
-/// Indicates whether the `value` would be clamped when given to `clamp_with_overflow`.
+/// Indicates whether the `bounds` would be clamped when given to `clamp_with_overflow`.
 /// For use in FRP `map` method, thus taking references.
 #[allow(clippy::trivially_copy_pass_by_ref)]
 pub fn should_clamp_with_overflow(bounds:&Bounds, overflow_bounds:&Option<Bounds>) -> bool {
@@ -112,7 +121,8 @@ pub fn should_clamp_with_overflow(bounds:&Bounds, overflow_bounds:&Option<Bounds
 /// Return whether a dragging action has been started from the given shape.
 /// A dragging action is started by a mouse down on a shape, followed by a movement of the mouse.
 /// It is ended by a mouse up.
-pub fn shape_is_dragged(network:&Network, shape:&ShapeViewEvents, mouse:&Mouse) -> frp::Stream<bool>  {
+pub fn shape_is_dragged
+(network:&Network, shape:&ShapeViewEvents, mouse:&Mouse) -> frp::Stream<bool>  {
     frp::extend! { network
         mouse_up              <- mouse.up.constant(());
         mouse_down            <- mouse.down.constant(());
@@ -125,14 +135,253 @@ pub fn shape_is_dragged(network:&Network, shape:&ShapeViewEvents, mouse:&Mouse) 
 
 /// Returns the position of a mouse down on a shape. The position is given relative to the origin
 /// of the shape position.
-pub fn relative_shape_click_position(model:&Model, network:&Network, shape:&ShapeViewEvents, mouse:&Mouse) -> frp::Stream<Vector2>  {
+pub fn relative_shape_click_position
+(model:&Model, network:&Network, shape:&ShapeViewEvents, mouse:&Mouse) -> frp::Stream<Vector2>  {
     let model = model.clone_ref();
     frp::extend! { network
         mouse_down               <- mouse.down.constant(());
         over_shape               <- bool(&shape.mouse_out,&shape.mouse_over);
         mouse_down_over_shape    <- mouse_down.gate(&over_shape);
         background_click_positon <- mouse.position.sample(&mouse_down_over_shape);
-        background_click_positon <- background_click_positon.map(move |pos| pos - model.position().xy());
+        background_click_positon <- background_click_positon.map(move |pos|
+            pos - model.position().xy()
+        );
     }
     background_click_positon
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use float_eq::assert_float_eq;
+    use std::f32::NAN;
+
+    #[test]
+    fn test_normalise_value() {
+        let test = |start,end,value,expected| {
+            let bounds = Bounds::new(start,end);
+            let normalised = normalise_value(&(value,bounds));
+            assert_float_eq!(normalised,expected,ulps<=7)
+        };
+
+        test(0.0,1.0,0.0,0.0);
+        test(0.0,1.0,0.1,0.1);
+        test(0.0,1.0,0.2,0.2);
+        test(0.0,1.0,0.3,0.3);
+        test(0.0,1.0,0.4,0.4);
+        test(0.0,1.0,0.5,0.5);
+        test(0.0,1.0,0.6,0.6);
+        test(0.0,1.0,0.7,0.7);
+        test(0.0,1.0,0.7,0.7);
+        test(0.0,1.0,0.7,0.7);
+        test(0.0,1.0,1.0,1.0);
+
+        test(0.0,1.0,-2.0,-2.0);
+        test(0.0,1.0,-1.0,-1.0);
+        test(0.0,1.0,2.0,2.0);
+        test(0.0,1.0,3.0,3.0);
+
+        test(-1.0,1.0,-1.0,0.0);
+        test(-1.0,1.0,-0.5,0.25);
+        test(-1.0,1.0,0.0,0.5);
+        test(-1.0,1.0,0.5,0.75);
+        test(-1.0,1.0,1.0,1.0);
+
+        test(1.0,-1.0,-1.0,1.0);
+        test(1.0,-1.0,-0.5,0.75);
+        test(1.0,-1.0,0.0,0.5);
+        test(1.0,-1.0,0.5,0.25);
+        test(1.0,-1.0,1.0,0.0);
+
+        test(-10.0,20.0,-10.0,0.0);
+        test(-10.0,20.0,20.0,1.0);
+        test(-10.0,20.0,0.0,0.33333333);
+
+        test(-999999999.0,999999999.0,-999999999.0,0.0);
+        test(-999999999.0,999999999.0,0.0,0.5);
+        test(-999999999.0,999999999.0,999999999.0,1.0);
+
+        test(0.0,0.0,1.0,0.0);
+        test(0.0,0.0,0.0,0.0);
+        test(0.0,0.0,-1.0,0.0);
+    }
+
+    #[test]
+    fn test_absolute_value() {
+        let test = |start,end,value,expected| {
+            let bounds = Bounds::new(start,end);
+            let normalised = absolute_value(&(bounds,value));
+            assert_float_eq!(normalised,expected,ulps<=7)
+        };
+
+        test(0.0,1.0,0.0,0.0);
+        test(0.0,1.0,0.1,0.1);
+        test(0.0,1.0,0.2,0.2);
+        test(0.0,1.0,0.3,0.3);
+        test(0.0,1.0,0.4,0.4);
+        test(0.0,1.0,0.5,0.5);
+        test(0.0,1.0,0.6,0.6);
+        test(0.0,1.0,0.7,0.7);
+        test(0.0,1.0,0.7,0.7);
+        test(0.0,1.0,0.7,0.7);
+        test(0.0,1.0,1.0,1.0);
+
+        test(0.0,1.0,-2.0,-2.0);
+        test(0.0,1.0,-1.0,-1.0);
+        test(0.0,1.0,2.0,2.0);
+        test(0.0,1.0,3.0,3.0);
+
+        test(-1.0,1.0,0.0,-1.0);
+        test(-1.0,1.0,0.25,-0.5);
+        test(-1.0,1.0,0.5,0.0);
+        test(-1.0,1.0,0.75,0.5);
+        test(-1.0,1.0,1.0,1.0);
+
+        test(1.0,-1.0,1.0,-1.0);
+        test(1.0,-1.0,0.75,-0.5);
+        test(1.0,-1.0,0.5,0.0);
+        test(1.0,-1.0,0.25,0.5);
+        test(1.0,-1.0,0.0,1.0);
+
+        test(-10.0,20.0,0.0,-10.0);
+        test(-10.0,20.0,1.0,20.0);
+        test(-10.0,20.0,0.33333333,0.0);
+
+        test(-999999999.0,999999999.0,0.0,-999999999.0);
+        test(-999999999.0,999999999.0,0.5,0.0);
+        test(-999999999.0,999999999.0,1.0,999999999.0);
+
+        test(0.0,0.0,1.0,0.0);
+        test(1.0,1.0,1.0,1.0);
+        test(1.0,1.0,2.0,1.0);
+        test(1.0,1.0,-2.0,1.0);
+    }
+
+
+    #[test]
+    fn test_position_to_normalised_value() {
+        let test = |pos,width,expected| {
+            let result = position_to_normalised_value(&pos,&width);
+            assert_float_eq!(result,expected,ulps<=7)
+        };
+
+        for &y in &[-100.0, 0.0, 100.0, NAN] {
+            test(Vector2::new(50.0,y),100.0,1.0);
+            test(Vector2::new(0.0,y),100.0,0.5);
+            test(Vector2::new(-50.0,y),100.0,0.0);
+
+            test(Vector2::new(100.0,y),100.0,1.5);
+            test(Vector2::new(-100.0,y),100.0,-0.5);
+            test(Vector2::new(150.0,y),100.0,2.0);
+            test(Vector2::new(-150.0,y),100.0,-1.0);
+            test(Vector2::new(200.0,y),100.0,2.5);
+            test(Vector2::new(-200.0,y),100.0,-1.5);
+
+            test(Vector2::new(-200.0,y),0.0,0.0);
+        }
+    }
+
+    #[test]
+    fn test_value_in_bounds() {
+        let test = |start,end,value,expected| {
+            let result = value_in_bounds(value,Bounds::new(start,end));
+            assert_eq!(result,expected, "Testing whether {} in ]{},{}[", value,start,end)
+        };
+
+        test(0.0,1.0,0.0,true);
+        test(0.0,1.0,0.5,true);
+        test(0.0,1.0,1.0,true);
+        test(0.0,1.0,1.00001,false);
+        test(0.0,1.0,-0.00001,false);
+
+        test(0.0,10.0,10.0,true);
+        test(0.0,10.0,9.999999,true);
+        test(0.0,10.0,11.0,false);
+
+        test(-100.0,10.0,11.0,false);
+        test(-101.0,10.0,-100.0,true);
+        test(-101.0,10.0,-101.0,true);
+        test(-101.0,10.0,-101.1,false);
+
+        test(0.0,0.0,0.0,true);
+        test(0.0,0.0,1.0,false);
+        test(0.0,0.0,-1.0,false);
+    }
+
+    #[test]
+    fn test_bounds_in_bounds() {
+        let test = |start1,end1,start2,end2,expected| {
+            let result = bounds_in_bounds(Bounds::new(start1,start2),Bounds::new(start2,end2));
+            assert_eq!(result,expected,
+                       "Testing whether ]{},{}[ in ]{},{}[", start1,end1,start2,end2);
+        };
+
+        test(0.0,1.0,0.0,1.0,true);
+        test(0.0,1.0,1.0,2.0,false);
+        test(0.0,1.0,0.5,2.0,false);
+        test(0.0,1.0,-100.0,100.0,true);
+        test(0.0,1.0,-100.0,-99.0,false);
+        test(0.0,1.0,0.1,0.9,false);
+        test(-100.0,200.0,50.0,75.0,false);
+        test(-100.0,200.0,-50.0,75.0,false);
+        test(-100.0,200.0,-50.0,-75.0,false);
+        test(-100.0,200.0,-50.0,99999.0,false);
+        test(-100.0,200.0,-99999.0,0.0,true);
+        test(-100.0,200.0,-99999.0,99999.0,true);
+
+        test(0.0,0.0,0.0,0.0,true);
+        test(0.0,0.0,-1.0,2.0,true);
+        test(0.0,0.0,1.0,2.0,false);
+    }
+
+    #[test]
+    fn test_clamp_with_overflow() {
+        let test = |value,bounds,expected| {
+            let result = clamp_with_overflow(&value,&bounds);
+            assert_float_eq!(result,expected,ulps<=7)
+        };
+
+        test(0.0,Some(Bounds::new(0.0,1.0)), 0.0);
+        test(-1.0,Some(Bounds::new(0.0,1.0)), 0.0);
+        test(2.0,Some(Bounds::new(0.0,1.0)), 1.0);
+
+        test(-1.0,None, 0.0);
+        test(2.0,None,1.0);
+
+        test(-999.0,Some(Bounds::new(-1.0,100.0)), -1.0);
+        test(999.0,Some(Bounds::new(-1.0,100.0)), 100.0);
+        test(-1.0,Some(Bounds::new(-1.0,100.0)), -1.0);
+        test(0.0,Some(Bounds::new(-1.0,100.0)), 0.0);
+        test(99.0,Some(Bounds::new(-1.0,100.0)), 99.0);
+        test(100.0,Some(Bounds::new(-1.0,100.0)), 100.0);
+        test(100.01,Some(Bounds::new(-1.0,100.0)), 100.0);
+    }
+
+    #[test]
+    fn test_should_clamp_with_overflow() {
+        let test = |inner,outer,expected| {
+            let result = should_clamp_with_overflow(&inner,&outer);
+            assert_eq!(result,expected);
+        };
+
+        test(Bounds::new(0.0,1.0),Some(Bounds::new(0.0,1.0)),true);
+        test(Bounds::new(0.0,1.0),Some(Bounds::new(1.0,2.0)),false);
+        test(Bounds::new(0.0,1.0),Some(Bounds::new(0.5,2.0)),false);
+        test(Bounds::new(0.0,1.0),Some(Bounds::new(-100.0,100.0)),true);
+        test(Bounds::new(0.0,1.0),Some(Bounds::new(-100.0,-99.0)),false);
+        test(Bounds::new(0.0,1.0),Some(Bounds::new(0.1,0.9)),false);
+        test(Bounds::new(-100.0,200.0),Some(Bounds::new(50.0,75.0)),false);
+        test(Bounds::new(-100.0,200.0),Some(Bounds::new(-50.0,75.0)),false);
+        test(Bounds::new(-100.0,200.0),Some(Bounds::new(-50.0,-75.0)),false);
+        test(Bounds::new(-100.0,200.0),Some(Bounds::new(-50.0,99999.0)),false);
+        test(Bounds::new(-100.0,200.0),Some(Bounds::new(-99999.0,0.0)),false);
+        test(Bounds::new(-100.0,200.0),Some(Bounds::new(-99999.0,99999.0)),true);
+        test(Bounds::new(-100.0,0.0),None,false);
+        test(Bounds::new(0.1,1.1),None,false);
+        test(Bounds::new(-9.1,2.1),None,false);
+        test(Bounds::new(0.25,0.7),None,true);
+
+        test(Bounds::new(0.0,0.0),None,true);
+    }
 }
