@@ -30,38 +30,18 @@ pub fn entry_point_slider() {
     });
 }
 
-fn make_number_picker(app:&Application) -> NeverDrop<selector::NumberPicker> {
+fn make_number_picker(app:&Application) -> Leak<selector::NumberPicker> {
     let slider = app.new_view::<selector::NumberPicker>();
     slider.frp.resize(Vector2(200.0,50.0));
     app.display.add_child(&slider);
-    NeverDrop::new(slider)
+    Leak::new(slider)
 }
 
-fn make_range_picker(app:&Application) -> NeverDrop<selector::NumberRangePicker> {
+fn make_range_picker(app:&Application) -> Leak<selector::NumberRangePicker> {
     let slider = app.new_view::<selector::NumberRangePicker>();
     slider.frp.resize(Vector2(400.0,50.0));
     app.display.add_child(&slider);
-    NeverDrop::new(slider)
-}
-
-// Utility struct that leaks a struct instead of dropping it. Will cause memory leaks.
-struct NeverDrop<T> {
-    value: Option<T>
-}
-
-impl<T> NeverDrop<T> {
-    fn new(value:T) -> Self {
-        NeverDrop{value:Some(value)}
-    }
-    fn inner(&self) -> &T {
-        self.value.as_ref().unwrap()
-    }
-}
-
-impl<T> Drop for NeverDrop<T> {
-    fn drop(&mut self) {
-        std::mem::forget(self.value.take());
-    }
+    Leak::new(slider)
 }
 
 
@@ -77,6 +57,7 @@ fn init(app:&Application) {
 
     let slider1 = make_number_picker(app);
     slider1.inner().frp.allow_click_selection(true);
+
     let slider2 = make_number_picker(app);
     slider2.inner().frp.resize(Vector2(400.0,50.0));
     slider2.inner().frp.set_bounds.emit((-100.0,100.0));

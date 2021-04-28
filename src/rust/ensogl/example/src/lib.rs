@@ -28,6 +28,7 @@
 
 #[allow(clippy::option_map_unit_fn)]
 
+mod leak;
 pub mod animation;
 pub mod complex_shape_system;
 pub mod dom_symbols;
@@ -43,4 +44,5 @@ pub mod text_area;
 /// Common types that should be visible across the whole crate.
 pub mod prelude {
     pub use ensogl_core::prelude::*;
+    pub use super::leak::*;
 }
