@@ -48,7 +48,7 @@ fn value_in_bounds(value:f32, bounds:Bounds) -> bool {
 
 /// Check whether the given bounds are completely contained in the second bounds.
 pub fn range_in_bounds(range:Bounds, bounds:Bounds) -> bool {
-    value_in_bounds(range.0, bounds) && value_in_bounds(range.1, bounds)
+    value_in_bounds(range.0,bounds) && value_in_bounds(range.1,bounds)
 }
 
 /// Clamp `value` to the `overflow_bounds`, or to [0, 1] if no bounds are given.

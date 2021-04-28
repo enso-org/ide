@@ -8,9 +8,9 @@ use ensogl_core::application::Application;
 
 
 
-// ====================
+// =====================
 // === Number Picker ===
-// ====================
+// =====================
 
 /// UI component for selecting a number.
 pub type NumberPicker = crate::component::Component<common::Model,number::Frp>;
@@ -23,9 +23,9 @@ impl application::View for NumberPicker {
 
 
 
-// =========================
+// ===========================
 // === Number Range Picker ===
-// =========================
+// ===========================
 
 /// UI component for selecting a number.
 pub type NumberRangePicker = crate::component::Component<common::Model,range::Frp>;

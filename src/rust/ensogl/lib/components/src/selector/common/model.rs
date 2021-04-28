@@ -16,6 +16,7 @@ use super::shape::*;
 const LABEL_OFFSET : f32 = 13.0;
 
 
+
 // ==============================================
 // === Utilities - Decimal Aligned Text Field ===
 // ==============================================
@@ -160,7 +161,7 @@ impl component::Model for Model {
 
 impl Model {
     pub fn set_size(&self, size:Vector2, shadow_padding:Vector2) {
-        let padded_size = size+shadow_padding;
+        let padded_size = size + shadow_padding;
         self.background.size.set(padded_size);
         self.track.size.set(padded_size);
         self.left_overflow.size.set(padded_size);

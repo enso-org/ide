@@ -81,12 +81,12 @@ impl component::Frp<Model> for Frp {
                 click <- any(&track_click,&background_click).gate(&frp.allow_click_selection);
                 click_value_update <- click.map2(&base_frp.track_max_width,position_to_normalised_value);
 
-                is_dragging <- any(
-                    base_frp.is_dragging_track,
-                    base_frp.is_dragging_background,
-                    base_frp.is_dragging_left_overflow,
-                    base_frp.is_dragging_right_overflow
-                );
+                is_dragging <- any
+                    ( base_frp.is_dragging_track
+                    , base_frp.is_dragging_background
+                    , base_frp.is_dragging_left_overflow
+                    , base_frp.is_dragging_right_overflow
+                    );
 
                 drag_movement <- mouse.translation.gate(&is_dragging);
                 delta_value   <- drag_movement.map2(&base_frp.track_max_width, |delta,width| (delta.x + delta.y) / width);

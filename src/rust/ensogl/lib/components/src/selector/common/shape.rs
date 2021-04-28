@@ -23,7 +23,7 @@ struct Background {
 }
 
 impl Background {
-    fn new(corner_left:&Var<f32>,corner_right:&Var<f32>,style:&StyleWatch) -> Background {
+    fn new(corner_left:&Var<f32>, corner_right:&Var<f32>, style:&StyleWatch) -> Background {
         let sprite_width  : Var<Pixels> = "input_size.x".into();
         let sprite_height : Var<Pixels> = "input_size.y".into();
         let width         = &sprite_width - shadow::size(style).px();
