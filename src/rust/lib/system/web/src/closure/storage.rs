@@ -32,8 +32,12 @@ impl <Arg> OptionalFmMutClosure<Arg> {
     }
 
     /// Stores the given closure.
-    pub fn store(&mut self, closure:Closure<dyn FnMut(Arg)>) {
+    pub fn store(&mut self, closure:Closure<dyn FnMut(Arg)>) -> &Function {
         self.closure = Some(closure);
+        // TODO [mwu]: `insert` should be used when we bump rustc - and then get rid of unwrap.
+        //              Blocked by https://github.com/enso-org/ide/issues/1028
+        // unwrap is safe, because line above set closure to Some
+        self.js_ref().unwrap()
     }
 
     /// Obtain JS reference to the closure (that can be passed e.g. as a callback
@@ -43,12 +47,12 @@ impl <Arg> OptionalFmMutClosure<Arg> {
     }
 
     /// Wraps given function into a Closure.
-    pub fn wrap(&mut self, f:impl ClosureFn<Arg>) {
+    pub fn wrap(&mut self, f:impl ClosureFn<Arg>) -> &Function  {
         let boxed = Box::new(f);
         // Note: [mwu] Not sure exactly why, but compiler sometimes require this
         // explicit type below and sometimes does not.
         let wrapped:Closure<dyn FnMut(Arg)> = Closure::wrap(boxed);
-        self.store(wrapped);
+        self.store(wrapped)
     }
 
     /// Clears the current closure.

@@ -81,7 +81,7 @@ extern "C" {
     /// see: https://www.w3schools.com/jsref/jsref_string.asp
     #[allow(unsafe_code)]
     #[wasm_bindgen(js_name="String")]
-    pub fn js_to_string(s: JsValue) -> String;
+    pub fn js_to_string(s:&JsValue) -> String;
 }
 
 
@@ -651,7 +651,7 @@ pub fn reflect_get_nested_string(target:&JsValue, keys:&[&str]) -> Result<String
     if tgt.is_undefined() {
         Err(Error("Key was not present in the target."))
     } else {
-        Ok(js_to_string(tgt))
+        Ok(js_to_string(&tgt))
     }
 }
 
