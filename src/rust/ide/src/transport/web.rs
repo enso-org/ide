@@ -2,7 +2,6 @@
 
 use crate::prelude::*;
 
-use ensogl_system_web::closure::storage::OptionalFmMutClosure;
 use ensogl_system_web::js_to_string;
 use failure::Error;
 use futures::channel::mpsc;
@@ -11,16 +10,11 @@ use json_rpc::TransportEvent;
 use utils::channel;
 use wasm_bindgen::JsCast;
 use web_sys::BinaryType;
-use web_sys::CloseEvent;
-use js_sys::Function;
-use web_sys::Event;
-use web_sys::MessageEvent;
-use ensogl::system::web::closure::storage::ClosureFn;
-use web_sys::EventTarget;
 
 use enso_logger::DefaultTraceLogger as Logger;
-use futures::TryFutureExt;
 
+use ensogl_system_web::event::Event as JsEvent;
+use ensogl_system_web::event::listener::ListenerSlot;
 
 // ==============
 // === Errors ===
@@ -100,210 +94,118 @@ impl State {
     }
 }
 
-pub trait JsEvent {
-    type Arg;
-    const NAME:&'static str;
-    fn add_listener(target:impl AsRef<EventTarget>, listener:&Function) -> Result<(),JsValue> {
-        target.as_ref().add_event_listener_with_callback(Self::NAME,listener)
-    }
 
-    fn remove_listener(target:impl AsRef<EventTarget>, listener:&Function) -> Result<(),JsValue> {
-        target.as_ref().remove_event_listener_with_callback(Self::NAME,listener)
-    }
-}
 
+// =================
+// === JS Events ===
+// =================
+
+
+/// Represents WebSocket.open event.
 #[derive(Debug,Default)]
 pub struct OnOpen;
 impl JsEvent for OnOpen {
-    type Arg = Event;
+    type Interface = web_sys::Event;
+    type Target = web_sys::WebSocket;
     const NAME:&'static str = "open";
 }
 
+/// Represents WebSocket.close event.
 #[derive(Debug,Default)]
 pub struct OnClose;
 impl JsEvent for OnClose {
-    type Arg = CloseEvent;
+    type Interface = web_sys::CloseEvent;
+    type Target = web_sys::WebSocket;
     const NAME:&'static str = "close";
 }
 
+/// Represents WebSocket.message event.
 #[derive(Debug,Default)]
 pub struct OnMessage;
 impl JsEvent for OnMessage {
-    type Arg = MessageEvent;
+    type Interface = web_sys::MessageEvent;
+    type Target = web_sys::WebSocket;
     const NAME:&'static str = "message";
 }
 
+/// Represents WebSocket.error event.
 #[derive(Debug,Default)]
 pub struct OnError;
 impl JsEvent for OnError {
-    type Arg = Event;
+    type Interface = web_sys::Event;
+    type Target = web_sys::WebSocket;
     const NAME:&'static str = "error";
 }
 
-#[derive(Derivative)]
-#[derivative(Debug(bound="Event::Arg: Debug"))]
-pub struct EventListener<Event:JsEvent> {
-    logger     : Logger,
-    #[derivative(Debug="ignore")]
-    target     : Option<Box<dyn AsRef<EventTarget>>>,
-    js_closure : OptionalFmMutClosure<Event::Arg>,
-}
 
-impl<Event:JsEvent> Default for EventListener<Event> {
-    fn default() -> Self {
-        Self {
-            logger:Logger::new(Event::NAME),
-            target:default(),
-            js_closure:default(),
-        }
-    }
-}
 
-impl<Event: JsEvent> EventListener<Event> {
-    pub fn new(logger:impl AnyLogger) -> Self where Self:Default {
-        Self {
-            logger : Logger::sub(logger,Event::NAME),
-            ..default()
-        }
-    }
-
-    pub fn target(&self) -> Result<&EventTarget,JsValue> {
-        let err = || js_sys::Error::new("No target object provided.");
-        self.target.as_ref().ok_or_else(err).map(AsRef::as_ref).map(AsRef::as_ref).map_err(Into::into)
-    }
-
-    pub fn js_function(&self) -> Result<&Function,JsValue> {
-        let err = || js_sys::Error::new("No closure has been set.");
-        self.js_closure.js_ref().ok_or_else(err).map_err(Into::into)
-    }
-
-    fn add_if_active(&mut self) -> Result<(),JsValue> {
-        match (self.target(), self.js_function()) {
-            (Ok(target),Ok(function)) => {
-                let name = Event::NAME;
-                info!(self.logger,"Attaching callback to event {name} on {js_to_string(target)}");
-                Event::add_listener(target,function)
-            },
-            _ => Ok(()),
-        }
-    }
-
-    fn remove_if_active(&mut self) -> Result<(),JsValue> {
-        match (self.target(), self.js_function()) {
-            (Ok(target),Ok(function)) => {
-                let name = Event::NAME;
-                info!(self.logger,"Detaching callback to event {name} on {js_to_string(target)}");
-                Event::remove_listener(target, function)
-            },
-            _ => Ok(()),
-        }
-    }
-
-    // fn remove_internal(&mut self, target:impl AsRef<EventTarget>, function:&Function) -> Result<(),JsValue> {
-    //     Event::remove_listener(target,function)?;
-    //     self.target = None;
-    //     Ok(())
-    // }
-    //
-    // fn remove_if_active(&mut self) -> Result<(),JsValue> {
-    //     match (self.target(), self.js_function()) {
-    //         (Ok(target),Ok(function)) => self.remove_internal(target,function),
-    //         _                         => Ok(()),
-    //     }
-    // }
-
-    pub fn set_target(&mut self, target:&dyn AsRef<EventTarget>) -> Result<(),JsValue> {
-        self.remove_if_active()?;
-        self.target = Some(Box::new(target.as_ref().clone()));
-        self.add_if_active()
-    }
-
-    pub fn set_callback(&mut self, f:impl ClosureFn<Event::Arg>) -> Result<(),JsValue> {
-        self.remove_if_active()?;
-        self.js_closure.wrap(f);
-        self.add_if_active()
-    }
-
-    pub fn clear_callback(&mut self) -> Result<(),JsValue> {
-        self.remove_if_active()?;
-        self.js_closure.clear();
-        Ok(())
-    }
-
-    // pub fn detach_from_target(&mut self, target:&dyn AsRef<EventTarget>) -> Result<(),JsValue> {
-    //     self.remove_if_active()?;
-    //     self.target = Some(Box::new(target.as_ref().clone()));
-    //     if let Ok(function) = self.js_function() {
-    //         Event::add_listener(&self.target,function)?;
-    //     }
-    //     Ok(())
-    // }
-    //
-    // pub fn remove(&mut self) -> Result<(),JsValue> {
-    //     self.remove_internal(self.target()?, self.js_function()?)
-    // }
-}
-
+// =============
+// === Model ===
+// =============
 
 /// Wrapper over JS `WebSocket` object and callbacks to its signals.
 #[derive(Debug)]
+#[allow(missing_docs)]
 pub struct Model {
-    #[allow(missing_docs)]
-    pub logger    : Logger,
-    /// Handle to the JS `WebSocket` object.
-    pub ws        : web_sys::WebSocket,
-    pub on_close: EventListener<OnClose>,
-    pub on_message: EventListener<OnMessage>,
-    pub on_open: EventListener<OnOpen>,
-    pub on_error: EventListener<OnError>,
+    pub logger            : Logger,
+    pub ws                : web_sys::WebSocket,
+    pub on_close          : ListenerSlot<OnClose>,
+    pub on_message        : ListenerSlot<OnMessage>,
+    pub on_open           : ListenerSlot<OnOpen>,
+    pub on_error          : ListenerSlot<OnError>,
+    pub on_close_internal : ListenerSlot<OnClose>,
+    /// When enabled, the WS will try to automatically reconnect whenever connection is lost.
+    pub reconnect         : bool,
 }
 
 impl Model {
     /// Wraps given WebSocket object.
     pub fn new(ws:web_sys::WebSocket, logger:Logger) -> Model {
         ws.set_binary_type(BinaryType::Arraybuffer);
-        let mut ret = Model {
-            ws,
-            on_close: EventListener::new(&logger),
-            on_message: EventListener::new(&logger),
-            on_open: EventListener::new(&logger),
-            on_error: EventListener::new(&logger),
+        Model {
+            on_close          : ListenerSlot::new(&ws, &logger),
+            on_message        : ListenerSlot::new(&ws, &logger),
+            on_open           : ListenerSlot::new(&ws, &logger),
+            on_error          : ListenerSlot::new(&ws, &logger),
+            on_close_internal : ListenerSlot::new(&ws, &logger),
+            reconnect         : true,
             logger,
-        };
-
-        ret.on_close.set_target(&ret.ws);
-        ret.on_message.set_target(&ret.ws);
-        ret.on_open.set_target(&ret.ws);
-        ret.on_error.set_target(&ret.ws);
-        ret
+            ws,
+        }
     }
 
+    /// Close the socket.
     pub fn close(&mut self, reason:&str) -> Result<(),JsValue> {
         self.ws.close_with_code_and_reason(1000,reason)?;
-        self.clear_callbacks()
+        self.clear_callbacks();
+        Ok(())
     }
 
-    /// Clears all the available callbacks.
-    pub fn clear_callbacks(&mut self) -> Result<(),JsValue> {
-        let Self{ws,on_close,on_error,on_message,on_open,logger:_logger} = self;
+    /// Clear all the available callbacks.
+    pub fn clear_callbacks(&mut self) {
+        let Self{on_close,on_error,on_message,on_open,on_close_internal,..} = self;
         // We don't care if removing actually removed anything.
         // If callbacks were not set, then they are clear from the start.
-        on_close.clear_callback()?;
-        on_error.clear_callback()?;
-        on_message.clear_callback()?;
-        on_open.clear_callback()
+        on_close.clear_callback();
+        on_error.clear_callback();
+        on_message.clear_callback();
+        on_open.clear_callback();
+        on_close_internal.clear_callback()
     }
 
+    /// Establish a new WS connection, using the same URL as the previous one.
+    /// All callbacks will be transferred to the new connection.
     pub fn reconnect(&mut self) -> Result<(),JsValue> {
         let url = self.ws.url();
         warning!(self.logger, "Reconnecting WS to {url}");
 
         let new_ws = web_sys::WebSocket::new(&url)?;
 
-        self.on_close.  set_target(&new_ws)?;
-        self.on_error.  set_target(&new_ws)?;
-        self.on_message.set_target(&new_ws)?;
-        self.on_open.   set_target(&new_ws)?;
+        self.on_close.         set_target(&new_ws);
+        self.on_error.         set_target(&new_ws);
+        self.on_message.       set_target(&new_ws);
+        self.on_open.          set_target(&new_ws);
+        self.on_close_internal.set_target(&new_ws);
         self.ws = new_ws;
 
         Ok(())
@@ -355,6 +257,18 @@ impl WebSocket {
         Ok(wst)
     }
 
+    pub fn reconnect_trigger(&self) -> impl FnMut(web_sys::CloseEvent) {
+        let model = Rc::downgrade(&self.model);
+        let logger = self.logger.clone();
+        move |_| {
+            if let Some(model) = model.upgrade() {
+                if let Err(e) = model.borrow_mut().reconnect() {
+                    error!(logger,"Failed to reconnect: {js_to_string(&e)}");
+                }
+            }
+        }
+    }
+
     /// Awaits until `open` signal has been emitted. Clears any callbacks on
     /// this `WebSocket`, if any has been set.
     async fn wait_until_open(&mut self) -> Result<(),ConnectingError> {
@@ -376,6 +290,7 @@ impl WebSocket {
         match receiver.next().await {
             Some(Ok(())) => {
                 self.model.borrow_mut().clear_callbacks();
+                self.model.borrow_mut().on_close_internal.set_callback(self.reconnect_trigger());
                 info!(self.logger, "Connection opened.");
                 Ok(())
             }
@@ -393,33 +308,22 @@ impl WebSocket {
     }
 
     /// Sets callback for the `close` event.
-    pub fn set_on_close(&mut self, mut f:impl FnMut(CloseEvent) + 'static) -> Result<(),JsValue> {
-        let model = Rc::downgrade(&self.model);
-        // We add our own layer on top of given callback to reconnect on closing.
-        // JS allows attaching only one callback for event, so they must be together.
-        let f = move |event| {
-            // First we call callback. Perhaps in reaction to closing it will delete the model
-            // and the reconnecting won't be needed.
-            f(event);
-            if let Some(model) = model.upgrade() {
-                model.borrow_mut().reconnect();
-            }
-        };
+    pub fn set_on_close(&mut self, f:impl FnMut(web_sys::CloseEvent) + 'static) {
         self.with_mut_model(move |model| model.on_close.set_callback(f))
     }
 
     /// Sets callback for the `error` event.
-    pub fn set_on_error(&mut self, f:impl FnMut(Event) + 'static) -> Result<(),JsValue> {
+    pub fn set_on_error(&mut self, f:impl FnMut(web_sys::Event) + 'static) {
         self.with_mut_model(move |model| model.on_error.set_callback(f))
     }
 
     /// Sets callback for the `message` event.
-    pub fn set_on_message(&mut self, f:impl FnMut(MessageEvent) + 'static) -> Result<(),JsValue> {
+    pub fn set_on_message(&mut self, f:impl FnMut(web_sys::MessageEvent) + 'static) {
         self.with_mut_model(move |model| model.on_message.set_callback(f))
     }
 
     /// Sets callback for the `open` event.
-    pub fn set_on_open(&mut self, f:impl FnMut(Event) + 'static) -> Result<(),JsValue> {
+    pub fn set_on_open(&mut self, f:impl FnMut(web_sys::Event) + 'static) {
         self.with_mut_model(move |model| model.on_open.set_callback(f))
     }
 

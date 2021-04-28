@@ -29,6 +29,7 @@ impl TestWithLocalPoolExecutor {
         Self {executor,running_task_count}
     }
 
+    /// Check if there are any uncompleted tasks in the pool.
     pub fn has_ongoing_task(&self) -> bool {
         self.running_task_count.get() > 0
     }
