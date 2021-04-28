@@ -7,6 +7,7 @@ use ensogl_core::application::Application;
 use ensogl_core::display::object::ObjectOps;
 use ensogl_core::system::web;
 use ensogl_gui_components::selector;
+use ensogl_gui_components::selector::Bounds;
 use ensogl_text_msdf_sys::run_once_initialized;
 use ensogl_theme as theme;
 
@@ -60,9 +61,9 @@ fn init(app:&Application) {
 
     let slider2 = make_number_picker(app);
     slider2.inner().frp.resize(Vector2(400.0,50.0));
-    slider2.inner().frp.set_bounds.emit((-100.0,100.0));
+    slider2.inner().frp.set_bounds.emit(Bounds::new(-100.0,100.0));
     slider2.inner().set_position_y(50.0);
-    slider2.inner().frp.use_overflow_bounds((-150.0,200.0));
+    slider2.inner().frp.use_overflow_bounds(Bounds::new(-150.0,200.0));
     slider2.inner().frp.set_caption(Some("Value:".to_string()));
 
     let slider3 = make_range_picker(app);
@@ -70,6 +71,6 @@ fn init(app:&Application) {
 
     let slider4 = make_range_picker(app);
     slider4.inner().set_position_y(-200.0);
-    slider4.inner().frp.use_overflow_bounds((-2.0,3.0));
+    slider4.inner().frp.use_overflow_bounds(Bounds::new(-2.0,3.0));
     slider4.inner().frp.set_caption(Some("Caption".to_string()));
 }

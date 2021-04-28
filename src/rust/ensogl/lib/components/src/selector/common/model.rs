@@ -207,12 +207,12 @@ impl Model {
         self.track.right.set(value);
     }
 
-    pub fn set_background_range(&self, value:common::Range, size:Vector2) {
-        self.track.left.set(value.0);
-        self.track.right.set(value.1);
+    pub fn set_background_range(&self, value:common::Bounds, size:Vector2) {
+        self.track.left.set(value.start);
+        self.track.right.set(value.end);
 
-        self.track_handle_left.set_position_x(value.0 * size.x - size.x / 2.0);
-        self.track_handle_right.set_position_x(value.1 * size.x  - size.x / 2.0);
+        self.track_handle_left.set_position_x(value.start * size.x - size.x / 2.0);
+        self.track_handle_right.set_position_x(value.end * size.x  - size.x / 2.0);
     }
 
     pub fn set_center_label_content(&self, value:f32) {

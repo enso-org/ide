@@ -66,7 +66,9 @@ impl component::Frp<Model> for Frp {
                 norm_value                 <- all2(&frp.value,&frp.bounds).map(normalise_value);
                 _has_overflow_bounds       <- frp.use_overflow_bounds.map(|value| value.is_none());
                 normalised_overflow_bounds <- all(&frp.use_overflow_bounds,&frp.bounds).map(|(overflow_bounds,bounds)|
-                    overflow_bounds.map(|(lower,upper)| (normalise_value(&(lower,*bounds)),normalise_value(&(upper,*bounds))) )
+                    overflow_bounds.map(|Bounds{start,end}|
+                        Bounds::new(normalise_value(&(start,*bounds)),normalise_value(&(end,*bounds)))
+                    )
                 );
                 has_underflow <- norm_value.map(|value| *value < 0.0);
                 has_overflow  <- norm_value.map(|value| *value > 1.0);
@@ -98,7 +100,7 @@ impl component::Frp<Model> for Frp {
             }
 
         // Init defaults.
-        frp.set_bounds((0.0,1.0));
+        frp.set_bounds(Bounds::new(0.0,1.0));
         frp.allow_click_selection(false);
         frp.use_overflow_bounds(None);
         frp.set_value(0.5);

@@ -6,6 +6,7 @@ mod common;
 use ensogl_core::application;
 use ensogl_core::application::Application;
 
+pub use common::Bounds;
 
 
 // =====================
