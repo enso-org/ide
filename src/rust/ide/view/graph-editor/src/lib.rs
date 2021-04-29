@@ -709,6 +709,8 @@ impl Type {
 
     /// If the type consists of a single identifier then we remove all module qualifiers:
     /// ```
+    /// use ide_view_graph_editor::*;
+    ///
     /// let input       = Type::from("Foo.Bar.Baz.Vector".to_string());
     /// let expectation = Type::from("Vector".to_string());
     /// assert_eq!(input.abbreviate(), expectation);
@@ -716,6 +718,8 @@ impl Type {
     ///
     /// If the type contains multiple identifiers then we just abbreviate the first one:
     /// ```
+    /// use ide_view_graph_editor::*;
+    ///
     /// let input       = Type::from("Foo.Bar.Baz.Vector Math.Number".to_string());
     /// let expectation = Type::from("Vector Math.Number".to_string());
     /// assert_eq!(input.abbreviate(), expectation);

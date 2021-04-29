@@ -511,9 +511,10 @@ impl Model {
             );
             full_type_timer.start <+ frp.on_hover.on_true();
             full_type_timer.reset <+ frp.on_hover.on_false();
-            type_label.set_content <+ all_with(&frp.tp,&full_type_timer.value,|tp,&show_full_tp| {
+            showing_full_type     <- bool(&full_type_timer.on_end,&full_type_timer.on_reset);
+            type_label.set_content <+ all_with(&frp.tp,&showing_full_type,|tp,&show_full_tp| {
                 if let Some(tp) = tp {
-                    if show_full_tp == 1.0 {
+                    if show_full_tp {
                         tp.to_string()
                     } else {
                         tp.abbreviate().to_string()
