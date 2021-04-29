@@ -33,7 +33,7 @@ const PORT_OPACITY_NOT_HOVERED : f32 = 0.25;
 const SEGMENT_GAP_WIDTH        : f32 = 2.0;
 const HOVER_AREA_PADDING       : f32 = 20.0;
 const INFINITE                 : f32 = 99999.0;
-const TYPE_LABEL_OFFSET        : f32 = -30.0;
+const FULL_TYPE_ONSET_DELAY_MS : f32 = 2000.0;
 
 
 
@@ -161,6 +161,7 @@ pub mod single_port {
 pub use multi_port::View as MultiPortView;
 use ensogl::application::Application;
 use std::f32::consts::PI;
+use ensogl::animation::animation::delayed::DelayedAnimation;
 
 /// Implements the shape for a segment of the OutputPort with multiple output ports.
 pub mod multi_port {
@@ -432,7 +433,8 @@ impl Model {
         self.shape = Some(shape.clone());
 
         let type_label = app.new_view::<text::Area>();
-        type_label.set_position_y(TYPE_LABEL_OFFSET);
+        let offset_y = styles.get_number(ensogl_theme::graph_editor::node::type_label::offset_y);
+        type_label.set_position_y(offset_y);
         self.type_label = Some(type_label.clone());
 
         let display_object = display::object::Instance::new(logger);
@@ -456,6 +458,9 @@ impl Model {
         let type_label_opacity = Animation::<f32>::new(network);
         let port_count         = self.port_count;
         let port_index         = self.port_index;
+        let full_type_timer    = DelayedAnimation::new(network);
+        full_type_timer.set_delay(FULL_TYPE_ONSET_DELAY_MS);
+        full_type_timer.set_duration(0.0);
 
         frp::extend! { network
 
@@ -504,8 +509,19 @@ impl Model {
             frp.source.tp <+ all_with(&frp.set_usage_type,&frp.set_definition_type,
                 |usage_tp,def_tp| usage_tp.clone().or_else(|| def_tp.clone())
             );
-            type_label.set_content <+ frp.tp.map(|tp|
-                tp.as_ref().map_or_else(default,|s| s.to_string()));
+            full_type_timer.start <+ frp.on_hover.on_true();
+            full_type_timer.reset <+ frp.on_hover.on_false();
+            type_label.set_content <+ all_with(&frp.tp,&full_type_timer.value,|tp,&show_full_tp| {
+                if let Some(tp) = tp {
+                    if show_full_tp == 1.0 {
+                        tp.to_string()
+                    } else {
+                        tp.abbreviate().to_string()
+                    }
+                } else {
+                    "".to_string()
+                }
+            });
 
             color_tgt <- frp.tp.map(f!([styles](t) type_coloring::compute_for_selection(t.as_ref(),&styles)));
             color.target <+ color_tgt;

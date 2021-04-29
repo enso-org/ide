@@ -54,7 +54,7 @@ const ERROR_VISUALIZATION_SIZE       : (f32,f32) = visualization::container::DEF
 
 const VISUALIZATION_OFFSET_Y         : f32       = -120.0;
 
-const VIS_PREVIEW_ONSET_MS   : f32 = 3000.0;
+const VIS_PREVIEW_ONSET_MS   : f32 = 4000.0;
 const ERROR_PREVIEW_ONSET_MS : f32 = 0000.0;
 /// A type of unresolved methods. We filter them out, because we don't want to treat them as types
 /// for ports and edges coloring (due to bad UX otherwise).

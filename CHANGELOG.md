@@ -49,8 +49,8 @@
   big, and it's cheaper to send the precomputed bins rather than the entire
   dataset.
 - [Output type labels.][1427] The labels, that show the output type of a node on
-  hover, appear now in a fixed position right below the node, in a pop-up, as
-  they did before.
+  hover, appear now in a fixed position right below the node, instead of a
+  pop-up, as they did before.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
