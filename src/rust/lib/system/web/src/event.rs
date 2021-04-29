@@ -5,6 +5,12 @@ use web_sys::EventTarget;
 
 pub mod listener;
 
+
+
+// =============
+// === Event ===
+// =============
+
 /// This trait represents an event that may file from some specific JS object.
 ///
 /// For example, `WebSocket.close` is such an event.

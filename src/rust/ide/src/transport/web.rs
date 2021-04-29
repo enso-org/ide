@@ -3,6 +3,7 @@
 use crate::prelude::*;
 
 use ensogl_system_web::js_to_string;
+use ensogl_system_web::event::listener::Slot;
 use failure::Error;
 use futures::channel::mpsc;
 use json_rpc::Transport;
@@ -11,9 +12,7 @@ use utils::channel;
 use wasm_bindgen::JsCast;
 use web_sys::BinaryType;
 
-use enso_logger::DefaultTraceLogger as Logger;
 
-use ensogl_system_web::event::listener::Slot;
 
 // ==============
 // === Errors ===
@@ -32,6 +31,14 @@ pub enum ConnectingError {
     /// unreliable.
     #[fail(display = "Failed to establish connection.")]
     FailedToConnect,
+}
+
+impl ConnectingError {
+    /// Create a `ConstructionError` value from a JS value describing an error.
+    pub fn construction_error(js_val:impl AsRef<JsValue>) -> Self {
+        let text = js_to_string(js_val);
+        ConnectingError::ConstructionError(text)
+    }
 }
 
 /// Error that may occur when attempting to send the data over WebSocket
@@ -147,8 +154,9 @@ pub mod event {
 // === Model ===
 // =============
 
-/// Wrapper over JS `WebSocket` object and callbacks to its signals.
-#[derive(Debug)]
+/// An owning wrapper over JS `WebSocket` object and callbacks to its signals.
+#[derive(Derivative)]
+#[derivative(Debug)]
 #[allow(missing_docs)]
 pub struct Model {
     // === User-provided callbacks ===
@@ -227,6 +235,7 @@ impl Model {
 
 impl Drop for Model {
     fn drop(&mut self) {
+        info!(self.logger, "Dropping WS model");
         if let Err(e) = self.close("Rust Value has been dropped.") {
             error!(self.logger,"Error when closing socket due to being dropped: {js_to_string(&e)}")
         }
@@ -239,35 +248,28 @@ impl Drop for Model {
 // === WebSocket ===
 // =================
 
-/// Wrapper over JS `WebSocket` object and callbacks to its signals.
-#[derive(Debug)]
+/// Wrapper over JS `WebSocket` meant for general use.
+#[derive(Clone,CloneRef,Debug)]
 pub struct WebSocket {
     #[allow(missing_docs)]
-    pub logger     : DefaultTraceLogger,
+    pub logger : Logger,
     model : Rc<RefCell<Model>>,
 }
 
 impl WebSocket {
-    /// Wraps given WebSocket object.
-    pub fn new
-    (ws:web_sys::WebSocket, parent:impl AnyLogger, name:impl AsRef<str>) -> WebSocket {
-        let logger = DefaultTraceLogger::sub(parent,name);
-        let model = Model::new(ws,logger.clone());
-
-        WebSocket {
-            logger,
-            model  : Rc::new(RefCell::new(model)),
-        }
+    /// Wrap given raw JS WebSocket object.
+    pub fn new(ws:web_sys::WebSocket, parent:impl AnyLogger) -> WebSocket {
+        let logger = Logger::sub(parent,ws.url());
+        let model  = Rc::new(RefCell::new(Model::new(ws,logger.clone())));
+        WebSocket {logger,model}
     }
 
     /// Establish connection with endpoint defined by the given URL and wrap it.
     /// Asynchronous, because it waits until connection is established.
     pub async fn new_opened
-    (parent:impl AnyLogger, url:impl Str) -> Result<WebSocket,ConnectingError> {
-        let ws = web_sys::WebSocket::new(url.as_ref()).map_err(|e| {
-            ConnectingError::ConstructionError(js_to_string(&e))
-        })?;
-        let mut wst = WebSocket::new(ws,&parent,url.into());
+    (parent:impl AnyLogger, url:&str) -> Result<WebSocket,ConnectingError> {
+        let ws      = web_sys::WebSocket::new(url).map_err(ConnectingError::construction_error)?;
+        let mut wst = WebSocket::new(ws,&parent);
         wst.wait_until_open().await?;
         Ok(wst)
     }
@@ -432,39 +434,34 @@ impl Transport for WebSocket {
 mod tests {
     use super::*;
 
-    use utils::test::traits::*;
     use ensogl::system::web;
-    use crate::executor::test_utils::TestWithLocalPoolExecutor;
     use std::time::Duration;
-    use ensogl_system_web::sleep;
 
 
-    #[wasm_bindgen_test::wasm_bindgen_test(async)]
+    /// Provisional code allowing testing WS behavior and its events.
+    /// Keeping it for future debug purposes.
+    // #[wasm_bindgen_test::wasm_bindgen_test]
     #[allow(dead_code)]
-    async fn websocket_fun() {
-        let logger = DefaultTraceLogger::new("Test");
-
+    async fn websocket_tests() {
         web::set_stdout();
-        println!("Start");
+        executor::web::test::setup_and_forget();
+        let logger = DefaultTraceLogger::new("Test");
+        info!(logger,"Started");
 
-        let executor = executor::web::EventLoopExecutor::new_running();
-        let _executor = crate::initializer::setup_global_executor();
-        executor::global::set_spawner(executor.spawner.clone());
-        std::mem::forget(executor);
-
-        let ws     = WebSocket::new_opened(logger,"ws://localhost:30445").await;
+        // Create WebSocket
+        let ws     = WebSocket::new_opened(&logger,"ws://localhost:30445").await;
         let mut ws = ws.expect("Couldn't connect to WebSocket server.");
-        println!("{:?}",ws);
-        println!("Pre-Endut");
+        info!(logger,"WebSocket opened: {ws:?}");
 
+        // Log events
         let handler = ws.establish_event_stream().for_each(|arg| {
-            println!("{:?}",arg);
+            println!("Socket emitted event: {:?}",arg);
             futures::future::ready(())
         });
         executor::global::spawn(handler);
 
-
+        // Close socket after some delay.
         web::sleep(Duration::from_secs(20)).await;
-        println!("Endut");
+        info!(logger,"Finished");
     }
 }
