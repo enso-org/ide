@@ -206,7 +206,6 @@ commands.start.rust = async function(argv) {
 commands.start.js = async function (argv) {
     await installJsDeps()
     console.log(`Building JS target.` + argv)
-    console.warn("paths",paths.dist.bin, paths.get_project_manager_path(paths.dist.bin))
     // The backend path must be prepended, not appended. The `targetArgs` might include `-- …` and
     // appended args could end up being passed to the spawned backend process.
     const args = ['--backend-path', paths.get_project_manager_path(paths.dist.bin)].concat(targetArgs)
