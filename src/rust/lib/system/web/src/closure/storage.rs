@@ -61,4 +61,20 @@ impl <Arg> OptionalFmMutClosure<Arg> {
     pub fn clear(&mut self) {
         self.closure = None;
     }
+
+    /// Register this closure as an event handler.
+    /// No action is taken if there is no closure stored.
+    pub fn add_listener<Event:crate::event::Event>(&self, target:&Event::Target) {
+        if let Some(function) = self.js_ref() {
+            Event::add_listener(target, function)
+        }
+    }
+
+    /// Unregister this closure as an event handler. The closure must be the same as when it was
+    /// registered.
+    pub fn remove_listener<Event:crate::event::Event>(&self, target:&Event::Target) {
+        if let Some(function) = self.js_ref() {
+            Event::remove_listener(target, function)
+        }
+    }
 }

@@ -9,12 +9,12 @@ pub mod listener;
 ///
 /// For example, `WebSocket.close` is such an event.
 pub trait Event {
-    /// The type of the object emitting event, e.g. `web_sys::WebSocket`.
-    type Target : AsRef<EventTarget> + AsRef<JsValue> + Clone;
-
     /// The type of the event -- it will be the type of value passed to the event listeners.
     /// For example `web_sys::CloseEvent`.
     type Interface : AsRef<web_sys::Event>;
+
+    /// The type of the object emitting event, e.g. `web_sys::WebSocket`.
+    type Target : AsRef<EventTarget> + AsRef<JsValue> + Clone + PartialEq;
 
     /// The name of the event. For example `"close"`.
     const NAME:&'static str;

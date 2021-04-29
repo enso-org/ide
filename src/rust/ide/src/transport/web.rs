@@ -13,8 +13,7 @@ use web_sys::BinaryType;
 
 use enso_logger::DefaultTraceLogger as Logger;
 
-use ensogl_system_web::event::Event as JsEvent;
-use ensogl_system_web::event::listener::ListenerSlot;
+use ensogl_system_web::event::listener::Slot;
 
 // ==============
 // === Errors ===
@@ -100,41 +99,46 @@ impl State {
 // === JS Events ===
 // =================
 
+/// Description of events that can be emitted by JS WebSocket.
+pub mod event {
+    use super::*;
+    use ensogl_system_web::event::Event;
 
-/// Represents WebSocket.open event.
-#[derive(Debug,Default)]
-pub struct OnOpen;
-impl JsEvent for OnOpen {
-    type Interface = web_sys::Event;
-    type Target = web_sys::WebSocket;
-    const NAME:&'static str = "open";
-}
+    /// Represents WebSocket.open event.
+    #[derive(Clone,Copy,Debug)]
+    pub enum Open{}
+    impl Event for Open {
+        type Interface = web_sys::Event;
+        type Target = web_sys::WebSocket;
+        const NAME:&'static str = "open";
+    }
 
-/// Represents WebSocket.close event.
-#[derive(Debug,Default)]
-pub struct OnClose;
-impl JsEvent for OnClose {
-    type Interface = web_sys::CloseEvent;
-    type Target = web_sys::WebSocket;
-    const NAME:&'static str = "close";
-}
+    /// Represents WebSocket.close event.
+    #[derive(Clone,Copy,Debug)]
+    pub enum Close{}
+    impl Event for Close {
+        type Interface = web_sys::CloseEvent;
+        type Target = web_sys::WebSocket;
+        const NAME:&'static str = "close";
+    }
 
-/// Represents WebSocket.message event.
-#[derive(Debug,Default)]
-pub struct OnMessage;
-impl JsEvent for OnMessage {
-    type Interface = web_sys::MessageEvent;
-    type Target = web_sys::WebSocket;
-    const NAME:&'static str = "message";
-}
+    /// Represents WebSocket.message event.
+    #[derive(Clone,Copy,Debug)]
+    pub enum Message{}
+    impl Event for Message {
+        type Interface = web_sys::MessageEvent;
+        type Target = web_sys::WebSocket;
+        const NAME:&'static str = "message";
+    }
 
-/// Represents WebSocket.error event.
-#[derive(Debug,Default)]
-pub struct OnError;
-impl JsEvent for OnError {
-    type Interface = web_sys::Event;
-    type Target = web_sys::WebSocket;
-    const NAME:&'static str = "error";
+    /// Represents WebSocket.error event.
+    #[derive(Clone,Copy,Debug)]
+    pub enum Error{}
+    impl Event for Error {
+        type Interface = web_sys::Event;
+        type Target = web_sys::WebSocket;
+        const NAME:&'static str = "error";
+    }
 }
 
 
@@ -147,13 +151,18 @@ impl JsEvent for OnError {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct Model {
+    // === User-provided callbacks ===
+    pub on_close          : Slot<event::Close>,
+    pub on_message        : Slot<event::Message>,
+    pub on_open           : Slot<event::Open>,
+    pub on_error          : Slot<event::Error>,
+
+
+    // === Internal ===
     pub logger            : Logger,
     pub ws                : web_sys::WebSocket,
-    pub on_close          : ListenerSlot<OnClose>,
-    pub on_message        : ListenerSlot<OnMessage>,
-    pub on_open           : ListenerSlot<OnOpen>,
-    pub on_error          : ListenerSlot<OnError>,
-    pub on_close_internal : ListenerSlot<OnClose>,
+    /// Special callback on "close" event. Must be invoked after `on_close`.
+    pub on_close_internal : Slot<event::Close>,
     /// When enabled, the WS will try to automatically reconnect whenever connection is lost.
     pub reconnect         : bool,
 }
@@ -163,11 +172,11 @@ impl Model {
     pub fn new(ws:web_sys::WebSocket, logger:Logger) -> Model {
         ws.set_binary_type(BinaryType::Arraybuffer);
         Model {
-            on_close          : ListenerSlot::new(&ws, &logger),
-            on_message        : ListenerSlot::new(&ws, &logger),
-            on_open           : ListenerSlot::new(&ws, &logger),
-            on_error          : ListenerSlot::new(&ws, &logger),
-            on_close_internal : ListenerSlot::new(&ws, &logger),
+            on_close          : Slot::new(&ws, &logger),
+            on_message        : Slot::new(&ws, &logger),
+            on_open           : Slot::new(&ws, &logger),
+            on_error          : Slot::new(&ws, &logger),
+            on_close_internal : Slot::new(&ws, &logger),
             reconnect         : true,
             logger,
             ws,
@@ -196,6 +205,10 @@ impl Model {
     /// Establish a new WS connection, using the same URL as the previous one.
     /// All callbacks will be transferred to the new connection.
     pub fn reconnect(&mut self) -> Result<(),JsValue> {
+       if !self.reconnect {
+           return Err(js_sys::Error::new("Reconnecting has been disabled").into());
+       }
+
         let url = self.ws.url();
         warning!(self.logger, "Reconnecting WS to {url}");
 
@@ -219,6 +232,8 @@ impl Drop for Model {
         }
     }
 }
+
+
 
 // =================
 // === WebSocket ===
@@ -257,8 +272,9 @@ impl WebSocket {
         Ok(wst)
     }
 
-    pub fn reconnect_trigger(&self) -> impl FnMut(web_sys::CloseEvent) {
-        let model = Rc::downgrade(&self.model);
+    /// Generate a callback to be invoked when socket needs reconnecting.
+    fn reconnect_trigger(&self) -> impl FnMut(web_sys::CloseEvent) {
+        let model  = Rc::downgrade(&self.model);
         let logger = self.logger.clone();
         move |_| {
             if let Some(model) = model.upgrade() {
@@ -309,7 +325,11 @@ impl WebSocket {
 
     /// Sets callback for the `close` event.
     pub fn set_on_close(&mut self, f:impl FnMut(web_sys::CloseEvent) + 'static) {
-        self.with_mut_model(move |model| model.on_close.set_callback(f))
+        self.with_mut_model(move |model| {
+            model.on_close.set_callback(f);
+            // Force internal callback to be after the user-defined one.
+            model.on_close_internal.reattach();
+        });
     }
 
     /// Sets callback for the `error` event.
@@ -389,7 +409,7 @@ impl Transport for WebSocket {
                 let event = TransportEvent::BinaryMessage(binary_data);
                 channel::emit(&transmitter_copy,event);
             } else {
-                info!(logger_copy,"Received other kind of message: {js_to_string(&e.data())}.");
+                info!(logger_copy,"Received other kind of message: {js_to_string(e.data())}.");
             }
         });
 
