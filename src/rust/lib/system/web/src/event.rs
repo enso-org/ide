@@ -1,9 +1,11 @@
+//! Utilities for DOM events.
+
+pub mod listener;
+
 use crate::prelude::*;
 
 use js_sys::Function;
 use web_sys::EventTarget;
-
-pub mod listener;
 
 
 
@@ -11,7 +13,7 @@ pub mod listener;
 // === Event ===
 // =============
 
-/// This trait represents an event that may file from some specific JS object.
+/// This trait represents a kind of event that may fire from some specific JS object.
 ///
 /// For example, `WebSocket.close` is such an event.
 pub trait Event {

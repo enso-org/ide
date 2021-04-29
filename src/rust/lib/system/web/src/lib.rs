@@ -14,6 +14,7 @@ pub mod platform;
 /// Common types that should be visible across the whole crate.
 pub mod prelude {
     pub use enso_logger::*;
+    pub use enso_logger::DefaultInfoLogger as Logger;
     pub use enso_prelude::*;
     pub use wasm_bindgen::prelude::*;
 }

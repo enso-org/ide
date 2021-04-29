@@ -440,7 +440,9 @@ mod tests {
 
     /// Provisional code allowing testing WS behavior and its events.
     /// Keeping it for future debug purposes.
-    // #[wasm_bindgen_test::wasm_bindgen_test]
+    /// To run uncomment attribute line and invoke:
+    /// `cargo watch -- wasm-pack test .\ide\ --chrome  --  websocket_test`
+    //#[wasm_bindgen_test::wasm_bindgen_test]
     #[allow(dead_code)]
     async fn websocket_tests() {
         web::set_stdout();
@@ -454,10 +456,12 @@ mod tests {
         info!(logger,"WebSocket opened: {ws:?}");
 
         // Log events
-        let handler = ws.establish_event_stream().for_each(|arg| {
-            println!("Socket emitted event: {:?}",arg);
+        let handler = ws.establish_event_stream().for_each(f!([logger](event) {
+            info!(logger,"Socket emitted event: {event:?}");
             futures::future::ready(())
-        });
+        }));
+
+        // Spawn task to process events stream.
         executor::global::spawn(handler);
 
         // Close socket after some delay.
