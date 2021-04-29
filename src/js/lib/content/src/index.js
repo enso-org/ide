@@ -441,7 +441,7 @@ function ok(value) {
 
 /// Check whether the value is a string with value `"true"`/`"false"`, if so, return the
 // appropriate boolean instead. Otherwise, return the original value.
-function tryAsBoolean(value) {
+function parseBooleanOrLeaveAsIs(value) {
     if (value === "true"){
         return true
     }
@@ -453,9 +453,9 @@ function tryAsBoolean(value) {
 
 /// Turn all values that have a boolean in string representation (`"true"`/`"false"`) into actual
 /// booleans (`true/`false``).
-function ensureBooleans(config) {
+function parseAllBooleans(config) {
     for (const key in config) {
-        config[key] = tryAsBoolean(config[key])
+        config[key] = parseBooleanOrLeaveAsIs(config[key])
     }
 }
 
@@ -482,7 +482,7 @@ API.main = async function (inputConfig) {
     let urlParams = new URLSearchParams(window.location.search);
     let urlConfig = Object.fromEntries(urlParams.entries())
     let config    = Object.assign(defaultConfig,inputConfig,urlConfig)
-    ensureBooleans(config)
+    parseAllBooleans(config)
     API[globalConfig.windowAppScopeConfigName] = config
 
     initLogging(config)
