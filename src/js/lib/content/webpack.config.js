@@ -51,8 +51,9 @@ module.exports = {
     },
     resolve: {
         alias: {
-            wasm_rust_glue$: path.resolve(wasmPath,'ide.js')
-        }
+            wasm_rust_glue$: path.resolve(wasmPath,'ide.js'),
+        },
+        extensions: [ '.ts', '.js' ],
     },
     performance: {
         hints: false,
@@ -65,6 +66,11 @@ module.exports = {
                 test: /\.ya?ml$/,
                 type: 'json',
                 use: 'yaml-loader'
+            },
+            {
+                test: /\.tsx?/,
+                use: 'ts-loader',
+                exclude: /node_modules/,
             }
         ]
     }
