@@ -3,12 +3,10 @@
 /// allowing to choose a debug rendering test from.
 
 import * as loader_module from 'enso-studio-common/src/loader'
-import * as html_utils    from 'enso-studio-common/src/html_utils'
-import * as animation     from 'enso-studio-common/src/animation'
-import * as globalConfig  from '../../../../config.yaml'
-import cfg                from '../../../config'
-
-
+import * as html_utils from 'enso-studio-common/src/html_utils'
+import * as animation from 'enso-studio-common/src/animation'
+import * as globalConfig from '../../../../config.yaml'
+import cfg from '../../../config'
 
 // =================
 // === Constants ===
@@ -16,16 +14,12 @@ import cfg                from '../../../config'
 
 const ALIVE_LOG_INTERVAL = 1000 * 60
 
-
-
 // ==================
 // === Global API ===
 // ==================
 
 let API = {}
 window[globalConfig.windowAppScopeName] = API
-
-
 
 // ========================
 // === Content Download ===
@@ -36,27 +30,27 @@ let incorrect_mime_type_warning = `
 'application/wasm' MIME type. Falling back to 'WebAssembly.instantiate' which is slower.
 `
 
-function wasm_instantiate_streaming(resource,imports) {
-    return WebAssembly.instantiateStreaming(resource,imports).catch(e => {
-        return wasm_fetch.then(r => {
-            if (r.headers.get('Content-Type') != 'application/wasm') {
-                console.warn(`${incorrect_mime_type_warning} Original error:\n`, e)
-                return r.arrayBuffer()
-            } else {
-                throw("Server not configured to serve WASM with 'application/wasm' mime type.")
-            }
-        }).then(bytes => WebAssembly.instantiate(bytes,imports))
+function wasm_instantiate_streaming(resource, imports) {
+    return WebAssembly.instantiateStreaming(resource, imports).catch(e => {
+        return wasm_fetch
+            .then(r => {
+                if (r.headers.get('Content-Type') != 'application/wasm') {
+                    console.warn(`${incorrect_mime_type_warning} Original error:\n`, e)
+                    return r.arrayBuffer()
+                } else {
+                    throw "Server not configured to serve WASM with 'application/wasm' mime type."
+                }
+            })
+            .then(bytes => WebAssembly.instantiate(bytes, imports))
     })
 }
-
 
 /// Downloads the WASM binary and its dependencies. Displays loading progress bar unless provided
 /// with `{use_loader:false}` option.
 async function download_content(config) {
     let wasm_glue_fetch = await fetch(config.wasm_glue_url)
-    let wasm_fetch      = await fetch(config.wasm_url)
-    let loader =
-        new loader_module.Loader([wasm_glue_fetch,wasm_fetch], config)
+    let wasm_fetch = await fetch(config.wasm_url)
+    let loader = new loader_module.Loader([wasm_glue_fetch, wasm_fetch], config)
 
     // TODO [mwu]
     // Progress indication for WASM loading is hereby capped at 30%.
@@ -65,37 +59,35 @@ async function download_content(config) {
     // See https://github.com/enso-org/ide/issues/1237 for an immediate reason.
     // See https://github.com/enso-org/ide/issues/1105 for a broader context.
     loader.cap_progress_at = 0.3
-    
+
     loader.done.then(() => {
         console.groupEnd()
-        console.log("Download finished. Finishing WASM compilation.")
+        console.log('Download finished. Finishing WASM compilation.')
     })
 
     let download_size = loader.show_total_bytes()
     let download_info = `Downloading WASM binary and its dependencies (${download_size}).`
-    let wasm_loader   = html_utils.log_group_collapsed(download_info, async () => {
+    let wasm_loader = html_utils.log_group_collapsed(download_info, async () => {
         let wasm_glue_js = await wasm_glue_fetch.text()
-        let wasm_glue    = Function("let exports = {};" + wasm_glue_js + "; return exports")()
-        let imports      = wasm_glue.wasm_imports()
-        console.log("WASM dependencies loaded.")
-        console.log("Starting online WASM compilation.")
-        let wasm_loader       = await wasm_instantiate_streaming(wasm_fetch,imports)
+        let wasm_glue = Function('let exports = {};' + wasm_glue_js + '; return exports')()
+        let imports = wasm_glue.wasm_imports()
+        console.log('WASM dependencies loaded.')
+        console.log('Starting online WASM compilation.')
+        let wasm_loader = await wasm_instantiate_streaming(wasm_fetch, imports)
         wasm_loader.wasm_glue = wasm_glue
         return wasm_loader
     })
 
-    let wasm = await wasm_loader.then(({instance,module,wasm_glue}) => {
+    let wasm = await wasm_loader.then(({ instance, module, wasm_glue }) => {
         let wasm = instance.exports
-        wasm_glue.after_load(wasm,module)
+        wasm_glue.after_load(wasm, module)
         return wasm
     })
-    console.log("WASM Compiled.")
+    console.log('WASM Compiled.')
 
     await loader.initialized
-    return {wasm,loader}
+    return { wasm, loader }
 }
-
-
 
 // ====================
 // === Debug Screen ===
@@ -105,45 +97,44 @@ async function download_content(config) {
 let main_entry_point = 'ide'
 
 /// Prefix name of each scene defined in the WASM binary.
-let wasm_entry_point_pfx = "entry_point_"
-
+let wasm_entry_point_pfx = 'entry_point_'
 
 /// Displays a debug screen which allows the user to run one of predefined debug examples.
-function show_debug_screen(wasm,msg) {
-    API.remoteLog("show_debug_screen")
+function show_debug_screen(wasm, msg) {
+    API.remoteLog('show_debug_screen')
     let names = []
     for (let fn of Object.getOwnPropertyNames(wasm)) {
         if (fn.startsWith(wasm_entry_point_pfx)) {
-            let name = fn.replace(wasm_entry_point_pfx,"")
+            let name = fn.replace(wasm_entry_point_pfx, '')
             names.push(name)
         }
     }
 
-    if(msg==="" || msg===null || msg===undefined) { msg = "" }
+    if (msg === '' || msg === null || msg === undefined) {
+        msg = ''
+    }
     let debug_screen_div = html_utils.new_top_level_div()
-    let newDiv     = document.createElement("div")
-    let newContent = document.createTextNode(msg + "Available entry points:")
-    let currentDiv = document.getElementById("app")
-    let ul         = document.createElement('ul')
+    let newDiv = document.createElement('div')
+    let newContent = document.createTextNode(msg + 'Available entry points:')
+    let currentDiv = document.getElementById('app')
+    let ul = document.createElement('ul')
     debug_screen_div.style.position = 'absolute'
-    debug_screen_div.style.zIndex   = 1
+    debug_screen_div.style.zIndex = 1
     newDiv.appendChild(newContent)
     debug_screen_div.appendChild(newDiv)
     newDiv.appendChild(ul)
 
     for (let name of names) {
-        let li       = document.createElement('li')
-        let a        = document.createElement('a')
+        let li = document.createElement('li')
+        let a = document.createElement('a')
         let linkText = document.createTextNode(name)
         ul.appendChild(li)
         a.appendChild(linkText)
-        a.title   = name
-        a.href    = "?entry="+name
+        a.title = name
+        a.href = '?entry=' + name
         li.appendChild(a)
     }
 }
-
-
 
 // ====================
 // === Scam Warning ===
@@ -158,22 +149,22 @@ function printScamWarning() {
         font-weight : bold;
         padding: 10px 20px 10px 20px;
     `
-    let headerCSS1 = headerCSS + "font-size : 46px;"
-    let headerCSS2 = headerCSS + "font-size : 20px;"
-    let msgCSS     = "font-size:16px;"
+    let headerCSS1 = headerCSS + 'font-size : 46px;'
+    let headerCSS2 = headerCSS + 'font-size : 20px;'
+    let msgCSS = 'font-size:16px;'
 
-    let msg1 = "This is a browser feature intended for developers. If someone told you to " +
-               "copy-paste something here, it is a scam and will give them access to your " +
-               "account and data."
-    let msg2 = "See https://github.com/enso-org/ide/blob/main/docs/security/selfxss.md for more " +
-               "information."
-    console.log("%cStop!",headerCSS1)
-    console.log("%cYou may be victim of a scam!",headerCSS2)
-    console.log("%c"+msg1,msgCSS)
-    console.log("%c"+msg2,msgCSS)
+    let msg1 =
+        'This is a browser feature intended for developers. If someone told you to ' +
+        'copy-paste something here, it is a scam and will give them access to your ' +
+        'account and data.'
+    let msg2 =
+        'See https://github.com/enso-org/ide/blob/main/docs/security/selfxss.md for more ' +
+        'information.'
+    console.log('%cStop!', headerCSS1)
+    console.log('%cYou may be victim of a scam!', headerCSS2)
+    console.log('%c' + msg1, msgCSS)
+    console.log('%c' + msg2, msgCSS)
 }
-
-
 
 // ======================
 // === Remote Logging ===
@@ -181,18 +172,22 @@ function printScamWarning() {
 
 class MixpanelLogger {
     constructor() {
-        this.mixpanel = require('mixpanel-browser');
-        this.mixpanel.init("5b541aeab5e08f313cdc1d1bbebc12ac", { "api_host": "https://api-eu.mixpanel.com" }, "");
+        this.mixpanel = require('mixpanel-browser')
+        this.mixpanel.init(
+            '5b541aeab5e08f313cdc1d1bbebc12ac',
+            { api_host: 'https://api-eu.mixpanel.com' },
+            ''
+        )
     }
 
-    log(event,data) {
+    log(event, data) {
         if (this.mixpanel) {
             event = MixpanelLogger.trim_message(event)
             if (data !== undefined && data !== null) {
                 data = MixpanelLogger.trim_message(JSON.stringify(data))
-                this.mixpanel.track(event,{data});
+                this.mixpanel.track(event, { data })
             } else {
-                this.mixpanel.track(event);
+                this.mixpanel.track(event)
             }
         } else {
             console.warn(`Failed to log the event '${event}'.`)
@@ -200,10 +195,10 @@ class MixpanelLogger {
     }
 
     static trim_message(message) {
-        const MAX_MESSAGE_LENGTH = 500;
-        let trimmed = message.substr(0,MAX_MESSAGE_LENGTH)
+        const MAX_MESSAGE_LENGTH = 500
+        let trimmed = message.substr(0, MAX_MESSAGE_LENGTH)
         if (trimmed.length < message.length) {
-            trimmed += "..."
+            trimmed += '...'
         }
         return trimmed
     }
@@ -213,18 +208,18 @@ class MixpanelLogger {
 // === Logs Buffering ===
 // ======================
 
-const logsFns = ['log','info','debug','warn','error','group','groupCollapsed','groupEnd']
+const logsFns = ['log', 'info', 'debug', 'warn', 'error', 'group', 'groupCollapsed', 'groupEnd']
 
 class LogRouter {
     constructor() {
-        this.buffer    = []
-        this.raw       = {}
+        this.buffer = []
+        this.raw = {}
         this.autoFlush = true
         console.autoFlush = true
         for (let name of logsFns) {
             this.raw[name] = console[name]
             console[name] = (...args) => {
-                this.handle(name,args)
+                this.handle(name, args)
             }
         }
     }
@@ -232,17 +227,17 @@ class LogRouter {
     auto_flush_on() {
         this.autoFlush = true
         console.autoFlush = true
-        for (let {name,args} of this.buffer) {
+        for (let { name, args } of this.buffer) {
             this.raw[name](...args)
         }
         this.buffer = []
     }
 
-    handle(name,args) {
+    handle(name, args) {
         if (this.autoFlush) {
             this.raw[name](...args)
         } else {
-            this.buffer.push({name,args})
+            this.buffer.push({ name, args })
         }
 
         // The following code is just a hack to discover if the logs start with `[E]` which
@@ -271,7 +266,7 @@ class LogRouter {
     }
 
     handleError(...args) {
-        API.remoteLog("error", args)
+        API.remoteLog('error', args)
     }
 }
 
@@ -289,8 +284,6 @@ function showLogs() {
 
 window.showLogs = showLogs
 
-
-
 // ======================
 // === Crash Handling ===
 // ======================
@@ -303,7 +296,7 @@ function initCrashHandling() {
     }
 }
 
-const crashMessageStorageKey = "crash-message"
+const crashMessageStorageKey = 'crash-message'
 
 function previousCrashMessageExists() {
     return sessionStorage.getItem(crashMessageStorageKey) !== null
@@ -320,7 +313,6 @@ function storeLastCrashMessage(message) {
 function clearPreviousCrashMessage() {
     sessionStorage.removeItem(crashMessageStorageKey)
 }
-
 
 // === Crash detection ===
 
@@ -340,38 +332,40 @@ function setupCrashDetection() {
     window.addEventListener('unhandledrejection', function (event) {
         // As above, we prefer stack traces.
         // But here, `event.reason` is not even guaranteed to be an `Error`.
-        handleCrash(event.reason.stack || event.reason.message || "Unhandled rejection")
+        handleCrash(event.reason.stack || event.reason.message || 'Unhandled rejection')
     })
 }
 
 function handleCrash(message) {
-    API.remoteLog("crash", message)
+    API.remoteLog('crash', message)
     if (document.getElementById(crashBannerId) === null) {
         storeLastCrashMessage(message)
         location.reload()
     } else {
-        for (let element of [... document.body.childNodes]) {
+        for (let element of [...document.body.childNodes]) {
             if (element.id !== crashBannerId) {
                 element.remove()
             }
         }
-        document.getElementById(crashBannerContentId).insertAdjacentHTML("beforeend",
+        document.getElementById(crashBannerContentId).insertAdjacentHTML(
+            'beforeend',
             `<hr>
-             <div>A second error occurred. This time, the IDE will not automatically restart.</div>`)
+             <div>A second error occurred. This time, the IDE will not automatically restart.</div>`
+        )
     }
 }
-
 
 // === Crash recovery ===
 
 // Those IDs should be the same that are used in index.html.
-const crashBannerId = "crash-banner"
-const crashBannerContentId = "crash-banner-content"
-const crashReportButtonId = "crash-report-button"
-const crashBannerCloseButtonId = "crash-banner-close-button"
+const crashBannerId = 'crash-banner'
+const crashBannerContentId = 'crash-banner-content'
+const crashReportButtonId = 'crash-report-button'
+const crashBannerCloseButtonId = 'crash-banner-close-button'
 
 function showCrashBanner(message) {
-    document.body.insertAdjacentHTML('afterbegin',
+    document.body.insertAdjacentHTML(
+        'afterbegin',
         `<div id="${crashBannerId}">
             <button id="${crashBannerCloseButtonId}" class="icon-button">✖</button>
             <div id="${crashBannerContentId}">
@@ -389,9 +383,9 @@ function showCrashBanner(message) {
     report_button.onclick = async _event => {
         try {
             await reportCrash(message)
-            content.textContent = "Thank you, the crash was reported."
+            content.textContent = 'Thank you, the crash was reported.'
         } catch (e) {
-            content.textContent = "The crash could not be reported."
+            content.textContent = 'The crash could not be reported.'
         }
     }
     close_button.onclick = () => {
@@ -405,13 +399,11 @@ async function reportCrash(message) {
         method: 'POST',
         mode: 'no-cors',
         headers: {
-          'Content-Type': 'text/plain'
+            'Content-Type': 'text/plain',
         },
-        body: message
-      })
+        body: message,
+    })
 }
-
-
 
 // ========================
 // === Main Entry Point ===
@@ -441,30 +433,34 @@ function ok(value) {
 /// Main entry point. Loads WASM, initializes it, chooses the scene to run.
 API.main = async function (inputConfig) {
     let defaultConfig = {
-        use_loader        : true,
-        wasm_url          : '/assets/ide.wasm',
-        wasm_glue_url     : '/assets/wasm_imports.js',
-        crash_report_host : cfg.defaultLogServerHost,
-        no_data_gathering : false,
-        is_in_cloud       : false,
+        use_loader: true,
+        wasm_url: '/assets/ide.wasm',
+        wasm_glue_url: '/assets/wasm_imports.js',
+        crash_report_host: cfg.defaultLogServerHost,
+        no_data_gathering: false,
+        is_in_cloud: false,
     }
-    let urlParams = new URLSearchParams(window.location.search);
+    let urlParams = new URLSearchParams(window.location.search)
     let urlConfig = Object.fromEntries(urlParams.entries())
-    let config    = Object.assign(defaultConfig,inputConfig,urlConfig)
+    let config = Object.assign(defaultConfig, inputConfig, urlConfig)
     API[globalConfig.windowAppScopeConfigName] = config
 
     if (config.no_data_gathering) {
         API.remoteLog = function (_event, _data) {}
     } else {
-        let logger = new MixpanelLogger
-        API.remoteLog = function (event,data) {logger.log(event,data)}
+        let logger = new MixpanelLogger()
+        API.remoteLog = function (event, data) {
+            logger.log(event, data)
+        }
     }
 
-    window.setInterval(() =>{API.remoteLog("alive");}, ALIVE_LOG_INTERVAL)
+    window.setInterval(() => {
+        API.remoteLog('alive')
+    }, ALIVE_LOG_INTERVAL)
     //Build data injected during the build process. See `webpack.config.js` for the source.
-    API.remoteLog("git_hash", {hash: GIT_HASH})
-    API.remoteLog("build_information", BUILD_INFO)
-    API.remoteLog("git_status", {satus: GIT_STATUS})
+    API.remoteLog('git_hash', { hash: GIT_HASH })
+    API.remoteLog('build_information', BUILD_INFO)
+    API.remoteLog('git_status', { satus: GIT_STATUS })
 
     //initCrashHandling()
     style_root()
@@ -473,19 +469,21 @@ API.main = async function (inputConfig) {
     disableContextMenu()
 
     let entryTarget = ok(config.entry) ? config.entry : main_entry_point
-    config.use_loader = config.use_loader && (entryTarget === main_entry_point)
+    config.use_loader = config.use_loader && entryTarget === main_entry_point
 
-    API.remoteLog("window_show_animation")
+    API.remoteLog('window_show_animation')
     await windowShowAnimation()
-    API.remoteLog("download_content")
-    let {wasm,loader} = await download_content(config)
-    API.remoteLog("wasm_loaded")
+    API.remoteLog('download_content')
+    let { wasm, loader } = await download_content(config)
+    API.remoteLog('wasm_loaded')
     if (entryTarget) {
         let fn_name = wasm_entry_point_pfx + entryTarget
-        let fn      = wasm[fn_name]
-        if (fn) { fn() } else {
+        let fn = wasm[fn_name]
+        if (fn) {
+            fn()
+        } else {
             loader.destroy()
-            show_debug_screen(wasm,"Unknown entry point '" + entryTarget + "'. ")
+            show_debug_screen(wasm, "Unknown entry point '" + entryTarget + "'. ")
         }
     } else {
         show_debug_screen(wasm)
