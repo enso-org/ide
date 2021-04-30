@@ -19,6 +19,8 @@
 
 #### Visual Environment
 
+- [Delete key will delete selected nodes][1538].
+
 #### EnsoGL (rendering engine)
 
 #### Enso Compiler
@@ -29,6 +31,7 @@ you can find their release notes
 
 [1511]: https://github.com/enso-org/ide/pull/1511
 [1531]: https://github.com/enso-org/ide/pull/1531
+[1538]: https://github.com/enso-org/ide/pull/1538
 
 <br/>
 
