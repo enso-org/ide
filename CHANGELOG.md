@@ -17,6 +17,10 @@
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
+- [Fix some internal settings not being applied correctly in the IDE][1539].
+  Some arguments were not passed correctly to the IDE leading to erroneous
+  behaviour in the electron app. This is now fixed.
+
 #### Visual Environment
 
 #### EnsoGL (rendering engine)
@@ -29,6 +33,7 @@ you can find their release notes
 
 [1511]: https://github.com/enso-org/ide/pull/1511
 [1531]: https://github.com/enso-org/ide/pull/1531
+[1531]: https://github.com/enso-org/ide/pull/1539
 
 <br/>
 
