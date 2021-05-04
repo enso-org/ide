@@ -36,16 +36,16 @@ impl Bounds {
     }
 
     /// Return the `Bound` with the lower bound as `start` and the upper bound as `end`.
-    pub fn sorted(&self) -> Self {
+    pub fn sorted(self) -> Self {
         if self.start > self.end {
             Bounds{start:self.end,end:self.start}
         } else {
-            self.clone()
+            self
         }
     }
 
     /// Return the distance between start and end point.
-    pub fn width(&self) -> f32 {
+    pub fn width(self) -> f32 {
         (self.end - self.start)
     }
 }
