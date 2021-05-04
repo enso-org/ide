@@ -15,6 +15,7 @@
 - [Added `--verbose` parameter][1531]. If `--verbose` is given as command line
   argument, the IDE and the backend will produce more detailed logs.
 
+
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
 #### Visual Environment
