@@ -1,3 +1,45 @@
+# Next Release
+
+<br/>![New Learning Resources](/docs/assets/tags/new_learning_resources.svg)
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Visual Environment
+
+- [Window management buttons.][1511]. The IDE now has components for
+  "fullscreen" nad "close" buttons. They will be available only when running IDE
+  in a cloud environment.
+- [Customizable backend options][1531]. When invoking Enso IDE through command
+  line interface, it is possible to give `--` argument separator. All arguments
+  following the separator will be passed to the backend.
+- [Added `--verbose` parameter][1531]. If `--verbose` is given as command line
+  argument, the IDE and the backend will produce more detailed logs.
+- [Components for picking numbers and ranges.][1524]. We now have some internal
+  re-usable UI components for selecting numbers or a range. Stay tuned for them
+  appearing in the IDE.
+  
+<br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
+
+- [Fix some internal settings not being applied correctly in the IDE][1536].
+  Some arguments were not passed correctly to the IDE leading to erroneous
+  behaviour in the electron app. This is now fixed.
+
+#### Visual Environment
+
+#### EnsoGL (rendering engine)
+
+#### Enso Compiler
+
+If you're interested in the enhancements and fixes made to the Enso compiler,
+you can find their release notes
+[here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
+
+[1511]: https://github.com/enso-org/ide/pull/1511
+[1511]: https://github.com/enso-org/ide/pull/1536
+[1531]: https://github.com/enso-org/ide/pull/1531
+
+<br/>
+
 # Enso 2.0.0-alpha.3 (2020-04-13)
 
 <br/>![New Learning Resources](/docs/assets/tags/new_learning_resources.svg)
@@ -53,9 +95,6 @@
 
 - [Unified shadow generation][1411]. Added a toolset to create shadows for
   arbitrary UI components.
-- [Components for picking numbers and ranges.][1524]. We now have some internal
-  re-usable UI components for selecting numbers or a range. Stay tuned for them
-  appearing in the IDE.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
@@ -178,6 +217,9 @@ you can find their release notes
 [1438]: https://github.com/enso-org/ide/pull/1438
 [1367]: https://github.com/enso-org/ide/pull/1367
 [1445]: https://github.com/enso-org/ide/pull/1445
+[1447]: https://github.com/enso-org/ide/pull/1447
+[1471]: https://github.com/enso-org/ide/pull/1471
+[1511]: https://github.com/enso-org/ide/pull/1511
 [1524]: https://github.com/enso-org/ide/pull/1524
 
 <br/>
