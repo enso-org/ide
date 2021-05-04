@@ -109,12 +109,12 @@ impl State {
 /// Description of events that can be emitted by JS WebSocket.
 pub mod event {
     use super::*;
-    use ensogl_system_web::event::Event;
+    use ensogl_system_web::event::Type;
 
     /// Represents WebSocket.open event.
     #[derive(Clone,Copy,Debug)]
     pub enum Open{}
-    impl Event for Open {
+    impl Type for Open {
         type Interface = web_sys::Event;
         type Target = web_sys::WebSocket;
         const NAME:&'static str = "open";
@@ -123,7 +123,7 @@ pub mod event {
     /// Represents WebSocket.close event.
     #[derive(Clone,Copy,Debug)]
     pub enum Close{}
-    impl Event for Close {
+    impl Type for Close {
         type Interface = web_sys::CloseEvent;
         type Target = web_sys::WebSocket;
         const NAME:&'static str = "close";
@@ -132,7 +132,7 @@ pub mod event {
     /// Represents WebSocket.message event.
     #[derive(Clone,Copy,Debug)]
     pub enum Message{}
-    impl Event for Message {
+    impl Type for Message {
         type Interface = web_sys::MessageEvent;
         type Target = web_sys::WebSocket;
         const NAME:&'static str = "message";
@@ -141,7 +141,7 @@ pub mod event {
     /// Represents WebSocket.error event.
     #[derive(Clone,Copy,Debug)]
     pub enum Error{}
-    impl Event for Error {
+    impl Type for Error {
         type Interface = web_sys::Event;
         type Target = web_sys::WebSocket;
         const NAME:&'static str = "error";
@@ -169,7 +169,9 @@ pub struct Model {
     // === Internal ===
     pub logger            : Logger,
     pub socket            : web_sys::WebSocket,
-    /// Special callback on "close" event. Must be invoked after `on_close`.
+    /// Special callback on "close" event. As it must be invoked after `on_close`, care should be
+    /// taken to keep it registered as an event listener *after* `on_close` registration.
+    /// By default `Model` takes care of it by itself.
     pub on_close_internal : Slot<event::Close>,
     /// When enabled, the WS will try to automatically reconnect whenever connection is lost.
     pub auto_reconnect    : bool,
@@ -203,7 +205,13 @@ impl Model {
 
     /// Clear all the available callbacks.
     pub fn clear_callbacks(&mut self) {
-        let Self{on_close,on_error,on_message,on_open,on_close_internal,..} = self;
+        let Self{
+            // Callback slots to be cleared.
+            on_close, on_error, on_message, on_open, on_close_internal,
+            // Force compile error if there's a new unhandled field.
+            // We want to be certain that we have not missed any slot.
+            auto_reconnect:_, logger:_, socket:_
+        } = self;
         // We don't care if removing actually removed anything.
         // If callbacks were not set, then they are clear from the start.
         on_close.clear_callback();
@@ -221,7 +229,7 @@ impl Model {
        }
 
         let url = self.socket.url();
-        warning!(self.logger, "Reconnecting WS to {url}");
+        info!(self.logger, "Reconnecting WS to {url}.");
 
         let new_ws = web_sys::WebSocket::new(&url)?;
 
@@ -256,7 +264,7 @@ impl Drop for Model {
 pub struct WebSocket {
     #[allow(missing_docs)]
     pub logger : Logger,
-    model : Rc<RefCell<Model>>,
+    model      : Rc<RefCell<Model>>,
 }
 
 impl WebSocket {

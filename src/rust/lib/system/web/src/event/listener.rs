@@ -9,29 +9,33 @@ use crate::closure::storage::OptionalFmMutClosure;
 // === Slot ===
 // ============
 
-/// A single event listener slot.
+/// A Slot stores a callback and manages its connection with JS `EventTarget`.
 ///
-/// Stores a closure that can be registered as an event listener.
+/// Both callback and the target can be set independently using `set_target` and `set_callback`.
+/// Additionally, callback can be cleared at any point by `clear_callback`.
 ///
-/// Slot will register the closure as event listener whenever both closure and target are provided.
+/// When both target and callback are set, slot ensures that the callback is registered as an
+/// event listener in the target.
 ///
-/// Caveat: this listener holds a reference to the target while it is registered.
-/// Be sure not to leak this value nor have it dependent on target destruction.
+/// When changing target, `Slot` reattaches callback.
+///
+/// `Slot` owns callback and wraps it into JS closure. `Slot` also keeps reference to the target,
+/// so it must not be leaked.
 #[derive(Derivative)]
 #[derivative(Debug(bound="Event::Interface: Debug"))]
-pub struct Slot<Event:crate::event::Event> {
+pub struct Slot<EventType:crate::event::Type> {
     logger     : Logger,
     #[derivative(Debug="ignore")]
-    target     : Option<Event::Target>,
-    js_closure : OptionalFmMutClosure<Event::Interface>,
+    target     : Option<EventType::Target>,
+    js_closure : OptionalFmMutClosure<EventType::Interface>,
 }
 
-impl<Event:crate::event::Event> Slot<Event> {
+impl<EventType:crate::event::Type> Slot<EventType> {
     /// Create a new `Slot`. As the initial target is provided, the listener will register once it
     /// gets a callback (see [[set_callback]]).
-    pub fn new(target:&Event::Target, logger:impl AnyLogger) -> Self {
+    pub fn new(target:&EventType::Target, logger:impl AnyLogger) -> Self {
         Self {
-            logger     : Logger::sub(logger,Event::NAME),
+            logger     : Logger::sub(logger, EventType::NAME),
             target     : Some(target.clone()),
             js_closure : default(),
         }
@@ -41,7 +45,7 @@ impl<Event:crate::event::Event> Slot<Event> {
     fn add_if_active(&mut self) {
         if let (Some(target), Some(function)) = (self.target.as_ref(), self.js_closure.js_ref()) {
             debug!(self.logger,"Attaching the callback.");
-            Event::add_listener(target,function)
+            EventType::add_listener(target, function)
         }
     }
 
@@ -49,12 +53,14 @@ impl<Event:crate::event::Event> Slot<Event> {
     fn remove_if_active(&mut self) {
         if let (Some(target), Some(function)) = (self.target.as_ref(), self.js_closure.js_ref()) {
             debug!(self.logger,"Detaching the callback.");
-            Event::remove_listener(target, function)
+            EventType::remove_listener(target, function)
         }
     }
 
-    /// Move this event listener to a different target.
-    pub fn set_target(&mut self, target:&Event::Target) {
+    /// Set a new target.
+    ///
+    /// If callback is set, it will be reattached as a listener to a newly set target.
+    pub fn set_target(&mut self, target:&EventType::Target) {
         // Prevent spurious reattaching that could affect listeners order.
         if Some(target) != self.target.as_ref() {
             self.remove_if_active();
@@ -69,7 +75,7 @@ impl<Event:crate::event::Event> Slot<Event> {
     ///
     /// Caveat: using this method will move the event listener to the end of the registered
     /// callbacks. This will affect the order of callback calls.
-    pub fn set_callback(&mut self, f:impl ClosureFn<Event::Interface>) {
+    pub fn set_callback(&mut self, f:impl ClosureFn<EventType::Interface>) {
         self.remove_if_active();
         self.js_closure.wrap(f);
         self.add_if_active()
@@ -93,7 +99,7 @@ impl<Event:crate::event::Event> Slot<Event> {
 }
 
 /// Unregister listener on drop.
-impl<Event:crate::event::Event> Drop for Slot<Event> {
+impl<EventType:crate::event::Type> Drop for Slot<EventType> {
     fn drop(&mut self) {
         self.remove_if_active();
     }
