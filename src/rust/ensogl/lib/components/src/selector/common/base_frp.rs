@@ -57,16 +57,24 @@ pub struct BaseFrp {
 }
 
 impl BaseFrp {
-    pub fn new(model:&Model, style:&StyleWatchFrp, network:&Network, size:frp::Stream<Vector2>, mouse:&Mouse) -> BaseFrp {
+    pub fn new
+    (model:&Model, style:&StyleWatchFrp, network:&Network, size:frp::Stream<Vector2>, mouse:&Mouse)
+    -> BaseFrp {
         let shadow    = shadow::frp_from_style(style,theme::shadow);
         let text_size = style.get_number(theme::text::size);
 
-        let is_dragging_left_overflow  = common::shape_is_dragged(network,&model.left_overflow.events,mouse);
-        let is_dragging_right_overflow = common::shape_is_dragged(network,&model.right_overflow.events,mouse);
-        let is_dragging_track          = common::shape_is_dragged(network,&model.track.events, mouse);
-        let is_dragging_background     = common::shape_is_dragged(network,&model.background.events,mouse);
-        let is_dragging_left_handle    = common::shape_is_dragged(network,&model.track_handle_left.events,mouse);
-        let is_dragging_right_handle   = common::shape_is_dragged(network,&model.track_handle_right.events,mouse);
+        let is_dragging_left_overflow  = common::shape_is_dragged(
+            network,&model.left_overflow.events,mouse);
+        let is_dragging_right_overflow = common::shape_is_dragged(
+            network,&model.right_overflow.events,mouse);
+        let is_dragging_track          = common::shape_is_dragged(
+            network,&model.track.events, mouse);
+        let is_dragging_background     = common::shape_is_dragged(
+            network,&model.background.events,mouse);
+        let is_dragging_left_handle    = common::shape_is_dragged(
+            network,&model.track_handle_left.events,mouse);
+        let is_dragging_right_handle   = common::shape_is_dragged(
+            network,&model.track_handle_right.events,mouse);
 
         // Initialisation of components. Required for correct layout on startup.
         model.label_right.set_position_y(text_size.value()/2.0);
