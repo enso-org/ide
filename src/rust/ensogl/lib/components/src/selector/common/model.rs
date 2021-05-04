@@ -21,6 +21,8 @@ const LABEL_OFFSET : f32 = 13.0;
 // === Utilities - Decimal Aligned Text Field ===
 // ==============================================
 
+/// Utility wrapper for a text field containing a float. Centers the string representation of the
+/// float on the decimal separator.
 mod decimal_aligned {
     use super::*;
 
@@ -35,7 +37,7 @@ mod decimal_aligned {
         fn init(&self, app: &Application, model: &Model, _style: &StyleWatchFrp) {
             let frp     = &self;
             let network = &frp.network;
-            let _scene   = app.display.scene();
+            let _scene  = app.display.scene();
 
             frp::extend! { network
                 formatted <- frp.set_content.map(|value| format!("{:.2}", value));
@@ -44,42 +46,45 @@ mod decimal_aligned {
                 left      <- formatted.map(|s| s.split('.').next().map(|s| s.to_string())).unwrap();
 
                 model.label_left.set_content  <+ left;
-                model.label.set_content       <+ formatted;
+                model.label_full.set_content       <+ formatted;
 
-                eval model.label_left.width((offset)  model.label.set_position_x(-offset-LABEL_OFFSET));
+                eval model.label_left.width((offset)  model.label_full.set_position_x(-offset-LABEL_OFFSET));
             }
         }
     }
 
     #[derive(Clone,CloneRef,Debug)]
     pub struct Model {
-        root       : display::object::Instance,
-        label      : text::Area,
+        /// Root object. Required as the rendered text label will have an offset relative to the
+        /// base position of the root, depending on the position of the decimal separator.
+        root : display::object::Instance,
+        /// Label containing the text to display. This is the label that will be shown.
+        label_full : text::Area,
+        /// This label contains the text to the left of the decimal. This is here, so we can get
+        /// information about the text width of this portion of the label. This label will
+        /// not appear in the UI.
         label_left : text::Area,
-        label_right: text::Area,
     }
 
     impl component::Model for Model {
         fn new(app:&Application) -> Self {
-            let logger             = Logger::new("DecimalAlignedLabel");
-            let root               = display::object::Instance::new(&logger);
-            let label              = app.new_view::<text::Area>();
-            let label_left         = app.new_view::<text::Area>();
-            let label_right        = app.new_view::<text::Area>();
+            let logger     = Logger::new("DecimalAlignedLabel");
+            let root       = display::object::Instance::new(&logger);
+            let label_full = app.new_view::<text::Area>();
+            let label_left = app.new_view::<text::Area>();
 
-            label.remove_from_scene_layer_DEPRECATED(&app.display.scene().layers.main);
-            label.add_to_scene_layer_DEPRECATED(&app.display.scene().layers.label);
+            label_full.remove_from_scene_layer_DEPRECATED(&app.display.scene().layers.main);
+            label_full.add_to_scene_layer_DEPRECATED(&app.display.scene().layers.label);
 
-            root.add_child(&label);
+            root.add_child(&label_full);
             root.add_child(&label_left);
-            root.add_child(&label_right);
 
-            Self{root,label,label_left,label_right}
+            Self{root,label_full,label_left}
         }
     }
 
     impl display::Object for Model {
-        fn display_object(&self) -> &display::object::Instance { self.label.display_object() }
+        fn display_object(&self) -> &display::object::Instance { self.label_full.display_object() }
     }
 
     pub type FloatLabel = crate::component::Component<Model,Frp>;
