@@ -16,7 +16,7 @@ use crate::shadow;
 
 
 // ===========================
-// === Frp utility methods ===
+// === Frp Utility Methods ===
 // ===========================
 
 /// Compute the slider width from the given shape size. For use in FRP, thus taking a reference.
