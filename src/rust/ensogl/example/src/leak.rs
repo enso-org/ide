@@ -37,9 +37,3 @@ impl<T> Drop for Leak<T> {
         std::mem::forget(self.value.take());
     }
 }
-
-// impl<T:Debug> Debug for Leak<T> {
-//     fn fmt(&self, f: &mut Formatter<'_>) -> Result<T, E> {
-//         f.fmt("Leak{value:{:?}}", self.value.unwrap())
-//     }
-// }
