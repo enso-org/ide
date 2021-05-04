@@ -59,11 +59,12 @@ impl component::Frp<Model> for Frp {
             eval frp.set_left_corner_round ((value) model.left_corner_round(*value));
             eval frp.set_right_corner_round((value) model.right_corner_round(*value));
 
-            // Intern State Vales
-            norm_value                 <- all2(&frp.value,&frp.bounds).map(|(Bounds{start,end},bounds)|{
+            // Internal
+            norm_value <- all2(&frp.value,&frp.bounds).map(|(Bounds{start,end},bounds)|{
                  Bounds::new(normalise_value(&(*start,*bounds)),normalise_value(&(*end,*bounds)))
             });
-            normalised_overflow_bounds <- all(&frp.use_overflow_bounds,&frp.bounds).map(|(overflow_bounds,bounds)|
+            normalised_overflow_bounds <- all(&frp.use_overflow_bounds,&frp.bounds).map(
+                |(overflow_bounds,bounds)|
                 overflow_bounds.map(|Bounds{start,end}|
                     Bounds::new(normalise_value(&(start,*bounds)),normalise_value(&(end,*bounds)))
                 )
@@ -88,8 +89,8 @@ impl component::Frp<Model> for Frp {
             change_right_value <- base_frp.is_dragging_right_handle
                 || base_frp.is_dragging_right_overflow;
 
-            drag_movement   <- mouse.translation.gate(&base_frp.is_dragging_any);
-            drag_delta      <- drag_movement.map2(&base_frp.track_max_width, |delta,width|
+            drag_movement <- mouse.translation.gate(&base_frp.is_dragging_any);
+            drag_delta    <- drag_movement.map2(&base_frp.track_max_width, |delta,width|
                 (delta.x + delta.y) / width
             );
 
@@ -113,12 +114,13 @@ impl component::Frp<Model> for Frp {
                 should_clamp_with_overflow(range,bounds)
             );
             new_value_absolute <- all(&frp.set_bounds,&any_update).map(|(bounds,Bounds{start,end})|
-                Bounds::new(absolute_value(&(*bounds,*start)),absolute_value(&(*bounds,*end))).sorted()
+                Bounds::new(
+                    absolute_value(&(*bounds,*start)),absolute_value(&(*bounds,*end))).sorted()
             );
             frp.source.value <+ new_value_absolute.gate(&is_in_bounds);
         }
 
-        // Init defaults;
+        // Init defaults
         frp.set_bounds(Bounds::new(0.0,1.0));
         frp.use_overflow_bounds(None);
         frp.set_value(Bounds::new(0.25,0.75));

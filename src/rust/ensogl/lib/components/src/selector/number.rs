@@ -48,56 +48,68 @@ impl component::Frp<Model> for Frp {
         let track_shape_system = scene.shapes.shape_system(PhantomData::<track::Shape>);
         track_shape_system.shape_system.set_pointer_events(false);
 
-        let background_click = relative_shape_click_position(model, network, &model.background.events, mouse);
-        let track_click      = relative_shape_click_position(model, network, &model.track.events, mouse);
+        let background_click = relative_shape_click_position(
+            model,network,&model.background.events,mouse);
+        let track_click      = relative_shape_click_position(
+            model,network,&model.track.events,mouse);
 
         frp::extend! { network
 
-                // Rebind
-                frp.source.bounds <+ frp.set_bounds;
-                frp.source.value  <+ frp.set_value;
+            // Rebind
+            frp.source.bounds <+ frp.set_bounds;
+            frp.source.value  <+ frp.set_value;
 
-                // Simple Inputs
-                eval frp.set_caption((caption) model.set_caption_left(caption.clone()));
-                eval frp.set_left_corner_round ((value) model.left_corner_round(*value));
-                eval frp.set_right_corner_round((value) model.right_corner_round(*value));
+            // Simple Inputs
+            eval frp.set_caption((caption) model.set_caption_left(caption.clone()));
+            eval frp.set_left_corner_round ((value) model.left_corner_round(*value));
+            eval frp.set_right_corner_round((value) model.right_corner_round(*value));
 
-                // Intern State Vales
-                norm_value                 <- all2(&frp.value,&frp.bounds).map(normalise_value);
-                _has_overflow_bounds       <- frp.use_overflow_bounds.map(|value| value.is_none());
-                normalised_overflow_bounds <- all(&frp.use_overflow_bounds,&frp.bounds).map(|(overflow_bounds,bounds)|
-                    overflow_bounds.map(|Bounds{start,end}|
-                        Bounds::new(normalise_value(&(start,*bounds)),normalise_value(&(end,*bounds)))
-                    )
+            // Internal
+            norm_value                 <- all2(&frp.value,&frp.bounds).map(normalise_value);
+            normalised_overflow_bounds <- all(&frp.use_overflow_bounds,&frp.bounds).map(
+            |(overflow_bounds,bounds)|
+                overflow_bounds.map(|Bounds{start,end}|
+                    Bounds::new(
+                        normalise_value(&(start,*bounds)),normalise_value(&(end,*bounds)))
+                )
+            );
+            has_underflow <- norm_value.map(|value| *value < 0.0);
+            has_overflow  <- norm_value.map(|value| *value > 1.0);
+
+            // Value Updates
+            eval norm_value((value) model.set_background_value(*value));
+            eval has_underflow ((underflow) model.show_left_overflow(*underflow));
+            eval has_overflow ((overflow) model.show_right_overflow(*overflow));
+            eval frp.value((value) model.set_center_label_content(*value));
+
+            // Mouse IO
+            click <- any(&track_click,&background_click).gate(&frp.allow_click_selection);
+            click_value_update <- click.map2(
+                &base_frp.track_max_width,
+                position_to_normalised_value
+            );
+
+            is_dragging <- any
+                ( base_frp.is_dragging_track
+                , base_frp.is_dragging_background
+                , base_frp.is_dragging_left_overflow
+                , base_frp.is_dragging_right_overflow
                 );
-                has_underflow <- norm_value.map(|value| *value < 0.0);
-                has_overflow  <- norm_value.map(|value| *value > 1.0);
 
-                // Value Updates
-                eval norm_value((value) model.set_background_value(*value));
-                eval has_underflow ((underflow) model.show_left_overflow(*underflow));
-                eval has_overflow ((overflow) model.show_right_overflow(*overflow));
-                eval frp.value((value) model.set_center_label_content(*value));
+            drag_movement <- mouse.translation.gate(&is_dragging);
+            delta_value   <- drag_movement.map2(
+                &base_frp.track_max_width,
+                |delta,width| (delta.x + delta.y) / width
+            );
 
-                // Mouse IO
-                click <- any(&track_click,&background_click).gate(&frp.allow_click_selection);
-                click_value_update <- click.map2(&base_frp.track_max_width,position_to_normalised_value);
-
-                is_dragging <- any
-                    ( base_frp.is_dragging_track
-                    , base_frp.is_dragging_background
-                    , base_frp.is_dragging_left_overflow
-                    , base_frp.is_dragging_right_overflow
-                    );
-
-                drag_movement <- mouse.translation.gate(&is_dragging);
-                delta_value   <- drag_movement.map2(&base_frp.track_max_width, |delta,width| (delta.x + delta.y) / width);
-
-                drag_value_update <- delta_value.map2(&norm_value,|delta,value|*delta+*value);
-                value_update      <- any(&click_value_update,&drag_value_update);
-                clamped_update    <- value_update.map2(&normalised_overflow_bounds,clamp_with_overflow);
-                frp.source.value  <+ all(&frp.set_bounds,&clamped_update).map(absolute_value);
-            }
+            drag_value_update <- delta_value.map2(&norm_value,|delta,value|*delta+*value);
+            value_update      <- any(&click_value_update,&drag_value_update);
+            clamped_update    <- value_update.map2(
+                &normalised_overflow_bounds,
+                clamp_with_overflow
+            );
+            frp.source.value  <+ all(&frp.set_bounds,&clamped_update).map(absolute_value);
+        }
 
         // Init defaults.
         frp.set_bounds(Bounds::new(0.0,1.0));
