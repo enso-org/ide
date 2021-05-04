@@ -22,7 +22,7 @@ use crate::closure::storage::OptionalFmMutClosure;
 /// `Slot` owns callback and wraps it into JS closure. `Slot` also keeps reference to the target,
 /// so it must not be leaked.
 #[derive(Derivative)]
-#[derivative(Debug(bound="Event::Interface: Debug"))]
+#[derivative(Debug(bound="EventType::Interface: Debug"))]
 pub struct Slot<EventType:crate::event::Type> {
     logger     : Logger,
     #[derivative(Debug="ignore")]
