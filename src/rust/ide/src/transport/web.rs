@@ -205,11 +205,13 @@ impl Model {
 
     /// Clear all the available callbacks.
     pub fn clear_callbacks(&mut self) {
+        // We list explicitly all the fields, to get a compiler error when a new slot as added
+        // but not handled here.
+        #[allow(clippy::unneeded_field_pattern)]
         let Self{
             // Callback slots to be cleared.
             on_close, on_error, on_message, on_open, on_close_internal,
-            // Force compile error if there's a new unhandled field.
-            // We want to be certain that we have not missed any slot.
+            // Explicitly ignored non-slot fields.
             auto_reconnect:_, logger:_, socket:_
         } = self;
         // We don't care if removing actually removed anything.
