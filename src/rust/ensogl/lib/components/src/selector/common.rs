@@ -44,6 +44,7 @@ impl Bounds {
         }
     }
 
+    /// Return the distance between start and end point.
     pub fn width(&self) -> f32 {
         (self.end - self.start)
     }
