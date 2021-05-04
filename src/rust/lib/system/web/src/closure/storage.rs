@@ -36,7 +36,7 @@ impl <Arg> OptionalFmMutClosure<Arg> {
         self.closure = Some(closure);
         // TODO [mwu]: `insert` should be used when we bump rustc - and then get rid of unwrap.
         //              Blocked by https://github.com/enso-org/ide/issues/1028
-        // unwrap is safe, because line above set closure to Some
+        // The `unwrap` call is safe, because the line above set closure to `Some`.
         self.js_ref().unwrap()
     }
 

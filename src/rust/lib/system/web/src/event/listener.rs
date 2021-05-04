@@ -37,7 +37,7 @@ impl<Event:crate::event::Event> Slot<Event> {
         }
     }
 
-    /// Register the event listener if all needed data are present.
+    /// Register the event listener if both target and callback are set.
     fn add_if_active(&mut self) {
         if let (Some(target), Some(function)) = (self.target.as_ref(), self.js_closure.js_ref()) {
             debug!(self.logger,"Attaching the callback.");
@@ -45,7 +45,7 @@ impl<Event:crate::event::Event> Slot<Event> {
         }
     }
 
-    /// Unregister the event listener if all needed data are present.
+    /// Unregister the event listener if both target and callback are set.
     fn remove_if_active(&mut self) {
         if let (Some(target), Some(function)) = (self.target.as_ref(), self.js_closure.js_ref()) {
             debug!(self.logger,"Detaching the callback.");

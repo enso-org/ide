@@ -168,16 +168,16 @@ pub struct Model {
 
     // === Internal ===
     pub logger            : Logger,
-    pub ws                : web_sys::WebSocket,
+    pub socket            : web_sys::WebSocket,
     /// Special callback on "close" event. Must be invoked after `on_close`.
     pub on_close_internal : Slot<event::Close>,
     /// When enabled, the WS will try to automatically reconnect whenever connection is lost.
-    pub reconnect         : bool,
+    pub auto_reconnect    : bool,
 }
 
 impl Model {
     /// Wraps given WebSocket object.
-    pub fn new(ws:web_sys::WebSocket, logger:Logger) -> Model {
+    pub fn new(socket:web_sys::WebSocket, logger:Logger) -> Model {
         ws.set_binary_type(BinaryType::Arraybuffer);
         Model {
             on_close          : Slot::new(&ws, &logger),
@@ -185,15 +185,18 @@ impl Model {
             on_open           : Slot::new(&ws, &logger),
             on_error          : Slot::new(&ws, &logger),
             on_close_internal : Slot::new(&ws, &logger),
-            reconnect         : true,
+            auto_reconnect    : true,
             logger,
-            ws,
+            socket,
         }
     }
 
     /// Close the socket.
     pub fn close(&mut self, reason:&str) -> Result<(),JsValue> {
-        self.ws.close_with_code_and_reason(1000,reason)?;
+        // If socket was manually requested to close, it should not try to reconnect then.
+        self.auto_reconnect = false;
+        let normal_closure  = 1000;
+        self.socket.close_with_code_and_reason(normal_closure,reason)?;
         self.clear_callbacks();
         Ok(())
     }
@@ -213,11 +216,11 @@ impl Model {
     /// Establish a new WS connection, using the same URL as the previous one.
     /// All callbacks will be transferred to the new connection.
     pub fn reconnect(&mut self) -> Result<(),JsValue> {
-       if !self.reconnect {
+       if !self.auto_reconnect {
            return Err(js_sys::Error::new("Reconnecting has been disabled").into());
        }
 
-        let url = self.ws.url();
+        let url = self.socket.url();
         warning!(self.logger, "Reconnecting WS to {url}");
 
         let new_ws = web_sys::WebSocket::new(&url)?;
@@ -227,7 +230,7 @@ impl Model {
         self.on_message.       set_target(&new_ws);
         self.on_open.          set_target(&new_ws);
         self.on_close_internal.set_target(&new_ws);
-        self.ws = new_ws;
+        self.socket = new_ws;
 
         Ok(())
     }
@@ -235,7 +238,7 @@ impl Model {
 
 impl Drop for Model {
     fn drop(&mut self) {
-        info!(self.logger, "Dropping WS model");
+        info!(self.logger, "Dropping WS model.");
         if let Err(e) = self.close("Rust Value has been dropped.") {
             error!(self.logger,"Error when closing socket due to being dropped: {js_to_string(&e)}")
         }
@@ -318,16 +321,16 @@ impl WebSocket {
 
     /// Checks the current state of the connection.
     pub fn state(&self) -> State {
-        State::query_ws(&self.model.borrow().ws)
+        State::query_ws(&self.model.borrow().socket)
     }
 
-    fn with_mut_model<R>(&mut self, f:impl FnOnce(&mut Model) -> R) -> R {
+    fn with_borrow_mut_model<R>(&mut self, f:impl FnOnce(&mut Model) -> R) -> R {
         with(self.model.borrow_mut(), |mut model| f(model.deref_mut()))
     }
 
     /// Sets callback for the `close` event.
     pub fn set_on_close(&mut self, f:impl FnMut(web_sys::CloseEvent) + 'static) {
-        self.with_mut_model(move |model| {
+        self.with_borrow_mut_model(move |model| {
             model.on_close.set_callback(f);
             // Force internal callback to be after the user-defined one.
             model.on_close_internal.reattach();
@@ -336,17 +339,17 @@ impl WebSocket {
 
     /// Sets callback for the `error` event.
     pub fn set_on_error(&mut self, f:impl FnMut(web_sys::Event) + 'static) {
-        self.with_mut_model(move |model| model.on_error.set_callback(f))
+        self.with_borrow_mut_model(move |model| model.on_error.set_callback(f))
     }
 
     /// Sets callback for the `message` event.
     pub fn set_on_message(&mut self, f:impl FnMut(web_sys::MessageEvent) + 'static) {
-        self.with_mut_model(move |model| model.on_message.set_callback(f))
+        self.with_borrow_mut_model(move |model| model.on_message.set_callback(f))
     }
 
     /// Sets callback for the `open` event.
     pub fn set_on_open(&mut self, f:impl FnMut(web_sys::Event) + 'static) {
-        self.with_mut_model(move |model| model.on_open.set_callback(f))
+        self.with_borrow_mut_model(move |model| model.on_open.set_callback(f))
     }
 
     /// Executes a given function with a mutable reference to the socket.
@@ -368,7 +371,7 @@ impl WebSocket {
         if state != State::Open {
             Err(SendingError::NotOpen(state).into())
         } else {
-            let result = f(&mut self.model.borrow_mut().ws);
+            let result = f(&mut self.model.borrow_mut().socket);
             result.map_err(|e| SendingError::from_send_error(e).into())
         }
     }
@@ -376,13 +379,13 @@ impl WebSocket {
 
 impl Transport for WebSocket {
     fn send_text(&mut self, message:&str) -> Result<(), Error> {
-        info!(self.logger, "Sending text message of length {message.len()}");
+        info!(self.logger, "Sending text message of length {message.len()}.");
         debug!(self.logger, "Message contents: {message}");
         self.send_with_open_socket(|ws| ws.send_with_str(message))
     }
 
     fn send_binary(&mut self, message:&[u8]) -> Result<(), Error> {
-        info!(self.logger, "Sending binary message of length {message.len()}");
+        info!(self.logger, "Sending binary message of length {message.len()}.");
         debug!(self.logger,|| format!("Message contents: {:x?}", message));
         // TODO [mwu]
         //   Here we workaround issue from wasm-bindgen 0.2.58:
