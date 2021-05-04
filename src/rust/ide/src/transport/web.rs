@@ -178,13 +178,13 @@ pub struct Model {
 impl Model {
     /// Wraps given WebSocket object.
     pub fn new(socket:web_sys::WebSocket, logger:Logger) -> Model {
-        ws.set_binary_type(BinaryType::Arraybuffer);
+        socket.set_binary_type(BinaryType::Arraybuffer);
         Model {
-            on_close          : Slot::new(&ws, &logger),
-            on_message        : Slot::new(&ws, &logger),
-            on_open           : Slot::new(&ws, &logger),
-            on_error          : Slot::new(&ws, &logger),
-            on_close_internal : Slot::new(&ws, &logger),
+            on_close          : Slot::new(&socket, &logger),
+            on_message        : Slot::new(&socket, &logger),
+            on_open           : Slot::new(&socket, &logger),
+            on_error          : Slot::new(&socket, &logger),
+            on_close_internal : Slot::new(&socket, &logger),
             auto_reconnect    : true,
             logger,
             socket,
