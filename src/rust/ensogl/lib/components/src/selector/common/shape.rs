@@ -14,12 +14,11 @@ use crate::shadow;
 /// Utility struct that contains the background shape for the selector components, as well as some
 /// meta information about it. This information can be used to align other shapes with the
 /// background.
-#[allow(dead_code)]
 struct Background {
-    width         : Var<Pixels>,
-    height        : Var<Pixels>,
-    corner_radius : Var<Pixels>,
-    shape         : AnyShape,
+    pub width         : Var<Pixels>,
+    pub height        : Var<Pixels>,
+    pub corner_radius : Var<Pixels>,
+    pub shape         : AnyShape,
 }
 
 impl Background {
@@ -120,11 +119,10 @@ pub mod track {
 
 /// Utility struct that contains the overflow shape, and some metadata that can be used to place and
 /// align it.
-#[allow(dead_code)]
 struct OverFlowShape {
-    width  : Var<Pixels>,
-    height : Var<Pixels>,
-    shape  : AnyShape
+    pub width  : Var<Pixels>,
+    pub height : Var<Pixels>,
+    pub shape  : AnyShape
 }
 
 impl OverFlowShape {
