@@ -43,6 +43,7 @@ mod decimal_aligned {
                 formatted <- frp.set_content.map(|value| format!("{:.2}", value));
                 // FIXME: the next line is locale dependent. We need a way to get the current locale
                 //  dependent decimal separator for this.
+                //  See https://github.com/enso-org/ide/issues/1542 for progress on this.
                 left      <- formatted.map(|s| s.split('.').next().map(|s| s.to_string())).unwrap();
 
                 model.label_left.set_content  <+ left;
