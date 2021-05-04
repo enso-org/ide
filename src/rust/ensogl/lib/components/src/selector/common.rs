@@ -137,15 +137,14 @@ pub fn shape_is_dragged
 /// Returns the position of a mouse down on a shape. The position is given relative to the origin
 /// of the shape position.
 pub fn relative_shape_click_position
-(model:&Model, network:&Network, shape:&ShapeViewEvents, mouse:&Mouse) -> frp::Stream<Vector2>  {
-    let model = model.clone_ref();
+(base_position:impl Fn() -> Vector2 + 'static, network:&Network, shape:&ShapeViewEvents, mouse:&Mouse) -> frp::Stream<Vector2>  {
     frp::extend! { network
         mouse_down               <- mouse.down.constant(());
         over_shape               <- bool(&shape.mouse_out,&shape.mouse_over);
         mouse_down_over_shape    <- mouse_down.gate(&over_shape);
         background_click_positon <- mouse.position.sample(&mouse_down_over_shape);
         background_click_positon <- background_click_positon.map(move |pos|
-            pos - model.position().xy()
+            pos - base_position()
         );
     }
     background_click_positon
@@ -157,6 +156,9 @@ mod tests {
     use super::*;
     use float_eq::assert_float_eq;
     use std::f32::NAN;
+    use enso_frp::stream::ValueProvider;
+    use enso_frp::stream::EventEmitter;
+    use enso_frp::io::mouse::Button;
 
     #[test]
     fn test_normalise_value() {
@@ -384,5 +386,60 @@ mod tests {
         test(Bounds::new(0.25,0.7),None,true);
 
         test(Bounds::new(0.0,0.0),None,true);
+    }
+
+    #[test]
+    fn test_shape_is_dragged() {
+        let network = frp::Network::new("TestNetwork");
+        let mouse   = frp::io::Mouse::default();
+        let shape   = ShapeViewEvents::default();
+
+        let is_dragged = shape_is_dragged(&network,&shape,&mouse);
+        let _watch = is_dragged.register_watch();
+
+
+        // Default is false.
+        assert_eq!(is_dragged.value(),false);
+
+        // Mouse down over shape activates dragging.
+        shape.mouse_over.emit(());
+        mouse.down.emit(Button::from_code(0));
+        assert_eq!(is_dragged.value(),true);
+
+        // Release mouse stops dragging.
+        mouse.up.emit(Button::from_code(0));
+        assert_eq!(is_dragged.value(),false);
+
+        // Mouse down while not over shape  does not activate dragging.
+        shape.mouse_out.emit(());
+        mouse.down.emit(Button::from_code(0));
+        assert_eq!(is_dragged.value(),false);
+    }
+
+    #[test]
+    fn test_relative_shape_click_position() {
+        let network = frp::Network::new("TestNetwork");
+        let mouse   = frp::io::Mouse::default();
+        let shape   = ShapeViewEvents::default();
+
+        let base_position = || Vector2::new(-10.0,200.0);
+        let click_position = relative_shape_click_position(base_position, &network,&shape,&mouse);
+        let _watch = click_position.register_watch();
+
+        shape.mouse_over.emit(());
+        mouse.position.emit(Vector2::new(-10.0,200.0));
+        mouse.down.emit(Button::from_code(0));
+        assert_float_eq!(click_position.value().x,0.0,ulps<=7);
+        assert_float_eq!(click_position.value().y,0.0,ulps<=7);
+
+        mouse.position.emit(Vector2::new(0.0,0.0));
+        mouse.down.emit(Button::from_code(0));
+        assert_float_eq!(click_position.value().x,10.0,ulps<=7);
+        assert_float_eq!(click_position.value().y,-200.0,ulps<=7);
+
+        mouse.position.emit(Vector2::new(400.0,0.5));
+        mouse.down.emit(Button::from_code(0));
+        assert_float_eq!(click_position.value().x,410.0,ulps<=7);
+        assert_float_eq!(click_position.value().y,-199.5,ulps<=7);
     }
 }

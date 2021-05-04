@@ -1,7 +1,6 @@
 use crate::prelude::*;
 
 use enso_frp as frp;
-use ensogl_core::Animation;
 use ensogl_core::application::Application;
 use ensogl_core::display::shape::*;
 use ensogl_core::display::shape::StyleWatchFrp;
@@ -41,8 +40,6 @@ impl component::Frp<Model> for Frp {
         let network          = &frp.network;
         let scene            = app.display.scene();
         let mouse            = &scene.mouse.frp;
-
-        let _slider_animation = Animation::<Vector2>::new(network);
 
         let base_frp = BaseFrp::new(model,style,network,frp.resize.clone().into(),mouse);
 
