@@ -6,8 +6,11 @@
 
 #### Visual Environment
 
-#### EnsoGL (rendering engine)
+- [Components for picking numbers and ranges.][1524]. We now have some internal
+  re-usable UI components for selecting numbers or a range. Stay tuned for them
+  appearing in the IDE.
 
+#### EnsoGL (rendering engine)
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
@@ -20,6 +23,8 @@
 If you're interested in the enhancements and fixes made to the Enso compiler,
 you can find their release notes
 [here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
+
+[1524]: https://github.com/enso-org/ide/pull/1524
 
 <br/>
 
@@ -37,10 +42,7 @@ you can find their release notes
   arguments following the separator will be passed to the backend.
 - [Added `--verbose` parameter][1531]. If `--verbose` is given as command line
   argument, the IDE and the backend will produce more detailed logs.
-- [Components for picking numbers and ranges.][1524]. We now have some internal
-  re-usable UI components for selecting numbers or a range. Stay tuned for them
-  appearing in the IDE.
-  
+
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
 #### Visual Environment
@@ -241,7 +243,6 @@ you can find their release notes
 [1447]: https://github.com/enso-org/ide/pull/1447
 [1471]: https://github.com/enso-org/ide/pull/1471
 [1511]: https://github.com/enso-org/ide/pull/1511
-[1524]: https://github.com/enso-org/ide/pull/1524
 
 <br/>
 
