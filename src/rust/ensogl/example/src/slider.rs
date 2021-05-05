@@ -4,10 +4,11 @@ use crate::prelude::*;
 use wasm_bindgen::prelude::*;
 
 use ensogl_core::application::Application;
+use ensogl_core::data::color;
 use ensogl_core::display::object::ObjectOps;
 use ensogl_core::system::web;
-use ensogl_gui_components::selector;
 use ensogl_gui_components::selector::Bounds;
+use ensogl_gui_components::selector;
 use ensogl_text_msdf_sys::run_once_initialized;
 use ensogl_theme as theme;
 
@@ -68,9 +69,11 @@ fn init(app:&Application) {
 
     let slider3 = make_range_picker(app);
     slider3.inner().set_position_y(-100.0);
+    slider3.inner().set_track_color(color::Rgba::new(0.0,0.80,0.80,1.0));
 
     let slider4 = make_range_picker(app);
     slider4.inner().set_position_y(-200.0);
     slider4.inner().frp.use_overflow_bounds(Bounds::new(-2.0,3.0));
     slider4.inner().frp.set_caption(Some("Caption".to_string()));
+    slider4.inner().set_track_color(color::Rgba::new(0.5,0.70,0.70,1.0));
 }

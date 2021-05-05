@@ -1,5 +1,6 @@
 use crate::prelude::*;
 
+use ensogl_core::data::color;
 use ensogl_core::display::shape::*;
 use ensogl_theme as theme;
 
@@ -33,7 +34,7 @@ impl Background {
         let rect_left     = rect_left.translate_x(-&width/4.0);
         let rect_right    = Rect((&width/2.0,&height)).corners_radius(&corner_radius*corner_right);
         let rect_right    = rect_right.translate_x(&width/4.0);
-        let rect_center   = Rect((&corner_radius,&height));
+        let rect_center   = Rect((&corner_radius*2.0,&height));
 
         let shape = (rect_left+rect_right+rect_center).into();
 
@@ -95,7 +96,7 @@ pub mod track {
     use super::*;
 
     ensogl_core::define_shape_system! {
-        (style:Style,left:f32,right:f32,corner_left:f32,corner_right:f32) {
+        (style:Style,left:f32,right:f32,corner_left:f32,corner_right:f32,track_color:Vector4) {
             let background = Background::new(&corner_left,&corner_right,style);
             let width      = background.width;
             let height     = background.height;
@@ -107,7 +108,7 @@ pub mod track {
             let track       = track.translate_x(-width/2.0);
             let track       = track.intersection(&background.shape);
 
-            let track_color = style.get_color(theme::component::slider::track::color);
+            let track_color = Var::<color::Rgba>::from(track_color);
             let track       = track.fill(track_color);
             track.into()
           }

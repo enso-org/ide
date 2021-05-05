@@ -1,9 +1,11 @@
 use crate::prelude::*;
 
 use enso_frp as frp;
+use ensogl_core::data::color;
 use ensogl_core::application::Application;
 use ensogl_core::display::shape::*;
 use ensogl_core::display::shape::StyleWatchFrp;
+use ensogl_theme as theme;
 
 use crate::component;
 use crate::selector::common::Model;
@@ -29,6 +31,7 @@ ensogl_core::define_endpoints! {
         set_caption(Option<String>),
         set_left_corner_round(bool),
         set_right_corner_round(bool),
+        set_track_color(color::Rgba),
     }
     Output {
         value(f32),
@@ -58,6 +61,8 @@ impl component::Frp<Model> for Frp {
         let track_click   = relative_shape_click_position(
             base_position,network,&model.track.events,mouse);
 
+        let style_track_color = style.get_color(theme::component::slider::track::color);
+
         frp::extend! { network
 
             // Rebind
@@ -68,6 +73,7 @@ impl component::Frp<Model> for Frp {
             eval frp.set_caption((caption) model.set_caption_left(caption.clone()));
             eval frp.set_left_corner_round ((value) model.left_corner_round(*value));
             eval frp.set_right_corner_round((value) model.right_corner_round(*value));
+            eval frp.set_track_color((value) model.set_track_color(*value));
 
             // Internal
             norm_value                 <- all2(&frp.value,&frp.bounds).map(normalise_value);
@@ -123,5 +129,6 @@ impl component::Frp<Model> for Frp {
         frp.set_value(0.5);
         frp.set_left_corner_round(true);
         frp.set_right_corner_round(true);
+        frp.set_track_color(style_track_color.value());
     }
 }

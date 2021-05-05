@@ -7,6 +7,7 @@ use crate::selector::common;
 use enso_frp as frp;
 use ensogl_core::application::Application;
 use ensogl_core::application;
+use ensogl_core::data::color;
 use ensogl_core::display::shape::*;
 use ensogl_core::display;
 use ensogl_text as text;
@@ -269,6 +270,10 @@ impl Model {
         let corner_roundness = if value { 1.0 } else { 0.0 };
         self.background.corner_right.set(corner_roundness);
         self.track.corner_right.set(corner_roundness)
+    }
+
+    pub fn set_track_color(&self, color:color::Rgba) {
+        self.track.track_color.set(color.into());
     }
 }
 

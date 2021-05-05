@@ -1,9 +1,11 @@
 use crate::prelude::*;
 
 use enso_frp as frp;
+use ensogl_core::data::color;
 use ensogl_core::application::Application;
 use ensogl_core::display::shape::*;
 use ensogl_core::display::shape::StyleWatchFrp;
+use ensogl_theme as theme;
 
 use crate::selector::common::Model;
 use crate::component;
@@ -27,6 +29,7 @@ ensogl_core::define_endpoints! {
         set_caption(Option<String>),
         set_left_corner_round(bool),
         set_right_corner_round(bool),
+        set_track_color(color::Rgba),
     }
     Output {
         value(Bounds),
@@ -45,6 +48,8 @@ impl component::Frp<Model> for Frp {
 
         model.use_track_handles(true);
 
+        let style_track_color = style.get_color(theme::component::slider::track::color);
+
         frp::extend! { network
 
             // Rebind
@@ -55,6 +60,7 @@ impl component::Frp<Model> for Frp {
             eval frp.set_caption((caption) model.set_caption_center(caption.clone()));
             eval frp.set_left_corner_round ((value) model.left_corner_round(*value));
             eval frp.set_right_corner_round((value) model.right_corner_round(*value));
+            eval frp.set_track_color((value) model.set_track_color(*value));
 
             // Internal
             norm_value <- all2(&frp.value,&frp.bounds).map(|(Bounds{start,end},bounds)|{
@@ -123,6 +129,7 @@ impl component::Frp<Model> for Frp {
         frp.set_value(Bounds::new(0.25,0.75));
         frp.set_left_corner_round(true);
         frp.set_right_corner_round(true);
+        frp.set_track_color(style_track_color.value());
 
     }
 }
