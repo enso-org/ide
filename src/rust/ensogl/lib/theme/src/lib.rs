@@ -262,6 +262,12 @@ define_themes! { [light:0, dark:1]
                 stripe_width = 10.0 , 10.0;
                 stripe_angle = 45.0 , 45.0;
             }
+            profiling {
+                lightness = code::types::lightness , code::types::lightness;
+                chroma    = code::types::chroma    , code::types::chroma;
+                min_hue   = 0.38                   , 0.38;
+                max_hue   = 0.07                   , 0.07;
+            }
         }
         visualization {
             background = graph_editor::node::background , graph_editor::node::background;

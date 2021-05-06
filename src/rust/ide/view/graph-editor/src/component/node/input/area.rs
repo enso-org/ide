@@ -21,6 +21,7 @@ use crate::Type;
 use crate::component::type_coloring;
 use crate::node::input::port;
 use crate::node;
+use crate::Mode as EditorMode;
 
 
 
@@ -193,6 +194,8 @@ ensogl::define_endpoints! {
         /// if any. It is used to highlight ports if they are missing type information or if their
         /// types are polymorphic.
         set_ports_active (bool,Option<Type>),
+
+        set_editor_mode(EditorMode),
     }
 
     Output {
@@ -206,6 +209,7 @@ ensogl::define_endpoints! {
         on_port_hover       (Switch<Crumbs>),
         on_port_type_change (Crumbs,Option<Type>),
         on_background_press (),
+        editor_mode         (EditorMode),
     }
 }
 
@@ -387,6 +391,10 @@ impl Area {
             // === Expression Type ===
 
             eval frp.set_expression_usage_type (((a,b)) model.set_expression_usage_type(a,b));
+
+
+            // === Editor Mode ===
+            frp.output.source.editor_mode <+ frp.set_editor_mode;
         }
 
         Self {model,frp}
@@ -592,11 +600,16 @@ impl Area {
 
                     let port_shape_hover = port_shape.hover.clone_ref();
                     pointer_style_out   <- mouse_out.map(|_| default());
-                    pointer_style_over  <- map3(&mouse_over,&frp.set_ports_active,&port.tp,
-                        move |_,(_,edge_tp),port_tp| {
+                    pointer_style_over  <- map4
+                        (&mouse_over,&frp.set_ports_active,&port.tp,&frp.editor_mode,
+                        move |_,(_,edge_tp),port_tp,editor_mode| {
                             let tp    = port_tp.as_ref().or_else(||edge_tp.as_ref());
                             let color = tp.map(|tp| type_coloring::compute(tp,&styles));
                             let color = color.unwrap_or(any_type_sel_color);
+                            let color = match editor_mode {
+                                EditorMode::Normal    => color,
+                                EditorMode::Profiling => any_type_sel_color
+                            };
                             cursor::Style::new_highlight(&port_shape_hover,padded_size,Some(color))
                         }
                     );
@@ -703,10 +716,17 @@ impl Area {
             if let Some(port_shape) = &node.payload.shape {
                 frp::extend! { port_network
                     port_tp       <- all(&frp.set_hover,&frp.tp)._1();
-                    new_viz_color <- all_with(&port_tp,&frp.set_connected,f!([styles]
-                        (port_tp,(is_connected,edge_tp)) {
-                            let tp    = port_tp.as_ref().or_else(||edge_tp.as_ref());
-                            let color = select_color(&styles,tp);
+                    new_viz_color <- all_with3
+                        (&port_tp,&frp.set_connected,&self.editor_mode,
+                        f!([styles](port_tp,(is_connected,edge_tp),editor_mode) {
+                            let tp                  = port_tp.as_ref().or_else(||edge_tp.as_ref());
+                            let color               = select_color(&styles,tp);
+                            let neutral_color_theme = theme::code::types::any::selection;
+                            let neutral_color       = styles.get_color(neutral_color_theme);
+                            let color = match editor_mode {
+                                    EditorMode::Normal    => color,
+                                    EditorMode::Profiling => neutral_color.into()
+                                };
                             if *is_connected {color} else { color::Lcha::transparent() }
                         }
                     ));

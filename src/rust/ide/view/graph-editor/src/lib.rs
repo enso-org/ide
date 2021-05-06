@@ -35,6 +35,7 @@ pub mod builtin;
 pub mod data;
 
 use crate::component::node;
+pub use crate::component::node::ExecutionStatus as NodeExecutionStatus;
 use crate::component::tooltip::Tooltip;
 use crate::component::visualization::instance::PreprocessorConfiguration;
 use crate::component::tooltip;
@@ -60,6 +61,8 @@ use ensogl::gui::cursor;
 use ensogl::prelude::*;
 use ensogl::system::web;
 use ensogl_theme as theme;
+
+use std::f32;
 
 
 
@@ -98,6 +101,95 @@ fn breadcrumbs_gap_width() -> f32 {
         0.0
     }
 }
+
+
+
+// ============
+// === Mode ===
+// ============
+
+#[derive(Debug,Copy,Clone,CloneRef,PartialEq)]
+pub enum Mode {
+    Normal,
+    Profiling
+}
+
+impl Default for Mode {
+    fn default() -> Self {
+        Mode::Normal
+    }
+}
+
+
+
+// =========================
+// === ExecutionStatuses ===
+// =========================
+
+/// [`ExecutionsStatuses`] can be used to collect the execution statuses of all nodes in a graph. It
+/// exposes their minimum and maximum running times through its FRP endpoints. The structure needs
+/// to be updated whenever a node is added or deleted or changes its execution status.
+mod execution_statuses {
+    use super::*;
+    use std::cmp::Ordering::Equal;
+
+    ensogl::define_endpoints! {
+        Output {
+            min_duration (f32),
+            max_duration (f32),
+        }
+    }
+
+    #[derive(Debug,Clone,CloneRef)]
+    pub struct ExecutionStatuses {
+        frp       : Frp,
+        // If performance becomes an issue then we could try to store the durations in efficient
+        // priority queues instead, one to determine the minimum and one to determine the maximum.
+        durations : SharedHashMap<NodeId,f32>
+    }
+
+    impl Deref for ExecutionStatuses {
+        type Target = Frp;
+
+        fn deref(&self) -> &Self::Target {
+            &self.frp
+        }
+    }
+
+    impl ExecutionStatuses {
+        pub fn new() -> Self {
+            let frp       = Frp::new();
+            let durations = SharedHashMap::new();
+            Self {frp,durations}
+        }
+
+        pub fn set(&self,node:NodeId,status:NodeExecutionStatus) {
+            match status {
+                NodeExecutionStatus::Finished {duration} => self.durations.insert(node,duration),
+                _ => self.durations.remove(&node),
+            };
+            self.update_min_max();
+        }
+
+        pub fn remove(&self,node:NodeId) {
+            self.durations.remove(&node);
+            self.update_min_max();
+        }
+
+        fn update_min_max(&self) {
+            let durations = self.durations.raw.borrow();
+            // We need a custom compare function because `f32` does not implement `Ord`.
+            let cmp_f32 = |a:&&f32, b:&&f32| a.partial_cmp(&b).unwrap_or(Equal);
+
+            let min = durations.values().min_by(cmp_f32).unwrap_or(&f32::INFINITY);
+            self.source.min_duration.emit(min);
+
+            let max = durations.values().max_by(cmp_f32).unwrap_or(&0.0);
+            self.source.max_duration.emit(max);
+        }
+    }
+}
+pub use execution_statuses::ExecutionStatuses;
 
 
 
@@ -397,6 +489,8 @@ ensogl::define_endpoints! {
         collapse_selected_nodes(),
         /// Indicate whether this node had an error or not.
         set_node_error_status(NodeId,Option<node::error::Error>),
+        /// Indicate whether this node has finished execution.
+        set_node_execution_status(NodeId,NodeExecutionStatus),
 
 
         // === Visualization ===
@@ -419,6 +513,11 @@ ensogl::define_endpoints! {
         /// Can be used, e.g., if there is a fullscreen visualisation active, or navigation should
         ///only work for a selected visualisation.
         set_navigator_disabled(bool),
+
+
+        // === Modes ===
+
+        toggle_profiling_mode(),
 
 
         // === Debug ===
@@ -548,6 +647,8 @@ ensogl::define_endpoints! {
 
         node_being_edited (Option<NodeId>),
         node_editing (bool),
+
+        mode (Mode),
 
         navigator_active (bool),
     }
@@ -1143,6 +1244,19 @@ impl GraphEditorModelWithNetwork {
             output.source.visualization_enabled <+
                 vis_enabled.map2(&metadata,move |_,metadata| (node_id,metadata.clone()));
             output.source.visualization_disabled <+ vis_disabled.constant(node_id);
+
+
+            // === Mode ===
+
+            node.set_editor_mode <+ self.model.frp.mode;
+
+
+            // === Profiling ===
+
+            node.set_profiling_min_global_duration <+ self.model.execution_statuses.min_duration;
+            node.set_profiling_min_global_duration(self.model.execution_statuses.min_duration.value());
+            node.set_profiling_max_global_duration <+ self.model.execution_statuses.max_duration;
+            node.set_profiling_max_global_duration(self.model.execution_statuses.max_duration.value());
         }
         let initial_metadata = visualization::Metadata {
             preprocessor : node.model.visualization.frp.preprocessor.value()
@@ -1249,6 +1363,7 @@ pub struct GraphEditorModel {
     visualisations     : Visualisations,
     frp                : FrpEndpoints,
     navigator          : Navigator,
+    execution_statuses : ExecutionStatuses,
 }
 
 
@@ -1260,24 +1375,25 @@ impl GraphEditorModel {
     , cursor : cursor::Cursor
     , frp    : &Frp
     ) -> Self {
-        let network        = &frp.network;
-        let scene          = app.display.scene();
-        let logger         = Logger::new("GraphEditor");
-        let display_object = display::object::Instance::new(&logger);
-        let nodes          = Nodes::new(&logger);
-        let edges          = Edges::new(&logger);
-        let vis_registry   = visualization::Registry::with_default_visualizations();
-        let visualisations = default();
-        let touch_state    = TouchState::new(network,&scene.mouse.frp);
-        let breadcrumbs    = component::Breadcrumbs::new(app.clone_ref(),breadcrumbs_gap_width());
-        let app            = app.clone_ref();
-        let frp            = frp.output.clone_ref();
-        let navigator      = Navigator::new(&scene,&scene.camera());
-        let tooltip        = Tooltip::new(&app);
+        let network            = &frp.network;
+        let scene              = app.display.scene();
+        let logger             = Logger::new("GraphEditor");
+        let display_object     = display::object::Instance::new(&logger);
+        let nodes              = Nodes::new(&logger);
+        let edges              = Edges::new(&logger);
+        let vis_registry       = visualization::Registry::with_default_visualizations();
+        let visualisations     = default();
+        let touch_state        = TouchState::new(network,&scene.mouse.frp);
+        let breadcrumbs        = component::Breadcrumbs::new(app.clone_ref(),breadcrumbs_gap_width());
+        let app                = app.clone_ref();
+        let frp                = frp.output.clone_ref();
+        let navigator          = Navigator::new(&scene,&scene.camera());
+        let tooltip            = Tooltip::new(&app);
+        let execution_statuses = ExecutionStatuses::new();
 
         Self {
             logger,display_object,app,cursor,nodes,edges,touch_state,frp,breadcrumbs,
-            vis_registry,visualisations,navigator,tooltip,
+            vis_registry,visualisations,navigator,tooltip,execution_statuses,
         }.init()
     }
 
@@ -1400,6 +1516,7 @@ impl GraphEditorModel {
         let node_id = node_id.into();
         self.nodes.remove(&node_id);
         self.nodes.selected.remove_item(&node_id);
+        self.execution_statuses.remove(node_id);
     }
 
     fn node_in_edges(&self, node_id:impl Into<NodeId>) -> Vec<EdgeId> {
@@ -1812,10 +1929,13 @@ impl GraphEditorModel {
         let edge_type = self.edge_hover_type()
             .or_else(|| self.edge_target_type(edge_id))
             .or_else(|| self.edge_source_type(edge_id));
-        let opt_color = edge_type.map(|t|type_coloring::compute(&t,&styles));
-        opt_color.unwrap_or_else(||
-            color::Lcha::from(styles.get_color(theme::code::types::any::selection))
-        )
+        let opt_color     = edge_type.map(|t|type_coloring::compute(&t,&styles));
+        let neutral_color = color::Lcha::from(styles.get_color(theme::code::types::any::selection));
+        let type_color    = opt_color.unwrap_or(neutral_color);
+        match self.frp.mode.value() {
+            Mode::Normal    => type_color,
+            Mode::Profiling => neutral_color
+        }
     }
 
     fn first_detached_edge(&self) -> Option<EdgeId> {
@@ -1940,6 +2060,9 @@ impl application::View for GraphEditor {
           , (Press   , "" , "cmd left-mouse-button" , "edit_mode_on")
           , (Release , "" , "cmd left-mouse-button" , "edit_mode_off")
           , (Release , "" , "enter"                 , "stop_editing")
+
+          // === Profiling Mode ===
+          , (Press   , "" , "cmd p"                 , "toggle_profiling_mode")
 
           // === Debug ===
           , (Press , "debug_mode" , "ctrl d"           , "debug_set_test_visualization_data_for_selected_node")
@@ -2555,6 +2678,20 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     }
 
 
+    // === Profiling ===
+
+    frp::extend! { network
+
+        eval inputs.set_node_execution_status([model]((node_id,status)) {
+            if let Some(node) = model.nodes.get_cloned_ref(node_id) {
+                model.execution_statuses.set(*node_id,*status);
+                node.set_execution_status(status);
+            }
+        });
+
+    }
+
+
 
     // ==================
     // === Move Nodes ===
@@ -3041,6 +3178,29 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
                                             &frp.enable_quick_visualization_preview);
         eval quick_visualization_preview((value) model.nodes.set_quick_preview(*value));
     }
+
+
+
+    // =============
+    // === Modes ===
+    // =============
+
+    frp::extend! { network
+        out.source.mode <+ frp.toggle_profiling_mode.map2(&frp.mode,|_,&mode| {
+            match mode {
+                Mode::Profiling => Mode::Normal,
+                _               => Mode::Profiling,
+            }
+        });
+
+        eval out.source.mode([model](_) {
+            for edge_id in model.edges.keys() {
+                model.refresh_edge_color(edge_id);
+            }
+        });
+    }
+
+
 
     GraphEditor {model,frp}
 }

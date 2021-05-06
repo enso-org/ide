@@ -12,12 +12,15 @@ pub mod output;
 pub mod error;
 #[deny(missing_docs)]
 pub mod vcs;
+mod profiling_indicator;
 
 pub use error::Error;
 pub use expression::Expression;
 
 use crate::prelude::*;
 
+use profiling_indicator::ProfilingIndicator;
+use crate::Mode as EditorMode;
 use crate::component::visualization;
 use crate::tooltip;
 use crate::Type;
@@ -50,10 +53,10 @@ pub const HEIGHT            : f32 = 28.0;
 pub const PADDING           : f32 = 40.0;
 pub const RADIUS            : f32 = 14.0;
 
-const INFINITE                       : f32       = 99999.0;
-const ERROR_VISUALIZATION_SIZE       : (f32,f32) = visualization::container::DEFAULT_SIZE;
+const INFINITE                 : f32       = 99999.0;
+const ERROR_VISUALIZATION_SIZE : (f32,f32) = visualization::container::DEFAULT_SIZE;
 
-const VISUALIZATION_OFFSET_Y         : f32       = -120.0;
+const VISUALIZATION_OFFSET_Y : f32 = -120.0;
 
 const VIS_PREVIEW_ONSET_MS   : f32 = 3000.0;
 const ERROR_PREVIEW_ONSET_MS : f32 = 0000.0;
@@ -205,6 +208,24 @@ pub mod error_shape {
 
 
 
+// ========================
+// === Execution Status ===
+// ========================
+
+#[derive(Debug,Copy,Clone)]
+pub enum ExecutionStatus {
+    Running,
+    Finished { duration: f32 }
+}
+
+impl Default for ExecutionStatus {
+    fn default() -> Self {
+        ExecutionStatus::Running
+    }
+}
+
+
+
 // ==============
 // === Crumbs ===
 // ==============
@@ -256,11 +277,15 @@ ensogl::define_endpoints! {
         /// Set the expression USAGE type. This is not the definition type, which can be set with
         /// `set_expression` instead. In case the usage type is set to None, ports still may be
         /// colored if the definition type was present.
-        set_expression_usage_type        (Crumbs,Option<Type>),
-        set_output_expression_visibility (bool),
-        set_vcs_status                   (Option<vcs::Status>),
+        set_expression_usage_type         (Crumbs,Option<Type>),
+        set_output_expression_visibility  (bool),
+        set_vcs_status                    (Option<vcs::Status>),
         /// Indicate whether preview visualisations should be delayed or immediate.
-        quick_preview_vis                (bool),
+        quick_preview_vis                 (bool),
+        set_editor_mode                   (EditorMode),
+        set_profiling_min_global_duration (f32),
+        set_profiling_max_global_duration (f32),
+        set_execution_status              (ExecutionStatus),
     }
     Output {
         /// Press event. Emitted when user clicks on non-active part of the node, like its
@@ -359,6 +384,7 @@ pub struct NodeModel {
     pub background          : background::View,
     pub drag_area           : drag_area::View,
     pub error_indicator     : error_shape::View,
+    pub profiling_indicator : ProfilingIndicator,
     pub input               : input::Area,
     pub output              : output::Area,
     pub visualization       : visualization::Container,
@@ -370,7 +396,7 @@ pub struct NodeModel {
 
 impl NodeModel {
     /// Constructor.
-    pub fn new(app:&Application, registry:visualization::Registry) -> Self {
+    pub fn new(app:&Application,registry:visualization::Registry) -> Self {
         ensogl::shapes_order_dependencies! {
             app.display.scene() => {
                 edge::back::corner        -> backdrop;
@@ -395,13 +421,15 @@ impl NodeModel {
         let drag_logger             = Logger::sub(&logger,"drag_area");
         let error_indicator_logger  = Logger::sub(&logger,"error_indicator");
 
-        let error_indicator = error_shape::View::new(&error_indicator_logger);
-        let backdrop        = backdrop::View::new(&main_logger);
-        let background      = background::View::new(&main_logger);
-        let drag_area       = drag_area::View::new(&drag_logger);
-        let vcs_indicator   = vcs::StatusIndicator::new(app);
-        let display_object  = display::object::Instance::new(&logger);
+        let error_indicator     = error_shape::View::new(&error_indicator_logger);
+        let profiling_indicator = ProfilingIndicator::new(app);
+        let backdrop            = backdrop::View::new(&main_logger);
+        let background          = background::View::new(&main_logger);
+        let drag_area           = drag_area::View::new(&drag_logger);
+        let vcs_indicator       = vcs::StatusIndicator::new(app);
+        let display_object      = display::object::Instance::new(&logger);
 
+        display_object.add_child(&profiling_indicator);
         display_object.add_child(&drag_area);
         display_object.add_child(&backdrop);
         display_object.add_child(&background);
@@ -432,7 +460,8 @@ impl NodeModel {
 
         let app = app.clone_ref();
         Self {app,display_object,logger,backdrop,background,drag_area,output,input,visualization
-            ,error_visualization,action_bar,error_indicator,vcs_indicator,style}.init()
+            ,error_visualization,profiling_indicator,action_bar,error_indicator,vcs_indicator,style}
+            .init()
     }
 
     pub fn get_crumbs_by_id(&self, id:ast::Id) -> Option<Crumbs> {
@@ -473,12 +502,14 @@ impl NodeModel {
         self.backdrop.size.set(padded_size);
         self.background.size.set(padded_size);
         self.drag_area.size.set(padded_size);
+        self.profiling_indicator.set_size(padded_size);
         self.error_indicator.size.set(padded_size);
         self.vcs_indicator.set_size(padded_size);
         self.backdrop.mod_position(|t| t.x = width/2.0);
         self.background.mod_position(|t| t.x = width/2.0);
         self.drag_area.mod_position(|t| t.x = width/2.0);
 
+        self.profiling_indicator.set_position_x(width/2.0);
         self.error_indicator.set_position_x(width/2.0);
         self.vcs_indicator.set_position_x(width/2.0);
 
@@ -587,6 +618,12 @@ impl Node {
             out.source.skip   <+ action_bar.action_skip;
             out.source.freeze <+ action_bar.action_freeze;
             eval out.hover ((t) action_bar.set_visibility(t));
+
+
+            // === Editor Mode ===
+
+            model.input.set_editor_mode               <+ frp.set_editor_mode;
+            model.profiling_indicator.set_editor_mode <+ frp.set_editor_mode;
        }
 
 
@@ -662,6 +699,17 @@ impl Node {
             eval error_color_anim.value ((value) model.set_error_color(value));
 
         }
+
+        // === Profiling Indicator ===
+
+        frp::extend! { network
+            model.profiling_indicator.set_min_global_duration
+                <+ frp.set_profiling_min_global_duration;
+            model.profiling_indicator.set_max_global_duration
+                <+ frp.set_profiling_max_global_duration;
+            model.profiling_indicator.set_execution_status <+ frp.set_execution_status;
+        }
+
 
         frp::extend! { network
 
