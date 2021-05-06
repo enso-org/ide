@@ -8,7 +8,6 @@
 
 #### EnsoGL (rendering engine)
 
-
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
 #### Visual Environment
@@ -37,7 +36,6 @@ you can find their release notes
   arguments following the separator will be passed to the backend.
 - [Added `--verbose` parameter][1531]. If `--verbose` is given as command line
   argument, the IDE and the backend will produce more detailed logs.
-
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
