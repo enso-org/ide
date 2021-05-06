@@ -7,6 +7,7 @@ import * as html_utils    from 'enso-studio-common/src/html_utils'
 import * as animation     from 'enso-studio-common/src/animation'
 import * as globalConfig  from '../../../../config.yaml'
 import cfg                from '../../../config'
+import assert             from "assert";
 
 
 
@@ -400,7 +401,7 @@ function showCrashBanner(message) {
 }
 
 async function reportCrash(message) {
-    const crashReportHost = API[globalConfig.windowAppScopeConfigName].crashReportHost
+    const crashReportHost = API[globalConfig.windowAppScopeConfigName].crash_report_host
     await fetch(`http://${crashReportHost}/`, {
         method: 'POST',
         mode: 'no-cors',
@@ -438,26 +439,53 @@ function ok(value) {
     return value !== null && value !== undefined
 }
 
-/// Main entry point. Loads WASM, initializes it, chooses the scene to run.
-API.main = async function (inputConfig) {
-    let defaultConfig = {
-        use_loader     : true,
-        wasm_url       : '/assets/ide.wasm',
-        wasm_glue_url  : '/assets/wasm_imports.js',
-        crashReportHost: cfg.defaultLogServerHost,
-        noDataGathering: false,
+/// Check whether the value is a string with value `"true"`/`"false"`, if so, return the
+// appropriate boolean instead. Otherwise, return the original value.
+function parseBooleanOrLeaveAsIs(value) {
+    if (value === "true"){
+        return true
     }
-    let urlParams = new URLSearchParams(window.location.search);
-    let urlConfig = Object.fromEntries(urlParams.entries())
-    let config    = Object.assign(defaultConfig,inputConfig,urlConfig)
-    API[globalConfig.windowAppScopeConfigName] = config
+    if (value === "false"){
+        return false
+    }
+    return value
+}
 
-    if (config.noDataGathering) {
+/// Turn all values that have a boolean in string representation (`"true"`/`"false"`) into actual
+/// booleans (`true/`false``).
+function parseAllBooleans(config) {
+    for (const key in config) {
+        config[key] = parseBooleanOrLeaveAsIs(config[key])
+    }
+}
+
+function initLogging(config) {
+    assert(typeof config.no_data_gathering == "boolean")
+    if (config.no_data_gathering ) {
         API.remoteLog = function (_event, _data) {}
     } else {
         let logger = new MixpanelLogger
         API.remoteLog = function (event,data) {logger.log(event,data)}
     }
+}
+
+/// Main entry point. Loads WASM, initializes it, chooses the scene to run.
+API.main = async function (inputConfig) {
+    let defaultConfig = {
+        use_loader        : true,
+        wasm_url          : '/assets/ide.wasm',
+        wasm_glue_url     : '/assets/wasm_imports.js',
+        crash_report_host : cfg.defaultLogServerHost,
+        no_data_gathering : false,
+        is_in_cloud       : false,
+    }
+    let urlParams = new URLSearchParams(window.location.search);
+    let urlConfig = Object.fromEntries(urlParams.entries())
+    let config    = Object.assign(defaultConfig,inputConfig,urlConfig)
+    parseAllBooleans(config)
+    API[globalConfig.windowAppScopeConfigName] = config
+
+    initLogging(config)
 
     window.setInterval(() =>{API.remoteLog("alive");}, ALIVE_LOG_INTERVAL)
     //Build data injected during the build process. See `webpack.config.js` for the source.
