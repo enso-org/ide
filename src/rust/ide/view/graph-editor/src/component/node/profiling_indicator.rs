@@ -98,6 +98,12 @@ impl ProfilingIndicator {
 
         let shape = shape::View::new(&logger);
         display_object.add_child(&shape);
+        ensogl::shapes_order_dependencies! {
+            app.display.scene() => {
+                crate::component::edge::front::corner -> shape;
+                crate::component::edge::front::line   -> shape;
+            }
+        }
 
         let label = text::Area::new(app);
         display_object.add_child(&label);
