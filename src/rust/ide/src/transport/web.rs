@@ -158,7 +158,7 @@ pub mod event {
 #[derive(Derivative)]
 #[derivative(Debug)]
 #[allow(missing_docs)]
-pub struct Model {
+struct Model {
     // === User-provided callbacks ===
     pub on_close          : Slot<event::Close>,
     pub on_message        : Slot<event::Message>,

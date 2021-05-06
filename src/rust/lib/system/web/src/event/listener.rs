@@ -69,6 +69,17 @@ impl<EventType:crate::event::Type> Slot<EventType> {
         }
     }
 
+    /// Clear event target.
+    ///
+    /// If callback is set, it will be unregistered.
+    pub fn clear_target(&mut self, target:&EventType::Target) {
+        // Prevent spurious reattaching that could affect listeners order.
+        if Some(target) != self.target.as_ref() {
+            self.remove_if_active();
+            self.target = None;
+        }
+    }
+
     /// Assign a new event callback closure and register it in the target.
     ///
     /// If the listener was registered with the previous closure, it will unregister first.
