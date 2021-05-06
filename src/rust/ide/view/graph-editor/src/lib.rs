@@ -122,77 +122,6 @@ impl Default for Mode {
 
 
 
-// =========================
-// === ExecutionStatuses ===
-// =========================
-
-/// [`ExecutionsStatuses`] can be used to collect the execution statuses of all nodes in a graph. It
-/// exposes their minimum and maximum running times through its FRP endpoints. The structure needs
-/// to be updated whenever a node is added or deleted or changes its execution status.
-mod execution_statuses {
-    use super::*;
-    use std::cmp::Ordering::Equal;
-
-    ensogl::define_endpoints! {
-        Output {
-            min_duration (f32),
-            max_duration (f32),
-        }
-    }
-
-    #[derive(Debug,Clone,CloneRef)]
-    pub struct ExecutionStatuses {
-        frp       : Frp,
-        // If performance becomes an issue then we could try to store the durations in efficient
-        // priority queues instead, one to determine the minimum and one to determine the maximum.
-        durations : SharedHashMap<NodeId,f32>
-    }
-
-    impl Deref for ExecutionStatuses {
-        type Target = Frp;
-
-        fn deref(&self) -> &Self::Target {
-            &self.frp
-        }
-    }
-
-    impl ExecutionStatuses {
-        pub fn new() -> Self {
-            let frp       = Frp::new();
-            let durations = SharedHashMap::new();
-            Self {frp,durations}
-        }
-
-        pub fn set(&self,node:NodeId,status:NodeExecutionStatus) {
-            match status {
-                NodeExecutionStatus::Finished {duration} => self.durations.insert(node,duration),
-                _ => self.durations.remove(&node),
-            };
-            self.update_min_max();
-        }
-
-        pub fn remove(&self,node:NodeId) {
-            self.durations.remove(&node);
-            self.update_min_max();
-        }
-
-        fn update_min_max(&self) {
-            let durations = self.durations.raw.borrow();
-            // We need a custom compare function because `f32` does not implement `Ord`.
-            let cmp_f32 = |a:&&f32, b:&&f32| a.partial_cmp(&b).unwrap_or(Equal);
-
-            let min = durations.values().min_by(cmp_f32).unwrap_or(&f32::INFINITY);
-            self.source.min_duration.emit(min);
-
-            let max = durations.values().max_by(cmp_f32).unwrap_or(&0.0);
-            self.source.max_duration.emit(max);
-        }
-    }
-}
-pub use execution_statuses::ExecutionStatuses;
-
-
-
 // =================
 // === SharedVec ===
 // =================
@@ -1035,6 +964,77 @@ impl Edges {
         detached.into_iter()
     }
 }
+
+
+
+// =========================
+// === ExecutionStatuses ===
+// =========================
+
+/// [`ExecutionsStatuses`] can be used to collect the execution statuses of all nodes in a graph. It
+/// exposes their minimum and maximum running times through its FRP endpoints. The structure needs
+/// to be updated whenever a node is added or deleted or changes its execution status.
+mod execution_statuses {
+    use super::*;
+    use std::cmp::Ordering::Equal;
+
+    ensogl::define_endpoints! {
+        Output {
+            min_duration (f32),
+            max_duration (f32),
+        }
+    }
+
+    #[derive(Debug,Clone,CloneRef,Default)]
+    pub struct ExecutionStatuses {
+        frp       : Frp,
+        // If performance becomes an issue then we could try to store the durations in efficient
+        // priority queues instead, one to determine the minimum and one to determine the maximum.
+        durations : SharedHashMap<NodeId,f32>
+    }
+
+    impl Deref for ExecutionStatuses {
+        type Target = Frp;
+
+        fn deref(&self) -> &Self::Target {
+            &self.frp
+        }
+    }
+
+    impl ExecutionStatuses {
+        pub fn new() -> Self {
+            let frp       = Frp::new();
+            let durations = SharedHashMap::new();
+            Self {frp,durations}
+        }
+
+        pub fn set(&self,node:NodeId,status:NodeExecutionStatus) {
+            match status {
+                NodeExecutionStatus::Finished {duration} => self.durations.insert(node,duration),
+                _ => self.durations.remove(&node),
+            };
+            self.update_min_max();
+        }
+
+        pub fn remove(&self,node:NodeId) {
+            self.durations.remove(&node);
+            self.update_min_max();
+        }
+
+        fn update_min_max(&self) {
+            let durations = self.durations.raw.borrow();
+            // We need a custom compare function because `f32` does not implement `Ord`.
+            let cmp_f32 = |a:&&f32, b:&&f32| a.partial_cmp(&b).unwrap_or(Equal);
+
+            let min = durations.values().min_by(cmp_f32).unwrap_or(&f32::INFINITY);
+            self.source.min_duration.emit(min);
+
+            let max = durations.values().max_by(cmp_f32).unwrap_or(&0.0);
+            self.source.max_duration.emit(max);
+        }
+    }
+}
+pub use execution_statuses::ExecutionStatuses;
 
 
 
