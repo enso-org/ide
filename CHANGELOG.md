@@ -8,7 +8,6 @@
 
 #### EnsoGL (rendering engine)
 
-
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
 #### Visual Environment
