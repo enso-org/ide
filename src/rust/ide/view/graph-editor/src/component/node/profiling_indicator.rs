@@ -126,11 +126,7 @@ impl ProfilingIndicator {
             });
 
             color.target_alpha <+ visibility.map(|&is_visible| {
-                if is_visible {
-                    1.0
-                } else {
-                    0.0
-                }
+                if is_visible { 1.0 } else { 0.0 }
             });
 
 
