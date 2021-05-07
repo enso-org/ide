@@ -396,7 +396,7 @@ pub struct NodeModel {
 
 impl NodeModel {
     /// Constructor.
-    pub fn new(app:&Application,registry:visualization::Registry) -> Self {
+    pub fn new(app:&Application, registry:visualization::Registry) -> Self {
         ensogl::shapes_order_dependencies! {
             app.display.scene() => {
                 edge::back::corner        -> backdrop;
