@@ -13,7 +13,7 @@
 #### Visual Environment
 
 - [Delete key will delete selected nodes][1538].
-- [It is possible to move around after deleting a selected visualization][1556]. 
+- [It is possible to move around after deleting a selected visualization][1556].
 
 #### EnsoGL (rendering engine)
 
