@@ -1403,9 +1403,9 @@ impl GraphEditorModel {
     /// implementation.
     fn remove_node(&self, node_id:impl Into<NodeId>) {
         let node_id = node_id.into();
+        self.frp.source.on_visualization_select.emit(Switch::Off(node_id));
         self.nodes.remove(&node_id);
         self.nodes.selected.remove_item(&node_id);
-        self.frp.source.on_visualization_select.emit(Switch::Off(node_id));
     }
 
     fn node_in_edges(&self, node_id:impl Into<NodeId>) -> Vec<EdgeId> {
