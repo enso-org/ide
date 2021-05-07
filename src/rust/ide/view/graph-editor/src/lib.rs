@@ -17,6 +17,7 @@
 #![feature(unboxed_closures)]
 #![feature(vec_remove_item)]
 #![feature(weak_into_raw)]
+#![feature(matches_macro)]
 
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
@@ -61,7 +62,6 @@ use ensogl::gui::cursor;
 use ensogl::prelude::*;
 use ensogl::system::web;
 use ensogl_theme as theme;
-
 use std::f32;
 
 
@@ -108,7 +108,9 @@ fn traffic_lights_gap_width() -> f32 {
 // === Mode ===
 // ============
 
-#[derive(Debug,Copy,Clone,CloneRef,PartialEq)]
+/// Represents the current global mode of the graph editor. In profiling mode, edges should not be
+/// colored and profiling information on nodes should become visible.
+#[derive(Debug,Copy,Clone,CloneRef,PartialEq,Eq)]
 pub enum Mode {
     Normal,
     Profiling
@@ -1931,15 +1933,18 @@ impl GraphEditorModel {
     fn edge_color(&self, edge_id:EdgeId) -> color::Lcha {
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles    = StyleWatch::new(&self.scene().style_sheet);
-        let edge_type = self.edge_hover_type()
-            .or_else(|| self.edge_target_type(edge_id))
-            .or_else(|| self.edge_source_type(edge_id));
-        let opt_color     = edge_type.map(|t|type_coloring::compute(&t,&styles));
         let neutral_color = color::Lcha::from(styles.get_color(theme::code::types::any::selection));
-        let type_color    = opt_color.unwrap_or(neutral_color);
         match self.frp.mode.value() {
-            Mode::Normal    => type_color,
-            Mode::Profiling => neutral_color
+            Mode::Normal => {
+                let edge_type = self.edge_hover_type()
+                    .or_else(|| self.edge_target_type(edge_id))
+                    .or_else(|| self.edge_source_type(edge_id));
+                let opt_color     = edge_type.map(|t|type_coloring::compute(&t,&styles));
+                opt_color.unwrap_or(neutral_color)
+            },
+            Mode::Profiling => {
+                color::Lcha::from(neutral_color)
+            }
         }
     }
 

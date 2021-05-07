@@ -119,10 +119,7 @@ impl ProfilingIndicator {
             // === Visibility ===
 
             visibility <- all_with(&frp.set_editor_mode,&frp.set_execution_status,|mode,status| {
-                match (mode,status) {
-                    (EditorMode::Profiling,ExecutionStatus::Finished {..}) => true,
-                    _                                                      => false,
-                }
+                matches!((mode,status),(EditorMode::Profiling,ExecutionStatus::Finished {..}))
             });
 
             color.target_alpha <+ visibility.map(|&is_visible| {
