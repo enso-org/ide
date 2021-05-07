@@ -1939,11 +1939,11 @@ impl GraphEditorModel {
                 let edge_type = self.edge_hover_type()
                     .or_else(|| self.edge_target_type(edge_id))
                     .or_else(|| self.edge_source_type(edge_id));
-                let opt_color     = edge_type.map(|t|type_coloring::compute(&t,&styles));
+                let opt_color = edge_type.map(|t|type_coloring::compute(&t,&styles));
                 opt_color.unwrap_or(neutral_color)
             },
             Mode::Profiling => {
-                color::Lcha::from(neutral_color)
+                neutral_color
             }
         }
     }
