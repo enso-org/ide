@@ -1,6 +1,4 @@
-# Next Release
-
-<br/>![New Learning Resources](/docs/assets/tags/new_learning_resources.svg)
+# Enso 2.0.0-alpha.5 (2021-05-14)
 
 <br/>![New Features](/docs/assets/tags/new_features.svg)
 
@@ -18,10 +16,13 @@
 
 #### Enso Compiler
 
+- [Updated Enso engine to version 0.2.11][1541].
+
 If you're interested in the enhancements and fixes made to the Enso compiler,
 you can find their release notes
 [here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
 
+[1541]: https://github.com/enso-org/ide/pull/1511
 [1538]: https://github.com/enso-org/ide/pull/1538
 
 <br/>
