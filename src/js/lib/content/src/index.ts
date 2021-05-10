@@ -383,6 +383,7 @@ function handleCrash(message: string) {
         storeLastCrashMessage(message)
         location.reload()
     } else {
+        // @ts-ignore
         for (let element of [...document.body.childNodes]) {
             // @ts-ignore
             if (element.id !== crashBannerId) {
