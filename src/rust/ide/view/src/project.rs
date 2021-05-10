@@ -18,6 +18,7 @@ use ensogl::application::Application;
 use ensogl::application::shortcut;
 use ensogl::display;
 use ensogl::display::shape::StyleWatch;
+use ensogl::display::shape::StyleWatchFrp;
 use ensogl::DEPRECATED_Animation;
 use ensogl::system::web;
 use ensogl::system::web::dom;
@@ -298,10 +299,14 @@ impl View {
         app.themes.update();
 
         let style_sheet                    = &model.app.display.scene().style_sheet;
-        let styles                         = StyleWatch::new(style_sheet);
+        let styles                         = StyleWatchFrp::new(style_sheet);
         let default_gap_between_nodes_path = ensogl_theme::project::default_gap_between_nodes;
-        let default_gap_between_nodes      = styles.get_number(default_gap_between_nodes_path);
-        frp.source.default_gap_between_nodes.emit(default_gap_between_nodes);
+
+        let default_gap_between_nodes = styles.get_number_or(default_gap_between_nodes_path, 0.0);
+        frp::extend! { network
+            frp.source.default_gap_between_nodes <+ default_gap_between_nodes;
+        }
+        frp.source.default_gap_between_nodes.emit(default_gap_between_nodes.value());
 
         if let Some(window_control_buttons) = &*model.window_control_buttons {
             let initial_size = &window_control_buttons.size.value();

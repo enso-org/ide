@@ -107,21 +107,39 @@ impl AllPortsShape {
     }
 }
 
-fn shape_border_length<T>(corner_radius: T, width: T) -> T
-    where T: Clone + Mul<f32,Output=T> + Sub<Output=T> + Add<Output=T> {
+/// The length of the port shape's inner border (the part that touches the node)
+///
+/// # Arguments
+///
+/// * `corner_radius` - The inner radius of the port shape's corner segments (the round parts)
+/// * `width`         - The inner width of the port shape (also the width of the node)
+fn shape_border_length<T>(corner_radius:T, width:T) -> T
+where T: Clone + Mul<f32,Output=T> + Sub<Output=T> + Add<Output=T> {
     let corner_segment_length = corner_segment_length(corner_radius.clone());
     let center_segment_length = center_segment_length(corner_radius, width);
     center_segment_length + corner_segment_length * 2.0
 }
 
-fn corner_segment_length<T>(corner_radius: T) -> T
-    where T: Mul<f32,Output=T> {
+/// The length of the border on the inside of a single corner segment (the round part at the end of
+/// the node)
+///
+/// # Arguments
+///
+///  * `corner_radius` - The inner radius of the corner segment
+fn corner_segment_length<T>(corner_radius:T) -> T
+where T: Mul<f32,Output=T> {
     let corner_circumference  = corner_radius * 2.0 * PI;
     corner_circumference * 0.25
 }
 
-fn center_segment_length<T>(corner_radius: T, width: T) -> T
-    where T: Mul<f32,Output=T> + Sub<Output=T> {
+/// The length of the center segment of a port shape (the straight part in the center of the shape)
+///
+/// # Arguments
+///
+/// * `corner_radius` - The inner radius of the port shape's corner segments (the round parts)
+/// * `width`         - The inner width of the port shape (also the width of the node)
+fn center_segment_length<T>(corner_radius:T, width:T) -> T
+where T: Mul<f32,Output=T> + Sub<Output=T> {
     width - corner_radius * 2.0
 }
 
@@ -510,8 +528,8 @@ impl Model {
                 |usage_tp,def_tp| usage_tp.clone().or_else(|| def_tp.clone())
             );
             full_type_timer.start <+ frp.on_hover.on_true();
-            full_type_timer.reset <+ frp.on_hover.on_false();
-            showing_full_type     <- bool(&full_type_timer.on_end,&full_type_timer.on_reset);
+            full_type_timer.reset <+ type_label_opacity.value.filter(|&o| o == 0.0).constant(());
+            showing_full_type     <- bool(&full_type_timer.on_reset,&full_type_timer.on_end);
             type_label.set_content <+ all_with(&frp.tp,&showing_full_type,|tp,&show_full_tp| {
                 if let Some(tp) = tp {
                     if show_full_tp {
