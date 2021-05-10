@@ -1,6 +1,8 @@
 
 use crate::prelude::*;
 
+use crate::tooltip;
+use crate::tooltip::Placement;
 use crate::Type;
 use crate::component::node;
 use crate::component::type_coloring;
@@ -34,6 +36,10 @@ const SEGMENT_GAP_WIDTH        : f32 = 2.0;
 const HOVER_AREA_PADDING       : f32 = 20.0;
 const INFINITE                 : f32 = 99999.0;
 const FULL_TYPE_ONSET_DELAY_MS : f32 = 2000.0;
+
+const TOOLTIP_LOCATION : Placement = Placement::Bottom;
+const SHOW_TOOLTIP     : bool      = false;
+const SHOW_TYPE_LABEL  : bool      = true;
 
 
 
@@ -411,6 +417,7 @@ ensogl::define_endpoints! {
         tp       (Option<Type>),
         on_hover (bool),
         on_press (),
+        tooltip  (tooltip::Style),
         size     (Vector2),
     }
 }
@@ -495,17 +502,6 @@ impl Model {
             eval opacity.value ((t) shape.set_opacity(*t));
 
 
-            // === Label Opacity ===
-
-            type_label_visibility        <- frp.on_hover.and(&frp.set_type_label_visibility);
-            type_label_opacity.target    <+ type_label_visibility.on_true().constant(PORT_OPACITY_HOVERED);
-            type_label_opacity.target    <+ type_label_visibility.on_false().constant(0.0);
-            type_label_color             <- all_with(&color.value,&type_label_opacity.value,
-                |color,&opacity| color.opaque.with_alpha(opacity).into());
-            type_label.set_color_all     <+ type_label_color;
-            type_label.set_default_color <+ type_label_color;
-
-
             // === Size ===
 
             frp.source.size <+ frp.set_size;
@@ -527,24 +523,54 @@ impl Model {
             frp.source.tp <+ all_with(&frp.set_usage_type,&frp.set_definition_type,
                 |usage_tp,def_tp| usage_tp.clone().or_else(|| def_tp.clone())
             );
-            full_type_timer.start <+ frp.on_hover.on_true();
-            full_type_timer.reset <+ type_label_opacity.value.filter(|&o| o == 0.0).constant(());
-            showing_full_type     <- bool(&full_type_timer.on_reset,&full_type_timer.on_end);
-            type_label.set_content <+ all_with(&frp.tp,&showing_full_type,|tp,&show_full_tp| {
-                if let Some(tp) = tp {
-                    if show_full_tp {
-                        tp.to_string()
-                    } else {
-                        tp.abbreviate().to_string()
-                    }
-                } else {
-                    "".to_string()
-                }
-            });
 
             color_tgt <- frp.tp.map(f!([styles](t) type_coloring::compute_for_selection(t.as_ref(),&styles)));
             color.target <+ color_tgt;
             eval color.value ((t) shape.set_color(t.into()));
+
+            full_type_timer.start <+ frp.on_hover.on_true();
+            full_type_timer.reset <+ type_label_opacity.value.filter(|&o| o == 0.0).constant(());
+            showing_full_type     <- bool(&full_type_timer.on_reset,&full_type_timer.on_end);
+            type_description      <- all_with(&frp.tp,&showing_full_type,|tp,&show_full_tp| {
+                tp.map_ref(|tp| {
+                    if show_full_tp { tp.to_string() } else { tp.abbreviate().to_string() }
+                })
+            });
+        }
+
+        if SHOW_TYPE_LABEL {
+            frp::extend! { network
+
+                // === Type Label ===
+
+                type_label_visibility        <- frp.on_hover.and(&frp.set_type_label_visibility);
+                type_label_opacity.target    <+ type_label_visibility.on_true().constant(PORT_OPACITY_HOVERED);
+                type_label_opacity.target    <+ type_label_visibility.on_false().constant(0.0);
+                type_label_color             <- all_with(&color.value,&type_label_opacity.value,
+                    |color,&opacity| color.opaque.with_alpha(opacity).into());
+                type_label.set_color_all     <+ type_label_color;
+                type_label.set_default_color <+ type_label_color;
+                type_label.set_content       <+ type_description.map(|s| s.clone().unwrap_or("".to_string()));
+            }
+        }
+
+        if SHOW_TOOLTIP {
+            frp::extend! { network
+
+                // === Tooltip ===
+
+                frp.source.tooltip <+ all_with(&type_description,&frp.on_hover,|text,&hovering| {
+                    if hovering {
+                        if let Some(text) = text.clone() {
+                            tooltip::Style::set_label(text).with_placement(TOOLTIP_LOCATION)
+                        } else {
+                            tooltip::Style::unset_label()
+                        }
+                    } else {
+                            tooltip::Style::unset_label()
+                    }
+                });
+            }
         }
 
         opacity.target.emit(PORT_OPACITY_NOT_HOVERED);

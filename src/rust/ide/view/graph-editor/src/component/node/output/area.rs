@@ -18,6 +18,7 @@ use crate::Type;
 use crate::component::node::input;
 use crate::component::node::output::port;
 use crate::component::node;
+use crate::tooltip;
 use enso_args::ARGS;
 
 
@@ -136,6 +137,7 @@ ensogl::define_endpoints! {
         port_size_multiplier  (f32),
         body_hover            (bool),
         type_label_visibility (bool),
+        tooltip               (tooltip::Style),
     }
 }
 
@@ -308,6 +310,7 @@ impl Model {
                     port_frp.set_size_multiplier <+ self.frp.port_size_multiplier;
                     self.frp.source.on_port_type_change <+ port_frp.tp.map(move |t|(crumbs.clone(),t.clone()));
                     port_frp.set_type_label_visibility <+ self.frp.type_label_visibility;
+                    self.frp.source.tooltip <+ port_frp.tooltip;
                 }
 
                 port_frp.set_type_label_visibility.emit(self.frp.type_label_visibility.value());

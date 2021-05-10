@@ -287,7 +287,6 @@ impl ActionBar {
             frp.source.action_skip       <+ model.icons.skip.state;
             frp.source.action_freeze     <+ model.icons.freeze.state;
             frp.source.action_visibility <+ model.icons.visibility.state;
-            trace model.icons.visibility.state;
         }
 
         let color_scheme = toggle_button::ColorScheme {

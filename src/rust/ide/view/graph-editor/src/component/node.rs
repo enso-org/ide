@@ -19,6 +19,7 @@ pub use expression::Expression;
 use crate::prelude::*;
 
 use crate::component::visualization;
+use crate::tooltip;
 use crate::Type;
 
 use enso_frp as frp;
@@ -271,6 +272,7 @@ ensogl::define_endpoints! {
         hover                 (bool),
         error                 (Option<Error>),
         visualization_enabled (bool),
+        tooltip               (tooltip::Style),
     }
 }
 
@@ -612,6 +614,7 @@ impl Node {
             // Show preview visualisation after some delay, depending on whether we show an error
             // or are in quick preview mode. Also, omit the preview if we don't have an
             // expression.
+            has_tooltip    <- model.output.frp.tooltip.map(|tt| tt.has_content());
             has_expression <- frp.set_expression.map(|expr| *expr != Expression::default());
 
             preview_show_delay <- all(&frp.quick_preview_vis,&is_error_set);
@@ -623,6 +626,7 @@ impl Node {
                 }
             });
             hover_onset_delay.set_delay <+ preview_show_delay;
+            hide_tooltip                <- preview_show_delay.map(|&delay| delay <= EPSILON);
 
             outout_hover            <- model.output.on_port_hover.map(|s| s.is_on());
             hover_onset_delay.start <+ outout_hover.on_true();
@@ -683,6 +687,15 @@ impl Node {
             // );
 
             eval bg_color ((c) model.background.bg_color.set(c.into()));
+
+
+            // === Tooltip ===
+
+            // Hide tooltip if we show the preview vis.
+            frp.source.tooltip <+ preview_visible.on_true().constant(tooltip::Style::unset_label());
+            // Propagate output tooltip. Only if it is not hidden, or to disable it.
+            block_tooltip      <- hide_tooltip && has_tooltip;
+            frp.source.tooltip <+ model.output.frp.tooltip.gate_not(&block_tooltip);
 
 
             // === Output Label ===
