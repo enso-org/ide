@@ -679,7 +679,12 @@ impl Area {
 
             let styles = model.styles.clone_ref();
             frp::extend! { port_network
-                base_color <- frp.tp.map(f!([styles](t) type_coloring::compute_for_code(t.as_ref(),&styles)));
+                base_color <- all_with(&self.editor_mode,&frp.tp,f!([styles](&mode,t) {
+                    match mode {
+                        EditorMode::Normal    => type_coloring::compute_for_code(t.as_ref(),&styles),
+                        EditorMode::Profiling => type_coloring::compute_for_code(None,&styles),
+                    }
+                }));
             }
 
             if node.children.is_empty() {
