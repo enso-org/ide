@@ -550,7 +550,7 @@ impl Model {
                     |color,&opacity| color.opaque.with_alpha(opacity).into());
                 type_label.set_color_all     <+ type_label_color;
                 type_label.set_default_color <+ type_label_color;
-                type_label.set_content       <+ type_description.map(|s| s.clone().unwrap_or("".to_string()));
+                type_label.set_content       <+ type_description.map(|s| s.clone().unwrap_or_default());
             }
         }
 
