@@ -47,16 +47,19 @@ pub trait API:Debug {
     fn suggestion_db(&self) -> Rc<model::SuggestionDatabase>;
 
     /// Returns a model of module opened from file.
+    #[allow(clippy::needless_lifetimes)]
     fn module<'a>
     (&'a self, path:crate::model::module::Path) -> BoxFuture<'a,FallibleResult<model::Module>>;
 
     /// Creates a new execution context with given definition as a root; and registers the context
     /// for receiving update.
+    #[allow(clippy::needless_lifetimes)]
     fn create_execution_context<'a>
     (&'a self, root_definition:language_server::MethodPointer)
     -> BoxFuture<'a,FallibleResult<model::ExecutionContext>>;
 
     /// Set a new project name.
+    #[allow(clippy::needless_lifetimes)]
     fn rename_project<'a>(&'a self, name:String) -> BoxFuture<'a,FallibleResult<()>>;
 
     /// Returns the primary content root id for this project.

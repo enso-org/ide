@@ -543,8 +543,8 @@ pub mod test {
     }
 
     fn apply_edit(code:&str, edit:&TextEdit) -> String {
-        let start = TextLocation::from(edit.range.start.into()).to_index(code);
-        let end   = TextLocation::from(edit.range.end.into()).to_index(code);
+        let start = TextLocation::from(edit.range.start).to_index(code);
+        let end   = TextLocation::from(edit.range.end).to_index(code);
         data::text::TextChange::replace(start..end,edit.text.clone()).applied(code)
     }
 

@@ -786,7 +786,7 @@ impl Handle {
         analytics::remote_log_event("graph::collapse");
         use double_representation::refactorings::collapse::collapse;
         use double_representation::refactorings::collapse::Collapsed;
-        let nodes : Vec<_> = Result::from_iter(nodes.into_iter().map(|id| self.node(id)))?;
+        let nodes = nodes.into_iter().map(|id| self.node(id)).collect::<Result<Vec<_>,_>>()?;
         info!(self.logger, "Collapsing {nodes:?}.");
         let collapsed_positions = nodes.iter().filter_map(|node| {
             node.metadata.as_ref().and_then(|metadata| metadata.position)

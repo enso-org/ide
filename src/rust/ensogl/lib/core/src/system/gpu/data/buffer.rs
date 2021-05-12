@@ -288,7 +288,7 @@ impl<T:Storable> BufferData<T> {
     fn replace_gpu_buffer(&mut self) {
         if let Some(gl) = &self.gl {
             let data    = self.as_slice();
-            let gl_enum = self.usage.into_gl_enum().into();
+            let gl_enum = self.usage.to_gl_enum().into();
             unsafe { // Note [Safety]
                 let js_array = data.js_buffer_view();
                 gl.context.buffer_data_with_array_buffer_view

@@ -11,11 +11,11 @@ crate-type = ["cdylib", "rlib"]
 analytics = { version = "0.1.0", path = "lib/analytics" }
 enso-args = { path = "lib/args" }
 enso-callback = { path = "../lib/callback" }
-enso-data = { version = "0.1.4" }
+enso-data = { version = "0.2.0" }
 enso-frp = { path = "../lib/frp" }
-enso-logger = { version = "0.2.3" }
-enso-prelude = { version = "0.1.10" }
-enso-shapely = { version = "0.1.4" }
+enso-logger = { version = "0.3.0" }
+enso-prelude = { version = "0.2.0" }
+enso-shapely = { version = "0.2.0" }
 ensogl = { path = "../ensogl" }
 ensogl-examples = { path = "../ensogl/example" }
 ensogl-gui-components = { path = "../ensogl/lib/components" }

@@ -465,19 +465,6 @@ pub struct PrecisionDecl {
     pub typ  : Type
 }
 
-
-trait AsOwned {
-    type Owned;
-    fn as_owned(t:Self) -> Self::Owned;
-}
-
-impl<T:Clone> AsOwned for &T {
-    type Owned = T;
-    fn as_owned(t:Self) -> Self::Owned {
-        t.clone()
-    }
-}
-
 impl PrecisionDecl {
     pub fn new<P:Into<Precision>,T:Into<Type>>(prec:P, typ:T) -> Self {
         Self {prec:prec.into(),typ:typ.into()}

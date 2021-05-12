@@ -88,10 +88,9 @@ impl Id {
     ///
     /// Fails if the sequence is empty or if any of the segments is not a valid referent name.
     pub fn try_new(segments:impl IntoIterator<Item:AsRef<str>>) -> FallibleResult<Id> {
-        let texts = segments.into_iter();
-        let names = texts.map(|text| ReferentName::new(text.as_ref()));
-
-        let segments:Vec<_> = Result::from_iter(names)?;
+        let texts    = segments.into_iter();
+        let names    = texts.map(|text| ReferentName::new(text.as_ref()));
+        let segments = names.collect::<Result<Vec<_>,_>>()?;
         Ok(Self::new(segments))
     }
 
