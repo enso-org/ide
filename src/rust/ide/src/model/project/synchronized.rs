@@ -99,40 +99,30 @@ impl ExecutionContextsRegistry {
 pub struct ProjectManagerUnavailable;
 
 
-
 // === Data ===
 
-/// A structure containing the project's unique ID and name.
+/// A structure containing the project's properties.
 #[derive(Debug,Clone)]
-pub struct Data {
+pub struct Properties {
     /// ID of the project, as used by the Project Manager service.
-    pub id : Uuid,
-    name   : RefCell<ImString>,
+    pub id             : Uuid,
+    pub name           : CloneRefCell<ImString>,
+    pub engine_version : semver::Version,
 }
 
-impl Data {
-    /// Set project name.
-    pub fn set_name(&self, name:impl Str) {
-        *self.name.borrow_mut() = ImString::new(name);
-    }
 
-    /// Get project name.
-    pub fn name(&self) -> ImString {
-        self.name.borrow().clone_ref()
-    }
-}
+// == Model ==
 
 /// Project Model.
 #[allow(missing_docs)]
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct Project {
-    pub data                : Rc<Data>,
+    pub properties          : Rc<Properties>,
     #[derivative(Debug = "ignore")]
     pub project_manager     : Option<Rc<dyn project_manager::API>>,
     pub language_server_rpc : Rc<language_server::Connection>,
     pub language_server_bin : Rc<binary::Connection>,
-    pub engine_version      : Rc<semver::Version>,
     pub module_registry     : Rc<model::registry::Registry<module::Path,module::Synchronized>>,
     pub execution_contexts  : Rc<ExecutionContextsRegistry>,
     pub visualization       : controller::Visualization,
@@ -159,22 +149,21 @@ impl Project {
         let json_rpc_events         = language_server_rpc.events();
         let embedded_visualizations = default();
         let language_server         = language_server_rpc.clone();
-        let engine_version          = Rc::new(engine_version);
         let module_registry         = default();
         let execution_contexts      = default();
         let visualization           = controller::Visualization::new(language_server,embedded_visualizations);
-        let name                    = RefCell::new(ImString::new(name.into()));
+        let name                    = CloneRefCell::new(ImString::new(name.into()));
         let parser                  = Parser::new_or_panic();
         let language_server         = &*language_server_rpc;
         let suggestion_db           = SuggestionDatabase::create_synchronized(language_server);
         let suggestion_db           = Rc::new(suggestion_db.await?);
         let notifications           = notification::Publisher::default();
         
-        let data = Rc::new(Data {id,name});
+        let properties = Rc::new(Properties {id,name,engine_version});
 
-        let ret = Project {data,parser,project_manager,language_server_rpc,language_server_bin
-            ,engine_version,module_registry,execution_contexts,logger,visualization,suggestion_db
-            ,notifications};
+        let ret = Project { properties,parser,project_manager,language_server_rpc
+            ,language_server_bin,module_registry,execution_contexts,logger,visualization
+            ,suggestion_db,notifications};
 
         let binary_handler = ret.binary_event_handler();
         crate::executor::global::spawn(binary_protocol_events.for_each(binary_handler));
@@ -188,26 +177,28 @@ impl Project {
 
     /// Initializes the json and binary connection to Language Server, and creates a Project Model
     pub async fn new_connected
-    ( parent : &Logger
+    ( parent              : impl AnyLogger
     , project_manager     : Option<Rc<dyn project_manager::API>>
     , language_server_rpc : String
     , language_server_bin : String
+    , engine_version      : semver::Version
     , id                  : Uuid
     , name                : impl Str
     ) -> FallibleResult<model::Project> {
         let client_id     = Uuid::new_v4();
-        let json_ws       = WebSocket::new_opened(logger,json_endpoint).await?;
-        let binary_ws     = WebSocket::new_opened(logger,binary_endpoint).await?;
+        let json_ws       = WebSocket::new_opened(&parent,language_server_rpc).await?;
+        let binary_ws     = WebSocket::new_opened(&parent,language_server_bin).await?;
         let client_json   = language_server::Client::new(json_ws);
-        let client_binary = binary::Client::new(logger,binary_ws);
+        let client_binary = binary::Client::new(&parent,binary_ws);
         crate::executor::global::spawn(client_json.runner());
         crate::executor::global::spawn(client_binary.runner());
-        let connection_json   = language_server::Connection::new(language_server_rpc,client_id).await?;
-        let connection_binary = binary::Connection::new(language_server_bin,client_id).await?;
-        let version           = semver::Version::parse(&engine_version)?;
+        let connection_json     = language_server::Connection::new(client_json,client_id).await?;
+        let connection_binary   = binary::Connection::new(client_binary,client_id).await?;
         let language_server_rpc = Rc::new(connection_json);
         let language_server_bin = Rc::new(connection_binary);
-        Self::from_connections(parent,project_manager,language_server_rpc,language_server_bin,version,id,name).await
+        let model               = Self::new(parent,project_manager,language_server_rpc
+            ,language_server_bin,engine_version,id,name).await?;
+        Ok(Rc::new(model))
     }
 
     pub async fn new_opened
@@ -218,8 +209,11 @@ impl Project {
     ) -> FallibleResult<model::Project> {
         let action = MissingComponentAction::Install;
         let opened = project_manager.open_project(&id,&action).await?;
-        // let project_manager::response::OpenProject { engine_version, language_server_json_address, language_server_binary_address } = opened;
-        Self::new_connected(parent, Some(project_manager),opened.language_server_json_address.to_string(),opened.language_server_binary_address.to_string(),id,name)
+        let project_manager = Some(project_manager);
+        let json_endpoint   = opened.language_server_json_address.to_string();
+        let binary_endpoint = opened.language_server_binary_address.to_string();
+        let version         = semver::Version::parse(&opened.engine_version)?;
+        Self::new_connected(parent,project_manager,json_endpoint,binary_endpoint,version,id,name).await
     }
 
     /// Returns a handling function capable of processing updates from the binary protocol.
@@ -341,7 +335,7 @@ impl Project {
 
 impl model::project::API for Project {
     fn name(&self) -> ImString {
-        self.data.name()
+        self.properties.name.get()
     }
 
     fn json_rpc(&self) -> Rc<language_server::Connection> {
@@ -352,7 +346,7 @@ impl model::project::API for Project {
         self.language_server_bin.clone_ref()
     }
 
-    fn engine_version(&self) -> &semver::Version { &*self.engine_version }
+    fn engine_version(&self) -> &semver::Version { &self.properties.engine_version }
 
     fn parser(&self) -> Parser {
         self.parser.clone_ref()
@@ -391,8 +385,8 @@ impl model::project::API for Project {
     fn rename_project(&self, name:String) -> BoxFuture<FallibleResult> {
         async move {
             let project_manager = self.project_manager.as_ref().ok_or(ProjectManagerUnavailable)?;
-            project_manager.rename_project(&self.data.id,&name).await?;
-            self.data.set_name(name);
+            project_manager.rename_project(&self.properties.id, &name).await?;
+            self.properties.name.set(name.into());
             Ok(())
         }.boxed_local()
     }

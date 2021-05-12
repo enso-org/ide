@@ -23,7 +23,8 @@ pub enum Action {
     /// Add to the current module a new function with example code, and a new node in
     /// current scene calling that function.
     Example(Example),
-    // In future, other action types will be added (like project/module management, etc.).
+    // In the future, other action types will be added (like project/module management, etc.).
+
 }
 
 impl Action {
