@@ -8,7 +8,6 @@
 #![feature(entry_insert)]
 #![feature(fn_traits)]
 #![feature(option_result_contains)]
-#![feature(marker_trait_attr)] //TODO[needed?]
 #![feature(specialization)]
 #![feature(trait_alias)]
 #![feature(min_type_alias_impl_trait)]

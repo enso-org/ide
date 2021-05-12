@@ -32,11 +32,11 @@ fn main() {
 
 #![allow(non_upper_case_globals)]
 pub struct Config {{
-    {def}
+{def}
 }}
 
 pub const CONFIG : Config = Config {{
-    {inst}
+{inst}
 }};
 
 {vars}"#,
