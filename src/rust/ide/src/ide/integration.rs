@@ -227,7 +227,7 @@ impl Integration {
                 model.expression_entered_in_ui(&local_call.as_ref().map(|local_call| {
                     let definition = (**local_call.definition).clone();
                     let call       = local_call.call;
-                    LocalCall{definition,call}
+                    LocalCall{call,definition}
                 })).ok()
             });
         }
@@ -433,9 +433,9 @@ impl Model {
         let error_visualizations    = default();
         let searcher                = default();
         let this                    = Model
-            {view,graph,text,searcher,node_views,expression_views,expression_types,connection_views
-            ,code_view,logger,visualization,visualizations,error_visualizations,project
-            ,node_view_by_expression};
+            {logger,view,graph,text,searcher,project,visualization,node_views
+            ,node_view_by_expression,expression_views,expression_types,connection_views
+            ,code_view,visualizations,error_visualizations};
 
         this.init_project_name();
         this.load_visualizations();
@@ -822,7 +822,7 @@ impl Model {
         analytics::remote_log_event("integration::node_entered");
         let definition = local_call.definition.clone().into();
         let call       = local_call.call;
-        let local_call = graph_editor::LocalCall{definition,call};
+        let local_call = graph_editor::LocalCall{call,definition};
         self.view.graph().frp.deselect_all_nodes.emit(&());
         self.view.graph().model.breadcrumbs.push_breadcrumb.emit(&Some(local_call));
         self.request_detaching_all_visualizations();
@@ -1325,7 +1325,7 @@ impl Model {
         let id                   = VisualizationId::new_v4();
         let expression           = metadata.preprocessor.code.to_string();
         let ast_id               = self.get_controller_node_id(node_id)?;
-        Ok(Visualization{ast_id,expression,id,visualisation_module})
+        Ok(Visualization{id,ast_id,expression,visualisation_module})
     }
 
     fn detach_visualization

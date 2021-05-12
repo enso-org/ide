@@ -196,7 +196,7 @@ impl Path {
         let module          = String::from(self.qualified_module_name(project_name));
         let defined_on_type = module.clone();
         let name            = method_name.into();
-        MethodPointer {defined_on_type,name,module}
+        MethodPointer {module,defined_on_type,name}
     }
 
     /// Obtain a module's full qualified name from the path and the project name.
