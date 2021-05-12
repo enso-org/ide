@@ -867,6 +867,7 @@ impl Searcher {
         if matches!(self.mode.deref(), Mode::NewNode{..}) && self.this_arg.is_none() {
             actions.extend(self.database.iterate_examples().map(Action::Example));
             Self::add_enso_project_entries(&actions)?;
+            actions.extend(std::iter::once(Action::CreateNewProject));
         }
         for response in completion_responses {
             let response = response?;

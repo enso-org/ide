@@ -50,6 +50,7 @@ impl Model {
                 }
                 Err(err) => {
                     let err_msg = format!("Failed to initialize project: {}", err);
+                    error!(self.logger,"{err_msg}");
                     status_notifications.publish_event(err_msg)
                 }
             }
@@ -70,7 +71,7 @@ impl Integration {
         let logger              = Logger::new("ide::Integration");
         let project_integration = default();
         let model               = Rc::new(Model {logger,controller,view,project_integration});
-        Self {model}
+        Self {model} . init()
     }
 
     pub fn init(self) -> Self {
@@ -84,11 +85,12 @@ impl Integration {
         use controller::ide::ProcessHandle    as ControllerHandle;
         use ide_view::status_bar::process::Id as ViewHandle;
 
-        let logger      = self.model.logger.clone_ref();
-        let process_map = SharedHashMap::<ControllerHandle,ViewHandle>::new();
-        let status_bar  = self.model.view.status_bar().clone_ref();
-        let status_notif_sub = self.model.controller.status_notifications().subscribe();
+        let logger               = self.model.logger.clone_ref();
+        let process_map          = SharedHashMap::<ControllerHandle,ViewHandle>::new();
+        let status_bar           = self.model.view.status_bar().clone_ref();
+        let status_notif_sub     = self.model.controller.status_notifications().subscribe();
         let status_notif_updates = status_notif_sub.for_each(move |notification| {
+            info!(logger, "Received notification {notification:?}");
             match notification {
                 StatusNotification::Event {label} => {
                     status_bar.add_event(ide_view::status_bar::event::Label::new(label));

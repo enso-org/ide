@@ -68,6 +68,7 @@ impl API for Handle {
 impl ManagingProjectAPI for Handle {
     fn create_new_project<'a>(&'a self) -> BoxFuture<'a, FallibleResult> {
         async move {
+
             let list                       = self.project_manager.list_projects(&None).await?;
             let names:HashSet<ProjectName> = list.projects.into_iter().map(|p| p.name).collect();
             let candidates_with_suffix = (1..).map(|i| format!("{}_{}", UNNAMED_PROJECT_NAME, i));
