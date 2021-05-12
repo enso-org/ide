@@ -1463,6 +1463,7 @@ version = "0.1.0"
 dependencies = [
  "ast",
  "enso-args",
+ "enso-config",
  "enso-frp",
  "enso-logger",
  "enso-prelude",

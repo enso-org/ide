@@ -171,7 +171,7 @@ commands.build.rust = async function(argv) {
 
         console.log('Checking the resulting WASM size.')
         let stats = fss.statSync(paths.dist.wasm.mainOptGz)
-        let limit = 4.29
+        let limit = 4.60
         let size = Math.round(100 * stats.size / 1024 / 1024) / 100
         if (size > limit) {
             throw(`Output file size exceeds the limit (${size}MB > ${limit}MB).`)
@@ -206,9 +206,10 @@ commands.start.rust = async function(argv) {
 commands.start.js = async function (argv) {
     await installJsDeps()
     console.log(`Building JS target.` + argv)
-    const args = targetArgs.concat([
-        `--backend-path ${paths.get_project_manager_path(paths.dist.bin)}`,
-    ])
+    // The backend path is being prepended here, as appending would be incorrect.
+    // That is because `targetArgs` might include `-- …` and appended args could
+    // end up being passed to the spawned backend process.
+    const args = ['--backend-path', paths.get_project_manager_path(paths.dist.bin)].concat(targetArgs)
     if (argv.dev) { args.push('--dev') }
     await cmd.with_cwd(paths.js.root, async () => {
         await run('npm', ['run', 'start', '--'].concat(args))

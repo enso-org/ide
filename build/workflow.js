@@ -332,7 +332,10 @@ function uploadToCDN(...names) {
             shell: "bash",
             run: `aws s3 cp ./artifacts/content/assets/${name} `
                + `s3://ensocdn/ide/\${{fromJson(steps.changelog.outputs.content).version}}/${name} --profile `
-               + `s3-upload --acl public-read --content-encoding gzip`
+               + `s3-upload --acl public-read`
+        }
+        if (name.endsWith(".gz")) {
+            action.run += " --content-encoding gzip";
         }
         actions.push(action)
     }
@@ -403,7 +406,7 @@ let releaseCondition = `github.ref == 'refs/heads/unstable' || github.ref == 're
 /// 2. It was a pull request to the 'unstable', or the 'stable' branch.
 /// 3. It was a commit to the 'develop' branch.
 /// Otherwise, perform a simplified (faster) build only.
-let buildCondition = `contains(github.event.head_commit.message,'${FLAG_FORCE_CI_BUILD}') || github.ref == 'refs/heads/develop' || github.base_ref == 'unstable' || github.base_ref == 'stable' || ${releaseCondition}`
+let buildCondition = `contains(github.event.pull_request.body,'${FLAG_FORCE_CI_BUILD}') || contains(github.event.head_commit.message,'${FLAG_FORCE_CI_BUILD}') || github.ref == 'refs/heads/develop' || github.base_ref == 'unstable' || github.base_ref == 'stable' || (${releaseCondition})`
 
 let workflow = {
     name : "GUI CI",
