@@ -52,7 +52,7 @@ application icon if built on Linux or Windows due to non-trivial icon generation
 on these platforms. To develop the source code you will need the following
 setup:
 
-- **The Rust Toolchain (nightly-2019-11-04)**
+- **The Rust Toolchain (nightly-2021-05-12)**
 
   This project uses several features available only in the nightly Rust
   toolchain. Please use the [the Rust toolchain installer](https://rustup.rs) to

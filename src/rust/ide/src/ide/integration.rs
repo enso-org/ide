@@ -1222,10 +1222,10 @@ impl Model {
     (&self, displayed_ids:impl IntoIterator<Item:std::borrow::Borrow<graph_editor::NodeId>>)
     -> Result<Vec<ast::Id>, MissingMappingFor> {
         use std::borrow::Borrow;
-        Result::from_iter(displayed_ids.into_iter().map(|id| {
+        displayed_ids.into_iter().map(|id| {
             let id = id.borrow();
             self.get_controller_node_id(*id)
-        }))
+        }).collect()
     }
 
     fn get_displayed_node_id
