@@ -77,6 +77,7 @@ macro_rules! define_fn {
         }
 
         #[allow(non_snake_case)]
+        #[allow(clippy::manual_map)]
         impl<T,$($($arg),*)?> $name $(<$($arg),*>)? for Option<T>
         where T : $name $(<$($arg),*>)? {
             type Output = Option<T::Output>;

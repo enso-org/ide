@@ -2,7 +2,6 @@
 
 use std::path;
 use std::io::ErrorKind;
-use reqwest;
 use std::fmt::Display;
 
 /// Types that can yield a reference to std::path::Path.

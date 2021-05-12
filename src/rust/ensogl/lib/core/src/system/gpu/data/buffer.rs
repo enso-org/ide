@@ -130,7 +130,7 @@ impl<T:Storable> {
             let stats         = stats.clone_ref();
             let gpu_mem_usage = default();
             let gl            = default();
-            Self {gl,buffer,mut_dirty,resize_dirty,logger,usage,stats,gpu_mem_usage}
+            Self {logger,gl,buffer,mut_dirty,resize_dirty,usage,stats,gpu_mem_usage}
         })
     }
 

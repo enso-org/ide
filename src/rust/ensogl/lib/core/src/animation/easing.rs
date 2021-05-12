@@ -198,7 +198,7 @@ where F:AnyFnEasing, OnStep:Callback<T>, OnEnd:Callback<EndStatus> {
         let start_value  = Cell::new(start);
         let target_value = Cell::new(end);
         let active       = default();
-        Self {duration,value,start_value,target_value,active,tween_fn,callback,on_end}
+        Self {duration,start_value,target_value,value,active,tween_fn,callback,on_end}
     }
 
     fn step(&self, time:f32) {

@@ -1256,7 +1256,7 @@ pub mod test {
             node_line:&'static str,
             /// If the searcher should enter "connect to this" mode at all and wait for type info.
             sets_this:bool,
-        };
+        }
 
         let cases = [
             Case {node_line:"2+2",             sets_this:true },
@@ -1581,7 +1581,7 @@ pub mod test {
             line   : &'static str,
             result : String,
             run    : Box<dyn FnOnce(&mut Fixture)>,
-        };
+        }
 
         impl Case {
             fn new(line:&'static str, result:&[&str], run:impl FnOnce(&mut Fixture)+'static )

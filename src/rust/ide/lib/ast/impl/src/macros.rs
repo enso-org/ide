@@ -96,7 +96,7 @@ pub fn as_lambda(ast:&Ast) -> Option<LambdaInfo> {
 impl crate::Match<Ast> {
     /// Iterates matched ASTs. Skips segment heads ("keywords").
     /// For example, for `(a)` it iterates only over `a`, skkipping segment heads `(` and `)`.
-    pub fn iter_pat_match_subcrumbs<'a>(&'a self) -> impl Iterator<Item=MatchCrumb> + 'a {
+    pub fn iter_pat_match_subcrumbs(&self) -> impl Iterator<Item=MatchCrumb> + '_ {
         self.iter_subcrumbs().filter(|crumb| {
             use crate::crumbs::SegmentMatchCrumb;
             match crumb {
@@ -116,7 +116,7 @@ impl crate::Match<Ast> {
 impl crate::Ambiguous<Ast> {
     /// Iterates matched ASTs. Skips segment heads ("keywords").
     /// For example, for `(a)` it iterates only over `a`, skkipping segment heads `(` and `)`.
-    pub fn iter_pat_match_subcrumbs<'a>(&'a self) -> impl Iterator<Item=AmbiguousCrumb> + 'a {
+    pub fn iter_pat_match_subcrumbs(&self) -> impl Iterator<Item=AmbiguousCrumb> + '_ {
         self.iter_subcrumbs().filter(|crumb| {
             crumb.field != crate::crumbs::AmbiguousSegmentCrumb::Head
         })

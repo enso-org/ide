@@ -303,10 +303,9 @@ impl Default for Manager {
 
 impl From<&style::Sheet> for Manager {
     fn from(style_sheet:&style::Sheet) -> Self {
-        let mut this = Self::default();
-        this.data    = Rc::new(RefCell::new(style_sheet.into()));
-        this.handles = default();
-        this
+        let data = Rc::new(RefCell::new(style_sheet.into()));
+        let handles = default();
+        Self {data,handles,..default()}
     }
 }
 

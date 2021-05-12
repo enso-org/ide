@@ -210,7 +210,7 @@ impl<Host> Model<Host> {
         let callbacks    = default();
         let host         = default();
         let scene_layers = default();
-        Self {logger,parent_bind,children,transform,visible,callbacks,dirty,host,scene_layers}
+        Self {host,scene_layers,dirty,callbacks,parent_bind,children,transform,visible,logger}
     }
 
     /// Checks whether the object is visible.

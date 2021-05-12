@@ -90,7 +90,7 @@ impl<Callback> RawLoopData<Callback> {
     fn new(callback:Callback) -> Self {
         let on_frame  = default();
         let handle_id = default();
-        Self {on_frame,callback,handle_id}
+        Self {callback,on_frame,handle_id}
     }
 
     /// Run the animation frame.

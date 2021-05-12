@@ -357,8 +357,8 @@ impl Chain {
 
     /// Iterates over operands beginning with target (this argument) and then subsequent
     /// arguments.
-    pub fn enumerate_operands<'a>
-    (&'a self) -> impl Iterator<Item=Option<Located<&'a ArgWithOffset<Ast>>>> + 'a {
+    pub fn enumerate_operands
+    (&self) -> impl Iterator<Item=Option<Located<&ArgWithOffset<Ast>>>> + '_ {
         let rev_args      = self.args.iter().rev();
         let target_crumbs = rev_args.map(ChainElement::crumb_to_previous).collect_vec();
         let target        = self.target.as_ref();
@@ -379,13 +379,13 @@ impl Chain {
 
     /// Iterates over non-empty operands beginning with target (this argument) and then subsequent
     /// arguments.
-    pub fn enumerate_non_empty_operands<'a>
-    (&'a self) -> impl Iterator<Item=Located<&'a ArgWithOffset<Ast>>> + 'a {
+    pub fn enumerate_non_empty_operands
+    (&self) -> impl Iterator<Item=Located<&ArgWithOffset<Ast>>> + '_ {
         self.enumerate_operands().flatten()
     }
 
     /// Iterates over all operator's AST in this chain, starting from target side.
-    pub fn enumerate_operators<'a>(&'a self) -> impl Iterator<Item=Located<&'a known::Opr>> + 'a {
+    pub fn enumerate_operators(&self) -> impl Iterator<Item=Located<&known::Opr>> + '_ {
         self.args.iter().enumerate().map(move |(i,elem)| {
             let to_infix   = self.args.iter().skip(i+1).rev().map(ChainElement::crumb_to_previous);
             let has_target = self.target.is_some() || i > 0;

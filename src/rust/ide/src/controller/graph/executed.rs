@@ -215,8 +215,8 @@ impl Handle {
     pub fn node_method_pointer
     (&self, node:double_representation::node::Id) -> FallibleResult<Rc<MethodPointer>> {
         let registry   = self.execution_ctx.computed_value_info_registry();
-        let node_info  = registry.get(&node).ok_or_else(|| NotEvaluatedYet(node))?;
-        let entry_id   = *node_info.method_call.as_ref().ok_or_else(|| NoResolvedMethod(node))?;
+        let node_info  = registry.get(&node).ok_or(NotEvaluatedYet(node))?;
+        let entry_id   = *node_info.method_call.as_ref().ok_or(NoResolvedMethod(node))?;
         self.project.suggestion_db().lookup_method_ptr(entry_id).map(Rc::new)
     }
 

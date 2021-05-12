@@ -228,7 +228,7 @@ impl<Out:Default> NodeData<Out> {
         let value_cache   = default();
         let during_call   = default();
         let watch_counter = default();
-        Self {label,targets,new_targets,value_cache,during_call,watch_counter}
+        Self {targets,new_targets,value_cache,during_call,watch_counter,label}
     }
 
     fn use_caching(&self) -> bool {

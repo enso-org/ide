@@ -105,11 +105,11 @@ pub enum ScopeKind {
 /// also included.
 #[derive(Clone,Debug,Eq,Hash,PartialEq)]
 pub struct DefinitionName {
+    /// Name of the function itself.
+    pub name : Located<String>,
     /// Used when definition is an extension method. Then it stores the segments
     /// of the extended target type path.
     pub extended_target : Vec<Located<String>>,
-    /// Name of the function itself.
-    pub name : Located<String>,
 }
 
 impl DefinitionName {
