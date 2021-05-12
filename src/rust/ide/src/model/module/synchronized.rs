@@ -356,7 +356,7 @@ impl Module {
             Self::edit_for_idmap(ls_content,&new_file),
             Self::edit_for_metadata(ls_content,&new_file),
             Self::edit_for_code(ls_content,&new_file),
-        ].into_iter().filter_map(|edit| edit).collect_vec();
+        ].into_iter().flatten().collect_vec();
         self.notify_language_server(&ls_content.summary,&new_file,edits)
     }
 

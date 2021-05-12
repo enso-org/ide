@@ -1019,7 +1019,7 @@ impl ShapeViewEventsProxy {
             mouse_out  <- on_mouse_out.constant(());
         }
 
-        Self {on_mouse_down,mouse_down,mouse_over,mouse_out,on_mouse_out,on_mouse_over}
+        Self {mouse_down,mouse_over,mouse_out,on_mouse_down,on_mouse_over,on_mouse_out}
     }
 }
 
@@ -1056,8 +1056,8 @@ impl Frp {
             def set_color       = source();
         }
         let shape_events = ShapeViewEventsProxy::new(&network);
-        Self {source_width,source_height,target_position,target_attached,source_attached,redraw,
-              hover_position,shape_events,set_disabled,set_color}
+        Self {source_width,source_height,target_position,target_attached,source_attached,redraw
+             ,set_disabled,set_color,hover_position,shape_events}
     }
 }
 
@@ -1266,9 +1266,8 @@ impl EdgeModelData {
         let hover_target    = default();
 
         let scene = scene.into();
-        Self {display_object,logger,frp,front,back,source_width,source_height,target_position,
-              target_attached,source_attached,hover_position,
-              layout_state,hover_target,joint,scene}
+        Self {display_object,logger,frp,front,back,joint,source_width,source_height,target_position
+             ,target_attached,source_attached,layout_state,hover_position,hover_target,scene}
     }
 
     /// Set the color of the edge.

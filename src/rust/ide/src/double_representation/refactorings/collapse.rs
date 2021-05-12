@@ -216,7 +216,7 @@ impl Extracted {
                     Some(_) => {} // Ignore duplicate usage of the same identifier.
                     None    => {
                         let node = connection.source.node;
-                        output   = Some(Output {identifier,node});
+                        output   = Some(Output {node,identifier});
                     }
                 }
             }
@@ -229,10 +229,10 @@ impl Extracted {
             let output_node = extracted_nodes.iter().find(|node| node.id() == output_leaf_id)?;
             let identifier  = Identifier::new(output_node.pattern()?.clone_ref())?;
             let node        = output_node.id();
-            Some(Output{identifier,node})
+            Some(Output{node,identifier})
         });
 
-        Ok(Self {extracted_nodes_set,extracted_nodes,inputs,output})
+        Ok(Self {inputs,output,extracted_nodes,extracted_nodes_set})
     }
 
     /// Check if the given node belongs to the selection (i.e. is extracted into a new method).
@@ -362,7 +362,7 @@ impl Collapser {
             self.rewrite_line(line,&new_method)
         })?;
         let collapsed_node = self.collapsed_node;
-        Ok(Collapsed {new_method,updated_definition,collapsed_node})
+        Ok(Collapsed {updated_definition,new_method,collapsed_node})
     }
 }
 

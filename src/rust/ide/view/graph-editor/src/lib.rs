@@ -1260,8 +1260,8 @@ impl GraphEditorModel {
         let tooltip        = Tooltip::new(&app);
 
         Self {
-            logger,display_object,app,cursor,nodes,edges,touch_state,frp,breadcrumbs,
-            vis_registry,visualisations,navigator,tooltip,
+            logger,display_object,app,breadcrumbs,cursor,nodes,edges,vis_registry,tooltip,
+            touch_state,visualisations,frp,navigator,
         }.init()
     }
 

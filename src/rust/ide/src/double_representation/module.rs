@@ -194,7 +194,7 @@ impl QualifiedName {
         let module_segments  = module_segments.map(|segment| segment.as_ref().to_string());
         let mut all_segments = project_name.chain(module_segments);
         let text             = all_segments.join(ast::opr::predefined::ACCESS);
-        Ok(text.try_into()?)
+        text.try_into()
     }
 
     /// Build a module's full qualified name from its name segments and the project name.
@@ -419,7 +419,7 @@ impl Info {
     }
 
     /// Iterate over all lines in module that contain an import declaration.
-    pub fn enumerate_imports<'a>(&'a self) -> impl Iterator<Item=(ModuleCrumb, ImportInfo)> + 'a {
+    pub fn enumerate_imports(&self) -> impl Iterator<Item=(ModuleCrumb, ImportInfo)> + '_ {
         let children = self.ast.shape().enumerate();
         children.filter_map(|(crumb,ast)| Some((crumb,ImportInfo::from_ast(ast)?)))
     }
@@ -427,7 +427,7 @@ impl Info {
     /// Iterate over all import declarations in the module.
     ///
     /// If the caller wants to know *where* the declarations are, use `enumerate_imports`.
-    pub fn iter_imports<'a>(&'a self) -> impl Iterator<Item=ImportInfo> + 'a {
+    pub fn iter_imports(&self) -> impl Iterator<Item=ImportInfo> + '_ {
         self.enumerate_imports().map(|(_,import)| import)
     }
 
