@@ -23,8 +23,9 @@ pub enum Action {
     /// Add to the current module a new function with example code, and a new node in
     /// current scene calling that function.
     Example(Example),
+    /// Create a new untitled project and open it.
+    CreateNewProject,
     // In the future, other action types will be added (like project/module management, etc.).
-
 }
 
 impl Action {
@@ -42,6 +43,7 @@ impl Action {
                 completion.name.clone()
             }
             Self::Example(example) => format!("Example: {}", example.name),
+            Self::CreateNewProject => "Create New Project".to_owned(),
         }
     }
 }

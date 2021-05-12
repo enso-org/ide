@@ -5,8 +5,6 @@ use crate::prelude::*;
 
 use crate::notification;
 
-use flo_stream::Subscriber;
-
 
 
 // ============================
@@ -51,9 +49,18 @@ impl StatusNotifications {
         executor::global::spawn(self.publisher.publish(notification));
     }
 
-    pub fn subscribe(&self) -> impl futures::Stream<Item=StatusNotification> {
+    pub fn subscribe(&self) -> impl Stream<Item=StatusNotification> {
         self.publisher.subscribe()
     }
+}
+
+// ====================
+// === Notification ===
+// ====================
+
+#[derive(Copy,Clone,Debug)]
+pub enum Notification {
+    NewProjectCreated
 }
 
 
@@ -70,6 +77,8 @@ pub trait API:Debug {
     fn current_project(&self) -> model::Project;
 
     fn status_notifications(&self) -> &StatusNotifications;
+
+    fn subscribe(&self) -> StaticBoxStream<Notification>;
 
     fn manage_projects(&self) -> Option<&dyn ManagingProjectAPI>;
 }

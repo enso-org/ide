@@ -6,16 +6,12 @@ use crate::config;
 use crate::ide::Ide;
 use crate::transport::web::WebSocket;
 
-use enso_protocol::binary;
-use enso_protocol::language_server;
 use enso_protocol::project_manager;
 use enso_protocol::project_manager::ProjectName;
 use uuid::Uuid;
 use ensogl::application::Application;
 use ensogl::system::web;
-use ensogl::system::web::platform;
-use ensogl::system::web::platform::Platform;
-use crate::ide::integration::Integration;
+
 
 
 // =================
@@ -174,8 +170,6 @@ impl WithProjectManager {
     ///
     /// If the project with given name does not exist yet, it will be created.
     pub async fn initialize_project_model(self) -> FallibleResult<model::Project> {
-        use project_manager::MissingComponentAction::*;
-
         let project_id      = self.get_project_or_create_new().await?;
         let logger          = &self.logger;
         // let engine_version  = opened_project.engine_version;

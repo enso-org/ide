@@ -1,13 +1,15 @@
 use crate::prelude::*;
 
-use enso_protocol::project_manager;
-use crate::controller::ide::{API, ManagingProjectAPI, StatusNotifications};
-use crate::notification::Publisher;
+use crate::controller::ide::API;
+use crate::controller::ide::ManagingProjectAPI;
+use crate::controller::ide::StatusNotifications;
+use crate::controller::ide::Notification;
 use crate::ide;
+use crate::notification;
 
-use flo_stream::Subscriber;
-use futures::future::LocalBoxFuture;
-use enso_protocol::project_manager::{ProjectName, MissingComponentAction};
+use enso_protocol::project_manager;
+use enso_protocol::project_manager::MissingComponentAction;
+use enso_protocol::project_manager::ProjectName;
 
 
 
@@ -31,6 +33,7 @@ pub struct Handle {
     #[derivative(Debug="ignore")]
     project_manager      : Rc<dyn project_manager::API>,
     status_notifications : StatusNotifications,
+    notifications        : notification::Publisher<Notification>,
 }
 
 impl Handle {
@@ -38,7 +41,8 @@ impl Handle {
         let logger               = Logger::new("controller::ide::Desktop");
         let current_project      = Rc::new(CloneRefCell::new(initial_project));
         let status_notifications = default();
-        Self {logger,current_project,project_manager,status_notifications}
+        let notifications        = default();
+        Self {logger,current_project,project_manager,status_notifications,notifications}
     }
 
     pub async fn new_with_opened_project(project_manager:Rc<dyn project_manager::API>, name:ProjectName) -> FallibleResult<Self> {
@@ -51,6 +55,10 @@ impl Handle {
 impl API for Handle {
     fn current_project     (&self) -> model::Project       { self.current_project.get() }
     fn status_notifications(&self) -> &StatusNotifications { &self.status_notifications }
+
+    fn subscribe(&self) -> StaticBoxStream<Notification> {
+        self.notifications.subscribe().boxed_local()
+    }
 
     fn manage_projects     (&self) -> Option<&dyn ManagingProjectAPI> {
         Some(self)
@@ -71,29 +79,8 @@ impl ManagingProjectAPI for Handle {
 
             let new_project = self.project_manager.create_project(name.deref(),&version,&action).await?.project_id;
             self.current_project.set(model::project::Synchronized::new_opened(&self.logger,self.project_manager.clone_ref(),new_project,name).await?);
+            executor::global::spawn(self.notifications.publish(Notification::NewProjectCreated));
             Ok(())
         }.boxed_local()
-    }
-}
-
-
-
-// =============
-// === Tests ===
-// =============
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    use crate::controller::project::ENGINE_VERSION_SUPPORTED;
-
-
-
-    #[test]
-    fn new_project_engine_version_fills_requirements() {
-        let requirements = semver::VersionReq::parse(ENGINE_VERSION_SUPPORTED).unwrap();
-        let version      = semver::Version::parse(ENGINE_VERSION_FOR_NEW_PROJECTS).unwrap();
-        assert!(requirements.matches(&version))
     }
 }

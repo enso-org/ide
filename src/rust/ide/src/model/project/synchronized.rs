@@ -457,13 +457,13 @@ mod test {
 
             setup_mock_json(&mut json_client);
             setup_mock_binary(&mut binary_client);
-            let json_connection   = language_server::Connection::new_mock(json_client);
-            let binary_connection = binary::Connection::new_mock(binary_client);
+            let json_connection   = Rc::new(language_server::Connection::new_mock(json_client));
+            let binary_connection = Rc::new(binary::Connection::new_mock(binary_client));
             let project_manager   = Rc::new(project_manager);
             let logger            = Logger::new("Fixture");
             let id                = Uuid::new_v4();
             let engine_version    = semver::Version::new(0,2,1);
-            let project_fut       = Project::from_connections(logger,Some(project_manager),
+            let project_fut       = Project::new(logger,Some(project_manager),
                 json_connection,binary_connection,engine_version,id,DEFAULT_PROJECT_NAME).boxed_local();
             let project = test.expect_completion(project_fut).unwrap();
             Fixture {test,project,binary_events_sender,json_events_sender}

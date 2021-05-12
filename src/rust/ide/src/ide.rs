@@ -4,16 +4,12 @@ pub mod integration;
 
 use crate::prelude::*;
 
-use crate::controller::FilePath;
-use crate::model::module::Path as ModulePath;
+use crate::ide::integration::Integration;
 
 use ensogl::application::Application;
-use enso_protocol::language_server::MethodPointer;
-use ide_view::status_bar;
-use parser::Parser;
 
 pub use initializer::Initializer;
-use crate::ide::integration::Integration;
+
 
 
 // =================

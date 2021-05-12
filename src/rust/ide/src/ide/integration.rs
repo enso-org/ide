@@ -2,12 +2,10 @@ pub mod project;
 
 use crate::prelude::*;
 
-use crate::controller::FilePath;
-
-use enso_protocol::language_server::MethodPointer;
-use parser::Parser;
-use ide_view::graph_editor::SharedHashMap;
 use crate::controller::ide::StatusNotification;
+
+use ide_view::graph_editor::SharedHashMap;
+
 
 
 // =================
@@ -20,24 +18,65 @@ use crate::controller::ide::StatusNotification;
 // === IDE Integration ===
 // =======================
 
-#[derive(Clone,CloneRef,Debug)]
-pub struct Integration {
+// === Model ===
+
+#[derive(Debug)]
+struct Model {
     pub logger              : Logger,
     pub controller          : controller::ide::Handle,
     pub view                : ide_view::project::View,
-    pub project_integration : Rc<RefCell<Option<project::Integration>>>,
+    pub project_integration : RefCell<Option<project::Integration>>,
+}
+
+impl Model {
+    fn setup_and_display_new_project(self:Rc<Self>) {
+        // Remove the old integration first. We want to be sure the old and new integrations will
+        // not race for the view.
+        *self.project_integration.borrow_mut() = None;
+
+        let project_model        = self.controller.current_project();
+        let status_notifications = self.controller.status_notifications().clone_ref();
+        let project              = controller::Project::new(project_model,status_notifications.clone_ref());
+
+        executor::global::spawn(async move {
+            match project.initial_setup().await {
+                Ok(result) => {
+                    let view    = self.view.clone_ref();
+                    let text    = result.main_module_text;
+                    let graph   = result.main_graph;
+                    let ide     = self.controller.clone_ref();
+                    let project = project.model;
+                    *self.project_integration.borrow_mut() = Some(project::Integration::new(view,graph,text,ide,project));
+                }
+                Err(err) => {
+                    let err_msg = format!("Failed to initialize project: {}", err);
+                    status_notifications.publish_event(err_msg)
+                }
+            }
+        });
+    }
+}
+
+
+// === Integration ===
+
+#[derive(Clone,CloneRef,Debug)]
+pub struct Integration {
+    model : Rc<Model>,
 }
 
 impl Integration {
     pub fn new(controller:controller::ide::Handle, view:ide_view::project::View) -> Self {
         let logger              = Logger::new("ide::Integration");
         let project_integration = default();
-        Self {logger,controller,view,project_integration} .init()
+        let model               = Rc::new(Model {logger,controller,view,project_integration});
+        Self {model}
     }
 
     pub fn init(self) -> Self {
         self.initialize_status_bar_integration();
-        self.setup_and_display_new_project();
+        self.initialize_controller_integration();
+        self.model.clone_ref().setup_and_display_new_project();
         self
     }
 
@@ -45,10 +84,10 @@ impl Integration {
         use controller::ide::ProcessHandle    as ControllerHandle;
         use ide_view::status_bar::process::Id as ViewHandle;
 
-        let logger      = self.logger.clone_ref();
-        let process_map = SharedHashMap::<controller::ide::ProcessHandle,ide_view::status_bar::process::Id>::new();
-        let status_bar  = self.view.status_bar().clone_ref();
-        let status_notif_sub = self.controller.status_notifications().subscribe();
+        let logger      = self.model.logger.clone_ref();
+        let process_map = SharedHashMap::<ControllerHandle,ViewHandle>::new();
+        let status_bar  = self.model.view.status_bar().clone_ref();
+        let status_notif_sub = self.model.controller.status_notifications().subscribe();
         let status_notif_updates = status_notif_sub.for_each(move |notification| {
             match notification {
                 StatusNotification::Event {label} => {
@@ -73,30 +112,18 @@ impl Integration {
         executor::global::spawn(status_notif_updates)
     }
 
-    fn setup_and_display_new_project(&self) {
-        // Remove the old integration first. We want to be sure the old and new integrations will
-        // not race for the view.
-        *self.project_integration.borrow_mut() = None;
-
-        let project_model        = self.controller.current_project();
-        let status_notifications = self.controller.status_notifications().clone_ref();
-        let project              = controller::Project::new(project_model,status_notifications.clone_ref());
-        let view                 = self.view.clone_ref();
-        let integration          = self.project_integration.clone_ref();
-
-        executor::global::spawn(async move {
-            match project.initial_setup().await {
-                Ok(result) => {
-                    let text    = result.main_module_text;
-                    let graph   = result.main_graph;
-                    let project = project.model;
-                    *integration.borrow_mut() = Some(project::Integration::new(view,graph,text,project));
-                }
-                Err(err) => {
-                    let err_msg = format!("Failed to initialize project: {}", err);
-                    status_notifications.publish_event(err_msg)
+    fn initialize_controller_integration(&self) {
+        let stream = self.model.controller.subscribe();
+        let weak   = Rc::downgrade(&self.model);
+        executor::global::spawn(stream.for_each(move |notification| {
+            if let Some(model) = weak.upgrade() {
+                match notification {
+                    controller::ide::Notification::NewProjectCreated => {
+                        model.setup_and_display_new_project()
+                    }
                 }
             }
-        });
+            futures::future::ready(())
+        }));
     }
 }

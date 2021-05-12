@@ -60,6 +60,11 @@ pub struct NotASuggestion {
 }
 
 #[allow(missing_docs)]
+#[fail(display="An action is not supported in current environment.")]
+#[derive(Copy,Clone,Debug,Fail)]
+pub struct NotSupported;
+
+#[allow(missing_docs)]
 #[fail(display="An action cannot be executed when searcher is in \"edit node\" mode.")]
 #[derive(Copy,Clone,Debug,Fail)]
 pub struct CannotExecuteWhenEditingNode;
@@ -453,6 +458,7 @@ pub struct Searcher {
     database         : Rc<model::SuggestionDatabase>,
     language_server  : Rc<language_server::Connection>,
     parser           : Parser,
+    ide              : controller::Ide,
     this_arg         : Rc<Option<ThisNode>>,
     position_in_code : Immutable<TextLocation>,
     project_name     : ImString,
@@ -462,18 +468,20 @@ impl Searcher {
     /// Create new Searcher Controller.
     pub async fn new
     ( parent         : impl AnyLogger
+    , ide            : controller::Ide
     , project        : &model::Project
     , method         : language_server::MethodPointer
     , mode           : Mode
     , selected_nodes : Vec<double_representation::node::Id>
     ) -> FallibleResult<Self> {
         let graph = controller::ExecutedGraph::new(&parent,project.clone_ref(),method).await?;
-        Self::new_from_graph_controller(parent,project,graph,mode,selected_nodes)
+        Self::new_from_graph_controller(parent,ide,project,graph,mode,selected_nodes)
     }
 
     /// Create new Searcher Controller, when you have Executed Graph Controller handy.
     pub fn new_from_graph_controller
     ( parent         : impl AnyLogger
+    , ide            : controller::Ide
     , project        : &model::Project
     , graph          : controller::ExecutedGraph
     , mode           : Mode
@@ -492,7 +500,7 @@ impl Searcher {
         let position   = TextLocation::convert_span(module_ast.repr(),&def_span).end;
         let this_arg   = Rc::new(matches!(mode, Mode::NewNode{..}).and_option_from(|| ThisNode::new(selected_nodes,&graph.graph())));
         let ret        = Self {
-            logger,graph,this_arg,
+            logger,graph,this_arg,ide,
             data             : Rc::new(RefCell::new(data)),
             notifier         : default(),
             mode             : Immutable(mode),
@@ -617,6 +625,20 @@ impl Searcher {
             Action::Example(example) => match *self.mode {
                 Mode::NewNode {position} => self.add_example(&example,position).map(Some),
                 _                        => Err(CannotExecuteWhenEditingNode.into())
+            }
+            Action::CreateNewProject => {
+                if self.ide.manage_projects().is_some() {
+                    let ide    = self.ide.clone_ref();
+                    let logger = self.logger.clone_ref();
+                    executor::global::spawn(async move {
+                        if let Err(err) = ide.manage_projects().unwrap().create_new_project().await {
+                            error!(logger, "Error when creating new project: {err}");
+                        }
+                    });
+                    Ok(None)
+                } else {
+                    Err(NotSupported.into())
+                }
             }
         }
     }

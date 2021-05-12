@@ -1,8 +1,10 @@
 use crate::prelude::*;
-use crate::controller::ide::ManagingProjectAPI;
+use crate::controller::ide::{ManagingProjectAPI, Notification};
 use crate::controller::ide::StatusNotifications;
 
 use enso_protocol::project_manager::ProjectName;
+use flo_stream::Subscriber;
+
 
 
 #[derive(Clone,CloneRef,Debug)]
@@ -34,6 +36,10 @@ impl controller::ide::API for Handle {
     }
 
     fn status_notifications(&self) -> &StatusNotifications { &self.status_notifications }
+
+    fn subscribe(&self) -> StaticBoxStream<Notification> {
+        futures::stream::empty().boxed_local()
+    }
 
     fn manage_projects(&self) -> Option<&dyn ManagingProjectAPI> {
         None

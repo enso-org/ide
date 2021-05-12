@@ -176,6 +176,7 @@ struct Model {
     view                    : ide_view::project::View,
     graph                   : controller::ExecutedGraph,
     text                    : controller::Text,
+    ide                     : controller::Ide,
     searcher                : RefCell<Option<controller::Searcher>>,
     project                 : model::Project,
     node_views              : RefCell<BiMap<ast::Id,graph_editor::NodeId>>,
@@ -194,13 +195,14 @@ struct Model {
 impl Integration {
     /// Constructor. It creates GraphEditor and integrates it with given controller handle.
     pub fn new
-    ( view          : ide_view::project::View
-    , graph         : controller::ExecutedGraph
-    , text          : controller::Text
-    , project       : model::Project
+    ( view    : ide_view::project::View
+    , graph   : controller::ExecutedGraph
+    , text    : controller::Text
+    , ide     : controller::Ide
+    , project : model::Project
     ) -> Self {
         let logger       = Logger::new("ViewIntegration");
-        let model        = Model::new(logger,view,graph,text,project);
+        let model        = Model::new(logger,view,graph,text,ide,project);
         let model        = Rc::new(model);
         let editor_outs  = &model.view.graph().frp.output;
         let code_editor  = &model.view.code_editor().text_area();
@@ -420,6 +422,7 @@ impl Model {
     , view          : ide_view::project::View
     , graph         : controller::ExecutedGraph
     , text          : controller::Text
+    , ide           : controller::Ide
     , project       : model::Project) -> Self {
         let node_views              = default();
         let node_view_by_expression = default();
@@ -431,8 +434,9 @@ impl Model {
         let error_visualizations    = default();
         let searcher                = default();
         let this                    = Model
-            {view,graph,text,searcher,node_views,expression_views,expression_types,connection_views
-            ,code_view,logger,visualizations,error_visualizations,project,node_view_by_expression};
+            {view,graph,text,ide,searcher,node_views,expression_views,expression_types
+            ,connection_views,code_view,logger,visualizations,error_visualizations,project
+            ,node_view_by_expression};
 
         this.init_project_name();
         this.load_visualizations();
@@ -1006,8 +1010,9 @@ impl Model {
                     this.get_controller_node_id(*id).ok()
                 }).collect_vec();
                 let controller = this.graph.clone_ref();
-                let searcher = controller::Searcher::new_from_graph_controller
-                    (&this.logger,&this.project,controller,mode,selected_nodes)?;
+                let ide        = this.ide.clone_ref();
+                let searcher   = controller::Searcher::new_from_graph_controller
+                    (&this.logger,ide,&this.project,controller,mode,selected_nodes)?;
                 executor::global::spawn(searcher.subscribe().for_each(f!([weak_self](notification) {
                     if let Some(this) = weak_self.upgrade() {
                         this.handle_searcher_notification(notification);
@@ -1431,7 +1436,8 @@ impl ide_view::searcher::DocumentationProvider for DataProviderForView {
                 let doc = suggestion.documentation.clone();
                 Some(doc.unwrap_or_else(|| Self::doc_placeholder_for(&suggestion)))
             }
-            Action::Example(example) => Some(example.documentation.clone())
+            Action::Example(example) => Some(example.documentation.clone()),
+            Action::CreateNewProject => None,
         }
     }
 }
