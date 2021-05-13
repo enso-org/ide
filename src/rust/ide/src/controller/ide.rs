@@ -130,7 +130,7 @@ pub trait API:Debug {
 }
 
 /// A polymorphic handle of IDE controller.
-pub type Handle  = Rc<dyn API>;
+pub type Ide  = Rc<dyn API>;
 
 /// The IDE Controller for desktop environments.
 pub type Desktop = desktop::Handle;

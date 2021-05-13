@@ -70,7 +70,7 @@ impl Handle {
 }
 
 impl API for Handle {
-    fn current_project     (&self) -> model::Project       { self.current_project.get() }
+    fn current_project     (&self) -> model::Project               { self.current_project.get() }
     fn status_notifications(&self) -> &StatusNotificationPublisher { &self.status_notifications }
 
     fn subscribe(&self) -> StaticBoxStream<Notification> {

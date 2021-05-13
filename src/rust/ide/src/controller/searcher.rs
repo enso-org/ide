@@ -631,6 +631,8 @@ impl Searcher {
                     let ide    = self.ide.clone_ref();
                     let logger = self.logger.clone_ref();
                     executor::global::spawn(async move {
+                        // We checked that manage_projects returns Some just a moment ago, so
+                        // unwrapping is safe.
                         if let Err(err) = ide.manage_projects().unwrap().create_new_project().await {
                             error!(logger, "Error when creating new project: {err}");
                         }
@@ -867,7 +869,9 @@ impl Searcher {
         if matches!(self.mode.deref(), Mode::NewNode{..}) && self.this_arg.is_none() {
             actions.extend(self.database.iterate_examples().map(Action::Example));
             Self::add_enso_project_entries(&actions)?;
-            actions.extend(std::iter::once(Action::CreateNewProject));
+            if self.ide.manage_projects().is_some() {
+                actions.extend(std::iter::once(Action::CreateNewProject));
+            }
         }
         for response in completion_responses {
             let response = response?;

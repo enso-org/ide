@@ -78,13 +78,13 @@ pub struct SetupResult {
 /// This controller supports IDE-related operations on a specific project.
 #[allow(missing_docs)]
 #[derive(Clone,CloneRef,Debug)]
-pub struct Handle {
+pub struct Project {
     pub logger               : Logger,
     pub model                : model::Project,
     pub status_notifications : StatusNotificationPublisher,
 }
 
-impl Handle {
+impl Project {
     /// Create a controller of given project.
     pub fn new(model:model::Project, status_notifications:StatusNotificationPublisher) -> Self {
         let logger = Logger::new("controller::Project");
@@ -128,7 +128,7 @@ impl Handle {
 
 // === Project Initialization Utilities ===
 
-impl Handle {
+impl Project {
     /// Returns the path to the initially opened module in the given project.
     fn initial_module_path(&self) -> FallibleResult<model::module::Path> {
         crate::ide::initial_module_path(&self.model)
@@ -227,14 +227,14 @@ mod tests {
         data.set_code(empty_module_code);
         let module = data.module();
         assert!(module.lookup_method(&data.project_name,&main_ptr).is_err());
-        Handle::add_main_if_missing(&data.project_name,&module,&main_ptr,&parser).unwrap();
+        Project::add_main_if_missing(&data.project_name, &module, &main_ptr, &parser).unwrap();
         assert!(module.lookup_method(&data.project_name,&main_ptr).is_ok());
 
         // Now check that modules that have main already defined won't get modified.
         let mut expect_intact = move |code:&str| {
             data.set_code(code);
             let module = data.module();
-            Handle::add_main_if_missing(&data.project_name,&module,&main_ptr,&parser).unwrap();
+            Project::add_main_if_missing(&data.project_name, &module, &main_ptr, &parser).unwrap();
             assert_eq!(code,module.ast().repr());
         };
         expect_intact("main = 5");

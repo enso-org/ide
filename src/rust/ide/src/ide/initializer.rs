@@ -112,7 +112,8 @@ impl Initializer {
             ProjectManager { endpoint } => {
                 let project_manager = self.setup_project_manager(endpoint).await?;
                 let project_name    = self.config.project_name.clone();
-                let controller      = controller::ide::Desktop::new_with_opened_project(project_manager,project_name).await?;
+                let controller      = controller::ide::Desktop::new_with_opened_project
+                    (project_manager,project_name).await?;
                 Ok(Rc::new(controller))
             }
             LanguageServer {json_endpoint,binary_endpoint} => {
@@ -122,7 +123,8 @@ impl Initializer {
                 // TODO[ao]: we should think how to handle engine's versions in cloud.
                 //     https://github.com/enso-org/ide/issues/1195
                 let version    = semver::Version::parse(ENGINE_VERSION_FOR_NEW_PROJECTS)?;
-                let controller = controller::ide::Plain::from_ls_endpoints(project_name,version,json_endpoint,binary_endpoint).await?;
+                let controller = controller::ide::Plain::from_ls_endpoints
+                    (project_name,version,json_endpoint,binary_endpoint).await?;
                 Ok(Rc::new(controller))
             }
         }
@@ -176,7 +178,6 @@ impl WithProjectManager {
     pub async fn initialize_project_model(self) -> FallibleResult<model::Project> {
         let project_id      = self.get_project_or_create_new().await?;
         let logger          = &self.logger;
-        // let engine_version  = opened_project.engine_version;
         let project_manager = self.project_manager;
         let project_name    = self.project_name;
         model::project::Synchronized::new_opened(logger,project_manager,project_id,project_name)

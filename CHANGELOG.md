@@ -9,6 +9,12 @@
 - [Window management buttons.][1511]. The IDE now has components for
   "fullscreen" nad "close" buttons. They will be available only when running IDE
   in a cloud environment.
+- [Create New Project action in Searcher][1566]. When you bring the searcher
+  with tab having no node selected, a new action will be available next to the 
+  examples and code suggestions: `Create New Project`. When you choose it by 
+  clicking with mouse or selecting and pressing enter, a new unnamed project 
+  will be created and opened in the application. Then you can give a name to 
+  this project.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
@@ -23,6 +29,7 @@ you can find their release notes
 [here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
 
 [1511]: https://github.com/enso-org/ide/pull/1511
+[1566]: https://github.com/enso-org/ide/pull/1566
 
 <br/>
 
