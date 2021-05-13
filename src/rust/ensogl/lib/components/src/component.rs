@@ -54,8 +54,8 @@ pub trait Frp<Model> : Default + CommandApi {
 #[derive(Clone,CloneRef,Debug)]
 pub struct Component<Model, Frp> {
     /// Public FRP api of the Component.
-    pub frp          : Rc<Frp>,
-    pub(crate) model : Rc<Model>,
+    pub frp : Rc<Frp>,
+    model   : Rc<Model>,
     /// Reference to the application the Component belongs to. Generally required for implementing
     /// `application::View` and initialising the `Mode`l and `Frp` and thus provided by the
     /// `Component`.
@@ -69,9 +69,9 @@ impl<M:Model, F:Frp<M>> Component<M, F> {
         let model = Rc::new(M::new(&app));
         let frp   = F::default();
         let style = StyleWatchFrp::new(&app.display.scene().style_sheet);
-        frp.init(&app, &model,&style);
+        frp.init(&app,&model,&style);
         let frp   = Rc::new(frp);
-        Self { model, frp, app }
+        Self {model,frp,app}
     }
 }
 

@@ -9,9 +9,10 @@ use ensogl_core::display::object::ObjectOps;
 use ensogl_core::display::shape::StyleWatchFrp;
 use ensogl_theme as theme;
 
-use crate::selector::common;
-use crate::selector::common::Model;
 use crate::shadow;
+
+use super::model::Model;
+use super::shape::shape_is_dragged;
 
 
 
@@ -30,12 +31,12 @@ fn slider_area_width(size:&Vector2) -> f32 {
 
 
 // ===============
-// === BaseFrp ===
+// === Frp ===
 // ===============
 
 /// Frp endpoints provided for general information about mouse interactions and shape properties
 /// of the `common::Model`.
-pub struct BaseFrp {
+pub struct Frp {
     /// Current maximum extent of the track in scene coordinate space.
     pub track_max_width            : frp::Stream<f32>,
     /// Indicates whether there is an ongoing dragging action from the left overflow shape.
@@ -56,24 +57,24 @@ pub struct BaseFrp {
     pub is_dragging_any            : frp::Stream<bool>,
 }
 
-impl BaseFrp {
+impl Frp {
     pub fn new
     (model:&Model, style:&StyleWatchFrp, network:&Network, size:frp::Stream<Vector2>, mouse:&Mouse)
-    -> BaseFrp {
+    -> Frp {
         let shadow    = shadow::frp_from_style(style,theme::shadow);
         let text_size = style.get_number(theme::text::size);
 
-        let is_dragging_left_overflow  = common::shape_is_dragged(
+        let is_dragging_left_overflow  = shape_is_dragged(
             network,&model.left_overflow.events,mouse);
-        let is_dragging_right_overflow = common::shape_is_dragged(
+        let is_dragging_right_overflow = shape_is_dragged(
             network,&model.right_overflow.events,mouse);
-        let is_dragging_track          = common::shape_is_dragged(
+        let is_dragging_track          = shape_is_dragged(
             network,&model.track.events, mouse);
-        let is_dragging_background     = common::shape_is_dragged(
+        let is_dragging_background     = shape_is_dragged(
             network,&model.background.events,mouse);
-        let is_dragging_left_handle    = common::shape_is_dragged(
+        let is_dragging_left_handle    = shape_is_dragged(
             network,&model.track_handle_left.events,mouse);
-        let is_dragging_right_handle   = common::shape_is_dragged(
+        let is_dragging_right_handle   = shape_is_dragged(
             network,&model.track_handle_right.events,mouse);
 
         // Initialisation of components. Required for correct layout on startup.
@@ -118,7 +119,7 @@ impl BaseFrp {
             );
         }
 
-        BaseFrp {track_max_width,is_dragging_left_overflow,is_dragging_right_overflow,
+        Frp {track_max_width,is_dragging_left_overflow,is_dragging_right_overflow,
                  is_dragging_track,is_dragging_background,is_dragging_left_handle,
                  is_dragging_right_handle,is_dragging_any}
     }

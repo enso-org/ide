@@ -1,17 +1,14 @@
-//! Common functionality for both the Number and Range selector.
+//! Bounds represent an interval with inclusive ends. They are used to indicates the lowest and
+//! highest value that can be selected in a selection component.
+//!
+//! Note: this is used instead of `Range`, as `Range` cannot easily be used in our FRP because it
+//! does not implement `Default`.
+
 use crate::prelude::*;
 
-use enso_frp as frp;
-use enso_frp::Network;
-use ensogl_core::frp::io::Mouse;
-use ensogl_core::gui::component::ShapeViewEvents;
-
-pub mod base_frp;
-pub mod model;
-pub mod shape;
-
-pub use base_frp::*;
-pub use model::*;
+use core::convert::From;
+use core::option::Option;
+use core::option::Option::Some;
 
 
 
@@ -51,12 +48,17 @@ impl Bounds {
 }
 
 impl From<(f32,f32)> for Bounds {
-    fn from((start,end): (f32, f32)) -> Self {
+    fn from((start,end): (f32,f32)) -> Self {
         Bounds{start,end}
     }
 }
 
 /// Frp utility method to normalise the given value to the given Bounds.
+///
+/// Example usage:
+/// ```ignore
+/// normalised <- all2(&value,&bounds).map(normalise_value);
+/// ````
 pub fn normalise_value((value,bounds):&(f32,Bounds)) -> f32 {
     let width = bounds.width();
     if width == 0.0 { return 0.0 }
@@ -65,6 +67,11 @@ pub fn normalise_value((value,bounds):&(f32,Bounds)) -> f32 {
 
 /// Frp utility method to compute the absolute value from a normalised value.
 /// Inverse of `normalise_value`.
+///
+/// Example usage:
+/// ```ignore
+/// value  <- all(&bounds,&normalised).map(absolute_value);
+/// ````
 pub fn absolute_value((bounds,normalised_value):&(Bounds,f32)) -> f32 {
     ((normalised_value * bounds.width()) + bounds.start)
 }
@@ -92,6 +99,11 @@ pub fn bounds_in_bounds(bounds_inner:Bounds, bounds_outer:Bounds) -> bool {
 
 /// Clamp `value` to the `overflow_bounds`, or to [0, 1] if no bounds are given.
 /// For use in FRP `map` method, thus taking references.
+///
+/// Example usage:
+/// ```ignore
+///  clamped <- value_update.map2(&normalised_overflow_bounds,clamp_with_overflow);
+/// ```
 #[allow(clippy::trivially_copy_pass_by_ref)]
 pub fn clamp_with_overflow(value:&f32, overflow_bounds:&Option<Bounds>) -> f32 {
     if let Some(overflow_bounds) = overflow_bounds{
@@ -103,6 +115,11 @@ pub fn clamp_with_overflow(value:&f32, overflow_bounds:&Option<Bounds>) -> f32 {
 
 /// Indicates whether the `bounds` would be clamped when given to `clamp_with_overflow`.
 /// For use in FRP `map` method, thus taking references.
+///
+/// Example usage:
+/// ```ignore
+///  is_in_bounds <- bounds_update.map2(&normalised_overflow_bounds,should_clamp_with_overflow);
+/// ```
 #[allow(clippy::trivially_copy_pass_by_ref)]
 pub fn should_clamp_with_overflow(bounds:&Bounds, overflow_bounds:&Option<Bounds>) -> bool {
     if let Some(overflow_bounds) = overflow_bounds {
@@ -114,51 +131,16 @@ pub fn should_clamp_with_overflow(bounds:&Bounds, overflow_bounds:&Option<Bounds
 
 
 
-// =======================
-// === Shape Utilities ===
-// =======================
-
-
-/// Return whether a dragging action has been started from the given shape.
-/// A dragging action is started by a mouse down on a shape, followed by a movement of the mouse.
-/// It is ended by a mouse up.
-pub fn shape_is_dragged
-(network:&Network, shape:&ShapeViewEvents, mouse:&Mouse) -> frp::Stream<bool>  {
-    frp::extend! { network
-        mouse_up              <- mouse.up.constant(());
-        mouse_down            <- mouse.down.constant(());
-        over_shape            <- bool(&shape.mouse_out,&shape.mouse_over);
-        mouse_down_over_shape <- mouse_down.gate(&over_shape);
-        is_dragging_shape     <- bool(&mouse_up,&mouse_down_over_shape);
-    }
-    is_dragging_shape
-}
-
-/// Returns the position of a mouse down on a shape. The position is given relative to the origin
-/// of the shape position.
-pub fn relative_shape_click_position
-(base_position:impl Fn() -> Vector2 + 'static, network:&Network, shape:&ShapeViewEvents, mouse:&Mouse) -> frp::Stream<Vector2>  {
-    frp::extend! { network
-        mouse_down               <- mouse.down.constant(());
-        over_shape               <- bool(&shape.mouse_out,&shape.mouse_over);
-        mouse_down_over_shape    <- mouse_down.gate(&over_shape);
-        background_click_positon <- mouse.position.sample(&mouse_down_over_shape);
-        background_click_positon <- background_click_positon.map(move |pos|
-            pos - base_position()
-        );
-    }
-    background_click_positon
-}
-
+// =============
+// === Tests ===
+// =============
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
     use float_eq::assert_float_eq;
     use std::f32::NAN;
-    use enso_frp::stream::ValueProvider;
-    use enso_frp::stream::EventEmitter;
-    use enso_frp::io::mouse::Button;
 
     #[test]
     fn test_normalise_value() {
@@ -176,8 +158,8 @@ mod tests {
         test(0.0,1.0,0.5,0.5);
         test(0.0,1.0,0.6,0.6);
         test(0.0,1.0,0.7,0.7);
-        test(0.0,1.0,0.7,0.7);
-        test(0.0,1.0,0.7,0.7);
+        test(0.0,1.0,0.8,0.8);
+        test(0.0,1.0,0.9,0.9);
         test(0.0,1.0,1.0,1.0);
 
         test(0.0,1.0,-2.0,-2.0);
@@ -226,8 +208,8 @@ mod tests {
         test(0.0,1.0,0.5,0.5);
         test(0.0,1.0,0.6,0.6);
         test(0.0,1.0,0.7,0.7);
-        test(0.0,1.0,0.7,0.7);
-        test(0.0,1.0,0.7,0.7);
+        test(0.0,1.0,0.8,0.8);
+        test(0.0,1.0,0.9,0.9);
         test(0.0,1.0,1.0,1.0);
 
         test(0.0,1.0,-2.0,-2.0);
@@ -386,60 +368,5 @@ mod tests {
         test(Bounds::new(0.25,0.7),None,true);
 
         test(Bounds::new(0.0,0.0),None,true);
-    }
-
-    #[test]
-    fn test_shape_is_dragged() {
-        let network = frp::Network::new("TestNetwork");
-        let mouse   = frp::io::Mouse::default();
-        let shape   = ShapeViewEvents::default();
-
-        let is_dragged = shape_is_dragged(&network,&shape,&mouse);
-        let _watch = is_dragged.register_watch();
-
-
-        // Default is false.
-        assert_eq!(is_dragged.value(),false);
-
-        // Mouse down over shape activates dragging.
-        shape.mouse_over.emit(());
-        mouse.down.emit(Button::from_code(0));
-        assert_eq!(is_dragged.value(),true);
-
-        // Release mouse stops dragging.
-        mouse.up.emit(Button::from_code(0));
-        assert_eq!(is_dragged.value(),false);
-
-        // Mouse down while not over shape  does not activate dragging.
-        shape.mouse_out.emit(());
-        mouse.down.emit(Button::from_code(0));
-        assert_eq!(is_dragged.value(),false);
-    }
-
-    #[test]
-    fn test_relative_shape_click_position() {
-        let network = frp::Network::new("TestNetwork");
-        let mouse   = frp::io::Mouse::default();
-        let shape   = ShapeViewEvents::default();
-
-        let base_position = || Vector2::new(-10.0,200.0);
-        let click_position = relative_shape_click_position(base_position, &network,&shape,&mouse);
-        let _watch = click_position.register_watch();
-
-        shape.mouse_over.emit(());
-        mouse.position.emit(Vector2::new(-10.0,200.0));
-        mouse.down.emit(Button::from_code(0));
-        assert_float_eq!(click_position.value().x,0.0,ulps<=7);
-        assert_float_eq!(click_position.value().y,0.0,ulps<=7);
-
-        mouse.position.emit(Vector2::new(0.0,0.0));
-        mouse.down.emit(Button::from_code(0));
-        assert_float_eq!(click_position.value().x,10.0,ulps<=7);
-        assert_float_eq!(click_position.value().y,-200.0,ulps<=7);
-
-        mouse.position.emit(Vector2::new(400.0,0.5));
-        mouse.down.emit(Button::from_code(0));
-        assert_float_eq!(click_position.value().x,410.0,ulps<=7);
-        assert_float_eq!(click_position.value().y,-199.5,ulps<=7);
     }
 }

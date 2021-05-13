@@ -1,102 +1,27 @@
-//! Base model for the number and range selector components.
+//! Base model for the number and range selector components. Contains all functionality needed by
+//! both selectors and can be configured to suit the needs of both.
+
 use crate::prelude::*;
 
-use crate::component;
-use crate::selector::common;
-
-use enso_frp as frp;
 use ensogl_core::application::Application;
-use ensogl_core::application;
 use ensogl_core::data::color;
-use ensogl_core::display::shape::*;
 use ensogl_core::display;
+use ensogl_core::display::shape::*;
 use ensogl_text as text;
 
+use crate::component;
+
+use super::Bounds;
 use super::shape::*;
+use super::decimal_aligned::FloatLabel;
+
+
+
+// =================
+// === Constants ===
+// =================
 
 const LABEL_OFFSET : f32 = 13.0;
-
-
-
-// ==============================================
-// === Utilities - Decimal Aligned Text Field ===
-// ==============================================
-
-/// Utility wrapper for a text field containing a float. Centers the string representation of the
-/// float on the decimal separator.
-mod decimal_aligned {
-    use super::*;
-
-    ensogl_core::define_endpoints! {
-        Input {
-            set_content(f32),
-        }
-        Output {}
-    }
-
-    impl component::Frp<Model> for Frp {
-        fn init(&self, app: &Application, model: &Model, _style: &StyleWatchFrp) {
-            let frp     = &self;
-            let network = &frp.network;
-            let _scene  = app.display.scene();
-
-            frp::extend! { network
-                formatted <- frp.set_content.map(|value| format!("{:.2}", value));
-                // FIXME: the next line is locale dependent. We need a way to get the current locale
-                //  dependent decimal separator for this.
-                //  See https://github.com/enso-org/ide/issues/1542 for progress on this.
-                left      <- formatted.map(|s| s.split('.').next().map(|s| s.to_string())).unwrap();
-
-                model.label_left.set_content  <+ left;
-                model.label_full.set_content       <+ formatted;
-
-                eval model.label_left.width((offset)  model.label_full.set_position_x(-offset-LABEL_OFFSET));
-            }
-        }
-    }
-
-    #[derive(Clone,CloneRef,Debug)]
-    pub struct Model {
-        /// Root object. Required as the rendered text label will have an offset relative to the
-        /// base position of the root, depending on the position of the decimal separator.
-        root : display::object::Instance,
-        /// Label containing the text to display. This is the label that will be shown.
-        label_full : text::Area,
-        /// This label contains the text to the left of the decimal. This is here, so we can get
-        /// information about the text width of this portion of the label. This label will
-        /// not appear in the UI.
-        label_left : text::Area,
-    }
-
-    impl component::Model for Model {
-        fn new(app:&Application) -> Self {
-            let logger     = Logger::new("DecimalAlignedLabel");
-            let root       = display::object::Instance::new(&logger);
-            let label_full = app.new_view::<text::Area>();
-            let label_left = app.new_view::<text::Area>();
-
-            label_full.remove_from_scene_layer_DEPRECATED(&app.display.scene().layers.main);
-            label_full.add_to_scene_layer_DEPRECATED(&app.display.scene().layers.label);
-
-            root.add_child(&label_full);
-            root.add_child(&label_left);
-
-            Self{root,label_full,label_left}
-        }
-    }
-
-    impl display::Object for Model {
-        fn display_object(&self) -> &display::object::Instance { self.label_full.display_object() }
-    }
-
-    pub type FloatLabel = crate::component::Component<Model,Frp>;
-
-    impl application::View for FloatLabel {
-        fn label() -> &'static str { "DecimalAlignedLabel" }
-        fn new(app:&Application) -> Self { FloatLabel::new(app) }
-        fn app(&self) -> &Application { &self.app }
-    }
-}
 
 
 
@@ -106,17 +31,38 @@ mod decimal_aligned {
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct Model {
+    /// Background shape that the other UI elements are placed on.
     pub background         : background::View,
+    /// Visual element that indicates where in the available range the selected number or track is
+    /// located. Looks like a colored in bit of the background.
     pub track              : track::View,
+    /// Invisible UI element that enables mouse interaction with the left end of the track. Will
+    /// always be placed on the left edge of the track.
     pub track_handle_left  : io_rect::View,
+    /// Invisible UI element that enables mouse interaction with the right end of the track. Will
+    /// always be placed on the right edge of the track.
     pub track_handle_right : io_rect::View,
+    /// Icon that can be used out of range values. The left overflow is placed on the left side
+    /// of the shape and looks like an arrow/triangle pointing left.
     pub left_overflow      : left_overflow::View,
+    /// Icon that can be used out of range values. The left overflow is placed on the right side
+    /// of the shape and looks like an arrow/triangle pointing right.
     pub right_overflow     : right_overflow::View,
-    pub label              : decimal_aligned::FloatLabel,
+    /// A label that is centered  on the background and can be set to show a floating point value
+    /// that is centered on the decimal label.
+    pub label              : FloatLabel,
+    /// A label that is aligned to the left edge of the background
     pub label_left         : text::Area,
+    /// A label that is aligned to the right edge of the background
     pub label_right        : text::Area,
+    /// A label that is left aligned on the background. Meant to contain a caption describing the
+    /// value that is selected. For example "Alpha", "Red", or "Size".
     pub caption_left       : text::Area,
+    /// A label that is centered on the background. Meant to contain a caption describing the
+    /// range that is selected. For example "Allowed Size", or "Valid Price".
     pub caption_center     : text::Area,
+    /// Shape root that all other elements are parented to. Should be used to place the shapes as
+    /// a group.
     pub root               : display::object::Instance,
 }
 
@@ -124,7 +70,7 @@ impl component::Model for Model {
     fn new(app: &Application) -> Self {
         let logger             = Logger::new("selector::common::Model");
         let root               = display::object::Instance::new(&logger);
-        let label              = app.new_view::<decimal_aligned::FloatLabel>();
+        let label              = app.new_view::<FloatLabel>();
         let label_left         = app.new_view::<text::Area>();
         let label_right        = app.new_view::<text::Area>();
         let caption_center     = app.new_view::<text::Area>();
@@ -136,12 +82,12 @@ impl component::Model for Model {
         let left_overflow      = left_overflow::View::new(&logger);
         let right_overflow     = right_overflow::View::new(&logger);
 
-        let app        = app.clone_ref();
-        let scene      = app.display.scene();
-        scene.layers.add_shapes_order_dependency::<background::View, track::View>();
-        scene.layers.add_shapes_order_dependency::<track::View, left_overflow::View>();
-        scene.layers.add_shapes_order_dependency::<track::View, right_overflow::View>();
-        scene.layers.add_shapes_order_dependency::<track::View, io_rect::View>();
+        let app   = app.clone_ref();
+        let scene = app.display.scene();
+        scene.layers.add_shapes_order_dependency::<background::View,track::View>();
+        scene.layers.add_shapes_order_dependency::<track::View,left_overflow::View>();
+        scene.layers.add_shapes_order_dependency::<track::View,right_overflow::View>();
+        scene.layers.add_shapes_order_dependency::<track::View,io_rect::View>();
 
         root.add_child(&label);
         root.add_child(&label_left);
@@ -167,6 +113,8 @@ impl component::Model for Model {
 }
 
 impl Model {
+    /// Set the size of the overall shape, taking into account the extra padding required to
+    /// render the shadow.
     pub fn set_size(&self, size:Vector2, shadow_padding:Vector2) {
         let padded_size = size + shadow_padding;
         self.background.size.set(padded_size);
@@ -190,15 +138,20 @@ impl Model {
         self.track_handle_right.size.set(track_handle_size);
     }
 
+    /// Update the position of the captions based on the size of the shape and the text size. Takes
+    ///arguments in the way they are provided in the FRP network (as reference to a tuple) to make
+    ///usage more ergonomic on the call-site.
     pub fn update_caption_position(&self, (size,text_size):&(Vector2,f32)) {
-        let left_padding = LABEL_OFFSET;
+        let left_padding       = LABEL_OFFSET;
         let overflow_icon_size = size.y / 2.0;
-        let caption_offset   = size.x / 2.0 - overflow_icon_size - left_padding;
+        let caption_offset     = size.x / 2.0 - overflow_icon_size - left_padding;
         self.caption_left.set_position_x(-caption_offset);
         self.caption_left.set_position_y(text_size / 2.0);
         self.caption_center.set_position_y(text_size / 2.0);
     }
 
+    /// Set whether to allow interactions with the edges of the track shape. If this is set to
+    /// `false`, both `track_handle_left` and `track_handle_right` are removed from the component.
     pub fn use_track_handles(&self, value:bool) {
         if value {
             self.track.add_child(&self.track_handle_left);
@@ -209,12 +162,18 @@ impl Model {
         }
     }
 
+    /// Set the track to cover the area from zero up to the given value. The value indicates the
+    /// width of the background that should be covered in the range 0..1.
     pub fn set_background_value(&self, value:f32) {
         self.track.left.set(0.0);
         self.track.right.set(value);
     }
 
-    pub fn set_background_range(&self, value:common::Bounds, size:Vector2) {
+    /// Set the track to cover the area indicated by the `value` Bounds that are passed. The value
+    /// indicates location aon the background in the range 0..1 (were 0 is the left edge and 1 is
+    /// the right edge). To do the proper layout of the track handles this method also needs to be
+    /// passed the size of the shape.
+    pub fn set_background_range(&self, value:Bounds, size:Vector2) {
         self.track.left.set(value.start);
         self.track.right.set(value.end);
 
@@ -222,14 +181,17 @@ impl Model {
         self.track_handle_right.set_position_x(value.end * size.x  - size.x / 2.0);
     }
 
+    /// Set the label in the center of the background to show the given numeric value.
     pub fn set_center_label_content(&self, value:f32) {
         self.label.frp.set_content.emit(value)
     }
 
+    /// Set the label at the left edge of the background to show the given numeric value.
     pub fn set_left_label_content(&self, value:f32) {
         self.label_left.frp.set_content.emit(format!("{:.2}", value))
     }
 
+    /// Set the label at the right edge of the background to show the given numeric value.
     pub fn set_right_label_content(&self, value:f32) {
         self.label_right.frp.set_content.emit(format!("{:.2}", value))
     }

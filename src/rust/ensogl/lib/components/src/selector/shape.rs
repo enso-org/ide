@@ -1,3 +1,4 @@
+//! This module contains the shapes and shape related functionality required.
 use crate::prelude::*;
 
 use ensogl_core::data::color;
@@ -118,18 +119,18 @@ pub mod track {
 
 
 // ================
-// === OverFlow ===
+// === Overflow ===
 // ================
 
 /// Utility struct that contains the overflow shape, and some metadata that can be used to place and
 /// align it.
-struct OverFlowShape {
+struct OverflowShape {
     pub width  : Var<Pixels>,
     pub height : Var<Pixels>,
     pub shape  : AnyShape
 }
 
-impl OverFlowShape {
+impl OverflowShape {
     fn new(style:&StyleWatch) -> Self {
         let sprite_width  : Var<Pixels> = "input_size.x".into();
         let sprite_height : Var<Pixels> = "input_size.y".into();
@@ -144,7 +145,7 @@ impl OverFlowShape {
         let hover_area = hover_area.fill(HOVER_COLOR);
 
         let shape = (shape + hover_area).into();
-        OverFlowShape{shape,width,height}
+        OverflowShape {shape,width,height}
     }
 }
 
@@ -155,7 +156,7 @@ pub mod left_overflow {
 
     ensogl_core::define_shape_system! {
         (style:Style) {
-            let overflow_shape = OverFlowShape::new(style);
+            let overflow_shape = OverflowShape::new(style);
             let shape = overflow_shape.shape.rotate(-90.0_f32.to_radians().radians());
             shape.into()
           }
@@ -169,9 +170,128 @@ pub mod right_overflow {
 
     ensogl_core::define_shape_system! {
         (style:Style) {
-            let overflow_shape = OverFlowShape::new(style);
+            let overflow_shape = OverflowShape::new(style);
             let shape = overflow_shape.shape.rotate(90.0_f32.to_radians().radians());
             shape.into()
           }
+    }
+}
+
+
+
+// =======================
+// === Shape Utilities ===
+// =======================
+
+use enso_frp;
+use enso_frp::Network;
+use ensogl_core::frp::io::Mouse;
+use ensogl_core::gui::component::ShapeViewEvents;
+
+pub use super::frp::*;
+pub use super::model::*;
+
+/// Return whether a dragging action has been started from the shape passed to this function. A
+/// dragging action is started by a mouse down on the shape, followed by a movement of the mouse.
+/// Dragging is ended by a mouse up.
+pub fn shape_is_dragged
+(network:&Network, shape:&ShapeViewEvents, mouse:&Mouse) -> enso_frp::Stream<bool>  {
+    enso_frp::extend! { network
+        mouse_up              <- mouse.up.constant(());
+        mouse_down            <- mouse.down.constant(());
+        over_shape            <- bool(&shape.mouse_out,&shape.mouse_over);
+        mouse_down_over_shape <- mouse_down.gate(&over_shape);
+        is_dragging_shape     <- bool(&mouse_up,&mouse_down_over_shape);
+    }
+    is_dragging_shape
+}
+
+/// Returns the position of a mouse down on a shape. The position is given relative to the origin
+/// of the shape position.
+pub fn relative_shape_click_position(
+    base_position:impl Fn() -> Vector2 + 'static,
+    network:&Network,
+    shape:&ShapeViewEvents,
+    mouse:&Mouse) -> enso_frp::Stream<Vector2>  {
+    enso_frp::extend! { network
+        mouse_down               <- mouse.down.constant(());
+        over_shape               <- bool(&shape.mouse_out,&shape.mouse_over);
+        mouse_down_over_shape    <- mouse_down.gate(&over_shape);
+        background_click_positon <- mouse.position.sample(&mouse_down_over_shape);
+        background_click_positon <- background_click_positon.map(move |pos|
+            pos - base_position()
+        );
+    }
+    background_click_positon
+}
+
+
+
+// =============
+// === Tests ===
+// =============
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use enso_frp::io::mouse::Button;
+    use enso_frp::stream::EventEmitter;
+    use enso_frp::stream::ValueProvider;
+    use float_eq::assert_float_eq;
+
+    #[test]
+    fn test_shape_is_dragged() {
+        let network = enso_frp::Network::new("TestNetwork");
+        let mouse   = enso_frp::io::Mouse::default();
+        let shape   = ShapeViewEvents::default();
+
+        let is_dragged = shape_is_dragged(&network,&shape,&mouse);
+        let _watch = is_dragged.register_watch();
+
+
+        // Default is false.
+        assert_eq!(is_dragged.value(),false);
+
+        // Mouse down over shape activates dragging.
+        shape.mouse_over.emit(());
+        mouse.down.emit(Button::from_code(0));
+        assert_eq!(is_dragged.value(),true);
+
+        // Release mouse stops dragging.
+        mouse.up.emit(Button::from_code(0));
+        assert_eq!(is_dragged.value(),false);
+
+        // Mouse down while not over shape  does not activate dragging.
+        shape.mouse_out.emit(());
+        mouse.down.emit(Button::from_code(0));
+        assert_eq!(is_dragged.value(),false);
+    }
+
+    #[test]
+    fn test_relative_shape_click_position() {
+        let network = enso_frp::Network::new("TestNetwork");
+        let mouse   = enso_frp::io::Mouse::default();
+        let shape   = ShapeViewEvents::default();
+
+        let base_position = || Vector2::new(-10.0,200.0);
+        let click_position = relative_shape_click_position(base_position, &network,&shape,&mouse);
+        let _watch = click_position.register_watch();
+
+        shape.mouse_over.emit(());
+        mouse.position.emit(Vector2::new(-10.0,200.0));
+        mouse.down.emit(Button::from_code(0));
+        assert_float_eq!(click_position.value().x,0.0,ulps<=7);
+        assert_float_eq!(click_position.value().y,0.0,ulps<=7);
+
+        mouse.position.emit(Vector2::new(0.0,0.0));
+        mouse.down.emit(Button::from_code(0));
+        assert_float_eq!(click_position.value().x,10.0,ulps<=7);
+        assert_float_eq!(click_position.value().y,-200.0,ulps<=7);
+
+        mouse.position.emit(Vector2::new(400.0,0.5));
+        mouse.down.emit(Button::from_code(0));
+        assert_float_eq!(click_position.value().x,410.0,ulps<=7);
+        assert_float_eq!(click_position.value().y,-199.5,ulps<=7);
     }
 }

@@ -1,3 +1,4 @@
+///! Frp of the number selector.
 use crate::prelude::*;
 
 use enso_frp as frp;
@@ -8,12 +9,14 @@ use ensogl_core::display::shape::StyleWatchFrp;
 use ensogl_theme as theme;
 
 use crate::component;
-use crate::selector::common::Model;
-use crate::selector::common::base_frp::BaseFrp;
-use crate::selector::common::relative_shape_click_position;
-
-use super::common::shape::*;
-use super::common::*;
+use crate::selector::shape::*;
+use super::Bounds;
+use super::bounds::absolute_value;
+use super::bounds::clamp_with_overflow;
+use super::bounds::normalise_value;
+use super::bounds::position_to_normalised_value;
+use super::shape::relative_shape_click_position;
+use super::model::Model;
 
 
 
@@ -46,7 +49,7 @@ impl component::Frp<Model> for Frp {
         let scene   = app.display.scene();
         let mouse   = &scene.mouse.frp;
 
-        let base_frp = BaseFrp::new(model,style,network,frp.resize.clone().into(),mouse);
+        let base_frp = super::Frp::new(model,style,network,frp.resize.clone().into(),mouse);
 
         let track_shape_system = scene.shapes.shape_system(PhantomData::<track::Shape>);
         track_shape_system.shape_system.set_pointer_events(false);

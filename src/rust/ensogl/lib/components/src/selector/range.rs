@@ -1,3 +1,4 @@
+///! Frp of the range selector.
 use crate::prelude::*;
 
 use enso_frp as frp;
@@ -7,12 +8,13 @@ use ensogl_core::display::shape::*;
 use ensogl_core::display::shape::StyleWatchFrp;
 use ensogl_theme as theme;
 
-use crate::selector::common::Model;
 use crate::component;
-use crate::selector::common::base_frp::BaseFrp;
 
-use super::common::*;
-use super::common::Bounds;
+use super::Model;
+use super::Bounds;
+use super::bounds::absolute_value;
+use super::bounds::normalise_value;
+use super::bounds::should_clamp_with_overflow;
 
 
 
@@ -44,7 +46,7 @@ impl component::Frp<Model> for Frp {
         let scene            = app.display.scene();
         let mouse            = &scene.mouse.frp;
 
-        let base_frp = BaseFrp::new(model,style,network,frp.resize.clone().into(),mouse);
+        let base_frp = super::Frp::new(model, style, network, frp.resize.clone().into(), mouse);
 
         model.use_track_handles(true);
 
@@ -113,9 +115,7 @@ impl component::Frp<Model> for Frp {
             );
 
             any_update   <- any3(&center_update,&left_update,&right_update);
-            is_in_bounds <- any_update.map2(&normalised_overflow_bounds, |range,bounds|
-                should_clamp_with_overflow(range,bounds)
-            );
+            is_in_bounds <- any_update.map2(&normalised_overflow_bounds,should_clamp_with_overflow);
             new_value_absolute <- all(&frp.set_bounds,&any_update).map(|(bounds,Bounds{start,end})|
                 Bounds::new(
                     absolute_value(&(*bounds,*start)),absolute_value(&(*bounds,*end))).sorted()

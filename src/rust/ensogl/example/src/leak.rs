@@ -1,9 +1,13 @@
 //! `Leak` is a utility struct that prevents the wrapped value from being dropped when `Leak` is
 //! being dropped. This is achieved by passing the contained value to `std::mem::forget` in the
-//! drop implementation iof `Leak`. Can bue used in examples to keep components alive for the whole
+//! drop implementation of `Leak`. Can bue used for examples to keep components alive for the whole
 //! lifetime of the application.
 
 
+
+// ============
+// === Leak ===
+// ============
 
 /// Wrapper that will prevent the wrapped value from being dropped. Instead, the value will be
 /// leaked when the `Leak` is dropped.
