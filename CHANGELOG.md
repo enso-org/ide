@@ -1,7 +1,5 @@
 # Next Release
 
-<br/>![New Learning Resources](/docs/assets/tags/new_learning_resources.svg)
-
 <br/>![New Features](/docs/assets/tags/new_features.svg)
 
 #### Visual Environment
@@ -16,15 +14,29 @@
 
 #### Visual Environment
 
+- [Delete key will delete selected nodes][1538].
+- [It is possible to move around after deleting a node with a selected
+  visualization][1556]. Deleting a node while its attached visualization was
+  selected made it impossible to pan or zoom around the stage afterwards. This
+  error is fixed now.
+- [Fixed an internal error that would make the IDE fail on some browser.][1561].
+  Instead of crashing on browser that don't support the feature we use, we are
+  now just start a little bit slower.
+
 #### EnsoGL (rendering engine)
 
 #### Enso Compiler
+
+- [Updated Enso engine to version 0.2.11][1541].
 
 If you're interested in the enhancements and fixes made to the Enso compiler,
 you can find their release notes
 [here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
 
 [1524]: https://github.com/enso-org/ide/pull/1524
+[1541]: https://github.com/enso-org/ide/pull/1511
+[1538]: https://github.com/enso-org/ide/pull/1538
+[1561]: https://github.com/enso-org/ide/pull/1561
 
 <br/>
 
@@ -114,11 +126,6 @@ you can find their release notes
   big, and it's cheaper to send the precomputed bins rather than the entire
   dataset.
 
-#### EnsoGL (rendering engine)
-
-- [Unified shadow generation][1411]. Added a toolset to create shadows for
-  arbitrary UI components.
-
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
 #### Visual Environment
@@ -199,6 +206,11 @@ you can find their release notes
   time.][1428]
 - [Improved the performance of the graph editor, particularly when opening a
   project for the first time.][1445]
+
+#### EnsoGL (rendering engine)
+
+- [Unified shadow generation][1411]. Added a toolset to create shadows for
+  arbitrary UI components.
 
 #### Enso Compiler
 

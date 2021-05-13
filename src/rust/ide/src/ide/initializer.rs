@@ -25,11 +25,11 @@ use ensogl::system::web::platform::Platform;
 //     download required version of Engine. This should be handled properly when implementing
 //     https://github.com/enso-org/ide/issues/1034
 const PROJECT_MANAGER_TIMEOUT_SEC     : u64  = 2 * 60 * 60;
-const ENGINE_VERSION_SUPPORTED        : &str = "^0.2.10";
+const ENGINE_VERSION_SUPPORTED        : &str = "^0.2.11";
 
 // Usually it is a good idea to synchronize this version with the bundled Engine version in
 // src/js/lib/project-manager/src/build.ts. See also https://github.com/enso-org/ide/issues/1359
-const ENGINE_VERSION_FOR_NEW_PROJECTS : &str = "0.2.10";
+const ENGINE_VERSION_FOR_NEW_PROJECTS : &str = "0.2.11";
 
 
 
@@ -279,8 +279,8 @@ async fn create_project_model
 ) -> FallibleResult<model::Project> {
     info!(logger, "Establishing Language Server connection.");
     let client_id     = Uuid::new_v4();
-    let json_ws       = WebSocket::new_opened(logger,json_endpoint).await?;
-    let binary_ws     = WebSocket::new_opened(logger,binary_endpoint).await?;
+    let json_ws       = WebSocket::new_opened(logger,&json_endpoint).await?;
+    let binary_ws     = WebSocket::new_opened(logger,&binary_endpoint).await?;
     let client_json   = language_server::Client::new(json_ws);
     let client_binary = binary::Client::new(logger,binary_ws);
     crate::executor::global::spawn(client_json.runner());
