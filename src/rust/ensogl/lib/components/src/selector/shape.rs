@@ -122,8 +122,8 @@ pub mod track {
 // === Overflow ===
 // ================
 
-/// Utility struct that contains the overflow shape, and some metadata that can be used to place and
-/// align it.
+/// Struct that contains the shape used to indicate an overflow (a triangle), and some metadata
+/// that can be used to place and align it.
 struct OverflowShape {
     pub width  : Var<Pixels>,
     pub height : Var<Pixels>,
