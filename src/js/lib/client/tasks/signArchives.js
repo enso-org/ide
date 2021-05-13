@@ -68,7 +68,7 @@ function signArchive(archivePath, archiveName, binPaths) {
 
         if (isJar) {
             if (archiveName.includes(`runner`)) {
-                run(`jar -cf ${tmpArchive} --manifest ./META-INF/MANIFEST.MF . `, workingDir)
+                run(`jar -cfm ${tmpArchive} META-INF/MANIFEST.MF . `, workingDir)
             } else {
                 run(`jar -cf ${tmpArchive} . `, workingDir)
             }
