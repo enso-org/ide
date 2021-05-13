@@ -38,8 +38,13 @@ const INFINITE                 : f32 = 99999.0;
 const FULL_TYPE_ONSET_DELAY_MS : f32 = 2000.0;
 
 const TOOLTIP_LOCATION : Placement = Placement::Bottom;
-const SHOW_TOOLTIP     : bool      = false;
-const SHOW_TYPE_LABEL  : bool      = true;
+
+// We have currently implemented two possible ways to display the output types of ports on hover:
+// as a tooltip next to the mouse coursor or as a label that is fixed right next to the port itself.
+// Right now, there is no final decision, which one we will keep. Therefore, we have the following
+// two constants which can be used to turn those methods on or off.
+const SHOW_TYPE_AS_TOOLTIP : bool = false;
+const SHOW_TYPE_AS_LABEL   : bool = true;
 
 
 
@@ -113,12 +118,12 @@ impl AllPortsShape {
     }
 }
 
-/// The length of the port shape's inner border (the part that touches the node)
+/// The length of the port shape's inner border. (the part that touches the node)
 ///
 /// # Arguments
 ///
-/// * `corner_radius` - The inner radius of the port shape's corner segments (the round parts)
-/// * `width`         - The inner width of the port shape (also the width of the node)
+/// * `corner_radius` - The inner radius of the port shape's corner segments. (the round parts)
+/// * `width`         - The inner width of the port shape. (also the width of the node)
 fn shape_border_length<T>(corner_radius:T, width:T) -> T
 where T: Clone + Mul<f32,Output=T> + Sub<Output=T> + Add<Output=T> {
     let corner_segment_length = corner_segment_length(corner_radius.clone());
@@ -126,24 +131,24 @@ where T: Clone + Mul<f32,Output=T> + Sub<Output=T> + Add<Output=T> {
     center_segment_length + corner_segment_length * 2.0
 }
 
-/// The length of the border on the inside of a single corner segment (the round part at the end of
+/// The length of the border on the inside of a single corner segment. (the round part at the end of
 /// the node)
 ///
 /// # Arguments
 ///
-///  * `corner_radius` - The inner radius of the corner segment
+///  * `corner_radius` - The inner radius of the corner segment.
 fn corner_segment_length<T>(corner_radius:T) -> T
 where T: Mul<f32,Output=T> {
     let corner_circumference  = corner_radius * 2.0 * PI;
     corner_circumference * 0.25
 }
 
-/// The length of the center segment of a port shape (the straight part in the center of the shape)
+/// The length of the center segment of a port shape. (the straight part in the center of the shape)
 ///
 /// # Arguments
 ///
-/// * `corner_radius` - The inner radius of the port shape's corner segments (the round parts)
-/// * `width`         - The inner width of the port shape (also the width of the node)
+/// * `corner_radius` - The inner radius of the port shape's corner segments. (the round parts)
+/// * `width`         - The inner width of the port shape. (also the width of the node)
 fn center_segment_length<T>(corner_radius:T, width:T) -> T
 where T: Mul<f32,Output=T> + Sub<Output=T> {
     width - corner_radius * 2.0
@@ -509,10 +514,14 @@ impl Model {
                 shape.set_size(s + Vector2(HOVER_AREA_PADDING,HOVER_AREA_PADDING) * 2.0));
             set_type_label_x <- all_with(&frp.size,&type_label.width,
                 f!([port_count,port_index](port_size,type_label_width) {
-                    let shape_border_length = shape_border_length(node::RADIUS, port_size.x);
-                    let relative_x          = (port_index as f32 + 0.5) / (port_count as f32) - 0.5;
-                    let center_x            = relative_x * shape_border_length;
-                    center_x - type_label_width/2.0
+                    let shape_length   = shape_border_length(node::RADIUS, port_size.x);
+                    let shape_left     = - shape_length / 2.0;
+                    let port_width     = shape_length / port_count as f32;
+                    let port_left      = shape_left + port_width * port_index as f32;
+                    let port_center_x  = port_left + port_width / 2.0;
+                    let label_center_x = port_center_x;
+                    let label_left     = label_center_x - type_label_width / 2.0;
+                    label_left
                 }));
             eval set_type_label_x ((&t) type_label.set_position_x(t));
             eval frp.set_size_multiplier ((t) shape.set_size_multiplier(*t));
@@ -538,7 +547,7 @@ impl Model {
             });
         }
 
-        if SHOW_TYPE_LABEL {
+        if SHOW_TYPE_AS_LABEL {
             frp::extend! { network
 
                 // === Type Label ===
@@ -554,7 +563,7 @@ impl Model {
             }
         }
 
-        if SHOW_TOOLTIP {
+        if SHOW_TYPE_AS_TOOLTIP {
             frp::extend! { network
 
                 // === Tooltip ===
