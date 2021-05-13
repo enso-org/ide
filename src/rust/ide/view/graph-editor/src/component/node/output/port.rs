@@ -62,6 +62,10 @@ const SHOW_TYPE_AS_LABEL   : bool = true;
 ///  ╰──────────────────────────────╯ ▼ (node_size / 2) + PORT_SIZE
 ///  ◄──────────────────────────────►
 ///   width = node_width + PORT_SIZE
+
+
+
+
 /// ```
 ///
 /// The corners are rounded with the `radius = inner_radius + port_area_size`. The shape also
@@ -520,8 +524,7 @@ impl Model {
                     let port_left      = shape_left + port_width * port_index as f32;
                     let port_center_x  = port_left + port_width / 2.0;
                     let label_center_x = port_center_x;
-                    let label_left     = label_center_x - type_label_width / 2.0;
-                    label_left
+                    label_center_x - type_label_width / 2.0
                 }));
             eval set_type_label_x ((&t) type_label.set_position_x(t));
             eval frp.set_size_multiplier ((t) shape.set_size_multiplier(*t));
