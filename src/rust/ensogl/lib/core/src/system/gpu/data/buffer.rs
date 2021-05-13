@@ -441,6 +441,7 @@ crate::with_all_prim_types!([[define_any_buffer] []]);
 #[enum_dispatch]
 #[allow(missing_docs)]
 pub trait IsBuffer {
+    /// Set the WebGL context. See the main architecture docs of this library to learn more.
     fn set_context           (&self, context:Option<&Context>);
     fn add_element           (&self);
     fn len                   (&self) -> usize;
@@ -449,4 +450,32 @@ pub trait IsBuffer {
     fn bind                  (&self, target:u32);
     fn vertex_attrib_pointer (&self, index:u32, instanced:bool);
     fn set_to_default        (&self, index:usize);
+}
+
+// Calls are not recursive, as inherent methods are preferred over methods provided by trait.
+impl<T:Storable> IsBuffer for Buffer<T> {
+    fn set_context(&self, context:Option<&Context>) {
+        self.set_context(context)
+    }
+    fn add_element(&self) {
+        self.add_element()
+    }
+    fn len(&self) -> usize {
+        self.len()
+    }
+    fn is_empty(&self) -> bool {
+        self.is_empty()
+    }
+    fn update(&self) {
+        self.update()
+    }
+    fn bind(&self, target:u32) {
+        self.bind(target)
+    }
+    fn vertex_attrib_pointer(&self, index:u32, instanced:bool) {
+        self.vertex_attrib_pointer(index,instanced)
+    }
+    fn set_to_default(&self, index:usize) {
+        self.set_to_default(index)
+    }
 }
