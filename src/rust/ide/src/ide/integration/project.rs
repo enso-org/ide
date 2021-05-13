@@ -1,4 +1,5 @@
-//! View of the node editor.
+//! The structure integrating the controllers related to currently opened project with the project
+//! view.
 // TODO[ao] this module should be completely reworked when doing the
 //  https://github.com/enso-org/ide/issues/597
 //  There should be a wrapper for each view which "fences" the input : emitting events in this
@@ -438,6 +439,7 @@ impl Model {
             ,connection_views,code_view,logger,visualizations,error_visualizations,project
             ,node_view_by_expression};
 
+        this.view.graph().frp.remove_all_nodes();
         this.init_project_name();
         this.load_visualizations();
         if let Err(err) = this.refresh_graph_view() {
@@ -1044,7 +1046,7 @@ impl Model {
     }
 
     fn node_editing_committed_in_ui
-    (&self, (displayed_id,entry_id):&(graph_editor::NodeId, Option<ide_view::searcher::entry::Id>))
+    (&self, (displayed_id,entry_id):&(graph_editor::NodeId,Option<ide_view::searcher::entry::Id>))
     -> FallibleResult {
         use crate::controller::searcher::action::Action::Example;
         debug!(self.logger, "Committing node expression.");
@@ -1065,7 +1067,10 @@ impl Model {
                 }
                 Ok(())
             }
-            Ok(None) => Ok(()),
+            Ok(None) => {
+                self.view.graph().frp.remove_node(displayed_id);
+                Ok(())
+            },
             Err(err) => {
                 self.view.graph().frp.remove_node.emit(displayed_id);
                 Err(err)

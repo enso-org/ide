@@ -34,7 +34,6 @@
 pub mod code_editor;
 pub mod debug_scenes;
 pub mod documentation;
-pub mod ide;
 pub mod project;
 pub mod searcher;
 pub mod status_bar;

@@ -4,6 +4,7 @@ pub mod integration;
 
 use crate::prelude::*;
 
+use crate::controller::project::INITIAL_MODULE_NAME;
 use crate::ide::integration::Integration;
 
 use ensogl::application::Application;
@@ -44,4 +45,9 @@ impl Ide {
         let integration = integration::Integration::new(controller,view);
         Ide {application,integration}
     }
+}
+
+/// The Path of the module initially opened after opening project in IDE.
+pub fn initial_module_path(project:&model::Project) -> FallibleResult<model::module::Path> {
+    model::module::Path::from_name_segments(project.content_root_id(),&[INITIAL_MODULE_NAME])
 }

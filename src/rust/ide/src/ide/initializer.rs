@@ -3,6 +3,7 @@
 use crate::prelude::*;
 
 use crate::config;
+use crate::controller::project::ENGINE_VERSION_FOR_NEW_PROJECTS;
 use crate::ide::Ide;
 use crate::transport::web::WebSocket;
 
@@ -118,7 +119,10 @@ impl Initializer {
                 let json_endpoint   = json_endpoint.clone();
                 let binary_endpoint = binary_endpoint.clone();
                 let project_name    = self.config.project_name.clone();
-                let controller = controller::ide::Cloud::new(project_name,json_endpoint,binary_endpoint).await?;
+                // TODO[ao]: we should think how to handle engine's versions in cloud.
+                //     https://github.com/enso-org/ide/issues/1195
+                let version    = semver::Version::parse(ENGINE_VERSION_FOR_NEW_PROJECTS)?;
+                let controller = controller::ide::Plain::from_ls_endpoints(project_name,version,json_endpoint,binary_endpoint).await?;
                 Ok(Rc::new(controller))
             }
         }
@@ -160,9 +164,9 @@ pub struct WithProjectManager {
 impl WithProjectManager {
     /// Constructor.
     pub fn new
-    (parent:impl AnyLogger, project_manager:Rc<dyn project_manager::API>, project_name:ProjectName)
+    (project_manager:Rc<dyn project_manager::API>, project_name:ProjectName)
      -> Self {
-        let logger = Logger::sub(parent,"WithProjectManager");
+        let logger = Logger::new("initializer::WithProjectManager");
         Self {logger,project_manager,project_name}
     }
 
@@ -183,7 +187,7 @@ impl WithProjectManager {
     pub async fn create_project(&self) -> FallibleResult<Uuid> {
         use project_manager::MissingComponentAction::Install;
         info!(self.logger,"Creating a new project named '{self.project_name}'.");
-        let version           = Some(controller::project::ENGINE_VERSION_FOR_NEW_PROJECTS.to_owned());
+        let version           = Some(ENGINE_VERSION_FOR_NEW_PROJECTS.to_owned());
         let ProjectName(name) = &self.project_name;
         let response          = self.project_manager.create_project(name,&version,&Install);
         Ok(response.await?.project_id)

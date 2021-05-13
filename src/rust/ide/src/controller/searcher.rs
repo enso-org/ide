@@ -1143,9 +1143,10 @@ pub mod test {
             let this        = data.selected_node.and_option(this);
             let logger      = Logger::new("Searcher");// new_empty
             let database    = Rc::new(SuggestionDatabase::new_empty(&logger));
+            let ide         = Rc::new(controller::ide::MockAPI::new());
             let module_name = QualifiedName::from_segments(PROJECT_NAME, &[MODULE_NAME]).unwrap();
             let searcher = Searcher {
-                graph,logger,database,
+                graph,logger,database,ide,
                 data             : default(),
                 notifier         : default(),
                 mode             : Immutable(Mode::NewNode {position:default()}),

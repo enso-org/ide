@@ -1,3 +1,5 @@
+//! The integration layer between IDE controllers and the view.
+
 pub mod project;
 
 use crate::prelude::*;
@@ -8,27 +10,24 @@ use ide_view::graph_editor::SharedHashMap;
 
 
 
-// =================
-// === Constants ===
-// =================
-
-
-
 // =======================
 // === IDE Integration ===
 // =======================
 
 // === Model ===
 
+/// The model of integration object. It is extracted and kept in Rc, so it can be referred to from
+/// various FRP endpoints or executor tasks.
 #[derive(Debug)]
 struct Model {
-    pub logger              : Logger,
-    pub controller          : controller::ide::Handle,
-    pub view                : ide_view::project::View,
-    pub project_integration : RefCell<Option<project::Integration>>,
+    logger              : Logger,
+    controller          : controller::ide::Handle,
+    view                : ide_view::project::View,
+    project_integration : RefCell<Option<project::Integration>>,
 }
 
 impl Model {
+    /// Create a new project integration
     fn setup_and_display_new_project(self:Rc<Self>) {
         // Remove the old integration first. We want to be sure the old and new integrations will
         // not race for the view.
@@ -61,12 +60,17 @@ impl Model {
 
 // === Integration ===
 
+/// The Integration Object
+///
+/// It is responsible for integrating IDE controllers and views, so user actions will work, and
+/// notifications from controllers will update the view.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Integration {
     model : Rc<Model>,
 }
 
 impl Integration {
+    /// Create the integration of given controller and view.
     pub fn new(controller:controller::ide::Handle, view:ide_view::project::View) -> Self {
         let logger              = Logger::new("ide::Integration");
         let project_integration = default();
@@ -74,6 +78,8 @@ impl Integration {
         Self {model} . init()
     }
 
+    /// Initialize integration, so FRP outputs of the view will call the proper controller methods,
+    /// and controller notifications will be delivered to the view accordingly.
     pub fn init(self) -> Self {
         self.initialize_status_bar_integration();
         self.initialize_controller_integration();

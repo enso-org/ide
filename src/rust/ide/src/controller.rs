@@ -26,7 +26,7 @@ pub mod searcher;
 
 pub use graph::Handle           as Graph;
 pub use graph::executed::Handle as ExecutedGraph;
-pub use ide::Handle             as Ide;
+pub use self::ide::Handle       as Ide;
 pub use module::Handle          as Module;
 pub use project::Handle         as Project;
 pub use text::Handle            as Text;

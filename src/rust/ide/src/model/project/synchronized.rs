@@ -102,6 +102,7 @@ pub struct ProjectManagerUnavailable;
 // === Data ===
 
 /// A structure containing the project's properties.
+#[allow(missing_docs)]
 #[derive(Debug,Clone)]
 pub struct Properties {
     /// ID of the project, as used by the Project Manager service.
@@ -201,6 +202,8 @@ impl Project {
         Ok(Rc::new(model))
     }
 
+    /// Creates a project model by opening a given project in project_manager, and initializing
+    /// the received json and binary connections.
     pub async fn new_opened
     ( parent          : &Logger
     , project_manager : Rc<dyn project_manager::API>

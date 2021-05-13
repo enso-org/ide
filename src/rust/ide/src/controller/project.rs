@@ -1,6 +1,9 @@
+//! A Project Controller.
+
 use crate::prelude::*;
 
 use crate::controller::graph::executed::Notification as GraphNotification;
+use crate::controller::ide::StatusNotificationPublisher;
 
 use enso_frp::web::platform;
 use enso_frp::web::platform::Platform;
@@ -14,10 +17,14 @@ use parser::Parser;
 // === Constants ===
 // =================
 
-pub const COMPILING_STDLIB_MESSAGE:&str = "Compiling standard library. It can take up to 1 minute.";
+/// The label of compiling stdlib message process.
+pub const COMPILING_STDLIB_LABEL:&str = "Compiling standard library. It can take up to 1 minute.";
 
+/// The requirements for Engine's version, in format understandable by
+/// [`semver::VersionReq::parse`].
 pub const ENGINE_VERSION_SUPPORTED        : &str = "^0.2.10";
 
+/// The Engine version used in projects created in IDE.
 // Usually it is a good idea to synchronize this version with the bundled Engine version in
 // src/js/lib/project-manager/src/build.ts. See also https://github.com/enso-org/ide/issues/1359
 pub const ENGINE_VERSION_FOR_NEW_PROJECTS : &str = "0.2.10";
@@ -56,25 +63,42 @@ pub fn main_method_ptr(project_name:impl Str, module_path:&model::module::Path) 
 
 // === SetupResult ===
 
+/// The result of initial project setup, containing a handy controllers to be used in the initial
+/// view.
 #[derive(Clone,CloneRef,Debug)]
 pub struct SetupResult {
-    pub main_module_text : controller::Text,
-    pub main_graph       : controller::ExecutedGraph,
+    /// The Text Controller for Main module code to be displayed in Code Editor.
+    pub main_module_text:controller::Text,
+    /// The Graph Controller for main definition's graph, to be displayed in Graph Editor.
+    pub main_graph:controller::ExecutedGraph,
 }
 
+/// Project Controller Handle.
+///
+/// This controller supports IDE-related operations on a specific project.
+#[allow(missing_docs)]
 #[derive(Clone,CloneRef,Debug)]
 pub struct Handle {
     pub logger               : Logger,
     pub model                : model::Project,
-    pub status_notifications : controller::ide::StatusNotifications,
+    pub status_notifications : StatusNotificationPublisher,
 }
 
 impl Handle {
-    pub fn new(model:model::Project, status_notifications:controller::ide::StatusNotifications) -> Self {
+    /// Create a controller of given project.
+    pub fn new(model:model::Project, status_notifications:StatusNotificationPublisher) -> Self {
         let logger = Logger::new("controller::Project");
         Self {logger,model,status_notifications}
     }
 
+    /// Do the initial setup of opened project.
+    ///
+    /// This function should be called always after opening a new project in IDE. It checks if main
+    /// module and main method are present in the project, and recreate them if they are missing.
+    /// It also sent proper status notifications and warnings related to the opened project (like
+    /// warning about unsupported engine version).
+    ///
+    /// Returns the controllers of module and graph which should be displayed in the view.
     pub async fn initial_setup(&self) -> FallibleResult<SetupResult> {
         let project     = self.model.clone_ref();
         let parser      = self.model.parser();
@@ -107,7 +131,7 @@ impl Handle {
 impl Handle {
     /// Returns the path to the initially opened module in the given project.
     fn initial_module_path(&self) -> FallibleResult<model::module::Path> {
-        model::module::Path::from_name_segments(self.model.content_root_id(),&[INITIAL_MODULE_NAME])
+        crate::ide::initial_module_path(&self.model)
     }
 
     /// Create a file with default content if it does not already exist.
@@ -136,14 +160,14 @@ impl Handle {
     }
 
     fn notify_about_compiling_process(&self, graph:&controller::ExecutedGraph) {
-        let status_notifications             = self.status_notifications.clone_ref();
-        let compiling_process                = status_notifications.publish_process(COMPILING_STDLIB_MESSAGE);
-        let notifications                    = graph.subscribe();
-        let mut computed_value_notifications = notifications.filter(|notification|
+        let status_notifications     = self.status_notifications.clone_ref();
+        let compiling_process        = status_notifications.publish_process(COMPILING_STDLIB_LABEL);
+        let notifications            = graph.subscribe();
+        let mut computed_value_notif = notifications.filter(|notification|
             futures::future::ready(matches!(notification, GraphNotification::ComputedValueInfo(_)))
         );
         executor::global::spawn(async move {
-            computed_value_notifications.next().await;
+            computed_value_notif.next().await;
             status_notifications.published_process_finished(compiling_process);
         });
     }
@@ -164,7 +188,8 @@ impl Handle {
         match platform::current() {
             Some(Platform::Linux)   |
             Some(Platform::MacOS)   => format!("~/enso/projects/{}/package.yaml",project_name),
-            Some(Platform::Windows) => format!("%userprofile%\\enso\\projects\\{}\\package.yaml",project_name),
+            Some(Platform::Windows) =>
+                format!("%userprofile%\\enso\\projects\\{}\\package.yaml",project_name),
             _ => format!("<path-to-enso-projects>/{}/package.yaml",project_name)
         }
     }
