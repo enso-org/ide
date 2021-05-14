@@ -107,7 +107,7 @@ pub enum Notification {
 pub trait ManagingProjectAPI {
 
     /// Create a new unnamed project and open it in the IDE.
-    fn create_new_project<'a>(&'a self) -> BoxFuture<'a, FallibleResult>;
+    fn create_new_project(&self) -> BoxFuture<FallibleResult>;
 }
 
 /// The API of IDE Controller.
@@ -126,6 +126,8 @@ pub trait API:Debug {
     ///
     /// If the current environment supports such operations, this method should return just the
     /// reference to `self`, otherwise [`None`].
+    // Automock macro does not work without explicit lifetimes here.
+    #[allow(clippy::needless_lifetimes)]
     fn manage_projects<'a>(&'a self) -> Option<&'a dyn ManagingProjectAPI>;
 }
 

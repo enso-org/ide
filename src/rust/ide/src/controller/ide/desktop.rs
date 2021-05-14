@@ -83,7 +83,7 @@ impl API for Handle {
 }
 
 impl ManagingProjectAPI for Handle {
-    fn create_new_project<'a>(&'a self) -> BoxFuture<'a, FallibleResult> {
+    fn create_new_project(&self) -> BoxFuture<FallibleResult> {
         async move {
             use model::project::Synchronized as Project;
 

@@ -187,8 +187,8 @@ impl Project {
     , name                : impl Str
     ) -> FallibleResult<model::Project> {
         let client_id     = Uuid::new_v4();
-        let json_ws       = WebSocket::new_opened(&parent,language_server_rpc).await?;
-        let binary_ws     = WebSocket::new_opened(&parent,language_server_bin).await?;
+        let json_ws       = WebSocket::new_opened(&parent,&language_server_rpc).await?;
+        let binary_ws     = WebSocket::new_opened(&parent,&language_server_bin).await?;
         let client_json   = language_server::Client::new(json_ws);
         let client_binary = binary::Client::new(&parent,binary_ws);
         crate::executor::global::spawn(client_json.runner());

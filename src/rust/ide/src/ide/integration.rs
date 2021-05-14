@@ -21,7 +21,7 @@ use ide_view::graph_editor::SharedHashMap;
 #[derive(Debug)]
 struct Model {
     logger              : Logger,
-    controller          : controller::ide::Handle,
+    controller          : controller::Ide,
     view                : ide_view::project::View,
     project_integration : RefCell<Option<project::Integration>>,
 }
@@ -71,7 +71,7 @@ pub struct Integration {
 
 impl Integration {
     /// Create the integration of given controller and view.
-    pub fn new(controller:controller::ide::Handle, view:ide_view::project::View) -> Self {
+    pub fn new(controller:controller::Ide, view:ide_view::project::View) -> Self {
         let logger              = Logger::new("ide::Integration");
         let project_integration = default();
         let model               = Rc::new(Model {logger,controller,view,project_integration});
