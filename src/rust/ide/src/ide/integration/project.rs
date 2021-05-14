@@ -440,6 +440,7 @@ impl Model {
             ,node_view_by_expression};
 
         this.view.graph().frp.remove_all_nodes();
+        this.view.status_bar().clear_all();
         this.init_project_name();
         this.load_visualizations();
         if let Err(err) = this.refresh_graph_view() {
