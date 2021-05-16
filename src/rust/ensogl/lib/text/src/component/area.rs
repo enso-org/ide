@@ -25,7 +25,6 @@ use ensogl_core::display;
 use ensogl_core::gui::cursor;
 use ensogl_core::system::gpu::shader::glsl::traits::IntoGlsl;
 use ensogl_core::system::web::clipboard;
-use ensogl_theme as theme;
 use std::ops::Not;
 
 
@@ -84,7 +83,7 @@ const BLINK_PERIOD             : f32 =
 pub mod selection {
     use super::*;
     ensogl_core::define_shape_system! {
-        (style:Style, selection:f32, start_time:f32, letter_width:f32) {
+        (style:Style, selection:f32, start_time:f32, letter_width:f32, color_rgb:Vector3<f32>) {
             let width_abs      = Var::<f32>::from("abs(input_size.x)");
             let height         = Var::<f32>::from("input_size.y");
             let rect_width     = width_abs - 2.0 * CURSOR_PADDING;
@@ -103,9 +102,7 @@ pub mod selection {
             let alpha          = alpha_weight.mix(blinking_alpha,SELECTION_ALPHA);
             let shape          = Rect((1.px() * rect_width,1.px() * rect_height));
             let shape          = shape.corners_radius(SELECTION_CORNER_RADIUS.px());
-            let color          = style.get_color(theme::code::syntax::selection);
-            let color          = format!("srgba({},{},{},{})",color.red.glsl(),color.green.glsl()
-                ,color.blue.glsl(),alpha.glsl());
+            let color          = format!("srgba({}.x,{}.y,{}.z,{})",color_rgb,color_rgb,color_rgb,alpha.glsl());
             let shape          = shape.fill(color);
             shape.into()
         }
@@ -135,6 +132,7 @@ pub struct Selection {
     position       : DEPRECATED_Animation<Vector2>,
     width          : DEPRECATED_Animation<f32>,
     edit_mode      : Rc<Cell<bool>>,
+    set_color      : frp::Any<color::Rgb>,
 }
 
 impl Deref for Selection {
@@ -155,13 +153,14 @@ impl Selection {
         let position       = DEPRECATED_Animation::new(&network);
         let width          = DEPRECATED_Animation::new(&network);
         let edit_mode      = Rc::new(Cell::new(edit_mode));
+        let set_color      = network.any_mut::<color::Rgb>("set_color");
         let debug          = false; // Change to true to slow-down movement for debug purposes.
         let spring_factor  = if debug { 0.1 } else { 1.5 };
 
         position . update_spring (|spring| spring * spring_factor);
         width    . update_spring (|spring| spring * spring_factor);
 
-        Self {logger,display_object,right_side,shape_view,network,position,width,edit_mode} . init()
+        Self {logger,display_object,right_side,shape_view,network,position,width,edit_mode,set_color} . init()
     }
 
     fn init(self) -> Self {
@@ -169,6 +168,7 @@ impl Selection {
         let view       = &self.shape_view;
         let object     = &self.display_object;
         let right_side = &self.right_side;
+        let shape_view = &self.shape_view;
         self.add_child(view);
         view.add_child(right_side);
         frp::extend! { network
@@ -187,6 +187,7 @@ impl Selection {
                     view.set_position_xy(Vector2(view_x,view_y));
                 })
             );
+            eval self.set_color((color) shape_view.color_rgb.set(color.into()));
         }
         self
     }
@@ -421,15 +422,17 @@ ensogl_core::define_endpoints! {
         set_color_bytes       (buffer::Range<Bytes>,color::Rgba),
         set_color_all         (color::Rgba),
         set_default_color     (color::Rgba),
+        set_selection_color   (color::Rgb),
         set_default_text_size (style::Size),
         set_content           (String),
     }
     Output {
-        pointer_style (cursor::Style),
-        width         (f32),
-        changed       (Vec<buffer::view::Change>),
-        content       (Text),
-        hovered       (bool),
+        pointer_style   (cursor::Style),
+        width           (f32),
+        changed         (Vec<buffer::view::Change>),
+        content         (Text),
+        hovered         (bool),
+        selection_color (color::Rgb),
     }
 }
 
@@ -644,6 +647,7 @@ impl Area {
                 m.buffer.frp.set_color_bytes.emit(*t);
                 m.redraw(false);
             });
+            self.frp.source.selection_color <+ self.frp.set_selection_color;
 
             // === Changes ===
 
@@ -802,7 +806,9 @@ impl AreaModel {
                             //            animation frame. Multiple times, once per cursor.
                             //            https://github.com/enso-org/ide/issues/1031
                             eval_ selection.position.value (model.redraw(true));
+                            selection.set_color <+ self.frp_endpoints.selection_color;
                         }
+                        selection.set_color.emit(self.frp_endpoints.selection_color.value());
                         selection
                     }
                 };

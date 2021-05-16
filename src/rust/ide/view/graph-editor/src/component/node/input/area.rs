@@ -10,6 +10,7 @@ use ensogl::data::color;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
+use ensogl::Animation;
 use ensogl::display;
 use ensogl::gui::cursor;
 use ensogl_text as text;
@@ -20,6 +21,7 @@ use text::Text;
 use crate::Type;
 use crate::component::type_coloring;
 use crate::node::input::port;
+use crate::node::ExecutionStatus;
 use crate::node;
 use crate::Mode as EditorMode;
 
@@ -195,7 +197,8 @@ ensogl::define_endpoints! {
         /// types are polymorphic.
         set_ports_active (bool,Option<Type>),
 
-        set_editor_mode(EditorMode),
+        set_editor_mode      (EditorMode),
+        set_execution_status (ExecutionStatus),
     }
 
     Output {
@@ -322,9 +325,10 @@ impl Deref for Area {
 
 impl Area {
     pub fn new(logger:impl AnyLogger, app:&Application) -> Self {
-        let model   = Rc::new(Model::new(logger,app));
-        let frp     = Frp::new();
-        let network = &frp.network;
+        let model           = Rc::new(Model::new(logger,app));
+        let frp             = Frp::new();
+        let network         = &frp.network;
+        let selection_color = Animation::new(network);
 
         frp::extend! { network
 
@@ -395,6 +399,14 @@ impl Area {
 
             // === Editor Mode ===
             frp.output.source.editor_mode <+ frp.set_editor_mode;
+            selection_color.target <+ frp.editor_mode.map(f!([model](&mode) {
+                let path = match mode {
+                    EditorMode::Normal    => theme::code::syntax::selection,
+                    EditorMode::Profiling => theme::code::syntax::profiling::selection,
+                };
+                color::Lch::from(model.styles.get_color(path))
+            }));
+            model.label.set_selection_color <+ selection_color.value.map(|&c| color::Rgb::from(c));
         }
 
         Self {model,frp}
@@ -641,9 +653,6 @@ impl Area {
     /// this way, rather than delegate it to every port.
     fn init_port_frp_on_new_expression(&self, expression:&mut Expression) {
         let model          = &self.model;
-        let selected_color = color::Lcha::from(model.styles.get_color(theme::code::types::selected));
-        let disabled_color = color::Lcha::from(model.styles.get_color(theme::code::syntax::disabled));
-        let expected_color = color::Lcha::from(model.styles.get_color(theme::code::syntax::expected));
 
         let parent_tp : Option<frp::Stream<Option<Type>>> = None;
         expression.root_ref_mut().dfs_with_layer_data(parent_tp,|node,parent_tp| {
@@ -679,34 +688,65 @@ impl Area {
 
             let styles = model.styles.clone_ref();
             frp::extend! { port_network
-                base_color <- all_with(&self.editor_mode,&frp.tp,f!([styles](&mode,t) {
-                    match mode {
-                        EditorMode::Normal    => type_coloring::compute_for_code(t.as_ref(),&styles),
-                        EditorMode::Profiling => type_coloring::compute_for_code(None,&styles),
-                    }
-                }));
+                base_color <- all_with3(&self.editor_mode,&self.set_execution_status,&frp.tp,
+                    f!([styles](&mode,&status,t) {
+                        match (mode,status) {
+                            (EditorMode::Normal,_) =>
+                                type_coloring::compute_for_code(t.as_ref(),&styles),
+                            (EditorMode::Profiling,ExecutionStatus::Running) =>
+                                color::Lcha::from(styles.get_color(theme::code::syntax::base)),
+                            (EditorMode::Profiling,ExecutionStatus::Finished {..}) =>
+                                color::Lcha::from(styles.get_color(theme::code::syntax::profiling::base)),
+                        }
+                    })
+                );
             }
 
             if node.children.is_empty() {
                 let is_expected_arg = node.is_expected_argument();
-                let label_color     = color::Animation::new(port_network);
                 frp::extend! { port_network
                     is_selected    <- frp.set_hover || frp.set_parent_connected;
-                    text_color_tgt <- all_with3(&base_color,&is_selected,&self.frp.set_disabled,
-                        move |base_color,is_selected,is_disabled| {
-                            if      *is_selected    { selected_color }
-                            else if *is_disabled    { disabled_color }
+                    text_color_tgt <- all_with5(&is_selected,&self.frp.set_disabled,
+                        &self.editor_mode,&self.set_execution_status,&base_color,
+                        f!([styles](&is_selected,&is_disabled,&mode,&status,&base_color) {
+                            let path = match (mode, status) {
+                                (EditorMode::Profiling, ExecutionStatus::Finished {..}) =>
+                                    theme::code::syntax::profiling::HERE.path(),
+                                _ =>
+                                    theme::code::syntax::HERE.path(),
+                            };
+                            let selected_rgba  = styles.get_color(theme::code::types::selected);
+                            let disabled_rgba  = styles.get_color(path.sub("disabled"));
+                            let expected_rgba  = styles.get_color(path.sub("expected"));
+                            let selected_color = color::Lcha::from(selected_rgba);
+                            let disabled_color = color::Lcha::from(disabled_rgba);
+                            let expected_color = color::Lcha::from(expected_rgba);
+                            if      is_selected     { selected_color }
+                            else if is_disabled     { disabled_color }
                             else if is_expected_arg { expected_color }
-                            else                    { *base_color }
-                        });
-                    label_color.target <+ text_color_tgt;
+                            else                    { base_color }
+                        }));
+                    editing_color <- all_with(&self.editor_mode,&self.set_execution_status,
+                        f!([styles](&mode,&status) {
+                            let path = match (mode,status) {
+                                (EditorMode::Profiling,ExecutionStatus::Finished {..}) =>
+                                    theme::code::syntax::profiling::base,
+                                _ =>
+                                    theme::code::syntax::base,
+                            };
+                            color::Lcha::from(styles.get_color(path))
+                    }));
+                    // Fixme: `label_color` should be animated, when when we can set text colors
+                    //        more efficiently. (See https://github.com/enso-org/ide/issues/1031)
+                    label_color <- self.set_edit_mode.switch(&text_color_tgt,&editing_color);
                 }
 
                 let index  = node.payload.index;
                 let length = node.payload.length;
                 let label  = model.label.clone_ref();
                 frp::extend! { port_network
-                    eval label_color.value ([label](color) {
+                    set_color <- all_with(&label_color,&self.set_edit_mode,|&color, _| color);
+                    eval set_color ([label](color) {
                         let start_bytes = (index as i32).bytes();
                         let end_bytes   = ((index + length) as i32).bytes();
                         let range       = ensogl_text::buffer::Range::from(start_bytes..end_bytes);

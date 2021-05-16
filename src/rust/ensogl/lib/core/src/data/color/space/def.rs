@@ -520,6 +520,15 @@ impl Lcha {
     pub fn to_javascript_string(&self) -> String {
         Rgba::from(self).to_javascript_string()
     }
+
+    /// Convert the color to gray by setting chroma to zero.
+    pub fn desaturate(&self) -> Lcha {
+        let lightness = self.lightness;
+        let chroma    = 0.0;
+        let hue       = self.hue;
+        let alpha     = self.alpha;
+        Lcha::new(lightness,chroma,hue,alpha)
+    }
 }
 
 

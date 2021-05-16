@@ -13,42 +13,11 @@ use ensogl::gui::text;
 
 
 
-// =============
-// === Shape ===
-// =============
+// =================
+// === Constants ===
+// =================
 
-mod shape {
-    use super::*;
-
-    pub const WIDTH_OUTER       : f32 = 15.0;
-    pub const WIDTH_INNER       : f32 = 10.0;
-    pub const THICKNESS         : f32 = WIDTH_OUTER - WIDTH_INNER;
-    pub const LABEL_GAP_PADDING : f32 = 5.0;
-    pub const LABEL_GAP_HEIGHT  : f32 = 16.0;
-
-    ensogl::define_shape_system! {
-        (style:Style,color_rgba:Vector4<f32>,label_width:f32) {
-            let width  = Var::<Pixels>::from("input_size.x");
-            let height = Var::<Pixels>::from("input_size.y");
-            let width  = width  - node::PADDING.px() * 2.0;
-            let height = height - node::PADDING.px() * 2.0;
-            let radius = node::RADIUS.px();
-
-            let base    = Rect((&width,&height)).corners_radius(&radius);
-            let outer   = base.grow(WIDTH_OUTER.px());
-            let inner   = base.grow(WIDTH_INNER.px());
-            let outline = outer - inner;
-
-            let upper_center_y    = height / 2.0 + WIDTH_INNER.px() + THICKNESS.px() / 2.0;
-            let label_gap_width   = label_width * 1.px() + LABEL_GAP_PADDING.px() * 2.0;
-            let label_gap         = Rect((&label_gap_width,LABEL_GAP_HEIGHT.px()));
-            let label_gap         = label_gap.corners_radius(LABEL_GAP_PADDING.px());
-            let label_gap         = label_gap.translate_y(upper_center_y);
-
-            (outline-label_gap).fill(color_rgba).into()
-        }
-    }
-}
+const LABEL_OFFSET_Y: f32 = 20.0;
 
 
 
@@ -74,8 +43,6 @@ ensogl::define_endpoints! {
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct ProfilingIndicator {
-    display_object : display::object::Instance,
-    shape          : shape::View,
     label          : text::Area,
     frp            : Frp
 }
@@ -93,20 +60,9 @@ impl ProfilingIndicator {
     pub fn new(app: &Application) -> Self {
         let scene          = app.display.scene();
         let styles         = StyleWatch::new(&scene.style_sheet);
-        let logger         = Logger::new("ProfilingIndicator");
-        let display_object = display::object::Instance::new(&logger);
-
-        let shape = shape::View::new(&logger);
-        display_object.add_child(&shape);
-        ensogl::shapes_order_dependencies! {
-            app.display.scene() => {
-                crate::component::edge::front::corner -> shape;
-                crate::component::edge::front::line   -> shape;
-            }
-        }
 
         let label = text::Area::new(app);
-        display_object.add_child(&label);
+        label.set_position_y(LABEL_OFFSET_Y);
         label.remove_from_scene_layer_DEPRECATED(&scene.layers.main);
         label.add_to_scene_layer_DEPRECATED(&scene.layers.label);
 
@@ -149,39 +105,31 @@ impl ProfilingIndicator {
                     }
                 })
             );
+            label.set_default_color <+ color.value.map(|c| c.into());
+            label.set_color_all     <+ color.value.map(|c| c.into());
 
 
-            // === Shape ===
+            // === Position ===
 
-            eval  frp.set_size((size) shape.size.set(*size));
-            eval label.width((&width) shape.label_width.set(width));
-            eval color.value((&color) shape.color_rgba.set(color::Rgba::from(color).into()));
-
-
-            // === Label ===
-
-            eval frp.set_size([label](size) {
-                let height         = size.y - node::PADDING * 2.0;
-                let upper_center_y = height / 2.0 + shape::WIDTH_INNER + shape::THICKNESS / 2.0;
-                label.set_position_y(upper_center_y + text::area::LINE_HEIGHT / 2.0)
-            });
             eval label.width((&width) label.set_position_x(-width/2.0));
+
+
+            // === Content ===
+
             label.set_content <+ frp.set_execution_status.map(|&status|
                 match status {
                     ExecutionStatus::Running             => "Running".to_string(),
                     ExecutionStatus::Finished {duration} => format!("{} ms", duration)
                 });
-            label.set_default_color <+ color.value.map(|c| c.into());
-            label.set_color_all     <+ color.value.map(|c| c.into());
         }
 
-        ProfilingIndicator {display_object,shape,label,frp}
+        ProfilingIndicator {label,frp}
     }
 }
 
 
 impl display::Object for ProfilingIndicator {
     fn display_object(&self) -> &display::object::Instance {
-        &self.display_object
+        &self.label.display_object()
     }
 }

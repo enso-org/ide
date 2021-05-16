@@ -19,7 +19,7 @@ pub use expression::Expression;
 
 use crate::prelude::*;
 
-use profiling_indicator::ProfilingIndicator;
+use crate::component::node::profiling_indicator::ProfilingIndicator;
 use crate::Mode as EditorMode;
 use crate::component::visualization;
 use crate::tooltip;
@@ -624,7 +624,10 @@ impl Node {
 
             model.input.set_editor_mode               <+ frp.set_editor_mode;
             model.profiling_indicator.set_editor_mode <+ frp.set_editor_mode;
-       }
+            model.vcs_indicator.set_visibility        <+ frp.set_editor_mode.map(|&mode| {
+                !matches!(mode,EditorMode::Profiling {..})
+            });
+        }
 
 
         // === Visualizations & Errors ===
@@ -638,9 +641,12 @@ impl Node {
             frp.source.error <+ frp.set_error;
             is_error_set <- frp.error.map(|err| err.is_some());
             no_error_set <- not(&is_error_set);
-            error_color_anim.target <+ frp.error.map(f!([style](error)
-                Self::error_color(error,&style))
-            );
+            error_color_anim.target <+ all_with(&frp.error,&frp.set_editor_mode,f!([style](error,&mode)
+                match mode {
+                    EditorMode::Normal    => Self::error_color(error,&style),
+                    EditorMode::Profiling => Self::error_color(error,&style).desaturate(),
+                }
+            ));
 
             eval frp.set_visualization ((t) model.visualization.frp.set_visualization.emit(t));
             visualization_enabled_frp <- bool(&frp.disable_visualization,&frp.enable_visualization);
@@ -708,8 +714,10 @@ impl Node {
             model.profiling_indicator.set_max_global_duration
                 <+ frp.set_profiling_max_global_duration;
             model.profiling_indicator.set_execution_status <+ frp.set_execution_status;
+            model.input.set_execution_status <+ frp.set_execution_status;
         }
 
+        let bg_color_anim = color::Animation::new(network);
 
         frp::extend! { network
 
@@ -717,9 +725,36 @@ impl Node {
 
             let bgg = style_frp.get_color(ensogl_theme::graph_editor::node::background);
 
-            bg_color <- all_with(&bgg,&frp.set_disabled,f!([model](bgg,disabled) {
-                model.input.frp.set_disabled(*disabled);
-                *bgg
+            let profiling_theme     = ensogl_theme::graph_editor::node::profiling::HERE.path();
+            let profiling_lightness = style_frp.get_number_or(profiling_theme.sub("lightness"),0.72);
+            let profiling_chroma    = style_frp.get_number_or(profiling_theme.sub("chroma"),0.7);
+            let profiling_min_hue   = style_frp.get_number_or(profiling_theme.sub("min_hue"),0.38);
+            let profiling_max_hue   = style_frp.get_number_or(profiling_theme.sub("max_hue"),0.07);
+
+            profiling_color <- all_with8
+                (&frp.set_execution_status,&frp.set_profiling_min_global_duration,
+                &frp.set_profiling_max_global_duration,&profiling_lightness,&profiling_chroma,
+                &profiling_min_hue,&profiling_max_hue,&bgg,
+                |&status,&min,&max,&lightness,&chroma,&min_hue,&max_hue,&bgg| {
+                    match status {
+                        ExecutionStatus::Running => color::Lcha::from(bgg),
+                        ExecutionStatus::Finished {duration} => {
+                            let hue_delta         = max_hue - min_hue;
+                            let relative_duration = (duration - min) / (max - min);
+                            let hue               = min_hue + relative_duration * hue_delta;
+                            let alpha             = 1.0;
+                            color::Lcha::new(lightness,chroma,hue,alpha)
+                        }
+                    }
+                });
+
+            bg_color_anim.target <+ all_with4(&bgg,&frp.set_disabled,&frp.set_editor_mode,&profiling_color,
+                f!([model](bgg,disabled,&mode,profiling_color) {
+                    model.input.frp.set_disabled(*disabled);
+                    match mode {
+                        EditorMode::Normal    => color::Lcha::from(*bgg),
+                        EditorMode::Profiling => *profiling_color,
+                    }
             }));
 
             // FIXME [WD]: Uncomment when implementing disabled icon.
@@ -734,7 +769,7 @@ impl Node {
             //     model.background.bg_color.set(color::Rgba::from(c).into())
             // );
 
-            eval bg_color ((c) model.background.bg_color.set(c.into()));
+            eval bg_color_anim.value ((c) model.background.bg_color.set(color::Rgba::from(c).into()));
 
 
             // === Tooltip ===
@@ -761,7 +796,7 @@ impl Node {
 
         if let Some(error) = error {
             let path = match *error.kind {
-                error::Kind::Panic   => error_theme::panic,
+                error::Kind::Panic    => error_theme::panic,
                 error::Kind::Dataflow => error_theme::dataflow,
             };
             style.get_color(path).into()
