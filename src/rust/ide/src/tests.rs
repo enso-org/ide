@@ -21,8 +21,8 @@ wasm_bindgen_test_configure!(run_in_browser);
 // === JSON Rpc Transport in IDE Initializer ===
 // =============================================
 
-#[wasm_bindgen_test(async)]
-async fn failure_to_open_project_is_reported() {
+#[wasm_bindgen_test]
+fn failure_to_open_project_is_reported() {
     let transport   = MockTransport::new();
     let mut fixture = TestWithMockedTransport::set_up(&transport);
     fixture.run_test(async move {
@@ -42,6 +42,13 @@ async fn failure_to_open_project_is_reported() {
         }]
     }));
     fixture.when_stalled_send_error(1,"Service error");
+    // FIXME [mwu]
+    //  For some reasons, the line below is needed, even though dropping the fixture does the very
+    //  same call. Apparently `run_until_stalled` must be called twice. This looks like an error,
+    //  and happens only for wasm targets.
+    //  This did not happen on the 2019 nightly.
+    //  Further investigation needed.
+    fixture.run_until_stalled();
 }
 
 
