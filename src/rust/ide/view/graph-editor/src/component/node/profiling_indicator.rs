@@ -17,7 +17,7 @@ use ensogl::gui::text;
 // === Constants ===
 // =================
 
-const LABEL_OFFSET_Y: f32 = 20.0;
+const LABEL_OFFSET_Y: f32 = 35.0;
 
 
 
@@ -27,7 +27,6 @@ const LABEL_OFFSET_Y: f32 = 20.0;
 
 ensogl::define_endpoints! {
     Input {
-        set_size                (Vector2),
         set_execution_status    (ExecutionStatus),
         set_min_global_duration (f32),
         set_max_global_duration (f32),
@@ -43,8 +42,9 @@ ensogl::define_endpoints! {
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct ProfilingIndicator {
-    label          : text::Area,
-    frp            : Frp
+    root  : display::object::Instance,
+    label : text::Area,
+    frp   : Frp,
 }
 
 impl Deref for ProfilingIndicator {
@@ -58,10 +58,12 @@ impl Deref for ProfilingIndicator {
 
 impl ProfilingIndicator {
     pub fn new(app: &Application) -> Self {
-        let scene          = app.display.scene();
-        let styles         = StyleWatch::new(&scene.style_sheet);
+        let scene  = app.display.scene();
+        let styles = StyleWatch::new(&scene.style_sheet);
+        let root   = display::object::Instance::new(Logger::new("ProfilingIndicator"));
 
         let label = text::Area::new(app);
+        root.add_child(&label);
         label.set_position_y(LABEL_OFFSET_Y);
         label.remove_from_scene_layer_DEPRECATED(&scene.layers.main);
         label.add_to_scene_layer_DEPRECATED(&scene.layers.label);
@@ -118,18 +120,18 @@ impl ProfilingIndicator {
 
             label.set_content <+ frp.set_execution_status.map(|&status|
                 match status {
-                    ExecutionStatus::Running             => "Running".to_string(),
+                    ExecutionStatus::Running             => "".to_string(),
                     ExecutionStatus::Finished {duration} => format!("{} ms", duration)
                 });
         }
 
-        ProfilingIndicator {label,frp}
+        ProfilingIndicator {root,label,frp}
     }
 }
 
 
 impl display::Object for ProfilingIndicator {
     fn display_object(&self) -> &display::object::Instance {
-        &self.label.display_object()
+        &self.root
     }
 }

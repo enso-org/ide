@@ -502,7 +502,6 @@ impl NodeModel {
         self.backdrop.size.set(padded_size);
         self.background.size.set(padded_size);
         self.drag_area.size.set(padded_size);
-        self.profiling_indicator.set_size(padded_size);
         self.error_indicator.size.set(padded_size);
         self.vcs_indicator.set_size(padded_size);
         self.backdrop.mod_position(|t| t.x = width/2.0);
