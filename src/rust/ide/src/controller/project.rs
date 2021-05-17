@@ -63,7 +63,7 @@ pub fn main_method_ptr(project_name:impl Str, module_path:&model::module::Path) 
 
 // === SetupResult ===
 
-/// The result of initial project setup, containing a handy controllers to be used in the initial
+/// The result of initial project setup, containing handy controllers to be used in the initial
 /// view.
 #[derive(Clone,CloneRef,Debug)]
 pub struct SetupResult {
