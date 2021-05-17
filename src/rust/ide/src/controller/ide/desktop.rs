@@ -56,7 +56,7 @@ impl Handle {
         Self {logger,current_project,project_manager,status_notifications,notifications}
     }
 
-    /// Create a project controller handle which open the project with the given name, or create it
+    /// Create a project controller handle which opens the project with the given name, or creates it
     /// if it does not exist.
     pub async fn new_with_opened_project
     (project_manager:Rc<dyn project_manager::API>, name:ProjectName) -> FallibleResult<Self> {
