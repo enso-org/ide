@@ -1,6 +1,4 @@
-# Next Release
-
-<br/>![New Learning Resources](/docs/assets/tags/new_learning_resources.svg)
+# Enso 2.0.0-alpha.5 (2021-05-14)
 
 <br/>![New Features](/docs/assets/tags/new_features.svg)
 
@@ -12,13 +10,28 @@
 
 #### Visual Environment
 
+- [Delete key will delete selected nodes][1538].
+- [It is possible to move around after deleting a node with a selected
+  visualization][1556]. Deleting a node while its attached visualization was
+  selected made it impossible to pan or zoom around the stage afterwards. This
+  error is fixed now.
+- [Fixed an internal error that would make the IDE fail on some browser.][1561].
+  Instead of crashing on browser that don't support the feature we use, we are
+  now just start a little bit slower.
+
 #### EnsoGL (rendering engine)
 
 #### Enso Compiler
 
+- [Updated Enso engine to version 0.2.11][1541].
+
 If you're interested in the enhancements and fixes made to the Enso compiler,
 you can find their release notes
 [here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
+
+[1541]: https://github.com/enso-org/ide/pull/1511
+[1538]: https://github.com/enso-org/ide/pull/1538
+[1561]: https://github.com/enso-org/ide/pull/1561
 
 <br/>
 
@@ -39,6 +52,10 @@ you can find their release notes
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
+- [Fix some internal settings not being applied correctly in the IDE][1539].
+  Some arguments were not passed correctly to the IDE leading to erroneous
+  behaviour in the electron app. This is now fixed.
+
 #### Visual Environment
 
 - [Some command line arguments were not applied correctly in the IDE][1536].
@@ -54,6 +71,7 @@ you can find their release notes
 [1511]: https://github.com/enso-org/ide/pull/1511
 [1536]: https://github.com/enso-org/ide/pull/1536
 [1531]: https://github.com/enso-org/ide/pull/1531
+[1531]: https://github.com/enso-org/ide/pull/1539
 
 <br/>
 
@@ -107,6 +125,9 @@ you can find their release notes
   values of the precomputed bins, which is useful when the dataset is relatively
   big, and it's cheaper to send the precomputed bins rather than the entire
   dataset.
+- [Output type labels.][1427] The labels, that show the output type of a node on
+  hover, appear now in a fixed position right below the node, instead of a
+  pop-up, as they did before.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
