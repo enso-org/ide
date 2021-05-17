@@ -48,6 +48,7 @@ use crate::data::enso;
 
 use enso_args::ARGS;
 use enso_frp as frp;
+use ensogl::Animation;
 use ensogl::DEPRECATED_Animation;
 use ensogl::DEPRECATED_Tween;
 use ensogl::application::Application;
@@ -3240,6 +3241,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Modes ===
     // =============
 
+    let profiling_mode_transition = Animation::new(network);
     frp::extend! { network
         out.source.mode <+ frp.toggle_profiling_mode.map2(&frp.mode,|_,&mode| {
             match mode {
@@ -3248,11 +3250,19 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
             }
         });
 
-        eval out.source.mode([model](_) {
+        eval out.mode([model](_) {
             for edge_id in model.edges.keys() {
                 model.refresh_edge_color(edge_id);
             }
         });
+
+        profiling_mode_transition.target <+ out.mode.map(|&mode| {
+            match mode {
+                Mode::Normal    => 0.0,
+                Mode::Profiling => 1.0,
+            }
+        });
+        eval profiling_mode_transition.value ((&v) scene.dom.layers.back.set_grayscale(v));
     }
 
 
