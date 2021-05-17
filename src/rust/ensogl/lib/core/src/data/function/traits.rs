@@ -77,6 +77,8 @@ macro_rules! define_fn {
         }
 
         #[allow(non_snake_case)]
+        // For some instantiations clippy complains about this being a manual `map` implementation.
+        // However, this is not a case with other instantiations.
         #[allow(clippy::manual_map)]
         impl<T,$($($arg),*)?> $name $(<$($arg),*>)? for Option<T>
         where T : $name $(<$($arg),*>)? {

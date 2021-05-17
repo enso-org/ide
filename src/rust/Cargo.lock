@@ -689,7 +689,7 @@ dependencies = [
  "failure",
  "flatbuffers",
  "flatc-rust",
- "futures 0.3.15",
+ "futures 0.3.5",
  "hex",
  "json-rpc",
  "mockall",
@@ -934,7 +934,7 @@ dependencies = [
  "enso-prelude",
  "ensogl-build-utilities",
  "ensogl-text-embedded-fonts",
- "futures 0.3.15",
+ "futures 0.3.5",
  "js-sys",
  "nalgebra 0.26.2",
  "wasm-bindgen",
@@ -1025,7 +1025,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b02e0d3667b27514149c1ac9b372d700f3e6df4bbaf6b7c5df12915de2996049"
 dependencies = [
- "futures 0.3.15",
+ "futures 0.3.5",
  "smallvec 1.6.1",
 ]
 
@@ -1105,9 +1105,9 @@ checksum = "3a471a38ef8ed83cd6e40aa59c1ffe17db6855c18e3604d9c4ed8c08ebc28678"
 
 [[package]]
 name = "futures"
-version = "0.3.15"
+version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e7e43a803dae2fa37c1f6a8fe121e1f7bf9548b4dfc0522a42f34145dadfc27"
+checksum = "1e05b85ec287aac0dc34db7d4a569323df697f9c55b99b15d6b4ef8cde49f613"
 dependencies = [
  "futures-channel",
  "futures-core",
@@ -1435,7 +1435,7 @@ dependencies = [
  "ensogl-theme",
  "failure",
  "flo_stream",
- "futures 0.3.15",
+ "futures 0.3.5",
  "fuzzly",
  "ide-view",
  "itertools 0.10.0",
@@ -1622,11 +1622,12 @@ dependencies = [
 name = "json-rpc"
 version = "0.1.0"
 dependencies = [
+ "enso-logger",
  "enso-prelude",
  "enso-shapely",
  "ensogl-system-web",
  "failure",
- "futures 0.3.15",
+ "futures 0.3.5",
  "serde",
  "serde_json",
  "shrinkwraprs 0.3.0",
@@ -2181,7 +2182,7 @@ dependencies = [
  "enso-prelude",
  "ensogl-build-utilities",
  "failure",
- "futures 0.3.15",
+ "futures 0.3.5",
  "js-sys",
  "matches",
  "reqwest",
@@ -3329,7 +3330,7 @@ dependencies = [
  "enso-prelude",
  "enso-shapely",
  "failure",
- "futures 0.3.15",
+ "futures 0.3.5",
  "itertools 0.10.0",
  "pin-utils",
  "serde",

@@ -37,5 +37,5 @@ futures = { version = "0.3.1" }
 reqwest = { version = "0.10.1" }
 tokio = { version = "0.2.10", features = ["macros"] }
 # Zip is needed because the build script downloads and extracts artifacts from the Engine.
-zip = { version = "0.5.0" }
+zip = { version = "0.5.12" }
 zip-extensions = { version = "0.4.0" }

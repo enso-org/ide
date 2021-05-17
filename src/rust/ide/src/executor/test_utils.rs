@@ -15,6 +15,7 @@ use utils::test::traits::*;
 /// task will be blocked, panic will be raised.
 #[derive(Debug)]
 pub struct TestWithLocalPoolExecutor {
+    logger             : Logger,
     executor           : executor::LocalPool,
     running_task_count : Rc<Cell<usize>>,
 }
@@ -22,11 +23,12 @@ pub struct TestWithLocalPoolExecutor {
 impl TestWithLocalPoolExecutor {
     /// Set up the test fixture.
     pub fn set_up() -> Self {
+        let logger             = Logger::new("TestWithLocalPoolExecutor");
         let executor           = executor::LocalPool::new();
         let running_task_count = Rc::new(Cell::new(0));
 
         set_spawner(executor.spawner());
-        Self {executor,running_task_count}
+        Self {logger,executor,running_task_count}
     }
 
     /// Check if there are any uncompleted tasks in the pool.
@@ -53,6 +55,7 @@ impl TestWithLocalPoolExecutor {
     where Callback : FnOnce() {
         self.run_until_stalled();
         if self.has_ongoing_task() {
+            debug!(self.logger,"when_stalled calling callback");
             callback();
         }
     }
@@ -104,6 +107,7 @@ impl TestWithLocalPoolExecutor {
 
 impl Drop for TestWithLocalPoolExecutor {
     fn drop(&mut self) {
+        debug!(self.logger,"Dropping the TestWithLocalPoolExecutor, ongoing tasks: {self.running_task_count.get()}");
         // We should be able to finish test.
         if !std::thread::panicking() {
             self.expect_finished();

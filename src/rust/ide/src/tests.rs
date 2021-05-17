@@ -5,13 +5,14 @@ use crate::transport::test_utils::TestWithMockedTransport;
 use crate::ide;
 
 use enso_protocol::project_manager;
-use enso_protocol::project_manager::ProjectName;
+use enso_protocol::project_manager::{ProjectName, API, MissingComponentAction};
 use json_rpc::test_util::transport::mock::MockTransport;
 use serde_json::json;
 use span_tree::node::InsertionPointType;
 use span_tree::node;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
 use wasm_bindgen_test::wasm_bindgen_test;
+use json_rpc::Transport;
 
 wasm_bindgen_test_configure!(run_in_browser);
 
@@ -21,27 +22,62 @@ wasm_bindgen_test_configure!(run_in_browser);
 // === JSON Rpc Transport in IDE Initializer ===
 // =============================================
 
-#[wasm_bindgen_test(async)]
-async fn failure_to_open_project_is_reported() {
-    let transport   = MockTransport::new();
+//#[test]
+#[wasm_bindgen_test]
+fn failure_to_open_project_is_reported() {
+    let logger      = Logger::new("test");
+    warning!(logger,"Foo");
+    let mut transport   = MockTransport::new();
     let mut fixture = TestWithMockedTransport::set_up(&transport);
-    fixture.run_test(async move {
-        let logger          = Logger::new("test");
-        let project_manager = Rc::new(project_manager::Client::new(transport));
-        executor::global::spawn(project_manager.runner());
-        let name        = ProjectName(crate::constants::DEFAULT_PROJECT_NAME.to_owned());
-        let initializer = ide::initializer::WithProjectManager::new(logger,project_manager,name);
-        let result      = initializer.initialize_project_model().await;
-        result.expect_err("Error should have been reported.");
-    });
-    fixture.when_stalled_send_response(json!({
-        "projects": [{
-            "name"       : crate::constants::DEFAULT_PROJECT_NAME,
-            "id"         : "4b871393-eef2-4970-8765-4f3c1ea83d09",
-            "lastOpened" : "2020-05-08T11:04:07.28738Z"
-        }]
-    }));
-    fixture.when_stalled_send_error(1,"Service error");
+    {
+        let logger = logger.clone();
+        fixture.run_test(async move {
+            // let (sender, mut receiver) = futures::channel::mpsc::unbounded();
+            // transport.set_event_transmitter(sender);
+            // debug!(logger,"1");
+            // let next1 = receiver.next().await;
+            // debug!(logger, "next1: {next1:?}");
+            // let next2 = receiver.next().await;
+            // debug!(logger, "next2: {next2:?}");
+            //
+            debug!(logger,"Starting test");
+            let project_manager = Rc::new(project_manager::Client::new(transport));
+            executor::global::spawn(project_manager.runner());
+            debug!(logger,"1");
+            let result = project_manager.list_projects(&Some(4)).await;
+            debug!(logger,"result: {result:?}");
+            let result = project_manager.list_projects(&Some(4)).await;
+            debug!(logger,"result: {result:?}");
+            //let result      = initializer.initialize_project_model().await;
+
+            debug!(logger,"3");
+            result.expect_err("Error should have been reported.");
+            debug!(logger,"4");
+        });
+    }
+    debug!(logger,"A");
+
+    fixture.with_executor_fixture.run_until_stalled();
+    debug!(logger,"A2");
+    fixture.transport.mock_peer_text_message(r#"{"jsonrpc":"2.0","id":0,"result":{"projects":[{"id":"4b871393-eef2-4970-8765-4f3c1ea83d09","lastOpened":"2020-05-08T11:04:07.28738Z","name":"Unnamed"}]}}"#);
+
+    // fixture.when_stalled_send_response(json!({
+    //     "projects": [{
+    //         "name"       : crate::constants::DEFAULT_PROJECT_NAME,
+    //         "id"         : "4b871393-eef2-4970-8765-4f3c1ea83d09",
+    //         "lastOpened" : "2020-05-08T11:04:07.28738Z"
+    //     }]
+    // }));
+    debug!(logger,"B");
+    fixture.with_executor_fixture.run_until_stalled();
+    debug!(logger,"B2");
+    fixture.transport.mock_peer_text_message(r#"{"jsonrpc":"2.0","id":1,"error":{"code":1,"message":"Service error","data":null}}"#);
+    //fixture.when_stalled_send_error(1,"Service error");
+    debug!(logger,"C");
+    fixture.with_executor_fixture.run_until_stalled();
+    debug!(logger,"D");
+    fixture.with_executor_fixture.run_until_stalled();
+    debug!(logger,"E");
 }
 
 

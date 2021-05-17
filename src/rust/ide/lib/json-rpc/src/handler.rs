@@ -139,6 +139,7 @@ shared! { Handler
 /// Mutable state of the `Handler`.
 #[derive(Debug)]
 pub struct HandlerData<Notification> {
+    logger : DefaultTraceLogger,
     /// Timeout for futures.
     timeout         : Duration,
     /// Ongoing calls.
@@ -237,6 +238,7 @@ impl<Notification> Handler<Notification> {
     /// `Transport` must be functional (e.g. not in the process of opening).
     pub fn new(transport:impl Transport + 'static) -> Handler<Notification> {
         let data = HandlerData {
+            logger          : DefaultTraceLogger::new("JSON-RPC"),
             timeout         : crate::constants::TIMEOUT,
             ongoing_calls   : default(),
             id_generator    : IdGenerator::new(),
@@ -308,6 +310,7 @@ impl<Notification> Handler<Notification> {
     pub fn process_response
     (&self, message:messages::Response<serde_json::Value>) {
         if let Some(sender) = self.remove_ongoing_request(message.id) {
+            debug!(self.rc.borrow().logger, "Closing awaiting request.");
             // Disregard any error. We do not care if RPC caller already
             // dropped the future.
             sender.send(message.result).ok();
@@ -354,6 +357,7 @@ impl<Notification> Handler<Notification> {
     /// With with a handling error. Uses `on_error` callback to notify the
     /// owner.
     pub fn error_occurred(&self, error: HandlingError) {
+        debug!(self.rc.borrow().logger, "Emitting error: {error}");
         self.emit_event(Event::Error(error))
     }
 
@@ -362,6 +366,7 @@ impl<Notification> Handler<Notification> {
     /// Each event either completes a requests or is translated into `Event`.
     pub fn process_event(&self, event:TransportEvent)
     where Notification: DeserializeOwned {
+        debug!(self.rc.borrow().logger, "Processing event {event:?}");
         match event {
             TransportEvent::TextMessage(msg) =>
                 self.process_incoming_message(msg),

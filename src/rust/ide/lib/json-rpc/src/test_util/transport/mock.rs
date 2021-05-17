@@ -15,7 +15,6 @@ use std::collections::VecDeque;
 use utils::channel;
 
 
-
 // ====================
 // === SendingError ===
 // ====================
@@ -52,8 +51,13 @@ pub enum Status {
 /// Mock transport shared data. Collects all the messages sent by the owner.
 ///
 /// Allows mocking messages from the peer.
-#[derive(Debug,Default)]
+#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(Default)]
 pub struct MockTransportData {
+    #[allow(missing_docs)]
+    #[derivative(Default(value="DefaultTraceLogger::new(\"MockTransportData\")"))]
+    pub logger            : DefaultTraceLogger,
     /// Events sink.
     pub event_transmitter : Option<UnboundedSender<TransportEvent>>,
     /// Text messages sent by the user.
@@ -76,15 +80,22 @@ pub struct MockTransport(Rc<RefCell<MockTransportData>>);
 
 impl Transport for MockTransport {
     fn send_text(&mut self, text:&str) -> Result<(), Error> {
-        self.send_helper(move |data| data.sent_text_msgs.push_back(text.into()))
+        self.send_helper(move |data| {
+            debug!(data.logger, "Sending text message: {text}");
+            data.sent_text_msgs.push_back(text.into())
+        })
     }
 
     fn send_binary(&mut self, message:&[u8]) -> Result<(), Error> {
-        self.send_helper(|data| data.sent_binary_msgs.push_back(message.into()))
+        self.send_helper(|data| {
+            debug!(data.logger, "Sending binary message: {message:?}");
+            data.sent_binary_msgs.push_back(message.into())
+        })
     }
 
     fn set_event_transmitter(&mut self, transmitter:UnboundedSender<TransportEvent>) {
         self.with_mut_data(|data| {
+            debug!(data.logger, "Replacing event transmitter.");
             data.event_transmitter = Some(transmitter);
         })
     }
@@ -106,6 +117,7 @@ impl MockTransport {
     /// Generates event that mocks receiving a text message from a peer.
     pub fn mock_peer_text_message<S:Into<String>>(&mut self, message:S) {
         let message = message.into();
+        debug!(self.0.borrow().logger, "Incoming text message: {message}");
         if let Some(ref mut transmitter) = self.0.borrow_mut().event_transmitter {
             let event = TransportEvent::TextMessage(message);
             channel::emit(transmitter,event);
@@ -122,6 +134,7 @@ impl MockTransport {
 
     /// Generates event that mocks receiving a text message from a peer.
     pub fn mock_peer_binary_message(&mut self, data:&[u8]) {
+        debug!(self.0.borrow().logger, "Incoming binary message: {data:?}");
         if let Some(ref mut transmitter) = self.0.borrow_mut().event_transmitter {
             let event = TransportEvent::BinaryMessage(Vec::from(data));
             channel::emit(transmitter,event);
@@ -131,6 +144,7 @@ impl MockTransport {
     /// Mocks event generated when peer closes the socket (or connection is lost
     /// for any other reason).
     pub fn mock_connection_closed(&mut self) {
+        debug!(self.0.borrow().logger, "Connection closed.");
         self.with_mut_data(|data| {
             if let Some(ref mut transmitter) = data.event_transmitter {
                 data.is_closed = true;

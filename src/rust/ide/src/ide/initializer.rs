@@ -211,6 +211,7 @@ impl WithProjectManager {
         use project_manager::MissingComponentAction::*;
 
         let project_id      = self.get_project_or_create_new().await?;
+        debug!(self.logger, "Opening Project ID: {project_id}");
         let opened_project  = self.project_manager.open_project(&project_id,&Install).await?;
         let logger          = &self.logger;
         let json_endpoint   = opened_project.language_server_json_address.to_string();

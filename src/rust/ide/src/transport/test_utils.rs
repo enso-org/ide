@@ -8,9 +8,9 @@ use serde::Serialize;
 
 #[derive(Debug)]
 pub struct TestWithMockedTransport {
-    with_executor_fixture : TestWithLocalPoolExecutor,
-    transport             : MockTransport,
-    next_response_id      : json_rpc::handler::IdGenerator,
+    pub with_executor_fixture : TestWithLocalPoolExecutor,
+    pub transport             : MockTransport,
+    pub next_response_id      : json_rpc::handler::IdGenerator,
 }
 
 impl TestWithMockedTransport {
