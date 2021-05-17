@@ -11,6 +11,10 @@
 #### Visual Environment
 
 - [Delete key will delete selected nodes][1538].
+- [It is possible to move around after deleting a node with a selected
+  visualization][1556]. Deleting a node while its attached visualization was
+  selected made it impossible to pan or zoom around the stage afterwards. This
+  error is fixed now.
 - [Fixed an internal error that would make the IDE fail on some browser.][1561].
   Instead of crashing on browser that don't support the feature we use, we are
   now just start a little bit slower.
@@ -121,6 +125,9 @@ you can find their release notes
   values of the precomputed bins, which is useful when the dataset is relatively
   big, and it's cheaper to send the precomputed bins rather than the entire
   dataset.
+- [Output type labels.][1427] The labels, that show the output type of a node on
+  hover, appear now in a fixed position right below the node, instead of a
+  pop-up, as they did before.
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
