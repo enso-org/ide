@@ -38,7 +38,7 @@ impl Model {
         let project              = controller::Project::new(project_model,status_notifications.clone_ref());
 
         executor::global::spawn(async move {
-            match project.initial_setup().await {
+            match project.initialize().await {
                 Ok(result) => {
                     let view    = self.view.clone_ref();
                     let text    = result.main_module_text;
@@ -88,7 +88,7 @@ impl Integration {
     }
 
     fn initialize_status_bar_integration(&self) {
-        use controller::ide::ProcessHandle    as ControllerHandle;
+        use controller::ide::BackgroundTaskHandle    as ControllerHandle;
         use ide_view::status_bar::process::Id as ViewHandle;
 
         let logger               = self.model.logger.clone_ref();
@@ -101,12 +101,12 @@ impl Integration {
                 StatusNotification::Event {label} => {
                     status_bar.add_event(ide_view::status_bar::event::Label::new(label));
                 },
-                StatusNotification::ProcessStarted {label,handle} => {
+                StatusNotification::BackgroundTaskStarted {label,handle} => {
                     status_bar.add_process(ide_view::status_bar::process::Label::new(label));
                     let view_handle = status_bar.last_process.value();
                     process_map.insert(handle,view_handle);
                 },
-                StatusNotification::ProcessFinished {handle} => {
+                StatusNotification::BackgroundTaskFinished {handle} => {
                     if let Some(view_handle) = process_map.remove(&handle) {
                         status_bar.finish_process(view_handle);
                     } else {

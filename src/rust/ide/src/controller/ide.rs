@@ -11,6 +11,7 @@ use crate::prelude::*;
 use crate::notification;
 
 use mockall::automock;
+use parser::Parser;
 
 
 
@@ -19,7 +20,7 @@ use mockall::automock;
 // ============================
 
 /// The handle used to pair the ProcessStarted and ProcessFinished notifications.
-pub type ProcessHandle = usize;
+pub type BackgroundTaskHandle = usize;
 
 /// A notification which should be displayed to the User on the status bar.
 #[allow(missing_docs)]
@@ -27,12 +28,10 @@ pub type ProcessHandle = usize;
 pub enum StatusNotification {
     /// Notification about single event, should be logged in an event log window.
     Event { label:String },
-    /// Notification about new process done in IDE (like compiling library). It should be displayed
-    /// in some sort of "background processes" list.
-    ProcessStarted { label:String, handle:ProcessHandle },
-    /// Notification that some process notified in [`ProcessStarted`] has been finished and should
-    /// be removed from any "background processes" list.
-    ProcessFinished { handle:ProcessHandle },
+    /// Notification about new background task done in IDE (like compiling library).
+    BackgroundTaskStarted { label:String, handle: BackgroundTaskHandle },
+    /// Notification that some task notified in [`BackgroundTaskStarted`] has been finished.
+    BackgroundTaskFinished { handle:BackgroundTaskHandle },
 }
 
 /// A publisher for status notification events.
@@ -56,18 +55,18 @@ impl StatusNotificationPublisher {
     /// Publish a notification about new process (see [`StatusNotification::ProcessStarted`]).
     ///
     /// Returns the handle to be used when notifying about process finishing.
-    pub fn publish_process(&self, label:impl Into<String>) -> ProcessHandle {
+    pub fn publish_background_task(&self, label:impl Into<String>) -> BackgroundTaskHandle {
         let label  = label.into();
         let handle = self.next_process_handle.get();
         self.next_process_handle.set(handle + 1);
-        let notification = StatusNotification::ProcessStarted {label,handle};
+        let notification = StatusNotification::BackgroundTaskStarted {label,handle};
         executor::global::spawn(self.publisher.publish(notification));
         handle
     }
 
     /// Publish a notfication that process has finished (see [`StatusNotification::ProcessFinished`])
-    pub fn published_process_finished(&self, handle:ProcessHandle) {
-        let notification = StatusNotification::ProcessFinished {handle};
+    pub fn published_background_task_finished(&self, handle:BackgroundTaskHandle) {
+        let notification = StatusNotification::BackgroundTaskFinished {handle};
         executor::global::spawn(self.publisher.publish(notification));
     }
 
@@ -114,21 +113,25 @@ pub trait ManagingProjectAPI {
 #[automock]
 pub trait API:Debug {
     /// The model of currently opened project.
+    ///
+    /// IDE can have only one project opened at a time.
     fn current_project(&self) -> model::Project;
 
     /// Getter of Status Notification Publisher.
     fn status_notifications(&self) -> &StatusNotificationPublisher;
+
+    /// The Parser Handle.
+    fn parser(&self) -> &Parser;
 
     /// Subscribe the controller notifications.
     fn subscribe(&self) -> StaticBoxStream<Notification>;
 
     /// Return the Managing Project API.
     ///
-    /// If the current environment supports such operations, this method should return just the
-    /// reference to `self`, otherwise [`None`].
+    /// It may be some delegated object or just the reference to self.
     // Automock macro does not work without explicit lifetimes here.
     #[allow(clippy::needless_lifetimes)]
-    fn manage_projects<'a>(&'a self) -> Option<&'a dyn ManagingProjectAPI>;
+    fn manage_projects<'a>(&'a self) -> FallibleResult<&'a dyn ManagingProjectAPI>;
 }
 
 /// A polymorphic handle of IDE controller.

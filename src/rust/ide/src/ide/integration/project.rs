@@ -1403,7 +1403,7 @@ impl list_view::entry::ModelProvider for DataProviderForView {
     fn get(&self, id: usize) -> Option<list_view::entry::Model> {
         let action = self.actions.get_cloned(id)?;
         if let MatchInfo::Matches {subsequence} = action.match_info {
-            let caption          = action.action.caption();
+            let caption          = action.action.to_string();
             let model            = list_view::entry::Model::new(caption.clone());
             let mut char_iter    = caption.char_indices().enumerate();
             let highlighted_iter = subsequence.indices.iter().filter_map(|idx| loop {

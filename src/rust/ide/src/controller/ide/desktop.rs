@@ -15,6 +15,7 @@ use crate::notification;
 use enso_protocol::project_manager;
 use enso_protocol::project_manager::MissingComponentAction;
 use enso_protocol::project_manager::ProjectName;
+use parser::Parser;
 
 
 
@@ -42,6 +43,7 @@ pub struct Handle {
     #[derivative(Debug="ignore")]
     project_manager      : Rc<dyn project_manager::API>,
     status_notifications : StatusNotificationPublisher,
+    parser               : Parser,
     notifications        : notification::Publisher<Notification>,
 }
 
@@ -52,8 +54,9 @@ impl Handle {
         let logger               = Logger::new("controller::ide::Desktop");
         let current_project      = Rc::new(CloneRefCell::new(initial_project));
         let status_notifications = default();
+        let parser               = Parser::new_or_panic();
         let notifications        = default();
-        Self {logger,current_project,project_manager,status_notifications,notifications}
+        Self {logger,current_project,project_manager,status_notifications,parser,notifications}
     }
 
     /// Create a project controller handle which opens the project with the given name, or creates it
@@ -72,13 +75,14 @@ impl Handle {
 impl API for Handle {
     fn current_project     (&self) -> model::Project               { self.current_project.get() }
     fn status_notifications(&self) -> &StatusNotificationPublisher { &self.status_notifications }
+    fn parser              (&self) -> &Parser                      { &self.parser               }
 
     fn subscribe(&self) -> StaticBoxStream<Notification> {
         self.notifications.subscribe().boxed_local()
     }
 
-    fn manage_projects     (&self) -> Option<&dyn ManagingProjectAPI> {
-        Some(self)
+    fn manage_projects(&self) -> FallibleResult<&dyn ManagingProjectAPI> {
+        Ok(self)
     }
 }
 

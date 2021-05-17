@@ -8,6 +8,7 @@ use crate::model::module;
 use crate::model::SuggestionDatabase;
 use crate::model::traits::*;
 use crate::notification;
+use crate::transport::web::WebSocket;
 
 use enso_protocol::binary;
 use enso_protocol::binary::message::VisualisationContext;
@@ -15,10 +16,10 @@ use enso_protocol::language_server;
 use enso_protocol::language_server::CapabilityRegistration;
 use enso_protocol::language_server::MethodPointer;
 use enso_protocol::project_manager;
+use enso_protocol::project_manager::MissingComponentAction;
 use flo_stream::Subscriber;
 use parser::Parser;
-use crate::transport::web::WebSocket;
-use enso_protocol::project_manager::MissingComponentAction;
+
 
 
 // =================================

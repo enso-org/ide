@@ -66,7 +66,7 @@ pub fn main_method_ptr(project_name:impl Str, module_path:&model::module::Path) 
 /// The result of initial project setup, containing handy controllers to be used in the initial
 /// view.
 #[derive(Clone,CloneRef,Debug)]
-pub struct SetupResult {
+pub struct InitializationResult {
     /// The Text Controller for Main module code to be displayed in Code Editor.
     pub main_module_text:controller::Text,
     /// The Graph Controller for main definition's graph, to be displayed in Graph Editor.
@@ -99,7 +99,7 @@ impl Project {
     /// warning about unsupported engine version).
     ///
     /// Returns the controllers of module and graph which should be displayed in the view.
-    pub async fn initial_setup(&self) -> FallibleResult<SetupResult> {
+    pub async fn initialize(&self) -> FallibleResult<InitializationResult> {
         let project     = self.model.clone_ref();
         let parser      = self.model.parser();
         let module_path = self.initial_module_path()?;
@@ -121,7 +121,7 @@ impl Project {
         self.notify_about_compiling_process(&main_graph);
         self.display_warning_on_unsupported_engine_version()?;
 
-        Ok(SetupResult {main_graph,main_module_text})
+        Ok(InitializationResult {main_graph,main_module_text})
     }
 }
 
@@ -160,15 +160,15 @@ impl Project {
     }
 
     fn notify_about_compiling_process(&self, graph:&controller::ExecutedGraph) {
-        let status_notifications     = self.status_notifications.clone_ref();
-        let compiling_process        = status_notifications.publish_process(COMPILING_STDLIB_LABEL);
+        let status_notif             = self.status_notifications.clone_ref();
+        let compiling_process        = status_notif.publish_background_task(COMPILING_STDLIB_LABEL);
         let notifications            = graph.subscribe();
         let mut computed_value_notif = notifications.filter(|notification|
             futures::future::ready(matches!(notification, GraphNotification::ComputedValueInfo(_)))
         );
         executor::global::spawn(async move {
             computed_value_notif.next().await;
-            status_notifications.published_process_finished(compiling_process);
+            status_notif.published_background_task_finished(compiling_process);
         });
     }
 
