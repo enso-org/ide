@@ -26,7 +26,7 @@ ensogl::define_shape_system! {
         // imprecisions.
         let aperture_gap_size = &outer_circle_radius * 1.1;
         let aperture_gap      = Triangle(&aperture_gap_size*2.0,aperture_gap_size.clone());
-        let aperture_gap      = aperture_gap.rotate(&needle_angle+180.0_f32.to_radians().radians());
+        let aperture_gap      = aperture_gap.rotate(needle_angle+180.0_f32.to_radians().radians());
         let aperture_gap      = aperture_gap.translate_x(&aperture_gap_size*2.0.sqrt()*0.25);
         let aperture_gap      = aperture_gap.translate_y(-(&aperture_gap_size*2.0.sqrt()*0.25));
 
@@ -38,7 +38,7 @@ ensogl::define_shape_system! {
         let outer_circle = base - circle_gap - aperture_gap + aperture_cap_1 + aperture_cap_2;
 
         let needle_length = &outer_circle_radius-&needle_radius_outer;
-        let needle = UnevenCapsule(needle_radius_outer.clone(),needle_radius_inner.clone(),needle_length.clone());
+        let needle = UnevenCapsule(needle_radius_outer,needle_radius_inner,needle_length);
         let needle = needle.rotate(&needle_angle);
 
         let inner_circle = Circle(&inner_circle_radius);
