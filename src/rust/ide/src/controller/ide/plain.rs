@@ -28,7 +28,7 @@ pub struct Handle {
 }
 
 impl Handle {
-    /// Create IDE Controller with given project opened.
+    /// Create IDE Controller for a given opened project.
     pub fn new(project:model::Project) -> Self {
         let logger = Logger::new("controller::ide::Plain");
         let status_notifications = default();
