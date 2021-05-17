@@ -33,7 +33,7 @@ const UNNAMED_PROJECT_NAME:&str = "Unnamed";
 /// The Desktop IDE Controller handle.
 ///
 /// The desktop controller has access to the Project Manager, and thus is able to perform all
-/// project management operations using it.
+/// project management operations.
 #[derive(Clone,CloneRef,Derivative)]
 #[derivative(Debug)]
 pub struct Handle {
