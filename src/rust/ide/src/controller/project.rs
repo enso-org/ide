@@ -95,7 +95,7 @@ impl Project {
     ///
     /// This function should be called always after opening a new project in IDE. It checks if main
     /// module and main method are present in the project, and recreates them if missing.
-    /// It also sent proper status notifications and warnings related to the opened project (like
+    /// It also sends status notifications and warnings about the opened project (like
     /// warning about unsupported engine version).
     ///
     /// Returns the controllers of module and graph which should be displayed in the view.
