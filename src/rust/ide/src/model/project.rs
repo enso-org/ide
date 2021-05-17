@@ -47,19 +47,19 @@ pub trait API:Debug {
     fn suggestion_db(&self) -> Rc<model::SuggestionDatabase>;
 
     /// Returns a model of module opened from file.
-    #[allow(clippy::needless_lifetimes)]
+    #[allow(clippy::needless_lifetimes)] // Note: Needless lifetimes
     fn module<'a>
     (&'a self, path:crate::model::module::Path) -> BoxFuture<'a,FallibleResult<model::Module>>;
 
     /// Creates a new execution context with given definition as a root; and registers the context
     /// for receiving update.
-    #[allow(clippy::needless_lifetimes)]
+    #[allow(clippy::needless_lifetimes)] // Note: Needless lifetimes
     fn create_execution_context<'a>
     (&'a self, root_definition:language_server::MethodPointer)
     -> BoxFuture<'a,FallibleResult<model::ExecutionContext>>;
 
     /// Set a new project name.
-    #[allow(clippy::needless_lifetimes)]
+    #[allow(clippy::needless_lifetimes)] // Note: Needless lifetimes
     fn rename_project<'a>(&'a self, name:String) -> BoxFuture<'a,FallibleResult<()>>;
 
     /// Returns the primary content root id for this project.
@@ -93,6 +93,12 @@ pub trait API:Debug {
     /// Subscribe for notifications about project-level events.
     fn subscribe(&self) -> Subscriber<Notification>;
 }
+
+// Note: Needless lifetimes
+// ~~~~~~~~~~~~~~~~~~~~~~~~
+// Clippy complains about using explicit lifetimes, however the suggested change breaks compilation.
+// Apparently `BoxFuture` must be given an explicit lifetime, and this lifetime cannot be anonymous.
+// Thus, we silent the warning manually.
 
 impl Debug for MockAPI {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

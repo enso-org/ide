@@ -124,14 +124,8 @@ impl Key {
     /// although this is MacOS specific issue, we are simulating this behavior on all platforms to
     /// keep it consistent.
     pub fn can_be_missing_when_meta_is_down(&self) -> bool {
-        !matches!(self
-            , Self::Alt      (_)
-            | Self::AltGr    (_)
-            | Self::AltGraph (_)
-            | Self::Control  (_)
-            | Self::Meta     (_)
-            | Self::Shift    (_)
-        )
+        !matches!(self, Self::Alt(_) | Self::AltGr(_) | Self::AltGraph(_) | Self::Control(_)
+            | Self::Meta(_) | Self::Shift(_))
     }
 
     /// Simple, kebab-case name of a key.

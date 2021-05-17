@@ -495,17 +495,6 @@ extern "C" {
 // === Printer ===
 // ===============
 
-
-// pub fn set_stdout() {
-//     let printer = Printer::new(_print, true);
-//     std::io::set_print(Some(Box::new(printer)));
-// }
-//
-// pub fn set_stdout_unbuffered() {
-//     let printer = Printer::new(_print, false);
-//     std::io::set_print(Some(Box::new(printer)));
-// }
-
 #[wasm_bindgen(inline_js = "
 export function set_stack_trace_limit() {
     Error.stackTraceLimit = 100
