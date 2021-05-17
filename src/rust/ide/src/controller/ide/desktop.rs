@@ -62,7 +62,7 @@ impl Handle {
     (project_manager:Rc<dyn project_manager::API>, name:ProjectName) -> FallibleResult<Self> {
         // TODO[ao]: Reuse of initializer used in previous code design. It should be soon replaced
         //      anyway, because we will soon resign from the "open or create" approach when opening
-        //     IDE. See https://github.com/enso-org/ide/issues/1492 for details.
+        //      IDE. See https://github.com/enso-org/ide/issues/1492 for details.
         let initializer = initializer::WithProjectManager::new(project_manager.clone_ref(),name);
         let model       = initializer.initialize_project_model().await?;
         Ok(Self::new_with_project(project_manager,model))
