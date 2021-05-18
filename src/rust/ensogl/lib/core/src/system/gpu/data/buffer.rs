@@ -453,6 +453,10 @@ pub trait IsBuffer {
 }
 
 // Calls are not recursive, as inherent methods are preferred over methods provided by trait.
+// This implementation is needed, because `enum_dispatch` library requires variant types to
+// implement the trait, as it invokes trait methods explicitly on variant values.
+//
+// Thus we provide implementation that just redirects calls to methods defined in the Buffer itself.
 impl<T:Storable> IsBuffer for Buffer<T> {
     fn set_context(&self, context:Option<&Context>) {
         self.set_context(context)
