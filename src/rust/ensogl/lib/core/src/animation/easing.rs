@@ -385,7 +385,7 @@ impl<T,F,OnStep,OnEnd> WeakAnimationLoop<T,F,OnStep,OnEnd> {
 /// Alias for `FixedFrameRateLoop` with specified step callback.
 pub type AnimationStep<T,F,OnStep,OnEnd> = animation::Loop<Step<T,F,OnStep,OnEnd>>;
 
-#[allow(missing_docs)]
+/// Callback for an animation step.
 pub type Step<T,F,OnStep,OnEnd> = impl Fn(animation::TimeInfo);
 
 fn step<T:Value,F,OnStep,OnEnd>(easing:&Animator<T,F,OnStep,OnEnd>) -> Step<T,F,OnStep,OnEnd>

@@ -682,7 +682,7 @@ impl<T,OnStep,OnStart,OnEnd> WeakAnimationLoop<T,OnStep,OnStart,OnEnd> {
 pub type FixedFrameRateAnimationStep<T,OnStep,OnStart,OnEnd> =
     animation::FixedFrameRateLoop<Step<T,OnStep,OnStart,OnEnd>>;
 
-#[allow(missing_docs)]
+/// Callback for an animation step.
 pub type Step<T,OnStep,OnStart,OnEnd> = impl Fn(animation::TimeInfo);
 
 fn step<T,OnStep,OnStart,OnEnd>(simulator:&Simulator<T,OnStep,OnStart,OnEnd>)

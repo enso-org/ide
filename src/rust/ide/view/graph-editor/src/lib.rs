@@ -8,7 +8,6 @@
 #![feature(drain_filter)]
 #![feature(entry_insert)]
 #![feature(fn_traits)]
-#![feature(marker_trait_attr)] // TODO[needed?]
 #![feature(option_result_contains)]
 #![feature(specialization)]
 #![feature(trait_alias)]

@@ -97,8 +97,9 @@ pub trait API:Debug {
 // Note: Needless lifetimes
 // ~~~~~~~~~~~~~~~~~~~~~~~~
 // Clippy complains about using explicit lifetimes, however the suggested change breaks compilation.
-// Apparently `BoxFuture` must be given an explicit lifetime, and this lifetime cannot be anonymous.
-// Thus, we silent the warning manually.
+// This is because mockall library generates a `MockAPI` struct based on this code.
+// However, so far, I (mwu) have failed to reduce to self-contained repro that could be presented
+// to mockall library authors. Further effort needed.
 
 impl Debug for MockAPI {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

@@ -144,7 +144,7 @@ where Callback : LoopCallback {
     }
 }
 
-#[allow(missing_docs)]
+/// Callback for an animation frame.
 pub type OnFrame<Callback> = impl FnMut(f32);
 fn on_frame<Callback>(mut callback:Callback, time_info_ref:Rc<Cell<TimeInfo>>) -> OnFrame<Callback>
 where Callback : LoopCallback {

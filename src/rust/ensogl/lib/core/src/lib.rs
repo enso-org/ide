@@ -14,7 +14,7 @@
 #![feature(specialization)]
 #![feature(trait_alias)]
 #![feature(try_trait)]
-#![feature(marker_trait_attr)] // TODO needed?
+#![feature(marker_trait_attr)]
 #![feature(min_type_alias_impl_trait)]
 #![feature(unboxed_closures)]
 #![allow(incomplete_features)] // To be removed, see: https://github.com/enso-org/ide/issues/1559
