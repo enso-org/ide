@@ -1143,26 +1143,31 @@ pub mod test {
             let mut client = language_server::MockClient::default();
             client.require_all_calls();
             client_setup(&mut data,&mut client);
-            let end_of_code = TextLocation::at_document_end(&data.graph.module.code);
-            let code_range  = TextLocation::at_document_begin()..=end_of_code;
-            let graph       = data.graph.controller();
-            let node        = &graph.graph().nodes().unwrap()[0];
-            let this        = ThisNode::new(vec![node.info.id()],&graph.graph());
-            let this        = data.selected_node.and_option(this);
-            let logger      = Logger::new("Searcher");// new_empty
-            let database    = Rc::new(SuggestionDatabase::new_empty(&logger));
-            let ide         = Rc::new(controller::ide::MockAPI::new());
+            let end_of_code  = TextLocation::at_document_end(&data.graph.module.code);
+            let code_range   = TextLocation::at_document_begin()..=end_of_code;
+            let graph        = data.graph.controller();
+            let node         = &graph.graph().nodes().unwrap()[0];
+            let this         = ThisNode::new(vec![node.info.id()],&graph.graph());
+            let this         = data.selected_node.and_option(this);
+            let logger       = Logger::new("Searcher");// new_empty
+            let database     = Rc::new(SuggestionDatabase::new_empty(&logger));
+            let mut ide      = controller::ide::MockAPI::new();
+            let mut project  = model::project::MockAPI::new();
+            let project_name = ImString::new(&data.graph.graph.project_name);
+            project.expect_name().returning_st(move || project_name.clone_ref());
+            let project     = Rc::new(project);
+            ide.expect_parser().return_const(Parser::new_or_panic());
+            ide.expect_current_project().returning_st(move || project.clone_ref());
             let module_name = QualifiedName::from_segments(PROJECT_NAME, &[MODULE_NAME]).unwrap();
             let searcher = Searcher {
-                graph,logger,database,ide,
+                graph,logger,database,
+                ide              : Rc::new(ide),
                 data             : default(),
                 notifier         : default(),
                 mode             : Immutable(Mode::NewNode {position:default()}),
                 language_server  : language_server::Connection::new_mock_rc(client),
-                parser           : Parser::new_or_panic(),
                 this_arg         : Rc::new(this),
                 position_in_code : Immutable(end_of_code),
-                project_name     : ImString::new(&data.graph.graph.project_name),
             };
             let entry1 = model::suggestion_database::Entry {
                 name          : "testFunction1".to_string(),
@@ -1638,7 +1643,7 @@ pub mod test {
             // Completion was picked and edited.
             Case::new("2 + 2",&["sum1 = 2 + 2","operator1 = sum1.var.testFunction1"], |f| {
                 f.searcher.use_suggestion(f.entry1.clone()).unwrap();
-                let new_parsed_input = ParsedInput::new("var.testFunction1",&f.searcher.parser);
+                let new_parsed_input = ParsedInput::new("var.testFunction1",&f.searcher.ide.parser());
                 f.searcher.data.borrow_mut().input = new_parsed_input.unwrap();
             }),
             // Variable name already present, need to use it. And not break it.
@@ -1670,7 +1675,7 @@ pub mod test {
         fn expect_inserted_import_for(entry:&action::Suggestion, expected_import:Vec<&QualifiedName>) {
             let Fixture{test:_test,mut searcher,..} = Fixture::new();
             let module = searcher.graph.graph().module.clone_ref();
-            let parser = searcher.parser.clone_ref();
+            let parser = searcher.ide.parser().clone_ref();
 
             let picked_method = FragmentAddedByPickingSuggestion {
                 id                : CompletedFragmentId::Function,

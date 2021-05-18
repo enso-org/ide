@@ -135,13 +135,13 @@ pub trait API:Debug {
 }
 
 /// A polymorphic handle of IDE controller.
-pub type Ide  = Rc<dyn API>;
+pub type Ide = Rc<dyn API>;
 
 /// The IDE Controller for desktop environments.
 pub type Desktop = desktop::Handle;
 
 /// The Plain IDE controller with a single project and no possibility to change it.
-pub type Plain   = plain::Handle;
+pub type Plain = plain::Handle;
 
 impl Debug for MockAPI {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

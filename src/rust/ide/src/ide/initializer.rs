@@ -68,8 +68,8 @@ impl Initializer {
             let application   = Application::new(&web::get_html_element_by_id("root").unwrap());
             let view          = application.new_view::<ide_view::project::View>();
             let status_bar    = view.status_bar().clone_ref();
-            // We know the name of new project before it actually loads. We set it right now to
-            // avoid displaying placeholder on the scene during loading.
+            // We know the name of new project before it loads. We set it right now to avoid
+            // displaying placeholder on the scene during loading.
             view.graph().model.breadcrumbs.project_name(self.config.project_name.to_string());
             application.display.add_child(&view);
             // TODO [mwu] Once IDE gets some well-defined mechanism of reporting

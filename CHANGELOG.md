@@ -4,6 +4,13 @@
 
 #### Visual Environment
 
+- [Create New Project action in Searcher][1566]. When you bring the searcher
+  with tab having no node selected, a new action will be available next to the
+  examples and code suggestions: `Create New Project`. When you choose it by
+  clicking with mouse or selecting and pressing enter, a new unnamed project
+  will be created and opened in the application. Then you can give a name to
+  this project.
+
 #### EnsoGL (rendering engine)
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
@@ -22,16 +29,9 @@
 
 #### Enso Compiler
 
-If you're interested in the enhancements and fixes made to the Enso compiler,
-you can find their release notes
-[here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
-
 [1556]: https://github.com/enso-org/ide/pull/1556
 [1561]: https://github.com/enso-org/ide/pull/1561
-
-<br/>
-
-
+[1566]: https://github.com/enso-org/ide/pull/1566
 
 # Enso 2.0.0-alpha.5 (2021-05-14)
 
@@ -46,7 +46,7 @@ you can find their release notes
 #### Visual Environment
 
 - [Delete key will delete selected nodes][1538].
-  
+
 #### EnsoGL (rendering engine)
 
 #### Enso Compiler
@@ -57,9 +57,8 @@ If you're interested in the enhancements and fixes made to the Enso compiler,
 you can find their release notes
 [here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
 
-[1541]: https://github.com/enso-org/ide/pull/1511
 [1538]: https://github.com/enso-org/ide/pull/1538
-[1561]: https://github.com/enso-org/ide/pull/1561
+[1541]: https://github.com/enso-org/ide/pull/1541
 
 <br/>
 
@@ -70,16 +69,6 @@ you can find their release notes
 #### Visual Environment
 
 - [Window management buttons.][1511]. The IDE now has components for
-<<<<<<< HEAD
-  "fullscreen" nad "close" buttons. They will be available only when running IDE
-  in a cloud environment.
-- [Create New Project action in Searcher][1566]. When you bring the searcher
-  with tab having no node selected, a new action will be available next to the 
-  examples and code suggestions: `Create New Project`. When you choose it by 
-  clicking with mouse or selecting and pressing enter, a new unnamed project 
-  will be created and opened in the application. Then you can give a name to 
-  this project.
-=======
   "fullscreen" and "close" buttons. They will when running IDE in a cloud
   environment where no native window buttons are available.
 - [Customizable backend options][1531]. When invoking Enso IDE through command
@@ -87,7 +76,6 @@ you can find their release notes
   arguments following the separator will be passed to the backend.
 - [Added `--verbose` parameter][1531]. If `--verbose` is given as command line
   argument, the IDE and the backend will produce more detailed logs.
->>>>>>> origin/develop
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
@@ -108,13 +96,9 @@ you can find their release notes
 [here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
 
 [1511]: https://github.com/enso-org/ide/pull/1511
-<<<<<<< HEAD
-[1566]: https://github.com/enso-org/ide/pull/1566
-=======
 [1536]: https://github.com/enso-org/ide/pull/1536
 [1531]: https://github.com/enso-org/ide/pull/1531
 [1531]: https://github.com/enso-org/ide/pull/1539
->>>>>>> origin/develop
 
 <br/>
 

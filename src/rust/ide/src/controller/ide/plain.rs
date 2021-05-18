@@ -1,4 +1,4 @@
-//! The Plain IDE Controller
+//! The Plain IDE Controller.
 //!
 //! See [`crate::controller::ide`] for more detailed description of IDE Controller API.
 
@@ -58,7 +58,7 @@ impl Handle {
     ) -> FallibleResult<Self> {
         let logger     = Logger::new("controller::ide::Plain");
         //TODO [ao]: this should be not the default; instead project model should not need the id.
-        //    See also https://github.com/enso-org/ide/issues/1572
+        //    See https://github.com/enso-org/ide/issues/1572
         let project_id = default();
         let project    = model::project::Synchronized::new_connected
             (&logger,None,json_endpoint,binary_endpoint,version,project_id,project_name).await?;
