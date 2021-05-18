@@ -43,11 +43,12 @@ fn failure_to_open_project_is_reported() {
     }));
     fixture.when_stalled_send_error(1,"Service error");
     // FIXME [mwu]
-    //  For some reasons, the line below is needed, even though dropping the fixture does the very
-    //  same call. Apparently `run_until_stalled` must be called twice. This looks like an error,
-    //  and happens only for wasm targets.
+    //  For some reasons, the line below is needed for the test to succeed. This is unexpected, as
+    //  fixture destructor calls `run_until_stalled` as well, and as it is supposed to perform all
+    //  available work, there should be no difference between calling it once and multiple times.
+    //  This looks like an error, and happens only for wasm targets.
     //  This did not happen on the 2019 nightly.
-    //  Further investigation needed.
+    //  Further investigation needed, tracked by https://github.com/enso-org/ide/issues/1575
     fixture.run_until_stalled();
 }
 
