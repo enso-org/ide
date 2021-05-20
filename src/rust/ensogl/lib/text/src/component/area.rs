@@ -102,7 +102,8 @@ pub mod selection {
             let alpha          = alpha_weight.mix(blinking_alpha,SELECTION_ALPHA);
             let shape          = Rect((1.px() * rect_width,1.px() * rect_height));
             let shape          = shape.corners_radius(SELECTION_CORNER_RADIUS.px());
-            let color          = format!("srgba({}.x,{}.y,{}.z,{})",color_rgb,color_rgb,color_rgb,alpha.glsl());
+            let color          = format!("srgba({}.x,{}.y,{}.z,{})",color_rgb,color_rgb
+                ,color_rgb,alpha.glsl());
             let shape          = shape.fill(color);
             shape.into()
         }
@@ -160,7 +161,8 @@ impl Selection {
         position . update_spring (|spring| spring * spring_factor);
         width    . update_spring (|spring| spring * spring_factor);
 
-        Self {logger,display_object,right_side,shape_view,network,position,width,edit_mode,set_color} . init()
+        Self {logger,display_object,right_side,shape_view,network,position,width,edit_mode
+            ,set_color}.init()
     }
 
     fn init(self) -> Self {

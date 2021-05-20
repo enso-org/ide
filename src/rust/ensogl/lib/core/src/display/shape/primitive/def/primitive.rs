@@ -285,9 +285,9 @@ define_sdf_shapes! {
     /// * `inner_height`  - Distance between the centers of the two circles.
     UnevenCapsule (radius_top:Pixels, radius_bottom:Pixels, inner_height:Pixels) {
         position.x = abs(position.x);
-        float b = (radius_bottom-radius_top) / inner_height;
-        float a = sqrt(1.0-b*b);
-        float k = dot(position,vec2(-b,a));
+        float b    = (radius_bottom-radius_top) / inner_height;
+        float a    = sqrt(1.0-b*b);
+        float k    = dot(position,vec2(-b,a));
         float dist;
         if (k < 0.0) {
             dist = length(position) - radius_bottom;
@@ -297,11 +297,11 @@ define_sdf_shapes! {
             dist = dot(position,vec2(a,b)) - radius_bottom;
         }
 
-        float max_radius = max(radius_top,radius_bottom);
-        float min_x = -max_radius;
-        float max_x = max_radius;
-        float min_y = -radius_bottom;
-        float max_y = inner_height + radius_top;
+        float max_radius   = max(radius_top,radius_bottom);
+        float min_x        = -max_radius;
+        float max_x        = max_radius;
+        float min_y        = -radius_bottom;
+        float max_y        = inner_height + radius_top;
         BoundingBox bounds = bounding_box(min_x,max_x,min_y,max_y);
 
         return bound_sdf(dist,bounds);

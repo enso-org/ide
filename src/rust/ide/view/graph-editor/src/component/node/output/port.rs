@@ -62,10 +62,6 @@ const SHOW_TYPE_AS_LABEL   : bool = true;
 ///  ╰──────────────────────────────╯ ▼ (node_size / 2) + PORT_SIZE
 ///  ◄──────────────────────────────►
 ///   width = node_width + PORT_SIZE
-
-
-
-
 /// ```
 ///
 /// The corners are rounded with the `radius = inner_radius + port_area_size`. The shape also
@@ -555,9 +551,11 @@ impl Model {
 
                 // === Type Label ===
 
-                type_label_visibility        <- frp.on_hover.and(&frp.set_type_label_visibility);
-                type_label_opacity.target    <+ type_label_visibility.on_true().constant(PORT_OPACITY_HOVERED);
-                type_label_opacity.target    <+ type_label_visibility.on_false().constant(0.0);
+                type_label_visibility     <- frp.on_hover.and(&frp.set_type_label_visibility);
+                on_type_label_visible     <- type_label_visibility.on_true();
+                type_label_opacity.target <+ on_type_label_visible.constant(PORT_OPACITY_HOVERED);
+                type_label_opacity.target <+ type_label_visibility.on_false().constant(0.0);
+
                 type_label_color             <- all_with(&color.value,&type_label_opacity.value,
                     |color,&opacity| color.opaque.with_alpha(opacity).into());
                 type_label.set_color_all     <+ type_label_color;

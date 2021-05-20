@@ -38,7 +38,7 @@ further investigation.
 | <kbd>ctrl</kbd>+<kbd>q</kbd>                                | Close the application (Linux) |
 | <kbd>alt</kbd>+<kbd>F4</kbd>                                | Close the application (MacOS, Windows, Linux) |
 | <kbd>ctrl</kbd>+<kbd>w</kbd>                                | Close the application (Windows, Linux) |
-| :warning: <kbd>ctrl</kbd>+<kbd>p</kbd>                                | Toggle profiling mode |
+| :warning: <kbd>ctrl</kbd>+<kbd>p</kbd>                      | Toggle profiling mode |
 
 
 #### Navigation
@@ -106,7 +106,6 @@ further investigation.
 | -------- | ------ |
 | <kbd>meta</kbd> + <kbd>a</kbd> | Show all points if available in visualization. |
 | <kbd>meta</kbd> + <kbd>z</kbd> | Zoom into selection if available in visualization. |
-
 
 
 #### Debug

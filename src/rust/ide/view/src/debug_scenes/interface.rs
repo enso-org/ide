@@ -8,7 +8,7 @@ use crate::prelude::*;
 
 use crate::graph_editor;
 use crate::graph_editor::GraphEditor;
-use crate::graph_editor::NodeExecutionStatus;
+use crate::graph_editor::NodeProfilingStatus;
 use crate::graph_editor::Type;
 use crate::project;
 use crate::status_bar;
@@ -196,12 +196,12 @@ fn init(app:&Application) {
 
     // === Profiling ===
 
-    let node1_status = NodeExecutionStatus::Finished { duration: 400.0 };
-    graph_editor.set_node_execution_status(node1_id, node1_status);
-    let node2_status = NodeExecutionStatus::Finished { duration: 300.0 };
-    graph_editor.set_node_execution_status(node2_id, node2_status);
-    let node3_status = NodeExecutionStatus::Finished { duration: 200.0 };
-    graph_editor.set_node_execution_status(node3_id, node3_status);
+    let node1_status = NodeProfilingStatus::Finished { duration: 400.0 };
+    graph_editor.set_node_profiling_status(node1_id, node1_status);
+    let node2_status = NodeProfilingStatus::Finished { duration: 300.0 };
+    graph_editor.set_node_profiling_status(node2_id, node2_status);
+    let node3_status = NodeProfilingStatus::Finished { duration: 200.0 };
+    graph_editor.set_node_profiling_status(node3_id, node3_status);
 
 
     // let tgt_type = dummy_type_generator.get_dummy_type();

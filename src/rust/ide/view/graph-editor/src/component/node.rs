@@ -12,14 +12,15 @@ pub mod output;
 pub mod error;
 #[deny(missing_docs)]
 pub mod vcs;
-mod profiling_indicator;
+#[warn(missing_docs)]
+pub mod profiling;
 
 pub use error::Error;
 pub use expression::Expression;
 
 use crate::prelude::*;
 
-use crate::component::node::profiling_indicator::ProfilingIndicator;
+use crate::component::node::profiling::RunningTimeLabel;
 use crate::Mode as EditorMode;
 use crate::component::visualization;
 use crate::tooltip;
@@ -37,6 +38,7 @@ use ensogl::display;
 use ensogl_gui_components::shadow;
 use ensogl_text::Text;
 use ensogl_theme;
+use ensogl_theme::graph_editor::node::profiling as profiling_theme;
 use std::f32::EPSILON;
 
 use super::edge;
@@ -208,24 +210,6 @@ pub mod error_shape {
 
 
 
-// ========================
-// === Execution Status ===
-// ========================
-
-#[derive(Debug,Copy,Clone)]
-pub enum ExecutionStatus {
-    Running,
-    Finished { duration: f32 }
-}
-
-impl Default for ExecutionStatus {
-    fn default() -> Self {
-        ExecutionStatus::Running
-    }
-}
-
-
-
 // ==============
 // === Crumbs ===
 // ==============
@@ -285,7 +269,7 @@ ensogl::define_endpoints! {
         set_editor_mode                   (EditorMode),
         set_profiling_min_global_duration (f32),
         set_profiling_max_global_duration (f32),
-        set_execution_status              (ExecutionStatus),
+        set_profiling_status              (profiling::Status),
     }
     Output {
         /// Press event. Emitted when user clicks on non-active part of the node, like its
@@ -384,7 +368,7 @@ pub struct NodeModel {
     pub background          : background::View,
     pub drag_area           : drag_area::View,
     pub error_indicator     : error_shape::View,
-    pub profiling_indicator : ProfilingIndicator,
+    pub running_time_label  : RunningTimeLabel,
     pub input               : input::Area,
     pub output              : output::Area,
     pub visualization       : visualization::Container,
@@ -422,14 +406,14 @@ impl NodeModel {
         let error_indicator_logger  = Logger::sub(&logger,"error_indicator");
 
         let error_indicator     = error_shape::View::new(&error_indicator_logger);
-        let profiling_indicator = ProfilingIndicator::new(app);
+        let running_time_label  = RunningTimeLabel::new(app);
         let backdrop            = backdrop::View::new(&main_logger);
         let background          = background::View::new(&main_logger);
         let drag_area           = drag_area::View::new(&drag_logger);
         let vcs_indicator       = vcs::StatusIndicator::new(app);
         let display_object      = display::object::Instance::new(&logger);
 
-        display_object.add_child(&profiling_indicator);
+        display_object.add_child(&running_time_label);
         display_object.add_child(&drag_area);
         display_object.add_child(&backdrop);
         display_object.add_child(&background);
@@ -460,7 +444,7 @@ impl NodeModel {
 
         let app = app.clone_ref();
         Self {app,display_object,logger,backdrop,background,drag_area,output,input,visualization
-            ,error_visualization,profiling_indicator,action_bar,error_indicator,vcs_indicator,style}
+            ,error_visualization,running_time_label,action_bar,error_indicator,vcs_indicator,style}
             .init()
     }
 
@@ -508,7 +492,7 @@ impl NodeModel {
         self.background.mod_position(|t| t.x = width/2.0);
         self.drag_area.mod_position(|t| t.x = width/2.0);
 
-        self.profiling_indicator.set_position_x(width/2.0);
+        self.running_time_label.set_position_x(width/2.0);
         self.error_indicator.set_position_x(width/2.0);
         self.vcs_indicator.set_position_x(width/2.0);
 
@@ -602,6 +586,7 @@ impl Node {
             eval frp.set_expression  ((a)     model.set_expression(a));
             out.source.expression                  <+ model.input.frp.expression;
             model.input.set_connected              <+ frp.set_input_connected;
+            model.input.set_disabled               <+ frp.set_disabled;
             model.output.set_expression_visibility <+ frp.set_output_expression_visibility;
 
 
@@ -622,7 +607,7 @@ impl Node {
             // === Editor Mode ===
 
             model.input.set_editor_mode               <+ frp.set_editor_mode;
-            model.profiling_indicator.set_editor_mode <+ frp.set_editor_mode;
+            model.running_time_label.set_editor_mode  <+ frp.set_editor_mode;
             model.vcs_indicator.set_visibility        <+ frp.set_editor_mode.map(|&mode| {
                 !matches!(mode,EditorMode::Profiling {..})
             });
@@ -640,12 +625,14 @@ impl Node {
             frp.source.error <+ frp.set_error;
             is_error_set <- frp.error.map(|err| err.is_some());
             no_error_set <- not(&is_error_set);
-            error_color_anim.target <+ all_with(&frp.error,&frp.set_editor_mode,f!([style](error,&mode)
-                match mode {
-                    EditorMode::Normal    => Self::error_color(error,&style),
-                    EditorMode::Profiling => Self::error_color(error,&style).desaturate(),
-                }
-            ));
+            error_color_anim.target <+ all_with(&frp.error,&frp.set_editor_mode,
+                f!([style](error,&mode)
+                    let error_color = Self::error_color(error,&style);
+                    match mode {
+                        EditorMode::Normal    => error_color,
+                        EditorMode::Profiling => error_color.to_grayscale(),
+                    }
+                ));
 
             eval frp.set_visualization ((t) model.visualization.frp.set_visualization.emit(t));
             visualization_enabled_frp <- bool(&frp.disable_visualization,&frp.enable_visualization);
@@ -708,12 +695,12 @@ impl Node {
         // === Profiling Indicator ===
 
         frp::extend! { network
-            model.profiling_indicator.set_min_global_duration
+            model.running_time_label.set_min_global_duration
                 <+ frp.set_profiling_min_global_duration;
-            model.profiling_indicator.set_max_global_duration
+            model.running_time_label.set_max_global_duration
                 <+ frp.set_profiling_max_global_duration;
-            model.profiling_indicator.set_execution_status <+ frp.set_execution_status;
-            model.input.set_execution_status <+ frp.set_execution_status;
+            model.running_time_label.set_status <+ frp.set_profiling_status;
+            model.input.set_profiling_status    <+ frp.set_profiling_status;
         }
 
         let bg_color_anim = color::Animation::new(network);
@@ -724,37 +711,33 @@ impl Node {
 
             let bgg = style_frp.get_color(ensogl_theme::graph_editor::node::background);
 
-            let profiling_theme     = ensogl_theme::graph_editor::node::profiling::HERE.path();
-            let profiling_lightness = style_frp.get_number_or(profiling_theme.sub("lightness"),0.72);
-            let profiling_chroma    = style_frp.get_number_or(profiling_theme.sub("chroma"),0.7);
-            let profiling_min_hue   = style_frp.get_number_or(profiling_theme.sub("min_hue"),0.38);
-            let profiling_max_hue   = style_frp.get_number_or(profiling_theme.sub("max_hue"),0.07);
+            let profiling_lightness = style_frp.get_number_or(profiling_theme::lightness,0.7);
+            let profiling_chroma    = style_frp.get_number_or(profiling_theme::chroma,0.7);
+            let profiling_min_hue   = style_frp.get_number_or(profiling_theme::min_time_hue,0.4);
+            let profiling_max_hue   = style_frp.get_number_or(profiling_theme::max_time_hue,0.1);
 
             profiling_color <- all_with8
-                (&frp.set_execution_status,&frp.set_profiling_min_global_duration,
+                (&frp.set_profiling_status,&frp.set_profiling_min_global_duration,
                 &frp.set_profiling_max_global_duration,&profiling_lightness,&profiling_chroma,
                 &profiling_min_hue,&profiling_max_hue,&bgg,
-                |&status,&min,&max,&lightness,&chroma,&min_hue,&max_hue,&bgg| {
+                |&status,&min,&max,&lightness,&chroma,&min_time_hue,&max_time_hue,&bgg| {
                     match status {
-                        ExecutionStatus::Running => color::Lcha::from(bgg),
-                        ExecutionStatus::Finished {duration} => {
-                            let hue_delta         = max_hue - min_hue;
-                            let relative_duration = (duration - min) / (max - min);
-                            let hue               = min_hue + relative_duration * hue_delta;
-                            let alpha             = 1.0;
-                            color::Lcha::new(lightness,chroma,hue,alpha)
+                        profiling::Status::Running => color::Lcha::from(bgg),
+                        profiling::Status::Finished {..} => {
+                            let theme = profiling::Theme {lightness,chroma,min_time_hue
+                                ,max_time_hue};
+                            status.display_color(min,max,theme).with_alpha(1.0)
                         }
                     }
                 });
 
-            bg_color_anim.target <+ all_with4(&bgg,&frp.set_disabled,&frp.set_editor_mode,&profiling_color,
-                f!([model](bgg,disabled,&mode,profiling_color) {
-                    model.input.frp.set_disabled(*disabled);
+            bg_color_anim.target <+ all_with3(&bgg,&frp.set_editor_mode,&profiling_color,
+                |bgg,&mode,&profiling_color| {
                     match mode {
                         EditorMode::Normal    => color::Lcha::from(*bgg),
-                        EditorMode::Profiling => *profiling_color,
+                        EditorMode::Profiling => profiling_color,
                     }
-            }));
+                });
 
             // FIXME [WD]: Uncomment when implementing disabled icon.
             // bg_color <- frp.set_disabled.map(f!([model,style](disabled) {
@@ -768,7 +751,8 @@ impl Node {
             //     model.background.bg_color.set(color::Rgba::from(c).into())
             // );
 
-            eval bg_color_anim.value ((c) model.background.bg_color.set(color::Rgba::from(c).into()));
+            eval bg_color_anim.value ((c)
+                model.background.bg_color.set(color::Rgba::from(c).into()));
 
 
             // === Tooltip ===
@@ -780,7 +764,7 @@ impl Node {
             frp.source.tooltip <+ model.output.frp.tooltip.gate_not(&block_tooltip);
 
 
-            // === Output Label ===
+            // === Type Labels ===
 
             model.output.set_type_label_visibility
                 <+ visualization_visible.not().and(&no_error_set);

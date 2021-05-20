@@ -315,10 +315,10 @@ define_themes! { [light:0, dark:1]
                 stripe_angle = 45.0 , 45.0;
             }
             profiling {
-                lightness = code::types::lightness , code::types::lightness;
-                chroma    = code::types::chroma    , code::types::chroma;
-                min_hue   = 0.38                   , 0.38;
-                max_hue   = 0.07                   , 0.07;
+                lightness    = code::types::lightness , code::types::lightness;
+                chroma       = code::types::chroma    , code::types::chroma;
+                min_time_hue = 0.38                   , 0.38;
+                max_time_hue = 0.07                   , 0.07;
             }
             type_label {
                 offset_y = -23.0, -23.0;
@@ -377,9 +377,11 @@ define_themes! { [light:0, dark:1]
             }
         }
         profiling_button {
-            non_toggled     = graph_editor::node::actions::button::non_toggled , graph_editor::node::actions::button::non_toggled;
+            non_toggled     = graph_editor::node::actions::button::non_toggled
+                ,graph_editor::node::actions::button::non_toggled;
             toggled         = Lcha(0.7,0.5,0.12,1.0) , Lcha(0.7,0.5,0.12,1.0);
-            hovered         = graph_editor::node::actions::button::hovered , graph_editor::node::actions::button::hovered;
+            hovered         = graph_editor::node::actions::button::hovered
+                ,graph_editor::node::actions::button::hovered;
             toggled_hovered = Lcha(0.55,0.5,0.12,1.0) , Lcha(0.85,0.5,0.12,1.0);
         }
     }

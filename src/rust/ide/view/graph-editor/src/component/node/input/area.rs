@@ -21,7 +21,7 @@ use text::Text;
 use crate::Type;
 use crate::component::type_coloring;
 use crate::node::input::port;
-use crate::node::ExecutionStatus;
+use crate::node::profiling;
 use crate::node;
 use crate::Mode as EditorMode;
 
@@ -198,7 +198,7 @@ ensogl::define_endpoints! {
         set_ports_active (bool,Option<Type>),
 
         set_editor_mode      (EditorMode),
-        set_execution_status (ExecutionStatus),
+        set_profiling_status (profiling::Status),
     }
 
     Output {
@@ -398,6 +398,7 @@ impl Area {
 
 
             // === Editor Mode ===
+
             frp.output.source.editor_mode <+ frp.set_editor_mode;
             selection_color.target <+ frp.editor_mode.map(f!([model](&mode) {
                 let path = match mode {
@@ -688,15 +689,16 @@ impl Area {
 
             let styles = model.styles.clone_ref();
             frp::extend! { port_network
-                base_color <- all_with3(&self.editor_mode,&self.set_execution_status,&frp.tp,
+                base_color <- all_with3(&self.editor_mode,&self.set_profiling_status,&frp.tp,
                     f!([styles](&mode,&status,t) {
+                        use theme::code::syntax;
                         match (mode,status) {
-                            (EditorMode::Normal,_) =>
+                            (EditorMode::Normal, _) =>
                                 type_coloring::compute_for_code(t.as_ref(),&styles),
-                            (EditorMode::Profiling,ExecutionStatus::Running) =>
-                                color::Lcha::from(styles.get_color(theme::code::syntax::base)),
-                            (EditorMode::Profiling,ExecutionStatus::Finished {..}) =>
-                                color::Lcha::from(styles.get_color(theme::code::syntax::profiling::base)),
+                            (EditorMode::Profiling, profiling::Status::Running) =>
+                                color::Lcha::from(styles.get_color(syntax::base)),
+                            (EditorMode::Profiling, profiling::Status::Finished {..}) =>
+                                color::Lcha::from(styles.get_color(syntax::profiling::base)),
                         }
                     })
                 );
@@ -707,10 +709,10 @@ impl Area {
                 frp::extend! { port_network
                     is_selected    <- frp.set_hover || frp.set_parent_connected;
                     text_color_tgt <- all_with5(&is_selected,&self.frp.set_disabled,
-                        &self.editor_mode,&self.set_execution_status,&base_color,
+                        &self.editor_mode,&self.set_profiling_status,&base_color,
                         f!([styles](&is_selected,&is_disabled,&mode,&status,&base_color) {
                             let path = match (mode, status) {
-                                (EditorMode::Profiling, ExecutionStatus::Finished {..}) =>
+                                (EditorMode::Profiling, profiling::Status::Finished {..}) =>
                                     theme::code::syntax::profiling::HERE.path(),
                                 _ =>
                                     theme::code::syntax::HERE.path(),
@@ -726,13 +728,14 @@ impl Area {
                             else if is_expected_arg { expected_color }
                             else                    { base_color }
                         }));
-                    editing_color <- all_with(&self.editor_mode,&self.set_execution_status,
+                    editing_color <- all_with(&self.editor_mode,&self.set_profiling_status,
                         f!([styles](&mode,&status) {
-                            let path = match (mode,status) {
-                                (EditorMode::Profiling,ExecutionStatus::Finished {..}) =>
-                                    theme::code::syntax::profiling::base,
-                                _ =>
-                                    theme::code::syntax::base,
+                            use theme::code::syntax;
+                            let is_profiled = mode.is_profiling() && status.is_finished();
+                            let path = if is_profiled {
+                                syntax::profiling::base
+                            } else {
+                                syntax::base
                             };
                             color::Lcha::from(styles.get_color(path))
                     }));
@@ -763,8 +766,8 @@ impl Area {
                 frp::extend! { port_network
                     port_tp       <- all(&frp.set_hover,&frp.tp)._1();
                     new_viz_color <- all_with3
-                        (&port_tp,&frp.set_connected,&self.editor_mode,
-                        f!([styles](port_tp,(is_connected,edge_tp),editor_mode) {
+                        (&port_tp,&frp.set_connected,&self.editor_mode
+                        ,f!([styles](port_tp,(is_connected,edge_tp),editor_mode) {
                             if *is_connected {
                                 match editor_mode {
                                     EditorMode::Normal => {

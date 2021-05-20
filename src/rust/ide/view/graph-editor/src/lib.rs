@@ -34,10 +34,10 @@ pub mod component;
 
 pub mod builtin;
 pub mod data;
-mod profiling_icon;
+mod profiling;
 
 use crate::component::node;
-pub use crate::component::node::ExecutionStatus as NodeExecutionStatus;
+pub use crate::component::node::profiling::Status as NodeProfilingStatus;
 use crate::component::tooltip::Tooltip;
 use crate::component::visualization::instance::PreprocessorConfiguration;
 use crate::component::tooltip;
@@ -61,12 +61,9 @@ use ensogl::display::object::Id;
 use ensogl::display::shape::StyleWatch;
 use ensogl::display;
 use ensogl::gui::cursor;
-use ensogl_gui_components::toggle_button;
-use ensogl_gui_components::toggle_button::ToggleButton;
 use ensogl::prelude::*;
 use ensogl::system::web;
 use ensogl_theme as theme;
-use std::f32;
 
 
 
@@ -123,6 +120,16 @@ pub enum Mode {
 impl Default for Mode {
     fn default() -> Self {
         Mode::Normal
+    }
+}
+
+impl Mode {
+    pub fn is_normal(self) -> bool {
+        matches!(self,Mode::Normal)
+    }
+
+    pub fn is_profiling(self) -> bool {
+        matches!(self,Mode::Profiling)
     }
 }
 
@@ -429,7 +436,7 @@ ensogl::define_endpoints! {
         /// Indicate whether this node had an error or not.
         set_node_error_status(NodeId,Option<node::error::Error>),
         /// Indicate whether this node has finished execution.
-        set_node_execution_status(NodeId,NodeExecutionStatus),
+        set_node_profiling_status(NodeId,node::profiling::Status),
 
 
         // === Visualization ===
@@ -1002,87 +1009,6 @@ impl Edges {
 
 
 
-// =========================
-// === ExecutionStatuses ===
-// =========================
-
-/// [`ExecutionsStatuses`] can be used to collect the execution statuses of all nodes in a graph. It
-/// exposes their minimum and maximum running times through its FRP endpoints. The structure needs
-/// to be updated whenever a node is added or deleted or changes its execution status.
-mod execution_statuses {
-    use bimap::BiBTreeMap;
-    use ordered_float::OrderedFloat;
-
-    use super::*;
-
-    ensogl::define_endpoints! {
-        Input {
-            set    (NodeId, NodeExecutionStatus),
-            remove (NodeId)
-        }
-        Output {
-            min_duration (f32),
-            max_duration (f32),
-        }
-    }
-
-    #[derive(Debug,Clone,CloneRef,Default)]
-    pub struct ExecutionStatuses {
-        frp       : Frp,
-        durations : Rc<RefCell<BiBTreeMap<NodeId,OrderedFloat<f32>>>>
-    }
-
-    impl Deref for ExecutionStatuses {
-        type Target = Frp;
-
-        fn deref(&self) -> &Self::Target {
-            &self.frp
-        }
-    }
-
-    impl ExecutionStatuses {
-        pub fn new() -> Self {
-            let frp       = Frp::new();
-            let durations = Rc::new(RefCell::new(BiBTreeMap::<NodeId,OrderedFloat<f32>>::new()));
-
-            let network   = &frp.network;
-            frp::extend! { network
-                min_and_max_from_set <- frp.set.map(f!([durations]((node,status)) {
-                    match status {
-                        NodeExecutionStatus::Finished {duration} => {
-                            durations.borrow_mut().insert(*node,OrderedFloat(*duration));
-                        },
-                        _ => {
-                            durations.borrow_mut().remove_by_left(node);
-                        },
-                    };
-                    Self::min_and_max(&*durations.borrow())
-                }));
-
-                min_and_max_from_remove <- frp.remove.map(f!([durations](node) {
-                    durations.borrow_mut().remove_by_left(&node);
-                    Self::min_and_max(&*durations.borrow())
-                }));
-
-                min_and_max <- any(&min_and_max_from_set,&min_and_max_from_remove);
-                frp.source.min_duration <+ min_and_max._0().on_change();
-                frp.source.max_duration <+ min_and_max._1().on_change();
-            }
-
-            Self {frp,durations}
-        }
-
-        fn min_and_max(durations:&BiBTreeMap<NodeId,OrderedFloat<f32>>) -> (f32,f32) {
-            let mut durations = durations.right_values().copied();
-            let min = durations.next().map(OrderedFloat::into_inner).unwrap_or(f32::INFINITY);
-            let max = durations.last().map(OrderedFloat::into_inner).unwrap_or(0.0);
-            (min, max)
-        }
-    }
-}
-use execution_statuses::ExecutionStatuses;
-
-
 #[derive(Debug,Clone,CloneRef,Default)]
 struct Visualisations {
     /// This keeps track of the currently selected visualisation. There should only ever be one
@@ -1302,10 +1228,12 @@ impl GraphEditorModelWithNetwork {
 
             // === Profiling ===
 
-            node.set_profiling_min_global_duration <+ self.model.execution_statuses.min_duration;
-            node.set_profiling_min_global_duration(self.model.execution_statuses.min_duration.value());
-            node.set_profiling_max_global_duration <+ self.model.execution_statuses.max_duration;
-            node.set_profiling_max_global_duration(self.model.execution_statuses.max_duration.value());
+            let profiling_min_duration = &self.model.profiling_statuses.min_duration;
+            node.set_profiling_min_global_duration <+ self.model.profiling_statuses.min_duration;
+            node.set_profiling_min_global_duration(profiling_min_duration.value());
+            let profiling_max_duration = &self.model.profiling_statuses.max_duration;
+            node.set_profiling_max_global_duration <+ self.model.profiling_statuses.max_duration;
+            node.set_profiling_max_global_duration(profiling_max_duration.value());
         }
         node.set_editor_mode(self.model.frp.mode.value());
         let initial_metadata = visualization::Metadata {
@@ -1413,8 +1341,8 @@ pub struct GraphEditorModel {
     visualisations     : Visualisations,
     frp                : FrpEndpoints,
     navigator          : Navigator,
-    execution_statuses : ExecutionStatuses,
-    profiling_button   : ToggleButton<profiling_icon::DynamicShape>,
+    profiling_statuses : profiling::Statuses,
+    profiling_button   : component::profiling::Button,
 }
 
 
@@ -1440,12 +1368,12 @@ impl GraphEditorModel {
         let frp                = frp.output.clone_ref();
         let navigator          = Navigator::new(&scene,&scene.camera());
         let tooltip            = Tooltip::new(&app);
-        let execution_statuses = ExecutionStatuses::new();
-        let profiling_button   = ToggleButton::<profiling_icon::DynamicShape>::new(&logger);
+        let profiling_statuses = profiling::Statuses::new();
+        let profiling_button   = component::profiling::Button::new(&app);
 
         Self {
             logger,display_object,app,cursor,nodes,edges,touch_state,frp,breadcrumbs,
-            vis_registry,visualisations,navigator,tooltip,execution_statuses,profiling_button,
+            vis_registry,visualisations,navigator,tooltip,profiling_statuses,profiling_button,
         }.init()
     }
 
@@ -1457,22 +1385,7 @@ impl GraphEditorModel {
         self.breadcrumbs.set_position_y(y_offset);
         self.breadcrumbs.gap_width(traffic_lights_gap_width());
         self.scene().add_child(&self.tooltip);
-
         self.add_child(&self.profiling_button);
-        self.scene().layers.breadcrumbs_background.add_exclusive(&self.profiling_button);
-        self.profiling_button.set_visibility(true);
-        self.profiling_button.set_size(Vector2(32.0,32.0));
-
-        let styles = StyleWatch::new(&self.scene().style_sheet);
-        let color_scheme = toggle_button::ColorScheme {
-            non_toggled     : Some(styles.get_color(theme::graph_editor::profiling_button::non_toggled).into()),
-            toggled         : Some(styles.get_color(theme::graph_editor::profiling_button::toggled).into()),
-            hovered         : Some(styles.get_color(theme::graph_editor::profiling_button::hovered).into()),
-            toggled_hovered : Some(styles.get_color(theme::graph_editor::profiling_button::toggled_hovered).into()),
-            ..default()
-        };
-        self.profiling_button.set_color_scheme(&color_scheme);
-
         self
     }
 
@@ -2768,10 +2681,10 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     frp::extend! { network
 
-        eval inputs.set_node_execution_status([model]((node_id,status)) {
+        eval inputs.set_node_profiling_status([model]((node_id,status)) {
             if let Some(node) = model.nodes.get_cloned_ref(node_id) {
-                model.execution_statuses.set(*node_id,*status);
-                node.set_execution_status(status);
+                model.profiling_statuses.set(*node_id,*status);
+                node.set_profiling_status(status);
             }
         });
 
@@ -3193,7 +3106,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     eval out.node_selected   ((id) model.select_node(id));
     eval out.node_deselected ((id) model.deselect_node(id));
     eval out.node_removed    ((id) model.remove_node(id));
-    model.execution_statuses.remove <+ out.node_removed;
+    model.profiling_statuses.remove <+ out.node_removed;
     out.source.on_visualization_select <+ out.node_removed.map(|&id| Switch::Off(id));
 
     eval inputs.set_node_expression (((id,expr)) model.set_node_expression(id,expr));
@@ -3278,9 +3191,12 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         out.source.mode <+ frp.toggle_profiling_mode.map2(&frp.mode,|_,&mode| {
             match mode {
                 Mode::Profiling => Mode::Normal,
-                _               => Mode::Profiling,
+                Mode::Normal    => Mode::Profiling,
             }
         });
+
+        out.source.mode <+ model.profiling_button.mode;
+        model.profiling_button.set_mode <+ out.mode.on_change();
 
         eval out.mode([model](_) {
             for edge_id in model.edges.keys() {
@@ -3294,26 +3210,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
                 Mode::Profiling => 1.0,
             }
         });
-        eval profiling_mode_transition.value ((&v) scene.dom.layers.back.set_grayscale(v));
-    }
-
-
-    // === Profiling Button ===
-
-    frp::extend! { network
-        out.source.mode <+ model.profiling_button.state.map(|&toggled| {
-            if toggled { Mode::Profiling } else { Mode::Normal }
-        });
-
-        model.profiling_button.set_state <+ out.mode.on_change().map(|&mode| {
-            matches!(mode,Mode::Profiling)
-        });
-
-        eval scene.frp.camera_changed([model,scene](_) {
-            let screen = scene.camera().screen();
-            model.profiling_button.set_position_x(screen.width/2.0 - 16.0);
-            model.profiling_button.set_position_y(screen.height/2.0 - 16.0);
-        });
+        eval profiling_mode_transition.value ((&v) scene.dom.layers.back.filter_grayscale(v));
     }
 
 
