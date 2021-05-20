@@ -417,6 +417,7 @@ impl List {
         self.provider.set(provider);
     }
 
+    /// Sets the scene layer where the labels will be placed.
     pub fn set_label_layer(&self, label_layer:LayerId) {
         if let Some(layer) = self.app.display.scene().layers.get(self.label_layer.get()) {
             for entry in &*self.entries.borrow() {
