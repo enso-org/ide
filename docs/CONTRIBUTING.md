@@ -59,7 +59,7 @@ setup:
   install it:
 
   ```bash
-  rustup toolchain install nightly-2019-11-04     # Install the nightly channel.
+  rustup toolchain install nightly-2021-05-12     # Install the nightly channel.
   rustup component add clippy                     # Install the linter.
   cargo +stable install wasm-pack --version 0.9.1 # Install the wasm-pack toolkit.
   cargo +stable install cargo-watch               # To enable ./run watch utility
