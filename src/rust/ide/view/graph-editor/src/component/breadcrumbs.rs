@@ -199,7 +199,7 @@ impl BreadcrumbsModel {
         let background            = background::View::new(&logger);
         let gap_width             = default();
 
-        scene.layers.breadcrumbs_background.add_exclusive(&background);
+        scene.layers.panel.add_exclusive(&background);
 
         Self{logger,display_object, root,app,breadcrumbs,project_name,breadcrumbs_container,
             frp_inputs,current_index,camera,background,gap_width}.init(&scene)
