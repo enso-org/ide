@@ -1058,6 +1058,7 @@ fn apply_this_argument(this_var:&str, ast:&Ast) -> Ast {
 pub mod test {
     use super::*;
 
+    use crate::controller::ide::plain::ProjectOperationsNotSupported;
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
     use crate::model::SuggestionDatabase;
     use crate::model::suggestion_database::entry::Argument;
@@ -1071,6 +1072,8 @@ pub mod test {
     use json_rpc::expect_call;
     use utils::test::traits::*;
     use enso_protocol::language_server::SuggestionId;
+
+
 
     pub fn completion_response(results:&[SuggestionId]) -> language_server::response::Completion {
         language_server::response::Completion {
@@ -1158,6 +1161,7 @@ pub mod test {
             let project     = Rc::new(project);
             ide.expect_parser().return_const(Parser::new_or_panic());
             ide.expect_current_project().returning_st(move || project.clone_ref());
+            ide.expect_manage_projects().returning_st(move || Err(ProjectOperationsNotSupported.into()));
             let module_name = QualifiedName::from_segments(PROJECT_NAME, &[MODULE_NAME]).unwrap();
             let searcher = Searcher {
                 graph,logger,database,
