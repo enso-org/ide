@@ -291,6 +291,13 @@ impl BreadcrumbModel {
         let relative_position = default();
         let outputs           = frp.outputs.clone_ref();
 
+        ensogl::shapes_order_dependencies! {
+            scene => {
+                background -> icon;
+                background -> separator;
+            }
+        }
+
         scene.layers.panel.add_exclusive(&view);
         let shape_system = scene.layers.panel.shape_system_registry.shape_system
             (scene,PhantomData::<background::DynamicShape>);
