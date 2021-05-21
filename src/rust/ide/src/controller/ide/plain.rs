@@ -17,8 +17,8 @@ use parser::Parser;
 // =============
 
 #[allow(missing_docs)]
-#[fail(display="Project operations are not supported.")]
 #[derive(Copy,Clone,Debug,Fail)]
+#[fail(display="Project operations are not supported.")]
 pub struct ProjectOperationsNotSupported;
 
 
@@ -64,7 +64,7 @@ impl Handle {
             (&logger,None,json_endpoint,binary_endpoint,version,project_id,project_name).await?;
         let status_notifications = default();
         let parser               = Parser::new_or_panic();
-        Ok(Self{logger,project,status_notifications,parser})
+        Ok(Self{logger,status_notifications,parser,project})
     }
 }
 

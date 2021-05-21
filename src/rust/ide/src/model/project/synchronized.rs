@@ -163,9 +163,9 @@ impl Project {
         
         let properties = Rc::new(Properties {id,name,engine_version});
 
-        let ret = Project { properties,parser,project_manager,language_server_rpc
-            ,language_server_bin,module_registry,execution_contexts,logger,visualization
-            ,suggestion_db,notifications};
+        let ret = Project
+            {properties,project_manager,language_server_rpc,language_server_bin,module_registry
+            ,execution_contexts,visualization,suggestion_db,parser,logger,notifications};
 
         let binary_handler = ret.binary_event_handler();
         crate::executor::global::spawn(binary_protocol_events.for_each(binary_handler));

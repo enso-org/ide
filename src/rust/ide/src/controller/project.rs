@@ -121,7 +121,7 @@ impl Project {
         self.notify_about_compiling_process(&main_graph);
         self.display_warning_on_unsupported_engine_version()?;
 
-        Ok(InitializationResult {main_graph,main_module_text})
+        Ok(InitializationResult {main_module_text,main_graph})
     }
 }
 
