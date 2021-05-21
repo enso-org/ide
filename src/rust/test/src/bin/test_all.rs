@@ -64,7 +64,7 @@ fn main() {
     let tested_members  = all_members.iter().filter(|p| to_be_tested(&p));
 
     for member in tested_members {
-        println!("Running tests for {}:", member);
+        DEBUG!("Running tests for: " member);
         let status = std::process::Command::new("wasm-pack")
             .arg("test")
             .arg(&member)

@@ -224,9 +224,9 @@ impl Client {
     /// defaults if environment is not set.
     pub fn new() -> Result<Client> {
         let config = Config::from_env();
-        println!("Connecting to {}", config.address_string());
+        DEBUG!("Connecting to " config.address_string());
         let client = Client::from_conf(&config)?;
-        println!("Established connection with {}", config.address_string());
+        DEBUG!("Established connection with {}" config.address_string());
         Ok(client)
     }
 
