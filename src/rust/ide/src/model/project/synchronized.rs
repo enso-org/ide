@@ -56,7 +56,7 @@ impl ExecutionContextsRegistry {
     , f  : impl FnOnce(Rc<execution_context::Synchronized>) -> FallibleResult<R>
     ) -> FallibleResult<R> {
         let ctx = self.0.borrow_mut().get(&id);
-        let ctx = ctx.ok_or_else(|| NoSuchExecutionContext(id))?;
+        let ctx = ctx.ok_or(NoSuchExecutionContext(id))?;
         f(ctx)
     }
 
