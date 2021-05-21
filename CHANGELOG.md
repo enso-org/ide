@@ -62,7 +62,6 @@ If you're interested in the enhancements and fixes made to the Enso compiler,
 you can find their release notes
 [here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
 
-
 [1541]: https://github.com/enso-org/ide/pull/1541
 [1538]: https://github.com/enso-org/ide/pull/1538
 
