@@ -52,17 +52,17 @@ pub trait Frp<Model> : Default + CommandApi {
 /// Base struct for UI components in EnsoGL. Contains the Data/Shape model and the FPR exposing its
 /// behaviour.
 #[derive(Clone,CloneRef,Debug)]
-pub struct Component<Model, Frp> {
+pub struct Component<Model,Frp> {
     /// Public FRP api of the Component.
     pub frp : Rc<Frp>,
     model   : Rc<Model>,
     /// Reference to the application the Component belongs to. Generally required for implementing
     /// `application::View` and initialising the `Mode`l and `Frp` and thus provided by the
     /// `Component`.
-    pub app          : Application,
+    pub app : Application,
 }
 
-impl<M:Model, F:Frp<M>> Component<M, F> {
+impl<M:Model,F:Frp<M>> Component<M,F> {
     /// Constructor.
     pub fn new(app:&Application) -> Self {
         let app   = app.clone_ref();
@@ -75,17 +75,18 @@ impl<M:Model, F:Frp<M>> Component<M, F> {
     }
 }
 
-impl<M: display::Object, F> display::Object for Component<M, F> {
+impl<M: display::Object,F> display::Object for Component<M,F> {
     fn display_object(&self) -> &display::object::Instance {
         &self.model.display_object()
     }
 }
 
-impl<M, F:Frp<M>> Deref for Component<M, F>  {
+impl<M,F:Frp<M>> Deref for Component<M,F>  {
     type Target = F;
     fn deref(&self) -> &Self::Target { &self.frp }
 }
 
-impl<M, F:application::command::FrpNetworkProvider> application::command::FrpNetworkProvider for Component<M, F> {
+impl<M,F:application::command::FrpNetworkProvider> application::command::FrpNetworkProvider
+for Component<M,F> {
     fn network(&self) -> &frp::Network { self.frp.network() }
 }
