@@ -13,6 +13,10 @@
 
 #### EnsoGL (rendering engine)
 
+- [Components for picking numbers and ranges.][1524]. We now have some internal
+  re-usable UI components for selecting numbers or a range. Stay tuned for them
+  appearing in the IDE.
+
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
 #### Visual Environment
@@ -29,6 +33,7 @@
 
 #### Enso Compiler
 
+[1524]: https://github.com/enso-org/ide/pull/1524
 [1556]: https://github.com/enso-org/ide/pull/1556
 [1561]: https://github.com/enso-org/ide/pull/1561
 [1566]: https://github.com/enso-org/ide/pull/1566
@@ -57,8 +62,9 @@ If you're interested in the enhancements and fixes made to the Enso compiler,
 you can find their release notes
 [here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
 
-[1538]: https://github.com/enso-org/ide/pull/1538
+
 [1541]: https://github.com/enso-org/ide/pull/1541
+[1538]: https://github.com/enso-org/ide/pull/1538
 
 <br/>
 
@@ -79,10 +85,6 @@ you can find their release notes
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
-- [Fix some internal settings not being applied correctly in the IDE][1539].
-  Some arguments were not passed correctly to the IDE leading to erroneous
-  behaviour in the electron app. This is now fixed.
-
 #### Visual Environment
 
 - [Some command line arguments were not applied correctly in the IDE][1536].
@@ -98,7 +100,6 @@ you can find their release notes
 [1511]: https://github.com/enso-org/ide/pull/1511
 [1536]: https://github.com/enso-org/ide/pull/1536
 [1531]: https://github.com/enso-org/ide/pull/1531
-[1531]: https://github.com/enso-org/ide/pull/1539
 
 <br/>
 
