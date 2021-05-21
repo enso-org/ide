@@ -663,8 +663,8 @@ impl HardcodedLayers {
         layers.add_layers_order_dependency(&panel_text,&tooltip);
         layers.add_layers_order_dependency(&tooltip,&tooltip_text);
         layers.add_layers_order_dependency(&tooltip_text,&cursor);
-        Self {layers,viz,below_main,port_selection,label,above_nodes,above_nodes_text,panel
-             ,panel_text,tooltip,tooltip_text,cursor}
+        Self {viz,below_main,port_selection,label,above_nodes,above_nodes_text,panel,panel_text
+             ,tooltip,tooltip_text,cursor,layers}
     }
 }
 
