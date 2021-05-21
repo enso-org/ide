@@ -71,7 +71,7 @@ impl<M:Model,F:Frp<M>> Component<M,F> {
         let style = StyleWatchFrp::new(&app.display.scene().style_sheet);
         frp.init(&app,&model,&style);
         let frp   = Rc::new(frp);
-        Self {model,frp,app}
+        Self{frp,model,app}
     }
 }
 

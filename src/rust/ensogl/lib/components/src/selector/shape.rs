@@ -145,7 +145,7 @@ impl OverflowShape {
         let hover_area = hover_area.fill(HOVER_COLOR);
 
         let shape = (shape + hover_area).into();
-        OverflowShape {shape,width,height}
+        OverflowShape{width,height,shape}
     }
 }
 
@@ -157,7 +157,7 @@ pub mod left_overflow {
     ensogl_core::define_shape_system! {
         (style:Style) {
             let overflow_shape = OverflowShape::new(style);
-            let shape = overflow_shape.shape.rotate(-90.0_f32.to_radians().radians());
+            let shape = overflow_shape.shape.rotate((-90.0_f32).to_radians().radians());
             shape.into()
           }
     }

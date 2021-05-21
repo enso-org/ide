@@ -4,7 +4,6 @@
 
 #![feature(option_result_contains)]
 #![feature(trait_alias)]
-#![feature(clamp)]
 
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]

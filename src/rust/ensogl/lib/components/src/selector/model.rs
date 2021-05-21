@@ -107,8 +107,8 @@ impl component::Model for Model {
         caption_center.remove_from_scene_layer_DEPRECATED(&scene.layers.main);
         caption_center.add_to_scene_layer_DEPRECATED(&scene.layers.label);
 
-        Self{root,label,background,track,left_overflow,right_overflow,caption_left,caption_center,
-            label_left,label_right,track_handle_left,track_handle_right}
+        Self{background,track,track_handle_left,track_handle_right,left_overflow,right_overflow,
+             label,label_left,label_right,caption_left,caption_center,root}
     }
 }
 

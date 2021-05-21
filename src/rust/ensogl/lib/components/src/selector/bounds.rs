@@ -43,7 +43,7 @@ impl Bounds {
 
     /// Return the distance between start and end point.
     pub fn width(self) -> f32 {
-        (self.end - self.start)
+        self.end - self.start
     }
 }
 
@@ -73,7 +73,7 @@ pub fn normalise_value((value,bounds):&(f32,Bounds)) -> f32 {
 /// value  <- all(&bounds,&normalised).map(absolute_value);
 /// ````
 pub fn absolute_value((bounds,normalised_value):&(Bounds,f32)) -> f32 {
-    ((normalised_value * bounds.width()) + bounds.start)
+    (normalised_value * bounds.width()) + bounds.start
 }
 
 /// Returns the normalised value that correspond to the click position on the shape.
