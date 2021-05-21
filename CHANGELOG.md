@@ -1,16 +1,5 @@
 # Next Release
 
-<br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
-
-#### Visual Environment
-
-- [Nodes in graph no longer overlap panels][1577]. The Searcher, project name,
-  breadcrumbs and status bar are displayed "above" nodes.
-
-[1577]: https://github.com/enso-org/ide/pull/1577
-
-# Enso 2.0.0-alpha.5 (2021-05-14)
-
 <br/>![New Features](/docs/assets/tags/new_features.svg)
 
 #### Visual Environment
@@ -39,6 +28,8 @@
 - [Fixed an internal error that would make the IDE fail on some browser.][1561].
   Instead of crashing on browser that don't support the feature we use, we are
   now just start a little bit slower.
+- [Nodes in graph no longer overlap panels][1577]. The Searcher, project name,
+  breadcrumbs and status bar are displayed "above" nodes.
 
 #### EnsoGL (rendering engine)
 
@@ -48,6 +39,7 @@
 [1556]: https://github.com/enso-org/ide/pull/1556
 [1561]: https://github.com/enso-org/ide/pull/1561
 [1566]: https://github.com/enso-org/ide/pull/1566
+[1577]: https://github.com/enso-org/ide/pull/1577
 
 # Enso 2.0.0-alpha.5 (2021-05-14)
 
