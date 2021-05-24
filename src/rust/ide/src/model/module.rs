@@ -544,18 +544,19 @@ pub mod test {
     }
 
     impl MockData {
-        pub fn plain(&self, parser:&Parser) -> Module {
+        pub fn plain(&self, parser:&Parser, urm:Rc<model::undo_redo::Model>) -> Module {
             let ast    = parser.parse_module(self.code.clone(),self.id_map.clone()).unwrap();
-            let module = Plain::new(self.path.clone(),ast,self.metadata.clone());
+            let module = Plain::new(self.path.clone(),ast,self.metadata.clone(),urm);
             Rc::new(module)
         }
     }
 
     pub fn plain_from_code(code:impl Into<String>) -> Module {
+        let urm = Rc::new(model::undo_redo::Model::new());
         MockData {
             code : code.into(),
             ..default()
-        }.plain(&parser::Parser::new_or_panic())
+        }.plain(&parser::Parser::new_or_panic(),urm)
     }
 
     #[test]

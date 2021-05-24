@@ -92,6 +92,9 @@ pub trait API:Debug {
 
     /// Subscribe for notifications about project-level events.
     fn subscribe(&self) -> Subscriber<Notification>;
+
+    /// Access undo-redo manager.
+    fn urm(&self) -> Rc<crate::model::undo_redo::Model>;
 }
 
 // Note: Needless lifetimes

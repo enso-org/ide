@@ -326,7 +326,8 @@ pub mod tests {
     impl MockData {
         pub fn controller(&self) -> Handle {
             let parser      = parser::Parser::new_or_panic();
-            let module      = self.module.plain(&parser);
+            let urm         = Rc::new(model::undo_redo::Model::new());
+            let module      = self.module.plain(&parser,urm);
             let method      = self.graph.method();
             let mut project = model::project::MockAPI::new();
             let ctx         = Rc::new(self.ctx.create());

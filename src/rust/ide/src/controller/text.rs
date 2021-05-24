@@ -190,7 +190,8 @@ mod test {
             let ls         = language_server::Connection::new_mock_rc(default());
             let path       = model::module::Path::from_mock_module_name("Test");
             let parser     = Parser::new().unwrap();
-            let module_res = controller::Module::new_mock(path,"main = 2+2",default(),ls,parser);
+            let urm        = Rc::new(model::undo_redo::Model::new());
+            let module_res = controller::Module::new_mock(path,"main = 2+2",default(),ls,parser,urm);
             let module     = module_res.unwrap();
             let controller = Handle {
                 logger : Logger::new("Test text controller"),
@@ -200,6 +201,8 @@ mod test {
 
             module.apply_code_change(TextChange::insert(Index::new(8),"2".to_string())).unwrap();
             assert_eq!(Some(Notification::Invalidate), sub.next().await);
+
+            // TODO urm
         })
     }
 
@@ -227,7 +230,8 @@ mod test {
         let parser   = parser::Parser::new_or_panic();
         TestWithLocalPoolExecutor::set_up().run_task(async move {
             let code         = "2 + 2".to_string();
-            let module       = model::module::test::MockData {code,..default()}.plain(&parser);
+            let urm          = Rc::new(model::undo_redo::Model::new());
+            let module       = model::module::test::MockData {code,..default()}.plain(&parser,urm);
             let module_clone = module.clone_ref();
             let project      = setup_mock_project(move |project| {
                 model::project::test::expect_module(project,module_clone);

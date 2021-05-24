@@ -29,15 +29,17 @@ pub struct Module {
     path          : Path,
     content       : RefCell<Content>,
     notifications : notification::Publisher<Notification>,
+    urm           : Rc<model::undo_redo::Model>,
 }
 
 impl Module {
     /// Create state with given content.
-    pub fn new(path:Path, ast:ast::known::Module, metadata:Metadata) -> Self {
+    pub fn new(path:Path, ast:ast::known::Module, metadata:Metadata, urm:Rc<model::undo_redo::Model>) -> Self {
         Module {
             path,
             content       : RefCell::new(ParsedSourceFile{ast,metadata}),
             notifications : default(),
+            urm,
         }
     }
 
@@ -47,6 +49,9 @@ impl Module {
     /// the module's state is guaranteed to remain unmodified and the notification will not be
     /// emitted.
     fn set_content(&self, new_content:Content, kind:NotificationKind) -> FallibleResult {
+        let transaction = self.urm.transaction();
+        transaction.fill_content(self.id(),self.content.borrow().clone());
+
         // We want the line below to fail before changing state.
         let new_file     = new_content.serialize()?;
         let notification = Notification {new_file,kind};
@@ -84,6 +89,10 @@ impl Module {
         let ret         = f(&mut content)?;
         self.set_content(content,kind)?;
         Ok(ret)
+    }
+
+    pub fn id(&self) -> model::module::Id {
+        self.path.id()
     }
 }
 

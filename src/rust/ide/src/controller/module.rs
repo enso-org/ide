@@ -160,11 +160,12 @@ impl Handle {
     , id_map          : ast::IdMap
     , language_server : Rc<language_server::Connection>
     , parser          : Parser
+    , urm             : Rc<model::undo_redo::Model>
     ) -> FallibleResult<Self> {
         let logger   = Logger::new("Mocked Module Controller");
         let ast      = parser.parse(code.to_string(),id_map)?.try_into()?;
         let metadata = default();
-        let model    = Rc::new(model::module::Plain::new(path,ast,metadata));
+        let model    = Rc::new(model::module::Plain::new(path,ast,metadata,urm));
         Ok(Handle {model,language_server,parser,logger})
     }
 
@@ -213,7 +214,8 @@ mod test {
                 , (Span::new(Index::new(2),Size::new(1)),uuid3)
                 , (Span::new(Index::new(0),Size::new(3)),uuid4)
                 ]);
-            let controller = Handle::new_mock(location,code,id_map,ls,parser).unwrap();
+            let urm        = Rc::new(model::undo_redo::Model::new());
+            let controller = Handle::new_mock(location,code,id_map,ls,parser,urm).unwrap();
 
             // Change code from "2+2" to "22+2"
             let change = TextChange::insert(Index::new(0),"2".to_string());
@@ -231,6 +233,8 @@ mod test {
                 }]
             });
             assert_eq!(expected_ast, controller.model.ast().into());
+
+           // TODO assert urm
         });
     }
 }

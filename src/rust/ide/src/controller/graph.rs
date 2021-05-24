@@ -943,11 +943,12 @@ pub mod tests {
 
         /// Create a graph controller from the current mock data.
         pub fn graph(&self) -> Handle {
-            let logger      = Logger::new("Test");
-            let parser      = Parser::new().unwrap();
-            let module      = self.module_data().plain(&parser);
-            let id          = self.graph_id.clone();
-            let db          = self.suggestion_db();
+            let logger = Logger::new("Test");
+            let parser = Parser::new().unwrap();
+            let urm    = Rc::new(model::undo_redo::Model::new());
+            let module = self.module_data().plain(&parser,urm);
+            let id     = self.graph_id.clone();
+            let db     = self.suggestion_db();
             Handle::new(logger,module,db,parser,id).unwrap()
         }
 

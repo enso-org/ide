@@ -136,6 +136,7 @@ impl Module {
     ( path            : Path
     , language_server : Rc<language_server::Connection>
     , parser          : Parser
+    , urm             : Rc<model::undo_redo::Model>
     ) -> FallibleResult<Rc<Self>> {
         let logger        = Logger::new(iformat!("Module {path}"));
         let file_path     = path.file_path().clone();
@@ -148,7 +149,7 @@ impl Module {
         let source  = parser.parse_with_metadata(opened.content)?;
         let digest  = opened.current_version;
         let summary = ContentSummary {digest,end_of_file};
-        let model   = model::module::Plain::new(path,source.ast,source.metadata);
+        let model   = model::module::Plain::new(path,source.ast,source.metadata,urm);
         let this    = Rc::new(Module {model,language_server,logger});
         let content = this.model.serialized_content()?;
         let first_invalidation = this.full_invalidation(&summary,content);

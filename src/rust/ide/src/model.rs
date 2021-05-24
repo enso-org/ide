@@ -24,6 +24,7 @@ pub mod module;
 pub mod registry;
 pub mod suggestion_database;
 pub mod project;
+pub mod undo_redo;
 
 pub use execution_context::ExecutionContext;
 pub use module::Module;
