@@ -8,5 +8,5 @@ edition = "2018"
 path-clean = "0.1.0"
 
 [dependencies.reqwest]
-version = "0.10.6"
+version = "0.10.7"
 features = ['blocking']

@@ -124,7 +124,7 @@ impl ApiProvider {
 // == main ==
 // ==========
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     // Regenerating bindings is now strictly opt-in, see: https://github.com/enso-org/ide/issues/644
     if env::var(ENABLE_ENV_VAR_NAME).is_ok() {

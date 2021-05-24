@@ -19,7 +19,7 @@ js-sys = { version = "0.3.28" }
 matches = { version = "0.1" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["unbounded_depth"] }
-shrinkwraprs = { version = "0.2.1" }
+shrinkwraprs = { version = "0.3.0" }
 uuid = { version = "0.8", features = ["serde", "v5", "wasm-bindgen"] }
 wasm-bindgen = { version = "=0.2.58" }
 
@@ -28,10 +28,10 @@ wasm-bindgen-test = { version = "0.3.8" }
 
 [build-dependencies]
 ensogl-build-utilities = { path = "../../../build" }
-bytes = { version = "0.5.4" }
+bytes = { version = "1.0.1" }
 futures = { version = "0.3.1" }
-reqwest = { version = "0.10.1" }
-tokio = { version = "0.2.10", features = ["macros"] }
+reqwest = { version = "0.10.7" }
+tokio = { version = "1.6.0", features = ["macros"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-websocket = "0.23.0"
+websocket = "0.26.2"

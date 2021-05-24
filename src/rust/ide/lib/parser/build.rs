@@ -141,7 +141,7 @@ impl ParserProvider {
 // == main ==
 // ==========
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     if targeting_wasm() {
         let required_version = ParserVersion::required();

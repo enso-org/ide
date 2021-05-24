@@ -13,7 +13,7 @@ enso-logger = { version = "0.3.0" }
 enso-prelude = { version = "0.2.1" }
 ensogl-system-web = { path = "../system/web" }
 Inflector = { version = "0.11.4" }
-keyboard-types = { version = "0.5.0" }
+keyboard-types = { version = "0.6.1" }
 nalgebra = { version = "0.26.1" }
 percent-encoding = { version = "2.1.0" }
 unicode-segmentation = { version = "1.6.0" }

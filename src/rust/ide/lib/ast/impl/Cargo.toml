@@ -8,13 +8,13 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-derive_more = { version = "0.15.0" }
+derive_more = { version = "0.99.14" }
 failure = { version = "0.1.5" }
 lazy_static = { version = "1.4.0" }
 regex = { version = "1" }
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = { version = "1.0" }
-shrinkwraprs = { version = "0.2.1" }
+shrinkwraprs = { version = "0.3.0" }
 uuid = { version = "0.8.1", features = ["serde", "v4", "wasm-bindgen"] }
 ast-macros = { path = "../macros" }
 enso-data = { version = "0.2.0" }
