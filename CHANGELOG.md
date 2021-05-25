@@ -15,6 +15,8 @@
 
 #### Enso Compiler
 
+[1366]: https://github.com/enso-org/ide/pull/1366
+
 # Enso 2.0.0-alpha.5 (2021-05-14)
 
 <br/>![New Features](/docs/assets/tags/new_features.svg)
@@ -272,7 +274,6 @@ you can find their release notes
 [1358]: https://github.com/enso-org/ide/pull/1358
 [1377]: https://github.com/enso-org/ide/pull/1377
 [1411]: https://github.com/enso-org/ide/pull/1411
-[1366]: https://github.com/enso-org/ide/pull/1366
 [1412]: https://github.com/enso-org/ide/pull/1412
 [1419]: https://github.com/enso-org/ide/pull/1419
 [1413]: https://github.com/enso-org/ide/pull/1413
