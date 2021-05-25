@@ -95,105 +95,138 @@ function signArchive(archivePath, archiveName, binPaths) {
 
 // Archives, and their content that need to be signed in an extra step.
 const toSign = [
-    [
-        `enso/dist/${ENGINE}/std-lib/Standard/polyglot/java`,
-        'sqlite-jdbc-3.34.0.jar',
-        [
+    {
+        jarDir:
+            `/home/enso/dev/ide/dist/client/mac/Enso.app/Contents/Resources/enso/dist/${ENGINE}/std-lib/Standard/polyglot/java`,
+        jarName: 'sqlite-jdbc-3.34.0.jar',
+        jarContent: [
             'org/sqlite/native/Mac/aarch64/libsqlitejdbc.jnilib',
             'org/sqlite/native/Mac/x86_64/libsqlitejdbc.jnilib',
         ],
-    ],
-    [
-        `enso/dist/${ENGINE}/component`,
-        'runner.jar',
-        [
+    },
+    {
+        jarDir:
+            `/home/enso/dev/ide/dist/client/mac/Enso.app/Contents/Resources/enso/dist/${ENGINE}/component`,
+        jarName: 'runner.jar',
+        jarContent: [
             'org/sqlite/native/Mac/x86_64/libsqlitejdbc.jnilib',
             'com/sun/jna/darwin/libjnidispatch.jnilib',
         ],
-    ],
-    [
-        'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        'jdk.jartool.jmod',
-        ['bin/jarsigner', 'bin/jar'],
-    ],
-    [
-        'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        'jdk.jdeps.jmod',
-        ['bin/javap', 'bin/jdeprscan', 'bin/jdeps'],
-    ],
-    [
-        'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        'jdk.jstatd.jmod',
-        ['bin/jstatd'],
-    ],
-    [
-        'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        'jdk.pack.jmod',
-        ['bin/unpack200', 'bin/pack200'],
-    ],
-    [
-        'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        'jdk.hotspot.agent.jmod',
-        ['bin/jhsdb'],
-    ],
-    ['enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods', 'jdk.jfr.jmod', ['bin/jfr']],
-    ['enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods', 'jdk.rmic.jmod', ['bin/rmic']],
-    [
-        'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        'java.rmi.jmod',
-        ['bin/rmid', 'bin/rmiregistry'],
-    ],
-    [
-        'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        'java.base.jmod',
-        ['bin/java', 'bin/keytool', 'lib/jspawnhelper'],
-    ],
-    [
-        'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        'jdk.jlink.jmod',
-        ['bin/jmod', 'bin/jlink', 'bin/jimage'],
-    ],
-    [
-        'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        'jdk.scripting.nashorn.shell.jmod',
-        ['bin/jjs'],
-    ],
-    [
-        'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        'jdk.jcmd.jmod',
-        ['bin/jstack', 'bin/jcmd', 'bin/jps', 'bin/jmap', 'bin/jstat', 'bin/jinfo'],
-    ],
-    [
-        'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        'jdk.jshell.jmod',
-        ['bin/jshell'],
-    ],
-    [
-        'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        'jdk.compiler.jmod',
-        ['bin/javac', 'bin/serialver'],
-    ],
-    [
-        'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        'java.scripting.jmod',
-        ['bin/jrunscript'],
-    ],
-    ['enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods', 'jdk.jdi.jmod', ['bin/jdb']],
-    [
-        'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        'jdk.javadoc.jmod',
-        ['bin/javadoc'],
-    ],
-    [
-        'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        'jdk.jconsole.jmod',
-        ['bin/jconsole'],
-    ],
-    [
-        'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        'jdk.javadoc.jmod',
-        ['bin/javadoc'],
-    ],
+    },
+    {
+        jarDir:
+            '/home/enso/dev/ide/dist/client/mac/Enso.app/Contents/Resources/enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+        jarName: 'jdk.jartool.jmod',
+        jarContent: ['bin/jarsigner', 'bin/jar'],
+    },
+    {
+        jarDir:
+            '/home/enso/dev/ide/dist/client/mac/Enso.app/Contents/Resources/enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+        jarName: 'jdk.jdeps.jmod',
+        jarContent: ['bin/javap', 'bin/jdeprscan', 'bin/jdeps'],
+    },
+    {
+        jarDir:
+            '/home/enso/dev/ide/dist/client/mac/Enso.app/Contents/Resources/enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+        jarName: 'jdk.jstatd.jmod',
+        jarContent: ['bin/jstatd'],
+    },
+    {
+        jarDir:
+            '/home/enso/dev/ide/dist/client/mac/Enso.app/Contents/Resources/enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+        jarName: 'jdk.pack.jmod',
+        jarContent: ['bin/unpack200', 'bin/pack200'],
+    },
+    {
+        jarDir:
+            '/home/enso/dev/ide/dist/client/mac/Enso.app/Contents/Resources/enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+        jarName: 'jdk.hotspot.agent.jmod',
+        jarContent: ['bin/jhsdb'],
+    },
+    {
+        jarDir:
+            '/home/enso/dev/ide/dist/client/mac/Enso.app/Contents/Resources/enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+        jarName: 'jdk.jfr.jmod',
+        jarContent: ['bin/jfr'],
+    },
+    {
+        jarDir:
+            '/home/enso/dev/ide/dist/client/mac/Enso.app/Contents/Resources/enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+        jarName: 'jdk.rmic.jmod',
+        jarContent: ['bin/rmic'],
+    },
+    {
+        jarDir:
+            '/home/enso/dev/ide/dist/client/mac/Enso.app/Contents/Resources/enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+        jarName: 'java.rmi.jmod',
+        jarContent: ['bin/rmid', 'bin/rmiregistry'],
+    },
+    {
+        jarDir:
+            '/home/enso/dev/ide/dist/client/mac/Enso.app/Contents/Resources/enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+        jarName: 'java.base.jmod',
+        jarContent: ['bin/java', 'bin/keytool', 'lib/jspawnhelper'],
+    },
+    {
+        jarDir:
+            '/home/enso/dev/ide/dist/client/mac/Enso.app/Contents/Resources/enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+        jarName: 'jdk.jlink.jmod',
+        jarContent: ['bin/jmod', 'bin/jlink', 'bin/jimage'],
+    },
+    {
+        jarDir:
+            '/home/enso/dev/ide/dist/client/mac/Enso.app/Contents/Resources/enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+        jarName: 'jdk.scripting.nashorn.shell.jmod',
+        jarContent: ['bin/jjs'],
+    },
+    {
+        jarDir:
+            '/home/enso/dev/ide/dist/client/mac/Enso.app/Contents/Resources/enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+        jarName: 'jdk.jcmd.jmod',
+        jarContent: ['bin/jstack', 'bin/jcmd', 'bin/jps', 'bin/jmap', 'bin/jstat', 'bin/jinfo'],
+    },
+    {
+        jarDir:
+            '/home/enso/dev/ide/dist/client/mac/Enso.app/Contents/Resources/enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+        jarName: 'jdk.jshell.jmod',
+        jarContent: ['bin/jshell'],
+    },
+    {
+        jarDir:
+            '/home/enso/dev/ide/dist/client/mac/Enso.app/Contents/Resources/enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+        jarName: 'jdk.compiler.jmod',
+        jarContent: ['bin/javac', 'bin/serialver'],
+    },
+    {
+        jarDir:
+            '/home/enso/dev/ide/dist/client/mac/Enso.app/Contents/Resources/enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+        jarName: 'java.scripting.jmod',
+        jarContent: ['bin/jrunscript'],
+    },
+    {
+        jarDir:
+            '/home/enso/dev/ide/dist/client/mac/Enso.app/Contents/Resources/enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+        jarName: 'jdk.jdi.jmod',
+        jarContent: ['bin/jdb'],
+    },
+    {
+        jarDir:
+            '/home/enso/dev/ide/dist/client/mac/Enso.app/Contents/Resources/enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+        jarName: 'jdk.javadoc.jmod',
+        jarContent: ['bin/javadoc'],
+    },
+    {
+        jarDir:
+            '/home/enso/dev/ide/dist/client/mac/Enso.app/Contents/Resources/enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+        jarName: 'jdk.jconsole.jmod',
+        jarContent: ['bin/jconsole'],
+    },
+    {
+        jarDir:
+            '/home/enso/dev/ide/dist/client/mac/Enso.app/Contents/Resources/enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+        jarName: 'jdk.javadoc.jmod',
+        jarContent: ['bin/javadoc'],
+    },
 ]
 
 // Extra files that need to be signed.
@@ -205,9 +238,10 @@ const extra = [
 exports.default = async function () {
     // Sign archive.
     for (let toSignData of toSign) {
-        const jarDir = path.join(resRoot, toSignData[0])
-        const jarName = toSignData[1]
-        const jarContent = toSignData[2]
+        const jarDir = toSignData.jarDir
+        const jarName = toSignData.jarName
+        const jarContent = toSignData.jarContent
+        console.log({ jarDir, jarName, jarContent })
         signArchive(jarDir, jarName, jarContent)
     }
     // Sign single binaries.
