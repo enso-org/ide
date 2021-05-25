@@ -1439,8 +1439,8 @@ impl ide_view::searcher::DocumentationProvider for DataProviderForView {
                 let doc = suggestion.documentation.clone();
                 Some(doc.unwrap_or_else(|| Self::doc_placeholder_for(&suggestion)))
             }
-            Action::Example(example) => Some(example.documentation.clone()),
-            Action::CreateNewProject => None,
+            Action::Example(example)     => Some(example.documentation.clone()),
+            Action::ProjectManagement(_) => None,
         }
     }
 }
