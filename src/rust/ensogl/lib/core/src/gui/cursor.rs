@@ -63,7 +63,7 @@ impl Style {
             let color = color.into();
             StyleValue::new(color)
         });
-        let port_selection_layer = Some(StyleValue::new(true));
+        let port_selection_layer = Some(StyleValue::new_no_animation(true));
         Self {host,size,color,port_selection_layer,..default()}
     }
 
