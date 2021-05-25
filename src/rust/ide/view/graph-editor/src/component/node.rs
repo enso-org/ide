@@ -20,7 +20,7 @@ pub use expression::Expression;
 
 use crate::prelude::*;
 
-use crate::component::node::profiling::RunningTimeLabel;
+use crate::component::node::profiling::ProfilingLabel;
 use crate::view;
 use crate::component::visualization;
 use crate::tooltip;
@@ -367,7 +367,7 @@ pub struct NodeModel {
     pub background          : background::View,
     pub drag_area           : drag_area::View,
     pub error_indicator     : error_shape::View,
-    pub running_time_label  : RunningTimeLabel,
+    pub profiling_label     : ProfilingLabel,
     pub input               : input::Area,
     pub output              : output::Area,
     pub visualization       : visualization::Container,
@@ -404,15 +404,15 @@ impl NodeModel {
         let drag_logger             = Logger::sub(&logger,"drag_area");
         let error_indicator_logger  = Logger::sub(&logger,"error_indicator");
 
-        let error_indicator     = error_shape::View::new(&error_indicator_logger);
-        let running_time_label  = RunningTimeLabel::new(app);
-        let backdrop            = backdrop::View::new(&main_logger);
-        let background          = background::View::new(&main_logger);
-        let drag_area           = drag_area::View::new(&drag_logger);
-        let vcs_indicator       = vcs::StatusIndicator::new(app);
-        let display_object      = display::object::Instance::new(&logger);
+        let error_indicator = error_shape::View::new(&error_indicator_logger);
+        let profiling_label = ProfilingLabel::new(app);
+        let backdrop        = backdrop::View::new(&main_logger);
+        let background      = background::View::new(&main_logger);
+        let drag_area       = drag_area::View::new(&drag_logger);
+        let vcs_indicator   = vcs::StatusIndicator::new(app);
+        let display_object  = display::object::Instance::new(&logger);
 
-        display_object.add_child(&running_time_label);
+        display_object.add_child(&profiling_label);
         display_object.add_child(&drag_area);
         display_object.add_child(&backdrop);
         display_object.add_child(&background);
@@ -443,7 +443,7 @@ impl NodeModel {
 
         let app = app.clone_ref();
         Self {app,display_object,logger,backdrop,background,drag_area,output,input,visualization
-            ,error_visualization,running_time_label,action_bar,error_indicator,vcs_indicator,style}
+            ,error_visualization,profiling_label,action_bar,error_indicator,vcs_indicator,style}
             .init()
     }
 
@@ -603,10 +603,10 @@ impl Node {
 
             // === View Mode ===
 
-            model.input.set_view_mode               <+ frp.set_view_mode;
-            model.output.set_view_mode              <+ frp.set_view_mode;
-            model.running_time_label.set_view_mode  <+ frp.set_view_mode;
-            model.vcs_indicator.set_visibility      <+ frp.set_view_mode.map(|&mode| {
+            model.input.set_view_mode           <+ frp.set_view_mode;
+            model.output.set_view_mode          <+ frp.set_view_mode;
+            model.profiling_label.set_view_mode <+ frp.set_view_mode;
+            model.vcs_indicator.set_visibility  <+ frp.set_view_mode.map(|&mode| {
                 !matches!(mode,view::Mode::Profiling {..})
             });
         }
@@ -693,12 +693,12 @@ impl Node {
         // === Profiling Indicator ===
 
         frp::extend! { network
-            model.running_time_label.set_min_global_duration
+            model.profiling_label.set_min_global_duration
                 <+ frp.set_profiling_min_global_duration;
-            model.running_time_label.set_max_global_duration
+            model.profiling_label.set_max_global_duration
                 <+ frp.set_profiling_max_global_duration;
-            model.running_time_label.set_status <+ frp.set_profiling_status;
-            model.input.set_profiling_status    <+ frp.set_profiling_status;
+            model.profiling_label.set_status <+ frp.set_profiling_status;
+            model.input.set_profiling_status <+ frp.set_profiling_status;
         }
 
         let bg_color_anim = color::Animation::new(network);

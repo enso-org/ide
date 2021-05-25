@@ -1,5 +1,5 @@
 //! Provides [`Status`] to represent a node's execution status, [`Status::display_color`] to express
-//! that status as a color and [`RunningTimeLabel`] to display a node's execution status.
+//! that status as a color and [`ProfilingLabel`] to display a node's execution status.
 
 use crate::prelude::*;
 
@@ -173,14 +173,14 @@ ensogl::define_endpoints! {
 /// The necessary theme will be taken from the application's style sheet. The origin of the label,
 /// as a `display::Object` should be placed on the node's center.
 #[derive(Clone,CloneRef,Debug)]
-pub struct RunningTimeLabel {
+pub struct ProfilingLabel {
     root    : display::object::Instance,
     label   : text::Area,
     frp     : Frp,
     styles  : StyleWatchFrp,
 }
 
-impl Deref for RunningTimeLabel {
+impl Deref for ProfilingLabel {
     type Target = Frp;
 
     fn deref(&self) -> &Self::Target {
@@ -188,8 +188,8 @@ impl Deref for RunningTimeLabel {
     }
 }
 
-impl RunningTimeLabel {
-    /// Constructs a `RunningTimeLabel` for the given application.
+impl ProfilingLabel {
+    /// Constructs a `ProfilingLabel` for the given application.
     pub fn new(app: &Application) -> Self {
         let scene = app.display.scene();
         let root  = display::object::Instance::new(Logger::new("ProfilingIndicator"));
@@ -240,11 +240,11 @@ impl RunningTimeLabel {
             label.set_content <+ frp.set_status.map(|status| status.to_string());
         }
 
-        RunningTimeLabel {root,label,frp,styles}
+        ProfilingLabel {root,label,frp,styles}
     }
 }
 
-impl display::Object for RunningTimeLabel {
+impl display::Object for ProfilingLabel {
     fn display_object(&self) -> &display::object::Instance {
         &self.root
     }
