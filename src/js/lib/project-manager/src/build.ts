@@ -120,11 +120,11 @@ async function download_project_manager(
 ): Promise<void> {
     const parse_result =  url.parse(file_url).pathname
     if (parse_result === undefined || parse_result === null) {
-        throw `Invalid file url: {file_url}`
+        throw `File URL does not contain valid path name: ` + file_url
     }
     const file_name = parse_result.split('/').pop()
     if (file_name === undefined || file_name === null) {
-        throw `Invalid file url: {file_url}`
+        throw `File URL does not contain path separator: ` + file_url
     }
     const file_path = path.resolve(distPath, file_name)
 
