@@ -500,6 +500,15 @@ impl Network {
     }
 
     /// Specialized version `all_with`.
+    pub fn all_with6<T1,T2,T3,T4,T5,T6,F,T>
+    (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4, t5:&T5, t6:&T6, f:F) -> Stream<T>
+    where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput, T5:EventOutput,
+          T6:EventOutput, T:Data,
+          F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>,&Output<T5>,&Output<T6>)->T {
+        self.register(OwnedAllWith6::new(label,t1,t2,t3,t4,t5,t6,f))
+    }
+
+    /// Specialized version `all_with`.
     pub fn all_with8<T1,T2,T3,T4,T5,T6,T7,T8,F,T>
     (&self, label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4, t5:&T5, t6:&T6, t7:&T7, t8:&T8, f:F)
     -> Stream<T>
@@ -2406,6 +2415,73 @@ impl<T1,T2,T3,T4,T5,F> Debug for AllWith5Data<T1,T2,T3,T4,T5,F> {
 
 
 
+// ================
+// === AllWith6 ===
+// ================
+
+pub struct AllWith6Data <T1,T2,T3,T4,T5,T6,F>
+{ src1:watch::Ref<T1>, src2:watch::Ref<T2>, src3:watch::Ref<T3>, src4:watch::Ref<T4>
+    , src5:watch::Ref<T5>, src6:watch::Ref<T6>, function:F }
+pub type   OwnedAllWith6 <T1,T2,T3,T4,T5,T6,F> =
+    stream::Node     <AllWith6Data<T1,T2,T3,T4,T5,T6,F>>;
+pub type   AllWith6      <T1,T2,T3,T4,T5,T6,F> =
+    stream::WeakNode <AllWith6Data<T1,T2,T3,T4,T5,T6,F>>;
+
+impl<T1,T2,T3,T4,T5,T6,F,Out> HasOutput for AllWith6Data<T1,T2,T3,T4,T5,T6,F>
+where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput, T5:EventOutput,
+      T6:EventOutput, Out:Data,
+      F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>,&Output<T5>,&Output<T6>)->Out {
+    type Output = Out;
+}
+
+impl<T1,T2,T3,T4,T5,T6,F,Out> OwnedAllWith6<T1,T2,T3,T4,T5,T6,F>
+where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput, T5:EventOutput,
+      T6:EventOutput, Out:Data,
+      F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>,&Output<T5>,&Output<T6>)->Out {
+    /// Constructor.
+    pub fn new(label:Label, t1:&T1, t2:&T2, t3:&T3, t4:&T4, t5:&T5, t6:&T6, function:F) -> Self {
+        let src1 = watch_stream(t1);
+        let src2 = watch_stream(t2);
+        let src3 = watch_stream(t3);
+        let src4 = watch_stream(t4);
+        let src5 = watch_stream(t5);
+        let src6 = watch_stream(t6);
+        let def     = AllWith6Data {src1,src2,src3,src4,src5,src6,function};
+        let this    = Self::construct(label,def);
+        let weak    = this.downgrade();
+        t1.register_target(weak.clone_ref().into());
+        t2.register_target(weak.clone_ref().into());
+        t3.register_target(weak.clone_ref().into());
+        t4.register_target(weak.clone_ref().into());
+        t5.register_target(weak.clone_ref().into());
+        t6.register_target(weak.into());
+        this
+    }
+}
+
+impl<T1,T2,T3,T4,T5,T6,F,Out,T> stream::EventConsumer<T> for OwnedAllWith6<T1,T2,T3,T4,T5,T6,F>
+where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput, T5:EventOutput,
+      T6:EventOutput, Out:Data,
+      F:'static+Fn(&Output<T1>,&Output<T2>,&Output<T3>,&Output<T4>,&Output<T5>,&Output<T6>)->Out {
+    fn on_event(&self, stack:CallStack, _:&T) {
+        let value1 = self.src1.value();
+        let value2 = self.src2.value();
+        let value3 = self.src3.value();
+        let value4 = self.src4.value();
+        let value5 = self.src5.value();
+        let value6 = self.src6.value();
+        let out    = (self.function)(&value1,&value2,&value3,&value4,&value5,&value6);
+        self.emit_event(stack,&out);
+    }
+}
+
+impl<T1,T2,T3,T4,T5,T6,F> Debug for AllWith6Data<T1,T2,T3,T4,T5,T6,F> {
+    fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f,"AllWith6Data")
+    }
+}
+
+
 
 // ================
 // === AllWith8 ===
@@ -2483,6 +2559,6 @@ where T1:EventOutput, T2:EventOutput, T3:EventOutput, T4:EventOutput, T5:EventOu
 
 impl<T1,T2,T3,T4,T5,T6,T7,T8,F> Debug for AllWith8Data<T1,T2,T3,T4,T5,T6,T7,T8,F> {
     fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f,"AllWith5Data")
+        write!(f,"AllWith8Data")
     }
 }

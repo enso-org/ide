@@ -21,7 +21,7 @@ pub use expression::Expression;
 use crate::prelude::*;
 
 use crate::component::node::profiling::RunningTimeLabel;
-use crate::Mode as EditorMode;
+use crate::view;
 use crate::component::visualization;
 use crate::tooltip;
 use crate::Type;
@@ -38,7 +38,6 @@ use ensogl::display;
 use ensogl_gui_components::shadow;
 use ensogl_text::Text;
 use ensogl_theme;
-use ensogl_theme::graph_editor::node::profiling as profiling_theme;
 use std::f32::EPSILON;
 
 use super::edge;
@@ -266,7 +265,7 @@ ensogl::define_endpoints! {
         set_vcs_status                    (Option<vcs::Status>),
         /// Indicate whether preview visualisations should be delayed or immediate.
         quick_preview_vis                 (bool),
-        set_editor_mode                   (EditorMode),
+        set_view_mode                     (view::Mode),
         set_profiling_min_global_duration (f32),
         set_profiling_max_global_duration (f32),
         set_profiling_status              (profiling::Status),
@@ -491,8 +490,6 @@ impl NodeModel {
         self.backdrop.mod_position(|t| t.x = width/2.0);
         self.background.mod_position(|t| t.x = width/2.0);
         self.drag_area.mod_position(|t| t.x = width/2.0);
-
-        self.running_time_label.set_position_x(width/2.0);
         self.error_indicator.set_position_x(width/2.0);
         self.vcs_indicator.set_position_x(width/2.0);
 
@@ -604,12 +601,13 @@ impl Node {
             eval out.hover ((t) action_bar.set_visibility(t));
 
 
-            // === Editor Mode ===
+            // === View Mode ===
 
-            model.input.set_editor_mode               <+ frp.set_editor_mode;
-            model.running_time_label.set_editor_mode  <+ frp.set_editor_mode;
-            model.vcs_indicator.set_visibility        <+ frp.set_editor_mode.map(|&mode| {
-                !matches!(mode,EditorMode::Profiling {..})
+            model.input.set_view_mode               <+ frp.set_view_mode;
+            model.output.set_view_mode              <+ frp.set_view_mode;
+            model.running_time_label.set_view_mode  <+ frp.set_view_mode;
+            model.vcs_indicator.set_visibility      <+ frp.set_view_mode.map(|&mode| {
+                !matches!(mode,view::Mode::Profiling {..})
             });
         }
 
@@ -625,12 +623,12 @@ impl Node {
             frp.source.error <+ frp.set_error;
             is_error_set <- frp.error.map(|err| err.is_some());
             no_error_set <- not(&is_error_set);
-            error_color_anim.target <+ all_with(&frp.error,&frp.set_editor_mode,
+            error_color_anim.target <+ all_with(&frp.error,&frp.set_view_mode,
                 f!([style](error,&mode)
                     let error_color = Self::error_color(error,&style);
                     match mode {
-                        EditorMode::Normal    => error_color,
-                        EditorMode::Profiling => error_color.to_grayscale(),
+                        view::Mode::Normal    => error_color,
+                        view::Mode::Profiling => error_color.to_grayscale(),
                     }
                 ));
 
@@ -710,32 +708,24 @@ impl Node {
             // === Color Handling ===
 
             let bgg = style_frp.get_color(ensogl_theme::graph_editor::node::background);
+            let profiling_theme = profiling::Theme::from_styles(&style_frp,&network);
 
-            let profiling_lightness = style_frp.get_number_or(profiling_theme::lightness,0.7);
-            let profiling_chroma    = style_frp.get_number_or(profiling_theme::chroma,0.7);
-            let profiling_min_hue   = style_frp.get_number_or(profiling_theme::min_time_hue,0.4);
-            let profiling_max_hue   = style_frp.get_number_or(profiling_theme::max_time_hue,0.1);
-
-            profiling_color <- all_with8
+            profiling_color <- all_with5
                 (&frp.set_profiling_status,&frp.set_profiling_min_global_duration,
-                &frp.set_profiling_max_global_duration,&profiling_lightness,&profiling_chroma,
-                &profiling_min_hue,&profiling_max_hue,&bgg,
-                |&status,&min,&max,&lightness,&chroma,&min_time_hue,&max_time_hue,&bgg| {
-                    match status {
-                        profiling::Status::Running => color::Lcha::from(bgg),
-                        profiling::Status::Finished {..} => {
-                            let theme = profiling::Theme {lightness,chroma,min_time_hue
-                                ,max_time_hue};
-                            status.display_color(min,max,theme).with_alpha(1.0)
-                        }
+                &frp.set_profiling_max_global_duration,&profiling_theme,&bgg,
+                |&status,&min,&max,&theme,&bgg| {
+                    if status.is_finished() {
+                        status.display_color(min,max,theme).with_alpha(1.0)
+                    } else {
+                        color::Lcha::from(bgg)
                     }
                 });
 
-            bg_color_anim.target <+ all_with3(&bgg,&frp.set_editor_mode,&profiling_color,
+            bg_color_anim.target <+ all_with3(&bgg,&frp.set_view_mode,&profiling_color,
                 |bgg,&mode,&profiling_color| {
                     match mode {
-                        EditorMode::Normal    => color::Lcha::from(*bgg),
-                        EditorMode::Profiling => profiling_color,
+                        view::Mode::Normal    => color::Lcha::from(*bgg),
+                        view::Mode::Profiling => profiling_color,
                     }
                 });
 

@@ -1,6 +1,8 @@
-//! Profides a button that can be used to toggle the editor's profiling mode.
+//! Provides a button that can be used to toggle the editor's profiling mode.
 
 use crate::prelude::*;
+
+use crate::view;
 
 use enso_frp as frp;
 use ensogl::application::Application;
@@ -11,10 +13,17 @@ use ensogl_gui_components::toggle_button::ToggleButton;
 use ensogl_gui_components::toggle_button;
 
 
+
 // ============
 // === Icon ===
 // ============
 
+/// Defines an icon as described here:
+/// https://github.com/enso-org/ide/pull/1546#issuecomment-838169795
+///
+/// It consists of a *circle outline* with an *aperture* in the lower right quadrant. The edges
+/// of the aperture have rounded *caps*. In the center is an *inner circle* with a *needle*
+/// pointing to the lower right.
 mod icon {
     use super::*;
     use ensogl_gui_components::toggle_button::ColorableShape;
@@ -25,40 +34,62 @@ mod icon {
             let width      = Var::<Pixels>::from("input_size.x");
             let height     = Var::<Pixels>::from("input_size.y");
 
+
+            // === Measurements ===
+
             let unit                   = &width * 0.3;
             let outer_circle_radius    = &unit * 1.0;
             let outer_circle_thickness = &unit * 0.33;
             let inner_circle_radius    = &unit * 0.2;
+            let needle_angle           = (135.0_f32).to_radians().radians();
             let needle_radius_inner    = &unit * 0.14;
             let needle_radius_outer    = &unit * 0.09;
-            let needle_angle           = (135.0_f32).to_radians().radians();
+            let needle_length          = &outer_circle_radius-&needle_radius_outer;
+            let aperture_cap_1_x       = &outer_circle_radius-&outer_circle_thickness*0.5;
+            let aperture_cap_2_y       = -(&outer_circle_radius-&outer_circle_thickness*0.5);
 
-            let base       = Circle(&outer_circle_radius);
-            let circle_gap = Circle(&outer_circle_radius-&outer_circle_thickness);
+
+            // === Circle Outline ===
+
+            let circle         = Circle(&outer_circle_radius);
+            let gap            = Circle(&outer_circle_radius-&outer_circle_thickness);
+            let circle_outline = circle - gap;
+
+
+            // === Aperture ===
+
+            // To produce the aperture, we cut a triangular gap from the outline and use small
+            // circular caps to round off the edges.
 
             // We make the gap a little bit larger than the circle to be sure that we really cover
-            // everything that we want to cut, even if there are rounding errors or similar
+            // everything that we want to cut, even if there are rounding errors or other
             // imprecisions.
-            let aperture_gap_size = &outer_circle_radius * 1.1;
-            let aperture_gap      = Triangle(&aperture_gap_size*2.0,aperture_gap_size.clone());
-            let aperture_gap      = aperture_gap.rotate(needle_angle+180.0_f32.to_radians().radians());
-            let aperture_gap      = aperture_gap.translate_x(&aperture_gap_size*2.0.sqrt()*0.25);
-            let aperture_gap      = aperture_gap.translate_y(-(&aperture_gap_size*2.0.sqrt()*0.25));
+            let aperture_gap_size  = &outer_circle_radius * 1.1;
+            let aperture_gap_angle = needle_angle+180.0_f32.to_radians().radians();
+
+            let aperture_gap = Triangle(&aperture_gap_size*2.0,aperture_gap_size.clone());
+            let aperture_gap = aperture_gap.rotate(aperture_gap_angle);
+            let aperture_gap = aperture_gap.translate_x(&aperture_gap_size*2.0.sqrt()*0.25);
+            let aperture_gap = aperture_gap.translate_y(-&aperture_gap_size*2.0.sqrt()*0.25);
 
             let aperture_cap_1 = Circle(&outer_circle_thickness*0.5);
-            let aperture_cap_1 = aperture_cap_1.translate_x(&outer_circle_radius-&outer_circle_thickness*0.5);
+            let aperture_cap_1 = aperture_cap_1.translate_x(aperture_cap_1_x);
             let aperture_cap_2 = Circle(&outer_circle_thickness*0.5);
-            let aperture_cap_2 = aperture_cap_2.translate_y(-(&outer_circle_radius-&outer_circle_thickness*0.5));
+            let aperture_cap_2 = aperture_cap_2.translate_y(aperture_cap_2_y);
 
-            let outer_circle = base - circle_gap - aperture_gap + aperture_cap_1 + aperture_cap_2;
+            let circle_outline = circle_outline - aperture_gap + aperture_cap_1 + aperture_cap_2;
 
-            let needle_length = &outer_circle_radius-&needle_radius_outer;
-            let needle        = UnevenCapsule(needle_radius_outer,needle_radius_inner,needle_length);
-            let needle        = needle.rotate(&needle_angle);
 
+            // === Needle ===
+
+            let needle       = UnevenCapsule(needle_radius_outer,needle_radius_inner,needle_length);
+            let needle       = needle.rotate(&needle_angle);
             let inner_circle = Circle(&inner_circle_radius);
 
-            let shape      = (outer_circle + needle + inner_circle).fill(fill_color);
+
+            // === Composition ===
+
+            let shape      = (circle_outline + needle + inner_circle).fill(fill_color);
             let hover_area = Rect((&width,&height)).fill(HOVER_COLOR);
             (shape + hover_area).into()
         }
@@ -79,10 +110,10 @@ mod icon {
 
 ensogl::define_endpoints! {
     Input {
-        set_mode (crate::Mode),
+        set_mode (view::Mode),
     }
     Output {
-        mode (crate::Mode),
+        mode (view::Mode),
     }
 }
 
@@ -110,7 +141,7 @@ impl Deref for Button {
 }
 
 impl Button {
-    /// Constructs a new button for toggling the editor mode.
+    /// Constructs a new button for toggling the editor's view mode.
     pub fn new(app: &Application) -> Button {
         let scene   = app.display.scene();
         let styles  = StyleWatchFrp::new(&scene.style_sheet);
@@ -127,11 +158,9 @@ impl Button {
             // === State ===
 
             frp.source.mode <+ button.state.map(|&toggled| {
-                if toggled { crate::Mode::Profiling } else { crate::Mode::Normal }
+                if toggled { view::Mode::Profiling } else { view::Mode::Normal }
             });
-            button.set_state <+ frp.set_mode.map(|&mode| {
-                matches!(mode,crate::Mode::Profiling)
-            });
+            button.set_state <+ frp.set_mode.map(|&mode| mode.is_profiling());
 
 
             // === Position ===
@@ -150,8 +179,10 @@ impl Button {
             let toggled_color          = styles.get_color(button_theme::toggled);
             let hovered_color          = styles.get_color(button_theme::hovered);
             let toggled_hovered_color  = styles.get_color(button_theme::toggled_hovered);
-            button.set_color_scheme   <+ all_with4(&non_toggled_color,&toggled_color,&hovered_color
-                ,&toggled_hovered_color,|&non_toggled,&toggled,&hovered,&toggled_hovered|
+            init_color_scheme         <- source::<()>();
+            button.set_color_scheme   <+ all_with5(&non_toggled_color,&toggled_color,&hovered_color
+                ,&toggled_hovered_color,&init_color_scheme
+                ,|&non_toggled,&toggled,&hovered,&toggled_hovered,_|
                     toggle_button::ColorScheme {
                         non_toggled     : Some(non_toggled.into()),
                         toggled         : Some(toggled.into()),
@@ -162,6 +193,7 @@ impl Button {
             );
         }
 
+        init_color_scheme.emit(());
         Button {frp,button,styles}
     }
 }

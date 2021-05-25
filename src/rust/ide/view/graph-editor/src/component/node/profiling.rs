@@ -3,7 +3,7 @@
 
 use crate::prelude::*;
 
-use crate::Mode as EditorMode;
+use crate::view;
 
 use enso_frp as frp;
 use ensogl::application::Application;
@@ -11,15 +11,6 @@ use ensogl::data::color;
 use ensogl::display::shape::*;
 use ensogl::display;
 use ensogl::gui::text;
-use ensogl_theme::graph_editor::node::profiling as theme_path;
-
-
-
-// =================
-// === Constants ===
-// =================
-
-const LABEL_OFFSET_Y: f32 = 35.0;
 
 
 
@@ -40,12 +31,6 @@ pub enum Status {
     }
 }
 
-impl Default for Status {
-    fn default() -> Self {
-        Status::Running
-    }
-}
-
 impl Status {
     /// Returns `true` if the node is still running.
     pub fn is_running(self) -> bool {
@@ -55,6 +40,37 @@ impl Status {
     /// Returns `true` if the node finished execution.
     pub fn is_finished(self) -> bool {
         matches!(self,Status::Finished {..})
+    }
+}
+
+impl Default for Status {
+    fn default() -> Self {
+        Status::Running
+    }
+}
+
+impl Display for Status {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            Status::Running => {
+                write!(f, "")
+            }
+            Status::Finished {duration} => {
+                let milliseconds = duration;
+                let seconds      = milliseconds / 1000.0;
+                let minutes      = seconds / 60.0;
+                let hours        = minutes / 60.0;
+                if hours >= 1.0 {
+                    write!(f, "{:.1} h", hours)
+                } else if minutes >= 1.0 {
+                    write!(f, "{:.1} m", minutes)
+                } else if seconds >= 1.0 {
+                    write!(f, "{:.1} s", seconds)
+                } else {
+                    write!(f, "{:.0} ms", milliseconds)
+                }
+            }
+        }
     }
 }
 
@@ -81,6 +97,29 @@ pub struct Theme {
     pub max_time_hue : f32,
 }
 
+impl Theme {
+    /// Returns a new `Sampler` exposing the profiling theme, as it is defined in `styles` at path
+    /// `ensogl_theme::graph_editor::node::profiling`. The sampler is registered under `network`.
+    pub fn from_styles(styles:&StyleWatchFrp,network:&frp::Network) -> frp::Sampler<Theme> {
+        use ensogl_theme::graph_editor::node::profiling as theme_path;
+        let lightness     = styles.get_number_or(theme_path::lightness,0.5);
+        let chroma        = styles.get_number_or(theme_path::chroma,1.0);
+        let min_time_hue  = styles.get_number_or(theme_path::min_time_hue,0.4);
+        let max_time_hue  = styles.get_number_or(theme_path::max_time_hue,0.1);
+
+        frp::extend! { network
+            init_theme    <- source::<()>();
+            theme         <- all_with5(&lightness,&chroma,&min_time_hue,&max_time_hue,&init_theme
+                ,|&lightness,&chroma,&min_time_hue,&max_time_hue,_|
+                    Theme {lightness,chroma,max_time_hue,min_time_hue});
+            theme_sampler <- theme.sampler();
+        }
+
+        init_theme.emit(());
+        theme_sampler
+    }
+}
+
 impl Status {
     /// Expresses the profiling status as a color, depending on the minimum and maximum running
     /// time of any node on the stage and a [`Theme`] that allows to tweak how the colors are
@@ -89,18 +128,18 @@ impl Status {
     pub fn display_color
     (self, min_global_duration: f32, max_global_duration: f32, theme: Theme) -> color::Lch {
         let duration = match self {
-            Status::Running => max_global_duration,
+            Status::Running             => max_global_duration,
             Status::Finished {duration} => duration,
         };
-        let duration_delta = max_global_duration - min_global_duration;
-        let hue_delta = theme.max_time_hue - theme.min_time_hue;
+        let duration_delta    = max_global_duration - min_global_duration;
+        let hue_delta         = theme.max_time_hue - theme.min_time_hue;
         let relative_duration = if duration_delta != 0.0 {
             (duration - min_global_duration) / duration_delta
         } else {
             0.0
         };
         let relative_hue = relative_duration;
-        let hue = theme.min_time_hue + relative_hue * hue_delta;
+        let hue          = theme.min_time_hue + relative_hue * hue_delta;
         color::Lch::new(theme.lightness, theme.chroma, hue)
     }
 }
@@ -116,7 +155,7 @@ ensogl::define_endpoints! {
         set_status              (Status),
         set_min_global_duration (f32),
         set_max_global_duration (f32),
-        set_editor_mode         (EditorMode),
+        set_view_mode         (view::Mode),
     }
 }
 
@@ -128,7 +167,7 @@ ensogl::define_endpoints! {
 
 /// A `display::Object` providing a label for nodes that displays the node's running time in
 /// profiling mode after the node finished execution. The node's execution status has to be provided
-/// through `set_status`, the diplay mode through `set_editor_mode`, the minimum and maximum running
+/// through `set_status`, the view mode through `set_view_mode`, the minimum and maximum running
 /// time of any node on the stage through `set_min_global_duration` and `set_max_global_duration`.
 /// The color of the label will reflect the status and be determined by [`Status::display_color`].
 /// The necessary theme will be taken from the application's style sheet. The origin of the label,
@@ -157,15 +196,9 @@ impl RunningTimeLabel {
 
         let label = text::Area::new(app);
         root.add_child(&label);
-        label.set_position_y(LABEL_OFFSET_Y);
+        label.set_position_y(crate::component::node::input::area::TEXT_SIZE/2.0);
         label.remove_from_scene_layer_DEPRECATED(&scene.layers.main);
         label.add_to_scene_layer_DEPRECATED(&scene.layers.label);
-
-        let styles       = StyleWatchFrp::new(&scene.style_sheet);
-        let lightness    = styles.get_number_or(theme_path::lightness,0.5);
-        let chroma       = styles.get_number_or(theme_path::chroma,1.0);
-        let min_time_hue = styles.get_number_or(theme_path::min_time_hue,0.4);
-        let max_time_hue = styles.get_number_or(theme_path::max_time_hue,0.1);
 
         let frp     = Frp::new();
         let network = &frp.network;
@@ -175,8 +208,8 @@ impl RunningTimeLabel {
 
             // === Visibility ===
 
-            visibility <- all_with(&frp.set_editor_mode,&frp.set_status,|mode,status| {
-                matches!((mode,status),(EditorMode::Profiling,Status::Finished {..}))
+            visibility <- all_with(&frp.set_view_mode,&frp.set_status,|mode,status| {
+                matches!((mode,status),(view::Mode::Profiling,Status::Finished {..}))
             });
 
             color.target_alpha <+ visibility.map(|&is_visible| {
@@ -186,9 +219,8 @@ impl RunningTimeLabel {
 
             // === Color ===
 
-            theme <- all_with4(&lightness,&chroma,&min_time_hue,&max_time_hue,
-                |&lightness,&chroma,&min_time_hue,&max_time_hue|
-                    Theme {lightness,chroma,max_time_hue,min_time_hue});
+            let styles = StyleWatchFrp::new(&scene.style_sheet);
+            let theme  = Theme::from_styles(&styles,&network);
             color.target_color <+ all_with4
                 (&frp.set_status,&frp.set_min_global_duration,&frp.set_max_global_duration,&theme,
                     |&status,&min,&max,&theme| status.display_color(min,max,theme)
@@ -199,16 +231,13 @@ impl RunningTimeLabel {
 
             // === Position ===
 
-            eval label.width((&width) label.set_position_x(-width/2.0));
+            let x_offset = crate::component::node::input::area::TEXT_OFFSET;
+            eval label.width((&width) label.set_position_x(-width-x_offset));
 
 
             // === Content ===
 
-            label.set_content <+ frp.set_status.map(|&status|
-                match status {
-                    Status::Running             => "".to_string(),
-                    Status::Finished {duration} => format!("{} ms", duration)
-                });
+            label.set_content <+ frp.set_status.map(|status| status.to_string());
         }
 
         RunningTimeLabel {root,label,frp,styles}
