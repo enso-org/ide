@@ -3,10 +3,9 @@
 <br/>![New Features](/docs/assets/tags/new_features.svg)
 
 #### Visual Environment
-
 - [Signed builds.][1366] Our builds are signed and will hav fewer annoyances
   upon running. You can trust us.
-
+  
 #### EnsoGL (rendering engine)
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
@@ -14,8 +13,6 @@
 #### Visual Environment
 
 #### Enso Compiler
-
-[1366]: https://github.com/enso-org/ide/pull/1366
 
 # Enso 2.0.0-alpha.5 (2021-05-14)
 
@@ -29,7 +26,7 @@
   clicking with mouse or selecting and pressing enter, a new unnamed project
   will be created and opened in the application. Then you can give a name to
   this project.
-
+  
 #### EnsoGL (rendering engine)
 
 - [Components for picking numbers and ranges.][1524]. We now have some internal
