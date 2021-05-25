@@ -625,7 +625,7 @@ impl Searcher {
                 Mode::NewNode {position} => self.add_example(&example,position).map(Some),
                 _                        => Err(CannotExecuteWhenEditingNode.into())
             }
-            Action::CreateNewProject => {
+            Action::ProjectManagement(action) => {
                 match self.ide.manage_projects() {
                     Ok(_) => {
                         let ide    = self.ide.clone_ref();
@@ -633,15 +633,19 @@ impl Searcher {
                         executor::global::spawn(async move {
                             // We checked that manage_projects returns Some just a moment ago, so
                             // unwrapping is safe.
-                            let result = ide.manage_projects().unwrap().create_new_project().await;
-                            if let Err(err) = result {
+                            let manage_projects = ide.manage_projects().unwrap();
+                            let result = match action {
+                                action::ProjectManagement::CreateNewProject => manage_projects.create_new_project(),
+                                action::ProjectManagement::OpenProject {id,name} => manage_projects.open_project(*id,name.to_string().into()),
+                            };
+                            if let Err(err) = result.await {
                                 error!(logger, "Error when creating new project: {err}");
                             }
                         });
                         Ok(None)
                     },
                     Err(err) => Err(NotSupported{
-                        action_label : Action::CreateNewProject.to_string(),
+                        action_label : Action::ProjectManagement(action).to_string(),
                         reason       : err,
                     }.into())
                 }
@@ -874,7 +878,8 @@ impl Searcher {
             actions.extend(self.database.iterate_examples().map(Action::Example));
             Self::add_enso_project_entries(&actions)?;
             if self.ide.manage_projects().is_ok() {
-                actions.extend(std::iter::once(Action::CreateNewProject));
+                let create_project = action::ProjectManagement::CreateNewProject;
+                actions.extend(std::iter::once(Action::ProjectManagement(create_project)));
             }
         }
         for response in completion_responses {
