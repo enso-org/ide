@@ -13,7 +13,7 @@ import * as unzipper from 'unzipper'
 import * as url from 'url'
 // @ts-ignore
 import * as paths from './../../../../../build/paths'
-import {IncomingMessage} from "http";
+import { IncomingMessage } from 'http'
 const fs = fss.promises
 
 const distPath = paths.dist.bin
@@ -114,11 +114,8 @@ class DownloadProgressIndicator {
 }
 
 // TODO: Consider adding to common library for re-use in other parts of the build system.
-async function download_project_manager(
-    file_url: string,
-    overwrite: boolean
-): Promise<void> {
-    const parse_result =  url.parse(file_url).pathname
+async function download_project_manager(file_url: string, overwrite: boolean): Promise<void> {
+    const parse_result = url.parse(file_url).pathname
     if (parse_result === undefined || parse_result === null) {
         throw `File URL does not contain valid path name: ` + file_url
     }
@@ -146,7 +143,7 @@ async function download_project_manager(
 
     const target_file = fss.createWriteStream(file_path)
     const progress_indicator = new DownloadProgressIndicator()
-    http.get(options, (res:IncomingMessage) => {
+    http.get(options, (res: IncomingMessage) => {
         res.on('data', (data: string) => {
             target_file.write(data)
             progress_indicator.add_progress_bytes(data.length)
