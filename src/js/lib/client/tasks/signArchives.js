@@ -1,13 +1,15 @@
 /**
- This script signs the content of all archives that we have.
+ This script signs the content of all archives that we have for macOS. For this to work this needs
+ to run on macOS with `codesign` and a JDK installed. `codesign` is needed to sign the files,
+ while the JDK is needed for correct packing and unpacking of java archives.
 
  Our use case requires us to re-sign jar contents that cannot be opened as pure
  zip archives, but require a java toolchain to extract and re-assemble.
  This code is based on https://github.com/electron/electron-osx-sign/pull/231 but our use case
  is unlikely to be supported by electron-osx-sign as adds a java toolchain as additional
- dependency..
+ dependency.
  This script should be removed once the engine is signed.
-*/
+**/
 const path = require('path')
 const child_process = require('child_process')
 const { dist } = require('../../../../../build/paths')
