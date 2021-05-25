@@ -616,6 +616,8 @@ pub struct HardcodedLayers {
     pub label                  : Layer,
     pub above_nodes            : Layer,
     pub above_nodes_text       : Layer,
+    /// Layer containing all panels with fixed position (not moving with the panned scene):
+    /// like status bar, breadcrumbs or similar.
     pub panel                  : Layer,
     pub panel_text             : Layer,
     pub tooltip                : Layer,
