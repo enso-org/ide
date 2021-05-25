@@ -141,6 +141,7 @@ ensogl::define_endpoints! {
         body_hover            (bool),
         type_label_visibility (bool),
         tooltip               (tooltip::Style),
+        view_mode             (view::Mode),
     }
 }
 
@@ -318,10 +319,11 @@ impl Model {
                     self.frp.source.on_port_type_change <+ port_frp.tp.map(move |t|(crumbs.clone(),t.clone()));
                     port_frp.set_type_label_visibility  <+ self.frp.type_label_visibility;
                     self.frp.source.tooltip             <+ port_frp.tooltip;
-                    port_frp.set_view_mode              <+ self.frp.set_view_mode;
+                    port_frp.set_view_mode              <+ self.frp.view_mode;
                 }
 
                 port_frp.set_type_label_visibility.emit(self.frp.type_label_visibility.value());
+                port_frp.set_view_mode.emit(self.frp.view_mode.value());
                 self.ports.add_child(&port_shape);
                 port_index += 1;
             }
@@ -438,6 +440,11 @@ impl Area {
             label_color_on_change    <- label_color.value.sample(&frp.set_expression);
             new_label_color          <- any(&label_color.value,&label_color_on_change);
             eval new_label_color ((color) model.label.set_color_all(color::Rgba::from(color)));
+
+
+            // === View Mode ===
+
+            frp.source.view_mode <+ frp.set_view_mode;
         }
 
         label_color.target_alpha(0.0);

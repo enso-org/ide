@@ -646,6 +646,7 @@ impl Area {
                     self.frp.output.source.pointer_style <+ pointer_style;
                 }
                 init_color.emit(());
+                frp.source.view_mode.emit(frp.view_mode.value());
                 port_shape.display_object().clone_ref()
             };
 
@@ -782,6 +783,13 @@ impl Area {
                     transparent         <- init_color.constant(color::Lcha::transparent());
                     viz_color_target    <- is_connected.switch(&transparent,&connected_viz_color);
 
+                    // We need to make sure that the network contains correct values before we
+                    // connect the `viz_color` animation. The reason is that the animation will
+                    // start from the first value that it receives, and during initialization of the
+                    // network, while some nodes are still set to their defaults, this first  value
+                    // would be incorrect, causing the animation in some cases to start from black
+                    // (the default color) and animating towards the color that we really want to
+                    // set.
                     init_color.emit(());
 
                     viz_color.target    <+ viz_color_target;
@@ -792,6 +800,8 @@ impl Area {
             }
             Some(frp.tp.clone_ref().into())
         });
+
+        self.frp.source.view_mode.emit(self.frp.view_mode.value());
     }
 
     /// This function first assigns the new expression to the model and then emits the definition
