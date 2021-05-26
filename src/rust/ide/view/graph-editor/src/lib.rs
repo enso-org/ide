@@ -5,20 +5,15 @@
 //! be of poor quality. Expect drastic changes.
 
 #![feature(associated_type_defaults)]
-#![feature(clamp)]
 #![feature(drain_filter)]
 #![feature(entry_insert)]
 #![feature(fn_traits)]
-#![feature(overlapping_marker_traits)]
 #![feature(option_result_contains)]
 #![feature(specialization)]
 #![feature(trait_alias)]
-#![feature(type_alias_impl_trait)]
+#![feature(min_type_alias_impl_trait)]
 #![feature(unboxed_closures)]
-#![feature(vec_remove_item)]
-#![feature(weak_into_raw)]
-#![feature(matches_macro)]
-
+#![allow(incomplete_features)] // To be removed, see: https://github.com/enso-org/ide/issues/1559
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 #![warn(trivial_casts)]
@@ -1356,8 +1351,8 @@ impl GraphEditorModel {
         let styles_frp         = StyleWatchFrp::new(&scene.style_sheet);
 
         Self {
-            logger,display_object,app,cursor,nodes,edges,touch_state,frp,breadcrumbs,vis_registry
-            ,visualisations,navigator,tooltip,profiling_statuses,profiling_button,styles_frp
+            logger,display_object,app,breadcrumbs,cursor,nodes,edges,vis_registry,tooltip,
+            profiling_statuses,profiling_button,touch_state,visualisations,frp,navigator,styles_frp
         }.init()
     }
 
