@@ -30,6 +30,8 @@ pub mod component;
 pub mod builtin;
 pub mod data;
 
+mod selection;
+
 use crate::component::node;
 use crate::component::tooltip::Tooltip;
 use crate::component::visualization::instance::PreprocessorConfiguration;
@@ -920,7 +922,48 @@ impl Nodes {
 }
 
 
+// === Node Selection ===
 
+impl Nodes {
+    fn select_node(&self, node_id:impl Into<NodeId>) {
+        let node_id = node_id.into();
+        if let Some(node) = self.get_cloned_ref(&node_id) {
+            self.selected.push(node_id);
+            node.frp.select.emit(());
+        }
+    }
+
+    fn deselect_node(&self, node_id:impl Into<NodeId>) {
+        let node_id = node_id.into();
+        if let Some(node) = self.get_cloned_ref(&node_id) {
+            self.selected.remove_item(&node_id);
+            node.frp.deselect.emit(());
+        }
+    }
+
+    pub fn selected_nodes(&self) -> Vec<NodeId> {
+        self.selected.items()
+    }
+
+    pub fn last_selected_node(&self) -> Option<NodeId> {
+        self.selected.last_cloned()
+    }
+
+    pub fn is_selected(&self, node:NodeId) -> bool {
+        self.selected.contains(&node)
+    }
+
+    pub fn deselect_all(&self) {
+        let selected = self.selected.raw.as_ref().clone();
+        selected.into_inner().into_iter().for_each(|node_id| self.deselect_node(node_id))
+    }
+}
+
+
+
+// =============
+// === Edges ===
+// =============
 
 #[derive(Debug,Clone,CloneRef)]
 pub struct Edges {
@@ -1273,11 +1316,12 @@ pub struct GraphEditorModel {
     // FIXME[MM]: The tooltip should live next to the cursor in `Application`. This does not
     //  currently work, however, because the `Application` lives in enso-core, and the tooltip
     //  requires enso-text, which in turn depends on enso-core, creating a cyclic dependency.
-    tooltip            : Tooltip,
-    touch_state        : TouchState,
-    visualisations     : Visualisations,
-    frp                : FrpEndpoints,
-    navigator          : Navigator,
+    tooltip              : Tooltip,
+    touch_state          : TouchState,
+    visualisations       : Visualisations,
+    frp                  : FrpEndpoints,
+    navigator            : Navigator,
+    selection_controller : selection::Controller,
 }
 
 
@@ -1289,24 +1333,28 @@ impl GraphEditorModel {
     , cursor : cursor::Cursor
     , frp    : &Frp
     ) -> Self {
-        let network        = &frp.network;
-        let scene          = app.display.scene();
-        let logger         = Logger::new("GraphEditor");
-        let display_object = display::object::Instance::new(&logger);
-        let nodes          = Nodes::new(&logger);
-        let edges          = Edges::new(&logger);
-        let vis_registry   = visualization::Registry::with_default_visualizations();
-        let visualisations = default();
-        let touch_state    = TouchState::new(network,&scene.mouse.frp);
-        let breadcrumbs    = component::Breadcrumbs::new(app.clone_ref());
-        let app            = app.clone_ref();
-        let frp            = frp.output.clone_ref();
-        let navigator      = Navigator::new(&scene,&scene.camera());
-        let tooltip        = Tooltip::new(&app);
+        let network              = &frp.network;
+        let scene                = app.display.scene();
+        let logger               = Logger::new("GraphEditor");
+        let display_object       = display::object::Instance::new(&logger);
+        let nodes                = Nodes::new(&logger);
+        let edges                = Edges::new(&logger);
+        let vis_registry         = visualization::Registry::with_default_visualizations();
+        let visualisations       = default();
+        let touch_state          = TouchState::new(network,&scene.mouse.frp);
+        let breadcrumbs          = component::Breadcrumbs::new(app.clone_ref());
+        let app                  = app.clone_ref();
+        let navigator            = Navigator::new(&scene,&scene.camera());
+        let tooltip              = Tooltip::new(&app);
+        let selection_controller = selection::Controller::new(&frp,&frp.output,&app.cursor,
+                                                              &scene.mouse.frp,&touch_state,
+                                                              &nodes);
+        let frp                  = frp.output.clone_ref();
+
 
         Self {
             logger,display_object,app,breadcrumbs,cursor,nodes,edges,vis_registry,tooltip,
-            touch_state,visualisations,frp,navigator,
+            touch_state,visualisations,frp,navigator,selection_controller
         }.init()
     }
 
@@ -1327,35 +1375,6 @@ impl GraphEditorModel {
 
     fn scene(&self) -> &Scene {
         self.app.display.scene()
-    }
-}
-
-
-// === Selection ===
-
-impl GraphEditorModel {
-    fn select_node(&self, node_id:impl Into<NodeId>) {
-        let node_id = node_id.into();
-        if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
-            self.nodes.selected.push(node_id);
-            node.frp.select.emit(());
-        }
-    }
-
-    fn deselect_node(&self, node_id:impl Into<NodeId>) {
-        let node_id = node_id.into();
-        if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
-            self.nodes.selected.remove_item(&node_id);
-            node.frp.deselect.emit(());
-        }
-    }
-
-    pub fn selected_nodes(&self) -> Vec<NodeId> {
-        self.nodes.selected.items()
-    }
-
-    pub fn last_selected_node(&self) -> Option<NodeId> {
-        self.nodes.selected.last_cloned()
     }
 }
 
@@ -1984,7 +2003,7 @@ impl application::View for GraphEditor {
     }
 }
 
-fn enable_disable_toggle
+pub fn enable_disable_toggle
 (network:&frp::Network, enable:&frp::Any, disable:&frp::Any, toggle:&frp::Any)
 -> frp::Stream<bool> {
     // FIXME: the clone_refs bellow should not be needed.
@@ -2003,54 +2022,23 @@ fn enable_disable_toggle
     out.into()
 }
 
-#[derive(Clone,Copy,Debug,Eq,PartialEq)]
-pub enum SelectionMode {
-    Normal,Multi,Merge,Subtract,Inverse
-}
-
-impl SelectionMode {
-    pub fn single_should_select(self, was_selected:bool) -> bool {
-        match self {
-            Self::Normal  => true,
-            Self::Merge   => true,
-            Self::Multi   => !was_selected,
-            Self::Inverse => !was_selected,
-            _             => false
-        }
-    }
-
-    pub fn single_should_deselect(self, was_selected:bool) -> bool {
-        match self {
-            Self::Subtract => true,
-            Self::Multi    => was_selected,
-            Self::Inverse  => was_selected,
-            _              => false
-        }
-    }
-}
-
-impl Default for SelectionMode {
-    fn default() -> Self {
-        Self::Normal
-    }
-}
-
 #[allow(unused_parens)]
 fn new_graph_editor(app:&Application) -> GraphEditor {
-    let world        = &app.display;
-    let scene        = world.scene();
-    let cursor       = &app.cursor;
-    let frp          = Frp::new();
-    let model        = GraphEditorModelWithNetwork::new(app,cursor.clone_ref(),&frp);
-    let network      = &frp.network;
-    let nodes        = &model.nodes;
-    let edges        = &model.edges;
-    let inputs       = &model.frp;
-    let mouse        = &scene.mouse.frp;
-    let touch        = &model.touch_state;
-    let vis_registry = &model.vis_registry;
-    let logger       = &model.logger;
-    let out          = &frp.output;
+    let world                 = &app.display;
+    let scene                 = world.scene();
+    let cursor                = &app.cursor;
+    let frp                   = Frp::new();
+    let model                 = GraphEditorModelWithNetwork::new(app,cursor.clone_ref(),&frp);
+    let network               = &frp.network;
+    let nodes                 = &model.nodes;
+    let edges                 = &model.edges;
+    let inputs                = &model.frp;
+    let mouse                 = &scene.mouse.frp;
+    let touch                 = &model.touch_state;
+    let vis_registry          = &model.vis_registry;
+    let logger                = &model.logger;
+    let out                   = &frp.output;
+    let selection_controller  = &model.selection_controller;
 
     // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
     let styles             = StyleWatch::new(&scene.style_sheet);
@@ -2228,103 +2216,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         });
     }
 
-
-    // === Cursor Selection ===
-    frp::extend! { network
-    on_press_style   <- mouse.down_primary . constant(cursor::Style::new_press());
-    on_release_style <- mouse.up_primary . constant(cursor::Style::default());
-
-    // FIXME [mwu] Restore when implementing https://github.com/enso-org/ide/issues/479
-    // mouse_on_down_position <- mouse.position.sample(&mouse.down_primary);
-    // selection_size_down    <- mouse.position.map2(&mouse_on_down_position,|m,n|{m-n});
-    // selection_size         <- selection_size_down.gate(&touch.background.is_down);
-    // cursor_selection_start <- selection_size.map(|p| cursor::Style::new_with_all_fields_default().press().box_selection(Vector2::new(p.x,p.y)));
-    // cursor_selection_end   <- mouse.up_primary . constant(cursor::Style::default());
-    // cursor_selection       <- any (cursor_selection_start, cursor_selection_end);
-
-    cursor_press     <- any (on_press_style, on_release_style);
-
-
-    }
-
-
-    // === Node Select ===
-
-    frp::extend! { network
-
-    deselect_all_nodes <- any_(...);
-
-    let multi_select_flag = enable_disable_toggle
-        ( network
-        , &inputs.enable_node_multi_select
-        , &inputs.disable_node_multi_select
-        , &inputs.toggle_node_multi_select
-        );
-
-    let merge_select_flag = enable_disable_toggle
-        ( network
-        , &inputs.enable_node_merge_select
-        , &inputs.disable_node_merge_select
-        , &inputs.toggle_node_merge_select
-        );
-
-    let subtract_select_flag = enable_disable_toggle
-        ( network
-        , &inputs.enable_node_subtract_select
-        , &inputs.disable_node_subtract_select
-        , &inputs.toggle_node_subtract_select
-        );
-
-    let inverse_select_flag = enable_disable_toggle
-        ( network
-        , &inputs.enable_node_inverse_select
-        , &inputs.disable_node_inverse_select
-        , &inputs.toggle_node_inverse_select
-        );
-
-
-    selection_mode <- all_with4
-        (&multi_select_flag,&merge_select_flag,&subtract_select_flag,&inverse_select_flag,
-        |multi,merge,subtract,inverse| {
-            if      *multi    { SelectionMode::Multi }
-            else if *merge    { SelectionMode::Merge }
-            else if *subtract { SelectionMode::Subtract }
-            else if *inverse  { SelectionMode::Inverse }
-            else              { SelectionMode::Normal }
-        }
-    );
-
-    edit_mode               <- bool(&inputs.edit_mode_off,&inputs.edit_mode_on);
-    node_to_select_non_edit <- touch.nodes.selected.gate_not(&edit_mode).gate_not(&out.some_edge_endpoints_unset);
-    node_to_select_edit     <- touch.nodes.down.gate(&edit_mode);
-    node_to_select          <- any(node_to_select_non_edit,node_to_select_edit,inputs.select_node);
-    node_was_selected       <- node_to_select.map(f!((id) model.nodes.selected.contains(id)));
-
-    should_select <- node_to_select.map3(&selection_mode,&node_was_selected,
-        |_,mode,was_selected| mode.single_should_select(*was_selected)
-    );
-
-    should_deselect <- node_to_select.map3(&selection_mode,&node_was_selected,
-        |_,mode,was_selected| mode.single_should_deselect(*was_selected)
-    );
-
-    keep_selection          <- selection_mode.map(|t| *t != SelectionMode::Normal);
-    deselect_on_select      <- node_to_select.gate_not(&keep_selection);
-    deselect_all_nodes      <+ deselect_on_select;
-    deselect_all_nodes      <+ inputs.deselect_all_nodes;
-
-    deselect_on_bg_press    <- touch.background.selected.gate_not(&keep_selection);
-    deselect_all_nodes      <+ deselect_on_bg_press;
-    all_nodes_to_deselect   <= deselect_all_nodes.map(f_!(model.nodes.selected.mem_take()));
-    out.source.node_deselected <+ all_nodes_to_deselect;
-
-    node_selected           <- node_to_select.gate(&should_select);
-    node_deselected         <- node_to_select.gate(&should_deselect);
-    out.source.node_selected   <+ node_selected;
-    out.source.node_deselected <+ node_deselected;
-    }
-
-
     // === Add Node ===
     frp::extend! { network
 
@@ -2426,6 +2317,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Edge creation  ===
 
     on_new_edge    <- any(&output_down,&input_down);
+    let selection_mode = selection::get_mode(network,inputs);
+    keep_selection <- selection_mode.map(|t| *t != selection::Mode::Normal);
     deselect_edges <- on_new_edge.gate_not(&keep_selection);
     eval_ deselect_edges ( model.clear_all_detached_edges() );
 
@@ -2555,7 +2448,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     frp::extend! { network
 
     all_nodes       <= inputs.remove_all_nodes      . map(f_!(model.all_nodes()));
-    selected_nodes  <= inputs.remove_selected_nodes . map(f_!(model.selected_nodes()));
+    selected_nodes  <= inputs.remove_selected_nodes . map(f_!(model.nodes.selected_nodes()));
     nodes_to_remove <- any (all_nodes, selected_nodes);
     eval nodes_to_remove ((node_id) inputs.remove_all_node_edges.emit(node_id));
 
@@ -2571,7 +2464,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     let empty_id       = NodeId::default();
     let model_clone    = model.clone_ref();
     nodes_to_collapse <- inputs.collapse_selected_nodes . map(move |_|
-        (model_clone.selected_nodes(),empty_id)
+        (model_clone.nodes.selected_nodes(),empty_id)
     );
     out.source.nodes_collapsed <+ nodes_to_collapse;
     }
@@ -2842,7 +2735,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         }
     });
 
-    nodes_to_cycle <= inputs.cycle_visualization_for_selected_node.map(f_!(model.selected_nodes()));
+    nodes_to_cycle <= inputs.cycle_visualization_for_selected_node.map(f_!(model.nodes.selected_nodes()));
     node_to_cycle  <- any(nodes_to_cycle,inputs.cycle_visualization);
     eval node_to_cycle ([model](node_id) {
         if let Some(node) = model.nodes.get_cloned_ref(node_id) {
@@ -2871,7 +2764,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     viz_press_time_diff  <- viz_release_time.map2(&viz_press_time,|t1,t0| t1-t0);
     viz_preview_mode     <- viz_press_time_diff.map(|t| *t > VIZ_PREVIEW_MODE_TOGGLE_TIME_MS);
     viz_preview_mode_end <- viz_release.gate(&viz_preview_mode).gate_not(&out.is_fs_visualization_displayed);
-    viz_tgt_nodes        <- viz_press.gate_not(&out.is_fs_visualization_displayed).map(f_!(model.selected_nodes()));
+    viz_tgt_nodes        <- viz_press.gate_not(&out.is_fs_visualization_displayed).map(f_!(model.nodes.selected_nodes()));
     viz_tgt_nodes_off    <- viz_tgt_nodes.map(f!([model](node_ids) {
         node_ids.iter().cloned().filter(|node_id| {
             model.nodes.get_cloned_ref(node_id)
@@ -2885,7 +2778,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     viz_enable           <- any(viz_enable_by_press,inputs.enable_visualization);
     viz_disable          <= viz_tgt_nodes.gate(&viz_tgt_nodes_all_on);
     viz_preview_disable  <= viz_tgt_nodes_off.sample(&viz_preview_mode_end);
-    viz_fullscreen_on    <= viz_d_press_ev.map(f_!(model.last_selected_node()));
+    viz_fullscreen_on    <= viz_d_press_ev.map(f_!(model.nodes.last_selected_node()));
 
     eval viz_enable          ((id) model.enable_visualization(id));
     eval viz_disable         ((id) model.disable_visualization(id));
@@ -2922,7 +2815,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Entering and Exiting Nodes ===
 
-    node_to_enter           <= inputs.enter_selected_node.map(f_!(model.last_selected_node()));
+    node_to_enter           <= inputs.enter_selected_node.map(f_!(model.nodes.last_selected_node()));
     out.source.node_entered <+ node_to_enter;
     removed_edges_on_enter  <= out.node_entered.map(f_!(model.model.clear_all_detached_edges()));
     out.source.node_exited  <+ inputs.exit_node;
@@ -3010,8 +2903,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Other Binds ===
     // ===================
 
-    eval out.node_selected   ((id) model.select_node(id));
-    eval out.node_deselected ((id) model.deselect_node(id));
+    eval out.node_selected   ((id) model.nodes.select_node(id));
+    eval out.node_deselected ((id) model.nodes.deselect_node(id));
     eval out.node_removed    ((id) model.remove_node(id));
     out.source.on_visualization_select <+ out.node_removed.map(|&id| Switch::Off(id));
 
@@ -3056,12 +2949,11 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     cursor_style_edge_drag         <- any (cursor_style_edge_drag,cursor_style_on_edge_drag_stop);
 
     let breadcrumb_style = model.breadcrumbs.pointer_style.clone_ref();
+    let selection_style  = selection_controller.cursor_style.clone_ref();
 
     pointer_style <- all
         [ pointer_on_drag
-        // FIXME [mwu] Restore when implementing https://github.com/enso-org/ide/issues/479
-        // , cursor_selection
-        , cursor_press
+        , selection_style
         , node_pointer_style
         , cursor_style_edge_drag
         , breadcrumb_style

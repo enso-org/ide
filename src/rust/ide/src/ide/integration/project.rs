@@ -1006,7 +1006,7 @@ impl Model {
                     },
                     Err(other) => return Err(other.into()),
                 };
-                let selected_nodes = this.view.graph().model.selected_nodes().iter().filter_map(|id| {
+                let selected_nodes = this.view.graph().model.nodes.selected_nodes().iter().filter_map(|id| {
                     this.get_controller_node_id(*id).ok()
                 }).collect_vec();
                 let controller = this.graph.clone_ref();

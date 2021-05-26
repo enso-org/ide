@@ -37,6 +37,8 @@ use ensogl_theme;
 use std::f32::EPSILON;
 
 use super::edge;
+use super::super::selection::BoundingBox;
+
 
 
 // =================
@@ -273,6 +275,7 @@ ensogl::define_endpoints! {
         error                 (Option<Error>),
         visualization_enabled (bool),
         tooltip               (tooltip::Style),
+        bounding_box          (BoundingBox)
     }
 }
 
@@ -534,6 +537,13 @@ impl Node {
         let style_frp        = &model.style;
         let action_bar       = &model.action_bar.frp;
 
+        // Hook up the display object position updates to the node's FRP. Required to calculate the
+        // bounding box
+        frp::extend! { network
+            position <- source::<Vector2>();
+        }
+        model.display_object.set_on_updated(f!((p) position.emit(p.position().xy())));
+
         frp::extend! { network
 
             // === Hover ===
@@ -579,6 +589,14 @@ impl Node {
 
             new_size <- model.input.frp.width.map(f!((w) model.set_width(*w)));
             eval new_size ((t) model.output.frp.set_size.emit(t));
+
+
+            // === Bounding Box ===
+            bounding_box_input <- all2(&new_size,&position);
+            out.source.bounding_box <+ bounding_box_input.map(|(size,position)| {
+                let position = position - Vector2::new(0.0,size.y / 2.0);
+                BoundingBox::from_position_size(position,*size)
+            });
 
 
             // === Action Bar ===
