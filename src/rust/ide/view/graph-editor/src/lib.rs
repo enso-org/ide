@@ -3044,19 +3044,20 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     out.source.on_edge_only_source_not_set <+ out.on_edge_target_set_with_source_not_set._0();
     out.source.on_edge_only_source_not_set <+ out.on_edge_source_unset._0();
 
-    let neutral_color = styles_frp.get_color(theme::code::types::any::selection);
-    _eval <- all_with(&out.on_edge_source_set,&neutral_color,f!(((id,_),neutral_color)
-            model.refresh_edge_color(*id,neutral_color.into())));
-    _eval <- all_with(&out.on_edge_target_set,&neutral_color,f!(((id,_),neutral_color)
-            model.refresh_edge_color(*id,neutral_color.into())));
-    _eval <- all_with(&out.on_edge_source_unset,&neutral_color,f!(((id,_),neutral_color)
-            model.refresh_edge_color(*id,neutral_color.into())));
-    _eval <- all_with(&out.on_edge_target_unset,&neutral_color,f!(((id,_),neutral_color)
-            model.refresh_edge_color(*id,neutral_color.into())));
+    let neutral_color = model.model.styles_frp.get_color(theme::code::types::any::selection);
+    eval out.on_edge_source_set ([model,neutral_color]((id, _))
+        model.refresh_edge_color(*id,neutral_color.value().into()));
+    eval out.on_edge_target_set ([model,neutral_color]((id, _))
+        model.refresh_edge_color(*id,neutral_color.value().into()));
+    eval out.on_edge_source_unset ([model,neutral_color]((id, _))
+        model.refresh_edge_color(*id,neutral_color.value().into()));
+    eval out.on_edge_target_unset ([model,neutral_color]((id, _))
+        model.refresh_edge_color(*id,neutral_color.value().into()));
+    eval neutral_color ((neutral_color) model.refresh_all_edge_colors(neutral_color.into()));
 
     edge_to_refresh_on_hover <= out.hover_node_input.map(f_!(model.edges_with_detached_targets()));
-    _eval <- all_with(&edge_to_refresh_on_hover,&neutral_color,f!((id,neutral_color)
-        model.refresh_edge_color(*id,neutral_color.into())));
+    eval edge_to_refresh_on_hover ([model,neutral_color](id)
+        model.refresh_edge_color(*id,neutral_color.value().into()));
 
 
     some_edge_sources_unset   <- out.on_all_edges_sources_set ?? out.on_some_edges_sources_unset;
