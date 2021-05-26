@@ -1009,7 +1009,7 @@ impl Model {
 
     fn searcher_opened_for_opening_project_in_ui(weak_self:Weak<Self>)
     -> impl Fn(&Self,&graph_editor::NodeId) -> FallibleResult {
-        move |this,displayed_id| {
+        move |this,_displayed_id| {
             let mode = controller::searcher::Mode::OpenProject;
             this.setup_searcher_controller(&weak_self,mode)
         }

@@ -114,8 +114,10 @@ pub trait ManagingProjectAPI {
     /// Create a new unnamed project and open it in the IDE.
     fn create_new_project(&self) -> BoxFuture<FallibleResult>;
 
+    /// Return a list of existing projects.
     fn list_projects(&self) -> BoxFuture<FallibleResult<Vec<ProjectMetadata>>>;
 
+    /// Open the project with given id and name.
     fn open_project(&self, id:Uuid, name:ProjectName) -> BoxFuture<FallibleResult>;
 }
 

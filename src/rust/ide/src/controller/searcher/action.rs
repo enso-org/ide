@@ -13,6 +13,8 @@ pub type Suggestion = Rc<model::suggestion_database::Entry>;
 /// Action of adding example code.
 pub type Example = Rc<model::suggestion_database::Example>;
 
+/// A variants of project management actions. See also [`Action`].
+#[allow(missing_docs)]
 #[derive(Clone,CloneRef,Debug,Eq,PartialEq)]
 pub enum ProjectManagement {
     CreateNewProject,
@@ -32,8 +34,9 @@ pub enum Action {
     /// Add to the current module a new function with example code, and a new node in
     /// current scene calling that function.
     Example(Example),
+    /// The project management operation: creating or opening, projects.
     ProjectManagement(ProjectManagement),
-    // In the future, other action types will be added (like project/module management, etc.).
+    // In the future, other action types will be added (like module/method management, etc.).
 }
 
 impl Display for Action {
