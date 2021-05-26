@@ -4,6 +4,10 @@
 
 #### Visual Environment
 
+[Area selection][1588]. You can now select multiple nodes at once. Just click
+and drag on the background of your graph and see the beauty of the area
+selection appear.
+
 #### EnsoGL (rendering engine)
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
@@ -11,6 +15,8 @@
 #### Visual Environment
 
 #### Enso Compiler
+
+[1588]: https://github.com/enso-org/ide/pull/1588
 
 # Enso 2.0.0-alpha.5 (2021-05-14)
 
