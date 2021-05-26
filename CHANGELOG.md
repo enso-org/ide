@@ -48,7 +48,7 @@
 - [Fixed an internal error that would make the IDE fail on some browser.][1561].
   Instead of crashing on browser that don't support the feature we use, we are
   now just start a little bit slower.
-  
+
 #### Enso Compiler
 
 - [Updated Enso engine to version 0.2.11][1541].
