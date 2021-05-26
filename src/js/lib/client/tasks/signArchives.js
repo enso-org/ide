@@ -240,7 +240,7 @@ const extra = [
 exports.default = async function () {
     // Sign archive.
     for (let toSignData of toSign) {
-        const jarDir = toSignData.jarDir
+        const jarDir = path.join(resRoot, toSignData.jarDir)
         const jarName = toSignData.jarName
         const jarContent = toSignData.jarContent
         console.log({ jarDir, jarName, jarContent })
