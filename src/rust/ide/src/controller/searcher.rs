@@ -74,7 +74,7 @@ pub struct CannotExecuteWhenEditingNode;
 
 #[allow(missing_docs)]
 #[derive(Copy,Clone,Debug,Fail)]
-#[fail(display="Cannot commit expression in current mode ({:?})", mode)]
+#[fail(display="Cannot commit expression in current mode ({:?}).", mode)]
 pub struct CannotCommitExpression {
     mode : Mode
 }
@@ -366,6 +366,7 @@ pub enum Mode {
     NewNode {position:Option<Position>},
     /// Searcher should edit existing node's expression.
     EditNode {node_id:ast::Id},
+    /// Searcher should show only projects to open.
     OpenProject,
 }
 
@@ -546,7 +547,12 @@ impl Searcher {
 
         self.data.borrow_mut().input = parsed_input;
         self.invalidate_fragments_added_by_picking();
-        if old_expr != new_expr && !matches!(*self.mode, Mode::OpenProject) {
+        let expression_changed = old_expr != new_expr;
+        // We don't do the reloading in OpenProject mode: the reloading is meant for providing new
+        // code suggestions for arguments of picked method. But in OpenProject mode the input is
+        // for filtering only.
+        let mode_with_reloading = !matches!(*self.mode, Mode::OpenProject);
+        if expression_changed && mode_with_reloading {
             debug!(self.logger, "Reloading list.");
             self.reload_list();
         } else if let Actions::Loaded {list} = self.data.borrow().actions.clone_ref() {
@@ -646,8 +652,10 @@ impl Searcher {
                             // unwrapping is safe.
                             let manage_projects = ide.manage_projects().unwrap();
                             let result = match action {
-                                action::ProjectManagement::CreateNewProject => manage_projects.create_new_project(),
-                                action::ProjectManagement::OpenProject {id,name} => manage_projects.open_project(*id,name.to_string().into()),
+                                action::ProjectManagement::CreateNewProject =>
+                                    manage_projects.create_new_project(),
+                                action::ProjectManagement::OpenProject {id,name} =>
+                                    manage_projects.open_project(*id,name.to_string().into()),
                             };
                             if let Err(err) = result.await {
                                 error!(logger, "Error when creating new project: {err}");

@@ -41,7 +41,6 @@ further investigation.
 | <kbd>ctrl</kbd>+<kbd>w</kbd>                                | Close the application (Windows, Linux) |
 
 
-
 #### Navigation
 | Shortcut | Action |
 | -------- | ------ |

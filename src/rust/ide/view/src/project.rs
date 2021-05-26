@@ -370,8 +370,8 @@ impl View {
             editing_aborted              <- any(...);
             editing_aborted              <+ frp.close_searcher.constant(true);
             editing_commited_in_searcher <- searcher.editing_committed.constant(());
-            should_finish_editing_if_any <-
-                any(frp.close_searcher,editing_commited_in_searcher,frp.open_searcher,frp.open_searcher_for_opening_project);
+            should_finish_editing_if_any <- any(frp.close_searcher,editing_commited_in_searcher
+                ,frp.open_searcher,frp.open_searcher_for_opening_project);
             should_finish_editing <- should_finish_editing_if_any.gate(&graph.output.node_editing);
             eval should_finish_editing ((()) graph.input.stop_editing.emit(()));
 
@@ -505,8 +505,8 @@ impl application::View for View {
         (&[ (Press   , "!is_searcher_opened", "tab"             , "open_searcher")
           , (Press   , "!is_searcher_opened", "cmd o"           , "open_searcher_for_opening_project")
           , (Press   , "is_searcher_opened" , "escape"          , "close_searcher")
-          , (Press   , ""                , "cmd alt shift t" , "toggle_style")
-          , (Press   , ""                , "cmd s"           , "save_module")
+          , (Press   , ""                   , "cmd alt shift t" , "toggle_style")
+          , (Press   , ""                   , "cmd s"           , "save_module")
           ]).iter().map(|(a,b,c,d)|Self::self_shortcut_when(*a,*c,*d,*b)).collect()
     }
 }

@@ -56,7 +56,7 @@ debug = true
 ## These patch versions exist to allow local development of these libraries alongside the IDE. It
 ## assumes you have `rust-lib` in the same directory as `ide`. See:
 ## https://github.com/enso-org/rust-lib/blob/main/docs/CONTRIBUTING.md#developing-in-conjunction-with-enso--ide
-[patch.crates-io]
+#[patch.crates-io]
 #enso-automata = { path = '../../../rust-lib/src/automata' }
 #enso-data = { path = '../../../rust-lib/src/data' }
 #enso-generics = { path = '../../../rust-lib/src/generics' }

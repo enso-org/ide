@@ -13,7 +13,6 @@ use crate::binary::message::MessageFromServerOwned;
 use crate::binary::message::VisualisationContext;
 use crate::language_server::types::Path;
 
-use enso_logger::prelude::CloneRef; //TODO why do I need it?
 use json_rpc::error::RpcError;
 use json_rpc::TransportEvent;
 use json_rpc::Transport;
