@@ -19,7 +19,7 @@ use ast::BlockLine;
 use enso_protocol::language_server;
 use serde::Deserialize;
 use serde::Serialize;
-
+use itertools::Itertools;
 
 
 // ==============
@@ -73,6 +73,13 @@ pub struct NotDirectChild(ast::Crumbs);
 pub struct Id {
     /// The vector can be empty - in that case we point to the module called `Main`.
     segments:Vec<ReferentName>
+}
+
+impl Display for Id {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = self.segments.iter().map(|s| -> &str { s.as_ref() }).join(".");
+        write!(f,"{}",s)
+    }
 }
 
 impl Id {

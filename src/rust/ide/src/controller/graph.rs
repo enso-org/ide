@@ -16,6 +16,7 @@ use crate::double_representation::module;
 use crate::double_representation::node;
 use crate::double_representation::node::NodeInfo;
 use crate::model::module::NodeMetadata;
+use crate::model::traits::*;
 
 use ast::crumbs::InfixCrumb;
 use enso_protocol::language_server;
@@ -28,7 +29,7 @@ use span_tree::generate::context::CalledMethodInfo;
 
 pub use crate::double_representation::graph::LocationHint;
 pub use crate::double_representation::graph::Id;
-
+use crate::model::undo_redo::Repository;
 
 
 // ==============
@@ -649,6 +650,7 @@ impl Handle {
     /// Create connection in graph.
     pub fn connect
     (&self, connection:&Connection, context:&impl SpanTreeContext) -> FallibleResult {
+        let transaction = self.get_or_open_transaction("Connect");
         if connection.source.port.is_empty() {
             // If we create connection from node's expression root, we are able to introduce missing
             // pattern with a new variable.
@@ -670,6 +672,7 @@ impl Handle {
     /// Remove the connections from the graph.
     pub fn disconnect
     (&self, connection:&Connection, context:&impl SpanTreeContext) -> FallibleResult {
+        let transaction = self.get_or_open_transaction("Disconnect");
         let info = self.destination_info(connection,context)?;
 
         let updated_expression = if connection.destination.var_crumbs.is_empty() {
@@ -783,6 +786,7 @@ impl Handle {
     pub fn collapse
     (&self, nodes:impl IntoIterator<Item=node::Id>, new_method_name_base:&str)
     -> FallibleResult<node::Id> {
+        let transaction = self.get_or_open_transaction("Collapse nodes");
         analytics::remote_log_event("graph::collapse");
         use double_representation::refactorings::collapse::collapse;
         use double_representation::refactorings::collapse::Collapsed;
@@ -867,6 +871,12 @@ impl span_tree::generate::Context for Handle {
     }
 }
 
+impl model::undo_redo::Aware for Handle {
+    fn repository(&self) -> Rc<Repository> {
+        self.module.repository()
+    }
+}
+
 
 
 // ============
@@ -945,7 +955,7 @@ pub mod tests {
         pub fn graph(&self) -> Handle {
             let logger = Logger::new("Test");
             let parser = Parser::new().unwrap();
-            let urm    = Rc::new(model::undo_redo::Model::new());
+            let urm    = Rc::new(model::undo_redo::Repository::new(&logger));
             let module = self.module_data().plain(&parser,urm);
             let id     = self.graph_id.clone();
             let db     = self.suggestion_db();

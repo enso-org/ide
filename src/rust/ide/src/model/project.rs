@@ -94,7 +94,9 @@ pub trait API:Debug {
     fn subscribe(&self) -> Subscriber<Notification>;
 
     /// Access undo-redo manager.
-    fn urm(&self) -> Rc<crate::model::undo_redo::Model>;
+    fn urm(&self) -> Rc<crate::model::undo_redo::Manager>;
+
+    // fn undo(&self) -> FallibleResult<()>;
 }
 
 // Note: Needless lifetimes

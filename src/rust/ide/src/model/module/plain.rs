@@ -18,6 +18,7 @@ use flo_stream::Subscriber;
 use parser::Parser;
 use parser::api::ParsedSourceFile;
 use parser::api::SourceFile;
+use crate::model::undo_redo::Repository;
 
 /// A structure describing the module.
 ///
@@ -26,16 +27,18 @@ use parser::api::SourceFile;
 /// (text and graph).
 #[derive(Debug)]
 pub struct Module {
+    logger        : Logger,
     path          : Path,
     content       : RefCell<Content>,
     notifications : notification::Publisher<Notification>,
-    urm           : Rc<model::undo_redo::Model>,
+    urm           : Rc<model::undo_redo::Repository>,
 }
 
 impl Module {
     /// Create state with given content.
-    pub fn new(path:Path, ast:ast::known::Module, metadata:Metadata, urm:Rc<model::undo_redo::Model>) -> Self {
+    pub fn new(path:Path, ast:ast::known::Module, metadata:Metadata, urm:Rc<model::undo_redo::Repository>) -> Self {
         Module {
+            logger : Logger::new(path.to_string()), // TODO sub
             path,
             content       : RefCell::new(ParsedSourceFile{ast,metadata}),
             notifications : default(),
@@ -49,7 +52,13 @@ impl Module {
     /// the module's state is guaranteed to remain unmodified and the notification will not be
     /// emitted.
     fn set_content(&self, new_content:Content, kind:NotificationKind) -> FallibleResult {
-        let transaction = self.urm.transaction();
+
+        trace!(self.logger, "Updating module's content: {kind:?}");
+        if new_content == *self.content.borrow() {
+            error!(self.logger, "Stupid! No change!");
+            return Ok(())
+        }
+        let transaction = self.urm.transaction("setting content");
         transaction.fill_content(self.id(),self.content.borrow().clone());
 
         // We want the line below to fail before changing state.
@@ -163,6 +172,12 @@ impl model::module::API for Module {
             fun(&mut data);
             content.metadata.ide.node.insert(id, data);
         })
+    }
+}
+
+impl model::undo_redo::Aware for Module {
+    fn repository(&self) -> Rc<Repository> {
+        self.urm.clone()
     }
 }
 

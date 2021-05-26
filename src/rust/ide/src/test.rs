@@ -124,7 +124,7 @@ pub mod mock {
         pub suggestions   : HashMap<suggestion_database::entry::Id,suggestion_database::Entry>,
         pub context_id    : model::execution_context::Id,
         pub parser        : parser::Parser,
-        pub urm           : Rc<model::undo_redo::Model>,
+        pub urm           : Rc<model::undo_redo::Manager>,
         code              : String,
         id_map            : ast::IdMap,
         metadata          : crate::model::module::Metadata,
@@ -163,13 +163,13 @@ pub mod mock {
                 context_id      : CONTEXT_ID,
                 root_definition : definition_name(),
                 parser          : parser::Parser::new_or_panic(),
-                urm             : Rc::new(model::undo_redo::Model::new()),
+                urm             : Rc::new(model::undo_redo::Manager::new()),
             }
         }
 
         pub fn module(&self) -> crate::model::Module {
             let ast    = self.parser.parse_module(self.code.clone(),self.id_map.clone()).unwrap();
-            let module = crate::model::module::Plain::new(self.module_path.clone(),ast,self.metadata.clone(),self.urm.clone_ref());
+            let module = crate::model::module::Plain::new(self.module_path.clone(),ast,self.metadata.clone(),self.urm.repository.clone_ref());
             Rc::new(module)
         }
 
@@ -322,7 +322,7 @@ pub mod mock {
             let parser        = self.data.parser.clone();
             let path          = self.data.module_path.clone();
             let ls            = self.project.json_rpc().clone();
-            let module_future = model::module::Synchronized::open(path,ls,parser,self.project.urm());
+            let module_future = model::module::Synchronized::open(path,ls,parser,self.project.urm().repository.clone_ref());
             // We can `expect_ready`, because in fact this is synchronous in test conditions.
             // (there's no real asynchronous connection beneath, just the `MockClient`)
             module_future.boxed_local().expect_ready().unwrap()
@@ -335,7 +335,7 @@ pub mod mock {
             let parser = self.data.parser.clone();
             let path   = self.data.module_path.clone();
             let ls     = self.project.json_rpc().clone();
-            let module_fut = model::module::Synchronized::open(path,ls,parser,self.project.urm());
+            let module_fut = model::module::Synchronized::open(path,ls,parser,self.project.urm().repository.clone_ref());
             // We can `expect_ready`, because in fact this is synchronous.
             // (there's no real asynchronous connection beneath, just the `MockClient`)
             let model = module_fut.boxed_local().expect_ready().unwrap();

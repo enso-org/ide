@@ -60,7 +60,7 @@ impl Handle {
         let logger = Logger::sub(parent,format!("Text Controller {}", path));
         let file   = if let Ok(path) = model::module::Path::from_file_path(path.clone()) {
             FileHandle::Module {
-                controller : controller::Module::new(logger.clone_ref(),path,project).await?
+                controller : controller::Module::new(logger.clone_ref(),path,&**project).await?
             }
         } else {
             FileHandle::PlainText {
@@ -190,8 +190,7 @@ mod test {
             let ls         = language_server::Connection::new_mock_rc(default());
             let path       = model::module::Path::from_mock_module_name("Test");
             let parser     = Parser::new().unwrap();
-            let urm        = Rc::new(model::undo_redo::Model::new());
-            let module_res = controller::Module::new_mock(path,"main = 2+2",default(),ls,parser,urm);
+            let module_res = controller::Module::new_mock(path,"main = 2+2",default(),ls,parser,default());
             let module     = module_res.unwrap();
             let controller = Handle {
                 logger : Logger::new("Test text controller"),
@@ -230,7 +229,7 @@ mod test {
         let parser   = parser::Parser::new_or_panic();
         TestWithLocalPoolExecutor::set_up().run_task(async move {
             let code         = "2 + 2".to_string();
-            let urm          = Rc::new(model::undo_redo::Model::new());
+            let urm          = default();
             let module       = model::module::test::MockData {code,..default()}.plain(&parser,urm);
             let module_clone = module.clone_ref();
             let project      = setup_mock_project(move |project| {

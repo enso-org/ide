@@ -191,6 +191,10 @@ ensogl::define_endpoints! {
         toggle_style(),
         /// Saves the currently opened module to file.
         save_module(),
+        /// Undo the last user's action.
+        undo(),
+        /// Redo the last undone action.
+        redo(),
     }
 
     Output {
@@ -477,6 +481,8 @@ impl application::View for View {
           , (Press   , "editing_node"                  , "escape"          , "abort_node_editing")
           , (Press   , ""                              , "cmd alt shift t" , "toggle_style")
           , (Press   , ""                              , "cmd s"           , "save_module")
+          , (Press   , ""                              , "cmd z"           , "undo")
+          , (Press   , ""                              , "cmd y"           , "redo")
           ]).iter().map(|(a,b,c,d)|Self::self_shortcut_when(*a,*c,*d,*b)).collect()
     }
 }

@@ -136,7 +136,7 @@ impl Module {
     ( path            : Path
     , language_server : Rc<language_server::Connection>
     , parser          : Parser
-    , urm             : Rc<model::undo_redo::Model>
+    , urm             : Rc<model::undo_redo::Repository>
     ) -> FallibleResult<Rc<Self>> {
         let logger        = Logger::new(iformat!("Module {path}"));
         let file_path     = path.file_path().clone();
@@ -404,6 +404,12 @@ impl Deref for Module {
 
     fn deref(&self) -> &Self::Target {
         &self.model
+    }
+}
+
+impl model::undo_redo::Aware for Module {
+    fn repository(&self) -> Rc<model::undo_redo::Repository> {
+        self.model.repository()
     }
 }
 

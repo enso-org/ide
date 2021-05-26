@@ -319,6 +319,9 @@ impl Integration {
             eval_ project_frp.editing_committed (invalidate.trigger.emit(()));
             eval_ project_frp.editing_aborted   (invalidate.trigger.emit(()));
             eval_ project_frp.save_module       (model.module_saved_in_ui());
+            eval_ project_frp.save_module       (model.module_saved_in_ui());
+            eval_ project_frp.undo              (model.undo_in_ui());
+            eval_ project_frp.redo              (model.redo_in_ui());
         }
 
         frp::extend! { network
@@ -1178,6 +1181,16 @@ impl Model {
                 error!(logger, "Error while saving file: {err:?}");
             }
         });
+    }
+
+    fn undo_in_ui(&self) {
+        debug!(self.logger, "Undo triggered in UI.");
+        self.project.urm().undo(&*self.project).unwrap()
+    }
+
+    fn redo_in_ui(&self) {
+        debug!(self.logger, "Redo triggered in UI.");
+        self.project.urm().redo(&*self.project).unwrap()
     }
 
     fn resolve_visualization_context

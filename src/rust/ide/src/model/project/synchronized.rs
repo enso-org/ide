@@ -132,7 +132,7 @@ pub struct Project {
     pub parser              : Parser,
     pub logger              : Logger,
     pub notifications       : notification::Publisher<model::project::Notification>,
-    pub urm                 : Rc<model::undo_redo::Model>,
+    pub urm                 : Rc<model::undo_redo::Manager>,
 }
 
 impl Project {
@@ -161,7 +161,7 @@ impl Project {
         let suggestion_db           = SuggestionDatabase::create_synchronized(language_server);
         let suggestion_db           = Rc::new(suggestion_db.await?);
         let notifications           = notification::Publisher::default();
-        let urm                     = Rc::new(model::undo_redo::Model::new());
+        let urm                     = Rc::new(model::undo_redo::Manager::new());
 
         let properties = Rc::new(Properties {id,name,engine_version});
 
@@ -335,7 +335,7 @@ impl Project {
     -> impl Future<Output=FallibleResult<Rc<module::Synchronized>>> {
         let language_server = self.language_server_rpc.clone_ref();
         let parser          = self.parser.clone_ref();
-        let urm             = self.urm.clone_ref();
+        let urm = self.urm().repository.clone_ref();
         module::Synchronized::open(path,language_server,parser,urm)
     }
 }
@@ -406,9 +406,13 @@ impl model::project::API for Project {
         self.notifications.subscribe()
     }
 
-    fn urm(&self) -> Rc<model::undo_redo::Model> {
+    fn urm(&self) -> Rc<model::undo_redo::Manager> {
         self.urm.clone_ref()
     }
+
+    // fn undo(&self) -> FallibleResult {
+    //     self.urm().undo(self)
+    // }
 }
 
 

@@ -17,7 +17,7 @@ use span_tree::generate::context::CalledMethodInfo;
 
 pub use crate::controller::graph::Connection;
 pub use crate::controller::graph::Connections;
-
+use crate::model::undo_redo::{Repository, Transaction};
 
 
 // ==============
@@ -292,6 +292,12 @@ impl Context for Handle {
     }
 }
 
+impl model::undo_redo::Aware for Handle {
+    fn repository(&self) -> Rc<Repository> {
+        self.graph.borrow().repository()
+    }
+}
+
 
 
 // ============
@@ -325,8 +331,9 @@ pub mod tests {
 
     impl MockData {
         pub fn controller(&self) -> Handle {
+            let logger      = Logger::new("test");
             let parser      = parser::Parser::new_or_panic();
-            let urm         = Rc::new(model::undo_redo::Model::new());
+            let urm         = Rc::new(model::undo_redo::Repository::new(&logger));
             let module      = self.module.plain(&parser,urm);
             let method      = self.graph.method();
             let mut project = model::project::MockAPI::new();
@@ -341,7 +348,7 @@ pub mod tests {
             let suggestion_db = self.graph.suggestion_db();
             model::project::test::expect_suggestion_db(&mut project,suggestion_db);
             let project = Rc::new(project);
-            Handle::new(Logger::new("test"),project.clone_ref(),method).boxed_local().expect_ok()
+            Handle::new(logger,project.clone_ref(),method).boxed_local().expect_ok()
         }
     }
 
