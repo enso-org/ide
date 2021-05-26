@@ -4,9 +4,8 @@
 
 #### Visual Environment
 
-- [Opening projects in application graphical interface][1587]. Press 
-  `cmd`+`o` to 
-  bring the list of projects. Select a project on the list to open it.
+- [Opening projects in application graphical interface][1587]. Press `cmd`+`o`
+  to bring the list of projects. Select a project on the list to open it.
 
 #### EnsoGL (rendering engine)
 
