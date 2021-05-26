@@ -1102,7 +1102,6 @@ impl GraphEditorModelWithNetwork {
 
         let touch      = &self.touch_state;
         let model      = &self.model;
-        let styles_frp = StyleWatchFrp::new(&model.scene().style_sheet);
 
         let NodeCreationContext {pointer_style,tooltip_update,output_press,input_press,output} = ctx;
 
@@ -1137,15 +1136,21 @@ impl GraphEditorModelWithNetwork {
                model.frp.source.hover_node_output.emit(output);
             });
 
-            let neutral_color = styles_frp.get_color(theme::code::types::any::selection);
+            let neutral_color = model.styles_frp.get_color(theme::code::types::any::selection);
 
             _eval <- all_with(&node.model.input.frp.on_port_type_change,&neutral_color,
                 f!(((crumbs,_),neutral_color)
-                    model.with_input_edge_id(node_id,crumbs,|id| model.refresh_edge_color(id,neutral_color.into()))));
+                    model.with_input_edge_id(node_id,crumbs,|id|
+                        model.refresh_edge_color(id,neutral_color.into())
+                    )
+                ));
 
             _eval <- all_with(&node.model.input.frp.on_port_type_change,&neutral_color,
                 f!(((crumbs,_),neutral_color)
-                    model.with_output_edge_id(node_id,crumbs,|id| model.refresh_edge_color(id,neutral_color.into()))));
+                    model.with_output_edge_id(node_id,crumbs,|id|
+                        model.refresh_edge_color(id,neutral_color.into())
+                    )
+                ));
 
             eval node.frp.expression((t) output.source.node_expression_set.emit((node_id,t.into())));
 
@@ -1320,6 +1325,7 @@ pub struct GraphEditorModel {
     navigator          : Navigator,
     profiling_statuses : profiling::Statuses,
     profiling_button   : component::profiling::Button,
+    styles_frp         : StyleWatchFrp,
 }
 
 
@@ -1347,10 +1353,11 @@ impl GraphEditorModel {
         let tooltip            = Tooltip::new(&app);
         let profiling_statuses = profiling::Statuses::new();
         let profiling_button   = component::profiling::Button::new(&app);
+        let styles_frp         = StyleWatchFrp::new(&scene.style_sheet);
 
         Self {
-            logger,display_object,app,cursor,nodes,edges,touch_state,frp,breadcrumbs,
-            vis_registry,visualisations,navigator,tooltip,profiling_statuses,profiling_button,
+            logger,display_object,app,cursor,nodes,edges,touch_state,frp,breadcrumbs,vis_registry
+            ,visualisations,navigator,tooltip,profiling_statuses,profiling_button,styles_frp
         }.init()
     }
 
@@ -2115,7 +2122,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
     let styles             = StyleWatch::new(&scene.style_sheet);
-    let styles_frp         = StyleWatchFrp::new(&scene.style_sheet);
     let any_type_sel_color = color::Lcha::from(styles.get_color(theme::code::types::any::selection));
 
 

@@ -567,7 +567,7 @@ impl Area {
                 // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
                 let style_sheet        = &self.model.app.display.scene().style_sheet;
                 let styles             = StyleWatch::new(style_sheet);
-                let styles_frp         = StyleWatchFrp::new(style_sheet);
+                let styles_frp         = &self.model.styles_frp;
                 let any_type_sel_color = styles_frp.get_color(theme::code::types::any::selection);
                 let crumbs             = port.crumbs.clone_ref();
                 let port_network       = &port.network;
@@ -725,6 +725,10 @@ impl Area {
                     profiled          <- in_profiling_mode && finished;
                     selected          <- frp.set_hover || frp.set_parent_connected;
 
+                    init_colors         <- source::<()>();
+                    std_base_color      <- all(std_base_color,init_colors)._0();
+                    profiled_base_color <- all(profiled_base_color,init_colors)._0();
+
                     profiling_color <- finished.switch(&std_base_color,&profiled_base_color);
                     normal_color    <- frp.tp.map(f!([styles](t)
                         color::Rgba::from(type_coloring::compute_for_code(t.as_ref(),&styles))));
@@ -759,6 +763,9 @@ impl Area {
                         label.set_color_bytes(range,color::Rgba::from(color));
                     });
                 }
+
+                init_colors.emit(());
+                self.set_view_mode(self.view_mode.value());
             }
 
 
