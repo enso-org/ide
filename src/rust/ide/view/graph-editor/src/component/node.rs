@@ -442,9 +442,9 @@ impl NodeModel {
         let style = StyleWatchFrp::new(&app.display.scene().style_sheet);
 
         let app = app.clone_ref();
-        Self {app,display_object,logger,backdrop,background,drag_area,error_indicator,input,output
-             ,visualization,error_visualization,action_bar,profiling_label,vcs_indicator,style}
-             .init()
+        Self {app,display_object,logger,backdrop,background,drag_area,error_indicator
+             ,profiling_label,input,output,visualization,error_visualization,action_bar
+             ,vcs_indicator,style}.init()
     }
 
     pub fn get_crumbs_by_id(&self, id:ast::Id) -> Option<Crumbs> {

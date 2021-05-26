@@ -1352,7 +1352,7 @@ impl GraphEditorModel {
 
         Self {
             logger,display_object,app,breadcrumbs,cursor,nodes,edges,vis_registry,tooltip,
-            profiling_statuses,profiling_button,touch_state,visualisations,frp,navigator,styles_frp
+            touch_state,visualisations,frp,navigator,profiling_statuses,profiling_button,styles_frp
         }.init()
     }
 

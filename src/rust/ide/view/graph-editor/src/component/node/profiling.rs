@@ -111,7 +111,7 @@ impl Theme {
             init_theme    <- source::<()>();
             theme         <- all_with5(&lightness,&chroma,&min_time_hue,&max_time_hue,&init_theme
                 ,|&lightness,&chroma,&min_time_hue,&max_time_hue,_|
-                    Theme {lightness,chroma,max_time_hue,min_time_hue});
+                    Theme {lightness,chroma,min_time_hue,max_time_hue});
             theme_sampler <- theme.sampler();
         }
 
