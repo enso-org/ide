@@ -46,18 +46,20 @@ ensogl::define_endpoints! {
     }
 
     Output {
-        adding_new_node                (bool),
-        node_being_edited              (Option<NodeId>),
-        searcher_opened                (bool),
-        editing_node                   (bool),
-        opening_project                (bool),
-        old_expression_of_edited_node  (Expression),
-        editing_aborted                (NodeId),
-        editing_committed              (NodeId, Option<searcher::entry::Id>),
-        code_editor_shown              (bool),
-        style                          (Theme),
-        fullscreen_visualization_shown (bool),
-        default_gap_between_nodes      (f32)
+        searcher_opened                     (NodeId),
+        searcher_opened_for_opening_project (NodeId),
+        adding_new_node                     (bool),
+        node_being_edited                   (Option<NodeId>),
+        is_searcher_opened                  (bool),
+        editing_node                        (bool),
+        opening_project                     (bool),
+        old_expression_of_edited_node       (Expression),
+        editing_aborted                     (NodeId),
+        editing_committed                   (NodeId, Option<searcher::entry::Id>),
+        code_editor_shown                   (bool),
+        style                               (Theme),
+        fullscreen_visualization_shown      (bool),
+        default_gap_between_nodes           (f32)
     }
 }
 
@@ -165,7 +167,7 @@ impl Model {
         }
     }
 
-    fn add_node_and_edit(&self) {
+    fn add_node_and_edit(&self) -> NodeId {
         let graph_editor_inputs = &self.graph_editor.frp.input;
         let node_id = if let Some(selected) = self.graph_editor.model.nodes.selected.first_cloned() {
             let selected_pos = self.graph_editor.model.get_node_position(selected).unwrap_or_default();
@@ -183,6 +185,7 @@ impl Model {
         };
         graph_editor_inputs.set_node_expression.emit(&(node_id,Expression::default()));
         graph_editor_inputs.edit_node.emit(&node_id);
+        node_id
     }
 
     fn show_fullscreen_visualization(&self, node_id:NodeId) {
@@ -401,10 +404,10 @@ impl View {
             frp.source.editing_node      <+ frp.node_being_edited.map(|n| n.is_some());
 
 
-            // === Adding New Node ===
+            // === Adding Node ===
 
             frp.source.adding_new_node <+ frp.open_searcher.constant(true);
-            eval frp.open_searcher ((()) model.add_node_and_edit());
+            frp.source.searcher_opened <+ frp.open_searcher.map(f!((_) model.add_node_and_edit()));
 
             adding_committed           <- frp.editing_committed.gate(&frp.adding_new_node).map(|(id,_)| *id);
             adding_aborted             <- frp.editing_aborted.gate(&frp.adding_new_node);
@@ -415,6 +418,21 @@ impl View {
                 graph.select_node(node);
             });
             eval adding_aborted  ((node) graph.remove_node(node));
+
+
+            // === Opening Project ===
+
+            frp.source.opening_project <+ frp.open_searcher_for_opening_project.constant(true);
+
+            frp.source.searcher_opened_for_opening_project <+ frp.open_searcher_for_opening_project
+                .map(f!((_) model.add_node_and_edit()));
+
+            opening_committed <- frp.editing_committed.gate(&frp.opening_project).map(|(id,_)| *id);
+            opening_aborted   <- frp.editing_aborted.gate(&frp.opening_project);
+            opening_finished  <- any(&opening_committed,&opening_aborted);
+            frp.source.opening_project <+ opening_finished.constant(false);
+
+            eval opening_finished ((node) graph.remove_node(node));
 
 
             // === Style toggle ===
@@ -484,9 +502,9 @@ impl application::View for View {
 
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use shortcut::ActionType::*;
-        (&[ (Press   , "!searcher_opened", "tab"             , "open_searcher")
-          , (Press   , "!searcher_opened", "cmd o"           , "open_searcher_for_opening_project")
-          , (Press   , "searcher_opened" , "escape"          , "close_searcher")
+        (&[ (Press   , "!is_searcher_opened", "tab"             , "open_searcher")
+          , (Press   , "!is_searcher_opened", "cmd o"           , "open_searcher_for_opening_project")
+          , (Press   , "is_searcher_opened" , "escape"          , "close_searcher")
           , (Press   , ""                , "cmd alt shift t" , "toggle_style")
           , (Press   , ""                , "cmd s"           , "save_module")
           ]).iter().map(|(a,b,c,d)|Self::self_shortcut_when(*a,*c,*d,*b)).collect()

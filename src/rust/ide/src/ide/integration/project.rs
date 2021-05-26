@@ -265,22 +265,26 @@ impl Integration {
 
         // === UI Actions ===
 
-        let inv                    = &invalidate.trigger;
-        let node_editing_in_ui     = Model::node_editing_in_ui(Rc::downgrade(&model));
-        let code_changed           = Self::ui_action(&model,Model::code_changed_in_ui          ,inv);
-        let node_removed           = Self::ui_action(&model,Model::node_removed_in_ui          ,inv);
-        let nodes_collapsed        = Self::ui_action(&model,Model::nodes_collapsed_in_ui       ,inv);
-        let node_entered           = Self::ui_action(&model,Model::node_entered_in_ui          ,inv);
-        let node_exited            = Self::ui_action(&model,Model::node_exited_in_ui           ,inv);
-        let connection_created     = Self::ui_action(&model,Model::connection_created_in_ui    ,inv);
-        let connection_removed     = Self::ui_action(&model,Model::connection_removed_in_ui    ,inv);
-        let node_moved             = Self::ui_action(&model,Model::node_moved_in_ui            ,inv);
-        let node_editing           = Self::ui_action(&model,node_editing_in_ui                 ,inv);
-        let node_expression_set    = Self::ui_action(&model,Model::node_expression_set_in_ui   ,inv);
-        let used_as_suggestion     = Self::ui_action(&model,Model::used_as_suggestion_in_ui    ,inv);
-        let node_editing_committed = Self::ui_action(&model,Model::node_editing_committed_in_ui,inv);
-        let visualization_enabled  = Self::ui_action(&model,Model::visualization_enabled_in_ui ,inv);
-        let visualization_disabled = Self::ui_action(&model,Model::visualization_disabled_in_ui,inv);
+        let inv                       = &invalidate.trigger;
+        let node_editing_in_ui        = Model::node_editing_in_ui(Rc::downgrade(&model));
+        let searcher_opened_in_ui     = Model::searcher_opened_in_ui(Rc::downgrade(&model));
+        let searcher_opened_fop_in_ui = Model::searcher_opened_for_opening_project_in_ui(Rc::downgrade(&model));
+        let code_changed              = Self::ui_action(&model,Model::code_changed_in_ui          ,inv);
+        let node_removed              = Self::ui_action(&model,Model::node_removed_in_ui          ,inv);
+        let nodes_collapsed           = Self::ui_action(&model,Model::nodes_collapsed_in_ui       ,inv);
+        let node_entered              = Self::ui_action(&model,Model::node_entered_in_ui          ,inv);
+        let node_exited               = Self::ui_action(&model,Model::node_exited_in_ui           ,inv);
+        let connection_created        = Self::ui_action(&model,Model::connection_created_in_ui    ,inv);
+        let connection_removed        = Self::ui_action(&model,Model::connection_removed_in_ui    ,inv);
+        let node_moved                = Self::ui_action(&model,Model::node_moved_in_ui            ,inv);
+        let searcher_opened           = Self::ui_action(&model,searcher_opened_in_ui              ,inv);
+        let searcher_opened_fop       = Self::ui_action(&model,searcher_opened_fop_in_ui          ,inv);
+        let node_editing              = Self::ui_action(&model,node_editing_in_ui                 ,inv);
+        let node_expression_set       = Self::ui_action(&model,Model::node_expression_set_in_ui   ,inv);
+        let used_as_suggestion        = Self::ui_action(&model,Model::used_as_suggestion_in_ui    ,inv);
+        let node_editing_committed    = Self::ui_action(&model,Model::node_editing_committed_in_ui,inv);
+        let visualization_enabled     = Self::ui_action(&model,Model::visualization_enabled_in_ui ,inv);
+        let visualization_disabled    = Self::ui_action(&model,Model::visualization_disabled_in_ui,inv);
         frp::extend! {network
             eval code_editor.content ((content) model.code_view.set(content.clone_ref()));
 
@@ -312,6 +316,8 @@ impl Integration {
             _action <- on_connection_removed                .map2(&is_hold,connection_removed);
             _action <- editor_outs.node_position_set_batched.map2(&is_hold,node_moved);
             _action <- editor_outs.node_being_edited        .map2(&is_hold,node_editing);
+            _action <- project_frp.searcher_opened          .map2(&is_hold,searcher_opened);
+            _action <- project_frp.searcher_opened_for_opening_project.map2(&is_hold,searcher_opened_fop);
             _action <- editor_outs.node_expression_set      .map2(&is_hold,node_expression_set);
             _action <- searcher_frp.used_as_suggestion      .map2(&is_hold,used_as_suggestion);
             _action <- project_frp.editing_committed        .map2(&is_hold,node_editing_committed);
@@ -990,10 +996,33 @@ impl Model {
         Ok(())
     }
 
+    fn searcher_opened_in_ui(weak_self:Weak<Self>)
+    -> impl Fn(&Self,&graph_editor::NodeId) -> FallibleResult {
+        move |this,displayed_id| {
+            let node_view = this.view.graph().model.nodes.get_cloned_ref(&displayed_id);
+            let position  = node_view.map(|node| node.position().xy());
+            let position  = position.map(|vector| model::module::Position{vector});
+            let mode      = controller::searcher::Mode::NewNode {position};
+            this.setup_searcher_controller(&weak_self,mode)
+        }
+    }
+
+    fn searcher_opened_for_opening_project_in_ui(weak_self:Weak<Self>)
+    -> impl Fn(&Self,&graph_editor::NodeId) -> FallibleResult {
+        move |this,displayed_id| {
+            let mode = controller::searcher::Mode::OpenProject;
+            this.setup_searcher_controller(&weak_self,mode)
+        }
+    }
+
     fn node_editing_in_ui(weak_self:Weak<Self>)
     -> impl Fn(&Self,&Option<graph_editor::NodeId>) -> FallibleResult {
         move |this,displayed_id| {
-            if let Some(displayed_id) = displayed_id {
+            if this.searcher.borrow().is_some() {
+                // This is a normal situation: the searcher controller might be created when
+                // one of "open searcher" signals was emitted by searcher view.
+                debug!(this.logger, "Searcher controller already created.");
+            } else if let Some(displayed_id) = displayed_id {
                 debug!(this.logger, "Starting node editing.");
                 let id   = this.get_controller_node_id(*displayed_id);
                 let mode = match id {
@@ -1006,20 +1035,7 @@ impl Model {
                     },
                     Err(other) => return Err(other.into()),
                 };
-                let selected_nodes = this.view.graph().model.selected_nodes().iter().filter_map(|id| {
-                    this.get_controller_node_id(*id).ok()
-                }).collect_vec();
-                let controller = this.graph.clone_ref();
-                let ide        = this.ide.clone_ref();
-                let searcher   = controller::Searcher::new_from_graph_controller
-                    (&this.logger,ide,&this.project,controller,mode,selected_nodes)?;
-                executor::global::spawn(searcher.subscribe().for_each(f!([weak_self](notification) {
-                    if let Some(this) = weak_self.upgrade() {
-                        this.handle_searcher_notification(notification);
-                    }
-                    futures::future::ready(())
-                })));
-                *this.searcher.borrow_mut() = Some(searcher);
+                this.setup_searcher_controller(&weak_self,mode)?;
             } else {
                 debug!(this.logger, "Finishing node editing.");
             }
@@ -1362,6 +1378,25 @@ impl Model {
                 //   them to drive cleanups on such discrepancies.
             }
         });
+        Ok(())
+    }
+
+    fn setup_searcher_controller
+    (&self, weak_self:&Weak<Self>, mode:controller::searcher::Mode) -> FallibleResult {
+        let selected_nodes = self.view.graph().model.selected_nodes().iter().filter_map(|id| {
+            self.get_controller_node_id(*id).ok()
+        }).collect_vec();
+        let controller = self.graph.clone_ref();
+        let ide        = self.ide.clone_ref();
+        let searcher   = controller::Searcher::new_from_graph_controller
+            (&self.logger,ide,&self.project,controller,mode,selected_nodes)?;
+        executor::global::spawn(searcher.subscribe().for_each(f!([weak_self](notification) {
+            if let Some(this) = weak_self.upgrade() {
+                this.handle_searcher_notification(notification);
+            }
+            futures::future::ready(())
+        })));
+        *self.searcher.borrow_mut() = Some(searcher);
         Ok(())
     }
 }
