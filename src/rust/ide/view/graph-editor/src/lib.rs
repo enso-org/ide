@@ -5,19 +5,15 @@
 //! be of poor quality. Expect drastic changes.
 
 #![feature(associated_type_defaults)]
-#![feature(clamp)]
 #![feature(drain_filter)]
 #![feature(entry_insert)]
 #![feature(fn_traits)]
-#![feature(overlapping_marker_traits)]
 #![feature(option_result_contains)]
 #![feature(specialization)]
 #![feature(trait_alias)]
-#![feature(type_alias_impl_trait)]
+#![feature(min_type_alias_impl_trait)]
 #![feature(unboxed_closures)]
-#![feature(vec_remove_item)]
-#![feature(weak_into_raw)]
-
+#![allow(incomplete_features)] // To be removed, see: https://github.com/enso-org/ide/issues/1559
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 #![warn(trivial_casts)]
@@ -79,12 +75,25 @@ pub mod prelude {
 // === Constants ===
 // =================
 
-const SNAP_DISTANCE_THRESHOLD          : f32 = 10.0;
-const VIZ_PREVIEW_MODE_TOGGLE_TIME_MS  : f32 = 300.0;
-const MACOS_TRAFFIC_LIGHTS_CONTENT     : f32 = 52.0;
-const MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET : f32 = 13.0;
-const MACOS_TRAFFIC_LIGHTS_WIDTH       : f32 =
-    MACOS_TRAFFIC_LIGHTS_CONTENT + 2.0 * MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET;
+const SNAP_DISTANCE_THRESHOLD              : f32 = 10.0;
+const VIZ_PREVIEW_MODE_TOGGLE_TIME_MS      : f32 = 300.0;
+const MACOS_TRAFFIC_LIGHTS_CONTENT_WIDTH   : f32 = 52.0;
+const MACOS_TRAFFIC_LIGHTS_CONTENT_HEIGHT  : f32 = 12.0;
+/// Horizontal and vertical offset between traffic lights and window border
+const MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET     : f32 = 13.0;
+const MACOS_TRAFFIC_LIGHTS_VERTICAL_CENTER : f32 =
+    - MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET - MACOS_TRAFFIC_LIGHTS_CONTENT_HEIGHT / 2.0;
+
+fn traffic_lights_gap_width() -> f32 {
+    let is_macos     = ARGS.platform.map(|p|p.is_macos()) == Some(true);
+    let is_frameless = ARGS.frame == Some(false);
+    if is_macos && is_frameless {
+        MACOS_TRAFFIC_LIGHTS_CONTENT_WIDTH + MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET
+    }
+    else {
+        0.0
+    }
+}
 
 
 
@@ -314,6 +323,10 @@ ensogl::define_endpoints! {
         // === General ===
         /// Cancel the operation being currently performed. Often mapped to the escape key.
         cancel(),
+
+
+        // === Layout ===
+        space_for_window_buttons (Vector2<f32>),
 
 
         // === Node Selection ===
@@ -692,6 +705,35 @@ impl Type {
     /// considered to be an empty type as well.
     pub fn is_any(&self) -> bool {
         self.as_str() == "Any" || self.is_empty()
+    }
+
+    /// If the type consists of a single identifier then we remove all module qualifiers:
+    /// ```
+    /// use ide_view_graph_editor::*;
+    ///
+    /// let input       = Type::from("Foo.Bar.Baz.Vector".to_string());
+    /// let expectation = Type::from("Vector".to_string());
+    /// assert_eq!(input.abbreviate(), expectation);
+    /// ```
+    ///
+    /// If the type contains multiple identifiers then we just abbreviate the first one:
+    /// ```
+    /// use ide_view_graph_editor::*;
+    ///
+    /// let input       = Type::from("Foo.Bar.Baz.Vector Math.Number".to_string());
+    /// let expectation = Type::from("Vector Math.Number".to_string());
+    /// assert_eq!(input.abbreviate(), expectation);
+    /// ```
+    pub fn abbreviate(&self) -> Type {
+        if let Some(up_to_whitespace) = self.split_whitespace().next() {
+            if let Some(last_dot_index) = up_to_whitespace.rfind('.') {
+                Type::from(self[last_dot_index+1..].to_string())
+            } else {  // `self` contains no dot. We do not need to abbreaviate it.
+                self.clone()
+            }
+        } else {  // `self` was empty.
+            Type::from("".to_string())
+        }
     }
 }
 
@@ -1263,20 +1305,18 @@ impl GraphEditorModel {
         let tooltip        = Tooltip::new(&app);
 
         Self {
-            logger,display_object,app,cursor,nodes,edges,touch_state,frp,breadcrumbs,
-            vis_registry,visualisations,navigator,tooltip,
+            logger,display_object,app,breadcrumbs,cursor,nodes,edges,vis_registry,tooltip,
+            touch_state,visualisations,frp,navigator,
         }.init()
     }
 
     fn init(self) -> Self {
         self.add_child(&self.breadcrumbs);
-        let is_macos     = ARGS.platform.map(|p|p.is_macos()) == Some(true);
-        let is_frameless = ARGS.frame == Some(false);
-        let x_offset     = if is_macos && is_frameless { MACOS_TRAFFIC_LIGHTS_WIDTH }
-                           else                        { MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET };
-        let y_offset     = -MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET;
+        let x_offset = MACOS_TRAFFIC_LIGHTS_SIDE_OFFSET;
+        let y_offset = MACOS_TRAFFIC_LIGHTS_VERTICAL_CENTER + component::breadcrumbs::HEIGHT / 2.0;
         self.breadcrumbs.set_position_x(x_offset);
         self.breadcrumbs.set_position_y(y_offset);
+        self.breadcrumbs.gap_width(traffic_lights_gap_width());
         self.scene().add_child(&self.tooltip);
         self
     }
@@ -1390,6 +1430,7 @@ impl GraphEditorModel {
         let node_id = node_id.into();
         self.nodes.remove(&node_id);
         self.nodes.selected.remove_item(&node_id);
+        self.frp.source.on_visualization_select.emit(Switch::Off(node_id));
     }
 
     fn node_in_edges(&self, node_id:impl Into<NodeId>) -> Vec<EdgeId> {
@@ -1893,6 +1934,7 @@ impl application::View for GraphEditor {
             (Press   , ""              , "left-mouse-button" , "node_press")
           , (Release , ""              , "left-mouse-button" , "node_release")
           , (Press   , "!node_editing" , "backspace"         , "remove_selected_nodes")
+          , (Press   , "!node_editing" , "delete"         , "remove_selected_nodes")
           , (Press   , ""              , "cmd g"             , "collapse_selected_nodes")
 
           // === Visualization ===
@@ -2039,11 +2081,22 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
 
 
-    // =============================
-    // === Breadcrumbs Debugging ===
-    // =============================
+    // ===================
+    // === Breadcrumbs ===
+    // ===================
 
     frp::extend! { network
+        // === Layout ===
+        eval inputs.space_for_window_buttons([model](size) {
+            // The breadcrumbs apply their own spacing next to the gap, so we need to omit padding.
+            let width         = size.x;
+            let path          = theme::application::window_control_buttons::padding::right;
+            let right_padding = styles.get_number(path);
+            model.breadcrumbs.gap_width.emit(width - right_padding)
+        });
+
+
+        // === Debugging ===
         eval_ inputs.debug_push_breadcrumb(model.breadcrumbs.debug_push_breadcrumb.emit(None));
         eval_ inputs.debug_pop_breadcrumb (model.breadcrumbs.debug_pop_breadcrumb.emit(()));
     }
@@ -2960,6 +3013,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     eval out.node_selected   ((id) model.select_node(id));
     eval out.node_deselected ((id) model.deselect_node(id));
     eval out.node_removed    ((id) model.remove_node(id));
+    out.source.on_visualization_select <+ out.node_removed.map(|&id| Switch::Off(id));
 
     eval inputs.set_node_expression (((id,expr)) model.set_node_expression(id,expr));
     port_to_refresh <= inputs.set_node_expression.map(f!(((id,_))model.node_in_edges(id)));

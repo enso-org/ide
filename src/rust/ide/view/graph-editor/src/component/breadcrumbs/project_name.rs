@@ -69,9 +69,9 @@ ensogl::define_endpoints! {
        /// Commit current project name.
        commit             (),
        outside_press      (),
-       /// Indicates that this is the currenlty active breadcrumb.
+       /// Indicates that this is the currently active breadcrumb.
        select             (),
-       /// Indicates that this is not the currenlty active breadcrumb.
+       /// Indicates that this is not the currently active breadcrumb.
        deselect           (),
        /// Indicates the IDE is in edit mode. This means a click on some editable text should
        /// start editing it.
@@ -155,7 +155,7 @@ impl ProjectNameModel {
         scene.layers.breadcrumbs_background.add_exclusive(&view);
 
         let project_name = default();
-        Self{app,logger,view,style,display_object,text_field,project_name}.init()
+        Self{app,logger,display_object,view,style,text_field,project_name}.init()
     }
 
     /// Compute the width of the ProjectName view.
@@ -355,7 +355,7 @@ impl ProjectName {
         frp.deselect();
         frp.input.set_name.emit(UNINITIALIZED_PROJECT_NAME.to_string());
 
-        Self{frp,model}
+        Self{model,frp}
     }
 
 }

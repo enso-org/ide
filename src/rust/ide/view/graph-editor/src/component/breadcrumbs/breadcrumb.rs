@@ -52,7 +52,8 @@ const SEPARATOR_MARGIN : f32 = 10.0;
 // === Background ===
 // ==================
 
-mod background {
+/// A transparent "background" of single breadcrumb, set for capturing mouse events.
+pub mod background {
     use super::*;
 
     ensogl::define_shape_system! {
@@ -129,7 +130,7 @@ impl Animations {
         let color           = DEPRECATED_Animation::new(&network);
         let fade_in         = DEPRECATED_Animation::new(&network);
         let separator_color = DEPRECATED_Animation::new(&network);
-        Self{color,fade_in,separator_color}
+        Self{color,separator_color,fade_in}
     }
 }
 
@@ -230,7 +231,7 @@ impl Frp {
         let network = frp::Network::new("breadcrumbs");
         let inputs  = FrpInputs::new(&network);
         let outputs = FrpOutputs::new(&network);
-        Self{network,inputs,outputs}
+        Self{inputs,outputs,network}
     }
 }
 
@@ -311,7 +312,7 @@ impl BreadcrumbModel {
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape
         //         system (#795)
         let style = StyleWatch::new(&scene.style_sheet);
-        Self{logger,view,icon,separator,display_object,label,info,animations,style
+        Self{logger,display_object,view,separator,icon,label,animations,style,info
             ,relative_position,outputs}.init()
     }
 
@@ -405,8 +406,8 @@ impl BreadcrumbModel {
     }
 
     fn deselect(&self, old:usize, new:usize) {
-        let left  = RelativePosition::LEFT;
-        let right = RelativePosition::RIGHT;
+        let left  = RelativePosition::Left;
+        let right = RelativePosition::Right;
         self.relative_position.set((new>old).as_option().map(|_|Some(left)).unwrap_or(Some(right)));
         let color = self.deselected_color().into();
         self.animations.color.set_target_value(color);
@@ -420,8 +421,8 @@ impl BreadcrumbModel {
         let right_deselected = styles.get_color(theme::graph_editor::breadcrumbs::deselected::right);
 
         match self.relative_position.get() {
-            Some(RelativePosition::RIGHT) => right_deselected,
-            Some(RelativePosition::LEFT)  => left_deselected,
+            Some(RelativePosition::Right) => right_deselected,
+            Some(RelativePosition::Left)  => left_deselected,
             None                          => selected_color
         }
     }
@@ -496,7 +497,7 @@ impl Breadcrumb {
             eval model.animations.separator_color.value((value) model.set_separator_color(*value));
         }
 
-        Self{frp,model}
+        Self{model,frp}
     }
 }
 

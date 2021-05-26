@@ -11,24 +11,18 @@ use crate::graph_editor::NodeId;
 use crate::searcher;
 use crate::status_bar;
 
+use enso_args::ARGS;
 use enso_frp as frp;
 use ensogl::application;
 use ensogl::application::Application;
 use ensogl::application::shortcut;
 use ensogl::display;
+use ensogl::display::shape::StyleWatch;
+use ensogl::display::shape::StyleWatchFrp;
 use ensogl::DEPRECATED_Animation;
 use ensogl::system::web;
+use ensogl::system::web::dom;
 use ensogl_theme::Theme as Theme;
-use enso_args::ARGS;
-
-
-
-// =================
-// === Constants ===
-// =================
-
-/// The gap between the newly created node and selected one, in pixels.
-pub const NEW_NODE_Y_GAP:f32 = 60.0;
 
 
 
@@ -38,32 +32,43 @@ pub const NEW_NODE_Y_GAP:f32 = 60.0;
 
 #[derive(Clone,CloneRef,Debug)]
 struct Model {
-    app            : Application,
-    logger         : Logger,
-    display_object : display::object::Instance,
-    graph_editor   : GraphEditor,
-    searcher       : searcher::View,
-    code_editor    : code_editor::View,
-    status_bar     : status_bar::View,
-    fullscreen_vis : Rc<RefCell<Option<visualization::fullscreen::Panel>>>,
+    app                    : Application,
+    logger                 : Logger,
+    display_object         : display::object::Instance,
+    /// These buttons are present only in a cloud environment.
+    window_control_buttons : Immutable<Option<crate::window_control_buttons::View>>,
+    graph_editor           : GraphEditor,
+    searcher               : searcher::View,
+    code_editor            : code_editor::View,
+    status_bar             : status_bar::View,
+    fullscreen_vis         : Rc<RefCell<Option<visualization::fullscreen::Panel>>>,
 }
 
 impl Model {
     fn new(app:&Application) -> Self {
-        let logger         = Logger::new("project::View");
-        let display_object = display::object::Instance::new(&logger);
-        let searcher       = app.new_view::<searcher::View>();
-        let graph_editor   = app.new_view::<GraphEditor>();
-        let code_editor    = app.new_view::<code_editor::View>();
-        let status_bar     = status_bar::View::new(app);
-        let fullscreen_vis = default();
+        let logger                 = Logger::new("project::View");
+        let display_object         = display::object::Instance::new(&logger);
+        let searcher               = app.new_view::<searcher::View>();
+        let graph_editor           = app.new_view::<GraphEditor>();
+        let code_editor            = app.new_view::<code_editor::View>();
+        let status_bar             = status_bar::View::new(app);
+        let fullscreen_vis         = default();
+        let window_control_buttons = ARGS.is_in_cloud.unwrap_or_default().as_some_from(|| {
+            let window_control_buttons = app.new_view::<crate::window_control_buttons::View>();
+            display_object.add_child(&window_control_buttons);
+            app.display.scene().layers.breadcrumbs_text.add_exclusive(&window_control_buttons);
+            window_control_buttons
+        });
+        let window_control_buttons = Immutable(window_control_buttons);
+
         display_object.add_child(&graph_editor);
         display_object.add_child(&code_editor);
         display_object.add_child(&searcher);
         display_object.add_child(&status_bar);
         display_object.remove_child(&searcher);
         let app = app.clone_ref();
-        Self{app,logger,display_object,graph_editor,searcher,code_editor,status_bar,fullscreen_vis}
+        Self{app,logger,display_object,window_control_buttons,graph_editor,searcher,code_editor,
+            status_bar,fullscreen_vis}
     }
 
     /// Sets style of IDE to the one defined by parameter `theme`.
@@ -120,7 +125,9 @@ impl Model {
         let graph_editor_inputs = &self.graph_editor.frp.input;
         let node_id = if let Some(selected) = self.graph_editor.model.nodes.selected.first_cloned() {
             let selected_pos = self.graph_editor.model.get_node_position(selected).unwrap_or_default();
-            let y            = selected_pos.y - NEW_NODE_Y_GAP;
+            let styles       = StyleWatch::new(&self.app.display.scene().style_sheet);
+            let offset_y     = styles.get_number(ensogl_theme::project::default_gap_between_nodes);
+            let y            = selected_pos.y - offset_y;
             let pos          = Vector2(selected_pos.x,y);
             graph_editor_inputs.add_node.emit(());
             let node_id = self.graph_editor.frp.output.node_added.value();
@@ -149,6 +156,22 @@ impl Model {
             self.display_object.remove_child(&visualization);
             self.display_object.add_child(&self.graph_editor);
         }
+    }
+
+    fn on_dom_shape_changed(&self, shape:&dom::shape::Shape) {
+        // Top buttons must always stay in top-left corner.
+        if let Some(window_control_buttons) = &*self.window_control_buttons {
+            let pos = Vector2(-shape.width, shape.height) / 2.0;
+            window_control_buttons.set_position_xy(pos);
+        }
+    }
+
+    fn on_close_clicked(&self) {
+        js::close(enso_config::CONFIG.window_app_scope_name);
+    }
+
+    fn on_fullscreen_clicked(&self) {
+        js::fullscreen();
     }
 }
 
@@ -179,7 +202,46 @@ ensogl::define_endpoints! {
         editing_committed              (NodeId, Option<searcher::entry::Id>),
         code_editor_shown              (bool),
         style                          (Theme),
-        fullscreen_visualization_shown (bool)
+        fullscreen_visualization_shown (bool),
+        default_gap_between_nodes      (f32)
+    }
+}
+
+
+
+
+mod js {
+    // use super::*;
+    use wasm_bindgen::prelude::*;
+
+    #[wasm_bindgen(inline_js="
+    export function close(windowAppScopeConfigName) {
+        try { window[windowAppScopeConfigName].close(); }
+        catch(e) {
+            console.error(`Exception thrown from window.${windowAppScopeConfigName}.close:`,e)
+        }
+    }")]
+    extern "C" {
+        #[allow(unsafe_code)]
+        pub fn close(window_app_scope_name:&str);
+    }
+
+
+    #[wasm_bindgen(inline_js="
+    export function fullscreen() {
+        try {
+            if(document.fullscreenElement === null)
+                document.documentElement.requestFullscreen()
+            else
+                document.exitFullscreen()
+        } catch (e) {
+            console.error('Exception thrown when toggling fullscreen display mode:',e)
+        }
+    }
+    ")]
+    extern "C" {
+        #[allow(unsafe_code)]
+        pub fn fullscreen();
     }
 }
 
@@ -209,7 +271,7 @@ impl View {
     pub fn new(app:&Application) -> Self {
         ensogl_theme::builtin::dark::register(app);
         ensogl_theme::builtin::light::register(app);
-        let theme = match ARGS.theme.as_ref().map(|s|s.as_str()) {
+        let theme = match ARGS.theme.as_deref() {
             Some("dark") => {
                 ensogl_theme::builtin::dark::enable(app);
                 Theme::Dark
@@ -236,7 +298,30 @@ impl View {
         //   See: https://github.com/enso-org/ide/issues/795
         app.themes.update();
 
+        let style_sheet                    = &model.app.display.scene().style_sheet;
+        let styles                         = StyleWatchFrp::new(style_sheet);
+        let default_gap_between_nodes_path = ensogl_theme::project::default_gap_between_nodes;
+
+        let default_gap_between_nodes = styles.get_number_or(default_gap_between_nodes_path, 0.0);
+        frp::extend! { network
+            frp.source.default_gap_between_nodes <+ default_gap_between_nodes;
+        }
+        frp.source.default_gap_between_nodes.emit(default_gap_between_nodes.value());
+
+        if let Some(window_control_buttons) = &*model.window_control_buttons {
+            let initial_size = &window_control_buttons.size.value();
+            model.graph_editor.input.space_for_window_buttons(initial_size);
+            frp::extend! { network
+                graph.space_for_window_buttons <+ window_control_buttons.size;
+                eval_ window_control_buttons.close      (model.on_close_clicked());
+                eval_ window_control_buttons.fullscreen (model.on_fullscreen_clicked());
+            }
+        }
+
+        let shape = app.display.scene().shape().clone_ref();
         frp::extend!{ network
+            eval shape ((shape) model.on_dom_shape_changed(shape));
+
             // === Searcher Position and Size ===
 
             _eval <- all_with(&searcher_left_top_position.value,&searcher.size,f!([model](lt,size) {
