@@ -411,11 +411,20 @@ impl Area {
             use theme::code::syntax;
             let std_selection_color      = model.styles_frp.get_color(syntax::selection);
             let profiled_selection_color = model.styles_frp.get_color(syntax::profiling::selection);
+            let std_base_color           = model.styles_frp.get_color(syntax::base);
+            let profiled_base_color      = model.styles_frp.get_color(syntax::profiling::base);
 
             selection_color_rgba <- profiled.switch(&std_selection_color,&profiled_selection_color);
 
             selection_color.target          <+ selection_color_rgba.map(|c| color::Lcha::from(c));
             model.label.set_selection_color <+ selection_color.value.map(|&c| color::Rgb::from(c));
+
+            init_colors         <- source::<()>();
+            std_base_color      <- all(std_base_color,init_colors)._0();
+            profiled_base_color <- all(profiled_base_color,init_colors)._0();
+            base_color          <- profiled.switch(&std_base_color,&profiled_base_color);
+            eval base_color ((color) model.label.set_default_color(color));
+            init_colors.emit(());
         }
 
         Self {frp,model}
