@@ -4,6 +4,25 @@
 
 #### Visual Environment
 
+#### EnsoGL (rendering engine)
+
+<br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
+
+#### Visual Environment
+
+- [Nodes in graph no longer overlap panels][1577]. The Searcher, project name,
+  breadcrumbs and status bar are displayed "above" nodes.
+
+#### Enso Compiler
+
+[1577]: https://github.com/enso-org/ide/pull/1577
+
+# Enso 2.0.0-alpha.5 (2021-05-14)
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Visual Environment
+
 - [Create New Project action in Searcher][1566]. When you bring the searcher
   with tab having no node selected, a new action will be available next to the
   examples and code suggestions: `Create New Project`. When you choose it by
@@ -21,6 +40,7 @@
 
 #### Visual Environment
 
+- [Delete key will delete selected nodes][1538].
 - [It is possible to move around after deleting a node with a selected
   visualization][1556]. Deleting a node while its attached visualization was
   selected made it impossible to pan or zoom around the stage afterwards. This
@@ -28,31 +48,6 @@
 - [Fixed an internal error that would make the IDE fail on some browser.][1561].
   Instead of crashing on browser that don't support the feature we use, we are
   now just start a little bit slower.
-
-#### EnsoGL (rendering engine)
-
-#### Enso Compiler
-
-[1524]: https://github.com/enso-org/ide/pull/1524
-[1556]: https://github.com/enso-org/ide/pull/1556
-[1561]: https://github.com/enso-org/ide/pull/1561
-[1566]: https://github.com/enso-org/ide/pull/1566
-
-# Enso 2.0.0-alpha.5 (2021-05-14)
-
-<br/>![New Features](/docs/assets/tags/new_features.svg)
-
-#### Visual Environment
-
-#### EnsoGL (rendering engine)
-
-<br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
-
-#### Visual Environment
-
-- [Delete key will delete selected nodes][1538].
-
-#### EnsoGL (rendering engine)
 
 #### Enso Compiler
 
@@ -64,6 +59,10 @@ you can find their release notes
 
 [1541]: https://github.com/enso-org/ide/pull/1541
 [1538]: https://github.com/enso-org/ide/pull/1538
+[1524]: https://github.com/enso-org/ide/pull/1524
+[1556]: https://github.com/enso-org/ide/pull/1556
+[1561]: https://github.com/enso-org/ide/pull/1561
+[1566]: https://github.com/enso-org/ide/pull/1566
 
 <br/>
 
