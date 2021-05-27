@@ -28,7 +28,7 @@ mod js {
 
         export function set_object_transform(dom, matrix_array) {
             let css = arr_to_css_matrix3d(matrix_array);
-            dom.style.transform = css + 'translate(-50%,-50%)';
+            dom.style.transform = 'translate(-50%,-50%)' + css;
         }
     ")]
     extern "C" {
@@ -109,7 +109,7 @@ impl DomSymbol {
         let display_object = display::object::Instance::new(logger);
         let guard          = Rc::new(Guard::new(&display_object,&dom));
         display_object.set_on_updated(enclose!((dom) move |t| {
-            let mut transform = inverse_y_translation(t.matrix());
+            let mut transform = flip_y_axis(t.matrix());
             transform.iter_mut().for_each(|a| *a = eps(*a));
             set_object_transform(&dom,&transform);
         }));
@@ -152,10 +152,17 @@ pub fn eps(value: f32) -> f32 {
     if value.abs() < 1e-10 { 0.0 } else { value }
 }
 
-/// Inverses y translation of `transform`, i.e., `translation(x,y,z)` becomes `translation(x,-y,z)`.
-pub fn inverse_y_translation(mut transform:Matrix4<f32>) -> Matrix4<f32> {
-    let y_translation_index = (1,3);
-    let y_translation       = transform.index_mut(y_translation_index);
-    *y_translation          = -*y_translation;
-    transform
+/// Translates `transform` to a basis with flipped y axis, i.e., `translation(x,y,z)` becomes
+/// `translation(x,-y,z)`. Note that scaling along the y axis (or any other axis) has the same
+/// effect in both bases and, thus, remains unaffected.
+pub fn flip_y_axis(transform:Matrix4<f32>) -> Matrix4<f32> {
+    let change_of_basis = Matrix4::new(
+        1.0,  0.0,  0.0,  0.0,
+        0.0, -1.0,  0.0,  0.0,
+        0.0,  0.0,  1.0,  0.0,
+        0.0,  0.0,  0.0,  1.0,
+    );
+    // `change_of_basis` is self-inverse.
+    let inverse_change_of_basis = change_of_basis;
+    inverse_change_of_basis * transform * change_of_basis
 }

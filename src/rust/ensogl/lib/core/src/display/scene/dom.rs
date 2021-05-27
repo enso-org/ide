@@ -7,7 +7,7 @@ use crate::display::camera::Camera2d;
 use crate::display::camera::camera2d::Projection;
 use crate::display::symbol::DomSymbol;
 use crate::display::symbol::dom::eps;
-use crate::display::symbol::dom::inverse_y_translation;
+use crate::display::symbol::dom::flip_y_axis;
 use crate::system::gpu::data::JsBufferView;
 use crate::system::web;
 use crate::system::web::NodeInserter;
@@ -29,25 +29,27 @@ mod js {
             return `matrix3d(${a.join(',')})`
         }
 
+        export function setup_perspective(dom, perspective) {
+            dom.style.perspective = perspective + 'px';
+        }
+
         export function setup_camera_orthographic(dom, matrix_array) {
             dom.style.transform = arr_to_css_matrix3d(matrix_array);
         }
 
         export function setup_camera_perspective
-        (dom, zoom, matrix_array) {
-            // Since the transform here only consists of scaling and translation, with no real 3D
-            // transformations, Chrome will render the transformed object at best quality, and will
-            // align objects to pixel boundaries. The drawbacks are that it has an impact on
-            // performance and that things wobble slightly when the camera is manipulated. To avoid
-            // this, one could temporarily set the CSS attribute `will-change: transform` during
-            // camera movements,
-            let scale  = `scale(${zoom})`;
+        (dom, near, matrix_array) {
+            let translateZ  = 'translateZ(' + near + 'px)';
             let matrix3d    = arr_to_css_matrix3d(matrix_array);
-            let transform   = scale + matrix3d + 'translate(50%,50%)';
+            let transform   = translateZ + matrix3d + 'translate(50%,50%)';
             dom.style.transform = transform;
         }
     ")]
     extern "C" {
+        /// Setup perspective CSS 3D projection on DOM.
+        #[allow(unsafe_code)]
+        pub fn setup_perspective(dom: &web::JsValue, znear:f32);
+
         /// Setup Camera orthographic projection on DOM.
         #[allow(unsafe_code)]
         pub fn setup_camera_orthographic(dom:&web::JsValue, matrix_array:&web::JsValue);
@@ -55,18 +57,18 @@ mod js {
         /// Setup Camera perspective projection on DOM.
         #[allow(unsafe_code)]
         pub fn setup_camera_perspective
-        (dom:&web::JsValue, zoom:f32, matrix_array:&web::JsValue);
+        (dom:&web::JsValue, near:f32, matrix_array:&web::JsValue);
     }
 }
 
 #[allow(unsafe_code)]
-fn setup_camera_perspective(dom:&web::JsValue, zoom:f32, matrix:&Matrix4<f32>) {
+fn setup_camera_perspective(dom:&web::JsValue, near:f32, matrix:&Matrix4<f32>) {
     // Views to WASM memory are only valid as long the backing buffer isn't
     // resized. Check documentation of IntoFloat32ArrayView trait for more
     // details.
     unsafe {
         let matrix_array = matrix.js_buffer_view();
-        js::setup_camera_perspective(&dom,zoom,&matrix_array)
+        js::setup_camera_perspective(&dom,near,&matrix_array)
     }
 }
 
@@ -191,21 +193,19 @@ impl DomScene {
     pub fn update_view_projection(&self, camera:&Camera2d) {
         if self.children_number() == 0 { return }
 
-        let trans_cam  = camera.view_matrix();
-        let trans_cam  = trans_cam.map(eps);
-        let trans_cam  = inverse_y_translation(trans_cam);
-        let zoom = camera.zoom();
+        let trans_cam = camera.view_matrix();
+        let trans_cam = trans_cam.map(eps);
+        let trans_cam = flip_y_axis(trans_cam);
+        let half_dim  = camera.screen().height / 2.0;
+
+        // New, more direct definition of `near` that avoids the unecessary computation of
+        // `fovy_slope`.
+        let near = half_dim * camera.projection_matrix()[(1,1)];
 
         match camera.projection() {
             Projection::Perspective{..} => {
-                // We do not use the CSS `perspective` property. As a consequence, the Z translation
-                // of the view matrix will have no visible impact and we have to handle zoom
-                // explicityly. We do this for two reasons:
-                // 1. We avoid a bug with D3 visualizations.
-                //    (https://github.com/enso-org/ide/issues/1429)
-                // 2. In Chrome and other browsers, we get a much better visual quality.
-                //    (https://github.com/enso-org/ide/issues/821)
-                setup_camera_perspective(&self.data.view_projection_dom, zoom, &trans_cam);
+                js::setup_perspective(&self.data.dom,near);
+                setup_camera_perspective(&self.data.view_projection_dom,near,&trans_cam);
             },
             Projection::Orthographic => {
                 setup_camera_orthographic(&self.data.view_projection_dom,&trans_cam);
