@@ -3129,17 +3129,18 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     frp::extend! { network
 
-    on_some_edges_detached <- out.some_edge_endpoints_unset.gate(&out.some_edge_endpoints_unset);
-    cursor_style_edge_drag <- all_with(&on_some_edges_detached,&neutral_color,
-        f!([model](_,neutral_color){
-            if let Some(color) = model.first_detached_edge_color(neutral_color.into()) {
-                cursor::Style::new_color(color).press()
+    cursor_style_edge_drag <- all_with(&out.some_edge_endpoints_unset,&out.view_mode,
+        f!([model,neutral_color](some_edges_detached,_) {
+            if *some_edges_detached {
+                if let Some(color) = model.first_detached_edge_color(neutral_color.value().into()) {
+                    cursor::Style::new_color(color).press()
+                } else {
+                    cursor::Style::new_color_no_animation(neutral_color.value().into()).press()
+                }
             } else {
-                cursor::Style::new_color_no_animation(any_type_sel_color).press()
+                default()
             }
         }));
-    cursor_style_on_edge_drag_stop <- out.on_all_edges_endpoints_set.constant(default());
-    cursor_style_edge_drag         <- any (cursor_style_edge_drag,cursor_style_on_edge_drag_stop);
 
     let breadcrumb_style = model.breadcrumbs.pointer_style.clone_ref();
 
