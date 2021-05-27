@@ -563,7 +563,7 @@ ensogl::define_endpoints! {
         node_being_edited (Option<NodeId>),
         node_editing (bool),
 
-        mode (view::Mode),
+        view_mode (view::Mode),
 
         navigator_active (bool),
     }
@@ -1200,7 +1200,7 @@ impl GraphEditorModelWithNetwork {
 
             // === Mode ===
 
-            node.set_view_mode <+ self.model.frp.mode;
+            node.set_view_mode <+ self.model.frp.view_mode;
 
 
             // === Profiling ===
@@ -1212,7 +1212,7 @@ impl GraphEditorModelWithNetwork {
             node.set_profiling_max_global_duration <+ self.model.profiling_statuses.max_duration;
             node.set_profiling_max_global_duration(profiling_max_duration.value());
         }
-        node.set_view_mode(self.model.frp.mode.value());
+        node.set_view_mode(self.model.frp.view_mode.value());
         let initial_metadata = visualization::Metadata {
             preprocessor : node.model.visualization.frp.preprocessor.value()
         };
@@ -1895,7 +1895,7 @@ impl GraphEditorModel {
     fn edge_color(&self, edge_id:EdgeId, neutral_color:color::Lcha) -> color::Lcha {
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
         let styles = StyleWatch::new(&self.scene().style_sheet);
-        match self.frp.mode.value() {
+        match self.frp.view_mode.value() {
             view::Mode::Normal => {
                 let edge_type = self.edge_hover_type()
                     .or_else(|| self.edge_target_type(edge_id))
@@ -2117,7 +2117,6 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
     let styles             = StyleWatch::new(&scene.style_sheet);
-    let any_type_sel_color = color::Lcha::from(styles.get_color(theme::code::types::any::selection));
 
 
 
@@ -3181,14 +3180,14 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     let profiling_mode_transition = Animation::new(network);
     frp::extend! { network
-        out.source.mode <+ frp.toggle_profiling_mode.map2(&frp.mode,|_,&mode| mode.switch());
-        out.source.mode <+ model.profiling_button.mode;
+        out.source.view_mode <+ frp.toggle_profiling_mode.map2(&frp.view_mode,|_,&mode| mode.switch());
+        out.source.view_mode <+ model.profiling_button.view_mode;
 
-        model.profiling_button.set_mode <+ out.mode.on_change();
-        _eval <- all_with(&out.mode,&neutral_color,f!((_,neutral_color)
+        model.profiling_button.set_view_mode <+ out.view_mode.on_change();
+        _eval <- all_with(&out.view_mode,&neutral_color,f!((_,neutral_color)
             model.refresh_all_edge_colors(neutral_color.into())));
 
-        profiling_mode_transition.target <+ out.mode.map(|&mode| {
+        profiling_mode_transition.target <+ out.view_mode.map(|&mode| {
             match mode {
                 view::Mode::Normal    => 0.0,
                 view::Mode::Profiling => 1.0,

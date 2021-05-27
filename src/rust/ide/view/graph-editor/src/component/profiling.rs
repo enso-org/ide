@@ -110,10 +110,10 @@ mod icon {
 
 ensogl::define_endpoints! {
     Input {
-        set_mode (view::Mode),
+        set_view_mode (view::Mode),
     }
     Output {
-        mode (view::Mode),
+        view_mode (view::Mode),
     }
 }
 
@@ -123,8 +123,8 @@ ensogl::define_endpoints! {
 // === ProfilingButton ===
 // =======================
 
-/// A toggle button that can be used to toggle the graph editor's mode. It positions itself in the
-/// upper right corner of the scene.
+/// A toggle button that can be used to toggle the graph editor's view mode. It positions itself in
+/// the upper right corner of the scene.
 #[derive(Debug,Clone,CloneRef)]
 pub struct Button {
     frp    : Frp,
@@ -157,10 +157,10 @@ impl Button {
 
             // === State ===
 
-            frp.source.mode <+ button.state.map(|&toggled| {
+            frp.source.view_mode <+ button.state.map(|&toggled| {
                 if toggled { view::Mode::Profiling } else { view::Mode::Normal }
             });
-            button.set_state <+ frp.set_mode.map(|&mode| mode.is_profiling());
+            button.set_state <+ frp.set_view_mode.map(|&mode| mode.is_profiling());
 
 
             // === Position ===
