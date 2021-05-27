@@ -760,6 +760,7 @@ impl Model {
 
     /// Set the position in the node's metadata.
     fn set_node_metadata_position(&self, node_id:ast::Id,pos:Vector2) -> FallibleResult {
+        // FIXME use graph controller method
         self.graph.graph().module.with_node_metadata(node_id, Box::new(|md| {
             md.position = Some(model::module::Position::new(pos.x,pos.y));
         }))
@@ -1185,12 +1186,16 @@ impl Model {
 
     fn undo_in_ui(&self) {
         debug!(self.logger, "Undo triggered in UI.");
-        self.project.urm().undo(&*self.project).unwrap()
+        if let Err(e) = self.project.urm().undo(&*self.project) {
+            error!(self.logger, "Undo failed: {e}");
+        }
     }
 
     fn redo_in_ui(&self) {
         debug!(self.logger, "Redo triggered in UI.");
-        self.project.urm().redo(&*self.project).unwrap()
+        if let Err(e) = self.project.urm().redo(&*self.project) {
+            error!(self.logger, "Redo failed: {e}");
+        }
     }
 
     fn resolve_visualization_context

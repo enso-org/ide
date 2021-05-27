@@ -133,6 +133,8 @@ impl Repository {
         with(self.data.borrow_mut(), |mut data| {
             debug!(self.logger, "Pushing a new frame {frame}");
             data.undo.push(frame);
+            debug!(self.logger, "Clearing redo stack.");
+            data.redo.clear();
         })
     }
 
@@ -211,7 +213,7 @@ impl Manager {
             self.reset_to(&frame,project)?;
             self.repository.pop(); // TODO upewnić się, że to to, co cofnęliśmy
         } else {
-            warning!(self.logger,"Nothing to undo");
+            return Err(failure::format_err!("Nothing to undo"));
         }
 
         // TODO
@@ -240,6 +242,28 @@ mod tests {
     // Test that checks that value computed notification is properly relayed by the executed graph.
     #[test]
     #[allow(unused_variables)]
+    fn move_node() {
+        use crate::test::mock::Fixture;
+        // Setup the controller.
+        let mut fixture = crate::test::mock::Unified::new().fixture();
+        let Fixture{executed_graph,execution,executor,graph,project,module,logger,..} = &mut fixture;
+        let logger:&DefaultTraceLogger = logger;
+
+        let urm = project.urm();
+        let nodes = executed_graph.graph().nodes().unwrap();
+        let node = &nodes[0];
+
+        debug!(logger, "{node.position():?}");
+
+        graph.set_node_position(node.id(), 500.0, 250.0).unwrap();
+
+        project.urm().undo(&**project);
+
+    }
+
+    // Test that checks that value computed notification is properly relayed by the executed graph.
+    #[test]
+    #[allow(unused_variables)]
     fn undo_redo() {
         use crate::test::mock::Fixture;
         // Setup the controller.
@@ -249,17 +273,35 @@ mod tests {
         let urm = project.urm();
         let nodes = executed_graph.graph().nodes().unwrap();
         let node = &nodes[0];
+
+        // Check initial state.
+        assert_eq!(urm.repository.len(), 0);
+        assert_eq!(module.ast().to_string(), "main = \n    2 + 2");
+
+        // Perform an action.
         executed_graph.graph().set_expression(node.info.id(),"5 * 20").unwrap();
 
-        println!("{:?}",nodes);
+        // We can undo action.
+        assert_eq!(urm.repository.len(), 1);
+        assert_eq!(module.ast().to_string(), "main = \n    5 * 20");
+        project.urm().undo(&**project);
+        assert_eq!(module.ast().to_string(), "main = \n    2 + 2");
 
-        {
-            println!("=== BEFORE UNDO");
-            println!("{}",module.ast());
-            project.urm().undo(&**project);
-            println!("=== AFTER UNDO");
-            println!("{}",module.ast());
-        }
-        println!("{:?}",nodes);
+        // We cannot undo more actions than we made.
+        assert_eq!(urm.repository.len(), 0);
+        assert!(project.urm().undo(&**project).is_err());
+        assert_eq!(module.ast().to_string(), "main = \n    2 + 2");
+
+        // We can redo since we undid.
+        project.urm().redo(&**project).unwrap();
+        assert_eq!(module.ast().to_string(), "main = \n    5 * 20");
+
+        // And we can undo once more.
+        project.urm().undo(&**project);
+        assert_eq!(module.ast().to_string(), "main = \n    2 + 2");
+
+        //We cannot redo after edit has been made.
+        executed_graph.graph().set_expression(node.info.id(),"4 * 20").unwrap();
+        assert!(project.urm().redo(&**project).is_err());
     }
 }

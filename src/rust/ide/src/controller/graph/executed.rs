@@ -17,7 +17,7 @@ use span_tree::generate::context::CalledMethodInfo;
 
 pub use crate::controller::graph::Connection;
 pub use crate::controller::graph::Connections;
-use crate::model::undo_redo::{Repository, Transaction};
+use crate::model::undo_redo::Repository;
 
 
 // ==============

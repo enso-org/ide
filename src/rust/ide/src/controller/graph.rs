@@ -89,9 +89,19 @@ pub struct Node {
 }
 
 impl Node {
+    /// Get the node's position.
+    pub fn position(&self) -> Option<model::module::Position> {
+        self.metadata.as_ref().and_then(|m| m.position)
+    }
+
 	/// Check if node has a specific position set in metadata.
     pub fn has_position(&self) -> bool {
         self.metadata.as_ref().map_or(false, |m| m.position.is_some())
+    }
+
+    /// Get the node's unique ID.
+    pub fn id(&self) -> node::Id {
+        self.info.id()
     }
 }
 
@@ -778,6 +788,12 @@ impl Handle {
             Ok(graph.source)
         })?;
         Ok(())
+    }
+
+    pub fn set_node_position(&self, node_id:ast::Id, x:f32, y:f32) -> FallibleResult {
+        self.module.with_node_metadata(node_id, Box::new(|md| {
+            md.position = Some(model::module::Position::new(x,y));
+        }))
     }
 
     /// Collapses the selected nodes.

@@ -18,7 +18,6 @@ use flo_stream::Subscriber;
 use parser::Parser;
 use parser::api::ParsedSourceFile;
 use parser::api::SourceFile;
-use crate::model::undo_redo::Repository;
 
 /// A structure describing the module.
 ///
@@ -176,7 +175,7 @@ impl model::module::API for Module {
 }
 
 impl model::undo_redo::Aware for Module {
-    fn repository(&self) -> Rc<Repository> {
+    fn repository(&self) -> Rc<model::undo_redo::Repository> {
         self.urm.clone()
     }
 }
