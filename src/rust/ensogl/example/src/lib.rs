@@ -38,6 +38,7 @@ pub mod slider;
 pub mod sprite_system;
 pub mod sprite_system_benchmark;
 pub mod text_area;
+pub mod transformation_3d;
 
 /// Common types that should be visible across the whole crate.
 pub mod prelude {
