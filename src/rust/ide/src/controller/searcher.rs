@@ -1044,6 +1044,7 @@ impl Searcher {
                     default()
                 }
             };
+            info!(logger,"Received list of projects: {actions:?}");
             let list = Rc::new(action::List::from_actions(actions));
             data.borrow_mut().actions = Actions::Loaded {list}
         })

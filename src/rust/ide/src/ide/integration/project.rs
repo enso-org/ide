@@ -283,6 +283,7 @@ impl Integration {
         let node_expression_set       = Self::ui_action(&model,Model::node_expression_set_in_ui   ,inv);
         let used_as_suggestion        = Self::ui_action(&model,Model::used_as_suggestion_in_ui    ,inv);
         let node_editing_committed    = Self::ui_action(&model,Model::node_editing_committed_in_ui,inv);
+        let node_editing_aborted      = Self::ui_action(&model,Model::node_editing_aborted_in_ui  ,inv);
         let visualization_enabled     = Self::ui_action(&model,Model::visualization_enabled_in_ui ,inv);
         let visualization_disabled    = Self::ui_action(&model,Model::visualization_disabled_in_ui,inv);
         frp::extend! {network
@@ -321,6 +322,7 @@ impl Integration {
             _action <- editor_outs.node_expression_set      .map2(&is_hold,node_expression_set);
             _action <- searcher_frp.used_as_suggestion      .map2(&is_hold,used_as_suggestion);
             _action <- project_frp.editing_committed        .map2(&is_hold,node_editing_committed);
+            _action <- project_frp.editing_aborted          .map2(&is_hold,node_editing_aborted);
 
             eval_ project_frp.editing_committed (invalidate.trigger.emit(()));
             eval_ project_frp.editing_aborted   (invalidate.trigger.emit(()));
@@ -1090,6 +1092,11 @@ impl Model {
                 Err(err)
             }
         }
+    }
+
+    fn node_editing_aborted_in_ui (&self, _displayed_id:&graph_editor::NodeId) -> FallibleResult {
+        *self.searcher.borrow_mut() = None;
+        Ok(())
     }
 
     fn connection_created_in_ui(&self, edge_id:&graph_editor::EdgeId) -> FallibleResult {
