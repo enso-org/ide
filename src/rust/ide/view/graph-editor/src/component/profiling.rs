@@ -149,7 +149,7 @@ impl Button {
         let network = &frp.network;
 
         let button = ToggleButton::<icon::DynamicShape>::new(Logger::new("profiling::Button"));
-        scene.layers.breadcrumbs_background.add_exclusive(&button);
+        scene.layers.panel.add_exclusive(&button);
         button.set_visibility(true);
         button.set_size(Vector2(32.0, 32.0));
 

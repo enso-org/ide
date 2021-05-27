@@ -197,8 +197,8 @@ impl ProfilingLabel {
         let label = text::Area::new(app);
         root.add_child(&label);
         label.set_position_y(crate::component::node::input::area::TEXT_SIZE/2.0);
-        label.remove_from_scene_layer_DEPRECATED(&scene.layers.main);
-        label.add_to_scene_layer_DEPRECATED(&scene.layers.label);
+        label.remove_from_scene_layer(&scene.layers.main);
+        label.add_to_scene_layer(&scene.layers.label);
 
         let frp     = Frp::new();
         let network = &frp.network;
