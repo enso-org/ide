@@ -4,6 +4,12 @@
 
 #### Visual Environment
 
+- [Profling mode.][1546] The IDE contains a profiling mode now which can be
+  entered through a button in the top-right corner or through the keybinding
+  <kbd>ctrl</kbd>+<kbd>p</kbd>. This mode does not display any information yet.
+  In the future, it will display the running times of nodes and maybe more
+  useful statistics.
+
 #### EnsoGL (rendering engine)
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
