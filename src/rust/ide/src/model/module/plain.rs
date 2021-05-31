@@ -53,8 +53,12 @@ impl Module {
     fn set_content(&self, new_content:Content, kind:NotificationKind) -> FallibleResult {
 
         trace!(self.logger, "Updating module's content: {kind:?}");
+        TRACE!("New content: {new_content}");
         if new_content == *self.content.borrow() {
             error!(self.logger, "Stupid! No change!");
+            TRACE!(backtrace());
+            ERROR!("Content so far: \n{self.content.borrow()}");
+            ERROR!("Content that was about to be set: \n{new_content}");
             return Ok(())
         }
         let transaction = self.urm.transaction("setting content");

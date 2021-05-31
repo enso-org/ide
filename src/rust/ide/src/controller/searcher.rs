@@ -681,10 +681,9 @@ impl Searcher {
     /// expression, otherwise a new node is added. This will also add all imports required by
     /// picked suggestions.
     pub fn commit_node(&self) -> FallibleResult<ast::Id> {
-        let transaction = self.graph.get_or_open_transaction("Commit node");
-        let input_chain = self.data.borrow().input.as_prefix_chain(self.ide.parser());
-
-        let expression = match (self.this_var(),input_chain) {
+        let _transaction_guard = self.graph.get_or_open_transaction("Commit node");
+        let input_chain        = self.data.borrow().input.as_prefix_chain(self.ide.parser());
+        let expression         = match (self.this_var(),input_chain) {
             (Some(this_var),Some(input)) =>
                 apply_this_argument(this_var,&input.wrapped.into_ast()).repr(),
             (None,Some(input)) => input.wrapped.into_ast().repr(),

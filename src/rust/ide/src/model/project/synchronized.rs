@@ -335,8 +335,13 @@ impl Project {
     -> impl Future<Output=FallibleResult<Rc<module::Synchronized>>> {
         let language_server = self.language_server_rpc.clone_ref();
         let parser          = self.parser.clone_ref();
-        let urm = self.urm().repository.clone_ref();
-        module::Synchronized::open(path,language_server,parser,urm)
+        let urm             = self.urm();
+        let repository      = urm.repository.clone_ref();
+        async move {
+            let module = module::Synchronized::open(path,language_server,parser,repository).await?;
+            urm.module_opened(module.clone());
+            Ok(module)
+        }
     }
 }
 

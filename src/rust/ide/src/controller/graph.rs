@@ -660,7 +660,7 @@ impl Handle {
     /// Create connection in graph.
     pub fn connect
     (&self, connection:&Connection, context:&impl SpanTreeContext) -> FallibleResult {
-        let transaction = self.get_or_open_transaction("Connect");
+        let _transaction_guard = self.get_or_open_transaction("Connect");
         if connection.source.port.is_empty() {
             // If we create connection from node's expression root, we are able to introduce missing
             // pattern with a new variable.
@@ -682,7 +682,7 @@ impl Handle {
     /// Remove the connections from the graph.
     pub fn disconnect
     (&self, connection:&Connection, context:&impl SpanTreeContext) -> FallibleResult {
-        let transaction = self.get_or_open_transaction("Disconnect");
+        let _transaction_guard = self.get_or_open_transaction("Disconnect");
         let info = self.destination_info(connection,context)?;
 
         let updated_expression = if connection.destination.var_crumbs.is_empty() {
@@ -790,9 +790,11 @@ impl Handle {
         Ok(())
     }
 
-    pub fn set_node_position(&self, node_id:ast::Id, x:f32, y:f32) -> FallibleResult {
+    /// Set node's position.
+    pub fn set_node_position(&self, node_id:ast::Id, position:impl Into<model::module::Position>) -> FallibleResult {
+        let _transaction_guard = self.get_or_open_transaction("Set node position");
         self.module.with_node_metadata(node_id, Box::new(|md| {
-            md.position = Some(model::module::Position::new(x,y));
+            md.position = Some(position.into());
         }))
     }
 
@@ -802,7 +804,7 @@ impl Handle {
     pub fn collapse
     (&self, nodes:impl IntoIterator<Item=node::Id>, new_method_name_base:&str)
     -> FallibleResult<node::Id> {
-        let transaction = self.get_or_open_transaction("Collapse nodes");
+        let _transaction_guard = self.get_or_open_transaction("Collapse nodes");
         analytics::remote_log_event("graph::collapse");
         use double_representation::refactorings::collapse::collapse;
         use double_representation::refactorings::collapse::Collapsed;

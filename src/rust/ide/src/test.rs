@@ -168,9 +168,13 @@ pub mod mock {
         }
 
         pub fn module(&self) -> crate::model::Module {
-            let ast    = self.parser.parse_module(self.code.clone(),self.id_map.clone()).unwrap();
-            let module = crate::model::module::Plain::new(self.module_path.clone(),ast,self.metadata.clone(),self.urm.repository.clone_ref());
-            Rc::new(module)
+            let ast        = self.parser.parse_module(self.code.clone(),self.id_map.clone()).unwrap();
+            let path       = self.module_path.clone();
+            let metadata   = self.metadata.clone();
+            let repository = self.urm.repository.clone_ref();
+            let module     = Rc::new(model::module::Plain::new(path,ast,metadata,repository));
+            self.urm.module_opened(module.clone());
+            module
         }
 
         pub fn module_qualified_name(&self) -> module::QualifiedName {
@@ -325,21 +329,17 @@ pub mod mock {
             let module_future = model::module::Synchronized::open(path,ls,parser,self.project.urm().repository.clone_ref());
             // We can `expect_ready`, because in fact this is synchronous in test conditions.
             // (there's no real asynchronous connection beneath, just the `MockClient`)
-            module_future.boxed_local().expect_ready().unwrap()
+            let module = module_future.boxed_local().expect_ready().unwrap();
+            self.project.urm().module_opened(module.clone());
+            module
+
         }
 
         /// Create a synchronized module model and a module controller paired with it.
         ///
         /// Same considerations need to be made as with `[synchronized_module]`.
         pub fn synchronized_module_w_controller(&self) -> (Rc<model::module::Synchronized>,controller::Module) {
-            let parser = self.data.parser.clone();
-            let path   = self.data.module_path.clone();
-            let ls     = self.project.json_rpc().clone();
-            let module_fut = model::module::Synchronized::open(path,ls,parser,self.project.urm().repository.clone_ref());
-            // We can `expect_ready`, because in fact this is synchronous.
-            // (there's no real asynchronous connection beneath, just the `MockClient`)
-            let model = module_fut.boxed_local().expect_ready().unwrap();
-
+            let model = self.synchronized_module();
             let controller = controller::module::Handle {
                 language_server : self.project.json_rpc(),
                 model           : model.clone(),
