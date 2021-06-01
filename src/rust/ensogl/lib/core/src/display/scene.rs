@@ -914,6 +914,21 @@ impl SceneData {
         let world_space  = self.camera().inversed_view_projection_matrix() * clip_space;
         (inv_object_matrix * world_space).xy()
     }
+
+    /// Prepare for movement of the whole scene by setting the CSS property `will-change: transform`
+    /// on the front and back DOM layers. For more information:
+    /// - https://developer.mozilla.org/en-US/docs/Web/CSS/will-change
+    /// - https://github.com/enso-org/ide/pull/1465
+    pub fn start_movement_mode(&self) {
+        self.dom.layers.front.start_movement_mode();
+        self.dom.layers.back.start_movement_mode();
+    }
+
+    /// Unset `will-change` on the front and back DOM layers. (See `start_movement_mode`)
+    pub fn end_movement_mode(&self) {
+        self.dom.layers.front.end_movement_mode();
+        self.dom.layers.back.end_movement_mode();
+    }
 }
 
 impl display::Object for SceneData {

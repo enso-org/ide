@@ -18,86 +18,6 @@ use web_sys::HtmlDivElement;
 
 
 
-// ===================
-// === Js Bindings ===
-// ===================
-
-mod js {
-    use super::*;
-    #[wasm_bindgen(inline_js = "
-        function arr_to_css_matrix3d(a) {
-            return `matrix3d(${a.join(',')})`
-        }
-
-        export function setup_perspective(dom, perspective) {
-            dom.style.perspective = perspective + 'px';
-        }
-
-        export function setup_camera_orthographic(dom, matrix_array) {
-            dom.style.transform = arr_to_css_matrix3d(matrix_array);
-        }
-
-        export function setup_camera_perspective
-        (dom, near, matrix_array) {
-            let translateZ  = 'translateZ(' + near + 'px)';
-            let matrix3d    = arr_to_css_matrix3d(matrix_array);
-            let transform   = translateZ + matrix3d + 'translate(50%,50%)';
-            dom.style.transform = transform;
-        }
-    ")]
-    extern "C" {
-        /// Setup perspective CSS 3D projection on DOM.
-        #[allow(unsafe_code)]
-        pub fn setup_perspective(dom: &web::JsValue, znear:f32);
-
-        /// Setup Camera orthographic projection on DOM.
-        #[allow(unsafe_code)]
-        pub fn setup_camera_orthographic(dom:&web::JsValue, matrix_array:&web::JsValue);
-
-        /// Setup Camera perspective projection on DOM.
-        #[allow(unsafe_code)]
-        pub fn setup_camera_perspective
-        (dom:&web::JsValue, near:f32, matrix_array:&web::JsValue);
-    }
-}
-
-#[allow(unsafe_code)]
-fn setup_camera_perspective(dom:&web::JsValue, near:f32, matrix:&Matrix4<f32>) {
-    // Views to WASM memory are only valid as long the backing buffer isn't
-    // resized. Check documentation of IntoFloat32ArrayView trait for more
-    // details.
-    unsafe {
-        let matrix_array = matrix.js_buffer_view();
-        js::setup_camera_perspective(&dom,near,&matrix_array)
-    }
-}
-
-#[allow(unsafe_code)]
-fn setup_camera_orthographic(dom:&web::JsValue, matrix:&Matrix4<f32>) {
-    // Views to WASM memory are only valid as long the backing buffer isn't
-    // resized. Check documentation of IntoFloat32ArrayView trait for more
-    // details.
-    unsafe {
-        let matrix_array = matrix.js_buffer_view();
-        js::setup_camera_orthographic(&dom,&matrix_array)
-    }
-}
-
-
-
-// =============
-// === Utils ===
-// =============
-
-/// Inverts Matrix Y coordinates. It's equivalent to scaling by (1.0, -1.0, 1.0).
-pub fn invert_y(mut m: Matrix4<f32>) -> Matrix4<f32> {
-    // Negating the second column to invert Y.
-    m.row_part_mut(1,4).iter_mut().for_each(|a| *a = -*a);
-    m
-}
-
-
-
 // ====================
 // === DomSceneData ===
 // ====================
@@ -193,23 +113,104 @@ impl DomScene {
     pub fn update_view_projection(&self, camera:&Camera2d) {
         if self.children_number() == 0 { return }
 
-        let trans_cam = camera.view_matrix();
-        let trans_cam = trans_cam.map(eps);
-        let trans_cam = flip_y_axis(trans_cam);
-        let half_dim  = camera.screen().height / 2.0;
 
-        // New, more direct definition of `near` that avoids the unecessary computation of
-        // `fovy_slope`.
-        let near = half_dim * camera.projection_matrix()[(1,1)];
+        // === Reset configuration ===
+
+        self.data.view_projection_dom.set_style_or_panic("transform", "");
+        self.data.view_projection_dom.set_style_or_panic("left", "0px");
+        self.data.view_projection_dom.set_style_or_panic("top", "0px");
+        self.data.dom.set_style_or_panic("perspective", "");
+
+
+        let view_matrix = camera.view_matrix();
+        let view_matrix = view_matrix.map(eps);
+        // In CSS, the y axis points downwards. (In EnsoGL upwards)
+        let mut trans_cam = flip_y_axis(view_matrix);
 
         match camera.projection() {
             Projection::Perspective{..} => {
-                js::setup_perspective(&self.data.dom,near);
-                setup_camera_perspective(&self.data.view_projection_dom,near,&trans_cam);
+                // In order to achieve a better visual quality when the camera is in fron of the z=0
+                // plane, we simulate translation in the z direction by scaling the scene around
+                // the origin, as discussed at https://github.com/enso-org/ide/pull/1465.
+                // In that situation, we also simulate x and y translation through `top` and `left`.
+
+                let x_index = (0, 3);
+                let y_index = (1, 3);
+                let z_index = (2, 3);
+                let target_x = *trans_cam.index(x_index);
+                let target_y = *trans_cam.index(y_index);
+                let target_z = *trans_cam.index(z_index);
+
+                // Put the camera in front of the origin and adjust the field of view, such that one
+                // px unit at z=0 maps to one px on screen.
+                self.data.dom.set_style_or_panic("perspective", format!("{}px", camera.z_zoom_1()));
+                // The position of the scene relative to the camera after setting "perspective".
+                let current_z = -camera.z_zoom_1();
+
+                let MAXIMUM_SCALE_FACTOR = 1000.0;
+                // Our method to simulate translation through scaling works only when `target_z` is
+                // less than 0. We cut off at some point before that and fall back to real 3D
+                // transformations. We determine that point through the maximum scale factor that
+                // that we want to allow. (See also the computation of `scale` below)
+                if target_z <= current_z / MAXIMUM_SCALE_FACTOR {
+                    *trans_cam.index_mut(x_index) = 0.0;
+                    *trans_cam.index_mut(y_index) = 0.0;
+                    *trans_cam.index_mut(z_index) = 0.0;
+
+                    // Instead of moving the camera along the z direction, we scale the scene at the
+                    // origin, such that the camera ends up at the right spot within the scene.
+                    // Since we use a perspective camera, which can not perceive the total distance
+                    // of objects, this scaling does not affect the outcome of the projection. As
+                    // long as the camera has the right position inside the scene and the
+                    // proportions between objects remain the same, we will get the correct image
+                    // from the camera's perspective.
+
+                    // How far we have to scale the scene, such that the camera ends up in the right
+                    // spot.
+                    let scale = current_z / target_z;
+                    let translateZ = format!("scale3d({0},{0},{0})", scale);
+
+                    let matrix3d = matrix_to_css_matrix3d(&trans_cam);
+                    // We add the "translate(50%,50%)" to correctly position the origin of the
+                    // scene. This has to be applied on right (that is, in world space) to keep it
+                    // unaffected by the other transformations.
+                    let transform = translateZ + matrix3d.as_str() + "translate(50%,50%)";
+                    self.data.view_projection_dom.set_style_or_panic("transform", transform);
+
+                    let left = target_x * scale;
+                    let top = target_y * scale;
+                    self.data.view_projection_dom.set_style_or_panic("position", "relative");
+                    self.data.view_projection_dom.set_style_or_panic("left", format!("{}px", left));
+                    self.data.view_projection_dom.set_style_or_panic("top", format!("{}px", top));
+                } else {
+                    let translateZ = format!("translateZ({}px)", camera.z_zoom_1());
+                    let matrix3d = matrix_to_css_matrix3d(&trans_cam);
+                    let transform = translateZ + matrix3d.as_str() + "translate(50%,50%)";
+                    self.data.view_projection_dom.set_style_or_panic("transform", transform);
+                }
             },
             Projection::Orthographic => {
-                setup_camera_orthographic(&self.data.view_projection_dom,&trans_cam);
+                let transform = matrix_to_css_matrix3d(&trans_cam) + "translate(50%,50%)";
+                self.data.dom.set_style_or_panic("transform", transform);
             }
         }
     }
+
+    /// Prepare for movement of this DOM scene by setting the CSS property `will-change: transform`
+    /// For more information:
+    /// - https://developer.mozilla.org/en-US/docs/Web/CSS/will-change
+    /// - https://github.com/enso-org/ide/pull/1465
+    pub fn start_movement_mode(&self) {
+        self.data.view_projection_dom.set_style_or_panic("will-change", "transform, left, top");
+    }
+
+    /// Unset `will-change`. (See `start_movement_mode`)
+    pub fn end_movement_mode(&self) {
+        self.data.view_projection_dom.set_style_or_panic("will-change", "");
+    }
+}
+
+fn matrix_to_css_matrix3d(a:&Matrix4<f32>) -> String {
+    let entries = a.iter().map(f32::to_string).join(",");
+    format!("matrix3d({})", entries)
 }

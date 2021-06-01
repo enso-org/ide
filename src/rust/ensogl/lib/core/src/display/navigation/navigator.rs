@@ -3,6 +3,7 @@ mod events;
 use crate::prelude::*;
 
 use crate::animation::physics;
+use crate::animation::easing::EndStatus;
 use crate::control::callback;
 use crate::display::camera::Camera2d;
 use crate::display::object::traits::*;
@@ -18,11 +19,14 @@ use events::ZoomEvent;
 // === NavigatorModel ===
 // ======================
 
+type Simulator = physics::inertia::Simulator<Vector3,Box<dyn Fn(Vector3)>,Box<dyn Fn()>,
+    Box<dyn Fn(EndStatus)>>;
+
 /// Navigator enables camera navigation with mouse interactions.
 #[derive(Debug)]
 pub struct NavigatorModel {
     _events         : NavigatorEvents,
-    simulator       : physics::inertia::DynSimulator<Vector3>,
+    simulator       : Simulator,
     resize_callback : callback::Handle,
     zoom_speed      : SharedSwitch<f32>,
     pan_speed       : SharedSwitch<f32>,
@@ -44,10 +48,12 @@ impl NavigatorModel {
         Self {_events,simulator,resize_callback,zoom_speed,pan_speed,disable_events}
     }
 
-    fn create_simulator(camera:&Camera2d) -> physics::inertia::DynSimulator<Vector3> {
+    fn create_simulator(scene:&Scene, camera:&Camera2d) -> Simulator {
         let camera_ref = camera.clone_ref();
         let on_step    = Box::new(move |p:Vector3| camera_ref.set_position(p));
-        let simulator  = physics::inertia::DynSimulator::new(on_step,(),());
+        let on_start   = Box::new(f!([scene]() scene.start_movement_mode()));
+        let on_end     = Box::new(f!([scene](_) scene.end_movement_mode()));
+        let simulator  = Simulator::new(on_step,on_start,on_end);
         // FIXME[WD]: This one is emitting camera position in next frame, which is not intended.
         //            Should be fixed when reworking navigator to use FRP events.
         simulator.set_value(camera.position());
@@ -63,8 +69,8 @@ impl NavigatorModel {
     , zoom_speed     : SharedSwitch<f32>
     , pan_speed      : SharedSwitch<f32>
     , disable_events : Rc<Cell<bool>>
-    ) -> (physics::inertia::DynSimulator<Vector3>,callback::Handle,NavigatorEvents) {
-        let simulator        = Self::create_simulator(&camera);
+    ) -> (Simulator,callback::Handle,NavigatorEvents) {
+        let simulator        = Self::create_simulator(scene, &camera);
         let panning_callback = enclose!((scene,camera,mut simulator,pan_speed) move |pan: PanEvent| {
             let fovy_slope                  = camera.half_fovy_slope();
             let distance                    = camera.position().z;
