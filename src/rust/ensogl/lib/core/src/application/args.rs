@@ -78,7 +78,7 @@ impl ArgReader for bool {
 /// force argument read, use the `init` function).
 ///
 /// For example, given the following definition:
-/// ```ignore
+/// ```text,.ignore
 /// read_args! {
 ///     js::global.config {
 ///         entry      : String,
@@ -90,7 +90,7 @@ impl ArgReader for bool {
 ///
 /// The following structs will be generated (some functions omitted for clarity):
 ///
-/// ```ignore
+/// ```text,.ignore
 /// #[derive(Clone,Debug,Default)]
 /// pub struct Args {
 ///     pub entry      : Option<String>,

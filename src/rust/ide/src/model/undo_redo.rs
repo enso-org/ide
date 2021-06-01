@@ -2,7 +2,6 @@
 
 use crate::prelude::*;
 
-//use crate::model::traits::*;
 use crate::controller;
 
 use enso_logger::DefaultTraceLogger as Logger;
@@ -93,7 +92,7 @@ impl Drop for Transaction {
     }
 }
 
-#[derive(Clone,Debug,Default)]
+#[derive(Clone,Debug,Default,PartialEq)]
 pub struct Frame {
     /// Name of the transaction that created this frame.
     pub name   : String,
@@ -178,10 +177,21 @@ impl Repository {
         }
     }
 
+    /// Get currently opened transaction. If there is none, open a new one.
     pub fn transaction(self:&Rc<Self>, name:impl Into<String>) -> Rc<Transaction> {
         self.open_transaction(name).into_ok_or_err()
     }
 
+    /// Borrow given stack.
+    fn borrow(&self, stack:Stack) -> Ref<Vec<Frame>> {
+        let data = self.data.borrow();
+        match stack {
+            Stack::Undo => Ref::map(data,|d| &d.undo),
+            Stack::Redo => Ref::map(data,|d| &d.redo),
+        }
+    }
+
+    /// Borrow given stack mutably.
     fn borrow_mut(&self, stack:Stack) -> RefMut<Vec<Frame>> {
         let data = self.data.borrow_mut();
         match stack {
@@ -190,46 +200,63 @@ impl Repository {
         }
     }
 
+    /// Push a new frame to the given stack.
     fn push_to(&self, stack:Stack, frame:Frame) {
         debug!(self.logger, "Pushing to {stack} stack a new frame: {frame}");
         self.borrow_mut(stack).push(frame);
     }
 
+    /// Clear all frames from the given stack.
     fn clear(&self, stack:Stack) {
         debug!(self.logger, "Clearing {stack} stack.");
         self.borrow_mut(stack).clear();
     }
 
+    /// Clear all frames from both undo and redo stacks.
     pub fn clear_all(&self) {
         for stack in [Stack::Undo,Stack::Redo] {
             self.clear(stack)
         };
     }
 
-    pub fn last(&self) -> Option<Frame> {
-        // TODO needed ?  if we cant borrow ref...
-        self.data.borrow().undo.last().cloned()
+    /// Get the top frame from a given stack. [`Err`] if the stack is empty.
+    ///
+    /// Does *not* pop.
+    pub fn last(&self, stack:Stack) -> FallibleResult<Frame> {
+        self.borrow(stack).last().cloned().ok_or_else(|| failure::format_err!("Nothing to undo"))
     }
 
-    fn pop(&self) -> Option<Frame> {
-        with(self.data.borrow_mut(), |mut data| {
-            let frame = data.undo.pop();
-            if let Some(frame) = &frame {
-                debug!(self.logger, "Popping a frame: {frame}, remained: {data.undo.len()}");
+    /// Pop the top frame from a given stack. [`Err`] if there are no frames to pop.
+    fn pop(&self, stack:Stack) -> FallibleResult<Frame> {
+        let popped = self.borrow_mut(stack).pop(); // Separate expression to drop borrow.
+        match popped {
+            Some(frame) => {
+                debug!(self.logger, "Popping a frame from {stack}. Remaining length: {self.len(stack)}. Frame: {frame}");
+                Ok(frame)
             }
-            frame
-        })
+            None => {
+                Err(failure::format_err!("No frame to pop on the {} stack",stack))
+            }
+        }
     }
 
-    pub fn len(&self) -> usize {
-        self.data.borrow().undo.len()
+    /// Get number of frames on a given stack.
+    pub fn len(&self, stack:Stack) -> usize {
+        self.borrow(stack).len()
     }
 }
 
+
+/// Undo-Redo manager. Allows undoing or redoing recent actions.
+///
+/// Owns [`Repository`] and keeps track of open modules.
 #[derive(Debug)]
 pub struct Manager {
+    #[allow(missing_docs)]
     pub logger : Logger,
+    /// Repository with undo and redo stacks.
     pub repository : Rc<Repository>,
+    /// Currently available modules.
     modules : RefCell<BTreeMap<model::module::Id,model::Module>>
 }
 
@@ -240,24 +267,62 @@ impl Aware for Manager {
 }
 
 impl Manager {
-    pub fn new() -> Self {
-        let logger = Logger::new("URM");
+    /// Create a new undo-redo manager.
+    pub fn new(parent:impl AnyLogger) -> Self {
+        let logger = Logger::sub(parent,"URM");
         Self {
             repository : Rc::new(Repository::new(&logger)),
-            modules : default(),
+            modules    : default(),
             logger,
         }
     }
 
+    /// Register a new opened module in the manager.
+    ///
+    /// Only a modules registered as open can be subject of undo-redo operations.
     pub fn module_opened(&self, module:model::Module) {
         self.modules.borrow_mut().insert(module.id(),module);
     }
-    pub fn module_closed(&self, _module:model::Module) {
-        //self.modules.borrow_mut().remove(&module.id());
+
+    /// Unregisters a previously opened module.
+    pub fn module_closed(&self, module:model::Module) {
+        self.modules.borrow_mut().remove(&module.id());
     }
 
-    pub fn reset_to(&self, frame:&Frame) -> FallibleResult {
-        //use utils::test::traits::*;
+    /// Undo last operation.
+    pub fn undo(&self) -> FallibleResult {
+        debug!(self.logger, "Undo requested, stack size is {self.repository.len(Stack::Undo)}.");
+
+        let frame = self.repository.last(Stack::Undo)?;
+
+        let undo_transaction = self.repository.open_transaction("Undo faux transaction").map_err(|_| failure::format_err!("Cannot undo while there is an ongoing transaction."))?;
+        undo_transaction.abort();
+        self.reset_to(&frame)?;
+
+        let popped = self.repository.pop(Stack::Undo);
+        // Sanity check the we popped the same frame as we have just undone. What was on top is
+        // supposed to stay on top, as we maintain an open transaction while undoing.
+        if !popped.contains(&frame) {
+            error!(self.logger, "Undone frame mismatch!");
+        }
+
+        let undo_transaction = Rc::try_unwrap(undo_transaction).map_err(|_| failure::format_err!("Someone stole the undo/redo internal transaction. Should never happen."))?;
+        self.repository.data.borrow_mut().redo.push(undo_transaction.frame.borrow().clone());
+        Ok(())
+    }
+
+    /// Redo the last undone operation.
+    pub fn redo(&self) -> FallibleResult {
+        let frame = self.repository.data.borrow_mut().redo.pop().ok_or_else(|| failure::format_err!("Nothing to redo"))?;
+        let redo_transaction = self.get_or_open_transaction(&frame.name);
+        redo_transaction.abort();
+        self.reset_to(&frame)?;
+        self.repository.push_to(Stack::Undo,redo_transaction.frame.borrow().clone());
+        Ok(())
+    }
+
+    /// Restore all modules affected by the [`Frame`] to their stored state.
+    fn reset_to(&self, frame:&Frame) -> FallibleResult {
         use failure::format_err;
         warning!(self.logger,"Resetting to initial state on frame {frame}");
 
@@ -284,30 +349,6 @@ impl Manager {
             // (we are copying an old state, so it must ba a representable state).
             module.update_whole(content.clone())?;
         }
-        Ok(())
-    }
-
-    pub fn undo(&self) -> FallibleResult {
-        debug!(self.logger, "Undo requested, stack size is {self.repository.len()}.");
-
-        let frame = self.repository.last().ok_or_else(|| failure::format_err!("Nothing to undo"))?;
-
-        let undo_transaction = self.repository.open_transaction("Undo faux transaction").map_err(|_| failure::format_err!("Cannot undo while there is an ongoing transaction."))?;
-        undo_transaction.abort();
-        self.reset_to(&frame)?;
-        self.repository.pop(); // TODO upewnić się, że to to, co cofnęliśmy
-
-        let undo_transaction = Rc::try_unwrap(undo_transaction).map_err(|_| failure::format_err!("Someone stole the undo/redo internal transaction. Should never happen."))?;
-        self.repository.data.borrow_mut().redo.push(undo_transaction.frame.borrow().clone());
-        Ok(())
-    }
-
-    pub fn redo(&self) -> FallibleResult {
-        let frame = self.repository.data.borrow_mut().redo.pop().ok_or_else(|| failure::format_err!("Nothing to redo"))?;
-        let redo_transaction = self.get_or_open_transaction(&frame.name);
-        redo_transaction.abort();
-        self.reset_to(&frame)?;
-        self.repository.data.borrow_mut().undo.push(redo_transaction.frame.borrow().clone());
         Ok(())
     }
 }
@@ -361,20 +402,20 @@ mod tests {
         let node = &nodes[0];
 
         // Check initial state.
-        assert_eq!(urm.repository.len(), 0);
+        assert_eq!(urm.repository.len(Stack::Undo), 0);
         assert_eq!(module.ast().to_string(), "main = \n    2 + 2");
 
         // Perform an action.
         executed_graph.graph().set_expression(node.info.id(),"5 * 20").unwrap();
 
         // We can undo action.
-        assert_eq!(urm.repository.len(), 1);
+        assert_eq!(urm.repository.len(Stack::Undo), 1);
         assert_eq!(module.ast().to_string(), "main = \n    5 * 20");
         project.urm().undo().unwrap();
         assert_eq!(module.ast().to_string(), "main = \n    2 + 2");
 
         // We cannot undo more actions than we made.
-        assert_eq!(urm.repository.len(), 0);
+        assert_eq!(urm.repository.len(Stack::Undo), 0);
         assert!(project.urm().undo().is_err());
         assert_eq!(module.ast().to_string(), "main = \n    2 + 2");
 

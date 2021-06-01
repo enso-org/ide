@@ -161,7 +161,7 @@ impl Project {
         let suggestion_db           = SuggestionDatabase::create_synchronized(language_server);
         let suggestion_db           = Rc::new(suggestion_db.await?);
         let notifications           = notification::Publisher::default();
-        let urm                     = Rc::new(model::undo_redo::Manager::new());
+        let urm                     = Rc::new(model::undo_redo::Manager::new(&logger));
 
         let properties = Rc::new(Properties {id,name,engine_version});
 

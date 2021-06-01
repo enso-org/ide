@@ -152,9 +152,10 @@ pub mod mock {
             let mut suggestions = HashMap::new();
             suggestions.insert(1,suggestion_entry_foo());
             suggestions.insert(2,suggestion_entry_bar());
+            let logger = Logger::new("Unified");
             Unified {
                 suggestions,
-                logger          : Logger::new("Unified"),
+                urm             : Rc::new(model::undo_redo::Manager::new(&logger)),
                 project_name    : PROJECT_NAME.to_owned(),
                 module_path     : module_path(),
                 code            : CODE.to_owned(),
@@ -163,7 +164,7 @@ pub mod mock {
                 context_id      : CONTEXT_ID,
                 root_definition : definition_name(),
                 parser          : parser::Parser::new_or_panic(),
-                urm             : Rc::new(model::undo_redo::Manager::new()),
+                logger,
             }
         }
 

@@ -11,7 +11,7 @@
 /// the empty type. This makes these traits a very powerful mechanism for implementing callback
 /// like functionality. Consider the following structure:
 ///
-/// ```ignore
+/// ```text,.ignore
 ///     pub struct Animator<OnStep=()> {
 ///         on_step : OnStep
 ///     }
