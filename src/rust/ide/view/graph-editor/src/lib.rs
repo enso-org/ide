@@ -1346,9 +1346,8 @@ impl GraphEditorModel {
         let app                  = app.clone_ref();
         let navigator            = Navigator::new(&scene,&scene.camera());
         let tooltip              = Tooltip::new(&app);
-        let selection_controller = selection::Controller::new(&frp,&frp.output,&app.cursor,
-                                                              &scene.mouse.frp,&touch_state,
-                                                              &nodes);
+        let selection_controller = selection::Controller::new(&frp,&frp.output,&app.cursor
+            ,&scene.mouse.frp,&touch_state,&nodes);
         let frp                  = frp.output.clone_ref();
 
 

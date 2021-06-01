@@ -2,13 +2,13 @@
 //! by clicking on them separately, as well as click+drag for selecting with a selection area.
 use ensogl::prelude::*;
 
-use ensogl::frp;
-use ensogl::gui::cursor::Cursor;
-use ensogl::gui::cursor;
-
 use crate::NodeId;
 use crate::Nodes;
 use crate::TouchState;
+
+use ensogl::frp;
+use ensogl::gui::cursor;
+use ensogl::gui::cursor::Cursor;
 
 
 
@@ -103,11 +103,6 @@ impl BoundingBox {
     }
 
     pub fn from_position_size(position:Vector2, size:Vector2) -> Self {
-        // let top    = position.y + size.y / 2.0;
-        // let bottom = position.y - size.y / 2.0;
-        // let left   = position.x + size.x / 2.0;
-        // let right  = position.x - size.x / 2.0;
-        // BoundingBox{top,bottom,left,right}
         Self::from_corners(position,position+size)
     }
 
@@ -197,7 +192,7 @@ pub struct TemporarySelection {
 }
 
 impl TemporarySelection {
-    fn new(node:NodeId,was_selected:bool)  -> Self {
+    fn new(node:NodeId, was_selected:bool)  -> Self {
         Self{node,was_selected}
     }
 }
@@ -233,8 +228,6 @@ mod node_set {
             remove(SetItem),
             /// Remove the nodes that are not contained in the given Vec.
             remove_difference_with_vec(Vec<SetItem>),
-            // extend_from_vec(Vec<T>)
-            // remove_all_from_vec(Vec<T>)
             /// Empties the set without emitting `removed` events.
             reset(),
         }
