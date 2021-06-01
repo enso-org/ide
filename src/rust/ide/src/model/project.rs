@@ -4,7 +4,9 @@
 //!
 //! Responsible for owning any remote connection clients, and providing controllers for specific
 //! files and modules. Expected to live as long as the project remains open in the IDE.
+
 pub mod synchronized;
+pub mod upload;
 
 use crate::prelude::*;
 
