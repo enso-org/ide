@@ -5,6 +5,7 @@ use crate::prelude::*;
 use crate::model::execution_context::VisualizationUpdateData;
 use crate::model::execution_context;
 use crate::model::module;
+use crate::model::project::upload;
 use crate::model::SuggestionDatabase;
 use crate::model::traits::*;
 use crate::notification;
@@ -15,6 +16,7 @@ use enso_protocol::binary::message::VisualisationContext;
 use enso_protocol::language_server;
 use enso_protocol::language_server::CapabilityRegistration;
 use enso_protocol::language_server::MethodPointer;
+use enso_protocol::language_server::Path as FilePath;
 use enso_protocol::project_manager;
 use enso_protocol::project_manager::MissingComponentAction;
 use flo_stream::Subscriber;
@@ -401,6 +403,14 @@ impl model::project::API for Project {
 
     fn subscribe(&self) -> Subscriber<model::project::Notification> {
         self.notifications.subscribe()
+    }
+
+    fn upload_file
+    (&self, path:FilePath, size:usize, data_provider:Box<dyn upload::DataProvider>)
+     -> StaticBoxStream<upload::Notification> {
+        let connection = self.language_server_bin.clone_ref();
+        let process    = upload::FileUploadProcess::new(&self.logger,connection,path);
+        process.start(data_provider).boxed_local()
     }
 }
 
