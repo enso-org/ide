@@ -100,9 +100,9 @@ pub struct Manager {
 impl Manager {
     /// Constructor, adding listener to the given target.
     pub fn new(target:&web_sys::EventTarget) -> Self {
-        let logger        = Logger::new("DropFileManager");
+        let logger = Logger::new("DropFileManager");
         debug!(logger, "Creating DropFileManager");
-        let network       = frp::Network::new("DropFileManager");
+        let network = frp::Network::new("DropFileManager");
         frp::extend! { network
             file_received <- source();
         }
@@ -114,8 +114,9 @@ impl Manager {
                 Self::handle_drop_event(&logger,event,&file_received)
             })
         ));
-        // To mark element as a valid drop target, the dragOver event handler should return `false`.
-        // See https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API/File_drag_and_drop#define_the_drop_zone
+        // To mark element as a valid drop target, the `dragover` event handler should return
+        // `false`. See
+        // https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API/File_drag_and_drop#define_the_drop_zone
         let drag_over:DragOverClosure = Closure::wrap(Box::new(|event:web_sys::DragEvent| {
             event.prevent_default();
             false

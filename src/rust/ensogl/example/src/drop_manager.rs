@@ -36,10 +36,9 @@ fn download_file(file:drop::File) {
 pub fn entry_point_drop_manager() {
     web::forward_panic_hook_to_console();
 
-    let world         = World::new(&web::get_html_element_by_id("root").unwrap());
-    let drop_manager  = drop::Manager::new(world.scene().dom.root.as_ref());
-    // let drop_manager  = DropFileManager::new(ensogl_core::system::web::document().as_ref());
-    let network       = enso_frp::Network::new("Debug Scene");
+    let world        = World::new(&web::get_html_element_by_id("root").unwrap());
+    let drop_manager = drop::Manager::new(world.scene().dom.root.as_ref());
+    let network      = enso_frp::Network::new("Debug Scene");
     enso_frp::extend! { network
         let file_received = drop_manager.file_received().clone_ref();
         eval file_received ([](file) download_file(file.clone_ref()));
