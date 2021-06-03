@@ -179,8 +179,8 @@ impl Model {
         // FIXME[WD]: Depth sorting of labels to in front of the mouse pointer. Temporary solution.
         // It needs to be more flexible once we have proper depth management.
         let scene = self.app.display.scene();
-        self.label.remove_from_scene_layer_DEPRECATED(&scene.layers.main);
-        self.label.add_to_scene_layer_DEPRECATED(&scene.layers.label);
+        self.label.remove_from_scene_layer(&scene.layers.main);
+        self.label.add_to_scene_layer(&scene.layers.label);
 
         let text_color = self.styles.get_color(theme::graph_editor::node::text);
         self.label.single_line(true);
@@ -291,8 +291,8 @@ impl Model {
             if DEBUG {
                 let indent  = " ".repeat(4*builder.depth);
                 let skipped = if !is_a_port { "(skip)" } else { "" };
-                println!("{}[{},{}] {} {:?} (tp: {:?}) (id: {:?})",indent,node.payload.index,
-                    node.payload.length,skipped,node.kind.variant_name(),node.tp(),node.ast_id);
+                DEBUG!("{indent}[{node.payload.index},{node.payload.length}] \
+                {skipped} {node.kind.variant_name():?} (tp: {node.tp():?}) (id: {node.ast_id:?})");
             }
 
             if is_a_port {
@@ -341,7 +341,7 @@ impl Model {
 
     fn set_expression(&self, new_expression:impl Into<node::Expression>) {
         let new_expression = Expression::from(new_expression.into());
-        if DEBUG { println!("\n\n=====================\nSET EXPR: {:?}", new_expression) }
+        if DEBUG { DEBUG!("\n\n=====================\nSET EXPR: {new_expression:?}") }
 
         self.set_label_on_new_expression(&new_expression);
         *self.expression.borrow_mut() = new_expression;
