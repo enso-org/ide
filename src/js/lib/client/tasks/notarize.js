@@ -1,3 +1,5 @@
+/// This script will trigger the notarisation process for macOS and trigger our pre-processing
+/// and signing of the engine.
 require('dotenv').config();
 const { notarize } = require('electron-notarize');
 

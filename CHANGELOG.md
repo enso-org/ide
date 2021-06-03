@@ -4,8 +4,8 @@
 
 #### Visual Environment
 
-- [Signed builds.][1366] Our builds are signed and will hav fewer annoyances
-  upon running. You can trust us.
+- [Signed builds.][1366] Our builds are signed and will avoid warnings from the operating system 
+  about being untrusted.
 
 #### EnsoGL (rendering engine)
 

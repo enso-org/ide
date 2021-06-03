@@ -54,9 +54,14 @@ config.build = {
         category: 'public.app-category.developer-tools',
         darkModeSupport: true,
         type: 'distribution',
-        // Settings required for notarisation.
+        // The following settings are required for macOS signing and notarisation.
+        // The hardened runtime is required to be able to notarise the application.
         hardenedRuntime: true,
+        // This is a custom check that is not working correctly, so we disable it. See for more
+        // details https://kilianvalkhof.com/2019/electron/notarizing-your-electron-application/
         gatekeeperAssess: false,
+        // Location of the entitlements files with the entitlements we need to run our application
+        // in the hardened runtime.
         entitlements: './entitlements.mac.plist',
         entitlementsInherit: './entitlements.mac.plist',
     },
@@ -106,6 +111,11 @@ config.build = {
         // https://github.com/electron-userland/electron-builder/issues/2851
         // https://github.com/electron-userland/electron-builder/issues/2900
         writeUpdateInfo: false,
+        // Disable code signing of the final dmg as this triggers an issue
+        // with Apple’s Gatekeeper. Since the DMG contains a signed and
+        // notarised application it will still be detected as trusted.
+        // For more details see step (4) at
+        // https://kilianvalkhof.com/2019/electron/notarizing-your-electron-application/
         sign: false
     },
     publish: [],

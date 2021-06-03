@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+    This file is required for the macOS notarisation. Since we require a hardened runtime, we need
+    to specify the entitlements our application and the language server need.
+
+    See https://developer.apple.com/documentation/security/hardened_runtime for more background
+    information.
+-->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
     <dict>

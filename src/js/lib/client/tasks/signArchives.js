@@ -1,12 +1,15 @@
 /**
  This script signs the content of all archives that we have for macOS. For this to work this needs
- to run on macOS with `codesign` and a JDK installed. `codesign` is needed to sign the files,
+ to run on macOS with `codesign`, and a JDK installed. `codesign` is needed to sign the files,
  while the JDK is needed for correct packing and unpacking of java archives.
 
- Our use case requires us to re-sign jar contents that cannot be opened as pure
- zip archives, but require a java toolchain to extract and re-assemble.
- This code is based on https://github.com/electron/electron-osx-sign/pull/231 but our use case
- is unlikely to be supported by electron-osx-sign as adds a java toolchain as additional
+ We require this extra step as our dependencies contain files that require us to re-sign jar
+ contents that cannot be opened as pure zip archives, but require a java toolchain to extract
+ and re-assemble to preserve manifest information. This functionality is not provided by
+ `electron-osx-sign` out of the box.
+
+ This code is based on https://github.com/electron/electron-osx-sign/pull/231 but our use-case
+ is unlikely to be supported by electron-osx-sign as it adds a java toolchain as additional
  dependency.
  This script should be removed once the engine is signed.
 **/
@@ -17,26 +20,29 @@ const { dist } = require('../../../../../build/paths')
 const contentRoot = path.join(dist.root, 'client', 'mac', 'Enso.app', 'Contents')
 const resRoot = path.join(contentRoot, 'Resources')
 
-// TODO: Remove this once https://github.com/enso-org/ide/issues/1359 has been implemented.
+// TODO: Refactor this once we have a better wau to get the used engine version.
+//  See the tracking issue for more information https://github.com/enso-org/ide/issues/1359
 const ENGINE = '0.2.11'
 const ID = '"Developer ID Application: New Byte Order Sp. z o. o. (NM77WTZJFQ)"'
 // Placeholder name for temporary archives.
-const tmpArchive = 'compressed.zip'
+const tmpArchive = 'temporary_archive.zip'
 
-// Helper to execute a command in a given working dir and return the output.
+// Helper to execute a command in a given directory and return the output.
 const run = (cmd, cwd) => child_process.execSync(cmd, { shell: true, cwd }).toString()
 
-// Run the signing command with our specific settings.
+// Run the signing command.
 function sign(targetPath, cwd) {
     console.log(`Signing ${targetPath} in ${cwd}`)
     const entitlements_path = path.resolve('./', 'entitlements.mac.plist')
     return run(
-        `codesign -vvv --entitlements ${entitlements_path} --force --options=runtime --sign ${ID} ${targetPath}`,
+        `codesign -vvv --entitlements ${entitlements_path} --force --options=runtime
+         --sign ${ID} ${targetPath}`,
         cwd
     )
 }
 
-// Create and return an empty working directory.
+// Create and return an empty directory in the current folder. The directory will be named `.temp`.
+// If it already exists all content will be deleted.
 function getTmpDir() {
     const workingDir = '.temp'
     run(`rm -rf ${workingDir}`)
@@ -95,7 +101,10 @@ function signArchive(archivePath, archiveName, binPaths) {
     }
 }
 
-// Archives, and their content that need to be signed in an extra step.
+// Archives, and their content that need to be signed in an extra step. If a new archive is added
+// to the engine dependencies this also needs to be added here. If an archive is not added here, it
+// will show up as a failure to notarise the IDE. The offending archive will be named in the error
+// message provided by Apple and can then be added here.
 const toSign = [
     {
         jarDir:
@@ -238,7 +247,7 @@ const extra = [
 ]
 
 exports.default = async function () {
-    // Sign archive.
+    // Sign archives.
     for (let toSignData of toSign) {
         const jarDir = path.join(resRoot, toSignData.jarDir)
         const jarName = toSignData.jarName
