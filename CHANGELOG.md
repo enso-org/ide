@@ -8,15 +8,24 @@
 and drag on the background of your graph and see the beauty of the area
 selection appear.
 
+- [Opening projects in application graphical interface][1587]. Press `cmd`+`o`
+  to bring the list of projects. Select a project on the list to open it.
+
 #### EnsoGL (rendering engine)
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
 #### Visual Environment
 
+- [Nodes in graph no longer overlap panels][1577]. The Searcher, project name,
+  breadcrumbs and status bar are displayed "above" nodes.
+
 #### Enso Compiler
 
 [1588]: https://github.com/enso-org/ide/pull/1588
+
+[1577]: https://github.com/enso-org/ide/pull/1577
+[1587]: https://github.com/enso-org/ide/pull/1587
 
 # Enso 2.0.0-alpha.5 (2021-05-14)
 
