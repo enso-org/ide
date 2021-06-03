@@ -30,6 +30,7 @@ pub mod component;
 pub mod builtin;
 pub mod data;
 
+#[warn(missing_docs)]
 mod selection;
 
 use crate::component::node;
@@ -925,7 +926,8 @@ impl Nodes {
 // === Node Selection ===
 
 impl Nodes {
-    fn select_node(&self, node_id:impl Into<NodeId>) {
+    /// Mark node as selected and send FRP event to node about its selection status.
+    fn select(&self, node_id:impl Into<NodeId>) {
         let node_id = node_id.into();
         if let Some(node) = self.get_cloned_ref(&node_id) {
             self.selected.push(node_id);
@@ -933,7 +935,8 @@ impl Nodes {
         }
     }
 
-    fn deselect_node(&self, node_id:impl Into<NodeId>) {
+    /// Mark node as deselected and send FRP event to node about its selection status.
+    fn deselect(&self, node_id:impl Into<NodeId>) {
         let node_id = node_id.into();
         if let Some(node) = self.get_cloned_ref(&node_id) {
             self.selected.remove_item(&node_id);
@@ -941,21 +944,25 @@ impl Nodes {
         }
     }
 
-    pub fn selected_nodes(&self) -> Vec<NodeId> {
+    /// Return all nodes marked as selected.
+    pub fn all_selected(&self) -> Vec<NodeId> {
         self.selected.items()
     }
 
-    pub fn last_selected_node(&self) -> Option<NodeId> {
+    /// Return the node that was marked as selected last.
+    pub fn last_selected(&self) -> Option<NodeId> {
         self.selected.last_cloned()
     }
 
+    /// Return whether the given node is marked as selected.
     pub fn is_selected(&self, node:NodeId) -> bool {
         self.selected.contains(&node)
     }
 
+    /// Call `deselect` for all nodes marked as selected.
     pub fn deselect_all(&self) {
         let selected = self.selected.raw.as_ref().clone();
-        selected.into_inner().into_iter().for_each(|node_id| self.deselect_node(node_id))
+        selected.into_inner().into_iter().for_each(|node_id| self.deselect(node_id))
     }
 }
 
@@ -2002,6 +2009,7 @@ impl application::View for GraphEditor {
     }
 }
 
+/// Return the toggle status of the given enable/disable/toggle inputs as a stream of booleans.
 pub fn enable_disable_toggle
 (network:&frp::Network, enable:&frp::Any, disable:&frp::Any, toggle:&frp::Any)
 -> frp::Stream<bool> {
@@ -2447,7 +2455,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     frp::extend! { network
 
     all_nodes       <= inputs.remove_all_nodes      . map(f_!(model.all_nodes()));
-    selected_nodes  <= inputs.remove_selected_nodes . map(f_!(model.nodes.selected_nodes()));
+    selected_nodes  <= inputs.remove_selected_nodes . map(f_!(model.nodes.all_selected()));
     nodes_to_remove <- any (all_nodes, selected_nodes);
     eval nodes_to_remove ((node_id) inputs.remove_all_node_edges.emit(node_id));
 
@@ -2463,7 +2471,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     let empty_id       = NodeId::default();
     let model_clone    = model.clone_ref();
     nodes_to_collapse <- inputs.collapse_selected_nodes . map(move |_|
-        (model_clone.nodes.selected_nodes(),empty_id)
+        (model_clone.nodes.all_selected(),empty_id)
     );
     out.source.nodes_collapsed <+ nodes_to_collapse;
     }
@@ -2734,7 +2742,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         }
     });
 
-    nodes_to_cycle <= inputs.cycle_visualization_for_selected_node.map(f_!(model.nodes.selected_nodes()));
+    nodes_to_cycle <= inputs.cycle_visualization_for_selected_node.map(f_!(model.nodes.all_selected()));
     node_to_cycle  <- any(nodes_to_cycle,inputs.cycle_visualization);
     eval node_to_cycle ([model](node_id) {
         if let Some(node) = model.nodes.get_cloned_ref(node_id) {
@@ -2763,7 +2771,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     viz_press_time_diff  <- viz_release_time.map2(&viz_press_time,|t1,t0| t1-t0);
     viz_preview_mode     <- viz_press_time_diff.map(|t| *t > VIZ_PREVIEW_MODE_TOGGLE_TIME_MS);
     viz_preview_mode_end <- viz_release.gate(&viz_preview_mode).gate_not(&out.is_fs_visualization_displayed);
-    viz_tgt_nodes        <- viz_press.gate_not(&out.is_fs_visualization_displayed).map(f_!(model.nodes.selected_nodes()));
+    viz_tgt_nodes        <- viz_press.gate_not(&out.is_fs_visualization_displayed).map(f_!(model.nodes.all_selected()));
     viz_tgt_nodes_off    <- viz_tgt_nodes.map(f!([model](node_ids) {
         node_ids.iter().cloned().filter(|node_id| {
             model.nodes.get_cloned_ref(node_id)
@@ -2777,7 +2785,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     viz_enable           <- any(viz_enable_by_press,inputs.enable_visualization);
     viz_disable          <= viz_tgt_nodes.gate(&viz_tgt_nodes_all_on);
     viz_preview_disable  <= viz_tgt_nodes_off.sample(&viz_preview_mode_end);
-    viz_fullscreen_on    <= viz_d_press_ev.map(f_!(model.nodes.last_selected_node()));
+    viz_fullscreen_on    <= viz_d_press_ev.map(f_!(model.nodes.last_selected()));
 
     eval viz_enable          ((id) model.enable_visualization(id));
     eval viz_disable         ((id) model.disable_visualization(id));
@@ -2814,7 +2822,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Entering and Exiting Nodes ===
 
-    node_to_enter           <= inputs.enter_selected_node.map(f_!(model.nodes.last_selected_node()));
+    node_to_enter           <= inputs.enter_selected_node.map(f_!(model.nodes.last_selected()));
     out.source.node_entered <+ node_to_enter;
     removed_edges_on_enter  <= out.node_entered.map(f_!(model.model.clear_all_detached_edges()));
     out.source.node_exited  <+ inputs.exit_node;
@@ -2902,8 +2910,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Other Binds ===
     // ===================
 
-    eval out.node_selected   ((id) model.nodes.select_node(id));
-    eval out.node_deselected ((id) model.nodes.deselect_node(id));
+    eval out.node_selected   ((id) model.nodes.select(id));
+    eval out.node_deselected ((id) model.nodes.deselect(id));
     eval out.node_removed    ((id) model.remove_node(id));
     out.source.on_visualization_select <+ out.node_removed.map(|&id| Switch::Off(id));
 

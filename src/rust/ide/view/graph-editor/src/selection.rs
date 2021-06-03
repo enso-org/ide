@@ -1,6 +1,10 @@
 //! Module that contains the logic sor selecting nodes. This includes selecting single nodes
 //! by clicking on them separately, as well as click+drag for selecting with a selection area.
+mod bounding_box;
+
 use ensogl::prelude::*;
+
+pub use bounding_box::BoundingBox;
 
 use crate::NodeId;
 use crate::Nodes;
@@ -33,6 +37,9 @@ pub enum Mode {
 }
 
 impl Mode {
+
+    /// Return whether an element should be selected, if a selection was triggered through single
+    /// selection and had the given `was_selected` status before.
     fn single_should_select(self, was_selected:bool) -> bool {
         match self {
             Self::Normal  => true,
@@ -43,7 +50,9 @@ impl Mode {
         }
     }
 
-    fn single_should_deselect(self, was_selected:bool) -> bool {
+   /// Return whether an element should be deselected, if a deselection was triggered through single
+   /// selection and had the given `was_selected` status before.
+   fn single_should_deselect(self, was_selected:bool) -> bool {
         match self {
             Self::Subtract => true,
             Self::Multi    => was_selected,
@@ -52,7 +61,9 @@ impl Mode {
         }
     }
 
-    fn multi_should_select(self, was_selected:bool) -> bool {
+    /// Return whether an element should be selected, if a selection was triggered through an area
+    /// selection and had the given `was_selected` status before.
+    fn area_should_select(self, was_selected:bool) -> bool {
         match self {
             Self::Normal  => true,
             Self::Merge   => true,
@@ -62,7 +73,9 @@ impl Mode {
         }
     }
 
-    fn multi_should_deselect(self, was_selected:bool) -> bool {
+    /// Return whether an element should be deselected, if a deselection was triggered  through an
+    /// area selection and had the given `was_selected` status before.
+    fn area_should_deselect(self, was_selected:bool) -> bool {
         match self {
             Self::Subtract => true,
             Self::Multi    => was_selected,
@@ -78,100 +91,6 @@ impl Default for Mode {
     }
 }
 
-
-
-// ===================
-// === BoundingBox ===
-// ===================
-
-/// Describes a 2D bounding box of an UI component.
-#[derive(Clone,Copy,Default,Debug)]
-pub struct BoundingBox {
-    top    : f32,
-    bottom : f32,
-    left   : f32,
-    right  : f32,
-}
-
-impl BoundingBox {
-    pub fn from_corners(p1:Vector2, p2:Vector2) -> Self {
-        let top    = p1.y.max(p2.y);
-        let bottom = p1.y.min(p2.y);
-        let left   = p1.x.min(p2.x);
-        let right  = p1.x.max(p2.x);
-        BoundingBox{top,bottom,left,right}
-    }
-
-    pub fn from_position_size(position:Vector2, size:Vector2) -> Self {
-        Self::from_corners(position,position+size)
-    }
-
-    pub fn contains(&self, pos:Vector2) -> bool {
-        self.contains_x(pos.x) && self.contains_y(pos.y)
-    }
-
-    fn contains_x(&self, x:f32) -> bool {
-        x > self.left && x < self.right
-    }
-
-    fn contains_y(&self, y:f32) -> bool {
-        y > self.bottom && y < self.top
-    }
-
-    pub fn width(&self) -> f32 {
-        self.right - self.left
-    }
-
-    pub fn height(&self) -> f32 {
-        self.top - self.bottom
-    }
-
-    pub fn intersects(&self, other:&BoundingBox) -> bool {
-        // https://stackoverflow.com/a/13390495
-        // self.right<other.left or other.right<self.left or self.bottom<other.top or other.bottom<self.top)
-        let not_contained = (self.right < other.left)
-                         || (other.right < self.left)
-                         || (self.bottom > other.top)
-                         || (other.bottom>self.top);
-        !not_contained
-    }
-}
-
-
-// === Bounding Box Tests ===
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_intersection() {
-        let bb1 = BoundingBox::from_corners(Vector2::new(0.5,0.5),Vector2::new(1.0,1.0));
-        let bb2 = BoundingBox::from_corners(Vector2::new(0.0,0.0),Vector2::new(2.0,2.0));
-        assert!(bb1.intersects(&bb2));
-        assert!(bb2.intersects(&bb1));
-
-        let bb1 = BoundingBox::from_corners(Vector2::new(3.0,3.0),Vector2::new(4.0,4.0));
-        let bb2 = BoundingBox::from_corners(Vector2::new(0.0,0.0),Vector2::new(2.0,2.0));
-        assert!(!bb1.intersects(&bb2));
-        assert!(!bb2.intersects(&bb1));
-
-        let bb1 = BoundingBox::from_corners(Vector2::new(0.0,0.0),Vector2::new(4.0,4.0));
-        let bb2 = BoundingBox::from_corners(Vector2::new(0.0,0.0),Vector2::new(-2.0,-2.0));
-        assert!(bb1.intersects(&bb2));
-        assert!(bb2.intersects(&bb1));
-
-        let bb1 = BoundingBox::from_corners(Vector2::new(0.0,0.0),Vector2::new(4.0,4.0));
-        let bb2 = BoundingBox::from_corners(Vector2::new(2.0,2.0),Vector2::new(200.0,200.0));
-        assert!(bb1.intersects(&bb2));
-        assert!(bb2.intersects(&bb1));
-
-        let bb1 = BoundingBox::from_corners(Vector2::new(-50.0,-50.0),Vector2::new(25.0,25.0));
-        let bb2 = BoundingBox::from_corners(Vector2::new(5.00,50.0),Vector2::new(100.0,100.0));
-        assert!(!bb1.intersects(&bb2));
-        assert!(!bb2.intersects(&bb1));
-    }
-}
 
 
 // ==========================
@@ -443,10 +362,10 @@ impl Controller {
             // Node enters selection area, select depending on selection mode.
             node_added    <- cursor_selection_nodes.added.map(|node_info| node_info.node);
             should_select <- cursor_selection_nodes.added.map2(&selection_mode,
-                |info,mode| mode.multi_should_select(info.was_selected)
+                |info,mode| mode.area_should_select(info.was_selected)
             );
             should_deselect <- cursor_selection_nodes.added.map2(&selection_mode,
-                |info,mode| mode.multi_should_deselect(info.was_selected)
+                |info,mode| mode.area_should_deselect(info.was_selected)
             );
 
             out.source.node_selected   <+ node_added.gate(&should_select);

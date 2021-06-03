@@ -37,7 +37,7 @@ use ensogl_theme;
 use std::f32::EPSILON;
 
 use super::edge;
-use super::super::selection::BoundingBox;
+use crate::selection::BoundingBox;
 
 
 
@@ -538,7 +538,7 @@ impl Node {
         let action_bar       = &model.action_bar.frp;
 
         // Hook up the display object position updates to the node's FRP. Required to calculate the
-        // bounding box
+        // bounding box.
         frp::extend! { network
             position <- source::<Vector2>();
         }
@@ -595,7 +595,7 @@ impl Node {
             bounding_box_input <- all2(&new_size,&position);
             out.source.bounding_box <+ bounding_box_input.map(|(size,position)| {
                 let position = position - Vector2::new(0.0,size.y / 2.0);
-                BoundingBox::from_position_size(position,*size)
+                BoundingBox::from_position_and_size(position,*size)
             });
 
 
