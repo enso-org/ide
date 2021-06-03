@@ -234,36 +234,36 @@ fn get_nodes_in_bounding_box(bounding_box:&BoundingBox, nodes:&Nodes)  -> Vec<No
 }
 
 /// Return an FRP endpoint that indicates the current selection mode. This method sets up the logic
-/// for deriving the selection mode from the global FRP inputs.
-pub fn get_mode(network:&frp::Network,inputs:&crate::FrpEndpoints) -> frp::stream::Stream<Mode> {
+/// for deriving the selection mode from the graph editor FRP.
+pub fn get_mode(network:&frp::Network,editor:&crate::FrpEndpoints) -> frp::stream::Stream<Mode> {
     frp::extend! { network
 
     let multi_select_flag = crate::enable_disable_toggle
         ( network
-        , &inputs.enable_node_multi_select
-        , &inputs.disable_node_multi_select
-        , &inputs.toggle_node_multi_select
+        , &editor.enable_node_multi_select
+        , &editor.disable_node_multi_select
+        , &editor.toggle_node_multi_select
         );
 
     let merge_select_flag = crate::enable_disable_toggle
         ( network
-        , &inputs.enable_node_merge_select
-        , &inputs.disable_node_merge_select
-        , &inputs.toggle_node_merge_select
+        , &editor.enable_node_merge_select
+        , &editor.disable_node_merge_select
+        , &editor.toggle_node_merge_select
         );
 
     let subtract_select_flag = crate::enable_disable_toggle
         ( network
-        , &inputs.enable_node_subtract_select
-        , &inputs.disable_node_subtract_select
-        , &inputs.toggle_node_subtract_select
+        , &editor.enable_node_subtract_select
+        , &editor.disable_node_subtract_select
+        , &editor.toggle_node_subtract_select
         );
 
     let inverse_select_flag = crate::enable_disable_toggle
         ( network
-        , &inputs.enable_node_inverse_select
-        , &inputs.disable_node_inverse_select
-        , &inputs.toggle_node_inverse_select
+        , &editor.enable_node_inverse_select
+        , &editor.disable_node_inverse_select
+        , &editor.toggle_node_inverse_select
         );
 
     selection_mode <- all_with4
@@ -296,12 +296,12 @@ pub struct Controller {
 }
 
 impl Controller {
-    pub fn new(inputs:&crate::FrpEndpoints,out:&crate::FrpEndpoints,cursor:&Cursor,
+    pub fn new(editor:&crate::FrpEndpoints,cursor:&Cursor,
                mouse:&frp::io::Mouse,touch:&TouchState,nodes:&Nodes)
     -> Self {
 
         let network                = frp::Network::new("selection::Controller");
-        let selection_mode         = get_mode(&network,inputs);
+        let selection_mode         = get_mode(&network,editor);
         let cursor_selection_nodes = node_set::Set::new();
 
         frp::extend! { network
@@ -311,7 +311,7 @@ impl Controller {
             on_press_style   <- mouse.down_primary . constant(cursor::Style::new_press());
             on_release_style <- mouse.up_primary . constant(cursor::Style::default());
 
-            edit_mode   <- bool(&inputs.edit_mode_off,&inputs.edit_mode_on);
+            edit_mode   <- bool(&editor.edit_mode_off,&editor.edit_mode_on);
             drag_start  <- mouse.down_primary.gate_not(&edit_mode);
             is_dragging <- bool(&mouse.up_primary,&drag_start);
             drag_end    <- is_dragging.on_false() ;
@@ -368,25 +368,25 @@ impl Controller {
                 |info,mode| mode.area_should_deselect(info.was_selected)
             );
 
-            out.source.node_selected   <+ node_added.gate(&should_select);
-            out.source.node_deselected <+ node_added.gate(&should_deselect);
+            editor.source.node_selected   <+ node_added.gate(&should_select);
+            editor.source.node_deselected <+ node_added.gate(&should_deselect);
 
             // Node leaves selection area, revert to previous selection state.
             node_removed <- cursor_selection_nodes.removed.map(f!([](node_info) {
                 if !node_info.was_selected { Some(node_info.node) } else {None}
             })).unwrap();
 
-            out.source.node_deselected <+ node_removed;
+            editor.source.node_deselected <+ node_removed;
 
 
             // ===  Single Node Selection Box & Mouse IO ===
 
-            should_not_select       <- edit_mode || out.some_edge_endpoints_unset;
+            should_not_select       <- edit_mode || editor.some_edge_endpoints_unset;
             node_to_select_non_edit <- touch.nodes.selected.gate_not(&should_not_select);
             node_to_select_edit     <- touch.nodes.down.gate(&edit_mode);
             node_to_select          <- any(node_to_select_non_edit,
                                            node_to_select_edit,
-                                           inputs.select_node);
+                                           editor.select_node);
             node_was_selected       <- node_to_select.map(f!((id) nodes.selected.contains(id)));
 
             should_select <- node_to_select.map3(&selection_mode,&node_was_selected,
@@ -400,17 +400,17 @@ impl Controller {
             deselect_all_nodes      <- any_(...);
             deselect_on_select      <- node_to_select.gate_not(&keep_selection);
             deselect_all_nodes      <+ deselect_on_select;
-            deselect_all_nodes      <+ inputs.deselect_all_nodes;
+            deselect_all_nodes      <+ editor.deselect_all_nodes;
 
             deselect_on_bg_press    <- touch.background.selected.gate_not(&keep_selection);
             deselect_all_nodes      <+ deselect_on_bg_press;
             all_nodes_to_deselect   <= deselect_all_nodes.map(f_!(nodes.selected.mem_take()));
-            out.source.node_deselected <+ all_nodes_to_deselect;
+            editor.source.node_deselected <+ all_nodes_to_deselect;
 
             node_selected           <- node_to_select.gate(&should_select);
             node_deselected         <- node_to_select.gate(&should_deselect);
-            out.source.node_selected   <+ node_selected;
-            out.source.node_deselected <+ node_deselected;
+            editor.source.node_selected   <+ node_selected;
+            editor.source.node_deselected <+ node_deselected;
 
             // ===  Output bindings ===
             cursor_style <- any(on_press_style,on_release_style,cursor_selection);
