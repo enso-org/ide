@@ -35,8 +35,8 @@ function sign(targetPath, cwd) {
     console.log(`Signing ${targetPath} in ${cwd}`)
     const entitlements_path = path.resolve('./', 'entitlements.mac.plist')
     return run(
-        `codesign -vvv --entitlements ${entitlements_path} --force --options=runtime
-         --sign ${ID} ${targetPath}`,
+        `codesign -vvv --entitlements ${entitlements_path} --force --options=runtime `
+         + `--sign ${ID} ${targetPath}`,
         cwd
     )
 }
