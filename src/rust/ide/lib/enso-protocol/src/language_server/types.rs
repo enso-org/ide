@@ -808,7 +808,7 @@ pub struct SuggestionsDatabaseEntry {
 }
 
 /// The entry in the suggestions order database.
-#[derive(Clone,Debug,Deserialize,Eq,Hash,PartialEq,Serialize)]
+#[derive(Clone,Copy,Debug,Deserialize,Eq,Hash,PartialEq,Serialize)]
 #[serde(rename_all="camelCase")]
 #[allow(missing_docs)]
 pub struct SuggestionsOrderDatabaseEntry {
@@ -925,13 +925,13 @@ pub enum SuggestionsDatabaseUpdate {
 pub enum SuggestionsOrderDatabaseUpdateKind {AddOrder,UpdateOrder,DeleteOrder}
 
 /// The update of the suggestions order database.
-#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+#[derive(Hash,Debug,Clone,Copy,PartialEq,Eq,Serialize,Deserialize)]
 #[allow(missing_docs)]
 #[serde(tag="type")]
 pub enum SuggestionsOrderDatabaseUpdate {
     #[serde(rename_all="camelCase")]
     AddOrder {
-        entry : SuggestionsOrderDatabaseEntryEntry,
+        entry : SuggestionsOrderDatabaseEntry,
     },
     #[serde(rename_all="camelCase")]
     RemoveOrder {
@@ -951,12 +951,13 @@ pub enum SuggestionsOrderDatabaseUpdate {
 #[serde(tag="type")]
 pub struct SuggestionsDatabaseModification {
     #[serde(default)]
-    pub arguments     : Vec<SuggestionArgumentUpdate>,
-    pub module        : Option<FieldUpdate<String>>,
-    pub self_type     : Option<FieldUpdate<String>>,
-    pub return_type   : Option<FieldUpdate<String>>,
-    pub documentation : Option<FieldUpdate<String>>,
-    pub scope         : Option<FieldUpdate<SuggestionEntryScope>>,
+    pub arguments          : Vec<SuggestionArgumentUpdate>,
+    pub module             : Option<FieldUpdate<String>>,
+    pub self_type          : Option<FieldUpdate<String>>,
+    pub return_type        : Option<FieldUpdate<String>>,
+    pub documentation      : Option<FieldUpdate<String>>,
+    pub documentation_html : Option<FieldUpdate<String>>,
+    pub scope              : Option<FieldUpdate<SuggestionEntryScope>>,
 }
 
 /// Notification about change in the suggestions database.
