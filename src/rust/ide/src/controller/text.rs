@@ -200,8 +200,6 @@ mod test {
 
             module.apply_code_change(TextChange::insert(Index::new(8),"2".to_string())).unwrap();
             assert_eq!(Some(Notification::Invalidate), sub.next().await);
-
-            // TODO urm
         })
     }
 

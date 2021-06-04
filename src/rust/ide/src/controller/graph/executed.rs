@@ -17,7 +17,7 @@ use span_tree::generate::context::CalledMethodInfo;
 
 pub use crate::controller::graph::Connection;
 pub use crate::controller::graph::Connections;
-use crate::model::undo_redo::Repository;
+
 
 
 // ==============
@@ -293,7 +293,7 @@ impl Context for Handle {
 }
 
 impl model::undo_redo::Aware for Handle {
-    fn repository(&self) -> Rc<Repository> {
+    fn repository(&self) -> Rc<model::undo_redo::Repository> {
         self.graph.borrow().repository()
     }
 }
@@ -333,8 +333,8 @@ pub mod tests {
         pub fn controller(&self) -> Handle {
             let logger      = Logger::new("test");
             let parser      = parser::Parser::new_or_panic();
-            let urm         = Rc::new(model::undo_redo::Repository::new(&logger));
-            let module      = self.module.plain(&parser,urm);
+            let repository  = Rc::new(model::undo_redo::Repository::new(&logger));
+            let module      = self.module.plain(&parser,repository);
             let method      = self.graph.method();
             let mut project = model::project::MockAPI::new();
             let ctx         = Rc::new(self.ctx.create());

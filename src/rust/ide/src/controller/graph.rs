@@ -29,7 +29,7 @@ use span_tree::generate::context::CalledMethodInfo;
 
 pub use crate::double_representation::graph::LocationHint;
 pub use crate::double_representation::graph::Id;
-use crate::model::undo_redo::Repository;
+
 
 
 // ==============
@@ -98,10 +98,13 @@ impl Node {
     pub fn has_position(&self) -> bool {
         self.metadata.as_ref().map_or(false, |m| m.position.is_some())
     }
+}
 
-    /// Get the node's unique ID.
-    pub fn id(&self) -> node::Id {
-        self.info.id()
+impl Deref for Node {
+    type Target = NodeInfo;
+
+    fn deref(&self) -> &Self::Target {
+        &self.info
     }
 }
 
@@ -190,7 +193,7 @@ pub struct Connection {
 
 // === NodeTrees ===
 
-/// Stores node's span trees: one for inputs (expression) and optionally another one for inputs
+/// Stores node's span trees: one for inputs (expression) and optionally another one for outputs
 /// (pattern).
 #[derive(Clone,Debug,Default)]
 pub struct NodeTrees {
@@ -213,7 +216,7 @@ impl NodeTrees {
     }
 
     /// Converts AST crumbs (as obtained from double rep's connection endpoint) into the
-    /// appriopriate span-tree node reference.
+    /// appropriate span-tree node reference.
     pub fn get_span_tree_node<'a,'b>(&'a self, ast_crumbs:&'b [ast::Crumb])
     -> Option<span_tree::node::NodeFoundByAstCrumbs<'a,'b>> {
         if let Some(outputs) = self.outputs.as_ref() {
@@ -890,7 +893,7 @@ impl span_tree::generate::Context for Handle {
 }
 
 impl model::undo_redo::Aware for Handle {
-    fn repository(&self) -> Rc<Repository> {
+    fn repository(&self) -> Rc<model::undo_redo::Repository> {
         self.module.repository()
     }
 }

@@ -64,7 +64,7 @@ impl Transaction {
     pub fn fill_content(&self, id:model::module::Id, content:model::module::Content) {
         with(self.frame.borrow_mut(), |mut data| {
             debug!(self.logger, "Filling transaction '{data.name}' with info for '{id}':\n{content}");
-            let _ = data.shapshots.try_insert(id, content);
+            let _ = data.snapshots.try_insert(id, content);
         })
     }
 
@@ -95,13 +95,13 @@ impl Drop for Transaction {
 #[derive(Clone,Debug,Default,PartialEq)]
 pub struct Frame {
     /// Name of the transaction that created this frame.
-    pub name   : String,
+    pub name : String,
     /// Context module where the change was made.
     pub module : Option<model::module::Id>,
     /// Context graph where the change was made.
-    pub graph  : Option<controller::graph::Id>,
+    pub graph : Option<controller::graph::Id>,
     /// Snapshots of content for all edited modules.
-    pub shapshots: std::collections::btree_map::BTreeMap<model::module::Id,model::module::Content>,
+    pub snapshots : std::collections::btree_map::BTreeMap<model::module::Id, model::module::Content>,
 }
 
 impl Display for Frame {
@@ -109,7 +109,7 @@ impl Display for Frame {
         write!(f,"Name: {}; ", self.name)?;
         if let Some(m) = &self.module {write!(f,"Module: {}; ", m)?; }
         if let Some(g) = &self.graph  {write!(f,"Graph: {}; ",  g)?; }
-        for (id,code) in &self.shapshots {
+        for (id,code) in &self.snapshots {
             write!(f,"Code for {}: {}; ", id, code)?;
         }
         Ok(())
@@ -119,8 +119,11 @@ impl Display for Frame {
 /// The inner state of the Und-Redo repository.
 #[derive(Debug,Default)]
 pub struct Data {
+    /// Undo stack.
     pub undo: Vec<Frame>,
+    /// Redo stack.
     pub redo: Vec<Frame>,
+    /// Currently open transaction (if `Some` and alive).
     pub current_transaction : Option<Weak<Transaction>>,
 }
 
@@ -132,9 +135,13 @@ pub enum Stack {
     Redo,
 }
 
-/// Repository stores undo and redo stacks.
+/// `Repository` stores undo and redo stacks and provides transaction support.
 ///
-/// Also, provides API that allows open transactions that will add themselves to the undo stack.
+/// This is the primary type meant to be exposed to entities that want their actions to be
+/// undoable. They can group edits together by keeping a [`Transaction`] handle alive.
+///
+/// `Repository`, unlike [`Manager`] does not keep any modules (or other model entities) alive and
+/// can be shared with no consequence on project state.
 #[derive(Debug)]
 pub struct Repository {
     logger : Logger,
@@ -244,6 +251,11 @@ impl Repository {
     pub fn len(&self, stack:Stack) -> usize {
         self.borrow(stack).len()
     }
+
+    /// Check if a given stack is empty.
+    pub fn is_empty(&self, stack:Stack) -> bool {
+        self.borrow(stack).is_empty()
+    }
 }
 
 
@@ -333,7 +345,7 @@ impl Manager {
         // In general this should never happen, as we store strong references to all opened modules
         // and don't allow getting snapshots of modules that are not opened.
         let module_and_content = with(self.modules.borrow(), |modules| {
-            frame.shapshots.iter()
+            frame.snapshots.iter()
                 .map(|(id,content)| {
                     let err           = || format_err!("Cannot find handle to module {}", id);
                     let module_result = modules.get(id).cloned().ok_or_else(err);
@@ -357,15 +369,67 @@ impl Manager {
 mod tests {
     //use utils::test::traits::*;
     use crate::test::mock::Fixture;
+    use crate::test::mock::Unified;
     use super::*;
+    use span_tree::SpanTree;
+
 
     #[test]
-    #[allow(unused_variables)]
+    fn connect_nodes() {
+        let code = r#"
+main =
+    2 + 2
+    5 * 5
+"#;
+
+        let mut data = Unified::new();
+        data.set_code(code);
+
+        let fixture = data.fixture();
+        let Fixture{graph,project,module,..} = &fixture;
+        let urm = project.urm();
+        let nodes = graph.nodes().unwrap();
+        let sum_node = &nodes[0];
+        let product_node = &nodes[1];
+
+        assert_eq!(sum_node.expression().to_string(), "2 + 2");
+        assert_eq!(product_node.expression().to_string(), "5 * 5");
+
+        let sum_tree   = SpanTree::<()>::new(sum_node.expression(),graph).unwrap();
+        let sum_input  = sum_tree.root_ref().leaf_iter().find(|n| n.is_argument()).unwrap().crumbs;
+        let connection = controller::graph::Connection {
+            source      : controller::graph::Endpoint::new(product_node.id(), vec![]),
+            destination : controller::graph::Endpoint::new(sum_node.id(), sum_input),
+        };
+
+        // A complex operation: involves introducing variable name, reordering lines and replacing
+        // an argument.
+        graph.connect(&connection, &span_tree::generate::context::Empty).unwrap();
+        let after_connect = module.ast();
+
+        assert_eq!(urm.repository.len(Stack::Undo), 1);
+        assert_eq!(urm.repository.len(Stack::Redo), 0);
+
+        // After single undo everything should be as before.
+        urm.undo().unwrap();
+        assert_eq!(module.ast().to_string(), code);
+        assert_eq!(urm.repository.len(Stack::Undo), 0);
+        assert_eq!(urm.repository.len(Stack::Redo), 1);
+
+        // After redo - as right after connecting.
+        urm.redo().unwrap();
+        assert_eq!(module.ast(), after_connect);
+        assert_eq!(urm.repository.len(Stack::Undo), 0);
+        assert_eq!(urm.repository.len(Stack::Redo), 1);
+    }
+
+
+    #[test]
     fn move_node() {
         use model::module::Position;
 
         let mut fixture = crate::test::mock::Unified::new().fixture();
-        let Fixture{executed_graph,execution,executor,graph,project,module,logger,..} = &mut fixture;
+        let Fixture{executed_graph,graph,project,logger,..} = &mut fixture;
         let logger:&DefaultTraceLogger = logger;
 
         let urm = project.urm();
@@ -378,24 +442,22 @@ mod tests {
         graph.set_node_position(node.id(), Position::new(300.0, 150.0)).unwrap();
 
         assert_eq!(graph.node(node.id()).unwrap().position(), Some(model::module::Position::new(300.0, 150.0)));
-        project.urm().undo().unwrap();
+        urm.undo().unwrap();
         assert_eq!(graph.node(node.id()).unwrap().position(), Some(model::module::Position::new(500.0, 250.0)));
-        project.urm().undo().unwrap();
+        urm.undo().unwrap();
         assert_eq!(graph.node(node.id()).unwrap().position(), None);
-        project.urm().redo().unwrap();
+        urm.redo().unwrap();
         assert_eq!(graph.node(node.id()).unwrap().position(), Some(model::module::Position::new(500.0, 250.0)));
-        project.urm().redo().unwrap();
+        urm.redo().unwrap();
         assert_eq!(graph.node(node.id()).unwrap().position(), Some(model::module::Position::new(300.0, 150.0)));
     }
 
-    // Test that checks that value computed notification is properly relayed by the executed graph.
     #[test]
-    #[allow(unused_variables)]
     fn undo_redo() {
         use crate::test::mock::Fixture;
         // Setup the controller.
         let mut fixture = crate::test::mock::Unified::new().fixture();
-        let Fixture{executed_graph,execution,executor,graph,project,module,logger,..} = &mut fixture;
+        let Fixture{executed_graph,project,module,..} = &mut fixture;
 
         let urm = project.urm();
         let nodes = executed_graph.graph().nodes().unwrap();
@@ -411,24 +473,24 @@ mod tests {
         // We can undo action.
         assert_eq!(urm.repository.len(Stack::Undo), 1);
         assert_eq!(module.ast().to_string(), "main = \n    5 * 20");
-        project.urm().undo().unwrap();
+        urm.undo().unwrap();
         assert_eq!(module.ast().to_string(), "main = \n    2 + 2");
 
         // We cannot undo more actions than we made.
         assert_eq!(urm.repository.len(Stack::Undo), 0);
-        assert!(project.urm().undo().is_err());
+        assert!(urm.undo().is_err());
         assert_eq!(module.ast().to_string(), "main = \n    2 + 2");
 
         // We can redo since we undid.
-        project.urm().redo().unwrap();
+        urm.redo().unwrap();
         assert_eq!(module.ast().to_string(), "main = \n    5 * 20");
 
         // And we can undo once more.
-        project.urm().undo().unwrap();
+        urm.undo().unwrap();
         assert_eq!(module.ast().to_string(), "main = \n    2 + 2");
 
         //We cannot redo after edit has been made.
         executed_graph.graph().set_expression(node.info.id(),"4 * 20").unwrap();
-        assert!(project.urm().redo().is_err());
+        assert!(urm.redo().is_err());
     }
 }

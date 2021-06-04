@@ -103,6 +103,7 @@ impl Module {
         Ok(ret)
     }
 
+    /// Get the module's ID.
     pub fn id(&self) -> model::module::Id {
         self.path.id()
     }

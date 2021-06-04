@@ -768,25 +768,19 @@ impl Searcher {
 
 
     fn add_required_imports(&self) -> FallibleResult {
-        let data_borrowed        = self.data.borrow();
-        let fragments            = data_borrowed.fragments_added_by_picking.iter();
-        let imports              = fragments.map(|frag| self.code_to_insert(frag).imports).flatten();
-        let mut module           = self.module();
-        let here                 = self.module_qualified_name();
+        let data_borrowed = self.data.borrow();
+        let fragments     = data_borrowed.fragments_added_by_picking.iter();
+        let imports       = fragments.map(|frag| self.code_to_insert(frag).imports).flatten();
+        let mut module    = self.module();
+        let here          = self.module_qualified_name();
         // TODO[ao] this is a temporary workaround. See [`Searcher::add_enso_project_entries`]
         //     documentation.
-        let mut added_import = false;
         let without_enso_project = imports.filter(|i| i.to_string() != ENSO_PROJECT_SPECIAL_MODULE);
         for mut import in without_enso_project {
-            added_import = true;
             import.remove_main_module_segment();
             module.add_module_import(&here,self.ide.parser(),&import);
         }
-        if added_import {
-            self.graph.graph().module.update_ast(module.ast)
-        } else {
-            Ok(())
-        }
+        self.graph.graph().module.update_ast(module.ast)
     }
 
     /// Reload Action List.
