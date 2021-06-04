@@ -748,22 +748,24 @@ pub enum SuggestionEntryType {Atom,Method,Function,Local}
 pub enum SuggestionEntry {
     #[serde(rename_all="camelCase")]
     Atom {
-        external_id   : Option<Uuid>,
-        name          : String,
-        module        : String,
-        arguments     : Vec<SuggestionEntryArgument>,
-        return_type   : String,
-        documentation : Option<String>,
+        external_id        : Option<Uuid>,
+        name               : String,
+        module             : String,
+        arguments          : Vec<SuggestionEntryArgument>,
+        return_type        : String,
+        documentation      : Option<String>,
+        documentation_html : Option<String>,
     },
     #[serde(rename_all="camelCase")]
     Method {
-        external_id   : Option<Uuid>,
-        name          : String,
-        module        : String,
-        arguments     : Vec<SuggestionEntryArgument>,
-        self_type     : String,
-        return_type   : String,
-        documentation : Option<String>,
+        external_id        : Option<Uuid>,
+        name               : String,
+        module             : String,
+        arguments          : Vec<SuggestionEntryArgument>,
+        self_type          : String,
+        return_type        : String,
+        documentation      : Option<String>,
+        documentation_html : Option<String>,
     },
     #[serde(rename_all="camelCase")]
     Function {
@@ -805,6 +807,15 @@ pub struct SuggestionsDatabaseEntry {
     pub suggestion : SuggestionEntry,
 }
 
+/// The entry in the suggestions order database.
+#[derive(Clone,Debug,Deserialize,Eq,Hash,PartialEq,Serialize)]
+#[serde(rename_all="camelCase")]
+#[allow(missing_docs)]
+pub struct SuggestionsOrderDatabaseEntry {
+    pub suggestion_id : SuggestionId,
+    pub prev_id       : SuggestionId,
+    pub next_id       : SuggestionId,
+}
 
 // === Suggestion Database Updates ===
 
@@ -908,6 +919,32 @@ pub enum SuggestionsDatabaseUpdate {
     }
 }
 
+/// The kind of the suggestions order database update.
+#[derive(Clone,Copy,Debug,Deserialize,Eq,Hash,PartialEq,Serialize)]
+#[allow(missing_docs)]
+pub enum SuggestionsOrderDatabaseUpdateKind {AddOrder,UpdateOrder,DeleteOrder}
+
+/// The update of the suggestions order database.
+#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+#[allow(missing_docs)]
+#[serde(tag="type")]
+pub enum SuggestionsOrderDatabaseUpdate {
+    #[serde(rename_all="camelCase")]
+    AddOrder {
+        entry : SuggestionsOrderDatabaseEntryEntry,
+    },
+    #[serde(rename_all="camelCase")]
+    RemoveOrder {
+        suggestion_id : SuggestionId,
+    },
+    #[serde(rename_all="camelCase")]
+    ModifyOrder {
+        suggestion_id  : SuggestionId,
+        prev_id   : Option<FieldUpdate<Uuid>>,
+        next_id   : Option<FieldUpdate<Uuid>>,
+    }
+}
+
 /// The modification of suggestion database entry.
 #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
 #[allow(missing_docs)]
@@ -928,6 +965,15 @@ pub struct SuggestionsDatabaseModification {
 #[allow(missing_docs)]
 pub struct SuggestionDatabaseUpdatesEvent {
     pub updates         : Vec<SuggestionsDatabaseUpdate>,
+    pub current_version : SuggestionsDatabaseVersion,
+}
+
+/// Notification about change in the suggestions order database.
+#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+#[serde(rename_all="camelCase")]
+#[allow(missing_docs)]
+pub struct SuggestionOrderDatabaseUpdatesEvent {
+    pub updates         : Vec<SuggestionsOrderDatabaseUpdate>,
     pub current_version : SuggestionsDatabaseVersion,
 }
 
