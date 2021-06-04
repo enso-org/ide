@@ -232,8 +232,6 @@ mod test {
                 }]
             });
             assert_eq!(expected_ast, controller.model.ast().into());
-
-           // TODO assert urm
         });
     }
 }

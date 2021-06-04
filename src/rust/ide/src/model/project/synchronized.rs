@@ -414,10 +414,6 @@ impl model::project::API for Project {
     fn urm(&self) -> Rc<model::undo_redo::Manager> {
         self.urm.clone_ref()
     }
-
-    // fn undo(&self) -> FallibleResult {
-    //     self.urm().undo(self)
-    // }
 }
 
 

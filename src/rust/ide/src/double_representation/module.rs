@@ -19,7 +19,7 @@ use ast::BlockLine;
 use enso_protocol::language_server;
 use serde::Deserialize;
 use serde::Serialize;
-use itertools::Itertools;
+
 
 
 // ==============

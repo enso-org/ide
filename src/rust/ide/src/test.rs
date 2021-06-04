@@ -327,7 +327,8 @@ pub mod mock {
             let parser        = self.data.parser.clone();
             let path          = self.data.module_path.clone();
             let ls            = self.project.json_rpc().clone();
-            let module_future = model::module::Synchronized::open(path,ls,parser,self.project.urm().repository.clone_ref());
+            let repository    = self.project.urm().repository.clone_ref();
+            let module_future = model::module::Synchronized::open(path,ls,parser,repository);
             // We can `expect_ready`, because in fact this is synchronous in test conditions.
             // (there's no real asynchronous connection beneath, just the `MockClient`)
             let module = module_future.boxed_local().expect_ready().unwrap();

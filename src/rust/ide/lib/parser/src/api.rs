@@ -11,7 +11,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 pub use ast::Ast;
-use ast::prelude::fmt::Formatter;
+
 
 
 // ================
@@ -44,7 +44,7 @@ pub struct SourceFile {
 }
 
 impl Display for SourceFile {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.content)
     }
 }
@@ -147,7 +147,7 @@ impl<M:Metadata> TryFrom<&ParsedSourceFile<M>> for String {
 }
 
 impl<M:Metadata> Display for ParsedSourceFile<M> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.serialize().unwrap())
     }
 }

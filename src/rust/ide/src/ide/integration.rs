@@ -3,9 +3,9 @@
 pub mod project;
 
 use crate::prelude::*;
-use crate::model::undo_redo::Aware;
 
 use crate::controller::ide::StatusNotification;
+use crate::model::undo_redo::Aware;
 
 use ide_view::graph_editor::SharedHashMap;
 

@@ -1,11 +1,10 @@
-#![allow(unused_qualifications)]
+//! Support for IDE Undo-Redo functionality.
 
 use crate::prelude::*;
 
 use crate::controller;
 
 use enso_logger::DefaultTraceLogger as Logger;
-use ast::prelude::fmt::Formatter;
 
 /// Trait represents undo-aware type that is able to access undo-redo repository.
 ///
@@ -39,9 +38,9 @@ impl Transaction {
     /// Create a new transaction, that will add to the given's repository undo stack on destruction.
     pub fn new(urm:&Rc<Repository>, name:String) -> Self {
         Self {
-            logger : Logger::sub(&urm.logger,"Transaction"),
-            frame: RefCell::new(Frame{name,..default()}),
-            urm: Rc::downgrade(urm),
+            logger  : Logger::sub(&urm.logger,"Transaction"),
+            frame   : RefCell::new(Frame{name,..default()}),
+            urm     : Rc::downgrade(urm),
             aborted : default(),
         }
     }
@@ -101,11 +100,11 @@ pub struct Frame {
     /// Context graph where the change was made.
     pub graph : Option<controller::graph::Id>,
     /// Snapshots of content for all edited modules.
-    pub snapshots : std::collections::btree_map::BTreeMap<model::module::Id, model::module::Content>,
+    pub snapshots : BTreeMap<model::module::Id, model::module::Content>,
 }
 
 impl Display for Frame {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f,"Name: {}; ", self.name)?;
         if let Some(m) = &self.module {write!(f,"Module: {}; ", m)?; }
         if let Some(g) = &self.graph  {write!(f,"Graph: {}; ",  g)?; }
@@ -248,13 +247,9 @@ impl Repository {
     }
 
     /// Get number of frames on a given stack.
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self, stack:Stack) -> usize {
         self.borrow(stack).len()
-    }
-
-    /// Check if a given stack is empty.
-    pub fn is_empty(&self, stack:Stack) -> bool {
-        self.borrow(stack).is_empty()
     }
 }
 
