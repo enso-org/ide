@@ -336,6 +336,8 @@ pub struct NodeMetadata {
     /// The methods may be defined for different types, so the name alone don't specify them.
     #[serde(deserialize_with="utils::serde::deserialize_or_default")]
     pub intended_method:Option<MethodId>,
+    #[serde(deserialize_with="utils::serde::deserialize_or_default")]
+    pub uploading_file:Option<UploadingFile>,
 }
 
 /// Used for storing node position.
@@ -412,6 +414,12 @@ pub struct MethodId {
     pub name            : String,
 }
 
+#[derive(Clone,Debug,Deserialize,Eq,Hash,PartialEq,Serialize)]
+pub struct UploadingFile {
+    pub name           : String,
+    pub size           : usize,
+    pub bytes_uploaded : usize,
+}
 
 
 // ==============

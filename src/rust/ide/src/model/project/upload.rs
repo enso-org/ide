@@ -84,6 +84,16 @@ impl FileUploadProcess {
     }
 }
 
+fn create_node_from_dropped_file
+( project : &model::Project
+, graph   : &controller::Graph
+, name    : impl Str
+, size    : usize
+, data    : impl DataProvider
+) {
+
+}
+
 
 // ============
 // === Test ===
