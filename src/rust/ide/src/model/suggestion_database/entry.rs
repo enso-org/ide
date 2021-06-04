@@ -102,6 +102,8 @@ pub struct Entry {
     pub return_type : String,
     /// A documentation associated with object.
     pub documentation : Option<String>,
+    /// A HTML documentation associated with object.
+    pub documentation_html : Option<String>,
     /// A type of the "self" argument. This field is `None` for non-method suggestions.
     pub self_type : Option<tp::QualifiedName>,
     /// A scope where this suggestion is visible.
@@ -233,15 +235,15 @@ impl Entry {
                          -> FallibleResult<Self> {
         use language_server::types::SuggestionEntry::*;
         let this = match entry {
-            Atom {name,module,arguments,return_type,documentation,..} => Self {
-                name,arguments,return_type,documentation,
+            Atom {name,module,arguments,return_type,documentation,documentation_html,..} => Self {
+                name,arguments,return_type,documentation,documentation_html,
                 module        : module.try_into()?,
                 self_type     : None,
                 kind          : Kind::Atom,
                 scope         : Scope::Everywhere,
             },
-            Method {name,module,arguments,self_type,return_type,documentation,..} => Self {
-                name,arguments,return_type,documentation,
+            Method {name,module,arguments,self_type,return_type,documentation,documentation_html,..} => Self {
+                name,arguments,return_type,documentation,documentation_html,
                 module        : module.try_into()?,
                 self_type     : Some(self_type.try_into()?),
                 kind          : Kind::Method,
@@ -249,20 +251,22 @@ impl Entry {
             },
             Function {name,module,arguments,return_type,scope,..} => Self {
                 name,arguments,return_type,
-                module        : module.try_into()?,
-                self_type     : None,
-                documentation : default(),
-                kind          : Kind::Function,
-                scope         : Scope::InModule {range:scope.into()},
+                module             : module.try_into()?,
+                self_type          : None,
+                documentation      : default(),
+                documentation_html : default(),
+                kind               : Kind::Function,
+                scope              : Scope::InModule {range:scope.into()},
             },
             Local {name,module,return_type,scope,..} => Self {
                 name,return_type,
-                arguments     : default(),
-                module        : module.try_into()?,
-                self_type     : None,
-                documentation : default(),
-                kind          : Kind::Local,
-                scope         : Scope::InModule {range:scope.into()},
+                arguments          : default(),
+                module             : module.try_into()?,
+                self_type          : None,
+                documentation      : default(),
+                documentation_html : default(),
+                kind               : Kind::Local,
+                scope              : Scope::InModule {range:scope.into()},
             },
         };
         Ok(this)
@@ -277,6 +281,7 @@ impl Entry {
         let other_update_results =
             [ Entry::apply_field_update    ("return_type"  , &mut self.return_type  , m.return_type  )
             , Entry::apply_opt_field_update("documentation", &mut self.documentation, m.documentation)
+            , Entry::apply_opt_field_update("documentation_html", &mut self.documentation_html, m.documentation_html)
             , module.and_then   (|m| Entry::apply_field_update    ("module"   , &mut self.module   , m))
             , self_type.and_then(|s| Entry::apply_opt_field_update("self_type", &mut self.self_type, s))
             , self.apply_scope_update(m.scope)
@@ -442,14 +447,15 @@ mod test {
         let main_module    = module::QualifiedName::from_text("local.Project.Main").unwrap();
         let another_module = module::QualifiedName::from_text("local.Project.Another_Module").unwrap();
         let atom = Entry {
-            name          : "Atom".to_owned(),
-            kind          : Kind::Atom,
-            module        : main_module.clone(),
-            arguments     : vec![],
-            return_type   : "Number".to_owned(),
-            documentation : None,
-            self_type     : None,
-            scope         : Scope::Everywhere,
+            name               : "Atom".to_owned(),
+            kind               : Kind::Atom,
+            module             : main_module.clone(),
+            arguments          : vec![],
+            return_type        : "Number".to_owned(),
+            documentation      : None,
+            documentation_html : None,
+            self_type          : None,
+            scope              : Scope::Everywhere,
         };
         let method = Entry {
             name      : "method".to_string(),
@@ -530,14 +536,15 @@ mod test {
     #[test]
     fn method_id_from_entry() {
         let non_method = Entry {
-            name          : "function".to_string(),
-            kind          : Kind::Function,
-            module        : "Test.Test".to_string().try_into().unwrap(),
-            arguments     : vec![],
-            return_type   : "Number".to_string(),
-            documentation : None,
-            self_type     : None,
-            scope         : Scope::Everywhere,
+            name               : "function".to_string(),
+            kind               : Kind::Function,
+            module             : "Test.Test".to_string().try_into().unwrap(),
+            arguments          : vec![],
+            return_type        : "Number".to_string(),
+            documentation      : None,
+            documentation_html : None,
+            self_type          : None,
+            scope              : Scope::Everywhere,
         };
         let method = Entry {
             name      : "method".to_string(),
