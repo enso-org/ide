@@ -1469,7 +1469,7 @@ impl ide_view::searcher::DocumentationProvider for DataProviderForView {
     fn get(&self) -> Option<String> {
         use controller::searcher::UserAction::*;
         self.intended_function.as_ref().and_then(|function| match self.user_action {
-            StartingTypingArgument => function.documentation.clone(),
+            StartingTypingArgument => function.documentation_html.clone(),
             _                      => None
         })
     }
@@ -1478,7 +1478,7 @@ impl ide_view::searcher::DocumentationProvider for DataProviderForView {
         use controller::searcher::action::Action;
         match self.actions.get_cloned(id)?.action {
             Action::Suggestion(suggestion) => {
-                let doc = suggestion.documentation.clone();
+                let doc = suggestion.documentation_html.clone();
                 Some(doc.unwrap_or_else(|| Self::doc_placeholder_for(&suggestion)))
             }
             Action::Example(example)     => Some(example.documentation.clone()),

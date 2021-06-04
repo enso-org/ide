@@ -137,20 +137,20 @@ impl Model {
     }
 
     /// Generate HTML documentation from documented Enso code.
-    fn gen_html_from(string:&str, input_type: InputFormat) -> FallibleResult<String> {
-        if string.is_empty() {
-            Ok(PLACEHOLDER_STR.into())
-        } else {
-            let parser    = parser::DocParser::new()?;
-            let processed = string.to_string();
-            let output    = match input_type {
-                InputFormat::Ast       => parser.generate_html_docs(processed),
-                InputFormat::Docstring => parser.generate_html_doc_pure(processed),
-            };
-            let output = output?;
-            Ok( if output.is_empty() { PLACEHOLDER_STR.into() } else { output } )
-        }
-    }
+    // fn gen_html_from(string:&str, input_type: InputFormat) -> FallibleResult<String> {
+    //     if string.is_empty() {
+    //         Ok(PLACEHOLDER_STR.into())
+    //     } else {
+    //         let parser    = parser::DocParser::new()?;
+    //         let processed = string.to_string();
+    //         let output    = match input_type {
+    //             InputFormat::Ast       => parser.generate_html_docs(processed),
+    //             InputFormat::Docstring => parser.generate_html_doc_pure(processed),
+    //         };
+    //         let output = output?;
+    //         Ok( if output.is_empty() { PLACEHOLDER_STR.into() } else { output } )
+    //     }
+    // }
 
     /// Create a container for generated content and embed it with stylesheet.
     fn push_to_dom(&self, content:String) {
@@ -215,15 +215,15 @@ impl Model {
     }
 
     fn display_doc(&self, content:&str, content_type: InputFormat) {
-        let html = match Model::gen_html_from(content,content_type) {
-            Ok(html) => html,
-            Err(err) => {
-                error!(self.logger, "Documentation parsing error: {err:?}");
-                PLACEHOLDER_STR.into()
-            }
-        };
+        // let html = match Model::gen_html_from(content,content_type) {
+        //     Ok(html) => html,
+        //     Err(err) => {
+        //         error!(self.logger, "Documentation parsing error: {err:?}");
+        //         PLACEHOLDER_STR.into()
+        //     }
+        // };
 
-        self.push_to_dom(html);
+        self.push_to_dom(content.into_string());
         self.attach_listeners_to_copy_buttons();
     }
 
