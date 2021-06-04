@@ -5,6 +5,7 @@ use crate::prelude::*;
 
 use crate::handler::Handler;
 use crate::handler::Disposition;
+use crate::binary::message::ErrorPayload;
 use crate::binary::message::FromServerPayloadOwned;
 use crate::binary::message::MessageToServerRef;
 use crate::binary::message::ToServerPayload;
@@ -13,7 +14,6 @@ use crate::binary::message::MessageFromServerOwned;
 use crate::binary::message::VisualisationContext;
 use crate::language_server::types::Path;
 
-use json_rpc::error::RpcError;
 use json_rpc::TransportEvent;
 use json_rpc::Transport;
 use mockall::automock;
@@ -29,6 +29,8 @@ use mockall::automock;
 #[fail(display = "Received a text message when expecting only the binary ones.")]
 pub struct UnexpectedTextMessage;
 
+/// Errors that can cause a remote call to fail.
+pub type RpcError = json_rpc::error::RpcError<ErrorPayload>;
 
 
 // ====================
@@ -155,9 +157,10 @@ impl Client {
         let logger = self.logger.clone_ref();
         let completer = move |reply| {
             info!(logger,"Completing request {id} with a reply: {reply:?}");
-            if let FromServerPayloadOwned::Error {code,message} = reply {
-                let error = RpcError::new_remote_error(code.into(), message);
-                Err(error.into())
+            if let FromServerPayloadOwned::Error {code,message,data} = reply {
+                let code  = code as i64;
+                let error = json_rpc::messages::Error{code,message,data};
+                Err(RpcError::RemoteError(error).into())
             } else {
                 f(reply)
             }
