@@ -7,7 +7,7 @@ use crate::graph_editor::component::visualization;
 
 pub use visualization::container::overlay;
 
-use ast::prelude::FallibleResult;
+// use ast::prelude::FallibleResult;
 use enso_frp as frp;
 use ensogl::display::DomSymbol;
 use ensogl::display::scene::Scene;
@@ -223,7 +223,7 @@ impl Model {
         //     }
         // };
 
-        self.push_to_dom(content.into_string());
+        self.push_to_dom(String::from(content));
         self.attach_listeners_to_copy_buttons();
     }
 
