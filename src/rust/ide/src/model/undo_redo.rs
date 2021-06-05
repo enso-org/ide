@@ -6,6 +6,33 @@ use crate::controller;
 
 use enso_logger::DefaultTraceLogger as Logger;
 
+
+
+// ==============
+// === Errors ===
+// ==============
+
+#[allow(missing_docs)]
+#[derive(Debug,Clone,Eq,Fail,PartialEq)]
+#[fail(display = "Cannot undo because there is an ongoing transaction '{}'.",transaction_name)]
+pub struct CannotUndoDuringTransaction{ transaction_name:String }
+
+#[allow(missing_docs)]
+#[derive(Debug,Clone,Copy,Eq,Fail,PartialEq)]
+#[fail(display = "There is no action stored that can be undone.")]
+pub struct NoActionToUndo;
+
+#[allow(missing_docs)]
+#[derive(Debug,Clone,Copy,Eq,Fail,PartialEq)]
+#[fail(display = "There is no action stored that can be undone.")]
+pub struct FauxTransactionLeaked;
+
+
+
+// ==============
+// === Traits ===
+// ==============
+
 /// Trait represents undo-aware type that is able to access undo-redo repository.
 ///
 /// It allows to open transactions and check state of the repository.
@@ -20,6 +47,12 @@ pub trait Aware {
         self.repository().transaction(name)
     }
 }
+
+
+
+// ===================
+// === Transaction ===
+// ===================
 
 /// Transaction is a RAII-style object used to group a number of actions into a single undoable
 /// operation.
@@ -62,8 +95,11 @@ impl Transaction {
     /// up or not.
     pub fn fill_content(&self, id:model::module::Id, content:model::module::Content) {
         with(self.frame.borrow_mut(), |mut data| {
-            debug!(self.logger, "Filling transaction '{data.name}' with info for '{id}':\n{content}");
-            let _ = data.snapshots.try_insert(id, content);
+            debug!(self.logger, "Filling transaction '{data.name}' with snapshit of module '{id}':\
+            \n{content}");
+            if data.snapshots.try_insert(id, content).is_err() {
+                debug!(self.logger, "Skipping this snapshot, as module's state was already saved.")
+            }
         })
     }
 
@@ -72,6 +108,7 @@ impl Transaction {
     /// Aborted transaction when dropped is discarded, rather than being put on top of "Redo" stack.
     /// It does not affect the actions belonging to transaction in any way.
     pub fn abort(&self) {
+        debug!(self.logger, "Aborting transaction '{self.frame.borrow().name}'.");
         self.aborted.set(true)
     }
 }
@@ -90,6 +127,12 @@ impl Drop for Transaction {
         }
     }
 }
+
+
+
+// =============
+// === Frame ===
+// =============
 
 #[derive(Clone,Debug,Default,PartialEq)]
 pub struct Frame {
@@ -115,6 +158,19 @@ impl Display for Frame {
     }
 }
 
+
+// ==================
+// === Repository ===
+// ==================
+
+/// Identifies a stack in Undo-Redo repository.
+#[derive(Clone,Copy,Debug,Display)]
+#[allow(missing_docs)]
+pub enum Stack {
+    Undo,
+    Redo,
+}
+
 /// The inner state of the Und-Redo repository.
 #[derive(Debug,Default)]
 pub struct Data {
@@ -124,14 +180,6 @@ pub struct Data {
     pub redo: Vec<Frame>,
     /// Currently open transaction (if `Some` and alive).
     pub current_transaction : Option<Weak<Transaction>>,
-}
-
-/// Identifies a stack in Undo-Redo repository.
-#[derive(Clone,Copy,Debug,Display)]
-#[allow(missing_docs)]
-pub enum Stack {
-    Undo,
-    Redo,
 }
 
 /// `Repository` stores undo and redo stacks and provides transaction support.
@@ -147,12 +195,12 @@ pub struct Repository {
     data : RefCell<Data>,
 }
 
+
 impl Default for Repository {
     fn default() -> Self {
         Self::new(Logger::new(""))
     }
 }
-
 
 impl Repository {
     /// Create a new repository.
@@ -171,7 +219,8 @@ impl Repository {
     /// Open a new transaction.
     ///
     /// If there is already an opened transaction, it will returned as [`Err`].
-    pub fn open_transaction(self:&Rc<Self>, name:impl Into<String>) -> Result<Rc<Transaction>,Rc<Transaction>> {
+    pub fn open_transaction
+    (self:&Rc<Self>, name:impl Into<String>) -> Result<Rc<Transaction>,Rc<Transaction>> {
         if let Some(ongoing_transaction) = self.current_transaction() {
             Err(ongoing_transaction)
         } else {
@@ -237,7 +286,8 @@ impl Repository {
         let popped = self.borrow_mut(stack).pop(); // Separate expression to drop borrow.
         match popped {
             Some(frame) => {
-                debug!(self.logger, "Popping a frame from {stack}. Remaining length: {self.len(stack)}. Frame: {frame}");
+                debug!(self.logger, "Popping a frame from {stack}. Remaining length: \
+                {self.len(stack)}. Frame: {frame}");
                 Ok(frame)
             }
             None => {
@@ -253,6 +303,11 @@ impl Repository {
     }
 }
 
+
+
+// ===============
+// === Manager ===
+// ===============
 
 /// Undo-Redo manager. Allows undoing or redoing recent actions.
 ///
@@ -299,28 +354,38 @@ impl Manager {
     /// Undo last operation.
     pub fn undo(&self) -> FallibleResult {
         debug!(self.logger, "Undo requested, stack size is {self.repository.len(Stack::Undo)}.");
-
         let frame = self.repository.last(Stack::Undo)?;
 
-        let undo_transaction = self.repository.open_transaction("Undo faux transaction").map_err(|_| failure::format_err!("Cannot undo while there is an ongoing transaction."))?;
+        // Before applying undo we create a special transaction. The purpose it two-fold:
+        // 1) We want to prevent any undo attempt if there is already an ongoing transaction;
+        // 2) We want to make sure that any of undo consequences won't create a new transaction,
+        //    leading to a situation when undoing would re-add itself onto the undo stack.
+        // We abort transaction right after creating, as it is never intended to create a new undo
+        // frame. Instead, frame will be pushed to the redo stack manually.
+        let undo_transaction = self.repository.open_transaction("Undo faux transaction")
+            .map_err(|ongoing_transaction| {
+                let transaction_name = ongoing_transaction.name();
+                CannotUndoDuringTransaction {transaction_name}
+            })?;
         undo_transaction.abort();
         self.reset_to(&frame)?;
-
         let popped = self.repository.pop(Stack::Undo);
+
         // Sanity check the we popped the same frame as we have just undone. What was on top is
         // supposed to stay on top, as we maintain an open transaction while undoing.
         if !popped.contains(&frame) {
+            // No reason to stop the world but should catch our eye in logs.
             error!(self.logger, "Undone frame mismatch!");
         }
 
-        let undo_transaction = Rc::try_unwrap(undo_transaction).map_err(|_| failure::format_err!("Someone stole the undo/redo internal transaction. Should never happen."))?;
+        let undo_transaction = Rc::try_unwrap(undo_transaction).map_err(|_| FauxTransactionLeaked)?;
         self.repository.data.borrow_mut().redo.push(undo_transaction.frame.borrow().clone());
         Ok(())
     }
 
     /// Redo the last undone operation.
     pub fn redo(&self) -> FallibleResult {
-        let frame = self.repository.data.borrow_mut().redo.pop().ok_or_else(|| failure::format_err!("Nothing to redo"))?;
+        let frame            = self.repository.data.borrow_mut().redo.pop().ok_or(NoActionToUndo)?;
         let redo_transaction = self.get_or_open_transaction(&frame.name);
         redo_transaction.abort();
         self.reset_to(&frame)?;
@@ -432,19 +497,21 @@ main =
         let node = &nodes[0];
 
         debug!(logger, "{node.position():?}");
+        let pos1 = Position::new(500.0, 250.0);
+        let pos2 = Position::new(300.0, 150.0);
 
-        graph.set_node_position(node.id(), Position::new(500.0, 250.0)).unwrap();
-        graph.set_node_position(node.id(), Position::new(300.0, 150.0)).unwrap();
+        graph.set_node_position(node.id(), pos1).unwrap();
+        graph.set_node_position(node.id(), pos2).unwrap();
 
-        assert_eq!(graph.node(node.id()).unwrap().position(), Some(model::module::Position::new(300.0, 150.0)));
+        assert_eq!(graph.node(node.id()).unwrap().position(), Some(pos2));
         urm.undo().unwrap();
-        assert_eq!(graph.node(node.id()).unwrap().position(), Some(model::module::Position::new(500.0, 250.0)));
+        assert_eq!(graph.node(node.id()).unwrap().position(), Some(pos1));
         urm.undo().unwrap();
         assert_eq!(graph.node(node.id()).unwrap().position(), None);
         urm.redo().unwrap();
-        assert_eq!(graph.node(node.id()).unwrap().position(), Some(model::module::Position::new(500.0, 250.0)));
+        assert_eq!(graph.node(node.id()).unwrap().position(), Some(pos1));
         urm.redo().unwrap();
-        assert_eq!(graph.node(node.id()).unwrap().position(), Some(model::module::Position::new(300.0, 150.0)));
+        assert_eq!(graph.node(node.id()).unwrap().position(), Some(pos2));
     }
 
     #[test]

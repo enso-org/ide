@@ -95,8 +95,6 @@ pub trait API:Debug {
 
     /// Access undo-redo manager.
     fn urm(&self) -> Rc<crate::model::undo_redo::Manager>;
-
-    // fn undo(&self) -> FallibleResult<()>;
 }
 
 // Note: Needless lifetimes

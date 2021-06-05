@@ -319,7 +319,6 @@ impl Integration {
             eval_ project_frp.editing_committed (invalidate.trigger.emit(()));
             eval_ project_frp.editing_aborted   (invalidate.trigger.emit(()));
             eval_ project_frp.save_module       (model.module_saved_in_ui());
-            eval_ project_frp.save_module       (model.module_saved_in_ui());
             eval_ project_frp.undo              (model.undo_in_ui());
             eval_ project_frp.redo              (model.redo_in_ui());
         }
