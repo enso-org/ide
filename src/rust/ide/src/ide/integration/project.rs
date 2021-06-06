@@ -591,7 +591,7 @@ impl Model {
             // If position wasn't present in metadata, we initialize it.
             if let Err(err) = self.graph.graph().set_node_position(id,default_pos) {
                 debug!(self.logger, "Failed to set default position information IDs: {id:?} \
-                because of the error error: {err:?}");
+                because of the error: {err:?}");
             }
         }
         self.node_views.borrow_mut().insert(id, displayed_id);

@@ -433,57 +433,89 @@ mod tests {
     use super::*;
     use span_tree::SpanTree;
 
-
-    #[test]
-    fn connect_nodes() {
-        let code = r#"
-main =
-    2 + 2
-    5 * 5
-"#;
-
-        let mut data = Unified::new();
-        data.set_code(code);
-
-        let fixture = data.fixture();
-        let Fixture{graph,project,module,..} = &fixture;
+    fn check_atomic_undo(fixture:&Fixture, action:impl FnOnce()) {
+        let Fixture{project,module,..} = &fixture;
         let urm = project.urm();
-        let nodes = graph.nodes().unwrap();
-        let sum_node = &nodes[0];
-        let product_node = &nodes[1];
 
-        assert_eq!(sum_node.expression().to_string(), "2 + 2");
-        assert_eq!(product_node.expression().to_string(), "5 * 5");
+        assert_eq!(urm.repository.len(Stack::Undo), 0);
+        assert_eq!(urm.repository.len(Stack::Redo), 0);
 
-        let sum_tree   = SpanTree::<()>::new(sum_node.expression(),graph).unwrap();
-        let sum_input  = sum_tree.root_ref().leaf_iter().find(|n| n.is_argument()).unwrap().crumbs;
-        let connection = controller::graph::Connection {
-            source      : controller::graph::Endpoint::new(product_node.id(), vec![]),
-            destination : controller::graph::Endpoint::new(sum_node.id(), sum_input),
-        };
-
-        // A complex operation: involves introducing variable name, reordering lines and replacing
-        // an argument.
-        graph.connect(&connection, &span_tree::generate::context::Empty).unwrap();
-        let after_connect = module.ast();
+        let before_action = module.serialized_content().unwrap();
+        action();
+        let after_action = module.serialized_content().unwrap();
 
         assert_eq!(urm.repository.len(Stack::Undo), 1);
         assert_eq!(urm.repository.len(Stack::Redo), 0);
 
         // After single undo everything should be as before.
         urm.undo().unwrap();
-        assert_eq!(module.ast().to_string(), code);
+        assert_eq!(module.serialized_content().unwrap(), before_action);
         assert_eq!(urm.repository.len(Stack::Undo), 0);
         assert_eq!(urm.repository.len(Stack::Redo), 1);
 
         // After redo - as right after connecting.
         urm.redo().unwrap();
-        assert_eq!(module.ast(), after_connect);
-        assert_eq!(urm.repository.len(Stack::Undo), 0);
-        assert_eq!(urm.repository.len(Stack::Redo), 1);
+        assert_eq!(module.serialized_content().unwrap(), after_action);
+        assert_eq!(urm.repository.len(Stack::Undo), 1);
+        assert_eq!(urm.repository.len(Stack::Redo), 0);
+    }
+
+    fn check_atomic_graph_action(code:&str, action:impl FnOnce(&controller::graph::Handle)) {
+        let mut data = Unified::new();
+        data.set_code(code);
+
+        let fixture = data.fixture();
+        let graph   = &fixture.graph;
+        check_atomic_undo(&fixture, move || action(graph));
+    }
+
+    // Collapse two middle nodes.
+    #[test]
+    fn collapse_nodes_atomic() {
+        let code = r#"
+main =
+    foo = 2
+    bar = foo + 6
+    baz = 2 + foo + bar
+    caz = baz / 2 * baz
+"#;
+        check_atomic_graph_action(code, |graph| {
+            let nodes   = graph.nodes().unwrap();
+            assert_eq!(nodes.len(), 4);
+            graph.collapse(vec![nodes[1].id(), nodes[2].id()], "extracted").unwrap();
+        });
+    }
+
+    // A complex operation: involves introducing variable name, reordering lines and
+    // replacing an argument.
+    #[test]
+    fn connect_nodes_atomic() {
+        let code = r#"
+main =
+    2 + 2
+    5 * 5
+"#;
+        check_atomic_graph_action(code, |graph| {
+            let nodes        = graph.nodes().unwrap();
+            let sum_node     = &nodes[0];
+            let product_node = &nodes[1];
+
+            assert_eq!(sum_node.expression().to_string(), "2 + 2");
+            assert_eq!(product_node.expression().to_string(), "5 * 5");
+
+            let sum_tree   = SpanTree::<()>::new(sum_node.expression(),graph).unwrap();
+            let sum_input  = sum_tree.root_ref().leaf_iter().find(|n| n.is_argument()).unwrap().crumbs;
+            let connection = controller::graph::Connection {
+                source      : controller::graph::Endpoint::new(product_node.id(), []),
+                destination : controller::graph::Endpoint::new(sum_node.id(), sum_input),
+            };
+
+            graph.connect(&connection, &span_tree::generate::context::Empty).unwrap();
+        });
     }
 
 
+    // Check that node position is properly updated.
     #[test]
     fn move_node() {
         use model::module::Position;
