@@ -4,8 +4,6 @@ use crate::prelude::*;
 
 use crate::controller;
 
-use enso_logger::DefaultTraceLogger as Logger;
-
 
 
 // ==============
@@ -26,6 +24,16 @@ pub struct NoActionToUndo;
 #[derive(Debug,Clone,Copy,Eq,Fail,PartialEq)]
 #[fail(display = "There is no action stored that can be undone.")]
 pub struct FauxTransactionLeaked;
+
+#[allow(missing_docs)]
+#[derive(Debug,Clone,Copy,Eq,Fail,PartialEq)]
+#[fail(display = "No frame to pop, {} stack is empty.",_0)]
+pub struct NoFrameToPop(Stack);
+
+#[allow(missing_docs)]
+#[derive(Debug,Clone,Eq,Fail,PartialEq)]
+#[fail(display = "No frame to pop, {} stack is empty.",_0)]
+pub struct MissingModuleHandle(model::module::Id);
 
 
 
@@ -134,6 +142,9 @@ impl Drop for Transaction {
 // === Frame ===
 // =============
 
+/// Frame represents a state stored on undo or redo stack.
+///
+/// [`Manager`] is able to restore project's state to a given `Frame`.
 #[derive(Clone,Debug,Default,PartialEq)]
 pub struct Frame {
     /// Name of the transaction that created this frame.
@@ -159,12 +170,13 @@ impl Display for Frame {
 }
 
 
+
 // ==================
 // === Repository ===
 // ==================
 
 /// Identifies a stack in Undo-Redo repository.
-#[derive(Clone,Copy,Debug,Display)]
+#[derive(Clone,Copy,Debug,Display,Ord,PartialOrd,Eq,PartialEq)]
 #[allow(missing_docs)]
 pub enum Stack {
     Undo,
@@ -278,22 +290,15 @@ impl Repository {
     ///
     /// Does *not* pop.
     pub fn last(&self, stack:Stack) -> FallibleResult<Frame> {
-        self.borrow(stack).last().cloned().ok_or_else(|| failure::format_err!("Nothing to undo"))
+        self.borrow(stack).last().cloned().ok_or_else(|| NoActionToUndo.into())
     }
 
     /// Pop the top frame from a given stack. [`Err`] if there are no frames to pop.
     fn pop(&self, stack:Stack) -> FallibleResult<Frame> {
-        let popped = self.borrow_mut(stack).pop(); // Separate expression to drop borrow.
-        match popped {
-            Some(frame) => {
-                debug!(self.logger, "Popping a frame from {stack}. Remaining length: \
-                {self.len(stack)}. Frame: {frame}");
-                Ok(frame)
-            }
-            None => {
-                Err(failure::format_err!("No frame to pop on the {} stack",stack))
-            }
-        }
+        let frame = self.borrow_mut(stack).pop().ok_or(NoFrameToPop(stack))?;
+        debug!(self.logger, "Popping a frame from {stack}. Remaining length: {self.len(stack)}. \
+        Frame: {frame}");
+        Ok(frame)
     }
 
     /// Get number of frames on a given stack.
@@ -395,8 +400,7 @@ impl Manager {
 
     /// Restore all modules affected by the [`Frame`] to their stored state.
     fn reset_to(&self, frame:&Frame) -> FallibleResult {
-        use failure::format_err;
-        warning!(self.logger,"Resetting to initial state on frame {frame}");
+        info!(self.logger,"Resetting to initial state on frame {frame}");
 
         // First we must have all modules resolved. Only then we can start applying changes.
         // Otherwise, if one of the modules could not be retrieved, we'd risk ending up with
@@ -406,16 +410,16 @@ impl Manager {
         // and don't allow getting snapshots of modules that are not opened.
         let module_and_content = with(self.modules.borrow(), |modules| {
             frame.snapshots.iter()
-                .map(|(id,content)| {
-                    let err           = || format_err!("Cannot find handle to module {}", id);
-                    let module_result = modules.get(id).cloned().ok_or_else(err);
-                    module_result.map(|module| (module,content.clone()))
+                .map(|(id,content)| -> FallibleResult<_> {
+                    let err    = || MissingModuleHandle(id.clone());
+                    let module = modules.get(id).cloned().ok_or_else(err)?;
+                    Ok((module,content.clone()))
                 })
                 .collect::<FallibleResult<Vec<_>>>()
         })?;
 
         for (module,content) in module_and_content {
-            warning!(self.logger,"Undoing on module {module.path()}");
+            info!(self.logger,"Undoing on module {module.path()}");
             // The below should never fail, because it can fail only if serialization to code fails.
             // And it cannot fail, as it already underwent this procedure successfully in the past
             // (we are copying an old state, so it must ba a representable state).
@@ -470,7 +474,7 @@ mod tests {
     }
 
     // Collapse two middle nodes.
-    #[test]
+    #[wasm_bindgen_test]
     fn collapse_nodes_atomic() {
         let code = r#"
 main =
@@ -488,7 +492,7 @@ main =
 
     // A complex operation: involves introducing variable name, reordering lines and
     // replacing an argument.
-    #[test]
+    #[wasm_bindgen_test]
     fn connect_nodes_atomic() {
         let code = r#"
 main =
@@ -516,7 +520,7 @@ main =
 
 
     // Check that node position is properly updated.
-    #[test]
+    #[wasm_bindgen_test]
     fn move_node() {
         use model::module::Position;
 
@@ -546,7 +550,7 @@ main =
         assert_eq!(graph.node(node.id()).unwrap().position(), Some(pos2));
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn undo_redo() {
         use crate::test::mock::Fixture;
         // Setup the controller.

@@ -160,12 +160,12 @@ impl Handle {
     , id_map          : ast::IdMap
     , language_server : Rc<language_server::Connection>
     , parser          : Parser
-    , urm             : Rc<model::undo_redo::Repository>
+    , repository      : Rc<model::undo_redo::Repository>
     ) -> FallibleResult<Self> {
         let logger   = Logger::new("Mocked Module Controller");
         let ast      = parser.parse(code.to_string(),id_map)?.try_into()?;
         let metadata = default();
-        let model    = Rc::new(model::module::Plain::new(path,ast,metadata,urm));
+        let model    = Rc::new(model::module::Plain::new(&logger,path,ast,metadata,repository));
         Ok(Handle {model,language_server,parser,logger})
     }
 

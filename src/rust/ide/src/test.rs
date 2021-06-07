@@ -173,7 +173,8 @@ pub mod mock {
             let path       = self.module_path.clone();
             let metadata   = self.metadata.clone();
             let repository = self.urm.repository.clone_ref();
-            let module     = Rc::new(model::module::Plain::new(path,ast,metadata,repository));
+            let logger     = &self.logger;
+            let module     = Rc::new(model::module::Plain::new(logger,path,ast,metadata,repository));
             self.urm.module_opened(module.clone());
             module
         }

@@ -550,9 +550,10 @@ pub mod test {
     }
 
     impl MockData {
-        pub fn plain(&self, parser:&Parser, urm:Rc<model::undo_redo::Repository>) -> Module {
+        pub fn plain(&self, parser:&Parser, repository:Rc<model::undo_redo::Repository>) -> Module {
             let ast    = parser.parse_module(self.code.clone(),self.id_map.clone()).unwrap();
-            let module = Plain::new(self.path.clone(),ast,self.metadata.clone(),urm);
+            let logger = Logger::new("MockModule");
+            let module = Plain::new(logger,self.path.clone(),ast,self.metadata.clone(),repository);
             Rc::new(module)
         }
     }

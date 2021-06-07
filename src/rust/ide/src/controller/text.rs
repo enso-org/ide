@@ -227,8 +227,8 @@ mod test {
         let parser   = parser::Parser::new_or_panic();
         TestWithLocalPoolExecutor::set_up().run_task(async move {
             let code         = "2 + 2".to_string();
-            let urm          = default();
-            let module       = model::module::test::MockData {code,..default()}.plain(&parser,urm);
+            let undo         = default();
+            let module       = model::module::test::MockData {code,..default()}.plain(&parser,undo);
             let module_clone = module.clone_ref();
             let project      = setup_mock_project(move |project| {
                 model::project::test::expect_module(project,module_clone);
