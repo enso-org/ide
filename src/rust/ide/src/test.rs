@@ -5,6 +5,7 @@ use crate::prelude::*;
 
 use crate::double_representation::module;
 use crate::model::suggestion_database;
+use crate::model::undo_redo;
 use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
 use enso_frp::data::bitfield::BitField;
@@ -124,7 +125,6 @@ pub mod mock {
         pub suggestions   : HashMap<suggestion_database::entry::Id,suggestion_database::Entry>,
         pub context_id    : model::execution_context::Id,
         pub parser        : parser::Parser,
-        pub urm           : Rc<model::undo_redo::Manager>,
         code              : String,
         id_map            : ast::IdMap,
         metadata          : crate::model::module::Metadata,
@@ -152,10 +152,9 @@ pub mod mock {
             let mut suggestions = HashMap::new();
             suggestions.insert(1,suggestion_entry_foo());
             suggestions.insert(2,suggestion_entry_bar());
-            let logger = Logger::new("Unified");
+            let logger = Logger::new("UnifiedMock");
             Unified {
                 suggestions,
-                urm             : Rc::new(model::undo_redo::Manager::new(&logger)),
                 project_name    : PROJECT_NAME.to_owned(),
                 module_path     : module_path(),
                 code            : CODE.to_owned(),
@@ -168,14 +167,18 @@ pub mod mock {
             }
         }
 
-        pub fn module(&self) -> crate::model::Module {
+        pub fn undo_redo_manager(&self) -> Rc<undo_redo::Manager> {
+            Rc::new(model::undo_redo::Manager::new(&self.logger))
+        }
+
+        pub fn module(&self, urm:Rc<undo_redo::Manager>) -> crate::model::Module {
             let ast        = self.parser.parse_module(self.code.clone(),self.id_map.clone()).unwrap();
             let path       = self.module_path.clone();
             let metadata   = self.metadata.clone();
-            let repository = self.urm.repository.clone_ref();
+            let repository = urm.repository.clone_ref();
             let logger     = &self.logger;
             let module     = Rc::new(model::module::Plain::new(logger,path,ast,metadata,repository));
-            self.urm.module_opened(module.clone());
+            urm.module_opened(module.clone());
             module
         }
 
@@ -212,6 +215,7 @@ pub mod mock {
 
         pub fn project
         ( &self
+        , urm                 : Rc<undo_redo::Manager>
         , module              : model::Module
         , execution_context   : model::ExecutionContext
         , suggestion_database : Rc<model::SuggestionDatabase>
@@ -227,8 +231,6 @@ pub mod mock {
             model::project::test::expect_suggestion_db(&mut project,suggestion_database);
             let json_rpc = language_server::Connection::new_mock_rc(json_client);
             model::project::test::expect_json_rpc(&mut project,json_rpc);
-
-            let urm = self.urm.clone_ref();
             project.expect_urm().returning_st(move || urm.clone_ref());
             Rc::new(project)
         }
@@ -249,13 +251,14 @@ pub mod mock {
             controller::searcher::test::expect_completion(&mut json_client, &[]);
             customize_json_rpc(self,&mut json_client);
 
-            let logger        = DefaultTraceLogger::new("UnifiedMock");
-            let module        = self.module();
+            let logger        = self.logger.clone_ref();
+            let urm           = self.undo_redo_manager();
+            let module        = self.module(urm.clone());
             let suggestion_db = Rc::new(model::SuggestionDatabase::new_from_entries(&logger,
                 &self.suggestions));
             let graph     = self.graph(&logger,module.clone_ref(),suggestion_db.clone_ref());
             let execution = self.execution_context();
-            let project   = self.project(module.clone_ref(),execution.clone_ref(),
+            let project   = self.project(urm,module.clone_ref(),execution.clone_ref(),
                 suggestion_db.clone_ref(),json_client);
             let ide            = self.ide(&project);
             let executed_graph = controller::ExecutedGraph::new_internal(graph.clone_ref(),
@@ -300,7 +303,6 @@ pub mod mock {
     #[derive(Debug)]
     pub struct Fixture {
         pub logger         : DefaultTraceLogger,
-        pub executor       : TestWithLocalPoolExecutor,
         pub data           : Unified,
         pub module         : model::Module,
         pub graph          : controller::Graph,
@@ -310,6 +312,7 @@ pub mod mock {
         pub project        : model::Project,
         pub ide            : controller::Ide,
         pub searcher       : controller::Searcher,
+        pub executor       : TestWithLocalPoolExecutor, // Last to drop the executor as last.
     }
 
     impl Fixture {
