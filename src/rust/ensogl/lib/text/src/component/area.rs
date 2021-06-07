@@ -68,7 +68,7 @@ const BLINK_PERIOD             : f32 =
 /// changes periodically. The `start_time` parameter is set to the current time after each cursor
 /// operation, which makes cursor visible during typing and after position change.
 ///
-/// ```compile_fail
+/// ```text
 /// |
 /// |    on         off
 /// | <------>   <------->

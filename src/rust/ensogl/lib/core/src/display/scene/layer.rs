@@ -522,7 +522,7 @@ impl std::borrow::Borrow<LayerModel> for Layer {
 /// For example, you can create a layer which displays the same symbols as another layer, but from a
 /// different camera to create a "mini-map view" of a graph editor.
 ///
-/// ```text,.ignore
+/// ```text
 /// +------+.
 /// |`.    | `.  Layer 1 (top)
 /// |  `+--+---+ (Camera 1 and symbols [1,2,3])
@@ -812,7 +812,7 @@ impl LayersRegistry {
 /// Shape ordering utility. Currently, this macro supports ordering of shapes for a given stage.
 /// For example, the following usage:
 ///
-/// ```text,.ignore
+/// ```ignore
 /// shapes_order_dependencies! {
 ///     scene => {
 ///         output::port::single_port -> shape;
@@ -825,7 +825,7 @@ impl LayersRegistry {
 ///
 /// Will expand to:
 ///
-/// ```text,.ignore
+/// ```ignore
 /// scene.layers.add_shapes_order_dependency::<output::port::single_port::View, shape::View>();
 /// scene.layers.add_shapes_order_dependency::<output::port::multi_port::View, shape::View>();
 /// scene.layers.add_shapes_order_dependency::<shape::View, input::port::hover::View>();
