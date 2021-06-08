@@ -180,7 +180,7 @@ impl model::module::API for Module {
 }
 
 impl model::undo_redo::Aware for Module {
-    fn repository(&self) -> Rc<model::undo_redo::Repository> {
+    fn undo_redo_repository(&self) -> Rc<model::undo_redo::Repository> {
         self.repository.clone()
     }
 }

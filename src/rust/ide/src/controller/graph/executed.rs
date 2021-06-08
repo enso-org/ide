@@ -293,8 +293,8 @@ impl Context for Handle {
 }
 
 impl model::undo_redo::Aware for Handle {
-    fn repository(&self) -> Rc<model::undo_redo::Repository> {
-        self.graph.borrow().repository()
+    fn undo_redo_repository(&self) -> Rc<model::undo_redo::Repository> {
+        self.graph.borrow().undo_redo_repository()
     }
 }
 

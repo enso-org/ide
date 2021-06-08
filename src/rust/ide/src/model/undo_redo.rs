@@ -22,7 +22,7 @@ pub struct NoActionToUndo;
 
 #[allow(missing_docs)]
 #[derive(Debug,Clone,Copy,Eq,Fail,PartialEq)]
-#[fail(display = "There is no action stored that can be undone.")]
+#[fail(display = "The faux undo transaction was leaked.")]
 pub struct FauxTransactionLeaked;
 
 #[allow(missing_docs)]
@@ -32,7 +32,7 @@ pub struct NoFrameToPop(Stack);
 
 #[allow(missing_docs)]
 #[derive(Debug,Clone,Eq,Fail,PartialEq)]
-#[fail(display = "No frame to pop, {} stack is empty.",_0)]
+#[fail(display = "The module {} is not accessible.",_0)]
 pub struct MissingModuleHandle(model::module::Id);
 
 
@@ -46,13 +46,13 @@ pub struct MissingModuleHandle(model::module::Id);
 /// It allows to open transactions and check state of the repository.
 /// It does not allow however to execute undo/redo itself, this is done through [`Manager`].
 pub trait Aware {
-    /// Get handle to undo-redo [Repository].
-    fn repository(&self) -> Rc<Repository>;
+    /// Get handle to undo-redo [`Repository`].
+    fn undo_redo_repository(&self) -> Rc<Repository>;
 
     /// Get current ongoing transaction. If there is no ongoing transaction, create a one.
     #[must_use]
     fn get_or_open_transaction(&self, name:&str) -> Rc<Transaction> {
-        self.repository().transaction(name)
+        self.undo_redo_repository().transaction(name)
     }
 }
 
@@ -65,14 +65,14 @@ pub trait Aware {
 /// Transaction is a RAII-style object used to group a number of actions into a single undoable
 /// operation.
 ///
-/// When the transaction is dropped, it adds itself to the undo stack, unless it was aborted.
+/// When the transaction is dropped, it adds itself to the undo stack, unless it was ignored.
 #[derive(Debug)]
 pub struct Transaction {
     #[allow(missing_docs)]
     pub logger : Logger,
     frame      : RefCell<Frame>,
     urm        : Weak<Repository>,
-    aborted    : Cell<bool>,
+    ignored    : Cell<bool>,
 }
 
 impl Transaction {
@@ -82,7 +82,7 @@ impl Transaction {
             logger  : Logger::sub(&urm.logger,"Transaction"),
             frame   : RefCell::new(Frame{name,..default()}),
             urm     : Rc::downgrade(urm),
-            aborted : default(),
+            ignored : default(),
         }
     }
 
@@ -111,25 +111,25 @@ impl Transaction {
         })
     }
 
-    /// Abort the transaction.
+    /// Ignore the transaction.
     ///
-    /// Aborted transaction when dropped is discarded, rather than being put on top of "Redo" stack.
+    /// Ignored transaction when dropped is discarded, rather than being put on top of "Redo" stack.
     /// It does not affect the actions belonging to transaction in any way.
-    pub fn abort(&self) {
-        debug!(self.logger, "Aborting transaction '{self.frame.borrow().name}'.");
-        self.aborted.set(true)
+    pub fn ignore(&self) {
+        debug!(self.logger, "Marking transaction '{self.frame.borrow().name}' as ignored.");
+        self.ignored.set(true)
     }
 }
 
 impl Drop for Transaction {
     fn drop(&mut self) {
         if let Some(urm) = self.urm.upgrade() {
-            if !self.aborted.get() {
+            if !self.ignored.get() {
                 info!(self.logger, "Transaction '{self.name()}' will create a new frame.");
                 urm.push_to(Stack::Undo, self.frame.borrow().clone());
                 urm.clear(Stack::Redo);
             } else {
-                info!(self.logger, "Dropping the aborted transaction '{self.name()}' without \
+                info!(self.logger, "Dropping the ignored transaction '{self.name()}' without \
                 pushing a frame to repository.")
             }
         }
@@ -328,7 +328,7 @@ pub struct Manager {
 }
 
 impl Aware for Manager {
-    fn repository(&self) -> Rc<Repository> {
+    fn undo_redo_repository(&self) -> Rc<Repository> {
         self.repository.clone()
     }
 }
@@ -365,14 +365,14 @@ impl Manager {
         // 1) We want to prevent any undo attempt if there is already an ongoing transaction;
         // 2) We want to make sure that any of undo consequences won't create a new transaction,
         //    leading to a situation when undoing would re-add itself onto the undo stack.
-        // We abort transaction right after creating, as it is never intended to create a new undo
-        // frame. Instead, frame will be pushed to the redo stack manually.
+        // We mark transaction as ignored right after creating, as it is never intended to create a
+        // new undo frame. Instead, frame will be pushed to the redo stack manually.
         let undo_transaction = self.repository.open_transaction("Undo faux transaction")
             .map_err(|ongoing_transaction| {
                 let transaction_name = ongoing_transaction.name();
                 CannotUndoDuringTransaction {transaction_name}
             })?;
-        undo_transaction.abort();
+        undo_transaction.ignore();
         self.reset_to(&frame)?;
         let popped = self.repository.pop(Stack::Undo);
 
@@ -381,6 +381,7 @@ impl Manager {
         if !popped.contains(&frame) {
             // No reason to stop the world but should catch our eye in logs.
             error!(self.logger, "Undone frame mismatch!");
+            debug_assert!(false, "Undone frame mismatch!");
         }
 
         let undo_transaction = Rc::try_unwrap(undo_transaction).map_err(|_| FauxTransactionLeaked)?;
@@ -392,7 +393,7 @@ impl Manager {
     pub fn redo(&self) -> FallibleResult {
         let frame            = self.repository.data.borrow_mut().redo.pop().ok_or(NoActionToUndo)?;
         let redo_transaction = self.get_or_open_transaction(&frame.name);
-        redo_transaction.abort();
+        redo_transaction.ignore();
         self.reset_to(&frame)?;
         self.repository.push_to(Stack::Undo,redo_transaction.frame.borrow().clone());
         Ok(())

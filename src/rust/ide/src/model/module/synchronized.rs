@@ -408,8 +408,8 @@ impl Deref for Module {
 }
 
 impl model::undo_redo::Aware for Module {
-    fn repository(&self) -> Rc<model::undo_redo::Repository> {
-        self.model.repository()
+    fn undo_redo_repository(&self) -> Rc<model::undo_redo::Repository> {
+        self.model.undo_redo_repository()
     }
 }
 

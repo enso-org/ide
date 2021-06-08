@@ -808,7 +808,7 @@ impl Handle {
     (&self, nodes:impl IntoIterator<Item=node::Id>, new_method_name_base:&str)
     -> FallibleResult<node::Id> {
         let _transaction_guard = self.get_or_open_transaction("Collapse nodes");
-        //analytics::remote_log_event("graph::collapse");
+        analytics::remote_log_event("graph::collapse");
         use double_representation::refactorings::collapse::collapse;
         use double_representation::refactorings::collapse::Collapsed;
         let nodes = nodes.into_iter().map(|id| self.node(id)).collect::<Result<Vec<_>,_>>()?;
@@ -893,8 +893,8 @@ impl span_tree::generate::Context for Handle {
 }
 
 impl model::undo_redo::Aware for Handle {
-    fn repository(&self) -> Rc<model::undo_redo::Repository> {
-        self.module.repository()
+    fn undo_redo_repository(&self) -> Rc<model::undo_redo::Repository> {
+        self.module.undo_redo_repository()
     }
 }
 

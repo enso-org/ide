@@ -47,7 +47,7 @@ impl Model {
                     let project = project.model;
                     let integration = project::Integration::new(view,graph,text,ide,project);
                     // We don't want any initialization-related changes to appear on undo stack.
-                    integration.graph_controller().repository().clear_all();
+                    integration.graph_controller().undo_redo_repository().clear_all();
                     *self.project_integration.borrow_mut() = Some(integration);
                 }
                 Err(err) => {

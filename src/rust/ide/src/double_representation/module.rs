@@ -77,7 +77,7 @@ pub struct Id {
 
 impl Display for Id {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = self.segments.iter().map(|s| -> &str { s.as_ref() }).join(".");
+        let s = self.segments.iter().map(AsRef::<str>::as_ref).join(".");
         write!(f,"{}",s)
     }
 }
