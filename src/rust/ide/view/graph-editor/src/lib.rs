@@ -1198,7 +1198,7 @@ impl GraphEditorModelWithNetwork {
             output.source.visualization_disabled <+ vis_disabled.constant(node_id);
 
 
-            // === Mode ===
+            // === View Mode ===
 
             node.set_view_mode <+ self.model.frp.view_mode;
 

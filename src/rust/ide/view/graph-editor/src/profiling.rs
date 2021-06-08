@@ -11,6 +11,12 @@ use enso_frp as frp;
 use bimap::BiBTreeMap;
 use ordered_float::OrderedFloat;
 
+
+
+// =====================
+// === FRP Endpoints ===
+// =====================
+
 ensogl::define_endpoints! {
     Input {
         /// Informs the `Statuses` collection about the profiling status of a node.
@@ -29,6 +35,12 @@ ensogl::define_endpoints! {
         max_duration (f32),
     }
 }
+
+
+
+// ================
+// === Statuses ===
+// ================
 
 /// Can be used to track the execution statuses of all nodes in the graph editor. Exposes the
 /// minimum and maximum running time through FRP endpoints.

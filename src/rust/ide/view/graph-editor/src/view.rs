@@ -2,6 +2,12 @@
 
 use crate::prelude::*;
 
+
+
+// =================
+// === View Mode ===
+// =================
+
 /// Represents the current view mode of the graph editor. In profiling mode, most colors are removed
 /// from the interface and each node displays some profiling information, using color to represent
 /// the running time.

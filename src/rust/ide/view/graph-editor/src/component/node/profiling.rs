@@ -155,7 +155,7 @@ ensogl::define_endpoints! {
         set_status              (Status),
         set_min_global_duration (f32),
         set_max_global_duration (f32),
-        set_view_mode         (view::Mode),
+        set_view_mode           (view::Mode),
     }
 }
 
@@ -174,10 +174,10 @@ ensogl::define_endpoints! {
 /// as a `display::Object` should be placed on the node's center.
 #[derive(Clone,CloneRef,Debug)]
 pub struct ProfilingLabel {
-    root    : display::object::Instance,
-    label   : text::Area,
-    frp     : Frp,
-    styles  : StyleWatchFrp,
+    root   : display::object::Instance,
+    label  : text::Area,
+    frp    : Frp,
+    styles : StyleWatchFrp,
 }
 
 impl Deref for ProfilingLabel {
