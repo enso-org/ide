@@ -510,8 +510,8 @@ impl application::View for View {
           , (Press   , "is_searcher_opened" , "escape"          , "close_searcher")
           , (Press   , ""                   , "cmd alt shift t" , "toggle_style")
           , (Press   , ""                   , "cmd s"           , "save_module")
-          , (Press   , ""                              , "cmd z"           , "undo")
-          , (Press   , ""                              , "cmd y"           , "redo")
+          , (Press   , ""                   , "cmd z"           , "undo")
+          , (Press   , ""                   , "cmd y"           , "redo")
           ]).iter().map(|(a,b,c,d)|Self::self_shortcut_when(*a,*c,*d,*b)).collect()
     }
 }
