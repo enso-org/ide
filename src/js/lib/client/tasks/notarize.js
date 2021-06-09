@@ -10,7 +10,7 @@ exports.default = async function notarizing(context) {
     }
     // We need to manually re-sign our build artifacts before notarisation.
     // See the script for more information.
-    console.log("  • Extra Signing.")
+    console.log("  • Performing additional signing of dependencies.")
     await require("./signArchives").default()
 
     // Notarize the application.

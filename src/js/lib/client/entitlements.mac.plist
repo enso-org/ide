@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    This file is required for the macOS notarisation. Since we require a hardened runtime, we need
-    to specify the entitlements our application and the language server need.
+    This file is required for the macOS notarisation. To get notarised we need to run with a
+    hardened runtime, which restricts some things our application can do. Since we actually need
+    some of the restricted features (for example, JIT) we need to specify the entitlements we
+    require.
 
     See https://developer.apple.com/documentation/security/hardened_runtime for more background
     information.
