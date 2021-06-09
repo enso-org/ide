@@ -13,6 +13,7 @@ use crate::shadow;
 
 use super::model::Model;
 use super::shape::shape_is_dragged;
+use super::shape::relative_shape_down_position;
 
 
 
@@ -55,6 +56,12 @@ pub struct Frp {
     pub is_dragging_right_handle   : frp::Stream<bool>,
     /// Indicates whether there is an ongoing dragging action on any of the component shapes.
     pub is_dragging_any            : frp::Stream<bool>,
+    /// Position of a click on the background. Position is given relative to the overall shape
+    /// origin and normalised to the shape size.
+    pub background_click           : frp::Stream<Vector2>,
+    /// Position of a click on the track shape. Position is given relative to the overall shape
+    /// origin and normalised to the shape size.
+    pub track_click                : frp::Stream<Vector2>,
 }
 
 impl Frp {
@@ -76,6 +83,16 @@ impl Frp {
             network,&model.track_handle_left.events,mouse);
         let is_dragging_right_handle   = shape_is_dragged(
             network,&model.track_handle_right.events,mouse);
+
+        let model_fn         = model.clone_ref();
+        let base_position    = move || model_fn.position().xy();
+        let background_click = relative_shape_down_position(
+            base_position,network,&model.background.events,mouse);
+
+        let model_fn      = model.clone_ref();
+        let base_position = move || model_fn.position().xy();
+        let track_click   = relative_shape_down_position(
+            base_position,network,&model.track.events,mouse);
 
         // Initialisation of components. Required for correct layout on startup.
         model.label_right.set_position_y(text_size.value()/2.0);
@@ -121,6 +138,6 @@ impl Frp {
 
         Frp {track_max_width,is_dragging_left_overflow,is_dragging_right_overflow,
                  is_dragging_track,is_dragging_background,is_dragging_left_handle,
-                 is_dragging_right_handle,is_dragging_any}
+                 is_dragging_right_handle,is_dragging_any,background_click,track_click}
     }
 }

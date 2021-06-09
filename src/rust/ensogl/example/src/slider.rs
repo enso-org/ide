@@ -9,6 +9,7 @@ use ensogl_core::display::object::ObjectOps;
 use ensogl_core::system::web;
 use ensogl_gui_components::selector::Bounds;
 use ensogl_gui_components::selector;
+use ensogl_gui_components::scrollbar::Scrollbar;
 use ensogl_text_msdf_sys::run_once_initialized;
 use ensogl_theme as theme;
 
@@ -45,6 +46,13 @@ fn make_range_picker(app:&Application) -> Leak<selector::NumberRangePicker> {
     Leak::new(slider)
 }
 
+fn make_scrollbar(app:&Application) -> Leak<Scrollbar> {
+    let scrollbar = app.new_view::<Scrollbar>();
+    scrollbar.frp.resize(Vector2(200.0,50.0));
+    app.display.add_child(&scrollbar);
+    Leak::new(scrollbar)
+}
+
 
 
 // ========================
@@ -75,4 +83,17 @@ fn init(app:&Application) {
     slider4.inner().frp.use_overflow_bounds(Bounds::new(-2.0,3.0));
     slider4.inner().frp.set_caption(Some("Caption".to_string()));
     slider4.inner().set_track_color(color::Rgba::new(0.5,0.70,0.70,1.0));
+
+    let scrollbar = make_scrollbar(app);
+    scrollbar.inner().set_rotation_z(90.0_f32.to_radians());
+    scrollbar.inner().set_position_x(-300.0);
+    scrollbar.inner().set_position_y(75.0);
+    scrollbar.inner().set_track_color(color::Rgba::new(0.5,0.70,0.70,1.0));
+
+    let scrollbar2 = make_scrollbar(app);
+    scrollbar2.inner().set_position_x(-300.0);
+    scrollbar2.inner().set_position_y(-75.0);
+    scrollbar2.inner().set_track_color(color::Rgba::new(0.5,0.70,0.70,1.0));
+    scrollbar2.inner().set_overall_bounds(Bounds::new(0.0,100.0));
+    scrollbar2.inner().set_track(Bounds::new(0.0,10.0));
 }

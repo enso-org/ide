@@ -15,7 +15,7 @@ use super::bounds::absolute_value;
 use super::bounds::clamp_with_overflow;
 use super::bounds::normalise_value;
 use super::bounds::position_to_normalised_value;
-use super::shape::relative_shape_click_position;
+use super::shape::relative_shape_down_position;
 use super::model::Model;
 
 
@@ -56,12 +56,12 @@ impl component::Frp<Model> for Frp {
 
         let madel_fn         = model.clone_ref();
         let base_position    = move || madel_fn.position().xy();
-        let background_click = relative_shape_click_position(
+        let background_click = relative_shape_down_position(
             base_position,network,&model.background.events,mouse);
 
         let madel_fn      = model.clone_ref();
         let base_position = move || madel_fn.position().xy();
-        let track_click   = relative_shape_click_position(
+        let track_click   = relative_shape_down_position(
             base_position,network,&model.track.events,mouse);
 
         let style_track_color = style.get_color(theme::component::slider::track::color);

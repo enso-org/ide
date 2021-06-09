@@ -208,21 +208,21 @@ pub fn shape_is_dragged
 
 /// Returns the position of a mouse down on a shape. The position is given relative to the origin
 /// of the shape position.
-pub fn relative_shape_click_position(
+pub fn relative_shape_down_position(
     base_position:impl Fn() -> Vector2 + 'static,
     network:&Network,
     shape:&ShapeViewEvents,
     mouse:&Mouse) -> enso_frp::Stream<Vector2>  {
     enso_frp::extend! { network
-        mouse_down               <- mouse.down.constant(());
-        over_shape               <- bool(&shape.mouse_out,&shape.mouse_over);
-        mouse_down_over_shape    <- mouse_down.gate(&over_shape);
-        background_click_positon <- mouse.position.sample(&mouse_down_over_shape);
-        background_click_positon <- background_click_positon.map(move |pos|
+        mouse_down            <- mouse.down.constant(());
+        over_shape            <- bool(&shape.mouse_out,&shape.mouse_over);
+        mouse_down_over_shape <- mouse_down.gate(&over_shape);
+        click_positon         <- mouse.position.sample(&mouse_down_over_shape);
+        click_positon         <- click_positon.map(move |pos|
             pos - base_position()
         );
     }
-    background_click_positon
+    click_positon
 }
 
 
@@ -275,7 +275,7 @@ mod tests {
         let shape   = ShapeViewEvents::default();
 
         let base_position = || Vector2::new(-10.0,200.0);
-        let click_position = relative_shape_click_position(base_position, &network,&shape,&mouse);
+        let click_position = relative_shape_down_position(base_position, &network,&shape,&mouse);
         let _watch = click_position.register_watch();
 
         shape.mouse_over.emit(());
