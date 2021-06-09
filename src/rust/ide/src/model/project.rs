@@ -6,13 +6,11 @@
 //! files and modules. Expected to live as long as the project remains open in the IDE.
 
 pub mod synchronized;
-pub mod upload;
 
 use crate::prelude::*;
 
 use enso_protocol::binary;
 use enso_protocol::language_server;
-use enso_protocol::language_server::Path as FilePath;
 use flo_stream::Subscriber;
 use mockall::automock;
 use parser::Parser;
@@ -64,10 +62,6 @@ pub trait API:Debug {
     /// Set a new project name.
     #[allow(clippy::needless_lifetimes)] // Note: Needless lifetimes
     fn rename_project<'a>(&'a self, name:String) -> BoxFuture<'a,FallibleResult<()>>;
-
-    fn upload_file
-    (&self, path:FilePath, size:usize, data_provider:Box<dyn upload::DataProvider>)
-    -> StaticBoxStream<upload::Notification>;
 
     /// Returns the primary content root id for this project.
     fn content_root_id(&self) -> Uuid {

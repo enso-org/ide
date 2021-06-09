@@ -94,6 +94,12 @@ impl Path {
             segments : segments.into_iter().map(|s| s.as_ref().into()).collect()
         }
     }
+
+    /// Constructs a new path from given root ID and segments.
+    pub fn new_root(root_id:Uuid) -> Path {
+        let segments = default();
+        Path {root_id,segments}
+    }
 }
 
 
@@ -366,6 +372,7 @@ impl FileSystemObject {
         path.split().map(|(path,name)| Self::SymlinkLoop{name,path,target})
     }
 
+    /// Take the name of this file system object, consuming self.
     pub fn take_name(self) -> String {
         match self {
             FileSystemObject::Directory          {name,..} => name,

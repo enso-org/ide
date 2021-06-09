@@ -11,13 +11,14 @@ use crate::controller::graph::Connections;
 use crate::controller::graph::NodeTrees;
 use crate::controller::searcher::action::MatchInfo;
 use crate::controller::searcher::Actions;
+use crate::controller::upload;
+use crate::controller::upload::NodeFromDroppedFileHandler;
 use crate::model::execution_context::ComputedValueInfo;
 use crate::model::execution_context::ExpressionId;
 use crate::model::execution_context::LocalCall;
 use crate::model::execution_context::Visualization;
 use crate::model::execution_context::VisualizationId;
 use crate::model::execution_context::VisualizationUpdateData;
-use crate::model::project::upload;
 use crate::model::suggestion_database;
 
 use analytics;
@@ -36,6 +37,7 @@ use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
 use utils::iter::split_by_predicate;
 use futures::future::LocalBoxFuture;
+
 
 
 // ==============
@@ -269,16 +271,19 @@ impl Integration {
         let file_dropped = model.view.graph().file_dropped.clone_ref();
         frp::extend! { network
             eval file_dropped ([model]((file,position)) {
-                let m        = model.clone_ref();
-                let file     = file.clone_ref();
+                let project   = model.project.clone_ref();
+                let graph     = model.graph.graph();
+                let to_upload = upload::FileToUpload {
+                    name : file.name.clone_ref().into(),
+                    size : file.size,
+                    data : file.clone_ref(),
+                };
                 let position = model::module::Position {vector:*position};
-                executor::global::spawn(async move {
-                    let res = upload::create_node_from_dropped_file(&m.project,&m.graph.graph(),position,&file.name,file.size,file.clone_ref()).await;
-                    if let Err(err) = res {
-                        error!(m.logger, "Error when creating node from dropped file: {err}");
-                    }
-                })
-
+                let handler  = NodeFromDroppedFileHandler::new(&model.logger,project,graph);
+                let res      = handler.create_node_and_start_uploading(to_upload,position);
+                if let Err(err) = res {
+                    error!(model.logger, "Error when creating node from dropped file: {err}");
+                }
             });
         }
 

@@ -336,6 +336,10 @@ pub struct NodeMetadata {
     /// The methods may be defined for different types, so the name alone don't specify them.
     #[serde(deserialize_with="utils::serde::deserialize_or_default")]
     pub intended_method:Option<MethodId>,
+    /// Information about uploading file.
+    ///
+    /// Designed to be present in nodes created by dragging and dropping files in IDE. Contains
+    /// information about file and upload progress.
     #[serde(deserialize_with="utils::serde::deserialize_or_default")]
     pub uploading_file:Option<UploadingFile>,
 }
@@ -414,12 +418,21 @@ pub struct MethodId {
     pub name            : String,
 }
 
+/// Uploading File Information
+///
+/// May be stored in node metadata, if the node's expression is reading content of file still
+/// uploaded to the project directory.
+#[allow(missing_docs)]
 #[derive(Clone,Debug,Deserialize,Eq,Hash,PartialEq,Serialize)]
 pub struct UploadingFile {
-    pub name           : String,
-    pub remote_path    : FilePath,
+    /// The name of file dropped in IDE.
+    pub name:String,
+    /// The file's destination name. May differ from original name due to conflict with files
+    /// already present on the remote.
+    pub remote_name    : Option<String>,
     pub size           : usize,
     pub bytes_uploaded : usize,
+    pub error          : Option<String>,
 }
 
 

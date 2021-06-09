@@ -1496,6 +1496,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
+ "sha3",
  "span-tree",
  "utils",
  "uuid",

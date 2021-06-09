@@ -17,7 +17,7 @@ use crate::language_server::types::Path;
 use json_rpc::TransportEvent;
 use json_rpc::Transport;
 use mockall::automock;
-
+use crate::types::Sha3_224;
 
 
 // ==============
@@ -69,6 +69,11 @@ pub trait API {
 
     /// Retrieves the file contents as a binary data.
     fn read_file(&self, path:&Path) -> StaticBoxFuture<FallibleResult<Vec<u8>>>;
+
+    /// Writes a set of bytes to the specified file at the specified offset.
+    fn write_bytes
+    (&self, path:&Path, byte_offset:u64, overwrite:bool, bytes:&[u8])
+    -> StaticBoxFuture<FallibleResult<Sha3_224>>;
 
     /// Asynchronous event stream with notification and errors.
     ///
@@ -196,6 +201,20 @@ impl API for Client {
         self.make_request(payload, move |result| {
             if let FromServerPayloadOwned::FileContentsReply {contents} = result {
                 Ok(contents)
+            } else {
+                Err(RpcError::MismatchedResponseType.into())
+            }
+        })
+    }
+
+    fn write_bytes
+    (&self, path:&Path, byte_offset:u64, overwrite:bool, bytes:&[u8])
+    -> StaticBoxFuture<FallibleResult<Sha3_224>> {
+        info!(self.logger,"Writting {bytes.len()} bytes to {path} at offset {byte_offset}");
+        let payload = ToServerPayload::WriteBytes {path,byte_offset,overwrite,bytes};
+        self.make_request(payload, move |result| {
+            if let FromServerPayloadOwned::WriteBytesReply {checksum} = result {
+                Ok(checksum.into())
             } else {
                 Err(RpcError::MismatchedResponseType.into())
             }
