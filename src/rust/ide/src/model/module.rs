@@ -417,6 +417,7 @@ pub struct MethodId {
 #[derive(Clone,Debug,Deserialize,Eq,Hash,PartialEq,Serialize)]
 pub struct UploadingFile {
     pub name           : String,
+    pub remote_path    : FilePath,
     pub size           : usize,
     pub bytes_uploaded : usize,
 }

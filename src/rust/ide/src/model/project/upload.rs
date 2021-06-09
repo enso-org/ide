@@ -3,9 +3,19 @@ use crate::prelude::*;
 use crate::notification::Publisher;
 
 use enso_protocol::binary::Connection;
+use enso_protocol::language_server;
 use enso_protocol::language_server::Path;
 use futures::SinkExt;
-use ensogl::application::shortcut::Condition::Not; //TODO maybe from the binary protocol?
+use ensogl::application::shortcut::Condition::Not;
+use crate::controller::graph::{NewNodeInfo, LocationHint};
+use crate::model::module::{NodeMetadata, UploadingFile}; //TODO maybe from the binary protocol?
+
+#[derive(Clone,Debug,Fail)]
+#[fail(display="Error while uploading file \"{}\": {}",file_name,msg)]
+pub struct Error {
+    file_name : String,
+    msg       : String,
+}
 
 #[derive(Clone,Debug)]
 pub enum Notification {
@@ -13,7 +23,7 @@ pub enum Notification {
         file_size      : usize,
         bytes_uploaded : usize,
     },
-    Error {msg:ImString}
+    Error(Error)
 }
 
 pub trait DataProvider {
@@ -39,9 +49,8 @@ pub struct FileUploadProcess {
 }
 
 impl FileUploadProcess {
-    pub fn new(parent:impl AnyLogger, connection:Rc<Connection>, path:Path) -> Self {
+    pub fn new(parent:impl AnyLogger, connection:Rc<Connection>, path:Path, size:usize) -> Self {
         let logger         = Logger::sub(parent,"FileUploadProcess");
-        let size           = 0;
         let bytes_uploaded = 0;
         Self{logger,connection,path,size,bytes_uploaded}
     }
@@ -73,8 +82,10 @@ impl FileUploadProcess {
                     Err(err) => {
                         error!(self.logger, "Error while retrieving next chunk for {self.path}: \
                             {err:?}");
-                        let msg = err.to_string().into();
-                        notification_in.send(Notification::Error {msg}).await;
+                        let msg       = err.to_string();
+                        let file_name = self.path.file_name().map(AsRef::<str>::as_ref).unwrap_or("").to_owned();
+                        let error     = Error{msg,file_name};
+                        notification_in.send(Notification::Error(error)).await;
                         break;
                     }
                 }
@@ -84,14 +95,64 @@ impl FileUploadProcess {
     }
 }
 
-fn create_node_from_dropped_file
-( project : &model::Project
-, graph   : &controller::Graph
-, name    : impl Str
-, size    : usize
-, data    : impl DataProvider
-) {
+pub async fn create_node_from_dropped_file
+( project  : &model::Project
+, graph    : &controller::Graph
+, position : model::module::Position
+, name     : &str
+, size     : usize
+, data     : impl DataProvider + 'static
+) -> FallibleResult {
+    let logger   = Logger::new("create_node_from_dropped_file");
+    let path     = create_remote_path(project,name).await?;
+    let uploading_metadata = UploadingFile {
+        name : name.to_owned(),
+        remote_path : path.clone(),
+        size,
+        bytes_uploaded: 0
+    };
+    let metadata = NodeMetadata {
+        position: Some(position),
+        intended_method: None,
+        uploading_file: Some(uploading_metadata.clone())
+    };
+    let node_info = NewNodeInfo {
+        expression: format!("File.read Enso_Project.data/\"{}\"", name),
+        metadata: Some(metadata.clone()),
+        id: None,
+        location_hint: LocationHint::End,
+        introduce_pattern: true
+    };
+    let node       = graph.add_node(node_info)?;
+    let process    = FileUploadProcess::new(&logger,project.binary_rpc(),path,size);
+    let mut stream = process.start(data);
+    let graph      = graph.clone_ref();
+    while let Some(notification) = stream.next().await  {
+        match notification {
+            Notification::UploadProgress {bytes_uploaded,..} => {
+                graph.module.with_node_metadata(node,Box::new(|metadata| {
+                    let field = metadata.uploading_file.get_or_insert_with(|| uploading_metadata.clone());
+                    field.bytes_uploaded = bytes_uploaded;
+                }))?;
+            }
+            Notification::Error(error) => return Err(error.into())
+        }
+    };
+    Ok(())
+}
 
+async fn create_remote_path(project:&model::Project, original_name:&str) -> FallibleResult<Path> {
+    let data_path       = Path::new(project.content_root_id(),&["data"]);
+    let list_response   = project.json_rpc().client.file_list(&data_path).await?;
+    let files_in_data_dir:HashSet<String> = list_response.paths.into_iter().map(|f| f.take_name()).collect();
+    let extension_sep   = original_name.rfind(".");
+    let name_core       = extension_sep.map_or(original_name, |i| &original_name[0..i]);
+    let name_ext        = extension_sep.map_or("", |i| &original_name[i..]);
+    let first_candidate = std::iter::once(original_name.to_owned());
+    let next_candidates = (1..).map(|num| iformat!("{name_core}_{num}{name_ext}"));
+    let mut candidates  = first_candidate.chain(next_candidates);
+    let picked          = candidates.find(|name| !files_in_data_dir.contains(name)).unwrap();
+    Ok(data_path.append_im(picked))
 }
 
 

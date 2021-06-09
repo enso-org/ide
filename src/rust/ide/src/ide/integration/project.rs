@@ -17,15 +17,17 @@ use crate::model::execution_context::LocalCall;
 use crate::model::execution_context::Visualization;
 use crate::model::execution_context::VisualizationId;
 use crate::model::execution_context::VisualizationUpdateData;
+use crate::model::project::upload;
 use crate::model::suggestion_database;
 
 use analytics;
 use bimap::BiMap;
 use enso_data::text::TextChange;
 use enso_frp as frp;
+use enso_protocol::language_server::ExpressionUpdatePayload;
 use ensogl::display::traits::*;
 use ensogl_gui_components::list_view;
-use enso_protocol::language_server::ExpressionUpdatePayload;
+use ensogl_web::drop;
 use ide_view::graph_editor;
 use ide_view::graph_editor::component::node;
 use ide_view::graph_editor::component::visualization;
@@ -33,7 +35,7 @@ use ide_view::graph_editor::EdgeEndpoint;
 use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
 use utils::iter::split_by_predicate;
-
+use futures::future::LocalBoxFuture;
 
 
 // ==============
@@ -259,6 +261,24 @@ impl Integration {
             eval editor_outs.visualization_registry_reload_requested ([model](()) {
                 model.view.graph().reset_visualization_registry();
                 model.load_visualizations();
+            });
+        }
+
+        // === Dropping Files ===
+
+        let file_dropped = model.view.graph().file_dropped.clone_ref();
+        frp::extend! { network
+            eval file_dropped ([model]((file,position)) {
+                let m        = model.clone_ref();
+                let file     = file.clone_ref();
+                let position = model::module::Position {vector:*position};
+                executor::global::spawn(async move {
+                    let res = upload::create_node_from_dropped_file(&m.project,&m.graph.graph(),position,&file.name,file.size,file.clone_ref()).await;
+                    if let Err(err) = res {
+                        error!(m.logger, "Error when creating node from dropped file: {err}");
+                    }
+                })
+
             });
         }
 
@@ -1484,5 +1504,11 @@ impl ide_view::searcher::DocumentationProvider for DataProviderForView {
             Action::Example(example)     => Some(example.documentation.clone()),
             Action::ProjectManagement(_) => None,
         }
+    }
+}
+
+impl upload::DataProvider for drop::File {
+    fn next_chunk(&mut self) -> LocalBoxFuture<FallibleResult<Option<Vec<u8>>>> {
+        self.read_chunk().map(|f| f.map_err(|e| e.into())).boxed_local()
     }
 }

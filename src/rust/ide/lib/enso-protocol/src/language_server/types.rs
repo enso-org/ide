@@ -365,6 +365,16 @@ impl FileSystemObject {
     pub fn new_symlink_loop(path:Path,target:Path) -> Option<Self> {
         path.split().map(|(path,name)| Self::SymlinkLoop{name,path,target})
     }
+
+    pub fn take_name(self) -> String {
+        match self {
+            FileSystemObject::Directory          {name,..} => name,
+            FileSystemObject::DirectoryTruncated {name,..} => name,
+            FileSystemObject::File               {name,..} => name,
+            FileSystemObject::Other              {name,..} => name,
+            FileSystemObject::SymlinkLoop        {name,..} => name,
+        }
+    }
 }
 
 

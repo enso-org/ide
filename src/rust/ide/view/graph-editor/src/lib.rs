@@ -56,6 +56,7 @@ use ensogl::gui::cursor;
 use ensogl::prelude::*;
 use ensogl::system::web;
 use ensogl_theme as theme;
+use ensogl_web::drop;
 
 
 
@@ -550,6 +551,7 @@ ensogl::define_endpoints! {
         node_editing (bool),
 
         navigator_active (bool),
+        file_dropped     (drop::File,Vector2<f32>)
     }
 }
 
@@ -1173,6 +1175,7 @@ impl GraphEditorModelWithNetwork {
                 vis_enabled.map2(&metadata,move |_,metadata| (node_id,metadata.clone()));
             output.source.visualization_disabled <+ vis_disabled.constant(node_id);
         }
+
         let initial_metadata = visualization::Metadata {
             preprocessor : node.model.visualization.frp.preprocessor.value()
         };
@@ -1270,6 +1273,7 @@ pub struct GraphEditorModel {
     pub nodes          : Nodes,
     pub edges          : Edges,
     pub vis_registry   : visualization::Registry,
+    pub drop_manager   : drop::Manager,
     // FIXME[MM]: The tooltip should live next to the cursor in `Application`. This does not
     //  currently work, however, because the `Application` lives in enso-core, and the tooltip
     //  requires enso-text, which in turn depends on enso-core, creating a cyclic dependency.
@@ -1303,11 +1307,10 @@ impl GraphEditorModel {
         let frp            = frp.output.clone_ref();
         let navigator      = Navigator::new(&scene,&scene.camera());
         let tooltip        = Tooltip::new(&app);
+        let drop_manager   = drop::Manager::new(&scene.dom.root);
 
-        Self {
-            logger,display_object,app,breadcrumbs,cursor,nodes,edges,vis_registry,tooltip,
-            touch_state,visualisations,frp,navigator,
-        }.init()
+        Self {logger,display_object,app,breadcrumbs,cursor,nodes,edges,vis_registry,drop_manager
+            ,tooltip,touch_state,visualisations,frp,navigator}.init()
     }
 
     fn init(self) -> Self {
@@ -3084,6 +3087,20 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         quick_visualization_preview <- bool(&frp.disable_quick_visualization_preview,
                                             &frp.enable_quick_visualization_preview);
         eval quick_visualization_preview((value) model.nodes.set_quick_preview(*value));
+    }
+
+
+    // =====================
+    // === Dropped Files ===
+    // =====================
+
+    let files_received = model.drop_manager.files_received().clone_ref();
+    frp::extend! { network
+        files_with_positions <- files_received.map2(&cursor_pos_in_scene, |files,cursor_pos| {
+            files.iter().enumerate().map(|(i,f)| (f.clone_ref(), cursor_pos + Vector2(0.0, 50.0 * i as f32))).collect_vec() // TODO
+        });
+        file_dropped            <= files_with_positions;
+        out.source.file_dropped <+ file_dropped;
     }
 
     GraphEditor {model,frp}

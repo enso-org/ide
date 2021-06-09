@@ -409,7 +409,7 @@ impl model::project::API for Project {
     (&self, path:FilePath, size:usize, data_provider:Box<dyn upload::DataProvider>)
      -> StaticBoxStream<upload::Notification> {
         let connection = self.language_server_bin.clone_ref();
-        let process    = upload::FileUploadProcess::new(&self.logger,connection,path);
+        let process    = upload::FileUploadProcess::new(&self.logger,connection,path,size);
         process.start(data_provider).boxed_local()
     }
 }
