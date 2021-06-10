@@ -369,6 +369,11 @@ ensogl::define_endpoints! {
         /// Toggle nodes inverse selection mode.
         toggle_node_inverse_select(),
 
+        /// Set the node as selected. Ignores selection mode.
+        select_node                  (NodeId),
+        /// Set the node as deselected. Ignores selection mode.
+        deselect_node                (NodeId),
+
 
         // === Navigation ===
 
@@ -453,7 +458,6 @@ ensogl::define_endpoints! {
         remove_all_node_input_edges  (NodeId),
         remove_all_node_output_edges (NodeId),
         remove_edge                  (EdgeId),
-        select_node                  (NodeId),
         remove_node                  (NodeId),
         edit_node                    (NodeId),
         collapse_nodes               ((Vec<NodeId>,NodeId)),
@@ -920,6 +924,14 @@ impl Nodes {
             node.view.frp.quick_preview_vis.emit(quick)
         })
     }
+
+    pub fn show_quick_actions(&self, quick:bool) {
+        self.all.raw.borrow().values().for_each(|node|{
+            node.view.frp.show_quick_action_bar_on_hover.emit(quick)
+        })
+    }
+
+
 }
 
 
@@ -2970,6 +2982,16 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     }
 
+    // ==============================
+    // === Component Interactions ===
+    // ==============================
+
+    // === Nodes + Selection ===
+
+    // Do not show quick actions on hover while doing an area selection.
+    frp::extend! { network
+        eval selection_controller.area_selection ((area_selection) nodes.show_quick_actions(!area_selection));
+    }
 
 
     // ===============

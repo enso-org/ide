@@ -263,6 +263,8 @@ ensogl::define_endpoints! {
         set_vcs_status                   (Option<vcs::Status>),
         /// Indicate whether preview visualisations should be delayed or immediate.
         quick_preview_vis                (bool),
+        /// Indicate whether on hover the quick action icons should appear.
+        show_quick_action_bar_on_hover   (bool)
     }
     Output {
         /// Press event. Emitted when user clicks on non-active part of the node, like its
@@ -604,7 +606,8 @@ impl Node {
             let visualization_enabled = action_bar.action_visibility.clone_ref();
             out.source.skip   <+ action_bar.action_skip;
             out.source.freeze <+ action_bar.action_freeze;
-            eval out.hover ((t) action_bar.set_visibility(t));
+            show_action_bar   <- out.hover  && frp.show_quick_action_bar_on_hover;
+            eval show_action_bar ((t) action_bar.set_visibility(t));
        }
 
 
@@ -727,9 +730,12 @@ impl Node {
             model.vcs_indicator.frp.set_status <+ frp.set_vcs_status;
         }
 
+        // Init defaults.
         model.error_visualization.set_layer(visualization::Layer::Front);
         frp.set_error.emit(None);
         frp.set_disabled.emit(false);
+        frp.show_quick_action_bar_on_hover.emit(true);
+
         Self {model,frp}
     }
 

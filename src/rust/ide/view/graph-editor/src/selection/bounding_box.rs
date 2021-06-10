@@ -64,6 +64,16 @@ impl BoundingBox {
             || (other.bottom>self.top);
         !not_contained
     }
+
+    pub fn grow_x(&mut self, size:f32) {
+        self.left  -= size / 2.0;
+        self.right += size / 2.0;
+    }
+
+    pub fn grow_y(&mut self, size:f32) {
+        self.bottom -= size / 2.0;
+        self.top    += size / 2.0;
+    }
 }
 
 

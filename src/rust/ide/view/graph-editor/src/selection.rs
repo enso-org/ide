@@ -292,7 +292,9 @@ pub fn get_mode(network:&frp::Network,editor:&crate::FrpEndpoints) -> frp::strea
 pub struct Controller {
     network                : frp::Network,
     cursor_selection_nodes : node_set::Set,
-    pub cursor_style       : frp::stream::Stream<cursor::Style>
+
+    pub cursor_style       : frp::stream::Stream<cursor::Style>,
+    pub area_selection     : frp::stream::Stream<bool>,
 }
 
 impl Controller {
@@ -306,6 +308,11 @@ impl Controller {
 
         frp::extend! { network
 
+            // ===  Graph Editor Internal API ===
+            eval editor.select_node   ((node_id) nodes.select(node_id));
+            eval editor.deselect_node ((node_id)  nodes.select(node_id));
+            editor.source.node_selected   <+  editor.select_node;
+            editor.source.node_deselected <+ editor.deselect_node;
 
             // ===  Selection Box & Mouse IO ===
             on_press_style   <- mouse.down_primary . constant(cursor::Style::new_press());
@@ -316,6 +323,7 @@ impl Controller {
             is_dragging <- bool(&mouse.up_primary,&drag_start);
             drag_end    <- is_dragging.on_false() ;
             drag_start  <- is_dragging.on_true() ;
+            let area_selection = is_dragging.clone_ref();
 
 
             mouse_on_down_position <- mouse.position.sample(&mouse.down_primary);
@@ -330,12 +338,18 @@ impl Controller {
             should_update_drag      <- is_dragging && touch.background.is_down;
             cursor_drag_position    <- cursor.frp.scene_position.gate(&should_update_drag).on_change();
 
-            scene_bounding_box      <- cursor_drag_position.map2(&cursor_on_down_position,|&m,&n|{
+            scene_bounding_box      <- cursor_drag_position.map2(&cursor_on_down_position,
+                |&m,&n|{
                 // The dragged position is the center of the bounding box. Thus we need to offset the
                 // corner point by the distance to the origin.
                 let half      = m - n;
                 let m_correct = n + 2.0 * half;
-                BoundingBox::from_corners(n.xy(),m_correct.xy())}
+                let mut bounding_box = BoundingBox::from_corners(n.xy(),m_correct.xy());
+                // Since the cursor has some extent we need to account for its size.
+                bounding_box.grow_x(cursor::SIDES_PADDING / 2.0);
+                bounding_box.grow_y(cursor::SIDES_PADDING / 2.0);
+                bounding_box
+                }
             );
 
             nodes_in_bb <- scene_bounding_box.map(f!([nodes](bb) get_nodes_in_bounding_box(bb,&nodes)));
@@ -385,8 +399,7 @@ impl Controller {
             node_to_select_non_edit <- touch.nodes.selected.gate_not(&should_not_select);
             node_to_select_edit     <- touch.nodes.down.gate(&edit_mode);
             node_to_select          <- any(node_to_select_non_edit,
-                                           node_to_select_edit,
-                                           editor.select_node);
+                                           node_to_select_edit);
             node_was_selected       <- node_to_select.map(f!((id) nodes.selected.contains(id)));
 
             should_select <- node_to_select.map3(&selection_mode,&node_was_selected,
@@ -417,6 +430,6 @@ impl Controller {
 
         }
 
-        Controller { network, cursor_selection_nodes, cursor_style }
+        Controller { network, cursor_selection_nodes, cursor_style, area_selection }
     }
 }
