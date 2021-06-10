@@ -4,6 +4,13 @@
 
 #### Visual Environment
 
+- [Profling mode.][1546] The IDE contains a profiling mode now which can be
+  entered through a button in the top-right corner or through the keybinding
+  <kbd>ctrl</kbd>+<kbd>p</kbd>. This mode does not display any information yet.
+  In the future, it will display the running times of nodes and maybe more
+  useful statistics.
+- [Signed builds.][1366] Our builds are signed and will avoid warnings from the
+  operating system about being untrusted.
 - [Area selection][1588]. You can now select multiple nodes at once. Just click
   and drag on the background of your graph and see the beauty of the area
   selection appear.
@@ -22,9 +29,9 @@
 #### Enso Compiler
 
 [1588]: https://github.com/enso-org/ide/pull/1588
-
 [1577]: https://github.com/enso-org/ide/pull/1577
 [1587]: https://github.com/enso-org/ide/pull/1587
+[1366]: https://github.com/enso-org/ide/pull/1366
 
 # Enso 2.0.0-alpha.5 (2021-05-14)
 
