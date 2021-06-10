@@ -9,6 +9,8 @@
   <kbd>ctrl</kbd>+<kbd>p</kbd>. This mode does not display any information yet.
   In the future, it will display the running times of nodes and maybe more
   useful statistics.
+- [Signed builds.][1366] Our builds are signed and will avoid warnings from the
+  operating system about being untrusted.
 - [Opening projects in application graphical interface][1587]. Press `cmd`+`o`
   to bring the list of projects. Select a project on the list to open it.
 
@@ -25,6 +27,7 @@
 
 [1577]: https://github.com/enso-org/ide/pull/1577
 [1587]: https://github.com/enso-org/ide/pull/1587
+[1366]: https://github.com/enso-org/ide/pull/1366
 
 # Enso 2.0.0-alpha.5 (2021-05-14)
 
