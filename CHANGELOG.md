@@ -4,10 +4,9 @@
 
 #### Visual Environment
 
-[Area selection][1588]. You can now select multiple nodes at once. Just click
-and drag on the background of your graph and see the beauty of the area
-selection appear.
-
+- [Area selection][1588]. You can now select multiple nodes at once. Just click
+  and drag on the background of your graph and see the beauty of the area
+  selection appear.
 - [Opening projects in application graphical interface][1587]. Press `cmd`+`o`
   to bring the list of projects. Select a project on the list to open it.
 

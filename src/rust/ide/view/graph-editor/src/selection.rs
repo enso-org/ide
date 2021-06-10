@@ -39,7 +39,7 @@ pub enum Mode {
 impl Mode {
 
     /// Return whether an element should be selected, if a selection was triggered through single
-    /// selection and had the given `was_selected` status before.
+    /// (not area) selection and had the given `was_selected` status before.
     fn single_should_select(self, was_selected:bool) -> bool {
         match self {
             Self::Normal  => true,

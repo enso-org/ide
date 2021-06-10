@@ -2031,21 +2031,21 @@ pub fn enable_disable_toggle
 
 #[allow(unused_parens)]
 fn new_graph_editor(app:&Application) -> GraphEditor {
-    let world                 = &app.display;
-    let scene                 = world.scene();
-    let cursor                = &app.cursor;
-    let frp                   = Frp::new();
-    let model                 = GraphEditorModelWithNetwork::new(app,cursor.clone_ref(),&frp);
-    let network               = &frp.network;
-    let nodes                 = &model.nodes;
-    let edges                 = &model.edges;
-    let inputs                = &model.frp;
-    let mouse                 = &scene.mouse.frp;
-    let touch                 = &model.touch_state;
-    let vis_registry          = &model.vis_registry;
-    let logger                = &model.logger;
-    let out                   = &frp.output;
-    let selection_controller  = &model.selection_controller;
+    let world                = &app.display;
+    let scene                = world.scene();
+    let cursor               = &app.cursor;
+    let frp                  = Frp::new();
+    let model                = GraphEditorModelWithNetwork::new(app,cursor.clone_ref(),&frp);
+    let network              = &frp.network;
+    let nodes                = &model.nodes;
+    let edges                = &model.edges;
+    let inputs               = &model.frp;
+    let mouse                = &scene.mouse.frp;
+    let touch                = &model.touch_state;
+    let vis_registry         = &model.vis_registry;
+    let logger               = &model.logger;
+    let out                  = &frp.output;
+    let selection_controller = &model.selection_controller;
 
     // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
     let styles             = StyleWatch::new(&scene.style_sheet);
