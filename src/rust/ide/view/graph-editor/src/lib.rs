@@ -3080,6 +3080,16 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         eval selection_controller.area_selection ((area_selection) nodes.show_quick_actions(!area_selection));
     }
 
+    // === Visualisation + Selection ===
+
+    // Do not allow area selection while we show a fullscreen visualisation.
+    frp::extend! { network
+        allow_area_selection <- out.is_fs_visualization_displayed.not();
+        eval allow_area_selection ((area_selection)
+            selection_controller.enable_area_selection.emit(area_selection)
+        );
+    }
+
 
     // ===============
     // === Tooltip ===
@@ -3118,7 +3128,8 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
         eval profiling_mode_transition.value ((&v) scene.dom.layers.back.filter_grayscale(v));
     }
 
-
+    // Init defaults
+    frp.edit_mode_off.emit(());
 
     GraphEditor {model,frp}
 }

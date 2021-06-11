@@ -293,6 +293,8 @@ pub struct Controller {
     network                : frp::Network,
     cursor_selection_nodes : node_set::Set,
 
+    pub enable_area_selection : frp::Source<bool>,
+
     pub cursor_style       : frp::stream::Stream<cursor::Style>,
     pub area_selection     : frp::stream::Stream<bool>,
 }
@@ -306,7 +308,10 @@ impl Controller {
         let selection_mode         = get_mode(&network,editor);
         let cursor_selection_nodes = node_set::Set::new();
 
+
         frp::extend! { network
+
+            enable_area_selection  <- source();
 
             // ===  Graph Editor Internal API ===
             eval editor.select_node   ((node_id) nodes.select(node_id));
@@ -318,21 +323,23 @@ impl Controller {
             on_press_style   <- mouse.down_primary . constant(cursor::Style::new_press());
             on_release_style <- mouse.up_primary . constant(cursor::Style::default());
 
-            edit_mode   <- bool(&editor.edit_mode_off,&editor.edit_mode_on);
-            drag_start  <- mouse.down_primary.gate_not(&edit_mode);
-            is_dragging <- bool(&mouse.up_primary,&drag_start);
-            drag_end    <- is_dragging.on_false() ;
-            drag_start  <- is_dragging.on_true() ;
-            let area_selection = is_dragging.clone_ref();
+            edit_mode          <- bool(&editor.edit_mode_off,&editor.edit_mode_on);
+            not_edit_mode      <- edit_mode.not();
+            should_area_select <- not_edit_mode && enable_area_selection;
 
+            drag_start  <- mouse.down_primary.gate(&should_area_select);
+            is_dragging <- bool(&mouse.up_primary,&drag_start);
+            drag_end    <- is_dragging.on_false();
+            drag_start  <- is_dragging.on_true();
+            let area_selection = is_dragging.clone_ref();
 
             mouse_on_down_position <- mouse.position.sample(&mouse.down_primary);
             selection_size_down    <- mouse.position.map2(&mouse_on_down_position,|m,n|{m-n});
-            selection_size         <- selection_size_down.gate(&touch.background.is_down);
+            selection_size         <- selection_size_down.gate(&touch.background.is_down).gate(&should_area_select);
             cursor_selection_start <- selection_size.map(|p|
                     cursor::Style::new_with_all_fields_default().press().box_selection(Vector2::new(p.x,p.y)));
             cursor_selection_end   <- mouse.up_primary . constant(cursor::Style::default());
-            cursor_selection       <- any (cursor_selection_start, cursor_selection_end);
+            cursor_selection       <- any (cursor_selection_start,cursor_selection_end);
 
             cursor_on_down_position <- cursor.frp.scene_position.sample(&mouse.down_primary);
             should_update_drag      <- is_dragging && touch.background.is_down;
@@ -430,6 +437,10 @@ impl Controller {
 
         }
 
-        Controller { network, cursor_selection_nodes, cursor_style, area_selection }
+        // Init defaults.
+        enable_area_selection.emit(true);
+
+        Controller { network,cursor_selection_nodes,cursor_style,enable_area_selection,
+                     area_selection}
     }
 }
