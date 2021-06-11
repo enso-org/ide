@@ -440,7 +440,7 @@ impl Controller {
         // Init defaults.
         enable_area_selection.emit(true);
 
-        Controller { network,cursor_selection_nodes,cursor_style,enable_area_selection,
-                     area_selection}
+        Controller { network,cursor_selection_nodes,enable_area_selection,cursor_style,
+                     area_selection }
     }
 }
