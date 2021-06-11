@@ -149,9 +149,9 @@ impl<DP:DataProvider> FileUploadProcess<DP> {
 /// It is responsible for creating node, uploading file and updating the node's metadata.
 #[derive(Clone,CloneRef,Debug)]
 pub struct NodeFromDroppedFileHandler {
-    logger   : Logger,
-    project  : model::Project,
-    graph    : controller::Graph
+    logger  : Logger,
+    project : model::Project,
+    graph   : controller::Graph
 }
 
 impl NodeFromDroppedFileHandler {
