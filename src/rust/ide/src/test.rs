@@ -306,7 +306,7 @@ pub mod mock {
 
     #[derive(Debug)]
     pub struct Fixture {
-        pub logger         : DefaultTraceLogger,
+        pub logger         : Logger,
         pub data           : Unified,
         pub module         : model::Module,
         pub graph          : controller::Graph,

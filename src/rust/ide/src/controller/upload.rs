@@ -16,8 +16,6 @@ use json_rpc::error::RpcError;
 use sha3::Digest;
 use enso_protocol::types::Sha3_224;
 
-type Logger = DefaultTraceLogger;
-
 
 
 // ==============
@@ -211,15 +209,13 @@ impl NodeFromDroppedFileHandler {
         let remote_name = self.establish_remote_file_name(&file.name).await?;
         self.update_metadata(node, |md| md.remote_name = Some(remote_name.clone()));
         self.graph.set_expression(node,Self::uploading_node_expression(&remote_name))?;
-        let file_size       = file.size;
         let remote_path     = self.data_path().append_im(&remote_name);
         let bin_connection  = self.project.binary_rpc();
         let json_connection = self.project.json_rpc();
         let mut process     = FileUploadProcess::new
             (&self.logger,file,bin_connection,json_connection,remote_path);
 
-        while process.bytes_uploaded < file_size {
-            process.upload_chunk().await?;
+        while process.upload_chunk().await? {
             self.update_metadata(node, |md| md.bytes_uploaded = process.bytes_uploaded);
         }
         self.graph.set_expression(node,Self::uploaded_node_expression(&remote_name))?;
@@ -412,6 +408,7 @@ mod test {
         fn new(logger:impl AnyLogger, data:TestData) -> Self {
             let mut binary_cli = binary::MockClient::new();
             let json_cli       = language_server::MockClient::default();
+            json_cli.require_all_calls();
             data.setup_uploading_expectations(&json_cli,&mut binary_cli);
             let (file,provider_sink) = data.file_to_upload_async();
             let bin_con              = Rc::new(binary::Connection::new_mock(binary_cli));
