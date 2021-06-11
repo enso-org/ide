@@ -1085,6 +1085,7 @@ main =
             graph.module.set_node_metadata(id,NodeMetadata {
                 position        : None,
                 intended_method : entry.method_id(),
+                uploading_file  : None,
             }).unwrap();
 
             let get_invocation_info = || {

@@ -17,6 +17,7 @@ use sha3::Digest;
 use enso_protocol::types::Sha3_224;
 
 
+
 // ==============
 // === Errors ===
 // ==============
@@ -55,14 +56,6 @@ pub trait DataProvider {
     fn next_chunk(&mut self) -> BoxFuture<FallibleResult<Option<Vec<u8>>>>;
 }
 
-// impl<T:DataProvider + ?Sized> DataProvider for Box<T> {
-//     fn next_chunk(&mut self) -> BoxFuture<FallibleResult<Option<Vec<u8>>>> {
-//         // We reassign to type-constrained deref to be sure we won't fall the infinite recursion.
-//         let deref:&mut T = &mut **self;
-//         deref.next_chunk()
-//     }
-// }
-
 
 
 // =========================
@@ -94,8 +87,8 @@ pub struct FileUploadProcess<DataProvider> {
 impl<DP:DataProvider> FileUploadProcess<DP> {
     /// Constructor.
     pub fn new
-    ( parent      : impl AnyLogger
-    , file        : FileToUpload<DP>
+    ( parent          : impl AnyLogger
+    , file            : FileToUpload<DP>
     , bin_connection  : Rc<binary::Connection>
     , json_connection : Rc<language_server::Connection>
     , remote_path : Path
@@ -114,6 +107,7 @@ impl<DP:DataProvider> FileUploadProcess<DP> {
         match self.file.data.next_chunk().await {
             Ok(Some(data)) => {
                 info!(self.logger, "Received chunk of {self.file.name} of size {data.len()}");
+                trace!(self.logger, "Data: {data:?}");
                 self.bin_connection.write_file(&self.remote_path,&data).await?; // TODO replace with write bytes.
                 self.checksum.input(&data);
                 self.bytes_uploaded += data.len();
@@ -303,5 +297,204 @@ impl NodeFromDroppedFileHandler {
 
 #[cfg(test)]
 mod test {
+    use super::*;
 
+    use crate::executor::test_utils::TestWithLocalPoolExecutor;
+    use crate::test::mock;
+
+    use enso_protocol::language_server::{response, FileAttributes};
+    use futures::SinkExt;
+    use mockall::Sequence;
+    use utils::test::traits::*;
+    use enso_protocol::types::UTCDateTime;
+
+
+    // === Test Providers ===
+
+    type TestProvider          = Box<dyn Iterator<Item=Vec<u8>>>;
+    type TestAsyncProvider     = futures::channel::mpsc::Receiver<FallibleResult<Vec<u8>>>;
+    type TestAsyncProviderSink = futures::channel::mpsc::Sender<FallibleResult<Vec<u8>>>;
+
+    impl DataProvider for TestProvider {
+        fn next_chunk(&mut self) -> BoxFuture<FallibleResult<Option<Vec<u8>>>> {
+            futures::future::ready(Ok(self.next())).boxed_local()
+        }
+    }
+
+    impl DataProvider for TestAsyncProvider {
+        fn next_chunk(&mut self) -> BoxFuture<FallibleResult<Option<Vec<u8>>>> {
+            self.next().map(|chunk| match chunk {
+                Some(Ok(chunk)) => Ok(Some(chunk)),
+                Some(Err(err))  => Err(err),
+                None            => Ok(None),
+            }).boxed_local()
+        }
+    }
+
+
+    // === Data ===
+
+    const TEST_FILE:&str = "file";
+
+    struct TestData {
+        chunks    : Vec<Vec<u8>>,
+        file_size : usize,
+        checksum  : Sha3_224,
+        path      : Path,
+    }
+
+    impl TestData {
+        fn new(chunks:Vec<Vec<u8>>) -> Self {
+            let entire_file = chunks.iter().flatten().copied().collect_vec();
+            let file_size   = entire_file.len();
+            let checksum    = Sha3_224::new(&entire_file);
+            let path        = Path::new(mock::data::ROOT_ID, &[DATA_DIR_NAME,TEST_FILE]);
+            Self{chunks,file_size,checksum,path}
+        }
+
+        fn setup_uploading_expectations
+        (&self, json_client:&language_server::MockClient, binary_client:&mut binary::MockClient) {
+            let mut write_seq = Sequence::new();
+            for chunk in self.chunks.iter().cloned() {
+                let path = self.path.clone();
+                binary_client.expect_write_file()
+                    .withf(move |p,ch| *p == path && ch == chunk)
+                    .times(1)
+                    .in_sequence(&mut write_seq)
+                    .returning(|_,_| futures::future::ready(Ok(())).boxed_local());
+            };
+            let checksum = self.checksum.clone();
+            json_client.expect.file_checksum(enclose!((self.path => path) move |p| {
+                assert_eq!(*p,path);
+                Ok(response::FileChecksum{checksum})
+            }));
+        }
+
+        fn file_to_upload(&self) -> FileToUpload<TestProvider> {
+            FileToUpload {
+                name: TEST_FILE.to_owned(),
+                size: self.file_size,
+                data: Box::new(self.chunks.clone().into_iter())
+            }
+        }
+
+        fn file_to_upload_async(&self) -> (FileToUpload<TestAsyncProvider>,TestAsyncProviderSink) {
+            let (sender,receiver) = futures::channel::mpsc::channel(5);
+            let file_to_upload    = FileToUpload {
+                name: TEST_FILE.to_owned(),
+                size: self.file_size,
+                data: receiver
+            };
+            (file_to_upload,sender)
+        }
+    }
+
+
+    // === FileUploadProcess Tests ===
+
+    struct UploadingFixture {
+        test          : TestWithLocalPoolExecutor,
+        chunks        : <Vec<Vec<u8>> as IntoIterator>::IntoIter,
+        process       : FileUploadProcess<TestAsyncProvider>,
+        provider_sink : Option<TestAsyncProviderSink>,
+    }
+
+    impl UploadingFixture {
+        fn new(logger:impl AnyLogger, data:TestData) -> Self {
+            let mut binary_cli = binary::MockClient::new();
+            let json_cli       = language_server::MockClient::default();
+            data.setup_uploading_expectations(&json_cli,&mut binary_cli);
+            let (file,provider_sink) = data.file_to_upload_async();
+            let bin_connection       = Rc::new(binary::Connection::new_mock(binary_cli));
+            let json_connection      = Rc::new(language_server::Connection::new_mock(json_cli));
+
+            Self {
+                test          : TestWithLocalPoolExecutor::set_up(),
+                chunks        : data.chunks.into_iter(),
+                process       : FileUploadProcess::new(logger,file,bin_connection,json_connection,data.path),
+                provider_sink : Some(provider_sink),
+            }
+        }
+
+        fn next_chunk_result(&mut self) -> FallibleResult<bool> {
+            let mut future = self.process.upload_chunk().boxed_local();
+
+            if let Some(mut sink) = std::mem::take(&mut self.provider_sink) {
+                // If the stream is still open, we shall wait for a new value
+                self.test.run_until_stalled();
+                future.expect_pending();
+
+                if let Some(chunk) = self.chunks.next() {
+                    sink.send(Ok(chunk)).boxed_local().expect_ok();
+                    self.provider_sink = Some(sink);
+                }
+            }
+
+            self.test.run_until_stalled();
+            future.expect_ready()
+        }
+    }
+
+    #[test]
+    fn uploading_file() {
+        let logger   = Logger::new("test::uploading_file");
+        let data     = TestData::new(vec![vec![1,2,3,4,5],vec![3,4,5,6,7,8]]);
+        let mut test = UploadingFixture::new(logger,data);
+
+        assert!(!test.next_chunk_result().unwrap());
+        assert!(!test.next_chunk_result().unwrap());
+        assert!(test.next_chunk_result().unwrap());
+    }
+
+    #[test]
+    fn checksum_mismatch_should_cause_an_error() {
+        let logger    = Logger::new("test::uploading_file");
+        let mut data  = TestData::new(vec![vec![1,2,3,4,5]]);
+        data.checksum = Sha3_224::new(&[3,4,5,6,7,8]);
+        let mut test  = UploadingFixture::new(logger,data);
+
+        assert!(!test.next_chunk_result().unwrap());
+        assert!(test.next_chunk_result().is_err());
+    }
+
+
+    // === NodeFromDroppedFileHandler Tests ===
+
+    #[test]
+    fn creating_node_from_dropped_file() {
+        let logger = Logger::new("test::creating_node_from_dropped_file");
+        let data   = TestData::new(vec![vec![1,2,3,4],vec![5,6,7,8]]);
+        let mut fixture = mock::Unified::new().fixture_customize(|_,json_rpc,binary_rpc| {
+            json_rpc.expect.file_info(|path| {
+                assert_eq!(*path, Path::new(mock::data::ROOT_ID,&[DATA_DIR_NAME]));
+                let dummy_time = UTCDateTime::parse_from_rfc3339("1996-12-19T16:39:57-08:00").unwrap();
+                Ok(response::FileInfo {
+                    attributes : FileAttributes {
+                        creation_time: dummy_time.clone(),
+                        last_access_time: dummy_time.clone(),
+                        last_modified_time: dummy_time,
+                        kind: FileSystemObject::Directory {
+                            name : DATA_DIR_NAME.to_owned(),
+                            path : Path::new_root(mock::data::ROOT_ID)
+                        },
+                        byte_size: 0
+                    } 
+                })
+            });
+            json_rpc.expect.file_list(|path| {
+                assert_eq!(*path, Path::new(mock::data::ROOT_ID,&[DATA_DIR_NAME]));
+                Ok(response::FileList { paths: vec![] })
+            });
+            data.setup_uploading_expectations(json_rpc,binary_rpc);
+        });
+
+        let handler  = NodeFromDroppedFileHandler::new(logger,fixture.project,fixture.graph);
+        let position = model::module::Position::new(45.0,70.0);
+        let file     = data.file_to_upload();
+        handler.create_node_and_start_uploading(file,position).unwrap();
+        assert_eq!(fixture.module.ast().repr(), format!("{}\n    operator1 = File_Uploading.file_uploading Enso_Project.data/\"file\"", mock::data::CODE));
+        fixture.executor.run_until_stalled();
+        assert_eq!(fixture.module.ast().repr(), format!("{}\n    operator1 = File.read Enso_Project.data/\"file\"", mock::data::CODE));
+
+    }
 }
