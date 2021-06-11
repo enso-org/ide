@@ -42,7 +42,7 @@ pub struct FileInfo {
 #[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
 pub struct FileChecksum {
     #[allow(missing_docs)]
-    pub checksum: Sha3_224,
+    pub checksum:Sha3_224,
 }
 
 /// Response of `open_text_file` method.
