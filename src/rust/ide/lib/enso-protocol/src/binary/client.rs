@@ -302,6 +302,7 @@ mod tests {
         let mut mock_reply = MessageFromServer::new(FromServerPayloadOwned::Error {
             code : mock_error_code,
             message : mock_error_message.clone(),
+            data : None,
         });
         mock_reply.correlation_id = Some(generated_message.message_id);
         mock_reply.with_serialized(|data| fixture.transport.mock_peer_binary_message(data));
