@@ -377,9 +377,9 @@ mod test {
 
         fn file_to_upload(&self) -> FileToUpload<TestProvider> {
             FileToUpload {
-                name: self.file_name.clone(),
-                size: self.file_size,
-                data: Box::new(self.chunks.clone().into_iter())
+                name : self.file_name.clone(),
+                size : self.file_size,
+                data : Box::new(self.chunks.clone().into_iter())
             }
         }
 
