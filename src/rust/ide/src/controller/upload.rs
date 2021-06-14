@@ -150,9 +150,9 @@ impl<DP:DataProvider> FileUploadProcess<DP> {
 /// It is responsible for creating node, uploading file and updating the node's metadata.
 #[derive(Clone,CloneRef,Debug)]
 pub struct NodeFromDroppedFileHandler {
-    logger   : Logger,
-    project  : model::Project,
-    graph    : controller::Graph
+    logger  : Logger,
+    project : model::Project,
+    graph   : controller::Graph
 }
 
 impl NodeFromDroppedFileHandler {
@@ -397,18 +397,18 @@ mod test {
 
         fn file_to_upload(&self) -> FileToUpload<TestProvider> {
             FileToUpload {
-                name: self.file_name.clone(),
-                size: self.file_size,
-                data: Box::new(self.chunks.clone().into_iter())
+                name : self.file_name.clone(),
+                size : self.file_size,
+                data : Box::new(self.chunks.clone().into_iter())
             }
         }
 
         fn file_to_upload_async(&self) -> (FileToUpload<TestAsyncProvider>,TestAsyncProviderSink) {
             let (sender,receiver) = futures::channel::mpsc::channel(5);
             let file_to_upload    = FileToUpload {
-                name: self.file_name.clone(),
-                size: self.file_size,
-                data: receiver
+                name : self.file_name.clone(),
+                size : self.file_size,
+                data : receiver
             };
             (file_to_upload,sender)
         }
