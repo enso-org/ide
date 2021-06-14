@@ -3,21 +3,22 @@
 
 use crate::prelude::*;
 
+use crate::common::error::UnexpectedMessage;
 use crate::handler::Handler;
 use crate::handler::Disposition;
 use crate::binary::message::ErrorPayload;
 use crate::binary::message::FromServerPayloadOwned;
+use crate::binary::message::MessageFromServerOwned;
 use crate::binary::message::MessageToServerRef;
 use crate::binary::message::ToServerPayload;
-use crate::common::error::UnexpectedMessage;
-use crate::binary::message::MessageFromServerOwned;
 use crate::binary::message::VisualisationContext;
 use crate::language_server::types::Path;
+use crate::types::Sha3_224;
 
 use json_rpc::TransportEvent;
 use json_rpc::Transport;
 use mockall::automock;
-use crate::types::Sha3_224;
+
 
 
 // ==============
@@ -300,9 +301,9 @@ mod tests {
         let mock_error_code = 444;
         let mock_error_message = "This is error".to_string();
         let mut mock_reply = MessageFromServer::new(FromServerPayloadOwned::Error {
-            code : mock_error_code,
+            code    : mock_error_code,
             message : mock_error_message.clone(),
-            data : None,
+            data    : None,
         });
         mock_reply.correlation_id = Some(generated_message.message_id);
         mock_reply.with_serialized(|data| fixture.transport.mock_peer_binary_message(data));

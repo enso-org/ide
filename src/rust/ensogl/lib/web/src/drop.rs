@@ -31,7 +31,7 @@ use wasm_bindgen_futures::JsFuture;
 pub struct File {
     pub name      : ImString,
     pub mime_type : ImString,
-    pub size      : usize,
+    pub size      : u64,
     #[derivative(Debug="ignore")]
     reader        : Rc<Option<ReadableStreamDefaultReader>>,
 }
@@ -40,7 +40,7 @@ impl File {
     /// Constructor from the [`web_sys::File`].
     pub fn from_js_file(file:&web_sys::File) -> Result<Self,Error> {
         let name      = ImString::new(file.name());
-        let size      = file.size() as usize;
+        let size      = file.size() as u64;
         let mime_type = ImString::new(file.type_());
         let blob      = AsRef::<web_sys::Blob>::as_ref(file);
         let reader    = blob.stream_reader()?;

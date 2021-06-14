@@ -3184,11 +3184,17 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Dropped Files ===
     // =====================
 
+    let default_gap    = model.styles_frp.get_number_or(theme::project::default_gap_between_nodes,0.0);
     let files_received = model.drop_manager.files_received().clone_ref();
     frp::extend! { network
-        files_with_positions <- files_received.map2(&cursor_pos_in_scene, |files,cursor_pos| {
-            files.iter().enumerate().map(|(i,f)| (f.clone_ref(), cursor_pos + Vector2(0.0, 50.0 * i as f32))).collect_vec() // TODO
-        });
+        files_with_positions <- files_received.map3(&cursor_pos_in_scene,default_gap,
+            |files,cursor_pos,default_gap| {
+                files.iter().enumerate().map(|(index,file)| {
+                    let offest = Vector2(0.0, default_gap * i as f32);
+                    (file.clone_ref(),cursor_pos+offset)
+                }).collect_vec()
+            }
+        );
         file_dropped            <= files_with_positions;
         out.source.file_dropped <+ file_dropped;
     }

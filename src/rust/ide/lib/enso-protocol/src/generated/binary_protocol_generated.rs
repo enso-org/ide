@@ -2028,8 +2028,8 @@ impl<'a> ChecksumBytesReply<'a> {
     pub const VT_CHECKSUM: flatbuffers::VOffsetT = 4;
 
   #[inline]
-  pub fn checksum(&self) -> Option<EnsoDigest<'a>> {
-    self._tab.get::<flatbuffers::ForwardsUOffset<EnsoDigest<'a>>>(ChecksumBytesReply::VT_CHECKSUM, None)
+  pub fn checksum(&self) -> EnsoDigest<'a> {
+    self._tab.get::<flatbuffers::ForwardsUOffset<EnsoDigest<'a>>>(ChecksumBytesReply::VT_CHECKSUM, None).unwrap()
   }
 }
 
@@ -2040,7 +2040,7 @@ impl<'a> Default for ChecksumBytesReplyArgs<'a> {
     #[inline]
     fn default() -> Self {
         ChecksumBytesReplyArgs {
-            checksum: None,
+            checksum: None, // required field
         }
     }
 }
@@ -2064,6 +2064,7 @@ impl<'a: 'b, 'b> ChecksumBytesReplyBuilder<'a, 'b> {
   #[inline]
   pub fn finish(self) -> flatbuffers::WIPOffset<ChecksumBytesReply<'a>> {
     let o = self.fbb_.end_table(self.start_);
+    self.fbb_.required(o, ChecksumBytesReply::VT_CHECKSUM,"checksum");
     flatbuffers::WIPOffset::new(o.value())
   }
 }

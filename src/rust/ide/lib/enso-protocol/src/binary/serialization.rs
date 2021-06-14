@@ -408,9 +408,9 @@ impl<'a> DeserializableUnionField<'a, OutboundMessage<'a>> for FromServerPayload
             OutboundPayload::ERROR => {
                 let payload = message.payload_as_error().unwrap();
                 Ok(FromServerPayload::Error {
-                    code: payload.code(),
-                    message: payload.message(),
-                    data: Option::<message::ErrorPayload>::deserialize(payload)?
+                    code    : payload.code(),
+                    message : payload.message(),
+                    data    : Option::<message::ErrorPayload>::deserialize(payload)?
                 })
             }
             OutboundPayload::FILE_CONTENTS_REPLY => {
@@ -442,11 +442,8 @@ impl<'a> DeserializableUnionField<'a, OutboundMessage<'a>> for FromServerPayload
                 })
             }
             OutboundPayload::CHECKSUM_BYTES_REPLY => {
-                let payload = message.payload_as_checksum_bytes_reply().unwrap();
-                let checksum = match payload.checksum() {
-                    Some(checksum) => message::EnsoDigest::deserialize(checksum)?,
-                    None           => default(), //TODO shall the checksum be required?
-                };
+                let payload  = message.payload_as_checksum_bytes_reply().unwrap();
+                let checksum = message::EnsoDigest::deserialize(payload.checksum())?;
                 Ok(FromServerPayload::ChecksumBytesReply {checksum})
             }
             OutboundPayload::NONE =>
@@ -516,15 +513,15 @@ impl<'a> DeserializableUnionField<'a, OutboundMessage<'a>> for FromServerPayload
             OutboundPayload::ERROR => {
                 let payload = message.payload_as_error().unwrap();
                 Ok(FromServerPayloadOwned::Error {
-                    code: payload.code(),
-                    message: payload.message().to_string(),
-                    data: Option::<message::ErrorPayload>::deserialize(payload)?
+                    code    : payload.code(),
+                    message : payload.message().to_string(),
+                    data    : Option::<message::ErrorPayload>::deserialize(payload)?
                 })
             }
             OutboundPayload::FILE_CONTENTS_REPLY => {
                 let payload = message.payload_as_file_contents_reply().unwrap();
                 Ok(FromServerPayloadOwned::FileContentsReply {
-                    contents: Vec::from(payload.contents().unwrap_or_default())
+                    contents : Vec::from(payload.contents().unwrap_or_default())
                 })
             }
             OutboundPayload::SUCCESS => Ok(FromServerPayloadOwned::Success {}),
@@ -550,12 +547,10 @@ impl<'a> DeserializableUnionField<'a, OutboundMessage<'a>> for FromServerPayload
                 })
             }
             OutboundPayload::CHECKSUM_BYTES_REPLY => {
-                let payload = message.payload_as_checksum_bytes_reply().unwrap();
-                let checksum = match payload.checksum() {
-                    Some(checksum) => message::EnsoDigest::deserialize(checksum)?,
-                    None           => default(), //TODO shall the checksum be required?
-                };
-                Ok(FromServerPayloadOwned::ChecksumBytesReply {checksum})
+                let payload  = message.payload_as_checksum_bytes_reply().unwrap();
+                Ok(FromServerPayloadOwned::ChecksumBytesReply {
+                    checksum : message::EnsoDigest::deserialize(payload.checksum())?,
+                })
             }
             OutboundPayload::NONE =>
                 Err(DeserializationError("Received a message without payload. This is not allowed, \

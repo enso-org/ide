@@ -9,13 +9,15 @@ use crate::model::module::Position;
 use crate::model::module::UploadingFile;
 
 use enso_protocol::binary;
+use enso_protocol::common::error::code;
 use enso_protocol::language_server;
 use enso_protocol::language_server::FileSystemObject;
 use enso_protocol::language_server::Path;
 use json_rpc::error::RpcError;
 use sha3::Digest;
 use enso_protocol::types::Sha3_224;
-
+use crate::model::undo_redo;
+use crate::model::undo_redo::Repository;
 
 
 // ==============
@@ -24,7 +26,7 @@ use enso_protocol::types::Sha3_224;
 
 #[allow(missing_docs)]
 #[derive(Clone,Debug,Fail)]
-#[fail(display="Wrong checksum of uploaded file: {}, local checksum is {}",remote,local)]
+#[fail(display="Wrong checksum of uploaded file: {}, local checksum is {}.",remote,local)]
 pub struct ChecksumMismatch {
     pub remote : Sha3_224,
     pub local  : Sha3_224,
@@ -36,9 +38,7 @@ pub struct ChecksumMismatch {
 // === Constants ===
 // =================
 
-const DATA_DIR_NAME               : &str = "data";
-const CONTENT_ROOT_NOT_FOUND_CODE : i64  = 1001;
-const FILE_NOT_FOUND_CODE         : i64  = 1003;
+const DATA_DIR_NAME:&str = "data";
 
 
 
@@ -67,7 +67,7 @@ pub trait DataProvider {
 #[derive(Clone,Debug)]
 pub struct FileToUpload<DataProvider> {
     pub name : String,
-    pub size : usize,
+    pub size : u64,
     pub data : DataProvider
 }
 
@@ -80,7 +80,7 @@ pub struct FileUploadProcess<DataProvider> {
     json_connection : Rc<language_server::Connection>,
     file            : FileToUpload<DataProvider>,
     remote_path     : Path,
-    bytes_uploaded  : usize,
+    bytes_uploaded  : u64,
     checksum        : sha3::Sha3_224,
 }
 
@@ -106,11 +106,12 @@ impl<DP:DataProvider> FileUploadProcess<DP> {
     pub async fn upload_chunk(&mut self) -> FallibleResult<bool> {
         match self.file.data.next_chunk().await {
             Ok(Some(data)) => {
-                info!(self.logger, "Received chunk of {self.file.name} of size {data.len()}");
-                trace!(self.logger, "Data: {data:?} uploading to {self.remote_path:?}");
-                self.bin_connection.write_file(&self.remote_path,&data).await?; // TODO replace with write bytes.
+                debug!(self.logger, "Received chunk of {self.file.name} of size {data.len()} \
+                    uploading to {self.remote_path:?}: {data:?}");
+                let offset       = self.bytes_uploaded;
+                self.bin_connection.write_bytes(&self.remote_path,offset,false,&data).await?;
                 self.checksum.input(&data);
-                self.bytes_uploaded += data.len();
+                self.bytes_uploaded += data.len() as u64;
                 Ok(false)
             },
             Ok(None) => {
@@ -167,12 +168,13 @@ impl NodeFromDroppedFileHandler {
     /// global executor. The node's metadata will be updated with the uploading progress and
     /// error messages if any.
     pub fn create_node_and_start_uploading
-    (self, file:FileToUpload<impl DataProvider + 'static>, position:Position) -> FallibleResult {
+    (&self, file:FileToUpload<impl DataProvider + 'static>, position:Position) -> FallibleResult {
         let node = self.graph.add_node(Self::new_node_info(&file,position))?;
+        let this = self.clone_ref();
         executor::global::spawn(async move {
-            if let Err(err) = self.upload_file(node,file).await {
-                error!(self.logger, "Error while uploading file: {err}");
-                self.update_metadata(node, |md| md.error = Some(err.to_string()));
+            if let Err(err) = this.upload_file(node,file).await {
+                error!(this.logger, "Error while uploading file: {err}");
+                this.update_metadata(node, |md| md.error = Some(err.to_string()));
             }
         });
         Ok(())
@@ -208,7 +210,7 @@ impl NodeFromDroppedFileHandler {
         self.ensure_data_directory_exists().await?;
         let remote_name = self.establish_remote_file_name(&file.name).await?;
         self.update_metadata(node, |md| md.remote_name = Some(remote_name.clone()));
-        self.graph.set_expression(node,Self::uploading_node_expression(&remote_name))?;
+        self.update_expression(node,Self::uploading_node_expression(&remote_name))?;
         let remote_path     = self.data_path().append_im(&remote_name);
         let bin_connection  = self.project.binary_rpc();
         let json_connection = self.project.json_rpc();
@@ -218,7 +220,7 @@ impl NodeFromDroppedFileHandler {
         while process.upload_chunk().await? {
             self.update_metadata(node, |md| md.bytes_uploaded = process.bytes_uploaded);
         }
-        self.graph.set_expression(node,Self::uploaded_node_expression(&remote_name))?;
+        self.update_expression(node,Self::uploaded_node_expression(&remote_name))?;
         if let Err(err) = self.graph.module.with_node_metadata(node, Box::new(|md| md.uploading_file = None)) {
             warning!(self.logger, "Cannot remove uploading metadata: {err}");
         }
@@ -226,11 +228,14 @@ impl NodeFromDroppedFileHandler {
     }
 
     fn update_metadata(&self, node:ast::Id, f:impl FnOnce(&mut UploadingFile)) {
+        //TODO[ao] see the TODO comment in update_expression.
+        let _tr = self.undo_redo_repository().open_ignored_transaction("Upload Metadata Update");
         let update_md = Box::new(|md:&mut NodeMetadata| {
             if let Some(uploading_md) = &mut md.uploading_file {
                 f(uploading_md)
             } else {
-                warning!(self.logger, "Cannot update upload progress: Metadata are missing");
+                warning!(self.logger, "Cannot update upload progress on {node:?}: Metadata are \
+                    missing.");
             }
         });
         if let Err(err) = self.graph.module.with_node_metadata(node,update_md) {
@@ -238,15 +243,24 @@ impl NodeFromDroppedFileHandler {
         }
     }
 
+    fn update_expression(&self, node:ast::Id, expression:String) -> FallibleResult {
+        //TODO[ao]: Despite ignoring transaction, this will still not play well with undo-redo.
+        //    Because UR keeps the whole AST in its stack, the transactions created during uploading
+        //    process will keep trail of old metadata and expressions.
+        //    Tracked in https://github.com/enso-org/ide/issues/1623
+        let _tr = self.undo_redo_repository().open_transaction("Update Uploading Node's Expression");
+        self.graph.set_expression(node,expression)
+    }
+
     async fn establish_remote_file_name(&self, original_name:&str) -> FallibleResult<String> {
         let list_response     = self.project.json_rpc().client.file_list(&self.data_path()).await?;
         let files_list        = list_response.paths.into_iter().map(|f| f.take_name());
         let files_in_data_dir = files_list.collect::<HashSet<String>>();
         let extension_sep     = original_name.rfind('.');
-        let name_core         = extension_sep.map_or(original_name, |i| &original_name[0..i]);
+        let name_stem         = extension_sep.map_or(original_name, |i| &original_name[0..i]);
         let name_ext          = extension_sep.map_or("", |i| &original_name[i..]);
         let first_candidate   = std::iter::once(original_name.to_owned());
-        let next_candidates   = (1..).map(|num| iformat!("{name_core}_{num}{name_ext}"));
+        let next_candidates   = (1..).map(|num| iformat!("{name_stem}_{num}{name_ext}"));
         let mut candidates    = first_candidate.chain(next_candidates);
         Ok(candidates.find(|name| !files_in_data_dir.contains(name)).unwrap())
     }
@@ -268,7 +282,7 @@ impl NodeFromDroppedFileHandler {
         match dir_info {
             Ok(info) => Ok(matches!(info.attributes.kind, FileSystemObject::Directory {..})),
             Err(RpcError::RemoteError(err))
-                if err.code == FILE_NOT_FOUND_CODE || err.code == CONTENT_ROOT_NOT_FOUND_CODE =>
+                if err.code == code::FILE_NOT_FOUND || err.code == code::CONTENT_ROOT_NOT_FOUND =>
                 Ok(false),
             Err(other_error) => Err(other_error.into())
         }
@@ -285,6 +299,10 @@ impl NodeFromDroppedFileHandler {
     fn data_path(&self) -> Path {
         Path::new(self.project.content_root_id(),&[DATA_DIR_NAME])
     }
+}
+
+impl undo_redo::Aware for NodeFromDroppedFileHandler {
+    fn undo_redo_repository(&self) -> Rc<Repository> { self.graph.undo_redo_repository() }
 }
 
 
@@ -359,14 +377,16 @@ mod test {
         fn setup_uploading_expectations
         (&self, json_client:&language_server::MockClient, binary_client:&mut binary::MockClient) {
             let mut write_seq = Sequence::new();
+            let mut offset    = 0;
             for chunk in self.chunks.iter().cloned() {
                 let path = self.path.clone();
                 DEBUG!("Setting expectation {path:?} {chunk:?}");
-                binary_client.expect_write_file()
-                    .withf(move |p,ch| *p == path && ch == chunk)
+                binary_client.expect_write_bytes()
+                    .withf(move |p,off,ow,ch| *p == path && ch == chunk && off == offset && !ow)
                     .times(1)
                     .in_sequence(&mut write_seq)
                     .returning(|_,_| futures::future::ready(Ok(())).boxed_local());
+                offset += chunk.len() as u64;
             };
             let checksum = self.checksum.clone();
             json_client.expect.file_checksum(enclose!((self.path => path) move |p| {

@@ -435,9 +435,11 @@ pub struct UploadingFile {
     pub name:String,
     /// The file's destination name. May differ from original name due to conflict with files
     /// already present on the remote.
-    pub remote_name    : Option<String>,
-    pub size           : usize,
-    pub bytes_uploaded : usize,
+    pub remote_name : Option<String>,
+    pub size        : u64,
+    /// The number of bytes already uploaded. It _can_ exceed the `size` value, because the file
+    /// may change during upload.
+    pub bytes_uploaded : u64,
     pub error          : Option<String>,
 }
 
