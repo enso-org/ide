@@ -108,7 +108,7 @@ impl<DP:DataProvider> FileUploadProcess<DP> {
             Ok(Some(data)) => {
                 debug!(self.logger, "Received chunk of {self.file.name} of size {data.len()} \
                     uploading to {self.remote_path:?}: {data:?}");
-                let offset       = self.bytes_uploaded;
+                let offset = self.bytes_uploaded;
                 self.bin_connection.write_bytes(&self.remote_path,offset,false,&data).await?;
                 self.checksum.input(&data);
                 self.bytes_uploaded += data.len() as u64;
@@ -217,7 +217,7 @@ impl NodeFromDroppedFileHandler {
         let mut process     = FileUploadProcess::new
             (&self.logger,file,bin_connection,json_connection,remote_path);
 
-        while process.upload_chunk().await? {
+        while !process.upload_chunk().await? {
             self.update_metadata(node, |md| md.bytes_uploaded = process.bytes_uploaded);
         }
         self.update_expression(node,Self::uploaded_node_expression(&remote_name))?;
