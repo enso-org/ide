@@ -386,9 +386,9 @@ mod test {
         fn file_to_upload_async(&self) -> (FileToUpload<TestAsyncProvider>,TestAsyncProviderSink) {
             let (sender,receiver) = futures::channel::mpsc::channel(5);
             let file_to_upload    = FileToUpload {
-                name: self.file_name.clone(),
-                size: self.file_size,
-                data: receiver
+                name : self.file_name.clone(),
+                size : self.file_size,
+                data : receiver
             };
             (file_to_upload,sender)
         }
