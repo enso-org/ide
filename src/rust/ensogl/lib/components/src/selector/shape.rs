@@ -24,7 +24,8 @@ struct Background {
 }
 
 impl Background {
-    fn new(corner_left:&Var<f32>, corner_right:&Var<f32>, style:&StyleWatch) -> Background {
+    fn new(corner_left:&Var<f32>, corner_right:&Var<f32>, style:&StyleWatch)
+    -> Background {
         let sprite_width  : Var<Pixels> = "input_size.x".into();
         let sprite_height : Var<Pixels> = "input_size.y".into();
 
@@ -50,10 +51,10 @@ pub mod background {
     use super::*;
 
     ensogl_core::define_shape_system! {
-        (style:Style,corner_left:f32,corner_right:f32) {
+        (style:Style,corner_left:f32,corner_right:f32,color:Vector4,show_shadow:f32) {
             let background = Background::new(&corner_left,&corner_right,style);
-            let color      = style.get_color(theme::component::slider::background);
-            let shadow     = shadow::from_shape(background.shape.clone(),style);
+            let shadow     = shadow::from_shape_with_alpha(background.shape.clone(),
+                             &show_shadow,style);
             let background = background.shape.fill(color);
             (shadow + background).into()
         }
@@ -97,14 +98,17 @@ pub mod track {
     use super::*;
 
     ensogl_core::define_shape_system! {
-        (style:Style,left:f32,right:f32,corner_left:f32,corner_right:f32,track_color:Vector4) {
-            let background = Background::new(&corner_left,&corner_right,style);
-            let width      = background.width;
-            let height     = background.height;
+        (style:Style,left:f32,right:f32,corner_left:f32,corner_right:f32,corner_inner:f32,
+         track_color:Vector4) {
+            let background    = Background::new(&corner_left,&corner_right,style);
+            let width         = background.width;
+            let height        = background.height;
+            let corner_radius = corner_inner * &height/2.0;
+
 
             let track_width = (&right - &left) * &width;
             let track_start = left * &width;
-            let track       = Rect((&track_width,&height));
+            let track       = Rect((&track_width,&height)).corners_radius(corner_radius);
             let track       = track.translate_x(&track_start + (track_width / 2.0) );
             let track       = track.translate_x(-width/2.0);
             let track       = track.intersection(&background.shape);
@@ -136,7 +140,7 @@ impl OverflowShape {
         let sprite_height : Var<Pixels> = "input_size.y".into();
 
         let width           = &sprite_width - shadow::size(style).px();
-        let height          =  &sprite_height - shadow::size(style).px();
+        let height          = &sprite_height - shadow::size(style).px();
         let overflow_color  = style.get_color(theme::component::slider::overflow::color);
         let shape           = Triangle(&sprite_height/6.0,&sprite_height/6.0);
         let shape           = shape.fill(&overflow_color);

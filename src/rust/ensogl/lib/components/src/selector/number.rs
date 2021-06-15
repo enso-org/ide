@@ -49,6 +49,8 @@ impl component::Frp<Model> for Frp {
         let scene   = app.display.scene();
         let mouse   = &scene.mouse.frp;
 
+        model.show_background(true);
+
         let base_frp = super::Frp::new(model,style,network,frp.resize.clone().into(),mouse);
 
         let track_shape_system = scene.shapes.shape_system(PhantomData::<track::Shape>);

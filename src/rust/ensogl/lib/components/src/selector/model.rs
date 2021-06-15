@@ -64,6 +64,11 @@ pub struct Model {
     /// Shape root that all other elements are parented to. Should be used to place the shapes as
     /// a group.
     pub root               : display::object::Instance,
+
+    background_color                  : Rc<RefCell<color::Rgba>>,
+    track_color                       : Rc<RefCell<color::Rgba>>,
+    background_left_corner_roundness  : Rc<Cell<bool>>,
+    background_right_corner_roundness : Rc<Cell<bool>>,
 }
 
 impl component::Model for Model {
@@ -81,6 +86,10 @@ impl component::Model for Model {
         let track_handle_right = io_rect::View::new(&logger);
         let left_overflow      = left_overflow::View::new(&logger);
         let right_overflow     = right_overflow::View::new(&logger);
+        let background_color                  = default();
+        let track_color                       = default();
+        let background_left_corner_roundness  = default();
+        let background_right_corner_roundness = default();
 
         let app   = app.clone_ref();
         let scene = app.display.scene();
@@ -108,7 +117,8 @@ impl component::Model for Model {
         caption_center.add_to_scene_layer(&scene.layers.label);
 
         Self{background,track,track_handle_left,track_handle_right,left_overflow,right_overflow,
-             label,label_left,label_right,caption_left,caption_center,root}
+             label,label_left,label_right,caption_left,caption_center,root,background_color,
+             track_color,background_left_corner_roundness,background_right_corner_roundness}
     }
 }
 
@@ -169,6 +179,11 @@ impl Model {
         self.track.right.set(value);
     }
 
+    pub fn set_background_color(&self, color:color::Rgba) {
+        self.background_color.as_ref().replace(color);
+        self.background.color.set(color.into());
+    }
+
     /// Set the track to cover the area indicated by the `value` Bounds that are passed. The value
     /// indicates location aon the background in the range 0..1 (were 0 is the left edge and 1 is
     /// the right edge). To do the proper layout of the track handles this method also needs to be
@@ -225,17 +240,40 @@ impl Model {
     pub fn left_corner_round(&self,value:bool) {
         let corner_roundness = if value { 1.0 } else { 0.0 };
         self.background.corner_left.set(corner_roundness);
-        self.track.corner_left.set(corner_roundness)
+        self.track.corner_left.set(corner_roundness);
+        self.background_left_corner_roundness.set(value);
     }
 
     pub fn right_corner_round(&self,value:bool) {
         let corner_roundness = if value { 1.0 } else { 0.0 };
         self.background.corner_right.set(corner_roundness);
-        self.track.corner_right.set(corner_roundness)
+        self.track.corner_right.set(corner_roundness);
+        self.background_right_corner_roundness.set(value);
     }
 
     pub fn set_track_color(&self, color:color::Rgba) {
         self.track.track_color.set(color.into());
+    }
+
+    pub fn set_track_corner_round(&self, value:bool) {
+        let corner_roundness = if value { 1.0 } else { 0.0 };
+        self.track.corner_inner.set(corner_roundness)
+    }
+
+    pub fn show_background(&self, value:bool) {
+        if value {
+            self.background.show_shadow.set(1.0);
+            self.background.color.set(self.background_color.as_ref().clone().into_inner().into());
+            let left_corner_roundness  = if self.background_left_corner_roundness.get() { 1.0 } else { 0.0 };
+            let right_corner_roundness = if self.background_right_corner_roundness.get() { 1.0 } else { 0.0 };
+            self.track.corner_right.set(right_corner_roundness);
+            self.track.corner_left.set(left_corner_roundness);
+        } else {
+            self.background.color.set(HOVER_COLOR.into());
+            self.background.show_shadow.set(0.0);
+            self.track.corner_right.set(0.0);
+            self.track.corner_left.set(0.0);
+        }
     }
 }
 

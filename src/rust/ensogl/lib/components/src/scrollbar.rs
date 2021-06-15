@@ -18,6 +18,15 @@ use crate::selector::bounds::normalise_value;
 use crate::selector::bounds::should_clamp_with_overflow;
 use crate::selector::model::Model;
 use crate::selector;
+use ensogl_core::display::object::ObjectOps;
+
+
+// =================
+// === Constants ===
+// =================
+
+/// Amount the scrollbar moves ona single click, relative to the viewport width.
+const CLICK_JUMP_PERCENTAGE: f32 = 0.80;
 
 
 
@@ -32,13 +41,19 @@ ensogl_core::define_endpoints! {
         set_track(Bounds),
         set_overall_bounds(Bounds),
 
-        set_left_corner_round(bool),
-        set_right_corner_round(bool),
         set_track_color(color::Rgba),
     }
     Output {
         track(Bounds)
     }
+}
+
+/// Returns the result of the projection of the given `vector` to the x-axis of the coordinate
+/// system of the given `shape`. For example, if the vector is parallel to the x-axis of the shape
+/// coordinate system, it is returned unchanged, if it is perpendicular the zero vector is returned.
+fn vector_aligned_with_object(vector:&Vector2,object:impl ObjectOps) -> Vector2 {
+    let object_rotation =  Rotation2::new(-object.rotation().z);
+    object_rotation * vector
 }
 
 impl component::Frp<Model> for Frp {
@@ -53,13 +68,15 @@ impl component::Frp<Model> for Frp {
         let base_frp = selector::Frp::new(model, style, network, frp.resize.clone().into(), mouse);
 
         model.use_track_handles(false);
+        model.set_track_corner_round(true);
+        model.show_background(false);
         model.show_left_overflow(false);
-        model.show_right_overflow(false);let style_track_color = style.get_color(theme::component::slider::track::color);
+        model.show_right_overflow(false);
+
+        let style_track_color = style.get_color(theme::component::slider::track::color);
 
         frp::extend! { network
             // Simple Inputs
-            eval frp.set_left_corner_round ((value) model.left_corner_round(*value));
-            eval frp.set_right_corner_round((value) model.right_corner_round(*value));
             eval frp.set_track_color((value) model.set_track_color(*value));
 
             // API  - `set_track`
@@ -73,27 +90,27 @@ impl component::Frp<Model> for Frp {
                  Bounds::new(normalise_value(&(track.start,*overall)),normalise_value(&(track.end,*overall)))
             });
             normalised_track_center <- normalised_track_bounds.map(|bounds| bounds.center());
+            normalised_track_width  <- normalised_track_bounds.map(|bounds| bounds.width());
 
             // Slider Updates
             update_slider <- all(&normalised_track_bounds,&frp.resize);
             eval update_slider(((value,size)) model.set_background_range(*value,*size));
 
             // Mouse IO - Clicking
-            click_delta <- base_frp.background_click.map2(&normalised_track_center,
-                f!([model](click_value,current_value) {
-                    let rotation  =  Rotation2::new(-model.rotation().z);
-                    let rotated   = rotation * click_value;
-                    let direction = if rotated.x > *current_value { 1.0 } else { -1.0 };
-                    const SCALE: f32 = 0.05;
-                    direction * SCALE
+            click_delta <- base_frp.background_click.map3(&normalised_track_center,&normalised_track_width,
+                f!([model](click_value,current_value,track_width) {
+                    let shape_aligned = vector_aligned_with_object(click_value,&model);
+                    let direction = if shape_aligned.x > *current_value { 1.0 } else { -1.0 };
+                    direction * track_width * CLICK_JUMP_PERCENTAGE
             }));
             click_animation <- click_delta.constant(true);
 
             // Mouse IO - Dragging
             drag_movement <- mouse.translation.gate(&base_frp.is_dragging_any);
-            drag_delta    <- drag_movement.map2(&base_frp.track_max_width, |delta,width|
-                (delta.x + delta.y) / width
-            );
+            drag_delta    <- drag_movement.map2(&base_frp.track_max_width, f!([model](delta,width) {
+                let shape_aligned = vector_aligned_with_object(delta,&model);
+                (shape_aligned.x) / width
+            }));
             drag_delta     <- drag_delta.gate(&base_frp.is_dragging_track);
             drag_animation <- drag_delta.constant(false);
 
@@ -130,8 +147,6 @@ impl component::Frp<Model> for Frp {
         // Init defaults
         frp.set_overall_bounds(Bounds::new(0.0,1.0));
         frp.set_track(Bounds::new(0.25,0.55));
-        frp.set_left_corner_round(true);
-        frp.set_right_corner_round(true);
         frp.set_track_color(style_track_color.value());
     }
 }
