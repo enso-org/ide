@@ -1772,6 +1772,7 @@ impl SuggestionsProviderForView {
             suggestion_database::entry::Kind::Local    => "Local variable",
             suggestion_database::entry::Kind::Method   => "Method",
         };
+        let code = suggestion.code_to_insert(None,true).code;
         format!("{} `{}`\n\nNo documentation available", title,code)
     }
 }
