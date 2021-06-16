@@ -145,6 +145,8 @@ impl<DP:DataProvider> FileUploadProcess<DP> {
 // === NodeFromDroppedFileHandler ===
 // ==================================
 
+// === UploadingNodeExpression ===
+
 /// The handler for nodes created by dragging and dropping files into IDE.
 ///
 /// It is responsible for creating node, uploading file and updating the node's metadata.
@@ -292,7 +294,7 @@ impl NodeFromDroppedFileHandler {
         format!("File_Uploading.file_uploading Enso_Project.data/\"{}\"",name)
     }
 
-    fn uploaded_node_expression(name:&str) -> String {
+    pub fn uploaded_node_expression(name:&str) -> String {
         format!("File.read Enso_Project.data/\"{}\"",name)
     }
 

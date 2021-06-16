@@ -37,6 +37,7 @@ use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
 use utils::iter::split_by_predicate;
 use futures::future::LocalBoxFuture;
+use span_tree::traits::*;
 
 
 
@@ -654,13 +655,7 @@ impl Model {
 
     /// Update the expression of the node and all related properties e.g., types, ports).
     fn refresh_node_expression(&self, id:graph_editor::NodeId, node:&controller::graph::Node, trees:NodeTrees) {
-        let code_and_trees = graph_editor::component::node::Expression {
-            pattern             : node.info.pattern().map(|t|t.repr()),
-            code                : node.info.expression().repr(),
-            whole_expression_id : node.info.expression().id ,
-            input_span_tree     : trees.inputs,
-            output_span_tree    : trees.outputs.unwrap_or_else(default)
-        };
+        let code_and_trees = Self::displayed_node_expression(node,trees);
         let expression_changed =
             !self.expression_views.borrow().get(&id).contains(&&code_and_trees);
         if expression_changed {
@@ -677,6 +672,31 @@ impl Model {
         for expression_part in node.info.expression().iter_recursive() {
             if let Some(id) = expression_part.id {
                 self.refresh_computed_info(id,expression_changed);
+            }
+        }
+    }
+
+    fn displayed_node_expression
+    (node:&controller::graph::Node,trees:NodeTrees) -> graph_editor::component::node::Expression {
+        if let Some(md) = node.metadata.as_ref().and_then(|md| md.uploading_file.as_ref()) {
+            let file_name = md.remote_name.as_ref().unwrap_or(&md.name);
+            let code      = controller::upload::NodeFromDroppedFileHandler::uploaded_node_expression(file_name);
+            let input_st  = code.generate_tree(&span_tree::generate::context::Empty).unwrap_or_default();
+            DEBUG!("{file_name:?} {code:?} {input_st:?}");
+            graph_editor::component::node::Expression {
+                pattern             : node.info.pattern().map(|t|t.repr()),
+                code                : code,
+                whole_expression_id : node.info.expression().id ,
+                input_span_tree     : input_st,
+                output_span_tree    : default(),
+            }
+        } else {
+            graph_editor::component::node::Expression {
+                pattern             : node.info.pattern().map(|t|t.repr()),
+                code                : node.info.expression().repr(),
+                whole_expression_id : node.info.expression().id ,
+                input_span_tree     : trees.inputs,
+                output_span_tree    : trees.outputs.unwrap_or_else(default)
             }
         }
     }
