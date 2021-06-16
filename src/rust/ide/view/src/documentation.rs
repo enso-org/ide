@@ -140,9 +140,13 @@ impl Model {
     fn gen_html_from(string:&str, input_type: InputFormat) -> FallibleResult<String> {
         if string.is_empty() {
             Ok(PLACEHOLDER_STR.into())
+        } else if string.contains("<html>") {
+            let output = string.to_string();
+            Ok( if output.is_empty() { PLACEHOLDER_STR.into() } else { output } )
         } else {
             let parser    = parser::DocParser::new()?;
             let processed = string.to_string();
+
             let output    = match input_type {
                 InputFormat::Ast       => parser.generate_html_docs(processed),
                 InputFormat::Docstring => parser.generate_html_doc_pure(processed),
