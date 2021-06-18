@@ -20,6 +20,7 @@ use crate::model::undo_redo;
 use crate::model::undo_redo::Repository;
 
 
+
 // ==============
 // === Errors ===
 // ==============
@@ -124,6 +125,10 @@ impl<DP:DataProvider> FileUploadProcess<DP> {
                 Ok(UploadingState::NotFinished)
             },
             Ok(None) => {
+                // If we haven't got any content, we need to create the file.
+                if self.bytes_uploaded == 0 {
+                    self.bin_connection.write_file(&self.remote_path,&[]).await?;
+                }
                 if self.bytes_uploaded != self.file.size {
                     error!(self.logger, "The promised file size ({self.file.size}) and uploaded \
                         data length ({self.bytes_uploaded}) do not match. Leaving as much data as \
