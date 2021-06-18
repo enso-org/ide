@@ -327,7 +327,7 @@ impl Controller {
             not_edit_mode      <- edit_mode.not();
             should_area_select <- not_edit_mode && enable_area_selection;
 
-            drag_start  <- mouse.down_primary.gate(&should_area_select);
+            drag_start  <- touch.background.is_down.on_true().gate(&should_area_select);
             is_dragging <- bool(&mouse.up_primary,&drag_start);
             drag_end    <- is_dragging.on_false();
             drag_start  <- is_dragging.on_true();
@@ -374,6 +374,7 @@ impl Controller {
             keep_selection     <- selection_mode.map(|t| *t != Mode::Normal);
             deselect_on_select <- drag_start.gate_not(&keep_selection);
             eval_ deselect_on_select ( nodes.deselect_all() );
+            trace deselect_on_select;
 
             cursor_selection_nodes.insert <+ node_info;
             cursor_selection_nodes.remove_difference_with_vec <+ nodes_in_bb;
