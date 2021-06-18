@@ -34,6 +34,7 @@ pub mod easing_animator;
 pub mod glyph_system;
 pub mod list_view;
 pub mod mouse_events;
+pub mod progress;
 pub mod shape_system;
 pub mod slider;
 pub mod sprite_system;

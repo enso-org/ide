@@ -478,6 +478,7 @@ ensogl::define_endpoints! {
         collapse_nodes               ((Vec<NodeId>,NodeId)),
         set_node_expression          ((NodeId,node::Expression)),
         set_node_position            ((NodeId,Vector2)),
+        set_node_uploading_status    ((NodeId,Option<node::UploadingStatus>)),
         set_expression_usage_type    ((NodeId,ast::Id,Option<Type>)),
         set_method_pointer           ((ast::Id,Option<MethodPointer>)),
         cycle_visualization          (NodeId),
@@ -1734,6 +1735,13 @@ impl GraphEditorModel {
         }
     }
 
+    fn set_node_uploading_status(&self, node_id:impl Into<NodeId>, status:&Option<node::UploadingStatus>) {
+        let node_id = node_id.into();
+        if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
+            node.set_uploading_status(status);
+        }
+    }
+
     fn disable_grid_snapping_for(&self, node_ids:&[NodeId]) {
         self.nodes.recompute_grid(node_ids.iter().cloned().collect());
     }
@@ -2704,6 +2712,13 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     )).unwrap();
     eval edges_to_refresh ((edge) model.refresh_edge_position(*edge));
 
+    }
+
+
+    // === Set Uploading Status ===
+
+    frp::extend! { network
+        eval inputs.set_node_uploading_status (((id,status)) model.set_node_uploading_status(id,status));
     }
 
 

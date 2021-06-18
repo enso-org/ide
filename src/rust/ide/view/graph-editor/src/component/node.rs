@@ -248,6 +248,12 @@ impl Default for Crumbs {
 // === Node ===
 // ============
 
+#[derive(Copy,Clone,Debug,Default)]
+pub struct UploadingStatus {
+    pub bytes_uploaded : u64,
+    pub file_size      : u64,
+}
+
 ensogl::define_endpoints! {
     Input {
         select                (),
@@ -272,7 +278,8 @@ ensogl::define_endpoints! {
         set_profiling_max_global_duration (f32),
         set_profiling_status              (profiling::Status),
         /// Indicate whether on hover the quick action icons should appear.
-        show_quick_action_bar_on_hover    (bool)
+        show_quick_action_bar_on_hover    (bool),
+        set_uploading_status              (Option<UploadingStatus>),
     }
     Output {
         /// Press event. Emitted when user clicks on non-active part of the node, like its

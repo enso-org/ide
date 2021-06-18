@@ -368,6 +368,7 @@ define_shape_data_operator!      { Div div (/)         where [A:RefInto<Glsl>, B
 define_shape_data_prim_operator! { Div div (/) for f32 where [A:RefInto<Glsl>] }
 define_shape_data_prim_operator! { Mul mul (*) for f32 where [A:RefInto<Glsl>] }
 define_shape_data_prim_operator! { Sub sub (-) for f32 where [A:RefInto<Glsl>] }
+define_shape_data_prim_operator! { Add add (+) for f32 where [A:RefInto<Glsl>] }
 define_shape_data_prim_operator! { Rem rem (%) for f32 where [A:RefInto<Glsl>] }
 
 impl<T> Neg for Var<T>

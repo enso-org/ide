@@ -586,6 +586,7 @@ impl Model {
                    if update_position {
                        self.refresh_node_position(displayed,node_info)
                    };
+                   self.refresh_uploading_status(displayed,node_info);
                    self.refresh_node_expression(displayed,node_info,node_trees);
                 },
                 None => self.create_node_view(node_info,node_trees,*default_pos),
@@ -642,7 +643,17 @@ impl Model {
     fn refresh_node_view
     (&self, id:graph_editor::NodeId, node:&controller::graph::Node, trees:NodeTrees) {
         self.refresh_node_position(id,node);
-        self.refresh_node_expression(id, node, trees)
+        self.refresh_uploading_status(id,node);
+        self.refresh_node_expression(id,node,trees)
+    }
+
+    fn refresh_uploading_status(&self, id:graph_editor::NodeId, node:&controller::graph::Node) {
+        let metadata = node.metadata.as_ref().and_then(|md| md.uploading_file.as_ref());
+        let status   = metadata.map(|md| graph_editor::component::node::UploadingStatus {
+            bytes_uploaded : md.bytes_uploaded,
+            file_size      : md.size,
+        });
+        self.view.graph().set_node_uploading_status((id,status));
     }
 
     /// Update the position of the node based on its current metadata.
@@ -728,8 +739,9 @@ impl Model {
             });
             self.set_method_pointer(id,method_pointer);
             if self.node_views.borrow().get_by_left(&id).contains(&&node_id) {
-                let set_error_result = self.set_error(node_id,info.map(|info| &info.payload));
-                if let Err(error) = set_error_result {
+                let metadata = self.graph.graph().module.node_metadata(id).unwrap_or_default();
+                let result   = self.set_error(node_id,info.map(|info| &info.payload),&metadata);
+                if let Err(error) = result {
                     error!(self.logger, "Error when setting error on node: {error}");
                 }
             }
@@ -761,9 +773,15 @@ impl Model {
 
     /// Mark node as erroneous if given payload contains an error.
     fn set_error
-    (&self, node_id:graph_editor::NodeId, error:Option<&ExpressionUpdatePayload>)
+    ( &self
+    , node_id  : graph_editor::NodeId
+    , error    : Option<&ExpressionUpdatePayload>
+    , metadata : &model::module::NodeMetadata)
     -> FallibleResult {
-        let error = self.convert_payload_to_error_view(error,node_id);
+        let is_uploading = metadata.uploading_file.is_some();
+        let error        = is_uploading.and_option_from(||
+            self.convert_payload_to_error_view(error,node_id)
+        );
         self.view.graph().set_node_error_status(node_id,error.clone());
         if error.is_some() && !self.error_visualizations.contains_key(&node_id) {
             use graph_editor::builtin::visualization::native::error;
