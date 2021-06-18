@@ -95,7 +95,7 @@ impl Path {
         }
     }
 
-    /// Constructs a new path from given root ID and segments.
+    /// Constructs a new path containing a content root only.
     pub fn new_root(root_id:Uuid) -> Path {
         let segments = default();
         Path {root_id,segments}

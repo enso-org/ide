@@ -84,6 +84,12 @@ pub struct FileUploadProcess<DataProvider> {
     checksum        : sha3::Sha3_224,
 }
 
+/// The information if the uploading is finished or not, returned from
+/// [`FileUploadProcess::upload_chunk`].
+#[allow(missing_docs)]
+#[derive(Copy,Clone,Debug,Eq,PartialEq)]
+pub enum UploadingState { Finished,NotFinished }
+
 impl<DP:DataProvider> FileUploadProcess<DP> {
     /// Constructor.
     pub fn new
@@ -99,11 +105,14 @@ impl<DP:DataProvider> FileUploadProcess<DP> {
         Self {logger,bin_connection,json_connection,file,remote_path,bytes_uploaded,checksum}
     }
 
-    /// Upload next chunk. Returns true if all data has been uploaded.
+    /// Upload next chunk. Returns information if all data has been uploaded.
     ///
     /// After uploading, the checksum of the uploaded file is compared with the file content digest,
     /// and an error is returned if they do not match.
-    pub async fn upload_chunk(&mut self) -> FallibleResult<bool> {
+    ///
+    /// The outcome of this function when uploading is finished (the `upload_chunk` have returned
+    /// [`UploadingState::Finished`] before) is undefined.
+    pub async fn upload_chunk(&mut self) -> FallibleResult<UploadingState> {
         match self.file.data.next_chunk().await {
             Ok(Some(data)) => {
                 debug!(self.logger, "Received chunk of {self.file.name} of size {data.len()} \
@@ -112,7 +121,7 @@ impl<DP:DataProvider> FileUploadProcess<DP> {
                 self.bin_connection.write_bytes(&self.remote_path,offset,false,&data).await?;
                 self.checksum.input(&data);
                 self.bytes_uploaded += data.len() as u64;
-                Ok(false)
+                Ok(UploadingState::NotFinished)
             },
             Ok(None) => {
                 if self.bytes_uploaded != self.file.size {
@@ -122,7 +131,7 @@ impl<DP:DataProvider> FileUploadProcess<DP> {
                     self.bytes_uploaded = self.file.size;
                 }
                 self.check_checksum().await?;
-                Ok(true)
+                Ok(UploadingState::Finished)
             }
             Err(err) => Err(err),
         }
@@ -130,7 +139,7 @@ impl<DP:DataProvider> FileUploadProcess<DP> {
 
     async fn check_checksum(&mut self) -> FallibleResult {
         let remote = self.json_connection.file_checksum(&self.remote_path).await?.checksum;
-        let local  = std::mem::take(&mut self.checksum).into();
+        let local  = Into::<Sha3_224>::into(std::mem::take(&mut self.checksum));
         if remote != local {
             Err(ChecksumMismatch {remote,local}.into())
         } else {
@@ -217,7 +226,7 @@ impl NodeFromDroppedFileHandler {
         let mut process     = FileUploadProcess::new
             (&self.logger,file,bin_connection,json_connection,remote_path);
 
-        while !process.upload_chunk().await? {
+        while process.upload_chunk().await? == UploadingState::NotFinished {
             self.update_metadata(node, |md| md.bytes_uploaded = process.bytes_uploaded);
         }
         self.update_expression(node,Self::uploaded_node_expression(&remote_name))?;
@@ -256,7 +265,7 @@ impl NodeFromDroppedFileHandler {
         let list_response     = self.project.json_rpc().client.file_list(&self.data_path()).await?;
         let files_list        = list_response.paths.into_iter().map(|f| f.take_name());
         let files_in_data_dir = files_list.collect::<HashSet<String>>();
-        let extension_sep     = original_name.rfind('.');
+        let extension_sep     = original_name.rfind('.').filter(|i| *i > 0);
         let name_stem         = extension_sep.map_or(original_name, |i| &original_name[0..i]);
         let name_ext          = extension_sep.map_or("", |i| &original_name[i..]);
         let first_candidate   = std::iter::once(original_name.to_owned());
@@ -318,11 +327,13 @@ mod test {
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
     use crate::test::mock;
 
-    use enso_protocol::language_server::{response, FileAttributes};
+    use enso_protocol::language_server::FileAttributes;
+    use enso_protocol::language_server::response;
+    use enso_protocol::types::UTCDateTime;
+    use futures::future;
     use futures::SinkExt;
     use mockall::Sequence;
     use utils::test::traits::*;
-    use enso_protocol::types::UTCDateTime;
 
 
     // === Test Providers ===
@@ -379,14 +390,16 @@ mod test {
             let mut write_seq = Sequence::new();
             let mut offset    = 0;
             for chunk in self.chunks.iter().cloned() {
-                let path = self.path.clone();
+                let path      = self.path.clone();
+                let checksum  = Sha3_224::new(&chunk);
+                let chunk_len = chunk.len();
                 DEBUG!("Setting expectation {path:?} {chunk:?}");
                 binary_client.expect_write_bytes()
-                    .withf(move |p,off,ow,ch| *p == path && ch == chunk && off == offset && !ow)
+                    .withf(move |p,off,ow,ch| *p == path && ch == chunk && *off == offset && !ow)
                     .times(1)
                     .in_sequence(&mut write_seq)
-                    .returning(|_,_| futures::future::ready(Ok(())).boxed_local());
-                offset += chunk.len() as u64;
+                    .returning(move |_,_,_,_| future::ready(Ok(checksum.clone())).boxed_local());
+                offset += chunk_len as u64;
             };
             let checksum = self.checksum.clone();
             json_client.expect.file_checksum(enclose!((self.path => path) move |p| {
@@ -398,7 +411,7 @@ mod test {
         fn file_to_upload(&self) -> FileToUpload<TestProvider> {
             FileToUpload {
                 name : self.file_name.clone(),
-                size : self.file_size,
+                size : self.file_size as u64,
                 data : Box::new(self.chunks.clone().into_iter())
             }
         }
@@ -407,7 +420,7 @@ mod test {
             let (sender,receiver) = futures::channel::mpsc::channel(5);
             let file_to_upload    = FileToUpload {
                 name : self.file_name.clone(),
-                size : self.file_size,
+                size : self.file_size as u64,
                 data : receiver
             };
             (file_to_upload,sender)
@@ -442,7 +455,7 @@ mod test {
             }
         }
 
-        fn next_chunk_result(&mut self) -> FallibleResult<bool> {
+        fn next_chunk_result(&mut self) -> FallibleResult<UploadingState> {
             let mut future = self.process.upload_chunk().boxed_local();
 
             if let Some(mut sink) = std::mem::take(&mut self.provider_sink) {
@@ -467,9 +480,9 @@ mod test {
         let data     = TestData::new(vec![vec![1,2,3,4,5],vec![3,4,5,6,7,8]]);
         let mut test = UploadingFixture::new(logger,data);
 
-        assert!(!test.next_chunk_result().unwrap());
-        assert!(!test.next_chunk_result().unwrap());
-        assert!(test.next_chunk_result().unwrap());
+        assert_eq!(test.next_chunk_result().unwrap(), UploadingState::NotFinished);
+        assert_eq!(test.next_chunk_result().unwrap(), UploadingState::NotFinished);
+        assert_eq!(test.next_chunk_result().unwrap(), UploadingState::Finished);
     }
 
     #[test]
@@ -479,7 +492,7 @@ mod test {
         data.checksum = Sha3_224::new(&[3,4,5,6,7,8]);
         let mut test  = UploadingFixture::new(logger,data);
 
-        assert!(!test.next_chunk_result().unwrap());
+        assert_eq!(test.next_chunk_result().unwrap(), UploadingState::NotFinished);
         assert!(test.next_chunk_result().is_err());
     }
 
@@ -518,7 +531,7 @@ mod test {
         let mut fixture = mock::Unified::new().fixture_customize(|_,json_rpc,_| {
             json_rpc.expect.file_info(|path| {
                 assert_eq!(*path, data_path());
-                Err(RpcError::new_remote_error(FILE_NOT_FOUND_CODE,"FileNotFound"))
+                Err(RpcError::new_remote_error(code::FILE_NOT_FOUND,"FileNotFound"))
             });
             json_rpc.expect.create_file(|fs_object| {
                 let root_path = Path::new_root(mock::data::ROOT_ID);
@@ -586,6 +599,7 @@ mod test {
                 fixture.executor.run_until_stalled();
                 assert_eq!(fixture.module.ast().repr(), module_code_uploading(&expected_remote_name));
                 fixture.executor.expect_completion(provider_sink.send(Ok(vec![1,2,3,4]))).unwrap();
+                drop(provider_sink);
                 fixture.executor.run_until_stalled();
                 assert_eq!(fixture.module.ast().repr(), module_code_uploaded(&expected_remote_name));
             }
@@ -593,7 +607,8 @@ mod test {
 
         let without_extension = Case::new("test","test_1","test_2");
         let with_extension    = Case::new("text.file.txt","text.file_1.txt","text.file_2.txt");
-        for case in vec![without_extension,with_extension] {case.run()}
+        let starts_with_dot   = Case::new(".gitignore", ".gitignore_1", ".gitignore_2");
+        for case in vec![without_extension,with_extension,starts_with_dot] {case.run()}
     }
 
     fn data_path() -> Path { Path::new(mock::data::ROOT_ID,&[DATA_DIR_NAME]) }
