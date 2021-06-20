@@ -66,7 +66,7 @@ use ensogl::gui::cursor;
 use ensogl::prelude::*;
 use ensogl::system::web;
 use ensogl_theme as theme;
-
+use ast::prelude::FallibleResult;
 
 
 // ===============
@@ -328,7 +328,7 @@ impl<K,V,S> SharedHashMap<K,V,S> {
 // === FrpInputs ===
 // =================
 
-ensogl::define_endpoints! {
+ensogl::define_endpoints! { [TRACE_ALL]
     Input {
         // === General ===
         /// Cancel the operation being currently performed. Often mapped to the escape key.
@@ -485,6 +485,7 @@ ensogl::define_endpoints! {
         set_visualization_data       ((NodeId,visualization::Data)),
         set_error_visualization_data ((NodeId,visualization::Data)),
         enable_visualization         (NodeId),
+        disable_visualization        (NodeId),
 
         /// Remove from visualization registry all non-default visualizations.
         reset_visualization_registry (),
@@ -1242,10 +1243,9 @@ impl GraphEditorModelWithNetwork {
             output.source.on_visualization_select <+ deselected.constant(Switch::Off(node_id));
 
             metadata  <- any(...);
-            metadata <+ node.model.visualization.frp.preprocessor.map(move |preprocessor| {
-                let preprocessor = preprocessor.clone();
-                visualization::Metadata{preprocessor}
-            });
+            metadata <+ node.model.visualization.frp.preprocessor.all_with(
+                &vis_changed,
+                visualization::Metadata::new);
             // Ensure the graph editor knows about internal changes to the visualisation. If the
             // visualisation changes that should indicate that the old one has been disabled and a
             // new one has been enabled.
@@ -1276,7 +1276,8 @@ impl GraphEditorModelWithNetwork {
         }
         node.set_view_mode(self.model.frp.view_mode.value());
         let initial_metadata = visualization::Metadata {
-            preprocessor : node.model.visualization.frp.preprocessor.value()
+            preprocessor     : node.model.visualization.frp.preprocessor.value(),
+            visualization_id : node.model.visualization.frp.visualisation.value().map(|def| def.signature.path),
         };
         metadata.emit(initial_metadata);
         self.nodes.insert(node_id,node);
@@ -1507,6 +1508,24 @@ impl GraphEditorModel {
         if let Some(node) = self.nodes.get_cloned_ref(&node_id) {
             node.model.visualization.frp.disable_fullscreen.emit(());
         }
+    }
+
+    pub fn enabled_visualization(&self, node_id:impl Into<NodeId>) -> Option<visualization::Metadata> {
+        let frp = &self.nodes.all.get_cloned_ref(&node_id.into())?.model.visualization.frp;
+        frp.visible.value().then(|| {
+            visualization::Metadata::new(&frp.preprocessor.value(), &frp.visualisation.value())
+        })
+
+
+
+        // preprocessor   (PreprocessorConfiguration),
+        // visualisation  (Option<visualization::Definition>),
+        // if !frp.visible.value() { return None }
+
+
+        //frp.visible.value().then(|| frp.visualisation.value()).flatten().map(|def:visualization::Definition| def.signature.path.clone_ref())
+
+        // visualization_frp.visible.value().then(|| visualization_frp.visualisation.value()).flatten().map(|def:visualization::Definition| def.signature.path.clone_ref())
     }
 
     /// Warning! This function does not remove connected edges. It needs to be handled by the
@@ -2878,6 +2897,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     eval viz_enable          ((id) model.enable_visualization(id));
     eval viz_disable         ((id) model.disable_visualization(id));
+    eval inputs.disable_visualization         ((id) model.disable_visualization(id));
     eval viz_preview_disable ((id) model.disable_visualization(id));
     eval viz_fullscreen_on   ((id) model.enable_visualization_fullscreen(id));
 

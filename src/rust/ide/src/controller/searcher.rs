@@ -724,8 +724,9 @@ impl Searcher {
             Mode::NewNode {position} => {
                 self.add_required_imports()?;
                 let (expression,intended_method) = expr_and_method();
+                let metadata                     = NodeMetadata {position,intended_method,..default()};
                 let mut new_node                 = NewNodeInfo::new_pushed_back(expression);
-                new_node.metadata                = Some(NodeMetadata {position,intended_method});
+                new_node.metadata                = Some(metadata);
                 new_node.introduce_pattern       = ASSIGN_NAMES_FOR_NODES;
                 let graph         = self.graph.graph();
                 if let Some(this) = self.this_arg.deref().as_ref() {
@@ -772,7 +773,7 @@ impl Searcher {
         let mut graph_info   = GraphInfo::from_definition(graph_definition.item);
         graph_info.add_node(node.ast().clone_ref(), LocationHint::End)?;
         module.ast          = module.ast.set_traversing(&graph_definition.crumbs, graph_info.ast())?;
-        let intended_method = None;
+        let metadata        = NodeMetadata {position,..default()};
 
 
         // === Add imports ===
@@ -781,7 +782,7 @@ impl Searcher {
             module.add_module_import(&here,self.ide.parser(),&import);
         }
         graph.module.update_ast(module.ast)?;
-        graph.module.set_node_metadata(node.id(),NodeMetadata {position,intended_method})?;
+        graph.module.set_node_metadata(node.id(),metadata)?;
 
         Ok(node.id())
     }

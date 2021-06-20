@@ -336,6 +336,12 @@ pub struct NodeMetadata {
     /// The methods may be defined for different types, so the name alone don't specify them.
     #[serde(deserialize_with="utils::serde::deserialize_or_default")]
     pub intended_method:Option<MethodId>,
+    /// Was node selected in the view.
+    #[serde(default)]
+    pub selected:bool,
+    /// Was node selected in the view.
+    #[serde(default)]
+    pub visualization:serde_json::Value,
 }
 
 /// Used for storing node position.
@@ -505,6 +511,17 @@ pub trait API:Debug+model::undo_redo::Aware {
         double_representation::module::Info::from(self.ast())
     }
 }
+
+pub trait APIExt : API {
+    fn try_with_node_metadata
+    (&self, id:ast::Id, fun:impl FnOnce(&mut NodeMetadata) -> FallibleResult)
+    -> FallibleResult {
+        todo!()
+    }
+
+}
+
+impl<T:API + ?Sized> APIExt for T {}
 
 /// The general, shared Module Model handle.
 pub type Module = Rc<dyn API>;

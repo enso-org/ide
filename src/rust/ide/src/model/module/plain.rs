@@ -57,10 +57,12 @@ impl Module {
     /// the module's state is guaranteed to remain unmodified and the notification will not be
     /// emitted.
     fn set_content(&self, new_content:Content, kind:NotificationKind) -> FallibleResult {
-        trace!(self.logger, "Updating module's content: {kind:?}. New content:\n{new_content}");
         if new_content == *self.content.borrow() {
+            warning!(self.logger, "Ignoring spurious update.");
             return Ok(())
         }
+
+        trace!(self.logger, "Updating module's content: {kind:?}. New content:\n{new_content}");
         let transaction = self.repository.transaction("Setting module's content");
         transaction.fill_content(self.id(),self.content.borrow().clone());
 

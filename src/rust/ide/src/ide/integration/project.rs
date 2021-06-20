@@ -33,8 +33,16 @@ use ide_view::graph_editor::EdgeEndpoint;
 use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
 use utils::iter::split_by_predicate;
+use crate::model::module::APIExt;
 
+#[derive(Clone,Debug)]
+pub struct VisualizationInfo {
+    pub id: VisualizationId,
+    pub path: visualization::Path,
+    pub data: Visualization,
+}
 
+pub type VisualizationMap = SharedHashMap<graph_editor::NodeId,VisualizationInfo>;
 
 // ==============
 // === Errors ===
@@ -183,8 +191,8 @@ struct Model {
     expression_types        : SharedHashMap<ExpressionId,Option<graph_editor::Type>>,
     connection_views        : RefCell<BiMap<controller::graph::Connection,graph_editor::EdgeId>>,
     code_view               : CloneRefCell<ensogl_text::Text>,
-    visualizations          : SharedHashMap<graph_editor::NodeId,VisualizationId>,
-    error_visualizations    : SharedHashMap<graph_editor::NodeId,VisualizationId>,
+    visualizations          : VisualizationMap,
+    error_visualizations    : VisualizationMap,
 }
 
 
@@ -272,6 +280,8 @@ impl Integration {
         let code_changed              = Self::ui_action(&model,Model::code_changed_in_ui          ,inv);
         let node_removed              = Self::ui_action(&model,Model::node_removed_in_ui          ,inv);
         let nodes_collapsed           = Self::ui_action(&model,Model::nodes_collapsed_in_ui       ,inv);
+        let node_selected             = Self::ui_action(&model,Model::node_selected_in_ui         ,inv);
+        let node_deselected           = Self::ui_action(&model,Model::node_deselected_in_ui       ,inv);
         let node_entered              = Self::ui_action(&model,Model::node_entered_in_ui          ,inv);
         let node_exited               = Self::ui_action(&model,Model::node_exited_in_ui           ,inv);
         let connection_created        = Self::ui_action(&model,Model::connection_created_in_ui    ,inv);
@@ -309,11 +319,13 @@ impl Integration {
             _action <- code_editor.changed                  .map2(&is_hold,code_changed);
             _action <- editor_outs.node_removed             .map2(&is_hold,node_removed);
             _action <- editor_outs.nodes_collapsed          .map2(&is_hold,nodes_collapsed);
+            _action <- editor_outs.node_selected            .map2(&is_hold,node_selected);
+            _action <- editor_outs.node_deselected          .map2(&is_hold,node_deselected);
             _action <- editor_outs.node_entered             .map2(&is_hold,node_entered);
             _action <- editor_outs.node_exited              .map2(&is_hold,node_exited);
             _action <- editor_outs.on_edge_endpoints_set    .map2(&is_hold,connection_created);
-            _action <- editor_outs.visualization_enabled    .map2(&is_hold,visualization_enabled);
-            _action <- editor_outs.visualization_disabled   .map2(&is_hold,visualization_disabled);
+            // _action <- editor_outs.visualization_enabled    .map2(&is_hold,visualization_enabled);
+            // _action <- editor_outs.visualization_disabled   .map2(&is_hold,visualization_disabled);
             _action <- on_connection_removed                .map2(&is_hold,connection_removed);
             _action <- editor_outs.node_position_set_batched.map2(&is_hold,node_moved);
             _action <- editor_outs.node_being_edited        .map2(&is_hold,node_editing);
@@ -324,6 +336,20 @@ impl Integration {
             _action <- project_frp.editing_committed        .map2(&is_hold,node_editing_committed);
             _action <- project_frp.editing_aborted          .map2(&is_hold,node_editing_aborted);
 
+            eval editor_outs.visualization_enabled    ([model](arg) {
+                match model.visualization_enabled_in_ui(arg) {
+                    Ok(_) => WARNING!("successfully enabled"),
+                    Err(e) => WARNING!("failed to enable {e}"),
+                }
+            });
+            eval editor_outs.visualization_disabled   ([model](arg) {
+                match model.visualization_disabled_in_ui(arg) {
+                    Ok(_) => WARNING!("successfully disabled"),
+                    Err(e) => WARNING!("failed to disable {e}"),
+                }
+            });
+
+            eval_ project_frp.editing_committed (invalidate.trigger.emit(()));
             eval_ project_frp.editing_committed (invalidate.trigger.emit(()));
             eval_ project_frp.editing_aborted   (invalidate.trigger.emit(()));
             eval_ project_frp.save_module       (model.module_saved_in_ui());
@@ -352,6 +378,7 @@ impl Integration {
         ret.connect_frp_to_graph_controller_notifications(handle_graph_notification.trigger);
         ret.connect_frp_text_controller_notifications(handle_text_notification.trigger);
         ret.setup_handling_project_notifications();
+        ret.attach_initial_visualizations();
         ret
     }
 
@@ -378,6 +405,19 @@ impl Integration {
             let message = ide_view::status_bar::event::Label::from(message);
             status_bar.add_event(message);
         })
+    }
+
+    fn attach_initial_visualizations(&self) {
+        let logger     = self.model.logger.clone_ref();
+        info!(logger,"Attaching initially opened visualization");
+        let node_ids = self.model.node_views.borrow().right_values().cloned().collect_vec();
+        for node_id in node_ids {
+            if let Some(metadata) = self.model.view.graph().model.enabled_visualization(node_id) {
+                self.model.visualization_enabled_in_ui(&(node_id,metadata))
+                    .handle_err(|err| error!(logger, "Failed to enable visualization!"));
+            }
+        }
+
     }
 
     fn connect_frp_to_graph_controller_notifications
@@ -558,7 +598,9 @@ impl Model {
             match displayed {
                 Some(displayed) => {
                    if update_position {
-                       self.refresh_node_position(displayed,node_info)
+                       self.refresh_node_position(displayed,node_info);
+                       self.refresh_node_selection(displayed,node_info);
+                       self.refresh_node_visualization(displayed,node_info);
                    };
                    self.refresh_node_expression(displayed,node_info,node_trees);
                 },
@@ -616,7 +658,9 @@ impl Model {
     fn refresh_node_view
     (&self, id:graph_editor::NodeId, node:&controller::graph::Node, trees:NodeTrees) {
         self.refresh_node_position(id,node);
-        self.refresh_node_expression(id, node, trees)
+        self.refresh_node_selection(id,node);
+        self.refresh_node_expression(id,node,trees);
+        self.refresh_node_visualization(id,node);
     }
 
     /// Update the position of the node based on its current metadata.
@@ -624,6 +668,41 @@ impl Model {
         let position = node.metadata.as_ref().and_then(|md| md.position);
         if let Some(position) = position {
             self.view.graph().frp.input.set_node_position.emit(&(id, position.vector));
+        }
+    }
+
+    /// Update the position of the node based on its current metadata.
+    fn refresh_node_selection(&self, id:graph_editor::NodeId, node:&controller::graph::Node) {
+        let selected = node.metadata.as_ref().map_or_default(|md| md.selected);
+        warning!(self.logger, "Node {id} selection should be {selected}");
+        if selected {
+            self.view.graph().frp.input.select_node.emit(&id)
+        } else {
+            self.view.graph().frp.input.deselect_node.emit(&id)
+        }
+    }
+
+    /// Update the position of the node based on its current metadata.
+    fn refresh_node_visualization(&self, id:graph_editor::NodeId, node:&controller::graph::Node) {
+        error!(self.logger, "Metadata: {node.metadata:?}");
+        let visualization_path : Option<visualization::Path> = node.metadata.as_ref().and_then(|md| {
+            serde_json::from_value(md.visualization.clone()).ok()
+        });
+
+        let visualization_frp = &self.view.graph().model.nodes.all.get_cloned_ref(&id).unwrap().model.visualization.frp;
+        let view_visualization : Option<visualization::Path> = visualization_frp.visible.value().then(|| visualization_frp.visualisation.value()).flatten().map(|def:visualization::Definition| def.signature.path.clone_ref());
+
+        if view_visualization != visualization_path {
+            trace!(self.logger, "Setting visualization on {id}: {visualization_path:?}");
+            if visualization_path.is_some() {
+                let visualization = (id, visualization_path);
+                self.view.graph().frp.input.set_visualization.emit(&visualization);
+                self.view.graph().frp.input.enable_visualization.emit(&id);
+            } else {
+                self.view.graph().frp.input.disable_visualization.emit(&id);
+            }
+        } else {
+            debug!(self.logger, "Not doing anything,");
         }
     }
 
@@ -720,14 +799,14 @@ impl Model {
     -> FallibleResult {
         let error = self.convert_payload_to_error_view(error,node_id);
         self.view.graph().set_node_error_status(node_id,error.clone());
-        if error.is_some() && !self.error_visualizations.contains_key(&node_id) {
+        let vis_map  = self.error_visualizations.clone_ref();
+        if error.is_some() && !vis_map.contains_key(&node_id) {
             use graph_editor::builtin::visualization::native::error;
             let endpoint = self.view.graph().frp.set_error_visualization_data.clone_ref();
             let metadata = error::metadata();
-            let vis_map  = self.error_visualizations.clone_ref();
             self.attach_visualization(node_id,&metadata,endpoint,vis_map)?;
-        } else if error.is_none() && self.error_visualizations.contains_key(&node_id) {
-            self.detach_visualization(node_id,self.error_visualizations.clone_ref())?;
+        } else if error.is_none() && vis_map.contains_key(&node_id) {
+            self.detach_visualization(node_id,vis_map)?;
         }
         Ok(())
     }
@@ -960,6 +1039,28 @@ impl Model {
         Ok(())
     }
 
+    fn node_selected_in_ui
+    (&self, displayed_id:&graph_editor::NodeId) -> FallibleResult {
+        debug!(self.logger, "Selecting node.");
+        let id = self.get_controller_node_id(*displayed_id)?;
+        self.graph.graph().module.with_node_metadata(id, Box::new(|metadata| {
+            metadata.selected = true;
+        }))?;
+        debug!(self.logger, "Node {id} selected.");
+        Ok(())
+    }
+
+    fn node_deselected_in_ui
+    (&self, displayed_id:&graph_editor::NodeId) -> FallibleResult {
+        debug!(self.logger, "Deselecting node.");
+        let id = self.get_controller_node_id(*displayed_id)?;
+        self.graph.graph().module.with_node_metadata(id, Box::new(|metadata| {
+            metadata.selected = false;
+        }))?;
+        debug!(self.logger, "Node {id} deselected.");
+        Ok(())
+    }
+
     fn node_moved_in_ui
     (&self, (displayed_id,pos):&(graph_editor::NodeId,Vector2)) -> FallibleResult {
         debug!(self.logger, "Moving node.");
@@ -1118,13 +1219,25 @@ impl Model {
     fn visualization_enabled_in_ui
     (&self, (node_id,vis_metadata):&(graph_editor::NodeId,visualization::Metadata))
     -> FallibleResult {
+        debug!(self.logger, "Visualization enabled on {node_id\
+        }: {vis_metadata:?}.");
+        let ast_id   = self.get_controller_node_id(*node_id)?;
+        let serialized_path = serde_json::to_value(&vis_metadata.visualization_id)?;
+        self.graph.graph().module.deref().with_node_metadata(ast_id, Box::new(|node_metadata| {
+            node_metadata.visualization = serialized_path;
+            WARNING!("New metadata: {node_metadata:?}");
+        }))?;
         let endpoint = self.view.graph().frp.input.set_visualization_data.clone_ref();
         self.attach_visualization(*node_id,vis_metadata,endpoint,self.visualizations.clone_ref())?;
         Ok(())
     }
 
     fn visualization_disabled_in_ui(&self, node_id:&graph_editor::NodeId) -> FallibleResult {
-        self.detach_visualization(*node_id,self.visualizations.clone_ref())
+        let ast_id = self.get_controller_node_id(*node_id)?;
+        self.detach_visualization(*node_id,self.visualizations.clone_ref())?;
+        self.graph.graph().module.deref().with_node_metadata(ast_id, Box::new(|node_metadata| {
+            node_metadata.visualization = serde_json::Value::Null;
+        }))
     }
 
     fn expression_entered_in_ui
@@ -1227,13 +1340,13 @@ impl Model {
     , node_id      : graph_editor::NodeId
     , preprocessor : &visualization::instance::PreprocessorConfiguration
     ) -> FallibleResult {
-        if let Some(visualization) = self.visualizations.get_copied(&node_id) {
+        if let Some(visualization) = self.visualizations.get_cloned(&node_id) {
             let logger      = self.logger.clone_ref();
             let controller  = self.graph.clone_ref();
             let code        = preprocessor.code.deref().into();
             let module      = self.resolve_visualization_context(&preprocessor.module)?;
             executor::global::spawn(async move {
-                let result = controller.set_visualization_preprocessor(visualization,code,module);
+                let result = controller.set_visualization_preprocessor(visualization.id,code,module);
                 if let Err(err) = result.await {
                     error!(logger, "Error when setting visualization preprocessor: {err}");
                 }
@@ -1245,6 +1358,20 @@ impl Model {
     }
 }
 
+
+enum AttachingResult<T>{
+    Attached(T),
+    Failed(failure::Error),
+    Aborted,
+}
+
+#[derive(Debug,Fail)]
+enum AttachingError {
+    #[fail(display = "Failed to attach the visualization: {:?}", _0)]
+    Failed(failure::Error),
+    #[fail(display = "Attaching the visualization has been aborted.")]
+    Aborted,
+}
 
 // === Utilities ===
 
@@ -1300,34 +1427,91 @@ impl Model {
     , node_id               : graph_editor::NodeId
     , vis_metadata          : &visualization::Metadata
     , receive_data_endpoint : frp::Any<(graph_editor::NodeId,visualization::Data)>
-    , visualizations_map    : SharedHashMap<graph_editor::NodeId,VisualizationId>
+    , visualizations_map    : VisualizationMap
     ) -> FallibleResult<VisualizationId> {
         // Do nothing if there is already a visualization attached.
         let err = || VisualizationAlreadyAttached(node_id);
         (!visualizations_map.contains_key(&node_id)).ok_or_else(err)?;
 
         debug!(self.logger, "Attaching visualization on node {node_id}.");
+        let path           = vis_metadata.visualization_id.clone().unwrap();
         let visualization  = self.prepare_visualization(node_id,vis_metadata)?;
         let id             = visualization.id;
         let update_handler = self.visualization_update_handler(receive_data_endpoint,node_id);
-        let logger         = self.logger.clone_ref();
-        let controller     = self.graph.clone_ref();
 
         // We cannot do this in the async block, as the user may decide to detach before server
         // confirms that we actually have attached.
-        visualizations_map.insert(node_id,id);
+        let info = VisualizationInfo {path,id, data:visualization};
+        visualizations_map.insert(node_id,info);
 
-        executor::global::spawn(async move {
-            if let Ok(stream) = controller.attach_visualization(visualization).await {
-                debug!(logger, "Successfully attached visualization {id} for node {node_id}.");
-                let updates_handler = stream.for_each(update_handler);
-                executor::global::spawn(updates_handler);
-            } else {
-                visualizations_map.remove(&node_id);
-            }
-        });
+        let task = self.attaching_visualization_task(node_id, visualizations_map, update_handler);
+        executor::global::spawn(task);
         Ok(id)
     }
+
+
+    /// Try to attach visualization to the node (as defined by the map).
+    /// In case of failure, up to `attempts` will be made.
+    fn attach_ngjbfdbhnfkjbnxg
+    (&self, node_id:graph_editor::NodeId, visualizations_map:VisualizationMap, attempts:usize)
+    -> impl Future<Output=AttachingResult<impl Stream<Item=VisualizationUpdateData>>> {
+        let logger     = self.logger.clone_ref();
+        let controller = self.graph.clone_ref();
+        async move {
+            let mut last_error = None;
+            for i in 1 ..= attempts {
+                // We need to re-get this info in each iteration. It might change in the meantime.
+                if let Some(VisualizationInfo{id,data,..}) = visualizations_map.get_cloned(&node_id) {
+                    match controller.attach_visualization(data).await {
+                        Ok(stream) => {
+                            debug!(logger, "Successfully attached visualization {id} for node {node_id}.");
+                            return AttachingResult::Attached(stream);
+                        }
+                        Err(e) => {
+                            error!(logger, "Failed to attach visualization {id} for node {node_id} (attempt {i}): {e}");
+                            last_error = Some(e);
+                        }
+                    }
+                } else {
+                    // If visualization is not present in the map, it means that UI detached it
+                    // before we were able to attach it to the backend. Thus, it is fine to do
+                    // nothing here and finish this task.
+                    return AttachingResult::Aborted;
+                }
+            }
+
+            let error = last_error.unwrap_or(failure::format_err!("No attempts were made."));
+            error!(logger, "Failed to attach visualization for node {node_id}: {error}\nWill abort.");
+            AttachingResult::Failed(error)
+        }
+    }
+
+    fn attaching_visualization_task
+    ( &self
+    , node_id            : graph_editor::NodeId
+    , visualizations_map : VisualizationMap
+    , update_handler     : impl FnMut(VisualizationUpdateData) -> futures::future::Ready<()> + 'static
+    ) -> impl Future<Output = ()> {
+        let graph_frp  = self.view.graph().frp.clone_ref();
+        let stream_fut = self.attach_ngjbfdbhnfkjbnxg(node_id,visualizations_map.clone_ref(),6);
+        async move {
+            match stream_fut.await {
+                AttachingResult::Attached(stream) => {
+                    let updates_handler = stream.for_each(update_handler);
+                    executor::global::spawn(updates_handler);
+                }
+                AttachingResult::Aborted => {
+                    // Do nothing and be silent.
+                }
+                AttachingResult::Failed(e) => {
+                    // If attaching is impossible, we should close the visualization.
+                    visualizations_map.remove(&node_id);
+                    graph_frp.disable_visualization.emit(&node_id);
+                }
+            };
+        }
+    }
+
 
     /// Return an asynchronous event processor that routes visualization update to the given's
     /// visualization respective FRP endpoint.
@@ -1368,11 +1552,11 @@ impl Model {
     fn detach_visualization
     ( &self
     , node_id            : graph_editor::NodeId
-    , visualizations_map : SharedHashMap<graph_editor::NodeId,VisualizationId>
+    , visualizations_map : VisualizationMap
     ) -> FallibleResult {
         debug!(self.logger,"Node editor wants to detach visualization on {node_id}.");
         let err            = || NoSuchVisualization(node_id);
-        let id             = visualizations_map.get_copied(&node_id).ok_or_else(err)?;
+        let id             = visualizations_map.get_cloned(&node_id).ok_or_else(err)?.id;
         let logger         = self.logger.clone_ref();
         let controller     = self.graph.clone_ref();
 

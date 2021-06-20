@@ -248,7 +248,7 @@ impl Default for Crumbs {
 // === Node ===
 // ============
 
-ensogl::define_endpoints! {
+ensogl::define_endpoints! { [TRACE_ALL]
     Input {
         select                (),
         deselect              (),
