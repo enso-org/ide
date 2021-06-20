@@ -37,6 +37,7 @@
 [1587]: https://github.com/enso-org/ide/pull/1587
 [1366]: https://github.com/enso-org/ide/pull/1366
 [1602]: https://github.com/enso-org/ide/pull/1602
+[1791]: https://github.com/enso-org/ide/pull/1791
 
 # Enso 2.0.0-alpha.5 (2021-05-14)
 
