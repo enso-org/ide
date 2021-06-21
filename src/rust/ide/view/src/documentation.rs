@@ -228,7 +228,7 @@ impl Model {
             }
         };
 
-        self.push_to_dom(String::from(html));
+        self.push_to_dom(html);
         self.attach_listeners_to_copy_buttons();
     }
 
