@@ -1438,8 +1438,16 @@ impl DataProviderForView {
             suggestion_database::entry::Kind::Local    => "Local variable",
             suggestion_database::entry::Kind::Method   => "Method",
         };
-        let code = suggestion.code_to_insert(None,true).code;
-        format!("{} `{}`\n\nNo documentation available", title,code)
+        let code   = suggestion.code_to_insert(None,true).code;
+        let code   = format!("{} `{}`\n\nNo documentation available.", title,code);
+        let parser = parser::DocParser::new();
+        match parser {
+            Ok(p) => {
+                let output = p.generate_html_doc_pure((*code).to_string());
+                output.unwrap_or(code)
+            },
+            Err(_) => code
+        }
     }
 }
 
