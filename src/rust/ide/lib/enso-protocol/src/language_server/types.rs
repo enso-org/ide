@@ -807,6 +807,7 @@ pub struct SuggestionsDatabaseEntry {
     pub suggestion : SuggestionEntry,
 }
 
+
 // === Suggestion Database Updates ===
 
 #[derive(Clone,Copy,Debug,Deserialize,Eq,Hash,PartialEq,Serialize)]
