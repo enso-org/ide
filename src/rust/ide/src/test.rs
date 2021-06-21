@@ -89,27 +89,29 @@ pub mod mock {
 
         pub fn suggestion_entry_foo() -> suggestion_database::Entry {
             suggestion_database::Entry {
-                name      : "foo".to_owned(),
-                module    : module::QualifiedName::from_segments("Std",&["Base"]).unwrap(),
-                self_type : Some("Std.Base".to_owned().try_into().unwrap()),
-                arguments : vec![foo_method_parameter(),foo_method_parameter2()],
-                return_type   : "Any".to_owned(),
-                kind          : suggestion_database::entry::Kind::Method,
-                scope         : suggestion_database::entry::Scope::Everywhere,
-                documentation : None
+                name               : "foo".to_owned(),
+                module             : module::QualifiedName::from_segments("Std",&["Base"]).unwrap(),
+                self_type          : Some("Std.Base".to_owned().try_into().unwrap()),
+                arguments          : vec![foo_method_parameter(),foo_method_parameter2()],
+                return_type        : "Any".to_owned(),
+                kind               : suggestion_database::entry::Kind::Method,
+                scope              : suggestion_database::entry::Scope::Everywhere,
+                documentation      : None,
+                documentation_html : None
             }
         }
 
         pub fn suggestion_entry_bar() -> suggestion_database::Entry {
             suggestion_database::Entry {
-                name      : "bar".to_owned(),
-                module    : module::QualifiedName::from_segments("Std",&["Other"]).unwrap(),
-                self_type : Some("Std.Other".to_owned().try_into().unwrap()),
-                arguments : vec![bar_method_parameter()],
-                return_type   : "Any".to_owned(),
-                kind          : suggestion_database::entry::Kind::Method,
-                scope         : suggestion_database::entry::Scope::Everywhere,
-                documentation : None
+                name               : "bar".to_owned(),
+                module             : module::QualifiedName::from_segments("Std",&["Other"]).unwrap(),
+                self_type          : Some("Std.Other".to_owned().try_into().unwrap()),
+                arguments          : vec![bar_method_parameter()],
+                return_type        : "Any".to_owned(),
+                kind               : suggestion_database::entry::Kind::Method,
+                scope              : suggestion_database::entry::Scope::Everywhere,
+                documentation      : None,
+                documentation_html : None
             }
         }
     }
