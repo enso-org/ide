@@ -294,8 +294,7 @@ pub struct Notification {
 #[derive(Clone,Debug,Deserialize,PartialEq,Serialize)]
 pub struct Metadata {
     /// Metadata used within ide.
-    #[serde(default="default")]
-    #[serde(deserialize_with="utils::serde::deserialize_or_default")]
+    #[serde(default,deserialize_with="utils::serde::deserialize_or_default")]
     pub ide : IdeMetadata,
     #[serde(flatten)]
     /// Metadata of other users of ParsedSourceFile<Metadata> API.
@@ -328,19 +327,19 @@ pub struct IdeMetadata {
 #[derive(Clone,Debug,Default,Deserialize,PartialEq,Serialize)]
 pub struct NodeMetadata {
     /// Position in x,y coordinates.
-    #[serde(deserialize_with="utils::serde::deserialize_or_default")]
+    #[serde(default,deserialize_with="utils::serde::deserialize_or_default")]
     pub position:Option<Position>,
     /// A method which user intends this node to be, e.g. by picking specific suggestion in
     /// Searcher Panel.
     ///
     /// The methods may be defined for different types, so the name alone don't specify them.
-    #[serde(deserialize_with="utils::serde::deserialize_or_default")]
+    #[serde(default,deserialize_with="utils::serde::deserialize_or_default")]
     pub intended_method:Option<MethodId>,
     /// Information about uploading file.
     ///
     /// Designed to be present in nodes created by dragging and dropping files in IDE. Contains
     /// information about file and upload progress.
-    #[serde(deserialize_with="utils::serde::deserialize_or_default")]
+    #[serde(default,deserialize_with="utils::serde::deserialize_or_default")]
     pub uploading_file:Option<UploadingFile>,
 }
 
