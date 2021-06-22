@@ -15,8 +15,6 @@ use std::time::Duration;
 
 pub use initializer::Initializer;
 
-pub type Logger = enso_logger::DefaultTraceLogger;
-
 
 
 // =================
