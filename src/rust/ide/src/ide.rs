@@ -27,7 +27,7 @@ pub type Logger = enso_logger::DefaultTraceLogger;
 pub const BACKEND_DISCONNECTED_MESSAGE:&str =
     "Connection to the backend has been lost. Please try restarting IDE.";
 
-const ALIVE_LOG_INTERVAL_SEC:u64 = 5;
+const ALIVE_LOG_INTERVAL_SEC:u64 = 60;
 
 
 
