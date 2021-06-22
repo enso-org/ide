@@ -66,20 +66,20 @@ impl Ide {
         let keyboard = &scene.keyboard.frp;
 
         enso_frp::extend! { TRACE_ALL network
-            sent_log             <- source::<()>();
+            on_log_sent          <- source::<()>();
             mouse_moved          <- mouse.position.constant(());
             any_mouse_press      <- any(mouse.up,mouse.down).constant(());
             any_mouse_event      <- any(any_mouse_press,mouse_moved,mouse.wheel);
             any_keyboard_event   <- any(keyboard.down,keyboard.up).constant(());
             any_input_event      <- any(any_mouse_event,any_keyboard_event);
-            // True if any input event was captured since the last alive log sending.
-            input_event_received <- bool(&sent_log,&any_input_event).sampler();
+            // True if any input event was captured since the last "alive" log sending.
+            input_event_received <- bool(&on_log_sent,&any_input_event).sampler();
         }
         async move {
             loop {
                 let value = AnonymousData(input_event_received.value());
                 analytics::remote_log_value("alive", "input_event_received",value);
-                sent_log.emit(());
+                on_log_sent.emit(());
                 sleep(Duration::from_secs(ALIVE_LOG_INTERVAL_SEC)).await;
             }
         }
