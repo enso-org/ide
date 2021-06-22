@@ -4,6 +4,7 @@ use crate::prelude::*;
 
 use crate::controller::graph::executed::Notification as GraphNotification;
 use crate::controller::ide::StatusNotificationPublisher;
+use crate::model::traits::*;
 
 use enso_frp::web::platform;
 use enso_frp::web::platform::Platform;
@@ -117,6 +118,16 @@ impl Project {
         // method. Thus, we should be able to successfully create a graph controller for it.
         let main_module_text = controller::Text::new(&self.logger,&project,file_path).await?;
         let main_graph       = controller::ExecutedGraph::new(&self.logger,project,method).await?;
+
+        // Go to last viewed graph.
+        let initial_call_stack = module.with_project_metadata(|metadata| metadata.call_stack.clone());
+        for frame in initial_call_stack {
+            // Push as many frames as possible.
+            if let Err(e) = main_graph.enter_method_pointer(&frame).await {
+                error!(self.logger, "Failed to push initial stack frame: {frame:?}: {e}");
+                break;
+            }
+        }
 
         self.notify_about_compiling_process(&main_graph);
         self.display_warning_on_unsupported_engine_version()?;

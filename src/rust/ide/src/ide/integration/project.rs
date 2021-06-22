@@ -1248,7 +1248,7 @@ impl Model {
             let logger       = self.logger.clone_ref();
             let update_metadata = self.store_updated_stack();
             let enter_action = async move {
-                info!(logger,"Entering node.");
+                info!(logger,"Entering expression {local_call:?}.");
                 if let Err(e) = controller.enter_method_pointer(&local_call).await {
                     error!(logger,"Entering node failed: {e}.");
 
@@ -1259,7 +1259,7 @@ impl Model {
                 } else {
                     ERROR!("NEW STACK:" controller.call_stack();?);
                     // We cannot really do anything when updating metadata fails.
-                    // Can happen in unprobable case of serialization only.
+                    // Can happen in improbable case of serialization only.
                     let _ = update_metadata.await.ok();
                 }
             };
@@ -1276,7 +1276,7 @@ impl Model {
             let main_name   = project.main_module()?;
             let main_path   = model::module::Path::from_id(project.content_root_id(), &main_name.id);
             let main_module = project.module(main_path).await?;
-            main_module.with_project_metadata(Box::new(|metadata| {
+            main_module.update_project_metadata_internal(Box::new(|metadata| {
                 metadata.call_stack = call_stack;
             }))
         }

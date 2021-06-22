@@ -180,14 +180,18 @@ impl model::module::API for Module {
         })
     }
 
-    fn with_project_metadata
+    fn with_project_metadata_internal
+    (&self, fun:Box<dyn FnOnce(&ProjectMetadata) + '_>) {
+        fun(&self.content.borrow().metadata.ide.project)
+    }
+
+    fn update_project_metadata_internal
     (&self, fun:Box<dyn FnOnce(&mut ProjectMetadata) + '_>) -> FallibleResult {
         self.update_content(NotificationKind::MetadataChanged, |content| {
             let mut data = content.metadata.ide.project.clone();
             fun(&mut data);
             content.metadata.ide.project = data;
         })
-
     }
 }
 

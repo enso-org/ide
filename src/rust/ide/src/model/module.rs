@@ -494,7 +494,9 @@ pub trait API:Debug+model::undo_redo::Aware {
     fn with_node_metadata
     (&self, id:ast::Id, fun:Box<dyn FnOnce(&mut NodeMetadata) + '_>) -> FallibleResult;
 
-    fn with_project_metadata
+    fn with_project_metadata_internal(&self, fun:Box<dyn FnOnce(&ProjectMetadata) + '_>);
+
+    fn update_project_metadata_internal
     (&self, fun:Box<dyn FnOnce(&mut ProjectMetadata) + '_>) -> FallibleResult;
 
 
@@ -530,6 +532,21 @@ pub trait APIExt : API {
         todo!()
     }
 
+    fn with_project_metadata<R>
+    (&self, fun:impl FnOnce(&ProjectMetadata) -> R) -> R {
+        let mut ret = std::mem::MaybeUninit::uninit();
+        // Both 'unsafe' below are safe because `with_project_metadata_internal` will call its
+        // argument exactly once.
+        self.with_project_metadata_internal(Box::new(|metadata| unsafe {
+            ret.write(fun(metadata));
+        }));
+        unsafe { ret.assume_init() }
+    }
+
+    fn update_project_metadata
+    (&self, fun:impl FnOnce(&mut ProjectMetadata)) -> FallibleResult {
+        self.update_project_metadata_internal(Box::new(fun))
+    }
 }
 
 impl<T:API + ?Sized> APIExt for T {}
