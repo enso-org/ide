@@ -34,11 +34,11 @@ impl<'a> ProgressMaskParams<'a> {
 
 fn progress_mask_shape(params:ProgressMaskParams, val_range:Range<&Var<f32>>) -> AnyShape {
     let mut generator = FragmentShapesGenerator::new(params,val_range);
-    let first  = generator.generate_fragment::<LeftUpperCircle>()  .fill(color::Rgba::new(1.0,0.0,0.0,1.0));
-    let second = generator.generate_fragment::<TopEdge>()          .fill(color::Rgba::new(0.0,1.0,0.0,1.0));
-    let third  = generator.generate_fragment::<RightCircle>()      .fill(color::Rgba::new(0.0,0.0,1.0,1.0));
-    let fourth = generator.generate_fragment::<BottomEdge>()       .fill(color::Rgba::new(1.0,1.0,0.0,1.0));
-    let fifth  = generator.generate_fragment::<LeftBottomCircle>() .fill(color::Rgba::new(0.0,1.0,1.0,1.0));
+    let first  = generator.generate_fragment::<LeftUpperCircle>()  ;//.fill(color::Rgba::new(1.0,0.0,0.0,1.0));
+    let second = generator.generate_fragment::<TopEdge>()          ;//.fill(color::Rgba::new(0.0,1.0,0.0,1.0));
+    let third  = generator.generate_fragment::<RightCircle>()      ;//.fill(color::Rgba::new(0.0,0.0,1.0,1.0));
+    let fourth = generator.generate_fragment::<BottomEdge>()       ;//.fill(color::Rgba::new(1.0,1.0,0.0,1.0));
+    let fifth  = generator.generate_fragment::<LeftBottomCircle>() ;//.fill(color::Rgba::new(0.0,1.0,1.0,1.0));
     (first + second + third + fourth + fifth).into()
 }
 
@@ -64,7 +64,7 @@ impl<'a> FragmentShapesGenerator<'a> {
         let length    = Fragment::perimeter_length(&self.params);
         let normalize = |val:&Var<f32>| {
             let perimeter_space          = val * &self.params.perimeter;
-            let fragment_perimeter_space = (perimeter_space - &self.generated_fragments_perimeter_length);
+            let fragment_perimeter_space = perimeter_space - &self.generated_fragments_perimeter_length;
             let fragment_normalized      = fragment_perimeter_space / &length;
             Max::max(Min::min(fragment_normalized,1.0.into()),0.0.into())
         };
@@ -161,6 +161,16 @@ impl ProgressMaskFragment for LeftBottomCircle {
     }
 }
 
+fn generate_rim(width:&Var<Pixels>, height:&Var<Pixels>, thickness:&Var<Pixels>) -> AnyShape {
+    let radius  = height / 2.0;
+    let outer   = Rect((width,height)).corners_radius(&radius);
+    let inner_w = width - thickness * 2.0;
+    let inner_h = height - thickness * 2.0;
+    let inner_r = radius - thickness;
+    let inner   = Rect((&inner_w,&inner_h)).corners_radius(&inner_r);
+    (outer - inner).into()
+}
+
 mod shape {
     use super::*;
 
@@ -171,21 +181,14 @@ mod shape {
             let width     = width  - PADDING.px() * 2.0;
             let height    = height - PADDING.px() * 2.0;
             let thickness = 10.0.px();
-            let radius    = &height / 2.0;
 
             let params = ProgressMaskParams::new(&width,&height);
-            let mask = progress_mask_shape(params,(&start)..(&end));
+            let mask   = progress_mask_shape(params,(&start)..(&end));
+            let rim    = generate_rim(&width,&height,&thickness);
 
-            // let shape  = Rect((&width,&height)).corners_radius(&radius);
-            // let inner_w = &width - &thickness * 2.0;
-            // let inner_h = &height - &thickness * 2.0;
-            // let inner_r = &radius - &thickness;
-            // let inner  = Rect((&inner_w,&inner_h)).corners_radius(&inner_r);
-            //
-            // let shape = shape - inner;
-            // let shape  = shape.fill(color::Rgba::new(1.0,0.0,0.0,1.0));
-
-            mask.into()
+            let shape  = rim.intersection(mask);
+            shape.fill(color::Rgba::new(1.0,0.0,0.0,1.0));
+            shape.into()
         }
     }
 }
