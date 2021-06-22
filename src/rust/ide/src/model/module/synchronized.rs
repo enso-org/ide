@@ -20,7 +20,7 @@ use enso_protocol::language_server::TextEdit;
 use flo_stream::Subscriber;
 use parser::api::SourceFile;
 use parser::Parser;
-
+use crate::model::module::ProjectMetadata;
 
 
 // =======================
@@ -217,6 +217,11 @@ impl API for Module {
     fn with_node_metadata
     (&self, id:ast::Id, fun:Box<dyn FnOnce(&mut NodeMetadata) + '_>) -> FallibleResult {
         self.model.with_node_metadata(id,fun)
+    }
+
+    fn with_project_metadata
+    (&self, fun:Box<dyn FnOnce(&mut ProjectMetadata) + '_>) -> FallibleResult {
+        self.model.with_project_metadata(fun)
     }
 }
 

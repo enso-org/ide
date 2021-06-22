@@ -248,6 +248,10 @@ impl Handle {
         Ok(())
     }
 
+    pub fn call_stack(&self) -> Vec<LocalCall> {
+        self.execution_ctx.stack_items().collect()
+    }
+
     /// Get the controller for the currently active graph.
     ///
     /// Note that the controller returned by this method may change as the nodes are stepped into.

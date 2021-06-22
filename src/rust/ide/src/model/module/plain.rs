@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::model::module::Metadata;
+use crate::model::module::{Metadata, ProjectMetadata};
 use crate::model::module::NodeMetadata;
 use crate::model::module::NodeMetadataNotFound;
 use crate::model::module::Path;
@@ -178,6 +178,16 @@ impl model::module::API for Module {
             fun(&mut data);
             content.metadata.ide.node.insert(id, data);
         })
+    }
+
+    fn with_project_metadata
+    (&self, fun:Box<dyn FnOnce(&mut ProjectMetadata) + '_>) -> FallibleResult {
+        self.update_content(NotificationKind::MetadataChanged, |content| {
+            let mut data = content.metadata.ide.project.clone();
+            fun(&mut data);
+            content.metadata.ide.project = data;
+        })
+
     }
 }
 

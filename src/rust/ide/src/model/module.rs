@@ -316,12 +316,20 @@ impl Default for Metadata {
     }
 }
 
+#[derive(Clone,Debug,Default,Deserialize,PartialEq,Serialize)]
+pub struct ProjectMetadata {
+    #[serde(default,deserialize_with="utils::serde::deserialize_or_default")]
+    pub call_stack : Vec<model::execution_context::LocalCall>,
+}
+
 /// Metadata that belongs to ide.
 #[derive(Clone,Debug,Default,Deserialize,PartialEq,Serialize)]
 pub struct IdeMetadata {
     /// Metadata that belongs to nodes.
     #[serde(deserialize_with="utils::serde::deserialize_or_default")]
-    node : HashMap<ast::Id,NodeMetadata>
+    node : HashMap<ast::Id,NodeMetadata>,
+    #[serde(default,deserialize_with="utils::serde::deserialize_or_default")]
+    project : ProjectMetadata,
 }
 
 /// Metadata of specific node.
@@ -485,6 +493,9 @@ pub trait API:Debug+model::undo_redo::Aware {
     /// getting and setting metadata for the same node.
     fn with_node_metadata
     (&self, id:ast::Id, fun:Box<dyn FnOnce(&mut NodeMetadata) + '_>) -> FallibleResult;
+
+    fn with_project_metadata
+    (&self, fun:Box<dyn FnOnce(&mut ProjectMetadata) + '_>) -> FallibleResult;
 
 
 // === Utils ===

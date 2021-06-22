@@ -1246,6 +1246,7 @@ impl Model {
             let local_call   = local_call.clone();
             let controller   = self.graph.clone_ref();
             let logger       = self.logger.clone_ref();
+            let update_metadata = self.store_updated_stack();
             let enter_action = async move {
                 info!(logger,"Entering node.");
                 if let Err(e) = controller.enter_method_pointer(&local_call).await {
@@ -1255,11 +1256,30 @@ impl Model {
                     let field = "error";
                     let data  = analytics::AnonymousData(|| e.to_string());
                     analytics::remote_log_value(event,field,data)
+                } else {
+                    ERROR!("NEW STACK:" controller.call_stack();?);
+                    // We cannot really do anything when updating metadata fails.
+                    // Can happen in unprobable case of serialization only.
+                    let _ = update_metadata.await.ok();
                 }
             };
             executor::global::spawn(enter_action);
         }
         Ok(())
+    }
+
+    fn store_updated_stack(&self) -> impl Future<Output=FallibleResult> {
+        let project = self.project.clone_ref();
+        let graph   = self.graph.clone_ref();
+        async move {
+            let call_stack  = graph.call_stack();
+            let main_name   = project.main_module()?;
+            let main_path   = model::module::Path::from_id(project.content_root_id(), &main_name.id);
+            let main_module = project.module(main_path).await?;
+            main_module.with_project_metadata(Box::new(|metadata| {
+                metadata.call_stack = call_stack;
+            }))
+        }
     }
 
     fn node_entered_in_ui(&self, node_id:&graph_editor::NodeId) -> FallibleResult {
@@ -1273,8 +1293,9 @@ impl Model {
 
     fn node_exited_in_ui(&self, _:&()) -> FallibleResult {
         debug!(self.logger,"Requesting exiting the current node.");
-        let controller = self.graph.clone_ref();
-        let logger     = self.logger.clone_ref();
+        let controller      = self.graph.clone_ref();
+        let logger          = self.logger.clone_ref();
+        let update_metadata = self.store_updated_stack();
         let exit_node_action = async move {
             info!(logger,"Exiting node.");
             if let Err(e) = controller.exit_node().await {
@@ -1284,6 +1305,8 @@ impl Model {
                 let field = "error";
                 let data  = analytics::AnonymousData(|| e.to_string());
                 analytics::remote_log_value(event,field,data)
+            } else {
+                let _ = update_metadata.await.ok();
             }
         };
         executor::global::spawn(exit_node_action);
