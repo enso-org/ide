@@ -159,7 +159,7 @@ impl component::Frp<Model> for Frp {
             // is further left or right than the ends of the scrollbar then we count the distance as
             // infinite.
             vert_mouse_distance <- all_with(&mouse_position,&frp.set_length,|&pos,&length| {
-                let scrollbar_x_range = (-length/2.0)..(length/2.0);
+                let scrollbar_x_range = (-length/2.0)..=(length/2.0);
                 if scrollbar_x_range.contains(&pos.x) {
                     pos.y.abs() - WIDTH / 2.0
                 } else {

@@ -141,7 +141,7 @@ impl ScrollArea {
             hovering <- all_with(&mouse.frp.position,&frp.resize,
                 f!([scene,display_object](&pos,&size) {
                     let local_pos = scene.screen_to_object_space(&display_object,pos);
-                    (0.0..size.x).contains(&local_pos.x) && (-size.y..0.0).contains(&local_pos.y)
+                    (0.0..=size.x).contains(&local_pos.x) && (-size.y..=0.0).contains(&local_pos.y)
                 }));
             hovering <- hovering.sampler();
         }
