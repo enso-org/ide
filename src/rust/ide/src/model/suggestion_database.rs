@@ -268,7 +268,6 @@ mod test {
             module             : "TestProject.TestModule".to_string(),
             arguments          : vec![],
             return_type        : "TestAtom".to_string(),
-            documentation      : None,
             documentation_html : None,
             external_id        : None,
         };
@@ -293,7 +292,6 @@ mod test {
             module             : "TestProject.TestModule".to_owned(),
             arguments          : vec![],
             return_type        : "TestAtom".to_owned(),
-            documentation      : None,
             documentation_html : None,
             external_id        : None,
         };
@@ -302,7 +300,6 @@ mod test {
             module             : "TestProject.TestModule".to_owned(),
             arguments          : vec![],
             return_type        : "TestAtom".to_owned(),
-            documentation      : None,
             documentation_html : None,
             external_id        : None,
         };
@@ -311,7 +308,6 @@ mod test {
             module             : "TestProject.TestModule".to_owned(),
             arguments          : vec![],
             return_type        : "TestAtom".to_owned(),
-            documentation      : None,
             documentation_html : None,
             external_id        : None,
         };
@@ -393,7 +389,6 @@ mod test {
                 module             : None,
                 self_type          : None,
                 return_type        : None,
-                documentation      : None,
                 documentation_html : None,
                 scope              : None
             }),
@@ -406,9 +401,9 @@ mod test {
         fixture.run_until_stalled();
         assert_eq!(notifications.expect_next(),Notification::Updated);
         notifications.expect_pending();
-        assert_eq!(db.lookup(1).unwrap().arguments    , vec![]);
-        assert_eq!(db.lookup(1).unwrap().return_type  , "TestAtom");
-        assert_eq!(db.lookup(1).unwrap().documentation, None);
+        assert_eq!(db.lookup(1).unwrap().arguments         , vec![]);
+        assert_eq!(db.lookup(1).unwrap().return_type       , "TestAtom");
+        assert_eq!(db.lookup(1).unwrap().documentation_html, None);
         assert!(matches!(db.lookup(1).unwrap().scope, Scope::Everywhere));
         assert_eq!(db.version.get(), 4);
 
@@ -421,8 +416,6 @@ mod test {
                 arguments:vec![SuggestionArgumentUpdate::Remove {index:0}],
                 // Valid.
                 return_type:Some(FieldUpdate::set("TestAtom2".to_owned())),
-                // Valid.
-                documentation:Some(FieldUpdate::set("Blah blah".to_owned())),
                 // Valid.
                 documentation_html:Some(FieldUpdate::set("<p>Blah blah</p>".to_owned())),
                 // Invalid: atoms does not have any scope.
@@ -442,9 +435,9 @@ mod test {
         fixture.run_until_stalled();
         assert_eq!(notifications.expect_next(),Notification::Updated);
         notifications.expect_pending();
-        assert_eq!(db.lookup(1).unwrap().arguments    , vec![]);
-        assert_eq!(db.lookup(1).unwrap().return_type  , "TestAtom2");
-        assert_eq!(db.lookup(1).unwrap().documentation, Some("Blah blah".to_owned()));
+        assert_eq!(db.lookup(1).unwrap().arguments         , vec![]);
+        assert_eq!(db.lookup(1).unwrap().return_type       , "TestAtom2");
+        assert_eq!(db.lookup(1).unwrap().documentation_html, Some("<p>Blah blah</p>".to_owned()));
         assert!(matches!(db.lookup(1).unwrap().scope, Scope::Everywhere));
         assert_eq!(db.version.get(), 5);
 
@@ -462,7 +455,6 @@ mod test {
                     default_value : Some(FieldUpdate::remove()),
                 }],
                 return_type        : None,
-                documentation      : None,
                 documentation_html : None,
                 scope              : Some(FieldUpdate::set(SuggestionEntryScope {
                     start : Position { line: 1, character: 5 },
@@ -503,7 +495,6 @@ mod test {
             modification  : Box::new(SuggestionsDatabaseModification {
                 arguments     : vec![SuggestionArgumentUpdate::Add {index:2, argument:new_argument}],
                 return_type        : None,
-                documentation      : None,
                 documentation_html : None,
                 scope              : None,
                 self_type          : None,
@@ -529,7 +520,6 @@ mod test {
             modification  : Box::new(SuggestionsDatabaseModification {
                 arguments     : vec![SuggestionArgumentUpdate::Remove {index:2}],
                 return_type        : None,
-                documentation      : None,
                 documentation_html : None,
                 scope              : None,
                 self_type          : None,

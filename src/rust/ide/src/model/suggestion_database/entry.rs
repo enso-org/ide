@@ -100,8 +100,6 @@ pub struct Entry {
     pub arguments : Vec<Argument>,
     /// A type returned by the suggested object.
     pub return_type : String,
-    /// A documentation associated with object.
-    pub documentation : Option<String>,
     /// A HTML documentation associated with object.
     pub documentation_html : Option<String>,
     /// A type of the "self" argument. This field is `None` for non-method suggestions.
@@ -235,15 +233,15 @@ impl Entry {
                          -> FallibleResult<Self> {
         use language_server::types::SuggestionEntry::*;
         let this = match entry {
-            Atom {name,module,arguments,return_type,documentation,documentation_html,..} => Self {
-                name,arguments,return_type,documentation,documentation_html,
+            Atom {name,module,arguments,return_type,_documentation,documentation_html,..} => Self {
+                name,arguments,return_type,documentation_html,
                 module        : module.try_into()?,
                 self_type     : None,
                 kind          : Kind::Atom,
                 scope         : Scope::Everywhere,
             },
-            Method {name,module,arguments,self_type,return_type,documentation,documentation_html,..} => Self {
-                name,arguments,return_type,documentation,documentation_html,
+            Method {name,module,arguments,self_type,return_type,_documentation,documentation_html,..} => Self {
+                name,arguments,return_type,documentation_html,
                 module        : module.try_into()?,
                 self_type     : Some(self_type.try_into()?),
                 kind          : Kind::Method,
@@ -253,7 +251,6 @@ impl Entry {
                 name,arguments,return_type,
                 module             : module.try_into()?,
                 self_type          : None,
-                documentation      : default(),
                 documentation_html : default(),
                 kind               : Kind::Function,
                 scope              : Scope::InModule {range:scope.into()},
@@ -263,7 +260,6 @@ impl Entry {
                 arguments          : default(),
                 module             : module.try_into()?,
                 self_type          : None,
-                documentation      : default(),
                 documentation_html : default(),
                 kind               : Kind::Local,
                 scope              : Scope::InModule {range:scope.into()},
@@ -280,7 +276,6 @@ impl Entry {
         let self_type = m.self_type.map(|f| f.try_map(tp::QualifiedName::from_text)).transpose();
         let other_update_results =
             [ Entry::apply_field_update    ("return_type"  , &mut self.return_type  , m.return_type  )
-            , Entry::apply_opt_field_update("documentation", &mut self.documentation, m.documentation)
             , Entry::apply_opt_field_update("documentation_html", &mut self.documentation_html, m.documentation_html)
             , module.and_then   (|m| Entry::apply_field_update    ("module"   , &mut self.module   , m))
             , self_type.and_then(|s| Entry::apply_opt_field_update("self_type", &mut self.self_type, s))
@@ -452,7 +447,6 @@ mod test {
             module             : main_module.clone(),
             arguments          : vec![],
             return_type        : "Number".to_owned(),
-            documentation      : None,
             documentation_html : None,
             self_type          : None,
             scope              : Scope::Everywhere,
@@ -541,7 +535,6 @@ mod test {
             module             : "Test.Test".to_string().try_into().unwrap(),
             arguments          : vec![],
             return_type        : "Number".to_string(),
-            documentation      : None,
             documentation_html : None,
             self_type          : None,
             scope              : Scope::Everywhere,
