@@ -56,15 +56,10 @@ impl component::Frp<Model> for Frp {
         let track_shape_system = scene.shapes.shape_system(PhantomData::<track::Shape>);
         track_shape_system.shape_system.set_pointer_events(false);
 
-        let madel_fn         = model.clone_ref();
-        let base_position    = move || madel_fn.position().xy();
         let background_click = relative_shape_down_position(
-            base_position,network,&model.background.events,mouse);
-
-        let madel_fn      = model.clone_ref();
-        let base_position = move || madel_fn.position().xy();
+            network,model.app.display.scene(),&model.background);
         let track_click   = relative_shape_down_position(
-            base_position,network,&model.track.events,mouse);
+            network,model.app.display.scene(),&model.track);
 
         let style_track_color = style.get_color(theme::component::slider::track::color);
 

@@ -20,6 +20,7 @@ pub mod component;
 pub mod drop_down_menu;
 pub mod label;
 pub mod list_view;
+pub mod scroll_area;
 pub mod scrollbar;
 pub mod selector;
 pub mod shadow;

@@ -69,6 +69,9 @@ pub struct Model {
     track_color                       : Rc<RefCell<color::Rgba>>,
     background_left_corner_roundness  : Rc<Cell<bool>>,
     background_right_corner_roundness : Rc<Cell<bool>>,
+    padding                           : Rc<Cell<f32>>,
+
+    pub app : Application,
 }
 
 impl component::Model for Model {
@@ -90,6 +93,7 @@ impl component::Model for Model {
         let track_color                       = default();
         let background_left_corner_roundness  = default();
         let background_right_corner_roundness = default();
+        let padding                           = default();
 
         let app   = app.clone_ref();
         let scene = app.display.scene();
@@ -118,7 +122,8 @@ impl component::Model for Model {
 
         Self{background,track,track_handle_left,track_handle_right,left_overflow,right_overflow,
              label,label_left,label_right,caption_left,caption_center,root,background_color,
-             track_color,background_left_corner_roundness,background_right_corner_roundness}
+             track_color,background_left_corner_roundness,background_right_corner_roundness,padding,
+             app}
     }
 }
 
@@ -126,11 +131,12 @@ impl Model {
     /// Set the size of the overall shape, taking into account the extra padding required to
     /// render the shadow.
     pub fn set_size(&self, size:Vector2, shadow_padding:Vector2) {
-        let padded_size = size + shadow_padding;
-        self.background.size.set(padded_size);
-        self.track.size.set(padded_size);
-        self.left_overflow.size.set(padded_size);
-        self.right_overflow.size.set(padded_size);
+        let size_with_shadow = size + shadow_padding;
+        self.background.size.set(size_with_shadow);
+        self.left_overflow.size.set(size_with_shadow);
+        self.right_overflow.size.set(size_with_shadow);
+        let padding = Vector2(self.padding.get()*2.0,self.padding.get()*2.0);
+        self.track.size.set(size_with_shadow-padding);
 
         let left_padding       = LABEL_OFFSET;
         let overflow_icon_size = size.y;
@@ -258,6 +264,10 @@ impl Model {
     pub fn set_track_corner_round(&self, value:bool) {
         let corner_roundness = if value { 1.0 } else { 0.0 };
         self.track.corner_inner.set(corner_roundness)
+    }
+
+    pub fn set_padding(&self, padding:f32) {
+        self.padding.set(padding);
     }
 
     pub fn show_background(&self, value:bool) {

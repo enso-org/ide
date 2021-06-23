@@ -190,10 +190,13 @@ pub mod right_overflow {
 use enso_frp;
 use enso_frp::Network;
 use ensogl_core::frp::io::Mouse;
+use ensogl_core::gui::component::ShapeView;
 use ensogl_core::gui::component::ShapeViewEvents;
 
 pub use super::frp::*;
 pub use super::model::*;
+use ensogl_core::display;
+use ensogl_core::display::Scene;
 
 /// Return whether a dragging action has been started from the shape passed to this function. A
 /// dragging action is started by a mouse down on the shape, followed by a movement of the mouse.
@@ -210,21 +213,22 @@ pub fn shape_is_dragged
     is_dragging_shape
 }
 
-/// Returns the position of a mouse down on a shape. The position is given relative to the origin
-/// of the shape position.
-pub fn relative_shape_down_position(
-    base_position:impl Fn() -> Vector2 + 'static,
-    network:&Network,
-    shape:&ShapeViewEvents,
-    mouse:&Mouse) -> enso_frp::Stream<Vector2>  {
+/// Returns the position of a mouse down on a shape. The position is given in the shape's local
+/// coordinate system
+pub fn relative_shape_down_position<T:'static+display::Object+CloneRef>
+( network : &Network
+, scene   : &Scene
+, shape   : &ShapeView<T>
+) -> enso_frp::Stream<Vector2> {
+    let mouse = &scene.mouse.frp;
     enso_frp::extend! { network
         mouse_down            <- mouse.down.constant(());
-        over_shape            <- bool(&shape.mouse_out,&shape.mouse_over);
+        over_shape            <- bool(&shape.events.mouse_out,&shape.events.mouse_over);
         mouse_down_over_shape <- mouse_down.gate(&over_shape);
         click_positon         <- mouse.position.sample(&mouse_down_over_shape);
-        click_positon         <- click_positon.map(move |pos|
-            pos - base_position()
-        );
+        click_positon         <- click_positon.map(f!([scene,shape](pos)
+            scene.screen_to_object_space(&shape,*pos)
+        ));
     }
     click_positon
 }

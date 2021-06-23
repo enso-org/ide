@@ -86,15 +86,10 @@ impl Frp {
         let is_dragging_right_handle   = shape_is_dragged(
             network,&model.track_handle_right.events,mouse);
 
-        let model_fn         = model.clone_ref();
-        let base_position    = move || model_fn.position().xy();
         let background_click = relative_shape_down_position(
-            base_position,network,&model.background.events,mouse);
-
-        let model_fn      = model.clone_ref();
-        let base_position = move || model_fn.position().xy();
-        let track_click   = relative_shape_down_position(
-            base_position,network,&model.track.events,mouse);
+            network,model.app.display.scene(),&model.background);
+        let track_click = relative_shape_down_position(
+            network,model.app.display.scene(),&model.track);
 
         // Initialisation of components. Required for correct layout on startup.
         model.label_right.set_position_y(text_size.value()/2.0);
@@ -103,13 +98,14 @@ impl Frp {
         model.caption_left.set_position_y(text_size.value()/2.0);
         model.caption_center.set_position_y(text_size.value()/2.0);
 
-        let bg_color      = style.get_color(theme::component::slider::background);
+        let bg_color = style.get_color(theme::component::slider::background);
         model.set_background_color(bg_color.value());
 
         frp::extend! { network
 
             // Style updates.
-            shadow_padding  <- shadow.size.map(|&v| Vector2(v,v));
+            init_shadow_padding <- source::<()>();
+            shadow_padding      <- all_with(&shadow.size,&init_shadow_padding,|&v,_| Vector2(v,v));
             eval text_size ((size) {
                 model.label.set_position_y(size / 2.0);
                 model.label_right.set_position_y(size / 2.0);
@@ -143,6 +139,8 @@ impl Frp {
 
             track_hover <- bool(&model.track.events.mouse_out,&model.track.events.mouse_over);
         }
+
+        init_shadow_padding.emit(());
 
         Frp {track_max_width,is_dragging_left_overflow,is_dragging_right_overflow,
                  is_dragging_track,is_dragging_background,is_dragging_left_handle,
