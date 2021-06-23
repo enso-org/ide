@@ -90,7 +90,7 @@ impl component::Frp<Model> for Frp {
             resize <- frp.set_length.map(|&length| Vector2::new(length,WIDTH));
         }
 
-        let base_frp = selector::Frp::new(model, style, network, resize.clone().into(), mouse);
+        let base_frp = selector::Frp::new(model, style, network, resize.clone(), mouse);
 
         model.use_track_handles(false);
         model.set_track_corner_round(true);
@@ -110,7 +110,10 @@ impl component::Frp<Model> for Frp {
 
             // We will use this to reveal the scrollbar on scrolling. It has to be defined before
             // the following nodes that update `thumb_position.target`.
-            active <- frp.scroll_to.map2(&thumb_position.target,|&new,&old| new != old).on_true();
+            active <- frp.scroll_to.map2(&thumb_position.target,|&new:&f32,&old:&f32| {
+                let error_margin = 0.1;
+                (new - old).abs() > error_margin
+            }).on_true();
 
             unbounded_target_position <- any(&frp.scroll_to,&frp.jump_to);
             thumb_position.target     <+ all_with3(&unbounded_target_position,&frp.set_thumb_size,
