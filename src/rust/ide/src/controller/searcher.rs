@@ -1015,7 +1015,6 @@ impl Searcher {
                 module             : QualifiedName::from_text(ENSO_PROJECT_SPECIAL_MODULE)?,
                 arguments          : vec![],
                 return_type        : "Standard.Base.System.File.File".to_owned(),
-                documentation      : None,
                 documentation_html : None,
                 self_type          : Some(tp::QualifiedName::from_text(ENSO_PROJECT_SPECIAL_MODULE)?),
                 scope              : model::suggestion_database::entry::Scope::Everywhere,
@@ -1240,7 +1239,6 @@ pub mod test {
                 module             : crate::test::mock::data::module_qualified_name(),
                 arguments          : vec![],
                 return_type        : "Number".to_string(),
-                documentation      : default(),
                 documentation_html : default(),
                 self_type          : None,
                 scope              : Scope::InModule {range:code_range},
@@ -1885,10 +1883,10 @@ pub mod test {
         let Fixture{test:_test,searcher,..} = Fixture::new();
         let module                          = searcher.graph.graph().module.clone_ref();
         let example                         = model::suggestion_database::example::Example {
-            name          : "Test Example".to_owned(),
-            code          : "x = 2 + 2\nx + 4".to_owned(),
-            imports       : vec![],
-            documentation : "Lorem ipsum".to_owned(),
+            name               : "Test Example".to_owned(),
+            code               : "x = 2 + 2\nx + 4".to_owned(),
+            imports            : vec![],
+            documentation_html : "Lorem ipsum".to_owned(),
         };
         let expected_code = "test_example1 =\n    x = 2 + 2\n    x + 4\n\n\
             main = \n    2 + 2\n    here.test_example1";
@@ -1901,10 +1899,10 @@ pub mod test {
         let Fixture{test:_test,searcher,..} = Fixture::new();
         let module                          = searcher.graph.graph().module.clone_ref();
         let example                         = model::suggestion_database::example::Example {
-            name          : "Test Example".to_owned(),
-            code          : "[1,2,3,4,5]".to_owned(),
-            imports       : vec!["Base.Network.Http".to_owned()],
-            documentation : "Lorem ipsum".to_owned()
+            name               : "Test Example".to_owned(),
+            code               : "[1,2,3,4,5]".to_owned(),
+            imports            : vec!["Base.Network.Http".to_owned()],
+            documentation_html : "Lorem ipsum".to_owned()
         };
         let expected_code = "import Base.Network.Http\n\
             test_example1 = [1,2,3,4,5]\n\ntest_example2 = [1,2,3,4,5]\n\n\
