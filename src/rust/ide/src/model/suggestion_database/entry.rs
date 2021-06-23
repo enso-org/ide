@@ -233,14 +233,16 @@ impl Entry {
                          -> FallibleResult<Self> {
         use language_server::types::SuggestionEntry::*;
         let this = match entry {
-            Atom {name,module,arguments,return_type,_documentation,documentation_html,..} => Self {
+            #[allow(unused)]
+            Atom {name,module,arguments,return_type,documentation,documentation_html,..} => Self {
                 name,arguments,return_type,documentation_html,
                 module        : module.try_into()?,
                 self_type     : None,
                 kind          : Kind::Atom,
                 scope         : Scope::Everywhere,
             },
-            Method {name,module,arguments,self_type,return_type,_documentation,documentation_html,..} => Self {
+            #[allow(unused)]
+            Method {name,module,arguments,self_type,return_type,documentation,documentation_html,..} => Self {
                 name,arguments,return_type,documentation_html,
                 module        : module.try_into()?,
                 self_type     : Some(self_type.try_into()?),
