@@ -1830,7 +1830,7 @@ impl ide_view::searcher::DocumentationProvider for SuggestionsProviderForView {
                 let doc = suggestion.documentation_html.clone();
                 Some(doc.unwrap_or_else(|| Self::doc_placeholder_for(&suggestion)))
             }
-            Action::Example(example)     => Some(example.documentation.clone()),
+            Action::Example(example)     => Some(example.documentation_html.clone()),
             Action::ProjectManagement(_) => None,
         }
     }
