@@ -170,16 +170,17 @@ impl component::Frp<Model> for Frp {
             thumb_color.target_alpha <+ all_with5(&recently_active,&base_frp.is_dragging_track,
                 &vert_mouse_distance,&frp.set_thumb_size,&frp.set_max,
                 |&active,&dragging,&dist,&thumb_size,&max| {
-                    if active || dragging {
+                    let thumb_fills_bar = thumb_size >= max;
+                    if thumb_fills_bar {
+                        0.0
+                    } else if active || dragging {
                         1.0
-                    } else if thumb_size < max {  // If there is any space to scroll
+                    } else {
                         if dist <= 0.0 {
                             1.0
                         } else {
                             (0.7 - dist / 20.0).max(0.0).min(1.0)
                         }
-                    } else {
-                        0.0
                     }
                 });
 
