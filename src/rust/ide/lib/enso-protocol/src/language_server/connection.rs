@@ -68,9 +68,9 @@ impl Connection {
     /// Creates a connection which wraps a mock client.
     pub fn new_mock(client:MockClient) -> Connection {
         Connection {
-            client        : Box::new(client),
-            client_id     : default(),
-            project_root  : ContentRoot {
+            client       : Box::new(client),
+            client_id    : default(),
+            project_root : ContentRoot {
                 id                : default(),
                 content_root_type : ContentRootType::Project,
                 name              : "Project".to_owned()
