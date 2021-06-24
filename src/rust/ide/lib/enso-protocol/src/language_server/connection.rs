@@ -50,11 +50,11 @@ pub struct Connection {
 impl Connection {
     /// Takes a client, generates ID for it and initializes the protocol.
     pub async fn new(client:impl API + 'static, client_id:Uuid) -> FallibleResult<Self> {
-        let client             = Box::new(client);
-        let init_response      = client.init_protocol_connection(&client_id).await;
-        let init_response      = init_response.map_err(|e| FailedToInitializeProtocol(e.into()))?;
-        let mut content_roots  = init_response.content_roots;
-        let project_root       = Self::extract_project_root(&mut content_roots)?;
+        let client            = Box::new(client);
+        let init_response     = client.init_protocol_connection(&client_id).await;
+        let init_response     = init_response.map_err(|e| FailedToInitializeProtocol(e.into()))?;
+        let mut content_roots = init_response.content_roots;
+        let project_root      = Self::extract_project_root(&mut content_roots)?;
         Ok(Connection {client_id,client,project_root,content_roots})
     }
 
