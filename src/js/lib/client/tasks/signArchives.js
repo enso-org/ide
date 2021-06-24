@@ -244,8 +244,8 @@ const toSign = [
 
 // Extra files that need to be signed.
 const extra = [
-    `enso/runtime/${GRAALVM}/Contents/MacOS/libjli.dylib``,
-    `enso/runtime/${GRAALVM}/Contents/Home/languages/llvm/native/bin/ld.lld``,
+    `enso/runtime/${GRAALVM}/Contents/MacOS/libjli.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/llvm/native/bin/ld.lld`,
 ]
 
 exports.default = async function () {
