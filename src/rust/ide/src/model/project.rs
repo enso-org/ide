@@ -9,8 +9,9 @@ pub mod synchronized;
 
 use crate::prelude::*;
 
-use crate::double_representation::identifier::ReferentName;
 use crate::model::module::ProjectMetadata;
+use crate::double_representation::project::QualifiedName;
+use crate::double_representation::identifier::ReferentName;
 
 use enso_protocol::binary;
 use enso_protocol::language_server;
@@ -30,7 +31,10 @@ use uuid::Uuid;
 pub trait API:Debug {
     /// Project's name
     // TODO [mwu] This should return Rc<ReferentName>.
-    fn name(&self) -> ImString;
+    fn name(&self) -> ReferentName;
+
+    /// Project's qualified name
+    fn qualified_name(&self) -> QualifiedName;
 
     /// Get Language Server JSON-RPC Connection for this project.
     fn json_rpc(&self) -> Rc<language_server::Connection>;
@@ -39,7 +43,7 @@ pub trait API:Debug {
     fn binary_rpc(&self) -> Rc<binary::Connection>;
 
     /// Get the engine's version of the project.
-    fn engine_version(&self) -> &semver::Version;
+    fn engine_version(&self) -> semver::Version;
 
     /// Get the instance of parser that is set up for this project.
     fn parser(&self) -> Parser;
@@ -74,17 +78,15 @@ pub trait API:Debug {
     /// Generates full module's qualified name that includes the leading project name segment.
     fn qualified_module_name
     (&self, path:&model::module::Path) -> crate::model::module::QualifiedName {
-        path.qualified_module_name(self.name().deref())
+        path.qualified_module_name(self.qualified_name())
     }
 
     /// Get qualified name of the project's `Main` module.
     ///
     /// This module is special, as it needs to be referred by the project name itself.
-    fn main_module(&self) -> model::module::QualifiedName {
-        let id = controller::project::main_module_id();
-        // We unwrap because we know that project name is always a valid referent name.
-        let name = ReferentName::new(self.name().to_string()).unwrap();
-        model::module::QualifiedName::new(name,id)
+    fn main_module(&self) -> FallibleResult<model::module::QualifiedName> {
+        let main = std::iter::once(controller::project::INITIAL_MODULE_NAME);
+        model::module::QualifiedName::from_segments(self.qualified_name(),main)
 
         // TODO [mwu] The code below likely should be preferred but does not work
         //            because language server does not support using project name
@@ -224,7 +226,14 @@ pub mod test {
 
     /// Sets up name expectation on the mock project, returning a given name.
     pub fn expect_name(project:&mut MockAPI, name:impl Into<String>) {
-        let name = ImString::new(name);
-        project.expect_name().returning_st(move || name.clone_ref());
+        let name = ReferentName::new(name.into()).unwrap();
+        project.expect_name().returning_st(move || name.clone());
+    }
+
+    /// Sets up name expectation on the mock project, returning a given name.
+    pub fn expect_qualified_name
+    (project:&mut MockAPI, name:&QualifiedName) {
+        let name = name.clone();
+        project.expect_qualified_name().returning_st(move || name.clone());
     }
 }
