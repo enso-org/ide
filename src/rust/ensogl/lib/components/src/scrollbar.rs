@@ -86,6 +86,7 @@ impl Frp {
         } else if recently_active || dragging {
             1.0
         } else {
+            #[allow(clippy::collapsible_else_if)]
             if cursor_distance <= 0.0 {
                 1.0
             } else {
