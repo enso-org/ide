@@ -1,8 +1,4 @@
-//! This module provides the [`ScrollArea`] component. It displays two scrollbars, for horizontal
-//! and vertical scrolling. Content can be added to the `content` attribute. The content size has
-//! to be set through `set_content_height` and `set_content_width`. The component is anchored at
-//! the top left corner. All scroll coordinates describe the point of the `content` object at that
-//! corner.
+//! This module provides the [`ScrollArea`] component.
 
 use crate::prelude::*;
 
@@ -53,7 +49,12 @@ ensogl_core::define_endpoints! {
 // === Scroll Area ===
 // ===================
 
-/// See module description
+/// This struct provides a scroll area component. It displays two scrollbars, for horizontal and
+/// vertical scrolling. Content can be added to the `content` attribute. The content size has to be
+/// set through `set_content_height` and `set_content_width`. The component is anchored at the top
+/// left corner. All scroll coordinates describe the point of the `content` object at that corner.
+/// The scrollbars are only active when the content is actually larger than the viewport on the
+/// respective axis.
 #[derive(Debug,Clone,CloneRef)]
 pub struct ScrollArea {
     /// All objects that should be inside the scroll area and affected by the scrolling, have to be

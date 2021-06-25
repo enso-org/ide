@@ -54,7 +54,7 @@ pub mod background {
         (style:Style,corner_left:f32,corner_right:f32,color:Vector4,show_shadow:f32) {
             let background = Background::new(&corner_left,&corner_right,style);
             let shadow     = shadow::from_shape_with_alpha(background.shape.clone(),
-                             &show_shadow,style);
+                &show_shadow,style);
             let background = background.shape.fill(color);
             (shadow + background).into()
         }

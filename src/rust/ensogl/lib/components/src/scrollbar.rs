@@ -44,6 +44,8 @@ const MIN_THUMB_SIZE        : f32 = 12.0;
 /// After an animation, the thumb will be visible for this time, before it hides again.
 const HIDE_DELAY            : f32 = 1000.0;
 
+const ERROR_MARGIN_FOR_ACTIVITY_DETECTION : f32 = 0.1;
+
 
 
 // ===========
@@ -71,6 +73,27 @@ ensogl_core::define_endpoints! {
     Output {
         /// Scroll position in scroll units.
         thumb_position (f32),
+    }
+}
+
+impl Frp {
+    fn compute_target_alpha
+    (&recently_active:&bool, &dragging:&bool, &cursor_distance:&f32, &thumb_size:&f32, &max:&f32)
+    -> f32 {
+        let thumb_fills_bar = thumb_size >= max;
+        if thumb_fills_bar {
+            0.0
+        } else if recently_active || dragging {
+            1.0
+        } else {
+            if cursor_distance <= 0.0 {
+                1.0
+            } else {
+                // The opacity approaches 0.7 when the cursor is right next to the bar and fades
+                // linearly to 0.0 at 20 px distance.
+                (0.7 - cursor_distance / 20.0).max(0.0)
+            }
+        }
     }
 }
 
@@ -111,8 +134,7 @@ impl component::Frp<Model> for Frp {
             // We will use this to reveal the scrollbar on scrolling. It has to be defined before
             // the following nodes that update `thumb_position.target`.
             active <- frp.scroll_to.map2(&thumb_position.target,|&new:&f32,&old:&f32| {
-                let error_margin = 0.1;
-                (new - old).abs() > error_margin
+                (new - old).abs() > ERROR_MARGIN_FOR_ACTIVITY_DETECTION
             }).on_true();
 
             unbounded_target_position <- any(&frp.scroll_to,&frp.jump_to);
@@ -157,7 +179,10 @@ impl component::Frp<Model> for Frp {
 
             // The signed distance between the cursor and the edge of the scrollbar. If the cursor
             // is further left or right than the ends of the scrollbar then we count the distance as
-            // infinite.
+            // infinite. We use this distance to reveal the scrollbar when approached by the cursor.
+            // Returning infinity has the effect that we do not reveal it when the cursor approaches
+            // from the sides. This could be handled differently, but the solution was chosen for
+            // the simplicity of the implementation and the feeling of the interaction.
             vert_mouse_distance <- all_with(&mouse_position,&frp.set_length,|&pos,&length| {
                 let scrollbar_x_range = (-length/2.0)..=(length/2.0);
                 if scrollbar_x_range.contains(&pos.x) {
@@ -168,21 +193,7 @@ impl component::Frp<Model> for Frp {
             });
 
             thumb_color.target_alpha <+ all_with5(&recently_active,&base_frp.is_dragging_track,
-                &vert_mouse_distance,&frp.set_thumb_size,&frp.set_max,
-                |&active,&dragging,&dist,&thumb_size,&max| {
-                    let thumb_fills_bar = thumb_size >= max;
-                    if thumb_fills_bar {
-                        0.0
-                    } else if active || dragging {
-                        1.0
-                    } else {
-                        if dist <= 0.0 {
-                            1.0
-                        } else {
-                            (0.7 - dist / 20.0).max(0.0).min(1.0)
-                        }
-                    }
-                });
+                &vert_mouse_distance,&frp.set_thumb_size,&frp.set_max,Self::compute_target_alpha);
 
 
             // === Position on Screen ===
@@ -225,15 +236,15 @@ impl component::Frp<Model> for Frp {
             // === Dragging ===
 
             drag_started <- base_frp.is_dragging_track.on_change().on_true().constant(());
-            drag_offset  <- all4(&mouse_position,&inner_length,&frp.set_max,&frp.thumb_position)
-                .sample(&drag_started)
-                .map(|(mouse_px,length_px,max,thumb_pos)| {
+            x            <- all4(&mouse_position,&inner_length,&frp.set_max,&frp.thumb_position);
+            x            <- x.sample(&drag_started);
+            drag_offset  <- x.map(|(mouse_px,length_px,max,thumb_pos)| {
                     let thumb_position_px = thumb_pos / max * length_px;
                     mouse_px.x - thumb_position_px
                 });
-            frp.jump_to <+ all4(&mouse_position,&drag_offset,&inner_length,&frp.set_max)
-                .gate(&base_frp.is_dragging_track)
-                .map(|(mouse_px,offset_px,length_px,max)| {
+            x           <- all4(&mouse_position,&drag_offset,&inner_length,&frp.set_max);
+            x           <- x.gate(&base_frp.is_dragging_track);
+            frp.jump_to <+ x.map(|(mouse_px,offset_px,length_px,max)| {
                     let target_px = mouse_px.x - offset_px;
                     target_px / length_px * max
                 });
