@@ -11,6 +11,8 @@ use crate::controller::graph::Connections;
 use crate::controller::graph::NodeTrees;
 use crate::controller::searcher::action::MatchInfo;
 use crate::controller::searcher::Actions;
+use crate::controller::upload;
+use crate::controller::upload::NodeFromDroppedFileHandler;
 use crate::model::execution_context::ComputedValueInfo;
 use crate::model::execution_context::ExpressionId;
 use crate::model::execution_context::LocalCall;
@@ -23,9 +25,10 @@ use analytics;
 use bimap::BiMap;
 use enso_data::text::TextChange;
 use enso_frp as frp;
+use enso_protocol::language_server::ExpressionUpdatePayload;
 use ensogl::display::traits::*;
 use ensogl_gui_components::list_view;
-use enso_protocol::language_server::ExpressionUpdatePayload;
+use ensogl_web::drop;
 use ide_view::graph_editor;
 use ide_view::graph_editor::component::node;
 use ide_view::graph_editor::component::visualization;
@@ -33,6 +36,7 @@ use ide_view::graph_editor::EdgeEndpoint;
 use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
 use utils::iter::split_by_predicate;
+use futures::future::LocalBoxFuture;
 
 
 
@@ -185,6 +189,7 @@ struct Model {
     code_view               : CloneRefCell<ensogl_text::Text>,
     visualizations          : SharedHashMap<graph_editor::NodeId,VisualizationId>,
     error_visualizations    : SharedHashMap<graph_editor::NodeId,VisualizationId>,
+    prompt_was_shown        : Cell<bool>,
 }
 
 
@@ -262,25 +267,51 @@ impl Integration {
             });
         }
 
+        // === Dropping Files ===
+
+        let file_dropped = model.view.graph().file_dropped.clone_ref();
+        frp::extend! { network
+            eval file_dropped ([model]((file,position)) {
+                let project   = model.project.clone_ref();
+                let graph     = model.graph.graph();
+                let to_upload = upload::FileToUpload {
+                    name : file.name.clone_ref().into(),
+                    size : file.size,
+                    data : file.clone_ref(),
+                };
+                let position = model::module::Position {vector:*position};
+                let handler  = NodeFromDroppedFileHandler::new(&model.logger,project,graph);
+                let res      = handler.create_node_and_start_uploading(to_upload,position);
+                if let Err(err) = res {
+                    error!(model.logger, "Error when creating node from dropped file: {err}");
+                }
+            });
+        }
+
 
         // === UI Actions ===
 
-        let inv                    = &invalidate.trigger;
-        let node_editing_in_ui     = Model::node_editing_in_ui(Rc::downgrade(&model));
-        let code_changed           = Self::ui_action(&model,Model::code_changed_in_ui          ,inv);
-        let node_removed           = Self::ui_action(&model,Model::node_removed_in_ui          ,inv);
-        let nodes_collapsed        = Self::ui_action(&model,Model::nodes_collapsed_in_ui       ,inv);
-        let node_entered           = Self::ui_action(&model,Model::node_entered_in_ui          ,inv);
-        let node_exited            = Self::ui_action(&model,Model::node_exited_in_ui           ,inv);
-        let connection_created     = Self::ui_action(&model,Model::connection_created_in_ui    ,inv);
-        let connection_removed     = Self::ui_action(&model,Model::connection_removed_in_ui    ,inv);
-        let node_moved             = Self::ui_action(&model,Model::node_moved_in_ui            ,inv);
-        let node_editing           = Self::ui_action(&model,node_editing_in_ui                 ,inv);
-        let node_expression_set    = Self::ui_action(&model,Model::node_expression_set_in_ui   ,inv);
-        let used_as_suggestion     = Self::ui_action(&model,Model::used_as_suggestion_in_ui    ,inv);
-        let node_editing_committed = Self::ui_action(&model,Model::node_editing_committed_in_ui,inv);
-        let visualization_enabled  = Self::ui_action(&model,Model::visualization_enabled_in_ui ,inv);
-        let visualization_disabled = Self::ui_action(&model,Model::visualization_disabled_in_ui,inv);
+        let inv                       = &invalidate.trigger;
+        let node_editing_in_ui        = Model::node_editing_in_ui(Rc::downgrade(&model));
+        let searcher_opened_in_ui     = Model::searcher_opened_in_ui(Rc::downgrade(&model));
+        let searcher_opened_fop_in_ui = Model::searcher_opened_for_opening_project_in_ui(Rc::downgrade(&model));
+        let code_changed              = Self::ui_action(&model,Model::code_changed_in_ui          ,inv);
+        let node_removed              = Self::ui_action(&model,Model::node_removed_in_ui          ,inv);
+        let nodes_collapsed           = Self::ui_action(&model,Model::nodes_collapsed_in_ui       ,inv);
+        let node_entered              = Self::ui_action(&model,Model::node_entered_in_ui          ,inv);
+        let node_exited               = Self::ui_action(&model,Model::node_exited_in_ui           ,inv);
+        let connection_created        = Self::ui_action(&model,Model::connection_created_in_ui    ,inv);
+        let connection_removed        = Self::ui_action(&model,Model::connection_removed_in_ui    ,inv);
+        let node_moved                = Self::ui_action(&model,Model::node_moved_in_ui            ,inv);
+        let searcher_opened           = Self::ui_action(&model,searcher_opened_in_ui              ,inv);
+        let searcher_opened_fop       = Self::ui_action(&model,searcher_opened_fop_in_ui          ,inv);
+        let node_editing              = Self::ui_action(&model,node_editing_in_ui                 ,inv);
+        let node_expression_set       = Self::ui_action(&model,Model::node_expression_set_in_ui   ,inv);
+        let used_as_suggestion        = Self::ui_action(&model,Model::used_as_suggestion_in_ui    ,inv);
+        let node_editing_committed    = Self::ui_action(&model,Model::node_editing_committed_in_ui,inv);
+        let node_editing_aborted      = Self::ui_action(&model,Model::node_editing_aborted_in_ui  ,inv);
+        let visualization_enabled     = Self::ui_action(&model,Model::visualization_enabled_in_ui ,inv);
+        let visualization_disabled    = Self::ui_action(&model,Model::visualization_disabled_in_ui,inv);
         frp::extend! {network
             eval code_editor.content ((content) model.code_view.set(content.clone_ref()));
 
@@ -312,13 +343,18 @@ impl Integration {
             _action <- on_connection_removed                .map2(&is_hold,connection_removed);
             _action <- editor_outs.node_position_set_batched.map2(&is_hold,node_moved);
             _action <- editor_outs.node_being_edited        .map2(&is_hold,node_editing);
+            _action <- project_frp.searcher_opened          .map2(&is_hold,searcher_opened);
+            _action <- project_frp.searcher_opened_for_opening_project.map2(&is_hold,searcher_opened_fop);
             _action <- editor_outs.node_expression_set      .map2(&is_hold,node_expression_set);
             _action <- searcher_frp.used_as_suggestion      .map2(&is_hold,used_as_suggestion);
             _action <- project_frp.editing_committed        .map2(&is_hold,node_editing_committed);
+            _action <- project_frp.editing_aborted          .map2(&is_hold,node_editing_aborted);
 
             eval_ project_frp.editing_committed (invalidate.trigger.emit(()));
             eval_ project_frp.editing_aborted   (invalidate.trigger.emit(()));
             eval_ project_frp.save_module       (model.module_saved_in_ui());
+            eval_ project_frp.undo              (model.undo_in_ui());
+            eval_ project_frp.redo              (model.redo_in_ui());
         }
 
         frp::extend! { network
@@ -431,10 +467,11 @@ impl Model {
         let visualizations          = default();
         let error_visualizations    = default();
         let searcher                = default();
+        let prompt_was_shown        = default();
         let this                    = Model
             {logger,view,graph,text,ide,searcher,project,node_views,node_view_by_expression
             ,expression_views,expression_types,connection_views,code_view,visualizations
-            ,error_visualizations};
+            ,error_visualizations,prompt_was_shown};
 
         this.view.graph().frp.remove_all_nodes();
         this.view.status_bar().clear_all();
@@ -587,9 +624,9 @@ impl Model {
         if info.metadata.as_ref().and_then(|md| md.position).is_none() {
             self.view.graph().frp.input.set_node_position.emit(&(displayed_id, default_pos));
             // If position wasn't present in metadata, we initialize it.
-            if let Err(err) = self.set_node_metadata_position(id,default_pos) {
-                debug!(self.logger, "Failed to set default position information IDs: {id:?} because \
-                of error {err:?}");
+            if let Err(err) = self.graph.graph().set_node_position(id,default_pos) {
+                debug!(self.logger, "Failed to set default position information IDs: {id:?} \
+                because of the error: {err:?}");
             }
         }
         self.node_views.borrow_mut().insert(id, displayed_id);
@@ -755,13 +792,6 @@ impl Model {
         trace.iter().find_map(|expr_id| node_view_by_expression.get(&expr_id).copied())
     }
 
-    /// Set the position in the node's metadata.
-    fn set_node_metadata_position(&self, node_id:ast::Id,pos:Vector2) -> FallibleResult {
-        self.graph.graph().module.with_node_metadata(node_id, Box::new(|md| {
-            md.position = Some(model::module::Position::new(pos.x,pos.y));
-        }))
-    }
-
     fn refresh_connection_views
     (&self, connections:Vec<controller::graph::Connection>) -> FallibleResult {
         self.retain_connection_views(&connections);
@@ -844,7 +874,10 @@ impl Model {
 
     /// Handle notification received from controller about values having been computed.
     pub fn on_values_computed(&self, expressions:&[ExpressionId]) -> FallibleResult {
-        self.view.show_prompt();
+        if !self.prompt_was_shown.get() {
+            self.view.show_prompt();
+            self.prompt_was_shown.set(true);
+        }
         self.refresh_computed_infos(&expressions)
     }
 
@@ -962,7 +995,7 @@ impl Model {
     (&self, (displayed_id,pos):&(graph_editor::NodeId,Vector2)) -> FallibleResult {
         debug!(self.logger, "Moving node.");
         if let Ok(id) = self.get_controller_node_id(*displayed_id) {
-           self.set_node_metadata_position(id,*pos)?;
+            self.graph.graph().set_node_position(id,*pos)?
         }
         Ok(())
     }
@@ -991,10 +1024,33 @@ impl Model {
         Ok(())
     }
 
+    fn searcher_opened_in_ui(weak_self:Weak<Self>)
+    -> impl Fn(&Self,&graph_editor::NodeId) -> FallibleResult {
+        move |this,displayed_id| {
+            let node_view = this.view.graph().model.nodes.get_cloned_ref(&displayed_id);
+            let position  = node_view.map(|node| node.position().xy());
+            let position  = position.map(|vector| model::module::Position{vector});
+            let mode      = controller::searcher::Mode::NewNode {position};
+            this.setup_searcher_controller(&weak_self,mode)
+        }
+    }
+
+    fn searcher_opened_for_opening_project_in_ui(weak_self:Weak<Self>)
+    -> impl Fn(&Self,&graph_editor::NodeId) -> FallibleResult {
+        move |this,_displayed_id| {
+            let mode = controller::searcher::Mode::OpenProject;
+            this.setup_searcher_controller(&weak_self,mode)
+        }
+    }
+
     fn node_editing_in_ui(weak_self:Weak<Self>)
     -> impl Fn(&Self,&Option<graph_editor::NodeId>) -> FallibleResult {
         move |this,displayed_id| {
-            if let Some(displayed_id) = displayed_id {
+            if this.searcher.borrow().is_some() {
+                // This is a normal situation: the searcher controller might be created when
+                // one of "open searcher" signals was emitted by searcher view.
+                debug!(this.logger, "Searcher controller already created.");
+            } else if let Some(displayed_id) = displayed_id {
                 debug!(this.logger, "Starting node editing.");
                 let id   = this.get_controller_node_id(*displayed_id);
                 let mode = match id {
@@ -1007,20 +1063,7 @@ impl Model {
                     },
                     Err(other) => return Err(other.into()),
                 };
-                let selected_nodes = this.view.graph().model.selected_nodes().iter().filter_map(|id| {
-                    this.get_controller_node_id(*id).ok()
-                }).collect_vec();
-                let controller = this.graph.clone_ref();
-                let ide        = this.ide.clone_ref();
-                let searcher   = controller::Searcher::new_from_graph_controller
-                    (&this.logger,ide,&this.project,controller,mode,selected_nodes)?;
-                executor::global::spawn(searcher.subscribe().for_each(f!([weak_self](notification) {
-                    if let Some(this) = weak_self.upgrade() {
-                        this.handle_searcher_notification(notification);
-                    }
-                    futures::future::ready(())
-                })));
-                *this.searcher.borrow_mut() = Some(searcher);
+                this.setup_searcher_controller(&weak_self,mode)?;
             } else {
                 debug!(this.logger, "Finishing node editing.");
             }
@@ -1075,6 +1118,11 @@ impl Model {
                 Err(err)
             }
         }
+    }
+
+    fn node_editing_aborted_in_ui (&self, _displayed_id:&graph_editor::NodeId) -> FallibleResult {
+        *self.searcher.borrow_mut() = None;
+        Ok(())
     }
 
     fn connection_created_in_ui(&self, edge_id:&graph_editor::EdgeId) -> FallibleResult {
@@ -1179,6 +1227,20 @@ impl Model {
                 error!(logger, "Error while saving file: {err:?}");
             }
         });
+    }
+
+    fn undo_in_ui(&self) {
+        debug!(self.logger, "Undo triggered in UI.");
+        if let Err(e) = self.project.urm().undo() {
+            error!(self.logger, "Undo failed: {e}");
+        }
+    }
+
+    fn redo_in_ui(&self) {
+        debug!(self.logger, "Redo triggered in UI.");
+        if let Err(e) = self.project.urm().redo() {
+            error!(self.logger, "Redo failed: {e}");
+        }
     }
 
     fn resolve_visualization_context
@@ -1365,6 +1427,25 @@ impl Model {
         });
         Ok(())
     }
+
+    fn setup_searcher_controller
+    (&self, weak_self:&Weak<Self>, mode:controller::searcher::Mode) -> FallibleResult {
+        let selected_nodes = self.view.graph().model.nodes.all_selected().iter().filter_map(|id| {
+            self.get_controller_node_id(*id).ok()
+        }).collect_vec();
+        let controller = self.graph.clone_ref();
+        let ide        = self.ide.clone_ref();
+        let searcher   = controller::Searcher::new_from_graph_controller
+            (&self.logger,ide,&self.project,controller,mode,selected_nodes)?;
+        executor::global::spawn(searcher.subscribe().for_each(f!([weak_self](notification) {
+            if let Some(this) = weak_self.upgrade() {
+                this.handle_searcher_notification(notification);
+            }
+            futures::future::ready(())
+        })));
+        *self.searcher.borrow_mut() = Some(searcher);
+        Ok(())
+    }
 }
 
 
@@ -1440,8 +1521,14 @@ impl ide_view::searcher::DocumentationProvider for DataProviderForView {
                 let doc = suggestion.documentation.clone();
                 Some(doc.unwrap_or_else(|| Self::doc_placeholder_for(&suggestion)))
             }
-            Action::Example(example) => Some(example.documentation.clone()),
-            Action::CreateNewProject => None,
+            Action::Example(example)     => Some(example.documentation.clone()),
+            Action::ProjectManagement(_) => None,
         }
+    }
+}
+
+impl upload::DataProvider for drop::File {
+    fn next_chunk(&mut self) -> LocalBoxFuture<FallibleResult<Option<Vec<u8>>>> {
+        self.read_chunk().map(|f| f.map_err(|e| e.into())).boxed_local()
     }
 }

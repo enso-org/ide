@@ -8,6 +8,7 @@ pub mod closure;
 pub mod event;
 pub mod resize_observer;
 pub mod platform;
+pub mod stream;
 
 /// Common types that should be visible across the whole crate.
 pub mod prelude {
@@ -50,7 +51,8 @@ pub use std::time::Instant;
 
 /// Generic error representation. We may want to support errors in form of structs and enums, but it
 /// requires significant work, so a simpler solution was chosen for now.
-#[derive(Debug)]
+#[derive(Debug,Fail)]
+#[fail(display="{}",message)]
 pub struct Error{
     message : String
 }

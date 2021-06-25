@@ -1,3 +1,40 @@
+# Enso 2.0.0-alpha.6 (2021-06-28)
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Visual Environment
+
+- [Profling mode.][1546] The IDE contains a profiling mode now which can be
+  entered through a button in the top-right corner or through the keybinding
+  <kbd>ctrl</kbd>+<kbd>p</kbd>. This mode does not display any information yet.
+  In the future, it will display the running times of nodes and maybe more
+  useful statistics.
+- [Area selection][1588]. You can now select multiple nodes at once. Just click
+  and drag on the background of your graph and see the beauty of the area
+  selection appear.
+- [Opening projects in application graphical interface][1587]. Press `cmd`+`o`
+  to bring the list of projects. Select a project on the list to open it.
+- [Initial support for undo-redo][1602]. Press <kbd>cmd</kbd>+<kbd>z</kbd> to
+  undo last action and <kbd>cmd</kbd>+<kbd>z</kbd> to redo last undone action.
+  This version of undo redo does not have proper support for text editor and
+  undoing UI changes (like selecting nodes).
+
+#### EnsoGL (rendering engine)
+
+<br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
+
+#### Visual Environment
+
+- [Nodes in graph no longer overlap panels][1577]. The Searcher, project name,
+  breadcrumbs and status bar are displayed "above" nodes.
+
+#### Enso Compiler
+
+[1588]: https://github.com/enso-org/ide/pull/1588
+[1577]: https://github.com/enso-org/ide/pull/1577
+[1587]: https://github.com/enso-org/ide/pull/1587
+[1602]: https://github.com/enso-org/ide/pull/1602
+
 # Enso 2.0.0-alpha.5 (2021-05-14)
 
 <br/>![New Features](/docs/assets/tags/new_features.svg)

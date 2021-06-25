@@ -94,6 +94,12 @@ impl Path {
             segments : segments.into_iter().map(|s| s.as_ref().into()).collect()
         }
     }
+
+    /// Constructs a new path containing a content root only.
+    pub fn new_root(root_id:Uuid) -> Path {
+        let segments = default();
+        Path {root_id,segments}
+    }
 }
 
 
@@ -365,8 +371,52 @@ impl FileSystemObject {
     pub fn new_symlink_loop(path:Path,target:Path) -> Option<Self> {
         path.split().map(|(path,name)| Self::SymlinkLoop{name,path,target})
     }
+
+    /// Take the name of this file system object, consuming self.
+    pub fn take_name(self) -> String {
+        match self {
+            FileSystemObject::Directory          {name,..} => name,
+            FileSystemObject::DirectoryTruncated {name,..} => name,
+            FileSystemObject::File               {name,..} => name,
+            FileSystemObject::Other              {name,..} => name,
+            FileSystemObject::SymlinkLoop        {name,..} => name,
+        }
+    }
 }
 
+
+
+// =====================
+// === Content Roots ===
+// =====================
+
+/// The type of the annotated content root.
+#[derive(Clone,Copy,Debug,Deserialize,Eq,Hash,PartialEq,Serialize)]
+pub enum ContentRootType {
+    /// The project home.
+    Project,
+    /// System root `/` on unix systems, or drive root on Windows. In Windows’ case, there may be
+    /// multiple [`Root`] entries corresponding to the various drives.
+    Root,
+    /// The user’s home directory.
+    Home,
+    /// An Enso library location.
+    Library,
+    /// A content root that has been added by the IDE (unused for now).
+    Custom
+}
+
+/// A content root represents a location on a real file-system that has been virtualized for use in
+/// the Cloud.
+#[allow(missing_docs)]
+#[derive(Clone,Debug,Deserialize,Eq,Hash,PartialEq,Serialize)]
+#[serde(rename_all="camelCase")]
+pub struct ContentRoot {
+    pub id:Uuid,
+    #[serde(rename="type")]
+    pub content_root_type : ContentRootType,
+    pub name              : String,
+}
 
 
 

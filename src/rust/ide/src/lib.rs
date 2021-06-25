@@ -12,6 +12,8 @@
 #![feature(option_result_contains)]
 #![feature(trait_alias)]
 #![feature(result_cloned)]
+#![feature(result_into_ok_or_err)]
+#![feature(map_try_insert)]
 #![recursion_limit="256"]
 #![warn(missing_docs)]
 #![warn(trivial_casts)]
@@ -47,7 +49,6 @@ mod tests;
 /// Common types that should be visible across the whole IDE crate.
 pub mod prelude {
     pub use ensogl::prelude::*;
-    pub use ensogl::prelude::DefaultWarningLogger as Logger;
     pub use enso_prelude::*;
     pub use ast::prelude::*;
     pub use wasm_bindgen::prelude::*;
@@ -57,6 +58,7 @@ pub mod prelude {
     pub use crate::double_representation;
     pub use crate::executor;
     pub use crate::model;
+    pub use crate::model::traits::*;
 
     pub use enso_protocol::prelude::BoxFuture;
     pub use enso_protocol::prelude::StaticBoxFuture;

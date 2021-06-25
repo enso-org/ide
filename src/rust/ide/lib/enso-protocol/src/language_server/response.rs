@@ -7,7 +7,7 @@ use crate::language_server::SuggestionsDatabaseEntry;
 #[serde(rename_all="camelCase")]
 pub struct InitProtocolConnection {
     /// List of Root IDs.
-    pub content_roots:Vec<Uuid>,
+    pub content_roots:Vec<ContentRoot>,
 }
 
 /// Response of `file_read` method.
@@ -36,6 +36,13 @@ pub struct FileList {
 pub struct FileInfo {
     #[allow(missing_docs)]
     pub attributes: FileAttributes,
+}
+
+/// Response of `file_checksum` method.
+#[derive(Hash,Debug,Clone,PartialEq,Eq,Serialize,Deserialize)]
+pub struct FileChecksum {
+    #[allow(missing_docs)]
+    pub checksum:Sha3_224,
 }
 
 /// Response of `open_text_file` method.
