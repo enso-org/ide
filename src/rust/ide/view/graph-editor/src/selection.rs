@@ -374,7 +374,6 @@ impl Controller {
             keep_selection     <- selection_mode.map(|t| *t != Mode::Normal);
             deselect_on_select <- drag_start.gate_not(&keep_selection);
             eval_ deselect_on_select ( nodes.deselect_all() );
-            trace deselect_on_select;
 
             cursor_selection_nodes.insert <+ node_info;
             cursor_selection_nodes.remove_difference_with_vec <+ nodes_in_bb;
