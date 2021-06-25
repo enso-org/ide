@@ -34,6 +34,8 @@ use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
 use utils::iter::split_by_predicate;
 use crate::model::module::APIExt;
+use utils::test::traits::FutureTestExt;
+use itertools::EitherOrBoth;
 
 #[derive(Clone,Debug)]
 pub struct VisualizationInfo {
@@ -489,6 +491,7 @@ impl Model {
         this.view.graph().frp.remove_all_nodes();
         this.view.status_bar().clear_all();
         this.init_project_name();
+        this.init_crumbs();
         this.load_visualizations();
         if let Err(err) = this.refresh_graph_view() {
             error!(this.logger,"Error while initializing graph editor: {err}.");
@@ -530,6 +533,19 @@ impl Model {
         self.view.graph().model.breadcrumbs.input.project_name.emit(project_name);
     }
 
+    fn push_crumb(&self, frame:&LocalCall) {
+        let definition = frame.definition.clone().into();
+        let call       = frame.call;
+        let local_call = graph_editor::LocalCall{call,definition};
+        self.view.graph().model.breadcrumbs.input.push_breadcrumb.emit(Some(local_call))
+    }
+
+    fn init_crumbs(&self) {
+        for frame in self.graph.call_stack() {
+            self.push_crumb(&frame)
+        }
+    }
+
     fn rename_project(&self, name:impl Str) {
         if self.project.name() != name.as_ref() {
             let project     = self.project.clone_ref();
@@ -558,6 +574,38 @@ impl Model {
             self.code_view.set(new_code.as_str().into());
             self.view.code_editor().text_area().set_content(new_code);
         }
+        Ok(())
+    }
+
+    pub fn refresh_call_stack(&self) -> FallibleResult {
+        use itertools::EitherOrBoth::*;
+        // If graph controller displays a different graph
+        let current_call_stack  = self.graph.call_stack();
+        let metadata_call_stack = self.project.main_module_model().expect_ready()?.with_project_metadata(|metadata| metadata.call_stack.clone());
+
+        WARNING!("CALL STACKS:\n{current_call_stack:?}\n{metadata_call_stack:?}");
+        let mut current = current_call_stack.into_iter();
+        let mut metadata = metadata_call_stack.into_iter();
+        loop {
+            let hlp = (current.next(), metadata.next());
+            match hlp {
+                (Some(current), Some(metadata)) if current == metadata => {}
+                (Some(_), Some(metadata)) => {
+                    // Wrong frame on current stack. Drop all trailing frames.
+                    while let Some(frame) = current.next() {
+                        self.node_exited_in_ui(&());
+                    }
+                    self.expression_entered_in_ui(&Some(metadata))?;
+                }
+                (None, Some(metadata)) => {
+                    self.expression_entered_in_ui(&Some(metadata))?;
+                }
+                (Some(_), None) => {
+                    self.node_exited_in_ui(&())?;
+                }
+                (None,None) => break FallibleResult::Ok(()),
+            }
+        };
         Ok(())
     }
 
@@ -903,11 +951,8 @@ impl Model {
     /// Handle notification received from controller about values having been entered.
     pub fn on_node_entered(&self, local_call:&LocalCall) -> FallibleResult {
         analytics::remote_log_event("integration::node_entered");
-        let definition = local_call.definition.clone().into();
-        let call       = local_call.call;
-        let local_call = graph_editor::LocalCall{call,definition};
         self.view.graph().frp.deselect_all_nodes.emit(&());
-        self.view.graph().model.breadcrumbs.push_breadcrumb.emit(&Some(local_call));
+        self.push_crumb(local_call);
         self.request_detaching_all_visualizations();
         self.refresh_graph_view()
     }
@@ -1273,7 +1318,7 @@ impl Model {
         let graph   = self.graph.clone_ref();
         async move {
             let call_stack  = graph.call_stack();
-            let main_name   = project.main_module()?;
+            let main_name   = project.main_module();
             let main_path   = model::module::Path::from_id(project.content_root_id(), &main_name.id);
             let main_module = project.module(main_path).await?;
             main_module.update_project_metadata_internal(Box::new(|metadata| {
@@ -1353,7 +1398,7 @@ impl Model {
     -> FallibleResult<model::module::QualifiedName> {
         use visualization::instance::ContextModule::*;
         match context {
-            ProjectMain           => self.project.main_module(),
+            ProjectMain           => Ok(self.project.main_module()),
             Specific(module_name) => model::module::QualifiedName::from_text(module_name),
         }
     }

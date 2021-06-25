@@ -537,7 +537,7 @@ pub trait APIExt : API {
         let mut ret = std::mem::MaybeUninit::uninit();
         // Both 'unsafe' below are safe because `with_project_metadata_internal` will call its
         // argument exactly once.
-        self.with_project_metadata_internal(Box::new(|metadata| unsafe {
+        self.with_project_metadata_internal(Box::new(|metadata| {
             ret.write(fun(metadata));
         }));
         unsafe { ret.assume_init() }

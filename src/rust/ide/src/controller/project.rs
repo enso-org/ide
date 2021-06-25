@@ -57,6 +57,11 @@ pub fn main_method_ptr(project_name:impl Str, module_path:&model::module::Path) 
     module_path.method_pointer(project_name,MAIN_DEFINITION_NAME)
 }
 
+pub fn main_module_id() -> model::module::Id {
+    // We can just assume that `INITIAL_MODULE_NAME` is valid. This is verified by a test.
+    model::module::Id::try_new([INITIAL_MODULE_NAME]).unwrap()
+}
+
 
 // ==============
 // === Handle ===
@@ -217,6 +222,13 @@ mod tests {
     use super::*;
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
+
+
+    #[test]
+    fn main_module_id_test() {
+        // Should not panic.
+        main_module_id();
+    }
 
     #[test]
     fn new_project_engine_version_fills_requirements() {

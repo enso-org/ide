@@ -14,6 +14,8 @@ use flo_stream::Subscriber;
 use mockall::automock;
 use parser::Parser;
 use uuid::Uuid;
+use crate::double_representation::identifier::ReferentName;
+use crate::model::module::ProjectMetadata;
 
 
 
@@ -76,9 +78,11 @@ pub trait API:Debug {
     /// Get qualified name of the project's `Main` module.
     ///
     /// This module is special, as it needs to be referred by the project name itself.
-    fn main_module(&self) -> FallibleResult<model::module::QualifiedName> {
-        let main = std::iter::once(controller::project::INITIAL_MODULE_NAME);
-        model::module::QualifiedName::from_segments(self.name(),main)
+    fn main_module(&self) -> model::module::QualifiedName {
+        let id = controller::project::main_module_id();
+        // TODO doc
+        let name = ReferentName::new(self.name().to_string()).unwrap();
+        model::module::QualifiedName::new(name,id)
 
         // TODO [mwu] The code below likely should be preferred but does not work
         //            because language server does not support using project name
@@ -90,11 +94,31 @@ pub trait API:Debug {
         //     .map_err(Into::into)
     }
 
+    /// Get qualified name of the project's `Main` module.
+    ///
+    /// This module is special, as it needs to be referred by the project name itself.
+    #[allow(clippy::needless_lifetimes)] // Note: Needless lifetimes
+    fn main_module_model<'a>(&'a self) -> BoxFuture<'a, FallibleResult<model::Module>> {
+        async move {
+            let main_name = self.main_module();
+            let main_path = model::module::Path::from_id(self.content_root_id(), &main_name.id);
+            self.module(main_path).await
+        }.boxed_local()
+    }
+
     /// Subscribe for notifications about project-level events.
     fn subscribe(&self) -> Subscriber<Notification>;
 
     /// Access undo-redo manager.
     fn urm(&self) -> Rc<model::undo_redo::Manager>;
+}
+
+pub trait APIExt : API {
+    fn with_project_metadata<'a,R>(&'a self, f:impl FnOnce(&ProjectMetadata) -> R + 'a) -> BoxFuture<FallibleResult<R>> {
+        async move {
+            Ok(self.main_module_model().await?.with_project_metadata(f))
+        }.boxed_local()
+    }
 }
 
 // Note: Needless lifetimes

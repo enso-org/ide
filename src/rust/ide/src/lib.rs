@@ -60,6 +60,7 @@ pub mod prelude {
     pub use crate::double_representation;
     pub use crate::executor;
     pub use crate::model;
+    pub use crate::model::traits::*;
 
     pub use enso_protocol::prelude::BoxFuture;
     pub use enso_protocol::prelude::StaticBoxFuture;
