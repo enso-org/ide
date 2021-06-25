@@ -726,6 +726,8 @@ impl Searcher {
                 let (expression,intended_method) = expr_and_method();
                 let metadata                     = NodeMetadata {position,intended_method,..default()};
                 let mut new_node                 = NewNodeInfo::new_pushed_back(expression);
+                let metadata                     = NodeMetadata {position,intended_method,..default()};
+                new_node.metadata                = Some(metadata);
                 new_node.metadata                = Some(metadata);
                 new_node.introduce_pattern       = ASSIGN_NAMES_FOR_NODES;
                 let graph         = self.graph.graph();
