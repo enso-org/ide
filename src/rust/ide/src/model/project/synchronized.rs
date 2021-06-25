@@ -143,7 +143,9 @@ impl Display for UnsupportedEngineVersion {
 pub struct Properties {
     /// ID of the project, as used by the Project Manager service.
     pub id             : Uuid,
-    pub name           : CloneRefCell<ImString>,
+    /// The namespace where project belongs.
+    pub namespace      : ImString,
+    pub name           : ImString,
     pub engine_version : semver::Version,
 }
 
@@ -155,7 +157,7 @@ pub struct Properties {
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct Project {
-    pub properties          : Rc<Properties>,
+    pub properties          : Rc<RefCell<Properties>>,
     #[derivative(Debug = "ignore")]
     pub project_manager     : Option<Rc<dyn project_manager::API>>,
     pub language_server_rpc : Rc<language_server::Connection>,
@@ -177,11 +179,9 @@ impl Project {
     , project_manager     : Option<Rc<dyn project_manager::API>>
     , language_server_rpc : Rc<language_server::Connection>
     , language_server_bin : Rc<binary::Connection>
-    , engine_version      : semver::Version
-    , id                  : Uuid
-    , name                : impl Str
+    , properties          : Properties
     ) -> FallibleResult<Self> {
-        let wrap   = UnsupportedEngineVersion::error_wrapper(name.as_ref().to_owned(),engine_version.clone());
+        let wrap   = UnsupportedEngineVersion::error_wrapper(properties.name.into(),properties.engine_version.clone());
         let logger = Logger::sub(parent,"Project Controller");
         info!(logger,"Creating a model of project {name.as_ref()}");
         let binary_protocol_events  = language_server_bin.event_stream();
@@ -191,15 +191,13 @@ impl Project {
         let module_registry         = default();
         let execution_contexts      = default();
         let visualization           = controller::Visualization::new(language_server,embedded_visualizations);
-        let name                    = CloneRefCell::new(ImString::new(name.into()));
         let parser                  = Parser::new_or_panic();
         let language_server         = &*language_server_rpc;
         let suggestion_db           = SuggestionDatabase::create_synchronized(language_server);
         let suggestion_db           = Rc::new(suggestion_db.await.map_err(&wrap)?);
         let notifications           = notification::Publisher::default();
         let urm                     = Rc::new(model::undo_redo::Manager::new(&logger));
-        let engine_version          = engine_version.clone();
-        let properties = Rc::new(Properties {id,name,engine_version});
+        let properties              = Rc::new(RefCell::new(properties));
 
         let ret = Project
             {properties,project_manager,language_server_rpc,language_server_bin,module_registry
@@ -221,9 +219,7 @@ impl Project {
     , project_manager     : Option<Rc<dyn project_manager::API>>
     , language_server_rpc : String
     , language_server_bin : String
-    , engine_version      : semver::Version
-    , id                  : Uuid
-    , name                : impl Str
+    , properties          : Properties
     ) -> FallibleResult<model::Project> {
         let wrap      = UnsupportedEngineVersion::error_wrapper(name.as_ref().to_owned(),engine_version.clone());
         let client_id = Uuid::new_v4();
@@ -240,7 +236,7 @@ impl Project {
         let language_server_rpc = Rc::new(connection_json);
         let language_server_bin = Rc::new(connection_binary);
         let model               = Self::new(parent,project_manager,language_server_rpc
-            ,language_server_bin,engine_version,id,name).await?;
+            ,language_server_bin,properties).await?;
         Ok(Rc::new(model))
     }
 
@@ -250,15 +246,19 @@ impl Project {
     ( parent          : &Logger
     , project_manager : Rc<dyn project_manager::API>
     , id              : Uuid
-    , name            : impl Str
     ) -> FallibleResult<model::Project> {
         let action          = MissingComponentAction::Install;
         let opened          = project_manager.open_project(&id,&action).await?;
-        let version         = semver::Version::parse(&opened.engine_version)?;
         let project_manager = Some(project_manager);
         let json_endpoint   = opened.language_server_json_address.to_string();
         let binary_endpoint = opened.language_server_binary_address.to_string();
-        Self::new_connected(parent,project_manager,json_endpoint,binary_endpoint,version,id,name).await
+        let properties      = Properties {
+            id,
+            namespace      : ImString::new(opened.project_namespace),
+            name           : ImString::new(opened.project_name),
+            engine_version : semver::Version::parse(&opened.engine_version)?,
+        };
+        Self::new_connected(parent,project_manager,json_endpoint,binary_endpoint,properties).await
     }
 
     /// Returns a handling function capable of processing updates from the binary protocol.

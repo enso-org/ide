@@ -121,13 +121,18 @@ impl From<ProjectName> for String {
 
 /// Project information, such as name, its id and last time it was opened.
 #[derive(Debug,Clone,Serialize,Deserialize,PartialEq)]
+#[serde(rename_all="camelCase")]
 pub struct ProjectMetadata {
     /// Project's name.
-    pub name : ProjectName,
+    pub name:ProjectName,
+    /// Project's namespace,
+    pub namespace:String,
     /// Project's uuid.
-    pub id : Uuid,
+    pub id:Uuid,
+    /// Engine version to use for the project, represented by a semver version string.
+    pub engine_version:String,
     /// Last time the project was opened.
-    pub last_opened : Option<UTCDateTime>
+    pub last_opened:Option<UTCDateTime>
 }
 
 /// This type specifies what action should be taken if an Engine's component required to complete
@@ -167,11 +172,15 @@ pub mod response {
     #[serde(rename_all="camelCase")]
     pub struct OpenProject {
         /// The version of the started language server represented by a semver version string.
-        pub engine_version : String,
+        pub engine_version:String,
         /// Address of the endpoint for JSON-RPC communication.
-        pub language_server_json_address : IpWithSocket,
+        pub language_server_json_address:IpWithSocket,
         /// Address of the endpoint for binary FlatBuffers communication.
-        pub language_server_binary_address : IpWithSocket,
+        pub language_server_binary_address:IpWithSocket,
+        /// The name of the project as it is opened.
+        pub project_name:ProjectName,
+        /// The namespace of the project.
+        pub project_namespace:String,
     }
 }
 

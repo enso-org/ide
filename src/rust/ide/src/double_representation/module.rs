@@ -147,10 +147,11 @@ impl Id {
 #[serde(into="String")]
 #[serde(try_from="String")]
 pub struct QualifiedName {
-    /// The first segment in the full qualified name.
-    pub project_name : ReferentName,
+    pub namespace_name : String,
+    /// The first segment in the full qualified name. May be a project name or a keyword like
+    pub project_name   : ReferentName,
     /// The module id: all segments in full qualified name but the first (which is a project name).
-    pub id           : Id
+    pub id             : Id
 }
 
 impl QualifiedName {
