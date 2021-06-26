@@ -275,31 +275,4 @@ mod tests {
         mouse.down.emit(Button::from_code(0));
         assert_eq!(is_dragged.value(),false);
     }
-
-    #[test]
-    fn test_relative_shape_click_position() {
-        let network = enso_frp::Network::new("TestNetwork");
-        let mouse   = enso_frp::io::Mouse::default();
-        let shape   = ShapeViewEvents::default();
-
-        let base_position = || Vector2::new(-10.0,200.0);
-        let click_position = relative_shape_down_position(base_position, &network,&shape,&mouse);
-        let _watch = click_position.register_watch();
-
-        shape.mouse_over.emit(());
-        mouse.position.emit(Vector2::new(-10.0,200.0));
-        mouse.down.emit(Button::from_code(0));
-        assert_float_eq!(click_position.value().x,0.0,ulps<=7);
-        assert_float_eq!(click_position.value().y,0.0,ulps<=7);
-
-        mouse.position.emit(Vector2::new(0.0,0.0));
-        mouse.down.emit(Button::from_code(0));
-        assert_float_eq!(click_position.value().x,10.0,ulps<=7);
-        assert_float_eq!(click_position.value().y,-200.0,ulps<=7);
-
-        mouse.position.emit(Vector2::new(400.0,0.5));
-        mouse.down.emit(Button::from_code(0));
-        assert_float_eq!(click_position.value().x,410.0,ulps<=7);
-        assert_float_eq!(click_position.value().y,-199.5,ulps<=7);
-    }
 }
