@@ -244,7 +244,9 @@ impl Extracted {
     /// None if there is no such need.
     pub fn return_line(&self) -> Option<Ast> {
         // To return value we just utter its identifier.
-        self.output.as_ref().map(|out| out.identifier.clone().into())
+        self.output.as_ref().map(|out| {
+            out.identifier.with_new_id().into()
+        })
     }
 
     /// Generate the description for the new method's definition with the extracted nodes.
@@ -345,9 +347,10 @@ impl Collapser {
             let expression   = self.call_to_extracted(&extracted_definition)?;
             let no_node_err  = failure::Error::from(CannotConstructCollapsedNode);
             let mut new_node = NodeInfo::new_expression(expression.clone_ref()).ok_or(no_node_err)?;
+            new_node.set_id(Uuid::new_v4());
             new_node.set_id(self.collapsed_node);
             if let Some(Output{identifier,..}) = &self.extracted.output {
-                new_node.set_pattern(identifier.into())
+                new_node.set_pattern(identifier.with_new_id().into())
             }
             Ok(LineDisposition::Replace(new_node.ast().clone_ref()))
         } else {
@@ -362,11 +365,24 @@ impl Collapser {
             self.rewrite_line(line,&new_method)
         })?;
         let collapsed_node = self.collapsed_node;
+        assert_unique_ids(updated_definition.ast.ast());
         Ok(Collapsed {updated_definition,new_method,collapsed_node})
     }
 }
 
 
+
+pub fn assert_unique_ids(ast:&Ast) {
+    let mut ids = HashMap::new();
+    for node in ast.iter_recursive() {
+        if let Some(id) = node.id {
+            DEBUG!("Checking {node}");
+            if let Some(aaa) = ids.insert(id,node) {
+                panic!("Collision for id {} between `{}` and `{}`.\n\nWhole program is:\n{}",id,aaa,node,ast)
+            }
+        }
+    }
+}
 
 // ============
 // === Test ===
@@ -382,6 +398,7 @@ mod tests {
     use crate::double_representation::node::NodeInfo;
 
     use ast::crumbs::Crumb;
+
 
     struct Case {
         refactored_name     : DefinitionName,
@@ -400,6 +417,7 @@ mod tests {
             let graph        = graph::GraphInfo::from_definition(main.item.clone());
             let nodes        = graph.nodes();
             let run_internal = |selection:&Vec<node::Id>| {
+                assert_unique_ids(&ast.ast());
                 let selection  = selection.iter().copied();
                 let new_name   = self.introduced_name.clone();
                 let collapsed  = collapse(&graph,selection,new_name,parser).unwrap();
@@ -412,6 +430,7 @@ mod tests {
                 let main_crumb = Crumb::from(main.crumb());
                 module.ast     = module.ast.set(&main_crumb, new_main.ast().clone()).unwrap();
                 module.add_method(collapsed.new_method, placement, parser).unwrap();
+                assert_unique_ids(&module.ast.ast());
                 info!(logger,"Updated method:\n{&module.ast}");
                 assert_eq!(new_method.repr(),self.expected_generated);
                 assert_eq!(new_main.repr(),self.expected_refactored);
@@ -430,7 +449,8 @@ mod tests {
     }
 
     #[allow(unused_parens)] // False warning.
-    #[wasm_bindgen_test]
+    // #[wasm_bindgen_test]
+    #[test]
     fn test_collapse() {
         let parser          = Parser::new_or_panic();
         let introduced_name = Identifier::try_from("custom_new").unwrap();

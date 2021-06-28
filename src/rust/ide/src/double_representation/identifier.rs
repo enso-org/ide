@@ -93,6 +93,10 @@ impl Identifier {
     pub fn normalized(&self) -> NormalizedName {
         NormalizedName::new(self.name())
     }
+
+    pub fn with_new_id(&self) -> Self {
+        Self(self.0.with_new_id())
+    }
 }
 
 

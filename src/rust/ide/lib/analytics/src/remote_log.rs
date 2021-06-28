@@ -36,7 +36,7 @@ export function remote_log_value(msg, field_name, value) {
 
 /// Send the provided public event to our logging service.
 pub fn remote_log_event(message:&str) {
-    js::remote_log(JsValue::from(message.to_string()),JsValue::UNDEFINED);
+    //js::remote_log(JsValue::from(message.to_string()),JsValue::UNDEFINED);
 }
 
 /// Send the provided public event with a named value to our logging service.

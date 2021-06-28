@@ -40,9 +40,6 @@ use futures::future::LocalBoxFuture;
 use crate::model::module::APIExt;
 use utils::test::traits::FutureTestExt;
 use itertools::EitherOrBoth;
-use crate::model::module::APIExt;
-use utils::test::traits::FutureTestExt;
-use itertools::EitherOrBoth;
 
 #[derive(Clone,Debug)]
 pub struct VisualizationInfo {
@@ -609,6 +606,7 @@ impl Model {
         use itertools::EitherOrBoth::*;
         // If graph controller displays a different graph
         let current_call_stack  = self.graph.call_stack();
+        //let metadata_call_stack = self.project.with_project_metadata(|metadata| metadata.call_stack.clone());
         let metadata_call_stack = self.project.main_module_model().expect_ready()?.with_project_metadata(|metadata| metadata.call_stack.clone());
 
         WARNING!("CALL STACKS:\n{current_call_stack:?}\n{metadata_call_stack:?}");
@@ -963,6 +961,7 @@ impl Model {
 impl Model {
     /// Handle notification received from controller about the whole graph being invalidated.
     pub fn on_graph_invalidated(&self) -> FallibleResult {
+        let _ = self.refresh_call_stack().ok();
         self.refresh_graph_view()
     }
 

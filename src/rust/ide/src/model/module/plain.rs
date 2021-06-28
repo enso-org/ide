@@ -63,6 +63,9 @@ impl Module {
         }
 
         trace!(self.logger, "Updating module's content: {kind:?}. New content:\n{new_content}");
+
+        crate::double_representation::refactorings::collapse::assert_unique_ids(new_content.ast.ast());
+
         let transaction = self.repository.transaction("Setting module's content");
         transaction.fill_content(self.id(),self.content.borrow().clone());
 
