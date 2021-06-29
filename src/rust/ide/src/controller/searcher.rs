@@ -27,8 +27,6 @@ use parser::Parser;
 pub use action::Action;
 
 
-pub type Logger = DefaultTraceLogger;
-
 
 // =================
 // === Constants ===
