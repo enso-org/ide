@@ -323,7 +323,7 @@ impl Integration {
         let node_editing_aborted      = Self::ui_action(&model,Model::node_editing_aborted_in_ui  ,inv);
         let visualization_enabled     = Self::ui_action(&model,Model::visualization_enabled_in_ui ,inv);
         let visualization_disabled    = Self::ui_action(&model,Model::visualization_disabled_in_ui,inv);
-        frp::extend! {network
+        frp::extend! {TRACE_ALL network
             eval code_editor.content ((content) model.code_view.set(content.clone_ref()));
 
             // Notifications from graph controller
@@ -384,7 +384,7 @@ impl Integration {
             eval_ project_frp.redo              (model.redo_in_ui());
         }
 
-        frp::extend! { network
+        frp::extend! {TRACE_ALL network
             eval_ editor_outs.node_editing_started([]analytics::remote_log_event("graph_editor::node_editing_started"));
             eval_ editor_outs.node_editing_finished([]analytics::remote_log_event("graph_editor::node_editing_finished"));
             eval_ editor_outs.node_added([]analytics::remote_log_event("graph_editor::node_added"));
@@ -741,19 +741,25 @@ impl Model {
     fn refresh_node_position(&self, id:graph_editor::NodeId, node:&controller::graph::Node) {
         let position = node.metadata.as_ref().and_then(|md| md.position);
         if let Some(position) = position {
-            self.view.graph().frp.input.set_node_position.emit(&(id, position.vector));
+            let view_position : Option<Vector2<f32>> = self.view.graph().model.get_node_position(id).map(|p| p.xy());
+            DEBUG!("comparing {view_position:?} and {position.vector:?}");
+            if Some(position.vector) != view_position {
+                self.view.graph().frp.input.set_node_position.emit(&(id, position.vector));
+            }
         }
     }
 
     /// Update the position of the node based on its current metadata.
     fn refresh_node_selection(&self, id:graph_editor::NodeId, node:&controller::graph::Node) {
-        let selected = node.metadata.as_ref().map_or_default(|md| md.selected);
-        warning!(self.logger, "Node {id} selection should be {selected}");
-        if selected {
+        let selected_metadata = node.metadata.as_ref().map_or_default(|md| md.selected);
+        let selected_view     = self.view.graph().model.nodes.is_selected(id);
+        warning!(self.logger, "Node {id} selection should be {selected_metadata}, was {selected_view}");
+        if selected_metadata && !selected_view {
             self.view.graph().frp.input.select_node.emit(&id)
-        } else {
+        } else if !selected_metadata && selected_view {
             self.view.graph().frp.input.deselect_node.emit(&id)
         }
+        warning!(self.logger, "Adjusting selection done");
     }
 
     /// Update the position of the node based on its current metadata.

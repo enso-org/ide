@@ -119,7 +119,7 @@ pub mod background {
 // === Frp ===
 // ===========
 
-ensogl::define_endpoints! { [TRACE_ALL]
+ensogl::define_endpoints! {
     Input {
         set_visibility      (bool),
         toggle_visibility   (),

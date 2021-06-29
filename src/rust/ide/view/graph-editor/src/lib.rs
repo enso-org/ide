@@ -153,6 +153,9 @@ impl<T> SharedVec<T> {
     pub fn mem_take(&self) -> Vec<T> {
         mem::take(&mut self.raw.borrow_mut())
     }
+
+    /// Return the number of items in the vector.
+    pub fn len(&self) -> usize { self.raw.borrow().len() }
 }
 
 impl<T:Clone> SharedVec<T> {
@@ -961,8 +964,11 @@ impl Nodes {
     fn select(&self, node_id:impl Into<NodeId>) {
         let node_id = node_id.into();
         if let Some(node) = self.get_cloned_ref(&node_id) {
-            self.selected.push(node_id);
-            node.frp.select.emit(());
+            if !self.is_selected(node_id) {
+                self.selected.push(node_id);
+                WARNING!("Adding {node_id}, total selection: {self.selected.len()}");
+                node.frp.select.emit(());
+            }
         }
     }
 
@@ -2403,7 +2409,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Edge creation  ===
 
-    frp::extend! { network
+    frp::extend! {TRACE_ALL network
 
     output_down <- node_output_touch.down.constant(());
     input_down  <- node_input_touch.down.constant(());
@@ -2615,7 +2621,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // ==================
     // === Move Nodes ===
     // ==================
-    frp::extend! { network
+    frp::extend! {TRACE_ALL network
 
     mouse_pos <- mouse.position.map(|p| Vector2(p.x,p.y));
 

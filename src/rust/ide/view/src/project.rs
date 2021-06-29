@@ -334,7 +334,7 @@ impl View {
         }
 
         let shape = app.display.scene().shape().clone_ref();
-        frp::extend!{ network
+        frp::extend!{TRACE_ALL network
             eval shape ((shape) model.on_dom_shape_changed(shape));
 
             // === Searcher Position and Size ===

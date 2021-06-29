@@ -376,7 +376,7 @@ pub fn assert_unique_ids(ast:&Ast) {
     let mut ids = HashMap::new();
     for node in ast.iter_recursive() {
         if let Some(id) = node.id {
-            DEBUG!("Checking {node}");
+            // DEBUG!("Checking {node}");
             if let Some(aaa) = ids.insert(id,node) {
                 panic!("Collision for id {} between `{}` and `{}`.\n\nWhole program is:\n{}",id,aaa,node,ast)
             }
