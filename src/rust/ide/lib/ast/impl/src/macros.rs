@@ -32,7 +32,6 @@ pub fn ast_as_import_match(ast:&Ast) -> Option<known::Match> {
 
 /// Check if the given macro match node is an import declaration.
 pub fn is_match_import(ast:&known::Match) -> bool {
-    // DEBUG!("Checking match import")
     let segment = &ast.segs.head;
     let keyword = crate::identifier::name(&segment.head);
     if keyword.contains_if(|str| *str == UNQUALIFIED_IMPORT_KEYWORD) {
