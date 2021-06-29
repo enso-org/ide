@@ -227,6 +227,8 @@ mod mock_client_tests {
             engine_version                 : "0.2.1".to_owned(),
             language_server_json_address   : language_server_address.clone(),
             language_server_binary_address : language_server_address,
+            project_name                   : ProjectName::new("Test"),
+            project_namespace              : "local".to_owned(),
         };
         let open_result              = Ok(expected_open_result.clone());
         let missing_component_action = MissingComponentAction::Fail;
@@ -264,25 +266,33 @@ mod mock_client_tests {
     fn list_projects() {
         let mock_client = MockClient::default();
         let project1    = ProjectMetadata {
-            name        : ProjectName::new("project1"),
-            id          : Uuid::default(),
-            last_opened : Some(DateTime::parse_from_rfc3339("2020-01-07T21:25:26Z").unwrap())
+            name           : ProjectName::new("project1"),
+            id             : Uuid::default(),
+            last_opened    : Some(DateTime::parse_from_rfc3339("2020-01-07T21:25:26Z").unwrap()),
+            engine_version : "0.2.21".to_owned(),
+            namespace      : "local".to_owned(),
         };
         let project2 = ProjectMetadata {
             name        : ProjectName::new("project2"),
             id          : Uuid::default(),
-            last_opened : Some(DateTime::parse_from_rfc3339("2020-02-02T13:15:20Z").unwrap())
+            last_opened : Some(DateTime::parse_from_rfc3339("2020-02-02T13:15:20Z").unwrap()),
+            engine_version : "0.2.22".to_owned(),
+            namespace      : "local".to_owned(),
         };
         let expected_recent_projects = response::ProjectList { projects : vec![project1,project2] };
         let sample1 = ProjectMetadata {
-            name        : ProjectName::new("sample1"),
-            id          : Uuid::default(),
-            last_opened : Some(DateTime::parse_from_rfc3339("2019-11-23T05:30:12Z").unwrap())
+            name           : ProjectName::new("sample1"),
+            id             : Uuid::default(),
+            last_opened    : Some(DateTime::parse_from_rfc3339("2019-11-23T05:30:12Z").unwrap()),
+            engine_version : "0.2.21".to_owned(),
+            namespace      : "test".to_owned(),
         };
         let sample2 = ProjectMetadata {
-            name        : ProjectName::new("sample2"),
-            id          : Uuid::default(),
-            last_opened : Some(DateTime::parse_from_rfc3339("2019-12-25T00:10:58Z").unwrap())
+            name           : ProjectName::new("sample2"),
+            id             : Uuid::default(),
+            last_opened    : Some(DateTime::parse_from_rfc3339("2019-12-25T00:10:58Z").unwrap()),
+            engine_version : "0.2.21".to_owned(),
+            namespace      : "test".to_owned(),
         };
         let expected_sample_projects = response::ProjectList { projects : vec![sample1,sample2] };
         expect_call!(mock_client.list_projects(count=Some(2)) =>
@@ -379,8 +389,11 @@ mod remote_client_tests {
         let engine_version                 = "0.2.1".to_owned();
         let language_server_json_address   = IpWithSocket{host:"localhost".to_string(),port:27015};
         let language_server_binary_address = IpWithSocket{host:"localhost".to_string(),port:27016};
+        let project_name                   = ProjectName::new("Test");
+        let project_namespace              = "test_ns".to_owned();
         let open_result                    = response::OpenProject {engine_version
-            ,language_server_json_address,language_server_binary_address};
+            ,language_server_json_address,language_server_binary_address,project_name
+            ,project_namespace};
         let open_result_json = json!({
             "engineVersion" : "0.2.1",
             "languageServerJsonAddress" : {
@@ -390,7 +403,9 @@ mod remote_client_tests {
             "languageServerBinaryAddress" : {
                 "host" : "localhost",
                 "port" : 27016
-            }
+            },
+            "projectName"      : "Test",
+            "projectNamespace" : "test_ns",
         });
         let project_name        = String::from("HelloWorld");
         let project_create_json = json!({
@@ -402,27 +417,35 @@ mod remote_client_tests {
         let number_of_projects_json = json!({"numberOfProjects":number_of_projects});
         let num_projects_json       = json!({"numProjects":number_of_projects});
         let project1                = ProjectMetadata {
-            name        : ProjectName::new("project1"),
-            id          : Uuid::default(),
-            last_opened : Some(DateTime::parse_from_rfc3339("2020-01-07T21:25:26Z").unwrap())
+            name           : ProjectName::new("project1"),
+            id             : Uuid::default(),
+            last_opened    : Some(DateTime::parse_from_rfc3339("2020-01-07T21:25:26Z").unwrap()),
+            engine_version : "0.2.21".to_owned(),
+            namespace      : "local".to_owned(),
         };
         let project2 = ProjectMetadata {
-            name        : ProjectName::new("project2"),
-            id          : Uuid::default(),
-            last_opened : Some(DateTime::parse_from_rfc3339("2020-02-02T13:15:20Z").unwrap())
+            name           : ProjectName::new("project2"),
+            id             : Uuid::default(),
+            last_opened    : Some(DateTime::parse_from_rfc3339("2020-02-02T13:15:20Z").unwrap()),
+            engine_version : "0.2.22".to_owned(),
+            namespace      : "local".to_owned(),
         };
         let project_list      = response::ProjectList { projects : vec![project1,project2] };
         let project_list_json = json!({
             "projects" : [
                 {
-                    "id"          : "00000000-0000-0000-0000-000000000000",
-                    "last_opened" : "2020-01-07T21:25:26+00:00",
-                    "name"        : "project1"
+                    "id"            : "00000000-0000-0000-0000-000000000000",
+                    "lastOpened"    : "2020-01-07T21:25:26+00:00",
+                    "name"          : "project1",
+                    "engineVersion" : "0.2.21",
+                    "namespace"     : "local"
                 },
                 {
-                    "id"          : "00000000-0000-0000-0000-000000000000",
-                    "last_opened" : "2020-02-02T13:15:20+00:00",
-                    "name"        : "project2"
+                    "id"            : "00000000-0000-0000-0000-000000000000",
+                    "lastOpened"    : "2020-02-02T13:15:20+00:00",
+                    "name"          : "project2",
+                    "engineVersion" : "0.2.22",
+                    "namespace"     : "local"
                 }
             ]
         });

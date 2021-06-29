@@ -2,6 +2,8 @@
 
 use crate::prelude::*;
 
+use crate::double_representation::identifier::ReferentName;
+use crate::double_representation::project::QualifiedName;
 use crate::model::execution_context::VisualizationUpdateData;
 use crate::model::execution_context;
 use crate::model::module;
@@ -108,9 +110,9 @@ pub struct UnsupportedEngineVersion {
 }
 
 impl UnsupportedEngineVersion {
-    fn error_wrapper
-    (project_name:String, engine_version:semver::Version)
-    -> impl Fn(failure::Error) -> failure::Error {
+    fn error_wrapper(properties:&Properties) -> impl Fn(failure::Error) -> failure::Error {
+        let engine_version = properties.engine_version.clone();
+        let project_name   = properties.name.project.as_str().to_owned();
         move |root_cause| {
             let requirements = semver::VersionReq::parse(controller::project::ENGINE_VERSION_SUPPORTED);
             match requirements {
@@ -143,9 +145,7 @@ impl Display for UnsupportedEngineVersion {
 pub struct Properties {
     /// ID of the project, as used by the Project Manager service.
     pub id             : Uuid,
-    /// The namespace where project belongs.
-    pub namespace      : ImString,
-    pub name           : ImString,
+    pub name           : QualifiedName,
     pub engine_version : semver::Version,
 }
 
@@ -181,9 +181,9 @@ impl Project {
     , language_server_bin : Rc<binary::Connection>
     , properties          : Properties
     ) -> FallibleResult<Self> {
-        let wrap   = UnsupportedEngineVersion::error_wrapper(properties.name.into(),properties.engine_version.clone());
+        let wrap   = UnsupportedEngineVersion::error_wrapper(&properties);
         let logger = Logger::sub(parent,"Project Controller");
-        info!(logger,"Creating a model of project {name.as_ref()}");
+        info!(logger,"Creating a model of project {properties.name}");
         let binary_protocol_events  = language_server_bin.event_stream();
         let json_rpc_events         = language_server_rpc.events();
         let embedded_visualizations = default();
@@ -221,7 +221,7 @@ impl Project {
     , language_server_bin : String
     , properties          : Properties
     ) -> FallibleResult<model::Project> {
-        let wrap      = UnsupportedEngineVersion::error_wrapper(name.as_ref().to_owned(),engine_version.clone());
+        let wrap      = UnsupportedEngineVersion::error_wrapper(&properties);
         let client_id = Uuid::new_v4();
         let json_ws   = WebSocket::new_opened(&parent,&language_server_rpc).await?;
         let binary_ws = WebSocket::new_opened(&parent,&language_server_bin).await?;
@@ -249,13 +249,14 @@ impl Project {
     ) -> FallibleResult<model::Project> {
         let action          = MissingComponentAction::Install;
         let opened          = project_manager.open_project(&id,&action).await?;
+        let namespace       = opened.project_namespace;
+        let name            = opened.project_name;
         let project_manager = Some(project_manager);
         let json_endpoint   = opened.language_server_json_address.to_string();
         let binary_endpoint = opened.language_server_binary_address.to_string();
         let properties      = Properties {
             id,
-            namespace      : ImString::new(opened.project_namespace),
-            name           : ImString::new(opened.project_name),
+            name           : QualifiedName::from_segments(namespace,name)?,
             engine_version : semver::Version::parse(&opened.engine_version)?,
         };
         Self::new_connected(parent,project_manager,json_endpoint,binary_endpoint,properties).await
@@ -385,8 +386,12 @@ impl Project {
 }
 
 impl model::project::API for Project {
-    fn name(&self) -> ImString {
-        self.properties.name.get()
+    fn name(&self) -> ReferentName {
+        self.properties.borrow().name.project.clone()
+    }
+
+    fn qualified_name(&self) -> QualifiedName {
+        self.properties.borrow().name.clone()
     }
 
     fn json_rpc(&self) -> Rc<language_server::Connection> {
@@ -397,7 +402,9 @@ impl model::project::API for Project {
         self.language_server_bin.clone_ref()
     }
 
-    fn engine_version(&self) -> &semver::Version { &self.properties.engine_version }
+    fn engine_version(&self) -> semver::Version {
+        self.properties.borrow().engine_version.clone()
+    }
 
     fn parser(&self) -> Parser {
         self.parser.clone_ref()
@@ -435,9 +442,11 @@ impl model::project::API for Project {
 
     fn rename_project(&self, name:String) -> BoxFuture<FallibleResult> {
         async move {
+            let referent_name   = name.as_str().try_into()?;
             let project_manager = self.project_manager.as_ref().ok_or(ProjectManagerUnavailable)?;
-            project_manager.rename_project(&self.properties.id, &name).await?;
-            self.properties.name.set(name.into());
+            let project_id      = self.properties.borrow().id;
+            project_manager.rename_project(&project_id,&name).await?;
+            self.properties.borrow_mut().name.project = referent_name;
             Ok(())
         }.boxed_local()
     }
@@ -465,7 +474,6 @@ impl model::project::API for Project {
 mod test {
     use super::*;
 
-    use crate::constants::DEFAULT_PROJECT_NAME;
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
     use enso_protocol::types::Sha3_224;
@@ -516,10 +524,13 @@ mod test {
             let binary_connection = Rc::new(binary::Connection::new_mock(binary_client));
             let project_manager   = Rc::new(project_manager);
             let logger            = Logger::new("Fixture");
-            let id                = Uuid::new_v4();
-            let engine_version    = semver::Version::new(0,2,1);
+            let properties        = Properties {
+                id             : Uuid::new_v4(),
+                name           : crate::test::mock::data::project_qualified_name(),
+                engine_version : semver::Version::new(0,2,1),
+            };
             let project_fut       = Project::new(logger,Some(project_manager),
-                json_connection,binary_connection,engine_version,id,DEFAULT_PROJECT_NAME).boxed_local();
+                json_connection,binary_connection,properties).boxed_local();
             let project = test.expect_completion(project_fut).unwrap();
             Fixture {test,project,binary_events_sender,json_events_sender}
         }
