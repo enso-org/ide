@@ -1,43 +1,41 @@
 use crate::prelude::*;
 
+use enso_frp as frp;
+use std::path::Path;
 use std::path::PathBuf;
 
 
 
-// ===================
-// === FolderEntry ===
-// ===================
+// ====================
+// === FileProvider ===
+// ====================
 
-#[derive(Debug,Clone)]
-pub enum FolderEntryType {
-    File,
-    Directory(AnyFolder),
+// === File ===
+
+#[derive(Clone,Copy,Debug,Eq,Hash,PartialEq)]
+pub enum FileType {
+    File,Directory
 }
 
-#[derive(Debug,Clone)]
-pub struct FolderEntry {
-    pub name: String,
-    pub path: PathBuf,
-    pub type_: FolderEntryType,
+#[derive(Clone,Debug)]
+pub struct File {
+    pub name      : PathBuf,
+    pub file_type : FileType,
 }
 
 
+// === File Provider Trait ===
 
-// ==============
-// === Folder ===
-// ==============
-
-pub trait Folder: Debug {
-    fn num_entries(&self) -> usize;
-    fn get_entry(&self, index:usize) -> FolderEntry;
+pub trait FileProvider:Debug {
+    fn list_files(&self, path:&Path, list_loaded:frp::Source<Vec<File>>);
 }
 
-#[derive(Debug,Clone)]
-pub struct AnyFolder(Rc<dyn Folder>);
+#[derive(Clone,Debug)]
+pub struct AnyFileProvider(Rc<dyn FileProvider>);
 
-impl<D:'static + Folder> From<D> for AnyFolder {
-    fn from(dir: D) -> Self {
-        AnyFolder(Rc::new(dir))
+impl<D:'static + FileProvider> From<D> for AnyFileProvider {
+    fn from(provider: D) -> Self {
+        AnyFileProvider(Rc::new(provider))
     }
 }
 
@@ -47,7 +45,7 @@ impl<D:'static + Folder> From<D> for AnyFolder {
 // === ContentRoot ===
 // ===================
 
-#[derive(Debug,Copy,Clone)]
+#[derive(Debug,Copy,Clone,Eq,Hash,PartialEq)]
 pub enum ContentRootType {
     Project,
     Root,
@@ -58,50 +56,8 @@ pub enum ContentRootType {
 
 #[derive(Debug,Clone)]
 pub struct ContentRoot {
-    pub name: String,
-    pub path: PathBuf,
-    pub type_: ContentRootType,
-    pub content: AnyFolder,
-}
-
-
-
-// ==================
-// === FileSystem ===
-// ==================
-
-pub trait FileSystem: Debug {
-    fn num_content_roots(&self) -> usize;
-    fn get_content_root(&self, index:usize) -> ContentRoot;
-}
-
-#[derive(Debug,Clone)]
-pub struct AnyFileSystem(Rc<dyn FileSystem>);
-
-impl<FS:'static + FileSystem> From<FS> for AnyFileSystem {
-    fn from(fs: FS) -> Self {
-        AnyFileSystem(Rc::new(fs))
-    }
-}
-
-
-// === EmptyFileSystem ===
-
-#[derive(Debug)]
-struct EmptyFileSystem;
-
-impl FileSystem for EmptyFileSystem {
-    fn num_content_roots(&self) -> usize {
-        0
-    }
-
-    fn get_content_root(&self, _index: usize) -> ContentRoot {
-        panic!("Requesting non-existent content root")
-    }
-}
-
-impl Default for AnyFileSystem {
-    fn default() -> Self {
-        EmptyFileSystem.into()
-    }
+    pub name    : String,
+    pub path    : PathBuf,
+    pub type_   : ContentRootType,
+    pub content : AnyFileProvider,
 }
