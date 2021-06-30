@@ -1,5 +1,7 @@
 use crate::prelude::*;
 
+use enso_frp as frp;
+
 use std::path::PathBuf;
 
 
@@ -11,7 +13,7 @@ use std::path::PathBuf;
 #[derive(Debug,Clone)]
 pub enum FolderEntryType {
     File,
-    Directory(AnyFolder),
+    Folder(AnyFolder),
 }
 
 #[derive(Debug,Clone)]
@@ -28,8 +30,7 @@ pub struct FolderEntry {
 // ==============
 
 pub trait Folder: Debug {
-    fn num_entries(&self) -> usize;
-    fn get_entry(&self, index:usize) -> FolderEntry;
+    fn request_entries(&self, entries_loaded:frp::Source<Vec<FolderEntry>>);
 }
 
 #[derive(Debug,Clone)]
@@ -71,8 +72,7 @@ pub struct ContentRoot {
 // ==================
 
 pub trait FileSystem: Debug {
-    fn num_content_roots(&self) -> usize;
-    fn get_content_root(&self, index:usize) -> ContentRoot;
+    fn request_content_roots(&self, entries_loaded:frp::Source<Vec<ContentRoot>>);
 }
 
 #[derive(Debug,Clone)]
@@ -91,12 +91,8 @@ impl<FS:'static + FileSystem> From<FS> for AnyFileSystem {
 struct EmptyFileSystem;
 
 impl FileSystem for EmptyFileSystem {
-    fn num_content_roots(&self) -> usize {
-        0
-    }
-
-    fn get_content_root(&self, _index: usize) -> ContentRoot {
-        panic!("Requesting non-existent content root")
+    fn request_content_roots(&self, content_roots_loaded:frp::Source<Vec<ContentRoot>>) {
+        content_roots_loaded.emit(vec![]);
     }
 }
 
