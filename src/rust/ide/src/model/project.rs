@@ -14,6 +14,7 @@ use crate::double_representation::identifier::ReferentName;
 
 use enso_protocol::binary;
 use enso_protocol::language_server;
+use enso_protocol::language_server::ContentRoot;
 use flo_stream::Subscriber;
 use mockall::automock;
 use parser::Parser;
@@ -53,6 +54,8 @@ pub trait API:Debug {
     /// Get the suggestions database.
     fn suggestion_db(&self) -> Rc<model::SuggestionDatabase>;
 
+    fn content_roots(&self) -> Vec<Rc<ContentRoot>>;
+
     /// Returns a model of module opened from file.
     #[allow(clippy::needless_lifetimes)] // Note: Needless lifetimes
     fn module<'a>
@@ -70,7 +73,7 @@ pub trait API:Debug {
     fn rename_project<'a>(&'a self, name:String) -> BoxFuture<'a,FallibleResult<()>>;
 
     /// Returns the primary content root id for this project.
-    fn content_root_id(&self) -> Uuid {
+    fn project_content_root_id(&self) -> Uuid {
         self.json_rpc().project_root().id
     }
 
