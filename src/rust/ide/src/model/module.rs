@@ -294,8 +294,7 @@ pub struct Notification {
 #[derive(Clone,Debug,Deserialize,PartialEq,Serialize)]
 pub struct Metadata {
     /// Metadata used within ide.
-    #[serde(default="default")]
-    #[serde(deserialize_with="utils::serde::deserialize_or_default")]
+    #[serde(default,deserialize_with="utils::serde::deserialize_or_default")]
     pub ide : IdeMetadata,
     #[serde(flatten)]
     /// Metadata of other users of ParsedSourceFile<Metadata> API.
@@ -328,14 +327,20 @@ pub struct IdeMetadata {
 #[derive(Clone,Debug,Default,Deserialize,PartialEq,Serialize)]
 pub struct NodeMetadata {
     /// Position in x,y coordinates.
-    #[serde(deserialize_with="utils::serde::deserialize_or_default")]
+    #[serde(default,deserialize_with="utils::serde::deserialize_or_default")]
     pub position:Option<Position>,
     /// A method which user intends this node to be, e.g. by picking specific suggestion in
     /// Searcher Panel.
     ///
     /// The methods may be defined for different types, so the name alone don't specify them.
-    #[serde(deserialize_with="utils::serde::deserialize_or_default")]
+    #[serde(default,deserialize_with="utils::serde::deserialize_or_default")]
     pub intended_method:Option<MethodId>,
+    /// Information about uploading file.
+    ///
+    /// Designed to be present in nodes created by dragging and dropping files in IDE. Contains
+    /// information about file and upload progress.
+    #[serde(default,deserialize_with="utils::serde::deserialize_or_default")]
+    pub uploading_file:Option<UploadingFile>,
 }
 
 /// Used for storing node position.
@@ -400,6 +405,12 @@ where f32 : Div<T,Output=f32>,
     }
 }
 
+impl From<Vector2<f32>> for Position {
+    fn from(value:Vector2) -> Self {
+        Position::new(value.x, value.y)
+    }
+}
+
 /// A structure identifying a method.
 ///
 /// It is very similar to MethodPointer from language_server API, however it may point to the method
@@ -412,6 +423,24 @@ pub struct MethodId {
     pub name            : String,
 }
 
+/// Uploading File Information
+///
+/// May be stored in node metadata, if the node's expression is reading content of file still
+/// uploaded to the project directory.
+#[allow(missing_docs)]
+#[derive(Clone,Debug,Deserialize,Eq,Hash,PartialEq,Serialize)]
+pub struct UploadingFile {
+    /// The name of file dropped in IDE.
+    pub name:String,
+    /// The file's destination name. May differ from original name due to conflict with files
+    /// already present on the remote.
+    pub remote_name : Option<String>,
+    pub size        : u64,
+    /// The number of bytes already uploaded. It _can_ exceed the `size` value, because the file
+    /// may change during upload.
+    pub bytes_uploaded : u64,
+    pub error          : Option<String>,
+}
 
 
 // ==============
@@ -422,7 +451,7 @@ pub struct MethodId {
 pub type Content = ParsedSourceFile<Metadata>;
 
 /// Module model API.
-pub trait API:Debug {
+pub trait API:Debug+model::undo_redo::Aware {
     /// Subscribe for notifications about text representation changes.
     fn subscribe(&self) -> Subscriber<Notification>;
 
@@ -544,18 +573,20 @@ pub mod test {
     }
 
     impl MockData {
-        pub fn plain(&self, parser:&Parser) -> Module {
+        pub fn plain(&self, parser:&Parser, repository:Rc<model::undo_redo::Repository>) -> Module {
             let ast    = parser.parse_module(self.code.clone(),self.id_map.clone()).unwrap();
-            let module = Plain::new(self.path.clone(),ast,self.metadata.clone());
+            let logger = Logger::new("MockModule");
+            let module = Plain::new(logger,self.path.clone(),ast,self.metadata.clone(),repository);
             Rc::new(module)
         }
     }
 
     pub fn plain_from_code(code:impl Into<String>) -> Module {
+        let urm = default();
         MockData {
             code : code.into(),
             ..default()
-        }.plain(&parser::Parser::new_or_panic())
+        }.plain(&parser::Parser::new_or_panic(),urm)
     }
 
     #[test]
