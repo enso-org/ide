@@ -33,6 +33,10 @@ use ensogl_core::animation::delayed::DelayedAnimation;
 // === Constants ===
 // =================
 
+// TODO: Some of those values could be defined by the theme instead. But currently, this does not
+//       seem to be worth it because the FRP initialization introduces a lot of complexity, as
+//       described at https://github.com/enso-org/ide/issues/1654.
+
 /// Amount the scrollbar moves on a single click, relative to the viewport size.
 const CLICK_JUMP_PERCENTAGE : f32 = 0.80;
 /// Width of the scrollbar in px.
