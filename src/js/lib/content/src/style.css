@@ -33,6 +33,17 @@ body {
     pointer-events: auto;
 }
 
+.auth-header {
+    text-align: center;
+    margin: 24px auto;
+}
+
+.auth-info {
+    text-align: center;
+    margin: 24px auto;
+    display: none;
+}
+
 #crash-banner {
     background: DarkSalmon;
     color: #2c1007;

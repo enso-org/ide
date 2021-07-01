@@ -9,9 +9,16 @@ import * as html_utils from 'enso-studio-common/src/html_utils'
 // @ts-ignore
 import * as globalConfig from '../../../../config.yaml'
 // @ts-ignore
+//import firebaseConfig from '../firebase.yaml'
+// @ts-ignore
 import cfg from '../../../config'
 // @ts-ignore
 import assert from 'assert'
+
+// @ts-ignore
+import firebase from 'firebase/app'
+// @ts-ignore
+import 'firebase/auth'
 
 // ==================
 // === Global API ===
@@ -356,7 +363,7 @@ function setupCrashDetection() {
     // (https://v8.dev/docs/stack-trace-api#compatibility)
     Error.stackTraceLimit = 100
 
-    window.addEventListener('error', function (event) {
+    window.addEventListener('error', function(event) {
         // We prefer stack traces over plain error messages but not all browsers produce traces.
         if (ok(event.error) && ok(event.error.stack)) {
             handleCrash(event.error.stack)
@@ -364,7 +371,7 @@ function setupCrashDetection() {
             handleCrash(event.message)
         }
     })
-    window.addEventListener('unhandledrejection', function (event) {
+    window.addEventListener('unhandledrejection', function(event) {
         // As above, we prefer stack traces.
         // But here, `event.reason` is not even guaranteed to be an `Error`.
         handleCrash(event.reason.stack || event.reason.message || 'Unhandled rejection')
@@ -488,6 +495,8 @@ class Config {
     public no_data_gathering: boolean
     public is_in_cloud: boolean
     public verbose: boolean
+    public authentication_enabled: boolean
+    public email: string
 
     static default() {
         let config = new Config()
@@ -498,6 +507,7 @@ class Config {
         config.no_data_gathering = false
         config.is_in_cloud = false
         config.entry = null
+        config.authentication_enabled = true
         return config
     }
 
@@ -544,6 +554,94 @@ class Config {
     }
 }
 
+class FirebaseAuthentication {
+
+    public readonly firebaseui: any
+    public readonly config: any
+    public readonly ui: any
+
+    public authCallback: any
+
+    constructor(authCallback: any) {
+        this.firebaseui = require('firebaseui')
+        this.config = require('../firebase.yaml')
+        firebase.initializeApp(this.config)
+        this.ui = new this.firebaseui.auth.AuthUI(firebase.auth())
+        this.ui.disableAutoSignIn()
+        this.authCallback = authCallback
+        firebase.auth().onAuthStateChanged((user: any) => {
+            if (ok(user)) {
+                if (FirebaseAuthentication.hasEmailAuth(user) && !user.emailVerified) {
+                    document.getElementById('user-email-not-verified').style.display = 'block'
+                    this.handleSignedOutUser()
+                } else {
+                    this.handleSignedInUser(user)
+                }
+            } else {
+                this.handleSignedOutUser()
+            }
+        })
+    }
+
+    static hasEmailAuth(user: any) {
+        const emailProviderId = firebase.auth.EmailAuthProvider.PROVIDER_ID
+        const hasEmailProvider = user
+            .providerData
+            .some((data: any) => data.providerId === emailProviderId)
+        const hasOneProvider = user.providerData.length === 1
+        return hasOneProvider && hasEmailProvider
+    }
+
+    protected getUiConfig() {
+        return {
+            'callbacks': {
+                // Called when the user has been successfully signed in.
+                'signInSuccessWithAuthResult': (authResult: any, redirectUrl: any) => {
+                    if (ok(authResult.user)) {
+                        switch (authResult.additionalUserInfo.providerId) {
+                            case firebase.auth.EmailAuthProvider.PROVIDER_ID:
+                                if (authResult.user.emailVerified) {
+                                    this.handleSignedInUser(authResult.user)
+                                } else {
+                                    authResult.user.sendEmailVerification()
+                                    document.getElementById('user-email-not-verified').style.display = 'block'
+                                    this.handleSignedOutUser()
+                                }
+                                break;
+
+                            default:
+                        }
+                    }
+                    // Do not redirect.
+                    return false;
+                }
+            },
+            'signInOptions': [
+                {
+                    provider: firebase.auth.GoogleAuthProvider.PROVIDER_ID,
+                    // Required to enable ID token credentials for this provider.
+                    clientId: this.config.clientId
+                },
+                firebase.auth.GithubAuthProvider.PROVIDER_ID,
+                {
+                    provider: firebase.auth.EmailAuthProvider.PROVIDER_ID,
+                    // Whether the display name should be displayed in Sign Up page.
+                    requireDisplayName: false,
+                }
+            ],
+        }
+    }
+
+    protected handleSignedOutUser() {
+        this.ui.start('#firebaseui-container', this.getUiConfig())
+    }
+
+    protected handleSignedInUser(user: any) {
+        document.getElementById('auth-container').style.display = 'none'
+        this.authCallback(user)
+    }
+}
+
 /// Check whether the value is a string with value `"true"`/`"false"`, if so, return the
 // appropriate boolean instead. Otherwise, return the original value.
 function parseBooleanOrLeaveAsIs(value: any): any {
@@ -567,20 +665,15 @@ function tryAsString(value: any): string {
 }
 
 /// Main entry point. Loads WASM, initializes it, chooses the scene to run.
-API.main = async function (inputConfig: any) {
-    const urlParams = new URLSearchParams(window.location.search)
-    // @ts-ignore
-    const urlConfig = Object.fromEntries(urlParams.entries())
-
-    const config = Config.default()
-    config.updateFromObject(inputConfig)
-    config.updateFromObject(urlConfig)
-
+async function mainEntryPoint(config: any) {
     // @ts-ignore
     API[globalConfig.windowAppScopeConfigName] = config
 
     API.initLogging(config)
 
+    if (ok(config.email)) {
+        API.remoteLog('email', config.email)
+    }
     // Build data injected during the build process. See `webpack.config.js` for the source.
     // @ts-ignore
     const hash = GIT_HASH
@@ -617,5 +710,25 @@ API.main = async function (inputConfig: any) {
         }
     } else {
         show_debug_screen(wasm, '')
+    }
+}
+
+API.main = async function(inputConfig: any) {
+    const urlParams = new URLSearchParams(window.location.search)
+    // @ts-ignore
+    const urlConfig = Object.fromEntries(urlParams.entries())
+
+    const config = Config.default()
+    config.updateFromObject(inputConfig)
+    config.updateFromObject(urlConfig)
+
+    if (config.authentication_enabled) {
+        new FirebaseAuthentication(
+            function(user: any) {
+                config.email = user.email
+                mainEntryPoint(config)
+            })
+    } else {
+        await mainEntryPoint(config)
     }
 }
