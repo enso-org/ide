@@ -9,8 +9,6 @@ import * as html_utils from 'enso-studio-common/src/html_utils'
 // @ts-ignore
 import * as globalConfig from '../../../../config.yaml'
 // @ts-ignore
-//import firebaseConfig from '../firebase.yaml'
-// @ts-ignore
 import cfg from '../../../config'
 // @ts-ignore
 import assert from 'assert'
