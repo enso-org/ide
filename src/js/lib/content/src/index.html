@@ -28,22 +28,23 @@
         <script type="module" src="/assets/run.js" defer></script>
     </head>
     <body>
-        <div id="auth-container">
-            <div class="auth-header">
-                <h1>Sign in to Enso</h1>
-                <div class="auth-text">
-                    <p>Enso lets you create interactive data workflows. In order to share them, you need an account. In alpha/beta versions, this account is required.</p>
+        <div class="titlebar"></div>
+        <div id="root">
+            <div id="auth-container">
+                <div class="auth-header">
+                    <h1>Sign in to Enso</h1>
+                    <div class="auth-text">
+                        <p>Enso lets you create interactive data workflows. In order to share them, you need an account. In alpha/beta versions, this account is required.</p>
+                    </div>
+                </div>
+                <div id="user-signed-out">
+                    <div id="firebaseui-container"></div>
+                </div>
+                <div id="user-email-not-verified" class="auth-info">
+                    Verification link is sent. You can sign in after verifying your email.
                 </div>
             </div>
-            <div id="user-signed-out">
-                <div id="firebaseui-container"></div>
-            </div>
-            <div id="user-email-not-verified" class="auth-info">
-                Verification link is sent. You can sign in after verifying your email.
-            </div>
         </div>
-        <div class="titlebar"></div>
-        <div id="root"></div>
         <noscript>
             This page requires JavaScript to run. Please enable it in your browser.
         </noscript>
