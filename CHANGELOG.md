@@ -1,3 +1,14 @@
+# Next Release
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Visual Environment
+
+- [User Authentication][1653]. Users can sign in to Enso using Google, GitHub or
+  email accounts.
+
+[1653]: https://github.com/enso-org/ide/pull/1653
+
 # Enso 2.0.0-alpha.6 (2021-06-28)
 
 <br/>![New Features](/docs/assets/tags/new_features.svg)
