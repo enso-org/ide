@@ -248,6 +248,7 @@ impl Handle {
         Ok(())
     }
 
+    /// Get the current call stack frames.
     pub fn call_stack(&self) -> Vec<LocalCall> {
         self.execution_ctx.stack_items().collect()
     }

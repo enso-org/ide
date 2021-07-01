@@ -545,6 +545,7 @@ impl Info {
         self.add_ast(definition_ast,location)
     }
 
+    /// Updates the given definition using the passed invokable.
     pub fn update_definition
     ( &mut self
     , id : &definition::Id

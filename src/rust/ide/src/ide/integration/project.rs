@@ -41,13 +41,15 @@ use crate::model::module::APIExt;
 use utils::test::traits::FutureTestExt;
 use itertools::EitherOrBoth;
 
+/// Describes an enabled visualization on a node.
 #[derive(Clone,Debug)]
 pub struct VisualizationInfo {
-    pub id: VisualizationId,
-    pub path: visualization::Path,
-    pub data: Visualization,
+    pub id   : VisualizationId,
+    pub path : visualization::Path,
+    pub data : Visualization,
 }
 
+/// Map that keeps information about enabled visualization.
 pub type VisualizationMap = SharedHashMap<graph_editor::NodeId,VisualizationInfo>;
 
 // ==============
@@ -366,14 +368,14 @@ impl Integration {
 
             eval editor_outs.visualization_enabled    ([model](arg) {
                 match model.visualization_enabled_in_ui(arg) {
-                    Ok(_) => WARNING!("successfully enabled"),
-                    Err(e) => WARNING!("failed to enable {e}"),
+                    Ok(_) => ERROR!("successfully enabled"),
+                    Err(e) => ERROR!("failed to enable {e}"),
                 }
             });
             eval editor_outs.visualization_disabled   ([model](arg) {
                 match model.visualization_disabled_in_ui(arg) {
-                    Ok(_) => WARNING!("successfully disabled"),
-                    Err(e) => WARNING!("failed to disable {e}"),
+                    Ok(_) => ERROR!("successfully disabled"),
+                    Err(e) => ERROR!("failed to disable {e}"),
                 }
             });
 
@@ -711,6 +713,7 @@ impl Model {
     (&self, info:&controller::graph::Node, trees:NodeTrees, default_pos:Vector2) {
         let id           = info.info.id();
         let displayed_id = self.view.graph().add_node();
+        self.node_views.borrow_mut().insert(id, displayed_id);
         self.refresh_node_view(displayed_id, info, trees);
         if info.metadata.as_ref().and_then(|md| md.position).is_none() {
             self.view.graph().frp.input.set_node_position.emit(&(displayed_id, default_pos));
@@ -720,7 +723,6 @@ impl Model {
                 because of the error: {err:?}");
             }
         }
-        self.node_views.borrow_mut().insert(id, displayed_id);
     }
 
     fn deserialize_visualization_data
@@ -774,6 +776,7 @@ impl Model {
         let visualization_frp = &self.view.graph().model.nodes.all.get_cloned_ref(&id).unwrap().model.visualization.frp;
         let view_visualization : Option<visualization::Path> = visualization_frp.visible.value().then(|| visualization_frp.visualisation.value()).flatten().map(|def:visualization::Definition| def.signature.path.clone_ref());
 
+        warning!(self.logger, "View visualization: {view_visualization:?}");
         if view_visualization != visualization_path {
             trace!(self.logger, "Setting visualization on {id}: {visualization_path:?}");
             if visualization_path.is_some() {
@@ -1557,9 +1560,10 @@ impl Model {
     }
 
 
-    /// Try to attach visualization to the node (as defined by the map).
-    /// In case of failure, up to `attempts` will be made.
-    fn attach_ngjbfdbhnfkjbnxg
+    /// Repeatedly try to attach visualization to the node (as defined by the map).
+    ///
+    /// Up to `attempts` will be made.
+    fn try_attaching_visualization_task
     (&self, node_id:graph_editor::NodeId, visualizations_map:VisualizationMap, attempts:usize)
     -> impl Future<Output=AttachingResult<impl Stream<Item=VisualizationUpdateData>>> {
         let logger     = self.logger.clone_ref();
@@ -1593,14 +1597,21 @@ impl Model {
         }
     }
 
+    /// Request attaching the visualization in the controller and handle result.
+    ///
+    /// Updates the given `[VisualizationMap]` with the results. If the visualization failed to
+    /// attach, it will be disable in the graph view. On success, the visualization updates handler
+    /// will be spawned.
     fn attaching_visualization_task
     ( &self
     , node_id            : graph_editor::NodeId
     , visualizations_map : VisualizationMap
     , update_handler     : impl FnMut(VisualizationUpdateData) -> futures::future::Ready<()> + 'static
     ) -> impl Future<Output = ()> {
+        let attempt_count = 10;
         let graph_frp  = self.view.graph().frp.clone_ref();
-        let stream_fut = self.attach_ngjbfdbhnfkjbnxg(node_id,visualizations_map.clone_ref(),6);
+        let map        = visualizations_map.clone();
+        let stream_fut = self.try_attaching_visualization_task(node_id,map,attempt_count);
         async move {
             match stream_fut.await {
                 AttachingResult::Attached(stream) => {

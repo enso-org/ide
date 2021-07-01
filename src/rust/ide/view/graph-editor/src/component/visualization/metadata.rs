@@ -17,7 +17,11 @@ pub struct Metadata {
 }
 
 impl Metadata {
-    pub fn new(preprocessor:&visualization::instance::PreprocessorConfiguration,definition:&Option<visualization::Definition>) -> Self {
+    /// Helper constructor which retrieves visualization id from its definition.
+    pub fn new
+    ( preprocessor:&visualization::instance::PreprocessorConfiguration
+    , definition:&Option<visualization::Definition>
+    ) -> Self {
         Self {
             preprocessor     : preprocessor.clone_ref(),
             visualization_id : definition.as_ref().map(|def| def.signature.path.clone_ref()),

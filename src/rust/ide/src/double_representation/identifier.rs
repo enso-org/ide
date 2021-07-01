@@ -94,6 +94,7 @@ impl Identifier {
         NormalizedName::new(self.name())
     }
 
+    /// Get the identifier's node with a newly assigned, unique id.
     pub fn with_new_id(&self) -> Self {
         Self(self.0.with_new_id())
     }

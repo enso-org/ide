@@ -399,7 +399,6 @@ mod tests {
 
     use ast::crumbs::Crumb;
 
-
     struct Case {
         refactored_name     : DefinitionName,
         introduced_name     : Identifier,
@@ -449,8 +448,7 @@ mod tests {
     }
 
     #[allow(unused_parens)] // False warning.
-    // #[wasm_bindgen_test]
-    #[test]
+    #[wasm_bindgen_test]
     fn test_collapse() {
         let parser          = Parser::new_or_panic();
         let introduced_name = Identifier::try_from("custom_new").unwrap();

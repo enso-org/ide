@@ -2621,7 +2621,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // ==================
     // === Move Nodes ===
     // ==================
-    frp::extend! {TRACE_ALL network
+    frp::extend! {network
 
     mouse_pos <- mouse.position.map(|p| Vector2(p.x,p.y));
 

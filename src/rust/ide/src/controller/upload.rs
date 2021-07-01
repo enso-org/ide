@@ -214,7 +214,6 @@ impl NodeFromDroppedFileHandler {
         };
         NodeMetadata {
             position        : Some(position),
-            intended_method : None,
             uploading_file  : Some(uploading_metadata),
             ..default()
         }
