@@ -136,6 +136,7 @@ impl Module {
     ( path            : Path
     , language_server : Rc<language_server::Connection>
     , parser          : Parser
+    , repository      : Rc<model::undo_redo::Repository>
     ) -> FallibleResult<Rc<Self>> {
         let logger        = Logger::new(iformat!("Module {path}"));
         let file_path     = path.file_path().clone();
@@ -148,7 +149,7 @@ impl Module {
         let source  = parser.parse_with_metadata(opened.content)?;
         let digest  = opened.current_version;
         let summary = ContentSummary {digest,end_of_file};
-        let model   = model::module::Plain::new(path,source.ast,source.metadata);
+        let model   = model::module::Plain::new(&logger,path,source.ast,source.metadata,repository);
         let this    = Rc::new(Module {model,language_server,logger});
         let content = this.model.serialized_content()?;
         let first_invalidation = this.full_invalidation(&summary,content);
@@ -406,6 +407,12 @@ impl Deref for Module {
     }
 }
 
+impl model::undo_redo::Aware for Module {
+    fn undo_redo_repository(&self) -> Rc<model::undo_redo::Repository> {
+        self.model.undo_redo_repository()
+    }
+}
+
 
 
 // ============
@@ -572,7 +579,7 @@ pub mod test {
         let test = |runner:&mut Runner| {
             let module_path  = data.module_path.clone();
             let edit_handler = Rc::new(LsClientSetup::new(&data.logger,module_path,initial_code));
-            let mut fixture  = data.fixture_customize(|data, client| {
+            let mut fixture  = data.fixture_customize(|data,client,_| {
                 data.expect_opening_module(client);
                 data.expect_closing_module(client);
                 // Opening module and metadata generation.
@@ -620,7 +627,7 @@ pub mod test {
 
         let test = |runner:&mut Runner| {
             let edit_handler = LsClientSetup::new_for_mock_data(&data);
-            let mut fixture  = data.fixture_customize(|data, client| {
+            let mut fixture  = data.fixture_customize(|data,client,_| {
                 data.expect_opening_module(client);
                 data.expect_closing_module(client);
                 // Opening module and metadata generation.

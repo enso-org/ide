@@ -11,6 +11,8 @@ use crate::controller::graph::Connections;
 use crate::controller::graph::NodeTrees;
 use crate::controller::searcher::action::MatchInfo;
 use crate::controller::searcher::Actions;
+use crate::controller::upload;
+use crate::controller::upload::NodeFromDroppedFileHandler;
 use crate::model::execution_context::ComputedValueInfo;
 use crate::model::execution_context::ExpressionId;
 use crate::model::execution_context::LocalCall;
@@ -23,9 +25,10 @@ use analytics;
 use bimap::BiMap;
 use enso_data::text::TextChange;
 use enso_frp as frp;
+use enso_protocol::language_server::ExpressionUpdatePayload;
 use ensogl::display::traits::*;
 use ensogl_gui_components::list_view;
-use enso_protocol::language_server::ExpressionUpdatePayload;
+use ensogl_web::drop;
 use ide_view::graph_editor;
 use ide_view::graph_editor::component::node;
 use ide_view::graph_editor::component::visualization;
@@ -33,6 +36,7 @@ use ide_view::graph_editor::EdgeEndpoint;
 use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
 use utils::iter::split_by_predicate;
+use futures::future::LocalBoxFuture;
 
 
 
@@ -185,6 +189,7 @@ struct Model {
     code_view               : CloneRefCell<ensogl_text::Text>,
     visualizations          : SharedHashMap<graph_editor::NodeId,VisualizationId>,
     error_visualizations    : SharedHashMap<graph_editor::NodeId,VisualizationId>,
+    prompt_was_shown        : Cell<bool>,
 }
 
 
@@ -262,6 +267,27 @@ impl Integration {
             });
         }
 
+        // === Dropping Files ===
+
+        let file_dropped = model.view.graph().file_dropped.clone_ref();
+        frp::extend! { network
+            eval file_dropped ([model]((file,position)) {
+                let project   = model.project.clone_ref();
+                let graph     = model.graph.graph();
+                let to_upload = upload::FileToUpload {
+                    name : file.name.clone_ref().into(),
+                    size : file.size,
+                    data : file.clone_ref(),
+                };
+                let position = model::module::Position {vector:*position};
+                let handler  = NodeFromDroppedFileHandler::new(&model.logger,project,graph);
+                let res      = handler.create_node_and_start_uploading(to_upload,position);
+                if let Err(err) = res {
+                    error!(model.logger, "Error when creating node from dropped file: {err}");
+                }
+            });
+        }
+
 
         // === UI Actions ===
 
@@ -327,6 +353,8 @@ impl Integration {
             eval_ project_frp.editing_committed (invalidate.trigger.emit(()));
             eval_ project_frp.editing_aborted   (invalidate.trigger.emit(()));
             eval_ project_frp.save_module       (model.module_saved_in_ui());
+            eval_ project_frp.undo              (model.undo_in_ui());
+            eval_ project_frp.redo              (model.redo_in_ui());
         }
 
         frp::extend! { network
@@ -439,10 +467,11 @@ impl Model {
         let visualizations          = default();
         let error_visualizations    = default();
         let searcher                = default();
+        let prompt_was_shown        = default();
         let this                    = Model
             {logger,view,graph,text,ide,searcher,project,node_views,node_view_by_expression
             ,expression_views,expression_types,connection_views,code_view,visualizations
-            ,error_visualizations};
+            ,error_visualizations,prompt_was_shown};
 
         this.view.graph().frp.remove_all_nodes();
         this.view.status_bar().clear_all();
@@ -595,9 +624,9 @@ impl Model {
         if info.metadata.as_ref().and_then(|md| md.position).is_none() {
             self.view.graph().frp.input.set_node_position.emit(&(displayed_id, default_pos));
             // If position wasn't present in metadata, we initialize it.
-            if let Err(err) = self.set_node_metadata_position(id,default_pos) {
-                debug!(self.logger, "Failed to set default position information IDs: {id:?} because \
-                of error {err:?}");
+            if let Err(err) = self.graph.graph().set_node_position(id,default_pos) {
+                debug!(self.logger, "Failed to set default position information IDs: {id:?} \
+                because of the error: {err:?}");
             }
         }
         self.node_views.borrow_mut().insert(id, displayed_id);
@@ -763,13 +792,6 @@ impl Model {
         trace.iter().find_map(|expr_id| node_view_by_expression.get(&expr_id).copied())
     }
 
-    /// Set the position in the node's metadata.
-    fn set_node_metadata_position(&self, node_id:ast::Id,pos:Vector2) -> FallibleResult {
-        self.graph.graph().module.with_node_metadata(node_id, Box::new(|md| {
-            md.position = Some(model::module::Position::new(pos.x,pos.y));
-        }))
-    }
-
     fn refresh_connection_views
     (&self, connections:Vec<controller::graph::Connection>) -> FallibleResult {
         self.retain_connection_views(&connections);
@@ -852,6 +874,10 @@ impl Model {
 
     /// Handle notification received from controller about values having been computed.
     pub fn on_values_computed(&self, expressions:&[ExpressionId]) -> FallibleResult {
+        if !self.prompt_was_shown.get() {
+            self.view.show_prompt();
+            self.prompt_was_shown.set(true);
+        }
         self.refresh_computed_infos(&expressions)
     }
 
@@ -969,7 +995,7 @@ impl Model {
     (&self, (displayed_id,pos):&(graph_editor::NodeId,Vector2)) -> FallibleResult {
         debug!(self.logger, "Moving node.");
         if let Ok(id) = self.get_controller_node_id(*displayed_id) {
-           self.set_node_metadata_position(id,*pos)?;
+            self.graph.graph().set_node_position(id,*pos)?
         }
         Ok(())
     }
@@ -1203,6 +1229,20 @@ impl Model {
         });
     }
 
+    fn undo_in_ui(&self) {
+        debug!(self.logger, "Undo triggered in UI.");
+        if let Err(e) = self.project.urm().undo() {
+            error!(self.logger, "Undo failed: {e}");
+        }
+    }
+
+    fn redo_in_ui(&self) {
+        debug!(self.logger, "Redo triggered in UI.");
+        if let Err(e) = self.project.urm().redo() {
+            error!(self.logger, "Redo failed: {e}");
+        }
+    }
+
     fn resolve_visualization_context
     (&self, context:&visualization::instance::ContextModule)
     -> FallibleResult<model::module::QualifiedName> {
@@ -1390,7 +1430,7 @@ impl Model {
 
     fn setup_searcher_controller
     (&self, weak_self:&Weak<Self>, mode:controller::searcher::Mode) -> FallibleResult {
-        let selected_nodes = self.view.graph().model.selected_nodes().iter().filter_map(|id| {
+        let selected_nodes = self.view.graph().model.nodes.all_selected().iter().filter_map(|id| {
             self.get_controller_node_id(*id).ok()
         }).collect_vec();
         let controller = self.graph.clone_ref();
@@ -1484,5 +1524,11 @@ impl ide_view::searcher::DocumentationProvider for DataProviderForView {
             Action::Example(example)     => Some(example.documentation.clone()),
             Action::ProjectManagement(_) => None,
         }
+    }
+}
+
+impl upload::DataProvider for drop::File {
+    fn next_chunk(&mut self) -> LocalBoxFuture<FallibleResult<Option<Vec<u8>>>> {
+        self.read_chunk().map(|f| f.map_err(|e| e.into())).boxed_local()
     }
 }
