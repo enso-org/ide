@@ -95,9 +95,7 @@ pub trait API:Debug {
         //     .map_err(Into::into)
     }
 
-    /// Get qualified name of the project's `Main` module.
-    ///
-    /// This module is special, as it needs to be referred by the project name itself.
+    /// Get a model of the project's main module.
     #[allow(clippy::needless_lifetimes)] // Note: Needless lifetimes
     fn main_module_model<'a>(&'a self) -> BoxFuture<'a, FallibleResult<model::Module>> {
         async move {
@@ -114,10 +112,15 @@ pub trait API:Debug {
     fn urm(&self) -> Rc<model::undo_redo::Manager>;
 }
 
+/// Trait for methods that cannot be defined in `API` because it is a trait object.
 pub trait APIExt : API {
-    fn with_project_metadata<'a,R>(&'a self, f:impl FnOnce(&ProjectMetadata) -> R + 'a) -> BoxFuture<FallibleResult<R>> {
+    /// Access project's metadata with the given function.
+    ///
+    /// Fails if there is no main module or if it has no project metadata.
+    fn with_project_metadata<'a,R>
+    (&'a self, f:impl FnOnce(&ProjectMetadata) -> R + 'a) -> BoxFuture<FallibleResult<R>> {
         async move {
-            Ok(self.main_module_model().await?.with_project_metadata(f))
+            self.main_module_model().await?.with_project_metadata(f)
         }.boxed_local()
     }
 }

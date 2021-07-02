@@ -315,8 +315,10 @@ impl Default for Metadata {
     }
 }
 
+/// Project-level metadata. It is stored as part of the project's main module's metadata.
 #[derive(Clone,Debug,Default,Deserialize,PartialEq,Serialize)]
 pub struct ProjectMetadata {
+    /// The execution context of the displayed graph editor.
     #[serde(default,deserialize_with="utils::serde::deserialize_or_default")]
     pub call_stack : Vec<model::execution_context::LocalCall>,
 }
@@ -327,8 +329,9 @@ pub struct IdeMetadata {
     /// Metadata that belongs to nodes.
     #[serde(deserialize_with="utils::serde::deserialize_or_default")]
     node : HashMap<ast::Id,NodeMetadata>,
+    /// The project metadata. This is stored only in the main module's metadata.
     #[serde(default,deserialize_with="utils::serde::deserialize_or_default")]
-    project : ProjectMetadata,
+    project : Option<ProjectMetadata>,
 }
 
 /// Metadata of specific node.
@@ -517,8 +520,12 @@ pub trait API:Debug+model::undo_redo::Aware {
     fn with_node_metadata
     (&self, id:ast::Id, fun:Box<dyn FnOnce(&mut NodeMetadata) + '_>) -> FallibleResult;
 
-    fn with_project_metadata_internal(&self, fun:Box<dyn FnOnce(&ProjectMetadata) + '_>);
+    /// Access project's metadata with a given function.
+    ///
+    /// Fails, if the project's metadata are not set in this module.
+    fn with_project_metadata_internal(&self, fun:Box<dyn FnOnce(&ProjectMetadata) + '_>) -> FallibleResult;
 
+    /// Borrow mutably the project's metadata and update it with a given function.
     fn update_project_metadata_internal
     (&self, fun:Box<dyn FnOnce(&mut ProjectMetadata) + '_>) -> FallibleResult;
 
@@ -548,24 +555,22 @@ pub trait API:Debug+model::undo_redo::Aware {
     }
 }
 
+/// Trait for methods that cannot be defined in `API` because it is a trait object.
 pub trait APIExt : API {
-    fn try_with_node_metadata
-    (&self, id:ast::Id, fun:impl FnOnce(&mut NodeMetadata) -> FallibleResult)
-    -> FallibleResult {
-        todo!()
-    }
-
+    /// Access project's metadata with a given function.
+    ///
+    /// Fails, if the project's metadata are not set in this module.
     fn with_project_metadata<R>
-    (&self, fun:impl FnOnce(&ProjectMetadata) -> R) -> R {
-        let mut ret = std::mem::MaybeUninit::uninit();
-        // Both 'unsafe' below are safe because `with_project_metadata_internal` will call its
-        // argument exactly once.
+    (&self, fun:impl FnOnce(&ProjectMetadata) -> R) -> FallibleResult<R> {
+        let mut ret = None;
         self.with_project_metadata_internal(Box::new(|metadata| {
-            ret.write(fun(metadata));
-        }));
-        unsafe { ret.assume_init() }
+            ret = Some(fun(metadata));
+        }))?;
+        let err = ||failure::format_err!("Result of the call has not been set.");
+        ret.ok_or_else(err)
     }
 
+    /// Borrow mutably the project's metadata and update it with a given function.
     fn update_project_metadata
     (&self, fun:impl FnOnce(&mut ProjectMetadata)) -> FallibleResult {
         self.update_project_metadata_internal(Box::new(fun))

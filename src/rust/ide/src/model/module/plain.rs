@@ -19,6 +19,13 @@ use parser::Parser;
 use parser::api::ParsedSourceFile;
 use parser::api::SourceFile;
 
+
+/// Failure for missing node metadata.
+#[derive(Debug,Clone,Fail)]
+#[fail(display="Module {} does not contain project metadata.", _0)]
+pub struct MissingProjectMetadata(pub controller::FilePath);
+
+
 /// A structure describing the module.
 ///
 /// It implements internal mutability pattern, so the state may be shared between different
@@ -184,16 +191,20 @@ impl model::module::API for Module {
     }
 
     fn with_project_metadata_internal
-    (&self, fun:Box<dyn FnOnce(&ProjectMetadata) + '_>) {
-        fun(&self.content.borrow().metadata.ide.project)
+    (&self, fun:Box<dyn FnOnce(&ProjectMetadata) + '_>) -> FallibleResult {
+        let err      = || MissingProjectMetadata(self.path.deref().deref().clone());
+        let content  = self.content.borrow();
+        let metadata = &content.metadata.ide.project.as_ref().ok_or_else(err)?;
+        fun(metadata);
+        Ok(())
     }
 
     fn update_project_metadata_internal
     (&self, fun:Box<dyn FnOnce(&mut ProjectMetadata) + '_>) -> FallibleResult {
         self.update_content(NotificationKind::MetadataChanged, |content| {
-            let mut data = content.metadata.ide.project.clone();
+            let mut data = content.metadata.ide.project.clone().unwrap_or_default();
             fun(&mut data);
-            content.metadata.ide.project = data;
+            content.metadata.ide.project = Some(data);
         })
     }
 }

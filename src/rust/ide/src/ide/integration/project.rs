@@ -39,18 +39,19 @@ use utils::iter::split_by_predicate;
 use futures::future::LocalBoxFuture;
 use crate::model::module::APIExt;
 use utils::test::traits::FutureTestExt;
-use itertools::EitherOrBoth;
 
 /// Describes an enabled visualization on a node.
 #[derive(Clone,Debug)]
+#[allow(missing_docs)]
 pub struct VisualizationInfo {
-    pub id   : VisualizationId,
     pub path : visualization::Path,
     pub data : Visualization,
 }
 
 /// Map that keeps information about enabled visualization.
 pub type VisualizationMap = SharedHashMap<graph_editor::NodeId,VisualizationInfo>;
+
+pub const SELECTION_UNDO_DISABLED:bool = true;
 
 // ==============
 // === Errors ===
@@ -237,7 +238,7 @@ impl Integration {
 
         let breadcrumbs = &model.view.graph().model.breadcrumbs;
         frp::extend! {network
-            eval_ breadcrumbs.output.breadcrumb_pop(model.node_exited_in_ui(&()).ok());
+            eval_ breadcrumbs.output.breadcrumb_pop(model.node_exited_in_ui());
             eval  breadcrumbs.output.breadcrumb_push((local_call) {
                 model.expression_entered_in_ui(&local_call.as_ref().map(|local_call| {
                     let definition = (**local_call.definition).clone();
@@ -313,7 +314,7 @@ impl Integration {
         let node_selected             = Self::ui_action(&model,Model::node_selected_in_ui         ,inv);
         let node_deselected           = Self::ui_action(&model,Model::node_deselected_in_ui       ,inv);
         let node_entered              = Self::ui_action(&model,Model::node_entered_in_ui          ,inv);
-        let node_exited               = Self::ui_action(&model,Model::node_exited_in_ui           ,inv);
+        let node_exited               = Self::ui_action(&model,|model,()| {model.node_exited_in_ui(); Ok(())},inv);
         let connection_created        = Self::ui_action(&model,Model::connection_created_in_ui    ,inv);
         let connection_removed        = Self::ui_action(&model,Model::connection_removed_in_ui    ,inv);
         let node_moved                = Self::ui_action(&model,Model::node_moved_in_ui            ,inv);
@@ -324,8 +325,6 @@ impl Integration {
         let used_as_suggestion        = Self::ui_action(&model,Model::used_as_suggestion_in_ui    ,inv);
         let node_editing_committed    = Self::ui_action(&model,Model::node_editing_committed_in_ui,inv);
         let node_editing_aborted      = Self::ui_action(&model,Model::node_editing_aborted_in_ui  ,inv);
-        let visualization_enabled     = Self::ui_action(&model,Model::visualization_enabled_in_ui ,inv);
-        let visualization_disabled    = Self::ui_action(&model,Model::visualization_disabled_in_ui,inv);
         frp::extend! {TRACE_ALL network
             eval code_editor.content ((content) model.code_view.set(content.clone_ref()));
 
@@ -366,13 +365,13 @@ impl Integration {
             _action <- project_frp.editing_committed        .map2(&is_hold,node_editing_committed);
             _action <- project_frp.editing_aborted          .map2(&is_hold,node_editing_aborted);
 
-            eval editor_outs.visualization_enabled    ([model](arg) {
+            eval editor_outs.visualization_enabled([model](arg) {
                 match model.visualization_enabled_in_ui(arg) {
                     Ok(_) => ERROR!("successfully enabled"),
                     Err(e) => ERROR!("failed to enable {e}"),
                 }
             });
-            eval editor_outs.visualization_disabled   ([model](arg) {
+            eval editor_outs.visualization_disabled([model](arg) {
                 match model.visualization_disabled_in_ui(arg) {
                     Ok(_) => ERROR!("successfully disabled"),
                     Err(e) => ERROR!("failed to disable {e}"),
@@ -444,7 +443,7 @@ impl Integration {
         for node_id in node_ids {
             if let Some(metadata) = self.model.view.graph().model.enabled_visualization(node_id) {
                 self.model.visualization_enabled_in_ui(&(node_id,metadata))
-                    .handle_err(|err| error!(logger, "Failed to enable visualization!"));
+                    .handle_err(|err| error!(logger, "Failed to enable visualization: {err}"));
             }
         }
 
@@ -607,11 +606,10 @@ impl Model {
     }
 
     pub fn refresh_call_stack(&self) -> FallibleResult {
-        use itertools::EitherOrBoth::*;
         // If graph controller displays a different graph
         let current_call_stack  = self.graph.call_stack();
         //let metadata_call_stack = self.project.with_project_metadata(|metadata| metadata.call_stack.clone());
-        let metadata_call_stack = self.project.main_module_model().expect_ready()?.with_project_metadata(|metadata| metadata.call_stack.clone());
+        let metadata_call_stack = self.project.main_module_model().expect_ready()?.with_project_metadata(|metadata| metadata.call_stack.clone())?;
 
         WARNING!("CALL STACKS:\n{current_call_stack:?}\n{metadata_call_stack:?}");
         let mut current = current_call_stack.into_iter();
@@ -622,8 +620,9 @@ impl Model {
                 (Some(current), Some(metadata)) if current == metadata => {}
                 (Some(_), Some(metadata)) => {
                     // Wrong frame on current stack. Drop all trailing frames.
-                    while let Some(frame) = current.next() {
-                        self.node_exited_in_ui(&());
+                    #[allow(clippy::while_let_on_iterator)]
+                    while let Some(_) = current.next() {
+                        self.node_exited_in_ui();
                     }
                     self.expression_entered_in_ui(&Some(metadata))?;
                 }
@@ -631,12 +630,11 @@ impl Model {
                     self.expression_entered_in_ui(&Some(metadata))?;
                 }
                 (Some(_), None) => {
-                    self.node_exited_in_ui(&())?;
+                    self.node_exited_in_ui();
                 }
                 (None,None) => break FallibleResult::Ok(()),
             }
-        };
-        Ok(())
+        }
     }
 
     /// Reload whole displayed content to be up to date with module state.
@@ -1378,7 +1376,7 @@ impl Model {
         self.expression_entered_in_ui(&Some(local_call))
     }
 
-    fn node_exited_in_ui(&self, _:&()) -> FallibleResult {
+    fn node_exited_in_ui(&self) {
         debug!(self.logger,"Requesting exiting the current node.");
         let controller      = self.graph.clone_ref();
         let logger          = self.logger.clone_ref();
@@ -1397,7 +1395,6 @@ impl Model {
             }
         };
         executor::global::spawn(exit_node_action);
-        Ok(())
     }
 
     fn code_changed_in_ui(&self, changes:&Vec<ensogl_text::Change>) -> FallibleResult {
@@ -1455,8 +1452,9 @@ impl Model {
             let controller  = self.graph.clone_ref();
             let code        = preprocessor.code.deref().into();
             let module      = self.resolve_visualization_context(&preprocessor.module)?;
+            let id          = visualization.data.id;
             executor::global::spawn(async move {
-                let result = controller.set_visualization_preprocessor(visualization.id,code,module);
+                let result = controller.set_visualization_preprocessor(id,code,module);
                 if let Err(err) = result.await {
                     error!(logger, "Error when setting visualization preprocessor: {err}");
                 }
@@ -1471,16 +1469,8 @@ impl Model {
 
 enum AttachingResult<T>{
     Attached(T),
-    Failed(failure::Error),
     Aborted,
-}
-
-#[derive(Debug,Fail)]
-enum AttachingError {
-    #[fail(display = "Failed to attach the visualization: {:?}", _0)]
     Failed(failure::Error),
-    #[fail(display = "Attaching the visualization has been aborted.")]
-    Aborted,
 }
 
 // === Utilities ===
@@ -1551,7 +1541,7 @@ impl Model {
 
         // We cannot do this in the async block, as the user may decide to detach before server
         // confirms that we actually have attached.
-        let info = VisualizationInfo {path,id, data:visualization};
+        let info = VisualizationInfo {path,data:visualization};
         visualizations_map.insert(node_id,info);
 
         let task = self.attaching_visualization_task(node_id, visualizations_map, update_handler);
@@ -1572,7 +1562,9 @@ impl Model {
             let mut last_error = None;
             for i in 1 ..= attempts {
                 // We need to re-get this info in each iteration. It might change in the meantime.
-                if let Some(VisualizationInfo{id,data,..}) = visualizations_map.get_cloned(&node_id) {
+                let visualization_info = visualizations_map.get_cloned(&node_id);
+                if let Some(VisualizationInfo{data,..}) = visualization_info {
+                    let id = data.id;
                     match controller.attach_visualization(data).await {
                         Ok(stream) => {
                             debug!(logger, "Successfully attached visualization {id} for node {node_id}.");
@@ -1591,7 +1583,7 @@ impl Model {
                 }
             }
 
-            let error = last_error.unwrap_or(failure::format_err!("No attempts were made."));
+            let error = last_error.unwrap_or_else(|| failure::format_err!("No attempts were made."));
             error!(logger, "Failed to attach visualization for node {node_id}: {error}\nWill abort.");
             AttachingResult::Failed(error)
         }
@@ -1607,12 +1599,13 @@ impl Model {
     , node_id            : graph_editor::NodeId
     , visualizations_map : VisualizationMap
     , update_handler     : impl FnMut(VisualizationUpdateData) -> futures::future::Ready<()> + 'static
-    ) -> impl Future<Output = ()> {
+    ) -> impl Future<Output=()> {
         let attempt_count = 10;
         let graph_frp  = self.view.graph().frp.clone_ref();
         let map        = visualizations_map.clone();
         let stream_fut = self.try_attaching_visualization_task(node_id,map,attempt_count);
         async move {
+            // No need to log anything here, as `try_attaching_visualization_task` does this.
             match stream_fut.await {
                 AttachingResult::Attached(stream) => {
                     let updates_handler = stream.for_each(update_handler);
@@ -1621,12 +1614,12 @@ impl Model {
                 AttachingResult::Aborted => {
                     // Do nothing and be silent.
                 }
-                AttachingResult::Failed(e) => {
+                AttachingResult::Failed(_) => {
                     // If attaching is impossible, we should close the visualization.
                     visualizations_map.remove(&node_id);
                     graph_frp.disable_visualization.emit(&node_id);
                 }
-            };
+            }
         }
     }
 
@@ -1673,10 +1666,10 @@ impl Model {
     , visualizations_map : VisualizationMap
     ) -> FallibleResult {
         debug!(self.logger,"Node editor wants to detach visualization on {node_id}.");
-        let err            = || NoSuchVisualization(node_id);
-        let id             = visualizations_map.get_cloned(&node_id).ok_or_else(err)?.id;
-        let logger         = self.logger.clone_ref();
-        let controller     = self.graph.clone_ref();
+        let err        = || NoSuchVisualization(node_id);
+        let id         = visualizations_map.get_cloned(&node_id).ok_or_else(err)?.data.id;
+        let logger     = self.logger.clone_ref();
+        let controller = self.graph.clone_ref();
 
         // We first detach to allow re-attaching even before the server confirms the operation.
         visualizations_map.remove(&node_id);

@@ -371,14 +371,15 @@ impl Collapser {
 }
 
 
-
+/// Panics if in the given AST duplicated IDs are present.
 pub fn assert_unique_ids(ast:&Ast) {
     let mut ids = HashMap::new();
     for node in ast.iter_recursive() {
         if let Some(id) = node.id {
             // DEBUG!("Checking {node}");
-            if let Some(aaa) = ids.insert(id,node) {
-                panic!("Collision for id {} between `{}` and `{}`.\n\nWhole program is:\n{}",id,aaa,node,ast)
+            if let Some(id2) = ids.insert(id, node) {
+                panic!("Collision for id {} between `{}` and `{}`.\n\nWhole program is:\n{}",
+                    id,id2,node,ast)
             }
         }
     }

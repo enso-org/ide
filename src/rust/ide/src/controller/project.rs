@@ -143,7 +143,7 @@ impl Project {
         let main_graph       = controller::ExecutedGraph::new(&self.logger,project,method).await?;
 
         // Go to last viewed graph.
-        let initial_call_stack = module.with_project_metadata(|metadata| metadata.call_stack.clone());
+        let initial_call_stack = module.with_project_metadata(|metadata| metadata.call_stack.clone())?;
         for frame in initial_call_stack {
             // Push as many frames as possible.
             if let Err(e) = main_graph.enter_method_pointer(&frame).await {

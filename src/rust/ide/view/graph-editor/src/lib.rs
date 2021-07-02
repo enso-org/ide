@@ -156,6 +156,9 @@ impl<T> SharedVec<T> {
 
     /// Return the number of items in the vector.
     pub fn len(&self) -> usize { self.raw.borrow().len() }
+
+    /// Check if the container is empty.
+    pub fn is_empty(&self) -> bool { self.raw.borrow().is_empty() }
 }
 
 impl<T:Clone> SharedVec<T> {
@@ -1521,22 +1524,12 @@ impl GraphEditorModel {
         }
     }
 
+    /// Get the visualization on the node, if it is enabled.
     pub fn enabled_visualization(&self, node_id:impl Into<NodeId>) -> Option<visualization::Metadata> {
         let frp = &self.nodes.all.get_cloned_ref(&node_id.into())?.model.visualization.frp;
         frp.visible.value().then(|| {
             visualization::Metadata::new(&frp.preprocessor.value(), &frp.visualisation.value())
         })
-
-
-
-        // preprocessor   (PreprocessorConfiguration),
-        // visualisation  (Option<visualization::Definition>),
-        // if !frp.visible.value() { return None }
-
-
-        //frp.visible.value().then(|| frp.visualisation.value()).flatten().map(|def:visualization::Definition| def.signature.path.clone_ref())
-
-        // visualization_frp.visible.value().then(|| visualization_frp.visualisation.value()).flatten().map(|def:visualization::Definition| def.signature.path.clone_ref())
     }
 
     /// Warning! This function does not remove connected edges. It needs to be handled by the
@@ -2902,13 +2895,13 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     viz_tgt_nodes_all_on <- viz_tgt_nodes_off.map(|t| t.is_empty());
     viz_enable_by_press  <= viz_tgt_nodes.gate_not(&viz_tgt_nodes_all_on);
     viz_enable           <- any(viz_enable_by_press,inputs.enable_visualization);
-    viz_disable          <= viz_tgt_nodes.gate(&viz_tgt_nodes_all_on);
+    viz_disable_by_press <= viz_tgt_nodes.gate(&viz_tgt_nodes_all_on);
+    viz_disable          <- any(viz_disable_by_press,inputs.disable_visualization);
     viz_preview_disable  <= viz_tgt_nodes_off.sample(&viz_preview_mode_end);
     viz_fullscreen_on    <= viz_d_press_ev.map(f_!(model.nodes.last_selected()));
 
     eval viz_enable          ((id) model.enable_visualization(id));
     eval viz_disable         ((id) model.disable_visualization(id));
-    eval inputs.disable_visualization         ((id) model.disable_visualization(id));
     eval viz_preview_disable ((id) model.disable_visualization(id));
     eval viz_fullscreen_on   ((id) model.enable_visualization_fullscreen(id));
 
