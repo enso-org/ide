@@ -510,8 +510,7 @@ class Config {
         config.entry = null
         config.authentication_enabled = true
         config.application_config_url =
-            'https://raw.githubusercontent.com/enso-org/ide/wip/db/minimum-required-version/config.json'
-        //'https://raw.githubusercontent.com/enso-org/ide/develop/config.json'
+            'https://raw.githubusercontent.com/enso-org/ide/develop/config.json'
         return config
     }
 
