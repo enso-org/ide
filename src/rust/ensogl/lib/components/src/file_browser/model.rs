@@ -27,15 +27,16 @@ pub enum EntryType {
 
 #[derive(Debug,Clone)]
 pub struct Entry {
-    pub name: String,
-    pub path: PathBuf,
-    pub type_: EntryType,
+    pub name  : String,
+    pub path  : PathBuf,
+    pub type_ : EntryType,
 }
 
 
 
 pub trait FolderContent: Debug {
-    fn request_entries(&self, entries_loaded:frp::Any<Rc<Vec<Entry>>>);
+    fn request_entries
+    (&self, entries_loaded:frp::Any<Rc<Vec<Entry>>>, error_occurred:frp::Any<ImString>);
 }
 
 #[derive(Debug,Clone)]
@@ -62,7 +63,8 @@ impl<D:'static + FolderContent> From<D> for AnyFolderContent {
 struct EmptyFolderContent;
 
 impl FolderContent for EmptyFolderContent {
-    fn request_entries(&self, entries_loaded:frp::Any<Rc<Vec<Entry>>>) {
+    fn request_entries
+    (&self, entries_loaded:frp::Any<Rc<Vec<Entry>>>, _error_occured:frp::Any<ImString>) {
         entries_loaded.emit(Rc::new(vec![]));
     }
 }

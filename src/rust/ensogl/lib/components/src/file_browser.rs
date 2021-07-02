@@ -207,13 +207,17 @@ impl ModelWithFrp {
     }
 
     fn push_column(self:Rc<Self>, content:AnyFolderContent) {
-        let index = self.model.columns.borrow().len();
+        let index   = self.model.columns.borrow().len();
+        let network = &self.frp.network;
+        frp::extend! { network
+            error <- any_mut::<ImString>();
+        }
         let new_column = Column::new(self.clone(),index);
         self.model.scroll_area.content.add_child(&new_column);
         self.model.columns.borrow_mut().push(new_column.clone());
         self.model.scroll_area.set_content_width(self.model.columns.borrow().len() as f32 * column::WIDTH);
         self.model.scroll_area.scroll_to_x(f32::INFINITY);
-        content.request_entries(new_column.set_entries.clone());
+        content.request_entries(new_column.set_entries.clone(),error);
     }
 }
 

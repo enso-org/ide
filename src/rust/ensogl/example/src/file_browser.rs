@@ -43,7 +43,7 @@ impl MockFolderContent {
 }
 
 impl FolderContent for MockFolderContent {
-    fn request_entries(&self, entries_loaded: frp::Any<Rc<Vec<Entry>>>) {
+    fn request_entries(&self, entries_loaded: frp::Any<Rc<Vec<Entry>>>, _error_occurred: frp::Any<ImString>) {
         entries_loaded.emit(self.entries.clone());
     }
 }
@@ -53,7 +53,7 @@ impl FolderContent for MockFolderContent {
 struct GeneratedFolderContent;
 
 impl FolderContent for GeneratedFolderContent {
-    fn request_entries(&self, entries_loaded: frp::Any<Rc<Vec<Entry>>>) {
+    fn request_entries(&self, entries_loaded: frp::Any<Rc<Vec<Entry>>>, _error_occurred: frp::Any<ImString>) {
         entries_loaded.emit(
             Rc::new((0..100).map(|i|
                 Entry {
