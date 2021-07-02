@@ -152,6 +152,7 @@ impl Column {
 
         let entries = RefCell::new(None);
         let model = Rc::new(Model {app, entries, list_view:list_view.clone()});
+
         frp::extend!{ network
             eval frp.set_entries([model,list_view](entries) {
                 model.entries.set(entries.clone());
@@ -172,6 +173,16 @@ impl Column {
                     }
                 }
             });
+            browser.frp.source.entry_chosen <+ model.list_view.chosen_entry.filter_map(
+                f!([model](&id) {
+                    let selected_entry = model.entries.borrow().as_ref()?[id?].clone();
+                    Some(selected_entry.path)
+                }));
+            browser.frp.source.entry_selected <+ model.list_view.selected_entry.filter_map(
+                f!([model](&id) {
+                    let selected_entry = model.entries.borrow().as_ref()?[id?].clone();
+                    Some(selected_entry.path)
+                }));
         }
 
         Column {model,frp}

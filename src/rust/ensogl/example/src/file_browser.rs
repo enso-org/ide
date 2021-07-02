@@ -58,7 +58,7 @@ impl FolderContent for GeneratedFolderContent {
             Rc::new((0..100).map(|i|
                 Entry {
                     name: format!("Folder {}", i),
-                    path: Default::default(),
+                    path: format!("Folder {}", i).into(),
                     type_: EntryType::Folder {
                         type_: FolderType::Standard,
                         content: GeneratedFolderContent.into()
@@ -85,7 +85,7 @@ fn init(app:&Application) {
     let fs = MockFolderContent::new(vec![
         Entry {
             name: "Project's Data".to_string(),
-            path: Default::default(),
+            path: "Project's Data".into(),
             type_: EntryType::Folder {
                 type_: FolderType::Project,
                 content: MockFolderContent::new(vec![]).into()
@@ -93,13 +93,13 @@ fn init(app:&Application) {
         },
         Entry {
             name: "Home".to_string(),
-            path: Default::default(),
+            path: "Home".into(),
             type_: EntryType::Folder {
                 type_: FolderType::Home,
                 content: MockFolderContent::new(vec![
                     Entry {
                         name: "Applications".to_string(),
-                        path: Default::default(),
+                        path: "Applications".into(),
                         type_: EntryType::Folder {
                             type_: FolderType::Standard,
                             content: Default::default(),
@@ -107,7 +107,7 @@ fn init(app:&Application) {
                     },
                     Entry {
                         name: "Desktop".to_string(),
-                        path: Default::default(),
+                        path: "Desktop".into(),
                         type_: EntryType::Folder {
                             type_: FolderType::Standard,
                             content: Default::default(),
@@ -115,7 +115,7 @@ fn init(app:&Application) {
                     },
                     Entry {
                         name: "Documents".to_string(),
-                        path: Default::default(),
+                        path: "Documents".into(),
                         type_: EntryType::Folder {
                             type_: FolderType::Standard,
                             content: Default::default(),
@@ -123,7 +123,7 @@ fn init(app:&Application) {
                     },
                     Entry {
                         name: "Downloads".to_string(),
-                        path: Default::default(),
+                        path: "Downloads".into(),
                         type_: EntryType::Folder {
                             type_: FolderType::Standard,
                             content: Default::default(),
@@ -131,7 +131,7 @@ fn init(app:&Application) {
                     },
                     Entry {
                         name: "Enso".to_string(),
-                        path: Default::default(),
+                        path: "Enso".into(),
                         type_: EntryType::Folder {
                             type_: FolderType::Standard,
                             content: GeneratedFolderContent.into(),
@@ -139,7 +139,7 @@ fn init(app:&Application) {
                     },
                     Entry {
                         name: "Movies".to_string(),
-                        path: Default::default(),
+                        path: "Movies".into(),
                         type_: EntryType::Folder {
                             type_: FolderType::Standard,
                             content: Default::default(),
@@ -147,7 +147,7 @@ fn init(app:&Application) {
                     },
                     Entry {
                         name: "Music".to_string(),
-                        path: Default::default(),
+                        path: "Music".into(),
                         type_: EntryType::Folder {
                             type_: FolderType::Standard,
                             content: Default::default(),
@@ -155,7 +155,7 @@ fn init(app:&Application) {
                     },
                     Entry {
                         name: "Pictures".to_string(),
-                        path: Default::default(),
+                        path: "Pictures".into(),
                         type_: EntryType::Folder {
                             type_: FolderType::Standard,
                             content: Default::default(),
@@ -163,7 +163,7 @@ fn init(app:&Application) {
                     },
                     Entry {
                         name: "Public".to_string(),
-                        path: Default::default(),
+                        path: "Public".into(),
                         type_: EntryType::Folder {
                             type_: FolderType::Standard,
                             content: Default::default(),
@@ -171,47 +171,47 @@ fn init(app:&Application) {
                     },
                     Entry {
                         name: "File 1".to_string(),
-                        path: Default::default(),
+                        path: "File 1".into(),
                         type_: EntryType::File
                     },
                     Entry {
                         name: "File 2".to_string(),
-                        path: Default::default(),
+                        path: "File 2".into(),
                         type_: EntryType::File
                     },
                     Entry {
                         name: "File 3".to_string(),
-                        path: Default::default(),
+                        path: "File 3".into(),
                         type_: EntryType::File
                     },
                     Entry {
                         name: "File 4".to_string(),
-                        path: Default::default(),
+                        path: "File 4".into(),
                         type_: EntryType::File
                     },
                     Entry {
                         name: "File 5".to_string(),
-                        path: Default::default(),
+                        path: "File 5".into(),
                         type_: EntryType::File
                     },
                     Entry {
                         name: "File 6".to_string(),
-                        path: Default::default(),
+                        path: "File 6".into(),
                         type_: EntryType::File
                     },
                     Entry {
                         name: "File 7".to_string(),
-                        path: Default::default(),
+                        path: "File 7".into(),
                         type_: EntryType::File
                     },
                     Entry {
                         name: "File 8".to_string(),
-                        path: Default::default(),
+                        path: "File 8".into(),
                         type_: EntryType::File
                     },
                     Entry {
                         name: "File 9".to_string(),
-                        path: Default::default(),
+                        path: "File 9".into(),
                         type_: EntryType::File
                     },
                 ]).into()
@@ -219,7 +219,7 @@ fn init(app:&Application) {
         },
         Entry {
             name: "Root".to_string(),
-            path: Default::default(),
+            path: "Root".into(),
             type_: EntryType::Folder {
                 type_: FolderType::Root,
                 content: MockFolderContent::new(vec![]).into()
