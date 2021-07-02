@@ -13,6 +13,7 @@ use crate::controller::searcher::action::MatchInfo;
 use crate::controller::searcher::Actions;
 use crate::controller::upload;
 use crate::controller::upload::NodeFromDroppedFileHandler;
+use crate::ide::integration::file_system::FileProvider;
 use crate::model::execution_context::ComputedValueInfo;
 use crate::model::execution_context::ExpressionId;
 use crate::model::execution_context::LocalCall;
@@ -31,6 +32,7 @@ use ensogl::data::color;
 use ensogl::display::shape::StyleWatch;
 use ensogl::display::traits::*;
 use ensogl::display;
+use ensogl_gui_components::file_browser::model::AnyFolderContent;
 use ensogl_gui_components::list_view;
 use ensogl_text as text;
 use ensogl_web::drop;
@@ -43,6 +45,7 @@ use ide_view::graph_editor::component::node;
 use ide_view::graph_editor::component::visualization;
 use ide_view::graph_editor;
 use utils::iter::split_by_predicate;
+
 
 
 // ==============
@@ -299,7 +302,6 @@ impl Integration {
         let inv                       = &invalidate.trigger;
         let node_editing_in_ui        = Model::node_editing_in_ui(Rc::downgrade(&model));
         let searcher_opened_in_ui     = Model::searcher_opened_in_ui(Rc::downgrade(&model));
-        let searcher_opened_fop_in_ui = Model::searcher_opened_for_opening_project_in_ui(Rc::downgrade(&model));
         let code_changed              = Self::ui_action(&model,Model::code_changed_in_ui          ,inv);
         let node_removed              = Self::ui_action(&model,Model::node_removed_in_ui          ,inv);
         let nodes_collapsed           = Self::ui_action(&model,Model::nodes_collapsed_in_ui       ,inv);
@@ -309,7 +311,6 @@ impl Integration {
         let connection_removed        = Self::ui_action(&model,Model::connection_removed_in_ui    ,inv);
         let node_moved                = Self::ui_action(&model,Model::node_moved_in_ui            ,inv);
         let searcher_opened           = Self::ui_action(&model,searcher_opened_in_ui              ,inv);
-        let searcher_opened_fop       = Self::ui_action(&model,searcher_opened_fop_in_ui          ,inv);
         let node_editing              = Self::ui_action(&model,node_editing_in_ui                 ,inv);
         let node_expression_set       = Self::ui_action(&model,Model::node_expression_set_in_ui   ,inv);
         let used_as_suggestion        = Self::ui_action(&model,Model::used_as_suggestion_in_ui    ,inv);
@@ -349,7 +350,6 @@ impl Integration {
             _action <- editor_outs.node_position_set_batched.map2(&is_hold,node_moved);
             _action <- editor_outs.node_being_edited        .map2(&is_hold,node_editing);
             _action <- project_frp.searcher_opened          .map2(&is_hold,searcher_opened);
-            _action <- project_frp.searcher_opened_for_opening_project.map2(&is_hold,searcher_opened_fop);
             _action <- editor_outs.node_expression_set      .map2(&is_hold,node_expression_set);
             _action <- searcher_frp.used_as_suggestion      .map2(&is_hold,used_as_suggestion);
             _action <- project_frp.editing_committed        .map2(&is_hold,node_editing_committed);
@@ -1040,14 +1040,6 @@ impl Model {
         }
     }
 
-    fn searcher_opened_for_opening_project_in_ui(weak_self:Weak<Self>)
-    -> impl Fn(&Self,&graph_editor::NodeId) -> FallibleResult {
-        move |this,_displayed_id| {
-            let mode = controller::searcher::Mode::OpenProject;
-            this.setup_searcher_controller(&weak_self,mode)
-        }
-    }
-
     fn node_editing_in_ui(weak_self:Weak<Self>)
     -> impl Fn(&Self,&Option<graph_editor::NodeId>) -> FallibleResult {
         move |this,displayed_id| {
@@ -1278,6 +1270,16 @@ impl Model {
         } else {
             Err(MissingMappingFor::DisplayedVisualization(node_id).into())
         }
+    }
+
+    fn open_file_dialog_opened_in_ui(&self) {
+        debug!(self.logger, "Opened file dialog in ui. Providing content root list");
+        let provider = FileProvider {
+            connection: self.project.json_rpc(),
+            content_roots: self.project.content_roots(),
+        };
+        let provider:AnyFolderContent = provider.into();
+        self.view.open_dialog().file_browser.set_content(provider);
     }
 }
 

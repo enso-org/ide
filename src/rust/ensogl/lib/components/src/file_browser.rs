@@ -43,10 +43,10 @@ const CONTENT_OFFSET_Y    : f32 = TOOLBAR_HEIGHT + TOOLBAR_BORDER_SIZE;
 const PADDING             : f32 = 16.0;
 // TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 //       Or make it configurable through FRP, or both.
-const WIDTH               : f32 = 814.0;
+pub const WIDTH               : f32 = 814.0;
 // TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 //       Or make it configurable through FRP, or both.
-const HEIGHT              : f32 = 421.0;
+pub const HEIGHT              : f32 = 421.0;
 // TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 const CONTENT_HEIGHT      : f32 = HEIGHT - CONTENT_OFFSET_Y;
 // TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
@@ -306,7 +306,7 @@ impl ModelWithFrp {
 
 /// A file browser component. It allows to browse the content of a folder and it's subfolders and
 /// emits an event when an entry is chosen.
-#[derive(Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct FileBrowser(Rc<ModelWithFrp>);
 
 impl Deref for FileBrowser {

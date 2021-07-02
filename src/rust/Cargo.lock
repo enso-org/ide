@@ -572,6 +572,8 @@ dependencies = [
 [[package]]
 name = "enso-automata"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9b028792f442d36cdd2df02a29ef988c219a9ebce952015bb1c2bcb5942d261"
 dependencies = [
  "enso-prelude",
 ]
@@ -595,6 +597,8 @@ dependencies = [
 [[package]]
 name = "enso-data"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39dba144366e08671b102fd6feca76be1623e05816a3ba43ab05b2aaa45a625a"
 dependencies = [
  "enso-prelude",
  "rustversion",
@@ -623,6 +627,8 @@ dependencies = [
 [[package]]
 name = "enso-generics"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "345a68488069ed550c31127513445628bcaff9da467aa8e833067149cf8bc445"
 dependencies = [
  "nalgebra 0.21.1",
  "serde",
@@ -631,6 +637,8 @@ dependencies = [
 [[package]]
 name = "enso-logger"
 version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fed27bf8ac2768a9224fd66863de4384b42bf16e079e02dd507798ce71dd4d2d"
 dependencies = [
  "enso-prelude",
  "enso-shapely",
@@ -642,6 +650,8 @@ dependencies = [
 [[package]]
 name = "enso-macro-utils"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64e4c3aca9d82b782043ad1378929e03813ee00e444858caddd6ec32580eff08"
 dependencies = [
  "proc-macro2 1.0.26",
  "quote 1.0.9",
@@ -651,6 +661,8 @@ dependencies = [
 [[package]]
 name = "enso-optics"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f4a34423408c57e6285d19ae88b53b9e0d254983bbcbf301d3f4a5c38f15802"
 dependencies = [
  "enso-prelude",
 ]
@@ -658,6 +670,8 @@ dependencies = [
 [[package]]
 name = "enso-prelude"
 version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e8a93f83e03fd9db4819f4258bc17d05dace04ec6ad2dd44aea9eb67936c601"
 dependencies = [
  "anyhow",
  "backtrace",
@@ -718,6 +732,8 @@ dependencies = [
 [[package]]
 name = "enso-shapely"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "061a335e6068e8960a315f62813a7196c3cde2c650ebd0e744f26b479baf3cd8"
 dependencies = [
  "derivative",
  "enso-shapely-macros",
@@ -729,6 +745,8 @@ dependencies = [
 [[package]]
 name = "enso-shapely-macros"
 version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3362771ca6e5a077479ae310c28e28abb56f4f62f2fe649719292227685dece0"
 dependencies = [
  "Inflector",
  "boolinator",
