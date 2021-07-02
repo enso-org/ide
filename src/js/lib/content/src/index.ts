@@ -17,6 +17,8 @@ import assert from 'assert'
 import firebase from 'firebase/app'
 // @ts-ignore
 import 'firebase/auth'
+// @ts-ignore
+import semver from 'semver'
 
 // ==================
 // === Global API ===
@@ -495,6 +497,7 @@ class Config {
     public verbose: boolean
     public authentication_enabled: boolean
     public email: string
+    public application_config_url: string
 
     static default() {
         let config = new Config()
@@ -506,6 +509,9 @@ class Config {
         config.is_in_cloud = false
         config.entry = null
         config.authentication_enabled = true
+        config.application_config_url =
+            'https://raw.githubusercontent.com/enso-org/ide/wip/db/minimum-required-version/config.json'
+        //'https://raw.githubusercontent.com/enso-org/ide/develop/config.json'
         return config
     }
 
@@ -662,6 +668,94 @@ function tryAsString(value: any): string {
     return value.toString()
 }
 
+async function fetchApplicationConfig(config: Config) {
+    const https = require('https')
+
+    return new Promise((resolve: any, reject: any) => {
+        https.get(config.application_config_url, (res: any) => {
+            if (res.statusCode !== 200) {
+                reject(
+                    new Error(`Request ${config.application_config_url} return ${res.statusCode}.`)
+                )
+            }
+
+            res.setEncoding('utf8')
+            let rawData = ''
+
+            res.on('data', (chunk: any) => {
+                rawData += chunk
+            })
+
+            res.on('end', () => {
+                try {
+                    const parsedData = JSON.parse(rawData)
+                    resolve(parsedData)
+                } catch (e) {
+                    reject(e)
+                }
+            })
+
+            res.on('error', (e: any) => {
+                reject(e)
+            })
+        })
+    })
+}
+
+class Versions {
+
+    static devVersion = semver.coerce('0.0.0')
+
+    static compare(minSupportedVersion: string, applicationVersion: string): boolean {
+        const appVersion = semver.clean(applicationVersion, { loose: true })
+        if (ok(appVersion)) {
+            if (semver.eq(appVersion, Versions.devVersion)) {
+                return true
+            } else {
+                const minVersion = semver.clean(minSupportedVersion, { loose: true })
+                if (ok(minVersion)) {
+                    return semver.gte(appVersion, minVersion)
+                } else {
+                    console.error('Failed to parse app version.', { applicationVersion })
+                }
+            }
+        } else {
+            console.error('Failed to parse minimum supported version.', { minSupportedVersion })
+        }
+    }
+}
+
+/// Check if the current application version is still supported. Return `true`
+/// if the application version is supported and `false` otherwise.
+///
+/// Function downloads the application config containing the minimum supported
+/// version from GitHub and compares it with the version of the `client` js
+/// package. When the function is unable to download the application config, or
+/// one of the compared versions does not match the semver scheme, it returns
+/// `true`.
+async function checkMinSupportedVersion(config: Config) {
+    try {
+        const appConfig: any = await fetchApplicationConfig(config)
+        const clientPackage = require('../../client/package.json')
+        const clientVersion = clientPackage.version
+        const minSupportedVersion = appConfig.minimumSupportedVersion
+
+        const isSupported = Versions.compare(minSupportedVersion, clientVersion)
+        console.log(
+            `Application version check.`,
+            { minSupportedVersion, clientVersion, isSupported }
+        )
+        if (ok(isSupported)) {
+            return isSupported
+        } else {
+            throw new Error('Failed to compare application versions.')
+        }
+    } catch (e) {
+        console.error('Minimum version check failed.', e.message)
+        return true
+    }
+}
+
 /// Main entry point. Loads WASM, initializes it, chooses the scene to run.
 async function mainEntryPoint(config: any) {
     // @ts-ignore
@@ -720,13 +814,19 @@ API.main = async function(inputConfig: any) {
     config.updateFromObject(inputConfig)
     config.updateFromObject(urlConfig)
 
-    if (config.authentication_enabled) {
-        new FirebaseAuthentication(
-            function(user: any) {
-                config.email = user.email
-                mainEntryPoint(config)
-            })
+    if (await checkMinSupportedVersion(config)) {
+        if (config.authentication_enabled) {
+            new FirebaseAuthentication(
+                function(user: any) {
+                    config.email = user.email
+                    mainEntryPoint(config)
+                })
+        } else {
+            await mainEntryPoint(config)
+        }
     } else {
-        await mainEntryPoint(config)
+        // Display a message asking to update the application.
+        document.getElementById('auth-container').style.display = 'none'
+        document.getElementById('version-check').style.display = 'block'
     }
 }
