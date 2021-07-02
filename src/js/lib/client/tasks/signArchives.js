@@ -23,7 +23,7 @@ const resRoot = path.join(contentRoot, 'Resources')
 // TODO: Refactor this once we have a better wau to get the used engine version.
 //  See the tracking issue for more information https://github.com/enso-org/ide/issues/1359
 const ENGINE = '0.2.12'
-const ID = '"Developer ID Application: New Byte Order Sp. z o. o. (NM77WTZJFQ)"'
+const ID = '"Apple Development: maciejkrzysztofmikolajek@gmail.com (R55X9D8435)"'
 // Placeholder name for temporary archives.
 const tmpArchive = 'temporary_archive.zip'
 
@@ -245,19 +245,7 @@ const toSign = [
 // Extra files that need to be signed.
 const extra = [
     `enso/runtime/${GRAALVM}/Contents/MacOS/libjli.dylib`,
-    `enso/runtime/${GRAALVM}/Contents/Home/languages/llvm/native/bin/ld.lld`,
-    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/MASS/libs/MASS.so`,
-    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/cluster/libs/cluster.so`,
-    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/nnet/libs/nnet.so`,
-    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/rpart/libs/rpart.so`,
-    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/lattice/libs/lattice.so`,
-    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/nlme/libs/nlme.so`,
-    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/class/libs/class.so`,
-    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/spatial/libs/spatial.so`,
-    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/foreign/libs/foreign.so`,
-    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/Matrix/libs/Matrix.so`,
-    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/KernSmooth/libs/KernSmooth.so`,
-    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/survival/libs/survival.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/llvm/native/bin/ld.lld`
 ]
 
 exports.default = async function () {
