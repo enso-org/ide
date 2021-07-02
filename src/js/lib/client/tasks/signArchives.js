@@ -27,7 +27,7 @@ const ID = '"Developer ID Application: New Byte Order Sp. z o. o. (NM77WTZJFQ)"'
 // Placeholder name for temporary archives.
 const tmpArchive = 'temporary_archive.zip'
 
-const GRAALVM = 'graalvm-ce-java11-21.1.0';
+const GRAALVM = 'graalvm-ce-java11-21.1.0'
 
 // Helper to execute a command in a given directory and return the output.
 const run = (cmd, cwd) => child_process.execSync(cmd, { shell: true, cwd }).toString()
@@ -37,8 +37,8 @@ function sign(targetPath, cwd) {
     console.log(`Signing ${targetPath} in ${cwd}`)
     const entitlements_path = path.resolve('./', 'entitlements.mac.plist')
     return run(
-        `codesign -vvv --entitlements ${entitlements_path} --force --options=runtime `
-         + `--sign ${ID} ${targetPath}`,
+        `codesign -vvv --entitlements ${entitlements_path} --force --options=runtime ` +
+            `--sign ${ID} ${targetPath}`,
         cwd
     )
 }
@@ -109,8 +109,7 @@ function signArchive(archivePath, archiveName, binPaths) {
 // message provided by Apple and can then be added here.
 const toSign = [
     {
-        jarDir:
-            `enso/dist/${ENGINE}/std-lib/Standard/polyglot/java`,
+        jarDir: `enso/dist/${ENGINE}/std-lib/Standard/polyglot/java`,
         jarName: 'sqlite-jdbc-3.34.0.jar',
         jarContent: [
             'org/sqlite/native/Mac/aarch64/libsqlitejdbc.jnilib',
@@ -118,8 +117,7 @@ const toSign = [
         ],
     },
     {
-        jarDir:
-            `enso/dist/${ENGINE}/component`,
+        jarDir: `enso/dist/${ENGINE}/component`,
         jarName: 'runner.jar',
         jarContent: [
             'org/sqlite/native/Mac/x86_64/libsqlitejdbc.jnilib',
@@ -136,135 +134,210 @@ const toSign = [
     },
     {
         jarDir: `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
-        jarName: 'jdk.jartool.jmod',
-        jarContent: ['bin/jarsigner', 'bin/jar'],
-    },
-    {
-        jarDir:
-            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
-        jarName: 'jdk.jdeps.jmod',
-        jarContent: ['bin/javap', 'bin/jdeprscan', 'bin/jdeps'],
-    },
-    {
-        jarDir:
-            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
-        jarName: 'jdk.jstatd.jmod',
-        jarContent: ['bin/jstatd'],
-    },
-    {
-        jarDir:
-            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
-        jarName: 'jdk.pack.jmod',
-        jarContent: ['bin/unpack200', 'bin/pack200'],
-    },
-    {
-        jarDir:
-            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
-        jarName: 'jdk.hotspot.agent.jmod',
-        jarContent: ['bin/jhsdb'],
-    },
-    {
-        jarDir:
-            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
-        jarName: 'jdk.jfr.jmod',
-        jarContent: ['bin/jfr'],
-    },
-    {
-        jarDir:
-            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
-        jarName: 'jdk.rmic.jmod',
-        jarContent: ['bin/rmic'],
-    },
-    {
-        jarDir:
-            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
-        jarName: 'java.rmi.jmod',
-        jarContent: ['bin/rmid', 'bin/rmiregistry'],
-    },
-    {
-        jarDir:
-            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
         jarName: 'java.base.jmod',
         jarContent: ['bin/java', 'bin/keytool', 'lib/jspawnhelper'],
     },
     {
-        jarDir:
-            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
-        jarName: 'jdk.jlink.jmod',
-        jarContent: ['bin/jmod', 'bin/jlink', 'bin/jimage'],
+        jarDir: `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
+        jarName: 'java.rmi.jmod',
+        jarContent: ['bin/rmid', 'bin/rmiregistry'],
     },
     {
-        jarDir:
-            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
-        jarName: 'jdk.scripting.nashorn.shell.jmod',
-        jarContent: ['bin/jjs'],
-    },
-    {
-        jarDir:
-            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
-        jarName: 'jdk.jcmd.jmod',
-        jarContent: ['bin/jstack', 'bin/jcmd', 'bin/jps', 'bin/jmap', 'bin/jstat', 'bin/jinfo'],
-    },
-    {
-        jarDir:
-            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
-        jarName: 'jdk.jshell.jmod',
-        jarContent: ['bin/jshell'],
-    },
-    {
-        jarDir:
-            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
-        jarName: 'jdk.compiler.jmod',
-        jarContent: ['bin/javac', 'bin/serialver'],
-    },
-    {
-        jarDir:
-            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
+        jarDir: `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
         jarName: 'java.scripting.jmod',
         jarContent: ['bin/jrunscript'],
     },
     {
-        jarDir:
-            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
-        jarName: 'jdk.jdi.jmod',
-        jarContent: ['bin/jdb'],
+        jarDir: `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
+        jarName: 'jdk.compiler.jmod',
+        jarContent: ['bin/javac', 'bin/serialver'],
     },
     {
-        jarDir:
-            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
+        jarDir: `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
+        jarName: 'jdk.hotspot.agent.jmod',
+        jarContent: ['bin/jhsdb'],
+    },
+    {
+        jarDir: `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
+        jarName: 'jdk.jartool.jmod',
+        jarContent: ['bin/jarsigner', 'bin/jar'],
+    },
+    {
+        jarDir: `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
         jarName: 'jdk.javadoc.jmod',
         jarContent: ['bin/javadoc'],
     },
     {
-        jarDir:
-            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
+        jarDir: `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
+        jarName: 'jdk.jcmd.jmod',
+        jarContent: ['bin/jstack', 'bin/jcmd', 'bin/jps', 'bin/jmap', 'bin/jstat', 'bin/jinfo'],
+    },
+    {
+        jarDir: `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
         jarName: 'jdk.jconsole.jmod',
         jarContent: ['bin/jconsole'],
     },
     {
-        jarDir:
-            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
-        jarName: 'jdk.javadoc.jmod',
-        jarContent: ['bin/javadoc'],
+        jarDir: `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
+        jarName: 'jdk.jdeps.jmod',
+        jarContent: ['bin/javap', 'bin/jdeprscan', 'bin/jdeps'],
+    },
+    {
+        jarDir: `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
+        jarName: 'jdk.jdi.jmod',
+        jarContent: ['bin/jdb'],
+    },
+    {
+        jarDir: `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
+        jarName: 'jdk.jfr.jmod',
+        jarContent: ['bin/jfr'],
+    },
+    {
+        jarDir: `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
+        jarName: 'jdk.jlink.jmod',
+        jarContent: ['bin/jmod', 'bin/jlink', 'bin/jimage'],
+    },
+    {
+        jarDir: `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
+        jarName: 'jdk.jshell.jmod',
+        jarContent: ['bin/jshell'],
+    },
+    {
+        jarDir: `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
+        jarName: 'jdk.jstatd.jmod',
+        jarContent: ['bin/jstatd'],
+    },
+    {
+        jarDir: `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
+        jarName: 'jdk.pack.jmod',
+        jarContent: ['bin/unpack200', 'bin/pack200'],
+    },
+    {
+        jarDir: `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
+        jarName: 'jdk.rmic.jmod',
+        jarContent: ['bin/rmic'],
+    },
+    {
+        jarDir: `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
+        jarName: 'jdk.scripting.nashorn.shell.jmod',
+        jarContent: ['bin/jjs'],
     },
 ]
 
 // Extra files that need to be signed.
 const extra = [
-    `enso/runtime/${GRAALVM}/Contents/MacOS/libjli.dylib`,
     `enso/runtime/${GRAALVM}/Contents/Home/languages/llvm/native/bin/ld.lld`,
-    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/MASS/libs/MASS.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/lib/libR.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/lib/libquadmath.0.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/lib/libRblas.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/lib/libpcre.1.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/lib/libRnative.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/lib/libRlapack.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/lib/libRllvm.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/lib/libgcc_s.1.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/lib/libgfortran.5.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/lib/libf2c.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/llvm/native/lib/libsulong.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/llvm/native/lib/libgraalvm-llvm.1.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/llvm/native/lib/libc++.1.0.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/llvm/native/lib/libsulong-native.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/llvm/native/lib/libc++abi.1.0.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/llvm/native/lib/libsulong++.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/python/lib-graalpython/libzsupport.graalpython-38-native-x86_64-darwin.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/python/lib-graalpython/libposix.graalpython-38-native-x86_64-darwin.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/python/lib-graalpython/libbz2support.graalpython-38-native-x86_64-darwin.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/python/lib-graalpython/libhpy.graalpython-38-native-x86_64-darwin.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/python/lib-graalpython/lib/graalpython-38-native-x86_64-darwin/liblzma.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/python/lib-graalpython/lib/graalpython-38-native-x86_64-darwin/liblzma.5.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/python/lib-graalpython/lib/graalpython-38-native-x86_64-darwin/liblzma.5.2.5.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/python/lib-graalpython/modules/libzsupport.graalpython-38-native-x86_64-darwin.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/python/lib-graalpython/modules/libposix.graalpython-38-native-x86_64-darwin.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/python/lib-graalpython/modules/_testmultiphase.graalpython-38-native-x86_64-darwin.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/python/lib-graalpython/modules/_cpython_sre.graalpython-38-native-x86_64-darwin.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/python/lib-graalpython/modules/libbz2support.graalpython-38-native-x86_64-darwin.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/python/lib-graalpython/modules/_cpython_struct.graalpython-38-native-x86_64-darwin.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/python/lib-graalpython/modules/libhpy.graalpython-38-native-x86_64-darwin.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/python/lib-graalpython/modules/_testcapi.graalpython-38-native-x86_64-darwin.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/python/lib-graalpython/modules/_cpython_unicodedata.graalpython-38-native-x86_64-darwin.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/python/lib-graalpython/modules/_mmap.graalpython-38-native-x86_64-darwin.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/python/lib-graalpython/modules/liblzmasupport.graalpython-38-native-x86_64-darwin.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/python/lib-graalpython/modules/_bz2.graalpython-38-native-x86_64-darwin.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/python/lib-graalpython/modules/libpython.graalpython-38-native-x86_64-darwin.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/python/lib-graalpython/liblzmasupport.graalpython-38-native-x86_64-darwin.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/python/lib-graalpython/libpython.graalpython-38-native-x86_64-darwin.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libosx.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libdt_socket.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libjvmcicompiler.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libmanagement.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libjawt.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libunpack.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libverify.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libjsig.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libjimage.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libzip.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libjava.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libsunec.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libawt.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libjaas.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libfreetype.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libfontmanager.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/jli/libjli.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libjavajpeg.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libjsound.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libharfbuzz.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/liblcms.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libnet.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libextnet.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/llvm/lib/libLTO.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/llvm/lib/libc++.1.0.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/llvm/lib/libclang-cpp.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/llvm/lib/libLLVM.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/llvm/lib/libc++abi.1.0.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libosxui.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libj2gss.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libinstrument.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libnio.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libtrufflenfi.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/librmi.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libosxapp.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libj2pcsc.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libosxkrb5.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libmlib_image.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libawt_lwawt.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libmanagement_ext.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libj2pkcs11.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libosxsecurity.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libsaproc.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libjdwp.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libmanagement_agent.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libprefs.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libsplashscreen.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/server/libjsig.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/server/libjvm.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/lib/libattach.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/graphics/libs/graphics.so`,
     `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/cluster/libs/cluster.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/parallel/libs/parallel.so`,
     `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/nnet/libs/nnet.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/splines/libs/splines.so`,
     `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/rpart/libs/rpart.so`,
-    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/lattice/libs/lattice.so`,
-    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/nlme/libs/nlme.so`,
-    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/class/libs/class.so`,
     `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/spatial/libs/spatial.so`,
-    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/foreign/libs/foreign.so`,
-    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/Matrix/libs/Matrix.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/MASS/libs/MASS.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/grid/libs/grid.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/lattice/libs/lattice.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/class/libs/class.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/tools/libs/tools.so`,
     `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/KernSmooth/libs/KernSmooth.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/foreign/libs/foreign.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/methods/libs/methods.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/grDevices/libs/grDevices.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/Matrix/libs/Matrix.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/base/libs/base.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/utils/libs/utils.so`,
     `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/survival/libs/survival.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/nlme/libs/nlme.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/stats/libs/stats.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/python/lib-graalpython/lib/graalpython-38-native-x86_64-darwin/libbz2.so`,
 ]
 
 exports.default = async function () {
