@@ -2,7 +2,6 @@
 use ensogl_core::prelude::*;
 
 use crate::list_view;
-use crate::list_view::entry::ModelProvider;
 
 use enso_frp as frp;
 use enso_frp;
@@ -14,6 +13,9 @@ use ensogl_core::display::shape::primitive::StyleWatch;
 use ensogl_core::display;
 use ensogl_text as text;
 use ensogl_theme as theme;
+use crate::list_view::ListView;
+use crate::card::Card;
+use crate::card;
 
 
 // =================
@@ -74,7 +76,7 @@ pub mod chooser_hover_area {
 
 ensogl_core::define_endpoints! {
     Input {
-        set_entries         (list_view::entry::AnyModelProvider),
+        set_entries         (Rc<Vec<String>>),
         set_icon_size       (Vector2),
         set_icon_padding    (Vector2),
         hide_selection_menu (),
@@ -106,10 +108,10 @@ struct Model {
     icon_overlay    : chooser_hover_area::View,
 
     label           : text::Area,
-    selection_menu  : list_view::ListView,
+    selection_menu  : ListView,
+    background      : Card,
 
-    // `SingleMaskedProvider` allows us to hide the selected element.
-    content         : RefCell<Option<list_view::entry::SingleMaskedProvider>>,
+    content         : RefCell<Option<Rc<Vec<String>>>>,
 }
 
 impl Model {
@@ -119,17 +121,25 @@ impl Model {
         let display_object = display::object::Instance::new(&logger);
         let icon           = arrow::View::new(&logger);
         let icon_overlay   = chooser_hover_area::View::new(&logger);
-        let selection_menu = list_view::ListView::new(&app);
+        let selection_menu = app.new_view::<ListView>();
         let label          = app.new_view::<text::Area>();
+        let background     = Card::new();
         let content        = default();
 
-        Self{logger,app,display_object,icon,icon_overlay,label,selection_menu,content}.init()
+        selection_menu.focus();
+
+        Self{logger,app,display_object,icon,icon_overlay,label,selection_menu,background,content}
+            .init()
     }
 
     fn init(self) -> Self {
         self.add_child(&self.icon);
         self.add_child(&self.icon_overlay);
         self.add_child(&self.label);
+        self.selection_menu.add_child(&self.background);
+        self.app.display.scene().layers.add_shapes_order_dependency::<card::View,list_view::selection::View>();
+
+        self.background.set_corner_radius(list_view::CORNER_RADIUS_PX);
 
         // Clear default parent and hide again.
         self.show_selection_menu();
@@ -149,23 +159,12 @@ impl Model {
     }
 
     fn hide_selection_menu(&self) {
-        self.selection_menu.unset_parent()
+        self.selection_menu.unset_parent();
     }
 
-    fn get_content_item(&self, id:Option<list_view::entry::Id>) -> Option<list_view::entry::Model> {
-        self.content.borrow().as_ref()?.get(id?)
-    }
-
-    /// Transform index of an element visible in the menu, to the index of the all the objects,
-    /// accounting for the removal of the selected item.
-    ///
-    /// Example:
-    /// Widget state: Selected [B], menu content [A, C]
-    /// Item list      [A, B,  C]
-    /// Unmasked index [0, 1,  2]
-    /// Masked indices [0, na, 1]
-    fn get_unmasked_index(&self, ix:Option<usize>) -> Option<usize> {
-        Some(self.content.borrow().as_ref()?.unmasked_index(ix?))
+    fn get_item_label(&self, id:Option<list_view::entry::Id>) -> Option<String> {
+        // self.content.borrow().as_ref()?.get(id?)
+        self.content.borrow().as_ref()?.get(id?).cloned()
     }
 }
 
@@ -215,9 +214,8 @@ impl DropDownMenu {
             // === Input Processing ===
 
             eval frp.input.set_entries ([model](entries) {
-                let entries:list_view::entry::SingleMaskedProvider = entries.clone_ref().into();
-                model.content.set(entries.clone());
-                let entries:list_view::entry::AnyModelProvider = entries.into();
+                model.content.set(Rc::clone(entries));
+                let entries:list_view::entry::AnyEntryProvider = Rc::clone(entries).into();
                 model.selection_menu.frp.set_entries.emit(entries);
             });
 
@@ -226,9 +224,10 @@ impl DropDownMenu {
 
             let menu_height = DEPRECATED_Animation::<f32>::new(&network);
 
-
             eval menu_height.value ([model](height) {
-                model.selection_menu.frp.resize.emit(Vector2::new(MENU_WIDTH,*height));
+                let size = Vector2::new(MENU_WIDTH,*height);
+                model.selection_menu.frp.resize.emit(size);
+                model.background.resize(size);
                 if *height <= 0.0 {
                     model.hide_selection_menu();
                 } else if *height > 0.0 {
@@ -298,26 +297,15 @@ impl DropDownMenu {
             // === Selection ===
 
             eval_ model.selection_menu.chosen_entry (hide_menu.emit(()));
-            chosen_entry_unmasked <- model.selection_menu.chosen_entry.map(f!((entry_id)
-                model.get_unmasked_index(*entry_id))
-            );
-            frp.source.chosen_entry <+ chosen_entry_unmasked;
-            set_selected            <- any(frp.input.set_selected, chosen_entry_unmasked);
+            frp.source.chosen_entry <+ model.selection_menu.chosen_entry;
+            set_selected            <- any(frp.input.set_selected, model.selection_menu.chosen_entry);
 
             eval set_selected([model](entry_id) {
                 if let Some(entry_id) = entry_id {
-                    if let Some(content) = model.content.borrow().as_ref() {
-                        // We get an external item index, so we operate on all items, thus we
-                        // clear the mask.
-                        content.clear_mask();
-                        if let Some(item) = model.get_content_item(Some(*entry_id)) {
-                            model.set_label(&item.label)
-                        };
-                        // Remove selected item from menu list
-                        content.set_mask(*entry_id);
-                        // Update menu content.
-                        let entries:list_view::entry::AnyModelProvider = content.clone().into();
-                        model.selection_menu.frp.set_entries.emit(entries);
+                    if let Some(_content) = model.content.borrow().as_ref() {
+                        if let Some(item) = model.get_item_label(Some(*entry_id)) {
+                            model.set_label(item.as_str())
+                        }
                     };
                 };
             });

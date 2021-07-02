@@ -13,10 +13,10 @@ use ensogl::application;
 use ensogl::display::shape::*;
 use ensogl::display;
 use ensogl_gui_components::list_view::ListView;
-use ensogl_gui_components::list_view;
+use ensogl_gui_components::{list_view, card};
 
 pub use ensogl_gui_components::list_view::entry;
-
+use ensogl_gui_components::card::Card;
 
 
 // =================
@@ -85,38 +85,44 @@ impl<T:DocumentationProvider + 'static> From<Rc<T>> for AnyDocumentationProvider
 
 #[derive(Clone,CloneRef,Debug)]
 struct Model {
-    app            : Application,
-    logger         : Logger,
-    display_object : display::object::Instance,
-    list           : ListView,
-    documentation  : documentation::View,
-    doc_provider   : Rc<CloneRefCell<AnyDocumentationProvider>>,
+    app             : Application,
+    logger          : Logger,
+    display_object  : display::object::Instance,
+    list            : ListView,
+    list_background : Card,
+    documentation   : documentation::View,
+    doc_provider    : Rc<CloneRefCell<AnyDocumentationProvider>>,
 }
 
 impl Model {
     fn new(app:&Application) -> Self {
-        let scene          = app.display.scene();
-        let app            = app.clone_ref();
-        let logger         = Logger::new("SearcherView");
-        let display_object = display::object::Instance::new(&logger);
-        let list           = app.new_view::<ListView>();
-        let documentation  = documentation::View::new(&scene);
-        let doc_provider   = default();
+        let scene           = app.display.scene();
+        let app             = app.clone_ref();
+        let logger          = Logger::new("SearcherView");
+        let display_object  = display::object::Instance::new(&logger);
+        let list            = app.new_view::<ListView>();
+        let list_background = Card::new();
+        let documentation   = documentation::View::new(&scene);
+        let doc_provider    = default();
         scene.layers.above_nodes.add_exclusive(&list);
         display_object.add_child(&documentation);
         display_object.add_child(&list);
+        list.add_child(&list_background);
+        list.focus();
+        scene.layers.add_shapes_order_dependency::<card::View,list_view::selection::View>();
+        list_background.set_corner_radius(list_view::CORNER_RADIUS_PX);
 
         // FIXME: StyleWatch is unsuitable here, as it was designed as an internal tool for shape
         //  system (#795)
         let style                = StyleWatch::new(&app.display.scene().style_sheet);
         let action_list_gap_path = ensogl_theme::application::searcher::action_list_gap;
         let action_list_gap      = style.get_number_or(action_list_gap_path,0.0);
-        list.set_label_layer(scene.layers.above_nodes_text.id);
+        // list.set_label_layer(scene.layers.above_nodes_text.id);
         list.set_position_y(-action_list_gap);
         list.set_position_x(ACTION_LIST_X);
         documentation.set_position_x(DOCUMENTATION_X);
         documentation.set_position_y(-action_list_gap);
-        Self{app,logger,display_object,list,documentation,doc_provider}
+        Self{app,logger,display_object,list,list_background,documentation,doc_provider}
     }
 
     fn docs_for(&self, id:Option<entry::Id>) -> String {
@@ -128,7 +134,9 @@ impl Model {
     }
 
     fn set_height(&self, h:f32) {
-        self.list.resize(Vector2(ACTION_LIST_GAP, h));
+        let list_size = Vector2(ACTION_LIST_GAP, h);
+        self.list.resize(list_size);
+        self.list_background.resize(list_size);
         self.documentation.visualization_frp.inputs.set_size.emit(Vector2(DOCUMENTATION_WIDTH,h));
     }
 }
@@ -143,7 +151,7 @@ ensogl::define_endpoints! {
     Input {
         /// Use the selected action as a suggestion and add it to the current input.
         use_as_suggestion (),
-        set_actions       (entry::AnyModelProvider,AnyDocumentationProvider),
+        set_actions       (entry::AnyEntryProvider,AnyDocumentationProvider),
         select_action     (entry::Id),
         show              (),
         hide              (),
@@ -234,8 +242,8 @@ impl View {
     /// The list is represented list-entry-model and documentation provider. It's a helper for FRP
     /// `set_suggestion` input (FRP nodes cannot be generic).
     pub fn set_actions
-    (&self, provider:Rc<impl list_view::entry::ModelProvider + DocumentationProvider + 'static>) {
-        let entries       : list_view::entry::AnyModelProvider = provider.clone_ref().into();
+    (&self, provider:Rc<impl list_view::entry::EntryProvider + DocumentationProvider + 'static>) {
+        let entries       : list_view::entry::AnyEntryProvider = provider.clone_ref().into();
         let documentation : AnyDocumentationProvider           = provider.into();
         self.frp.set_actions(entries,documentation);
     }

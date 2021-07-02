@@ -170,9 +170,13 @@ define_themes! { [light:0, dark:1]
             selection {
                 padding {
                     horizontal = 2.0, 2.0;
-                    vertical   = 2.0, 2.0
+                    vertical   = 0.0, 0.0
                 }
             }
+        }
+        file_browser {
+            background = Rgba(0.988,0.996,1.0,1.0) , Rgba(0.988,0.996,1.0,1.0);
+            toolbar_border_color = Rgba(0.808,0.808,0.808,1.0) , Rgba(0.808,0.808,0.808,1.0);
         }
 
         window_control_buttons {
@@ -399,7 +403,10 @@ define_themes! { [light:0, dark:1]
     widget {
         list_view {
             background = graph_editor::node::background , graph_editor::node::background;
-            highlight  = Rgba(0.906,0.914,0.922,1.0) , Lcha(1.0,0.0,0.0,0.15); // rgb(231,233,235)
+            selection {
+                focused   = Rgba(0.12,0.451,0.973,1.0)  , Rgba(0.12,0.451,0.973,1.0);
+                unfocused = Rgba(0.933,0.933,0.933,1.0) , Rgba(0.933,0.933,0.933,1.0);
+            }
             text = Lcha(0.0,0.0,0.0,0.7) , Lcha(1.0,0.0,0.0,0.7);
             text {
                 highlight = selection, Rgba(0.275,0.549,0.839,1.0); // ... , rgb(70 140 214)

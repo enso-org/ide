@@ -1,0 +1,242 @@
+//! A debug scene which shows the Select Component. The chosen entries are logged in console.
+
+use crate::prelude::*;
+
+use ensogl_gui_components::file_browser::*;
+use ensogl_gui_components::file_browser::model::*;
+use ensogl_core::system::web;
+use ensogl_core::application::Application;
+use ensogl_core::display::object::ObjectOps;
+use ensogl_text_msdf_sys::run_once_initialized;
+use logger::TraceLogger as Logger;
+use wasm_bindgen::prelude::*;
+use ensogl_theme as theme;
+use enso_frp as frp;
+
+
+// ===================
+// === Entry Point ===
+// ===================
+
+/// An entry point.
+#[wasm_bindgen]
+#[allow(dead_code)]
+pub fn entry_point_file_browser() {
+    web::forward_panic_hook_to_console();
+    web::set_stack_trace_limit();
+    run_once_initialized(|| {
+        let app = Application::new(&web::get_html_element_by_id("root").unwrap());
+        init(&app);
+        mem::forget(app);
+    });
+}
+
+#[derive(Debug)]
+struct MockFolderContent {
+    entries: Rc<Vec<Entry>>
+}
+
+impl MockFolderContent {
+    fn new(entries: Vec<Entry>) -> Self {
+        Self { entries:Rc::new(entries) }
+    }
+}
+
+impl FolderContent for MockFolderContent {
+    fn request_entries(&self, entries_loaded: frp::Any<Rc<Vec<Entry>>>) {
+        entries_loaded.emit(self.entries.clone());
+    }
+}
+
+
+#[derive(Debug)]
+struct GeneratedFolderContent;
+
+impl FolderContent for GeneratedFolderContent {
+    fn request_entries(&self, entries_loaded: frp::Any<Rc<Vec<Entry>>>) {
+        entries_loaded.emit(
+            Rc::new((0..100).map(|i|
+                Entry {
+                    name: format!("Folder {}", i),
+                    path: Default::default(),
+                    type_: EntryType::Folder {
+                        type_: FolderType::Standard,
+                        content: GeneratedFolderContent.into()
+                    }
+                }
+            ).collect_vec())
+        );
+    }
+}
+
+
+
+
+// ========================
+// === Init Application ===
+// ========================
+
+fn init(app:&Application) {
+    theme::builtin::dark::register(&app);
+    theme::builtin::light::register(&app);
+    theme::builtin::light::enable(&app);
+
+    let file_browser = app.new_view::<FileBrowser>();
+    let fs = MockFolderContent::new(vec![
+        Entry {
+            name: "Project's Data".to_string(),
+            path: Default::default(),
+            type_: EntryType::Folder {
+                type_: FolderType::Project,
+                content: MockFolderContent::new(vec![]).into()
+            },
+        },
+        Entry {
+            name: "Home".to_string(),
+            path: Default::default(),
+            type_: EntryType::Folder {
+                type_: FolderType::Home,
+                content: MockFolderContent::new(vec![
+                    Entry {
+                        name: "Applications".to_string(),
+                        path: Default::default(),
+                        type_: EntryType::Folder {
+                            type_: FolderType::Standard,
+                            content: Default::default(),
+                        },
+                    },
+                    Entry {
+                        name: "Desktop".to_string(),
+                        path: Default::default(),
+                        type_: EntryType::Folder {
+                            type_: FolderType::Standard,
+                            content: Default::default(),
+                        },
+                    },
+                    Entry {
+                        name: "Documents".to_string(),
+                        path: Default::default(),
+                        type_: EntryType::Folder {
+                            type_: FolderType::Standard,
+                            content: Default::default(),
+                        },
+                    },
+                    Entry {
+                        name: "Downloads".to_string(),
+                        path: Default::default(),
+                        type_: EntryType::Folder {
+                            type_: FolderType::Standard,
+                            content: Default::default(),
+                        },
+                    },
+                    Entry {
+                        name: "Enso".to_string(),
+                        path: Default::default(),
+                        type_: EntryType::Folder {
+                            type_: FolderType::Standard,
+                            content: GeneratedFolderContent.into(),
+                        },
+                    },
+                    Entry {
+                        name: "Movies".to_string(),
+                        path: Default::default(),
+                        type_: EntryType::Folder {
+                            type_: FolderType::Standard,
+                            content: Default::default(),
+                        },
+                    },
+                    Entry {
+                        name: "Music".to_string(),
+                        path: Default::default(),
+                        type_: EntryType::Folder {
+                            type_: FolderType::Standard,
+                            content: Default::default(),
+                        },
+                    },
+                    Entry {
+                        name: "Pictures".to_string(),
+                        path: Default::default(),
+                        type_: EntryType::Folder {
+                            type_: FolderType::Standard,
+                            content: Default::default(),
+                        },
+                    },
+                    Entry {
+                        name: "Public".to_string(),
+                        path: Default::default(),
+                        type_: EntryType::Folder {
+                            type_: FolderType::Standard,
+                            content: Default::default(),
+                        },
+                    },
+                    Entry {
+                        name: "File 1".to_string(),
+                        path: Default::default(),
+                        type_: EntryType::File
+                    },
+                    Entry {
+                        name: "File 2".to_string(),
+                        path: Default::default(),
+                        type_: EntryType::File
+                    },
+                    Entry {
+                        name: "File 3".to_string(),
+                        path: Default::default(),
+                        type_: EntryType::File
+                    },
+                    Entry {
+                        name: "File 4".to_string(),
+                        path: Default::default(),
+                        type_: EntryType::File
+                    },
+                    Entry {
+                        name: "File 5".to_string(),
+                        path: Default::default(),
+                        type_: EntryType::File
+                    },
+                    Entry {
+                        name: "File 6".to_string(),
+                        path: Default::default(),
+                        type_: EntryType::File
+                    },
+                    Entry {
+                        name: "File 7".to_string(),
+                        path: Default::default(),
+                        type_: EntryType::File
+                    },
+                    Entry {
+                        name: "File 8".to_string(),
+                        path: Default::default(),
+                        type_: EntryType::File
+                    },
+                    Entry {
+                        name: "File 9".to_string(),
+                        path: Default::default(),
+                        type_: EntryType::File
+                    },
+                ]).into()
+            },
+        },
+        Entry {
+            name: "Root".to_string(),
+            path: Default::default(),
+            type_: EntryType::Folder {
+                type_: FolderType::Root,
+                content: MockFolderContent::new(vec![]).into()
+            },
+        },
+    ]);
+    file_browser.set_content(AnyFolderContent::from(fs));
+    app.display.add_child(&file_browser);
+
+    let logger : Logger = Logger::new("SelectDebugScene");
+    let network = enso_frp::Network::new("test");
+    enso_frp::extend! {network
+        eval file_browser.entry_chosen([logger](entry) {
+            info!(logger, "Chosen entry {entry:?}")
+        });
+    }
+
+    std::mem::forget(file_browser);
+    std::mem::forget(network);
+}

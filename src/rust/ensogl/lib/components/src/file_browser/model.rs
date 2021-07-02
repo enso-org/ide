@@ -6,50 +6,9 @@ use std::path::PathBuf;
 
 
 
-// ===================
-// === FolderEntry ===
-// ===================
-
-#[derive(Debug,Clone)]
-pub enum FolderEntryType {
-    File,
-    Folder(AnyFolder),
-}
-
-#[derive(Debug,Clone)]
-pub struct FolderEntry {
-    pub name: String,
-    pub path: PathBuf,
-    pub type_: FolderEntryType,
-}
-
-
-
-// ==============
-// === Folder ===
-// ==============
-
-pub trait Folder: Debug {
-    fn request_entries(&self, entries_loaded:frp::Source<Vec<FolderEntry>>);
-}
-
-#[derive(Debug,Clone)]
-pub struct AnyFolder(Rc<dyn Folder>);
-
-impl<D:'static + Folder> From<D> for AnyFolder {
-    fn from(dir: D) -> Self {
-        AnyFolder(Rc::new(dir))
-    }
-}
-
-
-
-// ===================
-// === ContentRoot ===
-// ===================
-
 #[derive(Debug,Copy,Clone)]
-pub enum ContentRootType {
+pub enum FolderType {
+    Standard,
     Project,
     Root,
     Home,
@@ -58,46 +17,58 @@ pub enum ContentRootType {
 }
 
 #[derive(Debug,Clone)]
-pub struct ContentRoot {
-    pub name: String,
-    pub path: PathBuf,
-    pub type_: ContentRootType,
-    pub content: AnyFolder,
-}
-
-
-
-// ==================
-// === FileSystem ===
-// ==================
-
-pub trait FileSystem: Debug {
-    fn request_content_roots(&self, entries_loaded:frp::Source<Vec<ContentRoot>>);
+pub enum EntryType {
+    File,
+    Folder {
+        type_   : FolderType,
+        content : AnyFolderContent,
+    },
 }
 
 #[derive(Debug,Clone)]
-pub struct AnyFileSystem(Rc<dyn FileSystem>);
+pub struct Entry {
+    pub name: String,
+    pub path: PathBuf,
+    pub type_: EntryType,
+}
 
-impl<FS:'static + FileSystem> From<FS> for AnyFileSystem {
-    fn from(fs: FS) -> Self {
-        AnyFileSystem(Rc::new(fs))
+
+
+pub trait FolderContent: Debug {
+    fn request_entries(&self, entries_loaded:frp::Any<Rc<Vec<Entry>>>);
+}
+
+#[derive(Debug,Clone)]
+pub struct AnyFolderContent(Rc<dyn FolderContent>);
+
+impl Deref for AnyFolderContent {
+    type Target = dyn FolderContent;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.deref()
+    }
+}
+
+impl<D:'static + FolderContent> From<D> for AnyFolderContent {
+    fn from(dir: D) -> Self {
+        AnyFolderContent(Rc::new(dir))
     }
 }
 
 
-// === EmptyFileSystem ===
+// === EmptyFolder ===
 
 #[derive(Debug)]
-struct EmptyFileSystem;
+struct EmptyFolderContent;
 
-impl FileSystem for EmptyFileSystem {
-    fn request_content_roots(&self, content_roots_loaded:frp::Source<Vec<ContentRoot>>) {
-        content_roots_loaded.emit(vec![]);
+impl FolderContent for EmptyFolderContent {
+    fn request_entries(&self, entries_loaded:frp::Any<Rc<Vec<Entry>>>) {
+        entries_loaded.emit(Rc::new(vec![]));
     }
 }
 
-impl Default for AnyFileSystem {
+impl Default for AnyFolderContent {
     fn default() -> Self {
-        EmptyFileSystem.into()
+        EmptyFolderContent.into()
     }
 }
