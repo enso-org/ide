@@ -127,8 +127,15 @@ const toSign = [
         ],
     },
     {
-        jarDir:
-            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
+        jarDir: `enso/dist/${ENGINE}/component`,
+        jarName: 'runtime.jar',
+        jarContent: [
+            'org/sqlite/native/Mac/x86_64/libsqlitejdbc.jnilib',
+            'com/sun/jna/darwin/libjnidispatch.jnilib',
+        ],
+    },
+    {
+        jarDir: `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
         jarName: 'jdk.jartool.jmod',
         jarContent: ['bin/jarsigner', 'bin/jar'],
     },
