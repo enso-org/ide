@@ -450,6 +450,204 @@ async function reportCrash(message: string) {
     })
 }
 
+// =====================
+// === Version Check ===
+// =====================
+
+// An error with the payload.
+class ErrorDetails {
+
+    public readonly message: string
+    public readonly payload: any
+
+    constructor(message: string, payload: any) {
+        this.message = message
+        this.payload = payload
+    }
+}
+
+class Versions {
+
+    /// Development version.
+    static devVersion = semver.coerce('0.0.0')
+    /// Version of the `client` js package.
+    static clientVersion = require('../../client/package.json').version
+
+    /// Compare the application version with the minimum supported version and
+    /// return `true` if the application version is supported, i.e. greater or
+    /// equal than the minimum supported version.
+    static compare(minSupportedVersion: string, applicationVersion: string): boolean {
+        const appVersion = semver.clean(applicationVersion, { loose: true })
+        if (ok(appVersion)) {
+            if (semver.eq(appVersion, Versions.devVersion)) {
+                return true
+            } else {
+                const minVersion = semver.clean(minSupportedVersion, { loose: true })
+                if (ok(minVersion)) {
+                    return semver.gte(appVersion, minVersion)
+                } else {
+                    throw new ErrorDetails(
+                        'Failed to parse app version.',
+                        { applicationVersion }
+                    )
+                }
+            }
+        } else {
+            throw new ErrorDetails(
+                'Failed to parse minimum supported version.',
+                { minSupportedVersion }
+            )
+        }
+    }
+}
+
+/// Fetch the application config from the provided url.
+async function fetchApplicationConfig(url: string) {
+    const https = require('https')
+    const statusCodeOK = 200
+
+    return new Promise((resolve: any, reject: any) => {
+        https.get(url, (res: any) => {
+            const statusCode = res.statusCode
+            if (statusCode !== statusCodeOK) {
+                reject(new ErrorDetails('Request failed.', { url, statusCode }))
+            }
+
+            res.setEncoding('utf8')
+            let rawData = ''
+
+            res.on('data', (chunk: any) => rawData += chunk)
+
+            res.on('end', () => {
+                try {
+                    resolve(JSON.parse(rawData))
+                } catch (e) {
+                    reject(e)
+                }
+            })
+
+            res.on('error', (e: any) => reject(e))
+        })
+    })
+}
+
+/// Check if the current application version is still supported. Return `true`
+/// if the application version is supported and `false` otherwise.
+///
+/// Function downloads the application config containing the minimum supported
+/// version from GitHub and compares it with the version of the `client` js
+/// package. When the function is unable to download the application config, or
+/// one of the compared versions does not match the semver scheme, it returns
+/// `true`.
+async function checkMinSupportedVersion(config: Config) {
+    try {
+        const appConfig: any = await fetchApplicationConfig(config.application_config_url)
+        const clientVersion = Versions.clientVersion
+        const minSupportedVersion = appConfig.minimumSupportedVersion
+
+        console.log(
+            `Application version check.`,
+            { minSupportedVersion, clientVersion }
+        )
+        return Versions.compare(minSupportedVersion, clientVersion)
+    } catch (e) {
+        console.error('Minimum version check failed.', e)
+        return true
+    }
+}
+
+// ======================
+// === Authentication ===
+// ======================
+
+class FirebaseAuthentication {
+
+    public readonly firebaseui: any
+    public readonly config: any
+    public readonly ui: any
+
+    public authCallback: any
+
+    constructor(authCallback: any) {
+        this.firebaseui = require('firebaseui')
+        this.config = require('../firebase.yaml')
+        firebase.initializeApp(this.config)
+        this.ui = new this.firebaseui.auth.AuthUI(firebase.auth())
+        this.ui.disableAutoSignIn()
+        this.authCallback = authCallback
+        firebase.auth().onAuthStateChanged((user: any) => {
+            if (ok(user)) {
+                if (this.hasEmailAuth(user) && !user.emailVerified) {
+                    document.getElementById('user-email-not-verified').style.display = 'block'
+                    this.handleSignedOutUser()
+                } else {
+                    this.handleSignedInUser(user)
+                }
+            } else {
+                this.handleSignedOutUser()
+            }
+        })
+    }
+
+    protected hasEmailAuth(user: any): boolean {
+        const emailProviderId = firebase.auth.EmailAuthProvider.PROVIDER_ID
+        const hasEmailProvider = user
+            .providerData
+            .some((data: any) => data.providerId === emailProviderId)
+        const hasOneProvider = user.providerData.length === 1
+        return hasOneProvider && hasEmailProvider
+    }
+
+    protected getUiConfig() {
+        return {
+            'callbacks': {
+                // Called when the user has been successfully signed in.
+                'signInSuccessWithAuthResult': (authResult: any, redirectUrl: any) => {
+                    if (ok(authResult.user)) {
+                        switch (authResult.additionalUserInfo.providerId) {
+                            case firebase.auth.EmailAuthProvider.PROVIDER_ID:
+                                if (authResult.user.emailVerified) {
+                                    this.handleSignedInUser(authResult.user)
+                                } else {
+                                    authResult.user.sendEmailVerification()
+                                    document.getElementById('user-email-not-verified').style.display = 'block'
+                                    this.handleSignedOutUser()
+                                }
+                                break;
+
+                            default:
+                        }
+                    }
+                    // Do not redirect.
+                    return false;
+                }
+            },
+            'signInOptions': [
+                {
+                    provider: firebase.auth.GoogleAuthProvider.PROVIDER_ID,
+                    // Required to enable ID token credentials for this provider.
+                    clientId: this.config.clientId
+                },
+                firebase.auth.GithubAuthProvider.PROVIDER_ID,
+                {
+                    provider: firebase.auth.EmailAuthProvider.PROVIDER_ID,
+                    // Whether the display name should be displayed in Sign Up page.
+                    requireDisplayName: false,
+                }
+            ],
+        }
+    }
+
+    protected handleSignedOutUser() {
+        this.ui.start('#firebaseui-container', this.getUiConfig())
+    }
+
+    protected handleSignedInUser(user: any) {
+        document.getElementById('auth-container').style.display = 'none'
+        this.authCallback(user)
+    }
+}
+
 // ========================
 // === Main Entry Point ===
 // ========================
@@ -557,94 +755,6 @@ class Config {
     }
 }
 
-class FirebaseAuthentication {
-
-    public readonly firebaseui: any
-    public readonly config: any
-    public readonly ui: any
-
-    public authCallback: any
-
-    constructor(authCallback: any) {
-        this.firebaseui = require('firebaseui')
-        this.config = require('../firebase.yaml')
-        firebase.initializeApp(this.config)
-        this.ui = new this.firebaseui.auth.AuthUI(firebase.auth())
-        this.ui.disableAutoSignIn()
-        this.authCallback = authCallback
-        firebase.auth().onAuthStateChanged((user: any) => {
-            if (ok(user)) {
-                if (FirebaseAuthentication.hasEmailAuth(user) && !user.emailVerified) {
-                    document.getElementById('user-email-not-verified').style.display = 'block'
-                    this.handleSignedOutUser()
-                } else {
-                    this.handleSignedInUser(user)
-                }
-            } else {
-                this.handleSignedOutUser()
-            }
-        })
-    }
-
-    static hasEmailAuth(user: any) {
-        const emailProviderId = firebase.auth.EmailAuthProvider.PROVIDER_ID
-        const hasEmailProvider = user
-            .providerData
-            .some((data: any) => data.providerId === emailProviderId)
-        const hasOneProvider = user.providerData.length === 1
-        return hasOneProvider && hasEmailProvider
-    }
-
-    protected getUiConfig() {
-        return {
-            'callbacks': {
-                // Called when the user has been successfully signed in.
-                'signInSuccessWithAuthResult': (authResult: any, redirectUrl: any) => {
-                    if (ok(authResult.user)) {
-                        switch (authResult.additionalUserInfo.providerId) {
-                            case firebase.auth.EmailAuthProvider.PROVIDER_ID:
-                                if (authResult.user.emailVerified) {
-                                    this.handleSignedInUser(authResult.user)
-                                } else {
-                                    authResult.user.sendEmailVerification()
-                                    document.getElementById('user-email-not-verified').style.display = 'block'
-                                    this.handleSignedOutUser()
-                                }
-                                break;
-
-                            default:
-                        }
-                    }
-                    // Do not redirect.
-                    return false;
-                }
-            },
-            'signInOptions': [
-                {
-                    provider: firebase.auth.GoogleAuthProvider.PROVIDER_ID,
-                    // Required to enable ID token credentials for this provider.
-                    clientId: this.config.clientId
-                },
-                firebase.auth.GithubAuthProvider.PROVIDER_ID,
-                {
-                    provider: firebase.auth.EmailAuthProvider.PROVIDER_ID,
-                    // Whether the display name should be displayed in Sign Up page.
-                    requireDisplayName: false,
-                }
-            ],
-        }
-    }
-
-    protected handleSignedOutUser() {
-        this.ui.start('#firebaseui-container', this.getUiConfig())
-    }
-
-    protected handleSignedInUser(user: any) {
-        document.getElementById('auth-container').style.display = 'none'
-        this.authCallback(user)
-    }
-}
-
 /// Check whether the value is a string with value `"true"`/`"false"`, if so, return the
 // appropriate boolean instead. Otherwise, return the original value.
 function parseBooleanOrLeaveAsIs(value: any): any {
@@ -665,94 +775,6 @@ function tryAsBoolean(value: any): boolean {
 
 function tryAsString(value: any): string {
     return value.toString()
-}
-
-async function fetchApplicationConfig(config: Config) {
-    const https = require('https')
-
-    return new Promise((resolve: any, reject: any) => {
-        https.get(config.application_config_url, (res: any) => {
-            if (res.statusCode !== 200) {
-                reject(
-                    new Error(`Request ${config.application_config_url} return ${res.statusCode}.`)
-                )
-            }
-
-            res.setEncoding('utf8')
-            let rawData = ''
-
-            res.on('data', (chunk: any) => {
-                rawData += chunk
-            })
-
-            res.on('end', () => {
-                try {
-                    const parsedData = JSON.parse(rawData)
-                    resolve(parsedData)
-                } catch (e) {
-                    reject(e)
-                }
-            })
-
-            res.on('error', (e: any) => {
-                reject(e)
-            })
-        })
-    })
-}
-
-class Versions {
-
-    static devVersion = semver.coerce('0.0.0')
-
-    static compare(minSupportedVersion: string, applicationVersion: string): boolean {
-        const appVersion = semver.clean(applicationVersion, { loose: true })
-        if (ok(appVersion)) {
-            if (semver.eq(appVersion, Versions.devVersion)) {
-                return true
-            } else {
-                const minVersion = semver.clean(minSupportedVersion, { loose: true })
-                if (ok(minVersion)) {
-                    return semver.gte(appVersion, minVersion)
-                } else {
-                    console.error('Failed to parse app version.', { applicationVersion })
-                }
-            }
-        } else {
-            console.error('Failed to parse minimum supported version.', { minSupportedVersion })
-        }
-    }
-}
-
-/// Check if the current application version is still supported. Return `true`
-/// if the application version is supported and `false` otherwise.
-///
-/// Function downloads the application config containing the minimum supported
-/// version from GitHub and compares it with the version of the `client` js
-/// package. When the function is unable to download the application config, or
-/// one of the compared versions does not match the semver scheme, it returns
-/// `true`.
-async function checkMinSupportedVersion(config: Config) {
-    try {
-        const appConfig: any = await fetchApplicationConfig(config)
-        const clientPackage = require('../../client/package.json')
-        const clientVersion = clientPackage.version
-        const minSupportedVersion = appConfig.minimumSupportedVersion
-
-        const isSupported = Versions.compare(minSupportedVersion, clientVersion)
-        console.log(
-            `Application version check.`,
-            { minSupportedVersion, clientVersion, isSupported }
-        )
-        if (ok(isSupported)) {
-            return isSupported
-        } else {
-            throw new Error('Failed to compare application versions.')
-        }
-    } catch (e) {
-        console.error('Minimum version check failed.', e.message)
-        return true
-    }
 }
 
 /// Main entry point. Loads WASM, initializes it, chooses the scene to run.
