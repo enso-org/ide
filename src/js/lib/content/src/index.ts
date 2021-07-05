@@ -466,6 +466,7 @@ class ErrorDetails {
     }
 }
 
+/// Utility methods helping to work with the versions.
 class Versions {
 
     /// Development version.
@@ -542,8 +543,8 @@ async function fetchApplicationConfig(url: string) {
     })
 }
 
-/// Check if the current application version is still supported. Return `true`
-/// if the application version is supported and `false` otherwise.
+/// Return `true` if the current application version is still supported
+/// and `false` otherwise.
 ///
 /// Function downloads the application config containing the minimum supported
 /// version from GitHub and compares it with the version of the `client` js
