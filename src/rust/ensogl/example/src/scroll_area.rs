@@ -1,4 +1,4 @@
-//! A debug scene which shows the scroll area.
+    //! A debug scene which shows the scroll area.
 
 use crate::prelude::*;
 use wasm_bindgen::prelude::*;

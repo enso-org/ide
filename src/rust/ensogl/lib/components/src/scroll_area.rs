@@ -176,8 +176,6 @@ impl ScrollArea {
                     model.h_scrollbar.scroll_by(event.delta_x() as f32);
                     model.v_scrollbar.scroll_by(event.delta_y() as f32);
                 }
-            } else {
-                warning!(Logger::new(""), "foo");
             }
         );
         let scroll_handler_handle = mouse_manager.on_wheel.add(scroll_handler);

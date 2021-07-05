@@ -1,14 +1,4 @@
-//! Module that contains a scrollbar component that can be used to implement scrollable components.
-//! We say "thumb" to mean the object inside the bar that indicates the scroll position and can be
-//! dragged to change that position. Clicking on the scrollbar on either side of the thumb will move
-//! the thumb a step in that direction. The scrollbar is hidden by default and will show when it is
-//! animated, dragged or approached by the cursor.
-//!
-//! The scrollbar has a horizontal orientation with the beginning on the left and the end on the
-//! right. But it can be rotated arbitrarily. The origin is in the center.
-//!
-//! All operations related to the scroll position take as argument a number of pixels describing a
-//! position or distance on the scrolled area. We call them scroll units.
+//! Defines a scrollbar component. See definition of [`Scrollbar`] for details.
 
 use crate::prelude::*;
 
@@ -32,6 +22,10 @@ use ensogl_core::animation::delayed::DelayedAnimation;
 // =================
 // === Constants ===
 // =================
+
+// TODO: Some of those values could be defined by the theme instead. But currently, this does not
+//       seem to be worth it because the FRP initialization introduces a lot of complexity, as
+//       described at https://github.com/enso-org/ide/issues/1654.
 
 /// Amount the scrollbar moves on a single click, relative to the viewport size.
 const CLICK_JUMP_PERCENTAGE : f32 = 0.80;
@@ -277,8 +271,18 @@ impl component::Frp<Model> for Frp {
 // === Scrollbar Component ===
 // ===========================
 
-/// Scrollbar component that can be used to implement scrollable components. See module description
-/// for details.
+/// Scrollbar component that can be used to implement scrollable components.
+///
+/// We say "thumb" to mean the object inside the bar that indicates the scroll position and can be
+/// dragged to change that position. Clicking on the scrollbar on either side of the thumb will move
+/// the thumb a step in that direction. The scrollbar is hidden by default and will show when it is
+/// animated, dragged or approached by the cursor.
+///
+/// The scrollbar has a horizontal orientation with the beginning on the left and the end on the
+/// right. But it can be rotated arbitrarily. The origin is in the center.
+///
+/// All operations related to the scroll position take as argument a number of pixels describing a
+/// position or distance on the scrolled area. We call them scroll units.
 pub type Scrollbar = crate::component::Component<Model,Frp>;
 
 impl application::View for Scrollbar {
