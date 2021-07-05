@@ -499,6 +499,17 @@ class Versions {
             )
         }
     }
+
+    static isDevVersion(): boolean {
+        const clientVersion = Versions.clientVersion
+        const appVersion = semver.clean(clientVersion, { loose: true })
+        if (ok(appVersion)) {
+            return semver.eq(appVersion, Versions.devVersion)
+        } else {
+            console.error('Failed to parse applicationVersion.', { clientVersion })
+            return false
+        }
+    }
 }
 
 /// Fetch the application config from the provided url.
@@ -562,15 +573,15 @@ async function checkMinSupportedVersion(config: Config) {
 
 class FirebaseAuthentication {
 
+    protected readonly config: any
     public readonly firebaseui: any
-    public readonly config: any
     public readonly ui: any
 
     public authCallback: any
 
     constructor(authCallback: any) {
         this.firebaseui = require('firebaseui')
-        this.config = require('../firebase.yaml')
+        this.config = this.getFirebaseConfig()
         // initialize Firebase
         firebase.initializeApp(this.config)
         // create HTML markup
@@ -591,6 +602,19 @@ class FirebaseAuthentication {
                 this.handleSignedOutUser()
             }
         })
+    }
+
+    protected getFirebaseConfig() {
+        const config = require('../firebase.yaml')
+        // @ts-ignore
+        const firebaseApiKey = FIREBASE_API_KEY
+        if (ok(firebaseApiKey) && firebaseApiKey.length > 0) {
+            // @ts-ignore
+            config['apiKey'] = firebaseApiKey
+            return config
+        } else {
+            throw new Error('Empty FIREBASE_API_KEY')
+        }
     }
 
     protected hasEmailAuth(user: any): boolean {
@@ -926,7 +950,7 @@ API.main = async function(inputConfig: any) {
     config.updateFromObject(urlConfig)
 
     if (await checkMinSupportedVersion(config)) {
-        if (config.authentication_enabled) {
+        if (config.authentication_enabled && !Versions.isDevVersion()) {
             new FirebaseAuthentication(
                 function(user: any) {
                     config.email = user.email

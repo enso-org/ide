@@ -13,6 +13,9 @@ const child_process = require('child_process');
 function git(command) {
     return child_process.execSync(`git ${command}`, { encoding: 'utf8' }).trim();
 }
+function echo(command) {
+    return child_process.execSync(`echo ${command}`, { encoding: 'utf8' }).trim();
+}
 
 const BUILD_INFO = JSON.parse(require('fs').readFileSync(buildPath, 'utf8'));
 
@@ -41,6 +44,7 @@ module.exports = {
             GIT_HASH: JSON.stringify(git('rev-parse HEAD')),
             GIT_STATUS: JSON.stringify(git('status --short --porcelain')),
             BUILD_INFO: JSON.stringify(BUILD_INFO),
+            FIREBASE_API_KEY: JSON.stringify(echo('$FIREBASE_API_KEY')),
         })
     ],
     devServer: {
