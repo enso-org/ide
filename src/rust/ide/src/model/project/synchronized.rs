@@ -451,8 +451,8 @@ impl model::project::API for Project {
         }.boxed_local()
     }
 
-    fn content_root_id(&self) -> Uuid {
-        self.language_server_rpc.project_root().id
+    fn project_content_root_id(&self) -> Uuid {
+        self.language_server_rpc.project_root().id()
     }
 
     fn subscribe(&self) -> Subscriber<model::project::Notification> {

@@ -70,8 +70,8 @@ pub trait API:Debug {
     fn rename_project<'a>(&'a self, name:String) -> BoxFuture<'a,FallibleResult<()>>;
 
     /// Returns the primary content root id for this project.
-    fn content_root_id(&self) -> Uuid {
-        self.json_rpc().project_root().id
+    fn project_content_root_id(&self) -> Uuid {
+        self.json_rpc().project_root().id()
     }
 
     /// Generates full module's qualified name that includes the leading project name segment.
