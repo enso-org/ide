@@ -438,7 +438,7 @@ for (let command of commandList) {
 
 function defaultConfig() {
     return {
-        version: `${release.currentVersion()}`,
+        version: '2.0.0-alpha.6',
         author: {
             name: "Enso Team",
             email: "contact@enso.org"
