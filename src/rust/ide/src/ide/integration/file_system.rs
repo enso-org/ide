@@ -48,25 +48,28 @@ impl FolderContent for FileProvider {
     fn request_entries
     (&self, entries_loaded:frp::Any<Rc<Vec<Entry>>>, _error_occurred:frp::Any<ImString>) {
         let entries = self.content_roots.iter().map(|root| {
-            let ls_path     = language_server::Path::new_root(root.id);
-            let folder_type = match root.content_root_type {
-                language_server::ContentRootType::Project => FolderType::Project,
-                language_server::ContentRootType::Root    => FolderType::Root,
-                language_server::ContentRootType::Home    => FolderType::Home,
-                language_server::ContentRootType::Library => FolderType::Library,
-                language_server::ContentRootType::Custom  => FolderType::Custom,
+            let ls_path   = language_server::Path::new_root(root.id());
+            let path      = to_file_browser_path(&ls_path);
+            let (name,folder_type) = match &**root {
+                language_server::ContentRoot::Project {..} =>
+                    ("Project".to_owned(), FolderType::Project),
+                language_server::ContentRoot::FileSystemRoot{path,..} =>
+                    (path.clone(),FolderType::Root),
+                language_server::ContentRoot::Home {..} =>
+                    ("Home".to_owned(), FolderType::Home),
+                language_server::ContentRoot::Library{namespace,name,..} =>
+                    (format!("{}.{}",namespace,name), FolderType::Library),
+                language_server::ContentRoot::Custom{..} =>
+                    ("Other".to_owned(),FolderType::Custom),
             };
-            Entry {
-                name  : root.name.clone(),
-                path  : to_file_browser_path(&ls_path),
-                type_ : EntryType::Folder {
-                    type_   : folder_type,
-                    content : {
-                        let connection = self.connection.clone_ref();
-                        DirectoryView::new_from_root(connection,root.clone_ref()).into()
-                    }
+            let type_ = EntryType::Folder {
+                type_   : folder_type,
+                content : {
+                    let connection = self.connection.clone_ref();
+                    DirectoryView::new_from_root(connection,root.clone_ref()).into()
                 }
-            }
+            };
+            Entry {name,path,type_}
         });
         entries_loaded.emit(Rc::new(entries.collect_vec()));
     }
@@ -84,7 +87,7 @@ impl DirectoryView {
     ( connection   : Rc<language_server::Connection>
     , content_root : Rc<language_server::types::ContentRoot>
     ) -> Self {
-        let path = Rc::new(language_server::Path::new_root(content_root.id));
+        let path = Rc::new(language_server::Path::new_root(content_root.id()));
         Self{connection,content_root,path}
     }
 

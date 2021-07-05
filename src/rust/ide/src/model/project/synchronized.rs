@@ -104,7 +104,7 @@ impl ContentRoots {
     pub fn new_from_connection
     (parent:impl AnyLogger, connection:&language_server::Connection) -> Self {
         let logger    = Logger::sub(parent,"ContentRoots");
-        let roots_vec = connection.content_roots().map(|r| (r.id,Rc::new(r.clone()))).collect();
+        let roots_vec = connection.content_roots().map(|r| (r.id(),Rc::new(r.clone()))).collect();
         let roots     = RefCell::new(roots_vec);
         Self{logger,roots}
     }
@@ -115,7 +115,7 @@ impl ContentRoots {
 
     pub fn add_content_root(&self, content_root:ContentRoot) {
         let content_root = Rc::new(content_root);
-        if let Some(existing) = self.roots.borrow_mut().insert(content_root.id,content_root) {
+        if let Some(existing) = self.roots.borrow_mut().insert(content_root.id(),content_root) {
             warning!(self.logger,"Adding content root: there is already content root with given \
                 id: {existing:?}");
         }
@@ -510,7 +510,7 @@ impl model::project::API for Project {
     }
 
     fn project_content_root_id(&self) -> Uuid {
-        self.language_server_rpc.project_root().id
+        self.language_server_rpc.project_root().id()
     }
 
     fn subscribe(&self) -> Subscriber<model::project::Notification> {
