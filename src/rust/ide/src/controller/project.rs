@@ -23,12 +23,12 @@ pub const COMPILING_STDLIB_LABEL:&str = "Compiling standard library. It can take
 
 /// The requirements for Engine's version, in format understandable by
 /// [`semver::VersionReq::parse`].
-pub const ENGINE_VERSION_SUPPORTED        : &str = "^0.2.12";
+pub const ENGINE_VERSION_SUPPORTED        : &str = "^0.2.11";
 
 /// The Engine version used in projects created in IDE.
 // Usually it is a good idea to synchronize this version with the bundled Engine version in
 // src/js/lib/project-manager/src/build.ts. See also https://github.com/enso-org/ide/issues/1359
-pub const ENGINE_VERSION_FOR_NEW_PROJECTS : &str = "0.2.12";
+pub const ENGINE_VERSION_FOR_NEW_PROJECTS : &str = "0.2.11";
 
 /// The name of the module initially opened in the project view.
 ///
@@ -61,23 +61,6 @@ pub fn main_method_ptr(project_name:impl Str, module_path:&model::module::Path) 
 pub fn main_module_id() -> model::module::Id {
     // We can just assume that `INITIAL_MODULE_NAME` is valid. This is verified by a test.
     model::module::Id::try_new([INITIAL_MODULE_NAME]).unwrap()
-}
-
-
-
-// =================
-// === Utilities ===
-// =================
-
-/// Returns the path to package.yaml file for given project.
-pub fn package_yaml_path(project_name:&str) -> String {
-    match platform::current() {
-        Some(Platform::Linux)   |
-        Some(Platform::MacOS)   => format!("~/enso/projects/{}/package.yaml",project_name),
-        Some(Platform::Windows) =>
-            format!("%userprofile%\\enso\\projects\\{}\\package.yaml",project_name),
-        _ => format!("<path-to-enso-projects>/{}/package.yaml",project_name)
-    }
 }
 
 
@@ -212,10 +195,21 @@ impl Project {
         let version      = self.model.engine_version();
         if !requirements.matches(version) {
             let message = format!("Unsupported Engine version. Please update engine_version in {} \
-                to {}.",package_yaml_path(&self.model.name()),ENGINE_VERSION_FOR_NEW_PROJECTS);
+                to {}.",self.package_yaml_path(),ENGINE_VERSION_FOR_NEW_PROJECTS);
             self.status_notifications.publish_event(message);
         }
         Ok(())
+    }
+
+    fn package_yaml_path(&self) -> String {
+        let project_name = self.model.name();
+        match platform::current() {
+            Some(Platform::Linux)   |
+            Some(Platform::MacOS)   => format!("~/enso/projects/{}/package.yaml",project_name),
+            Some(Platform::Windows) =>
+                format!("%userprofile%\\enso\\projects\\{}\\package.yaml",project_name),
+            _ => format!("<path-to-enso-projects>/{}/package.yaml",project_name)
+        }
     }
 }
 
