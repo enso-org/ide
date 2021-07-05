@@ -7,6 +7,35 @@ use ensogl_gui_components::file_browser::model::FolderContent;
 use ensogl_gui_components::file_browser::model::FolderType;
 use ensogl_gui_components::file_browser::model::Entry;
 use ensogl_gui_components::file_browser::model::EntryType;
+use std::iter::once;
+use std::ffi::OsString;
+
+
+#[derive(Clone,Debug,Fail)]
+#[fail(display="Invalid path received from File Browser Component: {}",path)]
+struct InvalidPath {path:String}
+
+fn to_file_browser_path(path:&language_server::Path) -> std::path::PathBuf {
+    use std::path::Component::*;
+    let root_id_str  = path.root_id.to_string();
+    let segments_str = path.segments.iter().map(AsRef::<str>::as_ref);
+    once("/").chain(once(root_id_str.as_ref())).chain(segments_str).collect()
+}
+
+fn from_file_browser_path(path:&std::path::Path) -> FallibleResult<language_server::Path> {
+    use std::path::Component::*;
+    let mut iter = path.components();
+    match (iter.next(), iter.next()) {
+        (Some(RootDir), Some(Normal(root_id))) => {
+            let root_id = root_id.to_string_lossy().parse()?;
+            Ok(language_server::Path::new(root_id,iter.map(|s| s.as_os_str().to_string_lossy())))
+        }
+        _ => {
+            let path = path.to_string_lossy().to_string();
+            Err(InvalidPath{path}.into())
+        }
+    }
+}
 
 
 #[derive(Clone,Debug)]
@@ -19,6 +48,7 @@ impl FolderContent for FileProvider {
     fn request_entries
     (&self, entries_loaded:frp::Any<Rc<Vec<Entry>>>, _error_occurred:frp::Any<ImString>) {
         let entries = self.content_roots.iter().map(|root| {
+            let ls_path     = language_server::Path::new_root(root.id);
             let folder_type = match root.content_root_type {
                 language_server::ContentRootType::Project => FolderType::Project,
                 language_server::ContentRootType::Root    => FolderType::Root,
@@ -27,11 +57,11 @@ impl FolderContent for FileProvider {
                 language_server::ContentRootType::Custom  => FolderType::Custom,
             };
             Entry {
-                name: root.name.clone(),
-                path: root.id.to_string().into(),
-                type_: EntryType::Folder {
-                    type_ : folder_type,
-                    content: {
+                name  : root.name.clone(),
+                path  : to_file_browser_path(&ls_path),
+                type_ : EntryType::Folder {
+                    type_   : folder_type,
+                    content : {
                         let connection = self.connection.clone_ref();
                         DirectoryView::new_from_root(connection,root.clone_ref()).into()
                     }
@@ -73,7 +103,7 @@ impl DirectoryView {
                 FileSystemObject::Directory {name,path} |
                 FileSystemObject::DirectoryTruncated {name,path} |
                 FileSystemObject::SymlinkLoop {name,path,..} => {
-                    let path  = path.to_string().into();
+                    let path  = to_file_browser_path(&path);
                     let sub   = self.sub_view(&name);
                     let type_ = EntryType::Folder {
                         type_   : FolderType::Standard,
@@ -105,3 +135,7 @@ impl FolderContent for DirectoryView {
         });
     }
 }
+
+// fn create_node_from_file(project:&model::Project, graph:&controller::Graph, path:&std::path::Path) -> FallibleResult {
+//
+// }

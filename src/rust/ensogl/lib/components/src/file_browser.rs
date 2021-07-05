@@ -185,7 +185,7 @@ ensogl_core::define_endpoints! {
         paste_into_focused (),
     }
 
-    Output {
+    Output { [TRACE_ALL]
         entry_selected (PathBuf),
         entry_chosen   (PathBuf),
 
