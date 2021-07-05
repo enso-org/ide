@@ -421,7 +421,6 @@ pub mod tests {
 
         // Check that if we set metadata, executed graph can see this info.
         module.set_node_metadata(id,NodeMetadata {
-            position        : None,
             intended_method : entry1.method_id(),
             ..default()
         }).unwrap();

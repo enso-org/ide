@@ -40,6 +40,7 @@ dependencies = [
 name = "analytics"
 version = "0.1.0"
 dependencies = [
+ "cfg-if 1.0.0",
  "js-sys",
  "wasm-bindgen",
 ]
@@ -658,7 +659,7 @@ dependencies = [
 
 [[package]]
 name = "enso-prelude"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "anyhow",
  "backtrace",

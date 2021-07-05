@@ -673,7 +673,7 @@ impl Handle {
         let source_info              = self.source_info(connection,context)?;
         let destination_info         = self.destination_info(connection,context)?;
         let source_identifier        = source_info.target_ast()?.clone();
-        let updated_target_node_expr = destination_info.set(source_identifier)?;
+        let updated_target_node_expr = destination_info.set(source_identifier.with_new_id())?;
         self.set_expression_ast(connection.destination.node,updated_target_node_expr)?;
 
         // Reorder node lines, so the connection target is after connection source.
@@ -922,7 +922,6 @@ pub mod tests {
     use wasm_bindgen_test::wasm_bindgen_test;
 
     use crate::model::suggestion_database;
-    use crate::prelude::double_representation::refactorings::collapse::assert_unique_ids;
 
     /// Returns information about all the connections between graph's nodes.
     ///
@@ -1209,7 +1208,7 @@ main =
         })
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn collapsing_nodes() {
         let mut test  = Fixture::set_up();
         let code = r"

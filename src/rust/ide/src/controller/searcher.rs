@@ -724,12 +724,12 @@ impl Searcher {
             Mode::NewNode {position} => {
                 self.add_required_imports()?;
                 let (expression,intended_method) = expr_and_method();
-                let metadata                     = NodeMetadata {position,intended_method,..default()};
-                let mut new_node                 = NewNodeInfo::new_pushed_back(expression);
-                new_node.metadata                = Some(metadata);
-                new_node.introduce_pattern       = ASSIGN_NAMES_FOR_NODES;
-                let graph         = self.graph.graph();
-                if let Some(this) = self.this_arg.deref().as_ref() {
+                let metadata               = NodeMetadata {position,intended_method,..default()};
+                let mut new_node           = NewNodeInfo::new_pushed_back(expression);
+                new_node.metadata          = Some(metadata);
+                new_node.introduce_pattern = ASSIGN_NAMES_FOR_NODES;
+                let graph                  = self.graph.graph();
+                if let Some(this)          = self.this_arg.deref().as_ref() {
                     this.introduce_pattern(graph.clone_ref())?;
                 }
                 graph.add_node(new_node)

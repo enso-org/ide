@@ -190,13 +190,13 @@ impl model::module::API for Module {
         })
     }
 
-    fn with_project_metadata_internal
-    (&self, fun:Box<dyn FnOnce(&ProjectMetadata) + '_>) -> FallibleResult {
-        let err      = || MissingProjectMetadata(self.path.deref().deref().clone());
+    fn with_project_metadata_internal(&self, fun:Box<dyn FnOnce(&ProjectMetadata) + '_>) {
         let content  = self.content.borrow();
-        let metadata = &content.metadata.ide.project.as_ref().ok_or_else(err)?;
-        fun(metadata);
-        Ok(())
+        if let Some(metadata) = content.metadata.ide.project.as_ref() {
+            fun(metadata)
+        } else {
+            fun(&default())
+        }
     }
 
     fn update_project_metadata_internal

@@ -37,6 +37,7 @@ export function remote_log_value(msg, field_name, value) {
 /// Send the provided public event to our logging service.
 #[allow(unused_variables)] // used only on wasm target
 pub fn remote_log_event(message:&str) {
+    // Note: Disabling on non-wasm targets
     cfg_if::cfg_if! {
         if #[cfg(target_arch="wasm32")] {
             js::remote_log(JsValue::from(message.to_string()),JsValue::UNDEFINED);
@@ -48,6 +49,7 @@ pub fn remote_log_event(message:&str) {
 #[allow(unused_variables)] // used only on wasm target
 pub fn remote_log_value
 <T:Loggable>(message:&str, field_name:&str, data:AnonymousData<T>) {
+    // Note: Disabling on non-wasm targets
     cfg_if::cfg_if! {
         if #[cfg(target_arch="wasm32")] {
             let msg        = JsValue::from(message.to_string());
@@ -56,3 +58,9 @@ pub fn remote_log_value
         }
     }
 }
+
+// Note: Disabling on non-wasm targets
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// The code must be disabled on non-wasm targets, because trying to construct JS values would
+// immediately panic. As remote logs are invoked from controller code, that would prevent having
+// some controller tests native.

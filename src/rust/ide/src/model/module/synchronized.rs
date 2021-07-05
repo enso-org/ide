@@ -219,8 +219,7 @@ impl API for Module {
         self.model.with_node_metadata(id,fun)
     }
 
-    fn with_project_metadata_internal
-    (&self, fun:Box<dyn FnOnce(&ProjectMetadata) + '_>)  -> FallibleResult{
+    fn with_project_metadata_internal(&self, fun:Box<dyn FnOnce(&ProjectMetadata) + '_>) {
         self.model.with_project_metadata_internal(fun)
     }
 

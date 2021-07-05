@@ -120,7 +120,7 @@ pub trait APIExt : API {
     fn with_project_metadata<'a,R>
     (&'a self, f:impl FnOnce(&ProjectMetadata) -> R + 'a) -> BoxFuture<FallibleResult<R>> {
         async move {
-            self.main_module_model().await?.with_project_metadata(f)
+            Ok(self.main_module_model().await?.with_project_metadata(f))
         }.boxed_local()
     }
 }

@@ -7,6 +7,7 @@
 
 use crate::prelude::*;
 
+use crate::constants::SELECTION_UNDO_ENABLED;
 use crate::controller::graph::Connections;
 use crate::controller::graph::NodeTrees;
 use crate::controller::searcher::action::MatchInfo;
@@ -19,7 +20,9 @@ use crate::model::execution_context::LocalCall;
 use crate::model::execution_context::Visualization;
 use crate::model::execution_context::VisualizationId;
 use crate::model::execution_context::VisualizationUpdateData;
+use crate::model::module::ProjectMetadata;
 use crate::model::suggestion_database;
+use crate::model::traits::*;
 
 use analytics;
 use bimap::BiMap;
@@ -37,8 +40,6 @@ use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
 use utils::iter::split_by_predicate;
 use futures::future::LocalBoxFuture;
-use crate::model::module::APIExt;
-use utils::test::traits::FutureTestExt;
 
 /// Describes an enabled visualization on a node.
 #[derive(Clone,Debug)]
@@ -51,7 +52,7 @@ pub struct VisualizationInfo {
 /// Map that keeps information about enabled visualization.
 pub type VisualizationMap = SharedHashMap<graph_editor::NodeId,VisualizationInfo>;
 
-pub const SELECTION_UNDO_DISABLED:bool = true;
+
 
 // ==============
 // === Errors ===
@@ -194,6 +195,7 @@ struct Model {
     ide                     : controller::Ide,
     searcher                : RefCell<Option<controller::Searcher>>,
     project                 : model::Project,
+    main_module             : model::Module,
     node_views              : RefCell<BiMap<ast::Id,graph_editor::NodeId>>,
     node_view_by_expression : RefCell<HashMap<ast::Id,graph_editor::NodeId>>,
     expression_views        : RefCell<HashMap<graph_editor::NodeId,graph_editor::component::node::Expression>>,
@@ -211,14 +213,15 @@ struct Model {
 impl Integration {
     /// Constructor. It creates GraphEditor and integrates it with given controller handle.
     pub fn new
-    ( view    : ide_view::project::View
-    , graph   : controller::ExecutedGraph
-    , text    : controller::Text
-    , ide     : controller::Ide
-    , project : model::Project
+    ( view        : ide_view::project::View
+    , graph       : controller::ExecutedGraph
+    , text        : controller::Text
+    , ide         : controller::Ide
+    , project     : model::Project
+    , main_module : model::Module
     ) -> Self {
         let logger       = Logger::new("ViewIntegration");
-        let model        = Model::new(logger,view,graph,text,ide,project);
+        let model        = Model::new(logger,view,graph,text,ide,project,main_module);
         let model        = Rc::new(model);
         let editor_outs  = &model.view.graph().frp.output;
         let code_editor  = &model.view.code_editor().text_area();
@@ -353,8 +356,6 @@ impl Integration {
             _action <- editor_outs.node_entered             .map2(&is_hold,node_entered);
             _action <- editor_outs.node_exited              .map2(&is_hold,node_exited);
             _action <- editor_outs.on_edge_endpoints_set    .map2(&is_hold,connection_created);
-            // _action <- editor_outs.visualization_enabled    .map2(&is_hold,visualization_enabled);
-            // _action <- editor_outs.visualization_disabled   .map2(&is_hold,visualization_disabled);
             _action <- on_connection_removed                .map2(&is_hold,connection_removed);
             _action <- editor_outs.node_position_set_batched.map2(&is_hold,node_moved);
             _action <- editor_outs.node_being_edited        .map2(&is_hold,node_editing);
@@ -365,17 +366,11 @@ impl Integration {
             _action <- project_frp.editing_committed        .map2(&is_hold,node_editing_committed);
             _action <- project_frp.editing_aborted          .map2(&is_hold,node_editing_aborted);
 
-            eval editor_outs.visualization_enabled([model](arg) {
-                match model.visualization_enabled_in_ui(arg) {
-                    Ok(_) => ERROR!("successfully enabled"),
-                    Err(e) => ERROR!("failed to enable {e}"),
-                }
+            eval editor_outs.visualization_enabled([model,inv](arg) {
+                Self::execute_fallible_ui_action(&model, &inv, || model.visualization_enabled_in_ui(arg))
             });
-            eval editor_outs.visualization_disabled([model](arg) {
-                match model.visualization_disabled_in_ui(arg) {
-                    Ok(_) => ERROR!("successfully disabled"),
-                    Err(e) => ERROR!("failed to disable {e}"),
-                }
+            eval editor_outs.visualization_disabled([model,inv](arg) {
+                Self::execute_fallible_ui_action(&model, &inv, || model.visualization_disabled_in_ui(arg))
             });
 
             eval_ project_frp.editing_committed (invalidate.trigger.emit(()));
@@ -482,14 +477,21 @@ impl Integration {
             -> FallibleResult + 'static {
         f!([model,invalidate] (parameter,is_hold) {
             if !*is_hold {
-                let result = action(&*model,parameter);
-                if let Err(err) = result {
-                    error!(model.logger,"Error while performing UI action on controllers: {err}");
-                    info!(model.logger,"Invalidating displayed graph");
-                    invalidate.emit(());
-                }
+                Self::execute_fallible_ui_action(&model, &invalidate, || action(&*model,parameter))
             }
         })
+    }
+
+    fn execute_fallible_ui_action
+    ( model      : &Rc<Model>
+    , invalidate : &frp::Source<()>
+    , action     : impl FnOnce() -> FallibleResult
+    ) {
+        if let Err(err) = action() {
+            error!(model.logger,"Error while performing an UI action on controllers: {err}");
+            info!(model.logger,"Invalidating the displayed graph.");
+            invalidate.emit(());
+        }
     }
 }
 
@@ -500,7 +502,8 @@ impl Model {
     , graph         : controller::ExecutedGraph
     , text          : controller::Text
     , ide           : controller::Ide
-    , project       : model::Project) -> Self {
+    , project       : model::Project
+    , main_module   : model::Module) -> Self {
         let node_views              = default();
         let node_view_by_expression = default();
         let connection_views        = default();
@@ -512,9 +515,9 @@ impl Model {
         let searcher                = default();
         let prompt_was_shown        = default();
         let this                    = Model
-            {logger,view,graph,text,ide,searcher,project,node_views,node_view_by_expression
-            ,expression_views,expression_types,connection_views,code_view,visualizations
-            ,error_visualizations,prompt_was_shown};
+            {logger,view,graph,text,ide,searcher,project,main_module,node_views
+            ,node_view_by_expression,expression_views,expression_types,connection_views,code_view
+            ,visualizations,error_visualizations,prompt_was_shown};
 
         this.view.graph().frp.remove_all_nodes();
         this.view.status_bar().clear_all();
@@ -608,8 +611,8 @@ impl Model {
     pub fn refresh_call_stack(&self) -> FallibleResult {
         // If graph controller displays a different graph
         let current_call_stack  = self.graph.call_stack();
-        //let metadata_call_stack = self.project.with_project_metadata(|metadata| metadata.call_stack.clone());
-        let metadata_call_stack = self.project.main_module_model().expect_ready()?.with_project_metadata(|metadata| metadata.call_stack.clone())?;
+        let get_call_stack      = |metadata:&ProjectMetadata| metadata.call_stack.clone();
+        let metadata_call_stack = self.main_module.with_project_metadata(get_call_stack);
 
         WARNING!("CALL STACKS:\n{current_call_stack:?}\n{metadata_call_stack:?}");
         let mut current = current_call_stack.into_iter();
@@ -753,15 +756,17 @@ impl Model {
 
     /// Update the position of the node based on its current metadata.
     fn refresh_node_selection(&self, id:graph_editor::NodeId, node:&controller::graph::Node) {
-        let selected_metadata = node.metadata.as_ref().map_or_default(|md| md.selected);
-        let selected_view     = self.view.graph().model.nodes.is_selected(id);
-        warning!(self.logger, "Node {id} selection should be {selected_metadata}, was {selected_view}");
-        if selected_metadata && !selected_view {
-            self.view.graph().frp.input.select_node.emit(&id)
-        } else if !selected_metadata && selected_view {
-            self.view.graph().frp.input.deselect_node.emit(&id)
+        if SELECTION_UNDO_ENABLED {
+            let selected_metadata = node.metadata.as_ref().map_or_default(|md| md.selected);
+            let selected_view = self.view.graph().model.nodes.is_selected(id);
+            warning!(self.logger, "Node {id} selection should be {selected_metadata}, was {selected_view}");
+            if selected_metadata && !selected_view {
+                self.view.graph().frp.input.select_node.emit(&id)
+            } else if !selected_metadata && selected_view {
+                self.view.graph().frp.input.deselect_node.emit(&id)
+            }
+            warning!(self.logger, "Adjusting selection done");
         }
-        warning!(self.logger, "Adjusting selection done");
     }
 
     /// Update the position of the node based on its current metadata.
@@ -1126,23 +1131,27 @@ impl Model {
 
     fn node_selected_in_ui
     (&self, displayed_id:&graph_editor::NodeId) -> FallibleResult {
-        debug!(self.logger, "Selecting node.");
-        let id = self.get_controller_node_id(*displayed_id)?;
-        self.graph.graph().module.with_node_metadata(id, Box::new(|metadata| {
-            metadata.selected = true;
-        }))?;
-        debug!(self.logger, "Node {id} selected.");
+        if SELECTION_UNDO_ENABLED {
+            debug!(self.logger, "Selecting node.");
+            let id = self.get_controller_node_id(*displayed_id)?;
+            self.graph.graph().module.with_node_metadata(id, Box::new(|metadata| {
+                metadata.selected = true;
+            }))?;
+            debug!(self.logger, "Node {id} selected.");
+        };
         Ok(())
     }
 
     fn node_deselected_in_ui
     (&self, displayed_id:&graph_editor::NodeId) -> FallibleResult {
-        debug!(self.logger, "Deselecting node.");
-        let id = self.get_controller_node_id(*displayed_id)?;
-        self.graph.graph().module.with_node_metadata(id, Box::new(|metadata| {
-            metadata.selected = false;
-        }))?;
-        debug!(self.logger, "Node {id} deselected.");
+        if SELECTION_UNDO_ENABLED {
+            debug!(self.logger, "Deselecting node.");
+            let id = self.get_controller_node_id(*displayed_id)?;
+            self.graph.graph().module.with_node_metadata(id, Box::new(|metadata| {
+                metadata.selected = false;
+            }))?;
+            debug!(self.logger, "Node {id} deselected.");
+        }
         Ok(())
     }
 
@@ -1325,13 +1334,23 @@ impl Model {
         }))
     }
 
+    fn store_updated_stack_task(&self) -> impl FnOnce() -> FallibleResult + 'static {
+        let main_module = self.main_module.clone_ref();
+        let graph  = self.graph.clone_ref();
+        move || {
+            main_module.update_project_metadata(|metadata| {
+                metadata.call_stack = graph.call_stack();
+            })
+        }
+    }
+
     fn expression_entered_in_ui
     (&self, local_call:&Option<LocalCall>) -> FallibleResult {
         if let Some(local_call) = local_call {
             let local_call   = local_call.clone();
             let controller   = self.graph.clone_ref();
             let logger       = self.logger.clone_ref();
-            let update_metadata = self.store_updated_stack();
+            let store_stack  = self.store_updated_stack_task();
             let enter_action = async move {
                 info!(logger,"Entering expression {local_call:?}.");
                 if let Err(e) = controller.enter_method_pointer(&local_call).await {
@@ -1342,29 +1361,16 @@ impl Model {
                     let data  = analytics::AnonymousData(|| e.to_string());
                     analytics::remote_log_value(event,field,data)
                 } else {
-                    ERROR!("NEW STACK:" controller.call_stack();?);
                     // We cannot really do anything when updating metadata fails.
                     // Can happen in improbable case of serialization only.
-                    let _ = update_metadata.await.ok();
+                    if let Err(e) = store_stack() {
+                        error!(logger, "Failed to store an updated call stack: {e}");
+                    }
                 }
             };
             executor::global::spawn(enter_action);
         }
         Ok(())
-    }
-
-    fn store_updated_stack(&self) -> impl Future<Output=FallibleResult> {
-        let project = self.project.clone_ref();
-        let graph   = self.graph.clone_ref();
-        async move {
-            let call_stack  = graph.call_stack();
-            let main_name   = project.main_module();
-            let main_path   = model::module::Path::from_id(project.content_root_id(), &main_name.id);
-            let main_module = project.module(main_path).await?;
-            main_module.update_project_metadata_internal(Box::new(|metadata| {
-                metadata.call_stack = call_stack;
-            }))
-        }
     }
 
     fn node_entered_in_ui(&self, node_id:&graph_editor::NodeId) -> FallibleResult {
@@ -1380,7 +1386,7 @@ impl Model {
         debug!(self.logger,"Requesting exiting the current node.");
         let controller      = self.graph.clone_ref();
         let logger          = self.logger.clone_ref();
-        let update_metadata = self.store_updated_stack();
+        let update_metadata = self.store_updated_stack_task();
         let exit_node_action = async move {
             info!(logger,"Exiting node.");
             if let Err(e) = controller.exit_node().await {
@@ -1391,7 +1397,7 @@ impl Model {
                 let data  = analytics::AnonymousData(|| e.to_string());
                 analytics::remote_log_value(event,field,data)
             } else {
-                let _ = update_metadata.await.ok();
+                let _ = update_metadata().ok();
             }
         };
         executor::global::spawn(exit_node_action);

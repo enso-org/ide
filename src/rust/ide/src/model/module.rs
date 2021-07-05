@@ -523,7 +523,7 @@ pub trait API:Debug+model::undo_redo::Aware {
     /// Access project's metadata with a given function.
     ///
     /// Fails, if the project's metadata are not set in this module.
-    fn with_project_metadata_internal(&self, fun:Box<dyn FnOnce(&ProjectMetadata) + '_>) -> FallibleResult;
+    fn with_project_metadata_internal(&self, fun:Box<dyn FnOnce(&ProjectMetadata) + '_>);
 
     /// Borrow mutably the project's metadata and update it with a given function.
     fn update_project_metadata_internal
@@ -561,13 +561,14 @@ pub trait APIExt : API {
     ///
     /// Fails, if the project's metadata are not set in this module.
     fn with_project_metadata<R>
-    (&self, fun:impl FnOnce(&ProjectMetadata) -> R) -> FallibleResult<R> {
+    (&self, fun:impl FnOnce(&ProjectMetadata) -> R) -> R {
         let mut ret = None;
         self.with_project_metadata_internal(Box::new(|metadata| {
             ret = Some(fun(metadata));
-        }))?;
-        let err = ||failure::format_err!("Result of the call has not been set.");
-        ret.ok_or_else(err)
+        }));
+        // The `with_project_metadata_internal` always calls the callback once, so it must fill
+        // `ret` with necessary data.
+        ret.unwrap()
     }
 
     /// Borrow mutably the project's metadata and update it with a given function.

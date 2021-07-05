@@ -30,3 +30,7 @@ pub mod keywords {
     /// The "void" atom returned by function meant to not return any argument.
     pub const NOTHING:&str = "Nothing";
 }
+
+/// The node selection undo won't work correctly until the following issue is resolved:
+/// https://github.com/enso-org/ide/issues/1626
+pub const SELECTION_UNDO_ENABLED:bool = false;
