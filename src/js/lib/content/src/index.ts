@@ -32,6 +32,9 @@ class ContentApi {
         assert(typeof config.no_data_gathering == 'boolean')
         if (!config.no_data_gathering) {
             this.logger = new MixpanelLogger()
+            if (ok(config.email)) {
+                this.logger.identify(config.email)
+            }
         }
     }
     remoteLog(event: string, data?: any) {
@@ -222,6 +225,10 @@ class MixpanelLogger {
         } else {
             console.warn(`Failed to log the event '${event}'.`)
         }
+    }
+
+    identify(uniqueId: string) {
+        this.mixpanel.identify(uniqueId)
     }
 
     static trim_message(message: string) {
@@ -899,9 +906,6 @@ async function mainEntryPoint(config: any) {
 
     API.initLogging(config)
 
-    if (ok(config.email)) {
-        API.remoteLog('email', config.email)
-    }
     // Build data injected during the build process. See `webpack.config.js` for the source.
     // @ts-ignore
     const hash = GIT_HASH
