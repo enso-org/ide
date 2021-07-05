@@ -6,7 +6,6 @@
 pub mod entry;
 
 use crate::prelude::*;
-use crate::shadow;
 
 use enso_frp as frp;
 use ensogl_core::application;
@@ -15,7 +14,6 @@ use ensogl_core::application::shortcut;
 use ensogl_core::display;
 use ensogl_core::display::shape::*;
 use ensogl_core::DEPRECATED_Animation;
-use ensogl_theme as theme;
 use ensogl_core::data::color;
 use crate::scroll_area::ScrollArea;
 use crate::selector;
@@ -38,10 +36,9 @@ impl Default for SelectionMethod {
 
 // === Constants ===
 
-/// The size of shadow under element. It is not counted in the component width and height.
-pub const SHADOW_PX:f32 = 10.0;
-const SHAPE_PADDING:f32 = 5.0;
-pub const CORNER_RADIUS_PX:f32 = 6.0;
+pub const CORNER_RADIUS_PX : f32 = 6.0;
+pub const PADDING_HORIZONTAL   : f32 = 12.0;
+pub const PADDING_VERTICAL     : f32 = 10.0;
 
 
 // === Selection ===
@@ -54,37 +51,11 @@ pub mod selection {
             let color = Var::<color::Rgba>::from(color_rgba);
             let sprite_width  : Var<Pixels> = "input_size.x".into();
             let sprite_height : Var<Pixels> = "input_size.y".into();
-            let padding_inner_x = style.get_number(ensogl_theme::application::searcher::selection::padding::horizontal);
-            let padding_inner_y = style.get_number(ensogl_theme::application::searcher::selection::padding::vertical);
-            let width         = sprite_width - 2.0.px() * SHAPE_PADDING + 2.0.px() * padding_inner_x;
-            let height        = sprite_height + 2.0.px() * padding_inner_y;
-            let rect          = Rect((&width,&height)).corners_radius(CORNER_RADIUS_PX.px());
-            let shape         = rect.fill(color);
+            let width     = sprite_width - PADDING_HORIZONTAL.px() * 2.0;
+            let height    = sprite_height;
+            let rect      = Rect((&width,&height)).corners_radius(CORNER_RADIUS_PX.px());
+            let shape     = rect.fill(color);
             shape.into()
-        }
-    }
-}
-
-
-// === Background ===
-
-mod background {
-    use super::*;
-
-    ensogl_core::define_shape_system! {
-        below = [selection];
-        (style:Style) {
-            let sprite_width  : Var<Pixels> = "input_size.x".into();
-            let sprite_height : Var<Pixels> = "input_size.y".into();
-            let width         = sprite_width - SHADOW_PX.px() * 2.0 - SHAPE_PADDING.px() * 2.0;
-            let height        = sprite_height - SHADOW_PX.px() * 2.0 - SHAPE_PADDING.px() * 2.0;
-            let color         = style.get_color(theme::widget::list_view::background);
-            let rect          = Rect((&width,&height)).corners_radius(CORNER_RADIUS_PX.px());
-            let shape         = rect.fill(color);
-
-            let shadow  = shadow::from_shape(rect.into(),style);
-
-            (shadow + shape).into()
         }
     }
 }
@@ -131,55 +102,44 @@ impl View {
 }
 
 /// The Model of Select Component.
-#[derive(Clone,CloneRef,Debug)]
+#[derive(Debug)]
 struct Model {
-    app            : Application,
-    entries        : entry::List,
-    selection      : selection::View,
-    background     : background::View,
-    scroll_area    : ScrollArea,
-    io_rect        : io_rect::View,
-    display_object : display::object::Instance,
+    app                        : Application,
+    entries                    : entry::List,
+    selection                  : selection::View,
+    scroll_area                : ScrollArea,
+    io_rect                    : io_rect::View,
+    display_object             : display::object::Instance,
+    selection_can_leave_at_top : Cell<bool>,
 }
 
 impl Model {
     fn new(app:&Application) -> Self {
-        let app            = app.clone_ref();
-        let scene          = app.display.scene();
-        let logger         = Logger::new("SelectionContainer");
-        let display_object = display::object::Instance::new(&logger);
-        let scroll_area    = ScrollArea::new(&app);
-        let entries        = entry::List::new(&logger,&app);
-        let background     = background::View::new(&logger);
-        let selection      = selection::View::new(&logger);
-        let io_rect        = io_rect::View::new(&logger);
+        let app                        = app.clone_ref();
+        let scene                      = app.display.scene();
+        let logger                     = Logger::new("SelectionContainer");
+        let display_object             = display::object::Instance::new(&logger);
+        let scroll_area                = ScrollArea::new(&app);
+        let entries                    = entry::List::new(&logger,&app);
+        let selection                  = selection::View::new(&logger);
+        let io_rect                    = io_rect::View::new(&logger);
+        let selection_can_leave_at_top = Cell::new(false);
+        scene.layers.add_shapes_order_dependency::<selection::View,io_rect::View>();
         scene.layers.add_shapes_order_dependency::<io_rect::View,selector::shape::background::View>();
-        // scene.layers.add_shapes_order_dependency::<selection::View,io_rect::View>();
         // display_object.add_child(&background);
         display_object.add_child(&scroll_area);
         display_object.add_child(&io_rect);
-        scroll_area.content.add_child(&entries);
-        scroll_area.content.add_child(&selection);
-        Model{app,entries,selection,background,scroll_area,io_rect,display_object}
-    }
-
-    fn padding(&self) -> f32 {
-        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape
-        // system (#795)
-        let styles = StyleWatch::new(&self.app.display.scene().style_sheet);
-        styles.get_number(ensogl_theme::application::searcher::padding)
+        scroll_area.content().add_child(&entries);
+        scroll_area.content().add_child(&selection);
+        Model{app,entries,selection,scroll_area,io_rect,display_object,selection_can_leave_at_top}
     }
 
     /// Update the displayed entries list when _view_ has changed - the list was scrolled or
     /// resized.
     fn update_after_view_change(&self, view:&View) {
-        let padding_px      = self.padding();
-        let padding         = 2.0 * padding_px + SHAPE_PADDING;
-        let padding         = Vector2(padding, padding);
-        let shadow          = Vector2(2.0 * SHADOW_PX,  2.0 * SHADOW_PX);
-        self.background.size.set(view.size + padding + shadow);
         self.selection.set_position_x(view.size.x/2.0);
-        self.entries.set_entry_width(view.size.x - self.padding());
+        self.entries.set_position_xy(Vector2(PADDING_HORIZONTAL,-PADDING_VERTICAL));
+        self.entries.set_entry_width(view.size.x - PADDING_HORIZONTAL * 2.0);
         self.scroll_area.resize(view.size);
         self.scroll_area.set_position_x(-view.size.x/2.0);
         self.scroll_area.set_position_y(view.size.y/2.0);
@@ -189,7 +149,8 @@ impl Model {
     }
 
     fn set_entries(&self, provider:entry::AnyEntryProvider) {
-        self.scroll_area.set_content_height(entry::List::total_height(provider.entry_count()));
+        let list_height = entry::List::total_height(provider.entry_count());
+        self.scroll_area.set_content_height(list_height + PADDING_VERTICAL * 2.0);
         self.entries.set_provider(provider);
     }
 
@@ -197,8 +158,11 @@ impl Model {
     (&self, current_entry:Option<entry::Id>, jump:isize) -> Option<entry::Id> {
         if jump < 0 {
             let current_entry = current_entry?;
-            if current_entry == 0 { None                                    }
-            else                  { Some(current_entry.saturating_sub(-jump as usize)) }
+            if current_entry == 0 && self.selection_can_leave_at_top.get() {
+                None
+            } else {
+                Some(current_entry.saturating_sub(-jump as usize))
+            }
         } else {
             let max_entry = self.entries.entry_count().checked_sub(1)?;
             Some(current_entry.map_or(0, |id| id+(jump as usize)).min(max_entry))
@@ -231,12 +195,14 @@ ensogl_core::define_endpoints! {
         /// Deselect all entries.
         deselect_entries(),
 
-        resize               (Vector2<f32>),
-        scroll_jump          (f32),
-        set_entries          (entry::AnyEntryProvider),
-        set_selection_method (SelectionMethod),
-        select_entry         (entry::Id),
-        chose_entry          (entry::Id),
+        resize                         (Vector2<f32>),
+        scroll_jump                    (f32),
+        skip_animations                (),
+        set_entries                    (entry::AnyEntryProvider),
+        set_selection_method           (SelectionMethod),
+        set_selection_can_leave_at_top (bool),
+        select_entry                   (entry::Id),
+        chose_entry                    (entry::Id),
 
         click        (),
         double_click (),
@@ -263,7 +229,7 @@ ensogl_core::define_endpoints! {
 #[allow(missing_docs)]
 #[derive(Clone,CloneRef,Debug)]
 pub struct ListView {
-    model   : Model,
+    model   : Rc<Model>,
     pub frp : Frp,
 }
 
@@ -276,7 +242,7 @@ impl ListView {
     /// Constructor.
     pub fn new(app:&Application) -> Self {
         let frp   = Frp::new();
-        let model = Model::new(app);
+        let model = Rc::new(Model::new(app));
         ListView {model,frp}.init(app)
     }
 
@@ -298,8 +264,8 @@ impl ListView {
 
         frp::extend! { network
             init_selection_color <- source::<()>();
-            focused_selection_color <- all(&focused_selection_color,&init_selection_color)._0();
             unfocused_selection_color <- all(&unfocused_selection_color,&init_selection_color)._0();
+            focused_selection_color <- all(&focused_selection_color,&init_selection_color)._0();
             selection_color_target_rgba <- frp.focused.switch(&unfocused_selection_color,&focused_selection_color);
             selection_color.target <+ selection_color_target_rgba.map(|c| color::Lcha::from(c));
             eval selection_color.value((c) model.selection.color_rgba.set(color::Rgba::from(c).into()));
@@ -312,12 +278,17 @@ impl ListView {
 
             mouse_in <- bool(&model.io_rect.events.mouse_out,&model.io_rect.events.mouse_over);
             mouse_moved       <- mouse.distance.map(|dist| *dist > MOUSE_MOVE_THRESHOLD );
-            mouse_y_in_scroll <- mouse.position.map(f!([model,scene](pos) {
-                scene.screen_to_object_space(&model.scroll_area.content,*pos).y
-            }));
+            mouse_y_in_scroll <- all_with(&mouse.position,&model.scroll_area.scroll_position_y,
+                f!([model,scene](pos,_) {
+                    scene.screen_to_object_space(&model.scroll_area.content(),*pos).y
+                }));
             mouse_pointed_entry <- mouse_y_in_scroll.map(f!([model](y)
-                entry::List::entry_at_y_position(*y,model.entries.entry_count()).entry()
+                entry::List::entry_at_y_position(*y + PADDING_VERTICAL,model.entries.entry_count()).entry()
             ));
+
+            any_entry_pointed         <- mouse_pointed_entry.map(|e| e.is_some());
+            opt_pointed_entry_clicked  <- mouse_pointed_entry.sample(&frp.click).gate(&mouse_in);
+            opt_pointed_entry_double_clicked <- mouse_pointed_entry.sample(&frp.double_click).gate(&mouse_in);
 
 
             // === Selected Entry ===
@@ -361,20 +332,24 @@ impl ListView {
 
             frp.source.selected_entry <+ selected_entry_after_move;
             frp.source.selected_entry <+ hover_selected_entry.gate(&select_on_hover);
-            frp.source.selected_entry <+ frp.chosen_entry.gate(&select_on_click);
+            frp.source.selected_entry <+ opt_pointed_entry_clicked.gate(&any_entry_pointed).gate(&select_on_click);
             frp.source.selected_entry <+ frp.deselect_entries.constant(None);
             frp.source.selected_entry <+ frp.set_entries.constant(None);
 
-            eval frp.selected_entry((&selection) model.entries.set_selection(selection));
+            selected_entry_and_focused <- all(&frp.selected_entry,&frp.focused);
+            eval selected_entry_and_focused((&(selection,focused))
+                model.entries.mark_selection(selection,focused));
+
+            eval frp.set_selection_can_leave_at_top((&can_leave)
+                model.selection_can_leave_at_top.set(can_leave));
 
 
             // === Chosen Entry ===
 
             any_entry_selected        <- frp.selected_entry.map(|e| e.is_some());
-            any_entry_pointed         <- mouse_pointed_entry.map(|e| e.is_some());
             opt_selected_entry_chosen <- frp.selected_entry.sample(&frp.chose_selected_entry);
-            opt_pointed_entry_chosen  <- mouse_pointed_entry.sample(&mouse.down_0).gate(&mouse_in);
-            frp.source.chosen_entry   <+ opt_pointed_entry_chosen.gate(&any_entry_pointed);
+            frp.source.chosen_entry   <+ opt_pointed_entry_clicked.gate(&any_entry_pointed).gate(&select_on_hover);
+            frp.source.chosen_entry   <+ opt_pointed_entry_double_clicked.gate(&any_entry_pointed).gate(&select_on_click);
             frp.source.chosen_entry   <+ frp.chose_entry.map(|id| Some(*id));
             frp.source.chosen_entry   <+ opt_selected_entry_chosen.gate(&any_entry_selected);
 
@@ -382,7 +357,7 @@ impl ListView {
             // === Selection Size and Position ===
 
             target_selection_y <- frp.selected_entry.map(|id|
-                id.map_or(0.0,entry::List::position_y_of_entry)
+                entry::List::position_y_of_entry(id.unwrap_or(0)) - PADDING_VERTICAL
             );
             target_selection_height <- frp.selected_entry.map(f!([](id)
                 if id.is_some() {entry::HEIGHT} else {0.0}
@@ -393,15 +368,19 @@ impl ListView {
                 selection_y.skip();
                 selection_height.skip();
             });
-            selectin_sprite_y <- all_with(&selection_y.value,&selection_height.value,
+            selection_sprite_y <- all_with(&selection_y.value,&selection_height.value,
                 |y,h| y + (entry::HEIGHT - h) / 2.0
             );
-            eval selectin_sprite_y ((y) model.selection.set_position_y(*y));
+            eval selection_sprite_y ((y) model.selection.set_position_y(*y));
             selection_size <- all_with(&frp.size,&selection_height.value,f!([](size,height) {
                 let width = size.x;
                 Vector2(width,*height)
             }));
             eval selection_size ((size) model.selection.size.set(*size));
+            eval frp.skip_animations([selection_y,selection_height](_) {
+                selection_y.skip();
+                selection_height.skip();
+            });
         }
 
         frp::extend!{ network

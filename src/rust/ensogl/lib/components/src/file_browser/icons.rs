@@ -7,6 +7,9 @@ use ensogl_core::data::color;
 use ensogl_core::display;
 
 
+const SHRINK_FACTOR : f32 = 0.0;
+// const SHRINK_FACTOR : f32 = 0.4;
+
 
 // ===================
 // === DynamicIcon ===
@@ -23,7 +26,7 @@ pub trait DynamicIcon: display::Object+Debug {
 // === Folder ===
 // ==============
 
-mod folder {
+pub mod folder {
     use super::*;
 
     ensogl_core::define_shape_system! {
@@ -44,6 +47,7 @@ mod folder {
 
             let shape      = outline - cut_out + middle_line;
             let shape      = shape.fill(color_rgba);
+            let shape = shape.shrink(SHRINK_FACTOR.px());
             shape.into()
         }
     }
@@ -85,7 +89,7 @@ impl DynamicIcon for Folder {
 // === Home ===
 // ============
 
-mod home {
+pub mod home {
     use super::*;
 
     ensogl_core::define_shape_system! {
@@ -93,18 +97,18 @@ mod home {
             let base = Rect((12.0.px(),8.5.px()))
                 .corners_radiuses(0.0.px(), 0.0.px(), 2.0.px(), 2.0.px())
                 .translate((0.0.px(),-2.75.px()));
-            let cut_out = Rect((10.px(),7.5.px()))
+            let cut_out = Rect((10.px(),8.5.px()))
                 .corners_radiuses(0.0.px(), 0.0.px(), 1.0.px(), 1.0.px())
-                .translate((0.0.px(),-2.25.px()));
+                .translate((0.0.px(),-1.75.px()));
 
-            let door_inner = Rect((1.0.px(), 4.5.px()))
+            let door_inner = Rect((1.0.px(), 3.5.px()))
                 .translate((0.0.px(),-4.25.px()));
             let door_outer = door_inner.grow(1.0.px());
             let door = door_outer - door_inner;
 
             let roof_left = Rect((9.975.px(),1.0.px()))
                 .rotate(-40.0f32.to_radians().radians())
-                .translate((-4.5.px(),3.0.px()));
+                .translate((-3.5.px(),3.0.px()));
             let roof_right = Rect((9.975.px(),1.0.px()))
                 .rotate(40.0f32.to_radians().radians())
                 .translate((3.5.px(),3.0.px()));
@@ -115,6 +119,7 @@ mod home {
 
             let shape = base - cut_out + door + roof + chimney;
             let shape = shape.fill(color_rgba);
+            let shape = shape.shrink(SHRINK_FACTOR.px());
             shape.into()
         }
     }
@@ -169,6 +174,7 @@ pub mod root {
 
             let shape = inner + outer;
             let shape = shape.fill(color_rgba);
+            let shape = shape.shrink(SHRINK_FACTOR.px());
             shape.into()
         }
     }
@@ -233,6 +239,7 @@ pub mod file {
 
             let shape      = grid * frame;
             let shape      = shape.fill(color_rgba);
+            let shape = shape.shrink(SHRINK_FACTOR.px());
             shape.into()
         }
     }
@@ -270,9 +277,9 @@ impl DynamicIcon for File {
 
 
 
-// ============
+// =============
 // === Arrow ===
-// ============
+// =============
 
 pub mod arrow {
     use super::*;
@@ -295,6 +302,7 @@ pub mod arrow {
 
             let shape      = upper + lower;
             let shape      = shape.fill(color_rgba);
+            let shape = shape.shrink(SHRINK_FACTOR.px());
             shape.into()
         }
     }
@@ -321,6 +329,78 @@ impl display::Object for Arrow {
 }
 
 impl DynamicIcon for Arrow {
+    fn set_stroke_width(&self, width: f32) {
+        self.0.stroke_width.set(width);
+    }
+
+    fn set_color(&self, color: color::Rgba) {
+        self.0.color_rgba.set(color.into());
+    }
+}
+
+
+
+// ===============
+// === Project ===
+// ===============
+
+pub mod project {
+    use super::*;
+
+    ensogl_core::define_shape_system! {
+        (style:Style,color_rgba:Vector4,stroke_width:f32) {
+            let left = Rect((1.0.px(),10.0.px())).translate_x(-5.0.px());
+            let right = Rect((1.0.px(),10.0.px())).translate_x(5.0.px());
+
+            let top_ellipse = Ellipse(5.5.px(),1.5.px());
+            let top_upper = &top_ellipse - top_ellipse.translate_y(-1.0.px());
+            let top_lower = &top_ellipse - top_ellipse.translate_y(1.0.px());
+            let top = top_upper + top_lower;
+            let top = top.translate_y(5.0.px());
+
+            let bottom_outer_ellipse = Ellipse(5.5.px(),2.0.px());
+            let bottom_inner_ellipse = Ellipse(4.5.px(),1.5.px());
+            let bottom = &bottom_outer_ellipse.translate_y(-0.5.px()) - bottom_inner_ellipse;
+            let bottom = bottom * HalfPlane();
+            let bottom = bottom.translate_y(-4.5.px());
+
+            let upper_middle_ellipse = Ellipse(5.0.px(),1.6666.px());
+            let upper_middle = &upper_middle_ellipse - upper_middle_ellipse.translate_y(0.5.px());
+            let upper_middle = upper_middle.translate_y(1.9166.px());
+
+            let lower_middle_ellipse = Ellipse(5.0.px(),1.83333.px());
+            let lower_middle = &lower_middle_ellipse - lower_middle_ellipse.translate_y(0.5.px());
+            let lower_middle = lower_middle.translate_y(-1.4166.px());
+
+            let shape = left + right + top + bottom + upper_middle + lower_middle;
+            let shape = shape.fill(color_rgba);
+            let shape = shape.shrink(SHRINK_FACTOR.px());
+            shape.into()
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Project(project::View);
+
+impl Project {
+    pub fn new() -> Self {
+        let shape_view = project::View::new(Logger::new("file_browser::icon::Project"));
+        shape_view.size.set(Vector2(16.0,16.0));
+        let icon = Project(shape_view);
+        icon.set_stroke_width(1.0);
+        icon.set_color(color::Rgba::red());
+        icon
+    }
+}
+
+impl display::Object for Project {
+    fn display_object(&self) -> &Instance {
+        self.0.display_object()
+    }
+}
+
+impl DynamicIcon for Project {
     fn set_stroke_width(&self, width: f32) {
         self.0.stroke_width.set(width);
     }

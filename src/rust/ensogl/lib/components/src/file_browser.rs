@@ -27,6 +27,8 @@ use ensogl_theme as theme;
 use crate::scroll_area::ScrollArea;
 use ensogl_text as text;
 use ensogl_core::data::color;
+use crate::selector::Bounds;
+use crate::list_view;
 
 const TOOLBAR_HEIGHT      : f32 = 45.0;
 const TOOLBAR_BORDER_SIZE : f32 = 1.0;
@@ -87,12 +89,18 @@ impl Model {
     fn focus_column(&self, column_index:usize) {
         let old_index = self.focused_column.get();
         self.focused_column.set(column_index);
-        let columns = self.columns.borrow();
-        if let Some(old) = columns.get(old_index) {
+        let old = self.columns.borrow().get(old_index).cloned();
+        if let Some(old) = old {
             old.model.list_view.defocus();
         }
-        if let Some(new) = columns.get(column_index) {
+        let new = self.columns.borrow().get(column_index).cloned();
+        if let Some(new) = new {
             new.model.list_view.focus();
+            let x = new.position().x;
+            let width = new.model.list_view.size.value().x;
+            self.scroll_area.scroll_to_x_range(Bounds::new(
+                x - width / 2.0,
+                x + width / 2.0));
         }
     }
 }
@@ -110,11 +118,19 @@ ensogl_core::define_endpoints! {
         move_focus_left  (),
         move_focus_right (),
         move_focus_by    (i32),
+
+        copy_focused       (),
+        cut_focused        (),
+        paste_into_focused (),
     }
 
     Output {
         entry_selected (PathBuf),
         entry_chosen   (PathBuf),
+
+        copy       (PathBuf),
+        cut        (PathBuf),
+        paste_into (PathBuf),
     }
 }
 
@@ -142,15 +158,16 @@ impl ModelWithFrp {
 
         let logger = Logger::new("FileBrowser");
         let display_object = display::object::Instance::new(&logger);
+        app.display.scene().layers.panel.add_exclusive(&display_object);
 
         let background = background::View::new(&logger);
         display_object.add_child(&background);
-        app.display.scene().layers.below_main.add_exclusive(&background);
+        app.display.scene().layers.add_shapes_order_dependency::<background::View,list_view::selection::View>();
         background.size.set(Vector2(WIDTH+background::SHADOW_PX*2.0, HEIGHT+background::SHADOW_PX*2.0));
 
         let label = text::Area::new(app);
         display_object.add_child(&label);
-        label.add_to_scene_layer(&app.display.scene().layers.label);
+        label.add_to_scene_layer(&app.display.scene().layers.panel_text);
         label.set_position_xy(Vector2(-WIDTH/2.0+PADDING, HEIGHT/2.0-PADDING));
         label.set_default_color(color::Rgba(0.439,0.439,0.439,1.0));
         label.set_content("Read files");
@@ -188,8 +205,20 @@ impl ModelWithFrp {
             eval frp.move_focus_by([model](amount) {
                 let old_index = model.focused_column.get() as i32;
                 let new_index = (old_index + amount).max(0).min(model.columns.borrow().len() as i32 - 1);
-                model.focus_column(new_index as usize);
+                let new_column = model.columns.borrow()[new_index as usize].clone();
+                let entries = new_column.model.entries.borrow().as_ref().cloned();
+                if let Some(entries) = entries {
+                    if entries.len() > 0 {
+                        model.focus_column(new_index as usize);
+                    }
+                }
             });
+            focused_entry <- all_with(&frp.move_focus_by,&frp.entry_selected,f!([model](_,_) {
+                model.columns.borrow()[model.focused_column.get()].entry_selected.value()
+            }));
+            frp.source.copy       <+ focused_entry.sample(&frp.copy_focused);
+            frp.source.cut        <+ focused_entry.sample(&frp.cut_focused);
+            frp.source.paste_into <+ focused_entry.sample(&frp.paste_into_focused);
         }
 
         browser
@@ -197,27 +226,39 @@ impl ModelWithFrp {
 
     fn set_content(self:Rc<Self>, content: AnyFolderContent) {
         self.close_columns_from(0);
-        self.push_column(content);
+        Rc::clone(&self).push_column(content);
+        self.model.focus_column(0);
         // self.roots_column.set_file_system(fs);
     }
 
     fn close_columns_from(&self, index:usize) {
         self.model.columns.borrow_mut().truncate(index);
-        self.model.scroll_area.set_content_width(self.model.columns.borrow().len() as f32 * column::WIDTH)
+        let content_width = if let Some(last) = self.model.columns.borrow().last().cloned() {
+            last.position().x + last.model.list_view.size.value().x / 2.0
+        } else {
+            0.0
+        };
+        self.model.scroll_area.set_content_width(content_width);
+        //     self.model.columns.borrow().len() as f32 * column::WIDTH - column::WIDTH + WIDTH)
     }
 
     fn push_column(self:Rc<Self>, content:AnyFolderContent) {
         let index   = self.model.columns.borrow().len();
-        let network = &self.frp.network;
-        frp::extend! { network
-            error <- any_mut::<ImString>();
-        }
         let new_column = Column::new(self.clone(),index);
-        self.model.scroll_area.content.add_child(&new_column);
+        self.model.scroll_area.content().add_child(&new_column);
+        let content_width = if let Some(last) = self.model.columns.borrow().last().cloned() {
+            warning!(Logger::new(""), "{last.position().x}");
+            last.position().x + last.model.list_view.size.value().x / 2.0
+        } else {
+            0.0
+        };
         self.model.columns.borrow_mut().push(new_column.clone());
-        self.model.scroll_area.set_content_width(self.model.columns.borrow().len() as f32 * column::WIDTH);
-        self.model.scroll_area.scroll_to_x(f32::INFINITY);
-        content.request_entries(new_column.set_entries.clone(),error);
+        self.model.scroll_area.set_content_width(content_width + WIDTH);
+        // self.model.scroll_area.scroll_to_x(f32::INFINITY);
+        // self.model.scroll_area.set_content_width(self.model.columns.borrow().len() as f32 * column::WIDTH - column::WIDTH + WIDTH);
+        // self.model.scroll_area.scroll_to_x_range(Bounds::new(new_column.position().x - column::WIDTH / 2.0,
+        //                                                      new_column.position().x + column::WIDTH / 2.0));
+        content.request_entries(new_column.set_entries.clone(),new_column.set_error.clone());
     }
 }
 
@@ -250,8 +291,11 @@ impl application::View for FileBrowser {
     fn app(&self) -> &Application { &self.0.model.app }
     fn default_shortcuts() -> Vec<shortcut::Shortcut> {
         use shortcut::ActionType::*;
-        (&[ (PressAndRepeat , "left"  , "move_focus_left")
-          , (PressAndRepeat , "right" , "move_focus_right")
+        (&[ (PressAndRepeat , "left"   , "move_focus_left")
+          , (PressAndRepeat , "right"  , "move_focus_right")
+          , (PressAndRepeat , "ctrl c" , "copy_focused")
+          , (PressAndRepeat , "ctrl x" , "cut_focused")
+          , (PressAndRepeat , "ctrl v" , "paste_into_focused")
           ]).iter().map(|(a,b,c)|Self::self_shortcut(*a,*b,*c)).collect()
     }
 }

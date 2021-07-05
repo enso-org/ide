@@ -402,7 +402,10 @@ define_themes! { [light:0, dark:1]
     }
     widget {
         list_view {
-            background = graph_editor::node::background , graph_editor::node::background;
+            padding {
+                horizontal = 12.0 , 12.0;
+                vertical   = 10.0 , 10.0;
+            }
             selection {
                 focused   = Rgba(0.12,0.451,0.973,1.0)  , Rgba(0.12,0.451,0.973,1.0);
                 unfocused = Rgba(0.933,0.933,0.933,1.0) , Rgba(0.933,0.933,0.933,1.0);

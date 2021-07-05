@@ -55,7 +55,7 @@ struct GeneratedFolderContent;
 impl FolderContent for GeneratedFolderContent {
     fn request_entries(&self, entries_loaded: frp::Any<Rc<Vec<Entry>>>, _error_occurred: frp::Any<ImString>) {
         entries_loaded.emit(
-            Rc::new((0..100).map(|i|
+            Rc::new((0..20).map(|i|
                 Entry {
                     name: format!("Folder {}", i),
                     path: format!("Folder {}", i).into(),
@@ -66,6 +66,16 @@ impl FolderContent for GeneratedFolderContent {
                 }
             ).collect_vec())
         );
+    }
+}
+
+
+#[derive(Debug)]
+struct ErrorContent;
+
+impl FolderContent for ErrorContent {
+    fn request_entries(&self, _entries_loaded: frp::Any<Rc<Vec<Entry>>>, error_occurred: frp::Any<ImString>) {
+        error_occurred.emit(ImString::new("Could not open folder"));
     }
 }
 
@@ -229,12 +239,13 @@ fn init(app:&Application) {
     file_browser.set_content(AnyFolderContent::from(fs));
     app.display.add_child(&file_browser);
 
-    let logger : Logger = Logger::new("SelectDebugScene");
     let network = enso_frp::Network::new("test");
     enso_frp::extend! {network
-        eval file_browser.entry_chosen([logger](entry) {
-            info!(logger, "Chosen entry {entry:?}")
-        });
+        trace file_browser.entry_chosen;
+        trace file_browser.entry_selected;
+        trace file_browser.copy;
+        trace file_browser.cut;
+        trace file_browser.paste_into;
     }
 
     std::mem::forget(file_browser);

@@ -298,7 +298,7 @@ pub struct List {
     visible_range  : Rc<CloneCell<Range<f32>>>,
     provider       : Rc<CloneRefCell<AnyEntryProvider>>,
     selected_id    : Rc<Cell<Option<Id>>>,
-    entry_width: Rc<Cell<f32>>,
+    entry_width    : Rc<Cell<f32>>,
 }
 
 impl List {
@@ -326,7 +326,9 @@ impl List {
     }
 
     /// Y position of entry with given id, relative to Entry List position.
-    pub fn position_y_of_entry(id:Id) -> f32 { id as f32 * -HEIGHT - 0.5 * HEIGHT }
+    pub fn position_y_of_entry(id:Id) -> f32 {
+        id as f32 * -HEIGHT - 0.5 * HEIGHT
+    }
 
     /// Y range of entry with given id, relative to Entry List position.
     pub fn y_range_of_entry(id:Id) -> Range<f32> {
@@ -380,9 +382,10 @@ impl List {
                 if let Some(new_entry) = self.provider.get().get(&self.app,id) {
                     self.display_object.add_child(&new_entry);
                     new_entry.set_position_y(Self::position_y_of_entry(id));
-                    if self.selected_id.get() == Some(id) {
-                        new_entry.set_selected(true);
-                    }
+                    // TODO: Consider focus
+                    // if self.selected_id.get() == Some(id) {
+                    //     new_entry.set_selected(true);
+                    // }
                     new_entry.set_width(self.entry_width.get());
                     visible_entries.insert(id, new_entry);
                 }
@@ -404,16 +407,16 @@ impl List {
         self.update_visible_entries()
     }
 
-    pub fn set_selection(&self, new:Option<Id>) {
+    pub fn mark_selection(&self, new:Option<Id>, has_focus:bool) {
         let old = self.selected_id.replace(new);
-        if new != old {
-            if let Some(previous) = old {
-                if let Some(previous_entry) = self.visible_entries.deref().borrow().get(&previous) {
-                    previous_entry.set_selected(false);
-                }
+        if let Some(previous) = old {
+            if let Some(previous_entry) = self.visible_entries.deref().borrow().get(&previous) {
+                previous_entry.set_selected(false);
             }
-            if let Some(new) = new {
-                if let Some(new_entry) = self.visible_entries.deref().borrow().get(&new) {
+        }
+        if let Some(new) = new {
+            if let Some(new_entry) = self.visible_entries.deref().borrow().get(&new) {
+                if has_focus {
                     new_entry.set_selected(true);
                 }
             }

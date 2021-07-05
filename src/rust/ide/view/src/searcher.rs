@@ -24,14 +24,14 @@ use ensogl_gui_components::card::Card;
 // =================
 
 /// Width of searcher panel in pixels.
-pub const SEARCHER_WIDTH:f32 = 480.0;
+pub const SEARCHER_WIDTH:f32 = 520.0;
 /// Height of searcher panel in pixels.
 ///
 /// Because we don't implement clipping yet, the best UX is when searcher height is almost multiple
 /// of entry height + padding.
 pub const SEARCHER_HEIGHT:f32 = 184.5;
 
-const ACTION_LIST_GAP     : f32 = 180.0;
+const ACTION_LIST_GAP     : f32 = 220.0;
 const LIST_DOC_GAP        : f32 = 15.0;
 const DOCUMENTATION_WIDTH : f32 = SEARCHER_WIDTH - ACTION_LIST_GAP - LIST_DOC_GAP;
 const ACTION_LIST_X       : f32 = (ACTION_LIST_GAP - SEARCHER_WIDTH) / 2.0;
@@ -109,6 +109,7 @@ impl Model {
         display_object.add_child(&list);
         list.add_child(&list_background);
         list.focus();
+        list.set_selection_can_leave_at_top(true);
         scene.layers.add_shapes_order_dependency::<card::View,list_view::selection::View>();
         list_background.set_corner_radius(list_view::CORNER_RADIUS_PX);
 
@@ -223,7 +224,7 @@ impl View {
 
             eval height.value ((h)  model.set_height(*h));
             eval frp.show     ((()) height.set_target_value(SEARCHER_HEIGHT));
-            eval frp.hide     ((()) height.set_target_value(-list_view::SHADOW_PX));
+            eval frp.hide     ((()) height.set_target_value(0.0));
 
             is_selected               <- model.list.selected_entry.map(|e| e.is_some());
             displayed_doc             <- model.list.selected_entry.map(f!((id) model.docs_for(*id)));
