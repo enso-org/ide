@@ -571,7 +571,11 @@ class FirebaseAuthentication {
     constructor(authCallback: any) {
         this.firebaseui = require('firebaseui')
         this.config = require('../firebase.yaml')
+        // initialize Firebase
         firebase.initializeApp(this.config)
+        // create HTML markup
+        this.createHtml()
+        // initialize Firebase UI
         this.ui = new this.firebaseui.auth.AuthUI(firebase.auth())
         this.ui.disableAutoSignIn()
         this.authCallback = authCallback
@@ -639,12 +643,98 @@ class FirebaseAuthentication {
     }
 
     protected handleSignedOutUser() {
+        document.getElementById('auth-container').style.display = 'block'
         this.ui.start('#firebaseui-container', this.getUiConfig())
     }
 
     protected handleSignedInUser(user: any) {
         document.getElementById('auth-container').style.display = 'none'
         this.authCallback(user)
+    }
+
+    /// Create the HTML markup.
+    ///
+    /// ```
+    /// <div id="root">
+    ///     <div id="auth-container">
+    ///         <div class="auth-header">
+    ///             <h1>Sign in to Enso</h1>
+    ///             <div class="auth-text">
+    ///                 <p>Enso lets you create interactive data workflows. In order to share them, you need an account. In alpha/beta versions, this account is required.</p>
+    ///             </div>
+    ///         </div>
+    ///         <div id="user-signed-out">
+    ///             <div id="firebaseui-container"></div>
+    ///         </div>
+    ///         <div id="user-email-not-verified" class="auth-info">
+    ///             Verification link is sent. You can sign in after verifying your email.
+    ///         </div>
+    ///     </div>
+    ///     <div id="version-check" class="auth-info">
+    ///         This version is no longer supported. Please download a new one.
+    ///     </div>
+    /// </div>
+    /// ```
+    protected createHtml() {
+        const authContainer = 'auth-container'
+        const authInfo = 'auth-info'
+        const authHeader = 'auth-header'
+        const authText = 'auth-text'
+        const firebaseuiContainer = 'firebaseui-container'
+        const userSignedOut = 'user-signed-out'
+        const userEmailNotVerified = 'user-email-not-verified'
+        const versionCheck = 'version-check'
+
+        const authHeaderText = document.createTextNode('Sign in to Enso')
+        const authTextText = document.createTextNode('Enso lets you create interactive data workflows. In order to share them, you need an account. In alpha/beta versions, this account is required.')
+        const userEmailNotVerifiedText = document.createTextNode('Verification link is sent. You can sign in after verifying your email.')
+        const versionCheckText = document.createTextNode('This version is no longer supported. Please download a new one.')
+
+        let root = document.getElementById('root')
+
+        // div#auth-container
+        let authContainerDiv = document.createElement('div')
+        authContainerDiv.id = authContainer
+        authContainerDiv.style.display = 'none'
+        // div.auth-header
+        let authHeaderDiv = document.createElement('div')
+        authHeaderDiv.className = authHeader
+        // div.auth-header/h1
+        let authHeaderH1 = document.createElement('h1')
+        authHeaderH1.appendChild(authHeaderText)
+        // div.auth-header/div#auth-text
+        let authHeaderTextDiv = document.createElement('div')
+        authHeaderTextDiv.className = authText
+        authHeaderTextDiv.appendChild(authTextText)
+
+        authHeaderDiv.appendChild(authHeaderH1)
+        authHeaderDiv.appendChild(authHeaderTextDiv)
+
+        // div#user-signed-out
+        let userSignedOutDiv = document.createElement('div')
+        userSignedOutDiv.id = userSignedOut
+        let firebaseuiContainerDiv = document.createElement('div')
+        firebaseuiContainerDiv.id = firebaseuiContainer
+        userSignedOutDiv.appendChild(firebaseuiContainerDiv)
+
+        // div#user-email-not-verified
+        let userEmailNotVerifiedDiv = document.createElement('div')
+        userEmailNotVerifiedDiv.id = userEmailNotVerified
+        userEmailNotVerifiedDiv.className = authInfo
+        userEmailNotVerifiedDiv.appendChild(userEmailNotVerifiedText)
+
+        authContainerDiv.appendChild(authHeaderDiv)
+        authContainerDiv.appendChild(userSignedOutDiv)
+        authContainerDiv.appendChild(userEmailNotVerifiedDiv)
+
+        // div#version-check
+        let versionCheckDiv = document.createElement('div')
+        versionCheckDiv.id = versionCheck
+        versionCheckDiv.className = authInfo
+        versionCheckDiv.appendChild(versionCheckText)
+
+        root.appendChild(authContainerDiv)
+        root.appendChild(versionCheckDiv)
     }
 }
 
