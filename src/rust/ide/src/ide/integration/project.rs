@@ -46,6 +46,9 @@ use ide_view::graph_editor::component::visualization;
 use ide_view::graph_editor;
 use utils::iter::split_by_predicate;
 
+pub type Logger = enso_logger::DefaultTraceLogger;
+
+
 
 
 // ==============
@@ -275,6 +278,7 @@ impl Integration {
             });
         }
 
+
         // === Dropping Files ===
 
         let file_dropped = model.view.graph().file_dropped.clone_ref();
@@ -294,6 +298,14 @@ impl Integration {
                     error!(model.logger, "Error when creating node from dropped file: {err}");
                 }
             });
+        }
+
+
+        // === Open File or Project Dialog ===
+
+        frp::extend! { network
+            dialog_is_shown <- project_frp.open_dialog_shown.filter(|v| *v);
+            eval_ dialog_is_shown (model.open_file_dialog_opened_in_ui());
         }
 
 
