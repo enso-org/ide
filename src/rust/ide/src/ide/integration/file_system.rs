@@ -2,18 +2,21 @@ use crate::prelude::*;
 
 use enso_protocol::language_server;
 use enso_frp as frp;
-use enso_protocol::language_server::FileSystemObject;
+use enso_protocol::language_server::{FileSystemObject, ContentRoot};
 use ensogl_gui_components::file_browser::model::FolderContent;
 use ensogl_gui_components::file_browser::model::FolderType;
 use ensogl_gui_components::file_browser::model::Entry;
 use ensogl_gui_components::file_browser::model::EntryType;
 use std::iter::once;
 use std::ffi::OsString;
+use crate::controller::graph::NewNodeInfo;
 
 
 #[derive(Clone,Debug,Fail)]
 #[fail(display="Invalid path received from File Browser Component: {}",path)]
 struct InvalidPath {path:String}
+
+
 
 fn to_file_browser_path(path:&language_server::Path) -> std::path::PathBuf {
     use std::path::Component::*;
@@ -103,10 +106,10 @@ impl DirectoryView {
         let response = self.connection.file_list(&self.path).await?;
         let entries  = response.paths.into_iter().map(|fs_obj| {
             match fs_obj {
-                FileSystemObject::Directory {name,path} |
-                FileSystemObject::DirectoryTruncated {name,path} |
-                FileSystemObject::SymlinkLoop {name,path,..} => {
-                    let path  = to_file_browser_path(&path);
+                FileSystemObject::Directory          {name,path}    |
+                FileSystemObject::DirectoryTruncated {name,path}    |
+                FileSystemObject::SymlinkLoop        {name,path,..} => {
+                    let path  = to_file_browser_path(&path).join(&name);
                     let sub   = self.sub_view(&name);
                     let type_ = EntryType::Folder {
                         type_   : FolderType::Standard,
@@ -114,9 +117,9 @@ impl DirectoryView {
                     };
                     Entry {name,path,type_}
                 }
-                FileSystemObject::File {name,path}  |
+                FileSystemObject::File  {name,path} |
                 FileSystemObject::Other {name,path} => {
-                    let path  = path.to_string().into();
+                    let path  = to_file_browser_path(&path).join(&name);
                     let type_ = EntryType::File;
                     Entry {name,path,type_}
                 }
@@ -139,6 +142,19 @@ impl FolderContent for DirectoryView {
     }
 }
 
-// fn create_node_from_file(project:&model::Project, graph:&controller::Graph, path:&std::path::Path) -> FallibleResult {
-//
-// }
+pub fn create_node_from_file(project:&model::Project, graph:&controller::Graph, path:&std::path::Path) -> FallibleResult {
+    let ls_path       = from_file_browser_path(path)?;
+    let path_segments = ls_path.segments.into_iter().join("/");
+    let content_root  = project.content_root_by_id(ls_path.root_id)?;
+    let path          = match &*content_root {
+        ContentRoot::Project        { .. }      => format!("Enso_Project.root/\"{}\"", path_segments),
+        ContentRoot::FileSystemRoot { path,.. } => format!("\"{}/{}\"", path,path_segments),
+        ContentRoot::Home           { .. }      => format!("File.home/\"{}\"", path_segments),
+        ContentRoot::Library        { namespace,name,.. }      => format!("{}.{}.Enso_Project.root / \"{}\"",namespace,name,path_segments),
+        ContentRoot::Custom         { .. }      => todo!(),
+    };
+    let expression = format!("File.read {}", path);
+    let node_info = NewNodeInfo::new_pushed_back(expression);
+    graph.add_node(node_info)?;
+    Ok(())
+}

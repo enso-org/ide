@@ -94,6 +94,10 @@ impl ExecutionContextsRegistry {
 // === ContentRoots ===
 // ====================
 
+#[derive(Clone,Debug,Fail)]
+#[fail(display="Content root {} does not exist.",id)]
+struct MissingContentRoot {id:Uuid}
+
 #[derive(Clone,Debug)]
 pub struct ContentRoots {
     logger : Logger,
@@ -109,11 +113,11 @@ impl ContentRoots {
         Self{logger,roots}
     }
 
-    pub fn all_content_roots(&self) -> Vec<Rc<ContentRoot>> {
+    pub fn all(&self) -> Vec<Rc<ContentRoot>> {
         self.roots.borrow().values().cloned().collect()
     }
 
-    pub fn add_content_root(&self, content_root:ContentRoot) {
+    pub fn add(&self, content_root:ContentRoot) {
         let content_root = Rc::new(content_root);
         if let Some(existing) = self.roots.borrow_mut().insert(content_root.id(),content_root) {
             warning!(self.logger,"Adding content root: there is already content root with given \
@@ -121,7 +125,11 @@ impl ContentRoots {
         }
     }
 
-    pub fn remove_content_root(&self, id:Uuid) {
+    pub fn get(&self, id:Uuid) -> FallibleResult<Rc<ContentRoot>> {
+        self.roots.borrow().get(&id).cloned().ok_or_else(|| MissingContentRoot{id}.into())
+    }
+
+    pub fn remove(&self, id:Uuid) {
         if self.roots.borrow_mut().remove(&id).is_none() {
             warning!(self.logger,"Removing content root: no content root with given id: {id}");
         }
@@ -394,12 +402,12 @@ impl Project {
                 }
                 Event::Notification(Notification::ContentRootAdded {root}) => {
                     if let Some(content_roots) = weak_content_roots.upgrade() {
-                        content_roots.add_content_root(root);
+                        content_roots.add(root);
                     }
                 }
                 Event::Notification(Notification::ContentRootRemoved {id}) => {
                     if let Some(content_roots) = weak_content_roots.upgrade() {
-                        content_roots.remove_content_root(id);
+                        content_roots.remove(id);
                     }
                 }
                 Event::Closed => {
@@ -473,7 +481,11 @@ impl model::project::API for Project {
     }
 
     fn content_roots(&self) -> Vec<Rc<ContentRoot>> {
-        self.content_roots.all_content_roots()
+        self.content_roots.all()
+    }
+
+    fn content_root_by_id(&self, id:Uuid) -> FallibleResult<Rc<ContentRoot>> {
+        self.content_roots.get(id)
     }
 
     fn module(&self, path: module::Path) -> BoxFuture<FallibleResult<model::Module>> {

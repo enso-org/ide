@@ -308,9 +308,13 @@ impl Integration {
         // === Open File or Project Dialog ===
 
         frp::extend! { network
-            dialog_is_shown <- project_frp.open_dialog_shown.filter(|v| *v);
+            let chosen_project = model.view.open_dialog().project_list.chosen_entry.clone_ref();
+            let file_chosen    = model.view.open_dialog().file_browser.entry_chosen.clone_ref();
+            project_chosen     <- chosen_project.filter_map(|p| *p);
+            dialog_is_shown    <- project_frp.open_dialog_shown.filter(|v| *v);
             eval_ dialog_is_shown (model.open_dialog_opened_in_ui());
-            // eval model.view.open_dialog().project_list.entry_chosen
+            eval project_chosen ((id)   model.project_opened_in_ui(id));
+            eval file_chosen    ((path) model.file_opened_in_ui(path));
         }
 
 
@@ -490,10 +494,11 @@ impl Model {
         let error_visualizations    = default();
         let searcher                = default();
         let prompt_was_shown        = default();
+        let displayed_project_list  = default();
         let this                    = Model
             {logger,view,graph,text,ide,searcher,project,node_views,node_view_by_expression
             ,expression_views,expression_types,connection_views,code_view,visualizations
-            ,error_visualizations,prompt_was_shown};
+            ,error_visualizations,prompt_was_shown,displayed_project_list};
 
         this.view.graph().frp.remove_all_nodes();
         this.view.status_bar().clear_all();
@@ -1290,7 +1295,7 @@ impl Model {
     }
 
     fn open_dialog_opened_in_ui(self:&Rc<Self>) {
-        debug!(logger, "Opened file dialog in ui. Providing content root list");
+        debug!(self.logger, "Opened file dialog in ui. Providing content root list");
         let provider = FileProvider {
             connection: self.project.json_rpc(),
             content_roots: self.project.content_roots(),
@@ -1304,27 +1309,35 @@ impl Model {
                 if let Ok(manage_projects) = this.ide.manage_projects() {
                     match manage_projects.list_projects().await {
                         Ok(projects) => {
-                            let entries = ProjectsToOpen::new(projects).into();
+                            let entries = ProjectsToOpen::new(projects);
                             this.displayed_project_list.set(entries.clone_ref());
                             let any_entries:AnyEntryProvider = entries.into();
                             this.view.open_dialog().project_list.set_entries(any_entries)
                         },
-                        Err(error) => error!(logger,"Error when loading project's list: {error}"),
+                        Err(error) => error!(this.logger,"Error when loading project's list: {error}"),
                     }
                 }
             }
         });
     }
 
-    fn project_opened_in_ui(&self, entry_id:&list_view::entry::Id) -> FallibleResult {
-        if let Some(id) = self.displayed_project_list.get().get_project_id_by_index(entry_id) {
-            let ide = self.ide.clone_ref();
+    fn project_opened_in_ui(&self, entry_id:&list_view::entry::Id) {
+        if let Some(id) = self.displayed_project_list.get().get_project_id_by_index(*entry_id) {
+            let logger = self.logger.clone_ref();
+            let ide    = self.ide.clone_ref();
             executor::global::spawn(async move {
                 if let Ok(manage_projects) = ide.manage_projects() {
-                    manage_projects.open_project(id)
+                    if let Err(err) = manage_projects.open_project(id).await {
+                        error!(logger, "Error while opening project: {err}");
+                    }
                 }
-            })
+            });
+        }
+    }
 
+    fn file_opened_in_ui(&self, path:&std::path::Path) {
+        if let Err(err) = create_node_from_file(&self.project,&self.graph.graph(),path) {
+            error!(self.logger, "Error while creating node from file: {err}");
         }
     }
 }

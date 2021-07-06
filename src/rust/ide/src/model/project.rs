@@ -56,6 +56,8 @@ pub trait API:Debug {
 
     fn content_roots(&self) -> Vec<Rc<ContentRoot>>;
 
+    fn content_root_by_id(&self, id:Uuid) -> FallibleResult<Rc<ContentRoot>>;
+
     /// Returns a model of module opened from file.
     #[allow(clippy::needless_lifetimes)] // Note: Needless lifetimes
     fn module<'a>
