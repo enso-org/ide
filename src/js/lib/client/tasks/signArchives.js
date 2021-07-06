@@ -124,12 +124,12 @@ const toSign = [
             'com/sun/jna/darwin/libjnidispatch.jnilib',
         ],
     },
-    {
-        jarDir:
-            'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        jarName: 'jdk.jartool.jmod',
-        jarContent: ['bin/jarsigner', 'bin/jar'],
-    },
+    // {
+    //     jarDir:
+    //         'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+    //     jarName: 'jdk.jartool.jmod',
+    //     jarContent: ['bin/jarsigner', 'bin/jar'],
+    // },
     {
         jarDir:
             'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
