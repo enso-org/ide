@@ -132,13 +132,13 @@ impl EntryProvider for EmptyProvider {
 // === StringEntry ===
 
 #[derive(Debug)]
-struct StringEntry {
+pub struct StringEntry {
     display_object : display::object::Instance,
     label          : text::Area,
 }
 
 impl StringEntry {
-    fn new(app:&Application, string:&str) -> Self {
+    pub fn new(app:&Application, string:&str) -> Self {
         let logger = Logger::new("StringEntry");
         let display_object = display::object::Instance::new(logger);
 

@@ -489,7 +489,7 @@ impl View {
             eval_ frp.show_open_dialog  (model.show_open_dialog());
             project_chosen   <- project_list.chosen_entry.constant(());
             file_chosen      <- file_browser.entry_chosen.constant(());
-            should_be_closed <- any(frp.close_open_dialog,project_chosen/*,file_chosen*/);
+            should_be_closed <- any(frp.close_open_dialog,project_chosen,file_chosen);
             eval_ should_be_closed (model.hide_open_dialog());
 
             frp.source.open_dialog_shown <+ bool(&should_be_closed,&frp.show_open_dialog);
