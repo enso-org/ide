@@ -116,7 +116,7 @@ config.build = {
         // notarised application it will still be detected as trusted.
         // For more details see step (4) at
         // https://kilianvalkhof.com/2019/electron/notarizing-your-electron-application/
-        sign: false
+        sign: true
     },
     publish: [],
     afterAllArtifactBuild: 'tasks/computeHashes.js',

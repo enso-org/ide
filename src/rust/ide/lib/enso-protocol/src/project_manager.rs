@@ -215,7 +215,7 @@ mod mock_client_tests {
         let port                    = 30500;
         let language_server_address = IpWithSocket {host,port};
         let expected_open_result    = response::OpenProject {
-            engine_version                 : "0.2.1".to_owned(),
+            engine_version                 : "0.2.12".to_owned(),
             language_server_json_address   : language_server_address.clone(),
             language_server_binary_address : language_server_address,
         };
