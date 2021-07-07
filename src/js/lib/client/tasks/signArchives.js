@@ -130,120 +130,120 @@ const toSign = [
     //     jarName: 'jdk.jartool.jmod',
     //     jarContent: ['bin/jarsigner', 'bin/jar'],
     // },
-    {
-        jarDir:
-            'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        jarName: 'jdk.jdeps.jmod',
-        jarContent: ['bin/javap', 'bin/jdeprscan', 'bin/jdeps'],
-    },
-    {
-        jarDir:
-            'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        jarName: 'jdk.jstatd.jmod',
-        jarContent: ['bin/jstatd'],
-    },
-    {
-        jarDir:
-            'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        jarName: 'jdk.pack.jmod',
-        jarContent: ['bin/unpack200', 'bin/pack200'],
-    },
-    {
-        jarDir:
-            'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        jarName: 'jdk.hotspot.agent.jmod',
-        jarContent: ['bin/jhsdb'],
-    },
-    {
-        jarDir:
-            'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        jarName: 'jdk.jfr.jmod',
-        jarContent: ['bin/jfr'],
-    },
-    {
-        jarDir:
-            'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        jarName: 'jdk.rmic.jmod',
-        jarContent: ['bin/rmic'],
-    },
-    {
-        jarDir:
-            'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        jarName: 'java.rmi.jmod',
-        jarContent: ['bin/rmid', 'bin/rmiregistry'],
-    },
-    {
-        jarDir:
-            'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        jarName: 'java.base.jmod',
-        jarContent: ['bin/java', 'bin/keytool', 'lib/jspawnhelper'],
-    },
-    {
-        jarDir:
-            'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        jarName: 'jdk.jlink.jmod',
-        jarContent: ['bin/jmod', 'bin/jlink', 'bin/jimage'],
-    },
-    {
-        jarDir:
-            'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        jarName: 'jdk.scripting.nashorn.shell.jmod',
-        jarContent: ['bin/jjs'],
-    },
-    {
-        jarDir:
-            'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        jarName: 'jdk.jcmd.jmod',
-        jarContent: ['bin/jstack', 'bin/jcmd', 'bin/jps', 'bin/jmap', 'bin/jstat', 'bin/jinfo'],
-    },
-    {
-        jarDir:
-            'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        jarName: 'jdk.jshell.jmod',
-        jarContent: ['bin/jshell'],
-    },
-    {
-        jarDir:
-            'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        jarName: 'jdk.compiler.jmod',
-        jarContent: ['bin/javac', 'bin/serialver'],
-    },
-    {
-        jarDir:
-            'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        jarName: 'java.scripting.jmod',
-        jarContent: ['bin/jrunscript'],
-    },
-    {
-        jarDir:
-            'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        jarName: 'jdk.jdi.jmod',
-        jarContent: ['bin/jdb'],
-    },
-    {
-        jarDir:
-            'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        jarName: 'jdk.javadoc.jmod',
-        jarContent: ['bin/javadoc'],
-    },
-    {
-        jarDir:
-            'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        jarName: 'jdk.jconsole.jmod',
-        jarContent: ['bin/jconsole'],
-    },
-    {
-        jarDir:
-            'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
-        jarName: 'jdk.javadoc.jmod',
-        jarContent: ['bin/javadoc'],
-    },
+    // {
+    //     jarDir:
+    //         'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+    //     jarName: 'jdk.jdeps.jmod',
+    //     jarContent: ['bin/javap', 'bin/jdeprscan', 'bin/jdeps'],
+    // },
+    // {
+    //     jarDir:
+    //         'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+    //     jarName: 'jdk.jstatd.jmod',
+    //     jarContent: ['bin/jstatd'],
+    // },
+    // {
+    //     jarDir:
+    //         'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+    //     jarName: 'jdk.pack.jmod',
+    //     jarContent: ['bin/unpack200', 'bin/pack200'],
+    // },
+    // {
+    //     jarDir:
+    //         'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+    //     jarName: 'jdk.hotspot.agent.jmod',
+    //     jarContent: ['bin/jhsdb'],
+    // },
+    // {
+    //     jarDir:
+    //         'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+    //     jarName: 'jdk.jfr.jmod',
+    //     jarContent: ['bin/jfr'],
+    // },
+    // {
+    //     jarDir:
+    //         'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+    //     jarName: 'jdk.rmic.jmod',
+    //     jarContent: ['bin/rmic'],
+    // },
+    // {
+    //     jarDir:
+    //         'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+    //     jarName: 'java.rmi.jmod',
+    //     jarContent: ['bin/rmid', 'bin/rmiregistry'],
+    // },
+    // {
+    //     jarDir:
+    //         'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+    //     jarName: 'java.base.jmod',
+    //     jarContent: ['bin/java', 'bin/keytool', 'lib/jspawnhelper'],
+    // },
+    // {
+    //     jarDir:
+    //         'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+    //     jarName: 'jdk.jlink.jmod',
+    //     jarContent: ['bin/jmod', 'bin/jlink', 'bin/jimage'],
+    // },
+    // {
+    //     jarDir:
+    //         'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+    //     jarName: 'jdk.scripting.nashorn.shell.jmod',
+    //     jarContent: ['bin/jjs'],
+    // },
+    // {
+    //     jarDir:
+    //         'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+    //     jarName: 'jdk.jcmd.jmod',
+    //     jarContent: ['bin/jstack', 'bin/jcmd', 'bin/jps', 'bin/jmap', 'bin/jstat', 'bin/jinfo'],
+    // },
+    // {
+    //     jarDir:
+    //         'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+    //     jarName: 'jdk.jshell.jmod',
+    //     jarContent: ['bin/jshell'],
+    // },
+    // {
+    //     jarDir:
+    //         'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+    //     jarName: 'jdk.compiler.jmod',
+    //     jarContent: ['bin/javac', 'bin/serialver'],
+    // },
+    // {
+    //     jarDir:
+    //         'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+    //     jarName: 'java.scripting.jmod',
+    //     jarContent: ['bin/jrunscript'],
+    // },
+    // {
+    //     jarDir:
+    //         'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+    //     jarName: 'jdk.jdi.jmod',
+    //     jarContent: ['bin/jdb'],
+    // },
+    // {
+    //     jarDir:
+    //         'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+    //     jarName: 'jdk.javadoc.jmod',
+    //     jarContent: ['bin/javadoc'],
+    // },
+    // {
+    //     jarDir:
+    //         'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+    //     jarName: 'jdk.jconsole.jmod',
+    //     jarContent: ['bin/jconsole'],
+    // },
+    // {
+    //     jarDir:
+    //         'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/jmods',
+    //     jarName: 'jdk.javadoc.jmod',
+    //     jarContent: ['bin/javadoc'],
+    // },
 ]
 
 // Extra files that need to be signed.
 const extra = [
-    'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/MacOS/libjli.dylib',
-    'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/languages/llvm/native/bin/ld.lld',
+    // 'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/MacOS/libjli.dylib',
+    // 'enso/runtime/graalvm-ce-java11-21.0.0.2/Contents/Home/languages/llvm/native/bin/ld.lld',
 ]
 
 exports.default = async function () {
