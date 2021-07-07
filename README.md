@@ -1,8 +1,7 @@
-<br/>
 
-| ℹ️        |
+| ℹ️ℹ️ℹ️   |
 |:---------------------------|
-| This is the repository for Enso's graphical interface component. If you're looking for the main product repository, you may find it at at 👉 <a href="https://github.com/enso-org/enso">github.com/enso-org/enso</a> 👈  |
+| This is the repository for Enso's graphical interface component. If you're looking for the main product repository, you may find it at at 👉 <a href="https://github.com/enso-org/enso">github.com/enso-org/enso</a> 👈 |
 
 <br/>
 
