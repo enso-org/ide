@@ -24,15 +24,13 @@
   </a>
 </p>
 
-Enso is an open source visual data science language selected by Singularity
-University and NASA as one of 20 most unique technologies worldwide. Enso
-consists of several sub-projects, including the
-[Enso Language Compiler](https://github.com/enso-org/enso), the
-[Enso Integrated Development Environment (IDE)](https://github.com/enso-org/ide),
-and
-[a high performance WebGL UI framework (EnsoGL)](https://github.com/enso-org/ide/tree/main/src/rust/ensogl).
-Go to 👉 <a href="https://github.com/enso-org/enso">github.com/enso-org/enso</a> 👈 instead.
-</h1>
+
+Enso is an award-winning interactive programming language with dual visual and
+textual representations. It is a tool that spans the entire stack, going from
+high-level visualisation and communication to the nitty-gritty of backend
+services, all in a single language. Watch the following introduction video to
+learn what Enso is, and how it helps companies build data workflows in minutes
+instead of weeks.
 
 This repository contains the source code of Enso interface only. If you are
 interested in how the interface is build or you want to develop it with us, you
