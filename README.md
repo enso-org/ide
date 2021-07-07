@@ -1,7 +1,6 @@
 
-| ℹ️ℹ️ℹ️   |
-|:---------------------------|
-| This is the repository for Enso's graphical interface component. If you're looking for the main product repository, you may find it at at 👉 <a href="https://github.com/enso-org/enso">github.com/enso-org/enso</a> 👈 |
+# This is the repository for Enso's graphical interface component. If you're looking for the main product repository, you may find it at at 👉 <a href="https://github.com/enso-org/enso">github.com/enso-org/enso</a> 👈
+
 
 <br/>
 
@@ -32,7 +31,7 @@ consists of several sub-projects, including the
 [Enso Integrated Development Environment (IDE)](https://github.com/enso-org/ide),
 and
 [a high performance WebGL UI framework (EnsoGL)](https://github.com/enso-org/ide/tree/main/src/rust/ensogl).
-GO TO 👉 <a href="https://github.com/enso-org/enso">github.com/enso-org/enso</a> 👈 INSTEAD.
+Go to 👉 <a href="https://github.com/enso-org/enso">github.com/enso-org/enso</a> 👈 instead.
 </h1>
 
 This repository contains the source code of Enso interface only. If you are
