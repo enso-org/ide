@@ -12,7 +12,7 @@
  is unlikely to be supported by electron-osx-sign as it adds a java toolchain as additional
  dependency.
  This script should be removed once the engine is signed.
-**/
+ **/
 const path = require('path')
 const child_process = require('child_process')
 const { dist } = require('../../../../../build/paths')
@@ -27,6 +27,8 @@ const ID = '"Developer ID Application: New Byte Order Sp. z o. o. (NM77WTZJFQ)"'
 // Placeholder name for temporary archives.
 const tmpArchive = 'temporary_archive.zip'
 
+const GRAALVM = 'graalvm-ce-java11-21.1.0';
+
 // Helper to execute a command in a given directory and return the output.
 const run = (cmd, cwd) => child_process.execSync(cmd, { shell: true, cwd }).toString()
 
@@ -36,7 +38,7 @@ function sign(targetPath, cwd) {
     const entitlements_path = path.resolve('./', 'entitlements.mac.plist')
     return run(
         `codesign -vvv --entitlements ${entitlements_path} --force --options=runtime `
-         + `--sign ${ID} ${targetPath}`,
+        + `--sign ${ID} ${targetPath}`,
         cwd
     )
 }
@@ -93,9 +95,9 @@ function signArchive(archivePath, archiveName, binPaths) {
         run(`rm -R ${workingDir}`)
         console.error(
             `Could not repackage ${archiveName}.  Please check the "signArchives.js" task in ` +
-                `client/tasks to ensure that it's working. This jar has to be treated specially` +
-                ` because it has a native library and apple's codesign does not sign inner ` +
-                `native libraries correctly for jar files`
+            `client/tasks to ensure that it's working. This jar has to be treated specially` +
+            ` because it has a native library and apple's codesign does not sign inner ` +
+            `native libraries correctly for jar files`
         )
         throw error
     }
@@ -126,115 +128,115 @@ const toSign = [
     },
     {
         jarDir:
-            'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/jmods',
+            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
         jarName: 'jdk.jartool.jmod',
         jarContent: ['bin/jarsigner', 'bin/jar'],
     },
     {
         jarDir:
-            'enso/runtime//Contents/Home/jmods',
+            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
         jarName: 'jdk.jdeps.jmod',
         jarContent: ['bin/javap', 'bin/jdeprscan', 'bin/jdeps'],
     },
     {
         jarDir:
-            'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/jmods',
+            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
         jarName: 'jdk.jstatd.jmod',
         jarContent: ['bin/jstatd'],
     },
     {
         jarDir:
-            'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/jmods',
+            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
         jarName: 'jdk.pack.jmod',
         jarContent: ['bin/unpack200', 'bin/pack200'],
     },
     {
         jarDir:
-            'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/jmods',
+            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
         jarName: 'jdk.hotspot.agent.jmod',
         jarContent: ['bin/jhsdb'],
     },
     {
         jarDir:
-            'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/jmods',
+            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
         jarName: 'jdk.jfr.jmod',
         jarContent: ['bin/jfr'],
     },
     {
         jarDir:
-            'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/jmods',
+            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
         jarName: 'jdk.rmic.jmod',
         jarContent: ['bin/rmic'],
     },
     {
         jarDir:
-            'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/jmods',
+            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
         jarName: 'java.rmi.jmod',
         jarContent: ['bin/rmid', 'bin/rmiregistry'],
     },
     {
         jarDir:
-            'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/jmods',
+            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
         jarName: 'java.base.jmod',
         jarContent: ['bin/java', 'bin/keytool', 'lib/jspawnhelper'],
     },
     {
         jarDir:
-            'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/jmods',
+            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
         jarName: 'jdk.jlink.jmod',
         jarContent: ['bin/jmod', 'bin/jlink', 'bin/jimage'],
     },
     {
         jarDir:
-            'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/jmods',
+            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
         jarName: 'jdk.scripting.nashorn.shell.jmod',
         jarContent: ['bin/jjs'],
     },
     {
         jarDir:
-            'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/jmods',
+            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
         jarName: 'jdk.jcmd.jmod',
         jarContent: ['bin/jstack', 'bin/jcmd', 'bin/jps', 'bin/jmap', 'bin/jstat', 'bin/jinfo'],
     },
     {
         jarDir:
-            'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/jmods',
+            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
         jarName: 'jdk.jshell.jmod',
         jarContent: ['bin/jshell'],
     },
     {
         jarDir:
-            'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/jmods',
+            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
         jarName: 'jdk.compiler.jmod',
         jarContent: ['bin/javac', 'bin/serialver'],
     },
     {
         jarDir:
-            'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/jmods',
+            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
         jarName: 'java.scripting.jmod',
         jarContent: ['bin/jrunscript'],
     },
     {
         jarDir:
-            'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/jmods',
+            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
         jarName: 'jdk.jdi.jmod',
         jarContent: ['bin/jdb'],
     },
     {
         jarDir:
-            'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/jmods',
+            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
         jarName: 'jdk.javadoc.jmod',
         jarContent: ['bin/javadoc'],
     },
     {
         jarDir:
-            'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/jmods',
+            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
         jarName: 'jdk.jconsole.jmod',
         jarContent: ['bin/jconsole'],
     },
     {
         jarDir:
-            'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/jmods',
+            `enso/runtime/${GRAALVM}/Contents/Home/jmods`,
         jarName: 'jdk.javadoc.jmod',
         jarContent: ['bin/javadoc'],
     },
@@ -242,21 +244,20 @@ const toSign = [
 
 // Extra files that need to be signed.
 const extra = [
-    'enso/runtime/graalvm-ce-java11-21.1.0/Contents/MacOS/libjli.dylib',
-    'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/languages/llvm/native/bin/ld.lld',
-    'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/languages/R/library/MASS/libs/MASS.so',
-    'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/languages/R/library/cluster/libs/cluster.so',
-    'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/languages/R/library/nnet/libs/nnet.so',
-    'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/languages/R/library/rpart/libs/rpart.so',
-    'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/languages/R/library/lattice/libs/lattice.so',
-    'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/languages/R/library/nlme/libs/nlme.so',
-    'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/languages/R/library/class/libs/class.so',
-    'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/languages/R/library/spatial/libs/spatial.so',
-    'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/languages/R/library/foreign/libs/foreign.so',
-    'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/languages/R/library/Matrix/libs/Matrix.so',
-    'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/languages/R/library/KernSmooth/libs/KernSmooth.so',
-    'enso/runtime/graalvm-ce-java11-21.1.0/Contents/Home/languages/R/library/survival/libs/survival.so',
-
+    `enso/runtime/${GRAALVM}/Contents/MacOS/libjli.dylib`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/llvm/native/bin/ld.lld`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/MASS/libs/MASS.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/cluster/libs/cluster.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/nnet/libs/nnet.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/rpart/libs/rpart.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/lattice/libs/lattice.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/nlme/libs/nlme.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/class/libs/class.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/spatial/libs/spatial.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/foreign/libs/foreign.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/Matrix/libs/Matrix.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/KernSmooth/libs/KernSmooth.so`,
+    `enso/runtime/${GRAALVM}/Contents/Home/languages/R/library/survival/libs/survival.so`,
 ]
 
 exports.default = async function () {
