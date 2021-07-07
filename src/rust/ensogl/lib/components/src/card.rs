@@ -63,3 +63,9 @@ impl display::Object for Card {
         self.0.display_object()
     }
 }
+
+impl Default for Card {
+    fn default() -> Self {
+        Self::new()
+    }
+}

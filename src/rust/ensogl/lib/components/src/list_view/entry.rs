@@ -184,9 +184,9 @@ impl EntryProvider for VecEntryProvider {
     }
 }
 
-impl Into<AnyEntryProvider> for Rc<Vec<String>> {
-    fn into(self) -> AnyEntryProvider {
-        VecEntryProvider(self).into()
+impl From<Rc<Vec<String>>> for AnyEntryProvider {
+    fn from(entries: Rc<Vec<String>>) -> Self {
+        VecEntryProvider(entries).into()
     }
 }
 

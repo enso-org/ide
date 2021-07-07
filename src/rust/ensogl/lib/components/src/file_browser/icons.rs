@@ -106,6 +106,12 @@ impl DynamicIcon for Folder {
     }
 }
 
+impl Default for Folder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 
 
 // ============
@@ -184,6 +190,12 @@ impl DynamicIcon for Home {
     }
 }
 
+impl Default for Home {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 
 
 // ============
@@ -237,6 +249,12 @@ impl DynamicIcon for Root {
     fn set_focused(&self, focused:bool) {
         self.0.stroke_width.set(if focused {1.5} else {1.0});
         self.0.color_rgba.set(if focused {focused_color().into()} else {standard_color().into()})
+    }
+}
+
+impl Default for Root {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -310,6 +328,12 @@ impl DynamicIcon for File {
     }
 }
 
+impl Default for File {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 
 
 // =============
@@ -371,6 +395,12 @@ impl DynamicIcon for Arrow {
     fn set_focused(&self, focused:bool) {
         self.0.stroke_width.set(if focused {1.5} else {1.0});
         self.0.color_rgba.set(if focused {focused_color().into()} else {standard_color().into()})
+    }
+}
+
+impl Default for Arrow {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -447,5 +477,11 @@ impl DynamicIcon for Project {
     fn set_focused(&self, focused:bool) {
         self.0.stroke_width.set(if focused {1.5} else {1.0});
         self.0.color_rgba.set(if focused {focused_color().into()} else {standard_color().into()})
+    }
+}
+
+impl Default for Project {
+    fn default() -> Self {
+        Self::new()
     }
 }

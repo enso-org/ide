@@ -325,7 +325,7 @@ impl Column {
         // === Model ===
 
         let model = Rc::new(Model {app:app.clone(), entries, list_view:list_view.clone(),
-            state_label: state_label.clone(), shadow:shadow.clone(), display_object});
+            state_label: state_label.clone(), shadow, display_object});
 
 
         // === Entries ===
@@ -400,7 +400,7 @@ impl Column {
             open_entry   <- x.gate_not(&updating_entries).on_change();
             eval open_entry([weak_browser,model,shadow_opacity](id) {
                 weak_browser.upgrade().unwrap().model.close_columns_from(index + 1);
-                if let &Some(id) = id {
+                if let Some(id) = *id {
                     let selected_entry = model.entries.borrow().as_ref().unwrap()[id].clone();
                     shadow_opacity.target.emit(0.0);
                     if let EntryType::Folder{content,..} = selected_entry.type_ {
