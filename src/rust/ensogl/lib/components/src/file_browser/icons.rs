@@ -59,10 +59,10 @@ pub mod folder {
 
             let base = Rect((15.0.px(),11.0.px()));
             let base = base.corners_radius(1.5.px());
-            let base = base.translate((0.0.px(),-0.5.px()));
+            let base = base.translate((0.0.px(),(-0.5).px()));
             let tab  = Rect((5.5.px(),5.0.px()));
             let tab  = tab.corners_radius(1.5.px());
-            let tab  = tab.translate((-4.75.px(),3.5.px()));
+            let tab  = tab.translate(((-4.75).px(),3.5.px()));
 
             let outline = base + tab;
             let cut_out = outline.shrink(&stroke_width);
@@ -122,7 +122,7 @@ pub mod home {
 
             let base = Rect((12.0.px(),8.5.px()));
             let base = base.corners_radiuses(0.0.px(), 0.0.px(), 2.0.px(), 2.0.px());
-            let base = base.translate((0.0.px(),-2.75.px()));
+            let base = base.translate((0.0.px(),(-2.75).px()));
 
             let inner_radius = 2.0.px() - &stroke_width;
 
@@ -131,14 +131,14 @@ pub mod home {
             let cut_out = cut_out.translate_y(&stroke_width);
 
             let door_inner = Rect((1.0.px(), 3.5.px()));
-            let door_inner = door_inner.translate((0.0.px(),-5.25.px()+&stroke_width));
+            let door_inner = door_inner.translate((0.0.px(),(-5.25).px()+&stroke_width));
             let door_outer = door_inner.grow(&stroke_width);
             let door       = door_outer - door_inner;
 
             let roof_left  = Rect((9.975.px(),&stroke_width));
             let roof_left  = roof_left.translate_y(-&stroke_width/2.0);
-            let roof_left  = roof_left.rotate(-40.0f32.to_radians().radians());
-            let roof_left  = roof_left.translate((-3.82.px(),3.5.px()));
+            let roof_left  = roof_left.rotate((-40.0f32).to_radians().radians());
+            let roof_left  = roof_left.translate(((-3.82).px(),3.5.px()));
             let roof_right = Rect((9.975.px(),&stroke_width));
             let roof_right = roof_right.translate_y(-&stroke_width/2.0);
             let roof_right = roof_right.rotate(40.0f32.to_radians().radians());
@@ -252,17 +252,17 @@ pub mod file {
 
     ensogl_core::define_shape_system! {
         (style:Style,color_rgba:Vector4,stroke_width:f32) {
-            let block00 = Rect((4.0.px(),3.0.px())).translate((-5.0.px(),-4.0.px()));
-            let block10 = Rect((4.0.px(),3.0.px())).translate(( 0.0.px(),-4.0.px()));
-            let block20 = Rect((4.0.px(),3.0.px())).translate(( 5.0.px(),-4.0.px()));
+            let block00 = Rect((4.0.px(),3.0.px())).translate(((-5.0).px(),(-4.0).px()));
+            let block10 = Rect((4.0.px(),3.0.px())).translate((  0.0.px() ,(-4.0).px()));
+            let block20 = Rect((4.0.px(),3.0.px())).translate((  5.0.px( ),(-4.0).px()));
 
-            let block01 = Rect((4.0.px(),3.0.px())).translate((-5.0.px(),0.0.px()));
-            let block11 = Rect((4.0.px(),3.0.px())).translate(( 0.0.px(),0.0.px()));
-            let block21 = Rect((4.0.px(),3.0.px())).translate(( 5.0.px(),0.0.px()));
+            let block01 = Rect((4.0.px(),3.0.px())).translate(((-5.0).px(),0.0.px()));
+            let block11 = Rect((4.0.px(),3.0.px())).translate((  0.0.px() ,0.0.px()));
+            let block21 = Rect((4.0.px(),3.0.px())).translate((  5.0.px() ,0.0.px()));
 
-            let block02 = Rect((4.0.px(),3.0.px())).translate((-5.0.px(), 4.0.px()));
-            let block12 = Rect((4.0.px(),3.0.px())).translate(( 0.0.px(), 4.0.px()));
-            let block22 = Rect((4.0.px(),3.0.px())).translate(( 5.0.px(), 4.0.px()));
+            let block02 = Rect((4.0.px(),3.0.px())).translate(((-5.0).px(), 4.0.px()));
+            let block12 = Rect((4.0.px(),3.0.px())).translate((  0.0.px() , 4.0.px()));
+            let block22 = Rect((4.0.px(),3.0.px())).translate((  5.0.px() , 4.0.px()));
 
             let grid = block00 + block10 + block20 + block01 + block11 + block21 + block02 + block12
                 + block22;
@@ -335,8 +335,8 @@ pub mod arrow {
 
             let lower = Rect((&stroke_length,&stroke_width));
             let lower = lower.corners_radius(&stroke_width/2.0);
-            let lower = lower.rotate(-angle.radians());
-            let lower = lower.translate_y(-(delta_y/2.0).px());
+            let lower = lower.rotate((-angle).radians());
+            let lower = lower.translate_y((-delta_y/2.0).px());
 
             let shape = upper + lower;
             let shape = shape.fill(color_rgba);
@@ -388,7 +388,7 @@ pub mod project {
         (style:Style,color_rgba:Vector4,stroke_width:f32) {
             let stroke_width : Var<Pixels> = stroke_width.into();
 
-            let left  = Rect((&stroke_width,10.0.px())).translate_x(-5.5.px()+&stroke_width/2.0);
+            let left  = Rect((&stroke_width,10.0.px())).translate_x((-5.5).px()+&stroke_width/2.0);
             let right = Rect((&stroke_width,10.0.px())).translate_x(5.5.px()-&stroke_width/2.0);
 
             let top_ellipse = Ellipse(5.5.px(),1.5.px());
@@ -402,7 +402,7 @@ pub mod project {
             let bottom_inner = Ellipse(4.5.px(),1.5.px());
             let bottom       = bottom_outer - bottom_inner;
             let bottom       = bottom * HalfPlane();
-            let bottom       = bottom.translate_y(-5.5.px()+&stroke_width);
+            let bottom       = bottom.translate_y((-5.5).px()+&stroke_width);
 
             let upper_middle_outer = Ellipse(5.0.px(),1.6666.px());
             let upper_middle_inner = upper_middle_outer.translate_y(&stroke_width/2.0);
@@ -412,7 +412,7 @@ pub mod project {
             let lower_middle_outer = Ellipse(5.0.px(),1.83333.px());
             let lower_middle_inner = lower_middle_outer.translate_y(&stroke_width/2.0);
             let lower_middle       = lower_middle_outer - lower_middle_inner;
-            let lower_middle       = lower_middle.translate_y(-1.4166.px());
+            let lower_middle       = lower_middle.translate_y((-1.4166).px());
 
             let shape = left + right + top + bottom + upper_middle + lower_middle;
             let shape = shape.fill(color_rgba);
