@@ -133,8 +133,8 @@ impl Model {
     }
 
     fn scroll_to_column(&self,column:&Column) {
-        let left    = (column.left.value() - SCROLL_SPACING).max(0.0);
-        let right   = column.right.value() + SCROLL_SPACING;
+        let left  = (column.left.value() - SCROLL_SPACING).max(0.0);
+        let right = column.right.value() + SCROLL_SPACING;
         self.scroll_area.scroll_to_x_range(Bounds::new(left,right));
     }
 

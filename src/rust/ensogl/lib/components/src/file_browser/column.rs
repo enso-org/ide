@@ -84,7 +84,7 @@ impl ListEntry {
         let layers         = &app.display.scene().layers;
         let display_object = display::object::Instance::new(&logger);
 
-        let label          = text::Area::new(app);
+        let label = text::Area::new(app);
         display_object.add_child(&label);
         label.set_position_x(ENTRY_PADDING_LEFT+icons::ICON_SIZE +ICON_TO_LABEL);
         label.set_position_y(6.0);
@@ -261,7 +261,7 @@ ensogl_core::define_endpoints! {
 #[derive(Debug,Clone,CloneRef)]
 pub struct Column {
     pub model : Rc<Model>,
-    frp   : Frp,
+    frp       : Frp,
 }
 
 impl Column {
@@ -277,7 +277,7 @@ impl Column {
 
         // === List View ===
 
-        let list_view      = app.new_view::<ListView>();
+        let list_view = app.new_view::<ListView>();
         display_object.add_child(&list_view);
         app.display.scene().layers.panel.add_exclusive(&list_view);
         list_view.set_position_y(-file_browser::CONTENT_HEIGHT/2.0);

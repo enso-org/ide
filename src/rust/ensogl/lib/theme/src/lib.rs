@@ -166,17 +166,10 @@ define_themes! { [light:0, dark:1]
         }
         searcher {
             action_list_gap = 10.0, 10.0;
-            padding = 5.0, 5.0;
-            selection {
-                padding {
-                    horizontal = 2.0, 2.0;
-                    vertical   = 0.0, 0.0
-                }
-            }
         }
         file_browser {
-            background = graph_editor::node::background , graph_editor::node::background;
-            toolbar_border_color = Rgba(0.808,0.808,0.808,1.0) , Rgba(0.808,0.808,0.808,1.0);
+            background           = graph_editor::node::background , graph_editor::node::background;
+            toolbar_border_color = Rgba(0.808,0.808,0.808,1.0)    , Rgba(0.808,0.808,0.808,1.0);
         }
 
         window_control_buttons {

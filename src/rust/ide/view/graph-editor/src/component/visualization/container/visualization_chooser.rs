@@ -150,8 +150,8 @@ impl VisualizationChooser {
             input_type_changed <- frp.set_vis_input_type.gate(&menu.menu_visible).constant(());
             refresh_entries    <- any(menu_appears,input_type_changed);
             frp.source.entries <+ refresh_entries.map2(&frp.vis_input_type,f!([model] ((),input_type){
-                let entries  = Rc::new(model.entries(input_type));
-                let labels   = entries.iter().map(|e| e.to_string()).collect_vec();
+                let entries = Rc::new(model.entries(input_type));
+                let labels  = entries.iter().map(|e| e.to_string()).collect_vec();
                 model.selection_menu.set_entries(Rc::new(labels));
                 entries
             }));

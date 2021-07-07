@@ -1505,13 +1505,13 @@ impl list_view::entry::EntryProvider for DataProviderForView {
     fn get(&self, app:&Application, id:usize) -> Option<list_view::entry::AnyEntry> {
         let action = self.actions.get_cloned(id)?;
         if let MatchInfo::Matches {subsequence} = action.match_info {
-            let logger = Logger::new("SearcherEntry");
+            let logger         = Logger::new("SearcherEntry");
             let display_object = display::object::Instance::new(logger);
 
             let label = text::Area::new(app);
             label.add_to_scene_layer(&app.display.scene().layers.above_nodes_text);
             display_object.add_child(&label);
-            let styles = StyleWatch::new(&app.display.scene().style_sheet);
+            let styles     = StyleWatch::new(&app.display.scene().style_sheet);
             let text_color = styles.get_color(ensogl_theme::widget::list_view::text);
             label.set_default_color(text_color);
             label.set_default_text_size(text::Size(list_view::entry::LABEL_SIZE));
@@ -1528,8 +1528,8 @@ impl list_view::entry::EntryProvider for DataProviderForView {
             let highlight_color = styles.get_color(theme::text::highlight);
             for &highlight_position in &subsequence.indices {
                 let (index,char) = char_indices[highlight_position];
-                let end = index + char.len_utf8();
-                let range = ensogl_text::Range::new(index.into(),end.into());
+                let end          = index + char.len_utf8();
+                let range        = ensogl_text::Range::new(index.into(),end.into());
                 label.set_color_bytes(range,highlight_color);
             }
 

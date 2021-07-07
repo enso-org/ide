@@ -29,7 +29,7 @@ ensogl_core::define_shape_system! {
         let rect   = Rect((&width,&height)).corners_radius(corner_radius);
         let shape  = rect.fill(color);
 
-        let shadow  = shadow::from_shape(rect.into(),style);
+        let shadow = shadow::from_shape(rect.into(),style);
 
         (shadow + shape).into()
     }

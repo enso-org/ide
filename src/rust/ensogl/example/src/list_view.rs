@@ -156,9 +156,6 @@ fn init(app:&Application) {
         eval list_view.chosen_entry([logger](entry) {
             info!(logger, "Chosen entry {entry:?}")
         });
-        eval list_view.selected_entry([logger](entry) {
-            info!(logger, "Selected entry {entry:?}")
-        });
     }
 
     std::mem::forget(list_view);

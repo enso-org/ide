@@ -118,7 +118,6 @@ impl Model {
         let style                = StyleWatch::new(&app.display.scene().style_sheet);
         let action_list_gap_path = ensogl_theme::application::searcher::action_list_gap;
         let action_list_gap      = style.get_number_or(action_list_gap_path,0.0);
-        // list.set_label_layer(scene.layers.above_nodes_text.id);
         list.set_position_y(-action_list_gap);
         list.set_position_x(ACTION_LIST_X);
         documentation.set_position_x(DOCUMENTATION_X);
@@ -135,7 +134,7 @@ impl Model {
     }
 
     fn set_height(&self, h:f32) {
-        let list_size = Vector2(ACTION_LIST_GAP, h);
+        let list_size = Vector2(ACTION_LIST_GAP,h);
         self.list.resize(list_size);
         self.list_background.resize(list_size);
         self.documentation.visualization_frp.inputs.set_size.emit(Vector2(DOCUMENTATION_WIDTH,h));

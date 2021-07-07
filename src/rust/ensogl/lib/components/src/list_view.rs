@@ -44,11 +44,11 @@ impl Default for SelectionMethod {
 // === Constants ===
 
 /// The selection's corner radius.
-pub const CORNER_RADIUS_PX : f32 = 6.0;
+pub const CORNER_RADIUS_PX: f32 = 6.0;
 /// The padding on the left and the right of the list.
-pub const PADDING_HORIZONTAL   : f32 = 12.0;
+pub const PADDING_HORIZONTAL: f32 = 12.0;
 /// The padding above and below the list.
-pub const PADDING_VERTICAL     : f32 = 10.0;
+pub const PADDING_VERTICAL: f32 = 10.0;
 
 
 // === Selection ===
@@ -130,6 +130,7 @@ impl Model {
     fn new(app:&Application) -> Self {
         let app                        = app.clone_ref();
         let scene                      = app.display.scene();
+        let layers                     = &scene.layers;
         let logger                     = Logger::new("SelectionContainer");
         let display_object             = display::object::Instance::new(&logger);
         let scroll_area                = ScrollArea::new(&app);
@@ -137,8 +138,8 @@ impl Model {
         let selection                  = selection::View::new(&logger);
         let io_rect                    = io_rect::View::new(&logger);
         let selection_can_leave_at_top = Cell::new(false);
-        scene.layers.add_shapes_order_dependency::<selection::View,io_rect::View>();
-        scene.layers.add_shapes_order_dependency::<io_rect::View,selector::shape::background::View>();
+        layers.add_shapes_order_dependency::<selection::View,io_rect::View>();
+        layers.add_shapes_order_dependency::<io_rect::View,selector::shape::background::View>();
         display_object.add_child(&scroll_area);
         display_object.add_child(&io_rect);
         scroll_area.content().add_child(&entries);
@@ -398,7 +399,10 @@ impl ListView {
 
             // === Scrolling ===
 
-            model.scroll_area.scroll_to_y_range <+ frp.selected_entry.filter_map(|&id| {
+            scroll_to_entry <- any_mut::<Option<entry::Id>>();
+            scroll_to_entry <+ selected_entry_after_move;
+            scroll_to_entry <+ entry_clicked.gate(&select_on_click);
+            model.scroll_area.scroll_to_y_range <+ scroll_to_entry.filter_map(|&id| {
                 let range = entry::List::y_range_of_entry(id?);
                 Some(Bounds::new(-range.end,-range.start+2.0*PADDING_VERTICAL))
             });

@@ -67,7 +67,8 @@ pub mod folder {
             let outline = base + tab;
             let cut_out = outline.shrink(&stroke_width);
 
-            let middle_line = Rect((15.0.px(),&stroke_width)).translate((0.0.px(),2.5.px() - &stroke_width / 2.0));
+            let middle_line = Rect((15.0.px(),&stroke_width));
+            let middle_line = middle_line.translate((0.0.px(),2.5.px() - &stroke_width / 2.0));
 
             let shape = outline - cut_out + middle_line;
             let shape = shape.fill(color_rgba);
@@ -263,7 +264,8 @@ pub mod file {
             let block12 = Rect((4.0.px(),3.0.px())).translate(( 0.0.px(), 4.0.px()));
             let block22 = Rect((4.0.px(),3.0.px())).translate(( 5.0.px(), 4.0.px()));
 
-            let grid = block00 + block10 + block20 + block01 + block11 + block21 + block02 + block12 + block22;
+            let grid = block00 + block10 + block20 + block01 + block11 + block21 + block02 + block12
+                + block22;
 
             let frame = Rect((14.0.px(),11.0.px())).corners_radius(1.5.px());
 
@@ -299,7 +301,12 @@ impl display::Object for File {
 impl DynamicIcon for File {
     fn set_focused(&self, focused:bool) {
         self.0.stroke_width.set(if focused {1.5} else {1.0});
-        self.0.color_rgba.set(if focused {focused_color().into()} else {color::Rgba(0.475,0.678,0.216,1.0).into()})
+        let color: Vector4 = if focused {
+            focused_color().into()
+        } else {
+            color::Rgba(0.475,0.678,0.216,1.0).into()
+        };
+        self.0.color_rgba.set(color);
     }
 }
 
@@ -316,14 +323,16 @@ pub mod arrow {
     ensogl_core::define_shape_system! {
         (style:Style,color_rgba:Vector4,stroke_width:f32) {
             let stroke_width : Var<Pixels> = stroke_width.into();
-            let delta_x: f32 = 2.75;
-            let delta_y: f32 = 3.0;
-            let angle   = delta_y.atan2(delta_x);
-            let stroke_length: Var<Pixels> = &stroke_width + (delta_x.pow(2.0) + delta_y.pow(2.0)).sqrt().px();
+            let delta_x       = 2.75_f32;
+            let delta_y       = 3.0_f32;
+            let angle         = delta_y.atan2(delta_x);
+            let stroke_length = &stroke_width + (delta_x.pow(2.0) + delta_y.pow(2.0)).sqrt().px();
+
             let upper = Rect((&stroke_length,&stroke_width));
             let upper = upper.corners_radius(&stroke_width/2.0);
             let upper = upper.rotate(angle.radians());
             let upper = upper.translate_y((delta_y/2.0).px());
+
             let lower = Rect((&stroke_length,&stroke_width));
             let lower = lower.corners_radius(&stroke_width/2.0);
             let lower = lower.rotate(-angle.radians());
@@ -379,28 +388,31 @@ pub mod project {
         (style:Style,color_rgba:Vector4,stroke_width:f32) {
             let stroke_width : Var<Pixels> = stroke_width.into();
 
-            let left = Rect((&stroke_width,10.0.px())).translate_x(-5.5.px()+&stroke_width/2.0);
+            let left  = Rect((&stroke_width,10.0.px())).translate_x(-5.5.px()+&stroke_width/2.0);
             let right = Rect((&stroke_width,10.0.px())).translate_x(5.5.px()-&stroke_width/2.0);
 
             let top_ellipse = Ellipse(5.5.px(),1.5.px());
-            let top_upper = &top_ellipse - top_ellipse.translate_y(-&stroke_width);
-            let top_lower = &top_ellipse - top_ellipse.translate_y(&stroke_width);
-            let top = top_upper + top_lower;
-            let top = top.translate_y(5.0.px());
+            let top_upper   = &top_ellipse - top_ellipse.translate_y(-&stroke_width);
+            let top_lower   = &top_ellipse - top_ellipse.translate_y(&stroke_width);
+            let top         = top_upper + top_lower;
+            let top         = top.translate_y(5.0.px());
 
-            let bottom_outer_ellipse = Ellipse(5.5.px(),2.0.px());
-            let bottom_inner_ellipse = Ellipse(4.5.px(),1.5.px());
-            let bottom = &bottom_outer_ellipse.translate_y(0.5.px()-&stroke_width) - bottom_inner_ellipse;
-            let bottom = bottom * HalfPlane();
-            let bottom = bottom.translate_y(-5.5.px()+&stroke_width);
+            let bottom_outer = Ellipse(5.5.px(),2.0.px());
+            let bottom_outer = bottom_outer.translate_y(0.5.px()-&stroke_width);
+            let bottom_inner = Ellipse(4.5.px(),1.5.px());
+            let bottom       = bottom_outer - bottom_inner;
+            let bottom       = bottom * HalfPlane();
+            let bottom       = bottom.translate_y(-5.5.px()+&stroke_width);
 
-            let upper_middle_ellipse = Ellipse(5.0.px(),1.6666.px());
-            let upper_middle = &upper_middle_ellipse - upper_middle_ellipse.translate_y(&stroke_width/2.0);
-            let upper_middle = upper_middle.translate_y(1.9166.px());
+            let upper_middle_outer = Ellipse(5.0.px(),1.6666.px());
+            let upper_middle_inner = upper_middle_outer.translate_y(&stroke_width/2.0);
+            let upper_middle       = upper_middle_outer - upper_middle_inner;
+            let upper_middle       = upper_middle.translate_y(1.9166.px());
 
-            let lower_middle_ellipse = Ellipse(5.0.px(),1.83333.px());
-            let lower_middle = &lower_middle_ellipse - lower_middle_ellipse.translate_y(&stroke_width/2.0);
-            let lower_middle = lower_middle.translate_y(-1.4166.px());
+            let lower_middle_outer = Ellipse(5.0.px(),1.83333.px());
+            let lower_middle_inner = lower_middle_outer.translate_y(&stroke_width/2.0);
+            let lower_middle       = lower_middle_outer - lower_middle_inner;
+            let lower_middle       = lower_middle.translate_y(-1.4166.px());
 
             let shape = left + right + top + bottom + upper_middle + lower_middle;
             let shape = shape.fill(color_rgba);

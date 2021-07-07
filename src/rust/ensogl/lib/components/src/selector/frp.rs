@@ -31,9 +31,9 @@ fn slider_area_width(size:&Vector2) -> f32 {
 
 
 
-// ===============
+// ===========
 // === Frp ===
-// ===============
+// ===========
 
 /// Frp endpoints provided for general information about mouse interactions and shape properties
 /// of the `common::Model`.
