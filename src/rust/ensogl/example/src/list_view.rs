@@ -16,6 +16,7 @@ use ensogl_text as text;
 use ensogl_gui_components::list_view::entry::Entry;
 
 
+
 // ===================
 // === Entry Point ===
 // ===================
@@ -39,7 +40,11 @@ pub fn entry_point_list_view() {
 // === Mock Entries ===
 // ====================
 
+const PADDING : f32 = 10.0;
+
 mod icon {
+    pub const SIZE : f32 = 10.0;
+
     use super::*;
     ensogl_core::define_shape_system! {
         (style:Style,color_rgba:Vector4) {
@@ -64,17 +69,17 @@ impl MockEntry {
 
         let label = text::Area::new(app);
         display_object.add_child(&label);
-        label.set_position_x(14.0);
+        label.set_position_x(PADDING);
         label.set_position_y(6.0);
         label.set_content(text);
 
         let icon = icon::View::new(&logger);
         display_object.add_child(&icon);
         app.display.scene().layers.label.add_exclusive(&icon);
-        icon.size.set(Vector2(10.0, 10.0));
+        icon.size.set(Vector2(icon::SIZE,icon::SIZE));
 
         let result = MockEntry {display_object,label,icon};
-        result.set_selected(false);
+        result.set_focused(false);
         result
     }
 }
@@ -86,14 +91,14 @@ impl display::Object for MockEntry {
 }
 
 impl Entry for MockEntry {
-    fn set_selected(&self, selected: bool) {
+    fn set_focused(&self, selected: bool) {
         let color = if selected {color::Rgba::white()} else {color::Rgba::black()};
         self.label.set_color_all(&color);
         self.icon.color_rgba.set(color.into());
     }
 
     fn set_width(&self, width:f32) {
-        self.icon.set_position_x(width - 5.0 - 6.0);
+        self.icon.set_position_x(width - icon::SIZE/2.0 - PADDING);
     }
 }
 
@@ -137,9 +142,10 @@ fn init(app:&Application) {
 
     let list_view = app.new_view::<list_view::ListView>();
     let provider  = list_view::entry::AnyEntryProvider::from(MockEntries::new(1000));
-    list_view.frp.resize(Vector2(120.0,160.0));
+    list_view.frp.resize(Vector2(130.0,160.0));
     list_view.frp.set_entries(provider);
     list_view.set_selection_method(list_view::SelectionMethod::Hover);
+    list_view.focus();
     app.display.add_child(&list_view);
     // FIXME[WD]: This should not be needed after text gets proper depth-handling.
     app.display.scene().layers.below_main.add_exclusive(&list_view);
@@ -149,6 +155,9 @@ fn init(app:&Application) {
     enso_frp::extend! {network
         eval list_view.chosen_entry([logger](entry) {
             info!(logger, "Chosen entry {entry:?}")
+        });
+        eval list_view.selected_entry([logger](entry) {
+            info!(logger, "Selected entry {entry:?}")
         });
     }
 

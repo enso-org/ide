@@ -19,13 +19,11 @@ use crate::selector::Bounds;
 // =============
 
 #[derive(Debug)]
-pub struct Model {
-    /// All objects that should be inside the scroll area and affected by the scrolling, have to be
-    /// added as children to `content`.
-    pub content           : display::object::Instance,
-    display_object        : display::object::Instance,
-    h_scrollbar           : Scrollbar,
-    v_scrollbar           : Scrollbar,
+struct Model {
+    content        : display::object::Instance,
+    display_object : display::object::Instance,
+    h_scrollbar    : Scrollbar,
+    v_scrollbar    : Scrollbar,
 }
 
 
@@ -184,6 +182,8 @@ impl ScrollArea {
         ScrollArea {model,scroll_handler_handle,frp}
     }
 
+    /// All objects that should be inside the scroll area and affected by the scrolling, have to be
+    /// added as children to the object returne by `content()`.
     pub fn content(&self) -> &impl display::Object {
         &self.model.content
     }

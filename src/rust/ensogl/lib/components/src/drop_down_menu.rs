@@ -2,6 +2,9 @@
 use ensogl_core::prelude::*;
 
 use crate::list_view;
+use crate::list_view::ListView;
+use crate::card::Card;
+use crate::card;
 
 use enso_frp as frp;
 use enso_frp;
@@ -13,9 +16,6 @@ use ensogl_core::display::shape::primitive::StyleWatch;
 use ensogl_core::display;
 use ensogl_text as text;
 use ensogl_theme as theme;
-use crate::list_view::ListView;
-use crate::card::Card;
-use crate::card;
 
 
 // =================
@@ -100,18 +100,18 @@ ensogl_core::define_endpoints! {
 
 #[derive(Clone,Debug)]
 struct Model {
-    logger          : Logger,
-    app             : Application,
-    display_object  : display::object::Instance,
+    logger         : Logger,
+    app            : Application,
+    display_object : display::object::Instance,
 
-    icon            : arrow::View,
-    icon_overlay    : chooser_hover_area::View,
+    icon           : arrow::View,
+    icon_overlay   : chooser_hover_area::View,
 
-    label           : text::Area,
-    selection_menu  : ListView,
-    background      : Card,
+    label          : text::Area,
+    selection_menu : ListView,
+    background     : Card,
 
-    content         : RefCell<Option<Rc<Vec<String>>>>,
+    content        : RefCell<Option<Rc<Vec<String>>>>,
 }
 
 impl Model {
@@ -162,9 +162,17 @@ impl Model {
         self.selection_menu.unset_parent();
     }
 
-    fn get_item_label(&self, id:Option<list_view::entry::Id>) -> Option<String> {
-        // self.content.borrow().as_ref()?.get(id?)
-        self.content.borrow().as_ref()?.get(id?).cloned()
+    fn get_item_label(&self, id:Option<list_view::entry::Id>) -> Option<Ref<str>> {
+        if let Some(id) = id {
+            if self.content.borrow().is_some() {
+                Some(Ref::map(self.content.borrow(), |content|
+                    content.as_ref().unwrap().get(id).unwrap().as_str()))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 }
 
@@ -280,7 +288,7 @@ impl DropDownMenu {
                     if *visible {
                         let item_count  = entries.entry_count();
                         let line_height = list_view::entry::HEIGHT;
-                        line_height * item_count as f32
+                        line_height * item_count as f32 + list_view::PADDING_VERTICAL * 2.0
                     } else {
                         // TODO[mm]: The following line is a workaround for #815.
                         //           If we end at 0.0 the `ListView` will still display the first
@@ -298,13 +306,14 @@ impl DropDownMenu {
 
             eval_ model.selection_menu.chosen_entry (hide_menu.emit(()));
             frp.source.chosen_entry <+ model.selection_menu.chosen_entry;
-            set_selected            <- any(frp.input.set_selected, model.selection_menu.chosen_entry);
+
+            set_selected <- any(frp.input.set_selected,model.selection_menu.chosen_entry);
 
             eval set_selected([model](entry_id) {
                 if let Some(entry_id) = entry_id {
                     if let Some(_content) = model.content.borrow().as_ref() {
                         if let Some(item) = model.get_item_label(Some(*entry_id)) {
-                            model.set_label(item.as_str())
+                            model.set_label(item.as_ref())
                         }
                     };
                 };

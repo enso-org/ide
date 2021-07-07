@@ -1,9 +1,4 @@
-//! ListView EnsoGL Component.
-//!
-//! ListView a displayed list of entries with possibility of selecting one and "choosing" by
-//! clicking or pressing enter - similar to the HTML `<select>`.
-// #![allow(unused_imports)]
-#![allow(unused_qualifications)]
+//! This module provides the [`FileBrowser`] component. See type documentation for more details.
 
 mod column;
 pub mod model;
@@ -12,7 +7,12 @@ pub mod icons;
 use crate::prelude::*;
 
 use model::*;
+
 use crate::shadow;
+use crate::file_browser::column::Column;
+use crate::scroll_area::ScrollArea;
+use crate::selector::Bounds;
+use crate::list_view;
 
 use enso_frp as frp;
 use ensogl_core::application;
@@ -21,14 +21,16 @@ use ensogl_core::application::shortcut;
 use ensogl_core::display;
 use ensogl_core::display::shape::*;
 use std::path::PathBuf;
-use crate::file_browser::column::Column;
 use ensogl_core::display::object::ObjectOps;
 use ensogl_theme as theme;
-use crate::scroll_area::ScrollArea;
 use ensogl_text as text;
 use ensogl_core::data::color;
-use crate::selector::Bounds;
-use crate::list_view;
+
+
+
+// =================
+// === Constants ===
+// =================
 
 const TOOLBAR_HEIGHT      : f32 = 45.0;
 const TOOLBAR_BORDER_SIZE : f32 = 1.0;
@@ -37,16 +39,27 @@ const PADDING             : f32 = 16.0;
 const WIDTH               : f32 = 814.0;
 const HEIGHT              : f32 = 421.0;
 const CONTENT_HEIGHT      : f32 = HEIGHT - CONTENT_OFFSET_Y;
+const SCROLL_SPACING      : f32 = 30.0;
+
+fn title_color() -> color::Rgba {
+    color::Rgba(0.439, 0.439, 0.439, 1.0)
+}
 
 
+
+// ==================
 // === Background ===
+// ==================
 
 mod background {
     use super::*;
 
-    pub const SHADOW_PX:f32 = 10.0;
-    pub const CORNER_RADIUS_PX:f32 = 16.0;
+    pub const SHADOW_PX        : f32 = 10.0;
+    pub const CORNER_RADIUS_PX : f32 = 16.0;
 
+    // This defines a rounded rectangle, filling the whole sprite, up to a padding of `SHADOW_PX` on
+    // all sides. The rectangle has a shadow and there is a gray line separating the upper part that
+    // covers the toolbar of the file browser.
     ensogl_core::define_shape_system! {
         (style:Style) {
             let sprite_width  : Var<Pixels> = "input_size.x".into();
@@ -59,9 +72,12 @@ mod background {
 
             let shadow  = shadow::from_shape(rect.into(),style);
 
-            let toolbar_border = Rect((width, TOOLBAR_BORDER_SIZE.px()))
-                .translate_y(height / 2.0 - TOOLBAR_HEIGHT.px())
-                .fill(style.get_color(theme::application::file_browser::toolbar_border_color));
+            let toolbar_border = Rect((width, TOOLBAR_BORDER_SIZE.px()));
+            let toolbar_border = toolbar_border.translate_y(height / 2.0 - TOOLBAR_HEIGHT.px());
+
+            let toolbar_border_color_theme = theme::application::file_browser::toolbar_border_color;
+            let toolbar_border_color       = style.get_color(toolbar_border_color_theme);
+            let toolbar_border             = toolbar_border.fill(toolbar_border_color);
 
             (shadow + shape + toolbar_border).into()
         }
@@ -69,11 +85,11 @@ mod background {
 }
 
 
+
 // =============
 // === Model ===
 // =============
 
-/// The Model of Select Component.
 #[derive(Clone,Debug)]
 struct Model {
     app            : Application,
@@ -81,27 +97,59 @@ struct Model {
     columns        : RefCell<Vec<Column>>,
     scroll_area    : ScrollArea,
     background     : background::View,
-    label          : text::Area,
+    title          : text::Area,
+    // Invariant: The column with this index (if it exists) has `focused` set, all others have it
+    //            unset. But the index does not have to refer to an existing column.
     focused_column : Cell<usize>,
 }
 
 impl Model {
-    fn focus_column(&self, column_index:usize) {
-        let old_index = self.focused_column.get();
-        self.focused_column.set(column_index);
-        let old = self.columns.borrow().get(old_index).cloned();
-        if let Some(old) = old {
-            old.model.list_view.defocus();
+    /// This requires that `index` points to an existing column.
+    fn focus_column(&self, index:usize) {
+        let old_index  = self.focused_column.replace(index);
+        let old_column = self.columns.borrow().get(old_index).cloned();
+        if let Some(old_column) = old_column {
+            old_column.defocus();
         }
-        let new = self.columns.borrow().get(column_index).cloned();
-        if let Some(new) = new {
-            new.model.list_view.focus();
-            let x = new.position().x;
-            let width = new.model.list_view.size.value().x;
-            self.scroll_area.scroll_to_x_range(Bounds::new(
-                x - width / 2.0,
-                x + width / 2.0));
+        let new_column = self.columns.borrow().get(index).cloned();
+        let new_column = new_column.expect("Trying to focus non-existent column.");
+        new_column.focus();
+        self.scroll_to_column(&new_column);
+    }
+
+    fn move_focus_by(&self, amount:isize) {
+        let old_index  = self.focused_column.get();
+        let max_index  = self.columns.borrow().len() as isize - 1;
+        let new_index  = old_index as isize + amount;
+        let new_index  = new_index.max(0).min(max_index);
+        let new_index  = new_index as usize;
+        let new_column = self.columns.borrow()[new_index].clone();
+        let entries    = new_column.model.entries.borrow().as_ref().cloned();
+        if let Some(entries) = entries {
+            if entries.len() > 0 {
+                self.focus_column(new_index);
+            }
         }
+    }
+
+    fn scroll_to_column(&self,column:&Column) {
+        let left    = (column.left.value() - SCROLL_SPACING).max(0.0);
+        let right   = column.right.value() + SCROLL_SPACING;
+        self.scroll_area.scroll_to_x_range(Bounds::new(left,right));
+    }
+
+    fn update_content_width(&self) {
+        let content_width = if let Some(last_column) = self.columns.borrow().last() {
+            last_column.left.value() + WIDTH - SCROLL_SPACING
+        } else {
+            WIDTH
+        };
+        self.scroll_area.set_content_width(content_width);
+    }
+
+    fn close_columns_from(&self, index:usize) {
+        self.columns.borrow_mut().truncate(index);
+        self.update_content_width();
     }
 }
 
@@ -113,11 +161,10 @@ impl Model {
 
 ensogl_core::define_endpoints! {
     Input {
-        set_column_width (f32),
         set_content      (AnyFolderContent),
         move_focus_left  (),
         move_focus_right (),
-        move_focus_by    (i32),
+        move_focus_by    (isize),
 
         copy_focused       (),
         cut_focused        (),
@@ -136,85 +183,81 @@ ensogl_core::define_endpoints! {
 
 
 
-// ==============================
-// === File Browser Component ===
-// ==============================
+// ====================
+// === ModelWithFrp ===
+// ====================
 
-/// Select Component.
-///
-/// Select is a displayed list of entries with possibility of selecting one and "chosing" by
-/// clicking or pressing enter.
+/// A `Model` with an initialized FRP network. This contains all the actual data and behavior of a
+/// file browser.
 #[allow(missing_docs)]
 #[derive(Clone,CloneRef,Debug)]
 pub struct ModelWithFrp {
-    model: Rc<Model>,
-    frp: Frp,
+    model : Rc<Model>,
+    frp   : Frp,
 }
 
 impl ModelWithFrp {
+
     /// Constructor.
     pub fn new(app:&Application) -> Rc<Self> {
-        let frp     = Frp::new();
-
-        let logger = Logger::new("FileBrowser");
+        let app            = app.clone();
+        let scene          = app.display.scene();
+        let logger         = Logger::new("FileBrowser");
         let display_object = display::object::Instance::new(&logger);
-        app.display.scene().layers.panel.add_exclusive(&display_object);
+        scene.layers.panel.add_exclusive(&display_object);
+        let columns        = RefCell::new(vec![]);
+        let focused_column = Cell::new(0);
+
+
+        // === Background ===
 
         let background = background::View::new(&logger);
         display_object.add_child(&background);
-        app.display.scene().layers.add_shapes_order_dependency::<background::View,list_view::selection::View>();
-        background.size.set(Vector2(WIDTH+background::SHADOW_PX*2.0, HEIGHT+background::SHADOW_PX*2.0));
+        scene.layers.add_shapes_order_dependency::<background::View,list_view::selection::View>();
+        let background_width  = WIDTH  + background::SHADOW_PX * 2.0;
+        let background_height = HEIGHT + background::SHADOW_PX * 2.0;
+        background.size.set(Vector2(background_width,background_height));
 
-        let label = text::Area::new(app);
-        display_object.add_child(&label);
-        label.add_to_scene_layer(&app.display.scene().layers.panel_text);
-        label.set_position_xy(Vector2(-WIDTH/2.0+PADDING, HEIGHT/2.0-PADDING));
-        label.set_default_color(color::Rgba(0.439,0.439,0.439,1.0));
-        label.set_content("Read files");
 
-        let scroll_area = ScrollArea::new(app);
+        // === Title ===
+
+        let title = text::Area::new(&app);
+        display_object.add_child(&title);
+        title.add_to_scene_layer(&scene.layers.panel_text);
+        title.set_position_xy(Vector2(-WIDTH/2.0+PADDING, HEIGHT/2.0-PADDING));
+        title.set_default_color(title_color());
+        title.set_content("Read files");
+
+
+        // === Scroll Area ===
+
+        let scroll_area = ScrollArea::new(&app);
         display_object.add_child(&scroll_area);
         scroll_area.resize(Vector2(WIDTH,CONTENT_HEIGHT));
-        scroll_area.set_position_xy(Vector2(-WIDTH/2.0, HEIGHT/2.0 - CONTENT_OFFSET_Y));
-        scroll_area.set_content_width(WIDTH*1.5);
+        scroll_area.set_position_xy(Vector2(-WIDTH/2.0,HEIGHT/2.0-CONTENT_OFFSET_Y));
 
-        let focused_column = Cell::new(0);
 
-        let model = Rc::new(Model {
-            app: app.clone(),
-            display_object,
-            columns: RefCell::new(vec![]),
-            scroll_area,
-            background,
-            label,
-            focused_column,
-        });
+        // === Browser ===
 
-        let browser = Rc::new(ModelWithFrp {model,frp});
+        let model = Rc::new(Model {app,display_object,columns,scroll_area,background,title,
+            focused_column});
+        let frp          = Frp::new();
+        let browser      = Rc::new(ModelWithFrp {model:model.clone(),frp:frp.clone()});
         let weak_browser = Rc::downgrade(&browser);
 
-        let frp              = &browser.frp;
-        let network          = &frp.network;
-        let model            = &browser.model;
 
+        // === FRP ===
+
+        let network = &frp.network;
         frp::extend!{ network
-            eval frp.set_content([weak_browser](content) weak_browser.upgrade().unwrap().set_content(content.clone()));
+            eval frp.set_content([weak_browser](content)
+                weak_browser.upgrade().unwrap().set_content(content.clone()));
 
             frp.move_focus_by <+ frp.move_focus_left.constant(-1);
             frp.move_focus_by <+ frp.move_focus_right.constant(1);
-            eval frp.move_focus_by([model](amount) {
-                let old_index = model.focused_column.get() as i32;
-                let new_index = (old_index + amount).max(0).min(model.columns.borrow().len() as i32 - 1);
-                let new_column = model.columns.borrow()[new_index as usize].clone();
-                let entries = new_column.model.entries.borrow().as_ref().cloned();
-                if let Some(entries) = entries {
-                    if entries.len() > 0 {
-                        model.focus_column(new_index as usize);
-                    }
-                }
-            });
-            focused_entry <- all_with(&frp.move_focus_by,&frp.entry_selected,f!([model](_,_) {
-                model.columns.borrow()[model.focused_column.get()].entry_selected.value()
+            eval frp.move_focus_by((&amount) model.move_focus_by(amount));
+            focused_entry <= all_with(&frp.move_focus_by,&frp.entry_selected,f!([model](_,_) {
+                Some(model.columns.borrow().get(model.focused_column.get())?.entry_selected.value())
             }));
             frp.source.copy       <+ focused_entry.sample(&frp.copy_focused);
             frp.source.cut        <+ focused_entry.sample(&frp.cut_focused);
@@ -224,47 +267,31 @@ impl ModelWithFrp {
         browser
     }
 
-    fn set_content(self:Rc<Self>, content: AnyFolderContent) {
-        self.close_columns_from(0);
-        Rc::clone(&self).push_column(content);
+    fn set_content(self:&Rc<Self>, content: AnyFolderContent) {
+        self.model.close_columns_from(0);
+        self.push_column(content);
         self.model.focus_column(0);
-        // self.roots_column.set_file_system(fs);
     }
 
-    fn close_columns_from(&self, index:usize) {
-        self.model.columns.borrow_mut().truncate(index);
-        let content_width = if let Some(last) = self.model.columns.borrow().last().cloned() {
-            last.position().x + last.model.list_view.size.value().x / 2.0
-        } else {
-            0.0
-        };
-        self.model.scroll_area.set_content_width(content_width);
-        //     self.model.columns.borrow().len() as f32 * column::WIDTH - column::WIDTH + WIDTH)
-    }
-
-    fn push_column(self:Rc<Self>, content:AnyFolderContent) {
-        let index   = self.model.columns.borrow().len();
+    fn push_column(self:&Rc<Self>, content:AnyFolderContent) {
+        let index      = self.model.columns.borrow().len();
         let new_column = Column::new(self.clone(),index);
         self.model.scroll_area.content().add_child(&new_column);
-        let content_width = if let Some(last) = self.model.columns.borrow().last().cloned() {
-            warning!(Logger::new(""), "{last.position().x}");
-            last.position().x + last.model.list_view.size.value().x / 2.0
-        } else {
-            0.0
-        };
         self.model.columns.borrow_mut().push(new_column.clone());
-        self.model.scroll_area.set_content_width(content_width + WIDTH);
-        // self.model.scroll_area.scroll_to_x(f32::INFINITY);
-        // self.model.scroll_area.set_content_width(self.model.columns.borrow().len() as f32 * column::WIDTH - column::WIDTH + WIDTH);
-        // self.model.scroll_area.scroll_to_x_range(Bounds::new(new_column.position().x - column::WIDTH / 2.0,
-        //                                                      new_column.position().x + column::WIDTH / 2.0));
+        self.model.update_content_width();
+        self.model.scroll_to_column(&new_column);
         content.request_entries(new_column.set_entries.clone(),new_column.set_error.clone());
     }
 }
 
 
-// === FileBrowser ===
 
+// ===================
+// === FileBrowser ===
+// ===================
+
+/// A file browser component. It allows to browse the content of a folder and it's subfolders and
+/// emits an event when an entry is chosen.
 #[derive(Debug)]
 pub struct FileBrowser(Rc<ModelWithFrp>);
 

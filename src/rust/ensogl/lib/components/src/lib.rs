@@ -4,9 +4,11 @@
 
 #![feature(option_result_contains)]
 #![feature(trait_alias)]
+#![feature(hash_drain_filter)]
 
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
+#![warn(missing_docs)]
 #![warn(trivial_casts)]
 #![warn(trivial_numeric_casts)]
 #![warn(unsafe_code)]

@@ -1,4 +1,5 @@
-//! A debug scene which shows the Select Component. The chosen entries are logged in console.
+//! A debug scene which shows the file browser. The selected and chosen entries are logged on the
+//! console.
 
 use crate::prelude::*;
 
@@ -8,10 +9,10 @@ use ensogl_core::system::web;
 use ensogl_core::application::Application;
 use ensogl_core::display::object::ObjectOps;
 use ensogl_text_msdf_sys::run_once_initialized;
-use logger::TraceLogger as Logger;
 use wasm_bindgen::prelude::*;
 use ensogl_theme as theme;
 use enso_frp as frp;
+
 
 
 // ===================
@@ -31,7 +32,13 @@ pub fn entry_point_file_browser() {
     });
 }
 
-#[derive(Debug)]
+
+
+// ====================
+// === Mock Content ===
+// ====================
+
+#[derive(Debug,Clone)]
 struct MockFolderContent {
     entries: Rc<Vec<Entry>>
 }
@@ -43,7 +50,8 @@ impl MockFolderContent {
 }
 
 impl FolderContent for MockFolderContent {
-    fn request_entries(&self, entries_loaded: frp::Any<Rc<Vec<Entry>>>, _error_occurred: frp::Any<ImString>) {
+    fn request_entries
+    (&self, entries_loaded: frp::Any<Rc<Vec<Entry>>>, _error_occurred: frp::Any<ImString>) {
         entries_loaded.emit(self.entries.clone());
     }
 }
@@ -53,7 +61,8 @@ impl FolderContent for MockFolderContent {
 struct GeneratedFolderContent;
 
 impl FolderContent for GeneratedFolderContent {
-    fn request_entries(&self, entries_loaded: frp::Any<Rc<Vec<Entry>>>, _error_occurred: frp::Any<ImString>) {
+    fn request_entries
+    (&self, entries_loaded: frp::Any<Rc<Vec<Entry>>>, _error_occurred: frp::Any<ImString>) {
         entries_loaded.emit(
             Rc::new((0..20).map(|i|
                 Entry {
@@ -74,11 +83,11 @@ impl FolderContent for GeneratedFolderContent {
 struct ErrorContent;
 
 impl FolderContent for ErrorContent {
-    fn request_entries(&self, _entries_loaded: frp::Any<Rc<Vec<Entry>>>, error_occurred: frp::Any<ImString>) {
+    fn request_entries
+    (&self, _entries_loaded: frp::Any<Rc<Vec<Entry>>>, error_occurred: frp::Any<ImString>) {
         error_occurred.emit(ImString::new("Could not open folder"));
     }
 }
-
 
 
 
@@ -180,6 +189,14 @@ fn init(app:&Application) {
                         },
                     },
                     Entry {
+                        name: "Error".to_string(),
+                        path: "Error".into(),
+                        type_: EntryType::Folder {
+                            type_: FolderType::Standard,
+                            content: ErrorContent.into(),
+                        },
+                    },
+                    Entry {
                         name: "File 1".to_string(),
                         path: "File 1".into(),
                         type_: EntryType::File
@@ -236,7 +253,7 @@ fn init(app:&Application) {
             },
         },
     ]);
-    file_browser.set_content(AnyFolderContent::from(fs));
+    file_browser.set_content(AnyFolderContent::from(fs.clone()));
     app.display.add_child(&file_browser);
 
     let network = enso_frp::Network::new("test");

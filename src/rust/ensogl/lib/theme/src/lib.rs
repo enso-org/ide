@@ -175,7 +175,7 @@ define_themes! { [light:0, dark:1]
             }
         }
         file_browser {
-            background = Rgba(0.988,0.996,1.0,1.0) , Rgba(0.988,0.996,1.0,1.0);
+            background = graph_editor::node::background , graph_editor::node::background;
             toolbar_border_color = Rgba(0.808,0.808,0.808,1.0) , Rgba(0.808,0.808,0.808,1.0);
         }
 

@@ -41,7 +41,7 @@ use ensogl::display;
 use ensogl_text as text;
 use ensogl::application::Application;
 use ensogl::display::shape::StyleWatch;
-
+use ensogl::data::color;
 
 
 // ==============
@@ -1491,8 +1491,9 @@ impl display::Object for SearcherEntry {
 }
 
 impl list_view::entry::Entry for SearcherEntry {
-    fn set_selected(&self, _selected: bool) {}
-
+    fn set_focused(&self, focused: bool) {
+        self.label.set_color_all(if focused {color::Rgba::white()} else {color::Rgba::black()});
+    }
     fn set_width(&self, _width: f32) {}
 }
 
@@ -1506,6 +1507,7 @@ impl list_view::entry::EntryProvider for DataProviderForView {
         if let MatchInfo::Matches {subsequence} = action.match_info {
             let logger = Logger::new("SearcherEntry");
             let display_object = display::object::Instance::new(logger);
+
             let label = text::Area::new(app);
             label.add_to_scene_layer(&app.display.scene().layers.above_nodes_text);
             display_object.add_child(&label);
@@ -1513,18 +1515,24 @@ impl list_view::entry::EntryProvider for DataProviderForView {
             let text_color = styles.get_color(ensogl_theme::widget::list_view::text);
             label.set_default_color(text_color);
             label.set_default_text_size(text::Size(list_view::entry::LABEL_SIZE));
-            label.set_position_xy(Vector2(list_view::entry::PADDING,list_view::entry::LABEL_SIZE/2.0));
+            label.set_position_x(list_view::entry::PADDING);
+            label.set_position_y(list_view::entry::LABEL_SIZE/2.0);
             let content = action.action.to_string();
             label.set_content(&content);
 
+
+            // === Highlights ===
+
             let char_indices = content.char_indices().collect_vec();
-            let highlight_color = styles.get_color(ensogl_theme::widget::list_view::text::highlight);
+            use ensogl_theme::widget::list_view as theme;
+            let highlight_color = styles.get_color(theme::text::highlight);
             for &highlight_position in &subsequence.indices {
                 let (index,char) = char_indices[highlight_position];
                 let end = index + char.len_utf8();
                 let range = ensogl_text::Range::new(index.into(),end.into());
                 label.set_color_bytes(range,highlight_color);
             }
+
 
             let entry = SearcherEntry {display_object,label};
             Some(entry.into())

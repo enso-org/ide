@@ -68,6 +68,7 @@ pub struct Frp {
 }
 
 impl Frp {
+    /// Constructor.
     pub fn new
     (model:&Model, style:&StyleWatchFrp, network:&Network, size:frp::Stream<Vector2>, mouse:&Mouse)
     -> Frp {

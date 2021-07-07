@@ -6,6 +6,9 @@
 pub mod entry;
 
 use crate::prelude::*;
+use crate::scroll_area::ScrollArea;
+use crate::selector;
+use crate::selector::bounds::Bounds;
 
 use enso_frp as frp;
 use ensogl_core::application;
@@ -15,12 +18,16 @@ use ensogl_core::display;
 use ensogl_core::display::shape::*;
 use ensogl_core::DEPRECATED_Animation;
 use ensogl_core::data::color;
-use crate::scroll_area::ScrollArea;
-use crate::selector;
 
-
+/// Describes whether list entries should be selected by hovering or clicking. This also affects
+/// how entries can be chosen.
 #[derive(Debug,Copy,Clone)]
-pub enum SelectionMethod { Hover, Click }
+pub enum SelectionMethod {
+    /// Entries are selected by hover and chosen by click.
+    Hover,
+    /// Entries are selected by click and chosen by double click.
+    Click,
+}
 
 impl Default for SelectionMethod {
     fn default() -> Self {
@@ -36,25 +43,31 @@ impl Default for SelectionMethod {
 
 // === Constants ===
 
+/// The selection's corner radius.
 pub const CORNER_RADIUS_PX : f32 = 6.0;
+/// The padding on the left and the right of the list.
 pub const PADDING_HORIZONTAL   : f32 = 12.0;
+/// The padding above and below the list.
 pub const PADDING_VERTICAL     : f32 = 10.0;
 
 
 // === Selection ===
 
+/// A rounded rectangle, used to highlight the selected list entry.
 pub mod selection {
     use super::*;
 
     ensogl_core::define_shape_system! {
         (style:Style, color_rgba:Vector4) {
             let color = Var::<color::Rgba>::from(color_rgba);
+
             let sprite_width  : Var<Pixels> = "input_size.x".into();
             let sprite_height : Var<Pixels> = "input_size.y".into();
-            let width     = sprite_width - PADDING_HORIZONTAL.px() * 2.0;
-            let height    = sprite_height;
-            let rect      = Rect((&width,&height)).corners_radius(CORNER_RADIUS_PX.px());
-            let shape     = rect.fill(color);
+
+            let width  = sprite_width - PADDING_HORIZONTAL.px() * 2.0;
+            let height = sprite_height;
+            let rect   = Rect((&width,&height)).corners_radius(CORNER_RADIUS_PX.px());
+            let shape  = rect.fill(color);
             shape.into()
         }
     }
@@ -126,7 +139,6 @@ impl Model {
         let selection_can_leave_at_top = Cell::new(false);
         scene.layers.add_shapes_order_dependency::<selection::View,io_rect::View>();
         scene.layers.add_shapes_order_dependency::<io_rect::View,selector::shape::background::View>();
-        // display_object.add_child(&background);
         display_object.add_child(&scroll_area);
         display_object.add_child(&io_rect);
         scroll_area.content().add_child(&entries);
@@ -140,17 +152,16 @@ impl Model {
         self.selection.set_position_x(view.size.x/2.0);
         self.entries.set_position_xy(Vector2(PADDING_HORIZONTAL,-PADDING_VERTICAL));
         self.entries.set_entry_width(view.size.x - PADDING_HORIZONTAL * 2.0);
+        self.entries.set_visible_range(view.y_range());
         self.scroll_area.resize(view.size);
         self.scroll_area.set_position_x(-view.size.x/2.0);
         self.scroll_area.set_position_y(view.size.y/2.0);
         self.io_rect.size.set(view.size);
-
-        self.entries.set_visible_range(view.y_range());
     }
 
     fn set_entries(&self, provider:entry::AnyEntryProvider) {
         let list_height = entry::List::total_height(provider.entry_count());
-        self.scroll_area.set_content_height(list_height + PADDING_VERTICAL * 2.0);
+        self.scroll_area.set_content_height(list_height+PADDING_VERTICAL*2.0);
         self.entries.set_provider(provider);
     }
 
@@ -218,14 +229,13 @@ ensogl_core::define_endpoints! {
 
 
 
-// ========================
-// === Select Component ===
-// ========================
+// ==========================
+// === ListView Component ===
+// ==========================
 
-/// Select Component.
+/// `ListView` Component.
 ///
-/// Select is a displayed list of entries with possibility of selecting one and "chosing" by
-/// clicking or pressing enter.
+/// Select is a displayed list of entries with possibility of selecting one and "chosing".
 #[allow(missing_docs)]
 #[derive(Clone,CloneRef,Debug)]
 pub struct ListView {
@@ -247,8 +257,6 @@ impl ListView {
     }
 
     fn init(self, app:&Application) -> Self {
-        const MOUSE_MOVE_THRESHOLD:f32 = std::f32::EPSILON;
-
         let frp              = &self.frp;
         let network          = &frp.network;
         let model            = &self.model;
@@ -258,37 +266,40 @@ impl ListView {
         let selection_height = DEPRECATED_Animation::<f32>::new(&network);
 
         let style = StyleWatchFrp::new(&scene.style_sheet);
+        use ensogl_theme::widget::list_view as theme;
         let selection_color           = color::Animation::new(&network);
-        let focused_selection_color   = style.get_color(ensogl_theme::widget::list_view::selection::focused);
-        let unfocused_selection_color = style.get_color(ensogl_theme::widget::list_view::selection::unfocused);
+        let focused_selection_color   = style.get_color(theme::selection::focused);
+        let unfocused_selection_color = style.get_color(theme::selection::unfocused);
 
         frp::extend! { network
-            init_selection_color <- source::<()>();
+            init_selection_color      <- source::<()>();
             unfocused_selection_color <- all(&unfocused_selection_color,&init_selection_color)._0();
-            focused_selection_color <- all(&focused_selection_color,&init_selection_color)._0();
-            selection_color_target_rgba <- frp.focused.switch(&unfocused_selection_color,&focused_selection_color);
-            selection_color.target <+ selection_color_target_rgba.map(|c| color::Lcha::from(c));
-            eval selection_color.value((c) model.selection.color_rgba.set(color::Rgba::from(c).into()));
-            init_selection_color.emit(());
+            focused_selection_color   <- all(&focused_selection_color,&init_selection_color)._0();
 
-            // eval frp.focused([](focused) warning!(Logger::new(""), "{*focused:?}"));
+            selection_color_target_rgba <- frp.focused.switch(&unfocused_selection_color,
+                &focused_selection_color);
+            selection_color.target <+ selection_color_target_rgba.map(|c| color::Lcha::from(c));
+            eval selection_color.value((c)
+                model.selection.color_rgba.set(color::Rgba::from(c).into()));
+            init_selection_color.emit(());
 
 
             // === Mouse Position ===
 
             mouse_in <- bool(&model.io_rect.events.mouse_out,&model.io_rect.events.mouse_over);
-            mouse_moved       <- mouse.distance.map(|dist| *dist > MOUSE_MOVE_THRESHOLD );
             mouse_y_in_scroll <- all_with(&mouse.position,&model.scroll_area.scroll_position_y,
                 f!([model,scene](pos,_) {
                     scene.screen_to_object_space(&model.scroll_area.content(),*pos).y
                 }));
             mouse_pointed_entry <- mouse_y_in_scroll.map(f!([model](y)
-                entry::List::entry_at_y_position(*y + PADDING_VERTICAL,model.entries.entry_count()).entry()
+                let y_in_list = *y + PADDING_VERTICAL;
+                entry::List::entry_at_y_position(y_in_list,model.entries.entry_count()).entry()
             ));
-
-            any_entry_pointed         <- mouse_pointed_entry.map(|e| e.is_some());
-            opt_pointed_entry_clicked  <- mouse_pointed_entry.sample(&frp.click).gate(&mouse_in);
-            opt_pointed_entry_double_clicked <- mouse_pointed_entry.sample(&frp.double_click).gate(&mouse_in);
+            any_entry_pointed    <- mouse_pointed_entry.map(|e| e.is_some());
+            entry_clicked        <- mouse_pointed_entry.sample(&frp.click).gate(&mouse_in);
+            entry_clicked        <- entry_clicked.gate(&any_entry_pointed);
+            entry_double_clicked <- mouse_pointed_entry.sample(&frp.double_click).gate(&mouse_in);
+            entry_double_clicked <- entry_double_clicked.gate(&any_entry_pointed);
 
 
             // === Selected Entry ===
@@ -323,7 +334,8 @@ impl ListView {
                 any(selected_entry_after_jump_down,selected_entry_after_moving_last);
             selected_entry_after_move <-
                 any(&selected_entry_after_move_up,&selected_entry_after_move_down);
-            hover_selected_entry <- mouse_pointed_entry.gate(&mouse_in).gate(&mouse_moved).gate_not(&mouse.is_down_primary);
+            hover_selected_entry <- mouse_pointed_entry.gate(&mouse_in);
+            hover_selected_entry <- hover_selected_entry.gate_not(&mouse.is_down_primary);
 
             select_on_hover <- frp.set_selection_method.map(|&method|
                 matches!(method, SelectionMethod::Hover));
@@ -332,13 +344,12 @@ impl ListView {
 
             frp.source.selected_entry <+ selected_entry_after_move;
             frp.source.selected_entry <+ hover_selected_entry.gate(&select_on_hover);
-            frp.source.selected_entry <+ opt_pointed_entry_clicked.gate(&any_entry_pointed).gate(&select_on_click);
+            frp.source.selected_entry <+ entry_clicked.gate(&select_on_click);
             frp.source.selected_entry <+ frp.deselect_entries.constant(None);
             frp.source.selected_entry <+ frp.set_entries.constant(None);
 
-            selected_entry_and_focused <- all(&frp.selected_entry,&frp.focused);
-            eval selected_entry_and_focused((&(selection,focused))
-                model.entries.mark_selection(selection,focused));
+            eval frp.selected_entry((&selection) model.entries.set_selection(selection));
+            eval frp.focused((&focused) model.entries.set_focused(focused));
 
             eval frp.set_selection_can_leave_at_top((&can_leave)
                 model.selection_can_leave_at_top.set(can_leave));
@@ -348,8 +359,8 @@ impl ListView {
 
             any_entry_selected        <- frp.selected_entry.map(|e| e.is_some());
             opt_selected_entry_chosen <- frp.selected_entry.sample(&frp.chose_selected_entry);
-            frp.source.chosen_entry   <+ opt_pointed_entry_clicked.gate(&any_entry_pointed).gate(&select_on_hover);
-            frp.source.chosen_entry   <+ opt_pointed_entry_double_clicked.gate(&any_entry_pointed).gate(&select_on_click);
+            frp.source.chosen_entry   <+ entry_clicked.gate(&select_on_hover);
+            frp.source.chosen_entry   <+ entry_double_clicked.gate(&select_on_click);
             frp.source.chosen_entry   <+ frp.chose_entry.map(|id| Some(*id));
             frp.source.chosen_entry   <+ opt_selected_entry_chosen.gate(&any_entry_selected);
 
@@ -387,26 +398,10 @@ impl ListView {
 
             // === Scrolling ===
 
-            selection_top_after_move_up <- selected_entry_after_move_up.map(|id|
-                id.map(|id| entry::List::y_range_of_entry(id).end)
-            );
-            max_scroll_after_move_up <- selection_top_after_move_up.map(|top|
-                -top.unwrap_or(0.0)
-            );
-            scroll_after_move_up <- max_scroll_after_move_up.map2(&frp.scroll_position,|max,current|
-                current.min(*max)
-            );
-            selection_bottom_after_move_down <- selected_entry_after_move_down.map(|id|
-                id.map(|id| entry::List::y_range_of_entry(id).start)
-            );
-            min_scroll_after_move_down <- selection_bottom_after_move_down.map2(&frp.size,
-                |y,size| -y.map_or(0.0, |y| y + size.y)
-            );
-            scroll_after_move_down <- min_scroll_after_move_down.map2(&frp.scroll_position,
-                |min_scroll,current| current.max(*min_scroll)
-            );
-            model.scroll_area.scroll_to_y <+ scroll_after_move_up;
-            model.scroll_area.scroll_to_y <+ scroll_after_move_down;
+            model.scroll_area.scroll_to_y_range <+ frp.selected_entry.filter_map(|&id| {
+                let range = entry::List::y_range_of_entry(id?);
+                Some(Bounds::new(-range.end,-range.start+2.0*PADDING_VERTICAL))
+            });
             model.scroll_area.scroll_to_y <+ frp.scroll_jump;
             model.scroll_area.jump_to_y   <+ frp.set_entries.constant(0.0);
             frp.source.scroll_position    <+ model.scroll_area.scroll_position_y;
@@ -414,16 +409,12 @@ impl ListView {
 
             // === Resize ===
             frp.source.size <+ frp.resize;
-            // .map(f!([model](size)
-            //     size)
-            //     //- Vector2(model.padding(),model.padding()))
-            // );
 
 
             // === Update Entries ===
 
-            view_info <- all_with(&model.scroll_area.scroll_position_y,&frp.size, |y,size|
-                View{position_y:-*y,size:*size}
+            view_info <- all_with(&model.scroll_area.scroll_position_y,&frp.size,|y,size|
+                View{position_y:-*y+PADDING_VERTICAL,size:*size}
             );
             // This should go before handling mouse events to have proper checking of
             eval view_info ((view) model.update_after_view_change(view));
