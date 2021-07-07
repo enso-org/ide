@@ -18,6 +18,8 @@
   undo last action and <kbd>cmd</kbd>+<kbd>z</kbd> to redo last undone action.
   This version of undo redo does not have proper support for text editor and
   undoing UI changes (like selecting nodes).
+- [File browser component][1677]. A basic file browser component has been
+  implemented, but is not integrated into the user interface yet.
 
 #### EnsoGL (rendering engine)
 
