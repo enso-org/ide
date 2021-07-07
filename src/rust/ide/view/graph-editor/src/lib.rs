@@ -565,8 +565,10 @@ ensogl::define_endpoints! { [TRACE_ALL]
         nodes_labels_visible      (bool),
 
 
-        visualization_enabled                   (NodeId,visualization::Metadata),
+        visualization_enabled                   (NodeId,Option<visualization::Path>),
         visualization_disabled                  (NodeId),
+        visualization_shown                     (NodeId,visualization::Metadata),
+        visualization_hidden                    (NodeId),
         visualization_fullscreen                (Option<NodeId>),
         is_fs_visualization_displayed           (bool),
         visualization_preprocessor_changed      ((NodeId,PreprocessorConfiguration)),
@@ -1171,8 +1173,11 @@ impl GraphEditorModelWithNetwork {
 
         let touch      = &self.touch_state;
         let model      = &self.model;
-
         let NodeCreationContext {pointer_style,tooltip_update,output_press,input_press,output} = ctx;
+
+        let map_to_path = |def:&Option<visualization::Definition>| {
+            def.as_ref().map(|def| def.path())
+        };
 
         frp::new_bridge_network! { [self.network, node.frp.network] graph_node_bridge
             eval_ node.frp.background_press(touch.nodes.down.emit(node_id));
@@ -1239,9 +1244,8 @@ impl GraphEditorModelWithNetwork {
 
             // === Visualizations ===
 
-            let vis_changed =  node.model.visualization.frp.visualisation.clone_ref();
-            vis_enabled     <- node.visualization_enabled.gate(&node.visualization_enabled);
-            vis_disabled    <- node.visualization_enabled.gate_not(&node.visualization_enabled);
+            visualization_shown  <- node.visualization_visible.gate(&node.visualization_visible);
+            visualization_hidden <- node.visualization_visible.gate_not(&node.visualization_visible);
 
             let vis_is_selected = node.model.visualization.frp.is_selected.clone_ref();
 
@@ -1253,22 +1257,40 @@ impl GraphEditorModelWithNetwork {
             output.source.on_visualization_select <+ selected.constant(Switch::On(node_id));
             output.source.on_visualization_select <+ deselected.constant(Switch::Off(node_id));
 
-            metadata  <- any(...);
-            metadata <+ node.model.visualization.frp.preprocessor.all_with(
-                &vis_changed,
-                visualization::Metadata::new);
+            metadata <- any(...);
+            metadata <+ node.model.visualization.frp.preprocessor.map(visualization::Metadata::new);
+            // metadata.emit()
             // Ensure the graph editor knows about internal changes to the visualisation. If the
             // visualisation changes that should indicate that the old one has been disabled and a
             // new one has been enabled.
             // TODO: Create a better API for updating the controller about visualisation changes
             // (see #896)
-            output.source.visualization_disabled <+ vis_changed.constant(node_id);
-            output.source.visualization_enabled  <+
-                vis_changed.map2(&metadata,move |_,metadata| (node_id,metadata.clone()));
+            output.source.visualization_hidden <+ visualization_hidden.constant(node_id);
+            output.source.visualization_shown  <+
+                visualization_shown.map2(&metadata,move |_,metadata| (node_id,metadata.clone()));
 
-            output.source.visualization_enabled <+
-                vis_enabled.map2(&metadata,move |_,metadata| (node_id,metadata.clone()));
-            output.source.visualization_disabled <+ vis_disabled.constant(node_id);
+
+            // init <- source::<()>();
+            // visualization_path <- node.model.visualization.frp.visualisation.map(map_to_path);
+            visualization_enabled  <- node.visualization_enabled.gate(&node.visualization_enabled);
+            eval visualization_enabled ([node](_) {
+                WARNING!("Vis enabled, the path is {node.visualization_path.value():?}");
+            });
+            // visualization_enabled  <- visualization_enabled.map2(&visualization_path,move |enabled,vis_path| (node_id,vis_path.clone()));
+            visualization_enabled  <- visualization_enabled.map(f!([node](_) {
+                let path = node.model.visualization.frp.visualisation.value().as_ref().map(|def| def.path());
+                (node_id,path)
+            }));
+            output.source.visualization_enabled  <+ visualization_enabled;
+
+            visualization_disabled <- node.visualization_enabled.gate_not(&node.visualization_enabled);
+            output.source.visualization_disabled <+ visualization_disabled.constant(node_id);
+            //
+            // trace visualization_path;
+            trace visualization_enabled;
+            trace visualization_disabled;
+            trace visualization_shown;
+            trace visualization_hidden;
 
 
             // === View Mode ===
@@ -1289,9 +1311,9 @@ impl GraphEditorModelWithNetwork {
         node.set_view_mode(self.model.frp.view_mode.value());
         let initial_metadata = visualization::Metadata {
             preprocessor     : node.model.visualization.frp.preprocessor.value(),
-            visualization_id : node.model.visualization.frp.visualisation.value().map(|def| def.signature.path),
         };
         metadata.emit(initial_metadata);
+        // init.emit(&());
         self.nodes.insert(node_id,node);
         node_id
     }
@@ -1528,7 +1550,7 @@ impl GraphEditorModel {
     pub fn enabled_visualization(&self, node_id:impl Into<NodeId>) -> Option<visualization::Metadata> {
         let frp = &self.nodes.all.get_cloned_ref(&node_id.into())?.model.visualization.frp;
         frp.visible.value().then(|| {
-            visualization::Metadata::new(&frp.preprocessor.value(), &frp.visualisation.value())
+            visualization::Metadata::new(&frp.preprocessor.value())
         })
     }
 

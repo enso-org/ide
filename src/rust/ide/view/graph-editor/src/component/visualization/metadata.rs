@@ -11,20 +11,13 @@ pub struct Metadata {
     /// compression or filtering for the best performance. See also _Lazy Visualization_ section
     /// [here](http://dev.enso.org/docs/ide/product/visualizations.html).
     pub preprocessor: visualization::instance::PreprocessorConfiguration,
-
-    /// Path to the definition of this visualization.
-    pub visualization_id : Option<visualization::Path>,
 }
 
 impl Metadata {
-    /// Helper constructor which retrieves visualization id from its definition.
     pub fn new
-    ( preprocessor:&visualization::instance::PreprocessorConfiguration
-    , definition:&Option<visualization::Definition>
-    ) -> Self {
+    (preprocessor:&visualization::instance::PreprocessorConfiguration) -> Self {
         Self {
             preprocessor     : preprocessor.clone_ref(),
-            visualization_id : definition.as_ref().map(|def| def.signature.path.clone_ref()),
         }
     }
 }

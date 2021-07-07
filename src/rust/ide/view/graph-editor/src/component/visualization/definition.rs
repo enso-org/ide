@@ -76,6 +76,10 @@ impl Definition {
     pub fn new_instance(&self, scene:&Scene) -> InstantiationResult {
         (self.constructor)(scene)
     }
+
+    pub fn path(&self) -> visualization::Path {
+        self.signature.path.clone_ref()
+    }
 }
 
 

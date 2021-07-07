@@ -45,7 +45,6 @@ use futures::future::LocalBoxFuture;
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
 pub struct VisualizationInfo {
-    pub path : visualization::Path,
     pub data : Visualization,
 }
 
@@ -328,7 +327,7 @@ impl Integration {
         let used_as_suggestion        = Self::ui_action(&model,Model::used_as_suggestion_in_ui    ,inv);
         let node_editing_committed    = Self::ui_action(&model,Model::node_editing_committed_in_ui,inv);
         let node_editing_aborted      = Self::ui_action(&model,Model::node_editing_aborted_in_ui  ,inv);
-        frp::extend! {TRACE_ALL network
+        frp::extend! { network
             eval code_editor.content ((content) model.code_view.set(content.clone_ref()));
 
             // Notifications from graph controller
@@ -366,6 +365,13 @@ impl Integration {
             _action <- project_frp.editing_committed        .map2(&is_hold,node_editing_committed);
             _action <- project_frp.editing_aborted          .map2(&is_hold,node_editing_aborted);
 
+            eval editor_outs.visualization_shown([model,inv](arg) {
+                Self::execute_fallible_ui_action(&model, &inv, || model.visualization_shown_in_ui(arg))
+            });
+            eval editor_outs.visualization_hidden([model,inv](arg) {
+                Self::execute_fallible_ui_action(&model, &inv, || model.visualization_hidden_in_ui(arg))
+            });
+
             eval editor_outs.visualization_enabled([model,inv](arg) {
                 Self::execute_fallible_ui_action(&model, &inv, || model.visualization_enabled_in_ui(arg))
             });
@@ -390,8 +396,8 @@ impl Integration {
             eval_ editor_outs.node_entered([]analytics::remote_log_event("graph_editor::node_enter_request"));
             eval_ editor_outs.node_exited([]analytics::remote_log_event("graph_editor::node_exit_request"));
             eval_ editor_outs.on_edge_endpoints_set([]analytics::remote_log_event("graph_editor::edge_endpoints_set"));
-            eval_ editor_outs.visualization_enabled([]analytics::remote_log_event("graph_editor::visualization_enabled"));
-            eval_ editor_outs.visualization_disabled([]analytics::remote_log_event("graph_editor::visualization_disabled"));
+            eval_ editor_outs.visualization_shown([]analytics::remote_log_event("graph_editor::visualization_shown"));
+            eval_ editor_outs.visualization_hidden([]analytics::remote_log_event("graph_editor::visualization_hidden"));
             eval_ on_connection_removed([]analytics::remote_log_event("graph_editor::connection_removed"));
             eval_ searcher_frp.used_as_suggestion([]analytics::remote_log_event("searcher::used_as_suggestion"));
             eval_ project_frp.editing_committed([]analytics::remote_log_event("project::editing_committed"));
@@ -402,7 +408,7 @@ impl Integration {
         ret.connect_frp_to_graph_controller_notifications(handle_graph_notification.trigger);
         ret.connect_frp_text_controller_notifications(handle_text_notification.trigger);
         ret.setup_handling_project_notifications();
-        ret.attach_initial_visualizations();
+        ret.show_initial_visualizations();
         ret
     }
 
@@ -431,13 +437,13 @@ impl Integration {
         })
     }
 
-    fn attach_initial_visualizations(&self) {
+    fn show_initial_visualizations(&self) {
         let logger     = self.model.logger.clone_ref();
         info!(logger,"Attaching initially opened visualization");
         let node_ids = self.model.node_views.borrow().right_values().cloned().collect_vec();
         for node_id in node_ids {
             if let Some(metadata) = self.model.view.graph().model.enabled_visualization(node_id) {
-                self.model.visualization_enabled_in_ui(&(node_id,metadata))
+                self.model.visualization_shown_in_ui(&(node_id,metadata))
                     .handle_err(|err| error!(logger, "Failed to enable visualization: {err}"));
             }
         }
@@ -779,11 +785,11 @@ impl Model {
         let visualization_frp = &self.view.graph().model.nodes.all.get_cloned_ref(&id).unwrap().model.visualization.frp;
         let view_visualization : Option<visualization::Path> = visualization_frp.visible.value().then(|| visualization_frp.visualisation.value()).flatten().map(|def:visualization::Definition| def.signature.path.clone_ref());
 
-        warning!(self.logger, "View visualization: {view_visualization:?}");
+        warning!(self.logger, "View visualization on {id}: {view_visualization:?}");
         if view_visualization != visualization_path {
-            trace!(self.logger, "Setting visualization on {id}: {visualization_path:?}");
+            warning!(self.logger, "Setting visualization on {id}: {visualization_path:?}");
             if visualization_path.is_some() {
-                let visualization = (id, visualization_path);
+                let visualization = (id,visualization_path);
                 self.view.graph().frp.input.set_visualization.emit(&visualization);
                 self.view.graph().frp.input.enable_visualization.emit(&id);
             } else {
@@ -1311,22 +1317,37 @@ impl Model {
     }
 
     fn visualization_enabled_in_ui
-    (&self, (node_id,vis_metadata):&(graph_editor::NodeId,visualization::Metadata))
-    -> FallibleResult {
-        debug!(self.logger, "Visualization enabled on {node_id\
-        }: {vis_metadata:?}.");
-        let ast_id   = self.get_controller_node_id(*node_id)?;
-        let serialized_path = serde_json::to_value(&vis_metadata.visualization_id)?;
-        self.graph.graph().module.deref().with_node_metadata(ast_id, Box::new(|node_metadata| {
+    (&self, (node_id,vis_path):&(graph_editor::NodeId,Option<visualization::Path>))
+     -> FallibleResult {
+        let vis_path = vis_path.as_ref().ok_or_else(|| failure::format_err!("Enabled visualization with an unknown path!"))?;
+        debug!(self.logger, "Visualization enabled on {node_id}: {vis_path:?}.");
+        let ast_id          = self.get_controller_node_id(*node_id)?;
+        let serialized_path = serde_json::to_value(&vis_path)?;
+        self.graph.graph().module.with_node_metadata(ast_id, Box::new(|node_metadata| {
             node_metadata.visualization = serialized_path;
             WARNING!("New metadata: {node_metadata:?}");
         }))?;
+        Ok(())
+    }
+
+    fn visualization_disabled_in_ui(&self, node_id:&graph_editor::NodeId) -> FallibleResult {
+        debug!(self.logger, "Visualization disabled on {node_id}.");
+        let ast_id = self.get_controller_node_id(*node_id)?;
+        self.graph.graph().module.deref().with_node_metadata(ast_id, Box::new(|node_metadata| {
+            node_metadata.visualization = serde_json::Value::Null;
+        }))
+    }
+
+    fn visualization_shown_in_ui
+    (&self, (node_id,vis_metadata):&(graph_editor::NodeId,visualization::Metadata))
+    -> FallibleResult {
+        debug!(self.logger, "Visualization enabled on {node_id}: {vis_metadata:?}.");
         let endpoint = self.view.graph().frp.input.set_visualization_data.clone_ref();
         self.attach_visualization(*node_id,vis_metadata,endpoint,self.visualizations.clone_ref())?;
         Ok(())
     }
 
-    fn visualization_disabled_in_ui(&self, node_id:&graph_editor::NodeId) -> FallibleResult {
+    fn visualization_hidden_in_ui(&self, node_id:&graph_editor::NodeId) -> FallibleResult {
         let ast_id = self.get_controller_node_id(*node_id)?;
         self.detach_visualization(*node_id,self.visualizations.clone_ref())?;
         self.graph.graph().module.deref().with_node_metadata(ast_id, Box::new(|node_metadata| {
@@ -1540,14 +1561,13 @@ impl Model {
         (!visualizations_map.contains_key(&node_id)).ok_or_else(err)?;
 
         debug!(self.logger, "Attaching visualization on node {node_id}.");
-        let path           = vis_metadata.visualization_id.clone().unwrap();
         let visualization  = self.prepare_visualization(node_id,vis_metadata)?;
         let id             = visualization.id;
         let update_handler = self.visualization_update_handler(receive_data_endpoint,node_id);
 
         // We cannot do this in the async block, as the user may decide to detach before server
         // confirms that we actually have attached.
-        let info = VisualizationInfo {path,data:visualization};
+        let info = VisualizationInfo {data:visualization};
         visualizations_map.insert(node_id,info);
 
         let task = self.attaching_visualization_task(node_id, visualizations_map, update_handler);

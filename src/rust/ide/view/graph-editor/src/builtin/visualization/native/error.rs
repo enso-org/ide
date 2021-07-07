@@ -49,8 +49,7 @@ pub fn preprocessor() -> instance::PreprocessorConfiguration {
 /// Get metadata description for error visualization.
 pub fn metadata() -> Metadata {
     let preprocessor     = preprocessor();
-    let visualization_id = Some(Error::path());
-    Metadata {preprocessor,visualization_id}
+    Metadata {preprocessor}
 }
 
 // =============

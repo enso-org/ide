@@ -248,7 +248,7 @@ impl Default for Crumbs {
 // === Node ===
 // ============
 
-ensogl::define_endpoints! {
+ensogl::define_endpoints! { [TRACE_ALL]
     Input {
         select                (),
         deselect              (),
@@ -284,6 +284,8 @@ ensogl::define_endpoints! {
         hover                 (bool),
         error                 (Option<Error>),
         visualization_enabled (bool),
+        visualization_visible (bool),
+        visualization_path    (Option<visualization::Path>),
         tooltip               (tooltip::Style),
         bounding_box          (BoundingBox)
     }
@@ -556,7 +558,6 @@ impl Node {
         let style            = StyleWatch::new(&app.display.scene().style_sheet);
         let style_frp        = &model.style;
         let action_bar       = &model.action_bar.frp;
-
         // Hook up the display object position updates to the node's FRP. Required to calculate the
         // bounding box.
         frp::extend! { network
@@ -647,7 +648,7 @@ impl Node {
         hover_onset_delay.set_delay(VIS_PREVIEW_ONSET_MS);
         hover_onset_delay.set_duration(0.0);
 
-        frp::extend! { network
+        frp::extend! { TRACE_ALL network
 
             frp.source.error <+ frp.set_error;
             is_error_set <- frp.error.map(|err| err.is_some());
@@ -694,10 +695,15 @@ impl Node {
             visualization_visible            <- visualization_enabled || preview_visible;
             visualization_visible            <- visualization_visible && no_error_set;
             visualization_visible_on_change  <- visualization_visible.on_change();
-            frp.source.visualization_enabled <+ visualization_enabled || preview_visible;
+            frp.source.visualization_visible <+ visualization_visible;
+            frp.source.visualization_enabled <+ visualization_enabled;
             eval visualization_visible_on_change ((is_visible)
                 model.visualization.frp.set_visibility(is_visible)
             );
+            init <- source::<()>();
+            frp.source.visualization_path <+ model.visualization.frp.visualisation.all_with(&init,|def_opt,_| {
+                def_opt.as_ref().map(|def| def.signature.path.clone_ref())
+            });
 
             // Ensure the preview is visible above all other elements, but the normal visualisation
             // is below nodes.
@@ -719,6 +725,7 @@ impl Node {
 
         }
 
+        init.emit(&());
         // === Profiling Indicator ===
 
         frp::extend! { network
@@ -799,6 +806,7 @@ impl Node {
         frp.set_error.emit(None);
         frp.set_disabled.emit(false);
         frp.show_quick_action_bar_on_hover.emit(true);
+        frp.source.visualization_path.emit(&model.visualization.frp.visualisation.value().map(|def| def.signature.path));
 
         Self {model,frp}
     }
