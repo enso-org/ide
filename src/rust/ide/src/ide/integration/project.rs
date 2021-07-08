@@ -7,7 +7,6 @@
 
 use crate::prelude::*;
 
-use crate::constants::SELECTION_UNDO_ENABLED;
 use crate::controller::graph::Connections;
 use crate::controller::graph::NodeTrees;
 use crate::controller::searcher::action::MatchInfo;
@@ -757,23 +756,20 @@ impl Model {
 
     /// Update the position of the node based on its current metadata.
     fn refresh_node_selection(&self, id:graph_editor::NodeId, node:&controller::graph::Node) {
-        if SELECTION_UNDO_ENABLED {
-            let selected_metadata = node.metadata.as_ref().map_or_default(|md| md.selected);
-            let selected_view = self.view.graph().model.nodes.is_selected(id);
-            warning!(self.logger, "Node {id} selection should be {selected_metadata}, was {selected_view}");
-            if selected_metadata && !selected_view {
-                self.view.graph().frp.input.select_node.emit(&id)
-            } else if !selected_metadata && selected_view {
-                self.view.graph().frp.input.deselect_node.emit(&id)
-            }
-            warning!(self.logger, "Adjusting selection done");
+        let selected_metadata = node.metadata.as_ref().map_or_default(|md| md.selected);
+        let selected_view = self.view.graph().model.nodes.is_selected(id);
+        warning!(self.logger, "Node {id} selection should be {selected_metadata}, was {selected_view}");
+        if selected_metadata && !selected_view {
+            self.view.graph().frp.input.select_node.emit(&id)
+        } else if !selected_metadata && selected_view {
+            self.view.graph().frp.input.deselect_node.emit(&id)
         }
+        warning!(self.logger, "Adjusting selection done");
     }
 
     /// Update the position of the node based on its current metadata.
     fn refresh_node_visualization(&self, id:graph_editor::NodeId, node:&controller::graph::Node) {
-        error!(self.logger, "Metadata: {node.metadata:?}");
-        let visualization_path : Option<visualization::Path> = node.metadata.as_ref().and_then(|md| {
+        let visualization_path = node.metadata.as_ref().and_then(|md| {
             serde_json::from_value(md.visualization.clone()).ok()
         });
 
@@ -841,7 +837,8 @@ impl Model {
         let info     = self.lookup_computed_info(&id);
         let info     = info.as_ref();
         let typename = info.and_then(|info| info.typename.clone().map(graph_editor::Type));
-        if let Some(node_id) = self.node_view_by_expression.borrow().get(&id).cloned() {
+        let node_id  = self.node_view_by_expression.borrow().get(&id).cloned();
+        if let Some(node_id) = node_id {
             self.set_type(node_id,id,typename, force_type_info_refresh);
             let method_pointer = info.and_then(|info| {
                 info.method_call.and_then(|entry_id| {
@@ -1132,27 +1129,23 @@ impl Model {
 
     fn node_selected_in_ui
     (&self, displayed_id:&graph_editor::NodeId) -> FallibleResult {
-        if SELECTION_UNDO_ENABLED {
-            debug!(self.logger, "Selecting node.");
-            let id = self.get_controller_node_id(*displayed_id)?;
-            self.graph.graph().module.with_node_metadata(id, Box::new(|metadata| {
-                metadata.selected = true;
-            }))?;
-            debug!(self.logger, "Node {id} selected.");
-        };
+        debug!(self.logger, "Selecting node.");
+        let id = self.get_controller_node_id(*displayed_id)?;
+        self.graph.graph().module.with_node_metadata(id, Box::new(|metadata| {
+            metadata.selected = true;
+        }))?;
+        debug!(self.logger, "Node {id} selected.");
         Ok(())
     }
 
     fn node_deselected_in_ui
     (&self, displayed_id:&graph_editor::NodeId) -> FallibleResult {
-        if SELECTION_UNDO_ENABLED {
-            debug!(self.logger, "Deselecting node.");
-            let id = self.get_controller_node_id(*displayed_id)?;
-            self.graph.graph().module.with_node_metadata(id, Box::new(|metadata| {
-                metadata.selected = false;
-            }))?;
-            debug!(self.logger, "Node {id} deselected.");
-        }
+        debug!(self.logger, "Deselecting node.");
+        let id = self.get_controller_node_id(*displayed_id)?;
+        self.graph.graph().module.with_node_metadata(id, Box::new(|metadata| {
+            metadata.selected = false;
+        }))?;
+        debug!(self.logger, "Node {id} deselected.");
         Ok(())
     }
 
