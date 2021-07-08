@@ -264,8 +264,8 @@ const extra = [
 exports.default = async function () {
 
     let cwd = root
-    run(`ls"`, cwd)
-    run(`java -jar ../../signpackage/SignPackage.jar -d ${resRoot} -t -r -k ${ID} -e "${entitlements_path}}"`,
+    run(`ls`, cwd)
+    run(`java -jar /Users/runner/work/ide/ide/signpackage/SignPackage.jar -d ${resRoot} -t -r -k ${ID} -e "${entitlements_path}}"`,
         cwd)
 
     // Sign archives.
