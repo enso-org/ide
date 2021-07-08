@@ -201,6 +201,13 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
+      - name: Install signpackage
+        run: |2-
+           git clone https://github.com/dg76/signpackage.git --depth 1
+            cd signpackage
+            ls
+            ./build.sh
+            ls
       - name: Install Node
         uses: actions/setup-node@v1
         with:

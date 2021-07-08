@@ -119,6 +119,15 @@ let installClippy = {
     run: "rustup component add clippy"
 }
 
+let installSignpackage = {
+    name: 'Install signpackage',
+    run: ` git clone https://github.com/dg76/signpackage.git --depth 1
+  ls
+  cd signpackage
+ ./build.sh
+ ls`,
+}
+
 
 function installWasmPackOn(name,sys,pkg) {
     return {
@@ -472,6 +481,7 @@ let workflow = {
             testWASM
         ]),
         simple_build: job_on_macos("Simple Build (WASM size limit check)", [
+            installSignpackage,
             installNode,
             installRust,
             installWasmPack,
