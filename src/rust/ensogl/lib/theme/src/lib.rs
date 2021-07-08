@@ -171,6 +171,16 @@ define_themes! { [light:0, dark:1]
             background           = graph_editor::node::background , graph_editor::node::background;
             toolbar_border_color = Rgba(0.808,0.808,0.808,1.0)    , Rgba(0.808,0.808,0.808,1.0);
         }
+        project_list {
+            width = 202.0 , 202.0;
+            padding = 16.0, 16.0;
+            height  = 421.0, 421.0;
+            bar {
+                height = 45.0, 45.0;
+                border_size = 1.0, 1.0;
+                label_size = 12.0, 12.0;
+            }
+        }
 
         window_control_buttons {
             radius  = 6.5, 6.5;

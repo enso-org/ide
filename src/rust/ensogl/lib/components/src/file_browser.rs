@@ -33,17 +33,21 @@ use ensogl_core::data::color;
 // === Constants ===
 // =================
 
+/// The height of the File Browser's toolbar in pixels.
 // TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
-const TOOLBAR_HEIGHT      : f32 = 45.0;
+pub const TOOLBAR_HEIGHT      : f32 = 45.0;
+/// The size in pixels of the line between File Browser's toolbar and content.
 // TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
-const TOOLBAR_BORDER_SIZE : f32 = 1.0;
+pub const TOOLBAR_BORDER_SIZE : f32 = 1.0;
 // TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 const CONTENT_OFFSET_Y    : f32 = TOOLBAR_HEIGHT + TOOLBAR_BORDER_SIZE;
 // TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 const PADDING             : f32 = 16.0;
+/// The width of the File Browser in pixels.
 // TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 //       Or make it configurable through FRP, or both.
 pub const WIDTH               : f32 = 814.0;
+/// The height of the File Browser in pixels.
 // TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 //       Or make it configurable through FRP, or both.
 pub const HEIGHT              : f32 = 421.0;

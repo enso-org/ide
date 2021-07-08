@@ -2,8 +2,6 @@
 
 use super::*;
 
-use std::iter::once;
-
 
 
 // =============
@@ -443,6 +441,7 @@ pub enum ContentRoot {
 }
 
 impl ContentRoot {
+    /// Get the id of the content root.
     pub fn id(&self) -> Uuid {
         match self {
             ContentRoot::Project        {id   } => *id,

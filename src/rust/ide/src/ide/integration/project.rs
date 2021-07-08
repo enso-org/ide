@@ -15,6 +15,7 @@ use crate::controller::searcher::Actions;
 use crate::controller::upload;
 use crate::controller::upload::NodeFromDroppedFileHandler;
 use crate::ide::integration::file_system::FileProvider;
+use crate::ide::integration::file_system::create_node_from_file;
 use crate::model::execution_context::ComputedValueInfo;
 use crate::model::execution_context::ExpressionId;
 use crate::model::execution_context::LocalCall;
@@ -48,9 +49,6 @@ use ide_view::graph_editor::component::visualization;
 use ide_view::graph_editor;
 use ide_view::searcher::entry::AnyEntryProvider;
 use utils::iter::split_by_predicate;
-
-pub type Logger = enso_logger::DefaultTraceLogger;
-
 
 
 
@@ -1673,6 +1671,6 @@ impl list_view::entry::EntryProvider for ProjectsToOpen {
     fn entry_count(&self) -> usize { self.projects.len() }
 
     fn get(&self, app: &Application, id: usize) -> Option<AnyEntry> {
-        Some(list_view::entry::StringEntry::new(app,self.projects.get(id)?.name.as_ref()).into())
+        Some(open_dialog::project_list::Entry::new(app, self.projects.get(id)?.name.as_str()).into())
     }
 }
