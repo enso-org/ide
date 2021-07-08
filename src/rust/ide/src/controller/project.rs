@@ -57,6 +57,23 @@ pub fn main_method_ptr(project_name:impl Str, module_path:&model::module::Path) 
 }
 
 
+
+// =================
+// === Utilities ===
+// =================
+
+/// Returns the path to package.yaml file for given project.
+pub fn package_yaml_path(project_name:&str) -> String {
+    match platform::current() {
+        Some(Platform::Linux)   |
+        Some(Platform::MacOS)   => format!("~/enso/projects/{}/package.yaml",project_name),
+        Some(Platform::Windows) =>
+            format!("%userprofile%\\enso\\projects\\{}\\package.yaml",project_name),
+        _ => format!("<path-to-enso-projects>/{}/package.yaml",project_name)
+    }
+}
+
+
 // ==============
 // === Handle ===
 // ==============
@@ -177,21 +194,10 @@ impl Project {
         let version      = self.model.engine_version();
         if !requirements.matches(version) {
             let message = format!("Unsupported Engine version. Please update engine_version in {} \
-                to {}.",self.package_yaml_path(),ENGINE_VERSION_FOR_NEW_PROJECTS);
+                to {}.",package_yaml_path(&self.model.name()),ENGINE_VERSION_FOR_NEW_PROJECTS);
             self.status_notifications.publish_event(message);
         }
         Ok(())
-    }
-
-    fn package_yaml_path(&self) -> String {
-        let project_name = self.model.name();
-        match platform::current() {
-            Some(Platform::Linux)   |
-            Some(Platform::MacOS)   => format!("~/enso/projects/{}/package.yaml",project_name),
-            Some(Platform::Windows) =>
-                format!("%userprofile%\\enso\\projects\\{}\\package.yaml",project_name),
-            _ => format!("<path-to-enso-projects>/{}/package.yaml",project_name)
-        }
     }
 }
 
