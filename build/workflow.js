@@ -101,6 +101,11 @@ let installRust = {
     }
 }
 
+let activateRustCache = {
+    name: "Activate Rust cache",
+    uses: "Swatinem/rust-cache@v1",
+}
+
 let installNode = {
     name: "Install Node",
     uses: "actions/setup-node@v1",
@@ -464,6 +469,7 @@ let workflow = {
         lint: job_on_macos("Linter", [
             installNode,
             installRust,
+            activateRustCache,
             installPrettier,
             installClippy,
             lintMarkdown,
@@ -473,17 +479,20 @@ let workflow = {
         test: job_on_macos("Tests", [
             installNode,
             installRust,
+            activateRustCache,
             testNoWASM,
         ]),
         "wasm-test": job_on_macos("WASM Tests", [
             installNode,
             installRust,
+            activateRustCache,
             installWasmPack,
             testWASM
         ]),
         simple_build: job_on_macos("Simple Build (WASM size limit check)", [
             installNode,
             installRust,
+            activateRustCache,
             installWasmPack,
             installJava,
             buildOnMacOS,
@@ -493,6 +502,7 @@ let workflow = {
             installSignpackage,
             installNode,
             installRust,
+            activateRustCache,
             installWasmPack,
             // Needed for package signing on macOS.
             installJava,
