@@ -77,6 +77,7 @@ impl Definition {
         (self.constructor)(scene)
     }
 
+    /// Get the path identifying this visualization definition.
     pub fn path(&self) -> visualization::Path {
         self.signature.path.clone_ref()
     }

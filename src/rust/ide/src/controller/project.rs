@@ -126,12 +126,13 @@ impl Project {
         let main_module_text = controller::Text::new(&self.logger,&project,file_path).await?;
         let main_graph       = controller::ExecutedGraph::new(&self.logger,project,method).await?;
 
-        // Go to last viewed graph.
+        // Restore the call stack from the metadata.
         let initial_call_stack = module.with_project_metadata(|m| m.call_stack.clone());
         for frame in initial_call_stack {
-            // Push as many frames as possible.
+            // Push as many frames as possible. We should not be too concerned about failure here.
+            // It is to be assumed that metadata can get broken.
             if let Err(e) = main_graph.enter_method_pointer(&frame).await {
-                error!(self.logger, "Failed to push initial stack frame: {frame:?}: {e}");
+                warning!(self.logger, "Failed to push initial stack frame: {frame:?}: {e}");
                 break;
             }
         }

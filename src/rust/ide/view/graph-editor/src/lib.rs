@@ -1276,34 +1276,9 @@ impl GraphEditorModelWithNetwork {
             init <- source::<()>();
             enabled_visualization_path <- init.all_with3(
                 &node.visualization_enabled, &node.visualization_path,
-                move |_init, is_enabled, path| {
-                    WARNING!("{_init:?} {is_enabled} {path:?}");
-                    // WARNING!("while polling: {node.visualization_path.value():?}");
-                    (node_id, is_enabled.and_option(path.clone()))
-                });
-            trace enabled_visualization_path;
+                move |_init, is_enabled, path| (node_id, is_enabled.and_option(path.clone()))
+            );
             output.source.enabled_visualization_path <+ enabled_visualization_path;
-
-
-            // visualization_enabled  <- node.visualization_enabled.gate(&node.visualization_enabled);
-            // eval visualization_enabled ([node](_) {
-            //     WARNING!("Vis enabled, the path is {node.visualization_path.value():?}");
-            // });
-            // // visualization_enabled  <- visualization_enabled.map2(&visualization_path,move |enabled,vis_path| (node_id,vis_path.clone()));
-            // visualization_enabled  <- visualization_enabled.map(f!([node](_) {
-            //     let path = node.model.visualization.frp.visualisation.value().as_ref().map(|def| def.path());
-            //     (node_id,path)
-            // }));
-            // output.source.visualization_enabled  <+ visualization_enabled;
-            //
-            // visualization_disabled <- node.visualization_enabled.gate_not(&node.visualization_enabled);
-            // output.source.visualization_disabled <+ visualization_disabled.constant(node_id);
-            //
-            // trace visualization_path;
-            // trace visualization_enabled;
-            // trace visualization_disabled;
-            // trace visualization_shown;
-            // trace visualization_hidden;
 
 
             // === View Mode ===
@@ -2649,7 +2624,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // ==================
     // === Move Nodes ===
     // ==================
-    frp::extend! {network
+    frp::extend! { network
 
     mouse_pos <- mouse.position.map(|p| Vector2(p.x,p.y));
 

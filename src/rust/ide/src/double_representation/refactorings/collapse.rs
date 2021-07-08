@@ -243,10 +243,8 @@ impl Extracted {
     /// Generate AST of a line that needs to be appended to the extracted nodes' Asts.
     /// None if there is no such need.
     pub fn return_line(&self) -> Option<Ast> {
-        // To return value we just utter its identifier.
-        self.output.as_ref().map(|out| {
-            out.identifier.with_new_id().into()
-        })
+        // To return value we just utter its identifier. But the expression needs a new ID.
+        self.output.as_ref().map(|out| out.identifier.with_new_id().into())
     }
 
     /// Generate the description for the new method's definition with the extracted nodes.

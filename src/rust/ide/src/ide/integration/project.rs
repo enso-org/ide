@@ -44,15 +44,8 @@ use futures::future::LocalBoxFuture;
 // === VisualizationMap ===
 // ========================
 
-/// Describes an enabled visualization on a node.
-#[derive(Clone,Debug)]
-#[allow(missing_docs)]
-pub struct VisualizationInfo {
-    pub data : Visualization,
-}
-
 /// Map that keeps information about enabled visualization.
-pub type VisualizationMap = SharedHashMap<graph_editor::NodeId,VisualizationInfo>;
+pub type VisualizationMap = SharedHashMap<graph_editor::NodeId,Visualization>;
 
 
 
@@ -760,43 +753,47 @@ impl Model {
 
     /// Update the position of the node based on its current metadata.
     fn refresh_node_selection(&self, id:graph_editor::NodeId, node:&controller::graph::Node) {
-        let selected_metadata = node.metadata.as_ref().map_or_default(|md| md.selected);
-        let selected_view = self.view.graph().model.nodes.is_selected(id);
-        warning!(self.logger, "Node {id} selection should be {selected_metadata}, was {selected_view}");
-        if selected_metadata && !selected_view {
+        let selected_in_metadata = node.metadata.as_ref().map_or_default(|md| md.selected);
+        let selected_in_view     = self.view.graph().model.nodes.is_selected(id);
+        if selected_in_metadata && !selected_in_view {
             self.view.graph().frp.input.select_node.emit(&id)
-        } else if !selected_metadata && selected_view {
+        } else if !selected_in_metadata && selected_in_view {
             self.view.graph().frp.input.deselect_node.emit(&id)
         }
-        warning!(self.logger, "Adjusting selection done");
     }
 
-    /// Update the position of the node based on its current metadata.
+    /// Update the enabled visualization on a node to follow the metadata.
     fn refresh_node_visualization(&self, id:graph_editor::NodeId, node:&controller::graph::Node) {
-        let visualization_path = node.metadata.as_ref().and_then(|md| {
+        let path_in_metadata = node.metadata.as_ref().and_then(|md| {
+            // It is perfectly fine to ignore deserialization errors here. This is metadata, that
+            // might not even be initialized.
             serde_json::from_value(md.visualization.clone()).ok()
         });
 
-        let visualization_frp = &self.view.graph().model.nodes.all.get_cloned_ref(&id).unwrap().model.visualization.frp;
-        let view_visualization : Option<visualization::Path> = visualization_frp.visible.value().then(|| visualization_frp.visualisation.value()).flatten().map(|def:visualization::Definition| def.signature.path.clone_ref());
+        let visualization_frp = match self.view.graph().model.nodes.all.get_cloned_ref(&id) {
+            Some(node) => node.model.visualization.frp.clone_ref(),
+            // If there is no node view, there is nothing to be done with visualization view.
+            None       => return,
+        };
+        let is_visible         = visualization_frp.visible.value();
+        let path_in_visible_visualization = is_visible
+                .and_option(visualization_frp.visualisation.value())
+                .map(|definition| definition.path());
 
-        warning!(self.logger, "View visualization on {id}: {view_visualization:?}");
-        if view_visualization != visualization_path {
-            warning!(self.logger, "Setting visualization on {id}: {visualization_path:?}");
-            if visualization_path.is_some() {
-                let visualization = (id,visualization_path);
+        if path_in_visible_visualization != path_in_metadata {
+            if path_in_metadata.is_some() {
+                let visualization = (id,path_in_metadata);
                 self.view.graph().frp.input.set_visualization.emit(&visualization);
                 self.view.graph().frp.input.enable_visualization.emit(&id);
             } else {
                 self.view.graph().frp.input.disable_visualization.emit(&id);
             }
-        } else {
-            debug!(self.logger, "Not doing anything,");
         }
     }
 
     /// Update the expression of the node and all related properties e.g., types, ports).
-    fn refresh_node_expression(&self, id:graph_editor::NodeId, node:&controller::graph::Node, trees:NodeTrees) {
+    fn refresh_node_expression
+    (&self, id:graph_editor::NodeId, node:&controller::graph::Node, trees:NodeTrees) {
         let code_and_trees = graph_editor::component::node::Expression {
             pattern             : node.info.pattern().map(|t|t.repr()),
             code                : node.info.expression().repr(),
@@ -1133,29 +1130,27 @@ impl Model {
 
     fn node_selected_in_ui
     (&self, displayed_id:&graph_editor::NodeId) -> FallibleResult {
-        debug!(self.logger, "Selecting node.");
+        debug!(self.logger, "Selecting node {displayed_id}.");
         let id = self.get_controller_node_id(*displayed_id)?;
         self.graph.graph().module.with_node_metadata(id, Box::new(|metadata| {
             metadata.selected = true;
         }))?;
-        debug!(self.logger, "Node {id} selected.");
         Ok(())
     }
 
     fn node_deselected_in_ui
     (&self, displayed_id:&graph_editor::NodeId) -> FallibleResult {
-        debug!(self.logger, "Deselecting node.");
+        debug!(self.logger, "Deselecting node {displayed_id}.");
         let id = self.get_controller_node_id(*displayed_id)?;
         self.graph.graph().module.with_node_metadata(id, Box::new(|metadata| {
             metadata.selected = false;
         }))?;
-        debug!(self.logger, "Node {id} deselected.");
         Ok(())
     }
 
     fn node_moved_in_ui
     (&self, (displayed_id,pos):&(graph_editor::NodeId,Vector2)) -> FallibleResult {
-        debug!(self.logger, "Moving node.");
+        debug!(self.logger, "Moving node {displayed_id}.");
         if let Ok(id) = self.get_controller_node_id(*displayed_id) {
             self.graph.graph().set_node_position(id,*pos)?
         }
@@ -1176,7 +1171,7 @@ impl Model {
 
     fn node_expression_set_in_ui
     (&self, (displayed_id,expression):&(graph_editor::NodeId,String)) -> FallibleResult {
-        debug!(self.logger, "Setting node expression.");
+        debug!(self.logger, "Setting node {displayed_id} expression: {expression}.");
         let searcher       = self.searcher.borrow();
         let code_and_trees = graph_editor::component::node::Expression::new_plain(expression);
         self.expression_views.borrow_mut().insert(*displayed_id,code_and_trees);
@@ -1362,7 +1357,7 @@ impl Model {
                     analytics::remote_log_value(event,field,data)
                 } else {
                     // We cannot really do anything when updating metadata fails.
-                    // Can happen in improbable case of serialization only.
+                    // Can happen in improbable case of serialization failure.
                     if let Err(e) = store_stack() {
                         error!(logger, "Failed to store an updated call stack: {e}");
                     }
@@ -1458,7 +1453,7 @@ impl Model {
             let controller  = self.graph.clone_ref();
             let code        = preprocessor.code.deref().into();
             let module      = self.resolve_visualization_context(&preprocessor.module)?;
-            let id          = visualization.data.id;
+            let id          = visualization.id;
             executor::global::spawn(async move {
                 let result = controller.set_visualization_preprocessor(id,code,module);
                 if let Err(err) = result.await {
@@ -1472,12 +1467,6 @@ impl Model {
     }
 }
 
-
-enum AttachingResult<T>{
-    Attached(T),
-    Aborted,
-    Failed(failure::Error),
-}
 
 // === Utilities ===
 
@@ -1544,10 +1533,9 @@ impl Model {
         let id             = visualization.id;
         let update_handler = self.visualization_update_handler(receive_data_endpoint,node_id);
 
-        // We cannot do this in the async block, as the user may decide to detach before server
-        // confirms that we actually have attached.
-        let info = VisualizationInfo {data:visualization};
-        visualizations_map.insert(node_id,info);
+        // We cannot do this in the async task, as the user may decide to detach before server
+        // confirms that we actually have attached the visualization.
+        visualizations_map.insert(node_id,visualization);
 
         let task = self.attaching_visualization_task(node_id, visualizations_map, update_handler);
         executor::global::spawn(task);
@@ -1568,15 +1556,17 @@ impl Model {
             for i in 1 ..= attempts {
                 // We need to re-get this info in each iteration. It might change in the meantime.
                 let visualization_info = visualizations_map.get_cloned(&node_id);
-                if let Some(VisualizationInfo{data,..}) = visualization_info {
-                    let id = data.id;
-                    match controller.attach_visualization(data).await {
+                if let Some(visualization_info) = visualization_info {
+                    let id = visualization_info.id;
+                    match controller.attach_visualization(visualization_info).await {
                         Ok(stream) => {
-                            debug!(logger, "Successfully attached visualization {id} for node {node_id}.");
+                            debug!(logger, "Successfully attached visualization {id} for node \
+                            {node_id}.");
                             return AttachingResult::Attached(stream);
                         }
                         Err(e) => {
-                            error!(logger, "Failed to attach visualization {id} for node {node_id} (attempt {i}): {e}");
+                            error!(logger, "Failed to attach visualization {id} for node {node_id} \
+                            (attempt {i}): {e}");
                             last_error = Some(e);
                         }
                     }
@@ -1605,10 +1595,10 @@ impl Model {
     , visualizations_map : VisualizationMap
     , update_handler     : impl FnMut(VisualizationUpdateData) -> futures::future::Ready<()> + 'static
     ) -> impl Future<Output=()> {
-        let attempt_count = 10;
         let graph_frp  = self.view.graph().frp.clone_ref();
         let map        = visualizations_map.clone();
-        let stream_fut = self.try_attaching_visualization_task(node_id,map,attempt_count);
+        let attempts   = crate::constants::INITIAL_VISUALIZATION_ATTACH_ATTEMPTS;
+        let stream_fut = self.try_attaching_visualization_task(node_id,map,attempts);
         async move {
             // No need to log anything here, as `try_attaching_visualization_task` does this.
             match stream_fut.await {
@@ -1672,7 +1662,7 @@ impl Model {
     ) -> FallibleResult {
         debug!(self.logger,"Node editor wants to detach visualization on {node_id}.");
         let err        = || NoSuchVisualization(node_id);
-        let id         = visualizations_map.get_cloned(&node_id).ok_or_else(err)?.data.id;
+        let id         = visualizations_map.get_cloned(&node_id).ok_or_else(err)?.id;
         let logger     = self.logger.clone_ref();
         let controller = self.graph.clone_ref();
 
@@ -1715,6 +1705,22 @@ impl Model {
         *self.searcher.borrow_mut() = Some(searcher);
         Ok(())
     }
+}
+
+
+
+// =======================
+// === AttachingResult ===
+// =======================
+
+/// Result of an attempt to attach a visualization.
+pub enum AttachingResult<T>{
+    /// Visualization has been successfully attached.
+    Attached(T),
+    /// Attaching visualization has been aborted before it was attached.
+    Aborted,
+    /// Attaching visualization failed.
+    Failed(failure::Error),
 }
 
 
