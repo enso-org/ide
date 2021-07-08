@@ -253,7 +253,7 @@ fn init(app:&Application) {
             },
         },
     ]);
-    file_browser.set_content(AnyFolderContent::from(fs.clone()));
+    file_browser.set_content(AnyFolderContent::from(fs));
     app.display.add_child(&file_browser);
 
     let network = enso_frp::Network::new("test");

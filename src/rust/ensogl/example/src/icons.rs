@@ -44,7 +44,7 @@ pub fn entry_point_icons() {
                                  linear-gradient(to bottom, grey 0.05px, transparent 0.05px)");
 
     let grid = DomSymbol::new(&grid_div);
-    &scene.dom.layers.back.manage(&grid);
+    scene.dom.layers.back.manage(&grid);
     world.add_child(&grid);
     grid.set_size(Vector2(200.0,ICON_SIZE));
     mem::forget(grid);
