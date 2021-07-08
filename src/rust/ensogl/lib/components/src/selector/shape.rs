@@ -16,10 +16,11 @@ use crate::shadow;
 /// Utility struct that contains the background shape for the selector components, as well as some
 /// meta information about it. This information can be used to align other shapes with the
 /// background.
-#[allow(dead_code)]
 struct Background {
     pub width         : Var<Pixels>,
     pub height        : Var<Pixels>,
+    #[allow(dead_code)]
+    // This field is not used but should stay as part of the API for future use.
     pub corner_radius : Var<Pixels>,
     pub shape         : AnyShape,
 }
@@ -129,9 +130,12 @@ pub mod track {
 
 /// Struct that contains the shape used to indicate an overflow (a triangle), and some metadata
 /// that can be used to place and align it.
-#[allow(dead_code)]
 struct OverflowShape {
+    #[allow(dead_code)]
+    // This field is not used but should stay as part of the API for future use.
     pub width  : Var<Pixels>,
+    #[allow(dead_code)]
+    // This field is not used but should stay as part of the API for future use.
     pub height : Var<Pixels>,
     pub shape  : AnyShape
 }
