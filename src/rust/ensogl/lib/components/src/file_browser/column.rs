@@ -153,7 +153,7 @@ impl ListEntry {
         }
         display_object.add_child(icon.as_ref());
         app.display.scene().layers.panel.add_exclusive(icon.as_ref());
-        icon.deref().set_position_x(ENTRY_PADDING_LEFT+icons::ICON_SIZE /2.0);
+        icon.deref().set_position_x(ENTRY_PADDING_LEFT + icons::ICON_SIZE / 2.0);
 
         Self { display_object,label,icon,arrow }
     }
