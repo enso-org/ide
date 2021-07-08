@@ -108,6 +108,8 @@ jobs:
           override: true
       - name: Activate Rust cache
         uses: Swatinem/rust-cache@v1
+        with:
+          working-directory: ./src/rust
       - name: Install Prettier
         run: npm install --save-dev --save-exact prettier
       - name: Install Clippy
@@ -139,6 +141,8 @@ jobs:
           override: true
       - name: Activate Rust cache
         uses: Swatinem/rust-cache@v1
+        with:
+          working-directory: ./src/rust
       - name: Run tests (no WASM)
         run: node ./run test --no-wasm --skip-version-validation
   wasm-test:
@@ -162,6 +166,8 @@ jobs:
           override: true
       - name: Activate Rust cache
         uses: Swatinem/rust-cache@v1
+        with:
+          working-directory: ./src/rust
       - name: Install wasm-pack (macOS)
         env:
           WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1
@@ -218,6 +224,8 @@ jobs:
           override: true
       - name: Activate Rust cache
         uses: Swatinem/rust-cache@v1
+        with:
+          working-directory: ./src/rust
       - name: Install wasm-pack (macOS)
         env:
           WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1
@@ -305,6 +313,8 @@ jobs:
           override: true
       - name: Activate Rust cache
         uses: Swatinem/rust-cache@v1
+        with:
+          working-directory: ./src/rust
       - name: Install wasm-pack (macOS)
         env:
           WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1

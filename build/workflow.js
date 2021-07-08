@@ -104,6 +104,9 @@ let installRust = {
 let activateRustCache = {
     name: "Activate Rust cache",
     uses: "Swatinem/rust-cache@v1",
+    with: {
+        "working-directory": "./src/rust",
+    }
 }
 
 let installNode = {
