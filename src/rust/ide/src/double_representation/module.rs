@@ -148,7 +148,7 @@ impl Id {
 #[serde(into="String")]
 #[serde(try_from="String")]
 pub struct QualifiedName {
-    /// The first segment in the full qualified name. May be a project name or a keyword like
+    /// The project qualified name, being first two segments in module's qualified name.
     pub project_name : project::QualifiedName,
     /// The module id: all segments in full qualified name but the first (which is a project name).
     pub id           : Id
@@ -493,8 +493,6 @@ impl Info {
     /// Add a new import if the module is not already imported.
     pub fn add_module_import
     (&mut self, here:&QualifiedName, parser:&parser::Parser, to_add:&QualifiedName) {
-        let imports = self.iter_imports().collect_vec();
-        DEBUG!("add_module_import: {to_add} in {imports:?}");
         let is_here          = to_add == here;
         let import           = ImportInfo::from_qualified_name(&to_add);
         let already_imported = self.iter_imports().any(|imp| imp == import);
@@ -740,13 +738,16 @@ mod tests {
     #[test]
     fn qualified_name_validation() {
         assert!(QualifiedName::try_from("namespace.project.Name").is_err());
+        assert!(QualifiedName::try_from("Namespace.project.Name").is_err());
         assert!(QualifiedName::try_from("namespace.Project.name").is_err());
         assert!(QualifiedName::try_from("namespace.").is_err());
         assert!(QualifiedName::try_from(".Name").is_err());
         assert!(QualifiedName::try_from(".").is_err());
         assert!(QualifiedName::try_from("").is_err());
         assert!(QualifiedName::try_from("namespace.Project.Name").is_ok());
+        assert!(QualifiedName::try_from("Namespace.Project.Name").is_ok());
         assert!(QualifiedName::try_from("namespace.Project.Name.Sub").is_ok());
+        assert!(QualifiedName::try_from("Namespace.Project.Name.Sub").is_ok());
     }
 
     #[wasm_bindgen_test]

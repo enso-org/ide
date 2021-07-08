@@ -29,7 +29,6 @@ use uuid::Uuid;
 #[automock]
 pub trait API:Debug {
     /// Project's name
-    // TODO [mwu] This should return Rc<ReferentName>.
     fn name(&self) -> ReferentName;
 
     /// Project's qualified name
