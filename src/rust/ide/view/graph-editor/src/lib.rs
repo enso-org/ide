@@ -976,11 +976,6 @@ impl Nodes {
             }
             self.selected.push(node_id);
             node.frp.select.emit(());
-            if !self.is_selected(node_id) {
-                self.selected.push(node_id);
-                WARNING!("Adding {node_id}, total selection: {self.selected.len()}");
-                node.frp.select.emit(());
-            }
         }
     }
 
@@ -1262,7 +1257,7 @@ impl GraphEditorModelWithNetwork {
 
             metadata <- any(...);
             metadata <+ node.model.visualization.frp.preprocessor.map(visualization::Metadata::new);
-            // metadata.emit()
+
             // Ensure the graph editor knows about internal changes to the visualisation. If the
             // visualisation changes that should indicate that the old one has been disabled and a
             // new one has been enabled.
@@ -1298,7 +1293,7 @@ impl GraphEditorModelWithNetwork {
 
         node.set_view_mode(self.model.frp.view_mode.value());
         let initial_metadata = visualization::Metadata {
-            preprocessor     : node.model.visualization.frp.preprocessor.value(),
+            preprocessor : node.model.visualization.frp.preprocessor.value(),
         };
         metadata.emit(initial_metadata);
         init.emit(&());
