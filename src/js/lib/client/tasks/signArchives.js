@@ -262,24 +262,5 @@ const extra = [
 ]
 
 exports.default = async function () {
-
-    let cwd = root
-    run(`java -jar ../signpackage/$SIGNPACKAGE_TOOL -d ${resRoot} -t -r -k ${ID} -e "${entitlements_path}}"`,
-        cwd)
-
-    // Sign archives.
-    // for (let toSignData of toSign) {
-    //     const jarDir = path.join(resRoot, toSignData.jarDir)
-    //     const jarName = toSignData.jarName
-    //     const jarContent = toSignData.jarContent
-    //     console.log({ jarDir, jarName, jarContent })
-    //     signArchive(jarDir, jarName, jarContent)
-    // }
-    // // Sign single binaries.
-    // for (let toSign of extra) {
-    //     const target = path.join(resRoot, toSign)
-    //     sign(target)
-    // }
-    // // Finally re-sign the top-level enso.
-    // sign(path.join(contentRoot, 'MacOs/Enso'))
+    run(`rm -rf "${resRoot}/enso/runtime/${GRAALVM}"`)
 }
