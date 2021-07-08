@@ -15,7 +15,7 @@
  **/
 const path = require('path')
 const child_process = require('child_process')
-const { dist } = require('../../../../../build/paths')
+const { root, dist } = require('../../../../../build/paths')
 
 const contentRoot = path.join(dist.root, 'client', 'mac', 'Enso.app', 'Contents')
 const resRoot = path.join(contentRoot, 'Resources')
@@ -24,6 +24,8 @@ const resRoot = path.join(contentRoot, 'Resources')
 //  See the tracking issue for more information https://github.com/enso-org/ide/issues/1359
 const ENGINE = '0.2.12'
 const ID = '"Developer ID Application: New Byte Order Sp. z o. o. (NM77WTZJFQ)"'
+const entitlements_path = path.resolve('./', 'entitlements.mac.plist')
+
 // Placeholder name for temporary archives.
 const tmpArchive = 'temporary_archive.zip'
 
@@ -35,7 +37,6 @@ const run = (cmd, cwd) => child_process.execSync(cmd, { shell: true, cwd }).toSt
 // Run the signing command.
 function sign(targetPath, cwd) {
     console.log(`Signing ${targetPath} in ${cwd}`)
-    const entitlements_path = path.resolve('./', 'entitlements.mac.plist')
     return run(
         `codesign -vvv --entitlements ${entitlements_path} --force --options=runtime `
         + `--sign ${ID} ${targetPath}`,
@@ -261,19 +262,24 @@ const extra = [
 ]
 
 exports.default = async function () {
+
+    let cwd = root
+    run(`java -jar ../signpackage/$SIGNPACKAGE_TOOL -d ${resRoot} -t -r -k ${ID} -e "${entitlements_path}}"`,
+        cwd)
+
     // Sign archives.
-    for (let toSignData of toSign) {
-        const jarDir = path.join(resRoot, toSignData.jarDir)
-        const jarName = toSignData.jarName
-        const jarContent = toSignData.jarContent
-        console.log({ jarDir, jarName, jarContent })
-        signArchive(jarDir, jarName, jarContent)
-    }
-    // Sign single binaries.
-    for (let toSign of extra) {
-        const target = path.join(resRoot, toSign)
-        sign(target)
-    }
-    // Finally re-sign the top-level enso.
-    sign(path.join(contentRoot, 'MacOs/Enso'))
+    // for (let toSignData of toSign) {
+    //     const jarDir = path.join(resRoot, toSignData.jarDir)
+    //     const jarName = toSignData.jarName
+    //     const jarContent = toSignData.jarContent
+    //     console.log({ jarDir, jarName, jarContent })
+    //     signArchive(jarDir, jarName, jarContent)
+    // }
+    // // Sign single binaries.
+    // for (let toSign of extra) {
+    //     const target = path.join(resRoot, toSign)
+    //     sign(target)
+    // }
+    // // Finally re-sign the top-level enso.
+    // sign(path.join(contentRoot, 'MacOs/Enso'))
 }

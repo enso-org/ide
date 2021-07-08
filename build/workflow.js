@@ -125,7 +125,8 @@ let installSignpackage = {
   ls
   cd signpackage
  ./build.sh
- ls`,
+ export SIGNPACKAGE_TOOL=$cwd/SignPackage.jar
+ echo $SIGNPACKAGE_TOOL`,
 }
 
 
@@ -481,7 +482,6 @@ let workflow = {
             testWASM
         ]),
         simple_build: job_on_macos("Simple Build (WASM size limit check)", [
-            installSignpackage,
             installNode,
             installRust,
             installWasmPack,
@@ -490,6 +490,7 @@ let workflow = {
         ]),
         build: job_on_all_platforms("Build", [
             getCurrentReleaseChangelogInfo,
+            installSignpackage,
             installNode,
             installRust,
             installWasmPack,
