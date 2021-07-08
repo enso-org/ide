@@ -565,8 +565,8 @@ ensogl::define_endpoints! { [TRACE_ALL]
         nodes_labels_visible      (bool),
 
 
-        visualization_enabled                   (NodeId,Option<visualization::Path>),
-        visualization_disabled                  (NodeId),
+        /// `None` value as a visualization path denotes a disabled visualization.
+        enabled_visualization_path              (NodeId,Option<visualization::Path>),
         visualization_shown                     (NodeId,visualization::Metadata),
         visualization_hidden                    (NodeId),
         visualization_fullscreen                (Option<NodeId>),
@@ -1270,27 +1270,37 @@ impl GraphEditorModelWithNetwork {
                 visualization_shown.map2(&metadata,move |_,metadata| (node_id,metadata.clone()));
 
 
-            // init <- source::<()>();
-            // visualization_path <- node.model.visualization.frp.visualisation.map(map_to_path);
-            visualization_enabled  <- node.visualization_enabled.gate(&node.visualization_enabled);
-            eval visualization_enabled ([node](_) {
-                WARNING!("Vis enabled, the path is {node.visualization_path.value():?}");
-            });
-            // visualization_enabled  <- visualization_enabled.map2(&visualization_path,move |enabled,vis_path| (node_id,vis_path.clone()));
-            visualization_enabled  <- visualization_enabled.map(f!([node](_) {
-                let path = node.model.visualization.frp.visualisation.value().as_ref().map(|def| def.path());
-                (node_id,path)
-            }));
-            output.source.visualization_enabled  <+ visualization_enabled;
+            init <- source::<()>();
+            enabled_visualization_path <- init.all_with3(
+                &node.visualization_enabled, &node.visualization_path,
+                move |_init, is_enabled, path| {
+                    WARNING!("{_init:?} {is_enabled} {path:?}");
+                    // WARNING!("while polling: {node.visualization_path.value():?}");
+                    (node_id, is_enabled.and_option(path.clone()))
+                });
+            trace enabled_visualization_path;
+            output.source.enabled_visualization_path <+ enabled_visualization_path;
 
-            visualization_disabled <- node.visualization_enabled.gate_not(&node.visualization_enabled);
-            output.source.visualization_disabled <+ visualization_disabled.constant(node_id);
+
+            // visualization_enabled  <- node.visualization_enabled.gate(&node.visualization_enabled);
+            // eval visualization_enabled ([node](_) {
+            //     WARNING!("Vis enabled, the path is {node.visualization_path.value():?}");
+            // });
+            // // visualization_enabled  <- visualization_enabled.map2(&visualization_path,move |enabled,vis_path| (node_id,vis_path.clone()));
+            // visualization_enabled  <- visualization_enabled.map(f!([node](_) {
+            //     let path = node.model.visualization.frp.visualisation.value().as_ref().map(|def| def.path());
+            //     (node_id,path)
+            // }));
+            // output.source.visualization_enabled  <+ visualization_enabled;
+            //
+            // visualization_disabled <- node.visualization_enabled.gate_not(&node.visualization_enabled);
+            // output.source.visualization_disabled <+ visualization_disabled.constant(node_id);
             //
             // trace visualization_path;
-            trace visualization_enabled;
-            trace visualization_disabled;
-            trace visualization_shown;
-            trace visualization_hidden;
+            // trace visualization_enabled;
+            // trace visualization_disabled;
+            // trace visualization_shown;
+            // trace visualization_hidden;
 
 
             // === View Mode ===
@@ -1313,7 +1323,7 @@ impl GraphEditorModelWithNetwork {
             preprocessor     : node.model.visualization.frp.preprocessor.value(),
         };
         metadata.emit(initial_metadata);
-        // init.emit(&());
+        init.emit(&());
         self.nodes.insert(node_id,node);
         node_id
     }

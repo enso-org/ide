@@ -283,7 +283,9 @@ ensogl::define_endpoints! { [TRACE_ALL]
         freeze                (bool),
         hover                 (bool),
         error                 (Option<Error>),
+        /// Whether visualization was permanently enabled (e.g. by pressing the button).
         visualization_enabled (bool),
+        /// Visualization can be visible even when it is not enabled, e.g. when showing preview.
         visualization_visible (bool),
         visualization_path    (Option<visualization::Path>),
         tooltip               (tooltip::Style),

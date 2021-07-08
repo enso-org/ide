@@ -327,6 +327,7 @@ impl Integration {
         let used_as_suggestion        = Self::ui_action(&model,Model::used_as_suggestion_in_ui    ,inv);
         let node_editing_committed    = Self::ui_action(&model,Model::node_editing_committed_in_ui,inv);
         let node_editing_aborted      = Self::ui_action(&model,Model::node_editing_aborted_in_ui  ,inv);
+        let visualization_path_changed = Self::ui_action(&model,Model::visualization_path_changed_in_ui  ,inv);
         frp::extend! { network
             eval code_editor.content ((content) model.code_view.set(content.clone_ref()));
 
@@ -364,19 +365,13 @@ impl Integration {
             _action <- searcher_frp.used_as_suggestion      .map2(&is_hold,used_as_suggestion);
             _action <- project_frp.editing_committed        .map2(&is_hold,node_editing_committed);
             _action <- project_frp.editing_aborted          .map2(&is_hold,node_editing_aborted);
+            _action <- editor_outs.enabled_visualization_path.map2(&is_hold,visualization_path_changed);
 
             eval editor_outs.visualization_shown([model,inv](arg) {
                 Self::execute_fallible_ui_action(&model, &inv, || model.visualization_shown_in_ui(arg))
             });
             eval editor_outs.visualization_hidden([model,inv](arg) {
                 Self::execute_fallible_ui_action(&model, &inv, || model.visualization_hidden_in_ui(arg))
-            });
-
-            eval editor_outs.visualization_enabled([model,inv](arg) {
-                Self::execute_fallible_ui_action(&model, &inv, || model.visualization_enabled_in_ui(arg))
-            });
-            eval editor_outs.visualization_disabled([model,inv](arg) {
-                Self::execute_fallible_ui_action(&model, &inv, || model.visualization_disabled_in_ui(arg))
             });
 
             eval_ project_frp.editing_committed (invalidate.trigger.emit(()));
@@ -1316,11 +1311,10 @@ impl Model {
         Ok(())
     }
 
-    fn visualization_enabled_in_ui
+    fn visualization_path_changed_in_ui
     (&self, (node_id,vis_path):&(graph_editor::NodeId,Option<visualization::Path>))
      -> FallibleResult {
-        let vis_path = vis_path.as_ref().ok_or_else(|| failure::format_err!("Enabled visualization with an unknown path!"))?;
-        debug!(self.logger, "Visualization enabled on {node_id}: {vis_path:?}.");
+        debug!(self.logger, "Visualization path changed on {node_id}: {vis_path:?}.");
         let ast_id          = self.get_controller_node_id(*node_id)?;
         let serialized_path = serde_json::to_value(&vis_path)?;
         self.graph.graph().module.with_node_metadata(ast_id, Box::new(|node_metadata| {
@@ -1328,14 +1322,6 @@ impl Model {
             WARNING!("New metadata: {node_metadata:?}");
         }))?;
         Ok(())
-    }
-
-    fn visualization_disabled_in_ui(&self, node_id:&graph_editor::NodeId) -> FallibleResult {
-        debug!(self.logger, "Visualization disabled on {node_id}.");
-        let ast_id = self.get_controller_node_id(*node_id)?;
-        self.graph.graph().module.deref().with_node_metadata(ast_id, Box::new(|node_metadata| {
-            node_metadata.visualization = serde_json::Value::Null;
-        }))
     }
 
     fn visualization_shown_in_ui
@@ -1349,10 +1335,7 @@ impl Model {
 
     fn visualization_hidden_in_ui(&self, node_id:&graph_editor::NodeId) -> FallibleResult {
         let ast_id = self.get_controller_node_id(*node_id)?;
-        self.detach_visualization(*node_id,self.visualizations.clone_ref())?;
-        self.graph.graph().module.deref().with_node_metadata(ast_id, Box::new(|node_metadata| {
-            node_metadata.visualization = serde_json::Value::Null;
-        }))
+        self.detach_visualization(*node_id,self.visualizations.clone_ref())
     }
 
     fn store_updated_stack_task(&self) -> impl FnOnce() -> FallibleResult + 'static {
