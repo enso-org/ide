@@ -86,7 +86,7 @@ impl ListEntry {
 
         let label = text::Area::new(app);
         display_object.add_child(&label);
-        label.set_position_x(ENTRY_PADDING_LEFT+icons::ICON_SIZE +ICON_TO_LABEL);
+        label.set_position_x(ENTRY_PADDING_LEFT + icons::ICON_SIZE + ICON_TO_LABEL);
         label.set_position_y(6.0);
         label.set_default_color(entry_color_normal());
         label.set_content(entry.name);
