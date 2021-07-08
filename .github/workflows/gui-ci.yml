@@ -106,6 +106,8 @@ jobs:
         with:
           toolchain: nightly-2021-05-12
           override: true
+      - name: Activate Rust cache
+        uses: Swatinem/rust-cache@v1
       - name: Install Prettier
         run: npm install --save-dev --save-exact prettier
       - name: Install Clippy
@@ -135,6 +137,8 @@ jobs:
         with:
           toolchain: nightly-2021-05-12
           override: true
+      - name: Activate Rust cache
+        uses: Swatinem/rust-cache@v1
       - name: Run tests (no WASM)
         run: node ./run test --no-wasm --skip-version-validation
   wasm-test:
@@ -156,6 +160,8 @@ jobs:
         with:
           toolchain: nightly-2021-05-12
           override: true
+      - name: Activate Rust cache
+        uses: Swatinem/rust-cache@v1
       - name: Install wasm-pack (macOS)
         env:
           WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1
@@ -210,6 +216,8 @@ jobs:
         with:
           toolchain: nightly-2021-05-12
           override: true
+      - name: Activate Rust cache
+        uses: Swatinem/rust-cache@v1
       - name: Install wasm-pack (macOS)
         env:
           WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1
@@ -295,6 +303,8 @@ jobs:
         with:
           toolchain: nightly-2021-05-12
           override: true
+      - name: Activate Rust cache
+        uses: Swatinem/rust-cache@v1
       - name: Install wasm-pack (macOS)
         env:
           WASMPACKURL: https://github.com/rustwasm/wasm-pack/releases/download/v0.9.1
