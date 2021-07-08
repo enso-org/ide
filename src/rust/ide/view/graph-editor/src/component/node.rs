@@ -248,7 +248,7 @@ impl Default for Crumbs {
 // === Node ===
 // ============
 
-ensogl::define_endpoints! { [TRACE_ALL]
+ensogl::define_endpoints! {
     Input {
         select                (),
         deselect              (),
@@ -650,7 +650,7 @@ impl Node {
         hover_onset_delay.set_delay(VIS_PREVIEW_ONSET_MS);
         hover_onset_delay.set_duration(0.0);
 
-        frp::extend! { TRACE_ALL network
+        frp::extend! { network
 
             frp.source.error <+ frp.set_error;
             is_error_set <- frp.error.map(|err| err.is_some());

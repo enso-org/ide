@@ -772,8 +772,8 @@ impl Searcher {
         let graph_definition = double_representation::module::locate(&module.ast,&self.graph.graph().id)?;
         let mut graph_info   = GraphInfo::from_definition(graph_definition.item);
         graph_info.add_node(node.ast().clone_ref(), LocationHint::End)?;
-        module.ast          = module.ast.set_traversing(&graph_definition.crumbs, graph_info.ast())?;
-        let metadata        = NodeMetadata {position,..default()};
+        module.ast   = module.ast.set_traversing(&graph_definition.crumbs, graph_info.ast())?;
+        let metadata = NodeMetadata {position,..default()};
 
 
         // === Add imports ===

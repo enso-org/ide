@@ -40,6 +40,10 @@ use ide_view::graph_editor::SharedHashMap;
 use utils::iter::split_by_predicate;
 use futures::future::LocalBoxFuture;
 
+// ========================
+// === VisualizationMap ===
+// ========================
+
 /// Describes an enabled visualization on a node.
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
@@ -315,7 +319,7 @@ impl Integration {
         let node_selected             = Self::ui_action(&model,Model::node_selected_in_ui         ,inv);
         let node_deselected           = Self::ui_action(&model,Model::node_deselected_in_ui       ,inv);
         let node_entered              = Self::ui_action(&model,Model::node_entered_in_ui          ,inv);
-        let node_exited               = Self::ui_action(&model,|model,()| {model.node_exited_in_ui(); Ok(())},inv);
+        let node_exited               = Self::ui_action(&model,|model,_| { model.node_exited_in_ui(); Ok(()) },inv);
         let connection_created        = Self::ui_action(&model,Model::connection_created_in_ui    ,inv);
         let connection_removed        = Self::ui_action(&model,Model::connection_removed_in_ui    ,inv);
         let node_moved                = Self::ui_action(&model,Model::node_moved_in_ui            ,inv);
@@ -381,7 +385,7 @@ impl Integration {
             eval_ project_frp.redo              (model.redo_in_ui());
         }
 
-        frp::extend! {TRACE_ALL network
+        frp::extend! { network
             eval_ editor_outs.node_editing_started([]analytics::remote_log_event("graph_editor::node_editing_started"));
             eval_ editor_outs.node_editing_finished([]analytics::remote_log_event("graph_editor::node_editing_finished"));
             eval_ editor_outs.node_added([]analytics::remote_log_event("graph_editor::node_added"));
@@ -1327,7 +1331,6 @@ impl Model {
     }
 
     fn visualization_hidden_in_ui(&self, node_id:&graph_editor::NodeId) -> FallibleResult {
-        let ast_id = self.get_controller_node_id(*node_id)?;
         self.detach_visualization(*node_id,self.visualizations.clone_ref())
     }
 

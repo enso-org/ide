@@ -347,7 +347,6 @@ impl Collapser {
             let expression   = self.call_to_extracted(&extracted_definition)?;
             let no_node_err  = failure::Error::from(CannotConstructCollapsedNode);
             let mut new_node = NodeInfo::new_expression(expression.clone_ref()).ok_or(no_node_err)?;
-            new_node.set_id(Uuid::new_v4());
             new_node.set_id(self.collapsed_node);
             if let Some(Output{identifier,..}) = &self.extracted.output {
                 new_node.set_pattern(identifier.with_new_id().into())
@@ -365,25 +364,11 @@ impl Collapser {
             self.rewrite_line(line,&new_method)
         })?;
         let collapsed_node = self.collapsed_node;
-        assert_unique_ids(updated_definition.ast.ast());
         Ok(Collapsed {updated_definition,new_method,collapsed_node})
     }
 }
 
 
-/// Panics if in the given AST duplicated IDs are present.
-pub fn assert_unique_ids(ast:&Ast) {
-    let mut ids = HashMap::new();
-    for node in ast.iter_recursive() {
-        if let Some(id) = node.id {
-            // DEBUG!("Checking {node}");
-            if let Some(id2) = ids.insert(id, node) {
-                panic!("Collision for id {} between `{}` and `{}`.\n\nWhole program is:\n{}",
-                    id,id2,node,ast)
-            }
-        }
-    }
-}
 
 // ============
 // === Test ===
@@ -417,7 +402,7 @@ mod tests {
             let graph        = graph::GraphInfo::from_definition(main.item.clone());
             let nodes        = graph.nodes();
             let run_internal = |selection:&Vec<node::Id>| {
-                assert_unique_ids(&ast.ast());
+                ast::test_utils::assert_unique_ids(ast.as_ref());
                 let selection  = selection.iter().copied();
                 let new_name   = self.introduced_name.clone();
                 let collapsed  = collapse(&graph,selection,new_name,parser).unwrap();
@@ -430,7 +415,7 @@ mod tests {
                 let main_crumb = Crumb::from(main.crumb());
                 module.ast     = module.ast.set(&main_crumb, new_main.ast().clone()).unwrap();
                 module.add_method(collapsed.new_method, placement, parser).unwrap();
-                assert_unique_ids(&module.ast.ast());
+                ast::test_utils::assert_unique_ids(&module.ast.as_ref());
                 info!(logger,"Updated method:\n{&module.ast}");
                 assert_eq!(new_method.repr(),self.expected_generated);
                 assert_eq!(new_main.repr(),self.expected_refactored);

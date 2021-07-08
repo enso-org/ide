@@ -65,14 +65,10 @@ impl Module {
     /// emitted.
     fn set_content(&self, new_content:Content, kind:NotificationKind) -> FallibleResult {
         if new_content == *self.content.borrow() {
-            warning!(self.logger, "Ignoring spurious update.");
+            debug!(self.logger, "Ignoring spurious update.");
             return Ok(())
         }
-
         trace!(self.logger, "Updating module's content: {kind:?}. New content:\n{new_content}");
-
-        crate::double_representation::refactorings::collapse::assert_unique_ids(new_content.ast.ast());
-
         let transaction = self.repository.transaction("Setting module's content");
         transaction.fill_content(self.id(),self.content.borrow().clone());
 

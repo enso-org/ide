@@ -335,7 +335,7 @@ impl<K,V,S> SharedHashMap<K,V,S> {
 // === FrpInputs ===
 // =================
 
-ensogl::define_endpoints! { [TRACE_ALL]
+ensogl::define_endpoints! {
     Input {
         // === General ===
         /// Cancel the operation being currently performed. Often mapped to the escape key.
@@ -1181,10 +1181,6 @@ impl GraphEditorModelWithNetwork {
         let touch      = &self.touch_state;
         let model      = &self.model;
         let NodeCreationContext {pointer_style,tooltip_update,output_press,input_press,output} = ctx;
-
-        let map_to_path = |def:&Option<visualization::Definition>| {
-            def.as_ref().map(|def| def.path())
-        };
 
         frp::new_bridge_network! { [self.network, node.frp.network] graph_node_bridge
             eval_ node.frp.background_press(touch.nodes.down.emit(node_id));
@@ -2441,7 +2437,7 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     // === Edge creation  ===
 
-    frp::extend! {TRACE_ALL network
+    frp::extend! { network
 
     output_down <- node_output_touch.down.constant(());
     input_down  <- node_input_touch.down.constant(());
