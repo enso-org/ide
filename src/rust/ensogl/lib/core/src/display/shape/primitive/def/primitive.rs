@@ -209,6 +209,9 @@ define_sdf_shapes! {
         return bound_sdf(length(position)-radius, bounding_box(radius,radius));
     }
 
+    // For better performance, this implementation does not provide the exact distance to the shape
+    // boundary. Instead, it behaves like a circle that is stretched along one axis and shortened
+    // along the other.
     Ellipse (x_radius:f32, y_radius:f32) {
         float a2   = x_radius / y_radius;
         float b2   = y_radius / x_radius;
