@@ -1,3 +1,5 @@
+//! A module containing [`ProjectList`] component and all related structures.
+
 use crate::prelude::*;
 
 use enso_frp as frp;
@@ -11,7 +13,11 @@ use ensogl_theme::application::project_list as theme;
 
 
 
+// =============
+// === Entry ===
+// =============
 
+/// The project entry widget for the [`list_view::ListView`] inside [`ProjectList`].
 #[derive(Clone,CloneRef,Debug)]
 pub struct Entry {
     network     : frp::Network,
@@ -20,6 +26,7 @@ pub struct Entry {
 }
 
 impl Entry {
+    /// Create entry for a project with given name.
     pub fn new(app:&Application, name:impl Str) -> Self {
         let network     = frp::Network::new("ProjectEntry");
         let label       = app.new_view::<ensogl_text::Area>();
@@ -46,6 +53,12 @@ impl list_view::entry::Entry for Entry {
 
     fn set_width(&self, _width: f32) {}
 }
+
+
+
+// ==============
+// === Shapes ===
+// ==============
 
 mod background {
     use super::*;
@@ -77,12 +90,20 @@ mod background {
 }
 
 
+
+// ===================
+// === ProjectList ===
+// ===================
+
+/// The Project List GUI Component.
+///
+/// This is a list of projects in a nice frame with title.
 #[derive(Clone,CloneRef,Debug)]
 pub struct ProjectList {
     logger         : Logger,
     network        : frp::Network,
     display_object : display::object::Instance,
-    background     : background::View,
+    background     : background::View, //TODO[ao] use Card instead.
     caption        : text::Area,
     list           : list_view::ListView,
     style_watch    : StyleWatchFrp,
@@ -95,6 +116,7 @@ impl Deref for ProjectList {
 }
 
 impl ProjectList {
+    /// Create Project List Component.
     pub fn new(app:&Application) -> Self {
         let logger         = Logger::new("ProjectList");
         let network        = frp::Network::new("ProjectList");

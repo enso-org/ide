@@ -54,8 +54,10 @@ pub trait API:Debug {
     /// Get the suggestions database.
     fn suggestion_db(&self) -> Rc<model::SuggestionDatabase>;
 
+    /// Get the list of all content roots attached to the project.
     fn content_roots(&self) -> Vec<Rc<ContentRoot>>;
 
+    /// Get content root by id.
     fn content_root_by_id(&self, id:Uuid) -> FallibleResult<Rc<ContentRoot>>;
 
     /// Returns a model of module opened from file.
@@ -183,9 +185,9 @@ pub mod test {
             .returning_st(move |_root_definition| ready(Ok(ctx2.clone_ref())).boxed_local());
     }
 
-    /// Sets up root id expectation on the mock project, returning a given id.
+    /// Sets up project root id expectation on the mock project, returning a given id.
     pub fn expect_root_id(project:&mut MockAPI, root_id:Uuid) {
-        project.expect_content_root_id().return_const(root_id);
+        project.expect_project_content_root_id().return_const(root_id);
     }
 
     /// Sets up suggestion database expectation on the mock project, returning a given database.

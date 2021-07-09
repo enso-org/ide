@@ -1,5 +1,4 @@
 //! A module with [`OpenDialog`] component.
-
 pub mod project_list;
 
 use crate::prelude::*;
@@ -13,6 +12,17 @@ use ensogl::display::shape::StyleWatchFrp;
 use ensogl_theme as theme;
 
 
+
+// ==================
+// === OpenDialog ===
+// ==================
+
+/// An Open Dialog GUI component.
+///
+/// This is component bounding together projects-to-open list and the file browser. It does not
+/// provide frp endpoints by its own: you should just go directly to the `project_list` or
+/// `file_browser` field.
+#[allow(missing_docs)]
 #[derive(Clone,CloneRef,Debug)]
 pub struct OpenDialog {
     logger           : Logger,
@@ -24,6 +34,7 @@ pub struct OpenDialog {
 }
 
 impl OpenDialog {
+    /// Create Open Dialog component.
     pub fn new(app:&Application) -> Self {
         let logger         = Logger::new("OpenDialog");
         let network        = frp::Network::new("OpenDialog");
@@ -36,8 +47,9 @@ impl OpenDialog {
         display_object.add_child(&file_browser);
         app.display.scene().layers.panel.add_exclusive(&display_object);
 
-        let project_list_width = style_watch.get_number(theme::application::project_list::width);
-        let gap_between_panels = style_watch.get_number(theme::application::open_dialog::gap_between_panels);
+        use theme::application as theme_app;
+        let project_list_width = style_watch.get_number(theme_app::project_list::width);
+        let gap_between_panels = style_watch.get_number(theme_app::open_dialog::gap_between_panels);
         frp::extend! { network
             init  <- source::<()>();
             width <- all_with3(&project_list_width,&gap_between_panels,&init,

@@ -1294,10 +1294,7 @@ impl Model {
 
     fn open_dialog_opened_in_ui(self:&Rc<Self>) {
         debug!(self.logger, "Opened file dialog in ui. Providing content root list");
-        let provider = FileProvider {
-            connection: self.project.json_rpc(),
-            content_roots: self.project.content_roots(),
-        };
+        let provider = FileProvider::new(&self.project);
         let provider:AnyFolderContent = provider.into();
         self.view.open_dialog().file_browser.set_content(provider);
         let model = Rc::downgrade(self);
@@ -1670,7 +1667,7 @@ impl ProjectsToOpen {
 impl list_view::entry::EntryProvider for ProjectsToOpen {
     fn entry_count(&self) -> usize { self.projects.len() }
 
-    fn get(&self, app: &Application, id: usize) -> Option<AnyEntry> {
+    fn get(&self, app: &Application, id: usize) -> Option<list_view::entry::AnyEntry> {
         Some(open_dialog::project_list::Entry::new(app, self.projects.get(id)?.name.as_str()).into())
     }
 }

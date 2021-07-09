@@ -98,6 +98,7 @@ impl ExecutionContextsRegistry {
 #[fail(display="Content root {} does not exist.",id)]
 struct MissingContentRoot {id:Uuid}
 
+/// A repository of content roots attached to a specific project.
 #[derive(Clone,Debug)]
 pub struct ContentRoots {
     logger : Logger,
@@ -105,6 +106,7 @@ pub struct ContentRoots {
 }
 
 impl ContentRoots {
+    /// Create ContentRoots, initializing with the roots retrieved during connection initialization.
     pub fn new_from_connection
     (parent:impl AnyLogger, connection:&language_server::Connection) -> Self {
         let logger    = Logger::sub(parent,"ContentRoots");
@@ -113,10 +115,14 @@ impl ContentRoots {
         Self{logger,roots}
     }
 
+    /// Return all content roots.
     pub fn all(&self) -> Vec<Rc<ContentRoot>> {
         self.roots.borrow().values().cloned().collect()
     }
 
+    /// Add a new content root.
+    ///
+    /// If there is already a root with given id, it will be replaced and warning will be printed.
     pub fn add(&self, content_root:ContentRoot) {
         let content_root = Rc::new(content_root);
         if let Some(existing) = self.roots.borrow_mut().insert(content_root.id(),content_root) {
@@ -125,10 +131,14 @@ impl ContentRoots {
         }
     }
 
+    /// Get content root by id.
     pub fn get(&self, id:Uuid) -> FallibleResult<Rc<ContentRoot>> {
         self.roots.borrow().get(&id).cloned().ok_or_else(|| MissingContentRoot{id}.into())
     }
 
+    /// Remove the content root with given id.
+    ///
+    /// If there is no content root with such id, a warning will be printed.
     pub fn remove(&self, id:Uuid) {
         if self.roots.borrow_mut().remove(&id).is_none() {
             warning!(self.logger,"Removing content root: no content root with given id: {id}");

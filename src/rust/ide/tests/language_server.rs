@@ -239,7 +239,7 @@ async fn file_events() {
     let client_id = uuid::Uuid::default();
     let session   = client.init_protocol_connection(&client_id).await;
     let session   = session.expect("Couldn't initialize session.");
-    let root_id   = session.content_roots[0].id;
+    let root_id   = session.content_roots[0].id();
 
     let path      = Path{root_id,segments:vec!["test.txt".into()]};
     let file      = client.file_exists(&path).await;
@@ -297,7 +297,7 @@ async fn file_operations_test() {
     let project = ide.current_project();
     info!(logger,"Got project: {project:?}");
     // Edit file using the text protocol
-    let path     = Path::new(project.json_rpc().project_root().id, &["test_file.txt"]);
+    let path     = Path::new(project.json_rpc().project_root().id(), &["test_file.txt"]);
     let contents = "Hello, 世界!".to_string();
     let written  = project.json_rpc().write_file(&path,&contents).await.unwrap();
     info!(logger,"Written: {written:?}");
