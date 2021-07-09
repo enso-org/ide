@@ -405,8 +405,10 @@ define_themes! { [light:0, dark:1]
             }
             text = Lcha(0.0,0.0,0.0,0.7) , Lcha(1.0,0.0,0.0,0.7);
             text {
-                highlight = selection, Rgba(0.275,0.549,0.839,1.0); // ... , rgb(70 140 214)
-                selection = Lcha(0.7,0.0,0.125,0.7) , Lcha(0.7,0.0,0.125,0.7);
+                highlight       = selection, Rgba(0.275,0.549,0.839,1.0); // ... , rgb(70 140 214)
+                focus           = Lcha(1.0,0.0,0.0,1.0)   , Lcha(0.0,0.0,0.0,1.0);
+                focus_highlight = Lcha(0.2,0.0,0.0,1.0)   , Lcha(1.0,0.0,0.0,1.0);
+                selection       = Lcha(0.7,0.0,0.125,0.7) , Lcha(0.7,0.0,0.125,0.7);
             }
         }
     }
