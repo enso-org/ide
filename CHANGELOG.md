@@ -1,12 +1,13 @@
 # Enso 2.0.0-alpha.8 (2021-06-09)
 
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
 #### Enso Compiler
 
-- [Updated Enso engine to version 0.2.12][1640].
-
-If you're interested in the enhancements and fixes made to the Enso compiler,
-you can find out more details in
-[the engine release notes](https://github.com/enso-org/enso/blob/main/RELEASES.md).
+- [Updated Enso engine to version 0.2.12][1640]. If you're interested in the
+  enhancements and fixes made to the Enso compiler, you can find out more
+  details in
+  [the engine release notes](https://github.com/enso-org/enso/blob/main/RELEASES.md).
 
 [1640]: https://github.com/enso-org/ide/pull/1664
 
