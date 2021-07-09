@@ -86,7 +86,7 @@ impl ListEntry {
 
         let label = text::Area::new(app);
         display_object.add_child(&label);
-        label.set_position_x(ENTRY_PADDING_LEFT+icons::ICON_SIZE +ICON_TO_LABEL);
+        label.set_position_x(ENTRY_PADDING_LEFT + icons::ICON_SIZE + ICON_TO_LABEL);
         label.set_position_y(6.0);
         label.set_default_color(entry_color_normal());
         label.set_content(entry.name);
@@ -153,7 +153,7 @@ impl ListEntry {
         }
         display_object.add_child(icon.as_ref());
         app.display.scene().layers.panel.add_exclusive(icon.as_ref());
-        icon.deref().set_position_x(ENTRY_PADDING_LEFT+icons::ICON_SIZE /2.0);
+        icon.deref().set_position_x(ENTRY_PADDING_LEFT + icons::ICON_SIZE / 2.0);
 
         Self { display_object,label,icon,arrow }
     }
