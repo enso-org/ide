@@ -171,14 +171,23 @@ define_themes! { [light:0, dark:1]
             background           = graph_editor::node::background , graph_editor::node::background;
             toolbar_border_color = Rgba(0.808,0.808,0.808,1.0)    , Rgba(0.808,0.808,0.808,1.0);
         }
+        open_dialog {
+            gap_between_panels = 16.0, 16.0;
+        }
         project_list {
-            width = 202.0 , 202.0;
-            padding = 16.0, 16.0;
-            height  = 421.0, 421.0;
+            width      = 202.0 , 202.0;
+            padding    = 16.0, 16.0;
+            height     = 421.0, 421.0;
+            background = application::file_browser::background , application::file_browser::background;
+            text       = widget::list_view::text, widget::list_view::text;
             bar {
-                height = 45.0, 45.0;
+                height      = 45.0, 45.0;
                 border_size = 1.0, 1.0;
-                label_size = 12.0, 12.0;
+                border_color = application::file_browser::toolbar_border_color, application::file_browser::toolbar_border_color;
+                label {
+                    size  = 12.0, 12.0;
+                    color = Rgba(0.439,0.439,0.439,1.0), Rgba(0.439,0.439,0.439,1.0);
+                }
             }
         }
 

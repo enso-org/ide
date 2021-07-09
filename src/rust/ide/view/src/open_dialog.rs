@@ -1,45 +1,56 @@
+//! A module with [`OpenDialog`] component.
+
 pub mod project_list;
 
 use crate::prelude::*;
 
+use enso_frp as frp;
 use ensogl::display;
 use ensogl_gui_components::file_browser;
 use ensogl_gui_components::file_browser::FileBrowser;
 use ensogl::application::Application;
-use ensogl::display::object::Instance;
-
-
-
-const WIDTH:f32  = file_browser::WIDTH + project_list::WIDTH + GAP;
-const HEIGHT:f32 = file_browser::HEIGHT;
-const GAP:f32    = 16.0;
-
+use ensogl::display::shape::StyleWatchFrp;
+use ensogl_theme as theme;
 
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct OpenDialog {
-    logger                      : Logger,
-    pub project_list            : project_list::ProjectList,
-    pub file_browser            : FileBrowser,
-    display_object              : display::object::Instance,
+    logger           : Logger,
+    network          : frp::Network,
+    pub project_list : project_list::ProjectList,
+    pub file_browser : FileBrowser,
+    display_object   : display::object::Instance,
+    style_watch      : StyleWatchFrp,
 }
 
 impl OpenDialog {
     pub fn new(app:&Application) -> Self {
         let logger         = Logger::new("OpenDialog");
+        let network        = frp::Network::new("OpenDialog");
+        let style_watch    = StyleWatchFrp::new(&app.display.scene().style_sheet);
         let project_list   = project_list::ProjectList::new(app);
         let file_browser   = app.new_view::<FileBrowser>();
         let display_object = display::object::Instance::new(&logger);
 
         display_object.add_child(&project_list);
-        project_list.set_position_x(-WIDTH / 2.0 + project_list::WIDTH / 2.0);
-
         display_object.add_child(&file_browser);
-        file_browser.set_position_x(WIDTH / 2.0 - file_browser::WIDTH / 2.0);
-
         app.display.scene().layers.panel.add_exclusive(&display_object);
 
-        Self {logger,project_list,file_browser,display_object}
+        let project_list_width = style_watch.get_number(theme::application::project_list::width);
+        let gap_between_panels = style_watch.get_number(theme::application::open_dialog::gap_between_panels);
+        frp::extend! { network
+            init  <- source::<()>();
+            width <- all_with3(&project_list_width,&gap_between_panels,&init,
+                |pw,g,()| *pw + *g + file_browser::WIDTH
+            );
+            project_list_x <- all_with(&width,&project_list_width,|w,pw| *w / 2.0 + *pw / 2.0);
+            file_browser_x <- width.map(|w| w / 2.0 - file_browser::WIDTH / 2.0);
+
+            eval project_list_x ((x) project_list.set_position_x(*x));
+            eval file_browser_x ((x) file_browser.set_position_x(*x));
+        }
+
+        Self {logger,network,project_list,file_browser,display_object,style_watch}
     }
 }
 

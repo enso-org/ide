@@ -6,18 +6,10 @@ use ensogl::application::Application;
 use ensogl::display;
 use ensogl::display::shape::*;
 use ensogl_text as text;
-use ensogl_gui_components::file_browser;
 use ensogl_gui_components::shadow;
-use ensogl_theme as theme;
-use ensogl::data::color;
+use ensogl_theme::application::project_list as theme;
 
 
-pub const WIDTH:f32           = 202.0;
-pub const PADDING:f32         = 16.0;
-pub const HEIGHT:f32          = file_browser::HEIGHT;
-pub const BAR_HEIGHT:f32      = file_browser::TOOLBAR_HEIGHT;
-pub const BAR_BORDER_SIZE:f32 = file_browser::TOOLBAR_BORDER_SIZE;
-pub const LABEL_SIZE:f32      = list_view::entry::LABEL_SIZE;
 
 
 #[derive(Clone,CloneRef,Debug)]
@@ -32,7 +24,7 @@ impl Entry {
         let network     = frp::Network::new("ProjectEntry");
         let label       = app.new_view::<ensogl_text::Area>();
         let style_watch = StyleWatchFrp::new(&app.display.scene().style_sheet);
-        let text_color  = style_watch.get_color(ensogl_theme::widget::list_view::text);
+        let text_color  = style_watch.get_color(theme::text);
         label.set_default_color(text_color.value());
         label.set_position_xy(Vector2(6.0,6.0)); // TODO[ao] Hmmm...
         label.set_content(name.as_ref());
@@ -67,15 +59,17 @@ mod background {
             let sprite_height : Var<Pixels> = "input_size.y".into();
             let width         = sprite_width - SHADOW_PX.px() * 2.0;
             let height        = sprite_height - SHADOW_PX.px() * 2.0;
-            let color         = style.get_color(theme::application::file_browser::background);
+            let color         = style.get_color(theme::background);
+            let border_size   = style.get_number(theme::bar::border_size);
+            let bar_height    = style.get_number(theme::bar::height);
             let rect          = Rect((&width,&height)).corners_radius(CORNER_RADIUS_PX.px());
             let shape         = rect.fill(color);
 
             let shadow  = shadow::from_shape(rect.into(),style);
 
-            let toolbar_border = Rect((width, BAR_BORDER_SIZE.px()))
-                .translate_y(height / 2.0 - BAR_HEIGHT.px())
-                .fill(style.get_color(theme::application::file_browser::toolbar_border_color));
+            let toolbar_border = Rect((width, border_size.px()))
+                .translate_y(height / 2.0 - bar_height.px())
+                .fill(style.get_color(theme::bar::border_color));
 
             (shadow + shape + toolbar_border).into()
         }
@@ -86,10 +80,12 @@ mod background {
 #[derive(Clone,CloneRef,Debug)]
 pub struct ProjectList {
     logger         : Logger,
+    network        : frp::Network,
     display_object : display::object::Instance,
     background     : background::View,
     caption        : text::Area,
     list           : list_view::ListView,
+    style_watch    : StyleWatchFrp,
 }
 
 impl Deref for ProjectList {
@@ -101,6 +97,7 @@ impl Deref for ProjectList {
 impl ProjectList {
     pub fn new(app:&Application) -> Self {
         let logger         = Logger::new("ProjectList");
+        let network        = frp::Network::new("ProjectList");
         let display_object = display::object::Instance::new(&logger);
         let background     = background::View::new(&logger);
         let caption        = app.new_view::<text::Area>();
@@ -109,22 +106,41 @@ impl ProjectList {
         display_object.add_child(&caption);
         display_object.add_child(&list);
         app.display.scene().layers.panel.add_exclusive(&display_object);
-
-        background.size.set(Vector2(WIDTH + background::SHADOW_PX * 2.0,HEIGHT + background::SHADOW_PX * 2.0));
-
-        list.resize(Vector2(WIDTH,HEIGHT-BAR_HEIGHT));
-        list.set_position_y(-BAR_HEIGHT/2.0);
-
-        caption.set_position_xy(Vector2(-WIDTH/2.0 + PADDING, HEIGHT/2.0 - PADDING));
-        caption.set_default_color(color::Rgba(0.439,0.439,0.439,1.0));
-        caption.set_default_text_size(text::Size(LABEL_SIZE));
         caption.set_content("Open Project");
         caption.remove_from_scene_layer(&app.display.scene().layers.main);
         caption.add_to_scene_layer(&app.display.scene().layers.panel_text);
 
-        //TODO[ao] update style.
+        let style_watch = StyleWatchFrp::new(&app.display.scene().style_sheet);
+        let width       = style_watch.get_number(theme::width);
+        let height      = style_watch.get_number(theme::height);
+        let bar_height  = style_watch.get_number(theme::bar::height);
+        let padding     = style_watch.get_number(theme::padding);
+        let color       = style_watch.get_color(theme::bar::label::color);
+        let label_size  = style_watch.get_number(theme::bar::label::color);
 
-        Self {logger,display_object,background,caption,list}
+        frp::extend! { network
+            init <- source::<()>();
+            size <- all_with3(&width,&height,&init,|w,h,()|
+                Vector2(w + background::SHADOW_PX * 2.0,h + background::SHADOW_PX * 2.0)
+            );
+            list_size  <- all_with4(&width,&height,&bar_height,&init,|w,h,bh,()|
+                Vector2(*w,*h - *bh));
+            list_y <- bar_height.map(|bh| -*bh / 2.0);
+            caption_xy <- all_with4(&width,&height,&padding,&init,
+                |w,h,p,()| Vector2(-*w / 2.0 + *p, *h / 2.0 - p)
+            );
+            color      <- all(&color,&init)._0();
+            label_size <- all(&label_size,&init)._0();
+
+            eval size       ((size)  background.size.set(*size));
+            eval list_size  ((size)  list.resize(*size));
+            eval list_y     ((y)     list.set_position_y(*y));
+            eval caption_xy ((xy)    caption.set_position_xy(*xy));
+            eval color      ((color) caption.set_default_color(color));
+            eval label_size ((size)  caption.set_default_text_size(text::Size(*size)));
+        };
+
+        Self {logger,network,display_object,background,caption,list,style_watch}
     }
 }
 

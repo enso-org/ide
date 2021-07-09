@@ -98,13 +98,8 @@ mod prompt_background {
 
 
 // =============
-// =============
 // === Model ===
 // =============
-
-struct SubComponents {
-
-}
 
 #[derive(Clone,CloneRef,Debug)]
 struct Model {
