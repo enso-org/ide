@@ -5,6 +5,5 @@ authors = ["Enso Team <contact@enso.org>"]
 edition = "2018"
 
 [dependencies]
-cfg-if = { version = "1.0.0" }
 js-sys = { version = "0.3.28" }
 wasm-bindgen = { version = "=0.2.58", features = ["nightly", "serde-serialize"] }

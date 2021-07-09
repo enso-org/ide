@@ -38,24 +38,20 @@ export function remote_log_value(msg, field_name, value) {
 #[allow(unused_variables)] // used only on wasm target
 pub fn remote_log_event(message:&str) {
     // Note: Disabling on non-wasm targets
-    cfg_if::cfg_if! {
-        if #[cfg(target_arch="wasm32")] {
-            js::remote_log(JsValue::from(message.to_string()),JsValue::UNDEFINED);
-        }
+    #[cfg(target_arch="wasm32")]  {
+        js::remote_log(JsValue::from(message.to_string()),JsValue::UNDEFINED);
     }
 }
 
 /// Send the provided public event with a named value to our logging service.
 #[allow(unused_variables)] // used only on wasm target
 pub fn remote_log_value
-<T:Loggable>(message:&str, field_name:&str, data:AnonymousData<T>) {
+<T:Loggable>(message:&str, field_name:&str, data:AnonymousData<T>){
     // Note: Disabling on non-wasm targets
-    cfg_if::cfg_if! {
-        if #[cfg(target_arch="wasm32")] {
-            let msg        = JsValue::from(message.to_string());
-            let field_name = JsValue::from(field_name.to_string());
-            js::remote_log_value(msg,field_name,data.0.get());
-        }
+    #[cfg(target_arch="wasm32")] {
+        let msg = JsValue::from(message.to_string());
+        let field_name = JsValue::from(field_name.to_string());
+        js::remote_log_value(msg, field_name, data.0.get());
     }
 }
 
