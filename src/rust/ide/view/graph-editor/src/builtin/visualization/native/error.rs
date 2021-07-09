@@ -48,7 +48,7 @@ pub fn preprocessor() -> instance::PreprocessorConfiguration {
 
 /// Get metadata description for error visualization.
 pub fn metadata() -> Metadata {
-    let preprocessor     = preprocessor();
+    let preprocessor = preprocessor();
     Metadata {preprocessor}
 }
 

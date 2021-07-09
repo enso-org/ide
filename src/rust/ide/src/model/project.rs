@@ -127,7 +127,6 @@ pub trait APIExt : API {
 
 impl<T:API> APIExt for T {}
 
-
 // Note: Needless lifetimes
 // ~~~~~~~~~~~~~~~~~~~~~~~~
 // Clippy complains about using explicit lifetimes, however the suggested change breaks compilation.

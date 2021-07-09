@@ -807,7 +807,6 @@ impl Node {
         frp.set_error.emit(None);
         frp.set_disabled.emit(false);
         frp.show_quick_action_bar_on_hover.emit(true);
-        // frp.source.visualization_path.emit(&model.visualization.frp.visualisation.value().map(|def| def.signature.path));
 
         Self {model,frp}
     }

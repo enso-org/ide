@@ -19,13 +19,6 @@ use parser::Parser;
 use parser::api::ParsedSourceFile;
 use parser::api::SourceFile;
 
-
-/// Failure for missing node metadata.
-#[derive(Debug,Clone,Fail)]
-#[fail(display="Module {} does not contain project metadata.", _0)]
-pub struct MissingProjectMetadata(pub controller::FilePath);
-
-
 /// A structure describing the module.
 ///
 /// It implements internal mutability pattern, so the state may be shared between different

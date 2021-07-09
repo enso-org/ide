@@ -1311,7 +1311,6 @@ impl Model {
         let serialized_path = serde_json::to_value(&vis_path)?;
         self.graph.graph().module.with_node_metadata(ast_id, Box::new(|node_metadata| {
             node_metadata.visualization = serialized_path;
-            WARNING!("New metadata: {node_metadata:?}");
         }))?;
         Ok(())
     }
@@ -1714,6 +1713,7 @@ impl Model {
 // =======================
 
 /// Result of an attempt to attach a visualization.
+#[derive(Debug)]
 pub enum AttachingResult<T>{
     /// Visualization has been successfully attached.
     Attached(T),

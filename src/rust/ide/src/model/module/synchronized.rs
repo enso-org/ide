@@ -10,6 +10,7 @@ use crate::model::module::Content;
 use crate::model::module::Notification;
 use crate::model::module::NodeMetadata;
 use crate::model::module::Path;
+use crate::model::module::ProjectMetadata;
 
 use ast::IdMap;
 use data::text::TextChange;
@@ -20,7 +21,7 @@ use enso_protocol::language_server::TextEdit;
 use flo_stream::Subscriber;
 use parser::api::SourceFile;
 use parser::Parser;
-use crate::model::module::ProjectMetadata;
+
 
 
 // =======================
