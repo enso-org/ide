@@ -11,6 +11,8 @@
 
 [1640]: https://github.com/enso-org/ide/pull/1664
 
+<br/>
+
 # Enso 2.0.0-alpha.7 (2021-06-06)
 
 <br/>![New Features](/docs/assets/tags/new_features.svg)
