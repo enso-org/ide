@@ -370,7 +370,7 @@ function setupCrashDetection() {
     // (https://v8.dev/docs/stack-trace-api#compatibility)
     Error.stackTraceLimit = 100
 
-    window.addEventListener('error', function (event) {
+    window.addEventListener('error', function(event) {
         // We prefer stack traces over plain error messages but not all browsers produce traces.
         if (ok(event.error) && ok(event.error.stack)) {
             handleCrash(event.error.stack)
@@ -378,7 +378,7 @@ function setupCrashDetection() {
             handleCrash(event.message)
         }
     })
-    window.addEventListener('unhandledrejection', function (event) {
+    window.addEventListener('unhandledrejection', function(event) {
         // As above, we prefer stack traces.
         // But here, `event.reason` is not even guaranteed to be an `Error`.
         handleCrash(event.reason.stack || event.reason.message || 'Unhandled rejection')
