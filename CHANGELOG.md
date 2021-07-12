@@ -1,5 +1,20 @@
 # Next Release
 
+This update contains major performance improvements and exposes new privacy user
+settings. We will work towards stabilizing it in the next weeks in order to make
+these updates be shipped in a stable release before the end of the year.
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Enso Compiler
+
+- [Updated Enso engine to version 0.2.13][xxxx]. If you're interested in the
+  enhancements and fixes made to the Enso compiler, you can find out more
+  details in
+  [the engine release notes](https://github.com/enso-org/enso/blob/main/RELEASES.md).
+
+[xxxx]: https://github.com/enso-org/ide/pull/xxxx
+
 # Enso 2.0.0-alpha.8 (2021-06-09)
 
 <br/>![New Features](/docs/assets/tags/new_features.svg)
