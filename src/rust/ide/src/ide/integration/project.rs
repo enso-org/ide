@@ -16,6 +16,8 @@ use crate::controller::upload;
 use crate::controller::upload::NodeFromDroppedFileHandler;
 use crate::ide::integration::file_system::FileProvider;
 use crate::ide::integration::file_system::create_node_from_file;
+use crate::ide::integration::file_system::FileOperation;
+use crate::ide::integration::file_system::do_file_operation;
 use crate::model::execution_context::ComputedValueInfo;
 use crate::model::execution_context::ExpressionId;
 use crate::model::execution_context::LocalCall;
@@ -305,14 +307,36 @@ impl Integration {
 
         // === Open File or Project Dialog ===
 
+        let file_browser = &model.view.open_dialog().file_browser;
+        let project_list = &model.view.open_dialog().project_list;
         frp::extend! { network
-            let chosen_project = model.view.open_dialog().project_list.chosen_entry.clone_ref();
-            let file_chosen    = model.view.open_dialog().file_browser.entry_chosen.clone_ref();
+            let chosen_project = project_list.chosen_entry.clone_ref();
+            let file_chosen    = file_browser.entry_chosen.clone_ref();
             project_chosen     <- chosen_project.filter_map(|p| *p);
             dialog_is_shown    <- project_frp.open_dialog_shown.filter(|v| *v);
-            eval_ dialog_is_shown (model.open_dialog_opened_in_ui());
-            eval project_chosen ((id)   model.project_opened_in_ui(id));
-            eval file_chosen    ((path) model.file_opened_in_ui(path));
+            eval_ dialog_is_shown (       model.open_dialog_opened_in_ui());
+            eval  project_chosen  ((id)   model.project_opened_in_ui(id));
+            eval  file_chosen     ((path) model.file_opened_in_ui(path));
+
+            file_copied      <- file_browser.copy.map(|p| (p.clone(),FileOperation::Copy));
+            file_cut         <- file_browser.cut .map(|p| (p.clone(),FileOperation::Move));
+            source_operation <- any(file_copied,file_cut);
+            file_operation   <- file_browser.paste_into.map2(&source_operation,
+                |dest,(src,op)| (src.clone(),dest.clone(),*op)
+            );
+            eval file_operation ([model]((src,dest,op))
+                let logger    = model.logger.clone_ref();
+                let project   = model.project.clone_ref();
+                let source    = src.clone();
+                let dest      = dest.clone();
+                let operation = *op;
+                executor::global::spawn(async move {
+                    if let Err(err) = do_file_operation(&project,&source,&dest,operation).await {
+                        error!(logger, "Failed to {operation.verb()} file: {err}");
+                    }
+                })
+
+            );
         }
 
 

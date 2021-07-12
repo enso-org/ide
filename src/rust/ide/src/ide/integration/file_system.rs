@@ -3,6 +3,7 @@
 use crate::prelude::*;
 
 use crate::controller::graph::NewNodeInfo;
+use crate::controller::upload::pick_non_colliding_name;
 
 use enso_frp as frp;
 use enso_protocol::language_server;
@@ -188,6 +189,22 @@ impl FolderContent for DirectoryView {
     }
 }
 
+
+
+// ====================
+// === User Actions ===
+// ====================
+
+// === Errors ===
+
+#[derive(Clone,Debug,Fail)]
+#[fail(display="Invalid source file for copy/move operation: {}", path)]
+// the path is a String here, because there is no Display for path_buf.
+struct InvalidSourceFile {path:String}
+
+
+// === create_node_from_file ===
+
 /// Create a node reading the given file.
 ///
 /// The `path` should be a path convertible to Path from Language Server Protocol - see
@@ -208,5 +225,50 @@ pub fn create_node_from_file
     let expression = format!("File.read {}", path);
     let node_info = NewNodeInfo::new_pushed_back(expression);
     graph.add_node(node_info)?;
+    Ok(())
+}
+
+
+// === copy_or_move_file ===
+
+/// A enum describing if we want to copy or move file.
+#[allow(missing_docs)]
+#[derive(Copy,Clone,Debug)]
+pub enum FileOperation {Copy,Move}
+
+impl Default for FileOperation { fn default() -> Self {Self::Copy} }
+
+impl FileOperation {
+    /// Returns a verb describing the operation ("copy" or "move"), to be used in diagnostic
+    /// messages.
+    pub fn verb(&self) -> &'static str {
+        match self {
+            Self::Copy => "copy",
+            Self::Move => "move"
+        }
+    }
+}
+
+/// Do copy or move file operation. The destination must be a directory. If the destination already
+/// contains file with the same name as source's, the moved/copy file name will be altered
+/// according to algorithm described in [`pick_non_colliding_name`] docs.
+pub async fn do_file_operation
+( project   : &model::Project
+, source    : &std::path::Path
+, dest_dir  : &std::path::Path
+, operation : FileOperation
+) -> FallibleResult {
+    let json_rpc  = project.json_rpc();
+    let ls_source = from_file_browser_path(source)?;
+    let ls_dest   = from_file_browser_path(dest_dir)?;
+    let src_name  = ls_source.file_name().ok_or_else(
+        || InvalidSourceFile{path:source.to_string_lossy().to_string()}
+    )?;
+    let dest_name = pick_non_colliding_name(&*json_rpc,&ls_dest,&src_name).await?;
+    let dest_full = ls_dest.append_im(dest_name);
+    match operation {
+        FileOperation::Copy => json_rpc.copy_file(&ls_source, &dest_full).await?,
+        FileOperation::Move => json_rpc.move_file(&ls_source, &dest_full).await?,
+    }
     Ok(())
 }
