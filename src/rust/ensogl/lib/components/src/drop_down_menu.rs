@@ -163,16 +163,9 @@ impl Model {
     }
 
     fn get_item_label(&self, id:Option<list_view::entry::Id>) -> Option<Ref<str>> {
-        if let Some(id) = id {
-            if self.content.borrow().is_some() {
-                Some(Ref::map(self.content.borrow(), |content|
-                    content.as_ref().unwrap().get(id).unwrap().as_str()))
-            } else {
-                None
-            }
-        } else {
-            None
-        }
+        id.and_then(|id|
+            self.content.borrow().is_some().as_some(Ref::map(self.content.borrow(), |content|
+                    content.as_ref().unwrap().get(id).unwrap().as_str())))
     }
 }
 

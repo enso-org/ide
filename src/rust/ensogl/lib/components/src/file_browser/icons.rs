@@ -15,16 +15,21 @@ use ensogl_core::display;
 /// The width of all icons.
 pub const ICON_SIZE: f32 = 16.0;
 
-// Due to a rendering error, shapes appear too big when zoomed in very closely. To compensate for
-// this, we apply `.shrink(SHRINK_AMOUNT)` to all icons. When the icons are used without zoom,
-// the amount should be 0.0. When zoomed in, for example to examine then 0.4 is more appropriate.
+// Due to a rendering error, shapes appear too big when the camera is zoomed in very closely.
+// (Documented here: https://github.com/enso-org/ide/issues/1698)
+// To compensate for this, we apply `.shrink(SHRINK_AMOUNT)` to all icons in this file. By default,
+// `SHRINK_AMOUNT` should be set to 0.0 to make the icons appear right on the default zoom level.
+// When examining the icons closely, with a strong zoom, `SHRINK_AMOUNT` should be set to 0.4 to
+// make the icons apear right on that zoom level.
 const SHRINK_AMOUNT: f32 = 0.0;
 // const SHRINK_AMOUNT : f32 = 0.4;
 
+// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 fn standard_color() -> color::Rgba {
     color::Rgba(0.5, 0.5, 0.5, 1.0)
 }
 
+// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 fn focused_color() -> color::Rgba {
     color::Rgba(1.0, 1.0, 1.0, 1.0)
 }

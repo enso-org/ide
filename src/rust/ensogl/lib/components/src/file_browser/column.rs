@@ -23,21 +23,30 @@ use ensogl_theme as theme;
 // === Constants ===
 // =================
 
+// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 const ENTRY_PADDING_LEFT   : f32 = 6.0;
+// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 const ICON_TO_LABEL        : f32 = 5.0;
+// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 const LABEL_TO_ARROW       : f32 = 6.0;
+// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 const ENTRY_PADDING_RIGHT  : f32 = 2.0;
+// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 const STATE_LABEL_PADDING  : f32 = 20.0;
+// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 const STATE_LABEL_OFFSET_Y : f32 = 20.0;
 
+// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 fn entry_color_normal() -> color::Rgba {
     color::Rgba(0.341,0.341,0.341,1.0)
 }
 
+// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 fn entry_color_focused() -> color::Rgba {
     color::Rgba::white()
 }
 
+// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 fn state_label_color() -> color::Rgba {
     color::Rgba(0.5,0.5,0.5,1.0)
 }

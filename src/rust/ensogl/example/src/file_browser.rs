@@ -38,6 +38,8 @@ pub fn entry_point_file_browser() {
 // === Mock Content ===
 // ====================
 
+// === MockFolderContent ===
+
 #[derive(Debug,Clone)]
 struct MockFolderContent {
     entries: Rc<Vec<Entry>>
@@ -56,6 +58,8 @@ impl FolderContent for MockFolderContent {
     }
 }
 
+
+// === GeneratedFolderContent ===
 
 #[derive(Debug)]
 struct GeneratedFolderContent;
@@ -78,6 +82,8 @@ impl FolderContent for GeneratedFolderContent {
     }
 }
 
+
+// === ErrorContent ===
 
 #[derive(Debug)]
 struct ErrorContent;

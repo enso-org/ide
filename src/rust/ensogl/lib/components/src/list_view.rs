@@ -43,10 +43,13 @@ impl Default for SelectionMethod {
 
 // === Constants ===
 
+// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 /// The selection's corner radius.
 pub const CORNER_RADIUS_PX: f32 = 6.0;
+// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 /// The padding on the left and the right of the list.
 pub const PADDING_HORIZONTAL: f32 = 12.0;
+// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 /// The padding above and below the list.
 pub const PADDING_VERTICAL: f32 = 10.0;
 

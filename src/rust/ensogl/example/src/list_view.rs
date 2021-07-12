@@ -40,6 +40,7 @@ pub fn entry_point_list_view() {
 // === Mock Entries ===
 // ====================
 
+// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 const PADDING : f32 = 10.0;
 
 mod icon {

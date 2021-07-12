@@ -32,15 +32,26 @@ use ensogl_core::data::color;
 // === Constants ===
 // =================
 
+// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 const TOOLBAR_HEIGHT      : f32 = 45.0;
+// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 const TOOLBAR_BORDER_SIZE : f32 = 1.0;
+// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 const CONTENT_OFFSET_Y    : f32 = TOOLBAR_HEIGHT + TOOLBAR_BORDER_SIZE;
+// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 const PADDING             : f32 = 16.0;
+// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
+//       Or make it configurable through FRP, or both.
 const WIDTH               : f32 = 814.0;
+// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
+//       Or make it configurable through FRP, or both.
 const HEIGHT              : f32 = 421.0;
+// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 const CONTENT_HEIGHT      : f32 = HEIGHT - CONTENT_OFFSET_Y;
+// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 const SCROLL_SPACING      : f32 = 30.0;
 
+// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 fn title_color() -> color::Rgba {
     color::Rgba(0.439, 0.439, 0.439, 1.0)
 }
@@ -55,6 +66,7 @@ mod background {
     use super::*;
 
     pub const SHADOW_PX        : f32 = 10.0;
+    // TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
     pub const CORNER_RADIUS_PX : f32 = 16.0;
 
     // This defines a rounded rectangle, filling the whole sprite, up to a padding of `SHADOW_PX` on
@@ -98,13 +110,13 @@ struct Model {
     scroll_area    : ScrollArea,
     background     : background::View,
     title          : text::Area,
-    // Invariant: The column with this index (if it exists) has `focused` set, all others have it
-    //            unset. But the index does not have to refer to an existing column.
+    /// The index of the column that is currently focused.
+    /// Invariant: The column with this index (if it exists) has `focused` set, all other columns
+    ///            have it unset.
     focused_column : Cell<usize>,
 }
 
 impl Model {
-    /// This requires that `index` points to an existing column.
     fn focus_column(&self, index:usize) {
         let old_index  = self.focused_column.replace(index);
         let old_column = self.columns.borrow().get(old_index).cloned();
@@ -112,9 +124,10 @@ impl Model {
             old_column.defocus();
         }
         let new_column = self.columns.borrow().get(index).cloned();
-        let new_column = new_column.expect("Trying to focus non-existent column.");
-        new_column.focus();
-        self.scroll_to_column(&new_column);
+        if let Some(new_column) = new_column {
+            new_column.focus();
+            self.scroll_to_column(&new_column);
+        }
     }
 
     fn move_focus_by(&self, amount:isize) {
