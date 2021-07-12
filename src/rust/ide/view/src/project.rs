@@ -150,6 +150,7 @@ impl Model {
         display_object.add_child(&status_bar);
         display_object.add_child(&prompt_background);
         display_object.remove_child(&searcher);
+
         let app          = app.clone_ref();
         let graph_editor = Rc::new(graph_editor);
         Self{app,logger,display_object,window_control_buttons,graph_editor,searcher,code_editor,
@@ -604,6 +605,7 @@ impl application::View for View {
           , (Press   , "is_searcher_opened" , "escape"          , "close_searcher")
           , (Press   , "open_dialog_shown"  , "escape"          , "close_open_dialog")
           , (Press   , ""                   , "tab"             , "hide_prompt")
+          , (Press   , ""                   , "cmd o"           , "hide_prompt")
           , (Press   , ""                   , "cmd alt shift t" , "toggle_style")
           , (Press   , ""                   , "cmd s"           , "save_module")
           , (Press   , ""                   , "cmd z"           , "undo")

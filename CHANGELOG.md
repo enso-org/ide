@@ -27,8 +27,6 @@ these updates be shipped in a stable release before the end of the year.
   details in
   [the engine release notes](https://github.com/enso-org/enso/blob/main/RELEASES.md).
 
-
-
 <br/>
 
 # Enso 2.0.0-alpha.7 (2021-06-06)

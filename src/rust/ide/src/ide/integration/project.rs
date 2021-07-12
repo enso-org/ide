@@ -38,7 +38,6 @@ use ensogl::display::traits::*;
 use ensogl::display;
 use ensogl_gui_components::file_browser::model::AnyFolderContent;
 use ensogl_gui_components::list_view;
-use ensogl_gui_components::list_view::entry::AnyEntry;
 use ensogl_text as text;
 use ensogl_web::drop;
 use futures::future::LocalBoxFuture;
@@ -331,9 +330,12 @@ impl Integration {
                 let source    = src.clone();
                 let dest      = dest.clone();
                 let operation = *op;
+                let model     = model.clone_ref();
                 executor::global::spawn(async move {
                     if let Err(err) = do_file_operation(&project,&source,&dest,operation).await {
                         error!(logger, "Failed to {operation.verb()} file: {err}");
+                    } else {
+                        model.reload_files_in_file_browser();
                     }
                 })
 
@@ -1319,11 +1321,8 @@ impl Model {
 
     fn open_dialog_opened_in_ui(self:&Rc<Self>) {
         debug!(self.logger, "Opened file dialog in ui. Providing content root list");
-        let provider = FileProvider::new(&self.project);
-        let provider:AnyFolderContent = provider.into();
-        self.view.open_dialog().file_browser.set_content(provider);
+        self.reload_files_in_file_browser();
         let model = Rc::downgrade(self);
-
         executor::global::spawn(async move {
             if let Some(this) = model.upgrade() {
                 if let Ok(manage_projects) = this.ide.manage_projects() {
@@ -1339,6 +1338,12 @@ impl Model {
                 }
             }
         });
+    }
+
+    fn reload_files_in_file_browser(&self) {
+        let provider                  = FileProvider::new(&self.project);
+        let provider:AnyFolderContent = provider.into();
+        self.view.open_dialog().file_browser.set_content(provider);
     }
 
     fn project_opened_in_ui(&self, entry_id:&list_view::entry::Id) {
