@@ -129,7 +129,7 @@ impl EntryProvider for EmptyProvider {
 }
 
 
-// === Entry Provider for Vectors of Strings ===
+// === StringEntry ===
 
 #[derive(Debug)]
 struct StringEntry {
@@ -169,6 +169,9 @@ impl Entry for StringEntry {
 
     fn set_width(&self, _width: f32) {}
 }
+
+
+// === VecEntryProvider ===
 
 #[derive(Debug,Shrinkwrap)]
 struct VecEntryProvider(Rc<Vec<String>>);

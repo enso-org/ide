@@ -1,4 +1,5 @@
-//! This module provides the [`FileBrowser`] component. See type documentation for more details.
+//! This module provides the [`FileBrowser`] component. It allows to browse the content of a folder
+//! and it's subfolders and emits an event when an entry is chosen.
 
 mod column;
 pub mod model;

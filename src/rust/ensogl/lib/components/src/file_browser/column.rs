@@ -188,6 +188,12 @@ impl list_view::entry::Entry for ListEntry {
     }
 }
 
+// TODO: On construction, the `ListEntryProvider` creates a display object for every single folder
+//       entry, such that it can determine their maximum width. This can be expensive and might be
+//       improved. (#1704)
+// TODO: The `width` of `ListEntryProviders` can be arbitrarily large if one of the provided entries
+//       has a long name. Instead, the width should be bounded by some maximum value. But this
+//       requires that we truncate labels that do not fit into this width. (#1705)
 #[derive(Debug,Clone,CloneRef,Default)]
 struct ListEntryProvider(Rc<Vec<Rc<ListEntry>>>);
 

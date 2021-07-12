@@ -29,7 +29,7 @@ ensogl_core::define_shape_system! {
 
         let width  = sprite_width - ESTIMATED_SHADOW_MARGIN.px() * 2.0;
         let height = sprite_height - ESTIMATED_SHADOW_MARGIN.px() * 2.0;
-        let color  = style.get_color(theme::graph_editor::node::background);
+        let color  = style.get_color(theme::card::background);
         let rect   = Rect((&width,&height)).corners_radius(corner_radius);
         let shape  = rect.fill(color);
 
