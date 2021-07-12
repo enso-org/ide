@@ -1,4 +1,3 @@
-
 ---
 layout: developer-doc
 title: Development & Contributing Guide
