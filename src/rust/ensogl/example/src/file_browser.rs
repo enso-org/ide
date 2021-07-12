@@ -39,6 +39,28 @@ pub fn entry_point_file_browser() {
 // === Mock Content ===
 // ====================
 
+// === Shortcuts ===
+
+fn folder(name:&str, content:impl FolderContent+'static) -> Entry {
+    Entry {
+        name: name.to_string(),
+        path: name.into(),
+        type_: EntryType::Folder {
+            type_: FolderType::Standard,
+            content: content.into(),
+        }
+    }
+}
+
+fn file(name:&str) -> Entry {
+    Entry {
+        name: name.to_string(),
+        path: name.into(),
+        type_: EntryType::File
+    }
+}
+
+
 // === MockFolderContent ===
 
 #[derive(Debug,Clone)]
