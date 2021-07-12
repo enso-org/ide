@@ -430,6 +430,7 @@ pub enum ContentRoot {
 }
 
 impl ContentRoot {
+    /// The content root's id.
     pub fn id(&self) -> Uuid {
         match self {
             ContentRoot::Project        {id   } => *id,
