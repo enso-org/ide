@@ -50,6 +50,7 @@ use ide_view::graph_editor::component::node;
 use ide_view::graph_editor::component::visualization;
 use ide_view::graph_editor;
 use ide_view::searcher::entry::AnyEntryProvider;
+use ide_view::open_dialog;
 use utils::iter::split_by_predicate;
 
 
