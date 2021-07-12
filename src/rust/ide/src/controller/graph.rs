@@ -481,7 +481,7 @@ impl Handle {
     (parent:impl AnyLogger, project:&model::Project, method:&language_server::MethodPointer)
     -> FallibleResult<controller::Graph> {
         let method      = method.clone();
-        let root_id     = project.content_root_id();
+        let root_id     = project.project_content_root_id();
         let module_path = model::module::Path::from_method(root_id,&method)?;
         let module      = project.module(module_path).await?;
         let definition  = module.lookup_method(project.qualified_name(),&method)?;

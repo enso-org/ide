@@ -180,7 +180,7 @@ pub mod test {
 
     /// Sets up root id expectation on the mock project, returning a given id.
     pub fn expect_root_id(project:&mut MockAPI, root_id:Uuid) {
-        project.expect_content_root_id().return_const(root_id);
+        project.expect_project_content_root_id().return_const(root_id);
     }
 
     /// Sets up suggestion database expectation on the mock project, returning a given database.
