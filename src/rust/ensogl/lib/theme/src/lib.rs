@@ -470,4 +470,7 @@ define_themes! { [light:0, dark:1]
     text {
         size   = 12.0, 12.0;
     }
+    card {
+        background = graph_editor::node::background , graph_editor::node::background;
+    }
 }

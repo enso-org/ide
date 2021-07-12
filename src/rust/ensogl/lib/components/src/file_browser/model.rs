@@ -92,8 +92,9 @@ impl<D:'static + FolderContent> From<D> for AnyFolderContent {
 
 // === EmptyFolder ===
 
-#[derive(Debug)]
-struct EmptyFolderContent;
+/// `FolderContent` that immediately provides an empty content list on request.
+#[derive(Debug,Copy,Clone)]
+pub struct EmptyFolderContent;
 
 impl FolderContent for EmptyFolderContent {
     fn request_entries

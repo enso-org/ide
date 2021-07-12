@@ -7,20 +7,20 @@ pub mod entry;
 
 use crate::prelude::*;
 use crate::scroll_area::ScrollArea;
-use crate::selector;
 use crate::selector::bounds::Bounds;
+use crate::selector;
 
 use enso_frp as frp;
-use ensogl_core::application;
+use ensogl_core::DEPRECATED_Animation;
 use ensogl_core::application::Application;
 use ensogl_core::application::shortcut;
-use ensogl_core::display;
-use ensogl_core::display::shape::*;
-use ensogl_core::DEPRECATED_Animation;
+use ensogl_core::application;
 use ensogl_core::data::color;
+use ensogl_core::display::shape::*;
+use ensogl_core::display;
 
 /// Describes whether list entries should be selected by hovering or clicking. This also affects
-/// how entries can be chosen.
+/// how entries can be chosen, as described in each variant's documentation.
 #[derive(Debug,Copy,Clone)]
 pub enum SelectionMethod {
     /// Entries are selected by hover and chosen by click.
@@ -85,13 +85,7 @@ pub mod io_rect {
 
     ensogl_core::define_shape_system! {
         () {
-            let sprite_width  : Var<Pixels> = "input_size.x".into();
-            let sprite_height : Var<Pixels> = "input_size.y".into();
-
-            let rect  = Rect((&sprite_width,&sprite_height));
-            let shape = rect.corners_radius(CORNER_RADIUS_PX.px()).fill(HOVER_COLOR);
-
-            shape.into()
+            Plane().fill(HOVER_COLOR).into()
         }
     }
 }

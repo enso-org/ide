@@ -1,22 +1,25 @@
 
 use crate::prelude::*;
 
-use crate::list_view;
-use crate::file_browser::{ModelWithFrp, icons};
-use crate::file_browser::model::*;
-use crate::list_view::ListView;
+use crate::file_browser::ModelWithFrp;
 use crate::file_browser::icons::DynamicIcon;
-use crate::shadow;
+use crate::file_browser::icons;
+use crate::file_browser::model::*;
 use crate::file_browser;
+use crate::list_view::ListView;
+use crate::list_view;
+use crate::shadow;
 
 use enso_frp as frp;
+use ensogl_core::Animation;
 use ensogl_core::application::Application;
-use ensogl_core::{display, Animation};
-use ensogl_core::display::shape::*;
-use std::path::PathBuf;
-use ensogl_text as text;
 use ensogl_core::data::color;
+use ensogl_core::display::Scene;
+use ensogl_core::display::shape::*;
+use ensogl_core::display;
+use ensogl_text as text;
 use ensogl_theme as theme;
+use std::path::PathBuf;
 
 
 // =================
@@ -90,7 +93,7 @@ struct ListEntry {
 impl ListEntry {
     fn new(app:&Application, entry:Entry) -> Self {
         let logger         = Logger::new("ListEntry");
-        let layers         = &app.display.scene().layers;
+        let scene          = app.display.scene();
         let display_object = display::object::Instance::new(&logger);
 
         let label = text::Area::new(app);
@@ -99,69 +102,48 @@ impl ListEntry {
         label.set_position_y(6.0);
         label.set_default_color(entry_color_normal());
         label.set_content(entry.name);
-        label.add_to_scene_layer(&app.display.scene().layers.panel_text);
+        label.add_to_scene_layer(&scene.layers.panel_text);
 
         let icon  : Box<dyn DynamicIcon>;
         let arrow : Option<super::icons::Arrow>;
         match entry.type_ {
             EntryType::File => {
                 icon = Box::new(icons::File::new());
-                layers.add_shapes_order_dependency
-                    ::<list_view::selection::View,icons::file::View>();
-                layers.add_shapes_order_dependency
-                    ::<icons::file::View,list_view::io_rect::View>();
+                Self::declare_order_dependencies_for_icon::<icons::file::View>(scene);
                 arrow = None;
             }
             EntryType::Folder {type_,..} => {
                 match type_ {
                     FolderType::Standard => {
                         icon = Box::new(icons::Folder::new());
-                        layers.add_shapes_order_dependency
-                            ::<list_view::selection::View,icons::folder::View>();
-                        layers.add_shapes_order_dependency
-                            ::<icons::folder::View,list_view::io_rect::View>();
+                        Self::declare_order_dependencies_for_icon::<icons::folder::View>(scene);
                     }
                     FolderType::Root => {
                         icon = Box::new(icons::Root::new());
-                        layers.add_shapes_order_dependency
-                            ::<list_view::selection::View,icons::root::View>();
-                        layers.add_shapes_order_dependency
-                            ::<icons::root::View,list_view::io_rect::View>();
+                        Self::declare_order_dependencies_for_icon::<icons::root::View>(scene);
                     }
                     FolderType::Home => {
                         icon = Box::new(icons::Home::new());
-                        layers.add_shapes_order_dependency
-                            ::<list_view::selection::View,icons::home::View>();
-                        layers.add_shapes_order_dependency
-                            ::<icons::home::View,list_view::io_rect::View>();
+                        Self::declare_order_dependencies_for_icon::<icons::home::View>(scene);
                     }
                     FolderType::Project => {
                         icon = Box::new(icons::Project::new());
-                        layers.add_shapes_order_dependency
-                            ::<list_view::selection::View,icons::project::View>();
-                        layers.add_shapes_order_dependency
-                            ::<icons::project::View,list_view::io_rect::View>();
+                        Self::declare_order_dependencies_for_icon::<icons::project::View>(scene);
                     }
                     _ => {
                         icon = Box::new(icons::Root::new());
-                        layers.add_shapes_order_dependency
-                            ::<list_view::selection::View,icons::root::View>();
-                        layers.add_shapes_order_dependency
-                            ::<icons::root::View,list_view::io_rect::View>();
+                        Self::declare_order_dependencies_for_icon::<icons::root::View>(scene);
                     }
                 };
                 let arrow_icon = super::icons::Arrow::new();
-                layers.add_shapes_order_dependency
-                    ::<list_view::selection::View,icons::arrow::View>();
-                layers.add_shapes_order_dependency
-                    ::<icons::arrow::View,list_view::io_rect::View>();
+                Self::declare_order_dependencies_for_icon::<icons::arrow::View>(scene);
                 display_object.add_child(&arrow_icon);
-                app.display.scene().layers.panel.add_exclusive(&arrow_icon);
+                scene.layers.panel.add_exclusive(&arrow_icon);
                 arrow = Some(arrow_icon);
             }
         }
         display_object.add_child(icon.as_ref());
-        app.display.scene().layers.panel.add_exclusive(icon.as_ref());
+        scene.layers.panel.add_exclusive(icon.as_ref());
         icon.deref().set_position_x(ENTRY_PADDING_LEFT + icons::ICON_SIZE / 2.0);
 
         Self { display_object,label,icon,arrow }
@@ -170,6 +152,12 @@ impl ListEntry {
     fn width(&self) -> f32 {
         ENTRY_PADDING_LEFT + icons::ICON_SIZE + ICON_TO_LABEL + self.label.width.value()
             + LABEL_TO_ARROW + icons::ICON_SIZE + ENTRY_PADDING_RIGHT
+    }
+
+    fn declare_order_dependencies_for_icon<Icon>(scene:&Scene)
+    where Icon: HasContent, Content<Icon>: KnownShapeSystemId {
+        scene.layers.add_shapes_order_dependency::<list_view::selection::View,Icon>();
+        scene.layers.add_shapes_order_dependency::<Icon,list_view::io_rect::View>();
     }
 }
 
@@ -236,6 +224,7 @@ pub struct Model {
     app            : Application,
     pub entries    : RefCell<Option<Rc<Vec<Entry>>>>,
     pub list_view  : ListView,
+    // The state label displays when the column is empty or loading or when there was an error.
     state_label    : text::Area,
     shadow         : column_shadow::View,
     display_object : display::object::Instance,

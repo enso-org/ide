@@ -12,11 +12,12 @@ use ensogl::application::{Application, shortcut};
 use ensogl::application;
 use ensogl::display::shape::*;
 use ensogl::display;
+use ensogl_gui_components::card::Card;
+use ensogl_gui_components::card;
 use ensogl_gui_components::list_view::ListView;
-use ensogl_gui_components::{list_view, card};
+use ensogl_gui_components::list_view;
 
 pub use ensogl_gui_components::list_view::entry;
-use ensogl_gui_components::card::Card;
 
 
 // =================

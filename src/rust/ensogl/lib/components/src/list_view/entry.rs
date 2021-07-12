@@ -214,6 +214,9 @@ impl IdAtYPosition {
 /// A view containing an entry list, arranged in column.
 ///
 /// Not all entries are displayed at once, only those visible.
+///
+/// [`set_selection`] can be used to set one entry as selected. [`set_focused`] can be used to mark
+/// if this list has focus. The selected entry can change it's appearance based on this status.
 #[derive(Clone,CloneRef,Debug)]
 pub struct List {
     logger          : Logger,
@@ -316,13 +319,13 @@ impl List {
                 if let Some(new_entry) = self.provider.get().get(&self.app,id) {
                     self.display_object.add_child(&new_entry);
                     self.visible_entries.borrow_mut().insert(id, new_entry);
-                    self.config_entry(id);
+                    self.update_entry_appearance(id);
                 }
             }
         }
     }
 
-    fn config_entry(&self, id:Id) {
+    fn update_entry_appearance(&self, id:Id) {
         if let Some(entry) = self.visible_entries.borrow().get(&id) {
             entry.set_position_y(Self::position_y_of_entry(id));
             entry.set_width(self.entry_width.get());
@@ -347,10 +350,10 @@ impl List {
     pub fn set_selection(&self, id:Option<Id>) {
         let old = self.selected_id.replace(id);
         if let Some(old) = old {
-            self.config_entry(old);
+            self.update_entry_appearance(old);
         }
         if let Some(id) = id {
-            self.config_entry(id);
+            self.update_entry_appearance(id);
         }
     }
 
@@ -366,7 +369,7 @@ impl List {
     pub fn set_focused(&self, focused:bool) {
         self.focused.set(focused);
         if let Some(selection) = self.selected_id.get() {
-            self.config_entry(selection);
+            self.update_entry_appearance(selection);
         }
     }
 }

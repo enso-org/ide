@@ -26,23 +26,23 @@ use bimap::BiMap;
 use enso_data::text::TextChange;
 use enso_frp as frp;
 use enso_protocol::language_server::ExpressionUpdatePayload;
+use ensogl::application::Application;
+use ensogl::data::color;
+use ensogl::display::shape::StyleWatch;
 use ensogl::display::traits::*;
+use ensogl::display;
 use ensogl_gui_components::list_view;
+use ensogl_text as text;
 use ensogl_web::drop;
-use ide_view::graph_editor;
-use ide_view::graph_editor::component::node;
-use ide_view::graph_editor::component::visualization;
+use futures::future::LocalBoxFuture;
+use fuzzly::Subsequence;
 use ide_view::graph_editor::EdgeEndpoint;
 use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
+use ide_view::graph_editor::component::node;
+use ide_view::graph_editor::component::visualization;
+use ide_view::graph_editor;
 use utils::iter::split_by_predicate;
-use futures::future::LocalBoxFuture;
-use ensogl::display;
-use ensogl_text as text;
-use ensogl::application::Application;
-use ensogl::display::shape::StyleWatch;
-use ensogl::data::color;
-use fuzzly::Subsequence;
 
 
 // ==============
