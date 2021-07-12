@@ -20,32 +20,41 @@ use ensogl_theme::application::project_list as theme;
 /// The project entry widget for the [`list_view::ListView`] inside [`ProjectList`].
 #[derive(Clone,CloneRef,Debug)]
 pub struct Entry {
-    network     : frp::Network,
-    style_watch : StyleWatchFrp,
-    label       : ensogl_text::Area,
+    display_object : display::object::Instance,
+    network        : frp::Network,
+    style_watch    : StyleWatchFrp,
+    label          : ensogl_text::Area,
 }
 
 impl Entry {
     /// Create entry for a project with given name.
     pub fn new(app:&Application, name:impl Str) -> Self {
-        let network     = frp::Network::new("ProjectEntry");
-        let label       = app.new_view::<ensogl_text::Area>();
-        let style_watch = StyleWatchFrp::new(&app.display.scene().style_sheet);
-        let text_color  = style_watch.get_color(theme::text);
+        let logger         = Logger::new("project_list::Entry");
+        let display_object = display::object::Instance::new(logger);
+        let network        = frp::Network::new("project_list::Entry");
+        let label          = app.new_view::<ensogl_text::Area>();
+        let style_watch    = StyleWatchFrp::new(&app.display.scene().style_sheet);
+        let text_color     = style_watch.get_color(theme::text);
+        let text_size      = style_watch.get_number(theme::text::size);
+        let text_padding   = style_watch.get_number(theme::text::padding);
+        display_object.add_child(&label);
         label.set_default_color(text_color.value());
-        label.set_position_xy(Vector2(6.0,6.0)); // TODO[ao] Hmmm...
+        label.set_default_text_size(text::Size(text_size.value()));
+        label.set_position_xy(Vector2(text_padding.value(), text_size.value() / 2.0));
         label.set_content(name.as_ref());
         label.remove_from_scene_layer(&app.display.scene().layers.main);
         label.add_to_scene_layer(&app.display.scene().layers.panel_text);
         frp::extend! { network
-            eval text_color ((color) label.set_default_color(color));
+            eval text_color   ((color)   label.set_default_color(color));
+            eval text_size    ((size)    label.set_default_text_size(text::Size(*size)));
+            eval text_padding ((padding) label.set_position_x(*padding));
         }
-        Self {network,style_watch,label}
+        Self {display_object,network,style_watch,label}
     }
 }
 
 impl display::Object for Entry {
-    fn display_object(&self) -> &display::object::Instance { self.label.display_object() }
+    fn display_object(&self) -> &display::object::Instance { &self.display_object }
 }
 
 impl list_view::entry::Entry for Entry {
@@ -132,22 +141,29 @@ impl ProjectList {
         caption.remove_from_scene_layer(&app.display.scene().layers.main);
         caption.add_to_scene_layer(&app.display.scene().layers.panel_text);
 
+        ensogl::shapes_order_dependencies! {
+            app.display.scene() => {
+                background -> list_view::io_rect;
+                background -> list_view::selection;
+            }
+        }
+
         let style_watch = StyleWatchFrp::new(&app.display.scene().style_sheet);
         let width       = style_watch.get_number(theme::width);
         let height      = style_watch.get_number(theme::height);
         let bar_height  = style_watch.get_number(theme::bar::height);
         let padding     = style_watch.get_number(theme::padding);
         let color       = style_watch.get_color(theme::bar::label::color);
-        let label_size  = style_watch.get_number(theme::bar::label::color);
+        let label_size  = style_watch.get_number(theme::bar::label::size);
 
-        frp::extend! { network
+        frp::extend! { TRACE_ALL network
             init <- source::<()>();
             size <- all_with3(&width,&height,&init,|w,h,()|
                 Vector2(w + background::SHADOW_PX * 2.0,h + background::SHADOW_PX * 2.0)
             );
             list_size  <- all_with4(&width,&height,&bar_height,&init,|w,h,bh,()|
                 Vector2(*w,*h - *bh));
-            list_y <- bar_height.map(|bh| -*bh / 2.0);
+            list_y     <- all_with(&bar_height,&init, |bh,()| -*bh / 2.0);
             caption_xy <- all_with4(&width,&height,&padding,&init,
                 |w,h,p,()| Vector2(-*w / 2.0 + *p, *h / 2.0 - p)
             );
@@ -161,6 +177,7 @@ impl ProjectList {
             eval color      ((color) caption.set_default_color(color));
             eval label_size ((size)  caption.set_default_text_size(text::Size(*size)));
         };
+        init.emit(());
 
         Self {logger,network,display_object,background,caption,list,style_watch}
     }

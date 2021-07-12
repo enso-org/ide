@@ -178,8 +178,12 @@ define_themes! { [light:0, dark:1]
             width      = 202.0 , 202.0;
             padding    = 16.0, 16.0;
             height     = 421.0, 421.0;
-            background = application::file_browser::background , application::file_browser::background;
+            background = Rgba(0.992,0.996,1.0,1.0), Rgba(0.182,0.188,0.196,1.0);
             text       = widget::list_view::text, widget::list_view::text;
+            text {
+                size    = 12.0, 12.0;
+                padding = 6.0 , 6.0 ;
+            }
             bar {
                 height      = 45.0, 45.0;
                 border_size = 1.0, 1.0;

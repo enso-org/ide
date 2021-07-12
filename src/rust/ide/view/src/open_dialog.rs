@@ -55,13 +55,13 @@ impl OpenDialog {
             width <- all_with3(&project_list_width,&gap_between_panels,&init,
                 |pw,g,()| *pw + *g + file_browser::WIDTH
             );
-            project_list_x <- all_with(&width,&project_list_width,|w,pw| *w / 2.0 + *pw / 2.0);
+            project_list_x <- all_with(&width,&project_list_width,|w,pw| - *w / 2.0 + *pw / 2.0);
             file_browser_x <- width.map(|w| w / 2.0 - file_browser::WIDTH / 2.0);
 
             eval project_list_x ((x) project_list.set_position_x(*x));
             eval file_browser_x ((x) file_browser.set_position_x(*x));
         }
-
+        init.emit(());
         Self {logger,network,project_list,file_browser,display_object,style_watch}
     }
 }
