@@ -137,11 +137,13 @@ impl Model {
         let new_index  = old_index as isize + amount;
         let new_index  = new_index.max(0).min(max_index);
         let new_index  = new_index as usize;
-        let new_column = self.columns.borrow()[new_index].clone();
-        let entries    = new_column.model.entries.borrow().as_ref().cloned();
-        if let Some(entries) = entries {
-            if entries.len() > 0 {
-                self.focus_column(new_index);
+        let new_column = self.columns.borrow().get(new_index).cloned();
+        if let Some(new_column) = new_column {
+            let entries = new_column.model.entries.borrow().as_ref().cloned();
+            if let Some(entries) = entries {
+                if entries.len() > 0 {
+                    self.focus_column(new_index);
+                }
             }
         }
     }
@@ -265,7 +267,10 @@ impl ModelWithFrp {
         let network = &frp.network;
         frp::extend!{ network
             eval frp.set_content([weak_browser](content)
-                weak_browser.upgrade().unwrap().set_content(content.clone()));
+                if let Some(browser) = weak_browser.upgrade() {
+                    browser.set_content(content.clone());
+                }
+            );
 
             frp.move_focus_by <+ frp.move_focus_left.constant(-1);
             frp.move_focus_by <+ frp.move_focus_right.constant(1);

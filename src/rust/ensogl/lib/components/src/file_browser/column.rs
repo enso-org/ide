@@ -19,6 +19,7 @@ use ensogl_core::display::shape::*;
 use ensogl_core::display;
 use ensogl_text as text;
 use ensogl_theme as theme;
+use std::cmp::Ordering;
 use std::path::PathBuf;
 
 
@@ -205,7 +206,7 @@ impl ListEntryProvider {
 
     fn width(&self) -> f32 {
         let widths = self.0.iter().map(|entry| entry.width());
-        widths.max_by(|x,y| x.partial_cmp(y).unwrap()).unwrap_or(0.0)
+        widths.max_by(|x,y| x.partial_cmp(y).unwrap_or(Ordering::Equal)).unwrap_or(0.0)
     }
 }
 
@@ -361,18 +362,23 @@ impl Column {
                 model.list_view.resize(Vector2(w,file_browser::CONTENT_HEIGHT));
                 model.list_view.set_position_x(w/2.0);
             });
-            eval_ frp.right(weak_browser.upgrade().unwrap().model.update_content_width());
+            eval frp.right([weak_browser](_)
+                if let Some(browser) = weak_browser.upgrade() {
+                    browser.model.update_content_width()
+                }
+            );
             frp.source.width <+ all_with(&list_entries,&state_label.width,|entries,&label_width|
                 (entries.width()+2.0*list_view::PADDING_HORIZONTAL)
                     .max(label_width+2.0*STATE_LABEL_PADDING));
         }
 
         if index > 0 {
-            let predecessor = browser.model.columns.borrow()[index-1].clone();
-            frp::extend! { network
-                frp.source.left <+ predecessor.right;
+            if let Some(predecessor) = &browser.model.columns.borrow().get(index-1) {
+                frp::extend! { network
+                    frp.source.left <+ predecessor.right;
+                }
+                frp.source.left.emit(predecessor.right.value());
             }
-            frp.source.left.emit(predecessor.right.value());
         } else {
             frp.source.left.emit(0.0);
         }
@@ -382,15 +388,22 @@ impl Column {
 
         frp::extend! { network
             scroll_to_this <- any_mut::<()>();
-            eval scroll_to_this([weak_browser](_) {
-                let browser = weak_browser.upgrade().unwrap();
-                browser.model.scroll_to_column(&browser.model.columns.borrow()[index]);
-            });
+            eval scroll_to_this([weak_browser](_)
+                if let Some(browser) = weak_browser.upgrade() {
+                    if let Some(this_column) = &browser.model.columns.borrow().get(index) {
+                        browser.model.scroll_to_column(this_column);
+                    }
+                }
+            );
             scroll_to_this <+ frp.set_entries.constant(());
             scroll_to_this <+ frp.set_error.constant(());
 
             focus_this_column <- frp.entry_selected.gate_not(&updating_entries).constant(());
-            eval_ focus_this_column(weak_browser.upgrade().unwrap().model.focus_column(index));
+            eval focus_this_column([weak_browser](_)
+                if let Some(browser) = weak_browser.upgrade() {
+                    browser.model.focus_column(index);
+                }
+            );
 
             list_view.set_focus <+ frp.focused;
         }
@@ -403,13 +416,18 @@ impl Column {
             x            <- all(&list_view.selected_entry,&focus_enters)._0();
             open_entry   <- x.gate_not(&updating_entries).on_change();
             eval open_entry([weak_browser,model,shadow_opacity](id) {
-                weak_browser.upgrade().unwrap().model.close_columns_from(index + 1);
-                if let Some(id) = *id {
-                    let selected_entry = model.entries.borrow().as_ref().unwrap()[id].clone();
-                    shadow_opacity.target.emit(0.0);
-                    if let EntryType::Folder{content,..} = selected_entry.type_ {
-                        weak_browser.upgrade().unwrap().push_column(content);
-                        shadow_opacity.target.emit(1.0);
+                if let Some(browser) = weak_browser.upgrade() {
+                    browser.model.close_columns_from(index + 1);
+                    if let Some(id) = *id {
+                        shadow_opacity.target.emit(0.0);
+                        if let Some(entries) = model.entries.borrow().as_ref() {
+                            if let Some(selected_entry) = entries.get(id) {
+                                if let EntryType::Folder{content,..} = &selected_entry.type_ {
+                                    browser.push_column(content.clone());
+                                    shadow_opacity.target.emit(1.0);
+                                }
+                            }
+                        }
                     }
                 }
             });
@@ -420,9 +438,9 @@ impl Column {
 
         frp::extend! { network
             frp.source.entry_chosen <+ model.list_view.chosen_entry.filter_map(
-                f!([model](&id) Some(model.entries.borrow().as_ref().unwrap()[id?].path.clone())));
+                f!([model](&id) Some(model.entries.borrow().as_ref()?.get(id?)?.path.clone())));
             frp.source.entry_selected <+ model.list_view.selected_entry.filter_map(
-                f!([model](&id) Some(model.entries.borrow().as_ref().unwrap()[id?].path.clone())));
+                f!([model](&id) Some(model.entries.borrow().as_ref()?.get(id?)?.path.clone())));
             browser.frp.source.entry_chosen   <+ frp.entry_chosen;
             browser.frp.source.entry_selected <+ frp.entry_selected;
         }
