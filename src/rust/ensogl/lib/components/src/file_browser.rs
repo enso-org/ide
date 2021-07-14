@@ -16,16 +16,15 @@ use crate::selector::Bounds;
 use crate::list_view;
 
 use enso_frp as frp;
-use ensogl_core::application;
 use ensogl_core::application::Application;
 use ensogl_core::application::shortcut;
-use ensogl_core::display;
-use ensogl_core::display::shape::*;
-use std::path::PathBuf;
+use ensogl_core::application;
 use ensogl_core::display::object::ObjectOps;
-use ensogl_theme as theme;
+use ensogl_core::display::shape::*;
+use ensogl_core::display;
 use ensogl_text as text;
-use ensogl_core::data::color;
+use ensogl_theme::application::file_browser as theme;
+use std::path::PathBuf;
 
 
 
@@ -40,8 +39,6 @@ const TOOLBAR_BORDER_SIZE : f32 = 1.0;
 // TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 const CONTENT_OFFSET_Y    : f32 = TOOLBAR_HEIGHT + TOOLBAR_BORDER_SIZE;
 // TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
-const PADDING             : f32 = 16.0;
-// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 //       Or make it configurable through FRP, or both.
 const WIDTH               : f32 = 814.0;
 // TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
@@ -49,13 +46,6 @@ const WIDTH               : f32 = 814.0;
 const HEIGHT              : f32 = 421.0;
 // TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
 const CONTENT_HEIGHT      : f32 = HEIGHT - CONTENT_OFFSET_Y;
-// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
-const SCROLL_SPACING      : f32 = 30.0;
-
-// TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
-fn title_color() -> color::Rgba {
-    color::Rgba(0.439, 0.439, 0.439, 1.0)
-}
 
 
 
@@ -67,28 +57,29 @@ mod background {
     use super::*;
 
     pub const SHADOW_PX        : f32 = 10.0;
-    // TODO: Take this value from styles. (https://github.com/enso-org/ide/issues/1694)
-    pub const CORNER_RADIUS_PX : f32 = 16.0;
 
-    // This defines a rounded rectangle, filling the whole sprite, up to a padding of `SHADOW_PX` on
-    // all sides. The rectangle has a shadow and there is a gray line separating the upper part that
-    // covers the toolbar of the file browser.
+    // This defines the background of the file manager, as it can be seen here:
+    // https://user-images.githubusercontent.com/1623053/121859507-1028d800-ccf8-11eb-9037-ab4deb835583.png
+    // The background consists of the big, almost white rectangle with rounded corners, a drop
+    // shadow around the rectangle and the border separating the toolbar at the top.
     ensogl_core::define_shape_system! {
         (style:Style) {
             let sprite_width  : Var<Pixels> = "input_size.x".into();
             let sprite_height : Var<Pixels> = "input_size.y".into();
             let width         = sprite_width - SHADOW_PX.px() * 2.0;
             let height        = sprite_height - SHADOW_PX.px() * 2.0;
-            let color         = style.get_color(theme::application::file_browser::background);
-            let rect          = Rect((&width,&height)).corners_radius(CORNER_RADIUS_PX.px());
+            let corner_radius = style.get_number(theme::background::corner_radius);
+            let rect          = Rect((&width,&height)).corners_radius(corner_radius.px());
+            let color         = style.get_color(theme::background);
             let shape         = rect.fill(color);
 
             let shadow  = shadow::from_shape(rect.into(),style);
 
-            let toolbar_border = Rect((width, TOOLBAR_BORDER_SIZE.px()));
-            let toolbar_border = toolbar_border.translate_y(height / 2.0 - TOOLBAR_HEIGHT.px());
+            let toolbar_border = Rect((width,style.get_number(theme::toolbar_border_width).px()));
+            let toolbar_height = style.get_number(theme::toolbar_height);
+            let toolbar_border = toolbar_border.translate_y(height / 2.0 - toolbar_height.px());
 
-            let toolbar_border_color_theme = theme::application::file_browser::toolbar_border_color;
+            let toolbar_border_color_theme = theme::toolbar_border_color;
             let toolbar_border_color       = style.get_color(toolbar_border_color_theme);
             let toolbar_border             = toolbar_border.fill(toolbar_border_color);
 
@@ -149,14 +140,18 @@ impl Model {
     }
 
     fn scroll_to_column(&self,column:&Column) {
-        let left  = (column.left.value() - SCROLL_SPACING).max(0.0);
-        let right = column.right.value() + SCROLL_SPACING;
+        let styles = StyleWatch::new(&self.app.display.scene().style_sheet);
+        let spacing = styles.get_number(theme::scroll_spacing);
+        let left  = (column.left.value() - spacing).max(0.0);
+        let right = column.right.value() + spacing;
         self.scroll_area.scroll_to_x_range(Bounds::new(left,right));
     }
 
     fn update_content_width(&self) {
+        let styles = StyleWatch::new(&self.app.display.scene().style_sheet);
+        let spacing = styles.get_number(theme::scroll_spacing);
         let content_width = if let Some(last_column) = self.columns.borrow().last() {
-            last_column.left.value() + WIDTH - SCROLL_SPACING
+            last_column.left.value() + WIDTH - spacing
         } else {
             WIDTH
         };
@@ -218,6 +213,7 @@ impl ModelWithFrp {
     pub fn new(app:&Application) -> Rc<Self> {
         let app            = app.clone();
         let scene          = app.display.scene();
+        let styles         = StyleWatchFrp::new(&scene.style_sheet);
         let logger         = Logger::new("FileBrowser");
         let display_object = display::object::Instance::new(&logger);
         scene.layers.panel.add_exclusive(&display_object);
@@ -230,9 +226,6 @@ impl ModelWithFrp {
         let background = background::View::new(&logger);
         display_object.add_child(&background);
         scene.layers.add_shapes_order_dependency::<background::View,list_view::selection::View>();
-        let background_width  = WIDTH  + background::SHADOW_PX * 2.0;
-        let background_height = HEIGHT + background::SHADOW_PX * 2.0;
-        background.size.set(Vector2(background_width,background_height));
 
 
         // === Title ===
@@ -240,8 +233,6 @@ impl ModelWithFrp {
         let title = text::Area::new(&app);
         display_object.add_child(&title);
         title.add_to_scene_layer(&scene.layers.panel_text);
-        title.set_position_xy(Vector2(-WIDTH/2.0+PADDING, HEIGHT/2.0-PADDING));
-        title.set_default_color(title_color());
         title.set_content("Read files");
 
 
@@ -249,8 +240,6 @@ impl ModelWithFrp {
 
         let scroll_area = ScrollArea::new(&app);
         display_object.add_child(&scroll_area);
-        scroll_area.resize(Vector2(WIDTH,CONTENT_HEIGHT));
-        scroll_area.set_position_xy(Vector2(-WIDTH/2.0,HEIGHT/2.0-CONTENT_OFFSET_Y));
 
 
         // === Browser ===
@@ -266,11 +255,17 @@ impl ModelWithFrp {
 
         let network = &frp.network;
         frp::extend!{ network
+
+            // === Set Content ===
+
             eval frp.set_content([weak_browser](content)
                 if let Some(browser) = weak_browser.upgrade() {
                     browser.set_content(content.clone());
                 }
             );
+
+
+            // === Focus ===
 
             frp.move_focus_by <+ frp.move_focus_left.constant(-1);
             frp.move_focus_by <+ frp.move_focus_right.constant(1);
@@ -278,10 +273,64 @@ impl ModelWithFrp {
             focused_entry <= all_with(&frp.move_focus_by,&frp.entry_selected,f!([model](_,_) {
                 Some(model.columns.borrow().get(model.focused_column.get())?.entry_selected.value())
             }));
+
+
+            // === Copy, Cut and Paste ===
+
             frp.source.copy       <+ focused_entry.sample(&frp.copy_focused);
             frp.source.cut        <+ focused_entry.sample(&frp.cut_focused);
             frp.source.paste_into <+ focused_entry.sample(&frp.paste_into_focused);
+
+
+            // === Styles ===
+
+            init <- source::<()>();
+            let toolbar_height = styles.get_number(theme::toolbar_height);
+            toolbar_height <- all(&toolbar_height,&init)._0();
+            let toolbar_border_width = styles.get_number(theme::toolbar_border_width);
+            toolbar_border_width <- all(&toolbar_border_width,&init)._0();
+            content_offset_y <- all_with(&toolbar_height,&toolbar_border_width,|&toolbar,&border|
+                toolbar + border);
+            let width = styles.get_number(theme::width);
+            width <- all(&width,&init)._0();
+            let height = styles.get_number(theme::height);
+            height <- all(&height,&init)._0();
+            let padding = styles.get_number(theme::padding);
+            padding <- all(&padding,&init)._0();
+            let title_color = styles.get_color(theme::title_color);
+            title_color <- all(&title_color,&init)._0();
+
+
+            // === Scroll Are Position ===
+
+            scroll_area_x <- width.map(|&width| -width / 2.0);
+            eval scroll_area_x((&x) model.scroll_area.set_position_x(x));
+            scroll_area_y <- all_with(&height,&content_offset_y,|&height,&offset|
+                height / 2.0 - offset);
+            eval scroll_area_y((&y) model.scroll_area.set_position_y(y));
+
+            content_height <- all_with(&content_offset_y,&height,|&offset,&height| height - offset);
+            content_size <- all_with(&width,&content_height,|&width,&height| Vector2(width,height));
+            eval content_size((&size) model.scroll_area.resize(size));
+
+
+            // === Background ===
+
+            background_size <- all_with(&width,&height,|&width,&height|
+                Vector2(width + background::SHADOW_PX * 2.0,height + background::SHADOW_PX * 2.0));
+            eval background_size((&size) model.background.size.set(size));
+
+
+            // === Title ===
+
+            title_position <- all_with3(&width,&height,&padding,|&width,&height,&padding|
+                Vector2(-width/2.0+padding,height/2.0-padding));
+            eval title_position((&position) model.title.set_position_xy(position));
+
+            eval title_color((&color) model.title.set_color_all(color));
         }
+
+        init.emit(());
 
         browser
     }
