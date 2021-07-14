@@ -369,6 +369,10 @@ impl Integration {
             _action <- project_frp.editing_aborted          .map2(&is_hold,node_editing_aborted);
             _action <- editor_outs.enabled_visualization_path.map2(&is_hold,visualization_path_changed);
 
+            // These two endpoints for toggling visualizations visibility do not follow the pattern
+            // above intentionally. Visualization can be shown both due to user's action in UI and
+            // node's metadata change or integration layer logic.
+            // Thus, we don't want to suppress calls happening as consequence of ongoing action.
             eval editor_outs.visualization_shown([model,inv](arg) {
                 Self::execute_fallible_ui_action(&model, &inv, || model.visualization_shown_in_ui(arg))
             });
@@ -567,19 +571,6 @@ impl Model {
         self.view.graph().model.breadcrumbs.input.project_name.emit(project_name);
     }
 
-    fn push_crumb(&self, frame:&LocalCall) {
-        let definition = frame.definition.clone().into();
-        let call       = frame.call;
-        let local_call = graph_editor::LocalCall{call,definition};
-        self.view.graph().model.breadcrumbs.input.push_breadcrumb.emit(Some(local_call))
-    }
-
-    fn init_crumbs(&self) {
-        for frame in self.graph.call_stack() {
-            self.push_crumb(&frame)
-        }
-    }
-
     fn rename_project(&self, name:impl Str) {
         if self.project.name() != name.as_ref() {
             let project     = self.project.clone_ref();
@@ -592,6 +583,27 @@ impl Model {
                     breadcrumbs.cancel_project_name_editing.emit(());
                 }
             });
+        }
+    }
+}
+
+// === Updating breadcrumbs ===
+
+impl Model {
+    fn push_crumb(&self, frame:&LocalCall) {
+        let definition = frame.definition.clone().into();
+        let call       = frame.call;
+        let local_call = graph_editor::LocalCall{call,definition};
+        self.view.graph().model.breadcrumbs.input.push_breadcrumb.emit(Some(local_call))
+    }
+
+    fn pop_crumb(&self) {
+        self.view.graph().model.breadcrumbs.pop_breadcrumb.emit(());
+    }
+
+    fn init_crumbs(&self) {
+        for frame in self.graph.call_stack() {
+            self.push_crumb(&frame)
         }
     }
 }
@@ -617,12 +629,10 @@ impl Model {
         let get_call_stack      = |metadata:&ProjectMetadata| metadata.call_stack.clone();
         let metadata_call_stack = self.main_module.with_project_metadata(get_call_stack);
 
-        WARNING!("CALL STACKS:\n{current_call_stack:?}\n{metadata_call_stack:?}");
-        let mut current = current_call_stack.into_iter();
-        let mut metadata = metadata_call_stack.into_iter();
+        let mut current  = current_call_stack.into_iter().fuse();
+        let mut metadata = metadata_call_stack.into_iter().fuse();
         loop {
-            let hlp = (current.next(), metadata.next());
-            match hlp {
+            match (current.next(), metadata.next()) {
                 (Some(current), Some(metadata)) if current == metadata => {}
                 (Some(_), Some(metadata)) => {
                     // Wrong frame on current stack. Drop all trailing frames.
@@ -749,8 +759,7 @@ impl Model {
     fn refresh_node_position(&self, id:graph_editor::NodeId, node:&controller::graph::Node) {
         let position = node.metadata.as_ref().and_then(|md| md.position);
         if let Some(position) = position {
-            let view_position : Option<Vector2<f32>> = self.view.graph().model.get_node_position(id).map(|p| p.xy());
-            DEBUG!("comparing {view_position:?} and {position.vector:?}");
+            let view_position = self.view.graph().model.get_node_position(id).map(|p| p.xy());
             if Some(position.vector) != view_position {
                 self.view.graph().frp.input.set_node_position.emit(&(id, position.vector));
             }
@@ -781,7 +790,7 @@ impl Model {
             // If there is no node view, there is nothing to be done with visualization view.
             None       => return,
         };
-        let is_visible         = visualization_frp.visible.value();
+        let is_visible                    = visualization_frp.visible.value();
         let path_in_visible_visualization = is_visible
                 .and_option(visualization_frp.visualisation.value())
                 .map(|definition| definition.path());
@@ -1009,7 +1018,7 @@ impl Model {
         self.view.graph().frp.deselect_all_nodes.emit(&());
         self.request_detaching_all_visualizations();
         self.refresh_graph_view()?;
-        self.view.graph().model.breadcrumbs.pop_breadcrumb.emit(());
+        self.pop_crumb();
         let id = self.get_displayed_node_id(id)?;
         self.view.graph().frp.select_node.emit(&id);
         Ok(())
