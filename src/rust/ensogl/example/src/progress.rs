@@ -187,7 +187,7 @@ mod shape {
             let rim    = generate_rim(&width,&height,&thickness);
 
             let shape  = rim.intersection(mask);
-            shape.fill(color::Rgba::new(1.0,0.0,0.0,1.0));
+            let shape  = shape.fill(color::Rgba::new(1.0,0.0,0.0,1.0));
             shape.into()
         }
     }
