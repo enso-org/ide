@@ -1,7 +1,24 @@
 # Next Release
-This update contains major performance improvements and exposes new privacy user settings. We will
-work towards stabilizing it in the next weeks in order to make these updates be shipped in a stable
-release before the end of the year.
+
+# Enso 2.0.0-alpha.8 (2021-06-09)
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Visual Environment
+
+- [File browser component][1677]. A basic file browser component has been
+  implemented, but is not integrated into the user interface yet.
+
+#### Enso Compiler
+
+- [Updated Enso engine to version 0.2.12][1640]. If you're interested in the
+  enhancements and fixes made to the Enso compiler, you can find out more
+  details in
+  [the engine release notes](https://github.com/enso-org/enso/blob/main/RELEASES.md).
+
+[1640]: https://github.com/enso-org/ide/pull/1664
+
+<br/>
 
 # Enso 2.0.0-alpha.7 (2021-06-06)
 
