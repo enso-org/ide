@@ -803,6 +803,7 @@ impl Node {
         }
 
         // Init defaults.
+        init.emit(());
         model.error_visualization.set_layer(visualization::Layer::Front);
         frp.set_error.emit(None);
         frp.set_disabled.emit(false);
