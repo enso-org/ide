@@ -520,13 +520,18 @@ pub trait API:Debug+model::undo_redo::Aware {
     fn with_node_metadata
     (&self, id:ast::Id, fun:Box<dyn FnOnce(&mut NodeMetadata) + '_>) -> FallibleResult;
 
-    /// Access project's metadata with a given function.
+    /// This method exists as a monomorphication for [`with_project_metadata`]. Users are encouraged
+    /// to use it rather then this method.
     ///
-    /// Fails, if the project's metadata are not set in this module.
-    fn with_project_metadata_internal(&self, fun:Box<dyn FnOnce(&ProjectMetadata) + '_>);
+    /// Access project's metadata with a given function. Fails, if the project's metadata are not
+    /// set in this module.
+    fn boxed_with_project_metadata(&self, fun:Box<dyn FnOnce(&ProjectMetadata) + '_>);
 
+    /// This method exists as a monomorphication for [`update_project_metadata`]. Users are
+    /// encouraged to use it rather then this method.
+    ///
     /// Borrow mutably the project's metadata and update it with a given function.
-    fn update_project_metadata_internal
+    fn boxed_update_project_metadata
     (&self, fun:Box<dyn FnOnce(&mut ProjectMetadata) + '_>) -> FallibleResult;
 
 
@@ -563,7 +568,7 @@ pub trait APIExt : API {
     fn with_project_metadata<R>
     (&self, fun:impl FnOnce(&ProjectMetadata) -> R) -> R {
         let mut ret = None;
-        self.with_project_metadata_internal(Box::new(|metadata| {
+        self.boxed_with_project_metadata(Box::new(|metadata| {
             ret = Some(fun(metadata));
         }));
         // The `with_project_metadata_internal` always calls the callback once, so it must fill
@@ -574,7 +579,7 @@ pub trait APIExt : API {
     /// Borrow mutably the project's metadata and update it with a given function.
     fn update_project_metadata
     (&self, fun:impl FnOnce(&mut ProjectMetadata)) -> FallibleResult {
-        self.update_project_metadata_internal(Box::new(fun))
+        self.boxed_update_project_metadata(Box::new(fun))
     }
 }
 

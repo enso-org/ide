@@ -220,13 +220,13 @@ impl API for Module {
         self.model.with_node_metadata(id,fun)
     }
 
-    fn with_project_metadata_internal(&self, fun:Box<dyn FnOnce(&ProjectMetadata) + '_>) {
-        self.model.with_project_metadata_internal(fun)
+    fn boxed_with_project_metadata(&self, fun:Box<dyn FnOnce(&ProjectMetadata) + '_>) {
+        self.model.boxed_with_project_metadata(fun)
     }
 
-    fn update_project_metadata_internal
+    fn boxed_update_project_metadata
     (&self, fun:Box<dyn FnOnce(&mut ProjectMetadata) + '_>) -> FallibleResult {
-        self.model.update_project_metadata_internal(fun)
+        self.model.boxed_update_project_metadata(fun)
     }
 }
 

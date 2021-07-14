@@ -9,14 +9,15 @@ pub mod synchronized;
 
 use crate::prelude::*;
 
+use crate::double_representation::identifier::ReferentName;
+use crate::model::module::ProjectMetadata;
+
 use enso_protocol::binary;
 use enso_protocol::language_server;
 use flo_stream::Subscriber;
 use mockall::automock;
 use parser::Parser;
 use uuid::Uuid;
-use crate::double_representation::identifier::ReferentName;
-use crate::model::module::ProjectMetadata;
 
 
 
@@ -81,7 +82,7 @@ pub trait API:Debug {
     /// This module is special, as it needs to be referred by the project name itself.
     fn main_module(&self) -> model::module::QualifiedName {
         let id = controller::project::main_module_id();
-        // TODO doc
+        // We unwrap because we know that project name is always a valid referent name.
         let name = ReferentName::new(self.name().to_string()).unwrap();
         model::module::QualifiedName::new(name,id)
 

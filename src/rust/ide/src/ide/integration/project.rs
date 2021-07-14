@@ -901,14 +901,15 @@ impl Model {
     -> FallibleResult {
         let error = self.convert_payload_to_error_view(error,node_id);
         self.view.graph().set_node_error_status(node_id,error.clone());
-        let vis_map  = self.error_visualizations.clone_ref();
-        if error.is_some() && !vis_map.contains_key(&node_id) {
+        let error_visualizations    = self.error_visualizations.clone_ref();
+        let has_error_visualization = self.error_visualizations.contains_key(&node_id);
+        if error.is_some() && !has_error_visualization {
             use graph_editor::builtin::visualization::native::error;
             let endpoint = self.view.graph().frp.set_error_visualization_data.clone_ref();
             let metadata = error::metadata();
-            self.attach_visualization(node_id,&metadata,endpoint,vis_map)?;
-        } else if error.is_none() && vis_map.contains_key(&node_id) {
-            self.detach_visualization(node_id,vis_map)?;
+            self.attach_visualization(node_id,&metadata,endpoint,error_visualizations)?;
+        } else if error.is_none() && has_error_visualization {
+            self.detach_visualization(node_id,error_visualizations)?;
         }
         Ok(())
     }
@@ -989,6 +990,11 @@ impl Model {
 impl Model {
     /// Handle notification received from controller about the whole graph being invalidated.
     pub fn on_graph_invalidated(&self) -> FallibleResult {
+        // We drop error, because in general this scenario should not be considered an error from a
+        // higher perspective. Getting invalid call stack entry is a very possible result of e.g.
+        // user editing text.
+        // In some future (where we can deal better with such scenarios) this code should be
+        // reconsidered.
         let _ = self.refresh_call_stack().ok();
         self.refresh_graph_view()
     }
@@ -1345,7 +1351,7 @@ impl Model {
 
     fn store_updated_stack_task(&self) -> impl FnOnce() -> FallibleResult + 'static {
         let main_module = self.main_module.clone_ref();
-        let graph  = self.graph.clone_ref();
+        let graph       = self.graph.clone_ref();
         move || {
             main_module.update_project_metadata(|metadata| {
                 metadata.call_stack = graph.call_stack();
@@ -1406,6 +1412,8 @@ impl Model {
                 let data  = analytics::AnonymousData(|| e.to_string());
                 analytics::remote_log_value(event,field,data)
             } else {
+                // This should never happen, as our metadata structures are always serializable to
+                // JSON.
                 let _ = update_metadata().ok();
             }
         };

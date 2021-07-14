@@ -2,12 +2,13 @@
 
 use crate::prelude::*;
 
-use crate::model::module::{Metadata, ProjectMetadata};
+use crate::model::module::Metadata;
 use crate::model::module::NodeMetadata;
 use crate::model::module::NodeMetadataNotFound;
-use crate::model::module::Path;
 use crate::model::module::NotificationKind;
 use crate::model::module::Notification;
+use crate::model::module::Path;
+use crate::model::module::ProjectMetadata;
 use crate::notification;
 use crate::double_representation::definition::DefinitionInfo;
 use crate::model::module::Content;
@@ -179,7 +180,7 @@ impl model::module::API for Module {
         })
     }
 
-    fn with_project_metadata_internal(&self, fun:Box<dyn FnOnce(&ProjectMetadata) + '_>) {
+    fn boxed_with_project_metadata(&self, fun:Box<dyn FnOnce(&ProjectMetadata) + '_>) {
         let content  = self.content.borrow();
         if let Some(metadata) = content.metadata.ide.project.as_ref() {
             fun(metadata)
@@ -188,7 +189,7 @@ impl model::module::API for Module {
         }
     }
 
-    fn update_project_metadata_internal
+    fn boxed_update_project_metadata
     (&self, fun:Box<dyn FnOnce(&mut ProjectMetadata) + '_>) -> FallibleResult {
         self.update_content(NotificationKind::MetadataChanged, |content| {
             let mut data = content.metadata.ide.project.clone().unwrap_or_default();
