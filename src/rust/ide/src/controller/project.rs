@@ -4,8 +4,10 @@ use crate::prelude::*;
 
 use crate::controller::graph::executed::Notification as GraphNotification;
 use crate::controller::ide::StatusNotificationPublisher;
+use crate::double_representation::module::ImportInfo;
 use crate::model::traits::*;
 use crate::double_representation::project;
+use crate::model::module::QualifiedName;
 
 use enso_frp::web::platform;
 use enso_frp::web::platform::Platform;
@@ -24,12 +26,12 @@ pub const COMPILING_STDLIB_LABEL:&str = "Compiling standard library. It can take
 
 /// The requirements for Engine's version, in format understandable by
 /// [`semver::VersionReq::parse`].
-pub const ENGINE_VERSION_SUPPORTED        : &str = "^0.2.13";
+pub const ENGINE_VERSION_SUPPORTED        : &str = "^0.2.14-SNAPSHOT.2021-07-14.1";
 
 /// The Engine version used in projects created in IDE.
 // Usually it is a good idea to synchronize this version with the bundled Engine version in
 // src/js/lib/project-manager/src/build.ts. See also https://github.com/enso-org/ide/issues/1359
-pub const ENGINE_VERSION_FOR_NEW_PROJECTS : &str = "0.2.13";
+pub const ENGINE_VERSION_FOR_NEW_PROJECTS : &str = "0.2.14-SNAPSHOT.2021-07-14.1";
 
 /// The name of the module initially opened in the project view.
 ///
@@ -138,8 +140,12 @@ impl Project {
         //   until proper decision is made. See: https://github.com/enso-org/enso/issues/1050
         self.recreate_if_missing(&file_path,default_main_method_code()).await?;
         let method = main_method_ptr(project.qualified_name(),&module_path);
-        let main_module_model = self.model.module(module_path).await?;
+        let main_module_model = self.model.module(module_path.clone()).await?;
         Self::add_main_if_missing(project.qualified_name(), &main_module_model, &method, &parser)?;
+
+        let mut info = module.info();
+        info.add_module_import(&project.qualified_module_name(&module_path), &project.parser(), &QualifiedName::from_text("Standard.Visualization").unwrap());
+        module.update_ast(info.ast)?;
 
         // Here, we should be relatively certain (except race conditions in case of multiple
         // clients that we currently do not support) that main module exists and contains main
@@ -150,6 +156,8 @@ impl Project {
         self.init_call_stack_from_metadata(&main_module_model, &main_graph).await;
         self.notify_about_compiling_process(&main_graph);
         self.display_warning_on_unsupported_engine_version()?;
+
+
 
         Ok(InitializationResult {main_module_text,main_module_model,main_graph})
     }
