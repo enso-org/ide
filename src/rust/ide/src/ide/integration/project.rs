@@ -1274,13 +1274,22 @@ impl Model {
         let searcher   = self.searcher.replace(None).ok_or_else(error)?;
         let entry      = searcher.actions().list().zip(*entry_id).and_then(|(l,i)| l.get_cloned(i));
         let is_example = entry.map_or(false, |e| matches!(e.action,Example(_)));
-        let result = if let Some(id) = entry_id {
+        let result     = if let Some(id) = entry_id {
             searcher.execute_action_by_index(*id)
         } else {
             searcher.commit_node().map(Some)
         };
         match result {
             Ok(Some(node_id)) => {
+                // Node editor wants to decide whether node is selected after adding/updating.
+                // However when adding a new node, signals about selecting node are emitted before
+                // the node is connected to the controller.
+                // Thus here we need to initialize metadata with selection state from the view.
+                // We ignore any error, because it can happen only when metadata is not serializable
+                // to JSON.
+                let _ = self.graph.graph().module.with_node_metadata(node_id, Box::new(|metadata| {
+                    metadata.selected = self.view.graph().model.nodes.is_selected(*displayed_id);
+                }));
                 self.node_views.borrow_mut().insert(node_id,*displayed_id);
                 if is_example {
                     self.view.graph().frp.enable_visualization(displayed_id);
