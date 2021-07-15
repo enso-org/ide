@@ -1263,7 +1263,8 @@ impl GraphEditorModelWithNetwork {
             // new one has been enabled.
             // TODO: Create a better API for updating the controller about visualisation changes
             // (see #896)
-            output.source.visualization_hidden <+ visualization_hidden.constant(node_id);
+            visualization_hidden_changed       <- visualization_hidden.on_change();
+            output.source.visualization_hidden <+ visualization_hidden_changed.constant(node_id);
             output.source.visualization_shown  <+
                 visualization_shown.map2(&metadata,move |_,metadata| (node_id,metadata.clone()));
 
