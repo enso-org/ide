@@ -25,12 +25,12 @@ pub const COMPILING_STDLIB_LABEL:&str = "Compiling standard library. It can take
 
 /// The requirements for Engine's version, in format understandable by
 /// [`semver::VersionReq::parse`].
-pub const ENGINE_VERSION_SUPPORTED        : &str = "^0.2.14-SNAPSHOT.2021-07-14.1";
+pub const ENGINE_VERSION_SUPPORTED        : &str = "^0.2.141";
 
 /// The Engine version used in projects created in IDE.
 // Usually it is a good idea to synchronize this version with the bundled Engine version in
 // src/js/lib/project-manager/src/build.ts. See also https://github.com/enso-org/ide/issues/1359
-pub const ENGINE_VERSION_FOR_NEW_PROJECTS : &str = "0.2.14-SNAPSHOT.2021-07-14.1";
+pub const ENGINE_VERSION_FOR_NEW_PROJECTS : &str = "0.2.14";
 
 /// The name of the module initially opened in the project view.
 ///
@@ -200,13 +200,15 @@ impl Project {
     }
 
     fn display_warning_on_unsupported_engine_version(&self) -> FallibleResult {
-        let requirements = semver::VersionReq::parse(ENGINE_VERSION_SUPPORTED)?;
-        let version      = self.model.engine_version();
-        if !requirements.matches(&version) {
-            let message = format!("Unsupported Engine version. Please update engine_version in {} \
-                to {}.",package_yaml_path(&self.model.name()),ENGINE_VERSION_FOR_NEW_PROJECTS);
-            self.status_notifications.publish_event(message);
-        }
+        // FIXME[MM]: Disabled as it needs updating to the new edition system.
+        //  See https://github.com/enso-org/ide/issues/1713 for more information.
+        // let requirements = semver::VersionReq::parse(ENGINE_VERSION_SUPPORTED)?;
+        // let version      = self.model.engine_version();
+        // if !requirements.matches(&version) {
+        //     let message = format!("Unsupported Engine version. Please update engine_version in {} \
+        //         to {}.",package_yaml_path(&self.model.name()),ENGINE_VERSION_FOR_NEW_PROJECTS);
+        //     self.status_notifications.publish_event(message);
+        // }
         Ok(())
     }
 }
