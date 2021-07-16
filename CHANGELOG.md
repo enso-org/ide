@@ -1,4 +1,20 @@
-# Enso 2.0.0-alpha.8 (2021-06-09)
+# Enso 2.0.0-alpha.9 (2021-07-16)
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Visual Environment
+
+- [Improved undo-redo][1653]. Undo-redo now works with additional operations:
+  - node selection
+  - enabling and disabling a visualization
+  - entering and leaving a node The state for each of these actions is now also
+    restored on project startup.
+- [File browser component][1677]. A basic file browser component has been
+  implemented, but is not integrated into the user interface yet.
+
+<br/>
+  
+# Enso 2.0.0-alpha.8 (2021-07-09)
 
 <br/>![New Features](/docs/assets/tags/new_features.svg)
 
@@ -9,7 +25,8 @@
   details in
   [the engine release notes](https://github.com/enso-org/enso/blob/main/RELEASES.md).
 
-[1640]: https://github.com/enso-org/ide/pull/1664
+[1640]: https://github.com/enso-org/ide/pull/1640
+[1677]: https://github.com/enso-org/ide/pull/1677
 
 <br/>
 
