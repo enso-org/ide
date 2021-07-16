@@ -203,6 +203,28 @@ define_sdf_shapes! {
     }
 
 
+    // === RoundedLineSegment ===
+
+    /// A line segment from the origin to `target` with rounded endpoints.
+    RoundedLineSegment (target:Vector2<Pixels>, width:Pixels) {
+        float half_width = width / 2.0;
+
+        // A value between 0.0 and 1.0 indicating the position of the point on the line segment that
+        // is closest to `position`. 0.0 stands for the origin and 1.0 for `target`.
+        float projection = clamp(dot(position,target)/dot(target,target),0.0,1.0);
+        vec2 closest_point = projection * target;
+
+        float left         = min(target.x,0.0) - half_width;;
+        float right        = max(target.x,0.0) + half_width;;
+        float bottom       = min(target.y,0.0) - half_width;;
+        float top          = max(target.y,0.0) + half_width;;
+        BoundingBox bounds = bounding_box(left,right,bottom,top);
+
+        float distance = length(position - closest_point) - half_width;
+        return bound_sdf(distance,bounds);
+    }
+
+
     // === Ellipse ===
 
     Circle (radius:Pixels) {
