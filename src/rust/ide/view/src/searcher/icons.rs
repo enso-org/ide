@@ -8,9 +8,6 @@ use ensogl::display::DomSymbol;
 use ensogl::display::navigation::navigator::Navigator;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::shape::*;
-use ensogl::display::shape::class::ShapeRef;
-use ensogl::display::shape::primitive::def::class::Shape;
-use ensogl::display::world::*;
 use ensogl::system::web;
 use ensogl_theme::application::searcher::icons as theme;
 use ensogl::system::web::StyleSetter;
@@ -74,7 +71,7 @@ mod star {
 
             let shape = fragment1 + fragment2 + fragment3 + fragment4 + fragment5;
             let shape = shape.fill(style.get_color(theme::favorites));
-            let shape = shape.translate_y(-0.5.px());
+            let shape = shape.translate_y((-0.5).px());
             shape.shrink(SHRINK_AMOUNT.px()).into()
         }
     }
@@ -105,7 +102,7 @@ mod data_input {
 
             // === Arrow ===
 
-            let arrow_line = Rect((8.0.px(),1.0.px())).translate_x(-3.0.px());
+            let arrow_line = Rect((8.0.px(),1.0.px())).translate_x((-3.0).px());
             let arrow_tip  = Triangle(5.0.px(),4.0.px()).rotate((PI / 2.0).radians());
             let arrow_tip  = arrow_tip.translate_x(2.0.px());
             let arrow      = arrow_line + arrow_tip;
@@ -128,7 +125,7 @@ mod data_output {
         (style:Style) {
 
             // === Rectangle ===
-            let rect = Rect((9.0.px(),13.0.px())).corners_radius(1.5.px()).translate_x(-2.5.px());
+            let rect = Rect((9.0.px(),13.0.px())).corners_radius(1.5.px()).translate_x((-2.5).px());
             // Taking just an outline.
             let rect = &rect - rect.shrink(1.0.px());
             // Creating a gap for the arrow to pass through.
@@ -174,7 +171,7 @@ mod text_input {
 
             let cursor_middle = Rect((1.0.px(),15.0.px()));
             let cursor_top    = Rect((5.0.px(),1.0.px())).translate_y(7.5.px());
-            let cursor_bottom = Rect((5.0.px(),1.0.px())).translate_y(-7.5.px());
+            let cursor_bottom = Rect((5.0.px(),1.0.px())).translate_y((-7.5).px());
             let cursor        = (cursor_middle + cursor_top + cursor_bottom).translate_x(3.5.px());
 
 
@@ -182,9 +179,9 @@ mod text_input {
 
             // We construct the letter "A", consisting of a diagonal stroke on the left, a diagonal
             // stroke on the right and a horizontal bar in the middle.
-            let left_stroke   = RoundedLineSegment((-2.5.px(),-5.0.px()),1.0.px());
-            let right_stroke  = RoundedLineSegment((2.5.px() ,-5.0.px()),1.0.px());
-            let bar           = Rect((4.0.px(),1.0.px())).translate_y(-3.5.px());
+            let left_stroke   = RoundedLineSegment(((-2.5).px(),(-5.0).px()),1.0.px());
+            let right_stroke  = RoundedLineSegment((2.5.px() ,(-5.0).px()),1.0.px());
+            let bar           = Rect((4.0.px(),1.0.px())).translate_y((-3.5).px());
             let letter        = left_stroke + right_stroke + bar;
             let letter        = letter.translate_x((-2.5).px()).translate_y(2.5.px());
 
@@ -219,7 +216,7 @@ mod number_input {
 
             let cursor_middle = Rect((1.0.px(),15.0.px()));
             let cursor_top    = Rect((5.0.px(),1.0.px())).translate_y(7.5.px());
-            let cursor_bottom = Rect((5.0.px(),1.0.px())).translate_y(-7.5.px());
+            let cursor_bottom = Rect((5.0.px(),1.0.px())).translate_y((-7.5).px());
             let cursor        = (cursor_middle + cursor_top + cursor_bottom).translate_x(3.5.px());
 
 
@@ -228,7 +225,7 @@ mod number_input {
             // The number "5" consists of a short horizontal bar at the top, a vertical bar
             // connected to it on the left and a big arc below, connected to the vertical bar.
             let top  = Rect((3.0.px(),1.0.px()));
-            let left = Rect((1.0.px(),3.0.px())).translate_x(-1.0.px()).translate_y(-1.0.px());
+            let left = Rect((1.0.px(),3.0.px())).translate_x((-1.0).px()).translate_y((-1.0).px());
 
 
             // == Arc ==
@@ -268,7 +265,7 @@ mod number_input {
             let arc                  = arc - aperture;
             let arc                  = arc.translate((arc_center.x.px(),arc_center.y.px()));
 
-            let number = (top + left + arc).translate_x(-2.0.px()).translate_y(2.5.px());
+            let number = (top + left + arc).translate_x((-2.0).px()).translate_y(2.5.px());
 
 
             // === Shape ===
