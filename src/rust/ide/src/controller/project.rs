@@ -65,24 +65,6 @@ pub fn main_module_id() -> model::module::Id {
 
 
 
-
-// =================
-// === Utilities ===
-// =================
-
-/// Returns the path to package.yaml file for given project.
-pub fn package_yaml_path(project_name:&str) -> String {
-    match platform::current() {
-        Some(Platform::Linux)   |
-        Some(Platform::MacOS)   => format!("~/enso/projects/{}/package.yaml",project_name),
-        Some(Platform::Windows) =>
-            format!("%userprofile%\\enso\\projects\\{}\\package.yaml",project_name),
-        _ => format!("<path-to-enso-projects>/{}/package.yaml",project_name)
-    }
-}
-
-
-
 // =================
 // === Utilities ===
 // =================
