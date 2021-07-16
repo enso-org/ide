@@ -4,11 +4,11 @@
 
 #### Visual Environment
 
-- [Improved undo-reddo][1653]. Several new operations are now supported by undo-redo:
-  * node selection;
-  * enablind and disabling a visualization;
-  * entering and leaving a node.
-  
+- [Improved undo-reddo][1653]. Several new operations are now supported by
+  undo-redo:
+  - node selection;
+  - enabling and disabling a visualization;
+  - entering and leaving a node.
 
 <br/>
   
