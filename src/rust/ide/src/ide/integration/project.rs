@@ -9,7 +9,6 @@ use crate::prelude::*;
 
 use crate::controller::graph::Connections;
 use crate::controller::graph::NodeTrees;
-use crate::controller::ide::ProjectMetadata;
 use crate::controller::searcher::action::MatchInfo;
 use crate::controller::searcher::Actions;
 use crate::controller::upload;
@@ -1983,11 +1982,11 @@ impl upload::DataProvider for drop::File {
 
 #[derive(Clone,CloneRef,Debug,Default)]
 struct ProjectsToOpen {
-    projects : Rc<Vec<ProjectMetadata>>
+    projects : Rc<Vec<controller::ide::ProjectMetadata>>
 }
 
 impl ProjectsToOpen {
-    fn new(projects:Vec<ProjectMetadata>) -> Self {
+    fn new(projects:Vec<controller::ide::ProjectMetadata>) -> Self {
         Self {projects:Rc::new(projects)}
     }
 
