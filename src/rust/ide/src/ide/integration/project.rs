@@ -1469,6 +1469,7 @@ struct DataProviderForView {
 impl DataProviderForView {
     fn doc_placeholder_for(suggestion:&controller::searcher::action::Suggestion) -> String {
         let title = match suggestion.kind {
+            suggestion_database::entry::Kind::Module   => "Module",
             suggestion_database::entry::Kind::Atom     => "Atom",
             suggestion_database::entry::Kind::Function => "Function",
             suggestion_database::entry::Kind::Local    => "Local variable",

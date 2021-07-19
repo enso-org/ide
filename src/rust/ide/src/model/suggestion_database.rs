@@ -270,6 +270,7 @@ mod test {
             return_type   : "TestAtom".to_string(),
             documentation : None,
             external_id   : None,
+            reexport      : None,
         };
         let db_entry = SuggestionsDatabaseEntry {id:12, suggestion:entry};
         let response = language_server::response::GetSuggestionDatabase {
@@ -294,6 +295,7 @@ mod test {
             return_type   : "TestAtom".to_owned(),
             documentation : None,
             external_id   : None,
+            reexport      : None,
         };
         let entry2 = language_server::types::SuggestionEntry::Atom {
             name          : "Entry2".to_owned(),
@@ -302,6 +304,7 @@ mod test {
             return_type   : "TestAtom".to_owned(),
             documentation : None,
             external_id   : None,
+            reexport      : None,
         };
         let new_entry2 = language_server::types::SuggestionEntry::Atom {
             name          : "NewEntry2".to_owned(),
@@ -310,6 +313,7 @@ mod test {
             return_type   : "TestAtom".to_owned(),
             documentation : None,
             external_id   : None,
+            reexport      : None,
         };
         let arg1 = SuggestionEntryArgument {
             name          : "Argument1".to_owned(),
@@ -381,6 +385,7 @@ mod test {
         assert_eq!(db.version.get(), 3);
 
         // Empty modify
+        let entry1_reexporter = QualifiedName::from_text("local.TestProject.Reexporter").unwrap();
         let modify_update = entry::Update::Modify {
             id            : 1,
             external_id   : None,
@@ -390,7 +395,8 @@ mod test {
                 self_type     : None,
                 return_type   : None,
                 documentation : None,
-                scope         : None
+                scope         : None,
+                reexport      : Some(FieldUpdate::set(entry1_reexporter.to_string())),
             }),
         };
         let update = SuggestionDatabaseUpdatesEvent {
@@ -404,13 +410,14 @@ mod test {
         assert_eq!(db.lookup(1).unwrap().arguments    , vec![]);
         assert_eq!(db.lookup(1).unwrap().return_type  , "TestAtom");
         assert_eq!(db.lookup(1).unwrap().documentation, None);
-        assert!(matches!(db.lookup(1).unwrap().scope, Scope::Everywhere));
+        assert_matches!(db.lookup(1).unwrap().scope   , Scope::Everywhere);
+        assert_eq!(db.lookup(1).unwrap().reexport     , Some(entry1_reexporter));
         assert_eq!(db.version.get(), 4);
 
         // Modify with some invalid fields
         let modify_update = entry::Update::Modify {
-            id          : 1,
-            external_id : None,
+            id           : 1,
+            external_id  : None,
             modification : Box::new(SuggestionsDatabaseModification {
                 // Invalid: the entry does not have any arguments.
                 arguments:vec![SuggestionArgumentUpdate::Remove {index:0}],
@@ -423,8 +430,9 @@ mod test {
                     start : Position {line:4, character:10},
                     end   : Position {line:8, character:12}
                 })),
-                module:None,
-                self_type:None,
+                module    : None,
+                self_type : None,
+                reexport  : None,
             }),
         };
         let update = SuggestionDatabaseUpdatesEvent {
@@ -462,6 +470,7 @@ mod test {
                 })),
                 self_type : None,
                 module    : None,
+                reexport  : None,
             }),
         };
         let update = SuggestionDatabaseUpdatesEvent {
@@ -494,11 +503,13 @@ mod test {
             external_id   : None,
             modification  : Box::new(SuggestionsDatabaseModification {
                 arguments     : vec![SuggestionArgumentUpdate::Add {index:2, argument:new_argument}],
+                module        : None,
                 return_type   : None,
+                self_type     : None,
                 documentation : None,
                 scope         : None,
-                self_type     : None,
-                module        : None,
+                reexport      : None,
+
             }),
         };
         let update = SuggestionDatabaseUpdatesEvent {
@@ -519,11 +530,12 @@ mod test {
             external_id   : None,
             modification  : Box::new(SuggestionsDatabaseModification {
                 arguments     : vec![SuggestionArgumentUpdate::Remove {index:2}],
+                module        : None,
                 return_type   : None,
+                self_type     : None,
                 documentation : None,
                 scope         : None,
-                self_type     : None,
-                module        : None,
+                reexport      : None,
             }),
         };
         let update = SuggestionDatabaseUpdatesEvent {

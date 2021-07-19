@@ -14,6 +14,7 @@
 #![feature(result_cloned)]
 #![feature(result_into_ok_or_err)]
 #![feature(map_try_insert)]
+#![feature(assert_matches)]
 #![recursion_limit="256"]
 #![warn(missing_docs)]
 #![warn(trivial_casts)]

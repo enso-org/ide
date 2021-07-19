@@ -4,7 +4,6 @@ use crate::prelude::*;
 
 use crate::controller::graph::executed::Notification as GraphNotification;
 use crate::controller::ide::StatusNotificationPublisher;
-use crate::double_representation::module::ImportInfo;
 use crate::double_representation::project;
 use crate::model::module::QualifiedName;
 
