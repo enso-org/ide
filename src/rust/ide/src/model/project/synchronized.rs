@@ -2,6 +2,8 @@
 
 use crate::prelude::*;
 
+use crate::double_representation::identifier::ReferentName;
+use crate::double_representation::project::QualifiedName;
 use crate::model::execution_context::VisualizationUpdateData;
 use crate::model::execution_context;
 use crate::model::module;
@@ -13,7 +15,7 @@ use crate::transport::web::WebSocket;
 use enso_protocol::binary;
 use enso_protocol::binary::message::VisualisationContext;
 use enso_protocol::language_server;
-use enso_protocol::language_server::CapabilityRegistration;
+use enso_protocol::language_server::{CapabilityRegistration, ContentRoot};
 use enso_protocol::language_server::MethodPointer;
 use enso_protocol::project_manager;
 use enso_protocol::project_manager::MissingComponentAction;
@@ -88,6 +90,63 @@ impl ExecutionContextsRegistry {
 
 
 
+// ====================
+// === ContentRoots ===
+// ====================
+
+#[derive(Clone,Debug,Fail)]
+#[fail(display="Content root {} does not exist.",id)]
+struct MissingContentRoot {id:Uuid}
+
+/// A repository of content roots attached to a specific project.
+#[derive(Clone,Debug)]
+pub struct ContentRoots {
+    logger : Logger,
+    roots  : RefCell<HashMap<Uuid,Rc<ContentRoot>>>
+}
+
+impl ContentRoots {
+    /// Create ContentRoots, initializing with the roots retrieved during connection initialization.
+    pub fn new_from_connection
+    (parent:impl AnyLogger, connection:&language_server::Connection) -> Self {
+        let logger    = Logger::sub(parent,"ContentRoots");
+        let roots_vec = connection.content_roots().map(|r| (r.id(),Rc::new(r.clone()))).collect();
+        let roots     = RefCell::new(roots_vec);
+        Self{logger,roots}
+    }
+
+    /// Return all content roots.
+    pub fn all(&self) -> Vec<Rc<ContentRoot>> {
+        self.roots.borrow().values().cloned().collect()
+    }
+
+    /// Add a new content root.
+    ///
+    /// If there is already a root with given id, it will be replaced and warning will be printed.
+    pub fn add(&self, content_root:ContentRoot) {
+        let content_root = Rc::new(content_root);
+        if let Some(existing) = self.roots.borrow_mut().insert(content_root.id(),content_root) {
+            warning!(self.logger,"Adding content root: there is already content root with given \
+                id: {existing:?}");
+        }
+    }
+
+    /// Get content root by id.
+    pub fn get(&self, id:Uuid) -> FallibleResult<Rc<ContentRoot>> {
+        self.roots.borrow().get(&id).cloned().ok_or_else(|| MissingContentRoot{id}.into())
+    }
+
+    /// Remove the content root with given id.
+    ///
+    /// If there is no content root with such id, a warning will be printed.
+    pub fn remove(&self, id:Uuid) {
+        if self.roots.borrow_mut().remove(&id).is_none() {
+            warning!(self.logger,"Removing content root: no content root with given id: {id}");
+        }
+    }
+}
+
+
 // =============
 // === Model ===
 // =============
@@ -108,9 +167,9 @@ pub struct UnsupportedEngineVersion {
 }
 
 impl UnsupportedEngineVersion {
-    fn error_wrapper
-    (project_name:String, engine_version:semver::Version)
-    -> impl Fn(failure::Error) -> failure::Error {
+    fn error_wrapper(properties:&Properties) -> impl Fn(failure::Error) -> failure::Error {
+        let engine_version = properties.engine_version.clone();
+        let project_name   = properties.name.project.as_str().to_owned();
         move |root_cause| {
             let requirements = semver::VersionReq::parse(controller::project::ENGINE_VERSION_SUPPORTED);
             match requirements {
@@ -143,7 +202,7 @@ impl Display for UnsupportedEngineVersion {
 pub struct Properties {
     /// ID of the project, as used by the Project Manager service.
     pub id             : Uuid,
-    pub name           : CloneRefCell<ImString>,
+    pub name           : QualifiedName,
     pub engine_version : semver::Version,
 }
 
@@ -155,7 +214,7 @@ pub struct Properties {
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct Project {
-    pub properties          : Rc<Properties>,
+    pub properties          : Rc<RefCell<Properties>>,
     #[derivative(Debug = "ignore")]
     pub project_manager     : Option<Rc<dyn project_manager::API>>,
     pub language_server_rpc : Rc<language_server::Connection>,
@@ -164,6 +223,7 @@ pub struct Project {
     pub execution_contexts  : Rc<ExecutionContextsRegistry>,
     pub visualization       : controller::Visualization,
     pub suggestion_db       : Rc<SuggestionDatabase>,
+    pub content_roots       : Rc<ContentRoots>,
     pub parser              : Parser,
     pub logger              : Logger,
     pub notifications       : notification::Publisher<model::project::Notification>,
@@ -177,13 +237,11 @@ impl Project {
     , project_manager     : Option<Rc<dyn project_manager::API>>
     , language_server_rpc : Rc<language_server::Connection>
     , language_server_bin : Rc<binary::Connection>
-    , engine_version      : semver::Version
-    , id                  : Uuid
-    , name                : impl Str
+    , properties          : Properties
     ) -> FallibleResult<Self> {
-        let wrap   = UnsupportedEngineVersion::error_wrapper(name.as_ref().to_owned(),engine_version.clone());
+        let wrap   = UnsupportedEngineVersion::error_wrapper(&properties);
         let logger = Logger::sub(parent,"Project Controller");
-        info!(logger,"Creating a model of project {name.as_ref()}");
+        info!(logger,"Creating a model of project {properties.name}");
         let binary_protocol_events  = language_server_bin.event_stream();
         let json_rpc_events         = language_server_rpc.events();
         let embedded_visualizations = default();
@@ -191,19 +249,20 @@ impl Project {
         let module_registry         = default();
         let execution_contexts      = default();
         let visualization           = controller::Visualization::new(language_server,embedded_visualizations);
-        let name                    = CloneRefCell::new(ImString::new(name.into()));
         let parser                  = Parser::new_or_panic();
         let language_server         = &*language_server_rpc;
         let suggestion_db           = SuggestionDatabase::create_synchronized(language_server);
         let suggestion_db           = Rc::new(suggestion_db.await.map_err(&wrap)?);
+        let content_roots           = ContentRoots::new_from_connection(&logger,&*language_server);
+        let content_roots           = Rc::new(content_roots);
         let notifications           = notification::Publisher::default();
         let urm                     = Rc::new(model::undo_redo::Manager::new(&logger));
-        let engine_version          = engine_version.clone();
-        let properties = Rc::new(Properties {id,name,engine_version});
+        let properties              = Rc::new(RefCell::new(properties));
 
         let ret = Project
             {properties,project_manager,language_server_rpc,language_server_bin,module_registry
-            ,execution_contexts,visualization,suggestion_db,parser,logger,notifications,urm};
+            ,execution_contexts,visualization,suggestion_db,content_roots,parser,logger
+            ,notifications,urm};
 
         let binary_handler = ret.binary_event_handler();
         crate::executor::global::spawn(binary_protocol_events.for_each(binary_handler));
@@ -221,11 +280,9 @@ impl Project {
     , project_manager     : Option<Rc<dyn project_manager::API>>
     , language_server_rpc : String
     , language_server_bin : String
-    , engine_version      : semver::Version
-    , id                  : Uuid
-    , name                : impl Str
+    , properties          : Properties
     ) -> FallibleResult<model::Project> {
-        let wrap      = UnsupportedEngineVersion::error_wrapper(name.as_ref().to_owned(),engine_version.clone());
+        let wrap      = UnsupportedEngineVersion::error_wrapper(&properties);
         let client_id = Uuid::new_v4();
         let json_ws   = WebSocket::new_opened(&parent,&language_server_rpc).await?;
         let binary_ws = WebSocket::new_opened(&parent,&language_server_bin).await?;
@@ -240,7 +297,7 @@ impl Project {
         let language_server_rpc = Rc::new(connection_json);
         let language_server_bin = Rc::new(connection_binary);
         let model               = Self::new(parent,project_manager,language_server_rpc
-            ,language_server_bin,engine_version,id,name).await?;
+            ,language_server_bin,properties).await?;
         Ok(Rc::new(model))
     }
 
@@ -250,15 +307,20 @@ impl Project {
     ( parent          : &Logger
     , project_manager : Rc<dyn project_manager::API>
     , id              : Uuid
-    , name            : impl Str
     ) -> FallibleResult<model::Project> {
         let action          = MissingComponentAction::Install;
         let opened          = project_manager.open_project(&id,&action).await?;
-        let version         = semver::Version::parse(&opened.engine_version)?;
+        let namespace       = opened.project_namespace;
+        let name            = opened.project_name;
         let project_manager = Some(project_manager);
         let json_endpoint   = opened.language_server_json_address.to_string();
         let binary_endpoint = opened.language_server_binary_address.to_string();
-        Self::new_connected(parent,project_manager,json_endpoint,binary_endpoint,version,id,name).await
+        let properties      = Properties {
+            id,
+            name           : QualifiedName::from_segments(namespace,name)?,
+            engine_version : semver::Version::parse(&opened.engine_version)?,
+        };
+        Self::new_connected(parent,project_manager,json_endpoint,binary_endpoint,properties).await
     }
 
     /// Returns a handling function capable of processing updates from the binary protocol.
@@ -319,6 +381,7 @@ impl Project {
         let publisher               = self.notifications.clone_ref();
         let weak_execution_contexts = Rc::downgrade(&self.execution_contexts);
         let weak_suggestion_db      = Rc::downgrade(&self.suggestion_db);
+        let weak_content_roots      = Rc::downgrade(&self.content_roots);
         move |event| {
             debug!(logger, "Received an event from the json-rpc protocol: {event:?}");
             use enso_protocol::language_server::Event;
@@ -345,6 +408,16 @@ impl Project {
                 Event::Notification(Notification::SuggestionDatabaseUpdates(update)) => {
                     if let Some(suggestion_db) = weak_suggestion_db.upgrade() {
                         suggestion_db.apply_update_event(update);
+                    }
+                }
+                Event::Notification(Notification::ContentRootAdded {root}) => {
+                    if let Some(content_roots) = weak_content_roots.upgrade() {
+                        content_roots.add(root);
+                    }
+                }
+                Event::Notification(Notification::ContentRootRemoved {id}) => {
+                    if let Some(content_roots) = weak_content_roots.upgrade() {
+                        content_roots.remove(id);
                     }
                 }
                 Event::Closed => {
@@ -385,8 +458,12 @@ impl Project {
 }
 
 impl model::project::API for Project {
-    fn name(&self) -> ImString {
-        self.properties.name.get()
+    fn name(&self) -> ReferentName {
+        self.properties.borrow().name.project.clone()
+    }
+
+    fn qualified_name(&self) -> QualifiedName {
+        self.properties.borrow().name.clone()
     }
 
     fn json_rpc(&self) -> Rc<language_server::Connection> {
@@ -397,7 +474,9 @@ impl model::project::API for Project {
         self.language_server_bin.clone_ref()
     }
 
-    fn engine_version(&self) -> &semver::Version { &self.properties.engine_version }
+    fn engine_version(&self) -> semver::Version {
+        self.properties.borrow().engine_version.clone()
+    }
 
     fn parser(&self) -> Parser {
         self.parser.clone_ref()
@@ -409,6 +488,14 @@ impl model::project::API for Project {
 
     fn suggestion_db(&self) -> Rc<SuggestionDatabase> {
         self.suggestion_db.clone_ref()
+    }
+
+    fn content_roots(&self) -> Vec<Rc<ContentRoot>> {
+        self.content_roots.all()
+    }
+
+    fn content_root_by_id(&self, id:Uuid) -> FallibleResult<Rc<ContentRoot>> {
+        self.content_roots.get(id)
     }
 
     fn module(&self, path: module::Path) -> BoxFuture<FallibleResult<model::Module>> {
@@ -435,15 +522,17 @@ impl model::project::API for Project {
 
     fn rename_project(&self, name:String) -> BoxFuture<FallibleResult> {
         async move {
+            let referent_name   = name.as_str().try_into()?;
             let project_manager = self.project_manager.as_ref().ok_or(ProjectManagerUnavailable)?;
-            project_manager.rename_project(&self.properties.id, &name).await?;
-            self.properties.name.set(name.into());
+            let project_id      = self.properties.borrow().id;
+            project_manager.rename_project(&project_id,&name).await?;
+            self.properties.borrow_mut().name.project = referent_name;
             Ok(())
         }.boxed_local()
     }
 
-    fn content_root_id(&self) -> Uuid {
-        self.language_server_rpc.project_root().id
+    fn project_content_root_id(&self) -> Uuid {
+        self.language_server_rpc.project_root().id()
     }
 
     fn subscribe(&self) -> Subscriber<model::project::Notification> {
@@ -465,7 +554,6 @@ impl model::project::API for Project {
 mod test {
     use super::*;
 
-    use crate::constants::DEFAULT_PROJECT_NAME;
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
     use enso_protocol::types::Sha3_224;
@@ -516,10 +604,13 @@ mod test {
             let binary_connection = Rc::new(binary::Connection::new_mock(binary_client));
             let project_manager   = Rc::new(project_manager);
             let logger            = Logger::new("Fixture");
-            let id                = Uuid::new_v4();
-            let engine_version    = semver::Version::new(0,2,1);
+            let properties        = Properties {
+                id             : Uuid::new_v4(),
+                name           : crate::test::mock::data::project_qualified_name(),
+                engine_version : semver::Version::new(0,2,1),
+            };
             let project_fut       = Project::new(logger,Some(project_manager),
-                json_connection,binary_connection,engine_version,id,DEFAULT_PROJECT_NAME).boxed_local();
+                json_connection,binary_connection,properties).boxed_local();
             let project = test.expect_completion(project_fut).unwrap();
             Fixture {test,project,binary_events_sender,json_events_sender}
         }

@@ -196,6 +196,9 @@ pub struct Model<Host=Scene> {
     transform    : RefCell     <CachedTransform>,
     visible      : Cell        <bool>,
     logger       : Logger,
+    /// The first layer on the layers this object actually belongs to.
+    //TODO[ao] this is a workaround for screen_to_object_pos method.
+    main_layer   : Cell<Option<LayerId>>,
 }
 
 impl<Host> Model<Host> {
@@ -210,7 +213,9 @@ impl<Host> Model<Host> {
         let callbacks    = default();
         let host         = default();
         let scene_layers = default();
-        Self {host,scene_layers,dirty,callbacks,parent_bind,children,transform,visible,logger}
+        let main_layer   = default();
+        Self {host,scene_layers,dirty,callbacks,parent_bind,children,transform,visible,logger
+            ,main_layer}
     }
 
     /// Checks whether the object is visible.
@@ -295,6 +300,7 @@ impl<Host> Model<Host> {
         };
         if scene_layers_changed {
             debug!(self.logger, "Scene layers changed.", || {
+                self.main_layer.set(scene_layers.first().copied());
                 self.callbacks.on_scene_layers_changed(host,scene_layers);
             });
         }
@@ -602,6 +608,10 @@ impl<Host> Instance<Host> {
         Id(Rc::downgrade(&self.rc).as_ptr() as *const() as usize)
     }
 
+    /// Get the first layer where this object is actually displayed.
+    //TODO[ao] this is workaround for `screen_to_object_space` method.
+    pub fn _main_layer(&self) -> Option<LayerId> { self.main_layer.get() }
+
     /// Add this object to the provided scene layer and remove it from all other layers. Do not use
     /// this method explicitly. Use layers' methods instead.
     pub(crate) fn add_to_scene_layer(&self, layer:LayerId) {
@@ -609,6 +619,7 @@ impl<Host> Instance<Host> {
         let mut scene_layers = self.scene_layers.borrow_mut();
         if !scene_layers.contains(&layer) {
             scene_layers.push(layer);
+            self.main_layer.set(scene_layers.first().copied());
         }
     }
 
@@ -617,6 +628,7 @@ impl<Host> Instance<Host> {
     pub(crate) fn add_to_scene_layer_exclusive(&self, layer:LayerId) {
         self.dirty.scene_layer.set();
         *self.scene_layers.borrow_mut() = vec![layer];
+        self.main_layer.set(Some(layer));
     }
 
     /// Remove this object from the provided scene layer. Do not use this method explicitly. Use
@@ -624,6 +636,7 @@ impl<Host> Instance<Host> {
     pub(crate) fn remove_from_scene_layer(&self, layer:LayerId) {
         self.dirty.scene_layer.set();
         self.scene_layers.borrow_mut().remove_item(&layer);
+        self.main_layer.set(self.scene_layers.borrow().first().copied());
     }
 
     /// Adds a new `Object` as a child to the current one.
@@ -808,6 +821,10 @@ pub trait ObjectOps<Host=Scene> : Object<Host> {
     fn id(&self) -> Id {
         self.display_object()._id()
     }
+
+    /// Get the first layer where this object is actually displayed.
+    //TODO[ao] this is workaround for `screen_to_object_space` method.
+    fn main_layer(&self) -> Option<LayerId> { self.display_object()._main_layer() }
 
     /// Add another display object as a child to this display object. Children will inherit all
     /// transformations of their parents.

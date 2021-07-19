@@ -9,10 +9,15 @@ use crate::prelude::*;
 
 use crate::controller::graph::Connections;
 use crate::controller::graph::NodeTrees;
+use crate::controller::ide::ProjectMetadata;
 use crate::controller::searcher::action::MatchInfo;
 use crate::controller::searcher::Actions;
 use crate::controller::upload;
 use crate::controller::upload::NodeFromDroppedFileHandler;
+use crate::ide::integration::file_system::FileProvider;
+use crate::ide::integration::file_system::create_node_from_file;
+use crate::ide::integration::file_system::FileOperation;
+use crate::ide::integration::file_system::do_file_operation;
 use crate::model::execution_context::ComputedValueInfo;
 use crate::model::execution_context::ExpressionId;
 use crate::model::execution_context::LocalCall;
@@ -33,6 +38,7 @@ use ensogl::data::color;
 use ensogl::display::shape::StyleWatch;
 use ensogl::display::traits::*;
 use ensogl::display;
+use ensogl_gui_components::file_browser::model::AnyFolderContent;
 use ensogl_gui_components::list_view;
 use ensogl_text as text;
 use ensogl_web::drop;
@@ -44,6 +50,8 @@ use ide_view::graph_editor::SharedHashMap;
 use ide_view::graph_editor::component::node;
 use ide_view::graph_editor::component::visualization;
 use ide_view::graph_editor;
+use ide_view::searcher::entry::AnyEntryProvider;
+use ide_view::open_dialog;
 use utils::iter::split_by_predicate;
 
 // ========================
@@ -52,6 +60,7 @@ use utils::iter::split_by_predicate;
 
 /// Map that keeps information about enabled visualization.
 pub type VisualizationMap = SharedHashMap<graph_editor::NodeId,Visualization>;
+
 
 
 
@@ -206,6 +215,7 @@ struct Model {
     visualizations          : VisualizationMap,
     error_visualizations    : VisualizationMap,
     prompt_was_shown        : Cell<bool>,
+    displayed_project_list  : CloneRefCell<ProjectsToOpen>,
 }
 
 
@@ -284,6 +294,7 @@ impl Integration {
             });
         }
 
+
         // === Dropping Files ===
 
         let file_dropped = model.view.graph().file_dropped.clone_ref();
@@ -306,12 +317,49 @@ impl Integration {
         }
 
 
+        // === Open File or Project Dialog ===
+
+        let file_browser = &model.view.open_dialog().file_browser;
+        let project_list = &model.view.open_dialog().project_list;
+        frp::extend! { TRACE_ALL network
+            let chosen_project = project_list.chosen_entry.clone_ref();
+            let file_chosen    = file_browser.entry_chosen.clone_ref();
+            project_chosen     <- chosen_project.filter_map(|p| *p);
+            dialog_is_shown    <- project_frp.open_dialog_shown.filter(|v| *v);
+            eval_ dialog_is_shown (       model.open_dialog_opened_in_ui());
+            eval  project_chosen  ((id)   model.project_opened_in_ui(id));
+            eval  file_chosen     ((path) model.file_opened_in_ui(path));
+
+            file_copied      <- file_browser.copy.map(|p| (p.clone(),FileOperation::Copy));
+            file_cut         <- file_browser.cut .map(|p| (p.clone(),FileOperation::Move));
+            source_operation <- any(file_copied,file_cut);
+            file_operation   <- file_browser.paste_into.map2(&source_operation,
+                |dest,(src,op)| (src.clone(),dest.clone(),*op)
+            );
+            eval file_operation ([model]((src,dest,op))
+                let logger    = model.logger.clone_ref();
+                let project   = model.project.clone_ref();
+                let source    = src.clone();
+                let dest      = dest.clone();
+                let operation = *op;
+                let model     = model.clone_ref();
+                executor::global::spawn(async move {
+                    if let Err(err) = do_file_operation(&project,&source,&dest,operation).await {
+                        error!(logger, "Failed to {operation.verb()} file: {err}");
+                    } else {
+                        model.reload_files_in_file_browser();
+                    }
+                })
+
+            );
+        }
+
+
         // === UI Actions ===
 
         let inv                       = &invalidate.trigger;
         let node_editing_in_ui        = Model::node_editing_in_ui(Rc::downgrade(&model));
         let searcher_opened_in_ui     = Model::searcher_opened_in_ui(Rc::downgrade(&model));
-        let searcher_opened_fop_in_ui = Model::searcher_opened_for_opening_project_in_ui(Rc::downgrade(&model));
         let code_changed              = Self::ui_action(&model,Model::code_changed_in_ui          ,inv);
         let node_removed              = Self::ui_action(&model,Model::node_removed_in_ui          ,inv);
         let nodes_collapsed           = Self::ui_action(&model,Model::nodes_collapsed_in_ui       ,inv);
@@ -323,7 +371,6 @@ impl Integration {
         let connection_removed        = Self::ui_action(&model,Model::connection_removed_in_ui    ,inv);
         let node_moved                = Self::ui_action(&model,Model::node_moved_in_ui            ,inv);
         let searcher_opened           = Self::ui_action(&model,searcher_opened_in_ui              ,inv);
-        let searcher_opened_fop       = Self::ui_action(&model,searcher_opened_fop_in_ui          ,inv);
         let node_editing              = Self::ui_action(&model,node_editing_in_ui                 ,inv);
         let node_expression_set       = Self::ui_action(&model,Model::node_expression_set_in_ui   ,inv);
         let used_as_suggestion        = Self::ui_action(&model,Model::used_as_suggestion_in_ui    ,inv);
@@ -362,7 +409,6 @@ impl Integration {
             _action <- editor_outs.node_position_set_batched.map2(&is_hold,node_moved);
             _action <- editor_outs.node_being_edited        .map2(&is_hold,node_editing);
             _action <- project_frp.searcher_opened          .map2(&is_hold,searcher_opened);
-            _action <- project_frp.searcher_opened_for_opening_project.map2(&is_hold,searcher_opened_fop);
             _action <- editor_outs.node_expression_set      .map2(&is_hold,node_expression_set);
             _action <- searcher_frp.used_as_suggestion      .map2(&is_hold,used_as_suggestion);
             _action <- project_frp.editing_committed        .map2(&is_hold,node_editing_committed);
@@ -521,10 +567,11 @@ impl Model {
         let error_visualizations    = default();
         let searcher                = default();
         let prompt_was_shown        = default();
+        let displayed_project_list  = default();
         let this                    = Model
             {logger,view,graph,text,ide,searcher,project,main_module,node_views
             ,node_view_by_expression,expression_views,expression_types,connection_views,code_view
-            ,visualizations,error_visualizations,prompt_was_shown};
+            ,visualizations,error_visualizations,prompt_was_shown,displayed_project_list};
 
         this.view.graph().frp.remove_all_nodes();
         this.view.status_bar().clear_all();
@@ -1213,14 +1260,6 @@ impl Model {
         }
     }
 
-    fn searcher_opened_for_opening_project_in_ui(weak_self:Weak<Self>)
-    -> impl Fn(&Self,&graph_editor::NodeId) -> FallibleResult {
-        move |this,_displayed_id| {
-            let mode = controller::searcher::Mode::OpenProject;
-            this.setup_searcher_controller(&weak_self,mode)
-        }
-    }
-
     fn node_editing_in_ui(weak_self:Weak<Self>)
     -> impl Fn(&Self,&Option<graph_editor::NodeId>) -> FallibleResult {
         move |this,displayed_id| {
@@ -1494,6 +1533,53 @@ impl Model {
             Ok(())
         } else {
             Err(MissingMappingFor::DisplayedVisualization(node_id).into())
+        }
+    }
+
+    fn open_dialog_opened_in_ui(self:&Rc<Self>) {
+        debug!(self.logger, "Opened file dialog in ui. Providing content root list");
+        self.reload_files_in_file_browser();
+        let model = Rc::downgrade(self);
+        executor::global::spawn(async move {
+            if let Some(this) = model.upgrade() {
+                if let Ok(manage_projects) = this.ide.manage_projects() {
+                    match manage_projects.list_projects().await {
+                        Ok(projects) => {
+                            let entries = ProjectsToOpen::new(projects);
+                            this.displayed_project_list.set(entries.clone_ref());
+                            let any_entries:AnyEntryProvider = entries.into();
+                            this.view.open_dialog().project_list.set_entries(any_entries)
+                        },
+                        Err(error) => error!(this.logger,"Error when loading project's list: {error}"),
+                    }
+                }
+            }
+        });
+    }
+
+    fn reload_files_in_file_browser(&self) {
+        let provider                  = FileProvider::new(&self.project);
+        let provider:AnyFolderContent = provider.into();
+        self.view.open_dialog().file_browser.set_content(provider);
+    }
+
+    fn project_opened_in_ui(&self, entry_id:&list_view::entry::Id) {
+        if let Some(id) = self.displayed_project_list.get().get_project_id_by_index(*entry_id) {
+            let logger = self.logger.clone_ref();
+            let ide    = self.ide.clone_ref();
+            executor::global::spawn(async move {
+                if let Ok(manage_projects) = ide.manage_projects() {
+                    if let Err(err) = manage_projects.open_project(id).await {
+                        error!(logger, "Error while opening project: {err}");
+                    }
+                }
+            });
+        }
+    }
+
+    fn file_opened_in_ui(&self, path:&std::path::Path) {
+        if let Err(err) = create_node_from_file(&self.project,&self.graph.graph(),path) {
+            error!(self.logger, "Error while creating node from file: {err}");
         }
     }
 }
@@ -1886,5 +1972,34 @@ impl ide_view::searcher::DocumentationProvider for DataProviderForView {
 impl upload::DataProvider for drop::File {
     fn next_chunk(&mut self) -> LocalBoxFuture<FallibleResult<Option<Vec<u8>>>> {
         self.read_chunk().map(|f| f.map_err(|e| e.into())).boxed_local()
+    }
+}
+
+
+
+// ========================
+// === Project Provider ===
+// ========================
+
+#[derive(Clone,CloneRef,Debug,Default)]
+struct ProjectsToOpen {
+    projects : Rc<Vec<ProjectMetadata>>
+}
+
+impl ProjectsToOpen {
+    fn new(projects:Vec<ProjectMetadata>) -> Self {
+        Self {projects:Rc::new(projects)}
+    }
+
+    fn get_project_id_by_index(&self, index:usize) -> Option<Uuid> {
+        self.projects.get(index).map(|md| md.id)
+    }
+}
+
+impl list_view::entry::EntryProvider for ProjectsToOpen {
+    fn entry_count(&self) -> usize { self.projects.len() }
+
+    fn get(&self, app: &Application, id: usize) -> Option<list_view::entry::AnyEntry> {
+        Some(open_dialog::project_list::Entry::new(app, self.projects.get(id)?.name.as_str()).into())
     }
 }
