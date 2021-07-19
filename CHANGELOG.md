@@ -1,4 +1,16 @@
-# Enso 2.0.0-alpha.8 (2021-06-09)
+# Enso 2.0.0-alpha.9 (2021-07-16)
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Visual Environment
+
+- [Improved undo-reddo][1653]. Node selection, enabling/disabling visualisations
+  and entering a node are now affected by undo/redo and are restored on project
+  startup.
+
+<br/>
+  
+# Enso 2.0.0-alpha.8 (2021-07-09)
 
 <br/>![New Features](/docs/assets/tags/new_features.svg)
 
@@ -9,7 +21,8 @@
   details in
   [the engine release notes](https://github.com/enso-org/enso/blob/main/RELEASES.md).
 
-[1640]: https://github.com/enso-org/ide/pull/1664
+[1640]: https://github.com/enso-org/ide/pull/1640
+[1677]: https://github.com/enso-org/ide/pull/1677
 
 <br/>
 
