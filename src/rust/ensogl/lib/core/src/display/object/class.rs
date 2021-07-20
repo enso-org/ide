@@ -187,8 +187,12 @@ fn on_dirty_callback(f:&Rc<RefCell<Box<dyn Fn()>>>) -> OnDirtyCallback {
 #[derive(Derivative)]
 #[derivative(Debug(bound=""))]
 pub struct Model<Host=Scene> {
-    host         : PhantomData <Host>,
-    scene_layers : Rc<RefCell<Vec<LayerId>>>,
+    host:PhantomData <Host>,
+    /// Layers the object was explicitly assigned to.
+    assigned_layers:RefCell<Vec<LayerId>>,
+    /// Layers where the object is displayed. May be same as assigned layers, or inherited by
+    /// parent.
+    scene_layers : RefCell<Vec<LayerId>>,
     dirty        : DirtyFlags  <Host>,
     callbacks    : Callbacks   <Host>,
     parent_bind  : RefCell     <Option<ParentBind<Host>>>,
@@ -196,26 +200,23 @@ pub struct Model<Host=Scene> {
     transform    : RefCell     <CachedTransform>,
     visible      : Cell        <bool>,
     logger       : Logger,
-    /// The first layer on the layers this object actually belongs to.
-    //TODO[ao] this is a workaround for screen_to_object_pos method.
-    main_layer   : Cell<Option<LayerId>>,
 }
 
 impl<Host> Model<Host> {
     /// Constructor.
     pub fn new(logger:impl AnyLogger) -> Self {
-        let logger       = Logger::new_from(logger);
-        let parent_bind  = default();
-        let children     = default();
-        let transform    = default();
-        let dirty        = DirtyFlags::new(&logger);
-        let visible      = Cell::new(false);
-        let callbacks    = default();
-        let host         = default();
-        let scene_layers = default();
-        let main_layer   = default();
-        Self {host,scene_layers,dirty,callbacks,parent_bind,children,transform,visible,logger
-            ,main_layer}
+        let logger          = Logger::new_from(logger);
+        let parent_bind     = default();
+        let children        = default();
+        let transform       = default();
+        let dirty           = DirtyFlags::new(&logger);
+        let visible         = Cell::new(false);
+        let callbacks       = default();
+        let host            = default();
+        let assigned_layers = default();
+        let scene_layers    = default();
+        Self {host,assigned_layers,scene_layers,dirty,callbacks,parent_bind,children,transform
+            ,visible,logger}
     }
 
     /// Checks whether the object is visible.
@@ -285,20 +286,20 @@ impl<Host> Model<Host> {
     ) {
         // === Scene Layers Update ===
 
-        let this_scene_layers         = self.scene_layers.borrow();
-        let this_scene_layers_slice   = this_scene_layers.as_slice();
-        let self_scene_layers_changed = self.dirty.scene_layer.check();
-        let scene_layers_changed      = parent_scene_layers_changed || self_scene_layers_changed;
+        let assigned_layers         = self.assigned_layers.borrow();
+        let assigned_layers_slice   = assigned_layers.as_slice();
+        let assigned_layers_changed = self.dirty.scene_layer.check();
+        let scene_layers_changed    = parent_scene_layers_changed || assigned_layers_changed;
         let scene_layers = if scene_layers_changed {
             self.dirty.scene_layer.unset();
-            if this_scene_layers_slice.is_empty() { parent_scene_layers     }
-            else                                  { this_scene_layers_slice }
+            if assigned_layers_slice.is_empty() { parent_scene_layers   }
+            else                                { assigned_layers_slice }
         } else {
-            this_scene_layers_slice
+            assigned_layers_slice
         };
         if scene_layers_changed {
             debug!(self.logger, "Scene layers changed.", || {
-                self.main_layer.set(scene_layers.first().copied());
+                *self.scene_layers.borrow_mut() = scene_layers.to_vec();
                 self.callbacks.on_scene_layers_changed(host,scene_layers);
             });
         }
@@ -392,7 +393,7 @@ impl<Host> Model<Host> {
     fn set_vis_true(&self, host:&Host, parent_scene_layers:&[LayerId]) {
        if !self.visible.get() {
            info!(self.logger,"Showing.");
-           let this_scene_layers       = self.scene_layers.borrow();
+           let this_scene_layers       = self.assigned_layers.borrow();
            let this_scene_layers_slice = this_scene_layers.as_slice();
            let scene_layers            = if this_scene_layers_slice.is_empty()
                { parent_scene_layers } else { this_scene_layers_slice };
@@ -610,18 +611,17 @@ impl<Host> Instance<Host> {
         Id(Rc::downgrade(&self.rc).as_ptr() as *const() as usize)
     }
 
-    /// Get the first layer where this object is actually displayed.
-    //TODO[ao] this is workaround for `screen_to_object_space` method.
-    pub fn _main_layer(&self) -> Option<LayerId> { self.main_layer.get() }
+    /// Get the layers where this object is displayed. May be equal to layers it was explicitly
+    /// assigned, or layers inherited from the parent.
+    pub fn _scene_layers(&self) -> Vec<LayerId> { self.scene_layers.borrow().clone() }
 
     /// Add this object to the provided scene layer and remove it from all other layers. Do not use
     /// this method explicitly. Use layers' methods instead.
     pub(crate) fn add_to_scene_layer(&self, layer:LayerId) {
         self.dirty.scene_layer.set();
-        let mut scene_layers = self.scene_layers.borrow_mut();
+        let mut scene_layers = self.assigned_layers.borrow_mut();
         if !scene_layers.contains(&layer) {
             scene_layers.push(layer);
-            self.main_layer.set(scene_layers.first().copied());
         }
     }
 
@@ -629,16 +629,14 @@ impl<Host> Instance<Host> {
     /// this method explicitly. Use layers' methods instead.
     pub(crate) fn add_to_scene_layer_exclusive(&self, layer:LayerId) {
         self.dirty.scene_layer.set();
-        *self.scene_layers.borrow_mut() = vec![layer];
-        self.main_layer.set(Some(layer));
+        *self.assigned_layers.borrow_mut() = vec![layer];
     }
 
     /// Remove this object from the provided scene layer. Do not use this method explicitly. Use
     /// layers' methods instead.
     pub(crate) fn remove_from_scene_layer(&self, layer:LayerId) {
         self.dirty.scene_layer.set();
-        self.scene_layers.borrow_mut().remove_item(&layer);
-        self.main_layer.set(self.scene_layers.borrow().first().copied());
+        self.assigned_layers.borrow_mut().remove_item(&layer);
     }
 
     /// Adds a new `Object` as a child to the current one.
@@ -824,9 +822,9 @@ pub trait ObjectOps<Host=Scene> : Object<Host> {
         self.display_object()._id()
     }
 
-    /// Get the first layer where this object is actually displayed.
-    //TODO[ao] this is workaround for `screen_to_object_space` method.
-    fn main_layer(&self) -> Option<LayerId> { self.display_object()._main_layer() }
+    /// Get the layers where this object is displayed. May be equal to layers it was explicitly
+    /// assigned, or layers inherited from the parent.
+    fn scene_layers(&self) -> Vec<LayerId> { self.display_object()._scene_layers() }
 
     /// Add another display object as a child to this display object. Children will inherit all
     /// transformations of their parents.
