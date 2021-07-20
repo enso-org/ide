@@ -9,7 +9,6 @@
 
 [1710]: https://github.com/enso-org/ide/pull/1710
 
-
 # Enso 2.0.0-alpha.9 (2021-07-16)
 
 <br/>![New Features](/docs/assets/tags/new_features.svg)
