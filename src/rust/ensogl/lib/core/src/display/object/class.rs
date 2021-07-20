@@ -285,18 +285,16 @@ impl<Host> Model<Host> {
     ) {
         // === Scene Layers Update ===
 
-        let this_scene_layers          = self.scene_layers.borrow();
-        let this_scene_layers_slice    = this_scene_layers.as_slice();
-        let self_scene_layers_changed  = self.dirty.scene_layer.check();
-        let scene_layers_might_changed = parent_scene_layers_changed || self_scene_layers_changed;
-        let (scene_layers_changed,scene_layers) = if scene_layers_might_changed {
+        let this_scene_layers         = self.scene_layers.borrow();
+        let this_scene_layers_slice   = this_scene_layers.as_slice();
+        let self_scene_layers_changed = self.dirty.scene_layer.check();
+        let scene_layers_changed      = parent_scene_layers_changed || self_scene_layers_changed;
+        let scene_layers = if scene_layers_changed {
             self.dirty.scene_layer.unset();
-            let scene_layers = if this_scene_layers_slice.is_empty() { parent_scene_layers}
-                               else                                  { this_scene_layers_slice};
-            let changed      = scene_layers != this_scene_layers_slice;
-            (changed,scene_layers)
+            if this_scene_layers_slice.is_empty() { parent_scene_layers     }
+            else                                  { this_scene_layers_slice }
         } else {
-            (false,this_scene_layers_slice)
+            this_scene_layers_slice
         };
         if scene_layers_changed {
             debug!(self.logger, "Scene layers changed.", || {
@@ -310,14 +308,18 @@ impl<Host> Model<Host> {
 
         self.update_visibility(host,parent_scene_layers);
         let has_new_parent      = self.dirty.parent.check();
-        let is_origin_dirty     = has_new_parent || parent_origin_changed;
+        let is_origin_dirty     = has_new_parent || parent_origin_changed || scene_layers_changed;
         let new_parent_origin   = is_origin_dirty.as_some(parent_origin);
         let parent_origin_label = if new_parent_origin.is_some() {"new"} else {"old"};
         debug!(self.logger, "Update with {parent_origin_label} parent origin.", || {
             let origin_changed = self.transform.borrow_mut().update(new_parent_origin);
             let new_origin     = self.transform.borrow().matrix;
-            if origin_changed {
-                info!(self.logger,"Self origin changed.");
+            if origin_changed || scene_layers_changed {
+                if origin_changed {
+                    info!(self.logger,"Self origin changed.");
+                } else {
+                    info!(self.logger, "Self origin did not change, but the layers changed");
+                }
                 self.callbacks.on_updated(self);
                 if !self.children.borrow().is_empty() {
                     debug!(self.logger, "Updating all children.", || {
@@ -330,7 +332,7 @@ impl<Host> Model<Host> {
                     })
                 }
             } else {
-                info!(self.logger,"Self origin did not change.");
+                info!(self.logger,"Self origin and layers did not change.");
                 if self.dirty.children.check_all() {
                     debug!(self.logger, "Updating dirty children.", || {
                         self.dirty.children.take().iter().for_each(|ix| {
@@ -1465,5 +1467,32 @@ mod tests {
         assert_eq!(node4.is_visible(),false);
         assert_eq!(node5.is_visible(),false);
         assert_eq!(node6.is_visible(),false);
+    }
+
+    #[test]
+    fn layers_test() {
+        let layer1 = LayerId::new(0);
+        let layer2 = LayerId::new(2);
+        let node1 = Instance::<()>::new(Logger::new("node1"));
+        let node2 = Instance::<()>::new(Logger::new("node2"));
+        let node3 = Instance::<()>::new(Logger::new("node3"));
+        node1.add_child(&node2);
+        node1.add_child(&node3);
+        node1.update(&());
+        assert_eq!(node1.main_layer(), None);
+        assert_eq!(node2.main_layer(), None);
+        assert_eq!(node3.main_layer(), None);
+
+        node1.add_to_scene_layer(layer1);
+        node1.update(&());
+        assert_eq!(node1.main_layer(), Some(layer1));
+        assert_eq!(node2.main_layer(), Some(layer1));
+        assert_eq!(node3.main_layer(), Some(layer1));
+
+        node2.add_to_scene_layer_exclusive(layer2);
+        node1.update(&());
+        assert_eq!(node1.main_layer(), Some(layer1));
+        assert_eq!(node2.main_layer(), Some(layer2));
+        assert_eq!(node3.main_layer(), Some(layer1));
     }
 }

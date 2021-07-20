@@ -912,6 +912,7 @@ impl SceneData {
     (&self, object:&impl display::Object, screen_pos:Vector2) -> Vector2 {
         let origin_world_space = Vector4(0.0,0.0,0.0,1.0);
         let layer              = object.main_layer().and_then(|id| self.layers.get(id));
+        let is_layer           = layer.is_some();
         let camera             = layer.map_or(self.camera(), |l| l.camera());
         let origin_clip_space  = camera.view_projection_matrix() * origin_world_space;
         let inv_object_matrix  = object.transform_matrix().try_inverse().unwrap();
@@ -921,7 +922,7 @@ impl SceneData {
         let clip_space_x = origin_clip_space.w * 2.0 * screen_pos.x / shape.width;
         let clip_space_y = origin_clip_space.w * 2.0 * screen_pos.y / shape.height;
         let clip_space   = Vector4(clip_space_x,clip_space_y,clip_space_z,origin_clip_space.w);
-        let world_space  = self.camera().inversed_view_projection_matrix() * clip_space;
+        let world_space  = camera.inversed_view_projection_matrix() * clip_space;
         (inv_object_matrix * world_space).xy()
     }
 }
