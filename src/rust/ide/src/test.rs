@@ -104,7 +104,8 @@ pub mod mock {
                 return_type   : "Any".to_owned(),
                 kind          : suggestion_database::entry::Kind::Method,
                 scope         : suggestion_database::entry::Scope::Everywhere,
-                documentation : None
+                documentation : None,
+                reexport      : None,
             }
         }
 
@@ -118,7 +119,8 @@ pub mod mock {
                 return_type   : "Any".to_owned(),
                 kind          : suggestion_database::entry::Kind::Method,
                 scope         : suggestion_database::entry::Scope::Everywhere,
-                documentation : None
+                documentation : None,
+                reexport      : None,
             }
         }
     }

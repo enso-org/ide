@@ -821,6 +821,15 @@ pub enum SuggestionEntryType {Atom,Method,Function,Local}
 #[serde(rename_all="camelCase")]
 pub enum SuggestionEntry {
     #[serde(rename_all="camelCase")]
+    Module {
+        /// The fully qualified module name.
+        module        : String,
+        /// The documentation string.
+        documentation : Option<String>,
+        /// The module name re-exporting this module.
+        reexport      : Option<String>,
+    },
+    #[serde(rename_all="camelCase")]
     Atom {
         external_id   : Option<Uuid>,
         name          : String,
@@ -828,6 +837,8 @@ pub enum SuggestionEntry {
         arguments     : Vec<SuggestionEntryArgument>,
         return_type   : String,
         documentation : Option<String>,
+        /// The module name re-exporting this atom.
+        reexport      : Option<String>,
     },
     #[serde(rename_all="camelCase")]
     Method {
@@ -838,6 +849,8 @@ pub enum SuggestionEntry {
         self_type     : String,
         return_type   : String,
         documentation : Option<String>,
+        /// The module name re-exporting this method.
+        reexport      : Option<String>,
     },
     #[serde(rename_all="camelCase")]
     Function {
@@ -862,10 +875,11 @@ impl SuggestionEntry {
     /// Get name of the suggested entity.
     pub fn name(&self) -> &String {
         match self {
-            Self::Atom     {name,..} => name,
-            Self::Function {name,..} => name,
-            Self::Local    {name,..} => name,
-            Self::Method   {name,..} => name,
+            Self::Module   {module,..} => module,
+            Self::Atom     {name,..}   => name,
+            Self::Function {name,..}   => name,
+            Self::Local    {name,..}   => name,
+            Self::Method   {name,..}   => name,
         }
     }
 }
@@ -994,6 +1008,7 @@ pub struct SuggestionsDatabaseModification {
     pub return_type   : Option<FieldUpdate<String>>,
     pub documentation : Option<FieldUpdate<String>>,
     pub scope         : Option<FieldUpdate<SuggestionEntryScope>>,
+    pub reexport      : Option<FieldUpdate<String>>,
 }
 
 /// Notification about change in the suggestions database.

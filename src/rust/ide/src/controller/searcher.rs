@@ -1023,6 +1023,7 @@ impl Searcher {
                 documentation : None,
                 self_type     : Some(tp::QualifiedName::from_text(ENSO_PROJECT_SPECIAL_MODULE)?),
                 scope         : model::suggestion_database::entry::Scope::Everywhere,
+                reexport      : None,
             };
             actions.extend(std::iter::once(Action::Suggestion(Rc::new(entry))));
         }
@@ -1249,6 +1250,7 @@ pub mod test {
                 documentation : default(),
                 self_type     : None,
                 scope         : Scope::InModule {range:code_range},
+                reexport      : None,
             };
             let entry2 = model::suggestion_database::Entry {
                 name : "TestVar1".to_string(),

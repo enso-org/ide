@@ -57,7 +57,7 @@ pub struct MissingThisOnMethod(pub String);
 #[derive(Copy,Clone,Debug,Eq,PartialEq)]
 #[allow(missing_docs)]
 pub enum Kind {
-    Atom,Function,Local,Method
+    Module,Atom,Function,Local,Method
 }
 
 /// Describes the visibility range of some entry (i.e. identifier available as suggestion).
@@ -106,6 +106,8 @@ pub struct Entry {
     pub self_type : Option<tp::QualifiedName>,
     /// A scope where this suggestion is visible.
     pub scope : Scope,
+    /// A module that reexports this symbol.
+    pub reexport : Option<module::QualifiedName>,
 }
 
 impl Entry {
@@ -233,19 +235,35 @@ impl Entry {
                          -> FallibleResult<Self> {
         use language_server::types::SuggestionEntry::*;
         let this = match entry {
-            Atom {name,module,arguments,return_type,documentation,..} => Self {
+            Module {module,documentation,reexport} => Self {
+                documentation,
+                name     : model::module::QualifiedName::from_text(&module)?.name().into(),
+                reexport : match reexport {
+                    Some(reexport) => Some(reexport.try_into()?),
+                    None           => None,
+                },
+                kind        : Kind::Module,
+                arguments   : vec![],
+                return_type : module.clone(),
+                scope       : Scope::Everywhere,
+                module      : module.try_into()?,
+                self_type   : None,
+            },
+            Atom {name,module,arguments,return_type,documentation,reexport,..} => Self {
                 name,arguments,return_type,documentation,
                 module        : module.try_into()?,
                 self_type     : None,
                 kind          : Kind::Atom,
                 scope         : Scope::Everywhere,
+                reexport      : reexport.map(TryInto::try_into).transpose()?,
             },
-            Method {name,module,arguments,self_type,return_type,documentation,..} => Self {
+            Method {name,module,arguments,self_type,return_type,documentation,reexport,..} => Self {
                 name,arguments,return_type,documentation,
                 module        : module.try_into()?,
                 self_type     : Some(self_type.try_into()?),
                 kind          : Kind::Method,
                 scope         : Scope::Everywhere,
+                reexport      : reexport.map(TryInto::try_into).transpose()?,
             },
             Function {name,module,arguments,return_type,scope,..} => Self {
                 name,arguments,return_type,
@@ -254,6 +272,7 @@ impl Entry {
                 documentation : default(),
                 kind          : Kind::Function,
                 scope         : Scope::InModule {range:scope.into()},
+                reexport      : None,
             },
             Local {name,module,return_type,scope,..} => Self {
                 name,return_type,
@@ -263,6 +282,7 @@ impl Entry {
                 documentation : default(),
                 kind          : Kind::Local,
                 scope         : Scope::InModule {range:scope.into()},
+                reexport      : None,
             },
         };
         Ok(this)
@@ -271,20 +291,25 @@ impl Entry {
     /// Apply modification to the entry.
     pub fn apply_modifications
     (&mut self, modification:SuggestionsDatabaseModification) -> Vec<failure::Error> {
-        let m         = modification;
-        let module    = m.module.map(|f| f.try_map(module::QualifiedName::from_text)).transpose();
-        let self_type = m.self_type.map(|f| f.try_map(tp::QualifiedName::from_text)).transpose();
+        // Make sure that we do not miss any field.
+        let SuggestionsDatabaseModification {
+            arguments,module,self_type,return_type,documentation,scope,reexport
+        } = modification;
+        let module    = module.map(|f| f.try_map(module::QualifiedName::from_text)).transpose();
+        let self_type = self_type.map(|f| f.try_map(tp::QualifiedName::from_text)).transpose();
+        let reexport  = reexport.map(|f| f.try_map(module::QualifiedName::from_text)).transpose();
         let other_update_results =
-            [ Entry::apply_field_update    ("return_type"  , &mut self.return_type  , m.return_type  )
-            , Entry::apply_opt_field_update("documentation", &mut self.documentation, m.documentation)
+            [ Entry::apply_field_update    ("return_type"  , &mut self.return_type  , return_type  )
+            , Entry::apply_opt_field_update("documentation", &mut self.documentation, documentation)
             , module.and_then   (|m| Entry::apply_field_update    ("module"   , &mut self.module   , m))
             , self_type.and_then(|s| Entry::apply_opt_field_update("self_type", &mut self.self_type, s))
-            , self.apply_scope_update(m.scope)
+            , reexport.and_then (|s| Entry::apply_opt_field_update("reexport" , &mut self.reexport , s))
+            , self.apply_scope_update(scope)
             ];
         let other_update_results = SmallVec::from_buf(other_update_results).into_iter();
         let other_update_errors  = other_update_results.filter_map(|res| res.err());
-        let arg_update_errors    = m.arguments.into_iter().flat_map(|arg| self.apply_arg_update(arg));
-        arg_update_errors.chain(other_update_errors).collect_vec()
+        let arg_update_errors    = arguments.into_iter().flat_map(|arg| self.apply_arg_update(arg));
+        arg_update_errors.chain(other_update_errors).collect()
     }
 
     fn apply_arg_update(&mut self, update:language_server::types::SuggestionArgumentUpdate)
@@ -426,6 +451,7 @@ mod test {
     use super::*;
 
 
+
     fn expect
     ( entry            : &Entry
     , current_module   : Option<&module::QualifiedName>
@@ -441,6 +467,23 @@ mod test {
     fn code_from_entry() {
         let main_module    = module::QualifiedName::from_text("local.Project.Main").unwrap();
         let another_module = module::QualifiedName::from_text("local.Project.Another_Module").unwrap();
+        let main_module_entry = Entry {
+            name          : main_module.name().to_string(),
+            kind          : Kind::Module,
+            module        : main_module.clone(),
+            arguments     : vec![],
+            return_type   : main_module.name().to_string(),
+            documentation : None,
+            self_type     : None,
+            scope         : Scope::Everywhere,
+            reexport      : None,
+        };
+        let another_module_entry = Entry {
+            name          : another_module.name().to_string(),
+            module        : another_module.clone(),
+            return_type   : another_module.name().to_string(),
+            ..main_module_entry.clone()
+        };
         let atom = Entry {
             name          : "Atom".to_owned(),
             kind          : Kind::Atom,
@@ -450,6 +493,7 @@ mod test {
             documentation : None,
             self_type     : None,
             scope         : Scope::Everywhere,
+            reexport      : None,
         };
         let method = Entry {
             name      : "method".to_string(),
@@ -479,12 +523,24 @@ mod test {
             ..module_method.clone()
         };
 
+        expect(&main_module_entry, None,                  true,  "Main", &[&main_module]);
+        expect(&main_module_entry, None,                  false, "Main", &[&main_module]);
+        expect(&main_module_entry, Some(&main_module),    true,  "Main", &[]);
+        expect(&main_module_entry, Some(&main_module),    false, "Main", &[]);
+        expect(&main_module_entry, Some(&another_module), true,  "Main", &[&main_module]);
+        expect(&main_module_entry, Some(&another_module), false, "Main", &[&main_module]);
+
+        expect(&another_module_entry, None,                  true,  "Another_Module", &[&another_module]);
+        expect(&another_module_entry, None,                  false, "Another_Module", &[&another_module]);
+        expect(&another_module_entry, Some(&main_module),    true,  "Another_Module", &[&another_module]);
+        expect(&another_module_entry, Some(&main_module),    false, "Another_Module", &[&another_module]);
+        expect(&another_module_entry, Some(&another_module), true,  "Another_Module", &[]);
+        expect(&another_module_entry, Some(&another_module), false, "Another_Module", &[]);
+
         expect(&atom, None,                  true,  "Atom", &[&main_module]);
         expect(&atom, None,                  false, "Atom", &[&main_module]);
         expect(&atom, Some(&main_module),    true,  "Atom", &[]);
         expect(&atom, Some(&main_module),    false, "Atom", &[]);
-        expect(&atom, Some(&another_module), true,  "Atom", &[&main_module]);
-        expect(&atom, Some(&another_module), false, "Atom", &[&main_module]);
         expect(&atom, Some(&another_module), true,  "Atom", &[&main_module]);
         expect(&atom, Some(&another_module), false, "Atom", &[&main_module]);
 
@@ -538,6 +594,7 @@ mod test {
             documentation : None,
             self_type     : None,
             scope         : Scope::Everywhere,
+            reexport      : None,
         };
         let method = Entry {
             name      : "method".to_string(),
