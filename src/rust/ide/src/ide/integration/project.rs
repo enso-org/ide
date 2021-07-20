@@ -296,9 +296,11 @@ impl Integration {
 
         // === Dropping Files ===
 
-        let file_dropped = model.view.graph().file_dropped.clone_ref();
+        let dropping_enabled = model.view.drop_files_enabled.clone_ref();
+        let file_dropped     = model.view.graph().file_dropped.clone_ref();
         frp::extend! { network
-            eval file_dropped ([model]((file,position)) {
+            file_upload_requested <- file_dropped.gate(&dropping_enabled);
+            eval file_upload_requested ([model]((file,position)) {
                 let project   = model.project.clone_ref();
                 let graph     = model.graph.graph();
                 let to_upload = upload::FileToUpload {

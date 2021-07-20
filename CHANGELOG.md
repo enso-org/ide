@@ -13,12 +13,10 @@ these updates be shipped in a stable release before the end of the year.
   - node selection;
   - enabling and disabling a visualization;
   - entering and leaving a node.
-- [File or Project Open Dialog][xxxx]. <kbd>ctrl/cmd</kbd>+<kbd>o</kbd> will
+- [File or Project Open Dialog][1700]. <kbd>ctrl/cmd</kbd>+<kbd>o</kbd> will
   display a new File or Project Open Dialog. Here you can open another project,
   or pick a file from browser: the file will be inserted as a node to the
   current graph.
-- [File browser component][1677]. A basic file browser component has been
-  implemented, but is not integrated into the user interface yet.
   
 [1640]: https://github.com/enso-org/ide/pull/1664
 [1677]: https://github.com/enso-org/ide/pull/1677

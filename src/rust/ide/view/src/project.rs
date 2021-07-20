@@ -68,6 +68,7 @@ ensogl::define_endpoints! {
         style                               (Theme),
         fullscreen_visualization_shown      (bool),
         default_gap_between_nodes           (f32),
+        drop_files_enabled                  (bool),
     }
 }
 
@@ -568,6 +569,11 @@ impl View {
 
             disable_navigation           <- searcher.is_selected || frp.open_dialog_shown;
             graph.set_navigator_disabled <+ disable_navigation;
+
+            // === Disabling Dropping ===
+
+            frp.source.drop_files_enabled <+ init.constant(true);
+            frp.source.drop_files_enabled <+ frp.open_dialog_shown.map(|v| !v);
         }
         init.emit(());
         std::mem::forget(prompt_visibility);

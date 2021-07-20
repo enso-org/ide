@@ -14,7 +14,7 @@ use ensogl_gui_components::file_browser::model::FolderType;
 use ensogl_gui_components::file_browser::model::Entry;
 use ensogl_gui_components::file_browser::model::EntryType;
 use std::iter::once;
-
+use json_rpc::error::RpcError;
 
 
 // =======================
@@ -149,7 +149,7 @@ impl DirectoryView {
     }
 
     /// Retrieves the directory content from the Engine.
-    pub async fn get_entries_list(&self) -> FallibleResult<Vec<Entry>> {
+    pub async fn get_entries_list(&self) -> Result<Vec<Entry>,RpcError> {
         let response = self.connection.file_list(&self.path).await?;
         let entries  = response.paths.into_iter().map(|fs_obj| {
             match fs_obj {
@@ -182,8 +182,9 @@ impl FolderContent for DirectoryView {
         let this = self.clone_ref();
         executor::global::spawn(async move {
             match this.get_entries_list().await {
-                Ok (entries) => entries_loaded.emit(Rc::new(entries)),
-                Err(error)   => error_occurred.emit(ImString::new(error.to_string())),
+                Ok (entries)                      => entries_loaded.emit(Rc::new(entries)),
+                Err(RpcError::RemoteError(error)) => error_occurred.emit(ImString::new(error.message)),
+                Err(error)                        => error_occurred.emit(ImString::new(error.to_string())),
             }
         });
     }
