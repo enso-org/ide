@@ -92,21 +92,21 @@ impl FileProvider {
 impl FolderContent for FileProvider {
     fn request_entries
     (&self, entries_loaded:frp::Any<Rc<Vec<Entry>>>, _error_occurred:frp::Any<ImString>) {
-        let entries = self.content_roots.iter().map(|root| {
+        let entries = self.content_roots.iter().filter_map(|root| {
             let ls_path   = language_server::Path::new_root(root.id());
             let path      = to_file_browser_path(&ls_path);
             let (name,folder_type) = match &**root {
                 language_server::ContentRoot::Project {..} =>
-                    ("Project".to_owned(), FolderType::Project),
+                    Some(("Project".to_owned(), FolderType::Project)),
                 language_server::ContentRoot::FileSystemRoot{path,..} =>
-                    (path.clone(),FolderType::Root),
+                    Some((path.clone(),FolderType::Root)),
                 language_server::ContentRoot::Home {..} =>
-                    ("Home".to_owned(), FolderType::Home),
-                language_server::ContentRoot::Library{namespace,name,..} =>
-                    (format!("{}.{}",namespace,name), FolderType::Library),
+                    Some(("Home".to_owned(), FolderType::Home)),
+                language_server::ContentRoot::Library{..} =>
+                    None, // We skip libraries, as they cannot be easily inserted.
                 language_server::ContentRoot::Custom{..} =>
-                    ("Other".to_owned(),FolderType::Custom),
-            };
+                    None, // Custom content roots are not used.
+            }?;
             let type_ = EntryType::Folder {
                 type_   : folder_type,
                 content : {
@@ -114,9 +114,9 @@ impl FolderContent for FileProvider {
                     DirectoryView::new_from_root(connection,root.clone_ref()).into()
                 }
             };
-            Entry {name,path,type_}
+            Some(Entry {name,path,type_})
         });
-        entries_loaded.emit(Rc::new(entries.collect_vec()));
+        entries_loaded.emit(Rc::new(entries.sorted().collect_vec()));
     }
 }
 
@@ -172,7 +172,7 @@ impl DirectoryView {
                 }
             }
         });
-        Ok(entries.collect())
+        Ok(entries.sorted().collect())
     }
 }
 

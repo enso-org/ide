@@ -5,7 +5,7 @@ use crate::prelude::*;
 
 use enso_frp as frp;
 use std::path::PathBuf;
-
+use std::cmp::Ordering;
 
 
 // =============
@@ -16,16 +16,16 @@ use std::path::PathBuf;
 
 /// The type of a folder. This is used to distinguish standard folders from the different kinds of
 /// content roots.
-#[derive(Debug,Copy,Clone)]
+#[derive(Debug,Copy,Clone,Eq,Ord,PartialEq,PartialOrd)]
 pub enum FolderType {
     /// A normal sufolder in the file system.
     Standard,
     /// The projects root.
     Project,
-    /// The operating system's global root folder.
-    Root,
     /// The users home folder.
     Home,
+    /// The operating system's global root folder.
+    Root,
     /// The root of a library.
     Library,
     /// A custom kind of content root.
@@ -34,7 +34,7 @@ pub enum FolderType {
 
 /// The type of a file system entry. Distinguishes files from the different kind of folders. The
 /// `EntryType` of a folder also caries the folder's content.
-#[derive(Debug,Clone)]
+#[derive(Clone,Debug)]
 pub enum EntryType {
     /// A file.
     File,
@@ -47,15 +47,37 @@ pub enum EntryType {
     },
 }
 
+impl Ord for EntryType {
+    fn cmp(&self, other:&Self) -> Ordering {
+        match (self,other) {
+            (Self::File,Self::File)                                       => Ordering::Equal,
+            (Self::File,Self::Folder {..})                                => Ordering::Greater,
+            (Self::Folder {..},Self::File)                                => Ordering::Less,
+            (Self::Folder {type_:type1,..},Self::Folder {type_:type2,..}) => type1.cmp(type2),
+        }
+    }
+}
+
+impl PartialOrd for EntryType {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> { Some(self.cmp(other)) }
+}
+
+impl PartialEq for EntryType {
+    fn eq(&self, other: &Self) -> bool { self.cmp(other) == Ordering::Equal }
+}
+
+impl Eq for EntryType {}
+
 /// A file system entry. Either a file or a folder.
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,Eq,Ord,PartialEq,PartialOrd)]
 pub struct Entry {
+    /// The entry type.
+    pub type_ : EntryType,
     /// The entrie's name.
     pub name  : String,
     /// The entrie's global path in the file system.
     pub path  : PathBuf,
-    /// The entry type.
-    pub type_ : EntryType,
+
 }
 
 

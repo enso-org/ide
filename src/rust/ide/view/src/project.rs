@@ -49,10 +49,10 @@ ensogl::define_endpoints! {
         undo(),
         /// Redo the last undone action.
         redo(),
-        /// Show the prompt informing about tab key.
+        /// Show the prompt informing about tab key if it is not disabled.
         show_prompt(),
-        /// Hide the prompt
-        hide_prompt(),
+        /// Disable the prompt. It will be hidden if currently visible.
+        disable_prompt(),
     }
 
     Output {
@@ -353,6 +353,7 @@ impl View {
 
         display::style::javascript::expose_to_window(&app.themes);
 
+        let scene                      = app.display.scene().clone_ref();
         let model                      = Model::new(app);
         let frp                        = Frp::new();
         let searcher                   = &model.searcher.frp;
@@ -370,7 +371,7 @@ impl View {
         //   See: https://github.com/enso-org/ide/issues/795
         app.themes.update();
 
-        let style_sheet                    = &model.app.display.scene().style_sheet;
+        let style_sheet                    = &scene.style_sheet;
         let styles                         = StyleWatchFrp::new(style_sheet);
         let default_gap_between_nodes_path = ensogl_theme::project::default_gap_between_nodes;
 
@@ -390,7 +391,7 @@ impl View {
             }
         }
 
-        let shape = app.display.scene().shape().clone_ref();
+        let shape = scene.shape().clone_ref();
         frp::extend!{ network
             eval shape ((shape) model.on_dom_shape_changed(shape));
 
@@ -410,10 +411,6 @@ impl View {
                     model.display_object.remove_child(&model.searcher);
                 }
             });
-
-            // === Searcher Selection ===
-
-            eval searcher.is_selected ((is_selected) graph.set_navigator_disabled(is_selected));
 
 
             // === Editing ===
@@ -485,7 +482,9 @@ impl View {
             eval_ frp.show_open_dialog  (model.show_open_dialog());
             project_chosen   <- project_list.chosen_entry.constant(());
             file_chosen      <- file_browser.entry_chosen.constant(());
-            should_be_closed <- any(frp.close_open_dialog,project_chosen,file_chosen);
+            mouse_down       <- scene.mouse.frp.down.constant(());
+            clicked_on_bg    <- mouse_down.filter(f_!(scene.mouse.target.get().is_background()));
+            should_be_closed <- any(frp.close_open_dialog,project_chosen,file_chosen,clicked_on_bg);
             eval_ should_be_closed (model.hide_open_dialog());
 
             frp.source.open_dialog_shown <+ bool(&should_be_closed,&frp.show_open_dialog);
@@ -524,6 +523,7 @@ impl View {
 
 
             // === Prompt ===
+
             init <- source::<()>();
             let prompt_bg_color_path   = ensogl_theme::graph_editor::prompt::background;
             let prompt_bg_padding_path = ensogl_theme::graph_editor::prompt::background::padding;
@@ -538,9 +538,13 @@ impl View {
             let prompt_size            = styles.get_number(prompt_size_path);
             prompt_size                <- all(&prompt_size,&init)._0();
 
-            prompt_visibility.target <+ frp.show_prompt.constant(1.0);
-            prompt_visibility.target <+ frp.hide_prompt.constant(0.0);
-            prompt_visibility.target <+ frp.is_searcher_opened.filter(|v| *v).constant(0.0);
+            disable_after_opening_searcher <- frp.is_searcher_opened.filter(|v| *v).constant(());
+            disable                        <- any(frp.disable_prompt,disable_after_opening_searcher);
+            disabled                       <- disable.constant(true);
+            show_prompt                    <- frp.show_prompt.gate_not(&disabled);
+
+            prompt_visibility.target <+ show_prompt.constant(1.0);
+            prompt_visibility.target <+ disable.constant(0.0);
             _eval <- all_with4(&prompt_visibility.value,&prompt_bg_color,&prompt_color,&prompt_size,
                 f!([model](weight,bg_color,color,size) {
                     let mut bg_color = *bg_color;
@@ -558,6 +562,12 @@ impl View {
                     model.prompt_background.size.set(Vector2(*width + padding, *size + padding));
                 })
             );
+
+
+            // === Disabling Navigation ===
+
+            disable_navigation           <- searcher.is_selected || frp.open_dialog_shown;
+            graph.set_navigator_disabled <+ disable_navigation;
         }
         init.emit(());
         std::mem::forget(prompt_visibility);
@@ -604,8 +614,9 @@ impl application::View for View {
           , (Press   , "!is_searcher_opened", "cmd o"           , "show_open_dialog")
           , (Press   , "is_searcher_opened" , "escape"          , "close_searcher")
           , (Press   , "open_dialog_shown"  , "escape"          , "close_open_dialog")
-          , (Press   , ""                   , "tab"             , "hide_prompt")
-          , (Press   , ""                   , "cmd o"           , "hide_prompt")
+          , (Press   , ""                   , "tab"             , "disable_prompt")
+          , (Press   , ""                   , "cmd o"           , "disable_prompt")
+          , (Press   , ""                   , "space"           , "disable_prompt")
           , (Press   , ""                   , "cmd alt shift t" , "toggle_style")
           , (Press   , ""                   , "cmd s"           , "save_module")
           , (Press   , ""                   , "cmd z"           , "undo")
