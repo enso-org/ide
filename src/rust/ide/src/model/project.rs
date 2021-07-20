@@ -102,8 +102,8 @@ pub trait API:Debug {
     #[allow(clippy::needless_lifetimes)] // Note: Needless lifetimes
     fn main_module_model<'a>(&'a self) -> BoxFuture<'a, FallibleResult<model::Module>> {
         async move {
-            let main_name = self.main_module();
-            let main_path = model::module::Path::from_id(self.content_root_id(), &main_name.id);
+            let main_name = self.main_module()?;
+            let main_path = model::module::Path::from_id(self.project_content_root_id(), &main_name.id);
             self.module(main_path).await
         }.boxed_local()
     }

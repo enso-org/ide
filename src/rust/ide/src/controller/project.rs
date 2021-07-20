@@ -4,7 +4,6 @@ use crate::prelude::*;
 
 use crate::controller::graph::executed::Notification as GraphNotification;
 use crate::controller::ide::StatusNotificationPublisher;
-use crate::double_representation::module::ImportInfo;
 use crate::model::traits::*;
 use crate::double_representation::project;
 use crate::model::module::QualifiedName;
@@ -143,9 +142,9 @@ impl Project {
         let main_module_model = self.model.module(module_path.clone()).await?;
         Self::add_main_if_missing(project.qualified_name(), &main_module_model, &method, &parser)?;
 
-        let mut info = module.info();
+        let mut info = main_module_model.info();
         info.add_module_import(&project.qualified_module_name(&module_path), &project.parser(), &QualifiedName::from_text("Standard.Visualization").unwrap());
-        module.update_ast(info.ast)?;
+        main_module_model.update_ast(info.ast)?;
 
         // Here, we should be relatively certain (except race conditions in case of multiple
         // clients that we currently do not support) that main module exists and contains main
