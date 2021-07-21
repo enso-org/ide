@@ -1,25 +1,29 @@
 # Next Release
 
+#### Enso Compiler
+
+- [Updated Enso engine to version 0.2.15][1710]. If you're interested in the
+  enhancements and fixes made to the Enso compiler, you can find out more
+  details in
+  [the engine release notes](https://github.com/enso-org/enso/blob/main/RELEASES.md).
+
+[1710]: https://github.com/enso-org/ide/pull/1710
+
+# Enso 2.0.0-alpha.9 (2021-07-16)
+
 <br/>![New Features](/docs/assets/tags/new_features.svg)
 
 #### Visual Environment
 
-- [Improved undo-reddo][1653]. Several new operations are now supported by
-  undo-redo:
-  - node selection;
-  - enabling and disabling a visualization;
-  - entering and leaving a node.
+- [Improved undo-redo][1653]. Node selection, enabling/disabling visualisations
+  and entering a node are now affected by undo/redo and are restored on project
+  startup.
 
 <br/>
   
 # Enso 2.0.0-alpha.8 (2021-07-09)
 
 <br/>![New Features](/docs/assets/tags/new_features.svg)
-
-#### Visual Environment
-
-- [File browser component][1677]. A basic file browser component has been
-  implemented, but is not integrated into the user interface yet.
 
 #### Enso Compiler
 
