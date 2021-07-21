@@ -143,8 +143,8 @@ impl ProjectList {
 
         ensogl::shapes_order_dependencies! {
             app.display.scene() => {
-                background -> list_view::io_rect;
-                background -> list_view::selection;
+                background            -> list_view::selection;
+                list_view::background -> background;
             }
         }
 

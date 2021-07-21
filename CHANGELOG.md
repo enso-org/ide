@@ -8,19 +8,29 @@ these updates be shipped in a stable release before the end of the year.
 
 #### Visual Environment
 
-- [Improved undo-reddo][1653]. Several new operations are now supported by
-  undo-redo:
-  - node selection;
-  - enabling and disabling a visualization;
-  - entering and leaving a node.
 - [File or Project Open Dialog][1700]. <kbd>ctrl/cmd</kbd>+<kbd>o</kbd> will
   display a new File or Project Open Dialog. Here you can open another project,
   or pick a file from browser: the file will be inserted as a node to the
   current graph.
   
-[1640]: https://github.com/enso-org/ide/pull/1664
-[1677]: https://github.com/enso-org/ide/pull/1677
+<br/>
+
 [1700]: https://github.com/enso-org/ide/pull/1700
+
+# Enso 2.0.0-alpha.9 (2021-07-16)
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Visual Environment
+
+- [Improved undo-redo][1653]. Node selection, enabling/disabling visualisations
+  and entering a node are now affected by undo/redo and are restored on project
+  startup.
+
+<br/>
+  
+[1640]: https://github.com/enso-org/ide/pull/1653
+
 
 # Enso 2.0.0-alpha.8 (2021-06-09)
 
