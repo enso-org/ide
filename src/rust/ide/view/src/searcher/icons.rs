@@ -63,43 +63,7 @@ mod star {
 
     ensogl::define_shape_system! {
         (style:Style) {
-            // The distance from the center to the outer points.
-            let radius = 7.0;
-            // The ration between the radius and the distance from center to the points where spikes
-            // touch.
-            let ratio = 0.447;
-            // The angle between neighboring spikes.
-            let rotation_step = 2.0 * PI / 5.0;
-            // By "pentagon", we refer to the pentagon that forms the body of the star, filling the
-            // whole space in the middle, connecting the spikes.
-            let pentagon_radius       = ratio * radius;
-            let pentagon_inner_radius = pentagon_radius * (rotation_step / 2.0).cos();
-            let pentagon_side_length  = pentagon_radius * (rotation_step / 2.0).sin() * 2.0;
-            let spike_length          = radius - pentagon_inner_radius;
-
-            // The spike pointing upwards.
-            let spike = Triangle(pentagon_side_length.px(),spike_length.px());
-            let spike = spike.translate_y((radius - spike_length / 2.0).px());
-            // We compose the pentagon of five triangles fanning out from the center. This is one of
-            // them.
-            let pentagon_fragment = Triangle(pentagon_side_length.px(),pentagon_inner_radius.px());
-            let pentagon_fragment = pentagon_fragment.rotate(PI.radians());
-            let pentagon_fragment = pentagon_fragment.translate_y((pentagon_inner_radius/2.0).px());
-
-            // The spike and pentagon fragment form a star fragment. We copy it five times with
-            // rotations to form the whole star.
-            let fragment1 = spike + pentagon_fragment;
-            let fragment2 = fragment1.rotate((rotation_step * 1.0).radians());
-            let fragment3 = fragment1.rotate((rotation_step * 2.0).radians());
-            let fragment4 = fragment1.rotate((rotation_step * 3.0).radians());
-            let fragment5 = fragment1.rotate((rotation_step * 4.0).radians());
-
-            let shape = fragment1 + fragment2 + fragment3 + fragment4 + fragment5;
-            let shape = shape.fill(style.get_color(theme::favorites));
-            let shape = shape.translate_y((-0.5).px());
-            // shape.shrink(SHRINK_AMOUNT.px()).into();
-
-            let shape = FiveStar(radius.px(),ratio);
+            let shape = FiveStar(7.0.px(),0.447);
             let shape = shape.fill(style.get_color(theme::favorites));
             shape.shrink(SHRINK_AMOUNT.px()).into()
         }
