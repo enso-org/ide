@@ -8,8 +8,6 @@
 
 - [File browser component][1677]. A basic file browser component has been
   implemented, but is not integrated into the user interface yet.
-- [Searcher icons][1715]. Some icons have been created that will be used in the
-  next version of the searcher.
 
 #### Enso Compiler
 

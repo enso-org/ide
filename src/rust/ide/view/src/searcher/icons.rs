@@ -17,14 +17,39 @@ use wasm_bindgen::prelude::*;
 /// The width and height of all icons.
 const ICON_SIZE : f32 = 16.0;
 
+// The following constant exists for development purposes only.
 // Due to a rendering error, shapes appear too big when the camera is zoomed in very closely.
 // (Documented here: https://github.com/enso-org/ide/issues/1698)
-// To compensate for this, we apply `.shrink(SHRINK_AMOUNT)` to all icons in this file. By default,
-// `SHRINK_AMOUNT` should be set to 0.0 to make the icons appear right on the default zoom level.
-// When examining the icons closely, with a strong zoom, `SHRINK_AMOUNT` should be set to 0.4 to
-// make the icons apear right on that zoom level.
-const SHRINK_AMOUNT : f32 = 0.0;
-// const SHRINK_AMOUNT : f32 = 0.38;
+// In the user interface, this is not a big problem, since icons are usually shown at lower zoom
+// levels. But it is a problem during development of icons when it becomes necessary to inspect them
+// closely. In those situations, one can apply `.shrink(0.35)` to shapes to compensate for the bug
+// and make them appear at the correct size while the camera is zoomed in. But that work-around will
+// make them appear too thin on the default zoom level.
+//
+// To make it easy to turn this shrinking on and off before and after working on icons, we define
+// the constant `SHRINK_AMOUNT` and apply `.shrink(SHRINK_AMOUNT.px())` to all icons. In every
+// commit, `SHRINK_AMOUNT` should be set to 0.0 to make icons look best in the user interface. But
+// during work on the icons, it can temporarily be set to 0.35.
+const SHRINK_AMOUNT : f32 = 0.35;
+
+
+
+// =============
+// === Arrow ===
+// =============
+
+/// An arrow shape consisting of a straight line and a triangular head. The arrow points upwards and
+/// the tip is positioned at the origin.
+fn arrow(length:f32,width:f32,head_length:f32,head_width:f32) -> AnyShape {
+    // We overlap the line with the head by this amount to make sure that the renderer does not
+    // display a gap between them.
+    const OVERLAP: f32 = 1.0;
+    let line_length = length - head_length + OVERLAP;
+    let line        = Rect((width.px(),line_length.px()));
+    let line        = line.translate_y((-line_length/2.0-head_length+OVERLAP).px());
+    let head        = Triangle(head_width,head_length).translate_y((-head_length/2.0).px());
+    (line + head).into()
+}
 
 
 
@@ -72,6 +97,10 @@ mod star {
             let shape = fragment1 + fragment2 + fragment3 + fragment4 + fragment5;
             let shape = shape.fill(style.get_color(theme::favorites));
             let shape = shape.translate_y((-0.5).px());
+            // shape.shrink(SHRINK_AMOUNT.px()).into();
+
+            let shape = FiveStar(radius.px(),ratio);
+            let shape = shape.fill(style.get_color(theme::favorites));
             shape.shrink(SHRINK_AMOUNT.px()).into()
         }
     }
@@ -83,7 +112,7 @@ mod star {
 // === IO ===
 // ==========
 
-// A rounded rectangle with an arrow pointing in from the left.
+/// A rounded rectangle with an arrow pointing in from the left.
 mod data_input {
     use super::*;
 
@@ -102,10 +131,7 @@ mod data_input {
 
             // === Arrow ===
 
-            let arrow_line = Rect((8.0.px(),1.0.px())).translate_x((-3.0).px());
-            let arrow_tip  = Triangle(5.0.px(),4.0.px()).rotate((PI / 2.0).radians());
-            let arrow_tip  = arrow_tip.translate_x(2.0.px());
-            let arrow      = arrow_line + arrow_tip;
+            let arrow = arrow(11.0,1.0,4.0,5.0).rotate((PI/2.0).radians()).translate_x(4.0.px());
 
 
             // === Shape ===
@@ -117,7 +143,7 @@ mod data_input {
     }
 }
 
-// A rounded rectangle with an arrow pointing out to the right.
+/// A rounded rectangle with an arrow pointing out to the right.
 mod data_output {
     use super::*;
 
@@ -125,6 +151,7 @@ mod data_output {
         (style:Style) {
 
             // === Rectangle ===
+
             let rect = Rect((9.0.px(),13.0.px())).corners_radius(1.5.px()).translate_x((-2.5).px());
             // Taking just an outline.
             let rect = &rect - rect.shrink(1.0.px());
@@ -135,10 +162,7 @@ mod data_output {
 
             // === Arrow ===
 
-            let arrow_line = Rect((8.0.px(),1.0.px())).translate_x(1.0.px());
-            let arrow_tip  = Triangle(5.0.px(),4.0.px()).rotate((PI / 2.0).radians());
-            let arrow_tip  = arrow_tip.translate_x(6.0.px());
-            let arrow      = arrow_line + arrow_tip;
+            let arrow = arrow(11.0,1.0,4.0,5.0).rotate((PI/2.0).radians()).translate_x(8.0.px());
 
 
             // === Shape ===
@@ -150,7 +174,15 @@ mod data_output {
     }
 }
 
-// A rounded rectangle with the letter "A" and a text cursor.
+/// A cursor shape, looking roughly like a capital "I".
+fn cursor() -> AnyShape {
+    let middle = Rect((1.0.px(),15.0.px()));
+    let top    = Rect((5.0.px(),1.0.px())).translate_y(7.5.px());
+    let bottom = Rect((5.0.px(),1.0.px())).translate_y((-7.5).px());
+    (middle + top + bottom).into()
+}
+
+/// A rounded rectangle with the letter "A" and a text cursor.
 mod text_input {
     use super::*;
 
@@ -169,10 +201,7 @@ mod text_input {
 
             // === Cursor ===
 
-            let cursor_middle = Rect((1.0.px(),15.0.px()));
-            let cursor_top    = Rect((5.0.px(),1.0.px())).translate_y(7.5.px());
-            let cursor_bottom = Rect((5.0.px(),1.0.px())).translate_y((-7.5).px());
-            let cursor        = (cursor_middle + cursor_top + cursor_bottom).translate_x(3.5.px());
+            let cursor = cursor().translate_x(3.5.px());
 
 
             // === Letter ===
@@ -195,7 +224,7 @@ mod text_input {
     }
 }
 
-// A rounded rectangle with the number "5" and a text cursor.
+/// A rounded rectangle with the number "5" and a text cursor.
 mod number_input {
     use super::*;
 
@@ -214,10 +243,7 @@ mod number_input {
 
             // === Cursor ===
 
-            let cursor_middle = Rect((1.0.px(),15.0.px()));
-            let cursor_top    = Rect((5.0.px(),1.0.px())).translate_y(7.5.px());
-            let cursor_bottom = Rect((5.0.px(),1.0.px())).translate_y((-7.5).px());
-            let cursor        = (cursor_middle + cursor_top + cursor_bottom).translate_x(3.5.px());
+            let cursor = cursor().translate_x(3.5.px());
 
 
             // === Number ===
@@ -282,7 +308,6 @@ mod number_input {
 // ===================
 // === Debug Scene ===
 // ===================
-
 
 /// A rectangular frame to mark the edges of icons.
 mod frame {
