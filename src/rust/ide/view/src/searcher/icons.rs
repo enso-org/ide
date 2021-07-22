@@ -30,7 +30,7 @@ const ICON_SIZE : f32 = 16.0;
 // the constant `SHRINK_AMOUNT` and apply `.shrink(SHRINK_AMOUNT.px())` to all icons. In every
 // commit, `SHRINK_AMOUNT` should be set to 0.0 to make icons look best in the user interface. But
 // during work on the icons, it can temporarily be set to 0.35.
-const SHRINK_AMOUNT : f32 = 0.35;
+const SHRINK_AMOUNT : f32 = 0.0;
 
 
 
@@ -320,8 +320,8 @@ mod table_edit {
         (style:Style) {
             // We need to create the table in two parts, left and right of the cursor to achieve the
             // right cell arangement.
-            let left_table  = table(2,2).translate((-8.0.px(),-4.5.px()));
-            let right_table = table(2,2).translate((-1.0.px(),-4.5.px()));
+            let left_table  = table(2,2).translate(((-8.0).px(),(-4.5).px()));
+            let right_table = table(2,2).translate(((-1.0).px(),(-4.5).px()));
             let gap         = Rect((3.0.px(),13.0.px()));
             let cursor      = cursor();
 
@@ -339,9 +339,9 @@ mod convert {
     ensogl::define_shape_system! {
         (style:Style) {
             let upper_arrow = arrow(10.0,1.0,4.5,6.0).rotate((-PI/2.0).radians());
-            let upper_arrow = upper_arrow.translate((-8.0.px(),1.0.px()));
+            let upper_arrow = upper_arrow.translate(((-8.0).px(),1.0.px()));
             let lower_arrow = arrow(10.0,1.0,4.5,6.0).rotate((PI/2.0).radians());
-            let lower_arrow = lower_arrow.translate((8.0.px(),-1.5.px()));
+            let lower_arrow = lower_arrow.translate((8.0.px(),(-1.5).px()));
 
             let shape = upper_arrow + lower_arrow;
             let shape = shape.fill(style.get_color(theme::io::strong));
@@ -357,16 +357,16 @@ mod dataframe_clean {
     ensogl::define_shape_system! {
         (style:Style) {
             let table_color = style.get_color(theme::preparation::weak);
-            let table       = table(2,3).translate((-8.0.px(),-6.5.px())).fill(table_color);
+            let table       = table(2,3).translate(((-8.0).px(),(-6.5).px())).fill(table_color);
             let bottom_line = Rect((13.0.px(),1.0.px())).corners_radius(1.0.px()).fill(table_color);
-            let bottom_line = bottom_line.translate_y(-6.0.px());
+            let bottom_line = bottom_line.translate_y((-6.0).px());
 
             let eraser       = Rect((9.0.px(),5.0.px())).corners_radius(1.0.px());
             let eraser_bg    = eraser.grow(1.5.px());
             let eraser_bg    = eraser_bg.rotate((-0.25 * std::f32::consts::PI).radians());
             let eraser_bg    = eraser_bg.translate((3.5.px(),(-1.5).px()));
             let eraser_inner = Rect((7.0.px(),3.0.px()));
-            let eraser_bar   = Rect((1.0.px(),4.0.px())).translate_x(-1.0.px());
+            let eraser_bar   = Rect((1.0.px(),4.0.px())).translate_x((-1.0).px());
             let eraser       = eraser - eraser_inner + eraser_bar;
             let eraser       = eraser.fill(style.get_color(theme::preparation::strong));
             let eraser       = eraser.rotate((-0.25 * std::f32::consts::PI).radians());
@@ -388,8 +388,8 @@ mod add_column {
             let old_color = style.get_color(theme::preparation::weak);
             let new_color = style.get_color(theme::preparation::strong);
 
-            let old_column = table(1,3).translate((-8.0.px(),-6.5.px())).fill(old_color);
-            let new_column = table(1,3).translate((-4.0.px(),-6.5.px())).fill(new_color);
+            let old_column = table(1,3).translate(((-8.0).px(),(-6.5).px())).fill(old_color);
+            let new_column = table(1,3).translate(((-4.0).px(),(-6.5).px())).fill(new_color);
             let plus       = plus(5.0,1.0).fill(new_color).translate_x(5.0.px());
 
             let shape = old_column + new_column + plus;
@@ -543,13 +543,13 @@ mod data_science {
     ensogl::define_shape_system! {
         (style:Style) {
             let blue = style.get_color(theme::data_science::blue);
-            let rect1 = Rect((4.0.px(),4.0.px())).translate((-5.5.px(),3.0.px())).fill(blue);
-            let rect2 = Rect((4.0.px(),4.0.px())).translate_y(-5.5.px()).fill(blue);
+            let rect1 = Rect((4.0.px(),4.0.px())).translate(((-5.5).px(),3.0.px())).fill(blue);
+            let rect2 = Rect((4.0.px(),4.0.px())).translate_y((-5.5).px()).fill(blue);
 
             let gray = style.get_color(theme::data_science::gray);
             let circle1 = Circle(2.0.px()).translate_y(5.5.px()).fill(gray);
-            let circle2 = Circle(2.0.px()).translate((-5.5.px(),-3.0.px())).fill(gray);
-            let circle3 = Circle(2.0.px()).translate((5.5.px(),-3.0.px())).fill(gray);
+            let circle2 = Circle(2.0.px()).translate(((-5.5).px(),(-3.0).px())).fill(gray);
+            let circle3 = Circle(2.0.px()).translate((5.5.px(),(-3.0).px())).fill(gray);
 
             let red = style.get_color(theme::data_science::red);
             let circle4 = Circle(2.0.px()).fill(red);
@@ -577,7 +577,7 @@ mod network {
                 .fill(style.get_color(theme::network::_3));
 
             let shape = circle + arc1 + arc2 + arc3;
-            let shape = shape.translate_y(-5.5.px());
+            let shape = shape.translate_y((-5.5).px());
             let shape = shape.shrink(SHRINK_AMOUNT.px());
             shape.into()
         }
@@ -592,15 +592,15 @@ mod libraries {
         (style:Style) {
             let rect0 = Rect((6.5.px(),6.5.px())).corners_radius(1.0.px());
             let rect0 = rect0.fill(style.get_color(theme::libraries::_0));
-            let rect0 = rect0.translate((-3.75.px(),3.75.px()));
+            let rect0 = rect0.translate(((-3.75).px(),3.75.px()));
 
             let rect1 = Rect((6.5.px(),6.5.px())).corners_radius(1.0.px());
             let rect1 = rect1.fill(style.get_color(theme::libraries::_1));
-            let rect1 = rect1.translate((-3.75.px(),-3.75.px()));
+            let rect1 = rect1.translate(((-3.75).px(),(-3.75).px()));
 
             let rect2 = Rect((6.5.px(),6.5.px())).corners_radius(1.0.px());
             let rect2 = rect2.fill(style.get_color(theme::libraries::_2));
-            let rect2 = rect2.translate((3.75.px(),-3.75.px()));
+            let rect2 = rect2.translate((3.75.px(),(-3.75).px()));
 
             let rect3 = Rect((6.5.px(),6.5.px())).corners_radius(1.0.px());
             let rect3 = rect3.fill(style.get_color(theme::libraries::_3));
@@ -621,15 +621,15 @@ mod marketplace {
         (style:Style) {
             let plus = plus(6.5,1.5);
             let plus = plus.fill(style.get_color(theme::libraries::_0));
-            let plus = plus.translate((-3.75.px(),3.75.px()));
+            let plus = plus.translate(((-3.75).px(),3.75.px()));
 
             let rect1 = Rect((6.5.px(),6.5.px())).corners_radius(1.0.px());
             let rect1 = rect1.fill(style.get_color(theme::libraries::_1));
-            let rect1 = rect1.translate((-3.75.px(),-3.75.px()));
+            let rect1 = rect1.translate(((-3.75).px(),(-3.75).px()));
 
             let rect2 = Rect((6.5.px(),6.5.px())).corners_radius(1.0.px());
             let rect2 = rect2.fill(style.get_color(theme::libraries::_2));
-            let rect2 = rect2.translate((3.75.px(),-3.75.px()));
+            let rect2 = rect2.translate((3.75.px(),(-3.75).px()));
 
             let rect3 = Rect((6.5.px(),6.5.px())).corners_radius(1.0.px());
             let rect3 = rect3.fill(style.get_color(theme::libraries::_3));
@@ -651,7 +651,7 @@ mod io {
         (style:Style) {
             let half_arrow = arrow(14.0,5.0,7.0,11.0).rotate((PI/2.0).radians()) - HalfPlane();
             let upper      = half_arrow.translate((7.0.px(),0.5.px()));
-            let lower      = half_arrow.rotate(PI.radians()).translate(((-7.0).px(),-1.0.px()));
+            let lower      = half_arrow.rotate(PI.radians()).translate(((-7.0).px(),(-1.0).px()));
 
             let base  = upper + lower;
             let outer = base.fill(style.get_color(theme::io::strong));
@@ -697,15 +697,16 @@ mod text {
 
     ensogl::define_shape_system! {
         (style:Style) {
-            let page = Rect((10.0.px(),14.0.px())).corners_radius(2.0.px()).translate_x(-2.0.px());
+            let page = Rect((10.0.px(),14.0.px())).corners_radius(2.0.px());
+            let page = page.translate_x((-2.0).px());
             let page = &page - page.shrink(1.0.px());
 
             let arrow = arrow(13.0,1.0,3.0,6.0)
                 .rotate((PI/2.0).radians())
                 .translate((8.0.px(),3.0.px()));
 
-            let line1 = Rect((6.0.px(),1.0.px())).translate_x(-2.0.px());
-            let line2 = line1.translate_y(-3.0.px());
+            let line1 = Rect((6.0.px(),1.0.px())).translate_x((-2.0).px());
+            let line2 = line1.translate_y((-3.0).px());
 
             let shape = page + arrow + line1 + line2;
             let shape = shape.fill(style.get_color(theme::text::strong));
@@ -724,7 +725,7 @@ mod date_and_time {
             let circle = Circle(7.75.px());
             let circle = &circle - circle.shrink(1.0.px());
 
-            let big_hand   = RoundedLineSegment((3.0.px(),-2.0.px()),1.5.px());
+            let big_hand   = RoundedLineSegment((3.0.px(),(-2.0).px()),1.5.px());
             let small_hand = RoundedLineSegment((0.0.px(),2.5.px()),1.5.px());
 
             let shape = circle + big_hand + small_hand;
@@ -745,14 +746,14 @@ mod spatial {
         (style:Style) {
             let circle   = Circle(4.5.px()).translate_y(3.5.px());
             let circle   = &circle - circle.shrink(2.0.px());
-            let triangle = Triangle(7.0,5.75).rotate(PI.radians()).translate_y(-2.125.px());
+            let triangle = Triangle(7.0,5.75).rotate(PI.radians()).translate_y((-2.125).px());
             let marker   = circle + &triangle;
 
-            let ellipse     = Ellipse(6.5.px(),2.5.px()).translate_y(-5.0.px());
+            let ellipse     = Ellipse(6.5.px(),2.5.px()).translate_y((-5.0).px());
             let ellipse     = &ellipse - ellipse.shrink(1.0.px());
             // If we used just the triangle for the gap then it would also cut into the lower part
             // of the ellipse.
-            let ellipse_gap = triangle.grow(1.5.px()) - HalfPlane().translate_y(-5.0.px());
+            let ellipse_gap = triangle.grow(1.5.px()) - HalfPlane().translate_y((-5.0).px());
             let ellipse     = ellipse - ellipse_gap;
 
             let shape = marker + ellipse;
@@ -777,8 +778,8 @@ mod predictive {
             let sphere      = sphere + reflection1 + reflection2;
             let sphere      = sphere.translate_y(1.5.px());
 
-            let base = Triangle(21.0,8.0).translate_y(-4.0.px());
-            let base = base * Rect((13.0.px(),5.0.px())).translate_y(-5.0.px());
+            let base = Triangle(21.0,8.0).translate_y((-4.0).px());
+            let base = base * Rect((13.0.px(),5.0.px())).translate_y((-5.0).px());
             let base = base - circle.translate_y(1.5.px()).grow(2.0.px());
 
             let shape = sphere + base;
@@ -797,16 +798,16 @@ mod machine_learning {
         (style:Style) {
             let body = Rect((10.0.px(),15.0.px()))
                 .corners_radiuses(5.0.px(),5.0.px(),2.0.px(),2.0.px())
-                .translate_y(-0.5.px());
+                .translate_y((-0.5).px());
             let body = &body - body.shrink(1.0.px());
 
             let collar = Rect((9.0.px(),1.0.px()));
 
-            let left_eye = Rect((1.5.px(),1.5.px())).translate((-1.75.px(),2.75.px()));
+            let left_eye = Rect((1.5.px(),1.5.px())).translate(((-1.75).px(),2.75.px()));
             let right_eye = Rect((1.5.px(),1.5.px())).translate((1.75.px(),2.75.px()));
             let antenna = Rect((1.0.px(),1.5.px())).translate_y(7.25.px());
-            let left_arm = Rect((1.0.px(),4.5.px())).translate((-6.5.px(),-2.75.px()));
-            let right_arm = Rect((1.0.px(),4.5.px())).translate((6.5.px(),-2.75.px()));
+            let left_arm = Rect((1.0.px(),4.5.px())).translate(((-6.5).px(),(-2.75).px()));
+            let right_arm = Rect((1.0.px(),4.5.px())).translate((6.5.px(),(-2.75).px()));
 
             let shape = body + collar + left_eye + right_eye + antenna + left_arm + right_arm;
             let shape = shape.fill(style.get_color(theme::machine_learning));
@@ -1100,7 +1101,7 @@ pub fn entry_point_searcher_icons() {
     let spatial = spatial::View::new(&logger);
     world.add_child(&spatial);
     spatial.size.set(Vector2(ICON_SIZE,ICON_SIZE));
-    spatial.set_position_x(0.0);
+    spatial.set_position_x(580.0);
     mem::forget(spatial);
 
 
