@@ -44,8 +44,8 @@ mod icon {
     use super::*;
     ensogl_core::define_shape_system! {
         (style:Style,id:f32) {
-            let width  = list_view::entry::ICON_SIZE.px();
-            let height = list_view::entry::ICON_SIZE.px();
+            let width  = 14.0.px();
+            let height = 14.0.px();
             let color  : Var<color::Rgba> = "rgba(input_id/16.0,0.0,0.0,1.0)".into();
             Rect((&width,&height)).fill(color).into()
         }
@@ -68,20 +68,17 @@ impl MockEntries {
     }
 }
 
-impl list_view::entry::ModelProvider for MockEntries {
+impl list_view::entry::ModelProvider<list_view::entry::HighlightedLabel> for MockEntries {
     fn entry_count(&self) -> usize { self.entries_count }
 
-    fn get(&self, id:usize) -> Option<list_view::entry::Model> {
+    fn get(&self, id:usize) -> Option<list_view::entry::HighlightedLabelModel> {
         if id >= self.entries_count {
             None
         } else {
-            use list_view::entry::ICON_SIZE;
-            let icon = icon::View::new(&self.logger);
-            icon.size.set(Vector2(ICON_SIZE,ICON_SIZE));
-            icon.id.set(id as f32);
-            let model = list_view::entry::Model::new(iformat!("Entry {id}")).with_icon(icon);
-            if id == 10 { Some(model.highlight(std::iter::once((Bytes(1)..Bytes(3)).into()))) }
-            else        { Some(model)                                                         }
+            let mut model = list_view::entry::HighlightedLabelModel::default();
+            model.label   = iformat!("Entry {id}");
+            if id == 10 { model.highlighted = vec![(Bytes(1)..Bytes(3)).into()] }
+            Some(model)
         }
     }
 }
@@ -97,8 +94,8 @@ fn init(app:&Application) {
     theme::builtin::light::register(&app);
     theme::builtin::light::enable(&app);
 
-    let list_view = app.new_view::<list_view::ListView>();
-    let provider  = list_view::entry::AnyModelProvider::from(MockEntries::new(app,1000));
+    let list_view = app.new_view::<list_view::ListView<list_view::entry::HighlightedLabel>>();
+    let provider  = list_view::entry::AnyModelProvider::new(MockEntries::new(app,1000));
     list_view.frp.resize(Vector2(100.0,160.0));
     list_view.frp.set_entries(provider);
     app.display.add_child(&list_view);
