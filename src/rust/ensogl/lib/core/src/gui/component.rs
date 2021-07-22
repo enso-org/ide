@@ -169,7 +169,7 @@ impl<S:DynamicShapeInternals> ShapeViewModel<S> {
         let default_layers = &[scene.layers.main.id()];
         let target_layers  = if layers.is_empty() { default_layers } else { layers };
         for &layer_id in target_layers {
-            if let Some(layer) = scene.layers.get(layer_id) {
+            if let Some(layer) = scene.layers.get_child(layer_id) {
                 self.add_to_scene_layer(scene,&layer)
             }
         }

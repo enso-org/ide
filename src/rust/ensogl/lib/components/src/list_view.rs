@@ -135,8 +135,8 @@ impl Model {
         let selection                  = selection::View::new(&logger);
         let io_rect                    = io_rect::View::new(&logger);
         let selection_can_leave_at_top = Cell::new(false);
-        layers.add_shapes_order_dependency::<selection::View,io_rect::View>();
-        layers.add_shapes_order_dependency::<io_rect::View,selector::shape::background::View>();
+        layers.add_global_shapes_order_dependency::<selection::View,io_rect::View>();
+        layers.add_global_shapes_order_dependency::<io_rect::View,selector::shape::background::View>();
         display_object.add_child(&scroll_area);
         display_object.add_child(&io_rect);
         scroll_area.content().add_child(&entries);

@@ -227,7 +227,7 @@ impl ModelWithFrp {
 
         let background = background::View::new(&logger);
         display_object.add_child(&background);
-        scene.layers.add_shapes_order_dependency::<background::View,list_view::selection::View>();
+        scene.layers.add_global_shapes_order_dependency::<background::View,list_view::selection::View>();
         let background_width  = WIDTH  + background::SHADOW_PX * 2.0;
         let background_height = HEIGHT + background::SHADOW_PX * 2.0;
         background.size.set(Vector2(background_width,background_height));

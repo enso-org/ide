@@ -111,7 +111,7 @@ impl Model {
         list.add_child(&list_background);
         list.focus();
         list.set_selection_can_leave_at_top(true);
-        scene.layers.add_shapes_order_dependency::<card::View,list_view::selection::View>();
+        scene.layers.add_global_shapes_order_dependency::<card::View,list_view::selection::View>();
         list_background.set_corner_radius(list_view::CORNER_RADIUS_PX);
 
         // FIXME: StyleWatch is unsuitable here, as it was designed as an internal tool for shape

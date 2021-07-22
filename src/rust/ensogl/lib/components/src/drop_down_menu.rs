@@ -137,7 +137,7 @@ impl Model {
         self.add_child(&self.icon_overlay);
         self.add_child(&self.label);
         self.selection_menu.add_child(&self.background);
-        self.app.display.scene().layers.add_shapes_order_dependency::<card::View,list_view::selection::View>();
+        self.app.display.scene().layers.add_global_shapes_order_dependency::<card::View,list_view::selection::View>();
 
         self.background.set_corner_radius(list_view::CORNER_RADIUS_PX);
 

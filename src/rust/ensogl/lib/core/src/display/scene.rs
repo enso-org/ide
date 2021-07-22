@@ -613,7 +613,7 @@ impl Renderer {
 pub struct HardcodedLayers {
     pub viz                    : Layer,
     pub below_main             : Layer,
-    // main <- here is the 'main` layer inserted.
+    pub main                   : Layer,
     pub port_selection         : Layer,
     pub label                  : Layer,
     pub above_nodes            : Layer,
@@ -625,11 +625,11 @@ pub struct HardcodedLayers {
     pub tooltip                : Layer,
     pub tooltip_text           : Layer,
     pub cursor                 : Layer,
-    root                       : layer::Group,
+    root                       : Layer,
 }
 
 impl Deref for HardcodedLayers {
-    type Target = layer::Group;
+    type Target = Layer;
     fn deref(&self) -> &Self::Target {
         &self.root
     }
@@ -637,8 +637,9 @@ impl Deref for HardcodedLayers {
 
 impl HardcodedLayers {
     pub fn new(logger:impl AnyLogger) -> Self {
-        let root             = layer::Group::new(logger);
-        let main_cam         = &root.main.camera();
+        let root             = Layer::new(); // layer::Group::new(logger);
+        let main             = Layer::new();
+        let main_cam         = &main.camera();
         let viz              = Layer::from(main_cam);
         let below_main       = Layer::from(main_cam);
         let port_selection   = Layer::new();
@@ -650,10 +651,10 @@ impl HardcodedLayers {
         let tooltip          = Layer::from(main_cam);
         let tooltip_text     = Layer::from(main_cam);
         let cursor           = Layer::new();
-        root.set_layers(
+        root.set_children(
             &[ &viz
              , &below_main
-             , &root.main
+             , &main
              , &port_selection
              , &label
              , &above_nodes
@@ -664,7 +665,7 @@ impl HardcodedLayers {
              , &tooltip_text
              , &cursor
              ]);
-        Self {viz,below_main,port_selection,label,above_nodes,above_nodes_text,panel,panel_text
+        Self {viz,below_main,main,port_selection,label,above_nodes,above_nodes_text,panel,panel_text
              ,tooltip,tooltip_text,cursor,root}
     }
 }
@@ -847,7 +848,7 @@ impl SceneData {
         if self.dirty.shape.check_all() {
             let screen = self.dom.shape();
             self.resize_canvas(screen);
-            for layer in &*self.layers.all() {
+            for layer in &*self.layers.children() {
                 layer.camera().set_screen(screen.width,screen.height)
             }
             self.renderer.reload_composer();
@@ -880,7 +881,7 @@ impl SceneData {
         }
 
         // Updating all other cameras (the main camera was already updated, so it will be skipped).
-        for layer in &*self.layers.all() {
+        for layer in &*self.layers.children() {
             layer.camera().update(scene);
         }
     }

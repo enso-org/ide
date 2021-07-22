@@ -156,8 +156,8 @@ impl ListEntry {
 
     fn declare_order_dependencies_for_icon<Icon>(scene:&Scene)
     where Icon: HasContent, Content<Icon>: KnownShapeSystemId {
-        scene.layers.add_shapes_order_dependency::<list_view::selection::View,Icon>();
-        scene.layers.add_shapes_order_dependency::<Icon,list_view::io_rect::View>();
+        scene.layers.add_global_shapes_order_dependency::<list_view::selection::View,Icon>();
+        scene.layers.add_global_shapes_order_dependency::<Icon,list_view::io_rect::View>();
     }
 }
 
@@ -317,8 +317,8 @@ impl Column {
         layers.panel.add_exclusive(&shadow);
         shadow.set_position_y(-file_browser::CONTENT_HEIGHT/2.0);
         shadow.size.set(Vector2(column_shadow::SHADOW_PX*2.0,super::CONTENT_HEIGHT));
-        layers.add_shapes_order_dependency::<file_browser::background::View,column_shadow::View>();
-        layers.add_shapes_order_dependency::<column_shadow::View,list_view::selection::View>();
+        layers.add_global_shapes_order_dependency::<file_browser::background::View,column_shadow::View>();
+        layers.add_global_shapes_order_dependency::<column_shadow::View,list_view::selection::View>();
         let shadow_opacity = Animation::new(&network);
 
         frp::extend! { network
