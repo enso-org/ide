@@ -75,10 +75,9 @@ impl list_view::entry::ModelProvider<list_view::entry::HighlightedLabel> for Moc
         if id >= self.entries_count {
             None
         } else {
-            let mut model = list_view::entry::HighlightedLabelModel::default();
-            model.label   = iformat!("Entry {id}");
-            if id == 10 { model.highlighted = vec![(Bytes(1)..Bytes(3)).into()] }
-            Some(model)
+            let label = iformat!("Entry {id}");
+            let highlighted = if id == 10 { vec![(Bytes(1)..Bytes(3)).into()] } else { vec![] };
+            Some(list_view::entry::HighlightedLabelModel{label,highlighted})
         }
     }
 }

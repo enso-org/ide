@@ -83,6 +83,7 @@ impl<T:DocumentationProvider + 'static> From<Rc<T>> for AnyDocumentationProvider
 // === Model ===
 // =============
 
+/// A type of ListView entry used in searcher.
 pub type Entry = list_view::entry::HighlightedLabel;
 
 #[derive(Clone,CloneRef,Debug)]

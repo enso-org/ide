@@ -96,6 +96,7 @@ ensogl_core::define_endpoints! {
 // === Model ===
 // =============
 
+/// A type of Entry used in DropDownMenu's ListView.
 pub type Entry = list_view::entry::Label;
 
 #[derive(Clone,Debug)]
@@ -155,7 +156,7 @@ impl Model {
     }
 
     fn get_content_item
-    (&self, id:Option<list_view::entry::Id>) -> Option<<Entry as list_view::entry::View>::Model> {
+    (&self, id:Option<list_view::entry::Id>) -> Option<<Entry as list_view::entry::Entry>::Model> {
         self.content.borrow().as_ref()?.get(id?)
     }
 

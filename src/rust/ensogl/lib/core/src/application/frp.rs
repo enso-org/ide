@@ -289,6 +289,9 @@ macro_rules! define_endpoints {
         #[derive(Debug,Clone,CloneRef)]
         #[allow(missing_docs)]
         #[allow(unused_parens)]
+        // Clippy thinks `_param` is a field we want to add in future, but it is not: it is to
+        // suppress "not used generic param" error.
+        #[allow(clippy::manual_non_exhaustive)]
         pub struct FrpInputs $(<$($param:Debug+'static),*>)? {
             $( $(#[doc=$($in_doc)*])* pub $in_field : $crate::frp::Any<($($in_field_type)*)>,)*
             _params : ($($(PhantomData<$param>),*)?),
@@ -312,6 +315,9 @@ macro_rules! define_endpoints {
         #[derive(Debug,Clone,CloneRef)]
         #[allow(unused_parens)]
         #[allow(missing_docs)]
+        // Clippy thinks `_param` is a field we want to add in future, but it is not: it is to
+        // suppress "not used generic param" error.
+        #[allow(clippy::manual_non_exhaustive)]
         pub struct FrpEndpoints $(<$($param:Debug+'static),*>)? {
             pub input         : FrpInputs $(<$($param),*>)?,
             // TODO[WD]: Consider making it private and exposing only on-demand with special macro
@@ -359,6 +365,9 @@ macro_rules! define_endpoints {
         /// Frp output setters.
         #[derive(Debug,Clone,CloneRef)]
         #[allow(unused_parens)]
+        // Clippy thinks `_param` is a field we want to add in future, but it is not: it is to
+        // suppress "not used generic param" error.
+        #[allow(clippy::manual_non_exhaustive)]
         pub(crate) struct FrpOutputsSource $(<$($param:Debug+'static),*>)? {
             $(pub(crate) $out_field : $crate::frp::Any<($($out_field_type)*)>,)*
             _params : ($($(PhantomData<$param>),*)?),

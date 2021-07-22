@@ -95,7 +95,7 @@ struct View {
 
 /// The Model of Select Component.
 #[derive(Clone,CloneRef,Debug)]
-struct Model<E:entry::View> {
+struct Model<E:entry::Entry> {
     app            : Application,
     entries        : entry::List<E>,
     selection      : selection::View,
@@ -104,7 +104,7 @@ struct Model<E:entry::View> {
     display_object : display::object::Instance,
 }
 
-impl<E:entry::View> Model<E> {
+impl<E:entry::Entry> Model<E> {
 
     fn new(app:&Application) -> Self {
         let app            = app.clone_ref();
@@ -153,9 +153,9 @@ impl<E:entry::View> Model<E> {
         } else {
             let entry_at_y_saturating = |y:f32| {
                 match entry::List::<E>::entry_at_y_position(y,entry_count) {
-                    entry::IdAtYPosition::AboveFirst => 0,
-                    entry::IdAtYPosition::UnderLast  => entry_count - 1,
-                    entry::IdAtYPosition::Entry(id)  => id,
+                    entry::list::IdAtYPosition::AboveFirst => 0,
+                    entry::list::IdAtYPosition::UnderLast  => entry_count - 1,
+                    entry::list::IdAtYPosition::Entry(id)  => id,
                 }
             };
             let first = entry_at_y_saturating(*position_y);
@@ -228,27 +228,27 @@ ensogl_core::define_endpoints! {
 
 
 
-// ========================
-// === Select Component ===
-// ========================
+// ==========================
+// === ListView Component ===
+// ==========================
 
-/// Select Component.
+/// ListView Component.
 ///
-/// Select is a displayed list of entries with possibility of selecting one and "chosing" by
-/// clicking or pressing enter.
+/// This is a displayed list of entries (of any type `E`) with possibility of selecting one and
+/// "choosing" by clicking or pressing enter. The basic entry types are defined in [`entry`] module.
 #[allow(missing_docs)]
 #[derive(Clone,CloneRef,Debug)]
-pub struct ListView<E:entry::View> {
+pub struct ListView<E:entry::Entry> {
     model   : Model<E>,
     pub frp : Frp<E>,
 }
 
-impl<E:entry::View> Deref for ListView<E> {
+impl<E:entry::Entry> Deref for ListView<E> {
     type Target = Frp<E>;
     fn deref(&self) -> &Self::Target { &self.frp }
 }
 
-impl<E:entry::View> ListView<E>
+impl<E:entry::Entry> ListView<E>
 where E::Model : Default {
     /// Constructor.
     pub fn new(app:&Application) -> Self {
@@ -423,15 +423,15 @@ where E::Model : Default {
     }
 }
 
-impl<E:entry::View> display::Object for ListView<E> {
+impl<E:entry::Entry> display::Object for ListView<E> {
     fn display_object(&self) -> &display::object::Instance { &self.model.display_object }
 }
 
-impl<E:entry::View> application::command::FrpNetworkProvider for ListView<E> {
+impl<E:entry::Entry> application::command::FrpNetworkProvider for ListView<E> {
     fn network(&self) -> &frp::Network { &self.frp.network }
 }
 
-impl<E:entry::View> application::View for ListView<E> {
+impl<E:entry::Entry> application::View for ListView<E> {
     fn label() -> &'static str { "ListView" }
     fn new(app:&Application) -> Self { ListView::new(app) }
     fn app(&self) -> &Application { &self.model.app }
