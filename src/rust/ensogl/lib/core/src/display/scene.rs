@@ -626,6 +626,7 @@ pub struct HardcodedLayers {
     pub tooltip_text           : Layer,
     pub cursor                 : Layer,
     root                       : Layer,
+    pub mask                   : Layer,
 }
 
 impl Deref for HardcodedLayers {
@@ -651,6 +652,8 @@ impl HardcodedLayers {
         let tooltip          = Layer::from(main_cam);
         let tooltip_text     = Layer::from(main_cam);
         let cursor           = Layer::new();
+        let mask             = Layer::new();
+        root.set_mask(&mask);
         root.set_children(
             &[ &viz
              , &below_main
@@ -666,7 +669,7 @@ impl HardcodedLayers {
              , &cursor
              ]);
         Self {viz,below_main,main,port_selection,label,above_nodes,above_nodes_text,panel,panel_text
-             ,tooltip,tooltip_text,cursor,root}
+             ,tooltip,tooltip_text,cursor,root,mask}
     }
 }
 

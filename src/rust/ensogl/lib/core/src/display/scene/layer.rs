@@ -217,6 +217,7 @@ pub struct LayerModel {
     parents                         : Rc<RefCell<Vec<Children>>>,
     global_element_depth_order      : Rc<RefCell<DependencyGraph<LayerItem>>>,
     children                        : Children,
+    mask                            : RefCell<Option<WeakLayer>>,
     mem_mark                        : Rc<()>,
 }
 
@@ -259,10 +260,11 @@ impl LayerModel {
         let depth_order_dirty               = dirty::SharedBool::new(logger_dirty,on_mut);
         let global_element_depth_order      = default();
         let children                        = Children::new(Logger::sub(&logger,"registry"));
+        let mask                            = default();
         let mem_mark                        = default();
         Self {logger,camera,shape_system_registry,shape_system_to_symbol_info_map
              ,symbol_to_shape_system_map,elements,symbols_ordered,depth_order,depth_order_dirty
-             ,parents,global_element_depth_order,children,mem_mark}
+             ,parents,global_element_depth_order,children,mask,mem_mark}
     }
 
     fn add_parent(&self, parent:&Children) {
@@ -547,6 +549,10 @@ impl LayerModel {
         for layer in layers {
             self.add_child(layer)
         }
+    }
+
+    pub fn set_mask(&self, mask:&Layer) {
+        *self.mask.borrow_mut() = Some(mask.downgrade())
     }
 
     /// Add depth-order dependency between two [`LayerItem`]s in this layer. Returns `true`
