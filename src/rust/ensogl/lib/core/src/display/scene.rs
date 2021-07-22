@@ -6,7 +6,6 @@ pub mod dom;
 pub mod layer;
 
 pub use layer::Layer;
-pub use layer::Layers;
 
 pub use crate::system::web::dom::Shape;
 
@@ -626,50 +625,47 @@ pub struct HardcodedLayers {
     pub tooltip                : Layer,
     pub tooltip_text           : Layer,
     pub cursor                 : Layer,
-    layers                     : Layers,
+    root                       : layer::Group,
 }
 
 impl Deref for HardcodedLayers {
-    type Target = Layers;
+    type Target = layer::Group;
     fn deref(&self) -> &Self::Target {
-        &self.layers
+        &self.root
     }
 }
 
 impl HardcodedLayers {
     pub fn new(logger:impl AnyLogger) -> Self {
-        let layers           = Layers::new(logger);
-        let viz              = layers.new_layer();
-        let below_main       = layers.new_layer();
-        let port_selection   = layers.new_layer();
-        let label            = layers.new_layer();
-        let above_nodes      = layers.new_layer();
-        let above_nodes_text = layers.new_layer();
-        let panel            = layers.new_layer();
-        let panel_text       = layers.new_layer();
-        let tooltip          = layers.new_layer();
-        let tooltip_text     = layers.new_layer();
-        let cursor           = layers.new_layer();
-        viz.set_camera(layers.main.camera());
-        below_main.set_camera(layers.main.camera());
-        label.set_camera(layers.main.camera());
-        above_nodes.set_camera(layers.main.camera());
-        above_nodes_text.set_camera(layers.main.camera());
-        tooltip.set_camera(layers.main.camera());
-        tooltip_text.set_camera(layers.main.camera());
-        layers.add_layers_order_dependency(&viz,&below_main);
-        layers.add_layers_order_dependency(&below_main,&layers.main);
-        layers.add_layers_order_dependency(&layers.main,&port_selection);
-        layers.add_layers_order_dependency(&port_selection,&label);
-        layers.add_layers_order_dependency(&label,&above_nodes);
-        layers.add_layers_order_dependency(&above_nodes,&above_nodes_text);
-        layers.add_layers_order_dependency(&above_nodes_text,&panel);
-        layers.add_layers_order_dependency(&panel,&panel_text);
-        layers.add_layers_order_dependency(&panel_text,&tooltip);
-        layers.add_layers_order_dependency(&tooltip,&tooltip_text);
-        layers.add_layers_order_dependency(&tooltip_text,&cursor);
+        let root             = layer::Group::new(logger);
+        let main_cam         = &root.main.camera();
+        let viz              = Layer::from(main_cam);
+        let below_main       = Layer::from(main_cam);
+        let port_selection   = Layer::new();
+        let label            = Layer::from(main_cam);
+        let above_nodes      = Layer::from(main_cam);
+        let above_nodes_text = Layer::from(main_cam);
+        let panel            = Layer::new();
+        let panel_text       = Layer::new();
+        let tooltip          = Layer::from(main_cam);
+        let tooltip_text     = Layer::from(main_cam);
+        let cursor           = Layer::new();
+        root.set_layers(
+            &[ &viz
+             , &below_main
+             , &root.main
+             , &port_selection
+             , &label
+             , &above_nodes
+             , &above_nodes_text
+             , &panel
+             , &panel_text
+             , &tooltip
+             , &tooltip_text
+             , &cursor
+             ]);
         Self {viz,below_main,port_selection,label,above_nodes,above_nodes_text,panel,panel_text
-             ,tooltip,tooltip_text,cursor,layers}
+             ,tooltip,tooltip_text,cursor,root}
     }
 }
 

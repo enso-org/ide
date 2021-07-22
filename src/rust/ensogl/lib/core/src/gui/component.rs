@@ -166,7 +166,7 @@ impl<S> Drop for ShapeViewModel<S> {
 impl<S:DynamicShapeInternals> ShapeViewModel<S> {
     fn on_scene_layers_changed(&self, scene:&Scene, layers:&[LayerId]) {
         self.drop_from_all_scene_layers();
-        let default_layers = &[scene.layers.main.id];
+        let default_layers = &[scene.layers.main.id()];
         let target_layers  = if layers.is_empty() { default_layers } else { layers };
         for &layer_id in target_layers {
             if let Some(layer) = scene.layers.get(layer_id) {
