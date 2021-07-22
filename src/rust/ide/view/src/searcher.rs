@@ -84,7 +84,7 @@ impl<T:DocumentationProvider + 'static> From<Rc<T>> for AnyDocumentationProvider
 // =============
 
 /// A type of ListView entry used in searcher.
-pub type Entry = list_view::entry::HighlightedLabel;
+pub type Entry = list_view::entry::GlyphHighlightedLabel;
 
 #[derive(Clone,CloneRef,Debug)]
 struct Model {
@@ -146,7 +146,7 @@ ensogl::define_endpoints! {
     Input {
         /// Use the selected action as a suggestion and add it to the current input.
         use_as_suggestion (),
-        set_actions       (entry::AnyModelProvider<list_view::entry::HighlightedLabel>,AnyDocumentationProvider),
+        set_actions       (entry::AnyModelProvider<list_view::entry::GlyphHighlightedLabel>,AnyDocumentationProvider),
         select_action     (entry::Id),
         show              (),
         hide              (),

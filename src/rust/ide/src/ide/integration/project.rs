@@ -39,7 +39,7 @@ use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
 use utils::iter::split_by_predicate;
 use futures::future::LocalBoxFuture;
-use ide_view::searcher::entry::HighlightedLabel;
+use ide_view::searcher::entry::GlyphHighlightedLabel;
 
 
 // ========================
@@ -1777,12 +1777,12 @@ impl SuggestionsProviderForView {
     }
 }
 
-impl list_view::entry::ModelProvider<HighlightedLabel> for SuggestionsProviderForView {
+impl list_view::entry::ModelProvider<GlyphHighlightedLabel> for SuggestionsProviderForView {
     fn entry_count(&self) -> usize {
         self.actions.matching_count()
     }
 
-    fn get(&self, id: usize) -> Option<list_view::entry::HighlightedLabelModel> {
+    fn get(&self, id: usize) -> Option<list_view::entry::GlyphHighlightedLabelModel> {
         let action = self.actions.get_cloned(id)?;
         if let MatchInfo::Matches {subsequence} = action.match_info {
             let label         = action.action.to_string();
@@ -1799,7 +1799,7 @@ impl list_view::entry::ModelProvider<HighlightedLabel> for SuggestionsProviderFo
                     break None;
                 }
             }).collect();
-            Some(list_view::entry::HighlightedLabelModel {label,highlighted})
+            Some(list_view::entry::GlyphHighlightedLabelModel {label,highlighted})
         } else {
             None
         }

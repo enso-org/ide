@@ -44,9 +44,10 @@ pub use list::List;
 /// Object position of this component is docked to the middle of left entry's boundary. It differs
 /// from usual behaviour of EnsoGl components, but makes the entries alignment much simpler.
 ///
-/// The ListView component does not create Entry object for each entry provided, only those visible.
-/// During scrolling, the instantiated objects will be reused: they position will be changed and
-/// they will be updated using `update` method.
+/// This trait abstracts over model and its updating in order to support re-using shapes and gui
+/// components, so they are not deleted and created again. The ListView component does not create
+/// Entry object for each entry provided, and during scrolling, the instantiated objects will be
+/// reused: they position will be changed and they will be updated using `update` method.
 pub trait Entry: CloneRef + Debug + display::Object + 'static {
     /// The model of this entry. The entry should be a representation of data from the Model.
     /// For example, the entry being just a caption can have [`String`] as its model - the text to
@@ -123,9 +124,10 @@ impl display::Object for Label {
 
 // === HighlightedLabel ===
 
-/// The model for [`HighlightedLabel`]
+/// The model for [`HighlightedLabel`], being an entry displayed as a single label with highlighted
+/// some parts of text.
 #[derive(Clone,Debug,Default)]
-pub struct HighlightedLabelModel {
+pub struct GlyphHighlightedLabelModel {
     /// Displayed text.
     pub label:String,
     /// A list of ranges of highlighted bytes.
@@ -134,13 +136,13 @@ pub struct HighlightedLabelModel {
 
 /// The [`Entry`] similar to the [`Label`], but allows highlighting some parts of text.
 #[derive(Clone,CloneRef,Debug)]
-pub struct HighlightedLabel {
+pub struct GlyphHighlightedLabel {
     inner     : Label,
     highlight : frp::Source<Vec<text::Range<text::Bytes>>>,
 }
 
-impl Entry for HighlightedLabel {
-    type Model = HighlightedLabelModel;
+impl Entry for GlyphHighlightedLabel {
+    type Model = GlyphHighlightedLabelModel;
 
     fn new(app: &Application) -> Self {
         let inner           = Label::new(app);
@@ -170,7 +172,7 @@ impl Entry for HighlightedLabel {
     }
 }
 
-impl display::Object for HighlightedLabel {
+impl display::Object for GlyphHighlightedLabel {
     fn display_object(&self) -> &display::object::Instance { self.inner.display_object() }
 }
 
@@ -230,7 +232,7 @@ impl<E> Default for AnyModelProvider<E> {
 pub struct EmptyProvider;
 
 impl<E> ModelProvider<E> for EmptyProvider {
-    fn entry_count(&self)          -> usize                           { 0    }
+    fn entry_count(&self)          -> usize                            { 0    }
     fn get        (&self, _:usize) -> Option<E::Model> where E : Entry { None }
 }
 

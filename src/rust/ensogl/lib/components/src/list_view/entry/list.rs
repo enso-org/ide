@@ -18,8 +18,8 @@ use ensogl_core::display::scene::layer::LayerId;
 /// A displayed entry in select component.
 ///
 /// The Display Object position of this component is docked to the middle of left entry's boundary.
-/// It differs from usual behaviour of EnsoGl components, but makes the entries alignment much
-/// simpler.
+/// It differs from usual behaviour of EnsoGL components, but makes the entries alignment much
+/// simpler: In vast majority of cases we want to align list elements to the left.
 #[allow(missing_docs)]
 #[derive(Clone,CloneRef,Debug)]
 pub struct DisplayedEntry<E:CloneRef> {
