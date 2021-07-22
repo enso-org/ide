@@ -302,7 +302,7 @@ pub fn entry_point_searcher_icons() {
     let world = app.display.clone();
     mem::forget(app);
     let scene = world.scene();
-    mem::forget(Navigator::new(&scene,&scene.camera()));
+    mem::forget(Navigator::new(scene,&scene.camera()));
 
 
     // === Grid ===
