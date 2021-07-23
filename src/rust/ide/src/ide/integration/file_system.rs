@@ -265,7 +265,7 @@ pub async fn do_file_operation
     let src_name  = ls_source.file_name().ok_or_else(
         || InvalidSourceFile{path:source.to_string_lossy().to_string()}
     )?;
-    let dest_name = pick_non_colliding_name(&*json_rpc,&ls_dest,&src_name).await?;
+    let dest_name = pick_non_colliding_name(&*json_rpc,&ls_dest,src_name).await?;
     let dest_full = ls_dest.append_im(dest_name);
     match operation {
         FileOperation::Copy => json_rpc.copy_file(&ls_source, &dest_full).await?,

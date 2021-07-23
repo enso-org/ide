@@ -54,6 +54,12 @@ pub struct FileBrowser {
     display_object : display::object::Instance,
 }
 
+impl Deref for FileBrowser {
+    type Target = Frp;
+    fn deref(&self) -> &Self::Target { &self.frp }
+}
+
+
 impl FileBrowser {
     /// Constructore
     pub fn new() -> Self {
@@ -64,9 +70,8 @@ impl FileBrowser {
     }
 }
 
-impl Deref for FileBrowser {
-    type Target = Frp;
-    fn deref(&self) -> &Self::Target { &self.frp }
+impl Default for FileBrowser {
+    fn default() -> Self { Self::new() }
 }
 
 impl display::Object for FileBrowser {
