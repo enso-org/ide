@@ -47,6 +47,7 @@ use ide_view::searcher::entry::AnyEntryProvider;
 use ide_view::open_dialog;
 use utils::iter::split_by_predicate;
 use futures::future::LocalBoxFuture;
+use ide_view::searcher::entry::GlyphHighlightedLabel;
 
 
 // ========================
@@ -970,7 +971,7 @@ impl Model {
             Some(Panic         { message,trace }) => Some((Kind::Panic   , Some(message),trace)),
         }?;
         let propagated = if kind == Kind::Panic {
-            let root_cause = self.get_node_causing_error_on_current_graph(&trace);
+            let root_cause = self.get_node_causing_error_on_current_graph(trace);
             !root_cause.contains(&node_id)
         } else {
             // TODO[ao]: traces are not available for Dataflow errors.
@@ -988,7 +989,7 @@ impl Model {
     fn get_node_causing_error_on_current_graph
     (&self, trace:&[ExpressionId]) -> Option<graph_editor::NodeId> {
         let node_view_by_expression = self.node_view_by_expression.borrow();
-        trace.iter().find_map(|expr_id| node_view_by_expression.get(&expr_id).copied())
+        trace.iter().find_map(|expr_id| node_view_by_expression.get(expr_id).copied())
     }
 
     fn refresh_connection_views
@@ -1080,7 +1081,7 @@ impl Model {
             self.view.show_prompt();
             self.prompt_was_shown.set(true);
         }
-        self.refresh_computed_infos(&expressions)
+        self.refresh_computed_infos(expressions)
     }
 
     /// Request controller to detach all attached visualizations.
@@ -1154,7 +1155,7 @@ impl Model {
                             let list_is_empty     = actions.matching_count() == 0;
                             let user_action       = searcher.current_user_action();
                             let intended_function = searcher.intended_function_suggestion();
-                            let provider          = DataProviderForView
+                            let provider          = SuggestionsProviderForView
                                 { actions,user_action,intended_function};
                             self.view.searcher().set_actions(Rc::new(provider));
 
@@ -1249,7 +1250,7 @@ impl Model {
     fn searcher_opened_in_ui(weak_self:Weak<Self>)
     -> impl Fn(&Self,&graph_editor::NodeId) -> FallibleResult {
         move |this,displayed_id| {
-            let node_view = this.view.graph().model.nodes.get_cloned_ref(&displayed_id);
+            let node_view = this.view.graph().model.nodes.get_cloned_ref(displayed_id);
             let position  = node_view.map(|node| node.position().xy());
             let position  = position.map(|vector| model::module::Position{vector});
             let mode      = controller::searcher::Mode::NewNode {position};
@@ -1350,7 +1351,7 @@ impl Model {
 
     fn connection_created_in_ui(&self, edge_id:&graph_editor::EdgeId) -> FallibleResult {
         debug!(self.logger, "Creating connection.");
-        let displayed = self.view.graph().model.edges.get_cloned(&edge_id).ok_or(GraphEditorInconsistency)?;
+        let displayed = self.view.graph().model.edges.get_cloned(edge_id).ok_or(GraphEditorInconsistency)?;
         let con       = self.controller_connection_from_displayed(&displayed)?;
         let inserting = self.connection_views.borrow_mut().insert(con.clone(), *edge_id);
         if inserting.did_overwrite() {
@@ -1505,7 +1506,7 @@ impl Model {
     -> FallibleResult<model::module::QualifiedName> {
         use visualization::instance::ContextModule::*;
         match context {
-            ProjectMain           => Ok(self.project.main_module()),
+            ProjectMain           => Ok(self.project.main_module()?),
             Specific(module_name) => model::module::QualifiedName::from_text(module_name),
         }
     }
@@ -1845,13 +1846,13 @@ pub enum AttachingResult<T>{
 // ===========================
 
 #[derive(Clone,Debug)]
-struct DataProviderForView {
+struct SuggestionsProviderForView {
     actions           : Rc<controller::searcher::action::List>,
     user_action       : controller::searcher::UserAction,
     intended_function : Option<controller::searcher::action::Suggestion>,
 }
 
-impl DataProviderForView {
+impl SuggestionsProviderForView {
     fn doc_placeholder_for(suggestion:&controller::searcher::action::Suggestion) -> String {
         let title = match suggestion.kind {
             suggestion_database::entry::Kind::Atom     => "Atom",
@@ -1864,18 +1865,17 @@ impl DataProviderForView {
     }
 }
 
-impl list_view::entry::ModelProvider for DataProviderForView {
+impl list_view::entry::ModelProvider<GlyphHighlightedLabel> for SuggestionsProviderForView {
     fn entry_count(&self) -> usize {
         self.actions.matching_count()
     }
 
-    fn get(&self, id: usize) -> Option<list_view::entry::Model> {
+    fn get(&self, id: usize) -> Option<list_view::entry::GlyphHighlightedLabelModel> {
         let action = self.actions.get_cloned(id)?;
         if let MatchInfo::Matches {subsequence} = action.match_info {
-            let caption          = action.action.to_string();
-            let model            = list_view::entry::Model::new(caption.clone());
-            let mut char_iter    = caption.char_indices().enumerate();
-            let highlighted_iter = subsequence.indices.iter().filter_map(|idx| loop {
+            let label         = action.action.to_string();
+            let mut char_iter = label.char_indices().enumerate();
+            let highlighted   = subsequence.indices.iter().filter_map(|idx| loop {
                 if let Some(char) = char_iter.next() {
                     let (char_idx,(byte_id,char)) = char;
                     if char_idx == *idx {
@@ -1886,16 +1886,15 @@ impl list_view::entry::ModelProvider for DataProviderForView {
                 } else {
                     break None;
                 }
-            });
-            let model = model.highlight(highlighted_iter);
-            Some(model)
+            }).collect();
+            Some(list_view::entry::GlyphHighlightedLabelModel {label,highlighted})
         } else {
             None
         }
     }
 }
 
-impl ide_view::searcher::DocumentationProvider for DataProviderForView {
+impl ide_view::searcher::DocumentationProvider for SuggestionsProviderForView {
     fn get(&self) -> Option<String> {
         use controller::searcher::UserAction::*;
         self.intended_function.as_ref().and_then(|function| match self.user_action {

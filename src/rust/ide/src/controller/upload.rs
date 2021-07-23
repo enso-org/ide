@@ -302,7 +302,7 @@ impl NodeFromDroppedFileHandler {
     }
 
     fn data_path(&self) -> Path {
-        Path::new(self.project.project_content_root_id(), &[DATA_DIR_NAME])
+        Path::new(self.project.project_content_root_id(),&[DATA_DIR_NAME])
     }
 }
 

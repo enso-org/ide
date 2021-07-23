@@ -496,7 +496,7 @@ impl Info {
         let imports = self.iter_imports().collect_vec();
         DEBUG!("add_module_import: {to_add} in {imports:?}");
         let is_here          = to_add == here;
-        let import           = ImportInfo::from_qualified_name(&to_add);
+        let import           = ImportInfo::from_qualified_name(to_add);
         let already_imported = self.iter_imports().any(|imp| imp == import);
         if !is_here && !already_imported {
             self.add_import(parser,import);
@@ -665,7 +665,7 @@ pub fn locate_line_with
 pub fn locate_child
 (ast:&known::Module, crumb:&definition::Crumb)
 -> FallibleResult<ChildDefinition> {
-    let child = ast.def_iter().find_by_name(&crumb)?;
+    let child = ast.def_iter().find_by_name(crumb)?;
     Ok(ChildDefinition::try_from(child)?)
 }
 
@@ -676,7 +676,7 @@ pub fn locate
     // Not exactly regular - we need special case for the first crumb as it is not a definition nor
     // a children. After this we can go just from one definition to another.
     let first_crumb = crumbs_iter.next().ok_or(EmptyDefinitionId)?;
-    let mut child   = ast.def_iter().find_by_name(&first_crumb)?;
+    let mut child   = ast.def_iter().find_by_name(first_crumb)?;
     for crumb in crumbs_iter {
         child = definition::resolve_single_name(child,crumb)?;
     }
