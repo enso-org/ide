@@ -10,6 +10,8 @@ use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::display::scene::Scene;
 use crate::display::scene::layer::LayerId;
+use crate::display::scene::layer::Layer;
+use crate::display::scene::layer::WeakLayer;
 
 use data::opt_vec::OptVec;
 use nalgebra::Matrix4;
@@ -61,9 +63,9 @@ impl<Host> Drop for ParentBind<Host> {
 #[allow(clippy::type_complexity)]
 pub struct Callbacks<Host> {
     on_updated              : RefCell<Option<Box<dyn Fn(&Model<Host>)>>>,
-    on_show                 : RefCell<Option<Box<dyn Fn(&Host,&[LayerId])>>>,
+    on_show                 : RefCell<Option<Box<dyn Fn(&Host,&[WeakLayer])>>>,
     on_hide                 : RefCell<Option<Box<dyn Fn(&Host)>>>,
-    on_scene_layers_changed : RefCell<Option<Box<dyn Fn(&Host,&[LayerId])>>>,
+    on_scene_layers_changed : RefCell<Option<Box<dyn Fn(&Host,&[WeakLayer])>>>,
 }
 
 impl<Host> Callbacks<Host> {
@@ -71,7 +73,7 @@ impl<Host> Callbacks<Host> {
         if let Some(f) = &*self.on_updated.borrow() { f(model) }
     }
 
-    fn on_show(&self, host:&Host, layers:&[LayerId]) {
+    fn on_show(&self, host:&Host, layers:&[WeakLayer]) {
         if let Some(f) = &*self.on_show.borrow() { f(host,layers) }
     }
 
@@ -79,7 +81,7 @@ impl<Host> Callbacks<Host> {
         if let Some(f) = &*self.on_hide.borrow() { f(host) }
     }
 
-    fn on_scene_layers_changed(&self, host:&Host, layers:&[LayerId]) {
+    fn on_scene_layers_changed(&self, host:&Host, layers:&[WeakLayer]) {
         if let Some(f) = &*self.on_scene_layers_changed.borrow() { f(host,layers) }
     }
 }
@@ -188,7 +190,7 @@ fn on_dirty_callback(f:&Rc<RefCell<Box<dyn Fn()>>>) -> OnDirtyCallback {
 #[derivative(Debug(bound=""))]
 pub struct Model<Host=Scene> {
     host         : PhantomData <Host>,
-    scene_layers : Rc<RefCell<Vec<LayerId>>>,
+    scene_layers : Rc<RefCell<Vec<WeakLayer>>>,
     dirty        : DirtyFlags  <Host>,
     callbacks    : Callbacks   <Host>,
     parent_bind  : RefCell     <Option<ParentBind<Host>>>,
@@ -276,7 +278,7 @@ impl<Host> Model<Host> {
     , parent_origin               : Matrix4<f32>
     , parent_origin_changed       : bool
     , parent_scene_layers_changed : bool
-    , parent_scene_layers         : &[LayerId]
+    , parent_scene_layers         : &[WeakLayer]
     ) {
         // === Scene Layers Update ===
 
@@ -343,7 +345,7 @@ impl<Host> Model<Host> {
     }
 
     /// Hide all removed children and show this display object if it was attached to a new parent.
-    fn update_visibility(&self, host:&Host, parent_scene_layers:&[LayerId]) {
+    fn update_visibility(&self, host:&Host, parent_scene_layers:&[WeakLayer]) {
         self.take_removed_children_and_update_their_visibility(host);
         let parent_changed = self.dirty.parent.check();
         if parent_changed && !self.is_orphan() {
@@ -381,7 +383,7 @@ impl<Host> Model<Host> {
         }
     }
 
-    fn set_vis_true(&self, host:&Host, parent_scene_layers:&[LayerId]) {
+    fn set_vis_true(&self, host:&Host, parent_scene_layers:&[WeakLayer]) {
        if !self.visible.get() {
            info!(self.logger,"Showing.");
            let this_scene_layers       = self.scene_layers.borrow();
@@ -500,7 +502,7 @@ impl<Host> Model<Host> {
     /// Sets a callback which will be called with a reference to scene when the object will be
     /// shown (attached to visible display object graph).
     pub fn set_on_show<F>(&self, f:F)
-    where F : Fn(&Host,&[LayerId])+'static {
+    where F : Fn(&Host,&[WeakLayer])+'static {
         self.callbacks.on_show.set(Box::new(f))
     }
 
@@ -514,7 +516,7 @@ impl<Host> Model<Host> {
     /// Sets a callback which will be called with a reference to scene and list of scene layers this
     /// object was attached to on every change to the scene layers assignment.
     pub fn set_on_scene_layer_changed<F>(&self, f:F)
-    where F : Fn(&Host,&[LayerId]) + 'static {
+    where F : Fn(&Host,&[WeakLayer]) + 'static {
         self.callbacks.on_scene_layers_changed.set(Box::new(f))
     }
 }
@@ -604,7 +606,8 @@ impl<Host> Instance<Host> {
 
     /// Add this object to the provided scene layer and remove it from all other layers. Do not use
     /// this method explicitly. Use layers' methods instead.
-    pub(crate) fn add_to_scene_layer(&self, layer:LayerId) {
+    pub(crate) fn add_to_scene_layer(&self, layer:&Layer) {
+        let layer = layer.downgrade();
         self.dirty.scene_layer.set();
         let mut scene_layers = self.scene_layers.borrow_mut();
         if !scene_layers.contains(&layer) {
@@ -614,14 +617,15 @@ impl<Host> Instance<Host> {
 
     /// Add this object to the provided scene layer and remove it from all other layers. Do not use
     /// this method explicitly. Use layers' methods instead.
-    pub(crate) fn add_to_scene_layer_exclusive(&self, layer:LayerId) {
+    pub(crate) fn add_to_scene_layer_exclusive(&self, layer:&Layer) {
         self.dirty.scene_layer.set();
-        *self.scene_layers.borrow_mut() = vec![layer];
+        *self.scene_layers.borrow_mut() = vec![layer.downgrade()];
     }
 
     /// Remove this object from the provided scene layer. Do not use this method explicitly. Use
     /// layers' methods instead.
-    pub(crate) fn remove_from_scene_layer(&self, layer:LayerId) {
+    pub(crate) fn remove_from_scene_layer(&self, layer:&Layer) {
+        let layer = layer.downgrade();
         self.dirty.scene_layer.set();
         self.scene_layers.borrow_mut().remove_item(&layer);
     }

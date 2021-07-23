@@ -12,6 +12,7 @@ use crate::display::scene::MouseTarget;
 use crate::display::scene::Scene;
 use crate::display::scene::ShapeRegistry;
 use crate::display::scene::layer::LayerId;
+use crate::display::scene::layer::WeakLayer;
 use crate::display::scene;
 use crate::display::shape::primitive::system::DynamicShape;
 use crate::display::shape::primitive::system::DynamicShapeInternals;
@@ -164,13 +165,13 @@ impl<S> Drop for ShapeViewModel<S> {
 }
 
 impl<S:DynamicShapeInternals> ShapeViewModel<S> {
-    fn on_scene_layers_changed(&self, scene:&Scene, layers:&[LayerId]) {
+    fn on_scene_layers_changed(&self, scene:&Scene, layers:&[WeakLayer]) {
         DEBUG!("on_scene_layers_changed: {layers:?}");
         self.drop_from_all_scene_layers();
-        let default_layers = &[scene.layers.main.id()];
+        let default_layers = &[scene.layers.main.downgrade()];
         let target_layers  = if layers.is_empty() { default_layers } else { layers };
-        for &layer_id in target_layers {
-            if let Some(layer) = scene.layers.get_child(layer_id) {
+        for weak_layer in target_layers {
+            if let Some(layer) = weak_layer.upgrade() {
                 self.add_to_scene_layer(scene,&layer)
             }
         }
@@ -195,8 +196,9 @@ impl<S:DynamicShape> ShapeViewModel<S> {
     }
 
     fn add_to_scene_layer(&self, scene:&Scene, layer:&scene::Layer) {
-        DEBUG!("add_to_scene_layer: {layer:?}");
+        DEBUG!(">>> add_to_scene_layer: {layer:?}");
         let (shape_system_info,symbol_id,instance_id) = layer.shape_system_registry.instantiate(scene,&self.shape);
+        DEBUG!("created {symbol_id:?} {instance_id:?}");
         // FIXME: This is implemented incorrectly, as it does not remove the shape from other layers if the symbol_id is different:
         layer.add_shape_exclusive(shape_system_info,symbol_id);
         scene.shapes.insert_mouse_target(symbol_id,instance_id,self.events.clone_ref());

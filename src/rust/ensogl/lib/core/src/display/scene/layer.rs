@@ -151,9 +151,14 @@ impl Layer {
         Self {model}
     }
 
-    fn downgrade(&self) -> WeakLayer {
+    pub fn downgrade(&self) -> WeakLayer {
         let model = Rc::downgrade(&self.model);
         WeakLayer {model}
+    }
+
+    /// Add the display object to this layer and remove it from any other layers.
+    pub fn add_exclusive(&self, object:impl display::Object) {
+        object.display_object().add_to_scene_layer_exclusive(self);
     }
 }
 
@@ -179,7 +184,7 @@ impl From<&Camera2d> for Layer {
 
 /// A weak version of [`Layer`].
 #[derive(Clone,CloneRef)]
-struct WeakLayer {
+pub struct WeakLayer {
     model : Weak<LayerModel>
 }
 
@@ -195,6 +200,12 @@ impl Debug for WeakLayer {
     }
 }
 
+impl Eq for WeakLayer {}
+impl PartialEq for WeakLayer {
+    fn eq(&self, other:&Self) -> bool {
+        self.model.ptr_eq(&other.model)
+    }
+}
 
 
 // ==================
@@ -223,7 +234,7 @@ pub struct LayerModel {
 
 impl Debug for LayerModel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f,"Layer{{id: {}, registry: {:?}}}",self.id(),self.shape_system_registry)
+        write!(f,"Layer{{id: {}, registry: {:?}, elements: {:?}}}",self.id(),self.shape_system_registry, self.elements)
     }
 }
 
@@ -370,11 +381,6 @@ impl LayerModel {
         *self.camera.borrow_mut() = camera;
     }
 
-    /// Add the display object to this layer and remove it from any other layers.
-    pub fn add_exclusive(&self, object:impl display::Object) {
-        object.display_object().add_to_scene_layer_exclusive(self.id());
-    }
-
     /// Add the symbol to this layer.
     pub fn add_symbol(&self, symbol_id:impl Into<SymbolId>) {
         self.add_element(symbol_id.into(),None)
@@ -405,6 +411,7 @@ impl LayerModel {
 
     /// Internal helper for adding elements to this layer.
     fn add_element(&self, symbol_id:SymbolId, shape_system_info:Option<ShapeSystemInfo>) {
+        DEBUG!("add_element (self: {self.id()}) {symbol_id:?} {shape_system_info:?}");
         self.depth_order_dirty.set();
         match shape_system_info {
             None       => { self.elements.borrow_mut().insert(LayerItem::Symbol(symbol_id)); }
@@ -440,8 +447,10 @@ impl LayerModel {
 
     /// Remove the symbol from all layers it was attached to.
     fn remove_symbol_from_all_layers(&self, symbol_id:SymbolId) {
+        DEBUG!("remove_symbol_from_all_layers {symbol_id:?}");
         for parent in &*self.parents.borrow() {
             let placement = parent.borrow().symbols_placement.get(&symbol_id).cloned();
+            DEBUG!("found in: {placement:?}");
             if let Some(placement) = placement {
                 for layer_id in placement {
                     let opt_layer = parent.borrow().get(layer_id);

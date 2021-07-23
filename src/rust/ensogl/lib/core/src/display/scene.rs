@@ -611,22 +611,22 @@ impl Renderer {
 /// should be abstracted away in the future.
 #[derive(Clone,CloneRef,Debug)]
 pub struct HardcodedLayers {
-    pub viz                    : Layer,
-    pub below_main             : Layer,
-    pub main                   : Layer,
-    pub port_selection         : Layer,
-    pub label                  : Layer,
-    pub above_nodes            : Layer,
-    pub above_nodes_text       : Layer,
+    pub viz              : Layer,
+    pub below_main       : Layer,
+    pub main             : Layer,
+    pub port_selection   : Layer,
+    pub label            : Layer,
+    pub above_nodes      : Layer,
+    pub above_nodes_text : Layer,
     /// Layer containing all panels with fixed position (not moving with the panned scene):
     /// like status bar, breadcrumbs or similar.
-    pub panel                  : Layer,
-    pub panel_text             : Layer,
-    pub tooltip                : Layer,
-    pub tooltip_text           : Layer,
-    pub cursor                 : Layer,
-    root                       : Layer,
-    pub mask                   : Layer,
+    pub panel            : Layer,
+    pub panel_text       : Layer,
+    pub tooltip          : Layer,
+    pub tooltip_text     : Layer,
+    pub cursor           : Layer,
+    root                 : Layer,
+    pub mask             : Layer,
 }
 
 impl Deref for HardcodedLayers {
