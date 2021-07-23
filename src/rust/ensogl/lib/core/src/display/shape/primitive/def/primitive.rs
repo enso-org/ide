@@ -331,19 +331,6 @@ define_sdf_shapes! {
         return bound_sdf(dist,bounding_box(width,height/2.0));
     }
 
-    ExactTriangle (width:f32, height:f32) {
-        vec2 q = vec2(width/2.0,-height);
-        position.x = abs(position.x);
-        position.y = position.y - height / 2.0;
-        vec2 a  = position - q * clamp( dot(position,q)/dot(q,q), 0.0, 1.0 );
-        vec2 b  = position - q * vec2( clamp( position.x/q.x, 0.0, 1.0 ), 1.0 );
-        float s = -sign( q.y );
-        vec2 d = min( vec2( dot(a,a), s*(position.x*q.y-position.y*q.x) ),
-                      vec2( dot(b,b), s*(position.y-q.y)  ));
-        float dist = -sqrt(d.x) * sign(d.y);
-        return bound_sdf(dist,bounding_box(width,height/2.0));
-    }
-
 
     // === Uneven Capsule ===
 
