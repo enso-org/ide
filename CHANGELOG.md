@@ -8,11 +8,9 @@ these updates be shipped in a stable release before the end of the year.
 
 #### Visual Environment
 
-- [File or Project Open Dialog][1700]. <kbd>ctrl/cmd</kbd>+<kbd>o</kbd> will
-  display a new File or Project Open Dialog. Here you can open another project,
-  or pick a file from browser: the file will be inserted as a node to the
-  current graph.
-  
+- [New look of open project dialog.][1700]. Now it has "Open project" title on
+  the top.
+
 <br/>
 
 #### Enso Compiler
@@ -22,6 +20,9 @@ these updates be shipped in a stable release before the end of the year.
   details in
   [the engine release notes](https://github.com/enso-org/enso/blob/main/RELEASES.md).
 
+<br/>
+
+[1700]: https://github.com/enso-org/ide/pull/1700
 [1710]: https://github.com/enso-org/ide/pull/1710
 
 # Enso 2.0.0-alpha.9 (2021-07-16)
@@ -38,7 +39,6 @@ these updates be shipped in a stable release before the end of the year.
   
 [1640]: https://github.com/enso-org/ide/pull/1653
 
-
 # Enso 2.0.0-alpha.8 (2021-06-09)
 
 <br/>![New Features](/docs/assets/tags/new_features.svg)
@@ -49,7 +49,7 @@ these updates be shipped in a stable release before the end of the year.
   enhancements and fixes made to the Enso compiler, you can find out more
   details in
   [the engine release notes](https://github.com/enso-org/enso/blob/main/RELEASES.md).
-  
+
 [1640]: https://github.com/enso-org/ide/pull/1640
 
 <br/>
