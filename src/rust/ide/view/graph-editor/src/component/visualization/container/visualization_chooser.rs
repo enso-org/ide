@@ -15,6 +15,7 @@ use enso_frp as frp;
 use enso_frp;
 use ensogl::application::Application;
 use ensogl::display;
+use ensogl_gui_components::list_view;
 use ensogl_gui_components::drop_down_menu;
 
 
@@ -58,7 +59,7 @@ struct Model {
 
 impl Model {
     pub fn new(app:&Application, registry:visualization::Registry) -> Self {
-        let selection_menu = drop_down_menu::DropDownMenu::new(&app);
+        let selection_menu = drop_down_menu::DropDownMenu::new(app);
         app.display.scene().layers.below_main.add_exclusive(&selection_menu);
         Self{selection_menu,registry}
     }
@@ -146,13 +147,19 @@ impl VisualizationChooser {
 
             // === Showing Entries ===
 
-            menu_appears       <- menu.menu_visible.gate(&menu.menu_visible).constant(());
-            input_type_changed <- frp.set_vis_input_type.gate(&menu.menu_visible).constant(());
-            refresh_entries    <- any(menu_appears,input_type_changed);
-            frp.source.entries <+ refresh_entries.map2(&frp.vis_input_type,f!([model] ((),input_type){
-                let entries = Rc::new(model.entries(input_type));
-                let labels  = entries.iter().map(|e| e.to_string()).collect_vec();
-                model.selection_menu.set_entries(Rc::new(labels));
+            menu_appears <- menu.menu_visible.gate(&menu.menu_visible).constant(());
+
+            // We want to update entries according to the input type, but only when it changed and
+            // menu is visible.
+            input_type_when_visible  <- frp.set_vis_input_type.gate(&menu.menu_visible);
+            input_type_when_appeared <- frp.set_vis_input_type.sample(&menu_appears);
+            input_type               <- any(input_type_when_visible,input_type_when_appeared);
+            input_type_changed       <- input_type.on_change();
+
+            frp.source.entries <+ input_type_changed.map(f!([model] (input_type){
+                let entries  = Rc::new(model.entries(input_type));
+                let provider = list_view::entry::AnyModelProvider::from(entries.clone_ref());
+                model.selection_menu.set_entries(provider);
                 entries
             }));
         }

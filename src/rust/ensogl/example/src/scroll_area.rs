@@ -64,7 +64,7 @@ fn init(app:&Application) {
 
     // === Scroll Area ===
 
-    let scroll_area = ScrollArea::new(&app);
+    let scroll_area = ScrollArea::new(app);
     app.display.add_child(&scroll_area);
     scroll_area.resize(Vector2(200.0,200.0));
     scroll_area.set_content_width(300.0);
@@ -75,7 +75,7 @@ fn init(app:&Application) {
 
     let sprite_system  = ShapeSystem::new(scene,&Circle(50.px()));
     let sprite: Sprite = sprite_system.new_instance();
-    scroll_area.content().add_child(&sprite);
+    scroll_area.content.add_child(&sprite);
     sprite.size.set(Vector2::new(100.0,100.0));
     sprite.set_position_x(100.0);
     sprite.set_position_y(-100.0);
