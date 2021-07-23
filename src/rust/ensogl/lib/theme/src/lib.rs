@@ -174,8 +174,13 @@ define_themes! { [light:0, dark:1]
                 }
             }
         }
+        file_browser {
+            width  = 0.0,   0.0; // Should be updated when file browser will be implemented.
+            height = 421.0, 421.0;
+        }
         open_dialog {
-            gap_between_panels = 16.0, 16.0;
+            // Should be updated when file browser will be implemented.
+            gap_between_panels = 0.0, 0.0;
         }
         project_list {
             width      = 202.0 , 202.0;

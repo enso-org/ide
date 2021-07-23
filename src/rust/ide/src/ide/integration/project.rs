@@ -33,7 +33,6 @@ use enso_data::text::TextChange;
 use enso_frp as frp;
 use enso_protocol::language_server::ExpressionUpdatePayload;
 use ensogl::display::traits::*;
-use ensogl::display;
 use ensogl_gui_components::file_browser::model::AnyFolderContent;
 use ensogl_gui_components::list_view;
 use ensogl_web::drop;
@@ -43,7 +42,7 @@ use ide_view::graph_editor::component::visualization;
 use ide_view::graph_editor::EdgeEndpoint;
 use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
-use ide_view::searcher::entry::AnyEntryProvider;
+use ide_view::searcher::entry::AnyModelProvider;
 use ide_view::open_dialog;
 use utils::iter::split_by_predicate;
 use futures::future::LocalBoxFuture;
@@ -1506,7 +1505,7 @@ impl Model {
     -> FallibleResult<model::module::QualifiedName> {
         use visualization::instance::ContextModule::*;
         match context {
-            ProjectMain           => Ok(self.project.main_module()?),
+            ProjectMain           => Ok(self.project.main_module()),
             Specific(module_name) => model::module::QualifiedName::from_text(module_name),
         }
     }
@@ -1545,7 +1544,7 @@ impl Model {
                         Ok(projects) => {
                             let entries = ProjectsToOpen::new(projects);
                             this.displayed_project_list.set(entries.clone_ref());
-                            let any_entries:AnyEntryProvider = entries.into();
+                            let any_entries = AnyModelProvider::new(entries);
                             this.view.open_dialog().project_list.set_entries(any_entries)
                         },
                         Err(error) => error!(this.logger,"Error when loading project's list: {error}"),
@@ -1943,10 +1942,11 @@ impl ProjectsToOpen {
     }
 }
 
-impl list_view::entry::EntryProvider for ProjectsToOpen {
+impl list_view::entry::ModelProvider<open_dialog::project_list::Entry> for ProjectsToOpen {
     fn entry_count(&self) -> usize { self.projects.len() }
 
-    fn get(&self, app: &Application, id: usize) -> Option<list_view::entry::AnyEntry> {
-        Some(open_dialog::project_list::Entry::new(app, self.projects.get(id)?.name.as_str()).into())
+    fn get(&self, id:list_view::entry::Id)
+    -> Option<<open_dialog::project_list::Entry as list_view::Entry> ::Model> {
+        Some(<[controller::ide::ProjectMetadata]>::get(&self.projects,id)?.name.clone().into())
     }
 }

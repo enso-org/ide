@@ -9,11 +9,8 @@ use crate::file_browser::model::*;
 
 use ensogl_core::display::shape::*;
 use std::path::PathBuf;
-use ensogl_core::display::object::ObjectOps;
-use ensogl_theme as theme;
-use ensogl_text as text;
-use ensogl_core::data::color;
-
+use ensogl_core::display;
+use ensogl_core::display::Scene;
 
 
 // ===========
@@ -51,9 +48,27 @@ ensogl_core::define_endpoints! {
 /// A file browser component. It allows to browse the content of a folder and it's subfolders and
 /// emits an event when an entry is chosen.
 #[derive(Clone,CloneRef,Debug)]
-pub struct FileBrowser(Rc<Frp>);
+pub struct FileBrowser {
+    logger         : Logger,
+    frp            : Frp,
+    display_object : display::object::Instance,
+}
+
+impl FileBrowser {
+    /// Constructore
+    pub fn new() -> Self {
+        let logger         = Logger::new("FileBrowser");
+        let frp            = Frp::new();
+        let display_object = display::object::Instance::new(&logger);
+        Self {logger,frp,display_object}
+    }
+}
 
 impl Deref for FileBrowser {
     type Target = Frp;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target { &self.frp }
+}
+
+impl display::Object for FileBrowser {
+    fn display_object(&self) -> &display::object::Instance<Scene> {&self.display_object }
 }

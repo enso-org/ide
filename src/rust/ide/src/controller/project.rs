@@ -5,9 +5,8 @@ use crate::prelude::*;
 use crate::controller::graph::executed::Notification as GraphNotification;
 use crate::controller::ide::StatusNotificationPublisher;
 use crate::double_representation::project;
-use crate::model::traits::*;
-use crate::double_representation::project;
 use crate::model::module::QualifiedName;
+use crate::model::traits::*;
 
 use enso_frp::web::platform;
 use enso_frp::web::platform::Platform;

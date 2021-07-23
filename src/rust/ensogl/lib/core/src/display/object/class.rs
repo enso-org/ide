@@ -1477,20 +1477,20 @@ mod tests {
         node1.add_child(&node2);
         node1.add_child(&node3);
         node1.update(&());
-        assert_eq!(node1.main_layer(), None);
-        assert_eq!(node2.main_layer(), None);
-        assert_eq!(node3.main_layer(), None);
+        assert_eq!(node1.scene_layers(), vec![]);
+        assert_eq!(node2.scene_layers(), vec![]);
+        assert_eq!(node3.scene_layers(), vec![]);
 
         node1.add_to_scene_layer(layer1);
         node1.update(&());
-        assert_eq!(node1.main_layer(), Some(layer1));
-        assert_eq!(node2.main_layer(), Some(layer1));
-        assert_eq!(node3.main_layer(), Some(layer1));
+        assert_eq!(node1.scene_layers(), vec![layer1]);
+        assert_eq!(node2.scene_layers(), vec![layer1]);
+        assert_eq!(node3.scene_layers(), vec![layer1]);
 
         node2.add_to_scene_layer_exclusive(layer2);
         node1.update(&());
-        assert_eq!(node1.main_layer(), Some(layer1));
-        assert_eq!(node2.main_layer(), Some(layer2));
-        assert_eq!(node3.main_layer(), Some(layer1));
+        assert_eq!(node1.scene_layers(), vec![layer1]);
+        assert_eq!(node2.scene_layers(), vec![layer2]);
+        assert_eq!(node3.scene_layers(), vec![layer1]);
     }
 }

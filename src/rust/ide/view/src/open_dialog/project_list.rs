@@ -17,52 +17,8 @@ use ensogl_theme::application::project_list as theme;
 // === Entry ===
 // =============
 
-/// The project entry widget for the [`list_view::ListView`] inside [`ProjectList`].
-#[derive(Clone,CloneRef,Debug)]
-pub struct Entry {
-    display_object : display::object::Instance,
-    network        : frp::Network,
-    style_watch    : StyleWatchFrp,
-    label          : ensogl_text::Area,
-}
-
-impl Entry {
-    /// Create entry for a project with given name.
-    pub fn new(app:&Application, name:impl Str) -> Self {
-        let logger         = Logger::new("project_list::Entry");
-        let display_object = display::object::Instance::new(logger);
-        let network        = frp::Network::new("project_list::Entry");
-        let label          = app.new_view::<ensogl_text::Area>();
-        let style_watch    = StyleWatchFrp::new(&app.display.scene().style_sheet);
-        let text_color     = style_watch.get_color(theme::text);
-        let text_size      = style_watch.get_number(theme::text::size);
-        let text_padding   = style_watch.get_number(theme::text::padding);
-        display_object.add_child(&label);
-        label.set_default_color(text_color.value());
-        label.set_default_text_size(text::Size(text_size.value()));
-        label.set_position_xy(Vector2(text_padding.value(), text_size.value() / 2.0));
-        label.set_content(name.as_ref());
-        label.remove_from_scene_layer(&app.display.scene().layers.main);
-        label.add_to_scene_layer(&app.display.scene().layers.panel_text);
-        frp::extend! { network
-            eval text_color   ((color)   label.set_default_color(color));
-            eval text_size    ((size)    label.set_default_text_size(text::Size(*size)));
-            eval text_padding ((padding) label.set_position_x(*padding));
-        }
-        Self {display_object,network,style_watch,label}
-    }
-}
-
-impl display::Object for Entry {
-    fn display_object(&self) -> &display::object::Instance { &self.display_object }
-}
-
-impl list_view::entry::Entry for Entry {
-    fn set_focused(&self, _selected: bool) {}
-
-    fn set_width(&self, _width: f32) {}
-}
-
+/// The entry in project list.
+pub type Entry = list_view::entry::Label;
 
 
 // ==============
@@ -114,12 +70,12 @@ pub struct ProjectList {
     display_object : display::object::Instance,
     background     : background::View, //TODO[ao] use Card instead.
     caption        : text::Area,
-    list           : list_view::ListView,
+    list           : list_view::ListView<Entry>,
     style_watch    : StyleWatchFrp,
 }
 
 impl Deref for ProjectList {
-    type Target = list_view::Frp;
+    type Target = list_view::Frp<Entry>;
 
     fn deref(&self) -> &Self::Target { &self.list.frp }
 }
@@ -132,14 +88,14 @@ impl ProjectList {
         let display_object = display::object::Instance::new(&logger);
         let background     = background::View::new(&logger);
         let caption        = app.new_view::<text::Area>();
-        let list           = app.new_view::<list_view::ListView>();
+        let list           = app.new_view::<list_view::ListView<Entry>>();
         display_object.add_child(&background);
         display_object.add_child(&caption);
         display_object.add_child(&list);
         app.display.scene().layers.panel.add_exclusive(&display_object);
         caption.set_content("Open Project");
-        caption.remove_from_scene_layer(&app.display.scene().layers.main);
         caption.add_to_scene_layer(&app.display.scene().layers.panel_text);
+        list.set_label_layer(app.display.scene().layers.panel_text.id);
 
         ensogl::shapes_order_dependencies! {
             app.display.scene() => {
