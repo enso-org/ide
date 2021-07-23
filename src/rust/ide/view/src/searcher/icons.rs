@@ -217,8 +217,8 @@ mod text_input {
 
             // We construct the letter "A", consisting of a diagonal stroke on the left, a diagonal
             // stroke on the right and a horizontal bar in the middle.
-            let left_stroke   = RoundedLineSegment(((-2.5).px(),(-5.0).px()),1.0.px());
-            let right_stroke  = RoundedLineSegment((2.5.px() ,(-5.0).px()),1.0.px());
+            let left_stroke   = Segment(((-2.5).px(),(-5.0).px()),1.0.px());
+            let right_stroke  = Segment((2.5.px() ,(-5.0).px()),1.0.px());
             let bar           = Rect((4.0.px(),1.0.px())).translate_y((-3.5).px());
             let letter        = left_stroke + right_stroke + bar;
             let letter        = letter.translate_x((-2.5).px()).translate_y(2.5.px());
@@ -725,8 +725,8 @@ mod date_and_time {
             let circle = Circle(7.75.px());
             let circle = &circle - circle.shrink(1.0.px());
 
-            let big_hand   = RoundedLineSegment((3.0.px(),(-2.0).px()),1.5.px());
-            let small_hand = RoundedLineSegment((0.0.px(),2.5.px()),1.5.px());
+            let big_hand   = Segment((3.0.px(),(-2.0).px()),1.5.px());
+            let small_hand = Segment((0.0.px(),2.5.px()),1.5.px());
 
             let shape = circle + big_hand + small_hand;
             let shape = shape.translate((0.25.px(),0.25.px()));

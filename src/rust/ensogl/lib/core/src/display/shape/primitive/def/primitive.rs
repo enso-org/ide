@@ -206,7 +206,7 @@ define_sdf_shapes! {
     // === RoundedLineSegment ===
 
     /// A line segment from the origin to `target` with rounded endpoints.
-    RoundedLineSegment (target:Vector2<Pixels>, width:Pixels) {
+    Segment (target:Vector2<Pixels>, width:Pixels) {
         // The implementation of this shape was adapted from here:
         // https://iquilezles.org/www/articles/distfunctions2d/distfunctions2d.htm
 
