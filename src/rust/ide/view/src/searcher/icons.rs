@@ -172,8 +172,8 @@ mod text_input {
 
             // We construct the letter "A", consisting of a diagonal stroke on the left, a diagonal
             // stroke on the right and a horizontal bar in the middle.
-            let left_stroke   = RoundedLineSegment(((-2.5).px(),(-5.0).px()),1.0.px());
-            let right_stroke  = RoundedLineSegment((2.5.px() ,(-5.0).px()),1.0.px());
+            let left_stroke   = Segment(((-2.5).px(),(-5.0).px()),1.0.px());
+            let right_stroke  = Segment((2.5.px() ,(-5.0).px()),1.0.px());
             let bar           = Rect((4.0.px(),1.0.px())).translate_y((-3.5).px());
             let letter        = left_stroke + right_stroke + bar;
             let letter        = letter.translate_x((-2.5).px()).translate_y(2.5.px());
