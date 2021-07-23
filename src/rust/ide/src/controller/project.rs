@@ -31,6 +31,7 @@ pub const ENGINE_VERSION_SUPPORTED        : &str = "^0.2.15";
 // Usually it is a good idea to synchronize this version with the bundled Engine version in
 // src/js/lib/project-manager/src/build.ts. See also https://github.com/enso-org/ide/issues/1359
 pub const ENGINE_VERSION_FOR_NEW_PROJECTS : &str = "0.2.15";
+/// The Edition used in projects created in IDE.
 pub const EDITION_FOR_NEW_PROJECTS : &str = "2021.3";
 
 /// The name of the module initially opened in the project view.
