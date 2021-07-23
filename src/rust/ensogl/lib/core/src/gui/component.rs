@@ -165,6 +165,7 @@ impl<S> Drop for ShapeViewModel<S> {
 
 impl<S:DynamicShapeInternals> ShapeViewModel<S> {
     fn on_scene_layers_changed(&self, scene:&Scene, layers:&[LayerId]) {
+        DEBUG!("on_scene_layers_changed: {layers:?}");
         self.drop_from_all_scene_layers();
         let default_layers = &[scene.layers.main.id()];
         let target_layers  = if layers.is_empty() { default_layers } else { layers };
@@ -194,6 +195,7 @@ impl<S:DynamicShape> ShapeViewModel<S> {
     }
 
     fn add_to_scene_layer(&self, scene:&Scene, layer:&scene::Layer) {
+        DEBUG!("add_to_scene_layer: {layer:?}");
         let (shape_system_info,symbol_id,instance_id) = layer.shape_system_registry.instantiate(scene,&self.shape);
         // FIXME: This is implemented incorrectly, as it does not remove the shape from other layers if the symbol_id is different:
         layer.add_shape_exclusive(shape_system_info,symbol_id);

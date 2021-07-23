@@ -202,7 +202,7 @@ impl Debug for WeakLayer {
 // ==================
 
 /// Internal representation of [`Layer`].
-#[derive(Debug,Clone)]
+#[derive(Clone)]
 #[allow(missing_docs)]
 pub struct LayerModel {
     logger                          : Logger,
@@ -219,6 +219,12 @@ pub struct LayerModel {
     children                        : Children,
     mask                            : RefCell<Option<WeakLayer>>,
     mem_mark                        : Rc<()>,
+}
+
+impl Debug for LayerModel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f,"Layer{{id: {}, registry: {:?}}}",self.id(),self.shape_system_registry)
+    }
 }
 
 impl Drop for LayerModel {
@@ -689,6 +695,8 @@ impl ChildrenModel {
     }
 }
 
+
+
 // ===============
 // === LayerId ===
 // ===============
@@ -698,6 +706,7 @@ newtype_prim! {
     /// The ID of a layer. Under the hood, it is the index of the layer.
     LayerId(usize);
 }
+
 
 
 // =================
@@ -719,6 +728,8 @@ impl From<ShapeSystemId> for LayerItem {
     }
 }
 
+
+
 // =====================
 // === ShapeRegistry ===
 // =====================
@@ -730,7 +741,7 @@ shared! { ShapeSystemRegistry
 /// call. After adding a [`DynamicShape`] to a layer, it will get instantiated (its shape will be
 /// created), and because of this structure, it will share the same shape system as other shapes of
 /// the same type on the same layer. Read the docs of [`DynamicShape`] to learn more.
-#[derive(Debug,Default)]
+#[derive(Default)]
 pub struct ShapeSystemRegistryData {
     shape_system_map : HashMap<TypeId,Box<dyn Any>>,
 }
@@ -780,6 +791,12 @@ impl {
         (shape_system_info,symbol_id,instance_id)
     }
 }}
+
+impl Debug for ShapeSystemRegistry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f,"ShapeSystemRegistry({:?})",self.rc.borrow().shape_system_map.keys().collect_vec())
+    }
+}
 
 
 
