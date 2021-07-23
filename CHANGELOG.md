@@ -13,6 +13,12 @@ these updates be shipped in a stable release before the end of the year.
 
 <br/>
 
+[1700]: https://github.com/enso-org/ide/pull/1700
+
+# Enso 2.0.0-alpha.10 (2021-07-23)
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
 #### Enso Compiler
 
 - [Updated Enso engine to version 0.2.15][1710]. If you're interested in the
@@ -22,7 +28,6 @@ these updates be shipped in a stable release before the end of the year.
 
 <br/>
 
-[1700]: https://github.com/enso-org/ide/pull/1700
 [1710]: https://github.com/enso-org/ide/pull/1710
 
 # Enso 2.0.0-alpha.9 (2021-07-16)
