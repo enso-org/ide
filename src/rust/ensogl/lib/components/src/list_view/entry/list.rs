@@ -72,7 +72,7 @@ where E::Model : Default {
         let entries_range  = Rc::new(CloneCell::new(default()..default()));
         let display_object = display::object::Instance::new(&logger);
         let provider       = default();
-        let label_layer    = Rc::new(Cell::new(app.display.scene().layers.label.id));
+        let label_layer    = Rc::new(Cell::new(app.display.scene().layers.label.id()));
         List {logger,app,display_object,entries,entries_range,provider,label_layer}
     }
 
@@ -163,7 +163,7 @@ where E::Model : Default {
 
     /// Sets the scene layer where the labels will be placed.
     pub fn set_label_layer(&self, label_layer:LayerId) {
-        if let Some(layer) = self.app.display.scene().layers.get(self.label_layer.get()) {
+        if let Some(layer) = self.app.display.scene().layers.get_child(self.label_layer.get()) {
             for entry in &*self.entries.borrow() {
                 entry.entry.set_label_layer(&layer);
             }
@@ -176,7 +176,7 @@ where E::Model : Default {
 
     fn create_new_entry(&self) -> DisplayedEntry<E> {
         let layers = &self.app.display.scene().layers;
-        let layer  = layers.get(self.label_layer.get()).unwrap_or_else(|| {
+        let layer  = layers.get_child(self.label_layer.get()).unwrap_or_else(|| {
             error!(self.logger, "Cannot set layer {self.label_layer:?} for labels: the layer does \
                 not exist in the scene");
             layers.main.clone_ref()
