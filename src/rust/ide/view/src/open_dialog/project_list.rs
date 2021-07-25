@@ -95,7 +95,7 @@ impl ProjectList {
         app.display.scene().layers.panel.add_exclusive(&display_object);
         caption.set_content("Open Project");
         caption.add_to_scene_layer(&app.display.scene().layers.panel_text);
-        list.set_label_layer(app.display.scene().layers.panel_text.id);
+        list.set_label_layer(app.display.scene().layers.panel_text.id());
 
         ensogl::shapes_order_dependencies! {
             app.display.scene() => {

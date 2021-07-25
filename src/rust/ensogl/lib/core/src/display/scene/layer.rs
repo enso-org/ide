@@ -754,6 +754,22 @@ impl From<ShapeSystemId> for LayerItem {
 // === ShapeRegistry ===
 // =====================
 
+pub struct ShapeSystemRegistryEntry {
+    shape_system   : Box<dyn Any>,
+    instance_count : usize,
+}
+
+impl Debug for ShapeSystemRegistryEntry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Debug::fmt(&self.instance_count,f)
+    }
+}
+
+pub struct ShapeSystemRegistryEntryRefMut<'t,T> {
+    shape_system   : &'t mut T,
+    instance_count : &'t mut usize,
+}
+
 shared! { ShapeSystemRegistry
 /// A per [`Scene`] [`Layer`] user defined shape system registry. It is used as a cache for existing
 /// shape system instances. When creating a shape instance, we often want it to share the same shape
@@ -761,64 +777,96 @@ shared! { ShapeSystemRegistry
 /// call. After adding a [`DynamicShape`] to a layer, it will get instantiated (its shape will be
 /// created), and because of this structure, it will share the same shape system as other shapes of
 /// the same type on the same layer. Read the docs of [`DynamicShape`] to learn more.
-#[derive(Default)]
+#[derive(Default,Debug)]
 pub struct ShapeSystemRegistryData {
-    shape_system_map : HashMap<TypeId,Box<dyn Any>>,
+    shape_system_map : HashMap<TypeId,ShapeSystemRegistryEntry>,
 }
 
 impl {
-    fn get<T>(&self) -> Option<T>
-    where T : ShapeSystemInstance {
-        let id = TypeId::of::<T>();
-        self.shape_system_map.get(&id).and_then(|t| t.downcast_ref::<T>()).map(|t| t.clone_ref())
-    }
-
-    fn register<T>(&mut self, scene:&Scene) -> T
-    where T : ShapeSystemInstance {
-        let id     = TypeId::of::<T>();
-        let system = <T as ShapeSystemInstance>::new(scene);
-        let any    = Box::new(system.clone_ref());
-        self.shape_system_map.insert(id,any);
-        system
-    }
-
-    fn get_or_register<T>(&mut self, scene:&Scene) -> T
-    where T : ShapeSystemInstance {
-        self.get().unwrap_or_else(|| self.register(scene))
-    }
-
     // TODO: This API requires Scene to be passed as argument, which is ugly. Consider splitting
     //       the Scene into few components.
     /// Query the registry for a user defined shape system of a given type. In case the shape system
     /// was not yet used, it will be created.
     pub fn shape_system<T>(&mut self, scene:&Scene, _phantom:PhantomData<T>) -> DynShapeSystemOf<T>
     where T : display::shape::system::DynamicShape {
-        self.get_or_register::<DynShapeSystemOf<T>>(scene)
+        self.with_get_or_register_mut::<DynShapeSystemOf<T>,_,_>
+            (scene,|entry| {entry.shape_system.clone_ref()})
     }
 
     /// Instantiate the provided [`DynamicShape`].
     pub fn instantiate<T>
     (&mut self, scene:&Scene, shape:&T) -> (ShapeSystemInfo,SymbolId,attribute::InstanceIndex)
     where T : display::shape::system::DynamicShape {
-        let system            = self.get_or_register::<DynShapeSystemOf<T>>(scene);
-        let system_id         = DynShapeSystemOf::<T>::id();
-        let instance_id       = system.instantiate(shape);
-        let symbol_id         = system.shape_system().sprite_system.symbol.id;
-        let above             = DynShapeSystemOf::<T>::above();
-        let below             = DynShapeSystemOf::<T>::below();
-        let ordering          = ShapeSystemStaticDepthOrdering {above,below};
-        let shape_system_info = ShapeSystemInfo::new(system_id,ordering);
-        (shape_system_info,symbol_id,instance_id)
+        self.with_get_or_register_mut::<DynShapeSystemOf<T>,_,_>(scene,|entry| {
+            let system            = entry.shape_system;
+            let system_id         = DynShapeSystemOf::<T>::id();
+            let instance_id       = system.instantiate(shape);
+            let symbol_id         = system.shape_system().sprite_system.symbol.id;
+            let above             = DynShapeSystemOf::<T>::above();
+            let below             = DynShapeSystemOf::<T>::below();
+            let ordering          = ShapeSystemStaticDepthOrdering {above,below};
+            let shape_system_info = ShapeSystemInfo::new(system_id,ordering);
+            *entry.instance_count += 1;
+            (shape_system_info,symbol_id,instance_id)
+        })
     }
 }}
 
-impl Debug for ShapeSystemRegistry {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ShapeSystemRegistry")
-            .field("keys",&self.rc.borrow().shape_system_map.keys().collect_vec())
-            .finish()
+impl ShapeSystemRegistryData {
+    // fn get<T>(&self) -> Option<T>
+    //     where T : ShapeSystemInstance {
+    //     let id = TypeId::of::<T>();
+    //     self.shape_system_map.get(&id).and_then(|t| t.shape_system.downcast_ref::<T>()).map(|t| t.clone_ref())
+    // }
+
+    fn get_mut<T>(&mut self) -> Option<ShapeSystemRegistryEntryRefMut<T>>
+    where T : ShapeSystemInstance {
+        let id = TypeId::of::<T>();
+        self.shape_system_map.get_mut(&id).and_then(|t| {
+            let shape_system  = t.shape_system.downcast_mut::<T>();
+            let instance_count = &mut t.instance_count;
+            if let Some(shape_system) = shape_system {
+                Some(ShapeSystemRegistryEntryRefMut {shape_system,instance_count})
+            } else {None}
+        })
+    }
+
+    // fn register<T>(&mut self, scene:&Scene) -> T
+    // where T : ShapeSystemInstance {
+    //     let id     = TypeId::of::<T>();
+    //     let system = <T as ShapeSystemInstance>::new(scene);
+    //     let any    = Box::new(system.clone_ref());
+    //     let entry  = ShapeSystemRegistryEntry {shape_system:any, instance_count:0};
+    //     self.shape_system_map.insert(id,entry);
+    //     system
+    // }
+
+    fn register<T>(&mut self, scene:&Scene) -> ShapeSystemRegistryEntryRefMut<T>
+    where T : ShapeSystemInstance {
+        let id     = TypeId::of::<T>();
+        let system = <T as ShapeSystemInstance>::new(scene);
+        let any    = Box::new(system);
+        let entry  = ShapeSystemRegistryEntry {shape_system:any, instance_count:0};
+        self.shape_system_map.entry(id).insert(entry);
+        // The following line is safe, as the object was just registered.
+        self.get_mut().unwrap()
+    }
+
+    // fn get_or_register<T>(&mut self, scene:&Scene) -> T
+    // where T : ShapeSystemInstance {
+    //     self.get().unwrap_or_else(|| self.register(scene))
+    // }
+
+    fn with_get_or_register_mut<T,F,Out>
+    (&mut self, scene:&Scene, f:F) -> Out
+    where F:FnOnce(ShapeSystemRegistryEntryRefMut<T>)->Out, T:ShapeSystemInstance {
+        match self.get_mut() {
+            Some(entry) => f(entry),
+            None        => f(self.register(scene))
+        }
     }
 }
+
 
 
 // =======================
