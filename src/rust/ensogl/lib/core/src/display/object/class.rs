@@ -280,6 +280,11 @@ impl<Host> Model<Host> {
     , parent_scene_layers_changed : bool
     , parent_scene_layers         : &[WeakLayer]
     ) {
+        let path = format!("{}",self.logger.path());
+        if (path != "Layer.camera" && path != "world.scene") {
+            DEBUG!("update_with_origin {self.logger.path()}");
+            DEBUG!("{self.dirty:#?}");
+        }
         // === Scene Layers Update ===
 
         let this_scene_layers          = self.scene_layers.borrow();
@@ -297,6 +302,7 @@ impl<Host> Model<Host> {
         };
         if scene_layers_changed {
             debug!(self.logger, "Scene layers changed.", || {
+                DEBUG!("on_scene_layers_changed!!!");
                 self.callbacks.on_scene_layers_changed(host,scene_layers);
             });
         }
@@ -421,7 +427,11 @@ impl<Host> Model<Host> {
         if let Some(parent) = bind.parent() {
             let index = bind.index;
             let dirty = parent.dirty.children.clone_ref();
-            self.dirty.set_on_dirty(move || dirty.set(index));
+            let parent_path = format!("{}",parent.logger.path());
+            self.dirty.set_on_dirty(move || {
+                DEBUG!("Setting parent dirty: {parent_path}");
+                dirty.set(index);
+            });
             self.dirty.parent.set();
             *self.parent_bind.borrow_mut() = Some(bind);
         }

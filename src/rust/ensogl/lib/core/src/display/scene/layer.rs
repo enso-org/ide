@@ -132,7 +132,7 @@ use std::any::TypeId;
 // }
 
 /// A single scene layer. See documentation of [`Group`] to learn more.
-#[derive(Debug,Clone,CloneRef)]
+#[derive(Clone,CloneRef)]
 pub struct Layer {
     model : Rc<LayerModel>
 }
@@ -141,6 +141,12 @@ impl Deref for Layer {
     type Target = LayerModel;
     fn deref(&self) -> &Self::Target {
         &self.model
+    }
+}
+
+impl Debug for Layer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Debug::fmt(&*self.model,f)
     }
 }
 
@@ -234,7 +240,11 @@ pub struct LayerModel {
 
 impl Debug for LayerModel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f,"Layer{{id: {}, registry: {:?}, elements: {:?}}}",self.id(),self.shape_system_registry, self.elements)
+        f.debug_struct("Layer")
+            .field("id", &self.id().raw)
+            .field("registry", &self.shape_system_registry)
+            .field("elements", &self.elements.borrow().iter().collect_vec())
+            .finish()
     }
 }
 
@@ -803,10 +813,11 @@ impl {
 
 impl Debug for ShapeSystemRegistry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f,"ShapeSystemRegistry({:?})",self.rc.borrow().shape_system_map.keys().collect_vec())
+        f.debug_struct("ShapeSystemRegistry")
+            .field("keys",&self.rc.borrow().shape_system_map.keys().collect_vec())
+            .finish()
     }
 }
-
 
 
 // =======================
