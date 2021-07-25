@@ -244,6 +244,7 @@ impl Debug for LayerModel {
             .field("id", &self.id().raw)
             .field("registry", &self.shape_system_registry)
             .field("elements", &self.elements.borrow().iter().collect_vec())
+            .field("symbols_ordered", &self.symbols_ordered.borrow().iter().collect_vec())
             .finish()
     }
 }

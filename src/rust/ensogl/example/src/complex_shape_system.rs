@@ -128,8 +128,9 @@ pub fn entry_point_complex_shape_system() {
         }
         if to_theme_switch == 0 {
             DEBUG!("SWITCH!");
+            scene.layers.viz.add_exclusive(&view);
             scene.layers.viz.add_exclusive(&view2);
-            theme_manager.set_enabled(&["theme2".to_string()]);
+            // theme_manager.set_enabled(&["theme2".to_string()]);
         }
         if to_theme_switch == -50 {
             DEBUG!("---------------");
