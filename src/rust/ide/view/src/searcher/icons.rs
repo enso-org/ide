@@ -34,9 +34,9 @@ const SHRINK_AMOUNT : f32 = 0.35;
 
 
 
-// =============
-// === Arrow ===
-// =============
+// ========================
+// === Shape Components ===
+// ========================
 
 /// An arrow shape consisting of a straight line and a triangular head. The arrow points upwards and
 /// the tip is positioned at the origin.
@@ -49,6 +49,14 @@ fn arrow(length:f32,width:f32,head_length:f32,head_width:f32) -> AnyShape {
     let line        = line.translate_y((-line_length/2.0-head_length+OVERLAP).px());
     let head        = Triangle(head_width,head_length).translate_y((-head_length/2.0).px());
     (line + head).into()
+}
+
+/// A cursor shape, looking roughly like a capital "I".
+fn cursor() -> AnyShape {
+    let middle = Rect((1.0.px(),15.0.px()));
+    let top    = Rect((5.0.px(),1.0.px())).translate_y(7.5.px());
+    let bottom = Rect((5.0.px(),1.0.px())).translate_y((-7.5).px());
+    (middle + top + bottom).into()
 }
 
 
@@ -83,14 +91,14 @@ mod data_input {
     ensogl::define_shape_system! {
         (style:Style) {
 
-            // === Rectangle ===
+            // === Border ===
 
-            let rect = Rect((10.0.px(),13.0.px())).corners_radius(1.5.px()).translate_x(1.5.px());
+            let border = Rect((10.0.px(),13.0.px())).corners_radius(1.5.px()).translate_x(1.5.px());
             // Taking just an outline.
-            let rect = &rect - rect.shrink(1.0.px());
+            let border = &border - border.shrink(1.0.px());
             // Creating a gap for the arrow to pass through.
             let gap  = Rect((2.0.px(),4.0.px())).translate_x((-3.0).px());
-            let rect = rect - gap;
+            let border = border - gap;
 
 
             // === Arrow ===
@@ -100,7 +108,7 @@ mod data_input {
 
             // === Shape ===
 
-            let shape = rect + arrow;
+            let shape = border + arrow;
             let shape = shape.fill(style.get_color(theme::io));
             shape.shrink(SHRINK_AMOUNT.px()).into()
         }
@@ -114,14 +122,15 @@ mod data_output {
     ensogl::define_shape_system! {
         (style:Style) {
 
-            // === Rectangle ===
+            // === Border ===
 
-            let rect = Rect((9.0.px(),13.0.px())).corners_radius(1.5.px()).translate_x((-2.5).px());
+            let border = Rect((9.0.px(),13.0.px())).corners_radius(1.5.px());
+            let border = border.translate_x((-2.5).px());
             // Taking just an outline.
-            let rect = &rect - rect.shrink(1.0.px());
+            let border = &border - border.shrink(1.0.px());
             // Creating a gap for the arrow to pass through.
             let gap  = Rect((2.0.px(),4.0.px())).translate_x((1.5).px());
-            let rect = rect - gap;
+            let border = border - gap;
 
 
             // === Arrow ===
@@ -131,19 +140,11 @@ mod data_output {
 
             // === Shape ===
 
-            let shape = rect + arrow;
+            let shape = border + arrow;
             let shape = shape.fill(style.get_color(theme::io));
             shape.shrink(SHRINK_AMOUNT.px()).into()
         }
     }
-}
-
-/// A cursor shape, looking roughly like a capital "I".
-fn cursor() -> AnyShape {
-    let middle = Rect((1.0.px(),15.0.px()));
-    let top    = Rect((5.0.px(),1.0.px())).translate_y(7.5.px());
-    let bottom = Rect((5.0.px(),1.0.px())).translate_y((-7.5).px());
-    (middle + top + bottom).into()
 }
 
 /// A rounded rectangle with the letter "A" and a text cursor.
@@ -153,14 +154,14 @@ mod text_input {
     ensogl::define_shape_system! {
         (style:Style) {
 
-            // === Rectangle ===
+            // === Border ===
 
-            let rect = Rect((16.0.px(),11.0.px())).corners_radius(1.5.px());
+            let border = Rect((16.0.px(),11.0.px())).corners_radius(1.5.px());
             // Using just the outline.
-            let rect = &rect - rect.shrink(1.0.px());
+            let border = &border - border.shrink(1.0.px());
             // Creating a gap for the cursor.
             let gap = Rect((3.0.px(),13.0.px())).translate_x((3.5).px());
-            let rect = rect - gap;
+            let border = border - gap;
 
 
             // === Cursor ===
@@ -181,7 +182,7 @@ mod text_input {
 
             // === Shape ===
 
-            let shape = rect + cursor + letter;
+            let shape = border + cursor + letter;
             let shape = shape.fill(style.get_color(theme::io));
             shape.shrink(SHRINK_AMOUNT.px()).into()
         }
@@ -195,14 +196,14 @@ mod number_input {
     ensogl::define_shape_system! {
         (style:Style) {
 
-            // === Rectangle ===
+            // === Border ===
 
-            let rect = Rect((16.0.px(),11.0.px())).corners_radius(1.5.px());
+            let border = Rect((16.0.px(),11.0.px())).corners_radius(1.5.px());
             // Using just the outline.
-            let rect = &rect - rect.shrink(1.0.px());
+            let border = &border - border.shrink(1.0.px());
             // Creating a gap for the cursor.
             let gap  = Rect((3.0.px(),13.0.px())).translate_x((3.5).px());
-            let rect = rect - gap;
+            let border = border - gap;
 
 
             // === Cursor ===
@@ -218,7 +219,7 @@ mod number_input {
             let left = Rect((1.0.px(),3.0.px())).translate_x((-1.0).px()).translate_y((-1.0).px());
 
 
-            // == Arc ==
+            // == Number 5 Arc ==
 
             let arc_center = Vector2(-0.25_f32,-3.5_f32);
             // The point where the inner side of the arc connects with the vertical bar.
@@ -260,7 +261,7 @@ mod number_input {
 
             // === Shape ===
 
-            let shape = rect + cursor + number;
+            let shape = border + cursor + number;
             let shape = shape.fill(style.get_color(theme::io));
             shape.shrink(SHRINK_AMOUNT.px()).into()
         }
