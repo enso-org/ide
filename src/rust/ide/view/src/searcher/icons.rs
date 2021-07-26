@@ -30,7 +30,7 @@ const ICON_SIZE : f32 = 16.0;
 // the constant `SHRINK_AMOUNT` and apply `.shrink(SHRINK_AMOUNT.px())` to all icons. In every
 // commit, `SHRINK_AMOUNT` should be set to 0.0 to make icons look best in the user interface. But
 // during work on the icons, it can temporarily be set to 0.35.
-const SHRINK_AMOUNT : f32 = 0.4;
+const SHRINK_AMOUNT : f32 = 0.0;
 
 
 

@@ -366,7 +366,7 @@ define_sdf_shapes! {
         return bound_sdf(dist,bounds);
     }
 
-
+  
     // === Five Star ===
 
     /// A five-pointed star.
