@@ -30,13 +30,13 @@ const ICON_SIZE : f32 = 16.0;
 // the constant `SHRINK_AMOUNT` and apply `.shrink(SHRINK_AMOUNT.px())` to all icons. In every
 // commit, `SHRINK_AMOUNT` should be set to 0.0 to make icons look best in the user interface. But
 // during work on the icons, it can temporarily be set to 0.35.
-const SHRINK_AMOUNT : f32 = 0.0;
+const SHRINK_AMOUNT : f32 = 0.4;
 
 
 
-// =======================
-// === Reusable Shapes ===
-// =======================
+// ========================
+// === Shape Components ===
+// ========================
 
 /// An arrow shape consisting of a straight line and a triangular head. The arrow points upwards and
 /// the tip is positioned at the origin.
@@ -51,6 +51,10 @@ fn arrow(length:f32,width:f32,head_length:f32,head_width:f32) -> AnyShape {
     (line + head).into()
 }
 
+/// An infinite grid of horizontal and vertical lines. The width of each line is given by
+/// `stroke_width`, the distance between horizontal lines and the distance between vertical lines
+/// are both given by `cell_size`. The origin is at the intersection of a horizontal and a vertical
+/// line, touching the horizontal line from the top and the vertical line from the left.
 fn grid(stroke_width:f32,cell_size:f32) -> AnyShape {
     let horizontal = HalfPlane();
     let horizontal = horizontal.translate_y(stroke_width.px()) - horizontal;
@@ -67,6 +71,9 @@ fn cursor() -> AnyShape {
     (middle + top + bottom).into()
 }
 
+/// An arc around the origin. `outer_radius` determines the distance from the origin to the outer
+/// edge of the arc, `stroke_width` the width of the arc. The arc starts at `start_angle`, relative
+/// to the origin and ends at `end_angle`. The ends are flat not rounded, as in [`RoundedArc`].
 fn arc(outer_radius:f32, stroke_width:f32, start_angle:f32, end_angle:f32) -> AnyShape {
     let circle      = Circle(outer_radius.px()) - Circle((outer_radius - stroke_width).px());
     let inner_angle = (end_angle - start_angle).rem_euclid(2.0 * PI);
@@ -79,6 +86,8 @@ fn arc(outer_radius:f32, stroke_width:f32, start_angle:f32, end_angle:f32) -> An
     (circle * angle).into()
 }
 
+/// The shape of a table, given by a grid with size `columns` x `rows`. The stroke width is 1.0 and
+/// the cell size 4.0. The origin is at the lower left corner.
 fn table(columns:i32, rows:i32) -> AnyShape {
     const STROKE_WIDTH : f32 = 1.0;
     const CELL_SIZE    : f32 = 4.0;
@@ -90,12 +99,15 @@ fn table(columns:i32, rows:i32) -> AnyShape {
     (grid * bounds).into()
 }
 
+/// A plus, consisting of two strokes of length `size` and width `stroke_width`, intersecting at the
+/// origin.
 fn plus(size:f32,stroke_width:f32) -> AnyShape {
     let horizontal = Rect((size.px(),stroke_width.px()));
     let vertical   = Rect((stroke_width.px(),size.px()));
     (horizontal + vertical).into()
 }
 
+/// A shape resembling a lightning bolt, centered at the origin.
 fn lightning_bolt() -> AnyShape {
     let top       = Triangle(3.0.px(),6.0.px()).translate(((-1.0).px(),1.9.px()));
     let bottom    = Triangle(3.0.px(),6.0.px()).rotate(PI.radians());
@@ -256,7 +268,7 @@ mod number_input {
             let cursor = cursor().translate_x(3.5.px());
 
 
-            // === Number ===
+            // === Number 5 ===
 
             // The number "5" consists of a short horizontal bar at the top, a vertical bar
             // connected to it on the left and a big arc below, connected to the vertical bar.
@@ -264,42 +276,20 @@ mod number_input {
             let left = Rect((1.0.px(),3.0.px())).translate_x((-1.0).px()).translate_y((-1.0).px());
 
 
-            // == Arc ==
+            // == Number 5 Arc ==
 
             let arc_center = Vector2(-0.25_f32,-3.5_f32);
             // The point where the inner side of the arc connects with the vertical bar.
             let arc_connection = Vector2(-0.5_f32,-2.5_f32);
             // Offset from the arc center to the connection.
             let connection_offset = arc_connection - arc_center;
-            // The inner radius of the arc.
-            let radius: f32 = connection_offset.norm();
-            let arc         = Circle(radius.px());
-            // Take the outline.
             let stroke_width = 1.0;
-            let arc          = arc.grow(stroke_width.px()) - arc;
-            // The angle that we need to cut from the circle.
-            let aperture_angle = 110.0_f32.to_radians();
-            let outer_radius   = radius + stroke_width;
-            // To create the aperture, we will subtract a triangle with height `aperture_height` and
-            // width `aperture_width`.
-            let aperture_height = outer_radius + 1.0;  // We add 1.0 just to be sure to cut enough.
-            // The width is computed, such that we get the right angle.
-            let aperture_width = (aperture_angle / 2.0).tan() * aperture_height * 2.0;
-            let aperture       = Triangle(aperture_width,aperture_height);
-            // We temporarily position the tip of the gap at the origin to rotate it around that
-            // point.
-            let aperture = aperture.translate_y((-aperture_height / 2.0).px());
-            // Make the triangle's left side point downward.
-            let aperture = aperture.rotate((-aperture_angle / 2.0).radians());
-            // Make the triangle's left side point right.
-            let aperture = aperture.rotate(-PI.radians() / 2.0);
-            // Make the triangle's left side point to the connection between vertical bar and arc.
-            // We have to negate the angle because positive results of `atan2` stand for counter-
-            // clockwise rotations.
-            let connection_direction = -connection_offset.y.atan2(connection_offset.x);
-            let aperture             = aperture.rotate(connection_direction.radians());
-            let arc                  = arc - aperture;
-            let arc                  = arc.translate((arc_center.x.px(),arc_center.y.px()));
+            // The outer radius of the arc.
+            let radius: f32          = connection_offset.norm() + stroke_width;
+            let connection_direction = connection_offset.x.atan2(connection_offset.y);
+            
+            let arc = arc(radius,stroke_width,connection_direction,228_f32.to_radians());
+            let arc = arc.translate((arc_center.x.px(),arc_center.y.px()));
 
             let number = (top + left + arc).translate_x((-2.0).px()).translate_y(2.5.px());
 

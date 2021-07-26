@@ -396,12 +396,16 @@ define_sdf_shapes! {
     // === Arc ===
 
     RoundedArc (radius:Pixels, angle:Radians, width:Pixels) {
+        // The implementation of this shape was adapted from here:
+        // https://iquilezles.org/www/articles/distfunctions2d/distfunctions2d.htm
+
         position.x = abs(position.x);
-        vec2 scb = vec2(sin(value(angle)/2.0),cos(value(angle)/2.0));
-        float ra = radius;
-        float rb = width / 2.0;
-        float k = (scb.y*position.x>scb.x*position.y) ? dot(position,scb) : length(position);
-        float dist = sqrt(max(0.0, dot(position,position) + ra*ra - 2.0*ra*k )) - rb;
+        vec2 scb   = vec2(sin(value(angle)/2.0),cos(value(angle)/2.0));
+        float ra   = radius;
+        float rb   = width / 2.0;
+        float k    = (scb.y*position.x>scb.x*position.y) ? dot(position,scb) : length(position);
+        float dist = sqrt(max(0.0,dot(position,position) + ra * ra - 2.0 * ra * k)) - rb;
+
         BoundingBox bounds = bounding_box(2.0*radius+width,2.0*radius+width);
         return bound_sdf(dist,bounds);
     }
