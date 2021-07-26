@@ -65,7 +65,7 @@ pub struct Callbacks<Host> {
     on_updated              : RefCell<Option<Box<dyn Fn(&Model<Host>)>>>,
     on_show                 : RefCell<Option<Box<dyn Fn(&Host,&[WeakLayer])>>>,
     on_hide                 : RefCell<Option<Box<dyn Fn(&Host)>>>,
-    on_scene_layers_changed : RefCell<Option<Box<dyn Fn(&Host,&[WeakLayer])>>>,
+    on_scene_layers_changed : RefCell<Option<Box<dyn Fn(&Host,&[WeakLayer],&[WeakLayer])>>>,
 }
 
 impl<Host> Callbacks<Host> {
@@ -81,8 +81,8 @@ impl<Host> Callbacks<Host> {
         if let Some(f) = &*self.on_hide.borrow() { f(host) }
     }
 
-    fn on_scene_layers_changed(&self, host:&Host, layers:&[WeakLayer]) {
-        if let Some(f) = &*self.on_scene_layers_changed.borrow() { f(host,layers) }
+    fn on_scene_layers_changed(&self, host:&Host, old_layers:&[WeakLayer], new_layers:&[WeakLayer]) {
+        if let Some(f) = &*self.on_scene_layers_changed.borrow() { f(host,old_layers,new_layers) }
     }
 }
 
@@ -297,7 +297,7 @@ impl<Host> Model<Host> {
         let assigned_layers_slice   = assigned_layers.as_slice();
         let assigned_layers_changed = self.dirty.scene_layer.check();
         let scene_layers_changed    = parent_scene_layers_changed || assigned_layers_changed;
-        let scene_layers            = if scene_layers_changed {
+        let new_scene_layers        = if scene_layers_changed {
             self.dirty.scene_layer.unset();
             if assigned_layers_slice.is_empty() { parent_scene_layers   }
             else                                { assigned_layers_slice }
@@ -307,8 +307,8 @@ impl<Host> Model<Host> {
         if scene_layers_changed {
             debug!(self.logger, "Scene layers changed.", || {
                 DEBUG!("on_scene_layers_changed!!!");
-                *self.scene_layers.borrow_mut() = scene_layers.to_vec();
-                self.callbacks.on_scene_layers_changed(host,scene_layers);
+                let old_scene_layers = mem::replace(&mut *self.scene_layers.borrow_mut(),new_scene_layers.to_vec());
+                self.callbacks.on_scene_layers_changed(host,&old_scene_layers,new_scene_layers);
             });
         }
 
@@ -335,7 +335,7 @@ impl<Host> Model<Host> {
                         self.children.borrow().iter().for_each(|weak_child| {
                             weak_child.upgrade().for_each(|child|
                                 child.update_with_origin
-                                    (host,new_origin,true,scene_layers_changed,scene_layers)
+                                    (host,new_origin,true,scene_layers_changed,new_scene_layers)
                             );
                         });
                     })
@@ -348,7 +348,7 @@ impl<Host> Model<Host> {
                             self.children.borrow().safe_index(*ix).and_then(|t|t.upgrade())
                                 .for_each(|child|
                                     child.update_with_origin
-                                        (host,new_origin,false,scene_layers_changed,scene_layers))
+                                        (host,new_origin,false,scene_layers_changed,new_scene_layers))
                         });
                     })
                 }
@@ -535,7 +535,7 @@ impl<Host> Model<Host> {
     /// Sets a callback which will be called with a reference to scene and list of scene layers this
     /// object was attached to on every change to the scene layers assignment.
     pub fn set_on_scene_layer_changed<F>(&self, f:F)
-    where F : Fn(&Host,&[WeakLayer]) + 'static {
+    where F : Fn(&Host,&[WeakLayer],&[WeakLayer]) + 'static {
         self.callbacks.on_scene_layers_changed.set(Box::new(f))
     }
 }

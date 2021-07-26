@@ -107,7 +107,7 @@ pub fn entry_point_complex_shape_system() {
 
 
     world.add_child(&view);
-    world.add_child(&view2);
+    // world.add_child(&view2);
     // world.add_child(&mask);
     world.keep_alive_forever();
     let scene = world.scene().clone_ref();
@@ -128,8 +128,8 @@ pub fn entry_point_complex_shape_system() {
         }
         if to_theme_switch == 0 {
             DEBUG!("SWITCH!");
-            scene.layers.viz.add_exclusive(&view);
-            scene.layers.viz.add_exclusive(&view2);
+            scene.layers.mask.add_exclusive(&view);
+            // scene.layers.mask.add_exclusive(&view2);
             // theme_manager.set_enabled(&["theme2".to_string()]);
         }
         if to_theme_switch == -50 {

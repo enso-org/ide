@@ -131,6 +131,19 @@ use std::any::TypeId;
 //     }
 // }
 
+pub struct LayerDynamicShapeInstance {
+    pub layer       : WeakLayer,
+    pub symbol_id   : SymbolId,
+    pub instance_id : attribute::InstanceIndex
+}
+
+impl LayerDynamicShapeInstance {
+    pub fn new(layer:&Layer, symbol_id:SymbolId, instance_id:attribute::InstanceIndex) -> Self {
+        let layer = layer.downgrade();
+        Self {layer,symbol_id,instance_id}
+    }
+}
+
 /// A single scene layer. See documentation of [`Group`] to learn more.
 #[derive(Clone,CloneRef)]
 pub struct Layer {
@@ -165,6 +178,18 @@ impl Layer {
     /// Add the display object to this layer and remove it from any other layers.
     pub fn add_exclusive(&self, object:impl display::Object) {
         object.display_object().add_to_scene_layer_exclusive(self);
+    }
+
+    /// Instantiate the provided [`DynamicShape`].
+    pub fn instantiate<T>
+    (&self, scene:&Scene, shape:&T) -> LayerDynamicShapeInstance
+    where T : display::shape::system::DynamicShape {
+        let (shape_system_info,symbol_id,instance_id) = self.shape_system_registry.instantiate(scene,shape);
+        // FIXME: This is needed because symbols are registered in main by scene by default.
+        //        They should probably not. Needs a proper design.
+        scene.layers.main.remove_symbol(symbol_id);
+        self.add_shape(shape_system_info,symbol_id);
+        LayerDynamicShapeInstance::new(self,symbol_id,instance_id)
     }
 }
 
@@ -254,7 +279,7 @@ impl Drop for LayerModel {
         let id = self.id();
         for parent in &mut *self.parents.borrow_mut() {
             let mut model = parent.borrow_mut();
-            model.layers.remove(*id);
+            model.remove(id);
             for element in &*self.elements.borrow() {
                 if let Some(symbol_id) = self.symbol_id_of_element(*element) {
                     if let Some(vec) = model.symbols_placement.get_mut(&symbol_id) {
@@ -453,6 +478,14 @@ impl LayerModel {
             if let Some(placement) = parent.borrow_mut().symbols_placement.get_mut(&symbol_id) {
                 placement.remove_item(&self.id());
             }
+        }
+    }
+
+    pub fn remove_shape_system(&self, shape_system_id:ShapeSystemId) {
+        self.depth_order_dirty.set();
+        self.elements.borrow_mut().remove(&LayerItem::ShapeSystem(shape_system_id));
+        if let Some(symbol_id) = self.shape_system_to_symbol_info_map.borrow_mut().remove(&shape_system_id) {
+            self.symbol_to_shape_system_map.borrow_mut().remove(&symbol_id.id);
         }
     }
 
@@ -709,6 +742,12 @@ impl ChildrenModel {
         self.layer_placement.get(&layer_id).copied()
     }
 
+    fn remove(&mut self, layer_id:LayerId) {
+        if let Some(ix) = self.layer_ix(layer_id) {
+            self.layers.remove(ix);
+        }
+    }
+
     /// Query a [`Layer`] based on its [`LayerId`].
     pub fn get(&self, layer_id:LayerId) -> Option<Layer> {
         self.layer_ix(layer_id).and_then(|ix| self.layers.safe_index(ix).and_then(|t|t.upgrade()))
@@ -809,6 +848,15 @@ impl {
             *entry.instance_count += 1;
             (shape_system_info,symbol_id,instance_id)
         })
+    }
+
+    pub fn drop_instance<T>(&mut self) -> (usize,ShapeSystemId,PhantomData<T>)
+    where T : display::shape::system::DynamicShape {
+        let system_id = DynShapeSystemOf::<T>::id();
+        if let Some(entry) = self.get_mut::<DynShapeSystemOf<T>>() {
+            *entry.instance_count -= 1;
+                (*entry.instance_count,system_id,PhantomData)
+        } else { (0,system_id,PhantomData) }
     }
 }}
 

@@ -808,6 +808,7 @@ impl SceneData {
             })
         }));
 
+        layers.main.add_exclusive(&display_object);
         frp::extend! { network
             eval_ frp.shape (dirty.shape.set());
         }
@@ -828,7 +829,7 @@ impl SceneData {
 
     pub fn new_symbol(&self) -> Symbol {
         let symbol = self.symbols.new();
-        self.layers.main.add_symbol_exclusive(&symbol);
+        self.layers.main.add_symbol(&symbol);
         symbol
     }
 
