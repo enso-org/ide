@@ -27,10 +27,17 @@ use std::any::TypeId;
 // === Layer ===
 // =============
 
-/// [`Scene`] layers implementation. Scene can consist of one or more layers. Each layer is assigned
-/// with a camera and set of [`Symbol`]s to be displayed. Group can share cameras and symbols.
+/// Display layers implementation. Layer consist of a [`Camera`] and a set of [`LayerItem`]s. Layers
+/// are hierarchical and contain children. Items of a layer containing children layers are displayed
+/// below items of children layers. Layers are allowed to share references to the same camera. and
+/// the same [`Symbol`]s.
 ///
-/// For example, you can create a layer which displays the same symbols as another layer, but from a
+///
+/// # Symbol Management
+/// [`Symbol`]s are the basic primitives managed by layers. Even if you add an user-defined shape
+/// system, it will be internally represented as a group of symbols (details are provided in the
+/// following section). Layers are allowed to share references to the same [`Symbol`]s. For example,
+/// you can create a layer which displays the same symbols as another layer, but from a
 /// different camera to create a "mini-map view" of a graph editor.
 ///
 /// ```text
@@ -46,11 +53,22 @@ use std::any::TypeId;
 /// ```
 ///
 ///
+/// # DynamicShape and ShapeSystem Management
+/// You are allowed to define custom [`DynamicShape`]s, which are like [`Shape`]s, but may not be
+/// bound to a [`Scene`] (and thus to WebGL context) yet. You can use the [`Layer::add_exclusive`]
+/// to add any [`DisplayObject`] to that particular layer. During update, the display object
+/// hierarchy will propagate the layer-assignment information, and all [`ShapeView`]s containing
+/// user-defined dynamic shapes will be initialized during the display object update time. Each
+/// layer contains a [`ShapeSystemRegistry`] which contains a mapping between all used user-defined
+/// shape types (this is type-level mapping!) to its corresponding [`ShapeSystem`]s. This allows
+/// multiple [`DynamicShapes`] to share the same [`ShapeSystem`]s. For example, adding different
+/// components containing the same shape to the same layer, will make rendering of all the shapes in
+/// a single draw-call. This provides a great control over performance and possible rendering
+/// optimizations.
+///
+///
 /// # Layer Ordering
-/// Group can be ordered by using the `add_layers_order_dependency`, and the
-/// `remove_layers_order_dependency` methods, respectively. The API allows defining a depth-order
-/// dependency graph which will be resolved during a frame update. All symbols from lower layers
-/// will be drawn to the screen before symbols from the upper layers.
+/// Group can be ordered by using the `set_children` method.
 ///
 ///
 /// # Symbols Ordering
@@ -107,25 +125,6 @@ use std::any::TypeId;
 /// automatically. Although the [`ChildrenModel`] registers [`WeakLayer`], the weak form is used only
 /// to break cycles and never points to a dropped [`Layer`], as layers update the information on
 /// a drop.
-
-
-#[derive(Debug)]
-#[allow(missing_docs)]
-pub struct LayerDynamicShapeInstance {
-    pub layer       : WeakLayer,
-    pub symbol_id   : SymbolId,
-    pub instance_id : attribute::InstanceIndex
-}
-
-impl LayerDynamicShapeInstance {
-    /// Constructor.
-    pub fn new(layer:&Layer, symbol_id:SymbolId, instance_id:attribute::InstanceIndex) -> Self {
-        let layer = layer.downgrade();
-        Self {layer,symbol_id,instance_id}
-    }
-}
-
-/// A single scene layer. See documentation of [`Group`] to learn more.
 #[derive(Clone,CloneRef)]
 pub struct Layer {
     model : Rc<LayerModel>
@@ -174,7 +173,8 @@ impl Layer {
     pub fn instantiate<T>
     (&self, scene:&Scene, shape:&T) -> LayerDynamicShapeInstance
     where T : display::shape::system::DynamicShape {
-        let (shape_system_info,symbol_id,instance_id) = self.shape_system_registry.instantiate(scene,shape);
+        let (shape_system_info,symbol_id,instance_id) =
+            self.shape_system_registry.instantiate(scene,shape);
         self.add_shape(shape_system_info,symbol_id);
         LayerDynamicShapeInstance::new(self,symbol_id,instance_id)
     }
@@ -284,11 +284,6 @@ impl LayerModel {
         Self {logger,camera,shape_system_registry,shape_system_to_symbol_info_map
              ,symbol_to_shape_system_map,elements,symbols_ordered,depth_order,depth_order_dirty
              ,parents,global_element_depth_order,children,mask,mem_mark}
-    }
-
-    fn add_parent(&self, parent:&Children) {
-        let parent = parent.clone_ref();
-        self.parents.borrow_mut().push(parent);
     }
 
     /// Unique identifier of this layer. It is memory-based, it will be unique even for layers in
@@ -417,9 +412,10 @@ impl LayerModel {
         let symbol_id = symbol_id.into();
 
         self.elements.borrow_mut().remove(&LayerItem::Symbol(symbol_id));
-        if let Some(shape_system_id) = self.symbol_to_shape_system_map.borrow_mut().remove(&symbol_id) {
-            self.shape_system_to_symbol_info_map.borrow_mut().remove(&shape_system_id);
-            self.elements.borrow_mut().remove(&LayerItem::ShapeSystem(shape_system_id));
+        if let Some(shape_system_id) =
+            self.symbol_to_shape_system_map.borrow_mut().remove(&symbol_id) {
+                self.shape_system_to_symbol_info_map.borrow_mut().remove(&shape_system_id);
+                self.elements.borrow_mut().remove(&LayerItem::ShapeSystem(shape_system_id));
         }
     }
 
@@ -427,8 +423,9 @@ impl LayerModel {
     pub fn remove_shape_system(&self, shape_system_id:ShapeSystemId) {
         self.depth_order_dirty.set();
         self.elements.borrow_mut().remove(&LayerItem::ShapeSystem(shape_system_id));
-        if let Some(symbol_id) = self.shape_system_to_symbol_info_map.borrow_mut().remove(&shape_system_id) {
-            self.symbol_to_shape_system_map.borrow_mut().remove(&symbol_id.id);
+        if let Some(symbol_id) =
+            self.shape_system_to_symbol_info_map.borrow_mut().remove(&shape_system_id) {
+                self.symbol_to_shape_system_map.borrow_mut().remove(&symbol_id.id);
         }
     }
 
@@ -438,7 +435,8 @@ impl LayerModel {
     }
 
     /// Consume all dirty flags and update the ordering of elements if needed.
-    pub(crate) fn update_internal(&self, global_element_depth_order:Option<&DependencyGraph<LayerItem>>) {
+    pub(crate) fn update_internal
+    (&self, global_element_depth_order:Option<&DependencyGraph<LayerItem>>) {
         if self.depth_order_dirty.check() {
             self.depth_order_dirty.unset();
             if let Some(dep_graph) = global_element_depth_order {
@@ -524,11 +522,30 @@ impl LayerModel {
     }
 
     fn remove_all_children(&self) {
-        // TODO
+        for layer in self.children.borrow().layers.iter() {
+            if let Some(layer) = layer.upgrade() {
+                layer.remove_parent(&self.children)
+            }
+        }
+        mem::take(&mut *self.children.model.borrow_mut());
+    }
+
+    fn add_parent(&self, parent:&Children) {
+        let parent = parent.clone_ref();
+        self.parents.borrow_mut().push(parent);
+    }
+
+    fn remove_parent(&self, parent:&Children) {
+        self.parents.borrow_mut().remove_item(parent);
     }
 
     fn remove_mask(&self) {
-        // TODO
+        if let Some(mask) = &*self.mask.borrow() {
+            if let Some(mask) = mask.upgrade() {
+                mask.remove_parent(&self.children)
+            }
+        }
+        mem::take(&mut *self.mask.borrow_mut());
     }
 
     /// Set all children layer of this layer. Old children layers will be unregistered.
@@ -573,7 +590,8 @@ impl LayerModel {
     /// This implementation can be simplified to `S1:KnownShapeSystemId` (not using [`Content`] at
     /// all), after the compiler gets updated to newer version. Returns `true` if the dependency was
     /// inserted successfully (was not already present), and `false` otherwise.
-    pub fn add_global_shapes_order_dependency<S1,S2>(&self) -> (bool,PhantomData<S1>,PhantomData<S2>) where
+    pub fn add_global_shapes_order_dependency<S1,S2>
+    (&self) -> (bool,PhantomData<S1>,PhantomData<S2>) where
         S1          : HasContent,
         S2          : HasContent,
         Content<S1> : KnownShapeSystemId,
@@ -626,6 +644,26 @@ impl std::borrow::Borrow<LayerModel> for Layer {
 
 
 
+// =================================
+// === LayerDynamicShapeInstance ===
+// =================================
+
+/// Information about an instance of a dynamic shape bound to a particular layer.
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub struct LayerDynamicShapeInstance {
+    pub layer       : WeakLayer,
+    pub symbol_id   : SymbolId,
+    pub instance_id : attribute::InstanceIndex
+}
+
+impl LayerDynamicShapeInstance {
+    /// Constructor.
+    pub fn new(layer:&Layer, symbol_id:SymbolId, instance_id:attribute::InstanceIndex) -> Self {
+        let layer = layer.downgrade();
+        Self {layer,symbol_id,instance_id}
+    }
+}
 
 
 
@@ -644,6 +682,13 @@ impl Deref for Children {
     type Target = Rc<RefCell<ChildrenModel>>;
     fn deref(&self) -> &Self::Target {
         &self.model
+    }
+}
+
+impl Eq for Children {}
+impl PartialEq for Children {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.model,&other.model)
     }
 }
 

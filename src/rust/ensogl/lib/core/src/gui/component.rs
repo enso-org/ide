@@ -106,19 +106,6 @@ impl<S:DynamicShapeInternals+'static> ShapeView<S> {
         self
     }
 
-    // fn init_on_show(&self) {
-    //     let weak_model = Rc::downgrade(&self.model);
-    //     self.display_object().set_on_show(move |scene,layers| {
-    //         DEBUG!(">>> init_on_show");
-    //         if let Some(model) = weak_model.upgrade() {
-    //             if model.before_first_show.get() {
-    //                 model.before_first_show.set(false);
-    //                 model.on_scene_layers_changed(scene,&[],layers)
-    //             }
-    //         }
-    //     });
-    // }
-
     fn init_on_scene_layer_changed(&self) {
         let weak_model = Rc::downgrade(&self.model);
         self.display_object().set_on_scene_layer_changed(move |scene,old_layers,new_layers| {
@@ -167,7 +154,8 @@ impl<S> Drop for ShapeViewModel<S> {
 }
 
 impl<S:DynamicShapeInternals> ShapeViewModel<S> {
-    fn on_scene_layers_changed(&self, scene:&Scene, old_layers:&[WeakLayer], new_layers:&[WeakLayer]) {
+    fn on_scene_layers_changed
+    (&self, scene:&Scene, old_layers:&[WeakLayer], new_layers:&[WeakLayer]) {
         DEBUG!("on_scene_layers_changed: {old_layers:?} {new_layers:?}");
         self.drop_from_all_scene_layers(old_layers);
         for weak_layer in new_layers {
@@ -206,7 +194,7 @@ impl<S:DynamicShape> ShapeViewModel<S> {
 
     fn add_to_scene_layer(&self, scene:&Scene, layer:&scene::Layer) {
         DEBUG!(">>> add_to_scene_layer: {layer:?}");
-        let instance = layer.instantiate(scene,&self.shape); // (symbol_id,instance_id)
+        let instance = layer.instantiate(scene,&self.shape);
         DEBUG!("created {instance.symbol_id:?} {instance.instance_id:?}");
         scene.shapes.insert_mouse_target(instance.symbol_id,instance.instance_id,self.events.clone_ref());
         self.pointer_targets.borrow_mut().push((instance.symbol_id,instance.instance_id));
