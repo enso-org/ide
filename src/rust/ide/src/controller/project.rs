@@ -4,9 +4,9 @@ use crate::prelude::*;
 
 use crate::controller::graph::executed::Notification as GraphNotification;
 use crate::controller::ide::StatusNotificationPublisher;
-use crate::model::traits::*;
 use crate::double_representation::project;
 use crate::model::module::QualifiedName;
+use crate::model::traits::*;
 
 use enso_frp::web::platform;
 use enso_frp::web::platform::Platform;
@@ -31,6 +31,8 @@ pub const ENGINE_VERSION_SUPPORTED        : &str = "^0.2.15";
 // Usually it is a good idea to synchronize this version with the bundled Engine version in
 // src/js/lib/project-manager/src/build.ts. See also https://github.com/enso-org/ide/issues/1359
 pub const ENGINE_VERSION_FOR_NEW_PROJECTS : &str = "0.2.15";
+/// The minimum edition that is guaranteed to work with the IDE.
+pub const MINIMUM_EDITION_SUPPORTED : &str = "2021.3";
 
 /// The name of the module initially opened in the project view.
 ///
@@ -138,7 +140,7 @@ impl Project {
         // TODO [mwu] This solution to recreate missing main file should be considered provisional
         //   until proper decision is made. See: https://github.com/enso-org/enso/issues/1050
         self.recreate_if_missing(&file_path,default_main_method_code()).await?;
-        let method = main_method_ptr(project.qualified_name(),&module_path);
+        let method            = main_method_ptr(project.qualified_name(),&module_path);
         let main_module_model = self.model.module(module_path.clone()).await?;
         Self::add_main_if_missing(project.qualified_name(), &main_module_model, &method, &parser)?;
 
@@ -224,15 +226,13 @@ impl Project {
     }
 
     fn display_warning_on_unsupported_engine_version(&self) -> FallibleResult {
-        // FIXME[MM]: Disabled as it needs updating to the new edition system.
-        //  See https://github.com/enso-org/ide/issues/1713 for more information.
-        // let requirements = semver::VersionReq::parse(ENGINE_VERSION_SUPPORTED)?;
-        // let version      = self.model.engine_version();
-        // if !requirements.matches(&version) {
-        //     let message = format!("Unsupported Engine version. Please update engine_version in {} \
-        //         to {}.",package_yaml_path(&self.model.name()),ENGINE_VERSION_FOR_NEW_PROJECTS);
-        //     self.status_notifications.publish_event(message);
-        // }
+        let requirements = semver::VersionReq::parse(ENGINE_VERSION_SUPPORTED)?;
+        let version      = self.model.engine_version();
+        if !requirements.matches(&version) {
+            let message = format!("Unsupported Engine version. Please update edition in {} \
+                to {}.",package_yaml_path(&self.model.name()),MINIMUM_EDITION_SUPPORTED);
+            self.status_notifications.publish_event(message);
+        }
         Ok(())
     }
 }
