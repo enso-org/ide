@@ -313,7 +313,7 @@ impl LayerModel {
     }
 
     pub fn id(&self) -> LayerId {
-        LayerId::new(Rc::as_ptr(&self.mem_mark) as *const() as usize)
+        LayerId::new(Rc::as_ptr(&self.mem_mark) as usize)
     }
 
     /// Vector of all symbols registered in this layer, ordered according to the defined depth-order
@@ -468,6 +468,11 @@ impl LayerModel {
             for layer in self.children() {
                 layer.update_internal(Some(&*self.global_element_depth_order.borrow()))
             }
+            if let Some(layer) = &*self.mask.borrow() {
+                if let Some(layer) = layer.upgrade() {
+                    layer.update_internal(Some(&*self.global_element_depth_order.borrow()))
+                }
+            }
         }
     }
 
@@ -547,7 +552,8 @@ impl LayerModel {
     }
 
     pub fn set_mask(&self, mask:&Layer) {
-        *self.mask.borrow_mut() = Some(mask.downgrade())
+        *self.mask.borrow_mut() = Some(mask.downgrade());
+        mask.add_parent(&self.children);
     }
 
     /// Add depth-order dependency between two [`LayerItem`]s in this layer. Returns `true`
@@ -644,9 +650,9 @@ pub struct Children {
 
 impl Children {
     pub fn new(logger:impl AnyLogger) -> Self {
-        let element_dirty_logger = Logger::sub(&logger,"dirty");
-        let model        = default();
-        let element_depth_order_dirty  = dirty::SharedBool::new(element_dirty_logger,());
+        let element_dirty_logger      = Logger::sub(&logger,"dirty");
+        let model                     = default();
+        let element_depth_order_dirty = dirty::SharedBool::new(element_dirty_logger,());
         Self {model,element_depth_order_dirty}
     }
 
@@ -668,8 +674,8 @@ impl Children {
 /// Internal representation of [`Group`].
 #[derive(Debug,Default)]
 pub struct ChildrenModel {
-    layers            : OptVec<WeakLayer>,
-    layer_placement   : HashMap<LayerId,usize>,
+    layers          : OptVec<WeakLayer>,
+    layer_placement : HashMap<LayerId,usize>,
 }
 
 impl ChildrenModel {

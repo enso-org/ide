@@ -11,7 +11,6 @@ use crate::display::object::traits::*;
 use crate::display::scene::MouseTarget;
 use crate::display::scene::Scene;
 use crate::display::scene::ShapeRegistry;
-use crate::display::scene::layer::LayerId;
 use crate::display::scene::layer::WeakLayer;
 use crate::display::scene;
 use crate::display::shape::primitive::system::DynamicShape;

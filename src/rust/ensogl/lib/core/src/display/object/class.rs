@@ -9,7 +9,6 @@ use super::transform;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::display::scene::Scene;
-use crate::display::scene::layer::LayerId;
 use crate::display::scene::layer::Layer;
 use crate::display::scene::layer::WeakLayer;
 
@@ -286,11 +285,6 @@ impl<Host> Model<Host> {
     , parent_scene_layers_changed : bool
     , parent_scene_layers         : &[WeakLayer]
     ) {
-        let path = format!("{}",self.logger.path());
-        if (path != "Layer.camera" && path != "world.scene") {
-            DEBUG!("update_with_origin {self.logger.path()}");
-            // DEBUG!("{self.dirty:#?}");
-        }
         // === Scene Layers Update ===
 
         let assigned_layers         = self.assigned_layers.borrow();
