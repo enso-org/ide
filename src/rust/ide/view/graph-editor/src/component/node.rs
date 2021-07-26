@@ -283,7 +283,11 @@ ensogl::define_endpoints! {
         freeze                (bool),
         hover                 (bool),
         error                 (Option<Error>),
+        /// Whether visualization was permanently enabled (e.g. by pressing the button).
         visualization_enabled (bool),
+        /// Visualization can be visible even when it is not enabled, e.g. when showing preview.
+        visualization_visible (bool),
+        visualization_path    (Option<visualization::Path>),
         tooltip               (tooltip::Style),
         bounding_box          (BoundingBox)
     }
@@ -432,11 +436,11 @@ impl NodeModel {
 
         // Disable shadows to allow interaction with the output port.
         let shape_system = scene.layers.main.shape_system_registry.shape_system
-            (&scene,PhantomData::<backdrop::DynamicShape>);
+            (scene,PhantomData::<backdrop::DynamicShape>);
         shape_system.shape_system.set_pointer_events(false);
 
         let input = input::Area::new(&logger,app);
-        let visualization = visualization::Container::new(&logger,&app,registry);
+        let visualization = visualization::Container::new(&logger,app,registry);
 
         display_object.add_child(&visualization);
         display_object.add_child(&input);
@@ -445,7 +449,7 @@ impl NodeModel {
         let (x,y)               = ERROR_VISUALIZATION_SIZE;
         error_visualization.set_size.emit(Vector2(x,y));
 
-        let action_bar = action_bar::ActionBar::new(&logger,&app);
+        let action_bar = action_bar::ActionBar::new(&logger,app);
         display_object.add_child(&action_bar);
 
         let output = output::Area::new(&logger,app);
@@ -556,7 +560,6 @@ impl Node {
         let style            = StyleWatch::new(&app.display.scene().style_sheet);
         let style_frp        = &model.style;
         let action_bar       = &model.action_bar.frp;
-
         // Hook up the display object position updates to the node's FRP. Required to calculate the
         // bounding box.
         frp::extend! { network
@@ -694,10 +697,15 @@ impl Node {
             visualization_visible            <- visualization_enabled || preview_visible;
             visualization_visible            <- visualization_visible && no_error_set;
             visualization_visible_on_change  <- visualization_visible.on_change();
-            frp.source.visualization_enabled <+ visualization_enabled || preview_visible;
+            frp.source.visualization_visible <+ visualization_visible;
+            frp.source.visualization_enabled <+ visualization_enabled;
             eval visualization_visible_on_change ((is_visible)
                 model.visualization.frp.set_visibility(is_visible)
             );
+            init <- source::<()>();
+            frp.source.visualization_path <+ model.visualization.frp.visualisation.all_with(&init,|def_opt,_| {
+                def_opt.as_ref().map(|def| def.signature.path.clone_ref())
+            });
 
             // Ensure the preview is visible above all other elements, but the normal visualisation
             // is below nodes.
@@ -737,7 +745,7 @@ impl Node {
             // === Color Handling ===
 
             let bgg = style_frp.get_color(ensogl_theme::graph_editor::node::background);
-            let profiling_theme = profiling::Theme::from_styles(&style_frp,&network);
+            let profiling_theme = profiling::Theme::from_styles(style_frp,network);
 
             profiling_color <- all_with5
                 (&frp.set_profiling_status,&frp.set_profiling_min_global_duration,
@@ -795,6 +803,7 @@ impl Node {
         }
 
         // Init defaults.
+        init.emit(());
         model.error_visualization.set_layer(visualization::Layer::Front);
         frp.set_error.emit(None);
         frp.set_disabled.emit(false);

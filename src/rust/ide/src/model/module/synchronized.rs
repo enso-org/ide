@@ -10,6 +10,7 @@ use crate::model::module::Content;
 use crate::model::module::Notification;
 use crate::model::module::NodeMetadata;
 use crate::model::module::Path;
+use crate::model::module::ProjectMetadata;
 
 use ast::IdMap;
 use data::text::TextChange;
@@ -70,13 +71,13 @@ impl ParsedContentSummary {
     }
 
     // Get fragment of string with code.
-    pub fn code_slice(&self) -> &str { &self.slice(&self.code) }
+    pub fn code_slice(&self) -> &str { self.slice(&self.code) }
 
     /// Get fragment of string with id map.
-    pub fn id_map_slice  (&self) -> &str { &self.slice(&self.id_map) }
+    pub fn id_map_slice  (&self) -> &str { self.slice(&self.id_map) }
 
     /// Get fragment of string with metadata.
-    pub fn metadata_slice(&self) -> &str { &self.slice(&self.metadata) }
+    pub fn metadata_slice(&self) -> &str { self.slice(&self.metadata) }
 
     fn slice(&self, range:&Range<TextLocation>) -> &str {
         let start_ix = range.start.to_index(&self.source);
@@ -218,6 +219,15 @@ impl API for Module {
     (&self, id:ast::Id, fun:Box<dyn FnOnce(&mut NodeMetadata) + '_>) -> FallibleResult {
         self.model.with_node_metadata(id,fun)
     }
+
+    fn boxed_with_project_metadata(&self, fun:Box<dyn FnOnce(&ProjectMetadata) + '_>) {
+        self.model.boxed_with_project_metadata(fun)
+    }
+
+    fn boxed_update_project_metadata
+    (&self, fun:Box<dyn FnOnce(&mut ProjectMetadata) + '_>) -> FallibleResult {
+        self.model.boxed_update_project_metadata(fun)
+    }
 }
 
 
@@ -281,7 +291,7 @@ impl Module {
                 self.full_invalidation(summary,new_file).await,
             LanguageServerContent::Synchronized(summary) => match kind {
                 NotificationKind::Invalidate =>
-                    self.partial_invalidation(&summary,new_file).await,
+                    self.partial_invalidation(summary,new_file).await,
                 NotificationKind::CodeChanged{change,replaced_location} => {
                     let code_change = TextEdit {
                         range: replaced_location.into(),
@@ -326,7 +336,7 @@ impl Module {
         debug_assert_eq!(start.column, 0);
 
         (source != target).as_some_from(|| {
-            let edit = TextEdit::from_prefix_postfix_differences(&source, &target);
+            let edit = TextEdit::from_prefix_postfix_differences(source, target);
             edit.move_by_lines(start.line)
         })
     }
@@ -369,7 +379,7 @@ impl Module {
     , new_file          : &SourceFile
     , edits             : Vec<TextEdit>
     ) -> impl Future<Output=FallibleResult<ParsedContentSummary>> + 'static  {
-        let summary = ParsedContentSummary::from_source(&new_file);
+        let summary = ParsedContentSummary::from_source(new_file);
         let edit    = language_server::types::FileEdit {
             edits,
             path        : self.path().file_path().clone(),

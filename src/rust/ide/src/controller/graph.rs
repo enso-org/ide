@@ -481,10 +481,10 @@ impl Handle {
     (parent:impl AnyLogger, project:&model::Project, method:&language_server::MethodPointer)
     -> FallibleResult<controller::Graph> {
         let method      = method.clone();
-        let root_id     = project.content_root_id();
+        let root_id     = project.project_content_root_id();
         let module_path = model::module::Path::from_method(root_id,&method)?;
         let module      = project.module(module_path).await?;
-        let definition  = module.lookup_method(project.name().as_ref(),&method)?;
+        let definition  = module.lookup_method(project.qualified_name(),&method)?;
         Self::new(parent,module,project.suggestion_db(),project.parser(),definition)
     }
 
@@ -673,7 +673,7 @@ impl Handle {
         let source_info              = self.source_info(connection,context)?;
         let destination_info         = self.destination_info(connection,context)?;
         let source_identifier        = source_info.target_ast()?.clone();
-        let updated_target_node_expr = destination_info.set(source_identifier)?;
+        let updated_target_node_expr = destination_info.set(source_identifier.with_new_id())?;
         self.set_expression_ast(connection.destination.node,updated_target_node_expr)?;
 
         // Reorder node lines, so the connection target is after connection source.
@@ -827,8 +827,8 @@ impl Handle {
         let graph   = self.graph_info()?;
         let my_name = graph.source.name.item;
         module.add_method(new_method,module::Placement::Before(my_name),&self.parser)?;
+        module.update_definition(&self.id,|_| Ok(updated_definition))?;
         self.module.update_ast(module.ast)?;
-        self.update_definition_ast(|_| Ok(updated_definition))?;
         let position = Some(model::module::Position::mean(collapsed_positions));
         let metadata = NodeMetadata {position,..default()};
         self.module.set_node_metadata(collapsed_node,metadata)?;
@@ -909,19 +909,22 @@ pub mod tests {
     use super::*;
 
     use crate::double_representation::identifier::NormalizedName;
+    use crate::double_representation::project;
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
     use crate::model::module::Position;
+    use crate::model::suggestion_database;
+    use crate::test::mock::data;
 
     use ast::crumbs;
     use ast::test_utils::expect_shape;
-    use data::text::Index;
-    use data::text::TextChange;
+    use enso_data::text::Index;
+    use enso_data::text::TextChange;
     use enso_protocol::language_server::MethodPointer;
     use parser::Parser;
     use utils::test::ExpectTuple;
     use wasm_bindgen_test::wasm_bindgen_test;
 
-    use crate::model::suggestion_database;
+
 
     /// Returns information about all the connections between graph's nodes.
     ///
@@ -935,7 +938,7 @@ pub mod tests {
     pub struct MockData {
         pub module_path  : model::module::Path,
         pub graph_id     : Id,
-        pub project_name : String,
+        pub project_name : project::QualifiedName,
         pub code         : String,
         pub suggestions  : HashMap<suggestion_database::entry::Id,suggestion_database::Entry>,
     }
@@ -945,10 +948,10 @@ pub mod tests {
         /// node.
         pub fn new() -> Self {
             MockData {
-                module_path  : crate::test::mock::data::module_path(),
-                graph_id     : crate::test::mock::data::graph_id(),
-                project_name : crate::test::mock::data::PROJECT_NAME.to_owned(),
-                code         : crate::test::mock::data::CODE.to_owned(),
+                module_path  : data::module_path(),
+                graph_id     : data::graph_id(),
+                project_name : data::project_qualified_name(),
+                code         : data::CODE.to_owned(),
                 suggestions  : default(),
             }
         }
@@ -984,7 +987,7 @@ pub mod tests {
         }
 
         pub fn method(&self) -> MethodPointer {
-            self.module_path.method_pointer(&self.project_name,self.graph_id.to_string())
+            self.module_path.method_pointer(self.project_name.clone(),self.graph_id.to_string())
         }
 
         pub fn suggestion_db(&self) -> Rc<model::SuggestionDatabase> {
@@ -1115,9 +1118,8 @@ main =
             assert_eq!(nodes.len(),1);
             let id = nodes[0].info.id();
             graph.module.set_node_metadata(id,NodeMetadata {
-                position        : None,
                 intended_method : entry.method_id(),
-                uploading_file  : None,
+                ..default()
             }).unwrap();
 
             let get_invocation_info = || {

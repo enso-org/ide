@@ -1,6 +1,29 @@
 # Next Release
 
-# Enso 2.0.0-alpha.8 (2021-06-09)
+# Enso 2.0.0-alpha.10 (2021-07-23)
+
+#### Enso Compiler
+
+- [Updated Enso engine to version 0.2.15][1710]. If you're interested in the
+  enhancements and fixes made to the Enso compiler, you can find out more
+  details in
+  [the engine release notes](https://github.com/enso-org/enso/blob/main/RELEASES.md).
+
+[1710]: https://github.com/enso-org/ide/pull/1710
+
+# Enso 2.0.0-alpha.9 (2021-07-16)
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Visual Environment
+
+- [Improved undo-redo][1653]. Node selection, enabling/disabling visualisations
+  and entering a node are now affected by undo/redo and are restored on project
+  startup.
+
+<br/>
+  
+# Enso 2.0.0-alpha.8 (2021-07-09)
 
 <br/>![New Features](/docs/assets/tags/new_features.svg)
 
@@ -11,7 +34,8 @@
   details in
   [the engine release notes](https://github.com/enso-org/enso/blob/main/RELEASES.md).
 
-[1640]: https://github.com/enso-org/ide/pull/1664
+[1640]: https://github.com/enso-org/ide/pull/1640
+[1677]: https://github.com/enso-org/ide/pull/1677
 
 <br/>
 
@@ -76,6 +100,7 @@
 [1602]: https://github.com/enso-org/ide/pull/1664
 [1602]: https://github.com/enso-org/ide/pull/1650
 [1602]: https://github.com/enso-org/ide/pull/1626
+[1791]: https://github.com/enso-org/ide/pull/1791
 
 # Enso 2.0.0-alpha.5 (2021-05-14)
 

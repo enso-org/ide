@@ -214,8 +214,8 @@ impl NodeFromDroppedFileHandler {
         };
         NodeMetadata {
             position        : Some(position),
-            intended_method : None,
-            uploading_file  : Some(uploading_metadata)
+            uploading_file  : Some(uploading_metadata),
+            ..default()
         }
     }
 
@@ -283,7 +283,7 @@ impl NodeFromDroppedFileHandler {
         if !self.data_directory_exists().await? {
             let to_create = FileSystemObject::Directory {
                 name : DATA_DIR_NAME.to_owned(),
-                path : Path::new_root(self.project.content_root_id())
+                path : Path::new_root(self.project.project_content_root_id())
             };
             self.project.json_rpc().create_file(&to_create).await?
         }
@@ -311,7 +311,7 @@ impl NodeFromDroppedFileHandler {
     }
 
     fn data_path(&self) -> Path {
-        Path::new(self.project.content_root_id(),&[DATA_DIR_NAME])
+        Path::new(self.project.project_content_root_id(),&[DATA_DIR_NAME])
     }
 }
 
