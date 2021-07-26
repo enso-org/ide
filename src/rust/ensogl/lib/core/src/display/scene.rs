@@ -828,9 +828,7 @@ impl SceneData {
     }
 
     pub fn new_symbol(&self) -> Symbol {
-        let symbol = self.symbols.new();
-        self.layers.main.add_symbol(&symbol);
-        symbol
+        self.symbols.new()
     }
 
     pub fn symbols(&self) -> &SymbolRegistry {

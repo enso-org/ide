@@ -185,9 +185,9 @@ impl Layer {
     (&self, scene:&Scene, shape:&T) -> LayerDynamicShapeInstance
     where T : display::shape::system::DynamicShape {
         let (shape_system_info,symbol_id,instance_id) = self.shape_system_registry.instantiate(scene,shape);
-        // FIXME: This is needed because symbols are registered in main by scene by default.
-        //        They should probably not. Needs a proper design.
-        scene.layers.main.remove_symbol(symbol_id);
+        // // FIXME: This is needed because symbols are registered in main by scene by default.
+        // //        They should probably not. Needs a proper design.
+        // scene.layers.main.remove_symbol(symbol_id);
         self.add_shape(shape_system_info,symbol_id);
         LayerDynamicShapeInstance::new(self,symbol_id,instance_id)
     }
@@ -255,7 +255,7 @@ pub struct LayerModel {
     elements                        : RefCell<BTreeSet<LayerItem>>,
     symbols_ordered                 : RefCell<Vec<SymbolId>>,
     depth_order                     : RefCell<DependencyGraph<LayerItem>>,
-    depth_order_dirty               : dirty::SharedBool<Box<dyn Fn()>>,
+    depth_order_dirty               : dirty::SharedBool<OnDepthOrderDirty>,
     parents                         : Rc<RefCell<Vec<Children>>>,
     global_element_depth_order      : Rc<RefCell<DependencyGraph<LayerItem>>>,
     children                        : Children,
@@ -280,13 +280,6 @@ impl Drop for LayerModel {
         for parent in &mut *self.parents.borrow_mut() {
             let mut model = parent.borrow_mut();
             model.remove(id);
-            for element in &*self.elements.borrow() {
-                if let Some(symbol_id) = self.symbol_id_of_element(*element) {
-                    if let Some(vec) = model.symbols_placement.get_mut(&symbol_id) {
-                        vec.remove_item(&id);
-                    }
-                }
-            }
         }
     }
 }
@@ -302,14 +295,8 @@ impl LayerModel {
         let elements                        = default();
         let symbols_ordered                 = default();
         let depth_order                     = default();
-        let parents: Rc<RefCell<Vec<Children>>>                         = default();
-        let parents2 = parents.clone_ref();
-        let on_mut = Box::new(move||{
-            for parent in &*parents2.borrow() {
-                parent.element_depth_order_dirty.set()
-            }
-        }) as Box<dyn Fn()>;
-
+        let parents                         = default();
+        let on_mut                          = on_depth_order_dirty(&parents);
         let depth_order_dirty               = dirty::SharedBool::new(logger_dirty,on_mut);
         let global_element_depth_order      = default();
         let children                        = Children::new(Logger::sub(&logger,"registry"));
@@ -422,27 +409,10 @@ impl LayerModel {
         self.add_element(symbol_id.into(),None)
     }
 
-    /// Add the symbol to this layer and remove it from other layers.
-    pub fn add_symbol_exclusive(&self, symbol_id:impl Into<SymbolId>) {
-        self.add_element_exclusive(symbol_id.into(),None)
-    }
-
     /// Add the shape to this layer.
     pub(crate) fn add_shape
     (&self, shape_system_info:ShapeSystemInfo, symbol_id:impl Into<SymbolId>) {
         self.add_element(symbol_id.into(),Some(shape_system_info))
-    }
-
-    /// Add the shape to this layer and remove it from other layers.
-    pub(crate) fn add_shape_exclusive
-    (&self, shape_system_info:ShapeSystemInfo, symbol_id:impl Into<SymbolId>) {
-        self.add_element_exclusive(symbol_id.into(),Some(shape_system_info))
-    }
-
-    /// Internal helper for adding elements to this layer and removing them from other layers.
-    fn add_element_exclusive(&self, symbol_id:SymbolId, shape_system_info:Option<ShapeSystemInfo>) {
-        self.remove_symbol_from_all_layers(symbol_id);
-        self.add_element(symbol_id,shape_system_info);
     }
 
     /// Internal helper for adding elements to this layer.
@@ -458,9 +428,6 @@ impl LayerModel {
                 self.elements.borrow_mut().insert(LayerItem::ShapeSystem(info.id));
             }
         }
-        for parent in &*self.parents.borrow() {
-            parent.borrow_mut().symbols_placement.entry(symbol_id).or_default().push(self.id());
-        }
     }
 
     /// Remove the symbol from the current layer.
@@ -473,12 +440,6 @@ impl LayerModel {
             self.shape_system_to_symbol_info_map.borrow_mut().remove(&shape_system_id);
             self.elements.borrow_mut().remove(&LayerItem::ShapeSystem(shape_system_id));
         }
-
-        for parent in &*self.parents.borrow() {
-            if let Some(placement) = parent.borrow_mut().symbols_placement.get_mut(&symbol_id) {
-                placement.remove_item(&self.id());
-            }
-        }
     }
 
     pub fn remove_shape_system(&self, shape_system_id:ShapeSystemId) {
@@ -486,23 +447,6 @@ impl LayerModel {
         self.elements.borrow_mut().remove(&LayerItem::ShapeSystem(shape_system_id));
         if let Some(symbol_id) = self.shape_system_to_symbol_info_map.borrow_mut().remove(&shape_system_id) {
             self.symbol_to_shape_system_map.borrow_mut().remove(&symbol_id.id);
-        }
-    }
-
-    /// Remove the symbol from all layers it was attached to.
-    fn remove_symbol_from_all_layers(&self, symbol_id:SymbolId) {
-        DEBUG!("remove_symbol_from_all_layers {symbol_id:?}");
-        for parent in &*self.parents.borrow() {
-            let placement = parent.borrow().symbols_placement.get(&symbol_id).cloned();
-            DEBUG!("found in: {placement:?}");
-            if let Some(placement) = placement {
-                for layer_id in placement {
-                    let opt_layer = parent.borrow().get(layer_id);
-                    if let Some(layer) = opt_layer {
-                        layer.remove_symbol(symbol_id)
-                    }
-                }
-            }
         }
     }
 
@@ -572,14 +516,6 @@ impl LayerModel {
 // === Grouping Utilities ===
 
 impl LayerModel {
-    // /// Constructor.
-    // pub fn new(logger:impl AnyLogger) -> Self {
-    //     let logger                     = Logger::sub(logger,"views");
-    //     let global_element_depth_order = default();
-    //     let children                   = Children::new(Logger::sub(&logger,"registry"));
-    //     Self {logger,global_element_depth_order,children}
-    // }
-
     /// Query [`Layer`] by [`LayerId`].
     pub fn get_child(&self, layer_id:LayerId) -> Option<Layer> {
         self.children.borrow().get(layer_id)
@@ -669,7 +605,15 @@ impl LayerModel {
     }
 }
 
-
+pub type OnDepthOrderDirty = impl Fn();
+fn on_depth_order_dirty(parents: &Rc<RefCell<Vec<Children>>>) -> OnDepthOrderDirty {
+    let parents = parents.clone();
+    move || {
+        for parent in &*parents.borrow() {
+            parent.element_depth_order_dirty.set()
+        }
+    }
+}
 
 impl AsRef<LayerModel> for Layer {
     fn as_ref(&self) -> &LayerModel {
@@ -726,7 +670,6 @@ impl Children {
 pub struct ChildrenModel {
     layers            : OptVec<WeakLayer>,
     layer_placement   : HashMap<LayerId,usize>,
-    symbols_placement : HashMap<SymbolId,Vec<LayerId>>,
 }
 
 impl ChildrenModel {
@@ -861,12 +804,6 @@ impl {
 }}
 
 impl ShapeSystemRegistryData {
-    // fn get<T>(&self) -> Option<T>
-    //     where T : ShapeSystemInstance {
-    //     let id = TypeId::of::<T>();
-    //     self.shape_system_map.get(&id).and_then(|t| t.shape_system.downcast_ref::<T>()).map(|t| t.clone_ref())
-    // }
-
     fn get_mut<T>(&mut self) -> Option<ShapeSystemRegistryEntryRefMut<T>>
     where T : ShapeSystemInstance {
         let id = TypeId::of::<T>();
@@ -879,16 +816,6 @@ impl ShapeSystemRegistryData {
         })
     }
 
-    // fn register<T>(&mut self, scene:&Scene) -> T
-    // where T : ShapeSystemInstance {
-    //     let id     = TypeId::of::<T>();
-    //     let system = <T as ShapeSystemInstance>::new(scene);
-    //     let any    = Box::new(system.clone_ref());
-    //     let entry  = ShapeSystemRegistryEntry {shape_system:any, instance_count:0};
-    //     self.shape_system_map.insert(id,entry);
-    //     system
-    // }
-
     fn register<T>(&mut self, scene:&Scene) -> ShapeSystemRegistryEntryRefMut<T>
     where T : ShapeSystemInstance {
         let id     = TypeId::of::<T>();
@@ -899,11 +826,6 @@ impl ShapeSystemRegistryData {
         // The following line is safe, as the object was just registered.
         self.get_mut().unwrap()
     }
-
-    // fn get_or_register<T>(&mut self, scene:&Scene) -> T
-    // where T : ShapeSystemInstance {
-    //     self.get().unwrap_or_else(|| self.register(scene))
-    // }
 
     fn with_get_or_register_mut<T,F,Out>
     (&mut self, scene:&Scene, f:F) -> Out

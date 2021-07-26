@@ -300,7 +300,7 @@ impl BreadcrumbModel {
         scene.layers.panel.add_exclusive(&view);
         let shape_system = scene.layers.panel.shape_system_registry.shape_system
             (scene,PhantomData::<background::DynamicShape>);
-        scene.layers.panel.add_symbol_exclusive(&shape_system.shape_system.symbol);
+        scene.layers.panel.add_exclusive(&shape_system.shape_system.symbol);
 
         scene.layers.panel.add_exclusive(&icon);
         let shape_system = scene.layers.panel.shape_system_registry.shape_system

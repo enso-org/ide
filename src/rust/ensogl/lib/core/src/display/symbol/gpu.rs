@@ -302,11 +302,29 @@ impl Symbol {
             let symbol_id_uniform = variables.add_or_panic("symbol_id",(*id) as i32);
             let display_object    = display::object::Instance::new(logger.clone());
             let is_hidden         = Rc::new(Cell::new(false));
-            display_object.set_on_hide(f_!(is_hidden.set(true)));
-            display_object.set_on_show(f__!(is_hidden.set(false)));
             Self {id,display_object,surface,shader,surface_dirty,shader_dirty,variables
-                 ,global_variables,symbol_id_uniform,context,logger,bindings,stats,is_hidden}
+                 ,global_variables,symbol_id_uniform,context,logger,bindings,stats,is_hidden}.init()
         })
+    }
+
+    fn init(self) -> Self {
+        let is_hidden = &self.is_hidden;
+        let id        = self.id;
+        self.display_object.set_on_hide(f_!(is_hidden.set(true)));
+        self.display_object.set_on_show(f__!(is_hidden.set(false)));
+        self.display_object.set_on_scene_layer_changed(move |scene,old_layers,new_layers| {
+            for layer in old_layers {
+                if let Some(layer) = layer.upgrade() {
+                    layer.remove_symbol(id)
+                }
+            }
+            for layer in new_layers {
+                if let Some(layer) = layer.upgrade() {
+                    layer.add_symbol(id)
+                }
+            }
+        });
+        self
     }
 
     pub(crate) fn set_context(&self, context:Option<&Context>) {
