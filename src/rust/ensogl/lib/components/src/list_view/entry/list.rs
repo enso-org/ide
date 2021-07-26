@@ -67,7 +67,7 @@ where E::Model : Default {
     /// Entry List View constructor.
     pub fn new(parent:impl AnyLogger, app:&Application) -> Self {
         let app            = app.clone_ref();
-        let logger         = Logger::sub(parent,"entry::List");
+        let logger         = Logger::new_sub(parent,"entry::List");
         let entries        = default();
         let entries_range  = Rc::new(CloneCell::new(default()..default()));
         let display_object = display::object::Instance::new(&logger);

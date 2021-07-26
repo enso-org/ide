@@ -73,7 +73,7 @@ pub struct Line {
 
 impl Line {
     fn new(logger:impl AnyLogger) -> Self {
-        let logger         = Logger::sub(logger,"line");
+        let logger         = Logger::new_sub(logger,"line");
         let display_object = display::object::Instance::new(logger);
         let glyphs         = default();
         let divs           = default();
@@ -605,7 +605,7 @@ impl AreaModel {
                 };
                 let min_pos_x  = pos_x(start_line,sel.start.column);
                 let max_pos_x  = pos_x(end_line  ,sel.end  .column);
-                let logger     = Logger::sub(&self.logger,"cursor");
+                let logger     = Logger::new_sub(&self.logger,"cursor");
                 let min_pos_y  = -LINE_HEIGHT/2.0 - LINE_HEIGHT * start_line as f32;
                 let pos        = Vector2(min_pos_x,min_pos_y);
                 let width      = max_pos_x - min_pos_x;

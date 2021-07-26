@@ -554,7 +554,7 @@ pub struct Renderer {
 
 impl Renderer {
     fn new(logger:impl AnyLogger, dom:&Dom, context:&Context, variables:&UniformScope) -> Self {
-        let logger    = Logger::sub(logger,"renderer");
+        let logger    = Logger::new_sub(logger,"renderer");
         let dom       = dom.clone_ref();
         let context   = context.clone_ref();
         let variables = variables.clone_ref();
@@ -638,21 +638,21 @@ impl Deref for HardcodedLayers {
 
 impl HardcodedLayers {
     pub fn new(logger:impl AnyLogger) -> Self {
-        let root             = Layer::new(); // layer::Group::new(logger);
-        let main             = Layer::new();
+        let root             = Layer::new(logger.sub("root"));
+        let main             = Layer::new(logger.sub("main"));
         let main_cam         = &main.camera();
-        let viz              = Layer::from(main_cam);
-        let below_main       = Layer::from(main_cam);
-        let port_selection   = Layer::new();
-        let label            = Layer::from(main_cam);
-        let above_nodes      = Layer::from(main_cam);
-        let above_nodes_text = Layer::from(main_cam);
-        let panel            = Layer::new();
-        let panel_text       = Layer::new();
-        let tooltip          = Layer::from(main_cam);
-        let tooltip_text     = Layer::from(main_cam);
-        let cursor           = Layer::new();
-        let mask             = Layer::new();
+        let viz              = Layer::new_from_cam(logger.sub("viz"),main_cam);
+        let below_main       = Layer::new_from_cam(logger.sub("below_main"),main_cam);
+        let port_selection   = Layer::new(logger.sub("port_selection"));
+        let label            = Layer::new_from_cam(logger.sub("label"),main_cam);
+        let above_nodes      = Layer::new_from_cam(logger.sub("above_nodes"),main_cam);
+        let above_nodes_text = Layer::new_from_cam(logger.sub("above_nodes_text"),main_cam);
+        let panel            = Layer::new(logger.sub("panel"));
+        let panel_text       = Layer::new(logger.sub("panel_text"));
+        let tooltip          = Layer::new_from_cam(logger.sub("tooltip"),main_cam);
+        let tooltip_text     = Layer::new_from_cam(logger.sub("tooltip_text"),main_cam);
+        let cursor           = Layer::new(logger.sub("cursor"));
+        let mask             = Layer::new(logger.sub("mask"));
         root.set_mask(&mask);
         root.set_children(
             &[ &viz
@@ -772,12 +772,12 @@ impl SceneData {
         let display_object       = display::object::Instance::new(&logger);
         display_object.force_set_visibility(true);
         let context              = web::get_webgl2_context(&dom.layers.canvas);
-        let sub_logger           = Logger::sub(&logger,"shape_dirty");
+        let sub_logger           = Logger::new_sub(&logger,"shape_dirty");
         let shape_dirty          = ShapeDirty::new(sub_logger,Box::new(on_mut.clone()));
-        let sub_logger           = Logger::sub(&logger,"symbols_dirty");
+        let sub_logger           = Logger::new_sub(&logger,"symbols_dirty");
         let dirty_flag           = SymbolRegistryDirty::new(sub_logger,Box::new(on_mut));
         let on_change            = enclose!((dirty_flag) move || dirty_flag.set());
-        let var_logger           = Logger::sub(&logger,"global_variables");
+        let var_logger           = Logger::new_sub(&logger,"global_variables");
         let variables            = UniformScope::new(var_logger);
         let symbols              = SymbolRegistry::mk(&variables,stats,&logger,on_change);
         // FIXME: This should be abstracted away and should also handle context loss when Symbol
@@ -794,7 +794,7 @@ impl SceneData {
         let style_sheet          = style::Sheet::new();
         let current_js_event     = CurrentJsEvent::new();
         let frp                  = Frp::new(&dom.root.shape);
-        let mouse_logger         = Logger::sub(&logger,"mouse");
+        let mouse_logger         = Logger::new_sub(&logger,"mouse");
         let mouse                = Mouse::new(&frp,&dom.root,&variables,&current_js_event,mouse_logger);
         let disable_context_menu = Rc::new(web::ignore_context_menu(&dom.root).unwrap());
         let keyboard             = Keyboard::new(&current_js_event);
@@ -945,7 +945,7 @@ pub struct Scene {
 impl Scene {
     pub fn new<OnMut:Fn()+Clone+'static>
     (parent_dom:&HtmlElement, logger:impl AnyLogger, stats:&Stats, on_mut:OnMut) -> Self {
-        let logger        = Logger::sub(logger,"scene");
+        let logger        = Logger::new_sub(logger,"scene");
         let no_mut_access = SceneData::new(parent_dom,logger,stats,on_mut);
         let this = Self {no_mut_access};
 

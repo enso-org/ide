@@ -219,8 +219,8 @@ impl Manager {
     /// Constructor.
     pub fn new() -> Self {
         let logger        = Logger::new("Theme Manager");
-        let current_dirty = dirty::SharedBool::new(Logger::sub(&logger,"dirty"),());
-        let enabled_dirty = dirty::SharedVector::new(Logger::sub(&logger,"enabled_dirty"),());
+        let current_dirty = dirty::SharedBool::new(Logger::new_sub(&logger,"dirty"),());
+        let enabled_dirty = dirty::SharedVector::new(Logger::new_sub(&logger,"enabled_dirty"),());
         let data          = default();
         let handles       = default();
         let initialized   = default();

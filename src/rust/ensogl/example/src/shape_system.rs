@@ -50,7 +50,7 @@ pub fn entry_point_shape_system() {
     let world          = World::new(&web::get_html_element_by_id("root").unwrap());
     let scene          = world.scene();
     let camera         = scene.camera().clone_ref();
-    let navigator      = Navigator::new(&scene,&camera);
+    let navigator      = Navigator::new(scene,&camera);
     let sprite_system  = ShapeSystem::new(&world,&shape());
     let sprite_system2 = ShapeSystem::new(&world,&mask());
     let sprite         = sprite_system.new_instance();
@@ -67,14 +67,8 @@ pub fn entry_point_shape_system() {
     world.keep_alive_forever();
 
     world.scene().layers.mask.add_exclusive(&mask);
-    let scene = world.scene().clone_ref();
 
-    let mut i = 0;
     world.on_frame(move |_time| {
-        i += 1;
-        if (i == 10) {
-            DEBUG!("{scene.layers.main:#?}")
-        }
         let _keep_alive = &sprite;
         let _keep_alive = &mask;
         let _keep_alive = &navigator;

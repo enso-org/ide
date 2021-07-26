@@ -128,17 +128,17 @@ pub struct DirtyFlags<Host> {
 impl<Host> DirtyFlags<Host> {
     #![allow(trivial_casts)]
     fn new(logger:impl AnyLogger) -> Self {
-        let logger : Logger  = Logger::sub(&logger,"dirty");
+        let logger : Logger  = Logger::new_sub(&logger,"dirty");
         let on_dirty         = Rc::new(RefCell::new(Box::new(||{}) as Box<dyn Fn()>));
-        let sub_logger       = logger::WarningLogger::sub(&logger,"parent");
+        let sub_logger       = logger::WarningLogger::new_sub(&logger,"parent");
         let parent           = NewParentDirty::new(sub_logger,());
-        let sub_logger       = logger::WarningLogger::sub(&logger,"children");
+        let sub_logger       = logger::WarningLogger::new_sub(&logger,"children");
         let children         = ChildrenDirty::new(sub_logger,on_dirty_callback(&on_dirty));
-        let sub_logger       = logger::WarningLogger::sub(&logger,"removed_children");
+        let sub_logger       = logger::WarningLogger::new_sub(&logger,"removed_children");
         let removed_children = RemovedChildren::new(sub_logger,on_dirty_callback(&on_dirty));
-        let sub_logger       = logger::WarningLogger::sub(&logger,"transform");
+        let sub_logger       = logger::WarningLogger::new_sub(&logger,"transform");
         let transform        = TransformDirty::new(sub_logger,on_dirty_callback(&on_dirty));
-        let sub_logger       = logger::WarningLogger::sub(&logger,"scene_layer");
+        let sub_logger       = logger::WarningLogger::new_sub(&logger,"scene_layer");
         let scene_layer      = SceneLayerDirty::new(sub_logger,on_dirty_callback(&on_dirty));
         Self {parent,children,removed_children,transform,scene_layer,on_dirty}
     }
@@ -430,11 +430,7 @@ impl<Host> Model<Host> {
         if let Some(parent) = bind.parent() {
             let index = bind.index;
             let dirty = parent.dirty.children.clone_ref();
-            let parent_path = format!("{}",parent.logger.path());
-            self.dirty.set_on_dirty(move || {
-                DEBUG!("Setting parent dirty: {parent_path}");
-                dirty.set(index);
-            });
+            self.dirty.set_on_dirty(move || dirty.set(index));
             self.dirty.parent.set();
             *self.parent_bind.borrow_mut() = Some(bind);
         }

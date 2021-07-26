@@ -108,29 +108,9 @@ use std::any::TypeId;
 /// to break cycles and never points to a dropped [`Layer`], as layers update the information on
 /// a drop.
 
-// #[derive(Clone,CloneRef,Debug)]
-// #[allow(missing_docs)]
-// pub struct Group {
-//     // pub main : Layer,
-//     model    : GroupModel,
-// }
-//
-// impl Deref for Group {
-//     type Target = GroupModel;
-//     fn deref(&self) -> &Self::Target {
-//         &self.model
-//     }
-// }
-//
-// impl Group {
-//     /// Constructor.
-//     pub fn new(logger:impl AnyLogger) -> Self {
-//         let model = GroupModel::new(logger);
-//         // let main  = Layer::new();
-//         Self {model}
-//     }
-// }
 
+#[derive(Debug)]
+#[allow(missing_docs)]
 pub struct LayerDynamicShapeInstance {
     pub layer       : WeakLayer,
     pub symbol_id   : SymbolId,
@@ -138,6 +118,7 @@ pub struct LayerDynamicShapeInstance {
 }
 
 impl LayerDynamicShapeInstance {
+    /// Constructor.
     pub fn new(layer:&Layer, symbol_id:SymbolId, instance_id:attribute::InstanceIndex) -> Self {
         let layer = layer.downgrade();
         Self {layer,symbol_id,instance_id}
@@ -164,12 +145,21 @@ impl Debug for Layer {
 }
 
 impl Layer {
-    pub fn new() -> Self {
-        let model = LayerModel::new();
+    /// Constructor.
+    pub fn new(logger:Logger) -> Self {
+        let model = LayerModel::new(logger);
         let model = Rc::new(model);
         Self {model}
     }
 
+    /// Constructor.
+    pub fn new_from_cam(logger:Logger, camera:&Camera2d) -> Self {
+        let this = Self::new(logger);
+        this.set_camera(camera);
+        this
+    }
+
+    /// Create a new weak pointer to this layer.
     pub fn downgrade(&self) -> WeakLayer {
         let model = Rc::downgrade(&self.model);
         WeakLayer {model}
@@ -185,9 +175,6 @@ impl Layer {
     (&self, scene:&Scene, shape:&T) -> LayerDynamicShapeInstance
     where T : display::shape::system::DynamicShape {
         let (shape_system_info,symbol_id,instance_id) = self.shape_system_registry.instantiate(scene,shape);
-        // // FIXME: This is needed because symbols are registered in main by scene by default.
-        // //        They should probably not. Needs a proper design.
-        // scene.layers.main.remove_symbol(symbol_id);
         self.add_shape(shape_system_info,symbol_id);
         LayerDynamicShapeInstance::new(self,symbol_id,instance_id)
     }
@@ -196,14 +183,6 @@ impl Layer {
 impl From<&Layer> for LayerId {
     fn from(t:&Layer) -> Self {
         t.id()
-    }
-}
-
-impl From<&Camera2d> for Layer {
-    fn from(camera:&Camera2d) -> Self {
-        let this = Self::new();
-        this.set_camera(camera);
-        this
     }
 }
 
@@ -220,6 +199,7 @@ pub struct WeakLayer {
 }
 
 impl WeakLayer {
+    /// Upgrade to strong reference.
     pub fn upgrade(&self) -> Option<Layer> {
         self.model.upgrade().map(|model| Layer {model})
     }
@@ -285,9 +265,8 @@ impl Drop for LayerModel {
 }
 
 impl LayerModel {
-    fn new() -> Self {
-        let logger                          = Logger::new("Layer");
-        let logger_dirty                    = Logger::sub(&logger,"dirty");
+    fn new(logger:Logger) -> Self {
+        let logger_dirty                    = Logger::new_sub(&logger,"dirty");
         let camera                          = RefCell::new(Camera2d::new(&logger));
         let shape_system_registry           = default();
         let shape_system_to_symbol_info_map = default();
@@ -299,7 +278,7 @@ impl LayerModel {
         let on_mut                          = on_depth_order_dirty(&parents);
         let depth_order_dirty               = dirty::SharedBool::new(logger_dirty,on_mut);
         let global_element_depth_order      = default();
-        let children                        = Children::new(Logger::sub(&logger,"registry"));
+        let children                        = Children::new(Logger::new_sub(&logger,"registry"));
         let mask                            = default();
         let mem_mark                        = default();
         Self {logger,camera,shape_system_registry,shape_system_to_symbol_info_map
@@ -312,6 +291,8 @@ impl LayerModel {
         self.parents.borrow_mut().push(parent);
     }
 
+    /// Unique identifier of this layer. It is memory-based, it will be unique even for layers in
+    /// different instances of [`Scene`].
     pub fn id(&self) -> LayerId {
         LayerId::new(Rc::as_ptr(&self.mem_mark) as usize)
     }
@@ -442,6 +423,7 @@ impl LayerModel {
         }
     }
 
+    /// Remove the [`ShapeSystem`] registered in this layer together with all of its [`Symbol`]s.
     pub fn remove_shape_system(&self, shape_system_id:ShapeSystemId) {
         self.depth_order_dirty.set();
         self.elements.borrow_mut().remove(&LayerItem::ShapeSystem(shape_system_id));
@@ -450,6 +432,7 @@ impl LayerModel {
         }
     }
 
+    /// Consume all dirty flags and update the ordering of elements if needed.
     pub fn update(&self) {
         self.update_internal(None)
     }
@@ -486,7 +469,7 @@ impl LayerModel {
         graph.extend(self.depth_order.borrow().clone().into_iter());
         for element in &*self.elements.borrow() {
             if let LayerItem::ShapeSystem(id) = element {
-                if let Some(info) = self.shape_system_to_symbol_info_map.borrow().get(&id) {
+                if let Some(info) = self.shape_system_to_symbol_info_map.borrow().get(id) {
                     for &id2 in &info.below { graph.insert_dependency(*element,id2.into()); }
                     for &id2 in &info.above { graph.insert_dependency(id2.into(),*element); }
                 }
@@ -544,6 +527,11 @@ impl LayerModel {
         // TODO
     }
 
+    fn remove_mask(&self) {
+        // TODO
+    }
+
+    /// Set all children layer of this layer. Old children layers will be unregistered.
     pub fn set_children(&self, layers:&[&Layer]) {
         self.remove_all_children();
         for layer in layers {
@@ -551,7 +539,9 @@ impl LayerModel {
         }
     }
 
+    /// Set a mask layer of this layer. Old mask layer will be unregistered.
     pub fn set_mask(&self, mask:&Layer) {
+        self.remove_mask();
         *self.mask.borrow_mut() = Some(mask.downgrade());
         mask.add_parent(&self.children);
     }
@@ -611,6 +601,7 @@ impl LayerModel {
     }
 }
 
+/// Unboxed callback.
 pub type OnDepthOrderDirty = impl Fn();
 fn on_depth_order_dirty(parents: &Rc<RefCell<Vec<Children>>>) -> OnDepthOrderDirty {
     let parents = parents.clone();
@@ -642,26 +633,27 @@ impl std::borrow::Borrow<LayerModel> for Layer {
 // === Children ===
 // ================
 
+/// Abstraction for layer children.
 #[derive(Clone,CloneRef,Debug)]
 pub struct Children {
     model                     : Rc<RefCell<ChildrenModel>>,
     element_depth_order_dirty : dirty::SharedBool,
 }
 
+impl Deref for Children {
+    type Target = Rc<RefCell<ChildrenModel>>;
+    fn deref(&self) -> &Self::Target {
+        &self.model
+    }
+}
+
 impl Children {
+    /// Constructor.
     pub fn new(logger:impl AnyLogger) -> Self {
-        let element_dirty_logger      = Logger::sub(&logger,"dirty");
+        let element_dirty_logger      = Logger::new_sub(&logger,"dirty");
         let model                     = default();
         let element_depth_order_dirty = dirty::SharedBool::new(element_dirty_logger,());
         Self {model,element_depth_order_dirty}
-    }
-
-    pub fn borrow(&self) -> Ref<ChildrenModel> {
-        self.model.borrow()
-    }
-
-    pub fn borrow_mut(&self) -> RefMut<ChildrenModel> {
-        self.model.borrow_mut()
     }
 }
 
@@ -742,6 +734,8 @@ impl From<ShapeSystemId> for LayerItem {
 // === ShapeRegistry ===
 // =====================
 
+/// An entry containing [`Any`]-encoded [`ShapeSystem`] and information about symbol instance count
+/// of this [`ShapeSystem`].
 pub struct ShapeSystemRegistryEntry {
     shape_system   : Box<dyn Any>,
     instance_count : usize,
@@ -753,6 +747,8 @@ impl Debug for ShapeSystemRegistryEntry {
     }
 }
 
+/// Mutable reference to decoded [`ShapeSystemRegistryEntry`].
+#[derive(Debug)]
 pub struct ShapeSystemRegistryEntryRefMut<'t,T> {
     shape_system   : &'t mut T,
     instance_count : &'t mut usize,
@@ -799,13 +795,17 @@ impl {
         })
     }
 
-    pub fn drop_instance<T>(&mut self) -> (usize,ShapeSystemId,PhantomData<T>)
+    /// Decrement internal register of used [`Symbol`] instances previously instantiated with the
+    /// [`instantiate`] method. In case the counter drops to 0, the caller of this function should
+    /// perform necessary cleanup.
+    pub(crate) fn drop_instance<T>(&mut self) -> (usize,ShapeSystemId,PhantomData<T>)
     where T : display::shape::system::DynamicShape {
-        let system_id = DynShapeSystemOf::<T>::id();
-        if let Some(entry) = self.get_mut::<DynShapeSystemOf<T>>() {
+        let system_id      = DynShapeSystemOf::<T>::id();
+        let instance_count = if let Some(entry) = self.get_mut::<DynShapeSystemOf<T>>() {
             *entry.instance_count -= 1;
-                (*entry.instance_count,system_id,PhantomData)
-        } else { (0,system_id,PhantomData) }
+            *entry.instance_count
+        } else { 0 };
+        (instance_count,system_id,PhantomData)
     }
 }}
 
@@ -816,9 +816,9 @@ impl ShapeSystemRegistryData {
         self.shape_system_map.get_mut(&id).and_then(|t| {
             let shape_system  = t.shape_system.downcast_mut::<T>();
             let instance_count = &mut t.instance_count;
-            if let Some(shape_system) = shape_system {
-                Some(ShapeSystemRegistryEntryRefMut {shape_system,instance_count})
-            } else {None}
+            shape_system.map(move |shape_system|
+                ShapeSystemRegistryEntryRefMut {shape_system,instance_count}
+            )
         })
     }
 
