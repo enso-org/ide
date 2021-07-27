@@ -272,7 +272,7 @@ impl Entry {
                 documentation,
                 kind          : Kind::Module,
                 scope         : Scope::Everywhere,
-                return_type   : module.to_string()
+                return_type   : module
             }
         };
         Ok(this)
