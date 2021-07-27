@@ -2,9 +2,9 @@
 
 use crate::prelude::*;
 
-use crate::double_representation::identifier::ReferentName;
 use crate::double_representation::text::apply_code_change_to_id_map;
 use crate::double_representation::module;
+use crate::double_representation::project;
 use crate::model::module::Path;
 
 use ast;
@@ -46,7 +46,7 @@ pub struct Handle {
 impl Handle {
     /// Create a module controller for given path.
     pub async fn new
-    (parent:impl AnyLogger, path:Path, project:&model::Project) -> FallibleResult<Self> {
+    (parent:impl AnyLogger, path:Path, project:&dyn model::project::API) -> FallibleResult<Self> {
         let logger          = Logger::sub(parent,format!("Module Controller {}", path));
         let model           = project.module(path).await?;
         let language_server = project.json_rpc();
@@ -111,7 +111,7 @@ impl Handle {
     }
 
     /// Get the module's qualified name.
-    pub fn qualified_name(&self, project_name:ReferentName) -> module::QualifiedName {
+    pub fn qualified_name(&self, project_name:project::QualifiedName) -> module::QualifiedName {
         module::QualifiedName::new(project_name,self.model.id())
     }
 
@@ -160,11 +160,12 @@ impl Handle {
     , id_map          : ast::IdMap
     , language_server : Rc<language_server::Connection>
     , parser          : Parser
+    , repository      : Rc<model::undo_redo::Repository>
     ) -> FallibleResult<Self> {
         let logger   = Logger::new("Mocked Module Controller");
         let ast      = parser.parse(code.to_string(),id_map)?.try_into()?;
         let metadata = default();
-        let model    = Rc::new(model::module::Plain::new(path,ast,metadata));
+        let model    = Rc::new(model::module::Plain::new(&logger,path,ast,metadata,repository));
         Ok(Handle {model,language_server,parser,logger})
     }
 
@@ -213,7 +214,7 @@ mod test {
                 , (Span::new(Index::new(2),Size::new(1)),uuid3)
                 , (Span::new(Index::new(0),Size::new(3)),uuid4)
                 ]);
-            let controller = Handle::new_mock(location,code,id_map,ls,parser).unwrap();
+            let controller = Handle::new_mock(location,code,id_map,ls,parser,default()).unwrap();
 
             // Change code from "2+2" to "22+2"
             let change = TextChange::insert(Index::new(0),"2".to_string());

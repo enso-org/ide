@@ -113,7 +113,7 @@ where K : Clone + Eq + Hash {
 
     async fn get(&self, key:&K) -> Result<Option<Rc<V>>,LoadingError> {
         loop {
-            let entry = self.registry.borrow_mut().get(&key);
+            let entry = self.registry.borrow_mut().get(key);
             match entry {
                 Some(Entry::Loaded(state)) => { break Ok(Some(state)); },
                 Some(Entry::Loading(mut sub)) => {
@@ -169,7 +169,9 @@ mod test {
             let line     = ast::Ast::infix_var("a", "+", "b");
             let ast      = ast::Ast::one_line_module(line).try_into().unwrap();
             let path     = ModulePath::from_mock_module_name("Test");
-            let state    = Rc::new(model::module::Plain::new(path.clone(),ast,default()));
+            let urm      = default();
+            let logger   = Logger::new("Test");
+            let state    = Rc::new(model::module::Plain::new(logger,path.clone(),ast,default(),urm));
             let registry = Registry::default();
             let expected = state.clone_ref();
 
@@ -189,7 +191,9 @@ mod test {
         let ast       = ast::Ast::one_line_module(line).try_into().unwrap();
         let path1     = ModulePath::from_mock_module_name("Test");
         let path2     = path1.clone();
-        let state1    = Rc::new(model::module::Plain::new(path1.clone_ref(),ast,default()));
+        let urm       = default();
+        let logger   = Logger::new("Test");
+        let state1    = Rc::new(model::module::Plain::new(logger,path1.clone_ref(),ast,default(),urm));
         let state2    = state1.clone_ref();
         let registry1 = Rc::new(Registry::default());
         let registry2 = registry1.clone_ref();

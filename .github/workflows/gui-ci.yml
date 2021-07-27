@@ -104,7 +104,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2021-05-12
+          toolchain: nightly-2021-06-17
           override: true
       - name: Install Prettier
         run: npm install --save-dev --save-exact prettier
@@ -133,7 +133,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2021-05-12
+          toolchain: nightly-2021-06-17
           override: true
       - name: Run tests (no WASM)
         run: node ./run test --no-wasm --skip-version-validation
@@ -154,7 +154,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2021-05-12
+          toolchain: nightly-2021-06-17
           override: true
       - name: Install wasm-pack (macOS)
         env:
@@ -208,7 +208,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2021-05-12
+          toolchain: nightly-2021-06-17
           override: true
       - name: Install wasm-pack (macOS)
         env:
@@ -243,15 +243,20 @@ jobs:
                       rm -r $WASMPACKDIR
         shell: bash
         if: startsWith(matrix.os,'ubuntu')
+      - uses: actions/setup-java@v2
+        with:
+          distribution: adopt
+          java-version: '11'
       - name: Build (macos)
+        env:
+          CSC_LINK: ${{secrets.APPLE_CODE_SIGNING_CERT}}
+          CSC_KEY_PASSWORD: ${{secrets.APPLE_CODE_SIGNING_CERT_PASSWORD}}
+          CSC_IDENTITY_AUTO_DISCOVERY: true
+          APPLEID: ${{secrets.APPLE_NOTARIZATION_USERNAME}}
+          APPLEIDPASS: ${{secrets.APPLE_NOTARIZATION_PASSWORD}}
+          FIREBASE_API_KEY: ${{secrets.FIREBASE_API_KEY}}
         run: node ./run dist --skip-version-validation --target macos
         if: startsWith(matrix.os,'macos')
-    if: >-
-      !(contains(github.event.pull_request.body,'[ci build]') ||
-      contains(github.event.head_commit.message,'[ci build]') || github.ref ==
-      'refs/heads/develop' || github.base_ref == 'unstable' || github.base_ref
-      == 'stable' || (github.ref == 'refs/heads/unstable' || github.ref ==
-      'refs/heads/stable'))
   build:
     name: Build
     runs-on: ${{ matrix.os }}
@@ -280,7 +285,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2021-05-12
+          toolchain: nightly-2021-06-17
           override: true
       - name: Install wasm-pack (macOS)
         env:
@@ -315,13 +320,30 @@ jobs:
                       rm -r $WASMPACKDIR
         shell: bash
         if: startsWith(matrix.os,'ubuntu')
+      - uses: actions/setup-java@v2
+        with:
+          distribution: adopt
+          java-version: '11'
       - name: Build (macos)
+        env:
+          CSC_LINK: ${{secrets.APPLE_CODE_SIGNING_CERT}}
+          CSC_KEY_PASSWORD: ${{secrets.APPLE_CODE_SIGNING_CERT_PASSWORD}}
+          CSC_IDENTITY_AUTO_DISCOVERY: true
+          APPLEID: ${{secrets.APPLE_NOTARIZATION_USERNAME}}
+          APPLEIDPASS: ${{secrets.APPLE_NOTARIZATION_PASSWORD}}
+          FIREBASE_API_KEY: ${{secrets.FIREBASE_API_KEY}}
         run: node ./run dist --skip-version-validation --target macos
         if: startsWith(matrix.os,'macos')
       - name: Build (win)
+        env:
+          WIN_CSC_LINK: ${{secrets.MICROSOFT_CODE_SIGNING_CERT}}
+          WIN_CSC_KEY_PASSWORD: ${{secrets.MICROSOFT_CODE_SIGNING_CERT_PASSWORD}}
+          FIREBASE_API_KEY: ${{secrets.FIREBASE_API_KEY}}
         run: node ./run dist --skip-version-validation --target win
         if: startsWith(matrix.os,'windows')
       - name: Build (linux)
+        env:
+          FIREBASE_API_KEY: ${{secrets.FIREBASE_API_KEY}}
         run: node ./run dist --skip-version-validation --target linux
         if: startsWith(matrix.os,'ubuntu')
       - name: Upload Content Artifacts
@@ -430,12 +452,12 @@ jobs:
           tag_name: v${{fromJson(steps.changelog.outputs.content).version}}
           body: ${{fromJson(steps.changelog.outputs.content).body}}
           prerelease: ${{fromJson(steps.changelog.outputs.content).prerelease}}
+          draft: true
     if: github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
     needs:
       - version_assertions
       - lint
       - test
-      - wasm-test
       - build
   release_to_cdn:
     name: CDN Release
@@ -500,5 +522,4 @@ jobs:
       - version_assertions
       - lint
       - test
-      - wasm-test
       - build

@@ -15,6 +15,7 @@ use crate::notification;
 use enso_protocol::project_manager;
 use enso_protocol::project_manager::MissingComponentAction;
 use enso_protocol::project_manager::ProjectName;
+use enso_protocol::project_manager::ProjectMetadata;
 use parser::Parser;
 
 
@@ -104,9 +105,27 @@ impl ManagingProjectAPI for Handle {
             let create_result  = self.project_manager.create_project(&name,&version,&action).await?;
             let new_project_id = create_result.project_id;
             let project_mgr    = self.project_manager.clone_ref();
-            let new_project    = Project::new_opened(&self.logger,project_mgr,new_project_id,name);
+            let new_project    = Project::new_opened(&self.logger,project_mgr,new_project_id);
             self.current_project.set(new_project.await?);
             executor::global::spawn(self.notifications.publish(Notification::NewProjectCreated));
+            Ok(())
+        }.boxed_local()
+    }
+
+    fn list_projects(&self) -> BoxFuture<FallibleResult<Vec<ProjectMetadata>>> {
+        async move {
+            let pm_response = self.project_manager.list_projects(&None).await?;
+            Ok(pm_response.projects)
+        }.boxed_local()
+    }
+
+    fn open_project(&self, id: Uuid) -> BoxFuture<FallibleResult> {
+        async move {
+            let logger      = &self.logger;
+            let project_mgr = self.project_manager.clone_ref();
+            let new_project = model::project::Synchronized::new_opened(logger,project_mgr,id);
+            self.current_project.set(new_project.await?);
+            executor::global::spawn(self.notifications.publish(Notification::ProjectOpened));
             Ok(())
         }.boxed_local()
     }

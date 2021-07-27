@@ -49,7 +49,7 @@ pub fn entry_point_complex_shape_system() {
     let world     = World::new(&web::get_html_element_by_id("root").unwrap());
     let scene     = world.scene();
     let camera    = scene.camera().clone_ref();
-    let navigator = Navigator::new(&scene,&camera);
+    let navigator = Navigator::new(scene,&camera);
     let logger    = Logger::new("ShapeView");
 
     let theme_manager = theme::Manager::from(&scene.style_sheet);
@@ -74,7 +74,7 @@ pub fn entry_point_complex_shape_system() {
     theme_manager.set_enabled(&["theme1".to_string()]);
 
     let style_watch = ensogl_core::display::shape::StyleWatch::new(&scene.style_sheet);
-    style_watch.set_on_style_change(|| println!("Style changed!"));
+    style_watch.set_on_style_change(|| DEBUG!("Style changed!"));
     style_watch.get("base_color");
 
     let view = shape::View::new(&logger);
@@ -92,7 +92,7 @@ pub fn entry_point_complex_shape_system() {
         let _keep_alive = &style_watch;
         let _keep_alive = &theme_manager;
         if to_theme_switch == 0 {
-            println!("THEME SWITCH!");
+            DEBUG!("THEME SWITCH!");
             theme_manager.set_enabled(&["theme2".to_string()]);
         }
         to_theme_switch -= 1;

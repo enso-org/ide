@@ -21,9 +21,10 @@
 
 pub mod execution_context;
 pub mod module;
+pub mod project;
 pub mod registry;
 pub mod suggestion_database;
-pub mod project;
+pub mod undo_redo;
 
 pub use execution_context::ExecutionContext;
 pub use module::Module;
@@ -36,5 +37,7 @@ pub mod traits {
 
     pub use execution_context::API as TRAIT_ExecutionContextApi;
     pub use module::API            as TRAIT_ModuleApi;
+    pub use module::APIExt         as TRAIT_ModuleApiExt;
     pub use project::API           as TRAIT_ProjectApi;
+    pub use undo_redo::Aware       as TRAIT_UndoRedoAware;
 }

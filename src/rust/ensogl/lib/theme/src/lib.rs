@@ -166,11 +166,90 @@ define_themes! { [light:0, dark:1]
         }
         searcher {
             action_list_gap = 10.0, 10.0;
-            padding = 5.0, 5.0;
+            padding         = 5.0, 5.0;
             selection {
                 padding {
                     horizontal = 2.0, 2.0;
                     vertical   = 2.0, 2.0
+                }
+            }
+            icons {
+                favorites = Rgba(0.98,0.584,0.122,1.0)  , Rgba(0.98,0.584,0.122,1.0);
+                io {
+                    strong = Rgba(0.475,0.494,0.145,1.0) , Rgba(0.475,0.494,0.145,1.0);
+                    weak   = Rgba(0.612,0.627,0.388,1.0) , Rgba(0.612,0.627,0.388,1.0);
+                }
+                preparation {
+                    strong = Rgba(0.243,0.545,0.161,1.0) , Rgba(0.243,0.545,0.161,1.0);
+                    weak   = Rgba(0.69,0.816,0.663,1.0)  , Rgba(0.69,0.816,0.663,1.0);
+                }
+                join {
+                    strong = Rgba(0.239,0.573,0.808,1.0) , Rgba(0.239,0.573,0.808,1.0);
+                    weak   = Rgba(0.612,0.784,0.902,1.0) , Rgba(0.612,0.784,0.902,1.0);
+                    medium = Rgba(0.42,0.678,0.855,1.0)  , Rgba(0.42,0.678,0.855,1.0);
+                }
+                transform        = Rgba(0.169,0.459,0.937,1.0) , Rgba(0.169,0.459,0.937,1.0);
+                text {
+                    strong = Rgba(0.753,0.278,0.671,1.0) , Rgba(0.753,0.278,0.671,1.0);
+                    weak   = Rgba(0.871,0.635,0.831,1.0) , Rgba(0.871,0.635,0.831,1.0);
+                }
+                date_and_time    = Rgba(0.753,0.278,0.671,1.0) , Rgba(0.753,0.278,0.671,1.0);
+                spatial          = Rgba(0.827,0.267,0.255,1.0) , Rgba(0.827,0.267,0.255,1.0);
+                predictive       = Rgba(0.71,0.38,0.137,1.0)   , Rgba(0.71,0.38,0.137,1.0);
+                machine_learning = Rgba(0.71,0.38,0.137,1.0)   , Rgba(0.71,0.38,0.137,1.0);
+                computer_vision {
+                    strong    = Rgba(0.306,0.306,0.306,1.0) , Rgba(0.306,0.306,0.306,1.0);
+                    weak      = Rgba(0.154,0.158,0.158,1.0) , Rgba(0.154,0.158,0.158,1.0);
+                    highlight = Rgba(0.872,0.267,0.255,1.0) , Rgba(0.872,0.267,0.255,1.0);
+                }
+                data_science {
+                    red  = Rgba(0.847,0.212,0.435,1.0) , Rgba(0.847,0.212,0.435,1.0);
+                    blue = Rgba(0.235,0.565,0.886,1.0) , Rgba(0.235,0.565,0.886,1.0);
+                    gray = Rgba(0.306,0.306,0.306,1.0) , Rgba(0.306,0.306,0.306,1.0);
+                }
+                network {
+                    _0 = Rgba(0.12,0.451,0.973,1.0)  , Rgba(0.12,0.451,0.973,1.0);
+                    _1 = Rgba(0.114,0.506,0.976,1.0) , Rgba(0.114,0.506,0.976,1.0);
+                    _2 = Rgba(0.255,0.588,0.98,1.0)  , Rgba(0.255,0.588,0.98,1.0);
+                    _3 = Rgba(0.404,0.671,0.984,1.0) , Rgba(0.404,0.671,0.984,1.0);
+                }
+                system {
+                    background = Rgba(0.306,0.306,0.306,1.0) , Rgba(0.306,0.306,0.306,1.0);
+                    content    = Rgba(0.988,0.996,1.0,1.0)   , Rgba(0.988,0.996,1.0,1.0);
+                }
+                libraries {
+                    _0 = Rgba(0.12,0.451,0.973,1.0)  , Rgba(0.12,0.451,0.973,1.0);
+                    _1 = Rgba(0.204,0.561,0.976,1.0) , Rgba(0.204,0.561,0.976,1.0);
+                    _2 = Rgba(0.404,0.671,0.984,1.0) , Rgba(0.404,0.671,0.984,1.0);
+                    _3 = Rgba(0.596,0.776,0.988,1.0) , Rgba(0.596,0.776,0.988,1.0);
+                }
+            }
+        }
+        file_browser {
+            width  = 0.0,   0.0; // Should be updated when file browser will be implemented.
+            height = 421.0, 421.0;
+        }
+        open_dialog {
+            // Should be updated when file browser will be implemented.
+            gap_between_panels = 0.0, 0.0;
+        }
+        project_list {
+            width      = 202.0 , 202.0;
+            padding    = 16.0, 16.0;
+            height     = 421.0, 421.0;
+            background = Rgba(0.992,0.996,1.0,1.0), Rgba(0.182,0.188,0.196,1.0);
+            text       = widget::list_view::text, widget::list_view::text;
+            text {
+                size    = 12.0, 12.0;
+                padding = 6.0 , 6.0 ;
+            }
+            bar {
+                height      = 45.0, 45.0;
+                border_size = 1.0, 1.0;
+                border_color = Rgba(0.808,0.808,0.808,1.0)    , Rgba(0.808,0.808,0.808,1.0);
+                label {
+                    size  = 12.0, 12.0;
+                    color = Rgba(0.439,0.439,0.439,1.0), Rgba(0.439,0.439,0.439,1.0);
                 }
             }
         }
@@ -245,6 +324,12 @@ define_themes! { [light:0, dark:1]
             disabled  = Lcha(0.7,0.0,0.0,1.0) , Lcha(1.0,0.0,0.0,0.2);
             expected  = Lcha(0.7,0.0,0.0,1.0) , Lcha(1.0,0.0,0.0,0.3);
             selection = Lcha(0.7,0.0,0.125,0.7) , Lcha(0.7,0.0,0.125,0.7);
+            profiling {
+                base      = Lcha(1.0,0.0,0.0,0.9) , Lcha(0.0,0.0,0.0,0.7);
+                disabled  = Lcha(1.0,0.0,0.0,0.5) , Lcha(0.0,0.0,0.0,0.2);
+                expected  = Lcha(1.0,0.0,0.0,0.5) , Lcha(0.0,0.0,0.0,0.3);
+                selection = Lcha(1.0,0.0,0.0,1.0) , Lcha(0.0,0.0,0.0,1.0);
+            }
         }
         types {
             hue_steps     = 512.0 , 512.0;
@@ -308,6 +393,12 @@ define_themes! { [light:0, dark:1]
                 stripe_width = 10.0 , 10.0;
                 stripe_angle = 45.0 , 45.0;
             }
+            profiling {
+                lightness    = code::types::lightness , code::types::lightness;
+                chroma       = code::types::chroma    , code::types::chroma;
+                min_time_hue = 0.38                   , 0.38;
+                max_time_hue = 0.07                   , 0.07;
+            }
             type_label {
                 offset_y = -23.0, -23.0;
             }
@@ -364,6 +455,25 @@ define_themes! { [light:0, dark:1]
                 chroma_factor    = 0.8 , 1.0;
             }
         }
+        profiling_button {
+            non_toggled     = graph_editor::node::actions::button::non_toggled
+                ,graph_editor::node::actions::button::non_toggled;
+            toggled         = Lcha(0.7,0.5,0.12,1.0) , Lcha(0.7,0.5,0.12,1.0);
+            hovered         = graph_editor::node::actions::button::hovered
+                ,graph_editor::node::actions::button::hovered;
+            toggled_hovered = Lcha(0.55,0.5,0.12,1.0) , Lcha(0.85,0.5,0.12,1.0);
+        }
+        prompt {
+            background = application::background, application::background;
+            background {
+                corner_radius = 14.0, 14.0;
+                padding       = 14.0, 14.0;
+            }
+            text       = Rgba(0.078,0.067,0.137,0.85) , Lcha(1.0,0.0,0.0,0.7);
+            text {
+                size = 20.0, 20.0;
+            }
+        }
     }
     widget {
         list_view {
@@ -373,6 +483,7 @@ define_themes! { [light:0, dark:1]
             text {
                 highlight = selection, Rgba(0.275,0.549,0.839,1.0); // ... , rgb(70 140 214)
                 selection = Lcha(0.7,0.0,0.125,0.7) , Lcha(0.7,0.0,0.125,0.7);
+                size      = 12.0, 12.0;
             }
         }
     }
@@ -401,7 +512,8 @@ define_themes! { [light:0, dark:1]
                 color = Lcha(0.3,0.0,0.0,1.0), Lcha(0.7,0.0,0.0,1.0);
             }
             track {
-                color = Lcha(0.9,0.0,0.0,0.5), Lcha(0.1,0.0,0.0,0.5);
+                color       = Lcha(0.7,0.0,0.0,1.0), Lcha(0.3,0.0,0.0,1.0);
+                hover_color = Lcha(0.6,0.0,0.0,1.0), Lcha(0.4,0.0,0.0,1.0);
             }
             overflow {
                 color = Lcha(0.0,0.0,0.0,1.0), Lcha(1.0,0.0,0.0,1.0);

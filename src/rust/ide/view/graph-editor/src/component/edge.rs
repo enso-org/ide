@@ -1050,7 +1050,7 @@ impl Frp {
             def set_disabled    = source();
             def set_color       = source();
         }
-        let shape_events = ShapeViewEventsProxy::new(&network);
+        let shape_events = ShapeViewEventsProxy::new(network);
         Self {source_width,source_height,target_position,target_attached,source_attached,redraw
              ,set_disabled,set_color,hover_position,shape_events}
     }
@@ -1067,7 +1067,7 @@ impl Frp {
 /// such a way, that the borders of the circle cross at the right angle. It also computes the angle
 /// of the intersection. Please note, that the center of the first circle is in the origin.
 ///
-/// ```compile_fail
+/// ```text
 ///       r1
 ///      ◄───►                (1) x^2 + y^2 = r1^2 + r2^2
 ///    _____                  (1) => y = sqrt((r1^2 + r2^2)/x^2)
@@ -1250,7 +1250,7 @@ impl EdgeModelData {
         front . side_line2 . mod_rotation(|r| r.z = RIGHT_ANGLE);
         back  . side_line2 . mod_rotation(|r| r.z = RIGHT_ANGLE);
 
-        let frp             = Frp::new(&network);
+        let frp             = Frp::new(network);
         let source_height   = default();
         let source_width    = default();
         let target_position = default();
@@ -1906,7 +1906,7 @@ impl EdgeModelData {
     (&self, position:Vector2<f32>, focus_shape_id:display::object::Id, part: PortType)
     -> Result<SnapTarget, ()>{
         let snap_data      = self.try_point_snap(position,focus_shape_id).ok_or(())?;
-        let semantic_split = SemanticSplit::new(&self,snap_data.target_shape_id).ok_or(())?;
+        let semantic_split = SemanticSplit::new(self,snap_data.target_shape_id).ok_or(())?;
         let angle          = self.cut_angle_for_shape(snap_data.target_shape_id,position,part).ok_or(())?;
 
         // Completely disable/enable focus for shapes that are not close to the split based on their

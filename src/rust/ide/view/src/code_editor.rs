@@ -75,8 +75,8 @@ impl View {
         let height_fraction = DEPRECATED_Animation::<f32>::new(network);
 
         model.set_position_x(PADDING_LEFT);
-        model.remove_from_scene_layer_DEPRECATED(&scene.layers.main);
-        model.add_to_scene_layer_DEPRECATED(&scene.layers.breadcrumbs_text);
+        model.remove_from_scene_layer(&scene.layers.main);
+        model.add_to_scene_layer(&scene.layers.panel_text);
         // TODO[ao]: To have code editor usable we treat it as constantly mouse-hovered, but this
         //  should be changed in the second part of focus management
         //  (https://github.com/enso-org/ide/issues/823)
@@ -122,7 +122,7 @@ impl View {
 }
 
 impl display::Object for View {
-    fn display_object(&self) -> &display::object::Instance { &self.model.display_object() }
+    fn display_object(&self) -> &display::object::Instance { self.model.display_object() }
 }
 
 impl application::command::FrpNetworkProvider for View {
@@ -135,7 +135,7 @@ impl application::View for View {
     fn new(app: &Application) -> Self { Self::new(app) }
 
     fn app(&self) -> &Application {
-        &self.model.app()
+        self.model.app()
     }
 
     fn default_shortcuts() -> Vec<shortcut::Shortcut> {

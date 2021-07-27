@@ -8,21 +8,93 @@ use crate::graph_editor::component::node::Expression;
 use crate::graph_editor::component::visualization;
 use crate::graph_editor::GraphEditor;
 use crate::graph_editor::NodeId;
+use crate::open_dialog::OpenDialog;
 use crate::searcher;
 use crate::status_bar;
 
 use enso_args::ARGS;
 use enso_frp as frp;
+use ensogl::Animation;
 use ensogl::application;
 use ensogl::application::Application;
 use ensogl::application::shortcut;
 use ensogl::display;
-use ensogl::display::shape::StyleWatch;
-use ensogl::display::shape::StyleWatchFrp;
+use ensogl::display::shape::*;
 use ensogl::DEPRECATED_Animation;
 use ensogl::system::web;
 use ensogl::system::web::dom;
 use ensogl_theme::Theme as Theme;
+
+
+
+// ===========
+// === FRP ===
+// ===========
+
+ensogl::define_endpoints! {
+    Input {
+        /// Open the searcher.
+        open_searcher(),
+        /// Open the Open File or Project Dialog.
+        show_open_dialog(),
+        /// Close the searcher without taking any actions
+        close_searcher(),
+        /// Close the Open File or Project Dialog without further action
+        close_open_dialog(),
+        /// Simulates a style toggle press event.
+        toggle_style(),
+        /// Saves the currently opened module to file.
+        save_module(),
+        /// Undo the last user's action.
+        undo(),
+        /// Redo the last undone action.
+        redo(),
+        /// Show the prompt informing about tab key if it is not disabled.
+        show_prompt(),
+        /// Disable the prompt. It will be hidden if currently visible.
+        disable_prompt(),
+    }
+
+    Output {
+        searcher_opened                     (NodeId),
+        adding_new_node                     (bool),
+        searcher_input                      (Option<NodeId>),
+        is_searcher_opened                  (bool),
+        old_expression_of_edited_node       (Expression),
+        editing_aborted                     (NodeId),
+        editing_committed                   (NodeId, Option<searcher::entry::Id>),
+        open_dialog_shown                   (bool),
+        code_editor_shown                   (bool),
+        style                               (Theme),
+        fullscreen_visualization_shown      (bool),
+        default_gap_between_nodes           (f32),
+        drop_files_enabled                  (bool),
+    }
+}
+
+
+
+// ==============
+// === Shapes ===
+// ==============
+
+mod prompt_background {
+    use super::*;
+
+    ensogl::define_shape_system! {
+        (style:Style, color_rgba:Vector4<f32>) {
+            let width         = Var::<Pixels>::from("input_size.x");
+            let height        = Var::<Pixels>::from("input_size.y");
+
+            let corner_radius = style.get_number(ensogl_theme::graph_editor::prompt::background::corner_radius);
+            let shape         = Rect((&width,&height));
+            let shape         = shape.corners_radius(corner_radius.px());
+            let bg            = shape.fill(color_rgba);
+
+            bg.into()
+        }
+    }
+}
 
 
 
@@ -37,38 +109,53 @@ struct Model {
     display_object         : display::object::Instance,
     /// These buttons are present only in a cloud environment.
     window_control_buttons : Immutable<Option<crate::window_control_buttons::View>>,
-    graph_editor           : GraphEditor,
+    graph_editor           : Rc<GraphEditor>,
     searcher               : searcher::View,
     code_editor            : code_editor::View,
     status_bar             : status_bar::View,
     fullscreen_vis         : Rc<RefCell<Option<visualization::fullscreen::Panel>>>,
+    prompt_background      : prompt_background::View,
+    prompt                 : ensogl_text::Area,
+    open_dialog            : Rc<OpenDialog>,
 }
 
 impl Model {
     fn new(app:&Application) -> Self {
         let logger                 = Logger::new("project::View");
+        let scene                  = app.display.scene();
         let display_object         = display::object::Instance::new(&logger);
         let searcher               = app.new_view::<searcher::View>();
         let graph_editor           = app.new_view::<GraphEditor>();
         let code_editor            = app.new_view::<code_editor::View>();
         let status_bar             = status_bar::View::new(app);
         let fullscreen_vis         = default();
+        let prompt_background      = prompt_background::View::new(&logger);
+        let prompt                 = ensogl_text::Area::new(app);
         let window_control_buttons = ARGS.is_in_cloud.unwrap_or_default().as_some_from(|| {
             let window_control_buttons = app.new_view::<crate::window_control_buttons::View>();
             display_object.add_child(&window_control_buttons);
-            app.display.scene().layers.breadcrumbs_text.add_exclusive(&window_control_buttons);
+            scene.layers.panel.add_exclusive(&window_control_buttons);
             window_control_buttons
         });
         let window_control_buttons = Immutable(window_control_buttons);
+        let open_dialog            = Rc::new(OpenDialog::new(app));
+        prompt_background.add_child(&prompt);
+        prompt.set_content("Press the tab key to search for components.");
+        scene.layers.panel.add_exclusive(&prompt_background);
+        prompt.remove_from_scene_layer(&scene.layers.main);
+        prompt.add_to_scene_layer(&scene.layers.panel_text);
 
         display_object.add_child(&graph_editor);
         display_object.add_child(&code_editor);
         display_object.add_child(&searcher);
         display_object.add_child(&status_bar);
+        display_object.add_child(&prompt_background);
         display_object.remove_child(&searcher);
-        let app = app.clone_ref();
+
+        let app          = app.clone_ref();
+        let graph_editor = Rc::new(graph_editor);
         Self{app,logger,display_object,window_control_buttons,graph_editor,searcher,code_editor,
-            status_bar,fullscreen_vis}
+            status_bar,fullscreen_vis,prompt_background,prompt,open_dialog}
     }
 
     /// Sets style of IDE to the one defined by parameter `theme`.
@@ -110,18 +197,25 @@ impl Model {
 
     /// Update Searcher View - its visibility and position - when edited node changed.
     fn update_searcher_view
-    (&self, edited_node:Option<NodeId>, searcher_left_top_position:&DEPRECATED_Animation<Vector2<f32>>) {
-        if let Some(id) = edited_node {
-            self.searcher.show();
-            let new_position = self.searcher_left_top_position_when_under_node(id);
-            searcher_left_top_position.set_target_value(new_position);
-        } else {
-            self.searcher.hide();
-            self.searcher.clear_actions();
+    ( &self
+    , edited_node                : Option<NodeId>
+    , is_searcher_empty          : bool
+    , searcher_left_top_position : &DEPRECATED_Animation<Vector2<f32>>
+    ) {
+        match edited_node {
+            Some(id) if !is_searcher_empty => {
+                self.searcher.show();
+                let new_position = self.searcher_left_top_position_when_under_node(id);
+                searcher_left_top_position.set_target_value(new_position);
+            }
+            _ => {
+                self.searcher.hide();
+                self.searcher.clear_actions();
+            }
         }
     }
 
-    fn add_node_and_edit(&self) {
+    fn add_node_and_edit(&self) -> NodeId {
         let graph_editor_inputs = &self.graph_editor.frp.input;
         let node_id = if let Some(selected) = self.graph_editor.model.nodes.selected.first_cloned() {
             let selected_pos = self.graph_editor.model.get_node_position(selected).unwrap_or_default();
@@ -139,13 +233,14 @@ impl Model {
         };
         graph_editor_inputs.set_node_expression.emit(&(node_id,Expression::default()));
         graph_editor_inputs.edit_node.emit(&node_id);
+        node_id
     }
 
     fn show_fullscreen_visualization(&self, node_id:NodeId) {
         let node = self.graph_editor.model.model.nodes.all.get_cloned_ref(&node_id);
         if let Some(node) = node {
             let visualization = node.view.model.visualization.fullscreen_visualization().clone_ref();
-            self.display_object.remove_child(&self.graph_editor);
+            self.display_object.remove_child(&*self.graph_editor);
             self.display_object.add_child(&visualization);
             *self.fullscreen_vis.borrow_mut() = Some(visualization);
         }
@@ -154,7 +249,7 @@ impl Model {
     fn hide_fullscreen_visualization(&self) {
         if let Some(visualization) = std::mem::take(&mut *self.fullscreen_vis.borrow_mut()) {
             self.display_object.remove_child(&visualization);
-            self.display_object.add_child(&self.graph_editor);
+            self.display_object.add_child(&*self.graph_editor);
         }
     }
 
@@ -173,40 +268,15 @@ impl Model {
     fn on_fullscreen_clicked(&self) {
         js::fullscreen();
     }
-}
 
-
-
-// ===========
-// === FRP ===
-// ===========
-
-ensogl::define_endpoints! {
-    Input {
-        /// Add new node and start editing it's expression.
-        add_new_node(),
-        /// Abort currently node edit. If it was added node, it will be removed, if the existing node was edited, its old expression will be restored.
-        abort_node_editing(),
-        /// Simulates a style toggle press event.
-        toggle_style(),
-        /// Saves the currently opened module to file.
-        save_module(),
+    fn show_open_dialog(&self) {
+        self.display_object.add_child(&*self.open_dialog);
     }
 
-    Output {
-        adding_new_node                (bool),
-        node_being_edited              (Option<NodeId>),
-        editing_node                   (bool),
-        old_expression_of_edited_node  (Expression),
-        editing_aborted                (NodeId),
-        editing_committed              (NodeId, Option<searcher::entry::Id>),
-        code_editor_shown              (bool),
-        style                          (Theme),
-        fullscreen_visualization_shown (bool),
-        default_gap_between_nodes      (f32)
+    fn hide_open_dialog(&self) {
+        self.display_object.remove_child(&*self.open_dialog);
     }
 }
-
 
 
 
@@ -284,12 +354,16 @@ impl View {
 
         display::style::javascript::expose_to_window(&app.themes);
 
+        let scene                      = app.display.scene().clone_ref();
         let model                      = Model::new(app);
         let frp                        = Frp::new();
         let searcher                   = &model.searcher.frp;
         let graph                      = &model.graph_editor.frp;
+        let project_list               = &model.open_dialog.project_list;
+        let file_browser               = &model.open_dialog.file_browser;
         let network                    = &frp.network;
         let searcher_left_top_position = DEPRECATED_Animation::<Vector2<f32>>::new(network);
+        let prompt_visibility          = Animation::new(network);
 
         // FIXME[WD]: Think how to refactor it, as it needs to be done before model, as we do not
         //   want shader recompilation. Model uses styles already.
@@ -298,7 +372,7 @@ impl View {
         //   See: https://github.com/enso-org/ide/issues/795
         app.themes.update();
 
-        let style_sheet                    = &model.app.display.scene().style_sheet;
+        let style_sheet                    = &scene.style_sheet;
         let styles                         = StyleWatchFrp::new(style_sheet);
         let default_gap_between_nodes_path = ensogl_theme::project::default_gap_between_nodes;
 
@@ -318,7 +392,7 @@ impl View {
             }
         }
 
-        let shape = app.display.scene().shape().clone_ref();
+        let shape = scene.shape().clone_ref();
         frp::extend!{ network
             eval shape ((shape) model.on_dom_shape_changed(shape));
 
@@ -339,10 +413,6 @@ impl View {
                 }
             });
 
-            // === Searcher Selection ===
-
-            eval searcher.is_selected ((is_selected) graph.set_navigator_disabled(is_selected));
-
 
             // === Editing ===
 
@@ -356,22 +426,24 @@ impl View {
             // This node is true when received "abort_node_editing" signal, and should get false
             // once processing of "node_being_edited" event from graph is performed.
             editing_aborted              <- any(...);
-            editing_aborted              <+ frp.abort_node_editing.constant(true);
+            editing_aborted              <+ frp.close_searcher.constant(true);
             editing_commited_in_searcher <- searcher.editing_committed.constant(());
-            should_finish_editing_if_any <-
-                any(frp.abort_node_editing,editing_commited_in_searcher,frp.add_new_node);
+            should_finish_editing_if_any <- any(frp.close_searcher,editing_commited_in_searcher
+                ,frp.open_searcher,frp.show_open_dialog);
             should_finish_editing <- should_finish_editing_if_any.gate(&graph.output.node_editing);
             eval should_finish_editing ((()) graph.input.stop_editing.emit(()));
 
-            _eval <- graph.output.node_being_edited.map2(&searcher.is_visible,
-                f!([model,searcher_left_top_position](node_id,is_visible) {
-                    model.update_searcher_view(*node_id,&searcher_left_top_position);
+            visibility_conditions <- all(&graph.output.node_being_edited,&searcher.is_empty);
+            _eval                 <- visibility_conditions.map2(&searcher.is_visible,
+                f!([model,searcher_left_top_position]((node_id,is_searcher_empty),is_visible) {
+                    model.update_searcher_view(*node_id,*is_searcher_empty,&searcher_left_top_position);
                     if !is_visible {
                         // Do not animate
                         searcher_left_top_position.skip();
                     }
                 })
             );
+
             _eval <- graph.output.node_position_set.map2(&graph.output.node_being_edited,
                 f!([searcher_left_top_position]((node_id,position),edited_node_id) {
                     if edited_node_id.contains(node_id) {
@@ -386,14 +458,14 @@ impl View {
             frp.source.editing_aborted   <+ editing_finished.gate(&editing_aborted);
             editing_aborted              <+ graph.output.node_editing_finished.constant(false);
 
-            frp.source.node_being_edited <+ graph.output.node_being_edited;
-            frp.source.editing_node      <+ frp.node_being_edited.map(|n| n.is_some());
+            frp.source.searcher_input     <+ graph.output.node_being_edited;
+            frp.source.is_searcher_opened <+ frp.searcher_input.map(|n| n.is_some());
 
 
-            // === Adding New Node ===
+            // === Adding Node ===
 
-            frp.source.adding_new_node <+ frp.add_new_node.constant(true);
-            eval frp.add_new_node ((()) model.add_node_and_edit());
+            frp.source.adding_new_node <+ frp.open_searcher.constant(true);
+            frp.source.searcher_opened <+ frp.open_searcher.map(f!((_) model.add_node_and_edit()));
 
             adding_committed           <- frp.editing_committed.gate(&frp.adding_new_node).map(|(id,_)| *id);
             adding_aborted             <- frp.editing_aborted.gate(&frp.adding_new_node);
@@ -404,6 +476,19 @@ impl View {
                 graph.select_node(node);
             });
             eval adding_aborted  ((node) graph.remove_node(node));
+
+
+            // === Opening Open File or Project Dialog ===
+
+            eval_ frp.show_open_dialog  (model.show_open_dialog());
+            project_chosen   <- project_list.chosen_entry.constant(());
+            file_chosen      <- file_browser.entry_chosen.constant(());
+            mouse_down       <- scene.mouse.frp.down.constant(());
+            clicked_on_bg    <- mouse_down.filter(f_!(scene.mouse.target.get().is_background()));
+            should_be_closed <- any(frp.close_open_dialog,project_chosen,file_chosen,clicked_on_bg);
+            eval_ should_be_closed (model.hide_open_dialog());
+
+            frp.source.open_dialog_shown <+ bool(&should_be_closed,&frp.show_open_dialog);
 
 
             // === Style toggle ===
@@ -436,7 +521,62 @@ impl View {
                     model.hide_fullscreen_visualization()
                 }
             });
+
+
+            // === Prompt ===
+
+            init <- source::<()>();
+            let prompt_bg_color_path   = ensogl_theme::graph_editor::prompt::background;
+            let prompt_bg_padding_path = ensogl_theme::graph_editor::prompt::background::padding;
+            let prompt_color_path      = ensogl_theme::graph_editor::prompt::text;
+            let prompt_size_path       = ensogl_theme::graph_editor::prompt::text::size;
+            let prompt_bg_color        = styles.get_color(prompt_bg_color_path);
+            prompt_bg_color            <- all(&prompt_bg_color,&init)._0();
+            let prompt_bg_padding      = styles.get_number(prompt_bg_padding_path);
+            prompt_bg_padding          <- all(&prompt_bg_padding,&init)._0();
+            let prompt_color           = styles.get_color(prompt_color_path);
+            prompt_color               <- all(&prompt_color,&init)._0();
+            let prompt_size            = styles.get_number(prompt_size_path);
+            prompt_size                <- all(&prompt_size,&init)._0();
+
+            disable_after_opening_searcher <- frp.is_searcher_opened.filter(|v| *v).constant(());
+            disable                        <- any(frp.disable_prompt,disable_after_opening_searcher);
+            disabled                       <- disable.constant(true);
+            show_prompt                    <- frp.show_prompt.gate_not(&disabled);
+
+            prompt_visibility.target <+ show_prompt.constant(1.0);
+            prompt_visibility.target <+ disable.constant(0.0);
+            _eval <- all_with4(&prompt_visibility.value,&prompt_bg_color,&prompt_color,&prompt_size,
+                f!([model](weight,bg_color,color,size) {
+                    let mut bg_color = *bg_color;
+                    bg_color.alpha  *= weight;
+                    let mut color    = *color;
+                    color.alpha     *= weight;
+                    model.prompt_background.color_rgba.set(bg_color.into());
+                    model.prompt.set_color_all(color);
+                    model.prompt.set_default_text_size(ensogl_text::Size(*size));
+                })
+            );
+            _eval <- all_with3(&model.prompt.width,&prompt_size,&prompt_bg_padding,
+                f!([model](width,size,padding) {
+                    model.prompt.set_position_x(- *width / 2.0);
+                    model.prompt_background.size.set(Vector2(*width + padding, *size + padding));
+                })
+            );
+
+
+            // === Disabling Navigation ===
+
+            disable_navigation           <- searcher.is_selected || frp.open_dialog_shown;
+            graph.set_navigator_disabled <+ disable_navigation;
+
+            // === Disabling Dropping ===
+
+            frp.source.drop_files_enabled <+ init.constant(true);
+            frp.source.drop_files_enabled <+ frp.open_dialog_shown.map(|v| !v);
         }
+        init.emit(());
+        std::mem::forget(prompt_visibility);
 
         Self{model,frp}
     }
@@ -452,6 +592,9 @@ impl View {
 
     /// Status Bar View.
     pub fn status_bar(&self) -> &status_bar::View { &self.model.status_bar }
+
+    /// Open File or Project Dialog
+    pub fn open_dialog(&self) -> &OpenDialog { &self.model.open_dialog }
 }
 
 impl display::Object for View {
@@ -473,10 +616,17 @@ impl application::View for View {
 
     fn default_shortcuts() -> Vec<application::shortcut::Shortcut> {
         use shortcut::ActionType::*;
-        (&[ (Press   , "!editing_node"                 , "tab"             , "add_new_node")
-          , (Press   , "editing_node"                  , "escape"          , "abort_node_editing")
-          , (Press   , ""                              , "cmd alt shift t" , "toggle_style")
-          , (Press   , ""                              , "cmd s"           , "save_module")
+        (&[ (Press   , "!is_searcher_opened", "tab"             , "open_searcher")
+          , (Press   , "!is_searcher_opened", "cmd o"           , "show_open_dialog")
+          , (Press   , "is_searcher_opened" , "escape"          , "close_searcher")
+          , (Press   , "open_dialog_shown"  , "escape"          , "close_open_dialog")
+          , (Press   , ""                   , "tab"             , "disable_prompt")
+          , (Press   , ""                   , "cmd o"           , "disable_prompt")
+          , (Press   , ""                   , "space"           , "disable_prompt")
+          , (Press   , ""                   , "cmd alt shift t" , "toggle_style")
+          , (Press   , ""                   , "cmd s"           , "save_module")
+          , (Press   , ""                   , "cmd z"           , "undo")
+          , (Press   , ""                   , "cmd y"           , "redo")
           ]).iter().map(|(a,b,c,d)|Self::self_shortcut_when(*a,*c,*d,*b)).collect()
     }
 }

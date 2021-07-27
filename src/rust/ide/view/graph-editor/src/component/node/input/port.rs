@@ -74,7 +74,7 @@ pub mod viz {
 /// a full node height, and the `viz_shape`, which is a nice, visual highlight representation.
 /// Both shapes are children of the `root` display object:
 ///
-/// ```ignore
+/// ```text
 ///     hover_shape
 ///      ◄──────►
 /// ╭───┬────────┬──┄
@@ -114,7 +114,7 @@ impl Shape {
 
 impl display::Object for Shape {
     fn display_object(&self) -> &display::object::Instance {
-        &self.root.display_object()
+        self.root.display_object()
     }
 }
 

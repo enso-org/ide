@@ -45,6 +45,11 @@ impl Bounds {
     pub fn width(self) -> f32 {
         self.end - self.start
     }
+
+    /// Return the center between start and end.
+    pub fn center(self) -> f32 {
+        self.start + self.width() / 2.0
+    }
 }
 
 impl From<(f32,f32)> for Bounds {
@@ -56,7 +61,7 @@ impl From<(f32,f32)> for Bounds {
 /// Frp utility method to normalise the given value to the given Bounds.
 ///
 /// Example usage:
-/// ```ignore
+/// ```text
 /// normalised <- all2(&value,&bounds).map(normalise_value);
 /// ````
 pub fn normalise_value((value,bounds):&(f32,Bounds)) -> f32 {
@@ -69,7 +74,7 @@ pub fn normalise_value((value,bounds):&(f32,Bounds)) -> f32 {
 /// Inverse of `normalise_value`.
 ///
 /// Example usage:
-/// ```ignore
+/// ```text
 /// value  <- all(&bounds,&normalised).map(absolute_value);
 /// ````
 pub fn absolute_value((bounds,normalised_value):&(Bounds,f32)) -> f32 {
@@ -101,7 +106,7 @@ pub fn bounds_in_bounds(bounds_inner:Bounds, bounds_outer:Bounds) -> bool {
 /// For use in FRP `map` method, thus taking references.
 ///
 /// Example usage:
-/// ```ignore
+/// ```text
 ///  clamped <- value_update.map2(&normalised_overflow_bounds,clamp_with_overflow);
 /// ```
 #[allow(clippy::trivially_copy_pass_by_ref)]
@@ -117,7 +122,7 @@ pub fn clamp_with_overflow(value:&f32, overflow_bounds:&Option<Bounds>) -> f32 {
 /// For use in FRP `map` method, thus taking references.
 ///
 /// Example usage:
-/// ```ignore
+/// ```text
 ///  is_in_bounds <- bounds_update.map2(&normalised_overflow_bounds,should_clamp_with_overflow);
 /// ```
 #[allow(clippy::trivially_copy_pass_by_ref)]

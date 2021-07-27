@@ -43,7 +43,7 @@ impl NavigatorModel {
         let max_zoom               = 10000.0;
         let disable_events         = Rc::new(Cell::new(true));
         let (simulator,resize_callback,_events) = Self::start_navigator_events
-            (&scene,camera,min_zoom,max_zoom,Rc::clone(&zoom_speed),Rc::clone(&pan_speed),
+            (scene,camera,min_zoom,max_zoom,Rc::clone(&zoom_speed),Rc::clone(&pan_speed),
              Rc::clone(&disable_events));
         Self {_events,simulator,resize_callback,zoom_speed,pan_speed,disable_events}
     }

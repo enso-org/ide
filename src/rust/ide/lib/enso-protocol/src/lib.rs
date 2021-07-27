@@ -1,4 +1,6 @@
-//! Client side implementation of Enso protocol.
+//! Client side implementation of the Enso Protocol
+//!
+//! See https://enso.org/docs/developer/enso/language-server/protocol-architecture.html.
 
 #![feature(associated_type_bounds)]
 #![feature(associated_type_defaults)]
@@ -24,17 +26,20 @@ pub mod handler;
 
 #[allow(missing_docs)]
 pub mod prelude {
+    pub use enso_prelude::*;
     pub use json_rpc::prelude::*;
-    pub use utils::fail::FallibleResult;
-    pub use uuid::Uuid;
-
-    pub use crate::traits::*;
     pub use enso_logger::*;
-    pub use enso_logger::DefaultWarningLogger as Logger;
+    pub use crate::traits::*;
 
-    pub use std::future::Future;
+    pub use enso_logger::DefaultWarningLogger as Logger;
     /// We always use local futures in our single-threaded environment
     pub use futures::future::LocalBoxFuture as BoxFuture;
+    pub use futures::FutureExt;
+    pub use futures::Stream;
+    pub use futures::StreamExt;
+    pub use utils::fail::FallibleResult;
+    pub use uuid::Uuid;
+    pub use std::future::Future;
 
     /// We want most our futures to be static. Otherwise, they would automatically inherit
     /// lifetime of the client, which is not the desired behavior.
@@ -43,9 +48,6 @@ pub mod prelude {
     /// We want all our streams to be static. Otherwise, the would automatically inherit
     /// lifetime of the client, which is not the desired behavior.
     pub type StaticBoxStream<T> = futures::stream::LocalBoxStream<'static,T>;
-    pub use futures::FutureExt;
-    pub use futures::Stream;
-    pub use futures::StreamExt;
 
     #[cfg(test)] pub use utils::test::traits::*;
 }

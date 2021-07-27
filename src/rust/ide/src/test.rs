@@ -4,14 +4,17 @@
 use crate::prelude::*;
 
 use crate::double_representation::module;
+use crate::double_representation::project;
 use crate::model::suggestion_database;
+use crate::model::undo_redo;
 use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
 use enso_frp::data::bitfield::BitField;
 use enso_frp::data::bitfield::BitField32;
-use enso_protocol::types::Sha3_224;
+use enso_protocol::binary;
 use enso_protocol::language_server;
 use enso_protocol::language_server::CapabilityRegistration;
+use enso_protocol::types::Sha3_224;
 use json_rpc::expect_call;
 use utils::test::traits::*;
 
@@ -32,11 +35,12 @@ pub mod mock {
         use uuid::Uuid;
 
         pub const ROOT_ID         : Uuid     = Uuid::from_u128(100);
-        pub const PROJECT_NAME    : &str     = "MockProject";
+        pub const NAMESPACE_NAME  : &str     = "mock_namespace";
+        pub const PROJECT_NAME    : &str     = "Mock_Project";
         pub const MODULE_NAME     : &str     = "Mock_Module";
         pub const CODE            : &str     = "main = \n    2 + 2";
         pub const DEFINITION_NAME : &str     = "main";
-        pub const TYPE_NAME       : &str     = "MockProject.Mock_Module.Mock_Type";
+        pub const TYPE_NAME       : &str     = "mock_namespace.MockProject.Mock_Module.Mock_Type";
         pub const MAIN_FINISH     : Position = Position {line:1, character:9};
         pub const CONTEXT_ID      : Uuid     = Uuid::from_u128(0xFE);
 
@@ -44,8 +48,12 @@ pub mod mock {
             crate::model::module::Path::from_name_segments(ROOT_ID, &[MODULE_NAME]).unwrap()
         }
 
+        pub fn project_qualified_name() -> project::QualifiedName {
+            project::QualifiedName::from_segments(NAMESPACE_NAME,PROJECT_NAME).unwrap()
+        }
+
         pub fn module_qualified_name() -> module::QualifiedName {
-            module_path().qualified_module_name(PROJECT_NAME)
+            module_path().qualified_module_name(project_qualified_name())
         }
 
         pub fn definition_name() -> crate::double_representation::definition::DefinitionName {
@@ -87,10 +95,11 @@ pub mod mock {
         }
 
         pub fn suggestion_entry_foo() -> suggestion_database::Entry {
+            let project_name = project::QualifiedName::from_segments("std","Base").unwrap();
             suggestion_database::Entry {
                 name      : "foo".to_owned(),
-                module    : module::QualifiedName::from_segments("Std",&["Base"]).unwrap(),
-                self_type : Some("Std.Base".to_owned().try_into().unwrap()),
+                module    : module::QualifiedName::from_segments(project_name,&["Main"]).unwrap(),
+                self_type : Some("std.Base.Main".to_owned().try_into().unwrap()),
                 arguments : vec![foo_method_parameter(),foo_method_parameter2()],
                 return_type   : "Any".to_owned(),
                 kind          : suggestion_database::entry::Kind::Method,
@@ -100,10 +109,11 @@ pub mod mock {
         }
 
         pub fn suggestion_entry_bar() -> suggestion_database::Entry {
+            let project_name = project::QualifiedName::from_segments("std","Base").unwrap();
             suggestion_database::Entry {
                 name      : "bar".to_owned(),
-                module    : module::QualifiedName::from_segments("Std",&["Other"]).unwrap(),
-                self_type : Some("Std.Other".to_owned().try_into().unwrap()),
+                module    : module::QualifiedName::from_segments(project_name,&["Other"]).unwrap(),
+                self_type : Some("std.Base.Other".to_owned().try_into().unwrap()),
                 arguments : vec![bar_method_parameter()],
                 return_type   : "Any".to_owned(),
                 kind          : suggestion_database::entry::Kind::Method,
@@ -119,7 +129,7 @@ pub mod mock {
     #[derive(Clone,Debug)]
     pub struct Unified {
         pub logger        : Logger,
-        pub project_name  : String,
+        pub project_name  : project::QualifiedName,
         pub module_path   : model::module::Path,
         pub suggestions   : HashMap<suggestion_database::entry::Id,suggestion_database::Entry>,
         pub context_id    : model::execution_context::Id,
@@ -151,10 +161,10 @@ pub mod mock {
             let mut suggestions = HashMap::new();
             suggestions.insert(1,suggestion_entry_foo());
             suggestions.insert(2,suggestion_entry_bar());
+            let logger = Logger::new("UnifiedMock");
             Unified {
                 suggestions,
-                logger          : Logger::new("Unified"),
-                project_name    : PROJECT_NAME.to_owned(),
+                project_name    : project_qualified_name(),
                 module_path     : module_path(),
                 code            : CODE.to_owned(),
                 id_map          : default(),
@@ -162,17 +172,27 @@ pub mod mock {
                 context_id      : CONTEXT_ID,
                 root_definition : definition_name(),
                 parser          : parser::Parser::new_or_panic(),
+                logger,
             }
         }
 
-        pub fn module(&self) -> crate::model::Module {
-            let ast    = self.parser.parse_module(self.code.clone(),self.id_map.clone()).unwrap();
-            let module = crate::model::module::Plain::new(self.module_path.clone(),ast,self.metadata.clone());
-            Rc::new(module)
+        pub fn undo_redo_manager(&self) -> Rc<undo_redo::Manager> {
+            Rc::new(model::undo_redo::Manager::new(&self.logger))
+        }
+
+        pub fn module(&self, urm:Rc<undo_redo::Manager>) -> crate::model::Module {
+            let ast        = self.parser.parse_module(self.code.clone(),self.id_map.clone()).unwrap();
+            let path       = self.module_path.clone();
+            let metadata   = self.metadata.clone();
+            let repository = urm.repository.clone_ref();
+            let logger     = &self.logger;
+            let module     = Rc::new(model::module::Plain::new(logger,path,ast,metadata,repository));
+            urm.module_opened(module.clone());
+            module
         }
 
         pub fn module_qualified_name(&self) -> module::QualifiedName {
-            self.module_path.qualified_module_name(&self.project_name)
+            self.module_path.qualified_module_name(self.project_name.clone())
         }
 
         pub fn definition_id(&self) -> double_representation::definition::Id {
@@ -193,7 +213,7 @@ pub mod mock {
          -> crate::controller::Graph {
             let parser      = self.parser.clone_ref();
             let method      = self.method_pointer();
-            let definition  = module.lookup_method(&self.project_name,&method).expect("Lookup failed.");
+            let definition  = module.lookup_method(self.project_name.clone(),&method).expect("Lookup failed.");
             crate::controller::Graph::new(logger,module,db,parser,definition).expect("Graph could not be created")
         }
 
@@ -204,21 +224,27 @@ pub mod mock {
 
         pub fn project
         ( &self
+        , urm                 : Rc<undo_redo::Manager>
         , module              : model::Module
         , execution_context   : model::ExecutionContext
         , suggestion_database : Rc<model::SuggestionDatabase>
         , json_client         : language_server::MockClient
+        , binary_client       : binary::MockClient
         ) -> model::Project {
             let mut project = model::project::MockAPI::new();
-            model::project::test::expect_name(&mut project,&self.project_name);
+            model::project::test::expect_name(&mut project,&self.project_name.project);
+            model::project::test::expect_qualified_name(&mut project,&self.project_name);
             model::project::test::expect_parser(&mut project,&self.parser);
             model::project::test::expect_module(&mut project,module);
             model::project::test::expect_execution_ctx(&mut project,execution_context);
             // Root ID is needed to generate module path used to get the module.
             model::project::test::expect_root_id(&mut project,crate::test::mock::data::ROOT_ID);
             model::project::test::expect_suggestion_db(&mut project,suggestion_database);
-            let json_rpc = language_server::Connection::new_mock_rc(json_client);
+            let json_rpc   = language_server::Connection::new_mock_rc(json_client);
             model::project::test::expect_json_rpc(&mut project,json_rpc);
+            let binary_rpc = binary::Connection::new_mock_rc(binary_client);
+            model::project::test::expect_binary_rpc(&mut project,binary_rpc);
+            project.expect_urm().returning_st(move || urm.clone_ref());
             Rc::new(project)
         }
 
@@ -227,25 +253,26 @@ pub mod mock {
         }
 
         pub fn fixture(&self) -> Fixture {
-            self.fixture_customize(|_,_| {})
+            self.fixture_customize(|_,_,_| {})
         }
 
-        pub fn fixture_customize
-        (&self, customize_json_rpc:impl FnOnce(&Self,&mut language_server::MockClient))
-        -> Fixture {
-            let mut json_client = language_server::MockClient::default();
+        pub fn fixture_customize<Fun>(&self, customize_rpc:Fun) -> Fixture
+        where Fun : FnOnce( &Self, &mut language_server::MockClient, &mut binary::MockClient), {
+            let mut json_client   = language_server::MockClient::default();
+            let mut binary_client = binary::MockClient::new();
             // Creating a searcher controller always triggers a query for completion.
             controller::searcher::test::expect_completion(&mut json_client, &[]);
-            customize_json_rpc(self,&mut json_client);
+            customize_rpc(self,&mut json_client,&mut binary_client);
 
-            let logger        = Logger::new("UnifiedMock");
-            let module        = self.module();
+            let logger        = self.logger.clone_ref();
+            let urm           = self.undo_redo_manager();
+            let module        = self.module(urm.clone());
             let suggestion_db = Rc::new(model::SuggestionDatabase::new_from_entries(&logger,
                 &self.suggestions));
             let graph     = self.graph(&logger,module.clone_ref(),suggestion_db.clone_ref());
             let execution = self.execution_context();
-            let project   = self.project(module.clone_ref(),execution.clone_ref(),
-                suggestion_db.clone_ref(),json_client);
+            let project   = self.project(urm,module.clone_ref(),execution.clone_ref(),
+                suggestion_db.clone_ref(),json_client,binary_client);
             let ide            = self.ide(&project);
             let executed_graph = controller::ExecutedGraph::new_internal(graph.clone_ref(),
                 project.clone_ref(),execution.clone_ref());
@@ -257,7 +284,7 @@ pub mod mock {
                 ,ide.clone_ref(),&project,executed_graph.clone_ref(),searcher_mode,selected_nodes
                 ).unwrap();
             Fixture
-                {executor,data,module,graph,executed_graph,execution,suggestion_db,project
+                {logger,executor,data,module,graph,executed_graph,execution,suggestion_db,project
                 ,searcher,ide}
         }
 
@@ -288,7 +315,7 @@ pub mod mock {
 
     #[derive(Debug)]
     pub struct Fixture {
-        pub executor       : TestWithLocalPoolExecutor,
+        pub logger         : Logger,
         pub data           : Unified,
         pub module         : model::Module,
         pub graph          : controller::Graph,
@@ -298,6 +325,7 @@ pub mod mock {
         pub project        : model::Project,
         pub ide            : controller::Ide,
         pub searcher       : controller::Searcher,
+        pub executor       : TestWithLocalPoolExecutor, // Last to drop the executor as last.
     }
 
     impl Fixture {
@@ -316,24 +344,21 @@ pub mod mock {
             let parser        = self.data.parser.clone();
             let path          = self.data.module_path.clone();
             let ls            = self.project.json_rpc().clone();
-            let module_future = model::module::Synchronized::open(path,ls,parser);
+            let repository    = self.project.urm().repository.clone_ref();
+            let module_future = model::module::Synchronized::open(path,ls,parser,repository);
             // We can `expect_ready`, because in fact this is synchronous in test conditions.
             // (there's no real asynchronous connection beneath, just the `MockClient`)
-            module_future.boxed_local().expect_ready().unwrap()
+            let module = module_future.boxed_local().expect_ready().unwrap();
+            self.project.urm().module_opened(module.clone());
+            module
+
         }
 
         /// Create a synchronized module model and a module controller paired with it.
         ///
         /// Same considerations need to be made as with `[synchronized_module]`.
         pub fn synchronized_module_w_controller(&self) -> (Rc<model::module::Synchronized>,controller::Module) {
-            let parser = self.data.parser.clone();
-            let path   = self.data.module_path.clone();
-            let ls     = self.project.json_rpc().clone();
-            let module_fut = model::module::Synchronized::open(path,ls,parser);
-            // We can `expect_ready`, because in fact this is synchronous.
-            // (there's no real asynchronous connection beneath, just the `MockClient`)
-            let model = module_fut.boxed_local().expect_ready().unwrap();
-
+            let model = self.synchronized_module();
             let controller = controller::module::Handle {
                 language_server : self.project.json_rpc(),
                 model           : model.clone(),
@@ -453,7 +478,7 @@ impl Runner {
     /// Calls the `test` function once. The executor behavior is defined by the `n` parameter.
     /// Returns the number of calls made to `perhaps_run_until_stalled`.
     pub fn run_nth(n:u32, test:impl FnMut(&mut Runner)) -> u32 {
-        println!("Runner: Iteration {}",n);
+        DEBUG!("Runner: Iteration " n);
         Self::run_with(BitField32 {raw:n}, test)
     }
 }

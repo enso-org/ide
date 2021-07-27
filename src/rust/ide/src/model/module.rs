@@ -14,6 +14,7 @@ use crate::constants::SOURCE_DIRECTORY;
 use crate::controller::FilePath;
 use crate::double_representation::identifier::ReferentName;
 use crate::double_representation::definition::DefinitionInfo;
+use crate::double_representation::project;
 
 use data::text::TextChange;
 use data::text::TextLocation;
@@ -192,7 +193,8 @@ impl Path {
     /// Obtain a pointer to a method of the module (i.e. extending the module's atom).
     ///
     /// Note that this cannot be used for a method extending other atom than this module.
-    pub fn method_pointer(&self, project_name:impl Str, method_name:impl Str) -> MethodPointer {
+    pub fn method_pointer
+    (&self, project_name:project::QualifiedName, method_name:impl Str) -> MethodPointer {
         let module          = String::from(self.qualified_module_name(project_name));
         let defined_on_type = module.clone();
         let name            = method_name.into();
@@ -208,10 +210,10 @@ impl Path {
     ///
     /// let path = Path::from_name_segments(default(),&["Main"]).unwrap();
     /// assert_eq!(path.to_string(),"//00000000-0000-0000-0000-000000000000/src/Main.enso");
-    /// let name = path.qualified_module_name("Project");
-    /// assert_eq!(name.to_string(),"Project.Main");
+    /// let name = path.qualified_module_name("local.Project".try_into().unwrap());
+    /// assert_eq!(name.to_string(),"local.Project.Main");
     /// ```
-    pub fn qualified_module_name(&self, project_name:impl Str) -> QualifiedName {
+    pub fn qualified_module_name(&self, project_name:project::QualifiedName) -> QualifiedName {
         let non_src_directories = &self.file_path.segments[1..self.file_path.segments.len()-1];
         let non_src_directories = non_src_directories.iter().map(|dirname| dirname.as_str());
         let module_name         = self.module_name();
@@ -294,8 +296,7 @@ pub struct Notification {
 #[derive(Clone,Debug,Deserialize,PartialEq,Serialize)]
 pub struct Metadata {
     /// Metadata used within ide.
-    #[serde(default="default")]
-    #[serde(deserialize_with="utils::serde::deserialize_or_default")]
+    #[serde(default,deserialize_with="utils::serde::deserialize_or_default")]
     pub ide : IdeMetadata,
     #[serde(flatten)]
     /// Metadata of other users of ParsedSourceFile<Metadata> API.
@@ -316,26 +317,49 @@ impl Default for Metadata {
     }
 }
 
+/// Project-level metadata. It is stored as part of the project's main module's metadata.
+#[derive(Clone,Debug,Default,Deserialize,PartialEq,Serialize)]
+pub struct ProjectMetadata {
+    /// The execution context of the displayed graph editor.
+    #[serde(default,deserialize_with="utils::serde::deserialize_or_default")]
+    pub call_stack : Vec<model::execution_context::LocalCall>,
+}
+
 /// Metadata that belongs to ide.
 #[derive(Clone,Debug,Default,Deserialize,PartialEq,Serialize)]
 pub struct IdeMetadata {
     /// Metadata that belongs to nodes.
     #[serde(deserialize_with="utils::serde::deserialize_or_default")]
-    node : HashMap<ast::Id,NodeMetadata>
+    node : HashMap<ast::Id,NodeMetadata>,
+    /// The project metadata. This is stored only in the main module's metadata.
+    #[serde(default,deserialize_with="utils::serde::deserialize_or_default")]
+    project : Option<ProjectMetadata>,
 }
 
 /// Metadata of specific node.
 #[derive(Clone,Debug,Default,Deserialize,PartialEq,Serialize)]
 pub struct NodeMetadata {
     /// Position in x,y coordinates.
-    #[serde(deserialize_with="utils::serde::deserialize_or_default")]
+    #[serde(default,deserialize_with="utils::serde::deserialize_or_default")]
     pub position:Option<Position>,
     /// A method which user intends this node to be, e.g. by picking specific suggestion in
     /// Searcher Panel.
     ///
     /// The methods may be defined for different types, so the name alone don't specify them.
-    #[serde(deserialize_with="utils::serde::deserialize_or_default")]
+    #[serde(default,deserialize_with="utils::serde::deserialize_or_default")]
     pub intended_method:Option<MethodId>,
+    /// Information about uploading file.
+    ///
+    /// Designed to be present in nodes created by dragging and dropping files in IDE. Contains
+    /// information about file and upload progress.
+    #[serde(default,deserialize_with="utils::serde::deserialize_or_default")]
+    pub uploading_file:Option<UploadingFile>,
+    /// Was node selected in the view.
+    #[serde(default)]
+    pub selected:bool,
+    /// Was node selected in the view.
+    #[serde(default)]
+    pub visualization:serde_json::Value,
 }
 
 /// Used for storing node position.
@@ -400,6 +424,12 @@ where f32 : Div<T,Output=f32>,
     }
 }
 
+impl From<Vector2<f32>> for Position {
+    fn from(value:Vector2) -> Self {
+        Position::new(value.x, value.y)
+    }
+}
+
 /// A structure identifying a method.
 ///
 /// It is very similar to MethodPointer from language_server API, however it may point to the method
@@ -412,6 +442,24 @@ pub struct MethodId {
     pub name            : String,
 }
 
+/// Uploading File Information
+///
+/// May be stored in node metadata, if the node's expression is reading content of file still
+/// uploaded to the project directory.
+#[allow(missing_docs)]
+#[derive(Clone,Debug,Deserialize,Eq,Hash,PartialEq,Serialize)]
+pub struct UploadingFile {
+    /// The name of file dropped in IDE.
+    pub name:String,
+    /// The file's destination name. May differ from original name due to conflict with files
+    /// already present on the remote.
+    pub remote_name : Option<String>,
+    pub size        : u64,
+    /// The number of bytes already uploaded. It _can_ exceed the `size` value, because the file
+    /// may change during upload.
+    pub bytes_uploaded : u64,
+    pub error          : Option<String>,
+}
 
 
 // ==============
@@ -422,7 +470,7 @@ pub struct MethodId {
 pub type Content = ParsedSourceFile<Metadata>;
 
 /// Module model API.
-pub trait API:Debug {
+pub trait API:Debug+model::undo_redo::Aware {
     /// Subscribe for notifications about text representation changes.
     fn subscribe(&self) -> Subscriber<Notification>;
 
@@ -474,6 +522,20 @@ pub trait API:Debug {
     fn with_node_metadata
     (&self, id:ast::Id, fun:Box<dyn FnOnce(&mut NodeMetadata) + '_>) -> FallibleResult;
 
+    /// This method exists as a monomorphication for [`with_project_metadata`]. Users are encouraged
+    /// to use it rather then this method.
+    ///
+    /// Access project's metadata with a given function. Fails, if the project's metadata are not
+    /// set in this module.
+    fn boxed_with_project_metadata(&self, fun:Box<dyn FnOnce(&ProjectMetadata) + '_>);
+
+    /// This method exists as a monomorphication for [`update_project_metadata`]. Users are
+    /// encouraged to use it rather then this method.
+    ///
+    /// Borrow mutably the project's metadata and update it with a given function.
+    fn boxed_update_project_metadata
+    (&self, fun:Box<dyn FnOnce(&mut ProjectMetadata) + '_>) -> FallibleResult;
+
 
 // === Utils ===
 
@@ -487,7 +549,7 @@ pub trait API:Debug {
     /// The module is assumed to be in the file identified by the `method.file` (for the purpose of
     /// desugaring implicit extensions methods for modules).
     fn lookup_method
-    (&self, project_name:&str, method:&MethodPointer)
+    (&self, project_name:project::QualifiedName, method:&MethodPointer)
     -> FallibleResult<double_representation::definition::Id> {
         let name = self.path().qualified_module_name(project_name);
         let ast  = self.ast();
@@ -499,6 +561,31 @@ pub trait API:Debug {
         double_representation::module::Info::from(self.ast())
     }
 }
+
+/// Trait for methods that cannot be defined in `API` because it is a trait object.
+pub trait APIExt : API {
+    /// Access project's metadata with a given function.
+    ///
+    /// Fails, if the project's metadata are not set in this module.
+    fn with_project_metadata<R>
+    (&self, fun:impl FnOnce(&ProjectMetadata) -> R) -> R {
+        let mut ret = None;
+        self.boxed_with_project_metadata(Box::new(|metadata| {
+            ret = Some(fun(metadata));
+        }));
+        // The `with_project_metadata_internal` always calls the callback once, so it must fill
+        // `ret` with necessary data.
+        ret.unwrap()
+    }
+
+    /// Borrow mutably the project's metadata and update it with a given function.
+    fn update_project_metadata
+    (&self, fun:impl FnOnce(&mut ProjectMetadata)) -> FallibleResult {
+        self.boxed_update_project_metadata(Box::new(fun))
+    }
+}
+
+impl<T:API + ?Sized> APIExt for T {}
 
 /// The general, shared Module Model handle.
 pub type Module = Rc<dyn API>;
@@ -544,18 +631,20 @@ pub mod test {
     }
 
     impl MockData {
-        pub fn plain(&self, parser:&Parser) -> Module {
+        pub fn plain(&self, parser:&Parser, repository:Rc<model::undo_redo::Repository>) -> Module {
             let ast    = parser.parse_module(self.code.clone(),self.id_map.clone()).unwrap();
-            let module = Plain::new(self.path.clone(),ast,self.metadata.clone());
+            let logger = Logger::new("MockModule");
+            let module = Plain::new(logger,self.path.clone(),ast,self.metadata.clone(),repository);
             Rc::new(module)
         }
     }
 
     pub fn plain_from_code(code:impl Into<String>) -> Module {
+        let urm = default();
         MockData {
             code : code.into(),
             ..default()
-        }.plain(&parser::Parser::new_or_panic())
+        }.plain(&parser::Parser::new_or_panic(),urm)
     }
 
     #[test]
@@ -582,12 +671,14 @@ pub mod test {
 
     #[test]
     fn module_qualified_name() {
+        let namespace    = "n";
         let project_name = "P";
+        let project_name = project::QualifiedName::from_segments(namespace,project_name).unwrap();
         let root_id      = default();
         let file_path    = FilePath::new(root_id, &["src", "Foo", "Bar.enso"]);
         let module_path  = Path::from_file_path(file_path).unwrap();
         let qualified    = module_path.qualified_module_name(project_name);
-        assert_eq!(qualified.to_string(), "P.Foo.Bar");
+        assert_eq!(qualified.to_string(), "n.P.Foo.Bar");
     }
 
     #[wasm_bindgen_test]

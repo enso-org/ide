@@ -1,8 +1,106 @@
 # Next Release
 
+This update contains major performance improvements and exposes new privacy user
+settings. We will work towards stabilizing it in the next weeks in order to make
+these updates be shipped in a stable release before the end of the year.
+
 <br/>![New Features](/docs/assets/tags/new_features.svg)
 
 #### Visual Environment
+
+- [New look of open project dialog.][1700]. Now it has "Open project" title on
+  the top.
+
+<br/>
+
+[1700]: https://github.com/enso-org/ide/pull/1700
+
+# Enso 2.0.0-alpha.10 (2021-07-23)
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Enso Compiler
+
+- [Updated Enso engine to version 0.2.15][1710]. If you're interested in the
+  enhancements and fixes made to the Enso compiler, you can find out more
+  details in
+  [the engine release notes](https://github.com/enso-org/enso/blob/main/RELEASES.md).
+
+<br/>
+
+[1710]: https://github.com/enso-org/ide/pull/1710
+
+# Enso 2.0.0-alpha.9 (2021-07-16)
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Visual Environment
+
+- [Improved undo-redo][1653]. Node selection, enabling/disabling visualisations
+  and entering a node are now affected by undo/redo and are restored on project
+  startup.
+
+<br/>
+  
+[1640]: https://github.com/enso-org/ide/pull/1653
+
+# Enso 2.0.0-alpha.8 (2021-06-09)
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Enso Compiler
+
+- [Updated Enso engine to version 0.2.12][1640]. If you're interested in the
+  enhancements and fixes made to the Enso compiler, you can find out more
+  details in
+  [the engine release notes](https://github.com/enso-org/enso/blob/main/RELEASES.md).
+
+[1640]: https://github.com/enso-org/ide/pull/1640
+
+<br/>
+
+# Enso 2.0.0-alpha.7 (2021-06-06)
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Visual Environment
+
+- [User Authentication][1653]. Users can sign in to Enso using Google, GitHub or
+  email accounts.
+
+<br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
+
+#### Visual Environment
+
+- [Fix node selection bug ][1664]. Fix nodes not being deselected correctly in
+  some circumstances. This would lead to nodes moving too fast when dragged
+  [1650] or the internal state of the project being inconsistent [1626].
+
+[1653]: https://github.com/enso-org/ide/pull/1653
+[1664]: https://github.com/enso-org/ide/pull/1664
+
+<br/>
+
+# Enso 2.0.0-alpha.6 (2021-06-28)
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Visual Environment
+
+- [Profling mode.][1546] The IDE contains a profiling mode now which can be
+  entered through a button in the top-right corner or through the keybinding
+  <kbd>ctrl</kbd>+<kbd>p</kbd>. This mode does not display any information yet.
+  In the future, it will display the running times of nodes and maybe more
+  useful statistics.
+- [Area selection][1588]. You can now select multiple nodes at once. Just click
+  and drag on the background of your graph and see the beauty of the area
+  selection appear.
+- [Opening projects in application graphical interface][1587]. Press `cmd`+`o`
+  to bring the list of projects. Select a project on the list to open it.
+- [Initial support for undo-redo][1602]. Press <kbd>cmd</kbd>+<kbd>z</kbd> to
+  undo last action and <kbd>cmd</kbd>+<kbd>z</kbd> to redo last undone action.
+  This version of undo redo does not have proper support for text editor and
+  undoing UI changes (like selecting nodes).
 
 #### EnsoGL (rendering engine)
 
@@ -10,7 +108,18 @@
 
 #### Visual Environment
 
+- [Nodes in graph no longer overlap panels][1577]. The Searcher, project name,
+  breadcrumbs and status bar are displayed "above" nodes.
+
 #### Enso Compiler
+
+[1588]: https://github.com/enso-org/ide/pull/1588
+[1577]: https://github.com/enso-org/ide/pull/1577
+[1587]: https://github.com/enso-org/ide/pull/1587
+[1602]: https://github.com/enso-org/ide/pull/1602
+[1602]: https://github.com/enso-org/ide/pull/1664
+[1602]: https://github.com/enso-org/ide/pull/1650
+[1602]: https://github.com/enso-org/ide/pull/1626
 
 # Enso 2.0.0-alpha.5 (2021-05-14)
 
@@ -24,6 +133,8 @@
   clicking with mouse or selecting and pressing enter, a new unnamed project
   will be created and opened in the application. Then you can give a name to
   this project.
+- [Signed builds.][1366] Our builds are signed and will avoid warnings from the
+  operating system about being untrusted.
 
 #### EnsoGL (rendering engine)
 
@@ -35,7 +146,8 @@
 
 #### Visual Environment
 
-- [Delete key will delete selected nodes][1538].
+- [Delete key will delete selected nodes][1538]. Only the non-intuitive
+  backspace key was assigned to this action before.
 - [It is possible to move around after deleting a node with a selected
   visualization][1556]. Deleting a node while its attached visualization was
   selected made it impossible to pan or zoom around the stage afterwards. This
@@ -52,6 +164,7 @@ If you're interested in the enhancements and fixes made to the Enso compiler,
 you can find their release notes
 [here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
 
+[1366]: https://github.com/enso-org/ide/pull/1366
 [1541]: https://github.com/enso-org/ide/pull/1541
 [1538]: https://github.com/enso-org/ide/pull/1538
 [1524]: https://github.com/enso-org/ide/pull/1524

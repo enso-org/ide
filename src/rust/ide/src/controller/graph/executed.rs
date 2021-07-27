@@ -248,6 +248,11 @@ impl Handle {
         Ok(())
     }
 
+    /// Get the current call stack frames.
+    pub fn call_stack(&self) -> Vec<LocalCall> {
+        self.execution_ctx.stack_items().collect()
+    }
+
     /// Get the controller for the currently active graph.
     ///
     /// Note that the controller returned by this method may change as the nodes are stepped into.
@@ -292,6 +297,12 @@ impl Context for Handle {
     }
 }
 
+impl model::undo_redo::Aware for Handle {
+    fn undo_redo_repository(&self) -> Rc<model::undo_redo::Repository> {
+        self.graph.borrow().undo_redo_repository()
+    }
+}
+
 
 
 // ============
@@ -325,12 +336,16 @@ pub mod tests {
 
     impl MockData {
         pub fn controller(&self) -> Handle {
+            let logger      = Logger::new("test");
             let parser      = parser::Parser::new_or_panic();
-            let module      = self.module.plain(&parser);
+            let repository  = Rc::new(model::undo_redo::Repository::new(&logger));
+            let module      = self.module.plain(&parser,repository);
             let method      = self.graph.method();
             let mut project = model::project::MockAPI::new();
             let ctx         = Rc::new(self.ctx.create());
+            let proj_name   = test::mock::data::project_qualified_name();
             model::project::test::expect_name(&mut project,test::mock::data::PROJECT_NAME);
+            model::project::test::expect_qualified_name(&mut project,&proj_name);
             model::project::test::expect_parser(&mut project,&parser);
             model::project::test::expect_module(&mut project,module);
             model::project::test::expect_execution_ctx(&mut project,ctx);
@@ -340,7 +355,7 @@ pub mod tests {
             let suggestion_db = self.graph.suggestion_db();
             model::project::test::expect_suggestion_db(&mut project,suggestion_db);
             let project = Rc::new(project);
-            Handle::new(Logger::new("test"),project.clone_ref(),method).boxed_local().expect_ok()
+            Handle::new(logger,project.clone_ref(),method).boxed_local().expect_ok()
         }
     }
 
@@ -408,8 +423,8 @@ pub mod tests {
 
         // Check that if we set metadata, executed graph can see this info.
         module.set_node_metadata(id,NodeMetadata {
-            position        : None,
             intended_method : entry1.method_id(),
+            ..default()
         }).unwrap();
         let info = get_invocation_info().unwrap();
         assert_call_info(info,&entry1);

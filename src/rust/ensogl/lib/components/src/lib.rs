@@ -18,10 +18,13 @@
 
 pub mod component;
 pub mod drop_down_menu;
+pub mod file_browser;
 pub mod label;
 pub mod list_view;
-pub mod shadow;
+pub mod scroll_area;
+pub mod scrollbar;
 pub mod selector;
+pub mod shadow;
 pub mod toggle_button;
 
 /// Commonly used types and functions.

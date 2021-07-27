@@ -4,6 +4,9 @@ use crate::prelude::*;
 
 use crate::controller::graph::executed::Notification as GraphNotification;
 use crate::controller::ide::StatusNotificationPublisher;
+use crate::double_representation::project;
+use crate::model::module::QualifiedName;
+use crate::model::traits::*;
 
 use enso_frp::web::platform;
 use enso_frp::web::platform::Platform;
@@ -22,12 +25,14 @@ pub const COMPILING_STDLIB_LABEL:&str = "Compiling standard library. It can take
 
 /// The requirements for Engine's version, in format understandable by
 /// [`semver::VersionReq::parse`].
-pub const ENGINE_VERSION_SUPPORTED        : &str = "^0.2.11";
+pub const ENGINE_VERSION_SUPPORTED        : &str = "^0.2.15";
 
 /// The Engine version used in projects created in IDE.
 // Usually it is a good idea to synchronize this version with the bundled Engine version in
 // src/js/lib/project-manager/src/build.ts. See also https://github.com/enso-org/ide/issues/1359
-pub const ENGINE_VERSION_FOR_NEW_PROJECTS : &str = "0.2.11";
+pub const ENGINE_VERSION_FOR_NEW_PROJECTS : &str = "0.2.15";
+/// The minimum edition that is guaranteed to work with the IDE.
+pub const MINIMUM_EDITION_SUPPORTED : &str = "2021.3";
 
 /// The name of the module initially opened in the project view.
 ///
@@ -52,8 +57,33 @@ pub fn default_main_module_code() -> String {
 
 /// Method pointer that described the main method, i.e. the method that project view wants to open
 /// and which presence is currently required.
-pub fn main_method_ptr(project_name:impl Str, module_path:&model::module::Path) -> MethodPointer {
+pub fn main_method_ptr
+(project_name:project::QualifiedName, module_path:&model::module::Path) -> MethodPointer {
     module_path.method_pointer(project_name,MAIN_DEFINITION_NAME)
+}
+
+/// The identifier of the project's main module.
+pub fn main_module_id() -> model::module::Id {
+    // We can just assume that `INITIAL_MODULE_NAME` is valid. This is verified by a test.
+    model::module::Id::try_new([INITIAL_MODULE_NAME]).unwrap()
+}
+
+
+
+
+// =================
+// === Utilities ===
+// =================
+
+/// Returns the path to package.yaml file for given project.
+pub fn package_yaml_path(project_name:&str) -> String {
+    match platform::current() {
+        Some(Platform::Linux)   |
+        Some(Platform::MacOS)   => format!("~/enso/projects/{}/package.yaml",project_name),
+        Some(Platform::Windows) =>
+            format!("%userprofile%\\enso\\projects\\{}\\package.yaml",project_name),
+        _ => format!("<path-to-enso-projects>/{}/package.yaml",project_name)
+    }
 }
 
 
@@ -69,7 +99,9 @@ pub fn main_method_ptr(project_name:impl Str, module_path:&model::module::Path) 
 pub struct InitializationResult {
     /// The Text Controller for Main module code to be displayed in Code Editor.
     pub main_module_text:controller::Text,
-    /// The Graph Controller for main definition's graph, to be displayed in Graph Editor.
+    /// The model of the project's Main module.
+    pub main_module_model:model::Module,
+    /// The Graph Controller for main method's definition graph, to be displayed in Graph Editor.
     pub main_graph:controller::ExecutedGraph,
 }
 
@@ -108,9 +140,13 @@ impl Project {
         // TODO [mwu] This solution to recreate missing main file should be considered provisional
         //   until proper decision is made. See: https://github.com/enso-org/enso/issues/1050
         self.recreate_if_missing(&file_path,default_main_method_code()).await?;
-        let method = main_method_ptr(project.name(),&module_path);
-        let module = self.model.module(module_path).await?;
-        Self::add_main_if_missing(project.name().as_ref(),&module,&method,&parser)?;
+        let method            = main_method_ptr(project.qualified_name(),&module_path);
+        let main_module_model = self.model.module(module_path.clone()).await?;
+        Self::add_main_if_missing(project.qualified_name(), &main_module_model, &method, &parser)?;
+
+        let mut info = main_module_model.info();
+        info.add_module_import(&project.qualified_module_name(&module_path), &project.parser(), &QualifiedName::from_text("Standard.Visualization").unwrap());
+        main_module_model.update_ast(info.ast)?;
 
         // Here, we should be relatively certain (except race conditions in case of multiple
         // clients that we currently do not support) that main module exists and contains main
@@ -118,10 +154,13 @@ impl Project {
         let main_module_text = controller::Text::new(&self.logger,&project,file_path).await?;
         let main_graph       = controller::ExecutedGraph::new(&self.logger,project,method).await?;
 
+        self.init_call_stack_from_metadata(&main_module_model, &main_graph).await;
         self.notify_about_compiling_process(&main_graph);
         self.display_warning_on_unsupported_engine_version()?;
 
-        Ok(InitializationResult {main_module_text,main_graph})
+
+
+        Ok(InitializationResult {main_module_text,main_module_model,main_graph})
     }
 }
 
@@ -147,7 +186,7 @@ impl Project {
     ///
     /// The lookup will be done using the given `main_ptr` value.
     pub fn add_main_if_missing
-    (project_name:&str, module:&model::Module, main_ptr:&MethodPointer, parser:&Parser)
+    (project_name:project::QualifiedName, module:&model::Module, main_ptr:&MethodPointer, parser:&Parser)
      -> FallibleResult {
         if module.lookup_method(project_name,main_ptr).is_err() {
             let mut info  = module.info();
@@ -157,6 +196,20 @@ impl Project {
             module.update_ast(info.ast)?;
         }
         Ok(())
+    }
+
+    async fn init_call_stack_from_metadata
+    (&self, main_module:&model::Module, main_graph:&controller::ExecutedGraph) {
+        // Restore the call stack from the metadata.
+        let initial_call_stack = main_module.with_project_metadata(|m| m.call_stack.clone());
+        for frame in initial_call_stack {
+            // Push as many frames as possible. We should not be too concerned about failure here.
+            // It is to be assumed that metadata can get broken.
+            if let Err(e) = main_graph.enter_method_pointer(&frame).await {
+                warning!(self.logger, "Failed to push initial stack frame: {frame:?}: {e}");
+                break;
+            }
+        }
     }
 
     fn notify_about_compiling_process(&self, graph:&controller::ExecutedGraph) {
@@ -175,23 +228,12 @@ impl Project {
     fn display_warning_on_unsupported_engine_version(&self) -> FallibleResult {
         let requirements = semver::VersionReq::parse(ENGINE_VERSION_SUPPORTED)?;
         let version      = self.model.engine_version();
-        if !requirements.matches(version) {
-            let message = format!("Unsupported Engine version. Please update engine_version in {} \
-                to {}.",self.package_yaml_path(),ENGINE_VERSION_FOR_NEW_PROJECTS);
+        if !requirements.matches(&version) {
+            let message = format!("Unsupported Engine version. Please update edition in {} \
+                to {}.",package_yaml_path(&self.model.name()),MINIMUM_EDITION_SUPPORTED);
             self.status_notifications.publish_event(message);
         }
         Ok(())
-    }
-
-    fn package_yaml_path(&self) -> String {
-        let project_name = self.model.name();
-        match platform::current() {
-            Some(Platform::Linux)   |
-            Some(Platform::MacOS)   => format!("~/enso/projects/{}/package.yaml",project_name),
-            Some(Platform::Windows) =>
-                format!("%userprofile%\\enso\\projects\\{}\\package.yaml",project_name),
-            _ => format!("<path-to-enso-projects>/{}/package.yaml",project_name)
-        }
     }
 }
 
@@ -207,6 +249,13 @@ mod tests {
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
+
+    #[test]
+    fn main_module_id_test() {
+        // Should not panic.
+        main_module_id();
+    }
+
     #[test]
     fn new_project_engine_version_fills_requirements() {
         let requirements = semver::VersionReq::parse(ENGINE_VERSION_SUPPORTED).unwrap();
@@ -220,21 +269,22 @@ mod tests {
         let parser      = parser::Parser::new_or_panic();
         let mut data    = crate::test::mock::Unified::new();
         let module_name = data.module_path.module_name();
-        let main_ptr    = main_method_ptr(&data.project_name,&data.module_path);
+        let main_ptr    = main_method_ptr(data.project_name.clone(),&data.module_path);
 
         // Check that module without main gets it after the call.
         let empty_module_code = "";
         data.set_code(empty_module_code);
-        let module = data.module();
-        assert!(module.lookup_method(&data.project_name,&main_ptr).is_err());
-        Project::add_main_if_missing(&data.project_name, &module, &main_ptr, &parser).unwrap();
-        assert!(module.lookup_method(&data.project_name,&main_ptr).is_ok());
+        let urm    = data.undo_redo_manager();
+        let module = data.module(urm.clone_ref());
+        assert!(module.lookup_method(data.project_name.clone(),&main_ptr).is_err());
+        Project::add_main_if_missing(data.project_name.clone(), &module, &main_ptr, &parser).unwrap();
+        assert!(module.lookup_method(data.project_name.clone(),&main_ptr).is_ok());
 
         // Now check that modules that have main already defined won't get modified.
         let mut expect_intact = move |code:&str| {
             data.set_code(code);
-            let module = data.module();
-            Project::add_main_if_missing(&data.project_name, &module, &main_ptr, &parser).unwrap();
+            let module = data.module(urm.clone_ref());
+            Project::add_main_if_missing(data.project_name.clone(), &module, &main_ptr, &parser).unwrap();
             assert_eq!(code,module.ast().repr());
         };
         expect_intact("main = 5");

@@ -10,6 +10,7 @@ use crate::double_representation::identifier;
 use crate::double_representation::identifier::Identifier;
 use crate::double_representation::identifier::LocatedName;
 use crate::double_representation::identifier::ReferentName;
+use crate::double_representation::project;
 use crate::double_representation::tp;
 
 use ast::crumbs::ChildAst;
@@ -73,6 +74,13 @@ pub struct NotDirectChild(ast::Crumbs);
 pub struct Id {
     /// The vector can be empty - in that case we point to the module called `Main`.
     segments:Vec<ReferentName>
+}
+
+impl Display for Id {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = self.segments.iter().map(AsRef::<str>::as_ref).join(".");
+        write!(f,"{}",s)
+    }
 }
 
 impl Id {
@@ -140,15 +148,15 @@ impl Id {
 #[serde(into="String")]
 #[serde(try_from="String")]
 pub struct QualifiedName {
-    /// The first segment in the full qualified name.
-    pub project_name : ReferentName,
+    /// The first segment in the full qualified name. May be a project name or a keyword like
+    pub project_name : project::QualifiedName,
     /// The module id: all segments in full qualified name but the first (which is a project name).
     pub id           : Id
 }
 
 impl QualifiedName {
     /// Build a module's qualified name from the project name and module's path.
-    pub fn new(project_name:ReferentName, id:Id) -> QualifiedName {
+    pub fn new(project_name:project::QualifiedName, id:Id) -> QualifiedName {
         QualifiedName {project_name,id}
     }
 
@@ -156,7 +164,7 @@ impl QualifiedName {
     ///
     /// It is special, as its name consists only from the project name, unlike other modules'
     /// qualified names.
-    pub fn new_main(project_name:ReferentName) -> QualifiedName {
+    pub fn new_main(project_name:project::QualifiedName) -> QualifiedName {
         Self::new(project_name, Id::new(std::iter::empty()))
     }
 
@@ -167,9 +175,9 @@ impl QualifiedName {
         use ast::opr::predefined::ACCESS;
 
         let text     = text.as_ref();
-        let segments = text.split(ACCESS);
-        if let [ref project_name,ref id_segments @ ..] = *segments.collect_vec().as_slice() {
-            let project_name = ReferentName::new(*project_name)?;
+        let segments = text.split(ACCESS).collect_vec();
+        if let [namespace_name,project_name,id_segments @ ..] = segments.as_slice() {
+            let project_name = project::QualifiedName::from_segments(*namespace_name,*project_name)?;
             let id           = Id::try_new(id_segments)?;
             Ok(Self::new(project_name,id))
         } else {
@@ -180,13 +188,14 @@ impl QualifiedName {
     /// Build a module's full qualified name from its name segments and the project name.
     ///
     /// ```
-    /// use ide::model::module::QualifiedName;
+    /// # use enso_prelude::*;
+    /// # use ide::model::module::QualifiedName;
     ///
-    /// let name = QualifiedName::from_segments("Project",&["Main"]).unwrap();
-    /// assert_eq!(name.to_string(), "Project.Main");
+    /// let name = QualifiedName::from_segments("local.Project".try_into().unwrap(),&["Main"]).unwrap();
+    /// assert_eq!(name.to_string(), "local.Project.Main");
     /// ```
     pub fn from_segments
-    (project_name:impl Into<String>, module_segments:impl IntoIterator<Item:AsRef<str>>)
+    (project_name:project::QualifiedName, module_segments:impl IntoIterator<Item:AsRef<str>>)
     -> FallibleResult<QualifiedName> {
         let project_name     = std::iter::once(project_name.into());
         let module_segments  = module_segments.into_iter();
@@ -207,20 +216,24 @@ impl QualifiedName {
     pub fn from_all_segments
     (segments:impl IntoIterator<Item:AsRef<str>>) -> FallibleResult<QualifiedName> {
         let mut iter     = segments.into_iter();
+        let namespace    = iter.next().map(|name| name.as_ref().to_owned());
         let project_name = iter.next().map(|name| name.as_ref().to_owned());
-        let project_name = project_name.ok_or(InvalidQualifiedName::NoModuleSegment)?;
-        Self::from_segments(project_name,iter)
+        let typed_project_name = match (namespace,project_name) {
+            (Some(ns),Some(name)) => project::QualifiedName::from_segments(ns,name),
+            _                     => Err(InvalidQualifiedName::NoModuleSegment.into()),
+        };
+        Self::from_segments(typed_project_name?,iter)
     }
 
     /// Get the module's name. It is also the module's typename.
     pub fn name(&self) -> ReferentName {
-        if self.id.segments.is_empty() { self.project_name.clone() }
+        if self.id.segments.is_empty() { self.project_name.project.clone() }
         else                           { self.id.name()            }
     }
 
     /// Get the name of project owning this module.
     pub fn project_name(&self) -> &ReferentName {
-        &self.project_name
+        &self.project_name.project
     }
 
     /// Get the module's identifier.
@@ -229,8 +242,8 @@ impl QualifiedName {
     }
 
     /// Get all segments of the fully qualified name.
-    pub fn segments(&self) -> impl Iterator<Item=&ReferentName> {
-        std::iter::once(&self.project_name).chain(self.id.segments.iter())
+    pub fn segments(&self) -> impl Iterator<Item=&str> {
+        self.project_name.segments().chain(self.id.segments.iter().map(|seg| seg.as_ref()))
     }
 
     /// Remove the main module segment from the qualified name.
@@ -240,17 +253,17 @@ impl QualifiedName {
     ///
     /// ```
     /// # use ide::model::module::QualifiedName;
-    /// let mut name_with_main            = QualifiedName::from_text("Project.Main").unwrap();
-    /// let mut name_without_main         = QualifiedName::from_text("Project.Foo.Bar").unwrap();
-    /// let mut main_but_not_project_main = QualifiedName::from_text("Project.Foo.Main").unwrap();
+    /// let mut name_with_main            = QualifiedName::from_text("ns.Proj.Main").unwrap();
+    /// let mut name_without_main         = QualifiedName::from_text("ns.Proj.Foo.Bar").unwrap();
+    /// let mut main_but_not_project_main = QualifiedName::from_text("ns.Proj.Foo.Main").unwrap();
     ///
     /// name_with_main            .remove_main_module_segment();
     /// name_without_main         .remove_main_module_segment();
     /// main_but_not_project_main .remove_main_module_segment();
     ///
-    /// assert_eq!(name_with_main           .to_string(), "Project");
-    /// assert_eq!(name_without_main        .to_string(), "Project.Foo.Bar");
-    /// assert_eq!(main_but_not_project_main.to_string(), "Project.Foo.Main");
+    /// assert_eq!(name_with_main           .to_string(), "ns.Proj");
+    /// assert_eq!(name_without_main        .to_string(), "ns.Proj.Foo.Bar");
+    /// assert_eq!(main_but_not_project_main.to_string(), "ns.Proj.Foo.Main");
     /// ```
     pub fn remove_main_module_segment(&mut self) {
         if self.id.segments == [PROJECTS_MAIN_MODULE] {
@@ -299,9 +312,8 @@ impl From<QualifiedName> for String {
 
 impl From<&QualifiedName> for String {
     fn from(name:&QualifiedName) -> Self {
-        let project_name = std::iter::once(&name.project_name);
-        let segments     = name.id.segments.iter();
-        project_name.chain(segments).join(ast::opr::predefined::ACCESS)
+        let segments = name.id.segments.iter().map(|rn| rn.as_ref());
+        name.project_name.segments().chain(segments).join(ast::opr::predefined::ACCESS)
     }
 }
 
@@ -481,8 +493,10 @@ impl Info {
     /// Add a new import if the module is not already imported.
     pub fn add_module_import
     (&mut self, here:&QualifiedName, parser:&parser::Parser, to_add:&QualifiedName) {
+        let imports = self.iter_imports().collect_vec();
+        DEBUG!("add_module_import: {to_add} in {imports:?}");
         let is_here          = to_add == here;
-        let import           = ImportInfo::from_qualified_name(&to_add);
+        let import           = ImportInfo::from_qualified_name(to_add);
         let already_imported = self.iter_imports().any(|imp| imp == import);
         if !is_here && !already_imported {
             self.add_import(parser,import);
@@ -536,6 +550,19 @@ impl Info {
         let no_indent      = 0;
         let definition_ast = method.ast(no_indent,parser)?;
         self.add_ast(definition_ast,location)
+    }
+
+    /// Updates the given definition using the passed invokable.
+    pub fn update_definition
+    ( &mut self
+    , id : &definition::Id
+    , f  : impl FnOnce(definition::DefinitionInfo) -> FallibleResult<definition::DefinitionInfo>
+    ) -> FallibleResult {
+        let definition     = locate(&self.ast,id)?;
+        let new_definition = f(definition.item)?;
+        let new_ast        = new_definition.ast.into();
+        self.ast           = self.ast.set_traversing(&definition.crumbs,new_ast)?;
+        Ok(())
     }
 
     #[cfg(test)]
@@ -638,7 +665,7 @@ pub fn locate_line_with
 pub fn locate_child
 (ast:&known::Module, crumb:&definition::Crumb)
 -> FallibleResult<ChildDefinition> {
-    let child = ast.def_iter().find_by_name(&crumb)?;
+    let child = ast.def_iter().find_by_name(crumb)?;
     Ok(ChildDefinition::try_from(child)?)
 }
 
@@ -649,7 +676,7 @@ pub fn locate
     // Not exactly regular - we need special case for the first crumb as it is not a definition nor
     // a children. After this we can go just from one definition to another.
     let first_crumb = crumbs_iter.next().ok_or(EmptyDefinitionId)?;
-    let mut child   = ast.def_iter().find_by_name(&first_crumb)?;
+    let mut child   = ast.def_iter().find_by_name(first_crumb)?;
     for crumb in crumbs_iter {
         child = definition::resolve_single_name(child,crumb)?;
     }
@@ -725,14 +752,14 @@ mod tests {
 
     #[test]
     fn qualified_name_validation() {
-        assert!(QualifiedName::try_from("project.Name").is_err());
-        assert!(QualifiedName::try_from("Project.name").is_err());
-        assert!(QualifiedName::try_from("Project.").is_err());
+        assert!(QualifiedName::try_from("namespace.project.Name").is_err());
+        assert!(QualifiedName::try_from("namespace.Project.name").is_err());
+        assert!(QualifiedName::try_from("namespace.").is_err());
         assert!(QualifiedName::try_from(".Name").is_err());
         assert!(QualifiedName::try_from(".").is_err());
         assert!(QualifiedName::try_from("").is_err());
-        assert!(QualifiedName::try_from("Project.Name").is_ok());
-        assert!(QualifiedName::try_from("Project.Name.Sub").is_ok());
+        assert!(QualifiedName::try_from("namespace.Project.Name").is_ok());
+        assert!(QualifiedName::try_from("namespace.Project.Name.Sub").is_ok());
     }
 
     #[wasm_bindgen_test]
@@ -788,7 +815,7 @@ mod tests {
     #[wasm_bindgen_test]
     fn implicit_method_resolution() {
         let parser         = parser::Parser::new_or_panic();
-        let module_name    = QualifiedName::from_segments("ProjectName",&["Main"]).unwrap();
+        let module_name    = QualifiedName::from_all_segments(&["local","ProjectName","Main"]).unwrap();
         let expect_find    = |method:&MethodPointer, code,expected:&definition::Id| {
             let module = parser.parse_module(code,default()).unwrap();
             let result = lookup_method(&module_name,&module,method);
@@ -810,8 +837,8 @@ mod tests {
         // === Lookup the Main (local module type) extension method ===
 
         let ptr = MethodPointer {
-            defined_on_type : "ProjectName.Main".into(),
-            module          : "ProjectName.Main".into(),
+            defined_on_type : "local.ProjectName.Main".into(),
+            module          : "local.ProjectName.Main".into(),
             name            : "foo".into(),
         };
 
@@ -833,8 +860,8 @@ mod tests {
         // === Lookup the Int (non-local type) extension method ===
 
         let ptr = MethodPointer {
-            defined_on_type : "Base.Main.Number".into(),
-            module          : "ProjectName.Main".into(),
+            defined_on_type : "std.Base.Main.Number".into(),
+            module          : "local.ProjectName.Main".into(),
             name            : "foo".into(),
         };
 

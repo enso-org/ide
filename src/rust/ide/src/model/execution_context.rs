@@ -15,6 +15,8 @@ use enso_protocol::language_server::MethodPointer;
 use enso_protocol::language_server::SuggestionId;
 use enso_protocol::language_server::VisualisationConfiguration;
 use flo_stream::Subscriber;
+use serde::Deserialize;
+use serde::Serialize;
 use std::collections::HashMap;
 use utils::future::ready_boxed;
 use uuid::Uuid;
@@ -120,7 +122,7 @@ impl ComputedValueInfoRegistry {
     pub fn get_from_info<F,T>(self:&Rc<Self>, id:ExpressionId, mut f:F) -> StaticBoxFuture<Option<T>>
     where F : FnMut(Rc<ComputedValueInfo>) -> Option<T> + 'static,
           T : 'static {
-        let weak = Rc::downgrade(&self);
+        let weak = Rc::downgrade(self);
         if let Some(ret) = self.get(&id).and_then(&mut f) {
             ready_boxed(Some(ret))
         } else {
@@ -189,7 +191,7 @@ impl Deref for VisualizationUpdateData {
 /// A specific function call occurring within another function's definition body.
 ///
 /// This is a single item in ExecutionContext stack.
-#[derive(Clone,Debug,Eq,PartialEq)]
+#[derive(Clone,Debug,Eq,PartialEq,Serialize,Deserialize)]
 pub struct LocalCall {
     /// An expression being a call to a method.
     pub call       : ExpressionId,

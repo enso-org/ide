@@ -14,7 +14,7 @@ const yaml  = require('js-yaml')
 // =================
 
 const NODE_VERSION             = '14.15.0'
-const RUST_VERSION             = 'nightly-2021-05-12'
+const RUST_VERSION             =  read_rust_toolchain_version()
 const WASM_PACK_VERSION        = '0.9.1'
 const FLAG_NO_CHANGELOG_NEEDED = '[ci no changelog needed]'
 const FLAG_FORCE_CI_BUILD      = '[ci build]'
@@ -24,6 +24,10 @@ const FLAG_FORCE_CI_BUILD      = '[ci build]'
 // =============
 // === Utils ===
 // =============
+
+function read_rust_toolchain_version() {
+    return fss.readFileSync(paths.root + "/rust-toolchain").toString().trim()
+}
 
 function job(platforms,name,steps,cfg) {
     if (!cfg) { cfg = {} }
@@ -143,23 +147,47 @@ let installWasmPackOnLinux   = installWasmPackOn('Linux','ubuntu','unknown-linux
 // We could use cargo install wasm-pack, but that takes 3.5 minutes compared to few seconds.
 let installWasmPack = [installWasmPackOnMacOS, installWasmPackOnWindows, installWasmPackOnLinux]
 
+const installJava = {
+    uses: 'actions/setup-java@v2',
+    with: {
+        distribution: 'adopt',
+        'java-version': '11',
+    },
+}
+
 
 
 // =============================
 // === Build, Lint, and Test ===
 // =============================
 
-function buildOn(name,sys) {
-    return {
-        name: `Build (${name})`,
-        run: `node ./run dist --skip-version-validation --target ${name}`,
-        if: `startsWith(matrix.os,'${sys}')`
+function buildOn(target,sys,env) {
+    const name = `Build (${target})`
+    const run  = `node ./run dist --skip-version-validation --target ${target}`
+    const _if = `startsWith(matrix.os,'${sys}')`
+    if (env) {
+        return {name,env,run,if:_if}
+    } else {
+        return  {name,run,if:_if}
     }
 }
 
-buildOnMacOS   = buildOn('macos','macos')
-buildOnWindows = buildOn('win','windows')
-buildOnLinux   = buildOn('linux','ubuntu')
+buildOnMacOS = buildOn('macos', 'macos', {
+    CSC_LINK: '${{secrets.APPLE_CODE_SIGNING_CERT}}',
+    CSC_KEY_PASSWORD: '${{secrets.APPLE_CODE_SIGNING_CERT_PASSWORD}}',
+    CSC_IDENTITY_AUTO_DISCOVERY: true,
+    APPLEID: '${{secrets.APPLE_NOTARIZATION_USERNAME}}',
+    APPLEIDPASS: '${{secrets.APPLE_NOTARIZATION_PASSWORD}}',
+    FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
+})
+buildOnWindows = buildOn('win', 'windows', {
+    WIN_CSC_LINK: '${{secrets.MICROSOFT_CODE_SIGNING_CERT}}',
+    WIN_CSC_KEY_PASSWORD: '${{secrets.MICROSOFT_CODE_SIGNING_CERT_PASSWORD}}',
+    FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
+})
+buildOnLinux = buildOn('linux', 'ubuntu', {
+    FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
+})
 
 let lintMarkdown = {
     name: "Lint Markdown sources",
@@ -302,6 +330,7 @@ let uploadGitHubRelease = [
             tag_name:   "v${{fromJson(steps.changelog.outputs.content).version}}",
             body:       "${{fromJson(steps.changelog.outputs.content).body}}",
             prerelease: "${{fromJson(steps.changelog.outputs.content).prerelease}}",
+            draft: true,
         },
     }
 ]
@@ -451,13 +480,16 @@ let workflow = {
             installNode,
             installRust,
             installWasmPack,
+            installJava,
             buildOnMacOS,
-        ],{if:`!(${buildCondition})`}),
+        ]),
         build: job_on_all_platforms("Build", [
             getCurrentReleaseChangelogInfo,
             installNode,
             installRust,
             installWasmPack,
+            // Needed for package signing on macOS.
+            installJava,
             buildOnMacOS,
             buildOnWindows,
             buildOnLinux,
@@ -475,7 +507,7 @@ let workflow = {
             assertReleaseDoNotExists,
             uploadGitHubRelease,
         ],{ if:releaseCondition,
-            needs:['version_assertions','lint','test','wasm-test','build']
+            needs:['version_assertions','lint','test','build']
         }),
         release_to_cdn: job_on_ubuntu_18_04("CDN Release", [
             downloadArtifacts,
@@ -483,7 +515,7 @@ let workflow = {
             prepareAwsSessionCDN,
             uploadToCDN('index.js.gz','style.css','ide.wasm','wasm_imports.js.gz'),
         ],{ if:releaseCondition,
-            needs:['version_assertions','lint','test','wasm-test','build']
+            needs:['version_assertions','lint','test','build']
         })
     }
 }

@@ -36,7 +36,7 @@ pub fn apply_code_change_to_id_map(id_map:&mut IdMap, change:&data::text::TextCh
     info!(logger,"Updating the ID map with the following text edit: {change:?}.");
 
     // Remove all entries fully covered by the removed span.
-    vector.drain_filter(|(span,_)| removed.contains_span(&span));
+    vector.drain_filter(|(span,_)| removed.contains_span(span));
 
     // If the edited section ends up being the trailing part of AST node, how many bytes should be
     // trimmed from the id. Precalculated, as is constant in the loop below.
@@ -277,8 +277,8 @@ mod test {
     fn assert_same_node_ids(ast1:&ast::known::Module,ast2:&ast::known::Module) {
         let ids1 = main_nodes(ast1);
         let ids2 = main_nodes(ast2);
-        println!("IDs1: {:?}", ids1);
-        println!("IDs2: {:?}", ids2);
+        DEBUG!("IDs1: {ids1:?}");
+        DEBUG!("IDs2: {ids2:?}");
         assert_eq!(ids1,ids2);
     }
 

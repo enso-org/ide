@@ -430,7 +430,7 @@ impl Dom {
     /// Constructor.
     pub fn new(logger:&Logger) -> Self {
         let root   = web::create_div();
-        let layers = DomLayers::new(&logger,&root);
+        let layers = DomLayers::new(logger,&root);
         root.set_class_name("scene");
         root.set_style_or_panic("height"  , "100vh");
         root.set_style_or_panic("width"   , "100vw");
@@ -478,20 +478,20 @@ impl DomLayers {
         let front          = DomScene::new(logger);
         let fullscreen_vis = DomScene::new(logger);
         let back           = DomScene::new(logger);
-        canvas.set_style_or_warn("height"        , "100vh"   , &logger);
-        canvas.set_style_or_warn("width"         , "100vw"   , &logger);
-        canvas.set_style_or_warn("display"       , "block"   , &logger);
+        canvas.set_style_or_warn("height"        , "100vh"   , logger);
+        canvas.set_style_or_warn("width"         , "100vw"   , logger);
+        canvas.set_style_or_warn("display"       , "block"   , logger);
         // Position must not be "static" to have z-index working.
-        canvas.set_style_or_warn("position"      , "absolute", &logger);
-        canvas.set_style_or_warn("z-index"       , "2"       , &logger);
-        canvas.set_style_or_warn("pointer-events", "none"    , &logger);
+        canvas.set_style_or_warn("position"      , "absolute", logger);
+        canvas.set_style_or_warn("z-index"       , "2"       , logger);
+        canvas.set_style_or_warn("pointer-events", "none"    , logger);
         front.dom.set_class_name("front");
-        front.dom.set_style_or_warn("z-index", "3", &logger);
+        front.dom.set_style_or_warn("z-index", "3", logger);
         back.dom.set_class_name("back");
-        back.dom.set_style_or_warn("pointer-events", "auto", &logger);
-        back.dom.set_style_or_warn("z-index"       , "0"   , &logger);
+        back.dom.set_style_or_warn("pointer-events", "auto", logger);
+        back.dom.set_style_or_warn("z-index"       , "0"   , logger);
         fullscreen_vis.dom.set_class_name("fullscreen_vis");
-        fullscreen_vis.dom.set_style_or_warn("z-index"       , "1"   , &logger);
+        fullscreen_vis.dom.set_style_or_warn("z-index"       , "1"   , logger);
         dom.append_or_panic(&canvas);
         dom.append_or_panic(&front.dom);
         dom.append_or_panic(&back.dom);
@@ -615,15 +615,17 @@ pub struct HardcodedLayers {
     pub viz                    : Layer,
     pub below_main             : Layer,
     // main <- here is the 'main` layer inserted.
-    pub cursor                 : Layer,
+    pub port_selection         : Layer,
     pub label                  : Layer,
-
-    pub tooltip_background     : Layer,
+    pub above_nodes            : Layer,
+    pub above_nodes_text       : Layer,
+    /// Layer containing all panels with fixed position (not moving with the panned scene):
+    /// like status bar, breadcrumbs or similar.
+    pub panel                  : Layer,
+    pub panel_text             : Layer,
+    pub tooltip                : Layer,
     pub tooltip_text           : Layer,
-
-    pub viz_fullscreen         : Layer,
-    pub breadcrumbs_background : Layer,
-    pub breadcrumbs_text       : Layer,
+    pub cursor                 : Layer,
     layers                     : Layers,
 }
 
@@ -636,32 +638,38 @@ impl Deref for HardcodedLayers {
 
 impl HardcodedLayers {
     pub fn new(logger:impl AnyLogger) -> Self {
-        let layers                 = Layers::new(logger);
-        let viz                    = layers.new_layer();
-        let cursor                 = layers.new_layer();
-        let label                  = layers.new_layer();
-        let tooltip_background     = layers.new_layer();
-        let tooltip_text           = layers.new_layer();
-        let viz_fullscreen         = layers.new_layer();
-        let below_main             = layers.new_layer();
-        let breadcrumbs_background = layers.new_layer();
-        let breadcrumbs_text       = layers.new_layer();
+        let layers           = Layers::new(logger);
+        let viz              = layers.new_layer();
+        let below_main       = layers.new_layer();
+        let port_selection   = layers.new_layer();
+        let label            = layers.new_layer();
+        let above_nodes      = layers.new_layer();
+        let above_nodes_text = layers.new_layer();
+        let panel            = layers.new_layer();
+        let panel_text       = layers.new_layer();
+        let tooltip          = layers.new_layer();
+        let tooltip_text     = layers.new_layer();
+        let cursor           = layers.new_layer();
         viz.set_camera(layers.main.camera());
-        label.set_camera(layers.main.camera());
-        tooltip_background.set_camera(layers.main.camera());
-        tooltip_text.set_camera(layers.main.camera());
         below_main.set_camera(layers.main.camera());
-        layers.add_layers_order_dependency(&breadcrumbs_background,&breadcrumbs_text);
-        layers.add_layers_order_dependency(&breadcrumbs_text,&viz);
+        label.set_camera(layers.main.camera());
+        above_nodes.set_camera(layers.main.camera());
+        above_nodes_text.set_camera(layers.main.camera());
+        tooltip.set_camera(layers.main.camera());
+        tooltip_text.set_camera(layers.main.camera());
         layers.add_layers_order_dependency(&viz,&below_main);
         layers.add_layers_order_dependency(&below_main,&layers.main);
-        layers.add_layers_order_dependency(&layers.main,&cursor);
-        layers.add_layers_order_dependency(&cursor,&label);
-        layers.add_layers_order_dependency(&label,&tooltip_background);
-        layers.add_layers_order_dependency(&tooltip_background,&tooltip_text);
-        layers.add_layers_order_dependency(&tooltip_text,&viz_fullscreen);
-        Self {viz,below_main,cursor,label,tooltip_background,tooltip_text,viz_fullscreen
-             ,breadcrumbs_background,breadcrumbs_text,layers}
+        layers.add_layers_order_dependency(&layers.main,&port_selection);
+        layers.add_layers_order_dependency(&port_selection,&label);
+        layers.add_layers_order_dependency(&label,&above_nodes);
+        layers.add_layers_order_dependency(&above_nodes,&above_nodes_text);
+        layers.add_layers_order_dependency(&above_nodes_text,&panel);
+        layers.add_layers_order_dependency(&panel,&panel_text);
+        layers.add_layers_order_dependency(&panel_text,&tooltip);
+        layers.add_layers_order_dependency(&tooltip,&tooltip_text);
+        layers.add_layers_order_dependency(&tooltip_text,&cursor);
+        Self {viz,below_main,port_selection,label,above_nodes,above_nodes_text,panel,panel_text
+             ,tooltip,tooltip_text,cursor,layers}
     }
 }
 
@@ -771,7 +779,7 @@ impl SceneData {
         let on_change            = enclose!((dirty_flag) move || dirty_flag.set());
         let var_logger           = Logger::sub(&logger,"global_variables");
         let variables            = UniformScope::new(var_logger);
-        let symbols              = SymbolRegistry::mk(&variables,&stats,&logger,on_change);
+        let symbols              = SymbolRegistry::mk(&variables,stats,&logger,on_change);
         // FIXME: This should be abstracted away and should also handle context loss when Symbol
         //        definition will be finally refactored in such way, that it would not require
         //        Scene instance to be created.
@@ -862,7 +870,7 @@ impl SceneData {
         // Updating camera for DOM layers. Please note that DOM layers cannot use multi-camera
         // setups now, so we are using here the main camera only.
         let camera                = self.camera();
-        let fullscreen_vis_camera = self.layers.viz_fullscreen.camera();
+        let fullscreen_vis_camera = self.layers.panel.camera();
         let changed               = camera.update(scene);
         if changed {
             self.frp.camera_changed_source.emit(());
@@ -903,7 +911,9 @@ impl SceneData {
     pub fn screen_to_object_space
     (&self, object:&impl display::Object, screen_pos:Vector2) -> Vector2 {
         let origin_world_space = Vector4(0.0,0.0,0.0,1.0);
-        let origin_clip_space  = self.camera().view_projection_matrix() * origin_world_space;
+        let layer              = object.scene_layers().first().and_then(|id| self.layers.get(*id));
+        let camera             = layer.map_or(self.camera(), |l| l.camera());
+        let origin_clip_space  = camera.view_projection_matrix() * origin_world_space;
         let inv_object_matrix  = object.transform_matrix().try_inverse().unwrap();
 
         let shape        = self.frp.shape.value();
@@ -911,7 +921,7 @@ impl SceneData {
         let clip_space_x = origin_clip_space.w * 2.0 * screen_pos.x / shape.width;
         let clip_space_y = origin_clip_space.w * 2.0 * screen_pos.y / shape.height;
         let clip_space   = Vector4(clip_space_x,clip_space_y,clip_space_z,origin_clip_space.w);
-        let world_space  = self.camera().inversed_view_projection_matrix() * clip_space;
+        let world_space  = camera.inversed_view_projection_matrix() * clip_space;
         (inv_object_matrix * world_space).xy()
     }
 

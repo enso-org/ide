@@ -196,7 +196,7 @@ impl AliasAnalyzer {
 
     /// Processes the given AST, while crumb is temporarily pushed to the current location.
     fn process_located_ast(&mut self, located_ast:&Located<impl Borrow<Ast>>) {
-        self.in_location_of(&located_ast, |this| this.process_ast(located_ast.item.borrow()))
+        self.in_location_of(located_ast, |this| this.process_ast(located_ast.item.borrow()))
     }
 
     /// Processes subtrees of the given AST denoted by given crumbs
@@ -223,7 +223,7 @@ impl AliasAnalyzer {
     ///
     /// This is the primary function that is recursively being called as the AST is being traversed.
     pub fn process_ast(&mut self, ast:&Ast) {
-        if let Some(definition) = DefinitionInfo::from_line_ast(&ast,ScopeKind::NonRoot,default()) {
+        if let Some(definition) = DefinitionInfo::from_line_ast(ast,ScopeKind::NonRoot,default()) {
             self.process_definition(&definition)
         } else if let Some(assignment) = ast::opr::to_assignment(ast) {
             self.process_assignment(&assignment);
@@ -372,19 +372,19 @@ mod tests {
 
     /// Runs the test for the given test case description.
     fn run_case(parser:&parser::Parser, case:Case) {
-        println!("\n===========================================================================\n");
-        println!("Case: {}",&case.code);
+        DEBUG!("\n===========================================================================\n");
+        DEBUG!("Case: " case.code);
         let ast    = parser.parse_line(&case.code).unwrap();
         let node   = NodeInfo::from_line_ast(&ast).unwrap();
         let result = analyze_node(&node);
-        println!("Analysis results: {:?}", result);
+        DEBUG!("Analysis results: {result:?}");
         validate_identifiers("introduced",&node, case.expected_introduced, &result.introduced);
         validate_identifiers("used",      &node, case.expected_used,       &result.used);
     }
 
     /// Runs the test for the test case expressed using markdown notation. See `Case` for details.
     fn run_markdown_case(parser:&parser::Parser, marked_code:impl AsRef<str>) {
-        println!("Running test case for {}", marked_code.as_ref());
+        DEBUG!("Running test case for " marked_code.as_ref());
         let case = Case::from_markdown(marked_code.as_ref());
         run_case(parser,case)
     }
