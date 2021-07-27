@@ -70,7 +70,7 @@ fn path(width:f32, points:&[(f32,f32)]) -> AnyShape {
     for (start,end) in points.clone().zip(points.skip(1)) {
         result = (result + Segment(start,end,width.px())).into();
     }
-    return result
+    result
 }
 
 /// A cursor shape, looking roughly like a capital "I".
@@ -577,10 +577,10 @@ mod split_text {
 
             // === Lines ===
 
-            let line1 = Rect((3.0.px(),1.0.px())).translate_x(-4.5.px());
-            let line2 = Rect((2.0.px(),1.0.px())).translate((-5.0.px(),-3.0.px()));
+            let line1 = Rect((3.0.px(),1.0.px())).translate_x((-4.5).px());
+            let line2 = Rect((2.0.px(),1.0.px())).translate(((-5.0).px(),(-3.0).px()));
             let line3 = Rect((2.0.px(),1.0.px())).translate_x(5.0.px());
-            let line4 = Rect((3.0.px(),1.0.px())).translate((4.5.px(),-3.0.px()));
+            let line4 = Rect((3.0.px(),1.0.px())).translate((4.5.px(),(-3.0).px()));
             let page  = page + line1 + line2 + line3 + line4;
             let page  = page.fill(style.get_color(theme::text::weak));
 
@@ -596,7 +596,7 @@ mod split_text {
             ]);
             let crack = crack.fill(style.get_color(theme::text::strong));
 
-            let crack_left  = crack.translate_x(-1.0.px());
+            let crack_left  = crack.translate_x((-1.0).px());
             let crack_right = crack.translate_x(2.0.px());
 
 
@@ -664,14 +664,14 @@ mod system {
     ensogl::define_shape_system! {
         (style:Style) {
             let background = Rect((14.0.px(),14.0.px())).corners_radius(2.0.px());
-            let background = background.translate_y(-0.5.px());
+            let background = background.translate_y((-0.5).px());
             let background = background.fill(style.get_color(theme::system::background));
             let greater    = path(1.5,&[
                 (-3.75 ,  2.25),
                 (-1.25 , -0.25),
                 (-3.75 , -2.25),
             ]);
-            let bar = Rect((4.0.px(),1.5.px())).translate((2.5.px(),-2.75.px()));
+            let bar = Rect((4.0.px(),1.5.px())).translate((2.5.px(),(-2.75).px()));
             let content = greater + bar;
             let content = content.fill(style.get_color(theme::system::content));
 
@@ -790,9 +790,9 @@ mod preparation {
 
             let big_triangle   = Triangle(13.5.px(),6.75.px()).rotate(PI.radians());
             let big_triangle   = big_triangle.translate(((-0.25).px(),2.625.px()));
-            let pipe           = Rect((2.5.px(),6.0.px())).translate((-0.25.px(),-1.5.px()));
+            let pipe           = Rect((2.5.px(),6.0.px())).translate(((-0.25).px(),(-1.5).px()));
             let small_triangle = Triangle(5.0.px(),2.5.px()).rotate((-PI/2.0).radians());
-            let small_triangle = small_triangle.translate(((-0.25).px(),-4.5.px()));
+            let small_triangle = small_triangle.translate(((-0.25).px(),(-4.5).px()));
             let fill           = big_triangle + pipe + small_triangle;
             let fill           = fill.fill(style.get_color(theme::preparation::weak));
 
@@ -975,7 +975,7 @@ mod computer_vision {
             let base = base.fill(style.get_color(theme::computer_vision::weak));
 
             let shape = lens + outline + base;
-            let shape = shape.translate_y(-2.0.px());
+            let shape = shape.translate_y((-2.0).px());
             let shape = shape.shrink(SHRINK_AMOUNT.px());
             shape.into()
         }
