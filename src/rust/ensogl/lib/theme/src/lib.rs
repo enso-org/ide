@@ -199,7 +199,7 @@ define_themes! { [light:0, dark:1]
                 machine_learning = Rgba(0.71,0.38,0.137,1.0)   , Rgba(0.71,0.38,0.137,1.0);
                 computer_vision {
                     strong    = Rgba(0.306,0.306,0.306,1.0) , Rgba(0.306,0.306,0.306,1.0);
-                    weak      = Rgba(0.154,0.158,0.158,1.0) , Rgba(0.154,0.158,0.158,1.0);
+                    weak      = Rgba(0.514,0.518,0.518,1.0) , Rgba(0.514,0.518,0.518,1.0);
                     highlight = Rgba(0.872,0.267,0.255,1.0) , Rgba(0.872,0.267,0.255,1.0);
                 }
                 data_science {
