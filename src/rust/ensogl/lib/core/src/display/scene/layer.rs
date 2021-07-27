@@ -188,7 +188,7 @@ impl Layer {
     fn iter_sublayers_nested_internal(&self, f:&impl Fn(&Layer)) {
         f(self);
         for layer in self.sublayers() {
-            layer.iter_sublayers_nested(f)
+            layer.iter_sublayers_nested_internal(f)
         }
     }
 }
