@@ -72,7 +72,10 @@ impl Example {
     }
 }
 
-
+/// Creates a pretty documentation from hardcoded inner text.
+pub fn documentation_html_from(inner:&str) -> String {
+    return format!("<div class=\"doc\" style=\"font-size: 13px;\"><p>{}</p></div>", inner)
+}
 
 // =========================
 // === Embedded Examples ===
@@ -87,7 +90,7 @@ lazy_static! {
       { name               : "Parse JSON".to_owned()
       , code               : r#"Json.parse "{\"a\":10, \"b\": 20}""#.to_owned()
       , imports            : default()
-      , documentation_html : "An example showing how to parse string to Json structure.".to_owned()
+      , documentation_html : documentation_html_from("An example showing how to parse string to Json structure.").to_owned()
       }
     , Example
       { name               : "Http GET".to_owned()
@@ -96,7 +99,7 @@ lazy_static! {
           body1    = response.body\n\
           body1.to_text".to_owned()
       , imports            : vec!["Standard.Base.Network.Http".to_owned()]
-      , documentation_html : "This snippet downloads the Enso main page.".to_owned(),
+      , documentation_html : documentation_html_from("This snippet downloads the Enso main page.").to_owned(),
       }
     ];
 }
