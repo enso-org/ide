@@ -267,12 +267,12 @@ impl Entry {
             Module {module,documentation,..} => Self {
                 name          : module.clone(),
                 arguments     : default(),
-                module        : module.try_into()?,
+                module        : module.clone().try_into()?,
                 self_type     : None,
                 documentation,
                 kind          : Kind::Module,
                 scope         : Scope::Everywhere,
-                return_type   : "".to_string()
+                return_type   : module.to_string()
             }
         };
         Ok(this)
