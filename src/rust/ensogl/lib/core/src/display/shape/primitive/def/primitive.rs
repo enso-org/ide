@@ -203,6 +203,31 @@ define_sdf_shapes! {
     }
 
 
+    // === RoundedLineSegment ===
+
+    /// A line segment from the origin to `target` with rounded endpoints.
+    Segment (target:Vector2<Pixels>, width:Pixels) {
+        // The implementation of this shape was adapted from here:
+        // https://iquilezles.org/www/articles/distfunctions2d/distfunctions2d.htm
+
+        float half_width = width / 2.0;
+
+        // A value between 0.0 and 1.0 indicating the position of the point on the line segment that
+        // is closest to `position`. 0.0 stands for the origin and 1.0 for `target`.
+        float projection   = clamp(dot(position,target)/dot(target,target),0.0,1.0);
+        vec2 closest_point = projection * target;
+
+        float left         = min(target.x,0.0) - half_width;
+        float right        = max(target.x,0.0) + half_width;
+        float bottom       = min(target.y,0.0) - half_width;
+        float top          = max(target.y,0.0) + half_width;
+        BoundingBox bounds = bounding_box(left,right,bottom,top);
+
+        float distance = length(position - closest_point) - half_width;
+        return bound_sdf(distance,bounds);
+    }
+
+
     // === Ellipse ===
 
     Circle (radius:Pixels) {
@@ -210,12 +235,46 @@ define_sdf_shapes! {
     }
 
     Ellipse (x_radius:f32, y_radius:f32) {
-        float a2   = x_radius * x_radius;
-        float b2   = y_radius * y_radius;
-        float px2  = position.x * position.x;
-        float py2  = position.y * position.y;
-        float dist = (b2 * px2 + a2 * py2 - a2 * b2) / (a2 * b2);
-        return bound_sdf(dist, bounding_box(x_radius,y_radius));
+        // The implementation of this shape was adapted from here:
+        // https://iquilezles.org/www/articles/distfunctions2d/distfunctions2d.htm
+
+        vec2 ab  = vec2(x_radius,y_radius);
+        position = abs(position);
+        if (position.x > position.y) {
+            position = position.yx;
+            ab       = ab.yx;
+        }
+        float l  = ab.y * ab.y - ab.x * ab.x;
+        float m  = ab.x * position.x / l;
+        float m2 = m * m;
+        float n  = ab.y * position.y / l;
+        float n2 = n * n;
+        float c  = (m2 + n2 - 1.0) / 3.0;
+        float c3 = c * c * c;
+        float q  = c3 + m2 * n2 * 2.0;
+        float d  = c3 + m2 * n2;
+        float g  = m + m * n2;
+        float co;
+        if (d < 0.0) {
+            float h  = acos(q / c3) / 3.0;
+            float s  = cos(h);
+            float t  = sin(h) * sqrt(3.0);
+            float rx = sqrt(-c * (s + t + 2.0) + m2);
+            float ry = sqrt(-c * (s - t + 2.0) + m2);
+            co = (ry + sign(l) * rx + abs(g) / (rx * ry) - m) / 2.0;
+        } else {
+            float h  = 2.0 * m * n * sqrt(d);
+            float s  = sign(q + h) * pow(abs(q + h), 1.0 / 3.0);
+            float u  = sign(q - h) * pow(abs(q - h), 1.0 / 3.0);
+            float rx = -s - u - c * 4.0 + 2.0 * m2;
+            float ry = (s - u) * sqrt(3.0);
+            float rm = sqrt(rx * rx + ry * ry);
+            co       = (ry / sqrt(rm - rx) + 2.0 * g / rm - m) / 2.0;
+        }
+        vec2 r             = ab * vec2(co, sqrt(1.0 - co * co));
+        float dist         = length(r - position) * sign(position.y - r.y);
+        BoundingBox bounds = bounding_box(2.0 * x_radius,2.0 * y_radius);
+        return bound_sdf(dist,bounds);
     }
 
 
@@ -304,6 +363,50 @@ define_sdf_shapes! {
         float max_y        = inner_height + radius_top;
         BoundingBox bounds = bounding_box(min_x,max_x,min_y,max_y);
 
+        return bound_sdf(dist,bounds);
+    }
+
+  
+    // === Five Star ===
+
+    /// A five-pointed star.
+    ///
+    /// # Arguments
+    /// * `radius` - Distance of the outer points to the center.
+    /// * `ratio`  - Distance of the inner points to the center, relative to `radius`.
+    FiveStar (radius:Pixels, ratio:f32) {
+        // The implementation of this shape was adapted from here:
+        // https://iquilezles.org/www/articles/distfunctions2d/distfunctions2d.htm
+        
+        const vec2 k1      = vec2(0.809016994375,-0.587785252292);
+        const vec2 k2      = vec2(-k1.x,k1.y);
+        position.x         = abs(position.x);
+        position          -= 2.0 * max(dot(k1,position),0.0) * k1;
+        position          -= 2.0 * max(dot(k2,position),0.0) * k2;
+        position.x         = abs(position.x);
+        position.y        -= radius;
+        vec2 ba            = ratio * vec2(-k1.y,k1.x) - vec2(0,1);
+        float h            = clamp(dot(position,ba)/dot(ba,ba),0.0,radius);
+        float dist         = length(position-ba*h) * sign(position.y*ba.x-position.x*ba.y);
+        BoundingBox bounds = bounding_box(2.0*radius,2.0*radius);
+        return bound_sdf(dist,bounds);
+    }
+
+
+    // === Arc ===
+
+    RoundedArc (radius:Pixels, angle:Radians, width:Pixels) {
+        // The implementation of this shape was adapted from here:
+        // https://iquilezles.org/www/articles/distfunctions2d/distfunctions2d.htm
+
+        position.x = abs(position.x);
+        vec2 scb   = vec2(sin(value(angle)/2.0),cos(value(angle)/2.0));
+        float ra   = radius;
+        float rb   = width / 2.0;
+        float k    = (scb.y*position.x>scb.x*position.y) ? dot(position,scb) : length(position);
+        float dist = sqrt(max(0.0,dot(position,position) + ra * ra - 2.0 * ra * k)) - rb;
+
+        BoundingBox bounds = bounding_box(2.0*radius+width,2.0*radius+width);
         return bound_sdf(dist,bounds);
     }
 }
