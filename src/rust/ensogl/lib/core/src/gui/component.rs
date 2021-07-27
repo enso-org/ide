@@ -133,8 +133,6 @@ pub struct ShapeViewModel<S> {
     pub events          : ShapeViewEvents,
     pub registry        : RefCell<Option<ShapeRegistry>>,
     pub pointer_targets : RefCell<Vec<(SymbolId,attribute::InstanceIndex)>>,
-    before_first_show   : Cell<bool>,
-
 }
 
 impl<S> Deref for ShapeViewModel<S> {
@@ -176,7 +174,6 @@ impl<S:DynamicShapeInternals> ShapeViewModel<S> {
     }
 }
 
-
 impl<S:DynamicShape> ShapeViewModel<S> {
     /// Constructor.
     pub fn new(logger:impl AnyLogger) -> Self {
@@ -184,8 +181,7 @@ impl<S:DynamicShape> ShapeViewModel<S> {
         let events            = ShapeViewEvents::new();
         let registry          = default();
         let pointer_targets   = default();
-        let before_first_show = Cell::new(true);
-        ShapeViewModel {shape,events,registry,pointer_targets,before_first_show}
+        ShapeViewModel {shape,events,registry,pointer_targets}
     }
 
     fn add_to_scene_layer(&self, scene:&Scene, layer:&scene::Layer) {

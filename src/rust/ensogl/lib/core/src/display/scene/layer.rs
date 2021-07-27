@@ -152,7 +152,7 @@ impl Layer {
     }
 
     /// Constructor.
-    pub fn new_from_cam(logger:Logger, camera:&Camera2d) -> Self {
+    pub fn new_with_cam(logger:Logger, camera:&Camera2d) -> Self {
         let this = Self::new(logger);
         this.set_camera(camera);
         this
@@ -177,6 +177,19 @@ impl Layer {
             self.shape_system_registry.instantiate(scene,shape);
         self.add_shape(shape_system_info,symbol_id);
         LayerDynamicShapeInstance::new(self,symbol_id,instance_id)
+    }
+
+    /// Iterate over all layers and sublayers of this layer hierarchically. Parent layers will be
+    /// visited before their corresponding sublayers.
+    pub fn iter_sublayers_nested(&self, f:impl Fn(&Layer)) {
+        self.iter_sublayers_nested_internal(&f)
+    }
+
+    fn iter_sublayers_nested_internal(&self, f:&impl Fn(&Layer)) {
+        f(self);
+        for layer in self.sublayers() {
+            layer.iter_sublayers_nested(f)
+        }
     }
 }
 
@@ -564,7 +577,7 @@ impl LayerModel {
 
     /// Add depth-order dependency between two [`LayerItem`]s in this layer. Returns `true`
     /// if the dependency was inserted successfully (was not already present), and `false`
-    /// otherwise.
+    /// otherwise. All sublayers will inherit these rules.
     pub fn add_global_elements_order_dependency
     (&self, below:impl Into<LayerItem>, above:impl Into<LayerItem>) -> bool {
         let below = below.into();

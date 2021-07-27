@@ -313,16 +313,8 @@ impl Symbol {
         self.display_object.set_on_hide(f_!(is_hidden.set(true)));
         self.display_object.set_on_show(f__!(is_hidden.set(false)));
         self.display_object.set_on_scene_layer_changed(move |_,old_layers,new_layers| {
-            for layer in old_layers {
-                if let Some(layer) = layer.upgrade() {
-                    layer.remove_symbol(id)
-                }
-            }
-            for layer in new_layers {
-                if let Some(layer) = layer.upgrade() {
-                    layer.add_symbol(id)
-                }
-            }
+            for layer in old_layers.iter().filter_map(|t|t.upgrade()) { layer.remove_symbol(id) }
+            for layer in new_layers.iter().filter_map(|t|t.upgrade()) { layer.add_symbol(id) }
         });
         self
     }

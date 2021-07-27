@@ -641,16 +641,16 @@ impl HardcodedLayers {
         let root             = Layer::new(logger.sub("root"));
         let main             = Layer::new(logger.sub("main"));
         let main_cam         = &main.camera();
-        let viz              = Layer::new_from_cam(logger.sub("viz"),main_cam);
-        let below_main       = Layer::new_from_cam(logger.sub("below_main"),main_cam);
+        let viz              = Layer::new_with_cam(logger.sub("viz"),main_cam);
+        let below_main       = Layer::new_with_cam(logger.sub("below_main"),main_cam);
         let port_selection   = Layer::new(logger.sub("port_selection"));
-        let label            = Layer::new_from_cam(logger.sub("label"),main_cam);
-        let above_nodes      = Layer::new_from_cam(logger.sub("above_nodes"),main_cam);
-        let above_nodes_text = Layer::new_from_cam(logger.sub("above_nodes_text"),main_cam);
+        let label            = Layer::new_with_cam(logger.sub("label"),main_cam);
+        let above_nodes      = Layer::new_with_cam(logger.sub("above_nodes"),main_cam);
+        let above_nodes_text = Layer::new_with_cam(logger.sub("above_nodes_text"),main_cam);
         let panel            = Layer::new(logger.sub("panel"));
         let panel_text       = Layer::new(logger.sub("panel_text"));
-        let tooltip          = Layer::new_from_cam(logger.sub("tooltip"),main_cam);
-        let tooltip_text     = Layer::new_from_cam(logger.sub("tooltip_text"),main_cam);
+        let tooltip          = Layer::new_with_cam(logger.sub("tooltip"),main_cam);
+        let tooltip_text     = Layer::new_with_cam(logger.sub("tooltip_text"),main_cam);
         let cursor           = Layer::new(logger.sub("cursor"));
         let mask             = Layer::new(logger.sub("mask"));
         root.set_mask(&mask);
@@ -850,9 +850,9 @@ impl SceneData {
         if self.dirty.shape.check_all() {
             let screen = self.dom.shape();
             self.resize_canvas(screen);
-            for layer in &*self.layers.sublayers() {
+            self.layers.iter_sublayers_nested(|layer| {
                 layer.camera().set_screen(screen.width,screen.height)
-            }
+            });
             self.renderer.reload_composer();
             self.dirty.shape.unset_all();
         }
@@ -883,9 +883,9 @@ impl SceneData {
         }
 
         // Updating all other cameras (the main camera was already updated, so it will be skipped).
-        for layer in &*self.layers.sublayers() {
+        self.layers.iter_sublayers_nested(|layer| {
             layer.camera().update(scene);
-        }
+        });
     }
 
     /// Resize the underlying canvas. This function should rather not be called

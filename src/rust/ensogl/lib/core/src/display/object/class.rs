@@ -302,7 +302,7 @@ impl<Host> Model<Host> {
             false
         } else if has_new_parent {
             // Optimization for a common case of switching parent in the same layer.
-            &self.layers.borrow() != parent_layers
+            *self.layers.borrow() != parent_layers
         } else {
             parent_layers_changed
         };
