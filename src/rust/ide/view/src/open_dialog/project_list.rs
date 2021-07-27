@@ -112,7 +112,7 @@ impl ProjectList {
         let color       = style_watch.get_color(theme::bar::label::color);
         let label_size  = style_watch.get_number(theme::bar::label::size);
 
-        frp::extend! { TRACE_ALL network
+        frp::extend! { network
             init <- source::<()>();
             size <- all_with3(&width,&height,&init,|w,h,()|
                 Vector2(w + background::SHADOW_PX * 2.0,h + background::SHADOW_PX * 2.0)

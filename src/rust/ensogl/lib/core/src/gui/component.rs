@@ -101,7 +101,6 @@ impl<S:DynamicShapeInternals+'static> ShapeView<S> {
     }
 
     fn init(self) -> Self {
-        // self.init_on_show();
         self.init_on_scene_layer_changed();
         self
     }
@@ -109,7 +108,6 @@ impl<S:DynamicShapeInternals+'static> ShapeView<S> {
     fn init_on_scene_layer_changed(&self) {
         let weak_model = Rc::downgrade(&self.model);
         self.display_object().set_on_scene_layer_changed(move |scene,old_layers,new_layers| {
-            DEBUG!(">>> init_on_scene_layer_changed");
             if let Some(model) = weak_model.upgrade() {
                 model.on_scene_layers_changed(scene,old_layers,new_layers)
             }
@@ -156,7 +154,6 @@ impl<S> Drop for ShapeViewModel<S> {
 impl<S:DynamicShapeInternals> ShapeViewModel<S> {
     fn on_scene_layers_changed
     (&self, scene:&Scene, old_layers:&[WeakLayer], new_layers:&[WeakLayer]) {
-        DEBUG!("on_scene_layers_changed: {old_layers:?} {new_layers:?}");
         self.drop_from_all_scene_layers(old_layers);
         for weak_layer in new_layers {
             if let Some(layer) = weak_layer.upgrade() {
@@ -166,7 +163,6 @@ impl<S:DynamicShapeInternals> ShapeViewModel<S> {
     }
 
     fn drop_from_all_scene_layers(&self, old_layers:&[WeakLayer]) {
-        DEBUG!("?? drop_from_all_scene_layers: {old_layers:?}");
         for layer in old_layers {
             if let Some(layer) = layer.upgrade() {
                 let (instance_count,shape_system_id,_) = layer.shape_system_registry.drop_instance::<S>();
@@ -193,9 +189,7 @@ impl<S:DynamicShape> ShapeViewModel<S> {
     }
 
     fn add_to_scene_layer(&self, scene:&Scene, layer:&scene::Layer) {
-        DEBUG!(">>> add_to_scene_layer: {layer:?}");
         let instance = layer.instantiate(scene,&self.shape);
-        DEBUG!("created {instance.symbol_id:?} {instance.instance_id:?}");
         scene.shapes.insert_mouse_target(instance.symbol_id,instance.instance_id,self.events.clone_ref());
         self.pointer_targets.borrow_mut().push((instance.symbol_id,instance.instance_id));
         *self.registry.borrow_mut() = Some(scene.shapes.clone_ref());

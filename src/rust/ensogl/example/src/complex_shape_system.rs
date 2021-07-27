@@ -104,18 +104,23 @@ pub fn entry_point_complex_shape_system() {
     DEBUG!("--- add exclusive ---");
     // world.scene().layers.viz.add_exclusive(&view2);
     // world.scene().layers.viz.add_exclusive(&mask);
+    // scene.layers.viz.add_exclusive(&view);
 
 
     world.add_child(&view);
-    // world.add_child(&view2);
+    world.add_child(&view2);
     // world.add_child(&mask);
     world.keep_alive_forever();
     let scene = world.scene().clone_ref();
 
     let mut to_theme_switch = 100;
+
+    mem::forget(view);
+    mem::forget(view2);
+
     world.on_frame(move |_time| {
-        let _keep_alive = &view;
-        let _keep_alive = &view2;
+        // let _keep_alive = &view;
+        // let _keep_alive = &view2;
         // let _keep_alive = &mask;
         let _keep_alive = &navigator;
         let _keep_alive = &style_watch;
@@ -128,9 +133,18 @@ pub fn entry_point_complex_shape_system() {
         }
         if to_theme_switch == 0 {
             DEBUG!("SWITCH!");
-            scene.layers.mask.add_exclusive(&view);
+            // scene.layers.mask.add_exclusive(&view);
             // scene.layers.mask.add_exclusive(&view2);
             // theme_manager.set_enabled(&["theme2".to_string()]);
+
+            let view3 = shape::View::new(&logger);
+            view3.size.set(Vector2::new(300.0, 300.0));
+            view3.mod_position(|t| *t = Vector3::new(50.0, -50.0, 0.0));
+            scene.add_child(&view3);
+
+            // scene.layers.viz.add_exclusive(&view3);
+
+            mem::forget(view3);
         }
         if to_theme_switch == -50 {
             DEBUG!("---------------");

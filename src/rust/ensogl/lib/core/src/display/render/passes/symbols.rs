@@ -47,16 +47,10 @@ impl RenderPass for SymbolsRenderPass {
         context.clear_bufferfv_with_f32_array(Context::COLOR,0,&arr);
         context.clear_bufferfv_with_f32_array(Context::COLOR,1,&arr);
 
-        for layer in self.layers.children().iter() {
+        for layer in self.layers.sublayers().iter() {
             self.target.set_camera(&layer.camera());
             let symbols = layer.symbols();
             self.target.render_by_ids(&symbols);
         }
-
-        // for layer in &[&self.layers.main] {
-        //     self.target.set_camera(&layer.camera());
-        //     let symbols = layer.symbols();
-        //     self.target.render_by_ids(&symbols);
-        // }
     }
 }

@@ -654,7 +654,7 @@ impl HardcodedLayers {
         let cursor           = Layer::new(logger.sub("cursor"));
         let mask             = Layer::new(logger.sub("mask"));
         root.set_mask(&mask);
-        root.set_children(
+        root.set_sublayers(
             &[ &viz
              , &below_main
              , &main
@@ -850,7 +850,7 @@ impl SceneData {
         if self.dirty.shape.check_all() {
             let screen = self.dom.shape();
             self.resize_canvas(screen);
-            for layer in &*self.layers.children() {
+            for layer in &*self.layers.sublayers() {
                 layer.camera().set_screen(screen.width,screen.height)
             }
             self.renderer.reload_composer();
@@ -883,7 +883,7 @@ impl SceneData {
         }
 
         // Updating all other cameras (the main camera was already updated, so it will be skipped).
-        for layer in &*self.layers.children() {
+        for layer in &*self.layers.sublayers() {
             layer.camera().update(scene);
         }
     }
@@ -910,7 +910,7 @@ impl SceneData {
     pub fn screen_to_object_space
     (&self, object:&impl display::Object, screen_pos:Vector2) -> Vector2 {
         let origin_world_space = Vector4(0.0,0.0,0.0,1.0);
-        let layer              = object.scene_layers().first().and_then(|t| t.upgrade());
+        let layer              = object.display_layers().first().and_then(|t| t.upgrade());
         let camera             = layer.map_or(self.camera(), |l| l.camera());
         let origin_clip_space  = camera.view_projection_matrix() * origin_world_space;
         let inv_object_matrix  = object.transform_matrix().try_inverse().unwrap();
