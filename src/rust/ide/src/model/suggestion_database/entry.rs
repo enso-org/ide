@@ -267,14 +267,14 @@ impl Entry {
                 scope              : Scope::InModule {range:scope.into()},
             },
             Module {module,documentation,..} => Self {
-                name          : module.clone(),
-                arguments     : default(),
-                module        : module.clone().try_into()?,
-                self_type     : None,
-                documentation,
-                kind          : Kind::Module,
-                scope         : Scope::Everywhere,
-                return_type   : module
+                name               : module.clone(),
+                arguments          : default(),
+                module             : module.clone().try_into()?,
+                self_type          : None,
+                documentation_html : documentation,
+                kind               : Kind::Module,
+                scope              : Scope::Everywhere,
+                return_type        : module
             }
         };
         Ok(this)
