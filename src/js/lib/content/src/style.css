@@ -249,8 +249,10 @@ body {
     font-weight: 700;
 }
 
-.templates-view .cards {
+.templates-view .cards .row {
     display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
 }
 
 .templates-view .card {
@@ -258,6 +260,7 @@ body {
     border-radius: 20px;
     padding: 15px;
     color: #FCFEFF;
+    box-shadow: 0px 24px 60px -12px rgba(34, 20, 66, 0.15);
 }
 
 .templates-view .card h3 {
@@ -284,17 +287,42 @@ body {
 
 .templates-view .card-geo {
     flex: 0 0 570px;
-    margin-left: 10px;
     background-image: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/geo.png");
     background-size: 100%;
 }
 
-.templates-view .card-geo h3 {
+.templates-view .card-geo h3,
+.templates-view .card-visualize h3 {
     margin-top: 105px;
 }
 
-.templates-view .card-geo p {
+.templates-view .card-geo p,
+.templates-view .card-visualize p {
     width: 220px;
+}
+
+.templates-view .card-visualize {
+    flex: 0 0 570px;
+    background-image: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/visualize.png");
+    background-size: 100%;
+}
+
+.templates-view .card-bwm-drivers {
+    display: flex;
+    color: #434343;
+}
+
+.templates-view .card-bwm-drivers p {
+    font-weight: 400;
+}
+
+.templates-view .text {
+    width: 140px;
+}
+
+.templates-view .card-bwm-drivers img {
+    width: 105px;
+    margin-left: 10px;
 }
 
 .tutorials {

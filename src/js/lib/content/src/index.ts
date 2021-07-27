@@ -959,7 +959,8 @@ API.main = async function (inputConfig: any) {
                 mainEntryPoint(config)
             })
         } else {
-            await mainEntryPoint(config)
+            // await mainEntryPoint(config)
+            console.log("we here")
         }
     } else {
         // Display a message asking to update the application.
