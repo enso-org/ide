@@ -571,6 +571,8 @@ impl AreaModel {
         let single_line    = default();
         let camera         = Rc::new(CloneRefCell::new(scene.camera().clone_ref()));
 
+        display_object.add_child(&glyph_system);
+
         // FIXME[WD]: These settings should be managed wiser. They should be set up during
         // initialization of the shape system, not for every area creation. To be improved during
         // refactoring of the architecture some day.
