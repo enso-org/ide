@@ -22,6 +22,7 @@ these updates be shipped in a stable release before the end of the year.
 
 [1700]: https://github.com/enso-org/ide/pull/1700
 [1726]: https://github.com/enso-org/ide/pull/1726
+[1791]: https://github.com/enso-org/ide/pull/1791
 
 # Enso 2.0.0-alpha.10 (2021-07-23)
 
@@ -128,7 +129,6 @@ these updates be shipped in a stable release before the end of the year.
 [1602]: https://github.com/enso-org/ide/pull/1664
 [1602]: https://github.com/enso-org/ide/pull/1650
 [1602]: https://github.com/enso-org/ide/pull/1626
-[1791]: https://github.com/enso-org/ide/pull/1791
 
 # Enso 2.0.0-alpha.5 (2021-05-14)
 
