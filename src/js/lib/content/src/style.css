@@ -1,3 +1,88 @@
+/* Fonts */
+
+@font-face {
+    font-family: "Causten";
+    src: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenThin/font.woff2") format("woff2"),
+        url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenThin/font.woff") format("woff");
+    font-style: normal;
+    font-weight: 100;
+    font-display: block;
+}
+
+@font-face {
+    font-family: "Causten";
+    src: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenExtraLight/font.woff2") format("woff2"),
+        url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenExtraLight/font.woff") format("woff");
+    font-style: normal;
+    font-weight: 200;
+    font-display: block;
+}
+
+@font-face {
+    font-family: "Causten";
+    src: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenLight/font.woff2") format("woff2"),
+        url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenLight/font.woff") format("woff");
+    font-style: normal;
+    font-weight: 300;
+    font-display: block;
+}
+
+@font-face {
+    font-family: "Causten";
+    src: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenRegular/font.woff2") format("woff2"),
+        url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenRegular/font.woff") format("woff");
+    font-style: normal;
+    font-weight: 400;
+    font-display: block;
+}
+
+@font-face {
+    font-family: "Causten";
+    src: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenMedium/font.woff2") format("woff2"),
+        url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenMedium/font.woff") format("woff");
+    font-style: normal;
+    font-weight: 500;
+    font-display: block;
+}
+
+@font-face {
+    font-family: "Causten";
+    src: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenSemiBold/font.woff2") format("woff2"),
+        url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenSemiBold/font.woff") format("woff");
+    font-style: normal;
+    font-weight: 600;
+    font-display: block;
+}
+
+@font-face {
+    font-family: "Causten";
+    src: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenBold/font.woff2") format("woff2"),
+        url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenBold/font.woff") format("woff");
+    font-style: normal;
+    font-weight: 700;
+    font-display: block;
+}
+
+@font-face {
+    font-family: "Causten";
+    src: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenExtraBold/font.woff2") format("woff2"),
+        url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenExtraBold/font.woff") format("woff");
+    font-style: normal;
+    font-weight: 800;
+    font-display: block;
+}
+
+@font-face {
+    font-family: "Causten";
+    src: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenBlack/font.woff2") format("woff2"),
+        url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenBlack/font.woff") format("woff");
+    font-style: normal;
+    font-weight: 900;
+    font-display: block;
+}
+
+/* End of fonts */
+
 html, body {
     height : 100vh;
 }
@@ -135,4 +220,83 @@ body {
     border: none;
     background: #b96a50;
     margin: 0.8em -1em;
+}
+
+.templates-view {
+    display: flex;
+    max-width: 1280px;
+    margin: 50px auto;
+    font-family: "Causten";
+    font-size: 15px;
+    line-height: 1.4;
+}
+
+.templates-view .side-menu {
+    flex: 0 0 280px;
+}
+
+.templates-view .content {
+    flex-grow: 1;
+}
+
+.templates-view h2 {
+    font-size: 24px;
+    font-weight: 300;
+}
+
+.templates-view h3 {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.templates-view .cards {
+    display: flex;
+}
+
+.templates-view .card {
+    height: 170px;
+    border-radius: 20px;
+    padding: 15px;
+    color: #FCFEFF;
+}
+
+.templates-view .card h3 {
+    margin-bottom: 5px;
+}
+
+.templates-view .card p {
+    margin: 0;
+    padding: 0;
+    font-size: 13.5px;
+    font-weight: 600;
+}
+
+.templates-view .card-spreadsheets {
+    flex: 0 0 250px;
+    background-color: #479366;
+}
+
+.templates-view .card-spreadsheets img {
+    display: block;
+    height: 65px;
+    margin: 20px auto;
+}
+
+.templates-view .card-geo {
+    flex: 0 0 570px;
+    margin-left: 10px;
+    background-image: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/geo.png");
+    background-size: 100%;
+}
+
+.templates-view .card-geo h3 {
+    margin-top: 105px;
+}
+
+.templates-view .card-geo p {
+    width: 220px;
+}
+
+.tutorials {
+    margin-top: 100px;
 }
