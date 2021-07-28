@@ -8,12 +8,10 @@ use crate::display::camera::camera2d::Projection;
 use crate::display::symbol::DomSymbol;
 use crate::display::symbol::dom::eps;
 use crate::display::symbol::dom::flip_y_axis;
-use crate::system::gpu::data::JsBufferView;
 use crate::system::web;
 use crate::system::web::NodeInserter;
 use crate::system::web::StyleSetter;
 
-use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::HtmlDivElement;
 
 
@@ -29,13 +27,15 @@ pub struct DomSceneData {
     pub dom : HtmlDivElement,
     /// The child div of the `dom` element with view-projection Css 3D transformations applied.
     pub view_projection_dom : HtmlDivElement,
-    logger : Logger
+    logger : Logger,
+    simulate_perspective : Cell<bool>,
 }
 
 impl DomSceneData {
     /// Constructor.
     pub fn new(dom:HtmlDivElement, view_projection_dom:HtmlDivElement, logger:Logger) -> Self {
-        Self {dom,view_projection_dom,logger}
+        let simulate_perspective = Cell::new(false);
+        Self {dom,view_projection_dom,logger,simulate_perspective}
     }
 }
 
@@ -101,6 +101,21 @@ impl DomScene {
         self.data.dom.set_style_or_warn("filter",format!("grayscale({})",value),&self.logger);
     }
 
+    /// If this is set to false then we will set the CSS `perspective` property and apply all 3D
+    /// transformations directly in CSS.
+    ///
+    /// If this is set to true then we will not set the `perspective` property. Instead, we will
+    /// simulate its effect by applying the `scale` transform to the scene. This has the benefit
+    /// that some browsers will render the `DomScene` with better visual quality and it works around
+    /// a bug with D3 visualizations, as described here: https://github.com/enso-org/ide/pull/1465.
+    ///
+    /// To produce correct results with the simulated perspective, it has to be guaranteed that the
+    /// camera points straight along the z axis and all objects inside this `DomScene` lie within
+    /// the z=0 plane.
+    pub fn set_simulate_perspective(&self, simulate:bool) {
+        self.data.simulate_perspective.set(simulate);
+    }
+
     /// Creates a new instance of DomSymbol and adds it to parent.
     pub fn manage(&self, object:&DomSymbol) {
         let dom  = object.dom();
@@ -119,87 +134,40 @@ impl DomScene {
     pub fn update_view_projection(&self, camera:&Camera2d) {
         if self.children_number() == 0 { return }
 
-
-        // === Reset configuration ===
-
-        self.data.view_projection_dom.set_style_or_panic("transform", "");
-        self.data.view_projection_dom.set_style_or_panic("left", "0px");
-        self.data.view_projection_dom.set_style_or_panic("top", "0px");
-        self.data.dom.set_style_or_panic("perspective", "");
-
-
-        let view_matrix = camera.view_matrix();
-        let view_matrix = view_matrix.map(eps);
+        // Round very small values to 0.0 for numerical stability.
+        let view_matrix = camera.view_matrix().map(eps);
         // In CSS, the y axis points downwards. (In EnsoGL upwards)
-        let mut trans_cam = flip_y_axis(view_matrix);
+        let view_matrix = flip_y_axis(view_matrix);
 
+        // This variable will collect transformation depend on the specific projection mode.
+        let transform: String;
         match camera.projection() {
             Projection::Perspective{..} => {
-                // In order to achieve a better visual quality when the camera is in fron of the z=0
-                // plane, we simulate translation in the z direction by scaling the scene around
-                // the origin, as discussed at https://github.com/enso-org/ide/pull/1465.
-                // In that situation, we also simulate x and y translation through `top` and `left`.
-
-                let x_index = (0, 3);
-                let y_index = (1, 3);
-                let z_index = (2, 3);
-                let target_x = *trans_cam.index(x_index);
-                let target_y = *trans_cam.index(y_index);
-                let target_z = *trans_cam.index(z_index);
-
-                // Put the camera in front of the origin and adjust the field of view, such that one
-                // px unit at z=0 maps to one px on screen.
-                self.data.dom.set_style_or_panic("perspective", format!("{}px", camera.z_zoom_1()));
-                // The position of the scene relative to the camera after setting "perspective".
-                let current_z = -camera.z_zoom_1();
-
-                let MAXIMUM_SCALE_FACTOR = 1000.0;
-                // Our method to simulate translation through scaling works only when `target_z` is
-                // less than 0. We cut off at some point before that and fall back to real 3D
-                // transformations. We determine that point through the maximum scale factor that
-                // that we want to allow. (See also the computation of `scale` below)
-                if target_z <= current_z / MAXIMUM_SCALE_FACTOR {
-                    *trans_cam.index_mut(x_index) = 0.0;
-                    *trans_cam.index_mut(y_index) = 0.0;
-                    *trans_cam.index_mut(z_index) = 0.0;
-
-                    // Instead of moving the camera along the z direction, we scale the scene at the
-                    // origin, such that the camera ends up at the right spot within the scene.
-                    // Since we use a perspective camera, which can not perceive the total distance
-                    // of objects, this scaling does not affect the outcome of the projection. As
-                    // long as the camera has the right position inside the scene and the
-                    // proportions between objects remain the same, we will get the correct image
-                    // from the camera's perspective.
-
-                    // How far we have to scale the scene, such that the camera ends up in the right
-                    // spot.
-                    let scale = current_z / target_z;
-                    let translateZ = format!("scale3d({0},{0},{0})", scale);
-
-                    let matrix3d = matrix_to_css_matrix3d(&trans_cam);
-                    // We add the "translate(50%,50%)" to correctly position the origin of the
-                    // scene. This has to be applied on right (that is, in world space) to keep it
-                    // unaffected by the other transformations.
-                    let transform = translateZ + matrix3d.as_str() + "translate(50%,50%)";
-                    self.data.view_projection_dom.set_style_or_panic("transform", transform);
-
-                    let left = target_x * scale;
-                    let top = target_y * scale;
-                    self.data.view_projection_dom.set_style_or_panic("position", "relative");
-                    self.data.view_projection_dom.set_style_or_panic("left", format!("{}px", left));
-                    self.data.view_projection_dom.set_style_or_panic("top", format!("{}px", top));
+                if self.data.simulate_perspective.get() {
+                    // We unset `perspective` but simulate it by scaling the scene on screen
+                    // manually.
+                    self.data.dom.set_style_or_panic("perspective", "");
+                    transform = format!("scale({})", camera.zoom());
                 } else {
-                    let translateZ = format!("translateZ({}px)", camera.z_zoom_1());
-                    let matrix3d = matrix_to_css_matrix3d(&trans_cam);
-                    let transform = translateZ + matrix3d.as_str() + "translate(50%,50%)";
-                    self.data.view_projection_dom.set_style_or_panic("transform", transform);
+                    let perspective = camera.z_zoom_1();
+                    self.data.dom.set_style_or_panic("perspective", format!("{}px", perspective));
+                    // Setting `perspective` in CSS automatically moves the camera backwards, away
+                    // from the origin. We have to compensate for this by moving it forward again.
+                    transform = format!("translateZ({}px)", perspective);
                 }
             },
             Projection::Orthographic => {
-                let transform = matrix_to_css_matrix3d(&trans_cam) + "translate(50%,50%)";
-                self.data.dom.set_style_or_panic("transform", transform);
+                transform = "".to_string();
+                self.data.dom.set_style_or_panic("perspective", "");
             }
         }
+
+        let transform = transform + matrix_to_css_matrix3d(&view_matrix).as_str();
+        // We add the "translate(50%,50%)" to correctly position the origin of the scene. This has
+        // to be applied on right (that is, in world space, rather than view space) to keep it
+        // unaffected by the other transformations.
+        let transform = transform + "translate(50%,50%)";
+        self.data.view_projection_dom.set_style_or_panic("transform", transform);
     }
 
     /// Prepare for movement of this DOM scene by setting the CSS property `will-change: transform`
@@ -207,7 +175,7 @@ impl DomScene {
     /// - https://developer.mozilla.org/en-US/docs/Web/CSS/will-change
     /// - https://github.com/enso-org/ide/pull/1465
     pub fn start_movement_mode(&self) {
-        self.data.view_projection_dom.set_style_or_panic("will-change", "transform, left, top");
+        self.data.view_projection_dom.set_style_or_panic("will-change", "transform");
     }
 
     /// Unset `will-change`. (See `start_movement_mode`)

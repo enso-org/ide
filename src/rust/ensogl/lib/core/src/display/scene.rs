@@ -487,11 +487,14 @@ impl DomLayers {
         canvas.set_style_or_warn("pointer-events", "none"    , logger);
         front.dom.set_class_name("front");
         front.dom.set_style_or_warn("z-index", "3", logger);
+        front.set_simulate_perspective(true);
         back.dom.set_class_name("back");
         back.dom.set_style_or_warn("pointer-events", "auto", logger);
         back.dom.set_style_or_warn("z-index"       , "0"   , logger);
+        back.set_simulate_perspective(true);
         fullscreen_vis.dom.set_class_name("fullscreen_vis");
-        fullscreen_vis.dom.set_style_or_warn("z-index"       , "1"   , logger);
+        fullscreen_vis.dom.set_style_or_warn("z-index", "1"   , logger);
+        fullscreen_vis.set_simulate_perspective(true);
         dom.append_or_panic(&canvas);
         dom.append_or_panic(&front.dom);
         dom.append_or_panic(&back.dom);
