@@ -8,7 +8,6 @@ use web::StyleSetter;
 use wasm_bindgen::prelude::*;
 use ensogl_core::display::object::ObjectOps;
 use ensogl_core::display::shape::ShapeSystem;
-use ensogl_core::display::world::*;
 use ensogl_core::display::shape::*;
 use ensogl_core::data::color;
 use ensogl_core::display::DomSymbol;
@@ -28,11 +27,11 @@ use ensogl_core::application::Application;
 pub fn entry_point_transformation_3d() {
     web::forward_panic_hook_to_console();
 
-    let app   = Application::new(&web::get_html_element_by_id("root").unwrap());
-    let world = &app.display;
+    let app            = Application::new(&web::get_html_element_by_id("root").unwrap());
+    let world          = &app.display;
     let scene          = world.scene();
     let camera         = scene.camera().clone_ref();
-    let navigator      = Navigator::new(&scene,&camera);
+    let navigator      = Navigator::new(scene,&camera);
     let dom_back_layer = &scene.dom.layers.back;
 
 

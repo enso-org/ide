@@ -70,7 +70,7 @@ impl NavigatorModel {
     , pan_speed      : SharedSwitch<f32>
     , disable_events : Rc<Cell<bool>>
     ) -> (Simulator,callback::Handle,NavigatorEvents) {
-        let simulator        = Self::create_simulator(scene, &camera);
+        let simulator        = Self::create_simulator(scene, camera);
         let panning_callback = enclose!((scene,camera,mut simulator,pan_speed) move |pan: PanEvent| {
             let fovy_slope                  = camera.half_fovy_slope();
             let distance                    = camera.position().z;
