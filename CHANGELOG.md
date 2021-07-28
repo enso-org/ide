@@ -8,8 +8,10 @@ these updates be shipped in a stable release before the end of the year.
 
 #### Visual Environment
 
-- [New look of open project dialog.][1700]. Now it has "Open project" title on
+- [New look of open project dialog.][1700] Now it has "Open project" title on
   the top.
+- [Better zooming.][1738] Zooming in with a mouse wheel uses a more comfortable
+  step size. Previously, it jumped to the maximum zoom level in a single step.
 
 #### Enso Compiler
 
