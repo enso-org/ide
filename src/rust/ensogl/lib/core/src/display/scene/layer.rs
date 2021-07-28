@@ -237,6 +237,9 @@ impl PartialEq for WeakLayer {
 // ==================
 
 /// Internal representation of [`Layer`].
+///
+/// Please note that the [`parents`] field contains reference to a very small part of parent layer,
+/// namely to its [`Sublayers`] struct. Only this part is needed to properly update all the models.
 #[derive(Clone)]
 #[allow(missing_docs)]
 pub struct LayerModel {
@@ -251,7 +254,7 @@ pub struct LayerModel {
     depth_order_dirty               : dirty::SharedBool<OnDepthOrderDirty>,
     parents                         : Rc<RefCell<Vec<Sublayers>>>,
     global_element_depth_order      : Rc<RefCell<DependencyGraph<LayerItem>>>,
-    sublayers                        : Sublayers,
+    sublayers                       : Sublayers,
     mask                            : RefCell<Option<WeakLayer>>,
     mem_mark                        : Rc<()>,
 }
