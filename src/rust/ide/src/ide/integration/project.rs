@@ -1226,11 +1226,12 @@ impl Model {
                     match searcher.actions() {
                         Actions::Loading       => self.view.searcher().clear_actions(),
                         Actions::Loaded {list:actions} => {
-                            let list_is_empty     = actions.matching_count() == 0;
-                            let user_action       = searcher.current_user_action();
-                            let intended_function = searcher.intended_function_suggestion();
+                            let list_is_empty        = actions.matching_count() == 0;
+                            let user_action          = searcher.current_user_action();
+                            let intended_function    = searcher.intended_function_suggestion();
+                            let suggestions_database = self.graph.graph().suggestion_db;
                             let provider          = SuggestionsProviderForView
-                                { actions,user_action,intended_function};
+                                { actions,user_action,intended_function,suggestions_database };
                             self.view.searcher().set_actions(Rc::new(provider));
 
                             // the Searcher 2.0
@@ -1930,9 +1931,10 @@ pub enum AttachingResult<T>{
 
 #[derive(Clone,Debug)]
 struct SuggestionsProviderForView {
-    actions           : Rc<controller::searcher::action::List>,
-    user_action       : controller::searcher::UserAction,
-    intended_function : Option<controller::searcher::action::Suggestion>,
+    actions              : Rc<controller::searcher::action::List>,
+    user_action          : controller::searcher::UserAction,
+    intended_function    : Option<controller::searcher::action::Suggestion>,
+    suggestions_database : Rc<model::SuggestionDatabase>,
 }
 
 impl SuggestionsProviderForView {
@@ -2011,7 +2013,7 @@ impl ide_view::searcher::DocumentationProvider for SuggestionsProviderForView {
         use controller::searcher::action::Action;
         match self.actions.get_cloned(id)?.action {
             Action::Suggestion(suggestion) => {
-                let doc = suggestion.documentation_html().map(ToOwned::to_owned);
+                let doc = self.suggestions_database.get_documentation_for_suggestion(&suggestion);
                 Some(doc.unwrap_or_else(|| Self::doc_placeholder_for(&suggestion)))
             }
             Action::Example(example)     => Some(example.documentation_html.clone()),

@@ -35,6 +35,7 @@
 }
 .enso.docs {
   font-family: Causten, DejaVuSansMonoBook, sans-serif;
+  margin: 18px;
 }
 .enso.docs .root {
   display: flex;
@@ -56,10 +57,7 @@
   -webkit-box-decoration-break: clone;
 }
 .enso.docs code {
-  font-family: Source Code Pro, monospace;
   font-size: 14px;
-  padding: 1px 0px 2px;
-  margin-top: 10px;
   color: #4EA5FD;
   -webkit-box-decoration-break: clone;
 }
@@ -68,7 +66,7 @@
   background-color: #4876d4;
   border-radius: 12px;
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
   line-height: 2;
   padding: 0.25rem 1rem;
   color: #ffffff;
@@ -76,11 +74,13 @@
 }
 .enso.docs .tags {
   display: flex;
-  font-size: 13px;
+  font-size: 12px;
+  vertical-align: middle;
 }
 .enso.docs .tag {
   align-self: flex-end;
-  margin-bottom: 10px;
+  margin-bottom: auto;
+  margin-top: auto;
 }
 .enso.docs ul {
   list-style-type: disc;
@@ -99,44 +99,45 @@
 }
 .light-theme .enso.docs {
   font-weight: 400;
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1.4;
   color: #4b5864;
+}
+.light-theme .enso.docs .doc-title-container {
+  display: flex;
 }
 .light-theme .enso.docs .doc-title-container .doc-title-name {
   font-weight: 600;
-  padding: 4px 10px 0 0;
-  font-size: 20px;
+  padding: 3px 10px 0 0;
+  font-size: 24px;
+  vertical-align: middle;
 }
 .light-theme .enso.docs .content {
   font-weight: 500;
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1.4;
   color: #4b5864;
 }
-.light-theme .enso.docs p {
-  margin-top: 0.5rem;
-}
 .light-theme .enso.docs .summary {
-  font-weight: 500;
-  font-size: 16px;
+  font-weight: bold;
+  font-size: 20px;
   line-height: 1.4;
   color: #4b5864;
 }
 .light-theme .enso.docs h1 {
   display: flex;
   font-weight: 700;
-  font-size: 40px;
+  font-size: 24px;
   line-height: 1.25;
   color: #2a394a;
 }
 .light-theme .enso.docs h1 .tag {
-  font-size: 16px;
+  font-size: 12px;
   line-height: 1.4;
 }
 .light-theme .enso.docs h2 {
   font-weight: 700;
-  font-size: 40px;
+  font-size: 24px;
   line-height: 1.375;
   margin-top: 4rem;
   color: #2a394a;
@@ -144,7 +145,7 @@
 .light-theme .enso.docs h3 {
   color: #2a394a;
   font-weight: 600;
-  font-size: 22px;
+  font-size: 24px;
   line-height: 1.25;
 }
 .light-theme .enso.docs .tag .added,
@@ -172,22 +173,111 @@
 .light-theme .enso.docs .important,
 .light-theme .enso.docs .info,
 .light-theme .enso.docs .example {
-  background-color: #E7E9EB;
-  border-radius: 12px;
-  padding: 15px;
+  background-color: #ECEFF280;
+  border-radius: 6px;
+  padding: 11px;
+  margin-bottom: 2em;
 }
 .light-theme .enso.docs .important .summary,
 .light-theme .enso.docs .info .summary,
 .light-theme .enso.docs .example .summary {
-  font-weight: 500;
-  font-size: 20px;
+  font-weight: bold;
+  font-size: 14px;
   line-height: 1.4;
   margin-bottom: 0.5rem;
   color: #4b5864;
 }
+.light-theme .method-section-heading {
+  color: #1F71D3;
+  font-size: 20px;
+  font-weight: 700;
+  position: relative;
+  left: -2px;
+}
+.light-theme .method-section-heading:before {
+  position: relative;
+  left: -11px;
+  top: 1px;
+  content: url("assets/library.svg");
+  float-offset: 5px;
+}
+.light-theme .method-section div {
+  padding-bottom: 0.25em;
+}
+.light-theme .method-section .doc-title-container {
+  display: inline-block !important;
+}
+.light-theme .method-section .doc-title-container .doc-title-name {
+  font-size: 14px !important;
+  color: #1F71D3;
+  font-weight: 700;
+  padding-bottom: 0em;
+}
+.light-theme .method-section .doc-title-container .doc-title-name:before {
+  position: relative;
+  left: -9px;
+  top: 1px;
+  content: url("assets/sigma.svg");
+}
+.light-theme .method-section .doc-title-container .tags {
+  display: none;
+}
+.light-theme .method-section .synopsis {
+  display: inline;
+}
+.light-theme .method-section .synopsis p {
+  display: inline;
+}
+.light-theme .method-section .body {
+  display: none;
+}
+.light-theme .atom-section-heading {
+  color: #9640DA;
+  font-size: 20px;
+  font-weight: 700;
+}
+.light-theme .atom-section-heading:before {
+  position: relative;
+  left: -11px;
+  top: 1px;
+  content: url("assets/set.svg");
+}
+.light-theme .atom-section div {
+  padding-bottom: 0.25em;
+}
+.light-theme .atom-section .doc-title-container {
+  display: inline-block !important;
+}
+.light-theme .atom-section .doc-title-container .doc-title-name {
+  font-size: 14px !important;
+  color: #9640DA;
+  font-weight: 700;
+  padding-bottom: 0em;
+}
+.light-theme .atom-section .doc-title-container .doc-title-name:before {
+  position: relative;
+  left: -9px;
+  top: 1px;
+  content: url("assets/atom.svg");
+}
+.light-theme .atom-section .doc-title-container .tags {
+  display: none;
+}
+.light-theme .atom-section .synopsis {
+  display: inline;
+}
+.light-theme .atom-section .synopsis p {
+  display: inline;
+}
+.light-theme .atom-section .body {
+  display: none;
+}
+.light-theme .atom-section .method-section {
+  display: none;
+}
 @media (min-width: 768px) {
   .light-theme .enso.docs h1 {
-    font-size: 48px;
+    font-size: 24px;
     line-height: 1.25;
   }
   .enso.docs .toc {

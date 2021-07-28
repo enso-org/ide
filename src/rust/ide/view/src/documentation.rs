@@ -30,12 +30,12 @@ use web_sys::MouseEvent;
 // =================
 
 /// Width of Documentation panel.
-pub const VIEW_WIDTH  : f32 = 300.0;
+pub const VIEW_WIDTH  : f32 = 737.0;
 /// Height of Documentation panel.
-pub const VIEW_HEIGHT : f32 = 300.0;
+pub const VIEW_HEIGHT : f32 = 1506.0;
 
 /// Content in the documentation view when there is no data available.
-const CORNER_RADIUS     : f32  = crate::graph_editor::component::node::CORNER_RADIUS;
+const CORNER_RADIUS     : f32  = 30.0;
 const PADDING           : f32  = 15.0;
 const PADDING_TOP       : f32  = 5.0;
 const CODE_BLOCK_CLASS  : &str = "doc-code-container";

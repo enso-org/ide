@@ -1,7 +1,18 @@
 @import "https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@300;400;500;600;700&display=swap";
 
+@baseFontSize: 14px;
+@headingFontSize: 24px;
+@smallHeadingFontSize: 20px;
+@smallHeadingFontWeight: 700;
+@tagFontSize: 12px;
+@methodColor: #1F71D3;
+@atomColor: #9640DA;
+@exampleColor: #6DA85E;
+
+
 .enso.docs {
   font-family: Causten, DejaVuSansMonoBook, sans-serif;
+  margin: 18px;
   .root {
     display: flex;
     margin-top: 4rem;
@@ -13,7 +24,7 @@
   }
   .doc-code-container {
     font-family: Source Code Pro, monospace;
-    font-size: 14px;
+    font-size: @baseFontSize;
     background-color: #e7ebef;
     border-radius: 12px;
     padding: 1px 5px 2px;
@@ -22,10 +33,7 @@
     -webkit-box-decoration-break: clone;
   }
   code {
-    font-family: Source Code Pro, monospace;
-    font-size: 14px;
-    padding: 1px 0px 2px;
-    margin-top: 10px;
+    font-size: @baseFontSize;
     color: #4EA5FD;
     -webkit-box-decoration-break: clone;
   }
@@ -34,7 +42,7 @@
     background-color: rgb(72 118 212);
     border-radius: 12px;
     font-weight: 600;
-    font-size: 15px;
+    font-size: @baseFontSize;
     line-height: 2;
     padding: 0.25rem 1rem;
     color: rgba(255, 255, 255, 1);
@@ -42,11 +50,13 @@
   }
   .tags {
     display: flex;
-    font-size: 13px;
+    font-size: @tagFontSize;
+    vertical-align:middle;
   }
   .tag {
     align-self: flex-end;
-    margin-bottom: 10px;
+    margin-bottom: auto;
+    margin-top: auto;
   }
   ul {
     list-style-type: disc;
@@ -68,46 +78,44 @@
 .light-theme {
   .enso.docs {
     font-weight: 400;
-    font-size: 16px;
+    font-size: @baseFontSize;
     line-height: 1.4;
     color: rgba(75, 88, 100, 1);
     .doc-title-container {
       display: flex;
       .doc-title-name {
         font-weight: 600;
-        padding: 4px 10px 0 0;
-        font-size: 20px;
+        padding: 3px .25em 0 0;
+        font-size: @headingFontSize;
+        vertical-align:middle;
       }
     }
     .content {
       font-weight: 500;
-      font-size: 16px;
+      font-size: @baseFontSize;
       line-height: 1.4;
       color: rgba(75, 88, 100, 1);
     }
-    p {
-      margin-top: 0.5rem;
-    }
     .summary {
-      font-weight: 500;
-      font-size: 16px;
+      font-weight: bold;
+      font-size: @smallHeadingFontSize;
       line-height: 1.4;
       color: rgba(75, 88, 100, 1);
     }
     h1 {
       display: flex;
       font-weight: 700;
-      font-size: 40px;
+      font-size: @headingFontSize;
       line-height: 1.25;
       color: rgb(42 57 74);
       .tag {
-        font-size: 16px;
+        font-size: @tagFontSize;
         line-height: 1.4;
       }
     }
     h2 {
       font-weight: 700;
-      font-size: 40px;
+      font-size: @headingFontSize;
       line-height: 1.375;
       margin-top: 4rem;
       color: rgb(42 57 74);
@@ -115,7 +123,7 @@
     h3 {
       color: rgb(42 57 74);
       font-weight: 600;
-      font-size: 22px;
+      font-size: @headingFontSize;
       line-height: 1.25;
     }
     .tag {
@@ -145,16 +153,109 @@
     .important,
     .info,
     .example {
-      background-color: #E7E9EB;
-      border-radius: 12px;
-      padding: 15px;
+      background-color: #ECEFF280;
+      border-radius: 6px;
+      padding: 11px;
+      margin-bottom: 2em;
       .summary{
-        font-weight: 500;
-        font-size: 20px;
+        font-weight: bold;
+        font-size: @baseFontSize;
         line-height: 1.4;
         margin-bottom: 0.5rem;
         color: #4b5864;
       }
+    }
+  }
+  .method-section-heading {
+    color: @methodColor;
+    font-size: @smallHeadingFontSize;
+    font-weight: @smallHeadingFontWeight;
+    position: relative;
+    left: -2px;
+  }
+  .method-section-heading:before {
+    position: relative;
+    left: -11px;
+    top: 1px;
+    content: url("assets/library.svg");
+    float-offset: 5px;
+  }
+  .method-section {
+    div {
+      padding-bottom: 0.25em;
+    }
+    .doc-title-container {
+      display: inline-block !important;
+      .doc-title-name {
+        font-size: @baseFontSize!important;
+        color: @methodColor;
+        font-weight: @smallHeadingFontWeight;
+        padding-bottom: 0.0em;
+      }
+      .doc-title-name:before {
+        position: relative;
+        left: -9px;
+        top: 1px;
+        content: url("assets/sigma.svg");
+      }
+      .tags {
+        display: none;
+      }
+    }
+    .synopsis {
+      display: inline;
+      p {
+        display: inline;
+      }
+    }
+    .body {
+      display: none;
+    }
+  }
+  .atom-section-heading {
+    color: @atomColor;
+    font-size: @smallHeadingFontSize;
+    font-weight: @smallHeadingFontWeight;
+  }
+  .atom-section-heading:before {
+    position: relative;
+    left: -11px;
+    top: 1px;
+    content: url("assets/set.svg");
+  }
+  .atom-section{
+    div {
+      padding-bottom: 0.25em;
+    }
+    .doc-title-container {
+      display: inline-block !important;
+      .doc-title-name {
+        font-size: @baseFontSize!important;
+        color: @atomColor;
+        font-weight: @smallHeadingFontWeight;
+        padding-bottom: 0.0em;
+      }
+      .doc-title-name:before {
+        position: relative;
+        left: -9px;
+        top: 1px;
+        content: url("assets/atom.svg");
+      }
+      .tags {
+        display: none;
+      }
+    }
+    .synopsis {
+      display: inline;
+      p {
+        display: inline;
+      }
+    }
+    .body {
+      display: none;
+    }
+    .method-section {
+      display: none;
     }
   }
 }
@@ -163,7 +264,7 @@
   .light-theme {
     .enso.docs {
       h1 {
-        font-size: 48px;
+        font-size: @headingFontSize;
         line-height: 1.25;
       }
     }

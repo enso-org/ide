@@ -1,23 +1,29 @@
 //! The module contains all structures for representing suggestions and their database.
-pub mod entry;
-pub mod example;
-
-use crate::prelude::*;
-
-use crate::double_representation::module::QualifiedName;
-use crate::model::module::MethodId;
-use crate::model::suggestion_database::entry::Kind;
-use crate::notification;
-
 use data::text::TextLocation;
+use flo_stream::Subscriber;
+
+use data_store::DataStore;
 use enso_protocol::language_server;
 use enso_protocol::language_server::SuggestionId;
-use flo_stream::Subscriber;
-use language_server::types::SuggestionsDatabaseVersion;
-use language_server::types::SuggestionDatabaseUpdatesEvent;
-
 pub use entry::Entry;
 pub use example::Example;
+use language_server::types::SuggestionDatabaseUpdatesEvent;
+use language_server::types::SuggestionsDatabaseVersion;
+
+use crate::controller::searcher::action::Suggestion;
+use crate::double_representation::module::QualifiedName;
+use crate::model::module::MethodId;
+use crate::model::suggestion_database::documentation::AtomDocs;
+use crate::model::suggestion_database::documentation::Documentation;
+use crate::model::suggestion_database::documentation::ModuleDocumentation;
+use crate::model::suggestion_database::entry::Kind;
+use crate::notification;
+use crate::prelude::*;
+
+pub mod entry;
+pub mod example;
+pub mod documentation;
+mod data_store;
 
 
 
@@ -43,6 +49,15 @@ pub enum Notification {
     Updated
 }
 
+/// Indicates that updating a suggestion failed.
+#[derive(Debug)]
+pub enum UpdateError {
+    /// There was no entry with the given ID in the data store.
+    InvalidEntry(entry::Id),
+    /// There was an issue applying one of the modification. For every issue an error is returned.
+    UpdateFailures(Vec<failure::Error>)
+}
+
 
 
 // ================
@@ -55,32 +70,33 @@ pub enum Notification {
 /// often-called Language Server methods returns the list of keys of this database instead of the
 /// whole entries. Additionally the suggestions contains information about functions and their
 /// argument names and types.
-#[derive(Clone,Debug)]
+#[derive(Debug)]
 pub struct SuggestionDatabase {
     logger        : Logger,
-    entries       : RefCell<HashMap<entry::Id,Rc<Entry>>>,
+    entries       : RefCell<DataStore>,
     examples      : RefCell<Vec<Rc<Example>>>,
     version       : Cell<SuggestionsDatabaseVersion>,
     notifications : notification::Publisher<Notification>,
 }
 
 impl SuggestionDatabase {
-    /// Create a database with no entries.
+       /// Create a database with no entries.
     pub fn new_empty(logger:impl AnyLogger) -> Self {
         let logger        = Logger::new_sub(logger,"SuggestionDatabase");
-        let entries       = default();
+        let entries       = RefCell::new(DataStore::default());
         let examples      = default();
         let version       = default();
         let notifications = default();
         Self {logger,entries,examples,version,notifications}
     }
 
+
     /// Create a database filled with entries provided by the given iterator.
     pub fn new_from_entries<'a>
     (logger:impl AnyLogger, entries:impl IntoIterator<Item=(&'a SuggestionId,&'a Entry)>) -> Self {
         let ret     = Self::new_empty(logger);
-        let entries = entries.into_iter().map(|(id,entry)| (*id,Rc::new(entry.clone())));
-        ret.entries.borrow_mut().extend(entries);
+        // let entries = entries.into_iter().map(|(id,entry)| (*id,Rc::new(entry.clone())));
+        ret.entries.borrow_mut().insert_entries(entries);
         ret
     }
 
@@ -94,14 +110,15 @@ impl SuggestionDatabase {
     /// Create a new database model from response received from the Language Server.
     fn from_ls_response(response:language_server::response::GetSuggestionDatabase) -> Self {
         let logger      = Logger::new("SuggestionDatabase");
-        let mut entries = HashMap::new();
-        for ls_entry in response.entries {
+
+        let ls_entries =  response.entries.into_iter().filter_map(|ls_entry| {
             let id = ls_entry.id;
             match Entry::from_ls_entry(ls_entry.suggestion) {
-                Ok(entry) => { entries.insert(id, Rc::new(entry)); },
-                Err(err)  => { error!(logger,"Discarded invalid entry {id}: {err}"); },
+                Ok(entry) => { Some((id, entry)) },
+                Err(err)  => { error!(logger,"Discarded invalid entry {id}: {err}"); None },
             }
-        }
+        });
+        let entries = DataStore::from_entries(ls_entries);
         //TODO[ao]: This is a temporary solution. Eventually, we should gather examples from the
         //          available modules documentation. (https://github.com/enso-org/ide/issues/1011)
         let examples = example::EXAMPLES.iter().cloned().map(Rc::new).collect_vec();
@@ -121,7 +138,7 @@ impl SuggestionDatabase {
 
     /// Get suggestion entry by id.
     pub fn lookup(&self, id:entry::Id) -> Result<Rc<Entry>,NoSuchEntry> {
-        self.entries.borrow().get(&id).cloned().ok_or(NoSuchEntry(id))
+        self.entries.borrow().get_entry(id).ok_or(NoSuchEntry(id))
     }
 
     /// Apply the update event to the database.
@@ -130,27 +147,21 @@ impl SuggestionDatabase {
             let mut entries = self.entries.borrow_mut();
             match update {
                 entry::Update::Add {id,suggestion} => match suggestion.try_into() {
-                    Ok(entry) => { entries.insert(id,Rc::new(entry));                       },
+                    Ok(entry) => { entries.insert_entry((&id,&entry));                       },
                     Err(err)  => { error!(self.logger, "Discarding update for {id}: {err}") },
                 },
                 entry::Update::Remove {id} => {
-                    let removed = entries.remove(&id);
+                    let removed = entries.remove_entry(id);
                     if removed.is_none() {
                         error!(self.logger, "Received Remove event for nonexistent id: {id}");
                     }
                 },
                 entry::Update::Modify
                     {id,modification,..} => {
-                    if let Some(old_entry) = entries.get_mut(&id) {
-                        let entry  = Rc::make_mut(old_entry);
-                        let errors = entry.apply_modifications(*modification);
-                        for error in errors {
-                            error!(self.logger
-                                ,"Error when applying update for entry {id}: {error:?}");
-                        }
-                    } else {
-                        error!(self.logger, "Received Modify event for nonexistent id: {id}");
+                    if let Err(err) = entries.update_entry(id,*modification) {
+                        error!(self.logger, || format!("Suggestion entry update failed: {:?}", err));
                     }
+
                 }
             };
         }
@@ -169,35 +180,26 @@ impl SuggestionDatabase {
 
     /// Search the database for an entry of method identified by given id.
     pub fn lookup_method(&self, id:MethodId) -> Option<Rc<Entry>> {
-        self.entries.borrow().values().cloned().find(|entry| entry.method_id().contains(&id))
+        self.entries.borrow().get_method(id)
     }
 
     /// Search the database for entries with given name and visible at given location in module.
     pub fn lookup_by_name_and_location
     (&self, name:impl Str, module:&QualifiedName, location:TextLocation) -> Vec<Rc<Entry>> {
-        self.entries.borrow().values().filter(|entry| {
-            entry.matches_name(name.as_ref()) && entry.is_visible_at(module,location)
-        }).cloned().collect()
+        self.entries.borrow().get_entry_by_name_and_location(name,module,location)
     }
 
     /// Search the database for Local or Function entries with given name and visible at given
     /// location in module.
     pub fn lookup_locals_by_name_and_location
     (&self, name:impl Str, module:&QualifiedName, location:TextLocation) -> Vec<Rc<Entry>> {
-        self.entries.borrow().values().cloned().filter(|entry| {
-            let is_local = entry.kind == Kind::Function || entry.kind == Kind::Local;
-            is_local && entry.matches_name(name.as_ref()) && entry.is_visible_at(module,location)
-        }).collect()
+        self.entries.borrow().get_locals_by_name_and_location(name,module,location)
     }
 
     /// Search the database for Method entry with given name and defined for given module.
     pub fn lookup_module_method
     (&self, name:impl Str, module:&QualifiedName) -> Option<Rc<Entry>> {
-        self.entries.borrow().values().cloned().find(|entry| {
-            let is_method             = entry.kind == Kind::Method;
-            let is_defined_for_module = entry.has_self_type(module);
-            is_method && is_defined_for_module && entry.matches_name(name.as_ref())
-        })
+        self.entries.borrow().get_module_method(name,module)
     }
 
     /// An iterator over all examples gathered from suggestions.
@@ -213,7 +215,37 @@ impl SuggestionDatabase {
     /// Language Server and IDE, and should be used only in tests.
     #[cfg(test)]
     pub fn put_entry(&self, id:entry::Id, entry:Entry) {
-        self.entries.borrow_mut().insert(id,Rc::new(entry));
+        self.entries.borrow_mut().insert_entry((&id,&entry))
+    }
+
+    /// Return the documentation for the given entry, if it exists in the database.
+    pub fn get_documentation_for_entry(&self, entry:&Entry) -> Option<Documentation> {
+        let docs = match entry.kind {
+            Kind::Atom => {
+                let atom_name = entry.qualified_name();
+                let atom_docs = AtomDocs::create_from_db(&atom_name,self.entries.borrow().deref())?;
+                Some(atom_docs.into())
+            },
+            Kind::Module => {
+                let module  = entry.module.clone();
+                let entries = self.entries.borrow();
+                let module_docs = ModuleDocumentation::create_from_db(&module,entries.deref())?;
+                Some(module_docs.into())
+            },
+            _ => entry.documentation_html.clone()
+        };
+        match docs {
+            Some(s) if s.is_empty() => None,
+            _                       => docs
+        }
+    }
+
+    /// Return the documentation for the given suggestion, if it exists in the database.
+    pub fn get_documentation_for_suggestion(&self, suggestion:&Suggestion) -> Option<Documentation> {
+        match suggestion {
+            Suggestion::FromDatabase(entry)   => self.get_documentation_for_entry(entry),
+            Suggestion::Hardcoded(suggestion) => suggestion.documentation_html.map_ref(|doc| doc.to_string()),
+        }
     }
 }
 
@@ -231,21 +263,21 @@ impl From<language_server::response::GetSuggestionDatabase> for SuggestionDataba
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use enso_data::text::TextLocation;
+    use wasm_bindgen_test::wasm_bindgen_test_configure;
+
+    use enso_protocol::language_server::{FieldUpdate, SuggestionsDatabaseEntry, SuggestionsDatabaseModification};
+    use enso_protocol::language_server::Position;
+    use enso_protocol::language_server::SuggestionArgumentUpdate;
+    use enso_protocol::language_server::SuggestionEntryArgument;
+    use enso_protocol::language_server::SuggestionEntryScope;
+    use utils::test::stream::StreamTestExt;
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
     use crate::model::suggestion_database::entry::Scope;
 
-    use enso_data::text::TextLocation;
-    use enso_protocol::language_server::{SuggestionsDatabaseEntry, FieldUpdate, SuggestionsDatabaseModification};
-    use enso_protocol::language_server::SuggestionArgumentUpdate;
-    use enso_protocol::language_server::SuggestionEntryScope;
-    use enso_protocol::language_server::Position;
-    use enso_protocol::language_server::SuggestionEntryArgument;
-    use utils::test::stream::StreamTestExt;
-    use wasm_bindgen_test::wasm_bindgen_test_configure;
-
-
+    use super::*;
+    use crate::double_representation::tp;
 
     wasm_bindgen_test_configure!(run_in_browser);
 
@@ -278,7 +310,7 @@ mod test {
             current_version : 456
         };
         let db = SuggestionDatabase::from_ls_response(response);
-        assert_eq!(db.entries.borrow().len(), 1);
+        assert_eq!(db.entries.borrow().entry_count(), 1);
         assert_eq!(*db.lookup(12).unwrap().name, "TextAtom".to_string());
         assert_eq!(db.version.get(), 456);
     }
@@ -548,4 +580,65 @@ mod test {
         assert_eq!(db.lookup(3).unwrap().arguments[2].name, "NewArg");
         assert_eq!(db.version.get(), 8);
     }
+
+    // fn init_test_db() -> SuggestionDatabase {
+    //     let logger      = Logger::new("SuggestionDatabase");
+    //     let db          = SuggestionDatabase::new_empty(logger);
+    //     let main_module = QualifiedName::from_text("local.Project.Main").unwrap();
+    //     db.put_entry(0, Entry{
+    //         name               : "Atom".to_owned(),
+    //         kind               : Kind::Atom,
+    //         module             : main_module.clone(),
+    //         arguments          : vec![],
+    //         return_type        : "Number".to_owned(),
+    //         documentation_html : None,
+    //         self_type          : None,
+    //         scope              : Scope::Everywhere,
+    //     });
+    //     db.put_entry(1, Entry{
+    //         name               : "Module".to_owned(),
+    //         kind               : Kind::Module,
+    //         module             : main_module.clone(),
+    //         arguments          : vec![],
+    //         return_type        : "Module".to_owned(),
+    //         documentation_html : None,
+    //         self_type          : None,
+    //         scope              : Scope::Everywhere,
+    //     });
+    //     db.put_entry(2, Entry{
+    //         name               : "Atom1Method".to_owned(),
+    //         kind               : Kind::Method,
+    //         module             : main_module.clone(),
+    //         arguments          : vec![],
+    //         return_type        : "String".to_owned(),
+    //         documentation_html : None,
+    //         self_type          : Some(tp::QualifiedName::from_text("local.Project.Main.Atom1").unwrap()),
+    //         scope              : Scope::Everywhere,
+    //     }) ;
+    //     db.put_entry(3, Entry{
+    //         name               : "Atom2Method".to_owned(),
+    //         kind               : Kind::Method,
+    //         module             : main_module.clone(),
+    //         arguments          : vec![],
+    //         return_type        : "Number".to_owned(),
+    //         documentation_html : None,
+    //         self_type          : Some(tp::QualifiedName::from_text("local.Project.Main.Atom2").unwrap()),
+    //         scope              : Scope::Everywhere,
+    //     });
+    //
+    //     db
+    // }
+    //
+    // #[test]
+    // fn get_method() {
+    //     let db = init_test_db();
+    //     let main_module = QualifiedName::from_text("local.Project.Main").unwrap();
+    //
+    //     let method = db.lookup_method(MethodId{
+    //         module: main_module.clone(),
+    //         defined_on_type: tp::QualifiedName::from_text("local.Project.Main.Atom2").unwrap(),
+    //         name: "Atom2Method".to_string()
+    //     }).expect("Method should be found.");
+    //     assert_eq!(method.return_type,"Number");
+    // }
 }
