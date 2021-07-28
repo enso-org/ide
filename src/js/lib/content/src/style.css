@@ -313,7 +313,7 @@ body {
 
 .templates-view .card-geo {
     flex: 0 0 570px;
-    background-image: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/geo.png");
+    background-image: url("/assets/geo.png");
     background-size: 100%;
 }
 
@@ -329,7 +329,7 @@ body {
 
 .templates-view .card-visualize {
     flex: 0 0 570px;
-    background-image: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/visualize.png");
+    background-image: url("/assets/visualize.png");
     background-size: 100%;
 }
 

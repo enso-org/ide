@@ -1,4 +1,4 @@
-/// This module defines Project Manager class
+/// This module defines Project Manager class.
 
 const PROJECT_MANAGER_ENDPOINT = "ws://127.0.0.1:30535"
 
@@ -16,7 +16,7 @@ class ProjectManager {
         return new ProjectManager(PROJECT_MANAGER_ENDPOINT)
     }
 
-    list_projects() {
+    listProjects() {
         const req =
         {
             jsonrpc: "2.0",
@@ -42,7 +42,7 @@ class ProjectManager {
         }).finally(() => ws.close())
     }
 
-    create_project(name: string, template?: string, action = MISSING_COMPONENT_ACTION_INSTALL) {
+    createProject(name: string, template?: string, action = MISSING_COMPONENT_ACTION_INSTALL) {
         let params = {
             name: name,
             missingComponentAction: action,
