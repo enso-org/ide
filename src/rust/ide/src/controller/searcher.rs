@@ -368,8 +368,6 @@ pub enum Mode {
     NewNode {position:Option<Position>},
     /// Searcher should edit existing node's expression.
     EditNode {node_id:ast::Id},
-    /// Searcher should show only projects to open.
-    OpenProject,
 }
 
 /// A fragment filled by single picked suggestion.
@@ -431,7 +429,7 @@ impl Data {
         let initial_fragment = initial_entry.and_then(|entry| {
             let fragment = FragmentAddedByPickingSuggestion {
                 id                : CompletedFragmentId::Function,
-                picked_suggestion : entry
+                picked_suggestion : action::Suggestion::FromDatabase(entry),
             };
             // This is meant to work with single function calls (without "this" argument).
             // In other case we should know what the function is from the engine, as the function
@@ -520,10 +518,7 @@ impl Searcher {
             language_server  : project.json_rpc(),
             position_in_code : Immutable(position),
         };
-        match mode {
-            Mode::OpenProject => ret.load_project_list(),
-            _                 => ret.reload_list(),
-        }
+        ret.reload_list();
         Ok(ret)
     }
 
@@ -550,11 +545,7 @@ impl Searcher {
         self.data.borrow_mut().input = parsed_input;
         self.invalidate_fragments_added_by_picking();
         let expression_changed = old_expr != new_expr;
-        // We don't do the reloading in OpenProject mode: the reloading is meant for providing new
-        // code suggestions for arguments of picked method. But in OpenProject mode the input is
-        // for filtering only.
-        let mode_with_reloading = !matches!(*self.mode, Mode::OpenProject);
-        if expression_changed && mode_with_reloading {
+        if expression_changed {
             debug!(self.logger, "Reloading list.");
             self.reload_list();
         } else if let Actions::Loaded {list} = self.data.borrow().actions.clone_ref() {
@@ -582,7 +573,7 @@ impl Searcher {
     /// This function should be called when user do the _use as suggestion_ action as a code
     /// suggestion (see struct documentation). The picked suggestion will be remembered, and the
     /// searcher's input will be updated and returned by this function.
-    pub fn use_suggestion
+    pub fn  use_suggestion
     (&self, picked_suggestion: action::Suggestion) -> FallibleResult<String> {
         info!(self.logger, "Picking suggestion: {picked_suggestion:?}");
         let id                = self.data.borrow().input.next_completion_id();
@@ -627,7 +618,7 @@ impl Searcher {
         };
         match suggestion {
             Action::Suggestion(suggestion) => self.use_suggestion(suggestion),
-            _ => Err(NotASuggestion {index}.into())
+            _                              => Err(NotASuggestion {index}.into())
         }
     }
 
@@ -745,7 +736,6 @@ impl Searcher {
                 }))?;
                 Ok(node_id)
             }
-            mode => Err(CannotCommitExpression{mode}.into())
         }
     }
 
@@ -841,7 +831,7 @@ impl Searcher {
         let this    = self.this_arg.clone_ref();
         async move {
             let is_function_fragment = next_id == CompletedFragmentId::Function;
-            is_function_fragment.then_some(())?;
+            if !is_function_fragment {return None}
             let ThisNode {id,..} = this.deref().as_ref()?;
             let opt_type         = graph.expression_type(*id).await.map(Into::into);
             opt_type.map_none(move || error!(logger, "Failed to obtain type for this node."))
@@ -861,7 +851,7 @@ impl Searcher {
         suggestions.into_iter().filter_map(|suggestion| {
             let arg_index = arg_index + if self.this_arg.is_some()  { 1 } else { 0 };
             let arg_index = arg_index + if self.has_this_argument() { 1 } else { 0 };
-            let parameter = suggestion.arguments.get(arg_index)?;
+            let parameter = suggestion.arguments().get(arg_index)?;
             Some(parameter.repr_type.clone())
         }).collect()
     }
@@ -872,25 +862,24 @@ impl Searcher {
     , return_types : impl IntoIterator<Item=String>
     , tags         : Option<Vec<language_server::SuggestionEntryType>>
     ) {
-        let ls               = self.language_server.clone_ref();
-        let graph            = self.graph.graph();
-        let position         = self.position_in_code.deref().into();
-        let this             = self.clone_ref();
-        let mut return_types = return_types.into_iter().map(Some).collect_vec();
-        if return_types.is_empty() {
-            return_types.push(None)
-        }
+        let ls                      = self.language_server.clone_ref();
+        let graph                   = self.graph.graph();
+        let position                = self.position_in_code.deref().into();
+        let this                    = self.clone_ref();
+        let return_types            = return_types.into_iter().collect_vec();
+        let return_types_for_engine = if return_types.is_empty() { vec![None] }
+            else {return_types.iter().cloned().map(Some).collect()};
         executor::global::spawn(async move {
             let this_type = this_type.await;
             info!(this.logger,"Requesting new suggestion list. Type of `this` is {this_type:?}.");
-            let requests  = return_types.into_iter().map(|return_type| {
+            let requests  = return_types_for_engine.into_iter().map(|return_type| {
                 info!(this.logger, "Requesting suggestions for returnType {return_type:?}.");
                 let file = graph.module.path().file_path();
                 ls.completion(file,&position,&this_type,&return_type,&tags)
             });
             let responses = futures::future::join_all(requests).await;
             info!(this.logger,"Received suggestions from Language Server.");
-            let new_list = match this.make_action_list(responses) {
+            let new_list = match this.make_action_list(responses,this_type,return_types) {
                 Ok(list)   => Actions::Loaded {list:Rc::new(list)},
                 Err(error) => Actions::Error(Rc::new(error))
             };
@@ -901,31 +890,41 @@ impl Searcher {
 
     /// Process multiple completion responses from the engine into a single list of suggestion.
     fn make_action_list
-    (&self, completion_responses:Vec<json_rpc::Result<language_server::response::Completion>>)
-     -> FallibleResult<action::List> {
-        let actions = action::List::new();
-        if matches!(self.mode.deref(), Mode::NewNode{..}) && self.this_arg.is_none() {
-            actions.extend(self.database.iterate_examples().map(Action::Example));
-            Self::add_enso_project_entries(&actions)?;
-            if self.ide.manage_projects().is_ok() {
-                let create_project = action::ProjectManagement::CreateNewProject;
-                actions.extend(std::iter::once(Action::ProjectManagement(create_project)));
-            }
-        }
+    ( &self
+    , completion_responses : Vec<json_rpc::Result<language_server::response::Completion>>
+    , this_type            : Option<String>
+    , return_types         : Vec<String>,
+    ) -> FallibleResult<action::List> {
+        let creating_new_node             = matches!(self.mode.deref(), Mode::NewNode{..});
+        let should_add_additional_entries = creating_new_node && self.this_arg.is_none();
+        let mut actions                   = action::ListBuilder::default();
+        Self::add_hardcoded_entries(&mut actions,this_type,return_types)?;
+        let mut libraries_root_cat = actions.add_root_category("Libraries");
+        let libraries_cat = libraries_root_cat.add_category("Libraries");
         for response in completion_responses {
             let response = response?;
             let entries  = response.results.iter().filter_map(|id| {
                 self.database.lookup(*id)
-                    .map(Action::Suggestion)
+                    .map(|entry| Action::Suggestion(action::Suggestion::FromDatabase(entry)))
                     .handle_err(|e| {
                         error!(self.logger,"Response provided a suggestion ID that cannot be \
                         resolved: {e}.")
                     })
             });
-            actions.extend(entries);
+            libraries_cat.extend(entries);
         }
-        actions.update_filtering(&self.data.borrow().input.pattern);
-        Ok(actions)
+        if should_add_additional_entries {
+            Self::add_enso_project_entries(&libraries_cat)?;
+            let examples_cat = libraries_root_cat.add_category("Examples");
+            examples_cat.extend(self.database.iterate_examples().map(Action::Example));
+        }
+        if should_add_additional_entries && self.ide.manage_projects().is_ok() {
+            let mut root_cat = actions.add_root_category("Projects");
+            let category     = root_cat.add_category("Projects");
+            let create_project = action::ProjectManagement::CreateNewProject;
+            category.add_action(Action::ProjectManagement(create_project));
+        }
+        Ok(actions.build())
     }
 
     fn possible_function_calls(&self) -> Vec<action::Suggestion> {
@@ -935,12 +934,13 @@ impl Searcher {
             if let Some(module) = self.module_whose_method_is_called(&call) {
                 let name  = call.function_name;
                 let entry = self.database.lookup_module_method(name,&module);
-                Some(entry.into_iter().collect())
+                Some(entry.into_iter().map(action::Suggestion::FromDatabase).collect())
             } else {
                 let name     = &call.function_name;
                 let module   = self.module_qualified_name();
                 let location = *self.position_in_code;
-                Some(self.database.lookup_by_name_and_location(name,&module,location))
+                let entries  = self.database.lookup_by_name_and_location(name,&module,location);
+                Some(entries.into_iter().map(action::Suggestion::FromDatabase).collect())
             }
         };
         opt_result().unwrap_or_default()
@@ -1011,7 +1011,8 @@ impl Searcher {
     ///
     /// This is a workaround for Engine bug https://github.com/enso-org/enso/issues/1605.
     //TODO[ao] this is a temporary workaround.
-    fn add_enso_project_entries(actions:&action::List) -> FallibleResult {
+    fn add_enso_project_entries
+    (libraries_cat_builder:&action::CategoryBuilder) -> FallibleResult {
         for method in &["data", "root"] {
             let entry = model::suggestion_database::Entry {
                 name          : (*method).to_owned(),
@@ -1023,37 +1024,22 @@ impl Searcher {
                 self_type     : Some(tp::QualifiedName::from_text(ENSO_PROJECT_SPECIAL_MODULE)?),
                 scope         : model::suggestion_database::entry::Scope::Everywhere,
             };
-            actions.extend(std::iter::once(Action::Suggestion(Rc::new(entry))));
+            let action = Action::Suggestion(action::Suggestion::FromDatabase(Rc::new(entry)));
+            libraries_cat_builder.add_action(action);
         }
         Ok(())
     }
 
-    fn load_project_list(&self) {
-        let logger = self.logger.clone_ref();
-        let ide    = self.ide.clone_ref();
-        let data   = self.data.clone_ref();
-        executor::global::spawn(async move {
-            let result:FallibleResult<Vec<Action>> = async {
-                let manage_projects = ide.manage_projects()?;
-                let projects = manage_projects.list_projects().await?;
-                Ok(projects.into_iter().map(|project| {
-                    let id        = Immutable(project.id);
-                    let name      = project.name.0.into();
-                    let pm_action = action::ProjectManagement::OpenProject {id,name};
-                    Action::ProjectManagement(pm_action)
-                }).collect_vec())
-            }.await;
-            let actions = match result {
-                Ok(actions) => actions,
-                Err(err) => {
-                    error!(logger,"Cannot load projects list: {err}");
-                    default()
-                }
-            };
-            info!(logger,"Received list of projects: {actions:?}");
-            let list = Rc::new(action::List::from_actions(actions));
-            data.borrow_mut().actions = Actions::Loaded {list}
-        })
+    fn add_hardcoded_entries
+    (list:&mut action::ListBuilder, this_type:Option<String>, return_types:Vec<String>)
+    -> FallibleResult {
+        let this_type    = this_type.map(tp::QualifiedName::from_text).transpose()?;
+        let rt_converted = return_types.iter().map(tp::QualifiedName::from_text);
+        let rt_result:FallibleResult<HashSet<tp::QualifiedName>> = rt_converted.collect();
+        let return_types = rt_result?;
+        let return_types = if return_types.is_empty() {None} else {Some(&return_types)};
+        action::hardcoded::add_hardcoded_entries_to_list(list,this_type.as_ref(),return_types);
+        Ok(())
     }
 }
 
