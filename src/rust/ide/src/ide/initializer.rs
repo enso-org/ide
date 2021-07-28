@@ -66,7 +66,9 @@ impl Initializer {
             info!(self.logger, "Starting IDE with the following config: {self.config:?}");
 
             let application = Application::new(&web::get_html_element_by_id("root").unwrap());
-            application.display.scene().dom.layers.back.set_simulate_perspective(true);
+            let dom_layers  = &application.display.scene().dom.layers;
+            dom_layers.front.set_simulate_perspective(true);
+            dom_layers.back.set_simulate_perspective(true);
             let view       = application.new_view::<ide_view::project::View>();
             let status_bar = view.status_bar().clone_ref();
             // We know the name of new project before it loads. We set it right now to avoid
