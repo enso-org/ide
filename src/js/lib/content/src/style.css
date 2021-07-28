@@ -235,6 +235,28 @@ body {
     flex: 0 0 280px;
 }
 
+.templates-view .side-menu ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 14.5px;
+    font-weight: 400;
+}
+
+.templates-view .side-menu ul li {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    margin: 10px 0;
+}
+
+.templates-view .side-menu ul img {
+    width: 16px;
+    padding: 6px;
+    background-color: #4180F1;
+    border-radius: 10px;
+}
+
 .templates-view .content {
     flex-grow: 1;
 }
@@ -255,12 +277,16 @@ body {
     margin-bottom: 10px;
 }
 
-.templates-view .card {
-    height: 170px;
+.templates-view .card,
+.templates-view .vid {
     border-radius: 20px;
-    padding: 15px;
     color: #FCFEFF;
     box-shadow: 0px 24px 60px -12px rgba(34, 20, 66, 0.15);
+}
+
+.templates-view .card {
+    height: 170px;
+    padding: 15px;
 }
 
 .templates-view .card h3 {
@@ -327,4 +353,50 @@ body {
 
 .tutorials {
     margin-top: 100px;
+}
+
+.templates-view .videos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.templates-view .vid {
+    flex: 0 0 290px;
+    height: 180px;
+    position: relative;
+    overflow: hidden;
+    background-size: 100%;
+}
+
+.templates-view .vid img {
+    width: 35px;
+    margin: 0 10px;
+}
+
+.templates-view .vid h3 {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    margin: 0;
+    padding: 10px 0;
+    position: absolute;
+    bottom: 0px;
+    background: rgba(0, 0, 0, 0.4);
+}
+
+.templates-view .vid-intro {
+    background-image: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/intro.png");
+}
+
+.templates-view .vid-enso2 {
+    background-image: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/enso2.png");
+}
+
+.templates-view .vid-java {
+    background-image: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/java.png");
+}
+
+.templates-view .vid-compiler {
+    background-image: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/compiler.png");
 }
