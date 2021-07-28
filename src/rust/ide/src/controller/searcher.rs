@@ -768,10 +768,11 @@ impl Searcher {
         let args             = std::iter::empty();
         let node_expression  = ast::prefix::Chain::new_with_this(new_definition_name,here,args);
         let node_expression  = node_expression.into_ast();
-        let node             = NodeInfo::new_expression(node_expression).ok_or(FailedToCreateNode)?;
+        let node             = NodeInfo::from_single_line_ast(&node_expression).ok_or(FailedToCreateNode)?;
+        let added_node_id    = node.id();
         let graph_definition = double_representation::module::locate(&module.ast,&self.graph.graph().id)?;
         let mut graph_info   = GraphInfo::from_definition(graph_definition.item);
-        graph_info.add_node(node.ast().clone_ref(), LocationHint::End)?;
+        graph_info.add_node(&node,LocationHint::End)?;
         module.ast   = module.ast.set_traversing(&graph_definition.crumbs, graph_info.ast())?;
         let metadata = NodeMetadata {position,..default()};
 
@@ -782,9 +783,9 @@ impl Searcher {
             module.add_module_import(&here,self.ide.parser(),&import);
         }
         graph.module.update_ast(module.ast)?;
-        graph.module.set_node_metadata(node.id(),metadata)?;
+        graph.module.set_node_metadata(added_node_id,metadata)?;
 
-        Ok(node.id())
+        Ok(added_node_id)
     }
 
     fn invalidate_fragments_added_by_picking(&self) {

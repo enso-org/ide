@@ -8,20 +8,108 @@ use crate::crumbs::AmbiguousCrumb;
 use crate::crumbs::Located;
 use crate::crumbs::MatchCrumb;
 use crate::known;
+use crate::Shifted;
+
+
+
+// ==================================
+// === Recognized Macros Keywords ===
+// ==================================
+
+pub const DISABLING_COMMENT_INTRODUCER:&str = "#";
+
+pub const DOCUMENTATION_COMMENT_INTRODUCER:&str = "##";
+
+/// The keyword introducing an qualified import declaration. See:
+/// https://dev.enso.org/docs/enso/syntax/imports.html#import-syntax
+pub const QUALIFIED_IMPORT_KEYWORD:&str = "import";
+
+/// The keyword introducing an unqualified import declaration.
+pub const UNQUALIFIED_IMPORT_KEYWORD:&str = "from";
+
+/// The keyword introducing an unqualified export declaration.
+pub const QUALIFIED_EXPORT_KEYWORD:&str = "export";
+
+
+
+// ================
+// === Comments ===
+// ================
+
+// === Disable Comments ===
+
+pub fn as_disable_comment(ast:&Ast) -> Option<String> {
+    let r#match = crate::known::Match::try_from(ast).ok()?;
+    let first_segment = &r#match.segs.head;
+    if crate::identifier::name(&first_segment.head) == Some(DISABLING_COMMENT_INTRODUCER) {
+        Some(first_segment.body.repr())
+    } else {
+        None
+    }
+}
+
+pub fn is_disable_comment(ast:&Ast) -> bool {
+    as_disable_comment(ast).is_some()
+}
+
+
+// === Documentation Comments ===
+
+#[derive(Clone,Debug)]
+pub struct DocCommentInfo {
+    // Private due to invariants ensured by the constructor.
+    ast  : known::Match,
+    body : crate::MacroPatternMatch<Shifted<Ast>>,
+}
+
+impl DocCommentInfo {
+    pub fn new(ast:&Ast) -> Option<Self> {
+        let ast                = crate::known::Match::try_from(ast).ok()?;
+        let first_segment      = &ast.segs.head;
+        let introducer         = crate::identifier::name(&first_segment.head)?;
+        let introducer_matches = introducer == DOCUMENTATION_COMMENT_INTRODUCER;
+        let body               = first_segment.body.clone_ref();
+        introducer_matches.then(|| DocCommentInfo {ast,body})
+    }
+
+    pub fn ast(&self) -> known::Match {
+        self.ast.clone_ref()
+    }
+
+    pub fn text(&self) -> String {
+        self.to_string()
+    }
+
+    pub fn pretty_print_text(text:&str) -> String {
+        let mut lines     = text.lines();
+        let first_line    = lines.next().map(|line| iformat!("##{line}"));
+        let other_lines   = lines       .map(|line| iformat!("  {line}"));
+        let mut out_lines = first_line.into_iter().chain(other_lines);
+        out_lines.join("\n")
+    }
+}
+
+impl AsRef<Ast> for DocCommentInfo {
+    fn as_ref(&self) -> &Ast {
+        self.ast.ast()
+    }
+}
+
+impl Display for DocCommentInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f,"{}",self.body.repr())
+    }
+}
+
+pub fn is_documentation_comment(ast:&Ast) -> bool {
+    DocCommentInfo::new(ast).is_some()
+}
 
 
 
 // ===============
 // === Imports ===
 // ===============
-
-/// The keyword introducing an qualified import declaration. See:
-/// https://dev.enso.org/docs/enso/syntax/imports.html#import-syntax
-pub const QUALIFIED_IMPORT_KEYWORD:&str = "import";
-/// The keyword introducing an unqualified import declaration.
-pub const UNQUALIFIED_IMPORT_KEYWORD:&str = "from";
-/// The keyword introducing an unqualified export declaration.
-pub const QUALIFIED_EXPORT_KEYWORD:&str = "export";
 
 /// If the given AST node is an import declaration, returns it as a Match (which is the only shape
 /// capable of storing import declarations). Returns `None` otherwise.

@@ -10,6 +10,8 @@ use ast::known;
 use ast::prefix;
 use ast::opr;
 use parser::Parser;
+use sha3::digest::generic_array::functional::FunctionalSequence;
+use crate::double_representation::{LineKind, discern_line};
 
 
 // =====================
@@ -238,16 +240,25 @@ impl DefinitionInfo {
         Located::new(InfixCrumb::RightOperand,&self.ast.rarg)
     }
 
+    // pub fn body_block(&self) -> Result<Located<known::Block>,Located<Ast>> {
+    //     let body = self.body();
+    //     if let Ok(block) = known::Block::try_from(*body) {
+    //         Ok(body.map(|_| block))
+    //     } else {
+    //         Err(body.map(CloneRef::clone_ref))
+    //     }
+    // }
+
     /// Gets the definition block lines. If `body` is a `Block`, it returns its `BlockLine`s,
     /// concatenating `empty_lines`, `first_line` and `lines`, in this exact order. If `body` is
     /// `Infix`, it returns a single `BlockLine`.
-    pub fn block_lines(&self) -> FallibleResult<Vec<ast::BlockLine<Option<Ast>>>> {
+    pub fn block_lines(&self) -> Vec<ast::BlockLine<Option<Ast>>> {
         if let Ok(block) = known::Block::try_from(*self.body()) {
-            Ok(block.all_lines())
+            block.all_lines()
         } else {
             let elem = Some((*self.body()).clone());
             let off  = 0;
-            Ok(vec![ast::BlockLine{elem,off}])
+            vec![ast::BlockLine{elem,off}]
         }
     }
 
@@ -305,43 +316,23 @@ impl DefinitionInfo {
         Self::from_line_ast(ast,ScopeKind::Root,indent)
     }
 
+    pub fn is_definition(ast:&Ast, kind:ScopeKind) -> bool {
+        // FIXME ugly as hell
+        //       the logic for def/node recognition should be extracted beyond these two
+        let whatever = 0; // This does not affect the recognition itself.
+        Self::from_line_ast(ast,kind,whatever).is_some()
+    }
+
     /// Tries to interpret `Line`'s `Ast` as a function definition.
     ///
     /// Assumes that the AST represents the contents of line (and not e.g. right-hand side of
     /// some binding or other kind of subtree).
     pub fn from_line_ast
     (ast:&Ast, kind:ScopeKind, context_indent:usize) -> Option<DefinitionInfo> {
-        let infix = opr::to_assignment(ast)?;
-        // There two cases - function name is either a Var or operator.
-        // If this is a Var, we have Var, optionally under a Prefix chain with args.
-        // If this is an operator, we have SectionRight with (if any prefix in arguments).
-        let lhs  = Located::new(InfixCrumb::LeftOperand,prefix::Chain::from_ast_non_strict(&infix.larg));
-        let name = lhs.entered(|chain| {
-            let name_ast = chain.located_func();
-            name_ast.map(DefinitionName::from_ast)
-        }).into_opt()?;
-        let args = lhs.enumerate_args().map(|located_ast| {
-            // We already in the left side of assignment, so we need to prepend this crumb.
-            let left   = std::iter::once(ast::crumbs::Crumb::from(InfixCrumb::LeftOperand));
-            let crumbs = left.chain(located_ast.crumbs);
-            let ast    = located_ast.item.clone();
-            Located::new(crumbs,ast)
-        }).collect_vec();
-        let ret  = DefinitionInfo {ast:infix,name,args,context_indent};
-
-        // Note [Scope Differences]
-        if kind == ScopeKind::NonRoot {
-            // 1. Not an extension method but setter.
-            let is_setter = !ret.name.extended_target.is_empty();
-            // 2. No explicit args -- this is a node, not a definition.
-            let is_node = ret.args.is_empty();
-            if is_setter || is_node {
-                None
-            } else {
-                Some(ret)
-            }
+        if let Some(LineKind::Definition{args,ast,name}) = discern_line(ast,kind) {
+            Some(DefinitionInfo { ast, name, args, context_indent })
         } else {
-            Some(ret)
+            None
         }
     }
 }
@@ -403,7 +394,10 @@ impl<'a> DefinitionIterator<'a> {
     /// Looks up direct child definition by given name.
     pub fn find_by_name(mut self, name:&DefinitionName) -> Result<ChildDefinition,CannotFindChild> {
         let err = || CannotFindChild(name.clone());
-        self.find(|child_def| &*child_def.item.name == name).ok_or_else(err)
+        self.find(|child_def| {
+            INFO!(&*child_def.item.name);
+            &*child_def.item.name == name
+        }).ok_or_else(err)
     }
 }
 
@@ -551,6 +545,14 @@ impl ToAdd {
     }
 }
 
+
+
+
+pub fn enumerate_non_empty_lines<'a>
+( lines : impl IntoIterator<Item=&'a ast::BlockLine<Option<Ast>>> + 'a
+) -> impl Iterator<Item=(usize,&'a Ast)> + 'a {
+    lines.into_iter().enumerate().filter_map(|(index,line)| line.elem.as_ref().map(|ast| (index,ast)))
+}
 
 
 // =============

@@ -5,14 +5,13 @@ use crate::prelude::*;
 use crate::double_representation::definition;
 use crate::double_representation::definition::DefinitionInfo;
 use crate::double_representation::node;
-use crate::double_representation::node::NodeInfo;
+use crate::double_representation::node::{NodeInfo, LocatedNode};
 
 use ast::Ast;
 use ast::BlockLine;
 use ast::known;
 use utils::fail::FallibleResult;
 use crate::double_representation::connection::Connection;
-
 
 
 /// Graph uses the same `Id` as the definition which introduces the graph.
@@ -61,8 +60,13 @@ impl GraphInfo {
         let body = ast.rarg.clone();
         if let Ok(body_block) = known::Block::try_new(body.clone()) {
             block_nodes(&body_block)
+        } else if let Some(main_line) = node::ExpressionLine::from_line_ast(ast.as_ref()) {
+            // There's no way to attach a documentation comment to an inline node.
+            let documentation = None;
+            vec![ NodeInfo {documentation,main_line} ]
         } else {
-            expression_node(body)
+            // TODO warning?
+            vec![]
         }
     }
 
@@ -83,19 +87,44 @@ impl GraphInfo {
     }
 
     /// Adds a new node to this graph.
-    pub fn add_node
+    pub fn add_line
     (&mut self, line_ast:Ast, location_hint:LocationHint) -> FallibleResult {
-        let mut lines      = self.source.block_lines()?;
+        let mut lines      = self.source.block_lines();
         let last_non_empty = || lines.iter().rposition(|line| line.elem.is_some());
         let index          = match location_hint {
             LocationHint::Start      => 0,
             LocationHint::End        => last_non_empty().map_or(lines.len(),|ix| ix + 1),
-            LocationHint::After(id)  => node::index_in_lines(&lines, id)? + 1,
-            LocationHint::Before(id) => node::index_in_lines(&lines, id)?
+            LocationHint::After(id)  => node::index_in_lines(&lines, id)?.last() + 1,
+            LocationHint::Before(id) => node::index_in_lines(&lines, id)?.first()
         };
         let elem = Some(line_ast);
         let off  = 0;
         lines.insert(index,BlockLine{elem,off});
+        self.source.set_block_lines(lines)
+        // FIXME unify with below?
+    }
+
+    /// Adds a new node to this graph.
+    pub fn add_node
+    (&mut self, node:&NodeInfo, location_hint:LocationHint) -> FallibleResult {
+        let mut lines      = self.source.block_lines();
+        let last_non_empty = || lines.iter().rposition(|line| line.elem.is_some());
+        let index          = match location_hint {
+            LocationHint::Start      => 0,
+            LocationHint::End        => last_non_empty().map_or(lines.len(),|ix| ix + 1),
+            LocationHint::After(id)  => node::index_in_lines(&lines, id)?.last() + 1,
+            LocationHint::Before(id) => node::index_in_lines(&lines, id)?.first(),
+        };
+        let elem = Some(node.ast().clone_ref());
+        let off  = 0;
+        lines.insert(index,BlockLine{elem,off});
+        if let Some(documentation) = &node.documentation {
+            let line = BlockLine {
+                elem : Some(documentation.ast().into()),
+                off,
+            };
+            lines.insert(index,line);
+        }
         self.source.set_block_lines(lines)
     }
 
@@ -124,27 +153,58 @@ impl GraphInfo {
     /// Sets a new state for the node. The id of the described node must denote already existing
     /// node.
     pub fn update_node(&mut self, id:ast::Id, f:impl FnOnce(NodeInfo) -> Option<NodeInfo>) -> FallibleResult {
-        let mut lines = self.source.block_lines()?;
-        let node_entry = lines.iter().enumerate().find_map(|(index,line)| {
-            let node     = NodeInfo::from_block_line(line);
-            let filtered = node.filter(|node| node.id() == id);
-            filtered.map(|node| (index,node))
-        });
-        if let Some((index,node_info)) = node_entry {
-            if let Some(updated_node) = f(node_info) {
-                lines[index].elem = Some(updated_node.ast().clone_ref());
-            } else {
-                lines.remove(index);
-            }
-            if lines.is_empty() {
-                self.source.set_body_ast(Self::empty_graph_body());
-                Ok(())
-            } else {
-                self.source.set_block_lines(lines)
+        let mut lines = self.source.block_lines();
+        let LocatedNode{index,node} = node::locate_in_lines(&lines,id)?;
+
+        if let Some(updated_node) = f(node) {
+            lines[index.main_line].elem = Some(updated_node.main_line.ast().clone_ref());
+            match (index.documentation_line, updated_node.documentation) {
+                (Some(old_comment_index),None) => {
+                    lines.remove(old_comment_index);
+                }
+                (Some(old_comment_index),Some(new_comment)) =>
+                    lines[old_comment_index].elem = Some(new_comment.as_ref().clone_ref()),
+                (None,Some(new_comment)) =>
+                    lines.insert(index.main_line, BlockLine {
+                        elem : Some(new_comment.as_ref().clone_ref()),
+                        off  : 0,
+                }),
+                (None,None) => {},
             }
         } else {
-            Err(node::IdNotFound {id}.into())
+            lines.remove(index.main_line);
+            if let Some(doc_index) = index.documentation_line {
+                lines.remove(doc_index);
+            }
         }
+        if lines.is_empty() {
+            self.source.set_body_ast(Self::empty_graph_body());
+            Ok(())
+        } else {
+            self.source.set_block_lines(lines)
+        }
+
+
+        // let node_entry = lines.iter().enumerate().find_map(|(index,line)| {
+        //     let node     = NodeInfo::from_block_line(line);
+        //     let filtered = node.filter(|node| node.id() == id);
+        //     filtered.map(|node| (index,node))
+        // });
+        // if let Some((index,node_info)) = node_entry {
+        //     if let Some(updated_node) = f(node_info) {
+        //         lines[index].elem = Some(updated_node.ast().clone_ref());
+        //     } else {
+        //         lines.remove(index);
+        //     }
+        //     if lines.is_empty() {
+        //         self.source.set_body_ast(Self::empty_graph_body());
+        //         Ok(())
+        //     } else {
+        //         self.source.set_block_lines(lines)
+        //     }
+        // } else {
+        //     Err(node::IdNotFound {id}.into())
+        // }
     }
 
     /// Sets expression of the given node.
@@ -160,6 +220,18 @@ impl GraphInfo {
         let code = self.source.ast.repr();
         assert_eq!(code,expected_code.as_ref());
     }
+
+    // pub fn get_comments(&self) -> BTreeMap<node::Id,String>{
+    //     self.source.block_lines().into_iter()
+    //         .filter_map(|opt_line| opt_line.elem)
+    //         .tuple_windows()
+    //         .filter_map(|(first_line, second_line)| {
+    //             let comment_info = DocCommentInfo::new(&first_line)?;
+    //             let node_info    = NodeInfo::from_line_ast(&second_line)?;
+    //             Some((node_info.id(),comment_info.to_string()))
+    //         })
+    //         .collect()
+    // }
 }
 
 
@@ -169,21 +241,12 @@ impl GraphInfo {
 // =====================
 
 /// Collects information about nodes in given code `Block`.
-pub fn block_nodes(ast:&known::Block) -> Vec<NodeInfo> {
-    ast.iter().flat_map(|line_ast| {
-        let kind   = definition::ScopeKind::NonRoot;
-        let indent = ast.indent;
-        // If this can be a definition, then don't treat it as a node.
-        match definition::DefinitionInfo::from_line_ast(line_ast,kind,indent) {
-            None    => NodeInfo::from_line_ast(line_ast),
-            Some(_) => None
-        }
-    }).collect()
-}
-
-/// Collects information about nodes in given trivial definition body.
-pub fn expression_node(ast:Ast) -> Vec<NodeInfo> {
-    NodeInfo::new_expression(ast).into_iter().collect()
+pub fn block_nodes<'a>(ast:&'a known::Block) -> Vec<NodeInfo> {
+    // Warning: this uses faux indices, as the empty lines are skipped first.
+    // It is fine here, since we throw away the result values depending on index.
+    let lines_iter = ast.iter().enumerate();
+    let nodes_iter = node::NodeIterator {lines_iter:lines_iter};
+    nodes_iter.map(|n| n.node).collect()
 }
 
 
@@ -204,6 +267,7 @@ mod tests {
     use ast::test_utils::expect_single_line;
     use utils::test::ExpectTuple;
     use wasm_bindgen_test::wasm_bindgen_test;
+    use ast::macros::DocCommentInfo;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
@@ -245,11 +309,26 @@ mod tests {
         }
     }
 
-    fn create_node_ast(parser:&parser::Parser, expression:&str) -> (Ast,ast::Id) {
+    fn new_expression_node(parser:&parser::Parser, expression:&str) -> NodeInfo {
         let node_ast = parser.parse(expression.to_string(), default()).unwrap();
         let line_ast = expect_single_line(&node_ast).clone();
-        let id       = line_ast.id.expect("line_ast should have an ID");
-        (line_ast,id)
+        NodeInfo::from_single_line_ast(&line_ast).unwrap()
+    }
+
+    fn assert_at(nodes:&[NodeInfo], index:usize, expected:&NodeInfo) {
+        assert_same(&nodes[index],expected)
+    }
+
+    fn assert_all(nodes:&[NodeInfo], expected:&[NodeInfo]) {
+        for (left,right) in nodes.iter().zip(expected) {
+            assert_same(left,right)
+        }
+    }
+
+    fn assert_same(left:&NodeInfo, right:&NodeInfo) {
+        assert_eq!(left.id(), right.id());
+        assert_eq!(left.documentation.as_ref().map(DocCommentInfo::to_string), right.documentation.as_ref().map(DocCommentInfo::to_string));
+        assert_eq!(left.main_line.repr(), right.main_line.repr());
     }
 
     #[wasm_bindgen_test]
@@ -263,19 +342,19 @@ mod tests {
 
         let expr0 = "a + 2";
         let expr1 = "b + 3";
-        let (line_ast0,id0) = create_node_ast(&parser, expr0);
-        let (line_ast1,id1) = create_node_ast(&parser, expr1);
+        let node_to_add0 = new_expression_node(&parser, expr0);
+        let node_to_add1 = new_expression_node(&parser, expr1);
 
-        graph.add_node(line_ast0, LocationHint::Start).unwrap();
+        graph.add_node(&node_to_add0,LocationHint::Start).unwrap();
         assert_eq!(graph.nodes().len(), 2);
-        graph.add_node(line_ast1, LocationHint::Before(graph.nodes()[0].id())).unwrap();
+        graph.add_node(&node_to_add1,LocationHint::Before(graph.nodes()[0].id())).unwrap();
 
         let nodes = graph.nodes();
         assert_eq!(nodes.len(), 3);
         assert_eq!(nodes[0].expression().repr(), expr1);
-        assert_eq!(nodes[0].id(), id1);
+        assert_eq!(nodes[0].id(), node_to_add0.id());
         assert_eq!(nodes[1].expression().repr(), expr0);
-        assert_eq!(nodes[1].id(), id0);
+        assert_eq!(nodes[1].id(), node_to_add1.id());
         assert_eq!(nodes[2].expression().repr(), "print \"hello\"");
     }
 
@@ -289,29 +368,31 @@ mod tests {
         let mut parser = parser::Parser::new_or_panic();
         let mut graph  = main_graph(&mut parser, program);
 
-        let (line_ast0,id0) = create_node_ast(&mut parser, "4 + 4");
-        let (line_ast1,id1) = create_node_ast(&mut parser, "a + b");
-        let (line_ast2,id2) = create_node_ast(&mut parser, "x * x");
-        let (line_ast3,id3) = create_node_ast(&mut parser, "x / x");
-        let (line_ast4,id4) = create_node_ast(&mut parser, "2 - 2");
+        let node_to_add0 = new_expression_node(&mut parser, "4 + 4");
+        let node_to_add1 = new_expression_node(&mut parser, "a + b");
+        let node_to_add2 = new_expression_node(&mut parser, "x * x");
+        let node_to_add3 = new_expression_node(&mut parser, "x / x");
+        let node_to_add4 = new_expression_node(&mut parser, "2 - 2");
 
-        graph.add_node(line_ast0, LocationHint::Start).unwrap();
-        graph.add_node(line_ast1, LocationHint::Before(graph.nodes()[0].id())).unwrap();
-        graph.add_node(line_ast2, LocationHint::After(graph.nodes()[1].id())).unwrap();
-        graph.add_node(line_ast3, LocationHint::End).unwrap();
+        graph.add_node(&node_to_add0, LocationHint::Start).unwrap();
+        graph.add_node(&node_to_add1, LocationHint::Before(graph.nodes()[0].id())).unwrap();
+        graph.add_node(&node_to_add2, LocationHint::After(graph.nodes()[1].id())).unwrap();
+        graph.add_node(&node_to_add3, LocationHint::End).unwrap();
+        // Node 4 will be added later.
 
         let nodes = graph.nodes();
         assert_eq!(nodes.len(), 6);
         assert_eq!(nodes[0].expression().repr(), "a + b");
-        assert_eq!(nodes[0].id(), id1);
+        assert_eq!(nodes[0].id(), node_to_add1.id());
+        // Sic: `node_to_add1` was added at index `0`.
         assert_eq!(nodes[1].expression().repr(), "4 + 4");
-        assert_eq!(nodes[1].id(), id0);
+        assert_eq!(nodes[1].id(), node_to_add0.id());
         assert_eq!(nodes[2].expression().repr(), "x * x");
-        assert_eq!(nodes[2].id(), id2);
+        assert_eq!(nodes[2].id(), node_to_add2.id());
         assert_eq!(nodes[3].expression().repr(), "node");
         assert_eq!(nodes[4].expression().repr(), "print \"hello\"");
         assert_eq!(nodes[5].expression().repr(), "x / x");
-        assert_eq!(nodes[5].id(), id3);
+        assert_eq!(nodes[5].id(), node_to_add3.id());
 
         let expected_code = r#"main =
     a + b
@@ -325,10 +406,10 @@ mod tests {
 
         let mut graph = find_graph(&mut parser, program, "main.foo");
         assert_eq!(graph.nodes().len(), 1);
-        graph.add_node(line_ast4, LocationHint::Start).unwrap();
+        graph.add_node(&node_to_add4, LocationHint::Start).unwrap();
         assert_eq!(graph.nodes().len(), 2);
         assert_eq!(graph.nodes()[0].expression().repr(), "2 - 2");
-        assert_eq!(graph.nodes()[0].id(), id4);
+        assert_eq!(graph.nodes()[0].id(), node_to_add4.id());
         assert_eq!(graph.nodes()[1].expression().repr(), "not_node");
     }
 
@@ -347,15 +428,15 @@ foo = 5";
         let mut graph  = main_graph(&mut parser, program);
 
         let id2             = graph.nodes()[0].id();
-        let (line_ast0,_id0) = create_node_ast(&mut parser, "node0");
-        let (line_ast1,_id1) = create_node_ast(&mut parser, "node1");
-        let (line_ast3,_id3) = create_node_ast(&mut parser, "node3");
-        let (line_ast4,_id4) = create_node_ast(&mut parser, "node4");
+        let node_to_add0 = new_expression_node(&mut parser, "node0");
+        let node_to_add1 = new_expression_node(&mut parser, "node1");
+        let node_to_add3 = new_expression_node(&mut parser, "node3");
+        let node_to_add4 = new_expression_node(&mut parser, "node4");
 
-        graph.add_node(line_ast0, LocationHint::Start).unwrap();
-        graph.add_node(line_ast1, LocationHint::Before(id2)).unwrap();
-        graph.add_node(line_ast3, LocationHint::After(id2)).unwrap();
-        graph.add_node(line_ast4, LocationHint::End).unwrap();
+        graph.add_node(&node_to_add0, LocationHint::Start).unwrap();
+        graph.add_node(&node_to_add1, LocationHint::Before(id2)).unwrap();
+        graph.add_node(&node_to_add3, LocationHint::After(id2)).unwrap();
+        graph.add_node(&node_to_add4, LocationHint::End).unwrap();
 
         let expected_code = r"main =
     node0
@@ -369,24 +450,34 @@ foo = 5";
         graph.expect_code(expected_code);
     }
 
-    #[wasm_bindgen_test]
+    #[test]
     fn multiple_node_graph() {
         let mut parser = parser::Parser::new_or_panic();
         let program = r"
 main =
-    foo = node
+    ## Faux docstring
+    ## Docstring 0
+    foo = node0
+    ## Docstring 1
+    # disabled node1
     foo a = not_node
-    node
+    ## Docstring 2
+    node2
+    node3
 ";
         // TODO [mwu]
         //  Add case like `Int.+ a = not_node` once https://github.com/enso-org/enso/issues/565 is fixed
 
         let graph = main_graph(&mut parser, program);
         let nodes = graph.nodes();
-        assert_eq!(nodes.len(), 2);
+        assert_eq!(nodes[0].documentation_text(), Some(" Docstring 0".into()));
+
+
         for node in nodes.iter() {
-            assert_eq!(node.expression().repr(), "node");
+            DEBUG!(node.expression().repr());
+            // assert_eq!(node.expression().repr(), "node");
         }
+        assert_eq!(nodes.len(), 2);
     }
 
     #[wasm_bindgen_test]

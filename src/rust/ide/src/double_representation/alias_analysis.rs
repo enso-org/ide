@@ -375,7 +375,7 @@ mod tests {
         DEBUG!("\n===========================================================================\n");
         DEBUG!("Case: " case.code);
         let ast    = parser.parse_line(&case.code).unwrap();
-        let node   = NodeInfo::from_line_ast(&ast).unwrap();
+        let node   = NodeInfo::from_single_line_ast(&ast).unwrap();
         let result = analyze_node(&node);
         DEBUG!("Analysis results: {result:?}");
         validate_identifiers("introduced",&node, case.expected_introduced, &result.introduced);

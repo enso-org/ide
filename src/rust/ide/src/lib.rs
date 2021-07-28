@@ -8,6 +8,7 @@
 #![feature(cell_update)]
 #![feature(drain_filter)]
 #![feature(exact_size_is_empty)]
+#![feature(impl_trait_in_bindings)]
 #![feature(iter_order_by)]
 #![feature(maybe_uninit_extra)]
 #![feature(option_result_contains)]

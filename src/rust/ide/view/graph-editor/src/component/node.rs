@@ -257,6 +257,7 @@ ensogl::define_endpoints! {
         set_visualization     (Option<visualization::Definition>),
         set_disabled          (bool),
         set_input_connected   (span_tree::Crumbs,Option<Type>,bool),
+        set_comment           (String),
         set_expression        (Expression),
         set_error             (Option<Error>),
         /// Set the expression USAGE type. This is not the definition type, which can be set with
@@ -278,6 +279,7 @@ ensogl::define_endpoints! {
         /// Press event. Emitted when user clicks on non-active part of the node, like its
         /// background. In edit mode, the whole node area is considered non-active.
         background_press      (),
+        comment               (String),
         expression            (Text),
         skip                  (bool),
         freeze                (bool),
@@ -384,6 +386,7 @@ pub struct NodeModel {
     pub action_bar          : action_bar::ActionBar,
     pub vcs_indicator       : vcs::StatusIndicator,
     pub style               : StyleWatchFrp,
+    pub comment             : ensogl_text::Area,
 }
 
 impl NodeModel {
@@ -457,10 +460,15 @@ impl NodeModel {
 
         let style = StyleWatchFrp::new(&app.display.scene().style_sheet);
 
+        let comment = ensogl_text::Area::new(app);
+        comment.set_position_y(-35.0);
+        display_object.add_child(&comment);
+        comment.set_content("Place for your comment. Lorem ipsum dolor sit amet");
+
         let app = app.clone_ref();
         Self {app,display_object,logger,backdrop,background,drag_area,error_indicator
              ,profiling_label,input,output,visualization,error_visualization,action_bar
-             ,vcs_indicator,style}.init()
+             ,vcs_indicator,style,comment}.init()
     }
 
     pub fn get_crumbs_by_id(&self, id:ast::Id) -> Option<Crumbs> {
