@@ -85,29 +85,33 @@ impl NavigatorModel {
         );
 
         let zoom_callback = enclose!((scene,camera,simulator) move |zoom:ZoomEvent| {
-            let point       = zoom.focus;
-            let normalized  = normalize_point2(point,scene.shape().value().into());
-            let normalized  = normalized_to_range2(normalized, -1.0, 1.0);
-            let half_height = 1.0;
+            let half_screen_size = Vector2::from(scene.shape().value()) / 2.0;
+            // We consider the focus point relative to the center of the screen.
+            let focus_from_center = zoom.focus - half_screen_size;
+            // We scale the focus point, such that y=1 stands for the upper edge and y=-1 for the
+            // lower edge of the screen.
+            let normalized_focus = focus_from_center / half_screen_size.y;
+            // The focus point projected to an imagined plane that is one unit in front of the
+            // camera.
+            let focus_at_dist_1 = normalized_focus * camera.half_fovy_slope();
+            // The direction in which we zoom. We negate x and y, because this vector points behind
+            // the camera: When we get a positive scroll input, we want to move the camera
+            // backwards, away from the mouse cursor.
+            let direction = Vector3(-focus_at_dist_1.x,-focus_at_dist_1.y,1.0);
 
-            // Scale X and Y to compensate aspect and fov.
-            let x              = -normalized.x * camera.screen().aspect();
-            let y              = -normalized.y;
-            let z              = half_height / camera.half_fovy_slope();
-            let direction      = Vector3(x,y,z).normalize();
-            let mut position   = simulator.target_value();
-            let min_zoom       = camera.clipping().near + min_zoom;
-            let zoom_amount    = zoom.amount * position.z;
-            let direction      = direction   * zoom_amount;
-            let max_zoom_limit = max_zoom - position.z;
-            let min_zoom_limit = min_zoom - position.z;
-            let too_far        = direction.z > max_zoom_limit;
-            let too_close      = direction.z < min_zoom_limit;
-            let zoom_factor    = if too_far   { max_zoom_limit / direction.z }
-                            else if too_close { min_zoom_limit / direction.z }
-                            else              { 1.0 };
-            position          += direction * zoom_factor;
-            simulator.set_target_value(position);
+            let current_position = simulator.target_value();
+            // We need to take the exponent because we do multiply `zoom_factor` onto the z
+            // coordinate rather than adding it. Taking the exponent makes sure that zooming behaves
+            // consistently for large and for small scroll steps. More infos can be found here:
+            // https://github.com/enso-org/ide/issues/1613
+            let zoom_factor      = zoom.amount.exp2();
+            let new_z            = current_position.z * zoom_factor;
+            let new_z            = new_z.max(camera.clipping().near + min_zoom).min(max_zoom);
+            let zoom_distance    = new_z - current_position.z;
+            let zoom_delta       = direction * zoom_distance;
+            let new_position     = current_position + zoom_delta;
+
+            simulator.set_target_value(new_position);
         });
         (simulator,resize_callback, NavigatorEvents::new(&scene.mouse.mouse_manager,
                                                          panning_callback,zoom_callback,
