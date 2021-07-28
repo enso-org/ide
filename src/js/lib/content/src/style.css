@@ -2,8 +2,8 @@
 
 @font-face {
     font-family: "Causten";
-    src: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenThin/font.woff2") format("woff2"),
-        url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenThin/font.woff") format("woff");
+    src: url("/assets/fonts/CaustenThin/font.woff2") format("woff2"),
+        url("/assets/fonts/CaustenThin/font.woff") format("woff");
     font-style: normal;
     font-weight: 100;
     font-display: block;
@@ -11,8 +11,8 @@
 
 @font-face {
     font-family: "Causten";
-    src: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenExtraLight/font.woff2") format("woff2"),
-        url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenExtraLight/font.woff") format("woff");
+    src: url("/assets/fonts/CaustenExtraLight/font.woff2") format("woff2"),
+        url("/assets/fonts/CaustenExtraLight/font.woff") format("woff");
     font-style: normal;
     font-weight: 200;
     font-display: block;
@@ -20,8 +20,8 @@
 
 @font-face {
     font-family: "Causten";
-    src: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenLight/font.woff2") format("woff2"),
-        url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenLight/font.woff") format("woff");
+    src: url("/assets/fonts/CaustenLight/font.woff2") format("woff2"),
+        url("/assets/fonts/CaustenLight/font.woff") format("woff");
     font-style: normal;
     font-weight: 300;
     font-display: block;
@@ -29,8 +29,8 @@
 
 @font-face {
     font-family: "Causten";
-    src: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenRegular/font.woff2") format("woff2"),
-        url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenRegular/font.woff") format("woff");
+    src: url("/assets/fonts/CaustenRegular/font.woff2") format("woff2"),
+        url("/assets/fonts/CaustenRegular/font.woff") format("woff");
     font-style: normal;
     font-weight: 400;
     font-display: block;
@@ -38,8 +38,8 @@
 
 @font-face {
     font-family: "Causten";
-    src: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenMedium/font.woff2") format("woff2"),
-        url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenMedium/font.woff") format("woff");
+    src: url("/assets/fonts/CaustenMedium/font.woff2") format("woff2"),
+        url("/assets/fonts/CaustenMedium/font.woff") format("woff");
     font-style: normal;
     font-weight: 500;
     font-display: block;
@@ -47,8 +47,8 @@
 
 @font-face {
     font-family: "Causten";
-    src: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenSemiBold/font.woff2") format("woff2"),
-        url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenSemiBold/font.woff") format("woff");
+    src: url("/assets/fonts/CaustenSemiBold/font.woff2") format("woff2"),
+        url("/assets/fonts/CaustenSemiBold/font.woff") format("woff");
     font-style: normal;
     font-weight: 600;
     font-display: block;
@@ -56,8 +56,8 @@
 
 @font-face {
     font-family: "Causten";
-    src: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenBold/font.woff2") format("woff2"),
-        url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenBold/font.woff") format("woff");
+    src: url("/assets/fonts/CaustenBold/font.woff2") format("woff2"),
+        url("/assets/fonts/CaustenBold/font.woff") format("woff");
     font-style: normal;
     font-weight: 700;
     font-display: block;
@@ -65,8 +65,8 @@
 
 @font-face {
     font-family: "Causten";
-    src: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenExtraBold/font.woff2") format("woff2"),
-        url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenExtraBold/font.woff") format("woff");
+    src: url("/assets/fonts/CaustenExtraBold/font.woff2") format("woff2"),
+        url("/assets/fonts/CaustenExtraBold/font.woff") format("woff");
     font-style: normal;
     font-weight: 800;
     font-display: block;
@@ -74,8 +74,8 @@
 
 @font-face {
     font-family: "Causten";
-    src: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenBlack/font.woff2") format("woff2"),
-        url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/fonts/CaustenBlack/font.woff") format("woff");
+    src: url("/assets/fonts/CaustenBlack/font.woff2") format("woff2"),
+        url("/assets/fonts/CaustenBlack/font.woff") format("woff");
     font-style: normal;
     font-weight: 900;
     font-display: block;
@@ -386,17 +386,17 @@ body {
 }
 
 .templates-view .vid-intro {
-    background-image: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/intro.png");
+    background-image: url("/assets/intro.png");
 }
 
 .templates-view .vid-enso2 {
-    background-image: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/enso2.png");
+    background-image: url("/assets/enso2.png");
 }
 
 .templates-view .vid-java {
-    background-image: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/java.png");
+    background-image: url("/assets/java.png");
 }
 
 .templates-view .vid-compiler {
-    background-image: url("/home/stasyaner/code/enso/ide/src/js/lib/content/assets/compiler.png");
+    background-image: url("/assets/compiler.png");
 }

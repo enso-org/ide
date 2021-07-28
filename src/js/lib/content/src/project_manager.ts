@@ -16,7 +16,7 @@ class ProjectManager {
         return new ProjectManager(PROJECT_MANAGER_ENDPOINT)
     }
 
-    listProjects() {
+    listProjects(): any {
         const req =
         {
             jsonrpc: "2.0",
@@ -32,7 +32,7 @@ class ProjectManager {
                 ws.send(JSON.stringify(req))
             }
             ws.onmessage = (event: any) => {
-                console.log('onmessage', event)
+                console.log('onmessage', JSON.parse(event.data))
                 resolve(JSON.parse(event.data))
             }
             ws.onerror = (error: any) => {
@@ -42,14 +42,14 @@ class ProjectManager {
         }).finally(() => ws.close())
     }
 
-    createProject(name: string, template?: string, action = MISSING_COMPONENT_ACTION_INSTALL) {
+    createProject(name: string, template?: string, action = MISSING_COMPONENT_ACTION_INSTALL): any {
         let params = {
             name: name,
             missingComponentAction: action,
         }
         if (template !== undefined) {
             // @ts-ignore
-            params["template"] = template
+            params["projectTemplate"] = template
         }
         const req =
         {
@@ -66,7 +66,7 @@ class ProjectManager {
                 ws.send(JSON.stringify(req))
             }
             ws.onmessage = (event) => {
-                console.log('onmessage', event)
+                console.log('onmessage', JSON.parse(event.data))
                 resolve(JSON.parse(event.data))
             }
             ws.onerror = (error) => {

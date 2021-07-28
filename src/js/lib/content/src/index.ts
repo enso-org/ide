@@ -900,7 +900,7 @@ function tryAsString(value: any): string {
 }
 
 /// Main entry point. Loads WASM, initializes it, chooses the scene to run.
-async function mainEntryPoint(config: any) {
+async function mainEntryPoint(config: Config) {
     // @ts-ignore
     API[globalConfig.windowAppScopeConfigName] = config
 
@@ -965,15 +965,14 @@ API.main = async function(inputConfig: any) {
             console.log("we here")
             templates.loadTemplatesView()
             console.log("templates loaded")
-            await templates.loadProjectsList()
+            await templates.loadProjectsList((name: string) => {
+                config.project = name
+                mainEntryPoint(config)
+            })
         }
     } else {
         // Display a message asking to update the application.
         document.getElementById('auth-container').style.display = 'none'
         document.getElementById('version-check').style.display = 'block'
     }
-}
-
-function myHello() {
-    console.log("Hello World!")
 }
