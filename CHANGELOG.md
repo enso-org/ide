@@ -10,6 +10,10 @@ these updates be shipped in a stable release before the end of the year.
 
 - [New look of open project dialog.][1700]. Now it has "Open project" title on
   the top.
+- [New rendering of JavaScript visualizations.][#1465] JavaScript visualizations
+  will now be sharp on every zoom level. This also fixes a bug with D3
+  visualizations which did not get the correct mouse coordinates when the scene
+  was zoomed in.
 
 #### Enso Compiler
 
