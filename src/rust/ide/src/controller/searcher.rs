@@ -892,8 +892,8 @@ impl Searcher {
     fn make_action_list
     ( &self
     , completion_responses : Vec<json_rpc::Result<language_server::response::Completion>>
-    , this_type            : Option<String>
-    , return_types         : Vec<String>,
+    , _this_type           : Option<String>
+    , _return_types        : Vec<String>,
     ) -> FallibleResult<action::List> {
         let creating_new_node             = matches!(self.mode.deref(), Mode::NewNode{..});
         let should_add_additional_entries = creating_new_node && self.this_arg.is_none();
@@ -1036,6 +1036,9 @@ impl Searcher {
         Ok(())
     }
 
+    //TODO[ao] The usage of add_hardcoded_entries_to_list is currently commented out. It should be
+    // uncommented when working on https://github.com/enso-org/ide/issues/1681.
+    #[allow(dead_code)]
     fn add_hardcoded_entries
     (list:&mut action::ListBuilder, this_type:Option<String>, return_types:Vec<String>)
     -> FallibleResult {
