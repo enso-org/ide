@@ -20,6 +20,7 @@ use crate::system::gpu::data::uniform::AnyTextureUniform;
 use crate::system::gpu::data::uniform::AnyPrimUniform;
 use crate::system::gpu::data::uniform::AnyPrimUniformOps;
 use crate::display::symbol::geometry::primitive::mesh;
+use crate::system::gpu::data::texture::class::TextureOps;
 use crate::display;
 
 use enso_shapely::newtype_prim;
@@ -93,7 +94,7 @@ impl TextureBinding {
 
     /// Bind texture to proper texture unit.
     pub fn bind_texture_unit(&self, context:&Context) -> TextureBindGuard {
-        self.uniform.raw.bind_texture_unit(context,self.texture_unit.into())
+        self.uniform.bind_texture_unit(context,self.texture_unit.into())
     }
 
     /// Upload uniform value.

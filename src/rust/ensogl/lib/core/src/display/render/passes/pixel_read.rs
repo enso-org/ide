@@ -6,6 +6,7 @@ use crate::display::render::pipeline::*;
 use crate::system::gpu::*;
 use crate::system::js::*;
 use crate::display::render::composer::PassInstance;
+use crate::system::gpu::data::texture::class::TextureOps;
 
 use web_sys::WebGlBuffer;
 use web_sys::WebGlSync;

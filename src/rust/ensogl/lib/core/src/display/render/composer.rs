@@ -2,6 +2,7 @@
 
 use crate::prelude::*;
 
+use crate::system::gpu::data::texture::class::TextureOps;
 use crate::display::render::pipeline::*;
 use crate::system::gpu::*;
 use js_sys::Array;
