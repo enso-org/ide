@@ -44,17 +44,14 @@ async function loadTemplatesView(openProject: (project: string) => void): Promis
     hideRootHtml()
     document.body.innerHTML += templatesView
     statusBox = document.getElementById('templates-status-box')
-    console.log("templates loaded")
 
     try {
         await loadProjectsList(openProject)
     } catch (error) {
         displayStatusBox("Failed to load projects.")
     }
-    console.log("projects loaded")
 
     setTemplateCardHandlers(openProject)
-    console.log("template handlers set")
 }
 
 /**
@@ -112,13 +109,11 @@ async function loadProjectsList(openProject: (project: string) => void): Promise
     const newProjectNode = document.getElementById(PROJECTS_LIST_NEW_PROJECT)
     newProjectNode.setAttribute('style', 'cursor: pointer;')
     newProjectNode.onclick = () => {
-        console.log('newProjectNode.onclick')
         clearStatusBox()
         PM.createProject('Unnamed', 'default')
             .then((response: any) => {
-                console.log('createProject', response)
                 if (response.error !== undefined) {
-                    console.error(response.error.message)
+                    console.error('Project manager openProject failed', response)
                     displayStatusBox(response.error.message)
                 } else {
                     restoreRootHtml()
@@ -126,7 +121,7 @@ async function loadProjectsList(openProject: (project: string) => void): Promise
                 }
             })
             .catch((error: any) => {
-                console.error('newProjectNode.onclick', error)
+                console.error('onclick', PROJECTS_LIST_NEW_PROJECT, error)
                 displayStatusBox("Failed to create a new project.")
             })
     }
@@ -152,7 +147,6 @@ function buildProjectListNode(projectName: string, openProject: (project: string
     const li = document.createElement('li')
     li.setAttribute('style', 'cursor: pointer;')
     li.onclick = () => {
-        console.log('li.onclick ' + projectName)
         restoreRootHtml()
         openProject(projectName)
     }
@@ -192,13 +186,11 @@ function setTemplateCardHandler(element: HTMLElement, openProject: (project: str
         const projectName = getProjectName(element.id)
         const templateName = getProjectTemplate(element.id)
         clearStatusBox()
-        console.log('onclick ', element.id, projectName, templateName)
 
         PM.createProject(projectName, templateName)
             .then((response: any) => {
-                console.log('createProject', response)
                 if (response.error !== undefined) {
-                    console.error(response.error.message)
+                    console.error("Project manager createProject failed", response)
                     displayStatusBox(response.error.message)
                 } else {
                     restoreRootHtml()
@@ -206,7 +198,7 @@ function setTemplateCardHandler(element: HTMLElement, openProject: (project: str
                 }
             })
             .catch((error: any) => {
-                console.error('template.onclick', error)
+                console.error('onclick', element.id, error)
                 displayStatusBox("Failed to open a template.")
             })
     }

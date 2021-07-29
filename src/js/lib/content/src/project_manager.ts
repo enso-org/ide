@@ -1,4 +1,4 @@
-/// This module defines Project Manager class.
+/// This module defines the Project Manager endpoint.
 
 const PROJECT_MANAGER_ENDPOINT = "ws://127.0.0.1:30535"
 
@@ -34,15 +34,12 @@ class ProjectManager {
         const ws = new WebSocket(this.connection_url)
         return new Promise((resolve, reject) => {
             ws.onopen = () => {
-                console.log('onopen')
                 ws.send(JSON.stringify(req))
             }
             ws.onmessage = (event: any) => {
-                console.log('onmessage', JSON.parse(event.data))
                 resolve(JSON.parse(event.data))
             }
             ws.onerror = (error: any) => {
-                console.log('onerror', error)
                 reject(error)
             }
         }).finally(() => ws.close())
@@ -75,15 +72,12 @@ class ProjectManager {
         const ws = new WebSocket(this.connection_url)
         return new Promise((resolve, reject) => {
             ws.onopen = () => {
-                console.log('onopen')
                 ws.send(JSON.stringify(req))
             }
             ws.onmessage = (event) => {
-                console.log('onmessage', JSON.parse(event.data))
                 resolve(JSON.parse(event.data))
             }
             ws.onerror = (error) => {
-                console.log('onerror', error)
                 reject(error)
             }
         }).finally(() => ws.close())
