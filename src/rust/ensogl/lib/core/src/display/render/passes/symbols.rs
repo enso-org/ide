@@ -6,6 +6,7 @@ use crate::display::render::pipeline::*;
 use crate::system::gpu::*;
 use crate::display::symbol::registry::SymbolRegistry;
 use crate::display::scene;
+use crate::display::render::composer::PassInstance;
 
 
 
@@ -42,10 +43,10 @@ impl RenderPass for SymbolsRenderPass {
             ]
     }
 
-    fn run(&mut self, context:&Context, _:&UniformScope) {
+    fn run(&mut self, instance:&PassInstance) {
         let arr = vec![0.0,0.0,0.0,0.0];
-        context.clear_bufferfv_with_f32_array(Context::COLOR,0,&arr);
-        context.clear_bufferfv_with_f32_array(Context::COLOR,1,&arr);
+        instance.context.clear_bufferfv_with_f32_array(Context::COLOR,0,&arr);
+        instance.context.clear_bufferfv_with_f32_array(Context::COLOR,1,&arr);
 
         // FIXME: Please note that rendering of masks and nested layers is not implemented yet.
         for layer in self.layers.sublayers().iter() {

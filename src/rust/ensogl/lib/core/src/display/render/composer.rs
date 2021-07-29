@@ -48,7 +48,7 @@ impl {
     /// Run all the registered passes in this composer.
     pub fn run(&mut self) {
         for pass in &mut self.passes {
-            pass.run(&self.context);
+            pass.run();
         }
     }
 }}
@@ -64,13 +64,23 @@ impl {
 #[derivative(Debug)]
 struct ComposerPass {
     #[derivative(Debug="ignore")]
-    pass        : Box<dyn RenderPass>,
+    pass    : Box<dyn RenderPass>,
+    instance : PassInstance,
     outputs     : Vec<AnyTextureUniform>,
     framebuffer : Option<web_sys::WebGlFramebuffer>,
-    variables   : UniformScope,
-    context     : Context,
-    width       : i32,
-    height      : i32,
+}
+
+impl Deref for ComposerPass {
+    type Target = PassInstance;
+    fn deref(&self) -> &Self::Target {
+        &self.instance
+    }
+}
+
+impl DerefMut for ComposerPass {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.instance
+    }
 }
 
 impl ComposerPass {
@@ -84,19 +94,12 @@ impl ComposerPass {
     , height    : i32
     ) -> Self {
         let outputs      = default();
-        let variables    = variables.clone_ref();
-        let context      = context.clone();
         let is_not_empty = !pass.outputs().is_empty();
         let framebuffer  = is_not_empty.as_some_from(|| context.create_framebuffer().unwrap());
-        let mut this     = Self {pass,outputs,framebuffer,variables,context,width,height};
+        let instance     = PassInstance::new(context,variables,width,height);
+        let mut this     = Self {pass,outputs,framebuffer,instance};
         this.initialize();
         this
-    }
-
-    /// Run the pass.
-    pub fn run(&mut self, context:&Context) {
-        self.context.bind_framebuffer(Context::FRAMEBUFFER,self.framebuffer.as_ref());
-        self.pass.run(context,&self.variables);
     }
 
     fn initialize(&mut self) {
@@ -106,11 +109,7 @@ impl ComposerPass {
 
     fn initialize_outputs(&mut self) {
         for output in &self.pass.outputs() {
-            let name    = format!("pass_{}",output.name());
-            let args    = (self.width,self.height);
-            let texture = uniform::get_or_add_gpu_texture_dyn
-                (&self.context,&self.variables,&name,output.internal_format,output.item_type,args,
-                 Some(output.texture_parameters));
+            let texture = self.new_screen_texture(output);
             self.add_output(texture);
         }
     }
@@ -137,8 +136,66 @@ impl ComposerPass {
         let gl_texture       = texture.gl_texture();
         let gl_texture       = Some(&gl_texture);
         let level            = 0;
-        self.outputs.push(texture);
         context.bind_framebuffer(target,self.framebuffer.as_ref());
         context.framebuffer_texture_2d(target,attachment_point,texture_target,gl_texture,level);
+        self.outputs.push(texture);
+    }
+
+    /// Run the pass.
+    pub fn run(&mut self) {
+        self.context.bind_framebuffer(Context::FRAMEBUFFER,self.framebuffer.as_ref());
+        self.pass.run(&self.instance);
+    }
+}
+
+
+#[derive(Debug)]
+pub struct PassInstance {
+    pub variables   : UniformScope,
+    pub context     : Context,
+    pub width       : i32,
+    pub height      : i32,
+}
+
+impl PassInstance {
+    /// Constructor
+    #[allow(clippy::borrowed_box)]
+    pub fn new
+    ( context   : &Context
+    , variables : &UniformScope
+    , width     : i32
+    , height    : i32
+    ) -> Self {
+        let variables    = variables.clone_ref();
+        let context      = context.clone();
+        Self {variables,context,width,height}
+    }
+
+    pub fn new_screen_texture(&self, output:&RenderPassOutput) -> AnyTextureUniform {
+        let name    = format!("pass_{}",output.name());
+        let args    = (self.width,self.height);
+        uniform::get_or_add_gpu_texture_dyn
+            (&self.context,&self.variables,&name,output.internal_format,output.item_type,args,
+             Some(output.texture_parameters))
+    }
+
+    pub fn new_framebuffer(&self, textures:&[&AnyTextureUniform]) -> web_sys::WebGlFramebuffer {
+        let context      = &self.context;
+        let framebuffer  = self.context.create_framebuffer().unwrap();
+        let target       = Context::FRAMEBUFFER;
+        let draw_buffers = Array::new();
+        context.bind_framebuffer(target,Some(&framebuffer));
+        for (index,texture) in textures.into_iter().enumerate() {
+            let texture_target   = Context::TEXTURE_2D;
+            let attachment_point = Context::COLOR_ATTACHMENT0 + index as u32;
+            let gl_texture       = texture.gl_texture();
+            let gl_texture       = Some(&gl_texture);
+            let level            = 0;
+            draw_buffers.push(&attachment_point.into());
+            context.framebuffer_texture_2d(target,attachment_point,texture_target,gl_texture,level);
+        }
+        context.draw_buffers(&draw_buffers);
+        context.bind_framebuffer(target,None);
+        framebuffer
     }
 }

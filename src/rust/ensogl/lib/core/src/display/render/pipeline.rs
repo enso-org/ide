@@ -4,6 +4,7 @@ use crate::prelude::*;
 
 use crate::system::gpu::types::*;
 use crate::system::gpu::texture;
+use crate::display::render::composer::PassInstance;
 
 
 
@@ -90,7 +91,7 @@ pub trait RenderPass : CloneBoxedForRenderPass + Debug + 'static {
     /// Run the current render pass with a reference to global variables object. Render passes are
     /// allowed to read and write values while running. The values will be accessible to subsequent
     /// passes.
-    fn run(&mut self, context:&Context, variables:&UniformScope);
+    fn run(&mut self, instance:&PassInstance);
 }
 
 clone_boxed!(RenderPass);

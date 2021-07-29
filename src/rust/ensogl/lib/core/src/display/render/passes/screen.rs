@@ -6,6 +6,7 @@ use crate::display::render::pipeline::*;
 use crate::display::symbol::Screen;
 use crate::display::world::World;
 use crate::system::gpu::*;
+use crate::display::render::composer::PassInstance;
 
 
 
@@ -33,7 +34,7 @@ impl RenderPass for ScreenRenderPass {
     /// be sure that other passes will not render it. Otherwise this could cause serious WebGL
     /// errors, as it may cause a situation when other pass is trying to render to a texture all
     /// symbols (including this one), while this symbol would need this texture to render itself.
-    fn run(&mut self, _:&Context, _:&UniformScope) {
+    fn run(&mut self, _:&PassInstance) {
         self.screen.show();
         self.screen.render();
         self.screen.hide();
