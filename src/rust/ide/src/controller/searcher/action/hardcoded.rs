@@ -172,21 +172,18 @@ pub fn add_hardcoded_entries_to_list
 , this_type    : Option<&tp::QualifiedName>
 , return_types : Option<&HashSet<tp::QualifiedName>>
 ) {
-    DEBUG!("Adding hardcoded entries: {this_type:?}, {return_types:?}");
     SUGGESTIONS.with(|hardcoded| {
         for hc_root_category in hardcoded {
             let mut root_cat = list.add_root_category(hc_root_category.name);
             for hc_category in &hc_root_category.categories {
                 let category = root_cat.add_category(hc_category.name);
                 category.extend(hc_category.suggestions.iter().cloned().filter_map(|suggestion| {
-                    DEBUG!("Probing {suggestion:?}");
                     let this_type_matches = if let Some(this_type) = this_type {
                         suggestion.this_arg.contains(this_type)
                     } else { true };
                     let return_type_matches = if let Some(return_types) = return_types {
                         suggestion.return_type.as_ref().map_or(false, |rt| return_types.contains(rt))
                     } else { true };
-                    DEBUG!("{this_type_matches} {return_type_matches}");
                     let filtered_in = this_type_matches && return_type_matches;
                     filtered_in.as_some_from(||
                         action::Action::Suggestion(action::Suggestion::Hardcoded(suggestion))

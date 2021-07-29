@@ -898,9 +898,25 @@ impl Searcher {
         let creating_new_node             = matches!(self.mode.deref(), Mode::NewNode{..});
         let should_add_additional_entries = creating_new_node && self.this_arg.is_none();
         let mut actions                   = action::ListBuilder::default();
-        Self::add_hardcoded_entries(&mut actions,this_type,return_types)?;
+        //TODO[ao] should be uncommented once new searcher GUI will be integrated + the order of
+        // added entries should be adjusted.
+        // https://github.com/enso-org/ide/issues/1681
+        // Self::add_hardcoded_entries(&mut actions,this_type,return_types)?;
+        if should_add_additional_entries && self.ide.manage_projects().is_ok() {
+            let mut root_cat = actions.add_root_category("Projects");
+            let category     = root_cat.add_category("Projects");
+            let create_project = action::ProjectManagement::CreateNewProject;
+            category.add_action(Action::ProjectManagement(create_project));
+        }
         let mut libraries_root_cat = actions.add_root_category("Libraries");
+        if should_add_additional_entries {
+            let examples_cat = libraries_root_cat.add_category("Examples");
+            examples_cat.extend(self.database.iterate_examples().map(Action::Example));
+        }
         let libraries_cat = libraries_root_cat.add_category("Libraries");
+        if should_add_additional_entries {
+            Self::add_enso_project_entries(&libraries_cat)?;
+        }
         for response in completion_responses {
             let response = response?;
             let entries  = response.results.iter().filter_map(|id| {
@@ -913,17 +929,7 @@ impl Searcher {
             });
             libraries_cat.extend(entries);
         }
-        if should_add_additional_entries {
-            Self::add_enso_project_entries(&libraries_cat)?;
-            let examples_cat = libraries_root_cat.add_category("Examples");
-            examples_cat.extend(self.database.iterate_examples().map(Action::Example));
-        }
-        if should_add_additional_entries && self.ide.manage_projects().is_ok() {
-            let mut root_cat = actions.add_root_category("Projects");
-            let category     = root_cat.add_category("Projects");
-            let create_project = action::ProjectManagement::CreateNewProject;
-            category.add_action(Action::ProjectManagement(create_project));
-        }
+
         Ok(actions.build())
     }
 
@@ -1463,7 +1469,6 @@ pub mod test {
                 for _ in 0..EXPECTED_REQUESTS {
                     let requested_types = requested_types2.clone();
                     client.expect.completion(move |_path,_position,_self_type,return_type,_tags| {
-                        DEBUG!("Requested {return_type:?}.");
                         requested_types.borrow_mut().insert(return_type.clone());
                         Ok(completion_response(&[]))
                     });
@@ -1473,7 +1478,6 @@ pub mod test {
             let Fixture{test,searcher,..} = &mut fixture;
             searcher.set_input(input.into()).unwrap();
             test.run_until_stalled();
-            DEBUG!(">>>>> {requested_types.borrow().deref():?}");
             assert_eq!(requested_types.borrow().len(),EXPECTED_REQUESTS);
             assert!(requested_types.borrow().contains(&Some("Number".to_string())));
             assert!(requested_types.borrow().contains(&Some("String".to_string())));
