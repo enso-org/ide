@@ -146,19 +146,19 @@ impl DomScene {
                 if self.data.simulate_perspective.get() {
                     // We unset `perspective` but simulate it by scaling the scene on screen
                     // manually.
-                    self.data.dom.set_style_or_panic("perspective", "");
-                    transform = format!("scale({})", camera.zoom());
+                    self.data.dom.set_style_or_panic("perspective","");
+                    transform = format!("scale({})",camera.zoom());
                 } else {
                     let perspective = camera.z_zoom_1();
-                    self.data.dom.set_style_or_panic("perspective", format!("{}px", perspective));
+                    self.data.dom.set_style_or_panic("perspective",format!("{}px",perspective));
                     // Setting `perspective` in CSS automatically moves the camera backwards, away
                     // from the origin. We have to compensate for this by moving it forward again.
-                    transform = format!("translateZ({}px)", perspective);
+                    transform = format!("translateZ({}px)",perspective);
                 }
             },
             Projection::Orthographic => {
                 transform = "".to_string();
-                self.data.dom.set_style_or_panic("perspective", "");
+                self.data.dom.set_style_or_panic("perspective","");
             }
         }
 
@@ -167,7 +167,7 @@ impl DomScene {
         // to be applied on right (that is, in world space, rather than view space) to keep it
         // unaffected by the other transformations.
         let transform = transform + "translate(50%,50%)";
-        self.data.view_projection_dom.set_style_or_panic("transform", transform);
+        self.data.view_projection_dom.set_style_or_panic("transform",transform);
     }
 
     /// Prepare for movement of this DOM scene by setting the CSS property `will-change: transform`
@@ -175,16 +175,16 @@ impl DomScene {
     /// - https://developer.mozilla.org/en-US/docs/Web/CSS/will-change
     /// - https://github.com/enso-org/ide/pull/1465
     pub fn start_movement_mode(&self) {
-        self.data.view_projection_dom.set_style_or_panic("will-change", "transform");
+        self.data.view_projection_dom.set_style_or_panic("will-change","transform");
     }
 
     /// Unset `will-change`. (See `start_movement_mode`)
     pub fn end_movement_mode(&self) {
-        self.data.view_projection_dom.set_style_or_panic("will-change", "");
+        self.data.view_projection_dom.set_style_or_panic("will-change","");
     }
 }
 
 fn matrix_to_css_matrix3d(a:&Matrix4<f32>) -> String {
     let entries = a.iter().map(f32::to_string).join(",");
-    format!("matrix3d({})", entries)
+    format!("matrix3d({})",entries)
 }
