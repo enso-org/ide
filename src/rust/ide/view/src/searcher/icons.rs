@@ -8,6 +8,7 @@ use ensogl::display::DomSymbol;
 use ensogl::display::navigation::navigator::Navigator;
 use ensogl::display::object::ObjectOps;
 use ensogl::display::shape::*;
+use ensogl::display::shape::compound::path::path;
 use ensogl::system::web;
 use ensogl_theme::application::searcher::icons as theme;
 use ensogl::system::web::StyleSetter;
@@ -61,16 +62,6 @@ fn grid(stroke_width:f32,cell_size:f32) -> AnyShape {
     let vertical   = HalfPlane().rotate((PI/2.0).radians());
     let vertical   = vertical.translate_x(stroke_width.px()) - vertical;
     (horizontal + vertical).repeat((cell_size.px(),cell_size.px())).into()
-}
-
-/// A path following the given points. All joints and endpoints are rounded.
-fn path(width:f32, points:&[(f32,f32)]) -> AnyShape {
-    let points     = points.iter().map(|(x,y)| (x.px(),y.px()));
-    let mut result : AnyShape = EmptyShape().into();
-    for (start,end) in points.clone().zip(points.skip(1)) {
-        result = (result + Segment(start,end,width.px())).into();
-    }
-    result
 }
 
 /// A cursor shape, looking roughly like a capital "I".
