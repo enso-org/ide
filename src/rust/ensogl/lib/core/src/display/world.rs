@@ -55,16 +55,16 @@ impl Uniforms {
 /// It is responsible for updating the system on every animation frame.
 #[derive(Clone,CloneRef,Debug)]
 pub struct World {
-    logger           : Logger,
-    scene            : Scene,
-    scene_dirty      : dirty::SharedBool,
-    main_loop        : animation::DynamicLoop,
-    uniforms         : Uniforms,
-    stats            : Stats,
-    stats_monitor    : stats::Monitor,
-    main_loop_frame  : callback::Handle,
-    on_before_frame  : callback::SharedRegistryMut1<animation::TimeInfo>,
-    on_after_frame   : callback::SharedRegistryMut1<animation::TimeInfo>,
+    logger          : Logger,
+    scene           : Scene,
+    scene_dirty     : dirty::SharedBool,
+    main_loop       : animation::DynamicLoop,
+    uniforms        : Uniforms,
+    stats           : Stats,
+    stats_monitor   : stats::Monitor,
+    main_loop_frame : callback::Handle,
+    on_before_frame : callback::SharedRegistryMut1<animation::TimeInfo>,
+    on_after_frame  : callback::SharedRegistryMut1<animation::TimeInfo>,
 }
 
 impl World {

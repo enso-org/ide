@@ -85,8 +85,7 @@ impl RenderPassOutput {
 
 /// Generalization of render passes.
 pub trait RenderPass : CloneBoxedForRenderPass + Debug + 'static {
-    /// The outputs of this pass. If empty, the pass will draw to screen.
-    fn outputs(&self) -> Vec<RenderPassOutput> { default() }
+    fn initialize(&mut self, _instance:&PassInstance) {}
 
     /// Run the current render pass with a reference to global variables object. Render passes are
     /// allowed to read and write values while running. The values will be accessible to subsequent

@@ -66,8 +66,6 @@ struct ComposerPass {
     #[derivative(Debug="ignore")]
     pass    : Box<dyn RenderPass>,
     instance : PassInstance,
-    outputs     : Vec<AnyTextureUniform>,
-    framebuffer : Option<web_sys::WebGlFramebuffer>,
 }
 
 impl Deref for ComposerPass {
@@ -89,61 +87,17 @@ impl ComposerPass {
     pub fn new
     ( context   : &Context
     , variables : &UniformScope
-    , pass      : Box<dyn RenderPass>
+    , mut pass  : Box<dyn RenderPass>
     , width     : i32
     , height    : i32
     ) -> Self {
-        let outputs      = default();
-        let is_not_empty = !pass.outputs().is_empty();
-        let framebuffer  = is_not_empty.as_some_from(|| context.create_framebuffer().unwrap());
-        let instance     = PassInstance::new(context,variables,width,height);
-        let mut this     = Self {pass,outputs,framebuffer,instance};
-        this.initialize();
-        this
-    }
-
-    fn initialize(&mut self) {
-        self.initialize_outputs();
-        self.initialize_draw_buffers();
-    }
-
-    fn initialize_outputs(&mut self) {
-        for output in &self.pass.outputs() {
-            let texture = self.new_screen_texture(output);
-            self.add_output(texture);
-        }
-    }
-
-    /// WebGL has to be informed to what attachments it is allowed to draw. This function enables
-    /// every attachment bound to an output.
-    fn initialize_draw_buffers(&mut self) {
-        if !self.outputs.is_empty() {
-            let draw_buffers = Array::new();
-            self.outputs.iter().enumerate().for_each(|(i, _)| {
-                let attachment_point = Context::COLOR_ATTACHMENT0 + i as u32;
-                draw_buffers.push(&attachment_point.into());
-            });
-            self.context.draw_buffers(&draw_buffers);
-        }
-    }
-
-    fn add_output(&mut self, texture:AnyTextureUniform) {
-        let context          = &self.context;
-        let target           = Context::FRAMEBUFFER;
-        let texture_target   = Context::TEXTURE_2D;
-        let index            = self.outputs.len() as u32;
-        let attachment_point = Context::COLOR_ATTACHMENT0 + index;
-        let gl_texture       = texture.gl_texture();
-        let gl_texture       = Some(&gl_texture);
-        let level            = 0;
-        context.bind_framebuffer(target,self.framebuffer.as_ref());
-        context.framebuffer_texture_2d(target,attachment_point,texture_target,gl_texture,level);
-        self.outputs.push(texture);
+        let instance = PassInstance::new(context,variables,width,height);
+        pass.initialize(&instance);
+        Self {pass,instance}
     }
 
     /// Run the pass.
     pub fn run(&mut self) {
-        self.context.bind_framebuffer(Context::FRAMEBUFFER,self.framebuffer.as_ref());
         self.pass.run(&self.instance);
     }
 }
