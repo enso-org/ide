@@ -10,6 +10,8 @@ these updates be shipped in a stable release before the end of the year.
 
 - [New look of open project dialog.][1700]. Now it has "Open project" title on
   the top.
+- [Project Templates][1742]. A welcome page with the project templates and
+  tutorials.
 
 #### Enso Compiler
 
@@ -49,7 +51,7 @@ these updates be shipped in a stable release before the end of the year.
   startup.
 
 <br/>
-  
+
 [1640]: https://github.com/enso-org/ide/pull/1653
 
 # Enso 2.0.0-alpha.8 (2021-06-09)
