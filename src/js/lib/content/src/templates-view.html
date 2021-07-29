@@ -1,91 +1,94 @@
 <div id="templates-view" class="templates-view">
-    <aside class="side-menu">
-        <h2>Your projects</h2>
-        <ul id="projects-list">
-            <li id="projects-list-new-project" style="cursor: pointer;">
-                <img src="/assets/project.svg" />
-                Create a new project
-            </li>
-        </ul>
-    </aside>
-    <main class="content">
-        <div class="templates">
-            <h2>Templates</h2>
-            <div class="cards">
-                <div class="row">
-                    <div class="card card-spreadsheets">
-                        <img
-                            src="/assets/spreadsheets.png"
-                        />
-                        <h3>Combine spreadsheets</h3>
-                        <p>
-                            Bring multiple spreadsheets together so all your info is available in a single file.
-                        </p>
-                    </div>
-                    <div class="card card-geo">
-                        <h3>Geospatial analysis</h3>
-                        <p>
-                            Learn where to open a coffee shop to maximize your income.
-                        </p>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="card card-visualize">
-                        <h3>Visualize your data</h3>
-                        <p>
-                            Bring your data to live with rich, interactive visualizations.
-                        </p>
-                    </div>
-                    <div class="card card-bwm-drivers">
-                        <div class="text">
-                            <h3>Are BMW drivers the worst?</h3>
+    <div id="templates-status-box" style="color: DarkSalmon; text-align: center; visibility: hidden;">Hidden</div>
+    <div class="container">
+        <aside class="side-menu">
+            <h2>Your projects</h2>
+            <ul id="projects-list">
+                <li id="projects-list-new-project">
+                    <img src="/assets/project.svg" />
+                    Create a new project
+                </li>
+            </ul>
+        </aside>
+        <main class="content">
+            <div class="templates">
+                <h2>Templates</h2>
+                <div class="cards">
+                    <div class="row">
+                        <div id="card-spreadsheets" class="card card-spreadsheets">
+                            <img
+                                src="/assets/spreadsheets.png"
+                            />
+                            <h3>Combine spreadsheets</h3>
                             <p>
-                                Analyse parking tickets data to discover which drivers park their cars the worst.
+                                Bring multiple spreadsheets together so all your info is available in a single file.
                             </p>
                         </div>
-                        <img
-                            src="/assets/bmw_drivers.png"
-                        />
+                        <div id="card-geo" class="card card-geo">
+                            <h3>Geospatial analysis</h3>
+                            <p>
+                                Learn where to open a coffee shop to maximize your income.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div id="card-visualize" class="card card-visualize">
+                            <h3>Visualize your data</h3>
+                            <p>
+                                Bring your data to live with rich, interactive visualizations.
+                            </p>
+                        </div>
+                        <div id="card-bmw-drivers" class="card card-bwm-drivers">
+                            <div class="text">
+                                <h3>Are BMW drivers the worst?</h3>
+                                <p>
+                                    Analyse parking tickets data to discover which drivers park their cars the worst.
+                                </p>
+                            </div>
+                            <img
+                                src="/assets/bmw_drivers.png"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="tutorials">
-            <h2>Tutorials</h2>
-            <div class="videos">
-                <a href="https://youtu.be/wFkh5LgAZTs" class="vid vid-intro">
-                    <h3>
-                        <img
-                            src="/assets/yt-logo.png"
-                        />
-                        Introduction to Enso
-                    </h3>
-                </a>
-                <a href="https://youtu.be/rF8DuJPOfTs" class="vid vid-enso2">
-                    <h3>
-                        <img
-                            src="/assets/yt-logo.png"
-                        />
-                        What's new in Enso 2.0?
-                    </h3>
-                </a>
-                <a href="https://youtu.be/bcpOEX1x06I" class="vid vid-java">
-                    <h3>
-                        <img
-                            src="/assets/yt-logo.png"
-                        />
-                        Using Java libraries in Enso
-                    </h3>
-                </a>
-                <a href="https://youtu.be/BibjcUjdkO4" class="vid vid-compiler">
-                    <h3>
-                        <img
-                            src="/assets/yt-logo.png"
-                        />
-                        Architecture of the Enso compiler
-                    </h3>
-                </a>
+            <div class="tutorials">
+                <h2>Tutorials</h2>
+                <div class="videos">
+                    <a href="https://youtu.be/wFkh5LgAZTs" class="vid vid-intro">
+                        <h3>
+                            <img
+                                src="/assets/yt-logo.png"
+                            />
+                            Introduction to Enso
+                        </h3>
+                    </a>
+                    <a href="https://youtu.be/rF8DuJPOfTs" class="vid vid-enso2">
+                        <h3>
+                            <img
+                                src="/assets/yt-logo.png"
+                            />
+                            What's new in Enso 2.0?
+                        </h3>
+                    </a>
+                    <a href="https://youtu.be/bcpOEX1x06I" class="vid vid-java">
+                        <h3>
+                            <img
+                                src="/assets/yt-logo.png"
+                            />
+                            Using Java libraries in Enso
+                        </h3>
+                    </a>
+                    <a href="https://youtu.be/BibjcUjdkO4" class="vid vid-compiler">
+                        <h3>
+                            <img
+                                src="/assets/yt-logo.png"
+                            />
+                            Architecture of the Enso compiler
+                        </h3>
+                    </a>
+                </div>
             </div>
-        </div>
-    </main>
+        </main>
+    </div>
 </div>

@@ -20,6 +20,7 @@ import 'firebase/auth'
 // @ts-ignore
 import semver from 'semver'
 
+// @ts-ignore
 import * as templates from './templates'
 
 // ==================
@@ -958,14 +959,13 @@ API.main = async function(inputConfig: any) {
         if (config.authentication_enabled && !Versions.isDevVersion()) {
             new FirebaseAuthentication(function(user: any) {
                 config.email = user.email
-                mainEntryPoint(config)
+                templates.loadTemplatesView((name: string) => {
+                    config.project = name
+                    mainEntryPoint(config)
+                })
             })
         } else {
-            // await mainEntryPoint(config)
-            console.log("we here")
-            templates.loadTemplatesView()
-            console.log("templates loaded")
-            await templates.loadProjectsList((name: string) => {
+            await templates.loadTemplatesView((name: string) => {
                 config.project = name
                 mainEntryPoint(config)
             })

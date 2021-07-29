@@ -223,7 +223,6 @@ body {
 }
 
 .templates-view {
-    display: flex;
     max-width: 1280px;
     margin: 50px auto;
     font-family: "Causten";
@@ -231,6 +230,9 @@ body {
     line-height: 1.4;
 }
 
+.templates-view .container {
+    display: flex;
+}
 .templates-view .side-menu {
     flex: 0 0 280px;
 }
