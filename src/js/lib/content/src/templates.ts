@@ -4,13 +4,13 @@ import { ProjectManager } from './project_manager'
 
 const PM = ProjectManager.default()
 
+const PROJECTS_LIST = 'projects-list'
+const PROJECTS_LIST_NEW_PROJECT = 'projects-list-new-project'
+
 const CARD_SPREADSHEETS = 'card-spreadsheets'
 const CARD_GEO = 'card-geo'
 const CARD_VISUALIZE = 'card-visualize'
 const CARD_BMW_DRIVERS = 'card-bmw-drivers'
-
-const PROJECTS_LIST = 'projects-list'
-const PROJECTS_LIST_NEW_PROJECT = 'projects-list-new-project'
 
 const ALL_CARDS = [
     CARD_SPREADSHEETS,
@@ -19,17 +19,27 @@ const ALL_CARDS = [
     CARD_BMW_DRIVERS
 ]
 
-/// Sore for hidden elements.
-///
-/// When the templates view is loaded, we hide some top-level elements, as their
-/// style is messing up scrolling. Hidden elements will be restored before
-/// loading the IDE.
+/**
+ * The sore for hidden elements.
+ *
+ * When the templates view is loaded, it hides some top-level elements, as
+ * their style is messing up scrolling. Hidden elements will be restored before
+ * loading the IDE.
+ */
 let hiddenElements: HTMLDivElement[] = []
 
-/// Status box div element for displaying errors.
+/** Status box div element for displaying errors. */
 let statusBox: HTMLElement = undefined
 
-async function loadTemplatesView(openProject: (project: string) => void) {
+/**
+ * Display the templates view.
+ *
+ * Main entry point. Loads the templates HTML markup, loads the projects list
+ * and sets callbacks on the template cards.
+ *
+ * @param openProject the callback that opens IDE with the provided project.
+ */
+async function loadTemplatesView(openProject: (project: string) => void): Promise<void> {
     const templatesView = require('./templates-view.html')
     hideRootHtml()
     document.body.innerHTML += templatesView
@@ -47,7 +57,10 @@ async function loadTemplatesView(openProject: (project: string) => void) {
     console.log("template handlers set")
 }
 
-function hideRootHtml() {
+/**
+ * Remove the top-level div elements from the scene.
+ */
+function hideRootHtml(): void {
     const matches = document.body.querySelectorAll('div')
     matches.forEach(element => {
         hiddenElements.push(element)
@@ -55,7 +68,10 @@ function hideRootHtml() {
     })
 }
 
-function restoreRootHtml() {
+/**
+ * Restore the elements removed by the `hideRootHtml` function.
+ */
+function restoreRootHtml(): void {
     let templatesView = document.getElementById('templates-view')
     hiddenElements
         .slice()
@@ -65,15 +81,32 @@ function restoreRootHtml() {
     templatesView.remove()
 }
 
+/**
+ * Show the message in the statsus box div element.
+ *
+ * @param text the message to display
+ */
 function displayStatusBox(text: string): void {
     statusBox.innerHTML = text
     statusBox.style.visibility = 'visible'
 }
 
+/**
+ * Clear the status box div element.
+ */
 function clearStatusBox(): void {
     statusBox.style.visibility = 'hidden'
 }
-async function loadProjectsList(openProject: (project: string) => void) {
+
+/**
+ * Load the projects list.
+ *
+ * Uses Project Manager to get the list of user projects and displays
+ * them in the projects side menu.
+ *
+ * @param openProject the callback that opens IDE with the provided project
+ */
+async function loadProjectsList(openProject: (project: string) => void): Promise<void> {
     const projectsListNode = document.getElementById(PROJECTS_LIST)
 
     const newProjectNode = document.getElementById(PROJECTS_LIST_NEW_PROJECT)
@@ -109,7 +142,13 @@ async function loadProjectsList(openProject: (project: string) => void) {
     })
 }
 
-function buildProjectListNode(projectName: string, openProject: (project: string) => void) {
+/**
+ * Build `li` HTML element for the projects side menu.
+ *
+ * @param projectName the name of the project
+ * @param openProject the callback that opens IDE with the provided project
+ */
+function buildProjectListNode(projectName: string, openProject: (project: string) => void): HTMLLIElement {
     const li = document.createElement('li')
     li.setAttribute('style', 'cursor: pointer;')
     li.onclick = () => {
@@ -129,14 +168,25 @@ function buildProjectListNode(projectName: string, openProject: (project: string
     return li
 }
 
-function setTemplateCardHandlers(openProject: (project: String) => void) {
+/**
+ * Set `onclick` callbacks for all template cards.
+ *
+ * @param openProject the callback that opens IDE with the provided project
+ */
+function setTemplateCardHandlers(openProject: (project: String) => void): void {
     ALL_CARDS.forEach((cardId: string) => {
         const cardElement = document.getElementById(cardId)
         setTemplateCardHandler(cardElement, openProject)
     })
 }
 
-function setTemplateCardHandler(element: HTMLElement, openProject: (project: string) => void) {
+/**
+ * Set the `onclick` callback for the template card.
+ *
+ * @param element the HTML element of the template card
+ * @param openProject the callback that opens IDE with the provided project
+ */
+function setTemplateCardHandler(element: HTMLElement, openProject: (project: string) => void): void {
     element.setAttribute('style', 'cursor: pointer;')
     element.onclick = () => {
         const projectName = getProjectName(element.id)
@@ -159,10 +209,15 @@ function setTemplateCardHandler(element: HTMLElement, openProject: (project: str
                 console.error('template.onclick', error)
                 displayStatusBox("Failed to open a template.")
             })
-
     }
 }
 
+/**
+ * Get the project name by the template card HTML identifier.
+ *
+ * @param elementId the template card id
+ * @return the project name
+ */
 function getProjectName(elementId: string): string {
     switch (elementId) {
         case CARD_SPREADSHEETS:
@@ -178,6 +233,12 @@ function getProjectName(elementId: string): string {
     }
 }
 
+/**
+ * Get the template name byt the template card HTML identifier.
+ *
+ * @param elementId the template card id
+ * @return the template name
+ */
 function getProjectTemplate(elementId: string): string {
     switch (elementId) {
         case CARD_SPREADSHEETS:
