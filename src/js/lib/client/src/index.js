@@ -54,12 +54,15 @@ const execFile = util.promisify(child_process.execFile);
 
 
 // The list of hosts that the app can access. They are required for
-// user authentication to work.
+// user authentication and templates view to work.
 const trustedHosts = [
+    // authentication
     'enso-org.firebaseapp.com',
     'accounts.google.com',
     'accounts.youtube.com',
     'github.com',
+    // templates
+    'youtu.be',
 ]
 
 // =====================
