@@ -32,7 +32,7 @@ impl Expression {
 
 impl Display for Expression {
     fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f,"Expression({})",self.code)
+        Display::fmt(&self.code,f)
     }
 }
 

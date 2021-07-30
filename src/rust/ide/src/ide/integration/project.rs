@@ -863,8 +863,8 @@ impl Model {
         };
         let expression_changed =
             !self.expression_views.borrow().get(&id).contains(&&code_and_trees);
-        let node_is_edited = self.view.graph().frp.node_being_edited.value().contains(&id);
-        if expression_changed && !node_is_edited {
+        let node_is_being_edited = self.view.graph().frp.node_being_edited.value().contains(&id);
+        if expression_changed && !node_is_being_edited {
             for sub_expression in node.info.ast().iter_recursive() {
                 if let Some(expr_id) = sub_expression.id {
                     self.node_view_by_expression.borrow_mut().insert(expr_id,id);
