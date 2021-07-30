@@ -808,8 +808,9 @@ impl Model {
         if let Some(node_view) = self.view.graph().model.nodes.get_cloned_ref(&id) {
             let comment_as_per_controller = node.info.documentation_text().unwrap_or_default();
             let comment_as_per_view       = node_view.comment.value();
-            DEBUG!("Comment on node {node.info.ast()}: {comment_as_per_controller}");
+            DEBUG!("Comment on node {node.info.ast()}: `{comment_as_per_controller}`, while view `{comment_as_per_view}`");
             if comment_as_per_controller != comment_as_per_view {
+                INFO!("Setting comment `{comment_as_per_controller}`");
                 node_view.set_comment(comment_as_per_controller);
             }
         } else {

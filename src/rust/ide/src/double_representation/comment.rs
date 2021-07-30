@@ -1,5 +1,7 @@
 use crate::prelude::*;
 
+// FIXME move to other parser-related tests
+
 #[cfg(test)]
 mod tests {
     use super::*;
