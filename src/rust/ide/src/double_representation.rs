@@ -4,7 +4,8 @@
 use crate::prelude::*;
 
 use ast::{Ast, opr, prefix, known};
-use crate::double_representation::definition::{ScopeKind, DefinitionName, DefinitionInfo};
+use crate::double_representation::definition::DefinitionName;
+use crate::double_representation::definition::ScopeKind;
 use ast::crumbs::{Located, InfixCrumb};
 
 pub mod alias_analysis;
@@ -52,29 +53,39 @@ pub enum LineKind {
 pub fn discern_line
 (ast:&Ast, kind:ScopeKind) -> Option<LineKind> {
     use LineKind::*;
+
+    // First of all, if line is not an infix assignment, it can be only node or nothing.
     let infix = match opr::to_assignment(ast) {
         Some(infix) => infix,
-        None        => {
-            return if ast::macros::is_documentation_comment(ast) {
-                None
-            } else {
-                Some(ExpressionPlain {ast:ast.clone_ref()})
-            }
-        }
+        // Documentation comment lines are not nodes. Here they are ignored.
+        // They are discovered and processed as part of nodes that follow them.
+        // e.g. `## Comment`.
+        None if ast::macros::is_documentation_comment(ast)  => return None,
+        // The simplest form of node, e.g. `Point 5 10`
+        None => return Some(ExpressionPlain {ast:ast.clone_ref()}),
     };
-    // There two cases - function name is either a Var or operator.
-    // If this is a Var, we have Var, optionally under a Prefix chain with args.
-    // If this is an operator, we have SectionRight with (if any prefix in arguments).
-    let lhs  = Located::new(InfixCrumb::LeftOperand,prefix::Chain::from_ast_non_strict(&infix.larg));
-    let name = lhs.entered(|chain| {
+
+    // Assignment can be either nodes or definitions. To discern, we check the left hand side.
+    // For definition it is a prefix chain, where first is the name, then arguments (if explicit).
+    // For node it is a pattern, either in a form of Var without args on Cons application.
+    let crumb = InfixCrumb::LeftOperand;
+    let lhs   = Located::new(crumb,prefix::Chain::from_ast_non_strict(&infix.larg));
+    let name  = lhs.entered(|chain| {
         let name_ast = chain.located_func();
         name_ast.map(DefinitionName::from_ast)
-    }).into_opt()?;
-    let args = lhs.enumerate_args().map(|located_ast| {
+    }).into_opt();
+
+    // If this is a pattern match, `name` will fail to construct and we'll treat line as a node.
+    // e.g. for `Point x y = get_point …`
+    let name = match name {
+        Some(name) => name,
+        None       => return Some(ExpressionAssignment{ast:infix})
+    };
+
+    let args = lhs.enumerate_args().map(|Located{crumbs,item}| {
         // We already in the left side of assignment, so we need to prepend this crumb.
-        let left   = std::iter::once(ast::crumbs::Crumb::from(InfixCrumb::LeftOperand));
-        let crumbs = left.chain(located_ast.crumbs);
-        let ast    = located_ast.item.clone();
+        let crumbs = lhs.crumbs.clone().into_iter().chain(crumbs);
+        let ast    = item.clone();
         Located::new(crumbs,ast)
     }).collect_vec();
 
@@ -82,15 +93,26 @@ pub fn discern_line
     if kind == ScopeKind::NonRoot {
         // 1. Not an extension method but an old setter syntax. Currently not supported in the
         // language, treated as node with invalid pattern.
+        // e.g. `point.x = 5`
         let is_setter = !name.extended_target.is_empty();
         // 2. No explicit args -- this is a proper node, not a definition.
+        // e.g. `point = Point 5 10`
         let is_node = args.is_empty();
         if is_setter || is_node {
             return Some(ExpressionAssignment{ast:infix})
         }
     };
 
-    Some(LineKind::Definition {
+    Some(Definition {
         args,name,ast:infix.clone_ref()
     })
 }
+
+// Note [Scope Differences]
+// ========================
+// When we are in definition scope (as opposed to global scope) certain patterns should not be
+// considered to be function definitions. These are:
+// 1. Expressions like "Int.x = …". In module, they'd be treated as extension methods. In
+//    definition scope they are treated as invalid constructs (setter syntax in the old design).
+// 2. Expression like "foo = 5". In module, this is treated as method definition (with implicit
+//    this parameter). In definition, this is just a node (evaluated expression).

@@ -69,6 +69,14 @@ const UNRESOLVED_SYMBOL_TYPE : &str = "Builtins.Main.Unresolved_Symbol";
 
 
 
+// ===============
+// === Comment ===
+// ===============
+
+pub type Comment = String;
+
+
+
 // =============
 // === Shape ===
 // =============
@@ -257,8 +265,8 @@ ensogl::define_endpoints! {
         set_visualization     (Option<visualization::Definition>),
         set_disabled          (bool),
         set_input_connected   (span_tree::Crumbs,Option<Type>,bool),
-        set_comment           (String),
         set_expression        (Expression),
+        set_comment           (Comment),
         set_error             (Option<Error>),
         /// Set the expression USAGE type. This is not the definition type, which can be set with
         /// `set_expression` instead. In case the usage type is set to None, ports still may be
@@ -279,8 +287,8 @@ ensogl::define_endpoints! {
         /// Press event. Emitted when user clicks on non-active part of the node, like its
         /// background. In edit mode, the whole node area is considered non-active.
         background_press      (),
-        comment               (String),
         expression            (Text),
+        comment               (Comment),
         skip                  (bool),
         freeze                (bool),
         hover                 (bool),
@@ -460,10 +468,10 @@ impl NodeModel {
 
         let style = StyleWatchFrp::new(&app.display.scene().style_sheet);
 
+        // TODO: Style the documentation comment properly.
         let comment = ensogl_text::Area::new(app);
-        comment.set_position_y(-35.0);
+        comment.set_position_y(HEIGHT * 1.5);
         display_object.add_child(&comment);
-        comment.set_content("Place for your comment. Lorem ipsum dolor sit amet");
 
         let app = app.clone_ref();
         Self {app,display_object,logger,backdrop,background,drag_area,error_indicator
@@ -615,6 +623,12 @@ impl Node {
             model.input.set_connected              <+ frp.set_input_connected;
             model.input.set_disabled               <+ frp.set_disabled;
             model.output.set_expression_visibility <+ frp.set_output_expression_visibility;
+
+
+            // === Comment ===
+
+            model.comment.set_content <+ frp.set_comment;
+            out.source.expression     <+ model.comment.content;
 
 
             // === Size ===

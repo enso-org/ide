@@ -2,10 +2,10 @@
 
 use crate::prelude::*;
 
-use crate::double_representation::definition;
 use crate::double_representation::definition::DefinitionInfo;
 use crate::double_representation::node;
-use crate::double_representation::node::{NodeInfo, LocatedNode};
+use crate::double_representation::node::LocatedNode;
+use crate::double_representation::node::NodeInfo;
 
 use ast::Ast;
 use ast::BlockLine;
@@ -60,12 +60,14 @@ impl GraphInfo {
         let body = ast.rarg.clone();
         if let Ok(body_block) = known::Block::try_new(body.clone()) {
             block_nodes(&body_block)
-        } else if let Some(main_line) = node::ExpressionLine::from_line_ast(ast.as_ref()) {
+        } else if let Some(main_line) = node::ExpressionLine::from_line_ast(&body) {
             // There's no way to attach a documentation comment to an inline node.
             let documentation = None;
             vec![ NodeInfo {documentation,main_line} ]
         } else {
             // TODO warning?
+            //      should not be possible to have empty definition without any nodes but it is
+            //      possible to represent such in AST
             vec![]
         }
     }
@@ -94,8 +96,8 @@ impl GraphInfo {
         let index          = match location_hint {
             LocationHint::Start      => 0,
             LocationHint::End        => last_non_empty().map_or(lines.len(),|ix| ix + 1),
-            LocationHint::After(id)  => node::index_in_lines(&lines, id)?.last() + 1,
-            LocationHint::Before(id) => node::index_in_lines(&lines, id)?.first()
+            LocationHint::After(id)  => node::locate(&lines, id)?.index.last() + 1,
+            LocationHint::Before(id) => node::locate(&lines, id)?.index.first()
         };
         let elem = Some(line_ast);
         let off  = 0;
@@ -112,8 +114,8 @@ impl GraphInfo {
         let index          = match location_hint {
             LocationHint::Start      => 0,
             LocationHint::End        => last_non_empty().map_or(lines.len(),|ix| ix + 1),
-            LocationHint::After(id)  => node::index_in_lines(&lines, id)?.last() + 1,
-            LocationHint::Before(id) => node::index_in_lines(&lines, id)?.first(),
+            LocationHint::After(id)  => node::locate(&lines, id)?.index.last() + 1,
+            LocationHint::Before(id) => node::locate(&lines, id)?.index.first(),
         };
         let elem = Some(node.ast().clone_ref());
         let off  = 0;
@@ -154,7 +156,7 @@ impl GraphInfo {
     /// node.
     pub fn update_node(&mut self, id:ast::Id, f:impl FnOnce(NodeInfo) -> Option<NodeInfo>) -> FallibleResult {
         let mut lines = self.source.block_lines();
-        let LocatedNode{index,node} = node::locate_in_lines(&lines,id)?;
+        let LocatedNode{index,node} = node::locate(&lines, id)?;
 
         if let Some(updated_node) = f(node) {
             lines[index.main_line].elem = Some(updated_node.main_line.ast().clone_ref());
@@ -184,27 +186,7 @@ impl GraphInfo {
             self.source.set_block_lines(lines)
         }
 
-
-        // let node_entry = lines.iter().enumerate().find_map(|(index,line)| {
-        //     let node     = NodeInfo::from_block_line(line);
-        //     let filtered = node.filter(|node| node.id() == id);
-        //     filtered.map(|node| (index,node))
-        // });
-        // if let Some((index,node_info)) = node_entry {
-        //     if let Some(updated_node) = f(node_info) {
-        //         lines[index].elem = Some(updated_node.ast().clone_ref());
-        //     } else {
-        //         lines.remove(index);
-        //     }
-        //     if lines.is_empty() {
-        //         self.source.set_body_ast(Self::empty_graph_body());
-        //         Ok(())
-        //     } else {
-        //         self.source.set_block_lines(lines)
-        //     }
-        // } else {
-        //     Err(node::IdNotFound {id}.into())
-        // }
+        // TODO tests for cases with comments involved
     }
 
     /// Sets expression of the given node.
@@ -220,18 +202,6 @@ impl GraphInfo {
         let code = self.source.ast.repr();
         assert_eq!(code,expected_code.as_ref());
     }
-
-    // pub fn get_comments(&self) -> BTreeMap<node::Id,String>{
-    //     self.source.block_lines().into_iter()
-    //         .filter_map(|opt_line| opt_line.elem)
-    //         .tuple_windows()
-    //         .filter_map(|(first_line, second_line)| {
-    //             let comment_info = DocCommentInfo::new(&first_line)?;
-    //             let node_info    = NodeInfo::from_line_ast(&second_line)?;
-    //             Some((node_info.id(),comment_info.to_string()))
-    //         })
-    //         .collect()
-    // }
 }
 
 
@@ -245,7 +215,7 @@ pub fn block_nodes<'a>(ast:&'a known::Block) -> Vec<NodeInfo> {
     // Warning: this uses faux indices, as the empty lines are skipped first.
     // It is fine here, since we throw away the result values depending on index.
     let lines_iter = ast.iter().enumerate();
-    let nodes_iter = node::NodeIterator {lines_iter:lines_iter};
+    let nodes_iter = node::NodeIterator {lines_iter};
     nodes_iter.map(|n| n.node).collect()
 }
 
@@ -352,9 +322,9 @@ mod tests {
         let nodes = graph.nodes();
         assert_eq!(nodes.len(), 3);
         assert_eq!(nodes[0].expression().repr(), expr1);
-        assert_eq!(nodes[0].id(), node_to_add0.id());
+        assert_eq!(nodes[0].id(), node_to_add1.id());
         assert_eq!(nodes[1].expression().repr(), expr0);
-        assert_eq!(nodes[1].id(), node_to_add1.id());
+        assert_eq!(nodes[1].id(), node_to_add0.id());
         assert_eq!(nodes[2].expression().repr(), "print \"hello\"");
     }
 
@@ -450,7 +420,7 @@ foo = 5";
         graph.expect_code(expected_code);
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn multiple_node_graph() {
         let mut parser = parser::Parser::new_or_panic();
         let program = r"
@@ -471,13 +441,20 @@ main =
         let graph = main_graph(&mut parser, program);
         let nodes = graph.nodes();
         assert_eq!(nodes[0].documentation_text(), Some(" Docstring 0".into()));
+        assert_eq!(nodes[0].ast().repr(), "foo = node0");
+        assert_eq!(nodes[1].documentation_text(), Some(" Docstring 1".into()));
+        assert_eq!(nodes[1].ast().repr(), "# disabled node1");
+        assert_eq!(nodes[2].documentation_text(), Some(" Docstring 2".into()));
+        assert_eq!(nodes[2].ast().repr(), "node2");
+        assert_eq!(nodes[3].documentation_text(), None);
+        assert_eq!(nodes[3].ast().repr(), "node3");
 
 
         for node in nodes.iter() {
             DEBUG!(node.expression().repr());
             // assert_eq!(node.expression().repr(), "node");
         }
-        assert_eq!(nodes.len(), 2);
+        assert_eq!(nodes.len(), 4);
     }
 
     #[wasm_bindgen_test]

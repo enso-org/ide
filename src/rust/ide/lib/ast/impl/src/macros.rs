@@ -16,8 +16,10 @@ use crate::Shifted;
 // === Recognized Macros Keywords ===
 // ==================================
 
+/// The keyword introducing a disabled code line.
 pub const DISABLING_COMMENT_INTRODUCER:&str = "#";
 
+/// The keyword introducing a documentation block.
 pub const DOCUMENTATION_COMMENT_INTRODUCER:&str = "##";
 
 /// The keyword introducing an qualified import declaration. See:
@@ -38,6 +40,7 @@ pub const QUALIFIED_EXPORT_KEYWORD:&str = "export";
 
 // === Disable Comments ===
 
+/// Try Interpreting the line as disabling comment. Return the text after `#`.
 pub fn as_disable_comment(ast:&Ast) -> Option<String> {
     let r#match = crate::known::Match::try_from(ast).ok()?;
     let first_segment = &r#match.segs.head;
@@ -48,6 +51,7 @@ pub fn as_disable_comment(ast:&Ast) -> Option<String> {
     }
 }
 
+/// Check if this AST is a disabling comment.
 pub fn is_disable_comment(ast:&Ast) -> bool {
     as_disable_comment(ast).is_some()
 }
@@ -55,31 +59,47 @@ pub fn is_disable_comment(ast:&Ast) -> bool {
 
 // === Documentation Comments ===
 
+/// Ast known to be a documentation comment.
 #[derive(Clone,Debug)]
 pub struct DocCommentInfo {
-    // Private due to invariants ensured by the constructor.
-    ast  : known::Match,
-    body : crate::MacroPatternMatch<Shifted<Ast>>,
+    ast              : known::Match,
+    body             : crate::MacroPatternMatch<Shifted<Ast>>,
+    /// The absolute indent of the block that contains the line with documentation comment.
+    pub block_indent : usize,
 }
 
 impl DocCommentInfo {
+    /// Try constructing from AST, return None if this is not a documentation comment.
     pub fn new(ast:&Ast) -> Option<Self> {
+        Self::new_indented(ast,0)
+    }
+
+    pub fn new_indented(ast:&Ast, block_indent:usize) -> Option<Self> {
         let ast                = crate::known::Match::try_from(ast).ok()?;
         let first_segment      = &ast.segs.head;
         let introducer         = crate::identifier::name(&first_segment.head)?;
         let introducer_matches = introducer == DOCUMENTATION_COMMENT_INTRODUCER;
         let body               = first_segment.body.clone_ref();
-        introducer_matches.then(|| DocCommentInfo {ast,body})
+        introducer_matches.then(|| DocCommentInfo {ast,body,block_indent})
     }
 
+    /// Get the documentation comment's AST.
     pub fn ast(&self) -> known::Match {
         self.ast.clone_ref()
     }
 
+    /// Get the documentation text.
     pub fn text(&self) -> String {
-        self.to_string()
+        // This gets us documentation text, however non-first lines have indent whitespace
+        // maintained.
+        let repr   = self.body.repr();
+        let indent = self.block_indent + DOCUMENTATION_COMMENT_INTRODUCER.len();
+        let old    = format!("\n{}", " ".repeat(indent));
+        let new    = "\n";
+        repr.replace(&old,new)
     }
 
+    /// Get the documentation text.
     pub fn pretty_print_text(text:&str) -> String {
         let mut lines     = text.lines();
         let first_line    = lines.next().map(|line| iformat!("##{line}"));
@@ -97,10 +117,11 @@ impl AsRef<Ast> for DocCommentInfo {
 
 impl Display for DocCommentInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f,"{}",self.body.repr())
+        write!(f,"{}",self.text())
     }
 }
 
+/// Check if given Ast stores a documentation comment.
 pub fn is_documentation_comment(ast:&Ast) -> bool {
     DocCommentInfo::new(ast).is_some()
 }

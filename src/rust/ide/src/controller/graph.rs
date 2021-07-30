@@ -555,7 +555,7 @@ impl Handle {
     /// Analyzes the expression, e.g. result for "a+b" shall be named "sum".
     /// The caller should make sure that obtained name won't collide with any symbol usage before
     /// actually introducing it. See `variable_name_for`.
-    pub fn variable_name_base_for(node:&node::ExpressionLine) -> String {
+    pub fn variable_name_base_for(node:&ExpressionLine) -> String {
         name_for_ast(node.expression())
     }
 
@@ -570,8 +570,7 @@ impl Handle {
         let usage = if matches!(body.shape(),ast::Shape::Block(_)) {
             alias_analysis::analyze_crumbable(body.item)
         } else if  let Some(node) = NodeInfo::from_single_line_ast(&body) {
-            // TODO reconsider this branch, test it and make sure it is correct.
-            alias_analysis::analyze_node(&node)
+            alias_analysis::analyze_ast(node.ast())
         } else {
             // Generally speaking - impossible. But if there is no node in the definition
             // body, then there is nothing that could use any symbols, so nothing is used.
@@ -649,9 +648,9 @@ impl Handle {
         let dependent_nodes = connection::dependent_nodes_in_def(definition_ast,node_to_be_after);
         let mut lines       = definition.block_lines();
 
-        let node_to_be_before = node::locate_in_lines(&lines,node_to_be_before)?;
-        let node_to_be_after  = node::locate_in_lines(&lines,node_to_be_after)?;
-        let dependent_nodes   = dependent_nodes.iter().map(|id| node::locate_in_lines(&lines,*id))
+        let node_to_be_before = node::locate(&lines, node_to_be_before)?;
+        let node_to_be_after  = node::locate(&lines, node_to_be_after)?;
+        let dependent_nodes   = dependent_nodes.iter().map(|id| node::locate(&lines, *id))
             .collect::<Result<Vec<_>,_>>()?;
 
         if node_to_be_after.index < node_to_be_before.index {
@@ -758,7 +757,7 @@ impl Handle {
             .map(|doc_ast| DocCommentInfo::new(&doc_ast).ok_or(FailedToCreateNode))
             .transpose()?;
 
-        let mut node_info = node::NodeInfo {main_line,documentation};
+        let mut node_info = NodeInfo {main_line,documentation};
         if let Some(desired_id) = node.id {
             node_info.set_id(desired_id)
         }

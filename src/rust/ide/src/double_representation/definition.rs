@@ -7,10 +7,8 @@ use ast::crumbs::Crumbable;
 use ast::crumbs::InfixCrumb;
 use ast::crumbs::Located;
 use ast::known;
-use ast::prefix;
 use ast::opr;
 use parser::Parser;
-use sha3::digest::generic_array::functional::FunctionalSequence;
 use crate::double_representation::{LineKind, discern_line};
 
 
@@ -316,13 +314,6 @@ impl DefinitionInfo {
         Self::from_line_ast(ast,ScopeKind::Root,indent)
     }
 
-    pub fn is_definition(ast:&Ast, kind:ScopeKind) -> bool {
-        // FIXME ugly as hell
-        //       the logic for def/node recognition should be extracted beyond these two
-        let whatever = 0; // This does not affect the recognition itself.
-        Self::from_line_ast(ast,kind,whatever).is_some()
-    }
-
     /// Tries to interpret `Line`'s `Ast` as a function definition.
     ///
     /// Assumes that the AST represents the contents of line (and not e.g. right-hand side of
@@ -336,15 +327,6 @@ impl DefinitionInfo {
         }
     }
 }
-
-// Note [Scope Differences]
-// ========================
-// When we are in definition scope (as opposed to global scope) certain patterns should not be
-// considered to be function definitions. These are:
-// 1. Expressions like "Int.x = …". In module, they'd be treated as extension methods. In
-//    definition scope they are treated as accessor setters.
-// 2. Expression like "foo = 5". In module, this is treated as method definition (with implicit
-//    this parameter). In definition, this is just a node (evaluated expression).
 
 /// Definition stored under some known crumbs path.
 pub type ChildDefinition = Located<DefinitionInfo>;

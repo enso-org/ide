@@ -118,6 +118,9 @@ fn init(app:&Application) {
 
     let expression_1 = expression_mock();
     graph_editor.frp.set_node_expression.emit((node1_id,expression_1.clone()));
+    let comment_1 = String::from("Sample documentation comment.");
+    graph_editor.frp.set_node_comment.emit((node1_id,comment_1));
+
     let expression_2 = expression_mock3();
     graph_editor.frp.set_node_expression.emit((node2_id,expression_2.clone()));
 

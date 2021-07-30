@@ -3,7 +3,7 @@
 use crate::prelude::*;
 
 use ast::Ast;
-use ast::crumbs::{Crumbable, Located};
+use ast::crumbs::Crumbable;
 use ast::known;
 use std::cmp::Ordering;
 use ast::macros::DocCommentInfo;
@@ -24,11 +24,13 @@ pub type Id = ast::Id;
 #[fail(display="Node with ID {} was not found.", id)]
 pub struct IdNotFound {pub id:Id}
 
-
+/// Indices of lines belonging to a node.
 #[derive(Clone,Copy,Debug,PartialEq)]
 pub struct NodeIndex {
-    pub main_line          : usize,
+    /// Documentation comment line index, if present.
     pub documentation_line : Option<usize>,
+    /// Main line is a line that contains the node's expression.
+    pub main_line          : usize,
 }
 
 impl PartialOrd for NodeIndex {
@@ -38,14 +40,20 @@ impl PartialOrd for NodeIndex {
 }
 
 impl NodeIndex {
+    /// Index for the first line belonging to the node.
     pub fn first(&self) -> usize {
         self.documentation_line.unwrap_or(self.main_line)
     }
 
+    /// Index for the last line belonging to the node.
     pub fn last(&self) -> usize {
         self.main_line
     }
 
+    /// Inclusive range between first and last node's lines.
+    ///
+    /// Note that while a node can contain at most two lines, they may be interspersed by a
+    /// number of blank lines.
     pub fn range(start:NodeIndex, last:NodeIndex) -> RangeInclusive<usize> {
         start.first() ..= last.last()
     }
@@ -57,42 +65,42 @@ impl NodeIndex {
 // === General ===
 // ===============
 
-
+/// Information about the node coupled with its location within a block.
 #[derive(Clone,Debug,Shrinkwrap)]
 pub struct LocatedNode {
+    /// Line index in the block. Zero for inline definition nodes.
     pub index : NodeIndex,
     #[shrinkwrap(main_field)]
+    /// Information about the node.
     pub node  : NodeInfo,
 }
 
 /// Tests if given line contents can be seen as node with a given id
-pub fn contains_node_expression(line:&ast::BlockLine<Option<Ast>>, id:ast::Id) -> bool {
+pub fn is_main_line_of(line:&ast::BlockLine<Option<Ast>>, id:Id) -> bool {
     let node_info = ExpressionLine::from_block_line(line);
     node_info.contains_if(|node| node.id() == id)
 }
 
-/// Searches for `NodeInfo` with the associated `id` index in `lines`. Returns an error if
-/// the Id is not found.
-pub fn index_in_lines(lines:&[ast::BlockLine<Option<Ast>>], id:ast::Id) -> FallibleResult<NodeIndex> {
-    locate_in_lines(lines,id).map(|LocatedNode{index,..}| index)
+/// Searches for `NodeInfo` with the associated `id` index in `lines`.
+///
+/// Returns an error if the Id is not found.
+pub fn locate<'a>
+( lines : impl IntoIterator<Item=&'a ast::BlockLine<Option<Ast>>> + 'a
+, id    : Id
+) -> FallibleResult<LocatedNode> {
+    Ok(locate_many(lines, [id])?.remove(&id).unwrap())
 }
 
-/// Searches for `NodeInfo` with the associated `id` index in `lines`. Returns an error if
-/// the Id is not found.
-pub fn locate_in_lines(lines:&[ast::BlockLine<Option<Ast>>], id:ast::Id) -> FallibleResult<LocatedNode> {
-    Ok(locate_many_in_lines(lines,[id])?.remove(&id).unwrap())
-}
-
-/// Searches for `NodeInfo` with the associated `id` index in `lines`
-/// . Returns an error if
-/// the Id is not found.
-pub fn locate_many_in_lines
-    (lines : &[ast::BlockLine<Option<Ast>>]
-     , looked_for: impl IntoIterator<Item=ast::Id>
-    ) -> FallibleResult<HashMap<ast::Id,LocatedNode>> {
-    let lines = lines.into_iter();
+/// Obtain located node information for multiple nodes in a single pass.
+///
+/// If any of the looked for nodes is not found, `Err` is returned.
+/// Any `Ok(…)` return value is guaranteed to have length equal to `looked_for` argument.
+pub fn locate_many<'a>
+( lines      : impl IntoIterator<Item=&'a ast::BlockLine<Option<Ast>>> + 'a
+, looked_for : impl IntoIterator<Item=Id>
+) -> FallibleResult<HashMap<ast::Id,LocatedNode>> {
     let lines_iter = double_representation::definition::enumerate_non_empty_lines(lines);
-    let mut looked_for : HashSet<_> = looked_for.into_iter().collect();
+    let mut looked_for = looked_for.into_iter().collect::<HashSet<_>>();
 
     let mut ret = HashMap::new();
     let nodes = NodeIterator {lines_iter};
@@ -115,13 +123,15 @@ pub fn locate_many_in_lines
 }
 
 
+
 // ================
 // === NodeInfo ===
 // ================
 
-
-
+/// Iterator over indexed line ASTs that yields nodes.
+#[derive(Clone,Debug)]
 pub struct NodeIterator<'a, T:Iterator<Item=(usize, &'a Ast)> + 'a> {
+    /// Input iterator that yields pairs (line index, line's Ast).
     pub lines_iter : T
 }
 
@@ -130,19 +140,17 @@ impl<'a, T:Iterator<Item=(usize, &'a Ast)> + 'a> Iterator for NodeIterator<'a, T
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut documentation = None;
-        while let Some((index,line)) = self.lines_iter.next() {
-            if let Some(documentation_info) = DocCommentInfo::new(line) {
+        while let Some((index,ast)) = self.lines_iter.next() {
+            if let Some(documentation_info) = DocCommentInfo::new(ast) {
                 documentation = Some((index,documentation_info));
-            } /* else if ast::macros::is_disable_comment(line) {
-                // Do nothing.
-            } */ else if let Some(main_line) = ExpressionLine::from_line_ast(line) {
+            } else if let Some(main_line) = ExpressionLine::from_line_ast(ast) {
                 let (documentation_line,documentation) = match documentation {
                     Some((index,documentation)) => (Some(index),Some(documentation)),
                     None                        => (None,None)
                 };
 
                 let ret = LocatedNode {
-                    node  : NodeInfo {documentation,main_line},
+                    node  : NodeInfo  {documentation,main_line},
                     index : NodeIndex {
                         main_line : index,
                         documentation_line,
@@ -158,6 +166,8 @@ impl<'a, T:Iterator<Item=(usize, &'a Ast)> + 'a> Iterator for NodeIterator<'a, T
     }
 }
 
+/// Information about node, including both its main line (i.e. line with expression) and optionally
+/// attached documentation comment.
 #[derive(Clone,Debug,Shrinkwrap)]
 #[shrinkwrap(mutable)]
 pub struct NodeInfo {
@@ -169,29 +179,9 @@ pub struct NodeInfo {
 }
 
 impl NodeInfo {
-    // pub fn iter<'a, IntoLinesIter>(lines:IntoLinesIter) -> NodeIterator<'a, IntoLinesIter::IntoIter>
-    // where IntoLinesIter:IntoIterator<Item=&'a Ast> {
-    //     NodeIterator { lines_iter: lines.into_iter().enumerate() }.map(|n| n.node)
-    // }
-
-    pub fn from_lines<'a>(lines:&mut impl Iterator<Item=&'a Ast>) -> Option<NodeInfo> {
-        let mut documentation = None;
-        while let Some(line) = lines.next() {
-            if let Some(documentation_info) = DocCommentInfo::new(line) {
-                documentation = Some(documentation_info);
-            } else if ast::macros::is_disable_comment(line) {
-                // Do nothing.
-            } else if let Some(main_line) = ExpressionLine::from_line_ast(line) {
-                return Some(NodeInfo {documentation,main_line});
-            } else {
-                // Non-node entity consumes any previous documentation.
-                documentation = None;
-            }
-        }
-        None
-    }
-
+    /// Check if a given non-empty line's AST belongs to this node.
     pub fn contains_line(&self, line_ast:&Ast) -> bool {
+        // TODO refactor these two lambdas into methods
         let expression_id_matches = || ExpressionLine::from_line_ast(line_ast)
             .as_ref()
             .map(ExpressionLine::id)
@@ -203,6 +193,7 @@ impl NodeInfo {
         expression_id_matches() || doc_comment_id_matches()
     }
 
+    /// TODO should not be needed as a method here
     pub fn doc_comment_id(&self) -> Option<ast::Id> {
         self.documentation.as_ref().and_then(|comment| comment.ast().id())
     }
@@ -240,6 +231,7 @@ impl NodeInfo {
         ret
     }
 
+    /// Obtain documentation text.
     pub fn documentation_text(&self) -> Option<String> {
          self.documentation.as_ref().map(|doc| doc.text())
     }
@@ -397,106 +389,106 @@ mod tests {
     use super::*;
 
     use ast::opr::predefined::ASSIGNMENT;
-    //
-    // fn expect_node(ast:Ast, expression_text:&str, id:Id) {
-    //     let node_info = NodeInfo::from_line_ast(&ast).expect("expected a node");
-    //     assert_eq!(node_info.expression().repr(),expression_text);
-    //     assert_eq!(node_info.id(), id);
-    // }
-    //
-    // #[test]
-    // fn expression_node_test() {
-    //     // expression: `4`
-    //     let id = Id::new_v4();
-    //     let ast = Ast::new(ast::Number { base:None, int: "4".into()}, Some(id));
-    //     expect_node(ast,"4",id);
-    // }
-    //
-    // #[test]
-    // fn set_expression_binding() {
-    //     let ast = Ast::infix(Ast::var("foo"),"=",Ast::number(4).with_new_id());
-    //     assert_eq!(ast.repr(), "foo = 4");
-    //
-    //     let mut node = NodeInfo::from_line_ast(&ast).expect("expected a node");
-    //     let id       = node.id();
-    //     node.set_expression(Ast::var("bar"));
-    //     assert_eq!(node.expression().repr(), "bar");
-    //     assert_eq!(node.ast().repr(), "foo = bar");
-    //     assert_eq!(node.id(), id);
-    // }
-    //
-    // #[test]
-    // fn set_expression_plain() {
-    //     let ast = Ast::number(4).with_new_id();
-    //     assert_eq!(ast.repr(), "4");
-    //
-    //     let mut node = NodeInfo::from_line_ast(&ast).expect("expected a node");
-    //     let id       = node.id();
-    //     node.set_expression(Ast::var("bar"));
-    //     assert_eq!(node.expression().repr(), "bar");
-    //     assert_eq!(node.ast().repr(), "bar");
-    //     assert_eq!(node.id(), id);
-    // }
-    //
-    // #[test]
-    // fn binding_node_test() {
-    //     // expression: `foo = 4`
-    //     let id = Id::new_v4();
-    //     let number = ast::Number { base:None, int: "4".into()};
-    //     let larg   = Ast::var("foo");
-    //     let rarg   = Ast::new(number, Some(id));
-    //     let ast    = Ast::infix(larg,ASSIGNMENT,rarg);
-    //     expect_node(ast,"4",id);
-    // }
-    //
-    // #[test]
-    // fn clearing_pattern_test() {
-    //     // expression: `foo = 4`
-    //     let id = Id::new_v4();
-    //     let number = ast::Number { base:None, int: "4".into()};
-    //     let larg   = Ast::var("foo");
-    //     let rarg   = Ast::new(number, Some(id));
-    //     let ast    = Ast::infix(larg,ASSIGNMENT,rarg);
-    //
-    //     let mut node = NodeInfo::from_line_ast(&ast).unwrap();
-    //     assert_eq!(node.repr(),"foo = 4");
-    //     assert_eq!(node.id(),id);
-    //     node.clear_pattern();
-    //     assert_eq!(node.repr(),"4");
-    //     assert_eq!(node.id(),id);
-    //     node.clear_pattern();
-    //     assert_eq!(node.repr(),"4");
-    //     assert_eq!(node.id(),id);
-    // }
-    //
-    // #[test]
-    // fn setting_pattern_on_expression_node_test() {
-    //     let id       = uuid::Uuid::new_v4();
-    //     let line_ast = Ast::number(2).with_id(id);
-    //     let mut node = NodeInfo::from_line_ast(&line_ast).unwrap();
-    //     assert_eq!(node.repr(), "2");
-    //     assert_eq!(node.id(),id);
-    //
-    //     node.set_pattern(Ast::var("foo"));
-    //
-    //     assert_eq!(node.repr(), "foo = 2");
-    //     assert_eq!(node.id(),id);
-    // }
-    //
-    // #[test]
-    // fn setting_pattern_on_binding_node_test() {
-    //     let id       = uuid::Uuid::new_v4();
-    //     let larg     = Ast::var("foo");
-    //     let rarg     = Ast::var("bar").with_id(id);
-    //     let line_ast = Ast::infix(larg,ASSIGNMENT,rarg);
-    //     let mut node = NodeInfo::from_line_ast(&line_ast).unwrap();
-    //
-    //     assert_eq!(node.repr(), "foo = bar");
-    //     assert_eq!(node.id(),id);
-    //
-    //     node.set_pattern(Ast::var("baz"));
-    //
-    //     assert_eq!(node.repr(), "baz = bar");
-    //     assert_eq!(node.id(),id);
-    // }
+
+    fn expect_node(ast:Ast, expression_text:&str, id:Id) {
+        let node_info = NodeInfo::from_single_line_ast(&ast).expect("expected a node");
+        assert_eq!(node_info.expression().repr(),expression_text);
+        assert_eq!(node_info.id(), id);
+    }
+
+    #[test]
+    fn expression_node_test() {
+        // expression: `4`
+        let id = Id::new_v4();
+        let ast = Ast::new(ast::Number { base:None, int: "4".into()}, Some(id));
+        expect_node(ast,"4",id);
+    }
+
+    #[test]
+    fn binding_node_test() {
+        // expression: `foo = 4`
+        let id = Id::new_v4();
+        let number = ast::Number { base:None, int: "4".into()};
+        let larg   = Ast::var("foo");
+        let rarg   = Ast::new(number, Some(id));
+        let ast    = Ast::infix(larg,ASSIGNMENT,rarg);
+        expect_node(ast,"4",id);
+    }
+
+    #[test]
+    fn set_expression_binding() {
+        let ast = Ast::infix(Ast::var("foo"),"=",Ast::number(4).with_new_id());
+        assert_eq!(ast.repr(), "foo = 4");
+
+        let mut node = NodeInfo::from_single_line_ast(&ast).expect("expected a node");
+        let id       = node.id();
+        node.set_expression(Ast::var("bar"));
+        assert_eq!(node.expression().repr(), "bar");
+        assert_eq!(node.ast().repr(), "foo = bar");
+        assert_eq!(node.id(), id);
+    }
+
+    #[test]
+    fn set_expression_plain() {
+        let ast = Ast::number(4).with_new_id();
+        assert_eq!(ast.repr(), "4");
+
+        let mut node = NodeInfo::from_single_line_ast(&ast).expect("expected a node");
+        let id       = node.id();
+        node.set_expression(Ast::var("bar"));
+        assert_eq!(node.expression().repr(), "bar");
+        assert_eq!(node.ast().repr(), "bar");
+        assert_eq!(node.id(), id);
+    }
+
+    #[test]
+    fn clearing_pattern_test() {
+        // expression: `foo = 4`
+        let id = Id::new_v4();
+        let number = ast::Number { base:None, int: "4".into()};
+        let larg   = Ast::var("foo");
+        let rarg   = Ast::new(number, Some(id));
+        let ast    = Ast::infix(larg,ASSIGNMENT,rarg);
+
+        let mut node = NodeInfo::from_single_line_ast(&ast).unwrap();
+        assert_eq!(node.repr(),"foo = 4");
+        assert_eq!(node.id(),id);
+        node.clear_pattern();
+        assert_eq!(node.repr(),"4");
+        assert_eq!(node.id(),id);
+        node.clear_pattern();
+        assert_eq!(node.repr(),"4");
+        assert_eq!(node.id(),id);
+    }
+
+    #[test]
+    fn setting_pattern_on_expression_node_test() {
+        let id       = uuid::Uuid::new_v4();
+        let line_ast = Ast::number(2).with_id(id);
+        let mut node = NodeInfo::from_single_line_ast(&line_ast).unwrap();
+        assert_eq!(node.repr(), "2");
+        assert_eq!(node.id(),id);
+
+        node.set_pattern(Ast::var("foo"));
+
+        assert_eq!(node.repr(), "foo = 2");
+        assert_eq!(node.id(),id);
+    }
+
+    #[test]
+    fn setting_pattern_on_binding_node_test() {
+        let id       = uuid::Uuid::new_v4();
+        let larg     = Ast::var("foo");
+        let rarg     = Ast::var("bar").with_id(id);
+        let line_ast = Ast::infix(larg,ASSIGNMENT,rarg);
+        let mut node = NodeInfo::from_single_line_ast(&line_ast).unwrap();
+
+        assert_eq!(node.repr(), "foo = bar");
+        assert_eq!(node.id(),id);
+
+        node.set_pattern(Ast::var("baz"));
+
+        assert_eq!(node.repr(), "baz = bar");
+        assert_eq!(node.id(),id);
+    }
 }
