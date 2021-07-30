@@ -11,7 +11,7 @@ use crate::double_representation::definition::DefinitionInfo;
 use crate::double_representation::definition;
 use crate::double_representation::identifier::Identifier;
 use crate::double_representation::node;
-use crate::double_representation::node::{NodeInfo, ExpressionLine};
+use crate::double_representation::node::{NodeInfo, MainLine};
 use crate::double_representation::graph::GraphInfo;
 
 use ast::crumbs::Located;
@@ -341,10 +341,10 @@ impl Collapser {
         };
         if !self.extracted.belongs_to_selection(ast) {
             Ok(LineDisposition::Keep)
-        } else if ExpressionLine::from_line_ast(ast).contains_if(|n| n.id() == self.replaced_node) {
+        } else if MainLine::from_ast(ast).contains_if(|n| n.id() == self.replaced_node) {
             let no_node_err    = failure::Error::from(CannotConstructCollapsedNode);
             let expression_ast = self.call_to_extracted(&extracted_definition)?;
-            let expression     = ExpressionLine::from_line_ast(&expression_ast).ok_or(no_node_err)?;
+            let expression     = MainLine::from_ast(&expression_ast).ok_or(no_node_err)?;
             let mut new_node   = NodeInfo {
                 documentation : None,
                 main_line      : expression,

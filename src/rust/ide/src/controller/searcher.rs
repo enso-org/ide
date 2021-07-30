@@ -768,7 +768,7 @@ impl Searcher {
         let args             = std::iter::empty();
         let node_expression  = ast::prefix::Chain::new_with_this(new_definition_name,here,args);
         let node_expression  = node_expression.into_ast();
-        let node             = NodeInfo::from_single_line_ast(&node_expression).ok_or(FailedToCreateNode)?;
+        let node             = NodeInfo::from_main_line_ast(&node_expression).ok_or(FailedToCreateNode)?;
         let added_node_id    = node.id();
         let graph_definition = double_representation::module::locate(&module.ast,&self.graph.graph().id)?;
         let mut graph_info   = GraphInfo::from_definition(graph_definition.item);

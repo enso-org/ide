@@ -14,7 +14,7 @@ use crate::double_representation::identifier::NormalizedName;
 use crate::double_representation::identifier::generate_name;
 use crate::double_representation::module;
 use crate::double_representation::node;
-use crate::double_representation::node::{NodeInfo, ExpressionLine, NodeIndex};
+use crate::double_representation::node::{NodeInfo, MainLine, NodeIndex};
 use crate::model::module::NodeMetadata;
 use crate::model::traits::*;
 
@@ -555,7 +555,7 @@ impl Handle {
     /// Analyzes the expression, e.g. result for "a+b" shall be named "sum".
     /// The caller should make sure that obtained name won't collide with any symbol usage before
     /// actually introducing it. See `variable_name_for`.
-    pub fn variable_name_base_for(node:&ExpressionLine) -> String {
+    pub fn variable_name_base_for(node:&MainLine) -> String {
         name_for_ast(node.expression())
     }
 
@@ -569,7 +569,7 @@ impl Handle {
         let body  = def.body();
         let usage = if matches!(body.shape(),ast::Shape::Block(_)) {
             alias_analysis::analyze_crumbable(body.item)
-        } else if  let Some(node) = NodeInfo::from_single_line_ast(&body) {
+        } else if let Some(node) = MainLine::from_ast(&body) {
             alias_analysis::analyze_ast(node.ast())
         } else {
             // Generally speaking - impossible. But if there is no node in the definition
@@ -648,8 +648,8 @@ impl Handle {
         let dependent_nodes = connection::dependent_nodes_in_def(definition_ast,node_to_be_after);
         let mut lines       = definition.block_lines();
 
-        let node_to_be_before = node::locate(&lines, node_to_be_before)?;
-        let node_to_be_after  = node::locate(&lines, node_to_be_after)?;
+        let node_to_be_before = node::locate(&lines,node_to_be_before)?;
+        let node_to_be_after  = node::locate(&lines,node_to_be_after)?;
         let dependent_nodes   = dependent_nodes.iter().map(|id| node::locate(&lines, *id))
             .collect::<Result<Vec<_>,_>>()?;
 
@@ -749,7 +749,7 @@ impl Handle {
     pub fn add_node(&self, node:NewNodeInfo) -> FallibleResult<ast::Id> {
         info!(self.logger, "Adding node with expression `{node.expression}`");
         let expression_ast = self.parse_node_expression(&node.expression)?;
-        let main_line      = ExpressionLine::from_line_ast(&expression_ast).ok_or(FailedToCreateNode)?;
+        let main_line      = MainLine::from_ast(&expression_ast).ok_or(FailedToCreateNode)?;
         let documentation  = node.doc_comment.as_ref()
             .map(|text| DocCommentInfo::pretty_print_text(&text))
             .map(|doc_code| self.parser.parse_line(doc_code))
@@ -1594,7 +1594,7 @@ main =
 
         for (code,expected_name) in &cases {
             let ast  = parser.parse_line(*code).unwrap();
-            let node = ExpressionLine::from_line_ast(&ast).unwrap();
+            let node = MainLine::from_ast(&ast).unwrap();
             let name = Handle::variable_name_base_for(&node);
             assert_eq!(&name,expected_name);
         }

@@ -7,7 +7,7 @@ use ast::crumbs::Crumbable;
 use ast::known;
 use std::cmp::Ordering;
 use ast::macros::DocCommentInfo;
-use crate::double_representation::{discern_line, LineKind};
+use crate::double_representation::LineKind;
 use crate::double_representation::definition::ScopeKind;
 
 /// Node Id is the Ast Id attached to the node's expression.
@@ -77,7 +77,7 @@ pub struct LocatedNode {
 
 /// Tests if given line contents can be seen as node with a given id
 pub fn is_main_line_of(line:&ast::BlockLine<Option<Ast>>, id:Id) -> bool {
-    let node_info = ExpressionLine::from_block_line(line);
+    let node_info = MainLine::from_block_line(line);
     node_info.contains_if(|node| node.id() == id)
 }
 
@@ -99,7 +99,11 @@ pub fn locate_many<'a>
 ( lines      : impl IntoIterator<Item=&'a ast::BlockLine<Option<Ast>>> + 'a
 , looked_for : impl IntoIterator<Item=Id>
 ) -> FallibleResult<HashMap<ast::Id,LocatedNode>> {
-    let lines_iter = double_representation::definition::enumerate_non_empty_lines(lines);
+    // Skip empty lines, while preserving indices.
+    let lines_iter = lines.into_iter()
+        .enumerate()
+        .filter_map(|(index,line)| line.elem.as_ref().map(|ast| (index,ast)));
+
     let mut looked_for = looked_for.into_iter().collect::<HashSet<_>>();
 
     let mut ret = HashMap::new();
@@ -143,7 +147,7 @@ impl<'a, T:Iterator<Item=(usize, &'a Ast)> + 'a> Iterator for NodeIterator<'a, T
         while let Some((index,ast)) = self.lines_iter.next() {
             if let Some(documentation_info) = DocCommentInfo::new(ast) {
                 documentation = Some((index,documentation_info));
-            } else if let Some(main_line) = ExpressionLine::from_line_ast(ast) {
+            } else if let Some(main_line) = MainLine::from_ast(ast) {
                 let (documentation_line,documentation) = match documentation {
                     Some((index,documentation)) => (Some(index),Some(documentation)),
                     None                        => (None,None)
@@ -171,20 +175,20 @@ impl<'a, T:Iterator<Item=(usize, &'a Ast)> + 'a> Iterator for NodeIterator<'a, T
 #[derive(Clone,Debug,Shrinkwrap)]
 #[shrinkwrap(mutable)]
 pub struct NodeInfo {
+    /// If the node has doc comment attached, it will be represented here.
+    pub documentation : Option<DocCommentInfo>,
     /// Primary node AST that contains node's expression and optional pattern binding.
     #[shrinkwrap(main_field)]
-    pub main_line: ExpressionLine,
-    /// If the node has doc comment attached, it will be represented here.
-    pub documentation: Option<DocCommentInfo>,
+    pub main_line     : MainLine,
 }
 
 impl NodeInfo {
     /// Check if a given non-empty line's AST belongs to this node.
     pub fn contains_line(&self, line_ast:&Ast) -> bool {
         // TODO refactor these two lambdas into methods
-        let expression_id_matches = || ExpressionLine::from_line_ast(line_ast)
+        let expression_id_matches = || MainLine::from_ast(line_ast)
             .as_ref()
-            .map(ExpressionLine::id)
+            .map(MainLine::id)
             .contains(&self.id());
         let doc_comment_id_matches = || match (self.doc_comment_id(), line_ast.id) {
             (Some(node_doc_id),Some(line_ast_id)) => node_doc_id == line_ast_id,
@@ -198,37 +202,11 @@ impl NodeInfo {
         self.documentation.as_ref().and_then(|comment| comment.ast().id())
     }
 
-    pub fn from_single_line_ast(ast:&Ast) -> Option<Self> {
-        ExpressionLine::from_line_ast(ast).map(|ast| Self { main_line: ast, documentation:None})
-    }
-
-    pub fn nodes_from_lines<'a>(lines:impl IntoIterator<Item=&'a Ast>) -> Vec<NodeInfo> {
-        let mut ret = Vec::new();
-
-        let mut lines = lines.into_iter();
-        while let Some(line) = lines.next() {
-            // Node is either:
-            // * documentation comment line followed by the node expression,
-            // * node expression line.
-            if let Some(doc_comment) = DocCommentInfo::new(line) {
-                if let Some(node) = lines.next().and_then(ExpressionLine::from_line_ast) {
-                    ret.push(NodeInfo {
-                        main_line: node,
-                        documentation: Some(doc_comment),
-                    })
-                } else {
-                    // Dangling documentation comments never apply to the nodes, so we ignore them.
-                }
-            } else if let Some(node) = ExpressionLine::from_line_ast(line) {
-                ret.push(NodeInfo {
-                    main_line: node,
-                    documentation: None,
-                })
-            } else {
-                WARNING!("Line '{line}' is neither a doc comment nor a node.")
-            }
-        }
-        ret
+    /// Construct node information for a single line, without documentation.
+    pub fn from_main_line_ast(ast:&Ast) -> Option<Self> {
+        let main_line     = MainLine::from_ast(ast)?;
+        let documentation = None;
+        Some(Self {main_line,documentation})
     }
 
     /// Obtain documentation text.
@@ -237,44 +215,51 @@ impl NodeInfo {
     }
 }
 
-/// Description of the node that consists of all information locally available about node.
-/// Nodes are required to bear IDs. This enum should never contain an ast of node without id set.
+/// Representation of the main line of the node (as opposed to a documentation line).
+///
+/// Each node must have exactly one main line.
+/// Main line always contains an expression, either directly or under binding. The expression id
+/// must be set and it serves as the whole node's expression.
 #[derive(Clone,Debug)]
 #[allow(missing_docs)]
-pub enum ExpressionLine {
+pub enum MainLine {
     /// Code with assignment, e.g. `foo = 2 + 2`
     Binding { infix: known::Infix },
     /// Code without assignment (no variable binding), e.g. `2 + 2`.
     Expression { ast: Ast },
 }
 
-impl ExpressionLine {
+impl MainLine {
     /// Tries to interpret the whole binding as a node. Right-hand side will become node's
     /// expression.
-    pub fn new_binding(infix:known::Infix) -> Option<ExpressionLine> {
+    pub fn new_binding(infix:known::Infix) -> Option<MainLine> {
         infix.rarg.id?;
-        Some(ExpressionLine::Binding {infix})
+        Some(MainLine::Binding {infix})
     }
 
     /// Tries to interpret AST as node, treating whole AST as an expression.
-    pub fn new_expression(ast:Ast) -> Option<ExpressionLine> {
+    pub fn new_expression(ast:Ast) -> Option<MainLine> {
         ast.id?;
         // TODO what if we are given an assignment.
-        Some(ExpressionLine::Expression {ast})
+        Some(MainLine::Expression {ast})
     }
 
-    /// Tries to interpret AST as node, treating whole AST as an expression.
-    pub fn from_line_ast(ast:&Ast) -> Option<ExpressionLine> {
-        match discern_line(ast, ScopeKind::NonRoot) {
-            Some(LineKind::ExpressionPlain{ast})       => Self::new_expression(ast),
-            Some(LineKind::ExpressionAssignment {ast}) => Self::new_binding(ast),
-            Some(LineKind::Definition {..}) | None     => None,
+    /// Tries to interpret AST as node, treating whole AST as a node's primary line.
+    pub fn from_ast(ast:&Ast) -> Option<MainLine> {
+        // By definition, there are no nodes in the root scope.
+        // Being a node's line, we may assume that this is not a root scope.
+        let scope = ScopeKind::NonRoot;
+        match LineKind::discern(ast,scope) {
+            LineKind::ExpressionPlain      {ast} => Self::new_expression(ast),
+            LineKind::ExpressionAssignment {ast} => Self::new_binding(ast),
+            LineKind::Definition           {..}  => None,
+            LineKind::DocumentationComment {..}  => None,
         }
     }
 
     /// Tries to interpret AST as node, treating whole AST as an expression.
-    pub fn from_block_line(line:&ast::BlockLine<Option<Ast>>) -> Option<ExpressionLine> {
-        Self::from_line_ast(line.elem.as_ref()?)
+    pub fn from_block_line(line:&ast::BlockLine<Option<Ast>>) -> Option<MainLine> {
+        Self::from_ast(line.elem.as_ref()?)
     }
 
     /// Node's unique ID.
@@ -287,13 +272,13 @@ impl ExpressionLine {
     /// Updates the node's AST so the node bears the given ID.
     pub fn set_id(&mut self, new_id:Id) {
         match self {
-            ExpressionLine::Binding{ref mut infix} => {
+            MainLine::Binding{ref mut infix} => {
                 let new_rarg = infix.rarg.with_id(new_id);
                 let set      = infix.set(&ast::crumbs::InfixCrumb::RightOperand.into(),new_rarg);
                 *infix = set.expect("Internal error: setting infix operand should always \
                                      succeed.");
             }
-            ExpressionLine::Expression{ref mut ast} => {
+            MainLine::Expression{ref mut ast} => {
                 *ast = ast.with_id(new_id);
             }
         };
@@ -302,16 +287,16 @@ impl ExpressionLine {
     /// AST of the node's expression.
     pub fn expression(&self) -> &Ast {
         match self {
-            ExpressionLine::Binding   {infix} => &infix.rarg,
-            ExpressionLine::Expression{ast}   => &ast,
+            MainLine::Binding   {infix} => &infix.rarg,
+            MainLine::Expression{ast}   => &ast,
         }
     }
 
     /// AST of the node's pattern (assignment's left-hand side).
     pub fn pattern(&self) -> Option<&Ast> {
         match self {
-            ExpressionLine::Binding   {infix} => Some(&infix.larg),
-            ExpressionLine::Expression{..}    => None,
+            MainLine::Binding   {infix} => Some(&infix.larg),
+            MainLine::Expression{..}    => None,
         }
     }
 
@@ -319,9 +304,9 @@ impl ExpressionLine {
     pub fn set_expression(&mut self, expression:Ast) {
         let id = self.id();
         match self {
-            ExpressionLine::Binding{ref mut infix}  =>
+            MainLine::Binding{ref mut infix}  =>
                 infix.update_shape(|infix| infix.rarg = expression),
-            ExpressionLine::Expression{ref mut ast} => *ast = expression,
+            MainLine::Expression{ref mut ast} => *ast = expression,
         };
         // Id might have been overwritten by the AST we have set. Now we restore it.
         self.set_id(id);
@@ -330,8 +315,8 @@ impl ExpressionLine {
     /// The whole AST of node.
     pub fn ast(&self) -> &Ast {
         match self {
-            ExpressionLine::Binding   {infix} => infix.into(),
-            ExpressionLine::Expression{ast}   => ast,
+            MainLine::Binding   {infix} => infix.into(),
+            MainLine::Expression{ast}   => ast,
         }
     }
 
@@ -339,11 +324,11 @@ impl ExpressionLine {
     /// assignment infix will be introduced.
     pub fn set_pattern(&mut self, pattern:Ast) {
         match self {
-            ExpressionLine::Binding {infix} => {
+            MainLine::Binding {infix} => {
                 // Setting infix operand never fails.
                 infix.update_shape(|infix| infix.larg = pattern)
             }
-            ExpressionLine::Expression {ast} => {
+            MainLine::Expression {ast} => {
                 let infix = ast::Infix {
                     larg : pattern,
                     loff : 1,
@@ -352,7 +337,7 @@ impl ExpressionLine {
                     rarg : ast.clone(),
                 };
                 let infix = known::Infix::new(infix, None);
-                *self = ExpressionLine::Binding {infix};
+                *self = MainLine::Binding {infix};
             }
         }
 
@@ -363,16 +348,16 @@ impl ExpressionLine {
     /// If it is already an Expression node, no change is done.
     pub fn clear_pattern(&mut self) {
         match self {
-            ExpressionLine::Binding {infix} => {
-                *self = ExpressionLine::Expression {ast:infix.rarg.clone_ref()}
+            MainLine::Binding {infix} => {
+                *self = MainLine::Expression {ast:infix.rarg.clone_ref()}
             }
-            ExpressionLine::Expression {..} => {}
+            MainLine::Expression {..} => {}
         }
 
     }
 }
 
-impl ast::HasTokens for ExpressionLine {
+impl ast::HasTokens for MainLine {
     fn feed_to(&self, consumer:&mut impl ast::TokenConsumer) {
         self.ast().feed_to(consumer)
     }
@@ -391,7 +376,7 @@ mod tests {
     use ast::opr::predefined::ASSIGNMENT;
 
     fn expect_node(ast:Ast, expression_text:&str, id:Id) {
-        let node_info = NodeInfo::from_single_line_ast(&ast).expect("expected a node");
+        let node_info = NodeInfo::from_main_line_ast(&ast).expect("expected a node");
         assert_eq!(node_info.expression().repr(),expression_text);
         assert_eq!(node_info.id(), id);
     }
@@ -420,7 +405,7 @@ mod tests {
         let ast = Ast::infix(Ast::var("foo"),"=",Ast::number(4).with_new_id());
         assert_eq!(ast.repr(), "foo = 4");
 
-        let mut node = NodeInfo::from_single_line_ast(&ast).expect("expected a node");
+        let mut node = NodeInfo::from_main_line_ast(&ast).expect("expected a node");
         let id       = node.id();
         node.set_expression(Ast::var("bar"));
         assert_eq!(node.expression().repr(), "bar");
@@ -433,7 +418,7 @@ mod tests {
         let ast = Ast::number(4).with_new_id();
         assert_eq!(ast.repr(), "4");
 
-        let mut node = NodeInfo::from_single_line_ast(&ast).expect("expected a node");
+        let mut node = NodeInfo::from_main_line_ast(&ast).expect("expected a node");
         let id       = node.id();
         node.set_expression(Ast::var("bar"));
         assert_eq!(node.expression().repr(), "bar");
@@ -450,7 +435,7 @@ mod tests {
         let rarg   = Ast::new(number, Some(id));
         let ast    = Ast::infix(larg,ASSIGNMENT,rarg);
 
-        let mut node = NodeInfo::from_single_line_ast(&ast).unwrap();
+        let mut node = NodeInfo::from_main_line_ast(&ast).unwrap();
         assert_eq!(node.repr(),"foo = 4");
         assert_eq!(node.id(),id);
         node.clear_pattern();
@@ -465,7 +450,7 @@ mod tests {
     fn setting_pattern_on_expression_node_test() {
         let id       = uuid::Uuid::new_v4();
         let line_ast = Ast::number(2).with_id(id);
-        let mut node = NodeInfo::from_single_line_ast(&line_ast).unwrap();
+        let mut node = NodeInfo::from_main_line_ast(&line_ast).unwrap();
         assert_eq!(node.repr(), "2");
         assert_eq!(node.id(),id);
 
@@ -481,7 +466,7 @@ mod tests {
         let larg     = Ast::var("foo");
         let rarg     = Ast::var("bar").with_id(id);
         let line_ast = Ast::infix(larg,ASSIGNMENT,rarg);
-        let mut node = NodeInfo::from_single_line_ast(&line_ast).unwrap();
+        let mut node = NodeInfo::from_main_line_ast(&line_ast).unwrap();
 
         assert_eq!(node.repr(), "foo = bar");
         assert_eq!(node.id(),id);

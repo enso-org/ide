@@ -9,7 +9,7 @@ use ast::crumbs::Located;
 use ast::known;
 use ast::opr;
 use parser::Parser;
-use crate::double_representation::{LineKind, discern_line};
+use crate::double_representation::LineKind;
 
 
 // =====================
@@ -320,7 +320,7 @@ impl DefinitionInfo {
     /// some binding or other kind of subtree).
     pub fn from_line_ast
     (ast:&Ast, kind:ScopeKind, context_indent:usize) -> Option<DefinitionInfo> {
-        if let Some(LineKind::Definition{args,ast,name}) = discern_line(ast,kind) {
+        if let LineKind::Definition{args,ast,name} = LineKind::discern(ast,kind) {
             Some(DefinitionInfo { ast, name, args, context_indent })
         } else {
             None
@@ -527,14 +527,6 @@ impl ToAdd {
     }
 }
 
-
-
-
-pub fn enumerate_non_empty_lines<'a>
-( lines : impl IntoIterator<Item=&'a ast::BlockLine<Option<Ast>>> + 'a
-) -> impl Iterator<Item=(usize,&'a Ast)> + 'a {
-    lines.into_iter().enumerate().filter_map(|(index,line)| line.elem.as_ref().map(|ast| (index,ast)))
-}
 
 
 // =============

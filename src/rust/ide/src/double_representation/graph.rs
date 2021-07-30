@@ -60,7 +60,7 @@ impl GraphInfo {
         let body = ast.rarg.clone();
         if let Ok(body_block) = known::Block::try_new(body.clone()) {
             block_nodes(&body_block)
-        } else if let Some(main_line) = node::ExpressionLine::from_line_ast(&body) {
+        } else if let Some(main_line) = node::MainLine::from_ast(&body) {
             // There's no way to attach a documentation comment to an inline node.
             let documentation = None;
             vec![ NodeInfo {documentation,main_line} ]
@@ -211,7 +211,7 @@ impl GraphInfo {
 // =====================
 
 /// Collects information about nodes in given code `Block`.
-pub fn block_nodes<'a>(ast:&'a known::Block) -> Vec<NodeInfo> {
+pub fn block_nodes(ast:&known::Block) -> Vec<NodeInfo> {
     // Warning: this uses faux indices, as the empty lines are skipped first.
     // It is fine here, since we throw away the result values depending on index.
     let lines_iter = ast.iter().enumerate();
@@ -282,7 +282,7 @@ mod tests {
     fn new_expression_node(parser:&parser::Parser, expression:&str) -> NodeInfo {
         let node_ast = parser.parse(expression.to_string(), default()).unwrap();
         let line_ast = expect_single_line(&node_ast).clone();
-        NodeInfo::from_single_line_ast(&line_ast).unwrap()
+        NodeInfo::from_main_line_ast(&line_ast).unwrap()
     }
 
     fn assert_at(nodes:&[NodeInfo], index:usize, expected:&NodeInfo) {
