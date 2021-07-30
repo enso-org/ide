@@ -46,10 +46,10 @@ impl Suggestion {
     }
 
     /// Return the documentation assigned to the suggestion.
-    pub fn documentation(&self) -> Option<&str> {
+    pub fn documentation_html(&self) -> Option<&str> {
         match self {
-            Suggestion::FromDatabase(s) => s.documentation.as_ref().map(AsRef::<str>::as_ref),
-            Suggestion::Hardcoded   (s) => s.documentation,
+            Suggestion::FromDatabase(s) => s.documentation_html.as_ref().map(AsRef::<str>::as_ref),
+            Suggestion::Hardcoded   (s) => s.documentation_html,
         }
     }
 

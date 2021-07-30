@@ -63,7 +63,7 @@ pub struct Suggestion {
     /// An import required by the suggestion.
     pub imports:Vec<module::QualifiedName>,
     /// The documentation bound to the suggestion.
-    pub documentation:Option<&'static str>,
+    pub documentation_html:Option<&'static str>,
     /// The id of the method called by the suggestion.
     pub method_id:Option<MethodId>,
 }
