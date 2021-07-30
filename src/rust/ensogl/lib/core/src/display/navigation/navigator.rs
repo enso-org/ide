@@ -97,7 +97,7 @@ impl NavigatorModel {
             // The direction in which we zoom. We negate x and y, because this vector points behind
             // the camera: When we get a positive scroll input, we want to move the camera
             // backwards, away from the mouse cursor.
-            let direction = Vector3(-focus_at_dist_1.x,-focus_at_dist_1.y,1.0);
+            let direction = Vector3(focus_at_dist_1.x,focus_at_dist_1.y,-1.0);
 
             let current_position = simulator.target_value();
             // We need to take the exponent because we do multiply `zoom_factor` onto the z
@@ -107,7 +107,7 @@ impl NavigatorModel {
             let zoom_factor      = zoom.amount.exp2();
             let new_z            = current_position.z * zoom_factor;
             let new_z            = new_z.max(camera.clipping().near + min_zoom).min(max_zoom);
-            let zoom_distance    = new_z - current_position.z;
+            let zoom_distance    = current_position.z - new_z;
             let zoom_delta       = direction * zoom_distance;
             let new_position     = current_position + zoom_delta;
 
