@@ -6,8 +6,8 @@ use crate::double_representation::alias_analysis::analyze_crumbable;
 use crate::double_representation::definition::DefinitionInfo;
 use crate::double_representation::definition::ScopeKind;
 use crate::double_representation::identifier::NormalizedName;
-use crate::double_representation::node::MainLine;
 use crate::double_representation::node::Id;
+use crate::double_representation::node::MainLine;
 
 use ast::crumbs::Crumb;
 use ast::crumbs::Crumbs;

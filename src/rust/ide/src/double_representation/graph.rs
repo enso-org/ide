@@ -65,9 +65,8 @@ impl GraphInfo {
             let documentation = None;
             vec![ NodeInfo {documentation,main_line} ]
         } else {
-            // TODO warning?
-            //      should not be possible to have empty definition without any nodes but it is
-            //      possible to represent such in AST
+            // It should not be possible to have empty definition without any nodes but it is
+            // possible to represent such thing in AST. Anyway, it has no nodes.
             vec![]
         }
     }

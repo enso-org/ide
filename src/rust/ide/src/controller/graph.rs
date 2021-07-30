@@ -18,8 +18,8 @@ use crate::double_representation::node::{NodeInfo, MainLine, NodeIndex};
 use crate::model::module::NodeMetadata;
 use crate::model::traits::*;
 
-use ast::macros::DocCommentInfo;
 use ast::crumbs::InfixCrumb;
+use ast::macros::DocCommentInfo;
 use enso_protocol::language_server;
 use parser::Parser;
 use span_tree::SpanTree;

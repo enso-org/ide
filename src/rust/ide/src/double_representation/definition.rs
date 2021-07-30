@@ -238,15 +238,6 @@ impl DefinitionInfo {
         Located::new(InfixCrumb::RightOperand,&self.ast.rarg)
     }
 
-    // pub fn body_block(&self) -> Result<Located<known::Block>,Located<Ast>> {
-    //     let body = self.body();
-    //     if let Ok(block) = known::Block::try_from(*body) {
-    //         Ok(body.map(|_| block))
-    //     } else {
-    //         Err(body.map(CloneRef::clone_ref))
-    //     }
-    // }
-
     /// Gets the definition block lines. If `body` is a `Block`, it returns its `BlockLine`s,
     /// concatenating `empty_lines`, `first_line` and `lines`, in this exact order. If `body` is
     /// `Infix`, it returns a single `BlockLine`.

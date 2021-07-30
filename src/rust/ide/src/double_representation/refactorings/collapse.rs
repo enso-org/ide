@@ -11,7 +11,8 @@ use crate::double_representation::definition::DefinitionInfo;
 use crate::double_representation::definition;
 use crate::double_representation::identifier::Identifier;
 use crate::double_representation::node;
-use crate::double_representation::node::{NodeInfo, MainLine};
+use crate::double_representation::node::NodeInfo;
+use crate::double_representation::node::MainLine;
 use crate::double_representation::graph::GraphInfo;
 
 use ast::crumbs::Located;
