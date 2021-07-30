@@ -851,8 +851,8 @@ impl Searcher {
         suggestions.into_iter().filter_map(|suggestion| {
             let arg_index = arg_index + if self.this_arg.is_some()  { 1 } else { 0 };
             let arg_index = arg_index + if self.has_this_argument() { 1 } else { 0 };
-            let parameter = suggestion.arguments().get(arg_index)?;
-            Some(parameter.repr_type.clone())
+            let parameter = suggestion.argument_types().into_iter().nth(arg_index)?;
+            Some(parameter)
         }).collect()
     }
 
@@ -1189,12 +1189,12 @@ pub mod test {
         data     : MockData,
         test     : TestWithLocalPoolExecutor,
         searcher : Searcher,
-        entry1   : action::Suggestion,
-        entry2   : action::Suggestion,
-        entry3   : action::Suggestion,
-        entry4   : action::Suggestion,
-        entry9   : action::Suggestion,
-        entry10  : action::Suggestion,
+        entry1   : Rc<model::suggestion_database::Entry>,
+        entry2   : Rc<model::suggestion_database::Entry>,
+        entry3   : Rc<model::suggestion_database::Entry>,
+        entry4   : Rc<model::suggestion_database::Entry>,
+        entry9   : Rc<model::suggestion_database::Entry>,
+        entry10  : Rc<model::suggestion_database::Entry>,
     }
 
     impl Fixture {
@@ -1400,8 +1400,8 @@ pub mod test {
 
             test.run_until_stalled();
             assert!(!searcher.actions().is_loading());
-            searcher.use_suggestion(entry9.clone_ref()).unwrap();
-            searcher.use_suggestion(entry1.clone_ref()).unwrap();
+            searcher.use_suggestion(action::Suggestion::FromDatabase(entry9.clone_ref())).unwrap();
+            searcher.use_suggestion(action::Suggestion::FromDatabase(entry1.clone_ref())).unwrap();
             let expected_input = format!("{} {} ",entry9.name,entry1.name);
             assert_eq!(searcher.data.borrow().input.repr(),expected_input);
         }
@@ -1413,7 +1413,7 @@ pub mod test {
             data.expect_completion(client,None,Some("Number"),&[20]);
         });
         let Fixture{test,searcher,entry3,..} = &mut fixture;
-        searcher.use_suggestion(entry3.clone_ref()).unwrap();
+        searcher.use_suggestion(action::Suggestion::FromDatabase(entry3.clone_ref())).unwrap();
         assert!(searcher.actions().is_loading());
         test.run_until_stalled();
         assert!(!searcher.actions().is_loading());
@@ -1429,7 +1429,7 @@ pub mod test {
 
 
         let Fixture{searcher,entry9,..} = &mut fixture;
-        searcher.use_suggestion(entry9.clone_ref()).unwrap();
+        searcher.use_suggestion(action::Suggestion::FromDatabase(entry9.clone_ref())).unwrap();
         assert_eq!(searcher.data.borrow().input.repr(),"testFunction2 ");
         searcher.set_input("testFunction2 'foo' ".to_owned()).unwrap();
         searcher.set_input("testFunction2 'foo' 10 ".to_owned()).unwrap();
@@ -1510,8 +1510,8 @@ pub mod test {
         test.run_until_stalled();
         let list = searcher.actions().list().unwrap().to_action_vec();
         assert_eq!(list.len(), 4); // we include two mocked entries
-        assert_eq!(list[2], Action::Suggestion(entry1));
-        assert_eq!(list[3], Action::Suggestion(entry9));
+        assert_eq!(list[2], Action::Suggestion(action::Suggestion::FromDatabase(entry1)));
+        assert_eq!(list[3], Action::Suggestion(action::Suggestion::FromDatabase(entry9)));
         let notification = subscriber.next().boxed_local().expect_ready();
         assert_eq!(notification, Some(Notification::NewActionList));
     }
@@ -1586,6 +1586,13 @@ pub mod test {
         assert_eq!(parsed.pattern.as_str(), "(baz ");
     }
 
+    fn are_same(action:&action::Suggestion, entry:&Rc<model::suggestion_database::Entry>) -> bool {
+        match action {
+            action::Suggestion::FromDatabase(lhs) => Rc::ptr_eq(lhs,entry),
+            action::Suggestion::Hardcoded(_)      => false,
+        }
+    }
+
     #[wasm_bindgen_test]
     fn picked_completions_list_maintaining() {
         let Fixture{test:_test,searcher,entry1,entry2,..} = Fixture::new_custom(|data,client| {
@@ -1599,44 +1606,44 @@ pub mod test {
         let frags_borrow = || Ref::map(searcher.data.borrow(),|d| &d.fragments_added_by_picking);
 
         // Picking first suggestion.
-        let new_input = searcher.use_suggestion(entry1.clone_ref()).unwrap();
+        let new_input = searcher.use_suggestion(action::Suggestion::FromDatabase(entry1.clone_ref())).unwrap();
         assert_eq!(new_input, "testFunction1 ");
         let (func,) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(func.id, CompletedFragmentId::Function);
-        assert!(Rc::ptr_eq(&func.picked_suggestion,&entry1));
+        assert!(are_same(&func.picked_suggestion,&entry1));
 
         // Typing more args by hand.
         searcher.set_input("testFunction1 some_arg pat".to_string()).unwrap();
         let (func,) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(func.id, CompletedFragmentId::Function);
-        assert!(Rc::ptr_eq(&func.picked_suggestion,&entry1));
+        assert!(are_same(&func.picked_suggestion,&entry1));
 
         // Picking argument's suggestion.
-        let new_input = searcher.use_suggestion(entry2.clone_ref()).unwrap();
+        let new_input = searcher.use_suggestion(action::Suggestion::FromDatabase(entry2.clone_ref())).unwrap();
         assert_eq!(new_input, "testFunction1 some_arg TestVar1 ");
-        let new_input = searcher.use_suggestion(entry2.clone_ref()).unwrap();
+        let new_input = searcher.use_suggestion(action::Suggestion::FromDatabase(entry2.clone_ref())).unwrap();
         assert_eq!(new_input, "testFunction1 some_arg TestVar1 TestVar1 ");
         let (function,arg1,arg2) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(function.id, CompletedFragmentId::Function);
-        assert!(Rc::ptr_eq(&function.picked_suggestion,&entry1));
+        assert!(are_same(&function.picked_suggestion,&entry1));
         assert_eq!(arg1.id, CompletedFragmentId::Argument {index:1});
-        assert!(Rc::ptr_eq(&arg1.picked_suggestion,&entry2));
+        assert!(are_same(&arg1.picked_suggestion,&entry2));
         assert_eq!(arg2.id, CompletedFragmentId::Argument {index:2});
-        assert!(Rc::ptr_eq(&arg2.picked_suggestion,&entry2));
+        assert!(are_same(&arg2.picked_suggestion,&entry2));
 
         // Backspacing back to the second arg.
         searcher.set_input("testFunction1 some_arg TestVar1 TestV".to_string()).unwrap();
         let (picked,arg) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(picked.id, CompletedFragmentId::Function);
-        assert!(Rc::ptr_eq(&picked.picked_suggestion,&entry1));
+        assert!(are_same(&picked.picked_suggestion,&entry1));
         assert_eq!(arg.id, CompletedFragmentId::Argument {index:1});
-        assert!(Rc::ptr_eq(&arg.picked_suggestion,&entry2));
+        assert!(are_same(&arg.picked_suggestion,&entry2));
 
         // Editing the picked function.
         searcher.set_input("testFunction2 some_arg TestVar1 TestV".to_string()).unwrap();
         let (arg,) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(arg.id, CompletedFragmentId::Argument {index:1});
-        assert!(Rc::ptr_eq(&arg.picked_suggestion,&entry2));
+        assert!(are_same(&arg.picked_suggestion,&entry2));
     }
 
     #[wasm_bindgen_test]
@@ -1697,7 +1704,7 @@ pub mod test {
         let cases = vec![
             // Completion was picked.
             Case::new("2 + 2",&["sum1 = 2 + 2","operator1 = sum1.testFunction1"], |f| {
-                f.searcher.use_suggestion(f.entry1.clone()).unwrap();
+                f.searcher.use_suggestion(action::Suggestion::FromDatabase(f.entry1.clone())).unwrap();
             }),
             // The input was manually written (not picked).
             Case::new("2 + 2",&["sum1 = 2 + 2","operator1 = sum1.testFunction1"], |f| {
@@ -1705,18 +1712,18 @@ pub mod test {
             }),
             // Completion was picked and edited.
             Case::new("2 + 2",&["sum1 = 2 + 2","operator1 = sum1.var.testFunction1"], |f| {
-                f.searcher.use_suggestion(f.entry1.clone()).unwrap();
+                f.searcher.use_suggestion(action::Suggestion::FromDatabase(f.entry1.clone())).unwrap();
                 let new_parsed_input = ParsedInput::new("var.testFunction1",&f.searcher.ide.parser());
                 f.searcher.data.borrow_mut().input = new_parsed_input.unwrap();
             }),
             // Variable name already present, need to use it. And not break it.
             Case::new("my_var = 2 + 2",&["my_var = 2 + 2","operator1 = my_var.testFunction1"], |f| {
-                f.searcher.use_suggestion(f.entry1.clone()).unwrap();
+                f.searcher.use_suggestion(action::Suggestion::FromDatabase(f.entry1.clone())).unwrap();
             }),
             // Variable names unusable (subpatterns are not yet supported).
             // Don't use "this" argument adjustments at all.
             Case::new("[x,y] = 2 + 2",&["[x,y] = 2 + 2","testfunction11 = testFunction1"], |f| {
-                f.searcher.use_suggestion(f.entry1.clone()).unwrap();
+                f.searcher.use_suggestion(action::Suggestion::FromDatabase(f.entry1.clone())).unwrap();
             }),
         ];
 
@@ -1735,14 +1742,15 @@ pub mod test {
 
     #[wasm_bindgen_test]
     fn adding_imports_with_nodes() {
-        fn expect_inserted_import_for(entry:&action::Suggestion, expected_import:Vec<&QualifiedName>) {
+        fn expect_inserted_import_for
+        (entry:&Rc<model::suggestion_database::Entry>, expected_import:Vec<&QualifiedName>) {
             let Fixture{test:_test,mut searcher,..} = Fixture::new();
             let module = searcher.graph.graph().module.clone_ref();
             let parser = searcher.ide.parser().clone_ref();
 
             let picked_method = FragmentAddedByPickingSuggestion {
                 id                : CompletedFragmentId::Function,
-                picked_suggestion : entry.clone(),
+                picked_suggestion : action::Suggestion::FromDatabase(entry.clone_ref()),
             };
             with(searcher.data.borrow_mut(), |mut data| {
                 data.fragments_added_by_picking.push(picked_method);
@@ -1778,7 +1786,7 @@ pub mod test {
         let parser        = Parser::new_or_panic();
         let picked_method = FragmentAddedByPickingSuggestion {
             id                : CompletedFragmentId::Function,
-            picked_suggestion : entry4,
+            picked_suggestion : action::Suggestion::FromDatabase(entry4),
         };
         with(searcher.data.borrow_mut(), |mut data| {
             data.fragments_added_by_picking.push(picked_method);
@@ -1845,7 +1853,7 @@ pub mod test {
         assert_eq!(searcher_data.input.repr(), "Test.testMethod1 12");
         assert!(searcher_data.actions.is_loading());
         let (initial_fragment,) = searcher_data.fragments_added_by_picking.expect_tuple();
-        assert!(Rc::ptr_eq(&initial_fragment.picked_suggestion,&entry4))
+        assert!(are_same(&initial_fragment.picked_suggestion,&entry4))
     }
 
     #[wasm_bindgen_test]

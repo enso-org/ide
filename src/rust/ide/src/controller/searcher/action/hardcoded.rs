@@ -3,10 +3,10 @@
 
 use crate::prelude::*;
 
-use crate::double_representation::module;
-use crate::double_representation::tp;
 use crate::controller::searcher::action;
 use crate::controller::searcher::action::ListBuilder;
+use crate::double_representation::module;
+use crate::double_representation::tp;
 use crate::model::module::MethodId;
 
 
@@ -18,20 +18,28 @@ use crate::model::module::MethodId;
 // === RootCategory ===
 
 /// The hardcoded root category.
+///
+/// The structure is used solely for defining hierarchy of hard-coded suggestions. Based in this
+/// hierarchy, the [`add_hardcoded_entries_to_list`] will add analogous [`action::RootCategory`]
+/// to the built list.
 #[allow(missing_docs)]
 #[derive(Clone,Debug)]
 pub struct RootCategory {
     pub name       : &'static str,
-    pub categories : Vec<Category>,
+    pub categories : Vec<Subcategory>,
 }
 
 
 // === Category ===
 
 /// The hardcoded second-tier category.
+///
+/// The structure is used solely for defining hierarchy of hard-coded suggestions. Based in this
+/// hierarchy, the [`add_hardcoded_entries_to_list`] will add analogous [`action::Category`]
+/// to the built list.
 #[allow(missing_docs)]
 #[derive(Clone,Debug)]
-pub struct Category {
+pub struct Subcategory {
     pub name        : &'static str,
     pub suggestions : Vec<Rc<Suggestion>>
 }
@@ -48,10 +56,12 @@ pub struct Suggestion {
     pub code:&'static str,
     /// The type of expected `this` argument.
     pub this_arg:Option<tp::QualifiedName>,
+    /// The list of argument types which may be applied to the code returned by this suggestion.
+    pub argument_types:Vec<tp::QualifiedName>,
     /// The type returned by the suggestion's code.
     pub return_type:Option<tp::QualifiedName>,
     /// An import required by the suggestion.
-    pub import:Option<module::QualifiedName>,
+    pub imports:Vec<module::QualifiedName>,
     /// The documentation bound to the suggestion.
     pub documentation:Option<&'static str>,
     /// The id of the method called by the suggestion.
@@ -68,18 +78,32 @@ impl Suggestion {
         self
     }
 
-    fn with_return_type(mut self, return_type:impl TryInto<tp::QualifiedName, Error:Debug>) -> Self {
+    fn with_argument_types<Iter>
+    (mut self, argument_types:Iter) -> Self
+    where Iter : IntoIterator,
+          Iter::Item : TryInto<tp::QualifiedName, Error:Debug>,
+    {
+        let conv_results    = argument_types.into_iter().map(|arg| arg.try_into());
+        let result          = conv_results.collect::<Result<Vec<tp::QualifiedName>,_>>();
+        self.argument_types = result.unwrap();
+        self
+    }
+
+    fn with_return_type
+    (mut self, return_type:impl TryInto<tp::QualifiedName, Error:Debug>) -> Self {
         self.return_type = Some(return_type.try_into().unwrap());
         self
     }
 
-    fn with_import(mut self, import:impl TryInto<module::QualifiedName, Error:Debug>) -> Self {
-        self.import = Some(import.try_into().unwrap());
+    fn with_import_added
+    (mut self, import:impl TryInto<module::QualifiedName, Error:Debug>) -> Self {
+        self.imports.push(import.try_into().unwrap());
         self
     }
     
     fn marked_as_method_call
-    (mut self, name:&'static str, module:impl TryInto<module::QualifiedName, Error:Debug>) -> Self {
+    (mut self, name:&'static str, module:impl TryInto<module::QualifiedName, Error:Debug>)
+    -> Self {
         self.method_id = Some(MethodId {
             module          : module.try_into().unwrap(),
             defined_on_type : self.this_arg.as_ref().unwrap().clone(),
@@ -89,7 +113,8 @@ impl Suggestion {
     }
 
     fn marked_as_module_method_call
-    (mut self, name:&'static str, module:impl TryInto<module::QualifiedName, Error:Debug>) -> Self {
+    (mut self, name:&'static str, module:impl TryInto<module::QualifiedName, Error:Debug>)
+    -> Self {
         let module =  module.try_into().unwrap();
         self.method_id = Some(MethodId {
             module          : module.clone(),
@@ -114,7 +139,7 @@ thread_local! {
         RootCategory {
             name       : "Data Science",
             categories : vec![
-                Category {
+                Subcategory {
                     name        : "Input / Output",
                     suggestions : vec![
                         Rc::new(
@@ -127,7 +152,7 @@ thread_local! {
                         ),
                     ]
                 },
-                Category {
+                Subcategory {
                     name : "Text",
                     suggestions : vec![
                         Rc::new(
@@ -143,19 +168,23 @@ thread_local! {
         RootCategory {
             name : "Network",
             categories : vec![
-                Category {
+                Subcategory {
                     name : "HTTP",
                     suggestions : vec![
                         Rc::new(
                             Suggestion::new("Fetch Data", "Http.fetch")
                             .with_return_type("Standard.Base.Network.Http.Body.Body")
-                            .with_import("Standard.Base.Network.Http")
+                            .with_argument_types(vec![
+                                "Standard.Builtins.Main.Text",
+                                "Vector.Vector",
+                            ])
+                            .with_import_added("Standard.Base.Network.Http")
                             .marked_as_module_method_call("fetch","Standard.Base.Network.Http")
                         ),
                         Rc::new(
                             Suggestion::new("GET Request", "Http.get")
                             .with_return_type("Standard.Base.Network.Http.Response.Response")
-                            .with_import("Standard.Base.Network.Http")
+                            .with_import_added("Standard.Base.Network.Http")
                             .marked_as_module_method_call("get","Standard.Base.Network.Http")
                         )
                     ]

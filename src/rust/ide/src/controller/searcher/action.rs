@@ -2,7 +2,7 @@
 use crate::prelude::*;
 
 use crate::double_representation::module;
-use crate::model::suggestion_database::entry::{CodeToInsert, Argument};
+use crate::model::suggestion_database::entry::CodeToInsert;
 use crate::model::module::MethodId;
 
 pub mod hardcoded;
@@ -30,16 +30,18 @@ impl Suggestion {
             Suggestion::FromDatabase(s) => s.code_to_insert(current_module, generate_this),
             Suggestion::Hardcoded(s) => CodeToInsert {
                 code    : s.code.to_owned(),
-                imports : s.import.iter().cloned().collect()
+                imports : s.imports.iter().cloned().collect()
             }
         }
     }
 
     /// Return the expected arguments to be added after picking the suggestion.
-    pub fn arguments(&self) -> &[Argument] {
+    pub fn argument_types(&self) -> Vec<String> {
         match self {
-            Suggestion::FromDatabase(suggestion) => &suggestion.arguments,
-            Suggestion::Hardcoded(_) => &[],
+            Suggestion::FromDatabase(suggestion) =>
+                suggestion.arguments.iter().map(|a| a.repr_type.clone()).collect(),
+            Suggestion::Hardcoded(suggestion) =>
+                suggestion.argument_types.iter().map(|t| t.into()).collect(),
         }
     }
 
@@ -135,7 +137,7 @@ pub struct RootCategory {
 /// The category of suggestions.
 #[allow(missing_docs)]
 #[derive(Clone,Debug)]
-pub struct Category {
+pub struct Subcategory {
     pub name:Cow<'static,str>,
     /// The id of the root category this category belongs to.
     pub parent:CategoryId,
@@ -156,6 +158,8 @@ pub enum MatchInfo {
 }
 
 impl Ord for MatchInfo {
+    /// Compare Match infos: the better matches are greater. The scores are compared using the full
+    /// ordering as described in [`fuzzly::Subsequence::compare_scores`].
     fn cmp(&self, rhs:&Self) -> std::cmp::Ordering {
         use MatchInfo::*;
         use std::cmp::Ordering::*;
@@ -169,7 +173,7 @@ impl Ord for MatchInfo {
 }
 
 impl PartialOrd for MatchInfo {
-    fn partial_cmp(&self, lhs:&Self) -> Option<std::cmp::Ordering> { Some(self.cmp(lhs)) }
+    fn partial_cmp(&self, rhs:&Self) -> Option<std::cmp::Ordering> { Some(self.cmp(rhs)) }
 }
 
 impl PartialEq for MatchInfo {
@@ -208,10 +212,10 @@ impl ListEntry {
     /// The ordering on the action list: first, are the matched entries are gathered on the top of
     /// the list, then sorted by categories, and those of same category are ordered by match score
     /// (the best matches are first).
-    pub fn ordering_on_list(&self, lhs:&Self) -> std::cmp::Ordering {
-        self.matches().cmp(&lhs.matches()).reverse()
-            .then_with(|| self.category.cmp(&lhs.category))
-            .then_with(|| self.match_info.cmp(&lhs.match_info).reverse())
+    pub fn ordering_on_list(&self, rhs:&Self) -> std::cmp::Ordering {
+        self.matches().cmp(&rhs.matches()).reverse()
+            .then_with(|| self.category.cmp(&rhs.category))
+            .then_with(|| self.match_info.cmp(&rhs.match_info).reverse())
     }
 }
 
@@ -223,16 +227,18 @@ impl ListEntry {
 
 /// Action list.
 ///
-/// This structure should be notified about filtering changes. using `update_filtering` function.
+/// The structure contains also information about all the categories the actions belongs to. It
+/// also supports updating list when filtering pattern changes (See [`List::update_filtering`]
+/// function).
 #[derive(Clone,Debug)]
 pub struct List {
     /// List of root categories. It should be immutable in constructed list, as categories refers
     /// to the indexes in this vector.
     root_categories:Vec<RootCategory>,
-    /// List of categories. It should be immutable in constructed list, as actions refers
+    /// List of subcategories. It should be immutable in constructed list, as actions refers
     /// to the indexes in this vector. It also have to be sorted by parent category id: this is
     /// ensured by [`ListBuilder`].
-    categories:Vec<Category>,
+    subcategories:Vec<Subcategory>,
     /// The all entries in actions list. It should be kept ordered as defined by
     /// [`ListEntry::ordering_on_list`] function.
     entries:RefCell<Vec<ListEntry>>,
@@ -244,7 +250,7 @@ impl Default for List {
     fn default() -> Self {
         List {
             root_categories : default(),
-            categories      : default(),
+            subcategories: default(),
             entries         : default(),
             matching        : CloneCell::new(0..0),
         }
@@ -316,7 +322,8 @@ impl List {
 ///
 /// As the [`List`] itself keeps its categories immutable, the builder is used to extend the list.
 /// It ensures, that the all indexes will remain intact and in a proper order (see also fields docs
-/// in [`List`].
+/// in [`List`] - therefore the sub-builders are designed such way, that intermixing subcategories
+/// of different root-categories is impossible.
 #[derive(Debug,Default)]
 pub struct ListBuilder {
     built_list : List,
@@ -363,8 +370,8 @@ impl<'a> RootCategoryBuilder<'a> {
     pub fn add_category(&mut self, name:impl Into<Cow<'static,str>>) -> CategoryBuilder {
         let name        = name.into();
         let parent      = self.root_category_id;
-        let category_id = self.list_builder.built_list.categories.len();
-        self.list_builder.built_list.categories.push(Category{name,parent});
+        let category_id = self.list_builder.built_list.subcategories.len();
+        self.list_builder.built_list.subcategories.push(Subcategory {name,parent});
         CategoryBuilder { list_builder:self.list_builder, category_id}
     }
 }
