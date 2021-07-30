@@ -74,6 +74,8 @@ impl DocCommentInfo {
         Self::new_indented(ast,0)
     }
 
+    /// Creates a documentation from Ast and information about indentation of the block it belongs
+    /// to.
     pub fn new_indented(ast:&Ast, block_indent:usize) -> Option<Self> {
         let ast                = crate::known::Match::try_from(ast).ok()?;
         let first_segment      = &ast.segs.head;

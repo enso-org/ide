@@ -14,7 +14,9 @@ use crate::double_representation::identifier::NormalizedName;
 use crate::double_representation::identifier::generate_name;
 use crate::double_representation::module;
 use crate::double_representation::node;
-use crate::double_representation::node::{NodeInfo, MainLine, NodeIndex};
+use crate::double_representation::node::MainLine;
+use crate::double_representation::node::NodeIndex;
+use crate::double_representation::node::NodeInfo;
 use crate::model::module::NodeMetadata;
 use crate::model::traits::*;
 
@@ -757,7 +759,7 @@ impl Handle {
             .map(|doc_ast| DocCommentInfo::new(&doc_ast).ok_or(FailedToCreateNode))
             .transpose()?;
 
-        let mut node_info = NodeInfo {main_line,documentation};
+        let mut node_info = NodeInfo {documentation,main_line};
         if let Some(desired_id) = node.id {
             node_info.set_id(desired_id)
         }

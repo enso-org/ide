@@ -206,7 +206,7 @@ impl NodeInfo {
     pub fn from_main_line_ast(ast:&Ast) -> Option<Self> {
         let main_line     = MainLine::from_ast(ast)?;
         let documentation = None;
-        Some(Self {main_line,documentation})
+        Some(Self {documentation,main_line})
     }
 
     /// Obtain documentation text.
