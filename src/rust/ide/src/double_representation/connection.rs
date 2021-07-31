@@ -43,8 +43,7 @@ impl Endpoint {
         let definition = DefinitionInfo::from_line_ast(line_ast,ScopeKind::NonRoot,block.indent);
         let is_non_def = definition.is_none();
         let node       = is_non_def.and_option_from(|| MainLine::from_ast(line_ast))?.id();
-        let node       = is_non_def.and_option_from(|| NodeInfo::from_line_ast(line_ast))?.id();
-        Some(Endpoint { node, crumbs })
+        Some(Endpoint {node,crumbs})
     }
 }
 

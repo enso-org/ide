@@ -102,12 +102,12 @@ pub fn locate_many<'a>
     // Skip empty lines, while preserving indices.
     let lines_iter = lines.into_iter()
         .enumerate()
-        .filter_map(|(index,line)| line.elem.as_ref().map(|ast| (index,ast)));
+        .filter_map(|(index, line)| line.elem.as_ref().map(|ast| (index, ast)));
 
     let mut looked_for = looked_for.into_iter().collect::<HashSet<_>>();
 
     let mut ret = HashMap::new();
-    let nodes = NodeIterator {lines_iter};
+    let nodes = NodeIterator { lines_iter };
     for node in nodes {
         if looked_for.remove(&node.id()) {
             ret.insert(node.id(), node);
@@ -119,16 +119,10 @@ pub fn locate_many<'a>
     };
 
     if let Some(id) = looked_for.into_iter().next() {
-        Err(IdNotFound{id}.into())
+        Err(IdNotFound {id}.into())
     } else {
         Ok(ret)
     }
-
-/// Searches for `NodeInfo` with the associated `id` index in `lines`. Returns an error if
-/// the Id is not found.
-pub fn index_in_lines(lines:&[ast::BlockLine<Option<Ast>>], id:ast::Id) -> FallibleResult<usize> {
-    let position = lines.iter().position(|line| is_node_by_id(line,id));
-    position.ok_or_else(|| IdNotFound{id}.into())
 }
 
 

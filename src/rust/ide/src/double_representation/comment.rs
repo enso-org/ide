@@ -5,7 +5,6 @@ use crate::prelude::*;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ast::Shape;
     use crate::double_representation::definition::DefinitionProvider;
     use ast::macros::DocCommentInfo;
     use parser::Parser;
@@ -16,8 +15,6 @@ mod tests {
     fn run_case(parser:&Parser, code:&str, expected_comment_text:&str) {
         let ast = parser.parse_module(code,default()).unwrap();
         let main_id = double_representation::definition::Id::new_plain_name("main");
-        let module_info = double_representation::module::Info {ast:ast.clone_ref()};
-
         let main = double_representation::module::get_definition(&ast,&main_id).unwrap();
         let lines = main.block_lines();
         let first_line_ast = lines[0].elem.as_ref().unwrap();
@@ -48,7 +45,7 @@ main =
         // Single line case with a single space after `##`.
         let code = r#"
 main =
-    ## 
+    ##
     node"#;
         let expected = " ";
         run_case(&parser, code,expected);

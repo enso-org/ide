@@ -350,10 +350,6 @@ impl Collapser {
                 documentation : None,
                 main_line      : expression,
             };
-        } else if node_id == self.replaced_node {
-            let expression   = self.call_to_extracted(extracted_definition)?;
-            let no_node_err  = failure::Error::from(CannotConstructCollapsedNode);
-            let mut new_node = NodeInfo::new_expression(expression.clone_ref()).ok_or(no_node_err)?;
             new_node.set_id(self.collapsed_node);
             if let Some(Output{identifier,..}) = &self.extracted.output {
                 new_node.set_pattern(identifier.with_new_id().into())

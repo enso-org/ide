@@ -4,7 +4,6 @@ use crate::prelude::*;
 
 use crate::double_representation::identifier::NormalizedName;
 use crate::double_representation::identifier::LocatedName;
-use crate::double_representation::node::NodeInfo;
 use crate::double_representation::test_utils::MarkdownProcessor;
 
 use regex::Captures;
