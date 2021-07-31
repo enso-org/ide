@@ -256,6 +256,7 @@ pub struct LayerModel {
     global_element_depth_order      : Rc<RefCell<DependencyGraph<LayerItem>>>,
     sublayers                       : Sublayers,
     mask                            : RefCell<Option<WeakLayer>>,
+    scissor_box                     : RefCell<Option<AbsoluteScissorBox>>,
     mem_mark                        : Rc<()>,
 }
 
@@ -294,12 +295,13 @@ impl LayerModel {
         let on_mut                          = on_depth_order_dirty(&parents);
         let depth_order_dirty               = dirty::SharedBool::new(logger_dirty,on_mut);
         let global_element_depth_order      = default();
-        let sublayers                        = Sublayers::new(Logger::new_sub(&logger,"registry"));
+        let sublayers                       = Sublayers::new(Logger::new_sub(&logger,"registry"));
         let mask                            = default();
+        let scissor_box                     = default();
         let mem_mark                        = default();
         Self {logger,camera,shape_system_registry,shape_system_to_symbol_info_map
              ,symbol_to_shape_system_map,elements,symbols_ordered,depth_order,depth_order_dirty
-             ,parents,global_element_depth_order,sublayers,mask,mem_mark}
+             ,parents,global_element_depth_order,sublayers,mask,scissor_box,mem_mark}
     }
 
     /// Unique identifier of this layer. It is memory-based, it will be unique even for layers in
@@ -578,6 +580,14 @@ impl LayerModel {
         mask.add_parent(&self.sublayers);
     }
 
+    pub fn scissor_box(&self) -> Option<AbsoluteScissorBox> {
+        *self.scissor_box.borrow()
+    }
+
+    pub fn set_scissor_box(&self, scissor_box:Option<&AbsoluteScissorBox>) {
+        *self.scissor_box.borrow_mut() = scissor_box.cloned();
+    }
+
     /// Add depth-order dependency between two [`LayerItem`]s in this layer. Returns `true`
     /// if the dependency was inserted successfully (was not already present), and `false`
     /// otherwise. All sublayers will inherit these rules.
@@ -682,9 +692,9 @@ impl LayerDynamicShapeInstance {
 
 
 
-// ================
+// =================
 // === Sublayers ===
-// ================
+// =================
 
 /// Abstraction for layer sublayers.
 #[derive(Clone,CloneRef,Debug)]
@@ -947,9 +957,9 @@ impl<T> ShapeSystemInfoTemplate<T> {
 
 
 
-// ==============
-// === Macros ===
-// ==============
+// ======================
+// === Shape Ordering ===
+// ======================
 
 /// Shape ordering utility. Currently, this macro supports ordering of shapes for a given stage.
 /// For example, the following usage:
@@ -980,4 +990,144 @@ macro_rules! shapes_order_dependencies {
     }) => {$(
         $scene.layers.add_global_shapes_order_dependency::<$p1$(::$ps1)*::View, $p2$(::$ps2)*::View>();
     )*};
+}
+
+
+#[derive(Debug,Clone,Copy,Default)]
+pub struct AbsoluteScissorBox {
+    pub min_x : Option<i32>,
+    pub min_y : Option<i32>,
+    pub max_x : Option<i32>,
+    pub max_y : Option<i32>,
+}
+
+impl AbsoluteScissorBox {
+    pub fn new() -> Self {
+        default()
+    }
+
+    pub fn with_position(mut self, position:Vector2<i32>) -> Self {
+        self.min_x = Some(position.x);
+        self.min_y = Some(position.y);
+        self
+    }
+
+    pub fn with_size(mut self, size:Vector2<i32>) -> Self {
+        self.max_x = Some(self.min_x() + size.x);
+        self.max_y = Some(self.min_y() + size.y);
+        self
+    }
+}
+
+impl AbsoluteScissorBox {
+    pub fn min_x(&self) -> i32 {
+        self.min_x.unwrap_or(0)
+    }
+
+    pub fn min_y(&self) -> i32 {
+        self.min_y.unwrap_or(0)
+    }
+
+    pub fn max_x(&self) -> i32 {
+        self.max_x.unwrap_or(i32::MAX)
+    }
+
+    pub fn max_y(&self) -> i32 {
+        self.max_y.unwrap_or(i32::MAX)
+    }
+
+    pub fn size(&self) -> Vector2<i32> {
+        Vector2(self.max_x() - self.min_x(), self.max_y() - self.min_y())
+    }
+
+    pub fn position(&self) -> Vector2<i32> {
+        Vector2(self.min_x(),self.min_y())
+    }
+}
+
+fn concat_field(field1:Option<i32>, field2:Option<i32>, comp:impl Fn(i32,i32)->i32) -> Option<i32> {
+    match (field1,field2) {
+        (Some(a),Some(b)) => Some(comp(a,b)),
+        (Some(a),_)       => Some(a),
+        (_      ,Some(b)) => Some(b),
+        _                 => None
+    }
+}
+
+impl PartialSemigroup<AbsoluteScissorBox> for AbsoluteScissorBox {
+    fn concat_mut(&mut self, other:Self) {
+        self.min_x = concat_field(self.min_x,other.min_x,Ord::max);
+        self.min_y = concat_field(self.min_y,other.min_y,Ord::max);
+        self.max_x = concat_field(self.max_x,other.max_x,Ord::min);
+        self.max_y = concat_field(self.max_y,other.max_y,Ord::min);
+    }
+}
+
+impl PartialSemigroup<&AbsoluteScissorBox> for AbsoluteScissorBox {
+    fn concat_mut(&mut self, other:&Self) {
+        self.concat_mut(*other)
+    }
+}
+
+
+// ==================
+// === ScissorBox ===
+// ==================
+
+crate::define_endpoints! {
+    Input {
+        set_size (Vector2<Option<i32>>),
+    }
+
+    Output {
+        size (Vector2<Option<i32>>),
+    }
+}
+
+#[derive(Clone,CloneRef,Debug)]
+pub struct ScissorBox {
+    display_object : display::object::Instance,
+    size           : Rc<Cell<Vector2<Option<i32>>>>,
+    frp            : Frp,
+}
+
+impl ScissorBox {
+    pub fn new() -> Self {
+        let logger         = Logger::new("ScissorBox");
+        let display_object = display::object::Instance::new(&logger);
+        let size           = default();
+        let frp            = Frp::new();
+        Self {display_object,size,frp}
+    }
+
+    pub fn absolute(&self) -> AbsoluteScissorBox {
+        let position = self.display_object.global_position().xy();
+        let size     = self.size.get();
+        let min_x    = position.x as i32;
+        let min_y    = position.y as i32;
+        let max_x    = size.x.map(|t| t + min_x);
+        let max_y    = size.y.map(|t| t + min_y);
+        let min_x    = Some(min_x);
+        let min_y    = Some(min_y);
+        AbsoluteScissorBox {min_x,min_y,max_x,max_y}
+    }
+}
+
+impl AsRef<ScissorBox> for ScissorBox {
+    fn as_ref(&self) -> &Self {
+        self
+    }
+}
+
+impl Deref for ScissorBox {
+    type Target = Frp;
+    fn deref(&self) -> &Self::Target {
+        &self.frp
+    }
+}
+
+impl display::Object for ScissorBox {
+    fn display_object(&self) -> &display::object::Instance {
+        &self.display_object
+    }
 }

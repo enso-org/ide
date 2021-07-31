@@ -136,8 +136,9 @@ impl World {
         });
         // TODO: We may want to enable it on weak hardware.
         // pixel_read_pass.set_threshold(1);
+        let logger   = &self.scene.renderer.logger;
         let pipeline = RenderPipeline::new()
-            .add(SymbolsRenderPass::new(self.scene.symbols(),&self.scene.layers))
+            .add(SymbolsRenderPass::new(&logger,self.scene.symbols(),&self.scene.layers))
             .add(ScreenRenderPass::new(self))
             .add(pixel_read_pass);
         self.scene.renderer.set_pipeline(pipeline);

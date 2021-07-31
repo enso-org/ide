@@ -543,10 +543,10 @@ pub struct Dirty {
 
 #[derive(Clone,CloneRef,Debug)]
 pub struct Renderer {
-    logger    : Logger,
-    dom       : Dom,
-    context   : Context,
-    variables : UniformScope,
+    pub logger : Logger,
+    dom        : Dom,
+    context    : Context,
+    variables  : UniformScope,
 
     pub pipeline : Rc<CloneCell<RenderPipeline>>,
     pub composer : Rc<CloneCell<RenderComposer>>,

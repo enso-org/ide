@@ -7,6 +7,7 @@ use ensogl_core::system::web;
 use wasm_bindgen::prelude::*;
 use ensogl_core::display::object::ObjectOps;
 use ensogl_core::display::world::*;
+use ensogl_core::display::scene;
 use ensogl_core::display::shape::*;
 use ensogl_core::data::color;
 use ensogl_core::display::style::theme;
@@ -95,6 +96,12 @@ pub fn entry_point_complex_shape_system() {
     let view2 = shape::View::new(&logger);
     view2.size.set(Vector2::new(300.0, 300.0));
     view2.mod_position(|t| *t = Vector3::new(-50.0, -50.0, 0.0));
+
+    let scissor_box = scene::layer::AbsoluteScissorBox::new().with_size(Vector2(600,600));
+
+    // let scissor_box = scene::layer::ScissorBox::new();
+    scene.layers.main.set_scissor_box(Some(&scissor_box));
+    // scissor_box.set_size(Vector2(Some(100),Some(200)));
 
     // let mask = mask::View::new(&logger);
     // mask.size.set(Vector2::new(300.0, 300.0));
