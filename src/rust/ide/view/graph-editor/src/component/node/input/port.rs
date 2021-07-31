@@ -114,7 +114,7 @@ impl Shape {
 
 impl display::Object for Shape {
     fn display_object(&self) -> &display::object::Instance {
-        &self.root.display_object()
+        self.root.display_object()
     }
 }
 
@@ -173,7 +173,7 @@ impl Model {
     pub fn init_shape
     (&mut self, logger:impl AnyLogger, scene:&Scene, size:Vector2, hover_height:f32) -> Shape {
         let logger_name = format!("port({},{})",self.index,self.length);
-        let logger      = Logger::sub(logger,logger_name);
+        let logger      = Logger::new_sub(logger,logger_name);
         let shape       = Shape::new(&logger,scene,size,hover_height);
         self.shape      = Some(shape);
         self.shape.as_ref().unwrap().clone_ref()

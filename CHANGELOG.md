@@ -1,18 +1,67 @@
 # Next Release
 
+This update contains major performance improvements and exposes new privacy user
+settings. We will work towards stabilizing it in the next weeks in order to make
+these updates be shipped in a stable release before the end of the year.
+
 <br/>![New Features](/docs/assets/tags/new_features.svg)
 
 #### Visual Environment
 
-- [Improved undo-reddo][1653]. Several new operations are now supported by
-  undo-redo:
-  - node selection;
-  - enabling and disabling a visualization;
-  - entering and leaving a node.
+- [New look of open project dialog.][1700]. Now it has "Open project" title on
+  the top.
+
+#### Enso Compiler
+
+- [Updated Enso engine to version 0.2.16][1726]. If you're interested in the
+  enhancements and fixes made to the Enso compiler, you can find out more
+  details in
+  [the engine release notes](https://github.com/enso-org/enso/blob/main/RELEASES.md).
+
+<br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
+
+#### Visual Environment
+
+- [Fixed a bug where edited node expression was sometimes altered.][1743]. When
+  editing node expression, the changes were occasionally reverted, or the
+  grayed-out parameter names were added to the actual expression.
+
+<br/>
+
+[1700]: https://github.com/enso-org/ide/pull/1700
+[1726]: https://github.com/enso-org/ide/pull/1726
+[1743]: https://github.com/enso-org/ide/pull/1743
+
+# Enso 2.0.0-alpha.10 (2021-07-23)
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Enso Compiler
+
+- [Updated Enso engine to version 0.2.15][1710]. If you're interested in the
+  enhancements and fixes made to the Enso compiler, you can find out more
+  details in
+  [the engine release notes](https://github.com/enso-org/enso/blob/main/RELEASES.md).
+
+<br/>
+
+[1710]: https://github.com/enso-org/ide/pull/1710
+
+# Enso 2.0.0-alpha.9 (2021-07-16)
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Visual Environment
+
+- [Improved undo-redo][1653]. Node selection, enabling/disabling visualisations
+  and entering a node are now affected by undo/redo and are restored on project
+  startup.
 
 <br/>
   
-# Enso 2.0.0-alpha.8 (2021-07-09)
+[1640]: https://github.com/enso-org/ide/pull/1653
+
+# Enso 2.0.0-alpha.8 (2021-06-09)
 
 <br/>![New Features](/docs/assets/tags/new_features.svg)
 
@@ -24,7 +73,6 @@
   [the engine release notes](https://github.com/enso-org/enso/blob/main/RELEASES.md).
 
 [1640]: https://github.com/enso-org/ide/pull/1640
-[1677]: https://github.com/enso-org/ide/pull/1677
 
 <br/>
 

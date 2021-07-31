@@ -73,7 +73,7 @@ impl World {
     pub fn new(dom:&web_sys::HtmlElement) -> World {
         let logger          = Logger::new("world");
         let stats           = default();
-        let scene_dirty     = dirty::SharedBool::new(Logger::sub(&logger,"scene_dirty"),());
+        let scene_dirty     = dirty::SharedBool::new(Logger::new_sub(&logger,"scene_dirty"),());
         let on_change       = enclose!((scene_dirty) move || scene_dirty.set());
         let scene           = Scene::new(dom,&logger,&stats,on_change);
         let uniforms        = Uniforms::new(&scene.variables);
@@ -137,7 +137,7 @@ impl World {
         // TODO: We may want to enable it on weak hardware.
         // pixel_read_pass.set_threshold(1);
         let pipeline = RenderPipeline::new()
-            .add(SymbolsRenderPass::new(&self.scene.symbols(),&self.scene.layers))
+            .add(SymbolsRenderPass::new(self.scene.symbols(),&self.scene.layers))
             .add(ScreenRenderPass::new(self))
             .add(pixel_read_pass);
         self.scene.renderer.set_pipeline(pipeline);

@@ -126,9 +126,9 @@ pub struct Animations {
 impl Animations {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
-        let color           = DEPRECATED_Animation::new(&network);
-        let fade_in         = DEPRECATED_Animation::new(&network);
-        let separator_color = DEPRECATED_Animation::new(&network);
+        let color           = DEPRECATED_Animation::new(network);
+        let fade_in         = DEPRECATED_Animation::new(network);
+        let separator_color = DEPRECATED_Animation::new(network);
         Self{color,separator_color,fade_in}
     }
 }
@@ -278,7 +278,7 @@ impl BreadcrumbModel {
         let scene             = app.display.scene();
         let logger            = Logger::new("Breadcrumbs");
         let display_object    = display::object::Instance::new(&logger);
-        let view_logger       = Logger::sub(&logger,"view_logger");
+        let view_logger       = Logger::new_sub(&logger,"view_logger");
         let view              = background::View::new(&view_logger);
         let icon              = icon::View::new(&view_logger);
         let separator         = separator::View::new(&view_logger);
@@ -300,7 +300,7 @@ impl BreadcrumbModel {
         scene.layers.panel.add_exclusive(&view);
         let shape_system = scene.layers.panel.shape_system_registry.shape_system
             (scene,PhantomData::<background::DynamicShape>);
-        scene.layers.panel.add_symbol_exclusive(&shape_system.shape_system.symbol);
+        scene.layers.panel.add_exclusive(&shape_system.shape_system.symbol);
 
         scene.layers.panel.add_exclusive(&icon);
         let shape_system = scene.layers.panel.shape_system_registry.shape_system

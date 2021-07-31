@@ -100,7 +100,7 @@ impl<DP:DataProvider> FileUploadProcess<DP> {
     , json_connection : Rc<language_server::Connection>
     , remote_path : Path
     ) -> Self {
-        let logger         = Logger::sub(parent,"FileUploadProcess");
+        let logger         = Logger::new_sub(parent,"FileUploadProcess");
         let bytes_uploaded = 0;
         let checksum       = sha3::Sha3_224::new();
         Self {logger,bin_connection,json_connection,file,remote_path,bytes_uploaded,checksum}
@@ -172,7 +172,7 @@ pub struct NodeFromDroppedFileHandler {
 impl NodeFromDroppedFileHandler {
     /// Constructor
     pub fn new(parent:impl AnyLogger, project:model::Project, graph:controller::Graph) -> Self {
-        let logger = Logger::sub(parent,"NodeFromDroppedFileHandler");
+        let logger = Logger::new_sub(parent,"NodeFromDroppedFileHandler");
         Self{logger,project,graph}
     }
 
@@ -268,23 +268,14 @@ impl NodeFromDroppedFileHandler {
     }
 
     async fn establish_remote_file_name(&self, original_name:&str) -> FallibleResult<String> {
-        let list_response     = self.project.json_rpc().client.file_list(&self.data_path()).await?;
-        let files_list        = list_response.paths.into_iter().map(|f| f.take_name());
-        let files_in_data_dir = files_list.collect::<HashSet<String>>();
-        let extension_sep     = original_name.rfind('.').filter(|i| *i > 0);
-        let name_stem         = extension_sep.map_or(original_name, |i| &original_name[0..i]);
-        let name_ext          = extension_sep.map_or("", |i| &original_name[i..]);
-        let first_candidate   = std::iter::once(original_name.to_owned());
-        let next_candidates   = (1..).map(|num| iformat!("{name_stem}_{num}{name_ext}"));
-        let mut candidates    = first_candidate.chain(next_candidates);
-        Ok(candidates.find(|name| !files_in_data_dir.contains(name)).unwrap())
+        pick_non_colliding_name(&*self.project.json_rpc(),&self.data_path(),original_name).await
     }
 
     async fn ensure_data_directory_exists(&self) -> FallibleResult {
         if !self.data_directory_exists().await? {
             let to_create = FileSystemObject::Directory {
                 name : DATA_DIR_NAME.to_owned(),
-                path : Path::new_root(self.project.content_root_id())
+                path : Path::new_root(self.project.project_content_root_id())
             };
             self.project.json_rpc().create_file(&to_create).await?
         }
@@ -312,12 +303,38 @@ impl NodeFromDroppedFileHandler {
     }
 
     fn data_path(&self) -> Path {
-        Path::new(self.project.content_root_id(),&[DATA_DIR_NAME])
+        Path::new(self.project.project_content_root_id(),&[DATA_DIR_NAME])
     }
 }
 
 impl undo_redo::Aware for NodeFromDroppedFileHandler {
     fn undo_redo_repository(&self) -> Rc<Repository> { self.graph.undo_redo_repository() }
+}
+
+
+
+// ======================================
+// === File Name Collisions Resolving ===
+// ======================================
+
+/// Return the name derived from `original_name` which does not collide with any other file in
+/// directory under `path`.
+///
+/// The directory content is retrieve from the Engine. If there is no colliding file, this function
+/// will return the orignal name. Otherwise it adds to its stem a first non-colliding numeric
+/// prefix.
+pub async fn pick_non_colliding_name
+(json_rpc:&language_server::Connection, path:&Path, original_name:&str) -> FallibleResult<String> {
+    let list_response     = json_rpc.client.file_list(path).await?;
+    let files_list        = list_response.paths.into_iter().map(|f| f.take_name());
+    let files_in_data_dir = files_list.collect::<HashSet<String>>();
+    let extension_sep     = original_name.rfind('.').filter(|i| *i > 0);
+    let name_stem         = extension_sep.map_or(original_name, |i| &original_name[0..i]);
+    let name_ext          = extension_sep.map_or("", |i| &original_name[i..]);
+    let first_candidate   = std::iter::once(original_name.to_owned());
+    let next_candidates   = (1..).map(|num| iformat!("{name_stem}_{num}{name_ext}"));
+    let mut candidates    = first_candidate.chain(next_candidates);
+    Ok(candidates.find(|name| !files_in_data_dir.contains(name)).unwrap())
 }
 
 

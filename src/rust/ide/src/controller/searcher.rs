@@ -10,6 +10,7 @@ use crate::double_representation::graph::GraphInfo;
 use crate::double_representation::graph::LocationHint;
 use crate::double_representation::module::QualifiedName;
 use crate::double_representation::node::NodeInfo;
+use crate::double_representation::project;
 use crate::double_representation::tp;
 use crate::model::module::MethodId;
 use crate::model::module::NodeMetadata;
@@ -220,7 +221,7 @@ impl ParsedInput {
     }
 
     fn new_from_ast(ast:&Ast) -> Self {
-        let prefix = ast::prefix::Chain::from_ast_non_strict(&ast);
+        let prefix = ast::prefix::Chain::from_ast_non_strict(ast);
         ParsedInput {
             expression     : Some(ast::Shifted::new(default(),prefix)),
             pattern_offset : 0,
@@ -335,7 +336,7 @@ impl ThisNode {
             //   form. If we wanted to support pattern subparts, the engine would need to send us
             //   value updates for matched pattern pieces. See the issue:
             //   https://github.com/enso-org/enso/issues/1038
-            (ast::identifier::as_var(&ast)?.to_owned(),false)
+            (ast::identifier::as_var(ast)?.to_owned(),false)
         } else {
             (graph.variable_name_for(&node.info).ok()?.repr(),true)
         };
@@ -367,8 +368,6 @@ pub enum Mode {
     NewNode {position:Option<Position>},
     /// Searcher should edit existing node's expression.
     EditNode {node_id:ast::Id},
-    /// Searcher should show only projects to open.
-    OpenProject,
 }
 
 /// A fragment filled by single picked suggestion.
@@ -392,7 +391,7 @@ impl FragmentAddedByPickingSuggestion {
 
     fn code_to_insert(&self, current_module:&QualifiedName, this_node:&Option<ThisNode>) -> CodeToInsert {
         let generate_this = self.id != CompletedFragmentId::Function || this_node.is_none();
-        self.picked_suggestion.code_to_insert(Some(&current_module),generate_this)
+        self.picked_suggestion.code_to_insert(Some(current_module),generate_this)
     }
 }
 
@@ -416,7 +415,7 @@ impl Data {
     /// Additionally searcher should restore information about intended method, so we will be able
     /// to suggest arguments.
     fn new_with_edited_node
-    ( project_name   : &str
+    ( project_name   : project::QualifiedName
     , graph          : &controller::Graph
     , database       : &model::SuggestionDatabase
     , edited_node_id : ast::Id
@@ -430,7 +429,7 @@ impl Data {
         let initial_fragment = initial_entry.and_then(|entry| {
             let fragment = FragmentAddedByPickingSuggestion {
                 id                : CompletedFragmentId::Function,
-                picked_suggestion : entry
+                picked_suggestion : action::Suggestion::FromDatabase(entry),
             };
             // This is meant to work with single function calls (without "this" argument).
             // In other case we should know what the function is from the engine, as the function
@@ -498,10 +497,10 @@ impl Searcher {
     , mode           : Mode
     , selected_nodes : Vec<double_representation::node::Id>
     ) -> FallibleResult<Self> {
-        let logger   = Logger::sub(parent,"Searcher Controller");
+        let logger   = Logger::new_sub(parent,"Searcher Controller");
         let database = project.suggestion_db();
         let data     = if let Mode::EditNode{node_id} = mode {
-            Data::new_with_edited_node(&*project.name(),&graph.graph(),&*database,node_id)?
+            Data::new_with_edited_node(project.qualified_name(),&graph.graph(),&*database,node_id)?
         } else {
             default()
         };
@@ -519,10 +518,7 @@ impl Searcher {
             language_server  : project.json_rpc(),
             position_in_code : Immutable(position),
         };
-        match mode {
-            Mode::OpenProject => ret.load_project_list(),
-            _                 => ret.reload_list(),
-        }
+        ret.reload_list();
         Ok(ret)
     }
 
@@ -542,18 +538,14 @@ impl Searcher {
     /// in a new action list (the appropriate notification will be emitted).
     pub fn set_input(&self, new_input:String) -> FallibleResult {
         debug!(self.logger, "Manually setting input to {new_input}.");
-        let parsed_input = ParsedInput::new(new_input,&self.ide.parser())?;
+        let parsed_input = ParsedInput::new(new_input,self.ide.parser())?;
         let old_expr     = self.data.borrow().input.expression.repr();
         let new_expr     = parsed_input.expression.repr();
 
         self.data.borrow_mut().input = parsed_input;
         self.invalidate_fragments_added_by_picking();
         let expression_changed = old_expr != new_expr;
-        // We don't do the reloading in OpenProject mode: the reloading is meant for providing new
-        // code suggestions for arguments of picked method. But in OpenProject mode the input is
-        // for filtering only.
-        let mode_with_reloading = !matches!(*self.mode, Mode::OpenProject);
-        if expression_changed && mode_with_reloading {
+        if expression_changed {
             debug!(self.logger, "Reloading list.");
             self.reload_list();
         } else if let Actions::Loaded {list} = self.data.borrow().actions.clone_ref() {
@@ -581,12 +573,13 @@ impl Searcher {
     /// This function should be called when user do the _use as suggestion_ action as a code
     /// suggestion (see struct documentation). The picked suggestion will be remembered, and the
     /// searcher's input will be updated and returned by this function.
-    pub fn use_suggestion
+    pub fn  use_suggestion
     (&self, picked_suggestion: action::Suggestion) -> FallibleResult<String> {
         info!(self.logger, "Picking suggestion: {picked_suggestion:?}");
         let id                = self.data.borrow().input.next_completion_id();
         let picked_completion = FragmentAddedByPickingSuggestion {id,picked_suggestion};
         let code_to_insert    = self.code_to_insert(&picked_completion).code;
+        debug!(self.logger, "Code to insert: \"{code_to_insert}\"");
         let added_ast         = self.ide.parser().parse_line(&code_to_insert)?;
         let pattern_offset    = self.data.borrow().input.pattern_offset;
         let new_expression    = match self.data.borrow_mut().input.expression.take() {
@@ -625,7 +618,7 @@ impl Searcher {
         };
         match suggestion {
             Action::Suggestion(suggestion) => self.use_suggestion(suggestion),
-            _ => Err(NotASuggestion {index}.into())
+            _                              => Err(NotASuggestion {index}.into())
         }
     }
 
@@ -655,8 +648,8 @@ impl Searcher {
                             let result = match action {
                                 action::ProjectManagement::CreateNewProject =>
                                     manage_projects.create_new_project(),
-                                action::ProjectManagement::OpenProject {id,name} =>
-                                    manage_projects.open_project(*id,name.to_string().into()),
+                                action::ProjectManagement::OpenProject {id,..} =>
+                                    manage_projects.open_project(*id),
                             };
                             if let Err(err) = result.await {
                                 error!(logger, "Error when creating new project: {err}");
@@ -743,7 +736,6 @@ impl Searcher {
                 }))?;
                 Ok(node_id)
             }
-            mode => Err(CannotCommitExpression{mode}.into())
         }
     }
 
@@ -840,7 +832,7 @@ impl Searcher {
         let this    = self.this_arg.clone_ref();
         async move {
             let is_function_fragment = next_id == CompletedFragmentId::Function;
-            is_function_fragment.then_some(())?;
+            if !is_function_fragment {return None}
             let ThisNode {id,..} = this.deref().as_ref()?;
             let opt_type         = graph.expression_type(*id).await.map(Into::into);
             opt_type.map_none(move || error!(logger, "Failed to obtain type for this node."))
@@ -860,8 +852,8 @@ impl Searcher {
         suggestions.into_iter().filter_map(|suggestion| {
             let arg_index = arg_index + if self.this_arg.is_some()  { 1 } else { 0 };
             let arg_index = arg_index + if self.has_this_argument() { 1 } else { 0 };
-            let parameter = suggestion.arguments.get(arg_index)?;
-            Some(parameter.repr_type.clone())
+            let parameter = suggestion.argument_types().into_iter().nth(arg_index)?;
+            Some(parameter)
         }).collect()
     }
 
@@ -871,25 +863,24 @@ impl Searcher {
     , return_types : impl IntoIterator<Item=String>
     , tags         : Option<Vec<language_server::SuggestionEntryType>>
     ) {
-        let ls               = self.language_server.clone_ref();
-        let graph            = self.graph.graph();
-        let position         = self.position_in_code.deref().into();
-        let this             = self.clone_ref();
-        let mut return_types = return_types.into_iter().map(Some).collect_vec();
-        if return_types.is_empty() {
-            return_types.push(None)
-        }
+        let ls                      = self.language_server.clone_ref();
+        let graph                   = self.graph.graph();
+        let position                = self.position_in_code.deref().into();
+        let this                    = self.clone_ref();
+        let return_types            = return_types.into_iter().collect_vec();
+        let return_types_for_engine = if return_types.is_empty() { vec![None] }
+            else {return_types.iter().cloned().map(Some).collect()};
         executor::global::spawn(async move {
             let this_type = this_type.await;
             info!(this.logger,"Requesting new suggestion list. Type of `this` is {this_type:?}.");
-            let requests  = return_types.into_iter().map(|return_type| {
+            let requests  = return_types_for_engine.into_iter().map(|return_type| {
                 info!(this.logger, "Requesting suggestions for returnType {return_type:?}.");
                 let file = graph.module.path().file_path();
                 ls.completion(file,&position,&this_type,&return_type,&tags)
             });
             let responses = futures::future::join_all(requests).await;
             info!(this.logger,"Received suggestions from Language Server.");
-            let new_list = match this.make_action_list(responses) {
+            let new_list = match this.make_action_list(responses,this_type,return_types) {
                 Ok(list)   => Actions::Loaded {list:Rc::new(list)},
                 Err(error) => Actions::Error(Rc::new(error))
             };
@@ -900,31 +891,47 @@ impl Searcher {
 
     /// Process multiple completion responses from the engine into a single list of suggestion.
     fn make_action_list
-    (&self, completion_responses:Vec<json_rpc::Result<language_server::response::Completion>>)
-     -> FallibleResult<action::List> {
-        let actions = action::List::new();
-        if matches!(self.mode.deref(), Mode::NewNode{..}) && self.this_arg.is_none() {
-            actions.extend(self.database.iterate_examples().map(Action::Example));
-            Self::add_enso_project_entries(&actions)?;
-            if self.ide.manage_projects().is_ok() {
-                let create_project = action::ProjectManagement::CreateNewProject;
-                actions.extend(std::iter::once(Action::ProjectManagement(create_project)));
-            }
+    ( &self
+    , completion_responses : Vec<json_rpc::Result<language_server::response::Completion>>
+    , _this_type           : Option<String>
+    , _return_types        : Vec<String>,
+    ) -> FallibleResult<action::List> {
+        let creating_new_node             = matches!(self.mode.deref(), Mode::NewNode{..});
+        let should_add_additional_entries = creating_new_node && self.this_arg.is_none();
+        let mut actions                   = action::ListBuilder::default();
+        //TODO[ao] should be uncommented once new searcher GUI will be integrated + the order of
+        // added entries should be adjusted.
+        // https://github.com/enso-org/ide/issues/1681
+        // Self::add_hardcoded_entries(&mut actions,this_type,return_types)?;
+        if should_add_additional_entries && self.ide.manage_projects().is_ok() {
+            let mut root_cat = actions.add_root_category("Projects");
+            let category     = root_cat.add_category("Projects");
+            let create_project = action::ProjectManagement::CreateNewProject;
+            category.add_action(Action::ProjectManagement(create_project));
+        }
+        let mut libraries_root_cat = actions.add_root_category("Libraries");
+        if should_add_additional_entries {
+            let examples_cat = libraries_root_cat.add_category("Examples");
+            examples_cat.extend(self.database.iterate_examples().map(Action::Example));
+        }
+        let libraries_cat = libraries_root_cat.add_category("Libraries");
+        if should_add_additional_entries {
+            Self::add_enso_project_entries(&libraries_cat)?;
         }
         for response in completion_responses {
             let response = response?;
             let entries  = response.results.iter().filter_map(|id| {
                 self.database.lookup(*id)
-                    .map(Action::Suggestion)
+                    .map(|entry| Action::Suggestion(action::Suggestion::FromDatabase(entry)))
                     .handle_err(|e| {
                         error!(self.logger,"Response provided a suggestion ID that cannot be \
                         resolved: {e}.")
                     })
             });
-            actions.extend(entries);
+            libraries_cat.extend(entries);
         }
-        actions.update_filtering(&self.data.borrow().input.pattern);
-        Ok(actions)
+
+        Ok(actions.build())
     }
 
     fn possible_function_calls(&self) -> Vec<action::Suggestion> {
@@ -934,12 +941,13 @@ impl Searcher {
             if let Some(module) = self.module_whose_method_is_called(&call) {
                 let name  = call.function_name;
                 let entry = self.database.lookup_module_method(name,&module);
-                Some(entry.into_iter().collect())
+                Some(entry.into_iter().map(action::Suggestion::FromDatabase).collect())
             } else {
                 let name     = &call.function_name;
                 let module   = self.module_qualified_name();
                 let location = *self.position_in_code;
-                Some(self.database.lookup_by_name_and_location(name,&module,location))
+                let entries  = self.database.lookup_by_name_and_location(name,&module,location);
+                Some(entries.into_iter().map(action::Suggestion::FromDatabase).collect())
             }
         };
         opt_result().unwrap_or_default()
@@ -997,7 +1005,8 @@ impl Searcher {
     }
 
     fn module_qualified_name(&self) -> QualifiedName {
-        self.graph.graph().module.path().qualified_module_name(&*self.ide.current_project().name())
+        let project_name = self.ide.current_project().qualified_name();
+        self.graph.graph().module.path().qualified_module_name(project_name)
     }
 
     /// Get the user action basing of current input (see `UserAction` docs).
@@ -1009,49 +1018,38 @@ impl Searcher {
     ///
     /// This is a workaround for Engine bug https://github.com/enso-org/enso/issues/1605.
     //TODO[ao] this is a temporary workaround.
-    fn add_enso_project_entries(actions:&action::List) -> FallibleResult {
+    fn add_enso_project_entries
+    (libraries_cat_builder:&action::CategoryBuilder) -> FallibleResult {
         for method in &["data", "root"] {
             let entry = model::suggestion_database::Entry {
-                name          : (*method).to_owned(),
-                kind          : model::suggestion_database::entry::Kind::Method,
-                module        : QualifiedName::from_text(ENSO_PROJECT_SPECIAL_MODULE)?,
-                arguments     : vec![],
-                return_type   : "Standard.Base.System.File.File".to_owned(),
-                documentation : None,
-                self_type     : Some(tp::QualifiedName::from_text(ENSO_PROJECT_SPECIAL_MODULE)?),
-                scope         : model::suggestion_database::entry::Scope::Everywhere,
+                name               : (*method).to_owned(),
+                kind               : model::suggestion_database::entry::Kind::Method,
+                module             : QualifiedName::from_text(ENSO_PROJECT_SPECIAL_MODULE)?,
+                arguments          : vec![],
+                return_type        : "Standard.Base.System.File.File".to_owned(),
+                documentation_html : None,
+                self_type          : Some(tp::QualifiedName::from_text(ENSO_PROJECT_SPECIAL_MODULE)?),
+                scope              : model::suggestion_database::entry::Scope::Everywhere,
             };
-            actions.extend(std::iter::once(Action::Suggestion(Rc::new(entry))));
+            let action = Action::Suggestion(action::Suggestion::FromDatabase(Rc::new(entry)));
+            libraries_cat_builder.add_action(action);
         }
         Ok(())
     }
 
-    fn load_project_list(&self) {
-        let logger = self.logger.clone_ref();
-        let ide    = self.ide.clone_ref();
-        let data   = self.data.clone_ref();
-        executor::global::spawn(async move {
-            let result:FallibleResult<Vec<Action>> = async {
-                let manage_projects = ide.manage_projects()?;
-                let projects = manage_projects.list_projects().await?;
-                Ok(projects.into_iter().map(|project| {
-                    let id        = Immutable(project.id);
-                    let name      = project.name.0.into();
-                    let pm_action = action::ProjectManagement::OpenProject {id,name};
-                    Action::ProjectManagement(pm_action)
-                }).collect_vec())
-            }.await;
-            let actions = match result {
-                Ok(actions) => actions,
-                Err(err) => {
-                    error!(logger,"Cannot load projects list: {err}");
-                    default()
-                }
-            };
-            info!(logger,"Received list of projects: {actions:?}");
-            let list = Rc::new(action::List::from_actions(actions));
-            data.borrow_mut().actions = Actions::Loaded {list}
-        })
+    //TODO[ao] The usage of add_hardcoded_entries_to_list is currently commented out. It should be
+    // uncommented when working on https://github.com/enso-org/ide/issues/1681.
+    #[allow(dead_code)]
+    fn add_hardcoded_entries
+    (list:&mut action::ListBuilder, this_type:Option<String>, return_types:Vec<String>)
+    -> FallibleResult {
+        let this_type    = this_type.map(tp::QualifiedName::from_text).transpose()?;
+        let rt_converted = return_types.iter().map(tp::QualifiedName::from_text);
+        let rt_result:FallibleResult<HashSet<tp::QualifiedName>> = rt_converted.collect();
+        let return_types = rt_result?;
+        let return_types = if return_types.is_empty() {None} else {Some(&return_types)};
+        action::hardcoded::add_hardcoded_entries_to_list(list,this_type.as_ref(),return_types);
+        Ok(())
     }
 }
 
@@ -1128,7 +1126,7 @@ pub mod test {
     use crate::model::suggestion_database::entry::Scope;
     use crate::test::mock::data::MAIN_FINISH;
     use crate::test::mock::data::MODULE_NAME;
-    use crate::test::mock::data::PROJECT_NAME;
+    use crate::test::mock::data::project_qualified_name;
 
     use enso_protocol::language_server::types::test::value_update_with_type;
     use json_rpc::expect_call;
@@ -1192,12 +1190,12 @@ pub mod test {
         data     : MockData,
         test     : TestWithLocalPoolExecutor,
         searcher : Searcher,
-        entry1   : action::Suggestion,
-        entry2   : action::Suggestion,
-        entry3   : action::Suggestion,
-        entry4   : action::Suggestion,
-        entry9   : action::Suggestion,
-        entry10  : action::Suggestion,
+        entry1   : Rc<model::suggestion_database::Entry>,
+        entry2   : Rc<model::suggestion_database::Entry>,
+        entry3   : Rc<model::suggestion_database::Entry>,
+        entry4   : Rc<model::suggestion_database::Entry>,
+        entry9   : Rc<model::suggestion_database::Entry>,
+        entry10  : Rc<model::suggestion_database::Entry>,
     }
 
     impl Fixture {
@@ -1208,23 +1206,25 @@ pub mod test {
             let mut client = language_server::MockClient::default();
             client.require_all_calls();
             client_setup(&mut data,&mut client);
-            let end_of_code  = TextLocation::at_document_end(&data.graph.module.code);
-            let code_range   = TextLocation::at_document_begin()..=end_of_code;
-            let graph        = data.graph.controller();
-            let node         = &graph.graph().nodes().unwrap()[0];
-            let this         = ThisNode::new(vec![node.info.id()],&graph.graph());
-            let this         = data.selected_node.and_option(this);
-            let logger       = Logger::new("Searcher");// new_empty
-            let database     = Rc::new(SuggestionDatabase::new_empty(&logger));
-            let mut ide      = controller::ide::MockAPI::new();
-            let mut project  = model::project::MockAPI::new();
-            let project_name = ImString::new(&data.graph.graph.project_name);
-            project.expect_name().returning_st(move || project_name.clone_ref());
+            let end_of_code   = TextLocation::at_document_end(&data.graph.module.code);
+            let code_range    = TextLocation::at_document_begin()..=end_of_code;
+            let graph         = data.graph.controller();
+            let node          = &graph.graph().nodes().unwrap()[0];
+            let this          = ThisNode::new(vec![node.info.id()],&graph.graph());
+            let this          = data.selected_node.and_option(this);
+            let logger        = Logger::new("Searcher");// new_empty
+            let database      = Rc::new(SuggestionDatabase::new_empty(&logger));
+            let mut ide       = controller::ide::MockAPI::new();
+            let mut project   = model::project::MockAPI::new();
+            let project_qname = project_qualified_name();
+            let project_name  = project_qname.project.clone();
+            project.expect_qualified_name().returning_st(move || project_qname.clone());
+            project.expect_name().returning_st(move || project_name.clone());
             let project     = Rc::new(project);
             ide.expect_parser().return_const(Parser::new_or_panic());
             ide.expect_current_project().returning_st(move || project.clone_ref());
             ide.expect_manage_projects().returning_st(move || Err(ProjectOperationsNotSupported.into()));
-            let module_name = QualifiedName::from_segments(PROJECT_NAME, &[MODULE_NAME]).unwrap();
+            let module_name = QualifiedName::from_segments(data.graph.graph.project_name.clone(), &[MODULE_NAME]).unwrap();
             let searcher = Searcher {
                 graph,logger,database,
                 ide              : Rc::new(ide),
@@ -1236,14 +1236,14 @@ pub mod test {
                 position_in_code : Immutable(end_of_code),
             };
             let entry1 = model::suggestion_database::Entry {
-                name          : "testFunction1".to_string(),
-                kind          : Kind::Function,
-                module        : crate::test::mock::data::module_qualified_name(),
-                arguments     : vec![],
-                return_type   : "Number".to_string(),
-                documentation : default(),
-                self_type     : None,
-                scope         : Scope::InModule {range:code_range},
+                name               : "testFunction1".to_string(),
+                kind               : Kind::Function,
+                module             : crate::test::mock::data::module_qualified_name(),
+                arguments          : vec![],
+                return_type        : "Number".to_string(),
+                documentation_html : default(),
+                self_type          : None,
+                scope              : Scope::InModule {range:code_range},
             };
             let entry2 = model::suggestion_database::Entry {
                 name : "TestVar1".to_string(),
@@ -1274,8 +1274,8 @@ pub mod test {
                 ..entry1.clone()
             };
             let entry4 = model::suggestion_database::Entry {
-                self_type : Some("Test.Test".to_owned().try_into().unwrap()),
-                module    : "Test.Test".to_owned().try_into().unwrap(),
+                self_type : Some("test.Test.Test".to_owned().try_into().unwrap()),
+                module    : "test.Test.Test".to_owned().try_into().unwrap(),
                 arguments : vec![
                     Argument {
                         repr_type     : "Any".to_string(),
@@ -1316,7 +1316,7 @@ pub mod test {
             };
             let entry10 = model::suggestion_database::Entry {
                 name   : "testFunction3".to_string(),
-                module : "Test.Other".to_owned().try_into().unwrap(),
+                module : "test.Test.Other".to_owned().try_into().unwrap(),
                 scope  : Scope::Everywhere,
                 ..entry9.clone()
             };
@@ -1401,8 +1401,8 @@ pub mod test {
 
             test.run_until_stalled();
             assert!(!searcher.actions().is_loading());
-            searcher.use_suggestion(entry9.clone_ref()).unwrap();
-            searcher.use_suggestion(entry1.clone_ref()).unwrap();
+            searcher.use_suggestion(action::Suggestion::FromDatabase(entry9.clone_ref())).unwrap();
+            searcher.use_suggestion(action::Suggestion::FromDatabase(entry1.clone_ref())).unwrap();
             let expected_input = format!("{} {} ",entry9.name,entry1.name);
             assert_eq!(searcher.data.borrow().input.repr(),expected_input);
         }
@@ -1414,7 +1414,7 @@ pub mod test {
             data.expect_completion(client,None,Some("Number"),&[20]);
         });
         let Fixture{test,searcher,entry3,..} = &mut fixture;
-        searcher.use_suggestion(entry3.clone_ref()).unwrap();
+        searcher.use_suggestion(action::Suggestion::FromDatabase(entry3.clone_ref())).unwrap();
         assert!(searcher.actions().is_loading());
         test.run_until_stalled();
         assert!(!searcher.actions().is_loading());
@@ -1430,7 +1430,7 @@ pub mod test {
 
 
         let Fixture{searcher,entry9,..} = &mut fixture;
-        searcher.use_suggestion(entry9.clone_ref()).unwrap();
+        searcher.use_suggestion(action::Suggestion::FromDatabase(entry9.clone_ref())).unwrap();
         assert_eq!(searcher.data.borrow().input.repr(),"testFunction2 ");
         searcher.set_input("testFunction2 'foo' ".to_owned()).unwrap();
         searcher.set_input("testFunction2 'foo' 10 ".to_owned()).unwrap();
@@ -1439,7 +1439,7 @@ pub mod test {
     #[wasm_bindgen_test]
     fn non_picked_function_arg_suggestions() {
         let mut fixture = Fixture::new_custom(|data,client| {
-            data.graph.module.code.insert_str(0,"import Test.Test\n\n");
+            data.graph.module.code.insert_str(0,"import test.Test.Test\n\n");
             data.code_location.line += 2;
             data.expect_completion(client,None,Some("String"),&[1]);
             data.expect_completion(client,None,Some("Number"),&[]);
@@ -1468,12 +1468,11 @@ pub mod test {
             let requested_types:Rc<RefCell<HashSet<Option<String>>>> = default();
             let requested_types2                                     = requested_types.clone();
             let mut fixture = Fixture::new_custom(move |data,client| {
-                data.graph.module.code.insert_str(0,"import Test.Test\n\n");
+                data.graph.module.code.insert_str(0,"import test.Test.Test\n\n");
                 data.code_location.line += 2;
                 for _ in 0..EXPECTED_REQUESTS {
                     let requested_types = requested_types2.clone();
                     client.expect.completion(move |_path,_position,_self_type,return_type,_tags| {
-                        DEBUG!("Requested {return_type:?}.");
                         requested_types.borrow_mut().insert(return_type.clone());
                         Ok(completion_response(&[]))
                     });
@@ -1483,7 +1482,6 @@ pub mod test {
             let Fixture{test,searcher,..} = &mut fixture;
             searcher.set_input(input.into()).unwrap();
             test.run_until_stalled();
-            DEBUG!(">>>>> {requested_types.borrow().deref():?}");
             assert_eq!(requested_types.borrow().len(),EXPECTED_REQUESTS);
             assert!(requested_types.borrow().contains(&Some("Number".to_string())));
             assert!(requested_types.borrow().contains(&Some("String".to_string())));
@@ -1513,8 +1511,8 @@ pub mod test {
         test.run_until_stalled();
         let list = searcher.actions().list().unwrap().to_action_vec();
         assert_eq!(list.len(), 4); // we include two mocked entries
-        assert_eq!(list[2], Action::Suggestion(entry1));
-        assert_eq!(list[3], Action::Suggestion(entry9));
+        assert_eq!(list[2], Action::Suggestion(action::Suggestion::FromDatabase(entry1)));
+        assert_eq!(list[3], Action::Suggestion(action::Suggestion::FromDatabase(entry9)));
         let notification = subscriber.next().boxed_local().expect_ready();
         assert_eq!(notification, Some(Notification::NewActionList));
     }
@@ -1589,6 +1587,13 @@ pub mod test {
         assert_eq!(parsed.pattern.as_str(), "(baz ");
     }
 
+    fn are_same(action:&action::Suggestion, entry:&Rc<model::suggestion_database::Entry>) -> bool {
+        match action {
+            action::Suggestion::FromDatabase(lhs) => Rc::ptr_eq(lhs,entry),
+            action::Suggestion::Hardcoded(_)      => false,
+        }
+    }
+
     #[wasm_bindgen_test]
     fn picked_completions_list_maintaining() {
         let Fixture{test:_test,searcher,entry1,entry2,..} = Fixture::new_custom(|data,client| {
@@ -1602,44 +1607,44 @@ pub mod test {
         let frags_borrow = || Ref::map(searcher.data.borrow(),|d| &d.fragments_added_by_picking);
 
         // Picking first suggestion.
-        let new_input = searcher.use_suggestion(entry1.clone_ref()).unwrap();
+        let new_input = searcher.use_suggestion(action::Suggestion::FromDatabase(entry1.clone_ref())).unwrap();
         assert_eq!(new_input, "testFunction1 ");
         let (func,) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(func.id, CompletedFragmentId::Function);
-        assert!(Rc::ptr_eq(&func.picked_suggestion,&entry1));
+        assert!(are_same(&func.picked_suggestion,&entry1));
 
         // Typing more args by hand.
         searcher.set_input("testFunction1 some_arg pat".to_string()).unwrap();
         let (func,) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(func.id, CompletedFragmentId::Function);
-        assert!(Rc::ptr_eq(&func.picked_suggestion,&entry1));
+        assert!(are_same(&func.picked_suggestion,&entry1));
 
         // Picking argument's suggestion.
-        let new_input = searcher.use_suggestion(entry2.clone_ref()).unwrap();
+        let new_input = searcher.use_suggestion(action::Suggestion::FromDatabase(entry2.clone_ref())).unwrap();
         assert_eq!(new_input, "testFunction1 some_arg TestVar1 ");
-        let new_input = searcher.use_suggestion(entry2.clone_ref()).unwrap();
+        let new_input = searcher.use_suggestion(action::Suggestion::FromDatabase(entry2.clone_ref())).unwrap();
         assert_eq!(new_input, "testFunction1 some_arg TestVar1 TestVar1 ");
         let (function,arg1,arg2) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(function.id, CompletedFragmentId::Function);
-        assert!(Rc::ptr_eq(&function.picked_suggestion,&entry1));
+        assert!(are_same(&function.picked_suggestion,&entry1));
         assert_eq!(arg1.id, CompletedFragmentId::Argument {index:1});
-        assert!(Rc::ptr_eq(&arg1.picked_suggestion,&entry2));
+        assert!(are_same(&arg1.picked_suggestion,&entry2));
         assert_eq!(arg2.id, CompletedFragmentId::Argument {index:2});
-        assert!(Rc::ptr_eq(&arg2.picked_suggestion,&entry2));
+        assert!(are_same(&arg2.picked_suggestion,&entry2));
 
         // Backspacing back to the second arg.
         searcher.set_input("testFunction1 some_arg TestVar1 TestV".to_string()).unwrap();
         let (picked,arg) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(picked.id, CompletedFragmentId::Function);
-        assert!(Rc::ptr_eq(&picked.picked_suggestion,&entry1));
+        assert!(are_same(&picked.picked_suggestion,&entry1));
         assert_eq!(arg.id, CompletedFragmentId::Argument {index:1});
-        assert!(Rc::ptr_eq(&arg.picked_suggestion,&entry2));
+        assert!(are_same(&arg.picked_suggestion,&entry2));
 
         // Editing the picked function.
         searcher.set_input("testFunction2 some_arg TestVar1 TestV".to_string()).unwrap();
         let (arg,) = frags_borrow().iter().cloned().expect_tuple();
         assert_eq!(arg.id, CompletedFragmentId::Argument {index:1});
-        assert!(Rc::ptr_eq(&arg.picked_suggestion,&entry2));
+        assert!(are_same(&arg.picked_suggestion,&entry2));
     }
 
     #[wasm_bindgen_test]
@@ -1700,7 +1705,7 @@ pub mod test {
         let cases = vec![
             // Completion was picked.
             Case::new("2 + 2",&["sum1 = 2 + 2","operator1 = sum1.testFunction1"], |f| {
-                f.searcher.use_suggestion(f.entry1.clone()).unwrap();
+                f.searcher.use_suggestion(action::Suggestion::FromDatabase(f.entry1.clone())).unwrap();
             }),
             // The input was manually written (not picked).
             Case::new("2 + 2",&["sum1 = 2 + 2","operator1 = sum1.testFunction1"], |f| {
@@ -1708,18 +1713,18 @@ pub mod test {
             }),
             // Completion was picked and edited.
             Case::new("2 + 2",&["sum1 = 2 + 2","operator1 = sum1.var.testFunction1"], |f| {
-                f.searcher.use_suggestion(f.entry1.clone()).unwrap();
+                f.searcher.use_suggestion(action::Suggestion::FromDatabase(f.entry1.clone())).unwrap();
                 let new_parsed_input = ParsedInput::new("var.testFunction1",&f.searcher.ide.parser());
                 f.searcher.data.borrow_mut().input = new_parsed_input.unwrap();
             }),
             // Variable name already present, need to use it. And not break it.
             Case::new("my_var = 2 + 2",&["my_var = 2 + 2","operator1 = my_var.testFunction1"], |f| {
-                f.searcher.use_suggestion(f.entry1.clone()).unwrap();
+                f.searcher.use_suggestion(action::Suggestion::FromDatabase(f.entry1.clone())).unwrap();
             }),
             // Variable names unusable (subpatterns are not yet supported).
             // Don't use "this" argument adjustments at all.
             Case::new("[x,y] = 2 + 2",&["[x,y] = 2 + 2","testfunction11 = testFunction1"], |f| {
-                f.searcher.use_suggestion(f.entry1.clone()).unwrap();
+                f.searcher.use_suggestion(action::Suggestion::FromDatabase(f.entry1.clone())).unwrap();
             }),
         ];
 
@@ -1738,14 +1743,15 @@ pub mod test {
 
     #[wasm_bindgen_test]
     fn adding_imports_with_nodes() {
-        fn expect_inserted_import_for(entry:&action::Suggestion, expected_import:Vec<&QualifiedName>) {
+        fn expect_inserted_import_for
+        (entry:&Rc<model::suggestion_database::Entry>, expected_import:Vec<&QualifiedName>) {
             let Fixture{test:_test,mut searcher,..} = Fixture::new();
             let module = searcher.graph.graph().module.clone_ref();
             let parser = searcher.ide.parser().clone_ref();
 
             let picked_method = FragmentAddedByPickingSuggestion {
                 id                : CompletedFragmentId::Function,
-                picked_suggestion : entry.clone(),
+                picked_suggestion : action::Suggestion::FromDatabase(entry.clone_ref()),
             };
             with(searcher.data.borrow_mut(), |mut data| {
                 data.fragments_added_by_picking.push(picked_method);
@@ -1781,7 +1787,7 @@ pub mod test {
         let parser        = Parser::new_or_panic();
         let picked_method = FragmentAddedByPickingSuggestion {
             id                : CompletedFragmentId::Function,
-            picked_suggestion : entry4,
+            picked_suggestion : action::Suggestion::FromDatabase(entry4),
         };
         with(searcher.data.borrow_mut(), |mut data| {
             data.fragments_added_by_picking.push(picked_method);
@@ -1793,12 +1799,12 @@ pub mod test {
         searcher.mode = Immutable(Mode::NewNode {position});
         searcher.commit_node().unwrap();
 
-        let expected_code = "import Test.Test\nmain = \n    2 + 2\n    operator1 = Test.testMethod1";
+        let expected_code = "import test.Test.Test\nmain = \n    2 + 2\n    operator1 = Test.testMethod1";
         assert_eq!(module.ast().repr(), expected_code);
         let (node1,node2) = searcher.graph.graph().nodes().unwrap().expect_tuple();
         let expected_intended_method = Some(MethodId {
-            module          : "Test.Test".to_string().try_into().unwrap(),
-            defined_on_type : "Test.Test".to_string().try_into().unwrap(),
+            module          : "test.Test.Test".to_string().try_into().unwrap(),
+            defined_on_type : "test.Test.Test".to_string().try_into().unwrap(),
             name            : "testMethod1".to_string(),
         });
         assert_eq!(node2.metadata.unwrap().intended_method, expected_intended_method);
@@ -1806,7 +1812,7 @@ pub mod test {
         // Edit existing node.
         searcher.mode = Immutable(Mode::EditNode {node_id:node1.info.id()});
         searcher.commit_node().unwrap();
-        let expected_code = "import Test.Test\nmain = \n    Test.testMethod1\n    operator1 = Test.testMethod1";
+        let expected_code = "import test.Test.Test\nmain = \n    Test.testMethod1\n    operator1 = Test.testMethod1";
         let (node1,_)     = searcher.graph.graph().nodes().unwrap().expect_tuple();
         assert_eq!(node1.metadata.unwrap().intended_method, expected_intended_method);
         assert_eq!(module.ast().repr(), expected_code);
@@ -1822,21 +1828,21 @@ pub mod test {
         let database = searcher.database;
 
         // Node had not intended method.
-        let searcher_data = Data::new_with_edited_node(PROJECT_NAME,&graph,&database,node_id).unwrap();
+        let searcher_data = Data::new_with_edited_node(project_qualified_name(),&graph,&database,node_id).unwrap();
         assert_eq!(searcher_data.input.repr(), node.info.expression().repr());
         assert!(searcher_data.fragments_added_by_picking.is_empty());
         assert!(searcher_data.actions.is_loading());
 
         // Node had intended method, but it's outdated.
         let intended_method = MethodId {
-            module          : "Test.Test".to_string().try_into().unwrap(),
-            defined_on_type : "Test.Test".to_string().try_into().unwrap(),
+            module          : "test.Test.Test".to_string().try_into().unwrap(),
+            defined_on_type : "test.Test.Test".to_string().try_into().unwrap(),
             name            : "testMethod1".to_string()
         };
         graph.module.with_node_metadata(node_id, Box::new(|md| {
             md.intended_method = Some(intended_method);
         })).unwrap();
-        let searcher_data = Data::new_with_edited_node(PROJECT_NAME,&graph,&database,node_id).unwrap();
+        let searcher_data = Data::new_with_edited_node(project_qualified_name(),&graph,&database,node_id).unwrap();
         assert_eq!(searcher_data.input.repr(), node.info.expression().repr());
         assert!(searcher_data.fragments_added_by_picking.is_empty());
         assert!(searcher_data.actions.is_loading());
@@ -1844,11 +1850,11 @@ pub mod test {
         // Node had up-to-date intended method.
         graph.set_expression(node_id,"Test.testMethod1 12").unwrap();
         // We set metadata in previous section.
-        let searcher_data = Data::new_with_edited_node(PROJECT_NAME,&graph,&database,node_id).unwrap();
+        let searcher_data = Data::new_with_edited_node(project_qualified_name(),&graph,&database,node_id).unwrap();
         assert_eq!(searcher_data.input.repr(), "Test.testMethod1 12");
         assert!(searcher_data.actions.is_loading());
         let (initial_fragment,) = searcher_data.fragments_added_by_picking.expect_tuple();
-        assert!(Rc::ptr_eq(&initial_fragment.picked_suggestion,&entry4))
+        assert!(are_same(&initial_fragment.picked_suggestion,&entry4))
     }
 
     #[wasm_bindgen_test]
@@ -1885,10 +1891,10 @@ pub mod test {
         let Fixture{test:_test,searcher,..} = Fixture::new();
         let module                          = searcher.graph.graph().module.clone_ref();
         let example                         = model::suggestion_database::example::Example {
-            name          : "Test Example".to_owned(),
-            code          : "x = 2 + 2\nx + 4".to_owned(),
-            imports       : vec![],
-            documentation : "Lorem ipsum".to_owned()
+            name               : "Test Example".to_owned(),
+            code               : "x = 2 + 2\nx + 4".to_owned(),
+            imports            : vec![],
+            documentation_html : "Lorem ipsum".to_owned(),
         };
         let expected_code = "test_example1 =\n    x = 2 + 2\n    x + 4\n\n\
             main = \n    2 + 2\n    here.test_example1";
@@ -1901,12 +1907,12 @@ pub mod test {
         let Fixture{test:_test,searcher,..} = Fixture::new();
         let module                          = searcher.graph.graph().module.clone_ref();
         let example                         = model::suggestion_database::example::Example {
-            name          : "Test Example".to_owned(),
-            code          : "[1,2,3,4,5]".to_owned(),
-            imports       : vec!["Base.Network.Http".to_owned()],
-            documentation : "Lorem ipsum".to_owned()
+            name               : "Test Example".to_owned(),
+            code               : "[1,2,3,4,5]".to_owned(),
+            imports            : vec!["std.Base.Network.Http".to_owned()],
+            documentation_html : "Lorem ipsum".to_owned()
         };
-        let expected_code = "import Base.Network.Http\n\
+        let expected_code = "import std.Base.Network.Http\n\
             test_example1 = [1,2,3,4,5]\n\ntest_example2 = [1,2,3,4,5]\n\n\
             main = \n    2 + 2\n    here.test_example1\n    here.test_example2";
         let example = Rc::new(example);

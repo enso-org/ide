@@ -57,7 +57,7 @@ impl Handle {
     /// text file.
     pub async fn new
     (parent:impl AnyLogger, project:&model::Project, path:FilePath) -> FallibleResult<Self> {
-        let logger = Logger::sub(parent,format!("Text Controller {}", path));
+        let logger = Logger::new_sub(parent,format!("Text Controller {}", path));
         let file   = if let Ok(path) = model::module::Path::from_file_path(path.clone()) {
             FileHandle::Module {
                 controller : controller::Module::new(logger.clone_ref(),path,&**project).await?
@@ -84,7 +84,7 @@ impl Handle {
         use FileHandle::*;
         match &self.file {
             PlainText {path,language_server} => {
-                let response = language_server.read_file(&path).await;
+                let response = language_server.read_file(path).await;
                 response.map(|response| response.contents)
             },
             Module{controller} => Ok(controller.code())

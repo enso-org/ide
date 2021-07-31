@@ -461,7 +461,7 @@ impl Handle {
     , id            : Id
     ) -> Handle {
         let id     = Rc::new(id);
-        let logger = Logger::sub(parent,format!("Graph Controller {}", id));
+        let logger = Logger::new_sub(parent,format!("Graph Controller {}", id));
         Handle {id,module,suggestion_db,parser,logger}
     }
 
@@ -487,10 +487,10 @@ impl Handle {
     (parent:impl AnyLogger, project:&model::Project, method:&language_server::MethodPointer)
     -> FallibleResult<controller::Graph> {
         let method      = method.clone();
-        let root_id     = project.content_root_id();
+        let root_id     = project.project_content_root_id();
         let module_path = model::module::Path::from_method(root_id,&method)?;
         let module      = project.module(module_path).await?;
-        let definition  = module.lookup_method(project.name().as_ref(),&method)?;
+        let definition  = module.lookup_method(project.qualified_name(),&method)?;
         Self::new(parent,module,project.suggestion_db(),project.parser(),definition)
     }
 
@@ -929,19 +929,22 @@ pub mod tests {
     use super::*;
 
     use crate::double_representation::identifier::NormalizedName;
+    use crate::double_representation::project;
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
     use crate::model::module::Position;
+    use crate::model::suggestion_database;
+    use crate::test::mock::data;
 
     use ast::crumbs;
     use ast::test_utils::expect_shape;
-    use data::text::Index;
-    use data::text::TextChange;
+    use enso_data::text::Index;
+    use enso_data::text::TextChange;
     use enso_protocol::language_server::MethodPointer;
     use parser::Parser;
     use utils::test::ExpectTuple;
     use wasm_bindgen_test::wasm_bindgen_test;
 
-    use crate::model::suggestion_database;
+
 
     /// Returns information about all the connections between graph's nodes.
     ///
@@ -955,7 +958,7 @@ pub mod tests {
     pub struct MockData {
         pub module_path  : model::module::Path,
         pub graph_id     : Id,
-        pub project_name : String,
+        pub project_name : project::QualifiedName,
         pub code         : String,
         pub suggestions  : HashMap<suggestion_database::entry::Id,suggestion_database::Entry>,
     }
@@ -965,10 +968,10 @@ pub mod tests {
         /// node.
         pub fn new() -> Self {
             MockData {
-                module_path  : crate::test::mock::data::module_path(),
-                graph_id     : crate::test::mock::data::graph_id(),
-                project_name : crate::test::mock::data::PROJECT_NAME.to_owned(),
-                code         : crate::test::mock::data::CODE.to_owned(),
+                module_path  : data::module_path(),
+                graph_id     : data::graph_id(),
+                project_name : data::project_qualified_name(),
+                code         : data::CODE.to_owned(),
                 suggestions  : default(),
             }
         }
@@ -1004,7 +1007,7 @@ pub mod tests {
         }
 
         pub fn method(&self) -> MethodPointer {
-            self.module_path.method_pointer(&self.project_name,self.graph_id.to_string())
+            self.module_path.method_pointer(self.project_name.clone(),self.graph_id.to_string())
         }
 
         pub fn suggestion_db(&self) -> Rc<model::SuggestionDatabase> {

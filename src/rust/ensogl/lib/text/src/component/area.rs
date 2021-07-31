@@ -73,7 +73,7 @@ pub struct Line {
 
 impl Line {
     fn new(logger:impl AnyLogger) -> Self {
-        let logger         = Logger::sub(logger,"line");
+        let logger         = Logger::new_sub(logger,"line");
         let display_object = display::object::Instance::new(logger);
         let glyphs         = default();
         let divs           = default();
@@ -307,7 +307,7 @@ impl Area {
         let mouse    = &scene.mouse.frp;
         let input    = &self.frp.input;
         let out      = &self.frp.output;
-        let pos      = DEPRECATED_Animation :: <Vector2> :: new(&network);
+        let pos      = DEPRECATED_Animation :: <Vector2> :: new(network);
         let keyboard = &scene.keyboard;
         let m        = &model;
         pos.update_spring(|spring| spring*2.0);
@@ -510,7 +510,7 @@ impl Area {
     //     the new shape system definition, and thus, inherits the scene layer settings from this
     //     display object.
     pub fn add_to_scene_layer(&self, layer:&display::scene::Layer) {
-        for symbol in self.symbols() { layer.add_symbol_exclusive(&symbol); }
+        for symbol in self.symbols() { layer.add_exclusive(&symbol); }
         self.data.camera.set(layer.camera());
         layer.add_exclusive(self);
     }
@@ -572,6 +572,8 @@ impl AreaModel {
         let single_line    = default();
         let camera         = Rc::new(CloneRefCell::new(scene.camera().clone_ref()));
 
+        display_object.add_child(&glyph_system);
+
         // FIXME[WD]: These settings should be managed wiser. They should be set up during
         // initialization of the shape system, not for every area creation. To be improved during
         // refactoring of the architecture some day.
@@ -582,7 +584,7 @@ impl AreaModel {
         // FIXME[WD]: This is temporary sorting utility, which places the cursor in front of mouse
         // pointer and nodes. Should be refactored when proper sorting mechanisms are in place.
         scene.layers.main.remove_symbol(symbol);
-        scene.layers.label.add_symbol_exclusive(symbol);
+        scene.layers.label.add_exclusive(symbol);
 
         let frp_endpoints = frp_endpoints.clone_ref();
 
@@ -606,7 +608,7 @@ impl AreaModel {
                 };
                 let min_pos_x  = pos_x(start_line,sel.start.column);
                 let max_pos_x  = pos_x(end_line  ,sel.end  .column);
-                let logger     = Logger::sub(&self.logger,"cursor");
+                let logger     = Logger::new_sub(&self.logger,"cursor");
                 let min_pos_y  = -LINE_HEIGHT/2.0 - LINE_HEIGHT * start_line as f32;
                 let pos        = Vector2(min_pos_x,min_pos_y);
                 let width      = max_pos_x - min_pos_x;

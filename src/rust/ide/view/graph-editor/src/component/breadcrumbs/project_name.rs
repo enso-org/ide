@@ -106,8 +106,8 @@ pub struct Animations {
 impl Animations {
     /// Constructor.
     pub fn new(network:&frp::Network) -> Self {
-        let color    = DEPRECATED_Animation::new(&network);
-        let position = DEPRECATED_Animation::new(&network);
+        let color    = DEPRECATED_Animation::new(network);
+        let position = DEPRECATED_Animation::new(network);
         Self{color,position}
     }
 }
@@ -150,7 +150,7 @@ impl ProjectNameModel {
         text_field.add_to_scene_layer(&scene.layers.panel_text);
         text_field.hover();
 
-        let view_logger = Logger::sub(&logger,"view_logger");
+        let view_logger = Logger::new_sub(&logger,"view_logger");
         let view        = background::View::new(&view_logger);
 
         scene.layers.panel.add_exclusive(&view);
@@ -257,7 +257,7 @@ impl ProjectName {
         let hover_color      = styles.get_color(theme::graph_editor::breadcrumbs::hover);
         let deselected_color = styles.get_color(theme::graph_editor::breadcrumbs::deselected::left);
         let selected_color   = styles.get_color(theme::graph_editor::breadcrumbs::selected);
-        let animations       = Animations::new(&network);
+        let animations       = Animations::new(network);
 
         frp::extend! { network
 
@@ -292,7 +292,7 @@ impl ProjectName {
             // === Text Area ===
 
             text_content <- text.content.map(|txt| txt.to_string());
-            eval text_content((content) model.update_alignment(&content));
+            eval text_content((content) model.update_alignment(content));
             text_width <- text_content.map(f!((content) model.width(content)));
             frp.source.width <+ text_width;
 

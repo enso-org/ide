@@ -2,6 +2,8 @@
 //!
 //! This component wraps the plain ListView in some searcher-specific logic, like committing
 //! editing, or picking suggestion with Tab.
+pub mod icons;
+
 use crate::prelude::*;
 
 use crate::documentation;
@@ -83,12 +85,15 @@ impl<T:DocumentationProvider + 'static> From<Rc<T>> for AnyDocumentationProvider
 // === Model ===
 // =============
 
+/// A type of ListView entry used in searcher.
+pub type Entry = list_view::entry::GlyphHighlightedLabel;
+
 #[derive(Clone,CloneRef,Debug)]
 struct Model {
     app            : Application,
     logger         : Logger,
     display_object : display::object::Instance,
-    list           : ListView,
+    list           : ListView<Entry>,
     documentation  : documentation::View,
     doc_provider   : Rc<CloneRefCell<AnyDocumentationProvider>>,
 }
@@ -99,8 +104,8 @@ impl Model {
         let app            = app.clone_ref();
         let logger         = Logger::new("SearcherView");
         let display_object = display::object::Instance::new(&logger);
-        let list           = app.new_view::<ListView>();
-        let documentation  = documentation::View::new(&scene);
+        let list           = app.new_view::<ListView<Entry>>();
+        let documentation  = documentation::View::new(scene);
         let doc_provider   = default();
         scene.layers.above_nodes.add_exclusive(&list);
         display_object.add_child(&documentation);
@@ -111,7 +116,7 @@ impl Model {
         let style                = StyleWatch::new(&app.display.scene().style_sheet);
         let action_list_gap_path = ensogl_theme::application::searcher::action_list_gap;
         let action_list_gap      = style.get_number_or(action_list_gap_path,0.0);
-        list.set_label_layer(scene.layers.above_nodes_text.id);
+        list.set_label_layer(scene.layers.above_nodes_text.id());
         list.set_position_y(-action_list_gap);
         list.set_position_x(ACTION_LIST_X);
         documentation.set_position_x(DOCUMENTATION_X);
@@ -143,7 +148,7 @@ ensogl::define_endpoints! {
     Input {
         /// Use the selected action as a suggestion and add it to the current input.
         use_as_suggestion (),
-        set_actions       (entry::AnyModelProvider,AnyDocumentationProvider),
+        set_actions       (entry::AnyModelProvider<list_view::entry::GlyphHighlightedLabel>,AnyDocumentationProvider),
         select_action     (entry::Id),
         show              (),
         hide              (),
@@ -199,7 +204,7 @@ impl View {
         let frp     = &self.frp;
         let source  = &self.frp.source;
 
-        let height = DEPRECATED_Animation::<f32>::new(&network);
+        let height = DEPRECATED_Animation::<f32>::new(network);
 
         frp::extend! { network
             eval frp.set_actions ([model] ((entries,docs)) {
@@ -223,7 +228,7 @@ impl View {
             source.used_as_suggestion <+ opt_picked_entry.gate(&is_selected);
             source.editing_committed  <+ model.list.chosen_entry.gate(&is_selected);
 
-            eval displayed_doc ((data) model.documentation.frp.display_docstring(data));
+            eval displayed_doc ((data) model.documentation.frp.display_documentation(data));
         };
 
         self
@@ -234,9 +239,9 @@ impl View {
     /// The list is represented list-entry-model and documentation provider. It's a helper for FRP
     /// `set_suggestion` input (FRP nodes cannot be generic).
     pub fn set_actions
-    (&self, provider:Rc<impl list_view::entry::ModelProvider + DocumentationProvider + 'static>) {
-        let entries       : list_view::entry::AnyModelProvider = provider.clone_ref().into();
-        let documentation : AnyDocumentationProvider           = provider.into();
+    (&self, provider:Rc<impl list_view::entry::ModelProvider<Entry> + DocumentationProvider + 'static>) {
+        let entries       : list_view::entry::AnyModelProvider<Entry> = provider.clone_ref().into();
+        let documentation : AnyDocumentationProvider                  = provider.into();
         self.frp.set_actions(entries,documentation);
     }
 
