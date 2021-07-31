@@ -24,7 +24,7 @@ pub struct SymbolsRenderPass {
     layers          : scene::HardcodedLayers,
     color_fb        : Option<web_sys::WebGlFramebuffer>,
     mask_fb         : Option<web_sys::WebGlFramebuffer>,
-    scissor_stack   : Vec<layer::AbsoluteScissorBox>,
+    scissor_stack   : Vec<layer::ScissorBox>,
 }
 
 impl SymbolsRenderPass {
@@ -97,7 +97,7 @@ impl SymbolsRenderPass {
                 self.scissor_stack.push(scissor_box);
                 let position = scissor_box.position();
                 let size     = scissor_box.size();
-                instance.context.scissor(position.x, position.y, size.x, size.y);
+                instance.context.scissor(position.x,position.y,size.x,size.y);
             }
         }
         self.symbol_registry.set_camera(&layer.camera());

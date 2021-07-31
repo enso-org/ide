@@ -256,7 +256,7 @@ pub struct LayerModel {
     global_element_depth_order      : Rc<RefCell<DependencyGraph<LayerItem>>>,
     sublayers                       : Sublayers,
     mask                            : RefCell<Option<WeakLayer>>,
-    scissor_box                     : RefCell<Option<AbsoluteScissorBox>>,
+    scissor_box                     : RefCell<Option<ScissorBox>>,
     mem_mark                        : Rc<()>,
 }
 
@@ -580,11 +580,11 @@ impl LayerModel {
         mask.add_parent(&self.sublayers);
     }
 
-    pub fn scissor_box(&self) -> Option<AbsoluteScissorBox> {
+    pub fn scissor_box(&self) -> Option<ScissorBox> {
         *self.scissor_box.borrow()
     }
 
-    pub fn set_scissor_box(&self, scissor_box:Option<&AbsoluteScissorBox>) {
+    pub fn set_scissor_box(&self, scissor_box:Option<&ScissorBox>) {
         *self.scissor_box.borrow_mut() = scissor_box.cloned();
     }
 
@@ -993,86 +993,76 @@ macro_rules! shapes_order_dependencies {
 }
 
 
-#[derive(Debug,Clone,Copy,Default)]
-pub struct AbsoluteScissorBox {
-    pub min_x : Option<i32>,
-    pub min_y : Option<i32>,
-    pub max_x : Option<i32>,
-    pub max_y : Option<i32>,
+
+// ==================
+// === ScissorBox ===
+// ==================
+
+#[derive(Debug,Clone,Copy)]
+pub struct ScissorBox {
+    pub min_x : i32,
+    pub min_y : i32,
+    pub max_x : i32,
+    pub max_y : i32,
 }
 
-impl AbsoluteScissorBox {
+impl ScissorBox {
     pub fn new() -> Self {
-        default()
+        let min_x = 0;
+        let min_y = 0;
+        let max_x = i32::MAX;
+        let max_y = i32::MAX;
+        Self {min_x,min_y,max_x,max_y}
     }
 
     pub fn with_position(mut self, position:Vector2<i32>) -> Self {
-        self.min_x = Some(position.x);
-        self.min_y = Some(position.y);
+        self.min_x = position.x;
+        self.min_y = position.y;
         self
     }
 
     pub fn with_size(mut self, size:Vector2<i32>) -> Self {
-        self.max_x = Some(self.min_x() + size.x);
-        self.max_y = Some(self.min_y() + size.y);
+        self.max_x = self.min_x + size.x;
+        self.max_y = self.min_y + size.y;
         self
     }
 }
 
-impl AbsoluteScissorBox {
-    pub fn min_x(&self) -> i32 {
-        self.min_x.unwrap_or(0)
-    }
-
-    pub fn min_y(&self) -> i32 {
-        self.min_y.unwrap_or(0)
-    }
-
-    pub fn max_x(&self) -> i32 {
-        self.max_x.unwrap_or(i32::MAX)
-    }
-
-    pub fn max_y(&self) -> i32 {
-        self.max_y.unwrap_or(i32::MAX)
-    }
-
+impl ScissorBox {
     pub fn size(&self) -> Vector2<i32> {
-        Vector2(self.max_x() - self.min_x(), self.max_y() - self.min_y())
+        Vector2(self.max_x - self.min_x, self.max_y - self.min_y)
     }
 
     pub fn position(&self) -> Vector2<i32> {
-        Vector2(self.min_x(),self.min_y())
+        Vector2(self.min_x,self.min_y)
     }
 }
 
-fn concat_field(field1:Option<i32>, field2:Option<i32>, comp:impl Fn(i32,i32)->i32) -> Option<i32> {
-    match (field1,field2) {
-        (Some(a),Some(b)) => Some(comp(a,b)),
-        (Some(a),_)       => Some(a),
-        (_      ,Some(b)) => Some(b),
-        _                 => None
+impl Default for ScissorBox {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
-impl PartialSemigroup<AbsoluteScissorBox> for AbsoluteScissorBox {
+impl PartialSemigroup<ScissorBox> for ScissorBox {
     fn concat_mut(&mut self, other:Self) {
-        self.min_x = concat_field(self.min_x,other.min_x,Ord::max);
-        self.min_y = concat_field(self.min_y,other.min_y,Ord::max);
-        self.max_x = concat_field(self.max_x,other.max_x,Ord::min);
-        self.max_y = concat_field(self.max_y,other.max_y,Ord::min);
+        self.min_x = Ord::max(self.min_x,other.min_x);
+        self.min_y = Ord::max(self.min_y,other.min_y);
+        self.max_x = Ord::min(self.max_x,other.max_x);
+        self.max_y = Ord::min(self.max_y,other.max_y);
     }
 }
 
-impl PartialSemigroup<&AbsoluteScissorBox> for AbsoluteScissorBox {
+impl PartialSemigroup<&ScissorBox> for ScissorBox {
     fn concat_mut(&mut self, other:&Self) {
         self.concat_mut(*other)
     }
 }
 
 
-// ==================
-// === ScissorBox ===
-// ==================
+// ========================
+// === ScissorBoxObject ===
+// ========================
 
 crate::define_endpoints! {
     Input {
@@ -1085,48 +1075,46 @@ crate::define_endpoints! {
 }
 
 #[derive(Clone,CloneRef,Debug)]
-pub struct ScissorBox {
+pub struct ScissorBoxObject {
     display_object : display::object::Instance,
-    size           : Rc<Cell<Vector2<Option<i32>>>>,
+    size           : Rc<Cell<Vector2<i32>>>,
     frp            : Frp,
 }
 
-impl ScissorBox {
+impl ScissorBoxObject {
     pub fn new() -> Self {
-        let logger         = Logger::new("ScissorBox");
+        let logger         = Logger::new("ScissorBoxObject");
         let display_object = display::object::Instance::new(&logger);
         let size           = default();
         let frp            = Frp::new();
         Self {display_object,size,frp}
     }
 
-    pub fn absolute(&self) -> AbsoluteScissorBox {
+    pub fn absolute(&self) -> ScissorBox {
         let position = self.display_object.global_position().xy();
         let size     = self.size.get();
         let min_x    = position.x as i32;
         let min_y    = position.y as i32;
-        let max_x    = size.x.map(|t| t + min_x);
-        let max_y    = size.y.map(|t| t + min_y);
-        let min_x    = Some(min_x);
-        let min_y    = Some(min_y);
-        AbsoluteScissorBox {min_x,min_y,max_x,max_y}
+        let max_x    = min_x + size.x;
+        let max_y    = min_y + size.y;
+        ScissorBox {min_x,min_y,max_x,max_y}
     }
 }
 
-impl AsRef<ScissorBox> for ScissorBox {
+impl AsRef<ScissorBoxObject> for ScissorBoxObject {
     fn as_ref(&self) -> &Self {
         self
     }
 }
 
-impl Deref for ScissorBox {
+impl Deref for ScissorBoxObject {
     type Target = Frp;
     fn deref(&self) -> &Self::Target {
         &self.frp
     }
 }
 
-impl display::Object for ScissorBox {
+impl display::Object for ScissorBoxObject {
     fn display_object(&self) -> &display::object::Instance {
         &self.display_object
     }
