@@ -753,7 +753,7 @@ impl Handle {
         let expression_ast = self.parse_node_expression(&node.expression)?;
         let main_line      = MainLine::from_ast(&expression_ast).ok_or(FailedToCreateNode)?;
         let documentation  = node.doc_comment.as_ref()
-            .map(|text| DocCommentInfo::pretty_print_text(&text))
+            .map(|text| DocCommentInfo::text_to_repr(&text))
             .map(|doc_code| self.parser.parse_line(doc_code))
             .transpose()?
             .map(|doc_ast| DocCommentInfo::new(&doc_ast).ok_or(FailedToCreateNode))

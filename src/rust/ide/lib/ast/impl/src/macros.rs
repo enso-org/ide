@@ -92,8 +92,9 @@ impl DocCommentInfo {
 
     /// Get the documentation text.
     pub fn text(&self) -> String {
-        // This gets us documentation text, however non-first lines have indent whitespace
-        // maintained.
+        // This gets us documentation text, however non-first lines have the absolute indent
+        // whitespace preserved. Thus, we remove spurious indent, to keep only the relative indent
+        // to the comment's inner block (i.e. the right after the `##` introducer).
         let repr   = self.body.repr();
         let indent = self.block_indent + DOCUMENTATION_COMMENT_INTRODUCER.len();
         let old    = format!("\n{}", " ".repeat(indent));
@@ -102,7 +103,7 @@ impl DocCommentInfo {
     }
 
     /// Get the documentation text.
-    pub fn pretty_print_text(text:&str) -> String {
+    pub fn text_to_repr(text:&str) -> String {
         let mut lines     = text.lines();
         let first_line    = lines.next().map(|line| iformat!("##{line}"));
         let other_lines   = lines       .map(|line| iformat!("  {line}"));

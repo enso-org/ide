@@ -56,6 +56,9 @@ pub const HEIGHT            : f32 = 28.0;
 pub const PADDING           : f32 = 40.0;
 pub const RADIUS            : f32 = 14.0;
 
+/// Space between the documentation comment and the node.
+pub const COMMENT_MARGIN    : f32 = 14.0;
+
 const INFINITE                 : f32       = 99999.0;
 const ERROR_VISUALIZATION_SIZE : (f32,f32) = visualization::container::DEFAULT_SIZE;
 
@@ -470,7 +473,6 @@ impl NodeModel {
 
         // TODO: Style the documentation comment properly.
         let comment = ensogl_text::Area::new(app);
-        comment.set_position_y(HEIGHT * 1.5);
         display_object.add_child(&comment);
 
         let app = app.clone_ref();
@@ -627,6 +629,10 @@ impl Node {
 
             // === Comment ===
 
+            eval model.comment.width ([model](width)
+                model.comment.set_position_x(-*width - COMMENT_MARGIN));
+            eval model.comment.height ([model](height)
+                model.comment.set_position_y(*height / 2.0));
             model.comment.set_content <+ frp.set_comment;
             out.source.expression     <+ model.comment.content;
 
