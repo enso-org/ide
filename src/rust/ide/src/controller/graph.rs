@@ -15,7 +15,7 @@ use crate::double_representation::identifier::generate_name;
 use crate::double_representation::module;
 use crate::double_representation::node;
 use crate::double_representation::node::MainLine;
-use crate::double_representation::node::NodeIndex;
+use crate::double_representation::node::NodeLocation;
 use crate::double_representation::node::NodeInfo;
 use crate::model::module::NodeMetadata;
 use crate::model::traits::*;
@@ -664,7 +664,7 @@ impl Handle {
                     false
                 }
             };
-            let range = NodeIndex::range(node_to_be_after.index,node_to_be_before.index);
+            let range = NodeLocation::range(node_to_be_after.index, node_to_be_before.index);
             lines[range].sort_by_key(should_be_at_end);
             self.update_definition_ast(|mut def| {
                 def.set_block_lines(lines)?;
@@ -1294,83 +1294,84 @@ main =
         })
     }
 
-//     #[test]
-//     fn graph_controller_node_operations_node() {
-//         let mut test  = Fixture::set_up();
-//         const PROGRAM:&str = r"
-// main =
-//     foo = 2
-//     print foo";
-//         test.data.code = PROGRAM.into();
-//         test.run(|graph| async move {
-//             // === Initial nodes ===
-//             let nodes         = graph.nodes().unwrap();
-//             let (node1,node2) = nodes.expect_tuple();
-//             assert_eq!(node1.info.expression().repr(), "2");
-//             assert_eq!(node2.info.expression().repr(), "print foo");
-//
-//
-//             // === Add node ===
-//             let id       = ast::Id::new_v4();
-//             let position = Some(model::module::Position::new(10.0,20.0));
-//             let metadata = NodeMetadata {position,..default()};
-//             let info     = NewNodeInfo {
-//                 expression        : "a+b".into(),
-//                 metadata          : Some(metadata),
-//                 id                : Some(id),
-//                 location_hint     : LocationHint::End,
-//                 introduce_pattern : false,
-//             };
-//             graph.add_node(info.clone()).unwrap();
-//             let expected_program = r"
-// main =
-//     foo = 2
-//     print foo
-//     a+b";
-//
-//             model::module::test::expect_code(&*graph.module,expected_program);
-//             let nodes = graph.nodes().unwrap();
-//             let (_,_,node3) = nodes.expect_tuple();
-//             assert_eq!(node3.info.id(),id);
-//             assert_eq!(node3.info.expression().repr(), "a+b");
-//             let pos = node3.metadata.unwrap().position;
-//             assert_eq!(pos, position);
-//             assert!(graph.module.node_metadata(id).is_ok());
-//
-//
-//             // === Edit node ===
-//             graph.set_expression(id, "bar baz").unwrap();
-//             let (_,_,node3) = graph.nodes().unwrap().expect_tuple();
-//             assert_eq!(node3.info.id(),id);
-//             assert_eq!(node3.info.expression().repr(), "bar baz");
-//             assert_eq!(node3.metadata.unwrap().position, position);
-//
-//
-//             // === Remove node ===
-//             graph.remove_node(node3.info.id()).unwrap();
-//             let nodes = graph.nodes().unwrap();
-//             let (node1,node2) = nodes.expect_tuple();
-//             assert_eq!(node1.info.expression().repr(), "2");
-//             assert_eq!(node2.info.expression().repr(), "print foo");
-//             assert!(graph.module.node_metadata(id).is_err());
-//
-//             model::module::test::expect_code(&*graph.module, PROGRAM);
-//
-//
-//             // === Test adding node with automatically generated pattern ===
-//             let info_w_pattern = NewNodeInfo {
-//                 introduce_pattern : true,
-//                 ..info
-//             };
-//             graph.add_node(info_w_pattern).unwrap();
-//             let expected_program = r"
-// main =
-//     foo = 2
-//     print foo
-//     sum1 = a+b";
-//             model::module::test::expect_code(&*graph.module,expected_program);
-//         })
-//     }
+    #[test]
+    fn graph_controller_node_operations_node() {
+        let mut test  = Fixture::set_up();
+        const PROGRAM:&str = r"
+main =
+    foo = 2
+    print foo";
+        test.data.code = PROGRAM.into();
+        test.run(|graph| async move {
+            // === Initial nodes ===
+            let nodes         = graph.nodes().unwrap();
+            let (node1,node2) = nodes.expect_tuple();
+            assert_eq!(node1.info.expression().repr(), "2");
+            assert_eq!(node2.info.expression().repr(), "print foo");
+
+
+            // === Add node ===
+            let id       = ast::Id::new_v4();
+            let position = Some(model::module::Position::new(10.0,20.0));
+            let metadata = NodeMetadata {position,..default()};
+            let info     = NewNodeInfo {
+                expression        : "a+b".into(),
+                doc_comment       : None,
+                metadata          : Some(metadata),
+                id                : Some(id),
+                location_hint     : LocationHint::End,
+                introduce_pattern : false,
+            };
+            graph.add_node(info.clone()).unwrap();
+            let expected_program = r"
+main =
+    foo = 2
+    print foo
+    a+b";
+
+            model::module::test::expect_code(&*graph.module,expected_program);
+            let nodes = graph.nodes().unwrap();
+            let (_,_,node3) = nodes.expect_tuple();
+            assert_eq!(node3.info.id(),id);
+            assert_eq!(node3.info.expression().repr(), "a+b");
+            let pos = node3.metadata.unwrap().position;
+            assert_eq!(pos, position);
+            assert!(graph.module.node_metadata(id).is_ok());
+
+
+            // === Edit node ===
+            graph.set_expression(id, "bar baz").unwrap();
+            let (_,_,node3) = graph.nodes().unwrap().expect_tuple();
+            assert_eq!(node3.info.id(),id);
+            assert_eq!(node3.info.expression().repr(), "bar baz");
+            assert_eq!(node3.metadata.unwrap().position, position);
+
+
+            // === Remove node ===
+            graph.remove_node(node3.info.id()).unwrap();
+            let nodes = graph.nodes().unwrap();
+            let (node1,node2) = nodes.expect_tuple();
+            assert_eq!(node1.info.expression().repr(), "2");
+            assert_eq!(node2.info.expression().repr(), "print foo");
+            assert!(graph.module.node_metadata(id).is_err());
+
+            model::module::test::expect_code(&*graph.module, PROGRAM);
+
+
+            // === Test adding node with automatically generated pattern ===
+            let info_w_pattern = NewNodeInfo {
+                introduce_pattern : true,
+                ..info
+            };
+            graph.add_node(info_w_pattern).unwrap();
+            let expected_program = r"
+main =
+    foo = 2
+    print foo
+    sum1 = a+b";
+            model::module::test::expect_code(&*graph.module,expected_program);
+        })
+    }
 
     #[wasm_bindgen_test]
     fn graph_controller_connections_listing() {

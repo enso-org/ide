@@ -707,9 +707,7 @@ impl AreaModel {
     }
 
     fn calculate_height(&self) -> f32 {
-        let line_count   = self.lines.len();
-        let lines_height = line_count as f32 * LINE_HEIGHT;
-        lines_height
+        self.lines.len() as f32 * LINE_HEIGHT
     }
 
     fn redraw_line(&self, view_line_index:usize, content:String) -> f32 {

@@ -25,21 +25,27 @@ pub type Id = ast::Id;
 pub struct IdNotFound {pub id:Id}
 
 /// Indices of lines belonging to a node.
-#[derive(Clone,Copy,Debug,PartialEq)]
-pub struct NodeIndex {
+#[derive(Clone,Copy,Debug)]
+pub struct NodeLocation {
     /// Documentation comment line index, if present.
     pub documentation_line : Option<usize>,
     /// Main line is a line that contains the node's expression.
     pub main_line          : usize,
 }
 
-impl PartialOrd for NodeIndex {
+impl PartialEq for NodeLocation {
+    fn eq(&self, other: &Self) -> bool {
+        self.partial_cmp(other) == Some(Ordering::Equal)
+    }
+}
+
+impl PartialOrd for NodeLocation {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.main_line.partial_cmp(&other.main_line)
     }
 }
 
-impl NodeIndex {
+impl NodeLocation {
     /// Index for the first line belonging to the node.
     pub fn first(&self) -> usize {
         self.documentation_line.unwrap_or(self.main_line)
@@ -54,7 +60,7 @@ impl NodeIndex {
     ///
     /// Note that while a node can contain at most two lines, they may be interspersed by a
     /// number of blank lines.
-    pub fn range(start:NodeIndex, last:NodeIndex) -> RangeInclusive<usize> {
+    pub fn range(start: NodeLocation, last: NodeLocation) -> RangeInclusive<usize> {
         start.first() ..= last.last()
     }
 }
@@ -69,7 +75,7 @@ impl NodeIndex {
 #[derive(Clone,Debug,Shrinkwrap)]
 pub struct LocatedNode {
     /// Line index in the block. Zero for inline definition nodes.
-    pub index : NodeIndex,
+    pub index : NodeLocation,
     #[shrinkwrap(main_field)]
     /// Information about the node.
     pub node  : NodeInfo,
@@ -154,7 +160,7 @@ impl<'a, T:Iterator<Item=(usize, &'a Ast)> + 'a> Iterator for NodeIterator<'a, T
 
                 let ret = LocatedNode {
                     node  : NodeInfo  {documentation,main_line},
-                    index : NodeIndex {
+                    index : NodeLocation {
                         main_line : index,
                         documentation_line,
                     }

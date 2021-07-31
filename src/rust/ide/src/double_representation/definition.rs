@@ -367,10 +367,7 @@ impl<'a> DefinitionIterator<'a> {
     /// Looks up direct child definition by given name.
     pub fn find_by_name(mut self, name:&DefinitionName) -> Result<ChildDefinition,CannotFindChild> {
         let err = || CannotFindChild(name.clone());
-        self.find(|child_def| {
-            INFO!(&*child_def.item.name);
-            &*child_def.item.name == name
-        }).ok_or_else(err)
+        self.find(|child_def| &*child_def.item.name == name).ok_or_else(err)
     }
 }
 

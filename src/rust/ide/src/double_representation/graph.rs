@@ -60,10 +60,10 @@ impl GraphInfo {
         let body = ast.rarg.clone();
         if let Ok(body_block) = known::Block::try_new(body.clone()) {
             block_nodes(&body_block)
-        } else if let Some(main_line) = node::MainLine::from_ast(&body) {
-            // There's no way to attach a documentation comment to an inline node.
-            let documentation = None;
-            vec![ NodeInfo {documentation,main_line} ]
+        } else if let Some(node) = node::NodeInfo::from_main_line_ast(&body) {
+            // There's no way to attach a documentation comment to an inline node, it consists only
+            // of the main line.
+            vec![node]
         } else {
             // It should not be possible to have empty definition without any nodes but it is
             // possible to represent such thing in AST. Anyway, it has no nodes.
@@ -447,12 +447,6 @@ main =
         assert_eq!(nodes[2].ast().repr(), "node2");
         assert_eq!(nodes[3].documentation_text(), None);
         assert_eq!(nodes[3].ast().repr(), "node3");
-
-
-        for node in nodes.iter() {
-            DEBUG!(node.expression().repr());
-            // assert_eq!(node.expression().repr(), "node");
-        }
         assert_eq!(nodes.len(), 4);
     }
 

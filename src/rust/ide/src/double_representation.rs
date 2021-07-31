@@ -26,6 +26,7 @@ pub mod tp;
 pub mod test_utils;
 
 
+
 // ==============
 // === Consts ===
 // ==============
@@ -38,6 +39,12 @@ pub mod test_utils;
 /// Link: https://github.com/enso-org/enso/blob/main/doc/syntax/encoding.md
 pub const INDENT : usize = 4;
 
+
+
+// ========================
+// === Discerning Lines ===
+// ========================
+
 /// What kind of node or definition a line should be treated as.
 #[derive(Clone,Debug)]
 pub enum LineKind {
@@ -45,7 +52,8 @@ pub enum LineKind {
     Definition {
         /// Ast of the whole binding.
         ast  : known::Infix,
-        /// Definition name. If this is an extension method, it might imply an implicit argument.
+        /// Definition name. If this is an extension method, it might imply an implicit `this`
+        /// argument.
         name : Located<DefinitionName>,
         /// Explicit arguments. Note that this might be empty when there are implicit arguments.
         args : Vec<Located<Ast>>,
@@ -70,12 +78,12 @@ pub enum LineKind {
 
 impl LineKind {
 
-    /// Tell how the given line (described by Ast) should be treated.
-    /// Returns `None` if line does not match any of the expected entities.
+    /// Tell how the given line (described by an Ast) should be treated.
     pub fn discern(ast:&Ast, kind:ScopeKind) -> Self {
         use LineKind::*;
 
-        // First of all, if line is not an infix assignment, it can be only node or nothing.
+        // First of all, if non-empty line is not an infix (i.e. binding) it can be only a node or
+        // a documentation comment.
         let infix = match opr::to_assignment(ast) {
             Some(infix) =>
                 infix,

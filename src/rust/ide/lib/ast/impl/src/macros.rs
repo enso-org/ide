@@ -42,7 +42,7 @@ pub const QUALIFIED_EXPORT_KEYWORD:&str = "export";
 
 /// Try Interpreting the line as disabling comment. Return the text after `#`.
 pub fn as_disable_comment(ast:&Ast) -> Option<String> {
-    let r#match = crate::known::Match::try_from(ast).ok()?;
+    let r#match       = crate::known::Match::try_from(ast).ok()?;
     let first_segment = &r#match.segs.head;
     if crate::identifier::name(&first_segment.head) == Some(DISABLING_COMMENT_INTRODUCER) {
         Some(first_segment.body.repr())
