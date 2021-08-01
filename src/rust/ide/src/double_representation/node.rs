@@ -2,13 +2,17 @@
 
 use crate::prelude::*;
 
-use ast::{Ast, BlockLine, enumerate_non_empty_lines};
-use ast::crumbs::Crumbable;
-use ast::known;
-use std::cmp::Ordering;
-use ast::macros::{DocumentationCommentInfo, DocumentationCommentLine};
 use crate::double_representation::LineKind;
 use crate::double_representation::definition::ScopeKind;
+
+use ast::Ast;
+use ast::BlockLine;
+use ast::crumbs::Crumbable;
+use ast::enumerate_non_empty_lines;
+use ast::known;
+use ast::macros::DocumentationCommentInfo;
+use ast::macros::DocumentationCommentLine;
+use std::cmp::Ordering;
 
 /// Node Id is the Ast Id attached to the node's expression.
 pub type Id = ast::Id;

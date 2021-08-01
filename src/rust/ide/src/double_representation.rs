@@ -3,13 +3,18 @@
 
 use crate::prelude::*;
 
-use ast::{Ast, opr, prefix, known};
-use crate::double_representation::definition::{DefinitionName, DefinitionInfo};
+use crate::double_representation::definition::DefinitionInfo;
+use crate::double_representation::definition::DefinitionName;
 use crate::double_representation::definition::ScopeKind;
+use crate::double_representation::node::MainLine;
+
+use ast::Ast;
 use ast::crumbs::InfixCrumb;
 use ast::crumbs::Located;
 use ast::macros::DocumentationCommentAst;
-use crate::double_representation::node::MainLine;
+use ast::known;
+use ast::opr;
+use ast::prefix;
 
 pub mod alias_analysis;
 pub mod comment;
