@@ -374,7 +374,7 @@ mod tests {
     fn run_case(parser:&parser::Parser, case:Case) {
         DEBUG!("\n===========================================================================\n");
         DEBUG!("Case: " case.code);
-        let ast    = parser.parse_line(&case.code).unwrap();
+        let ast    = parser.parse_line_ast(&case.code).unwrap();
         let result = analyze_ast(&ast);
         DEBUG!("Analysis results: {result:?}");
         validate_identifiers("introduced",&ast, case.expected_introduced, &result.introduced);

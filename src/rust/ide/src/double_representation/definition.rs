@@ -2,6 +2,8 @@
 
 use crate::prelude::*;
 
+use crate::double_representation::LineKind;
+
 use ast::crumbs::ChildAst;
 use ast::crumbs::Crumbable;
 use ast::crumbs::InfixCrumb;
@@ -9,7 +11,7 @@ use ast::crumbs::Located;
 use ast::known;
 use ast::opr;
 use parser::Parser;
-use crate::double_representation::LineKind;
+
 
 
 // =====================
@@ -178,7 +180,7 @@ impl DefinitionName {
     pub fn ast(&self, parser:&Parser) -> FallibleResult<Ast> {
         // We can't assume that string pieces we have are valid identifiers.
         // But neither this is our responsibility. If it parses, we can store it in the Ast.
-        parser.parse_line(self.to_string())
+        parser.parse_line_ast(self.to_string())
     }
 
     /// Checks if the given definition name is a method defined on given expected atom name.
@@ -262,7 +264,7 @@ impl DefinitionInfo {
         //  offsets. This is not desirable, as e.g. an empty line in the middle of block is not
         //  possible to express with the current AST (it won't round-trip).
 
-        let indent          = self.context_indent + double_representation::INDENT;
+        let indent          = self.indent();
         let mut empty_lines = Vec::new();
         let mut line        = lines.pop_front().ok_or(MissingLineWithAst)?;
         while line.elem.is_none() {
@@ -311,8 +313,8 @@ impl DefinitionInfo {
     /// some binding or other kind of subtree).
     pub fn from_line_ast
     (ast:&Ast, kind:ScopeKind, context_indent:usize) -> Option<DefinitionInfo> {
-        if let LineKind::Definition{args,ast,name} = LineKind::discern(ast,kind) {
-            Some(DefinitionInfo { ast, name, args, context_indent })
+        if let LineKind::Definition{get_definition} = LineKind::discern(ast,kind) {
+            Some(get_definition(context_indent))
         } else {
             None
         }
@@ -578,7 +580,7 @@ mod tests {
     #[wasm_bindgen_test]
     fn definition_name_tests() {
         let parser = parser::Parser::new_or_panic();
-        let ast    = parser.parse_line("Foo.Bar.baz").unwrap();
+        let ast    = parser.parse_line_ast("Foo.Bar.baz").unwrap();
         let name   = DefinitionName::from_ast(&ast).unwrap();
 
         assert_eq!(*name.name, "baz");
@@ -593,14 +595,14 @@ mod tests {
     #[wasm_bindgen_test]
     fn definition_name_rejecting_incomplete_names() {
         let parser = parser::Parser::new_or_panic();
-        let ast    = parser.parse_line("Foo. .baz").unwrap();
+        let ast    = parser.parse_line_ast("Foo. .baz").unwrap();
         assert!(DefinitionName::from_ast(&ast).is_none());
     }
 
     #[wasm_bindgen_test]
     fn definition_info_name() {
         let parser     = parser::Parser::new_or_panic();
-        let ast        = parser.parse_line("Foo.bar a b c = baz").unwrap();
+        let ast        = parser.parse_line_ast("Foo.bar a b c = baz").unwrap();
         let definition = DefinitionInfo::from_root_line_ast(&ast).unwrap();
 
         assert_eq!(definition.name.to_string(), "Foo.bar");
@@ -610,7 +612,7 @@ mod tests {
     #[wasm_bindgen_test]
     fn located_definition_args() {
         let parser     = parser::Parser::new_or_panic();
-        let ast        = parser.parse_line("foo bar baz = a + b + c").unwrap();
+        let ast        = parser.parse_line_ast("foo bar baz = a + b + c").unwrap();
         let definition = DefinitionInfo::from_root_line_ast(&ast).unwrap();
         let (arg0,arg1) = definition.args.expect_tuple();
 

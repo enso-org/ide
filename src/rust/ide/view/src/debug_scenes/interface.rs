@@ -281,7 +281,7 @@ pub fn expression_mock_string(label:&str) -> Expression {
     let code                = format!("\"{}\"", label);
     let parser              = Parser::new_or_panic();
     let parameters          = vec![];
-    let ast                 = parser.parse_line(&code).unwrap();
+    let ast                 = parser.parse_line_ast(&code).unwrap();
     let invocation_info     = span_tree::generate::context::CalledMethodInfo {parameters};
     let ctx                 = span_tree::generate::MockContext::new_single(ast.id.unwrap(),invocation_info);
     let output_span_tree    = span_tree::SpanTree::default();
@@ -299,7 +299,7 @@ pub fn expression_mock() -> Expression {
         tp   : Some("Text".to_owned()),
     };
     let parameters       = vec![this_param];
-    let ast              = parser.parse_line(&code).unwrap();
+    let ast              = parser.parse_line_ast(&code).unwrap();
     let invocation_info  = span_tree::generate::context::CalledMethodInfo {parameters};
     let ctx              = span_tree::generate::MockContext::new_single(ast.id.unwrap(),invocation_info);
     let output_span_tree = span_tree::SpanTree::default();
@@ -373,7 +373,7 @@ pub fn expression_mock3() -> Expression {
         tp   : Some("Vector String".to_owned()),
     };
     let parameters       = vec![this_param,param0,param1,param2,param3];
-    let ast              = parser.parse_line(&code).unwrap();
+    let ast              = parser.parse_line_ast(&code).unwrap();
     let invocation_info  = span_tree::generate::context::CalledMethodInfo {parameters};
     let ctx              = span_tree::generate::MockContext::new_single(ast.id.unwrap(),invocation_info);
     let output_span_tree = span_tree::SpanTree::new(&ast,&ctx).unwrap();//span_tree::SpanTree::default();

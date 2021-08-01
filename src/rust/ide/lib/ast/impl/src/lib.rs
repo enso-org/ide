@@ -618,6 +618,26 @@ pub enum Escape {
 // === Block ===
 // =============
 
+
+impl<T> Block<T> {
+    pub fn indent(&self, parent_indent:usize) -> usize {
+        parent_indent + self.indent
+    }
+
+    pub fn enumerate_non_empty_lines(&self) -> impl Iterator<Item=(usize,BlockLine<&T>)> + '_ {
+        enumerate_non_empty_lines(&self.lines)
+    }
+}
+
+pub fn enumerate_non_empty_lines<'a,T:'a>(iter:impl IntoIterator<Item = &'a BlockLine<Option<T>>> + 'a)
+-> impl Iterator<Item=(usize,BlockLine<&'a T>)> + 'a {
+    iter.into_iter().enumerate().filter_map(|(index,line):(usize,&BlockLine<Option<T>>)| {
+        let non_empty_line = line.transpose_ref()?;
+        Some((index, non_empty_line))
+    })
+}
+
+
 #[ast_node] pub enum BlockType {Continuous {} , Discontinuous {}}
 
 /// Holder for line in `Block` or `Module`. Lines store value of `T` and trailing whitespace info.
@@ -627,6 +647,33 @@ pub struct BlockLine <T> {
     pub elem: T,
     /// The trailing whitespace in the line after the `elem`.
     pub off: usize
+}
+
+impl<T> BlockLine<T> {
+    pub fn as_ref(&self) -> BlockLine<&T> {
+        BlockLine {
+            elem : &self.elem,
+            off  : self.off,
+        }
+    }
+
+    pub fn map<U>(self, f:impl FnOnce(T) -> U) -> BlockLine<U> {
+        BlockLine {
+            elem : f(self.elem),
+            off  : self.off
+        }
+    }
+}
+
+impl <T> BlockLine<Option<T>> {
+    pub fn transpose(self) -> Option<BlockLine<T>> {
+        let off = self.off;
+        self.elem.map(|elem| BlockLine {elem,off})
+    }
+
+    pub fn transpose_ref(&self) -> Option<BlockLine<&T>> {
+        self.as_ref().map(Option::as_ref).transpose()
+    }
 }
 
 

@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use ast::Ast;
+use ast::{Ast, BlockLine, enumerate_non_empty_lines};
 use ast::crumbs::Crumbable;
 use ast::known;
 use std::cmp::Ordering;
@@ -82,7 +82,7 @@ pub struct LocatedNode {
 }
 
 /// Tests if given line contents can be seen as node with a given id
-pub fn is_main_line_of(line:&ast::BlockLine<Option<Ast>>, id:Id) -> bool {
+pub fn is_main_line_of(line:&BlockLine<Option<Ast>>, id:Id) -> bool {
     let node_info = MainLine::from_block_line(line);
     node_info.contains_if(|node| node.id() == id)
 }
@@ -91,10 +91,11 @@ pub fn is_main_line_of(line:&ast::BlockLine<Option<Ast>>, id:Id) -> bool {
 ///
 /// Returns an error if the Id is not found.
 pub fn locate<'a>
-( lines : impl IntoIterator<Item=&'a ast::BlockLine<Option<Ast>>> + 'a
+( lines : impl IntoIterator<Item=&'a BlockLine<Option<Ast>>> + 'a
+, context_indent : usize
 , id    : Id
 ) -> FallibleResult<LocatedNode> {
-    Ok(locate_many(lines, [id])?.remove(&id).unwrap())
+    Ok(locate_many(lines, context_indent, [id])?.remove(&id).unwrap())
 }
 
 /// Obtain located node information for multiple nodes in a single pass.
@@ -102,18 +103,17 @@ pub fn locate<'a>
 /// If any of the looked for nodes is not found, `Err` is returned.
 /// Any `Ok(…)` return value is guaranteed to have length equal to `looked_for` argument.
 pub fn locate_many<'a>
-( lines      : impl IntoIterator<Item=&'a ast::BlockLine<Option<Ast>>> + 'a
-, looked_for : impl IntoIterator<Item=Id>
+( lines          : impl IntoIterator<Item=&'a BlockLine<Option<Ast>>> + 'a
+, context_indent : usize
+, looked_for     : impl IntoIterator<Item=Id>
 ) -> FallibleResult<HashMap<ast::Id,LocatedNode>> {
-    // Skip empty lines, while preserving indices.
-    let lines_iter = lines.into_iter()
-        .enumerate()
-        .filter_map(|(index, line)| line.elem.as_ref().map(|ast| (index, ast)));
-
     let mut looked_for = looked_for.into_iter().collect::<HashSet<_>>();
 
     let mut ret = HashMap::new();
-    let nodes = NodeIterator { lines_iter };
+    // Skip empty lines, there are no nodes.
+    // However, indices are important.
+    let lines_iter = enumerate_non_empty_lines(lines);
+    let nodes      = NodeIterator {lines_iter,context_indent};
     for node in nodes {
         if looked_for.remove(&node.id()) {
             ret.insert(node.id(), node);
@@ -139,20 +139,61 @@ pub fn locate_many<'a>
 
 /// Iterator over indexed line ASTs that yields nodes.
 #[derive(Clone,Debug)]
-pub struct NodeIterator<'a, T:Iterator<Item=(usize, &'a Ast)> + 'a> {
+pub struct NodeIterator<'a, T:Iterator<Item=(usize,BlockLine<&'a Ast>)> + 'a> {
     /// Input iterator that yields pairs (line index, line's Ast).
-    pub lines_iter : T
+    pub lines_iter : T,
+    ///
+    pub context_indent:usize,
 }
 
-impl<'a, T:Iterator<Item=(usize, &'a Ast)> + 'a> Iterator for NodeIterator<'a, T> {
+// pub fn iter_lines<'a>(lines:impl IntoIterator<Item=(&'a BlockLine<Option<Ast>>)>, context_indent:usize)
+//                   -> NodeIterator<'a, impl Iterator<Item=(usize,BlockLine<&'a Ast>)> + 'a> {
+//
+//     let lines_iter = lines.into_iter().enumerate().filter_map(|(index, line)| {
+//         match &line.elem {
+//             Some(elem) => Some((index, BlockLine {elem,off:line.off})),
+//             None       => None,
+//         }
+//         // Some((index,line.transpose()?.as_ref()))
+//     });
+//
+//     NodeIterator {lines_iter,context_indent}
+// }
+//
+// pub fn iter_block<'a>(block:&'a ast::Block<Ast>, parent_indent:usize)
+// -> NodeIterator<'a, impl Iterator<Item=(usize,BlockLine<&'a Ast>)> + 'a> {
+//     iter_lines(&block.lines,block.indent(parent_indent))
+// }
+
+
+
+// impl<'a, T:Iterator<Item=(usize,BlockLine<&'a Ast>)> + 'a> NodeIterator<'a, T> {
+//     pub fn from_all_lines(lines:impl IntoIterator<Item=(&'a BlockLine<Option<Ast>>)>, context_indent:usize) -> Self {
+//         // let lines_iter = lines.into_iter().enumerate().filter_map(|(index, line)| {
+//         //     Some((index,line.transpose()?))
+//         // });
+//
+//         let lines_iter = lines.into_iter().enumerate().filter_map(|(index, line)| {
+//             Some((index,line.transpose()?.as_ref()))
+//         });
+//
+//         NodeIterator {lines_iter,context_indent}
+//     }
+//
+//     pub fn from_block(block:&'a ast::Block<Ast>, parent_indent:usize) -> Self {
+//         Self::from_all_lines(&block.lines,block.indent(parent_indent))
+//     }
+// }
+
+impl<'a, T:Iterator<Item=(usize,BlockLine<&'a Ast>)> + 'a> Iterator for NodeIterator<'a, T> {
     type Item = LocatedNode;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut documentation = None;
         while let Some((index,ast)) = self.lines_iter.next() {
-            if let Some(documentation_info) = DocCommentInfo::new(ast) {
+            if let Some(documentation_info) = DocCommentInfo::new(&ast,self.context_indent) {
                 documentation = Some((index,documentation_info));
-            } else if let Some(main_line) = MainLine::from_ast(ast) {
+            } else if let Some(main_line) = MainLine::from_ast(&ast.elem) {
                 let (documentation_line,documentation) = match documentation {
                     Some((index,documentation)) => (Some(index),Some(documentation)),
                     None                        => (None,None)
@@ -254,6 +295,8 @@ impl MainLine {
         // By definition, there are no nodes in the root scope.
         // Being a node's line, we may assume that this is not a root scope.
         let scope = ScopeKind::NonRoot;
+        // Nodes, unlike documentation and definitions, are insensitive to parent block indent.
+        // Thus, we can just assume any bogus value.
         match LineKind::discern(ast,scope) {
             LineKind::ExpressionPlain      {ast} => Self::new_expression(ast),
             LineKind::ExpressionAssignment {ast} => Self::new_binding(ast),
@@ -263,7 +306,7 @@ impl MainLine {
     }
 
     /// Tries to interpret AST as node, treating whole AST as an expression.
-    pub fn from_block_line(line:&ast::BlockLine<Option<Ast>>) -> Option<MainLine> {
+    pub fn from_block_line(line:&BlockLine<Option<Ast>>) -> Option<MainLine> {
         Self::from_ast(line.elem.as_ref()?)
     }
 

@@ -8,6 +8,7 @@ use crate::prelude::*;
 
 use crate::double_representation::connection;
 use crate::double_representation::definition;
+use crate::double_representation::definition::DefinitionProvider;
 use crate::double_representation::graph::GraphInfo;
 use crate::double_representation::identifier::LocatedName;
 use crate::double_representation::identifier::NormalizedName;
@@ -476,7 +477,7 @@ impl Handle {
     ) -> FallibleResult<Handle> {
         let ret = Self::new_unchecked(parent,module,suggestion_db,parser,id);
         // Get and discard definition info, we are just making sure it can be obtained.
-        let _ = ret.graph_definition_info()?;
+        let _ = ret.definition()?;
         Ok(ret)
     }
 
@@ -494,15 +495,9 @@ impl Handle {
         Self::new(parent,module,project.suggestion_db(),project.parser(),definition)
     }
 
-    /// Retrieves double rep information about definition providing this graph.
-    pub fn graph_definition_info
-    (&self) -> FallibleResult<double_representation::definition::DefinitionInfo> {
-        self.module.find_definition(&self.id)
-    }
-
     /// Get the double representation description of the graph.
     pub fn graph_info(&self) -> FallibleResult<GraphInfo> {
-        self.graph_definition_info().map(GraphInfo::from_definition)
+        self.definition().map(|definition| GraphInfo::from_definition(definition.item))
     }
 
     /// Returns double rep information about all nodes in the graph.
@@ -567,7 +562,7 @@ impl Handle {
     /// resolution in the code in this graph.
     pub fn used_names(&self) -> FallibleResult<Vec<LocatedName>> {
         use double_representation::alias_analysis;
-        let def   = self.graph_definition_info()?;
+        let def   = self.definition()?;
         let body  = def.body();
         let usage = if matches!(body.shape(),ast::Shape::Block(_)) {
             alias_analysis::analyze_crumbable(body.item)
@@ -645,14 +640,13 @@ impl Handle {
     /// moved after it, keeping their order.
     pub fn place_node_and_dependencies_lines_after
     (&self, node_to_be_before:node::Id, node_to_be_after:node::Id) -> FallibleResult {
-        let definition      = self.graph_definition_info()?;
-        let definition_ast  = &definition.body().item;
+        let graph           = self.graph_info()?;
+        let definition_ast  = &graph.body().item;
         let dependent_nodes = connection::dependent_nodes_in_def(definition_ast,node_to_be_after);
-        let mut lines       = definition.block_lines();
 
-        let node_to_be_before = node::locate(&lines,node_to_be_before)?;
-        let node_to_be_after  = node::locate(&lines,node_to_be_after)?;
-        let dependent_nodes   = dependent_nodes.iter().map(|id| node::locate(&lines, *id))
+        let node_to_be_before = graph.locate_node(node_to_be_before)?;
+        let node_to_be_after  = graph.locate_node(node_to_be_after)?;
+        let dependent_nodes   = dependent_nodes.iter().map(|id| graph.locate_node(*id))
             .collect::<Result<Vec<_>,_>>()?;
 
         if node_to_be_after.index < node_to_be_before.index {
@@ -664,6 +658,9 @@ impl Handle {
                     false
                 }
             };
+
+            // FIXME block lines are not necessarily in a block
+            let mut lines = graph.block_lines();
             let range = NodeLocation::range(node_to_be_after.index, node_to_be_before.index);
             lines[range].sort_by_key(should_be_at_end);
             self.update_definition_ast(|mut def| {
@@ -739,7 +736,7 @@ impl Handle {
     /// Parses given text as a node expression.
     pub fn parse_node_expression
     (&self, expression_text:impl Str) -> FallibleResult<Ast> {
-        let node_ast = self.parser.parse_line(expression_text.as_ref())?;
+        let node_ast = self.parser.parse_line_ast(expression_text.as_ref())?;
         if ast::opr::is_assignment(&node_ast) {
             Err(BindingExpressionNotAllowed(expression_text.into()).into())
         } else {
@@ -752,11 +749,12 @@ impl Handle {
         info!(self.logger, "Adding node with expression `{node.expression}`");
         let expression_ast = self.parse_node_expression(&node.expression)?;
         let main_line      = MainLine::from_ast(&expression_ast).ok_or(FailedToCreateNode)?;
+        let indent         = self.definition()?.indent();
         let documentation  = node.doc_comment.as_ref()
             .map(|text| DocCommentInfo::text_to_repr(&text))
             .map(|doc_code| self.parser.parse_line(doc_code))
             .transpose()?
-            .map(|doc_ast| DocCommentInfo::new(&doc_ast).ok_or(FailedToCreateNode))
+            .map(|doc_ast| DocCommentInfo::new(&doc_ast.as_ref(),indent).ok_or(FailedToCreateNode))
             .transpose()?;
 
         let mut node_info = NodeInfo {documentation,main_line};
@@ -1457,7 +1455,7 @@ main =
                     let destination   = Endpoint::new(node1.info.id(),dst_port.to_vec());
                     let connection    = Connection{source,destination};
                     graph.connect(&connection,&span_tree::generate::context::Empty).unwrap();
-                    let new_main = graph.graph_definition_info().unwrap().ast.repr();
+                    let new_main = graph.definition().unwrap().ast.repr();
                     assert_eq!(new_main,expected,"Case {:?}",this);
                 })
             }
@@ -1501,7 +1499,7 @@ main =
                 }
             };
             graph.connect(&connection_to_add,&span_tree::generate::context::Empty).unwrap();
-            let new_main = graph.graph_definition_info().unwrap().ast.repr();
+            let new_main = graph.definition().unwrap().ast.repr();
             assert_eq!(new_main,EXPECTED);
         })
     }
@@ -1539,7 +1537,7 @@ main =
                 }
             };
             graph.connect(&connection_to_add,&span_tree::generate::context::Empty).unwrap();
-            let new_main = graph.graph_definition_info().unwrap().ast.repr();
+            let new_main = graph.definition().unwrap().ast.repr();
             assert_eq!(new_main,EXPECTED);
         })
     }
@@ -1576,7 +1574,7 @@ main =
                 }
             };
             graph.connect(&connection_to_add,&span_tree::generate::context::Empty).unwrap();
-            let new_main = graph.graph_definition_info().unwrap().ast.repr();
+            let new_main = graph.definition().unwrap().ast.repr();
             assert_eq!(new_main,EXPECTED);
         })
     }
@@ -1599,7 +1597,7 @@ main =
         ];
 
         for (code,expected_name) in &cases {
-            let ast  = parser.parse_line(*code).unwrap();
+            let ast  = parser.parse_line_ast(*code).unwrap();
             let node = MainLine::from_ast(&ast).unwrap();
             let name = Handle::variable_name_base_for(&node);
             assert_eq!(&name,expected_name);
@@ -1625,7 +1623,7 @@ main =
                     let connections = connections(&graph).unwrap();
                     let connection  = connections.connections.first().unwrap();
                     graph.disconnect(connection,&span_tree::generate::context::Empty).unwrap();
-                    let new_main = graph.graph_definition_info().unwrap().ast.repr();
+                    let new_main = graph.definition().unwrap().ast.repr();
                     assert_eq!(new_main,expected,"Case {:?}",this);
                 })
             }

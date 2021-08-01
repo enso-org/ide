@@ -4,10 +4,10 @@
 use crate::prelude::*;
 
 use ast::{Ast, opr, prefix, known};
-use crate::double_representation::definition::DefinitionName;
+use crate::double_representation::definition::{DefinitionName, DefinitionInfo};
 use crate::double_representation::definition::ScopeKind;
 use ast::crumbs::{Located, InfixCrumb};
-use ast::macros::DocCommentInfo;
+use ast::macros::{DocCommentInfo, DocumentationContext};
 
 pub mod alias_analysis;
 pub mod comment;
@@ -46,17 +46,10 @@ pub const INDENT : usize = 4;
 // ========================
 
 /// What kind of node or definition a line should be treated as.
-#[derive(Clone,Debug)]
 pub enum LineKind {
     /// Definition is a binding, which defines a new entity with arguments.
     Definition {
-        /// Ast of the whole binding.
-        ast  : known::Infix,
-        /// Definition name. If this is an extension method, it might imply an implicit `this`
-        /// argument.
-        name : Located<DefinitionName>,
-        /// Explicit arguments. Note that this might be empty when there are implicit arguments.
-        args : Vec<Located<Ast>>,
+        get_definition : Box<dyn FnOnce(usize) -> DefinitionInfo>
     },
     /// Node in a binding form.
     ExpressionAssignment {
@@ -72,7 +65,7 @@ pub enum LineKind {
     /// Instead, they are discovered and processed as part of nodes that follow them.
     DocumentationComment {
         /// The comment representation.
-        comment : DocCommentInfo,
+        get_documentation : Box<dyn FnOnce(DocumentationContext) -> DocCommentInfo>
     }
 }
 
@@ -88,9 +81,9 @@ impl LineKind {
             Some(infix) =>
                 infix,
             None =>
-                return if let Some(comment) = DocCommentInfo::new(ast) {
+                return if let Some(get_documentation) = DocCommentInfo::from_ast(ast) {
                     // e.g. `## My comment.`
-                    DocumentationComment {comment}
+                    DocumentationComment {get_documentation:Box::new(get_documentation)}
                 } else {
                     // The simplest form of node, e.g. `Point 5 10`
                     ExpressionPlain {ast:ast.clone_ref()}
@@ -136,7 +129,14 @@ impl LineKind {
         };
 
         Definition {
-            args,name,ast:infix.clone_ref()
+            get_definition: Box::new(|context_indent| {
+                DefinitionInfo {
+                    context_indent,
+                    ast : infix,
+                    name,
+                    args
+                }
+            })
         }
     }
 }

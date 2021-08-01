@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-use crate::double_representation::definition::DefinitionInfo;
+use crate::double_representation::definition::{DefinitionInfo, DefinitionProvider};
 use crate::double_representation::node;
 use crate::double_representation::node::LocatedNode;
 use crate::double_representation::node::NodeInfo;
@@ -43,23 +43,38 @@ pub enum LocationHint {
 // =================
 
 /// Description of the graph, based on information available in AST.
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Shrinkwrap)]
 pub struct GraphInfo {
     /// The definition providing this graph.
     pub source:DefinitionInfo,
 }
 
 impl GraphInfo {
+    pub fn locate_node(&self, id:double_representation::node::Id) -> FallibleResult<LocatedNode> {
+        let lines = self.source.block_lines();
+        double_representation::node::locate(&lines, self.source.context_indent, id)
+    }
+
     /// Describe graph of the given definition.
     pub fn from_definition(source:DefinitionInfo) -> GraphInfo {
         GraphInfo {source}
     }
 
-    /// Lists nodes in the given binding's ast (infix expression).
-    fn from_function_binding(ast:known::Infix) -> Vec<NodeInfo> {
-        let body = ast.rarg.clone();
+    /// Gets the AST of this graph definition.
+    pub fn ast(&self) -> Ast {
+        self.source.ast.clone().into()
+    }
+
+    /// Gets all known nodes in this graph (does not include special pseudo-nodes like graph
+    /// inputs and outputs).
+    pub fn nodes(&self) -> Vec<NodeInfo> {
+        let ast = &self.source.ast;
+        let body = &ast.rarg;
         if let Ok(body_block) = known::Block::try_new(body.clone()) {
-            block_nodes(&body_block)
+            let context_indent = self.source.indent();
+            let lines_iter     = body_block.enumerate_non_empty_lines();
+            let nodes_iter     = node::NodeIterator {context_indent,lines_iter};
+            nodes_iter.map(|n| n.node).collect()
         } else if let Some(node) = node::NodeInfo::from_main_line_ast(&body) {
             // There's no way to attach a documentation comment to an inline node, it consists only
             // of the main line.
@@ -71,17 +86,6 @@ impl GraphInfo {
         }
     }
 
-    /// Gets the AST of this graph definition.
-    pub fn ast(&self) -> Ast {
-        self.source.ast.clone().into()
-    }
-
-    /// Gets all known nodes in this graph (does not include special pseudo-nodes like graph
-    /// inputs and outputs).
-    pub fn nodes(&self) -> Vec<NodeInfo> {
-        Self::from_function_binding(self.source.ast.clone())
-    }
-
     /// Gets the list of connections between the nodes in this graph.
     pub fn connections(&self) -> Vec<Connection> {
         double_representation::connection::list(&self.source.ast.rarg)
@@ -90,13 +94,13 @@ impl GraphInfo {
     /// Adds a new node to this graph.
     pub fn add_line
     (&mut self, line_ast:Ast, location_hint:LocationHint) -> FallibleResult {
-        let mut lines      = self.source.block_lines();
+        let mut lines = self.block_lines();
         let last_non_empty = || lines.iter().rposition(|line| line.elem.is_some());
         let index          = match location_hint {
             LocationHint::Start      => 0,
             LocationHint::End        => last_non_empty().map_or(lines.len(),|ix| ix + 1),
-            LocationHint::After(id)  => node::locate(&lines, id)?.index.last() + 1,
-            LocationHint::Before(id) => node::locate(&lines, id)?.index.first()
+            LocationHint::After(id)  => self.locate_node(id)?.index.last() + 1,
+            LocationHint::Before(id) => self.locate_node(id)?.index.first()
         };
         let elem = Some(line_ast);
         let off  = 0;
@@ -113,8 +117,8 @@ impl GraphInfo {
         let index          = match location_hint {
             LocationHint::Start      => 0,
             LocationHint::End        => last_non_empty().map_or(lines.len(),|ix| ix + 1),
-            LocationHint::After(id)  => node::locate(&lines, id)?.index.last() + 1,
-            LocationHint::Before(id) => node::locate(&lines, id)?.index.first(),
+            LocationHint::After(id)  => self.locate_node(id)?.index.last() + 1,
+            LocationHint::Before(id) => self.locate_node(id)?.index.first(),
         };
         let elem = Some(node.ast().clone_ref());
         let off  = 0;
@@ -154,9 +158,9 @@ impl GraphInfo {
     /// Sets a new state for the node. The id of the described node must denote already existing
     /// node.
     pub fn update_node(&mut self, id:ast::Id, f:impl FnOnce(NodeInfo) -> Option<NodeInfo>) -> FallibleResult {
-        let mut lines = self.source.block_lines();
-        let LocatedNode{index,node} = node::locate(&lines, id)?;
+        let LocatedNode{index,node} = self.locate_node(id)?;
 
+        let mut lines = self.source.block_lines();
         if let Some(updated_node) = f(node) {
             lines[index.main_line].elem = Some(updated_node.main_line.ast().clone_ref());
             match (index.documentation_line, updated_node.documentation) {
@@ -201,21 +205,6 @@ impl GraphInfo {
         let code = self.source.ast.repr();
         assert_eq!(code,expected_code.as_ref());
     }
-}
-
-
-
-// =====================
-// === Listing nodes ===
-// =====================
-
-/// Collects information about nodes in given code `Block`.
-pub fn block_nodes(ast:&known::Block) -> Vec<NodeInfo> {
-    // Warning: this uses faux indices, as the empty lines are skipped first.
-    // It is fine here, since we throw away the result values depending on index.
-    let lines_iter = ast.iter().enumerate();
-    let nodes_iter = node::NodeIterator {lines_iter};
-    nodes_iter.map(|n| n.node).collect()
 }
 
 

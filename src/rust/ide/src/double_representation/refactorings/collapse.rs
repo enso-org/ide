@@ -384,7 +384,6 @@ mod tests {
     use crate::double_representation::definition::DefinitionName;
     use crate::double_representation::graph;
     use crate::double_representation::module;
-    use crate::double_representation::node::NodeInfo;
 
     use ast::crumbs::Crumb;
 

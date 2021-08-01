@@ -17,9 +17,16 @@ mod tests {
         let main_id = double_representation::definition::Id::new_plain_name("main");
         let main = double_representation::module::get_definition(&ast,&main_id).unwrap();
         let lines = main.block_lines();
-        let first_line_ast = lines[0].elem.as_ref().unwrap();
-        let doc = DocCommentInfo::new_indented(first_line_ast,4).unwrap();
-        assert_eq!(doc.text(), expected_comment_text);
+        let first_line = lines[0].transpose_ref().unwrap();
+        let doc = DocCommentInfo::new(&first_line,main.indent()).unwrap();
+        let text = doc.text();
+        assert_eq!(text, expected_comment_text);
+
+        // Now, if we convert our pretty text to code, will it be the same as original line?
+        let code = DocCommentInfo::text_to_repr(&text);
+        let ast2 = parser.parse_line(&code).unwrap();
+        let doc2 = DocCommentInfo::new(&ast2.as_ref(),main.indent()).expect(&format!("Failed to parse `{}` as comment",code));
+        assert_eq!(doc.line().repr(), doc2.line().repr())
     }
 
     #[test]
@@ -42,7 +49,7 @@ main =
         let expected = "Single line";
         run_case(&parser, code,expected);
 
-        // Single line case with a single space after `##`.
+        // Single line case with a single trailing space after `##`.
         let code = r#"
 main =
     ##
@@ -69,15 +76,8 @@ main =
     ## First line
        Second line
     node"#;
-        let ast = parser.parse_module(code,default()).unwrap();
-        let main_id = double_representation::definition::Id::new_plain_name("main");
-        let module_info = double_representation::module::Info {ast:ast.clone_ref()};
-
-        let main = double_representation::module::get_definition(&ast,&main_id).unwrap();
-        let lines = main.block_lines();
-        assert_eq!(lines.len(),2);
-        let doc = ast::macros::DocCommentInfo::new_indented(lines[0].elem.as_ref().unwrap(),4).unwrap();
-        assert_eq!(doc.text(), " First line\n Second line");
+        let expected = " First line\n Second line";
+        run_case(&parser, code,expected);
     }
 
 }
