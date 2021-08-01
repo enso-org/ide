@@ -21,7 +21,8 @@ mod wsclient;
 
 use crate::prelude::*;
 
-use ast::{Ast, BlockLine};
+use ast::Ast;
+use ast::BlockLine;
 use ast::IdMap;
 use std::panic;
 use utils::fail::FallibleResult;
@@ -100,13 +101,13 @@ impl Parser {
     }
 
     /// Program is expected to be single non-empty line module. The line's AST is
-    /// returned. Panics otherwise. The program is parsed with empty IdMap.
+    /// returned. The program is parsed with empty IdMap.
     pub fn parse_line_ast(&self, program:impl Str) -> FallibleResult<Ast> {
         self.parse_line_with_id_map(program, default()).map(|line| line.elem)
     }
 
     /// Program is expected to be single non-empty line module. The line's AST is
-    /// returned. Panics otherwise. The program is parsed with empty IdMap.
+    /// returned. The program is parsed with empty IdMap.
     pub fn parse_line(&self, program:impl Str) -> FallibleResult<BlockLine<Ast>> {
         self.parse_line_with_id_map(program, default())
     }

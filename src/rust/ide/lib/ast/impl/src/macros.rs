@@ -7,7 +7,8 @@ use crate::prelude::*;
 use crate::crumbs::AmbiguousCrumb;
 use crate::crumbs::Located;
 use crate::crumbs::MatchCrumb;
-use crate::{known, BlockLine};
+use crate::known;
+use crate::BlockLine;
 use crate::Shifted;
 
 
@@ -130,6 +131,8 @@ impl DocumentationCommentLine {
 
 // === Full Description ===
 
+/// Structure holding the documentation comment AST and related information necessary to deal with
+/// them.
 #[derive(Clone,Debug,Shrinkwrap)]
 pub struct DocumentationCommentInfo {
     /// Description of the line with the documentation comment.
@@ -149,12 +152,13 @@ impl DocumentationCommentInfo {
     }
 
     /// Get the documentation text.
-    pub fn text(&self) -> String {
-        // This gets us documentation text, however non-first lines have the absolute indent
-        // whitespace preserved. Thus, we remove spurious indent, to keep only the relative indent
-        // to the comment's inner block (i.e. the right after the `##` introducer).
+    ///
+    /// The text is pretty printed as per UI perspective -- all lines leading whitespace is stripped
+    /// up to the column following comment introducer (`##`).
+    pub fn pretty_text(&self) -> String {
         let mut repr   = self.body.repr();
-        repr.extend(std::iter::repeat(' ').take(self.line.off)); // trailing whitespace
+        // Trailing whitespace must be maintained.
+        repr.extend(std::iter::repeat(' ').take(self.line.off));
         let indent = self.block_indent + DOCUMENTATION_COMMENT_INTRODUCER.len();
         let old    = format!("\n{}", " ".repeat(indent));
         let new    = "\n";
@@ -162,10 +166,11 @@ impl DocumentationCommentInfo {
     }
 
     /// Get the documentation text.
-    pub fn text_to_repr(text:&str) -> String {
+    pub fn text_to_repr(context_indent:usize, text:&str) -> String {
+        let indent        = " ".repeat(context_indent);
         let mut lines     = text.lines();
         let first_line    = lines.next().map(|line| iformat!("##{line}"));
-        let other_lines   = lines       .map(|line| iformat!("  {line}"));
+        let other_lines   = lines       .map(|line| iformat!("{indent}  {line}"));
         let mut out_lines = first_line.into_iter().chain(other_lines);
         out_lines.join("\n")
     }
@@ -180,7 +185,7 @@ impl AsRef<Ast> for DocumentationCommentInfo {
 
 impl Display for DocumentationCommentInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f,"{}",self.text())
+        write!(f,"{}",self.pretty_text())
     }
 }
 

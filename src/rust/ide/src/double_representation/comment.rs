@@ -19,11 +19,11 @@ mod tests {
         let lines = main.block_lines();
         let first_line = lines[0].transpose_ref().unwrap();
         let doc = DocumentationCommentInfo::new(&first_line,main.indent()).unwrap();
-        let text = doc.text();
+        let text = doc.pretty_text();
         assert_eq!(text, expected_comment_text);
 
         // Now, if we convert our pretty text to code, will it be the same as original line?
-        let code = DocumentationCommentInfo::text_to_repr(&text);
+        let code = DocumentationCommentInfo::text_to_repr(main.indent(),&text);
         let ast2 = parser.parse_line(&code).unwrap();
         let doc2 = DocumentationCommentInfo::new(&ast2.as_ref(),main.indent()).expect(&format!("Failed to parse `{}` as comment",code));
         assert_eq!(doc.line().repr(), doc2.line().repr())

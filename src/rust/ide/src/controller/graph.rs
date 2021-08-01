@@ -133,7 +133,6 @@ pub struct NewNodeInfo {
     pub location_hint : LocationHint,
     /// Introduce variable name for the node, making it into an assignment line.
     pub introduce_pattern : bool,
-
 }
 
 impl NewNodeInfo {
@@ -744,18 +743,23 @@ impl Handle {
         }
     }
 
+    /// Creates a proper description of a documentation comment in the context of this graph.
+    pub fn documentation_comment_from_pretty_text
+    (&self, pretty_text:&str) -> Option<DocumentationCommentInfo> {
+        let indent   = self.definition().ok()?.indent();
+        let doc_repr = DocumentationCommentInfo::text_to_repr(indent,pretty_text);
+        let doc_line = self.parser.parse_line(doc_repr).ok()?;
+        DocumentationCommentInfo::new(&doc_line.as_ref(),indent)
+    }
+
     /// Adds a new node to the graph and returns information about created node.
     pub fn add_node(&self, node:NewNodeInfo) -> FallibleResult<ast::Id> {
         info!(self.logger, "Adding node with expression `{node.expression}`");
         let expression_ast = self.parse_node_expression(&node.expression)?;
         let main_line      = MainLine::from_ast(&expression_ast).ok_or(FailedToCreateNode)?;
-        let indent         = self.definition()?.indent();
-        let documentation  = node.doc_comment.as_ref()
-            .map(|text| DocumentationCommentInfo::text_to_repr(&text))
-            .map(|doc_code| self.parser.parse_line(doc_code))
-            .transpose()?
-            .map(|doc_ast| DocumentationCommentInfo::new(&doc_ast.as_ref(),indent).ok_or(FailedToCreateNode))
-            .transpose()?;
+        let documentation  = node.doc_comment.as_ref().and_then(|pretty_text| {
+            self.documentation_comment_from_pretty_text(pretty_text)
+        });
 
         let mut node_info = NodeInfo {documentation,main_line};
         if let Some(desired_id) = node.id {

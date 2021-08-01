@@ -620,10 +620,14 @@ pub enum Escape {
 
 
 impl<T> Block<T> {
+    /// Calculate absolute indentation of lines in this block.
     pub fn indent(&self, parent_indent:usize) -> usize {
         parent_indent + self.indent
     }
 
+    /// Iterate over non-empty lines, while keeping their absolute indices.
+    ///
+    /// Note that leading empty lines are never indexed (unlike other empty lines in the block).
     pub fn enumerate_non_empty_lines(&self) -> impl Iterator<Item=(usize,BlockLine<&T>)> + '_
     where T:CloneRef {
         let first_line = std::iter::once((0,self.first_line.as_ref()));
@@ -635,6 +639,7 @@ impl<T> Block<T> {
     }
 }
 
+/// Iterate over non-empty lines, while maintaining their indices.
 pub fn enumerate_non_empty_lines<'a,T:'a>(iter:impl IntoIterator<Item = &'a BlockLine<Option<T>>> + 'a)
 -> impl Iterator<Item=(usize,BlockLine<&'a T>)> + 'a {
     iter.into_iter().enumerate().filter_map(|(index,line):(usize,&BlockLine<Option<T>>)| {

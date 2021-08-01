@@ -242,7 +242,7 @@ impl NodeInfo {
 
     /// Obtain documentation text.
     pub fn documentation_text(&self) -> Option<String> {
-         self.documentation.as_ref().map(|doc| doc.text())
+         self.documentation.as_ref().map(|doc| doc.pretty_text())
     }
 }
 
