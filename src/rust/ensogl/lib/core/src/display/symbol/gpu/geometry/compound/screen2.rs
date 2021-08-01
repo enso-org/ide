@@ -23,10 +23,10 @@ pub struct Screen2 {
 
 impl Screen2 {
     /// Constructor.
-    pub fn new(scene:&Scene, input:impl AsRef<str>) -> Self {
+    pub fn new(scene:&Scene, mask_input:impl AsRef<str>, color_input:impl AsRef<str>) -> Self {
         let sprite_system = SpriteSystem::new(scene);
         sprite_system.set_geometry_material(Self::geometry_material());
-        sprite_system.set_material(Self::surface_material(input));
+        sprite_system.set_material(Self::surface_material(mask_input,color_input));
         let sprite = sprite_system.new_instance();
         Self {sprite,sprite_system}
     }
@@ -63,18 +63,21 @@ impl Screen2 {
         material
     }
 
-    fn surface_material(input:impl AsRef<str>) -> Material {
-        let input        = input.as_ref();
+    fn surface_material(mask_input:impl AsRef<str>,color_input:impl AsRef<str>) -> Material {
+        let mask_input   = mask_input.as_ref();
+        let color_input  = color_input.as_ref();
         let mut material = Material::new();
         let shader       = iformat!("
-        vec4 sample_color = texture(input_{input}, input_uv);
-        output_color = sample_color;
-        output_id=vec4(0.0,0.0,0.0,0.0);
-        ");
-        material.add_input_def::<texture::FloatSampler>(input);
+            vec4 sample_mask  = texture(input_{mask_input},input_uv);
+            vec4 sample_color = texture(input_{color_input},input_uv);
+            output_color = sample_color;
+            output_color.a *= sample_mask.a;
+            output_id=vec4(0.0,0.0,0.0,0.0);
+            ");
+        material.add_input_def::<texture::FloatSampler>(mask_input);
+        material.add_input_def::<texture::FloatSampler>(color_input);
         material.add_output ("id", Vector4::<f32>::new(0.0,0.0,0.0,0.0));
         material.set_main(shader);
-        // material.set_main("output_color = vec4(1.0,0.0,0.0,1.0); output_id=vec4(0.0,0.0,0.0,0.0);");
         material
     }
 }

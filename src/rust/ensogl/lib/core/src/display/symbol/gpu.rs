@@ -482,7 +482,7 @@ impl Symbol {
     (&self, context:&Context, program:&WebGlProgram, binding:&shader::VarBinding, mesh_scope_type:mesh::ScopeType) {
         let vtx_name = shader::builder::mk_vertex_name(&binding.name);
         let scope    = self.surface.scope_by_type(mesh_scope_type);
-        let location = context.get_attrib_location(program, &vtx_name);
+        let location = context.get_attrib_location(program,&vtx_name);
         if location < 0 {
             error!(self.logger,"Attribute '{vtx_name}' not found.");
         } else {
@@ -490,7 +490,7 @@ impl Symbol {
             let buffer       = &scope.buffer(&binding.name).unwrap();
             let is_instanced = mesh_scope_type == mesh::ScopeType::Instance;
             buffer.bind(Context::ARRAY_BUFFER);
-            buffer.vertex_attrib_pointer(location, is_instanced);
+            buffer.vertex_attrib_pointer(location,is_instanced);
         }
     }
 
@@ -498,9 +498,9 @@ impl Symbol {
     /// closure passed as argument to `with_program`).
     fn init_uniform_binding
     ( &self
-    , context : &Context
-    , program:&WebGlProgram
-    , binding:&shader::VarBinding
+    , context           : &Context
+    , program           : &WebGlProgram
+    , binding           : &shader::VarBinding
     , texture_unit_iter : &mut dyn Iterator<Item=TextureUnit>
     ) {
         let name         = &binding.name;
@@ -523,6 +523,8 @@ impl Symbol {
                     match texture_unit_iter.next() {
                         Some(texture_unit) => {
                             let binding = TextureBinding::new(name,location,uniform,texture_unit);
+                            // The following line binds the uniform to the right texture unit.
+                            // Without it symbols will multiple textures would not work.
                             binding.upload_uniform(context);
                             self.bindings.borrow_mut().textures.push(binding);
                         }

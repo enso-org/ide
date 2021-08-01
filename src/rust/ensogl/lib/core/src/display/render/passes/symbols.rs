@@ -26,6 +26,7 @@ pub struct SymbolsRenderPass {
     layers          : scene::HardcodedLayers,
     color_fb        : Option<web_sys::WebGlFramebuffer>,
     mask_fb         : Option<web_sys::WebGlFramebuffer>,
+    clayer_fb       : Option<web_sys::WebGlFramebuffer>,
     scissor_stack   : Vec<layer::ScissorBox>,
     scene           : Scene,
     tmp_screen      : Screen2,
@@ -44,10 +45,11 @@ impl SymbolsRenderPass {
         let layers          = layers.clone_ref();
         let color_fb        = default();
         let mask_fb         = default();
+        let clayer_fb         = default();
         let scissor_stack   = default();
         let scene           = scene.clone_ref();
-        let tmp_screen      = Screen2::new(&scene,"pass_mask");
-        Self {logger,symbol_registry,layers,color_fb,mask_fb,scissor_stack,scene,tmp_screen}
+        let tmp_screen      = Screen2::new(&scene,"pass_mask","pass_clayer");
+        Self {logger,symbol_registry,layers,color_fb,mask_fb,clayer_fb,scissor_stack,scene,tmp_screen}
     }
 }
 
@@ -62,12 +64,15 @@ impl RenderPass for SymbolsRenderPass {
         };
         let out_color = RenderPassOutput::new_rgba("color");
         let out_mask  = RenderPassOutput::new_rgba("mask" );
+        let out_clayer = RenderPassOutput::new_rgba("clayer" );
         let out_id    = RenderPassOutput::new("id",rgba,tex_type,id_params);
         let tex_color = instance.new_screen_texture(&out_color);
         let tex_mask  = instance.new_screen_texture(&out_mask);
+        let tex_clayer  = instance.new_screen_texture(&out_clayer);
         let tex_id    = instance.new_screen_texture(&out_id);
         self.color_fb = Some(instance.new_framebuffer(&[&tex_color,&tex_id]));
         self.mask_fb  = Some(instance.new_framebuffer(&[&tex_mask,&tex_id]));
+        self.clayer_fb  = Some(instance.new_framebuffer(&[&tex_clayer,&tex_id]));
     }
 
     fn run(&mut self, instance:&PassInstance) {
@@ -113,13 +118,19 @@ impl SymbolsRenderPass {
             instance.context.bind_framebuffer(Context::FRAMEBUFFER,self.mask_fb.as_ref());
 
             self.render_layer(instance,&mask);
-            instance.context.bind_framebuffer(Context::FRAMEBUFFER,self.color_fb.as_ref());
+            instance.context.bind_framebuffer(Context::FRAMEBUFFER,self.clayer_fb.as_ref());
 
-            self.tmp_screen.render();
 
         }
         for sublayer in layer.sublayers().iter() {
             self.render_layer(instance,&sublayer);
+        }
+
+        if let Some(mask) = layer.mask() {
+            instance.context.bind_framebuffer(Context::FRAMEBUFFER,self.color_fb.as_ref());
+            self.tmp_screen.render();
+
+
         }
 
         if scissor_box_changed {
