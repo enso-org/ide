@@ -22,7 +22,7 @@ use crate::model::module::NodeMetadata;
 use crate::model::traits::*;
 
 use ast::crumbs::InfixCrumb;
-use ast::macros::DocCommentInfo;
+use ast::macros::DocumentationCommentInfo;
 use enso_protocol::language_server;
 use parser::Parser;
 use span_tree::SpanTree;
@@ -751,10 +751,10 @@ impl Handle {
         let main_line      = MainLine::from_ast(&expression_ast).ok_or(FailedToCreateNode)?;
         let indent         = self.definition()?.indent();
         let documentation  = node.doc_comment.as_ref()
-            .map(|text| DocCommentInfo::text_to_repr(&text))
+            .map(|text| DocumentationCommentInfo::text_to_repr(&text))
             .map(|doc_code| self.parser.parse_line(doc_code))
             .transpose()?
-            .map(|doc_ast| DocCommentInfo::new(&doc_ast.as_ref(),indent).ok_or(FailedToCreateNode))
+            .map(|doc_ast| DocumentationCommentInfo::new(&doc_ast.as_ref(),indent).ok_or(FailedToCreateNode))
             .transpose()?;
 
         let mut node_info = NodeInfo {documentation,main_line};
@@ -1303,6 +1303,7 @@ main =
         test.run(|graph| async move {
             // === Initial nodes ===
             let nodes         = graph.nodes().unwrap();
+            for node in &nodes { DEBUG!(node.repr())};
             let (node1,node2) = nodes.expect_tuple();
             assert_eq!(node1.info.expression().repr(), "2");
             assert_eq!(node2.info.expression().repr(), "print foo");

@@ -6,7 +6,7 @@ use crate::prelude::*;
 mod tests {
     use super::*;
     use crate::double_representation::definition::DefinitionProvider;
-    use ast::macros::DocCommentInfo;
+    use ast::macros::DocumentationCommentInfo;
     use parser::Parser;
 
 
@@ -18,14 +18,14 @@ mod tests {
         let main = double_representation::module::get_definition(&ast,&main_id).unwrap();
         let lines = main.block_lines();
         let first_line = lines[0].transpose_ref().unwrap();
-        let doc = DocCommentInfo::new(&first_line,main.indent()).unwrap();
+        let doc = DocumentationCommentInfo::new(&first_line,main.indent()).unwrap();
         let text = doc.text();
         assert_eq!(text, expected_comment_text);
 
         // Now, if we convert our pretty text to code, will it be the same as original line?
-        let code = DocCommentInfo::text_to_repr(&text);
+        let code = DocumentationCommentInfo::text_to_repr(&text);
         let ast2 = parser.parse_line(&code).unwrap();
-        let doc2 = DocCommentInfo::new(&ast2.as_ref(),main.indent()).expect(&format!("Failed to parse `{}` as comment",code));
+        let doc2 = DocumentationCommentInfo::new(&ast2.as_ref(),main.indent()).expect(&format!("Failed to parse `{}` as comment",code));
         assert_eq!(doc.line().repr(), doc2.line().repr())
     }
 

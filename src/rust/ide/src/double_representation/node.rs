@@ -6,7 +6,7 @@ use ast::{Ast, BlockLine, enumerate_non_empty_lines};
 use ast::crumbs::Crumbable;
 use ast::known;
 use std::cmp::Ordering;
-use ast::macros::DocCommentInfo;
+use ast::macros::{DocumentationCommentInfo, DocumentationCommentLine};
 use crate::double_representation::LineKind;
 use crate::double_representation::definition::ScopeKind;
 
@@ -142,46 +142,20 @@ pub fn locate_many<'a>
 pub struct NodeIterator<'a, T:Iterator<Item=(usize,BlockLine<&'a Ast>)> + 'a> {
     /// Input iterator that yields pairs (line index, line's Ast).
     pub lines_iter : T,
-    ///
+    /// Absolute indent of lines in the block we are iterating over.
     pub context_indent:usize,
 }
 
-// pub fn iter_lines<'a>(lines:impl IntoIterator<Item=(&'a BlockLine<Option<Ast>>)>, context_indent:usize)
-//                   -> NodeIterator<'a, impl Iterator<Item=(usize,BlockLine<&'a Ast>)> + 'a> {
-//
-//     let lines_iter = lines.into_iter().enumerate().filter_map(|(index, line)| {
-//         match &line.elem {
-//             Some(elem) => Some((index, BlockLine {elem,off:line.off})),
-//             None       => None,
-//         }
-//         // Some((index,line.transpose()?.as_ref()))
-//     });
-//
-//     NodeIterator {lines_iter,context_indent}
-// }
-//
-// pub fn iter_block<'a>(block:&'a ast::Block<Ast>, parent_indent:usize)
-// -> NodeIterator<'a, impl Iterator<Item=(usize,BlockLine<&'a Ast>)> + 'a> {
-//     iter_lines(&block.lines,block.indent(parent_indent))
-// }
 
 
-
+// pub fn block_nodes<'a, T:Iterator<Item=(usize,BlockLine<&'a Ast>)> + 'a>  {
+//
+//
 // impl<'a, T:Iterator<Item=(usize,BlockLine<&'a Ast>)> + 'a> NodeIterator<'a, T> {
-//     pub fn from_all_lines(lines:impl IntoIterator<Item=(&'a BlockLine<Option<Ast>>)>, context_indent:usize) -> Self {
-//         // let lines_iter = lines.into_iter().enumerate().filter_map(|(index, line)| {
-//         //     Some((index,line.transpose()?))
-//         // });
-//
-//         let lines_iter = lines.into_iter().enumerate().filter_map(|(index, line)| {
-//             Some((index,line.transpose()?.as_ref()))
-//         });
-//
+//     pub fn from_block(block:&known::Block, parent_indent:usize) -> Self {
+//         let lines_iter = block.enumerate_non_empty_lines();
+//         let context_indent = block.indent + parent_indent;
 //         NodeIterator {lines_iter,context_indent}
-//     }
-//
-//     pub fn from_block(block:&'a ast::Block<Ast>, parent_indent:usize) -> Self {
-//         Self::from_all_lines(&block.lines,block.indent(parent_indent))
 //     }
 // }
 
@@ -189,27 +163,38 @@ impl<'a, T:Iterator<Item=(usize,BlockLine<&'a Ast>)> + 'a> Iterator for NodeIter
     type Item = LocatedNode;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut documentation = None;
-        while let Some((index,ast)) = self.lines_iter.next() {
-            if let Some(documentation_info) = DocCommentInfo::new(&ast,self.context_indent) {
-                documentation = Some((index,documentation_info));
-            } else if let Some(main_line) = MainLine::from_ast(&ast.elem) {
-                let (documentation_line,documentation) = match documentation {
-                    Some((index,documentation)) => (Some(index),Some(documentation)),
-                    None                        => (None,None)
-                };
+        let mut indexed_documentation = None;
+        while let Some((index, line)) = self.lines_iter.next() {
+            match LineKind::discern(line.elem, ScopeKind::NonRoot) {
+                LineKind::DocumentationComment {documentation} => {
+                    let doc_line = DocumentationCommentLine::from_doc_ast(documentation,line.off);
+                    let documentation = DocumentationCommentInfo {
+                        line         : doc_line,
+                        block_indent : self.context_indent,
+                    };
+                    indexed_documentation = Some((index,documentation));
+                }
+                LineKind::Definition { .. } => {
+                    // Non-node entity consumes any previous documentation.
+                    indexed_documentation = None;
+                }
+                line => {
+                    if let Some(main_line) = line.into_node_main_line() {
+                        let (documentation_line,documentation) = match indexed_documentation {
+                            Some((index,documentation)) => (Some(index),Some(documentation)),
+                            None                        => (None,None)
+                        };
 
-                let ret = LocatedNode {
-                    node  : NodeInfo  {documentation,main_line},
-                    index : NodeLocation {
-                        main_line : index,
-                        documentation_line,
+                        let ret = LocatedNode {
+                            node: NodeInfo { documentation, main_line },
+                            index: NodeLocation {
+                                main_line: index,
+                                documentation_line,
+                            }
+                        };
+                        return Some(ret)
                     }
-                };
-                return Some(ret);
-            } else {
-                // Non-node entity consumes any previous documentation.
-                documentation = None;
+                }
             }
         }
         None
@@ -222,7 +207,7 @@ impl<'a, T:Iterator<Item=(usize,BlockLine<&'a Ast>)> + 'a> Iterator for NodeIter
 #[shrinkwrap(mutable)]
 pub struct NodeInfo {
     /// If the node has doc comment attached, it will be represented here.
-    pub documentation : Option<DocCommentInfo>,
+    pub documentation : Option<DocumentationCommentInfo>,
     /// Primary node AST that contains node's expression and optional pattern binding.
     #[shrinkwrap(main_field)]
     pub main_line     : MainLine,

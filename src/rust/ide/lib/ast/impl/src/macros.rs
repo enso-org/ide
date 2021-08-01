@@ -34,11 +34,9 @@ pub const QUALIFIED_EXPORT_KEYWORD:&str = "export";
 
 
 
-// ================
-// === Comments ===
-// ================
-
+// ========================
 // === Disable Comments ===
+// ========================
 
 /// Try Interpreting the line as disabling comment. Return the text after `#`.
 pub fn as_disable_comment(ast:&Ast) -> Option<String> {
@@ -57,54 +55,97 @@ pub fn is_disable_comment(ast:&Ast) -> bool {
 }
 
 
+
+// ==============================
 // === Documentation Comments ===
+// ==============================
 
-/// Information about AST context necessary to construct `DocCommentInfo` from line's AST.
-pub struct DocumentationContext {
-    /// Absolute indentation of the documentation comment line.
-    pub block_indent : usize,
-    /// Trailing whitespace in the documentation line.
-    pub trailing_whitespace : usize,
+// === Ast Description ===
+
+/// Describes the AST of a documentation comment.
+pub struct DocumentationCommentAst {
+    ast  : known::Match,
+    body : crate::MacroPatternMatch<Shifted<Ast>>,
 }
 
-/// Ast known to be a documentation comment.
-#[derive(Clone,Debug)]
-pub struct DocCommentInfo {
-    line             : BlockLine<known::Match>,
-    body             : crate::MacroPatternMatch<Shifted<Ast>>,
-    /// The absolute indent of the block that contains the line with documentation comment.
-    pub block_indent : usize,
-}
-
-impl DocCommentInfo {
-    pub fn from_ast(ast:&Ast) -> Option<impl FnOnce(DocumentationContext) -> Self> {
+impl DocumentationCommentAst {
+    /// Interpret given Ast as a documentation comment. Return `None` if it is not recognized.
+    pub fn new(ast:&Ast) -> Option<Self> {
         let ast           = crate::known::Match::try_from(ast).ok()?;
         let first_segment = &ast.segs.head;
         let introducer    = crate::identifier::name(&first_segment.head)?;
         if introducer == DOCUMENTATION_COMMENT_INTRODUCER {
             let body = first_segment.body.clone_ref();
-            Some(move |DocumentationContext{block_indent,trailing_whitespace}| {
-                let line = BlockLine {
-                    elem : ast,
-                    off  : trailing_whitespace,
-                };
-                DocCommentInfo {line,body,block_indent}
-            })
+            Some(DocumentationCommentAst {ast,body})
         } else {
             None
         }
     }
+}
 
-    /// Creates a documentation from Ast and information about indentation of the block it belongs
-    /// to.
-    pub fn new(line:&BlockLine<&Ast>, block_indent:usize) -> Option<Self> {
-        let context = DocumentationContext{block_indent,trailing_whitespace:line.off};
-        Self::from_ast(line.elem).map(|f| f(context))
+
+// === Line Description ===
+
+/// Describes the line with a documentation comment.
+#[derive(Clone,Debug,Shrinkwrap)]
+pub struct DocumentationCommentLine {
+    /// Stores the documentation AST and the trailing whitespace length.
+    #[shrinkwrap(main_field)]
+    line : BlockLine<known::Match>,
+    body : crate::MacroPatternMatch<Shifted<Ast>>,
+}
+
+impl DocumentationCommentLine {
+    /// Try constructing from a line. Return `None` if this line has no documentation comment.
+    pub fn new(line:&BlockLine<&Ast>) -> Option<Self> {
+        let doc_ast_opt = DocumentationCommentAst::new(line.elem);
+        doc_ast_opt.map(|doc_ast| Self::from_doc_ast(doc_ast,line.off))
+    }
+
+    /// Treat given documentation AST as the line with a given trailing whitespace.
+    pub fn from_doc_ast(ast_doc:DocumentationCommentAst, off:usize) -> Self {
+        Self {
+            line : BlockLine {elem:ast_doc.ast, off},
+            body : ast_doc.body,
+        }
     }
 
     /// Get the documentation comment's AST.
     pub fn ast(&self) -> known::Match {
         self.line.elem.clone_ref()
+    }
+
+    /// Get the line with this comment.
+    pub fn line(&self) -> &BlockLine<known::Match> {
+        &self.line
+    }
+
+    /// Convenience function that throws away some information to return the line description that
+    /// is used in AST blocks.
+    pub fn block_line(&self) -> BlockLine<Option<Ast>> {
+        self.line.as_ref().map(|known_ast| Some(known_ast.ast().clone_ref()))
+    }
+}
+
+
+// === Full Description ===
+
+#[derive(Clone,Debug,Shrinkwrap)]
+pub struct DocumentationCommentInfo {
+    /// Description of the line with the documentation comment.
+    #[shrinkwrap(main_field)]
+    pub line : DocumentationCommentLine,
+    /// The absolute indent of the block that contains the line with documentation comment.
+    pub block_indent : usize,
+}
+
+impl DocumentationCommentInfo {
+    /// Try to obtain information about a documentation comment line from block with a given indent.
+    pub fn new(line:&BlockLine<&Ast>, block_indent:usize) -> Option<Self> {
+        Some(Self {
+            line : DocumentationCommentLine::new(line)?,
+            block_indent
+        })
     }
 
     /// Get the documentation text.
@@ -128,19 +169,16 @@ impl DocCommentInfo {
         let mut out_lines = first_line.into_iter().chain(other_lines);
         out_lines.join("\n")
     }
-
-    pub fn line(&self) -> &BlockLine<known::Match> {
-        &self.line
-    }
 }
 
-impl AsRef<Ast> for DocCommentInfo {
+
+impl AsRef<Ast> for DocumentationCommentInfo {
     fn as_ref(&self) -> &Ast {
         self.line.elem.ast()
     }
 }
 
-impl Display for DocCommentInfo {
+impl Display for DocumentationCommentInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f,"{}",self.text())
     }
@@ -148,7 +186,7 @@ impl Display for DocCommentInfo {
 
 /// Check if given Ast stores a documentation comment.
 pub fn is_documentation_comment(ast:&Ast) -> bool {
-    DocCommentInfo::from_ast(ast).is_some()
+    DocumentationCommentAst::new(ast).is_some()
 }
 
 

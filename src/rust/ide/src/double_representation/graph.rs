@@ -168,12 +168,9 @@ impl GraphInfo {
                     lines.remove(old_comment_index);
                 }
                 (Some(old_comment_index),Some(new_comment)) =>
-                    lines[old_comment_index].elem = Some(new_comment.as_ref().clone_ref()),
+                    lines[old_comment_index] = new_comment.block_line(),
                 (None,Some(new_comment)) =>
-                    lines.insert(index.main_line, BlockLine {
-                        elem : Some(new_comment.as_ref().clone_ref()),
-                        off  : 0,
-                }),
+                    lines.insert(index.main_line, new_comment.block_line()),
                 (None,None) => {},
             }
         } else {
@@ -225,7 +222,7 @@ mod tests {
     use ast::test_utils::expect_single_line;
     use utils::test::ExpectTuple;
     use wasm_bindgen_test::wasm_bindgen_test;
-    use ast::macros::DocCommentInfo;
+    use ast::macros::DocumentationCommentInfo;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
@@ -285,7 +282,8 @@ mod tests {
 
     fn assert_same(left:&NodeInfo, right:&NodeInfo) {
         assert_eq!(left.id(), right.id());
-        assert_eq!(left.documentation.as_ref().map(DocCommentInfo::to_string), right.documentation.as_ref().map(DocCommentInfo::to_string));
+        assert_eq!( left.documentation.as_ref().map(DocumentationCommentInfo::to_string)
+                  , right.documentation.as_ref().map(DocumentationCommentInfo::to_string));
         assert_eq!(left.main_line.repr(), right.main_line.repr());
     }
 

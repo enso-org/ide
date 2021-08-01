@@ -6,8 +6,10 @@ use crate::prelude::*;
 use ast::{Ast, opr, prefix, known};
 use crate::double_representation::definition::{DefinitionName, DefinitionInfo};
 use crate::double_representation::definition::ScopeKind;
-use ast::crumbs::{Located, InfixCrumb};
-use ast::macros::{DocCommentInfo, DocumentationContext};
+use ast::crumbs::InfixCrumb;
+use ast::crumbs::Located;
+use ast::macros::DocumentationCommentAst;
+use crate::double_representation::node::MainLine;
 
 pub mod alias_analysis;
 pub mod comment;
@@ -65,11 +67,19 @@ pub enum LineKind {
     /// Instead, they are discovered and processed as part of nodes that follow them.
     DocumentationComment {
         /// The comment representation.
-        get_documentation : Box<dyn FnOnce(DocumentationContext) -> DocCommentInfo>
+        documentation : DocumentationCommentAst
     }
 }
 
 impl LineKind {
+    pub fn into_node_main_line(self) -> Option<MainLine> {
+        match self {
+            LineKind::ExpressionAssignment {ast} => MainLine::new_binding(ast),
+            LineKind::ExpressionPlain      {ast} => MainLine::new_expression(ast),
+            LineKind::DocumentationComment {..}  => None,
+            LineKind::Definition           {..}  => None,
+        }
+    }
 
     /// Tell how the given line (described by an Ast) should be treated.
     pub fn discern(ast:&Ast, kind:ScopeKind) -> Self {
@@ -81,9 +91,9 @@ impl LineKind {
             Some(infix) =>
                 infix,
             None =>
-                return if let Some(get_documentation) = DocCommentInfo::from_ast(ast) {
+                return if let Some(documentation) = DocumentationCommentAst::new(ast) {
                     // e.g. `## My comment.`
-                    DocumentationComment {get_documentation:Box::new(get_documentation)}
+                    DocumentationComment {documentation}
                 } else {
                     // The simplest form of node, e.g. `Point 5 10`
                     ExpressionPlain {ast:ast.clone_ref()}
@@ -149,3 +159,10 @@ impl LineKind {
 //    definition scope they are treated as invalid constructs (setter syntax in the old design).
 // 2. Expression like "foo = 5". In module, this is treated as method definition (with implicit
 //    this parameter). In definition, this is just a node (evaluated expression).
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+
+}
