@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 use crate::display::render::pipeline::*;
 use crate::display::symbol::Screen;
-use crate::display::world::World;
+use crate::display::scene::Scene;
 use crate::system::gpu::*;
 use crate::display::render::composer::PassInstance;
 
@@ -22,9 +22,9 @@ pub struct ScreenRenderPass {
 
 impl ScreenRenderPass {
     /// Constructor.
-    pub fn new(world:&World) -> Self {
-        let screen = Screen::new(world);
-        screen.hide();
+    pub fn new(scene:&Scene) -> Self {
+        let screen = Screen::new(scene,"pass_color");
+        // screen.hide();
         Self {screen}
     }
 }
@@ -35,8 +35,8 @@ impl RenderPass for ScreenRenderPass {
     /// errors, as it may cause a situation when other pass is trying to render to a texture all
     /// symbols (including this one), while this symbol would need this texture to render itself.
     fn run(&mut self, _:&PassInstance) {
-        self.screen.show();
+        // self.screen.show();
         self.screen.render();
-        self.screen.hide();
+        // self.screen.hide();
     }
 }

@@ -611,6 +611,7 @@ impl Renderer {
 /// should be abstracted away in the future.
 #[derive(Clone,CloneRef,Debug)]
 pub struct HardcodedLayers {
+    pub root             : Layer,
     pub viz              : Layer,
     pub below_main       : Layer,
     pub main             : Layer,
@@ -625,7 +626,6 @@ pub struct HardcodedLayers {
     pub tooltip          : Layer,
     pub tooltip_text     : Layer,
     pub cursor           : Layer,
-    root                 : Layer,
     pub mask             : Layer,
 }
 
@@ -652,7 +652,7 @@ impl HardcodedLayers {
         let tooltip          = Layer::new_with_cam(logger.sub("tooltip"),main_cam);
         let tooltip_text     = Layer::new_with_cam(logger.sub("tooltip_text"),main_cam);
         let cursor           = Layer::new(logger.sub("cursor"));
-        let mask             = Layer::new(logger.sub("mask"));
+        let mask             = Layer::new_with_cam(logger.sub("mask"),main_cam);
         root.set_mask(&mask);
         root.set_sublayers(
             &[ &viz

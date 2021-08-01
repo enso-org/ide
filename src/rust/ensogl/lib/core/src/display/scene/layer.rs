@@ -573,6 +573,10 @@ impl LayerModel {
         }
     }
 
+    pub fn mask(&self) -> Option<Layer> {
+        self.mask.borrow().as_ref().and_then(|t|t.upgrade())
+    }
+
     /// Set a mask layer of this layer. Old mask layer will be unregistered.
     pub fn set_mask(&self, mask:&Layer) {
         self.remove_mask();

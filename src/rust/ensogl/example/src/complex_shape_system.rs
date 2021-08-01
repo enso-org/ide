@@ -95,7 +95,7 @@ pub fn entry_point_complex_shape_system() {
 
     let view2 = shape::View::new(&logger);
     view2.size.set(Vector2::new(300.0, 300.0));
-    view2.mod_position(|t| *t = Vector3::new(-50.0, -50.0, 0.0));
+    view2.mod_position(|t| *t = Vector3::new(-50.0, 0.0, 0.0));
 
     let scissor_box = scene::layer::ScissorBox::new().with_size(Vector2(600,600));
 
@@ -109,7 +109,7 @@ pub fn entry_point_complex_shape_system() {
 
     // world.scene().layers.mask.add_exclusive(&mask);
     DEBUG!("--- add exclusive ---");
-    // world.scene().layers.viz.add_exclusive(&view2);
+    world.scene().layers.mask.add_exclusive(&view2);
     // world.scene().layers.viz.add_exclusive(&mask);
     // scene.layers.viz.add_exclusive(&view);
 
@@ -146,7 +146,7 @@ pub fn entry_point_complex_shape_system() {
 
             let view3 = shape::View::new(&logger);
             view3.size.set(Vector2::new(300.0, 300.0));
-            view3.mod_position(|t| *t = Vector3::new(50.0, -50.0, 0.0));
+            view3.mod_position(|t| *t = Vector3::new(50.0, 0.0, 0.0));
             scene.add_child(&view3);
 
             // scene.layers.viz.add_exclusive(&view3);

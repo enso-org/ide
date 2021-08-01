@@ -138,8 +138,8 @@ impl World {
         // pixel_read_pass.set_threshold(1);
         let logger   = &self.scene.renderer.logger;
         let pipeline = RenderPipeline::new()
-            .add(SymbolsRenderPass::new(&logger,self.scene.symbols(),&self.scene.layers))
-            .add(ScreenRenderPass::new(self))
+            .add(SymbolsRenderPass::new(&logger,&self.scene,self.scene.symbols(),&self.scene.layers))
+            .add(ScreenRenderPass::new(&self.scene))
             .add(pixel_read_pass);
         self.scene.renderer.set_pipeline(pipeline);
     }

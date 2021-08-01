@@ -71,6 +71,13 @@ impl RenderPassOutput {
         Self {name,internal_format,item_type,texture_parameters}
     }
 
+    pub fn new_rgba<Name:Str>(name:Name) -> Self {
+        let internal_format    = texture::Rgba;
+        let item_type          = texture::item_type::u8;
+        let texture_parameters = texture::Parameters::default();
+        RenderPassOutput::new(name,internal_format,item_type,texture_parameters)
+    }
+
     /// Getter.
     pub fn name(&self) -> &str {
         &self.name

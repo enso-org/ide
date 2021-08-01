@@ -6,9 +6,11 @@ use crate::display::render::composer::PassInstance;
 use crate::display::render::pipeline::*;
 use crate::display::scene::layer;
 use crate::display::scene;
+use crate::display::scene::Scene;
 use crate::display::symbol::registry::SymbolRegistry;
 use crate::system::gpu::*;
 use wasm_bindgen::JsCast;
+use crate::display::symbol::Screen2;
 
 
 
@@ -25,12 +27,15 @@ pub struct SymbolsRenderPass {
     color_fb        : Option<web_sys::WebGlFramebuffer>,
     mask_fb         : Option<web_sys::WebGlFramebuffer>,
     scissor_stack   : Vec<layer::ScissorBox>,
+    scene           : Scene,
+    tmp_screen      : Screen2,
 }
 
 impl SymbolsRenderPass {
     /// Constructor.
     pub fn new
     ( logger          : impl AnyLogger
+    , scene           : &Scene
     , symbol_registry : &SymbolRegistry
     , layers          : &scene::HardcodedLayers
     ) -> Self {
@@ -40,7 +45,9 @@ impl SymbolsRenderPass {
         let color_fb        = default();
         let mask_fb         = default();
         let scissor_stack   = default();
-        Self {logger,symbol_registry,layers,color_fb,mask_fb,scissor_stack}
+        let scene           = scene.clone_ref();
+        let tmp_screen      = Screen2::new(&scene,"pass_mask");
+        Self {logger,symbol_registry,layers,color_fb,mask_fb,scissor_stack,scene,tmp_screen}
     }
 }
 
@@ -48,15 +55,14 @@ impl RenderPass for SymbolsRenderPass {
     fn initialize(&mut self, instance:&PassInstance) {
         let rgba         = texture::Rgba;
         let tex_type     = texture::item_type::u8;
-        let color_params = texture::Parameters::default();
         let id_params    = texture::Parameters {
             min_filter : texture::MinFilter::Nearest,
             mag_filter : texture::MagFilter::Nearest,
             ..default()
         };
-        let out_color = RenderPassOutput::new("color",rgba,tex_type,color_params);
-        let out_mask  = RenderPassOutput::new("mask" ,rgba,tex_type,color_params);
-        let out_id    = RenderPassOutput::new("id"   ,rgba,tex_type,id_params);
+        let out_color = RenderPassOutput::new_rgba("color");
+        let out_mask  = RenderPassOutput::new_rgba("mask" );
+        let out_id    = RenderPassOutput::new("id",rgba,tex_type,id_params);
         let tex_color = instance.new_screen_texture(&out_color);
         let tex_mask  = instance.new_screen_texture(&out_mask);
         let tex_id    = instance.new_screen_texture(&out_id);
@@ -71,7 +77,7 @@ impl RenderPass for SymbolsRenderPass {
         instance.context.clear_bufferfv_with_f32_array(Context::COLOR,0,&arr);
         instance.context.clear_bufferfv_with_f32_array(Context::COLOR,1,&arr);
 
-        self.render_layer(instance,&self.layers.main.clone());
+        self.render_layer(instance,&self.layers.root.clone());
 
         if !self.scissor_stack.is_empty() {
             warning!(&self.logger,"The scissor stack was not cleaned properly. \
@@ -103,6 +109,15 @@ impl SymbolsRenderPass {
         self.symbol_registry.set_camera(&layer.camera());
         self.symbol_registry.render_by_ids(&layer.symbols());
 
+        if let Some(mask) = layer.mask() {
+            instance.context.bind_framebuffer(Context::FRAMEBUFFER,self.mask_fb.as_ref());
+
+            self.render_layer(instance,&mask);
+            instance.context.bind_framebuffer(Context::FRAMEBUFFER,self.color_fb.as_ref());
+
+            self.tmp_screen.render();
+
+        }
         for sublayer in layer.sublayers().iter() {
             self.render_layer(instance,&sublayer);
         }

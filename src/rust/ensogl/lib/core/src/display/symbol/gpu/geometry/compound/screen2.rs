@@ -16,12 +16,12 @@ use crate::system::gpu::data::types::*;
 
 /// Defines a system containing shapes. It is a specialized `SpriteSystem` version.
 #[derive(Clone,CloneRef,Debug)]
-pub struct Screen {
+pub struct Screen2 {
     sprite        : Sprite,
     sprite_system : SpriteSystem,
 }
 
-impl Screen {
+impl Screen2 {
     /// Constructor.
     pub fn new(scene:&Scene, input:impl AsRef<str>) -> Self {
         let sprite_system = SpriteSystem::new(scene);
@@ -55,7 +55,7 @@ impl Screen {
 
 // === Materials ===
 
-impl Screen {
+impl Screen2 {
     fn geometry_material() -> Material {
         let mut material = Material::new();
         material.add_input_def::<Vector2<f32>>("uv");
@@ -69,9 +69,12 @@ impl Screen {
         let shader       = iformat!("
         vec4 sample_color = texture(input_{input}, input_uv);
         output_color = sample_color;
+        output_id=vec4(0.0,0.0,0.0,0.0);
         ");
         material.add_input_def::<texture::FloatSampler>(input);
+        material.add_output ("id", Vector4::<f32>::new(0.0,0.0,0.0,0.0));
         material.set_main(shader);
+        // material.set_main("output_color = vec4(1.0,0.0,0.0,1.0); output_id=vec4(0.0,0.0,0.0,0.0);");
         material
     }
 }
