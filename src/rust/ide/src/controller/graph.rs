@@ -658,9 +658,8 @@ impl Handle {
                 }
             };
 
-            // FIXME block lines are not necessarily in a block
             let mut lines = graph.block_lines();
-            let range = NodeLocation::range(node_to_be_after.index, node_to_be_before.index);
+            let range     = NodeLocation::range(node_to_be_after.index, node_to_be_before.index);
             lines[range].sort_by_key(should_be_at_end);
             self.update_definition_ast(|mut def| {
                 def.set_block_lines(lines)?;

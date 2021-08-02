@@ -618,16 +618,6 @@ pub enum Escape {
 // === Block ===
 // =============
 
-/// Iterate over non-empty lines, while maintaining their indices.
-pub fn enumerate_non_empty_lines<'a,T:'a>(iter:impl IntoIterator<Item = &'a BlockLine<Option<T>>> + 'a)
--> impl Iterator<Item=(usize,BlockLine<&'a T>)> + 'a {
-    iter.into_iter().enumerate().filter_map(|(index,line):(usize,&BlockLine<Option<T>>)| {
-        let non_empty_line = line.transpose_ref()?;
-        Some((index, non_empty_line))
-    })
-}
-
-
 #[ast_node] pub enum BlockType {Continuous {} , Discontinuous {}}
 
 /// Holder for line in `Block` or `Module`. Lines store value of `T` and trailing whitespace info.
@@ -1211,6 +1201,7 @@ impl<T> BlockLine<T> {
         BlockLine {elem,off:0}
     }
     
+    /// Convert `&BlockLine<T>` into `BlockLine<&T>`.
     pub fn as_ref(&self) -> BlockLine<&T> {
         BlockLine {
             elem : &self.elem,
@@ -1218,6 +1209,7 @@ impl<T> BlockLine<T> {
         }
     }
 
+    /// Maps `BlockLine<T>` into `BlockLine<U>` using the provided function.
     pub fn map<U>(self, f:impl FnOnce(T) -> U) -> BlockLine<U> {
         BlockLine {
             elem : f(self.elem),
@@ -1227,22 +1219,34 @@ impl<T> BlockLine<T> {
 }
 
 impl <T> BlockLine<Option<T>> {
+    /// Transpose a `BlockLine<Option<T>>` into `Option<BlockLine<T>>`. 
     pub fn transpose(self) -> Option<BlockLine<T>> {
         let off = self.off;
         self.elem.map(|elem| BlockLine {elem,off})
     }
 
+    /// Transpose a `&BlockLine<Option<T>>` into `Option<BlockLine<&T>>`.
     pub fn transpose_ref(&self) -> Option<BlockLine<&T>> {
         self.as_ref().map(Option::as_ref).transpose()
     }
     
+    /// Map the inner contents of the line's stored element.
     pub fn map_opt<U>(self, f:impl FnOnce(T) -> U) -> BlockLine<Option<U>> {
         self.map(|elem| elem.map(f))
     } 
 }
 
+/// Iterate over non-empty lines, while maintaining their indices.
+pub fn enumerate_non_empty_lines<'a,T:'a>(iter:impl IntoIterator<Item=&'a BlockLine<Option<T>>> + 'a)
+-> impl Iterator<Item=(usize,BlockLine<&'a T>)> + 'a {
+    iter.into_iter().enumerate().filter_map(|(index,line):(usize,&BlockLine<Option<T>>)| {
+        let non_empty_line = line.transpose_ref()?;
+        Some((index, non_empty_line))
+    })
+}
 
 impl <T> Block<T> {
+    /// Iterates over all lines in the block, including leading empty lines.
     pub fn iter_all_lines(&self) -> impl Iterator<Item=BlockLine<Option<&T>>> + '_ {
         let indent = self.indent;
         let leading_empty_lines = self.empty_lines.iter().map(move |off| {
