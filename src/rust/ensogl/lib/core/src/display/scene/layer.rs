@@ -518,7 +518,7 @@ impl LayerModel {
         };
         graph
     }
-    
+
     fn depth_sort(&self, global_element_depth_order:Option<&DependencyGraph<LayerItem>>) {
         let graph           = self.combined_depth_order_graph(global_element_depth_order);
         let elements_sorted = self.elements.borrow().iter().copied().collect_vec();
