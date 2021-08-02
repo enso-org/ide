@@ -183,20 +183,19 @@ impl<'a, T:Iterator<Item=(usize,BlockLine<&'a Ast>)> + 'a> Iterator for NodeIter
                     indexed_documentation = None;
                 }
                 line => {
-                    if let Some(main_line) = line.into_node_main_line() {
+                    if let Some(main_line) = MainLine::from_discerned_line(line) {
                         let (documentation_line,documentation) = match indexed_documentation {
                             Some((index,documentation)) => (Some(index),Some(documentation)),
                             None                        => (None,None)
                         };
-
-                        let ret = LocatedNode {
-                            node: NodeInfo { documentation, main_line },
-                            index: NodeLocation {
-                                main_line: index,
-                                documentation_line,
-                            }
+                        
+                        let node  = NodeInfo {documentation,main_line};
+                        let index = NodeLocation {
+                            main_line: index,
+                            documentation_line,
                         };
-                        return Some(ret)
+
+                        return Some(LocatedNode {node,index})
                     }
                 }
             }
@@ -284,16 +283,19 @@ impl MainLine {
         // By definition, there are no nodes in the root scope.
         // Being a node's line, we may assume that this is not a root scope.
         let scope = ScopeKind::NonRoot;
-        // Nodes, unlike documentation and definitions, are insensitive to parent block indent.
-        // Thus, we can just assume any bogus value.
-        match LineKind::discern(ast,scope) {
+        Self::from_discerned_line(LineKind::discern(ast,scope))
+    }
+    
+    /// Try retrieving node information from an already discerned line data.
+    pub fn from_discerned_line(line:LineKind) -> Option<MainLine> {
+        match line {
             LineKind::ExpressionPlain      {ast} => Self::new_expression(ast),
             LineKind::ExpressionAssignment {ast} => Self::new_binding(ast),
             LineKind::Definition           {..}  => None,
             LineKind::DocumentationComment {..}  => None,
         }
     }
-
+    
     /// Tries to interpret AST as node, treating whole AST as an expression.
     pub fn from_block_line(line:&BlockLine<Option<Ast>>) -> Option<MainLine> {
         Self::from_ast(line.elem.as_ref()?)

@@ -1296,7 +1296,7 @@ main =
         })
     }
 
-    #[test]
+    #[wasm_bindgen_test]
     fn graph_controller_node_operations_node() {
         let mut test  = Fixture::set_up();
         const PROGRAM:&str = r"

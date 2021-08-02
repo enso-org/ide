@@ -618,27 +618,6 @@ pub enum Escape {
 // === Block ===
 // =============
 
-
-impl<T> Block<T> {
-    /// Calculate absolute indentation of lines in this block.
-    pub fn indent(&self, parent_indent:usize) -> usize {
-        parent_indent + self.indent
-    }
-
-    /// Iterate over non-empty lines, while keeping their absolute indices.
-    ///
-    /// Note that leading empty lines are never indexed (unlike other empty lines in the block).
-    pub fn enumerate_non_empty_lines(&self) -> impl Iterator<Item=(usize,BlockLine<&T>)> + '_
-    where T:CloneRef {
-        let first_line = std::iter::once((0,self.first_line.as_ref()));
-        let further_lines = (1..).zip(self.lines.iter()).filter_map(|(index,line):(usize,&BlockLine<Option<T>>)| {
-            let non_empty_line = line.transpose_ref()?;
-            Some((index, non_empty_line))
-        });
-        first_line.chain(further_lines)
-    }
-}
-
 /// Iterate over non-empty lines, while maintaining their indices.
 pub fn enumerate_non_empty_lines<'a,T:'a>(iter:impl IntoIterator<Item = &'a BlockLine<Option<T>>> + 'a)
 -> impl Iterator<Item=(usize,BlockLine<&'a T>)> + 'a {
@@ -659,34 +638,6 @@ pub struct BlockLine <T> {
     /// The trailing whitespace in the line after the `elem`.
     pub off: usize
 }
-
-impl<T> BlockLine<T> {
-    pub fn as_ref(&self) -> BlockLine<&T> {
-        BlockLine {
-            elem : &self.elem,
-            off  : self.off,
-        }
-    }
-
-    pub fn map<U>(self, f:impl FnOnce(T) -> U) -> BlockLine<U> {
-        BlockLine {
-            elem : f(self.elem),
-            off  : self.off
-        }
-    }
-}
-
-impl <T> BlockLine<Option<T>> {
-    pub fn transpose(self) -> Option<BlockLine<T>> {
-        let off = self.off;
-        self.elem.map(|elem| BlockLine {elem,off})
-    }
-
-    pub fn transpose_ref(&self) -> Option<BlockLine<&T>> {
-        self.as_ref().map(Option::as_ref).transpose()
-    }
-}
-
 
 
 // =============
@@ -1259,29 +1210,68 @@ impl<T> BlockLine<T> {
     pub fn new(elem:T) -> BlockLine<T> {
         BlockLine {elem,off:0}
     }
+    
+    pub fn as_ref(&self) -> BlockLine<&T> {
+        BlockLine {
+            elem : &self.elem,
+            off  : self.off,
+        }
+    }
+
+    pub fn map<U>(self, f:impl FnOnce(T) -> U) -> BlockLine<U> {
+        BlockLine {
+            elem : f(self.elem),
+            off  : self.off
+        }
+    }
 }
 
+impl <T> BlockLine<Option<T>> {
+    pub fn transpose(self) -> Option<BlockLine<T>> {
+        let off = self.off;
+        self.elem.map(|elem| BlockLine {elem,off})
+    }
+
+    pub fn transpose_ref(&self) -> Option<BlockLine<&T>> {
+        self.as_ref().map(Option::as_ref).transpose()
+    }
+    
+    pub fn map_opt<U>(self, f:impl FnOnce(T) -> U) -> BlockLine<Option<U>> {
+        self.map(|elem| elem.map(f))
+    } 
+}
+
+
 impl <T> Block<T> {
-    /// Concatenate `Block`'s `first_line` with `lines` and returns a collection with all the lines.
-    pub fn all_lines(&self) -> Vec<BlockLine<Option<T>>> where T:Clone {
-        let mut lines = Vec::new();
-        for off in &self.empty_lines {
+    pub fn iter_all_lines(&self) -> impl Iterator<Item=BlockLine<Option<&T>>> + '_ {
+        let indent = self.indent;
+        let leading_empty_lines = self.empty_lines.iter().map(move |off| {
             let elem = None;
             // TODO [mwu]
             //  Empty lines use absolute indent, while BlockLines are relative to Block.
             //  We might lose some data here, as empty lines shorter than block will get filled
             //  with spaces. This is something that should be improved in the future but also
             //  requires changes in the AST.
-            let off  = off.checked_sub(self.indent).unwrap_or(0);
-            lines.push(BlockLine{elem,off})
-        }
+            let off = off.saturating_sub(indent);
+            BlockLine {elem,off}
+        });
+        
+        let first_line = std::iter::once(self.first_line.as_ref().map(|elem| Some(elem)));
+        let lines      = self.lines.iter().map(|line| line.as_ref().map(|elem| elem.as_ref()));
+        leading_empty_lines.chain(first_line).chain(lines)
+    }
+    
+    /// Calculate absolute indentation of lines in this block.
+    pub fn indent(&self, parent_indent:usize) -> usize {
+        parent_indent + self.indent
+    }
 
-        let first_line = self.first_line.clone();
-        let elem       = Some(first_line.elem);
-        let off        = first_line.off;
-        lines.push(BlockLine{elem,off});
-        lines.extend(self.lines.iter().cloned());
-        lines
+    /// Iterate over non-empty lines, while keeping their absolute indices.
+    pub fn enumerate_non_empty_lines(&self) -> impl Iterator<Item=(usize,BlockLine<&T>)> + '_ {
+        self.iter_all_lines().enumerate().filter_map(|(index,line):(usize,BlockLine<Option<&T>>)| {
+            let non_empty_line = line.transpose()?;
+            Some((index, non_empty_line))
+        })
     }
 }
 
@@ -1726,7 +1716,7 @@ mod tests {
         let expected_repr = "\n     \n    head   \n    tail0  \n \n    tail2   ";
         assert_eq!(block.repr(), expected_repr);
 
-        let all_lines = block.all_lines();
+        let all_lines = block.iter_all_lines().collect_vec();
         let (empty_line,head_line,tail0,tail1,tail2) = all_lines.iter().expect_tuple();
         assert!(empty_line.elem.is_none());
         assert_eq!(empty_line.off,1); // other 4 indents are provided by Block

@@ -245,7 +245,7 @@ impl DefinitionInfo {
     /// `Infix`, it returns a single `BlockLine`.
     pub fn block_lines(&self) -> Vec<ast::BlockLine<Option<Ast>>> {
         if let Ok(block) = known::Block::try_from(*self.body()) {
-            block.all_lines()
+            block.iter_all_lines().map(|line| line.map_opt(CloneRef::clone_ref)).collect()
         } else {
             let elem = Some((*self.body()).clone());
             let off  = 0;
@@ -313,8 +313,8 @@ impl DefinitionInfo {
     /// some binding or other kind of subtree).
     pub fn from_line_ast
     (ast:&Ast, kind:ScopeKind, context_indent:usize) -> Option<DefinitionInfo> {
-        if let LineKind::Definition{get_definition} = LineKind::discern(ast,kind) {
-            Some(get_definition(context_indent))
+        if let LineKind::Definition{ast,args,name} = LineKind::discern(ast,kind) {
+            Some(DefinitionInfo {ast,args,name,context_indent})
         } else {
             None
         }

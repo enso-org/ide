@@ -64,6 +64,7 @@ pub fn is_disable_comment(ast:&Ast) -> bool {
 // === Ast Description ===
 
 /// Describes the AST of a documentation comment.
+#[derive(Clone,Debug)]
 pub struct DocumentationCommentAst {
     ast  : known::Match,
     body : crate::MacroPatternMatch<Shifted<Ast>>,
@@ -81,6 +82,11 @@ impl DocumentationCommentAst {
         } else {
             None
         }
+    }
+    
+    /// Get the documentation comment's AST.
+    pub fn ast(&self) -> known::Match {
+        self.ast.clone_ref()
     }
 }
 
@@ -169,9 +175,10 @@ impl DocumentationCommentInfo {
     pub fn text_to_repr(context_indent:usize, text:&str) -> String {
         let indent        = " ".repeat(context_indent);
         let mut lines     = text.lines();
-        let first_line    = lines.next().map(|line| iformat!("##{line}"));
-        let other_lines   = lines       .map(|line| iformat!("{indent}  {line}"));
-        let mut out_lines = first_line.into_iter().chain(other_lines);
+        // First line must always exist, even for an empty comment.
+        let first_line    = format!("##{}",lines.next().unwrap_or_default());
+        let other_lines   = lines.map(|line| iformat!("{indent}  {line}"));
+        let mut out_lines = std::iter::once(first_line).chain(other_lines);
         out_lines.join("\n")
     }
 }

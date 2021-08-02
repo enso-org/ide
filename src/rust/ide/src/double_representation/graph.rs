@@ -50,6 +50,7 @@ pub struct GraphInfo {
 }
 
 impl GraphInfo {
+    /// Look for a node with given id in the graph.
     pub fn locate_node(&self, id:double_representation::node::Id) -> FallibleResult<LocatedNode> {
         let lines = self.source.block_lines();
         double_representation::node::locate(&lines, self.source.context_indent, id)
@@ -92,24 +93,6 @@ impl GraphInfo {
     }
 
     /// Adds a new node to this graph.
-    pub fn add_line
-    (&mut self, line_ast:Ast, location_hint:LocationHint) -> FallibleResult {
-        let mut lines = self.block_lines();
-        let last_non_empty = || lines.iter().rposition(|line| line.elem.is_some());
-        let index          = match location_hint {
-            LocationHint::Start      => 0,
-            LocationHint::End        => last_non_empty().map_or(lines.len(),|ix| ix + 1),
-            LocationHint::After(id)  => self.locate_node(id)?.index.last() + 1,
-            LocationHint::Before(id) => self.locate_node(id)?.index.first()
-        };
-        let elem = Some(line_ast);
-        let off  = 0;
-        lines.insert(index,BlockLine{elem,off});
-        self.source.set_block_lines(lines)
-        // FIXME unify with below?
-    }
-
-    /// Adds a new node to this graph.
     pub fn add_node
     (&mut self, node:&NodeInfo, location_hint:LocationHint) -> FallibleResult {
         let mut lines      = self.source.block_lines();
@@ -124,10 +107,8 @@ impl GraphInfo {
         let off  = 0;
         lines.insert(index,BlockLine{elem,off});
         if let Some(documentation) = &node.documentation {
-            let line = BlockLine {
-                elem : Some(documentation.ast().into()),
-                off,
-            };
+            let elem = Some(documentation.ast().into());
+            let line = BlockLine {elem,off};
             lines.insert(index,line);
         }
         self.source.set_block_lines(lines)
@@ -270,11 +251,8 @@ mod tests {
         NodeInfo::from_main_line_ast(&line_ast).unwrap()
     }
 
-    fn assert_at(nodes:&[NodeInfo], index:usize, expected:&NodeInfo) {
-        assert_same(&nodes[index],expected)
-    }
-
     fn assert_all(nodes:&[NodeInfo], expected:&[NodeInfo]) {
+        assert_eq!(nodes.len(), expected.len());
         for (left,right) in nodes.iter().zip(expected) {
             assert_same(left,right)
         }
@@ -294,7 +272,8 @@ mod tests {
         let mut graph = main_graph(&parser, program);
         let nodes     = graph.nodes();
         assert_eq!(nodes.len(), 1);
-        assert_eq!(nodes[0].expression().repr(), "print \"hello\"");
+        let initial_node = nodes[0].clone();
+        assert_eq!(initial_node.expression().repr(), "print \"hello\"");
 
         let expr0 = "a + 2";
         let expr1 = "b + 3";
@@ -306,12 +285,7 @@ mod tests {
         graph.add_node(&node_to_add1,LocationHint::Before(graph.nodes()[0].id())).unwrap();
 
         let nodes = graph.nodes();
-        assert_eq!(nodes.len(), 3);
-        assert_eq!(nodes[0].expression().repr(), expr1);
-        assert_eq!(nodes[0].id(), node_to_add1.id());
-        assert_eq!(nodes[1].expression().repr(), expr0);
-        assert_eq!(nodes[1].id(), node_to_add0.id());
-        assert_eq!(nodes[2].expression().repr(), "print \"hello\"");
+        assert_all(nodes.as_slice(), &[node_to_add1, node_to_add0, initial_node]);
     }
 
     #[wasm_bindgen_test]
