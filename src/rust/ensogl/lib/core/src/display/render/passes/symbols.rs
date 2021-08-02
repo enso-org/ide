@@ -174,9 +174,6 @@ impl SymbolsRenderPass {
         }
 
         self.symbol_registry.set_camera(&layer.camera());
-        if parent_masked {
-            DEBUG!("Rendering masked symbolds: {layer.camera():?}");
-        }
         self.symbol_registry.render_by_ids(&layer.symbols());
         for sublayer in layer.sublayers().iter() {
             self.render_layer(instance,sublayer,was_ever_masked);
