@@ -1256,7 +1256,7 @@ impl <T> Block<T> {
             BlockLine {elem,off}
         });
         
-        let first_line = std::iter::once(self.first_line.as_ref().map(|elem| Some(elem)));
+        let first_line = std::iter::once(self.first_line.as_ref().map(Some));
         let lines      = self.lines.iter().map(|line| line.as_ref().map(|elem| elem.as_ref()));
         leading_empty_lines.chain(first_line).chain(lines)
     }

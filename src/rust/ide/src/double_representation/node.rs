@@ -195,7 +195,7 @@ impl<'a, T:Iterator<Item=(usize,BlockLine<&'a Ast>)> + 'a> Iterator for NodeIter
                             documentation_line,
                         };
 
-                        return Some(LocatedNode {node,index})
+                        return Some(LocatedNode {index,node})
                     }
                 }
             }

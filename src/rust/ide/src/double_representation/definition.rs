@@ -314,7 +314,7 @@ impl DefinitionInfo {
     pub fn from_line_ast
     (ast:&Ast, kind:ScopeKind, context_indent:usize) -> Option<DefinitionInfo> {
         if let LineKind::Definition{ast,args,name} = LineKind::discern(ast,kind) {
-            Some(DefinitionInfo {ast,args,name,context_indent})
+            Some(DefinitionInfo {ast,name,args,context_indent})
         } else {
             None
         }

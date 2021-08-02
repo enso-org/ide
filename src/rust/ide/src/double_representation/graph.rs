@@ -2,7 +2,8 @@
 
 use crate::prelude::*;
 
-use crate::double_representation::definition::{DefinitionInfo, DefinitionProvider};
+use crate::double_representation::definition::DefinitionInfo;
+use crate::double_representation::definition::DefinitionProvider;
 use crate::double_representation::node;
 use crate::double_representation::node::LocatedNode;
 use crate::double_representation::node::NodeInfo;
@@ -74,7 +75,7 @@ impl GraphInfo {
         if let Ok(body_block) = known::Block::try_new(body.clone()) {
             let context_indent = self.source.indent();
             let lines_iter     = body_block.enumerate_non_empty_lines();
-            let nodes_iter     = node::NodeIterator {context_indent,lines_iter};
+            let nodes_iter     = node::NodeIterator {lines_iter,context_indent};
             nodes_iter.map(|n| n.node).collect()
         } else if let Some(node) = node::NodeInfo::from_main_line_ast(&body) {
             // There's no way to attach a documentation comment to an inline node, it consists only
