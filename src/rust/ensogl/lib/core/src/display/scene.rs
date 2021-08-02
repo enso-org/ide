@@ -658,8 +658,8 @@ impl HardcodedLayers {
         let cursor             = Layer::new(logger.sub("cursor"));
 
         let mask             = Layer::new_with_cam(logger.sub("mask"),main_cam);
-        // node_searcher.set_mask(&node_searcher_mask);
-        root.set_mask(&mask);
+        node_searcher.set_mask(&node_searcher_mask);
+        // root.set_mask(&mask);
         root.set_sublayers(
             &[ &viz
              , &below_main
@@ -671,6 +671,7 @@ impl HardcodedLayers {
              , &panel
              , &panel_text
              , &node_searcher
+             // , &node_searcher_mask
              , &tooltip
              , &tooltip_text
              , &cursor
@@ -857,7 +858,7 @@ impl SceneData {
         if self.dirty.shape.check_all() {
             let screen = self.dom.shape();
             self.resize_canvas(screen);
-            self.layers.iter_sublayers_nested(|layer| {
+            self.layers.iter_sublayers_and_masks_nested(|layer| {
                 layer.camera().set_screen(screen.width,screen.height)
             });
             self.renderer.resize_composer();
@@ -890,7 +891,7 @@ impl SceneData {
         }
 
         // Updating all other cameras (the main camera was already updated, so it will be skipped).
-        self.layers.iter_sublayers_nested(|layer| {
+        self.layers.iter_sublayers_and_masks_nested(|layer| {
             layer.camera().update(scene);
         });
     }

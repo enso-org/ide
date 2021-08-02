@@ -183,7 +183,8 @@ impl Layer {
     }
 
     /// Iterate over all layers and sublayers of this layer hierarchically. Parent layers will be
-    /// visited before their corresponding sublayers.
+    /// visited before their corresponding sublayers. Does not visit masks. If you want to visit
+    /// masks, use [`iter_sublayers_and_masks_nested`] instead.
     pub fn iter_sublayers_nested(&self, f:impl Fn(&Layer)) {
         self.iter_sublayers_nested_internal(&f)
     }
@@ -192,6 +193,24 @@ impl Layer {
         f(self);
         for layer in self.sublayers() {
             layer.iter_sublayers_nested_internal(f)
+        }
+    }
+
+    /// Iterate over all layers, sublayers, masks, and their sublayers of this layer hierarchically.
+    /// Parent layers will be visited before their corresponding sublayers.
+    pub fn iter_sublayers_and_masks_nested(&self, f:impl Fn(&Layer)) {
+        self.iter_sublayers_and_masks_nested_internal(&f)
+    }
+
+    fn iter_sublayers_and_masks_nested_internal(&self, f:&impl Fn(&Layer)) {
+        f(self);
+        if let Some(mask) = &*self.mask.borrow() {
+            if let Some(layer) = mask.upgrade() {
+                layer.iter_sublayers_and_masks_nested_internal(f)
+            }
+        }
+        for layer in self.sublayers() {
+            layer.iter_sublayers_and_masks_nested_internal(f)
         }
     }
 }

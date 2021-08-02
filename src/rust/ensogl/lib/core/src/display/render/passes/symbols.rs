@@ -164,7 +164,7 @@ impl SymbolsRenderPass {
                 instance.context.clear_bufferfv_with_f32_array(Context::COLOR, 0, &arr);
                 instance.context.clear_bufferfv_with_f32_array(Context::COLOR, 1, &arr);
 
-                self.render_layer(instance, &mask, was_ever_masked);
+                self.render_layer(instance,&mask,was_ever_masked);
                 let framebuffers = self.framebuffers.as_ref().unwrap();
                 framebuffers.layer.bind();
                 let arr = vec![0.0, 0.0, 0.0, 0.0];
@@ -172,8 +172,11 @@ impl SymbolsRenderPass {
                 instance.context.clear_bufferfv_with_f32_array(Context::COLOR, 1, &arr);
             }
         }
-        
+
         self.symbol_registry.set_camera(&layer.camera());
+        if parent_masked {
+            DEBUG!("Rendering masked symbolds: {layer.camera():?}");
+        }
         self.symbol_registry.render_by_ids(&layer.symbols());
         for sublayer in layer.sublayers().iter() {
             self.render_layer(instance,sublayer,was_ever_masked);
