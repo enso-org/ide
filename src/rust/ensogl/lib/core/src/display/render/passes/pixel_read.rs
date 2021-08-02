@@ -4,12 +4,12 @@ use crate::prelude::*;
 
 use crate::display::render::pass;
 use crate::system::gpu::*;
-use crate::system::js::*;
 use crate::system::gpu::data::texture::class::TextureOps;
+use crate::system::js::*;
 
 use web_sys::WebGlBuffer;
-use web_sys::WebGlSync;
 use web_sys::WebGlFramebuffer;
+use web_sys::WebGlSync;
 
 
 

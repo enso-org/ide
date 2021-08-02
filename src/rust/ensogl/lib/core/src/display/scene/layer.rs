@@ -126,8 +126,32 @@ use std::any::TypeId;
 /// to break cycles and never points to a dropped [`Layer`], as layers update the information on
 /// a drop.
 ///
-/// # Layer Clipping
+/// # Masking Layers With ScissorBox
+/// Layers rendering an be limited to a specific set of pixels by using the [`ScissorBox`] object.
+/// Only the required pixels will be processed by the GPU which makes layer scissors a very
+/// efficient clipping mechanism (definitely faster than masking with arbitrary shapes). All
+/// [`ScissorBox`] elements are inherited by sublayers and can be refined (the common shape of
+/// overlapping scissor boxes is automatically computed).
 ///
+/// Please note that although this method is the fastest (almost zero-cost) masking way, it has
+/// several downsides – it can be used only for rectangular areas, and also it works on whole pixels
+/// only. The latter fact drastically limits its usability on elements with animations. Animating
+/// rectangles requires displaying them sometimes with non-integer coordinates in order to get a
+/// correct, smooth movement. Using [`ScissorBox`] on such elements would always cut them to whole
+/// pixels which might result in a jaggy animation.
+///
+/// # Masking Layers With Arbitrary Shapes
+/// Every layer can be applied with a "mask", another layer defining the visible area of the first
+/// layer. The masked layer will be rendered first and it will be used to determine which pixels to
+/// hide in the first layer. Unlike in many other solutions, masks are not black-white. Only the
+/// alpha channel of the mask is used to determine which area should be hidden in the masked layer.
+/// This design allows for a much easier definition of layers and also, it allows layers to be
+/// assigned as both visible layers as masks, without the need to modify their shapes definitions.
+/// As layers are hierarchical, you can also apply masks to group of layers.
+///
+/// Please note that the current implementation does not allow for hierarchical masks (masks applied
+/// to already masked area or masks applied to masks). If you try using masks in hierarchical way,
+/// the nested masks will be skipped and a warning will be emitted to the console.
 #[derive(Clone,CloneRef)]
 pub struct Layer {
     model : Rc<LayerModel>

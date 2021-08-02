@@ -123,13 +123,12 @@ impl SymbolsRenderPass {
     }
 
     fn render_layer(&mut self, instance:&pass::Instance, layer:&layer::Layer, scissor_stack:&mut Vec<layer::ScissorBox>, parent_masked:bool) {
-        let framebuffers = self.framebuffers.as_ref().unwrap();
-
-        let parent_scissor_box  = scissor_stack.first().copied();
-        let layer_scissor_box   = layer.scissor_box();
-        let scissor_box         = parent_scissor_box.concat(layer_scissor_box);
-        let scissor_box_changed = layer_scissor_box.is_some();
-        let first_scissor_usage = scissor_box_changed && parent_scissor_box.is_none();
+        let framebuffers         = self.framebuffers.as_ref().unwrap();
+        let parent_scissor_box   = scissor_stack.first().copied();
+        let layer_scissor_box    = layer.scissor_box();
+        let scissor_box          = parent_scissor_box.concat(layer_scissor_box);
+        let scissor_box_changed  = layer_scissor_box.is_some();
+        let first_scissor_usage  = scissor_box_changed && parent_scissor_box.is_none();
         if let Some(scissor_box) = scissor_box {
             if scissor_box_changed {
                 if first_scissor_usage { self.enable_scissor_test(instance) }
@@ -152,8 +151,8 @@ impl SymbolsRenderPass {
             let arr = vec![0.0, 0.0, 0.0, 0.0];
             instance.context.clear_bufferfv_with_f32_array(Context::COLOR, 0, &arr);
             instance.context.clear_bufferfv_with_f32_array(Context::COLOR, 1, &arr);
-
             self.render_layer(instance,&mask,scissor_stack,was_ever_masked);
+
             let framebuffers = self.framebuffers.as_ref().unwrap();
             framebuffers.layer.bind();
             let arr = vec![0.0, 0.0, 0.0, 0.0];

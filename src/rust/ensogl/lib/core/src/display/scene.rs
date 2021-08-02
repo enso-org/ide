@@ -659,7 +659,6 @@ impl HardcodedLayers {
 
         let mask             = Layer::new_with_cam(logger.sub("mask"),main_cam);
         node_searcher.set_mask(&node_searcher_mask);
-        // root.set_mask(&mask);
         root.set_sublayers(
             &[ &viz
              , &below_main
@@ -671,7 +670,6 @@ impl HardcodedLayers {
              , &panel
              , &panel_text
              , &node_searcher
-             // , &node_searcher_mask
              , &tooltip
              , &tooltip_text
              , &cursor

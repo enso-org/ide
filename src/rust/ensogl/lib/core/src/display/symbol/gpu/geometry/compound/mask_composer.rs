@@ -2,10 +2,10 @@
 
 use crate::prelude::*;
 
-use crate::display::symbol::material::Material;
 use crate::display::scene::Scene;
-use crate::system::gpu::data::texture;
 use crate::display::symbol::gpu::geometry::compound::screen::Screen;
+use crate::display::symbol::material::Material;
+use crate::system::gpu::data::texture;
 
 
 /// A geometry which always covers the whole screen which when rendered outputs an image by

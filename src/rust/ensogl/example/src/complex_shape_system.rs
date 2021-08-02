@@ -118,6 +118,7 @@ pub fn entry_point_complex_shape_system() {
         let _keep_alive = &style_watch;
         let _keep_alive = &theme_manager;
         if frame == 50 {
+            // These comments are left for easy debugging in the future.
             // DEBUG!("---------------");
             // DEBUG!("{scene.layers.node_searcher:#?}");
             // DEBUG!("{scene.layers.main:#?}");
@@ -128,6 +129,7 @@ pub fn entry_point_complex_shape_system() {
         if frame == 100 {
             DEBUG!("Adding previously hidden element.");
             scene.add_child(&view2);
+            // These comments are left for easy debugging in the future.
             // DEBUG!("---------------");
             // DEBUG!("{scene.layers.node_searcher:#?}");
             // DEBUG!("{scene.layers.main:#?}");
@@ -137,6 +139,7 @@ pub fn entry_point_complex_shape_system() {
         }
         if frame == 150 {
             DEBUG!("Enabling masking.");
+            // These comments are left for easy debugging in the future.
             // DEBUG!("---------------");
             // DEBUG!("{scene.layers.node_searcher:#?}");
             // DEBUG!("{scene.layers.main:#?}");
