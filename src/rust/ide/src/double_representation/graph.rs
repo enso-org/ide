@@ -77,7 +77,7 @@ impl GraphInfo {
             let lines_iter     = body_block.enumerate_non_empty_lines();
             let nodes_iter     = node::NodeIterator {lines_iter,context_indent};
             nodes_iter.map(|n| n.node).collect()
-        } else if let Some(node) = node::NodeInfo::from_main_line_ast(&body) {
+        } else if let Some(node) = node::NodeInfo::from_main_line_ast(body) {
             // There's no way to attach a documentation comment to an inline node, it consists only
             // of the main line.
             vec![node]
@@ -201,10 +201,10 @@ mod tests {
     use crate::double_representation::module::get_definition;
 
     use ast::HasRepr;
+    use ast::macros::DocumentationCommentInfo;
     use ast::test_utils::expect_single_line;
     use utils::test::ExpectTuple;
     use wasm_bindgen_test::wasm_bindgen_test;
-    use ast::macros::DocumentationCommentInfo;
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 

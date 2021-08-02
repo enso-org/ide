@@ -150,25 +150,12 @@ pub struct NodeIterator<'a, T:Iterator<Item=(usize,BlockLine<&'a Ast>)> + 'a> {
     pub context_indent:usize,
 }
 
-
-
-// pub fn block_nodes<'a, T:Iterator<Item=(usize,BlockLine<&'a Ast>)> + 'a>  {
-//
-//
-// impl<'a, T:Iterator<Item=(usize,BlockLine<&'a Ast>)> + 'a> NodeIterator<'a, T> {
-//     pub fn from_block(block:&known::Block, parent_indent:usize) -> Self {
-//         let lines_iter = block.enumerate_non_empty_lines();
-//         let context_indent = block.indent + parent_indent;
-//         NodeIterator {lines_iter,context_indent}
-//     }
-// }
-
 impl<'a, T:Iterator<Item=(usize,BlockLine<&'a Ast>)> + 'a> Iterator for NodeIterator<'a, T> {
     type Item = LocatedNode;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut indexed_documentation = None;
-        while let Some((index, line)) = self.lines_iter.next() {
+        for (index,line) in &mut self.lines_iter {
             match LineKind::discern(line.elem, ScopeKind::NonRoot) {
                 LineKind::DocumentationComment {documentation} => {
                     let doc_line = DocumentationCommentLine::from_doc_ast(documentation,line.off);
@@ -231,7 +218,7 @@ impl NodeInfo {
         expression_id_matches() || doc_comment_id_matches()
     }
 
-    /// TODO should not be needed as a method here
+    /// Get the ast id of the line with the node comment (if present).
     pub fn doc_comment_id(&self) -> Option<ast::Id> {
         self.documentation.as_ref().and_then(|comment| comment.ast().id())
     }

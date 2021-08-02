@@ -171,7 +171,7 @@ impl DocumentationCommentInfo {
         repr.replace(&old,new)
     }
 
-    /// Get the documentation text.
+    /// Generates the source code text of the comment line from a pretty text.
     pub fn text_to_repr(context_indent:usize, text:&str) -> String {
         let indent        = " ".repeat(context_indent);
         let mut lines     = text.lines();

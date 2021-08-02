@@ -76,6 +76,10 @@ const UNRESOLVED_SYMBOL_TYPE : &str = "Builtins.Main.Unresolved_Symbol";
 // === Comment ===
 // ===============
 
+/// String with documentation comment text for this node.
+/// 
+/// This is just a plain string, as this is what text area expects and node just redirects this 
+/// value,
 pub type Comment = String;
 
 
