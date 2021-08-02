@@ -111,6 +111,7 @@ struct Model {
     window_control_buttons : Immutable<Option<crate::window_control_buttons::View>>,
     graph_editor           : Rc<GraphEditor>,
     searcher               : searcher::View,
+    new_searcher           : searcher::new::View<usize>,
     code_editor            : code_editor::View,
     status_bar             : status_bar::View,
     fullscreen_vis         : Rc<RefCell<Option<visualization::fullscreen::Panel>>>,
@@ -125,6 +126,7 @@ impl Model {
         let scene                  = app.display.scene();
         let display_object         = display::object::Instance::new(&logger);
         let searcher               = app.new_view::<searcher::View>();
+        let new_searcher           = searcher::new::View::default();
         let graph_editor           = app.new_view::<GraphEditor>();
         let code_editor            = app.new_view::<code_editor::View>();
         let status_bar             = status_bar::View::new(app);
@@ -154,8 +156,8 @@ impl Model {
 
         let app          = app.clone_ref();
         let graph_editor = Rc::new(graph_editor);
-        Self{app,logger,display_object,window_control_buttons,graph_editor,searcher,code_editor,
-            status_bar,fullscreen_vis,prompt_background,prompt,open_dialog}
+        Self{app,logger,display_object,window_control_buttons,graph_editor,searcher,new_searcher
+            ,code_editor,status_bar,fullscreen_vis,prompt_background,prompt,open_dialog}
     }
 
     /// Sets style of IDE to the one defined by parameter `theme`.

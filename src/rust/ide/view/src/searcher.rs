@@ -3,6 +3,7 @@
 //! This component wraps the plain ListView in some searcher-specific logic, like committing
 //! editing, or picking suggestion with Tab.
 pub mod icons;
+pub mod new;
 
 use crate::prelude::*;
 

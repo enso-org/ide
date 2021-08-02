@@ -48,7 +48,7 @@ pub use list::List;
 /// components, so they are not deleted and created again. The ListView component does not create
 /// Entry object for each entry provided, and during scrolling, the instantiated objects will be
 /// reused: they position will be changed and they will be updated using `update` method.
-pub trait Entry: CloneRef + Debug + display::Object + 'static {
+pub trait Entry: Clone + CloneRef + Debug + display::Object + 'static {
     /// The model of this entry. The entry should be a representation of data from the Model.
     /// For example, the entry being just a caption can have [`String`] as its model - the text to
     /// be displayed.
