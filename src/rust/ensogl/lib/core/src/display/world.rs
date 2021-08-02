@@ -12,6 +12,7 @@ use crate::control::callback;
 use crate::data::dirty::traits::*;
 use crate::data::dirty;
 use crate::debug::stats::Stats;
+use crate::display::render;
 use crate::display::render::*;
 use crate::display::render::passes::SymbolsRenderPass;
 use crate::display::scene::Scene;
@@ -137,7 +138,7 @@ impl World {
         // TODO: We may want to enable it on weak hardware.
         // pixel_read_pass.set_threshold(1);
         let logger   = &self.scene.renderer.logger;
-        let pipeline = RenderPipeline::new()
+        let pipeline = render::Pipeline::new()
             .add(SymbolsRenderPass::new(&logger,&self.scene,self.scene.symbols(),&self.scene.layers))
             .add(ScreenRenderPass::new(&self.scene))
             .add(pixel_read_pass);

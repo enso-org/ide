@@ -265,6 +265,7 @@ impl<Value:UniformUpload> AnyPrimUniformOps for UniformData<Value> {
 
 macro_rules! define_any_texture_uniform {
     ( [ $([$storage:ident $internal_format:ident $item_type:ident])* ] ) => { paste::item! {
+        #[allow(non_camel_case_types)]
         #[derive(Clone,CloneRef,Debug)]
         pub enum AnyTextureUniform {
             $([<$storage _ $internal_format _ $item_type >]

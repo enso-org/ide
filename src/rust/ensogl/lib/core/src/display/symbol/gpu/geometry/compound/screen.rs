@@ -23,12 +23,18 @@ pub struct Screen {
 
 impl Screen {
     /// Constructor.
-    pub fn new(scene:&Scene, input:impl AsRef<str>) -> Self {
+    pub fn new(scene:&Scene, surface_material:Material) -> Self {
         let sprite_system = SpriteSystem::new(scene);
         sprite_system.set_geometry_material(Self::geometry_material());
-        sprite_system.set_material(Self::surface_material(input));
+        sprite_system.set_material(surface_material);
         let sprite = sprite_system.new_instance();
         Self {sprite,sprite_system}
+    }
+
+    /// Constructor of a geometry which covers the whole screen and displays on it the image
+    /// provided as the input argument.
+    pub fn new_identity_painter(scene:&Scene, input:impl AsRef<str>) -> Self {
+        Self::new(scene,Self::identity_painter_surface_material(input))
     }
 
     /// Hide the symbol. Hidden symbols will not be rendered.
@@ -63,7 +69,7 @@ impl Screen {
         material
     }
 
-    fn surface_material(input:impl AsRef<str>) -> Material {
+    fn identity_painter_surface_material(input:impl AsRef<str>) -> Material {
         let input        = input.as_ref();
         let mut material = Material::new();
         let shader       = iformat!("

@@ -2,10 +2,9 @@
 
 use crate::prelude::*;
 
-use crate::display::render::pipeline::*;
+use crate::display::render::pass;
 use crate::system::gpu::*;
 use crate::system::js::*;
-use crate::display::render::composer::PassInstance;
 use crate::system::gpu::data::texture::class::TextureOps;
 
 use web_sys::WebGlBuffer;
@@ -152,8 +151,8 @@ impl<T:JsTypedArrayItem> PixelReadPass<T> {
     }
 }
 
-impl<T:JsTypedArrayItem> RenderPass for PixelReadPass<T> {
-    fn run(&mut self, instance:&PassInstance) {
+impl<T:JsTypedArrayItem> pass::Definition for PixelReadPass<T> {
+    fn run(&mut self, instance:&pass::Instance) {
         if self.to_next_read > 0 {
             self.to_next_read -= 1;
         } else {

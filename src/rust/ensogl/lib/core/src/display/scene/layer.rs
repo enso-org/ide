@@ -125,6 +125,9 @@ use std::any::TypeId;
 /// automatically. Although the [`SublayersModel`] registers [`WeakLayer`], the weak form is used only
 /// to break cycles and never points to a dropped [`Layer`], as layers update the information on
 /// a drop.
+///
+/// # Layer Clipping
+///
 #[derive(Clone,CloneRef)]
 pub struct Layer {
     model : Rc<LayerModel>
@@ -573,6 +576,7 @@ impl LayerModel {
         }
     }
 
+    /// The layer's mask, if any.
     pub fn mask(&self) -> Option<Layer> {
         self.mask.borrow().as_ref().and_then(|t|t.upgrade())
     }
@@ -584,10 +588,12 @@ impl LayerModel {
         mask.add_parent(&self.sublayers);
     }
 
+    /// The layer's [`ScissorBox`], if any.
     pub fn scissor_box(&self) -> Option<ScissorBox> {
         *self.scissor_box.borrow()
     }
 
+    /// Set the [`ScissorBox`] of this layer.
     pub fn set_scissor_box(&self, scissor_box:Option<&ScissorBox>) {
         *self.scissor_box.borrow_mut() = scissor_box.cloned();
     }
@@ -1002,6 +1008,9 @@ macro_rules! shapes_order_dependencies {
 // === ScissorBox ===
 // ==================
 
+/// A rectangular area used to limit rendering of a [`Layer`]. The area contains information about
+/// rendering limits from each side of the image (left, right, top, and bottom).
+#[allow(missing_docs)]
 #[derive(Debug,Clone,Copy)]
 pub struct ScissorBox {
     pub min_x : i32,
@@ -1011,6 +1020,7 @@ pub struct ScissorBox {
 }
 
 impl ScissorBox {
+    /// Constructor.
     pub fn new() -> Self {
         let min_x = 0;
         let min_y = 0;
@@ -1019,24 +1029,23 @@ impl ScissorBox {
         Self {min_x,min_y,max_x,max_y}
     }
 
-    pub fn with_position(mut self, position:Vector2<i32>) -> Self {
-        self.min_x = position.x;
-        self.min_y = position.y;
-        self
-    }
-
-    pub fn with_size(mut self, size:Vector2<i32>) -> Self {
-        self.max_x = self.min_x + size.x;
-        self.max_y = self.min_y + size.y;
-        self
+    /// Constructor.
+    pub fn new_with_position_and_size(position:Vector2<i32>, size:Vector2<i32>) -> Self {
+        let min_x = position.x;
+        let min_y = position.y;
+        let max_x = min_x + size.x;
+        let max_y = min_y + size.y;
+        Self {min_x,min_y,max_x,max_y}
     }
 }
 
 impl ScissorBox {
+    /// The size of the scissor box.
     pub fn size(&self) -> Vector2<i32> {
         Vector2(self.max_x - self.min_x, self.max_y - self.min_y)
     }
 
+    /// The position of the scissor box computed from the left bottom corner.
     pub fn position(&self) -> Vector2<i32> {
         Vector2(self.min_x,self.min_y)
     }
@@ -1060,66 +1069,5 @@ impl PartialSemigroup<ScissorBox> for ScissorBox {
 impl PartialSemigroup<&ScissorBox> for ScissorBox {
     fn concat_mut(&mut self, other:&Self) {
         self.concat_mut(*other)
-    }
-}
-
-
-// ========================
-// === ScissorBoxObject ===
-// ========================
-
-crate::define_endpoints! {
-    Input {
-        set_size (Vector2<Option<i32>>),
-    }
-
-    Output {
-        size (Vector2<Option<i32>>),
-    }
-}
-
-#[derive(Clone,CloneRef,Debug)]
-pub struct ScissorBoxObject {
-    display_object : display::object::Instance,
-    size           : Rc<Cell<Vector2<i32>>>,
-    frp            : Frp,
-}
-
-impl ScissorBoxObject {
-    pub fn new() -> Self {
-        let logger         = Logger::new("ScissorBoxObject");
-        let display_object = display::object::Instance::new(&logger);
-        let size           = default();
-        let frp            = Frp::new();
-        Self {display_object,size,frp}
-    }
-
-    pub fn absolute(&self) -> ScissorBox {
-        let position = self.display_object.global_position().xy();
-        let size     = self.size.get();
-        let min_x    = position.x as i32;
-        let min_y    = position.y as i32;
-        let max_x    = min_x + size.x;
-        let max_y    = min_y + size.y;
-        ScissorBox {min_x,min_y,max_x,max_y}
-    }
-}
-
-impl AsRef<ScissorBoxObject> for ScissorBoxObject {
-    fn as_ref(&self) -> &Self {
-        self
-    }
-}
-
-impl Deref for ScissorBoxObject {
-    type Target = Frp;
-    fn deref(&self) -> &Self::Target {
-        &self.frp
-    }
-}
-
-impl display::Object for ScissorBoxObject {
-    fn display_object(&self) -> &display::object::Instance {
-        &self.display_object
     }
 }

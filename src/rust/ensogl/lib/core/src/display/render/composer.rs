@@ -1,22 +1,22 @@
-//! This module defines render composer, a render pipeline bound to a specific context.
+//! Render composer definition, which is a render pipeline bound to a specific context.
 
 use crate::prelude::*;
 
-use crate::system::gpu::data::texture::class::TextureOps;
+use crate::display::render::pass;
 use crate::display::render::pipeline::*;
 use crate::system::gpu::*;
-use js_sys::Array;
 
 
 
-// ======================
-// === RenderComposer ===
-// ======================
+// ================
+// === Composer ===
+// ================
 
-shared! { RenderComposer
+shared! { Composer
 /// Render composer is a render pipeline bound to a specific context.
 #[derive(Debug)]
-pub struct RenderComposerData {
+pub struct ComposerModel {
+    pipeline  : Pipeline,
     passes    : Vec<ComposerPass>,
     variables : UniformScope,
     context   : Context,
@@ -27,23 +27,43 @@ pub struct RenderComposerData {
 impl {
     /// Constructor
     pub fn new
-    ( pipeline  : &RenderPipeline
+    ( pipeline  : &Pipeline
     , context   : &Context
     , variables : &UniformScope
     , width     : i32
     , height    : i32
     ) -> Self {
+        let pipeline  = pipeline.clone_ref();
         let passes    = default();
         let context   = context.clone();
         let variables = variables.clone_ref();
-        let mut this  = Self {passes,variables,context,width,height};
-        for pass in pipeline.passes_clone() { this.add(pass); };
+        let mut this  = Self {pipeline,passes,variables,context,width,height};
+        this.init_passes();
         this
     }
 
-    fn add(&mut self, pass:Box<dyn RenderPass>) {
-        let pass = ComposerPass::new(&self.context,&self.variables,pass,self.width,self.height);
-        self.passes.push(pass);
+    /// Set a new pipeline for this composer.
+    pub fn set_pipeline(&mut self, pipeline:&Pipeline) {
+        self.pipeline = pipeline.clone_ref();
+        self.init_passes();
+    }
+
+    /// Resize the composer and reinitialize all of its layers.
+    pub fn resize(&mut self, width:i32, height:i32) {
+        self.width  = width;
+        self.height = height;
+        self.init_passes();
+    }
+
+    /// Initialize all pass definitions from the [`Pipeline`].
+    fn init_passes(&mut self) {
+        let ctx    = &self.context;
+        let vars   = &self.variables;
+        let width  = self.width;
+        let height = self.height;
+        let defs   = self.pipeline.passes_clone();
+        let passes = defs.into_iter().map(|pass| ComposerPass::new(ctx,vars,pass,width,height));
+        self.passes = passes.collect_vec();
     }
 
     /// Run all the registered passes in this composer.
@@ -60,17 +80,17 @@ impl {
 // === ComposerPass ===
 // ====================
 
-/// A `RenderPass` bound to a specific rendering context.
+/// A `pass::Definition` bound to a specific rendering context.
 #[derive(Derivative)]
 #[derivative(Debug)]
 struct ComposerPass {
     #[derivative(Debug="ignore")]
-    pass    : Box<dyn RenderPass>,
-    instance : PassInstance,
+    pass     : Box<dyn pass::Definition>,
+    instance : pass::Instance,
 }
 
 impl Deref for ComposerPass {
-    type Target = PassInstance;
+    type Target = pass::Instance;
     fn deref(&self) -> &Self::Target {
         &self.instance
     }
@@ -88,11 +108,11 @@ impl ComposerPass {
     pub fn new
     ( context   : &Context
     , variables : &UniformScope
-    , mut pass  : Box<dyn RenderPass>
+    , mut pass  : Box<dyn pass::Definition>
     , width     : i32
     , height    : i32
     ) -> Self {
-        let instance = PassInstance::new(context,variables,width,height);
+        let instance = pass::Instance::new(context,variables,width,height);
         pass.initialize(&instance);
         Self {pass,instance}
     }
@@ -100,57 +120,5 @@ impl ComposerPass {
     /// Run the pass.
     pub fn run(&mut self) {
         self.pass.run(&self.instance);
-    }
-}
-
-
-#[derive(Debug)]
-pub struct PassInstance {
-    pub variables   : UniformScope,
-    pub context     : Context,
-    pub width       : i32,
-    pub height      : i32,
-}
-
-impl PassInstance {
-    /// Constructor
-    #[allow(clippy::borrowed_box)]
-    pub fn new
-    ( context   : &Context
-    , variables : &UniformScope
-    , width     : i32
-    , height    : i32
-    ) -> Self {
-        let variables    = variables.clone_ref();
-        let context      = context.clone();
-        Self {variables,context,width,height}
-    }
-
-    pub fn new_screen_texture(&self, output:&RenderPassOutput) -> AnyTextureUniform {
-        let name    = format!("pass_{}",output.name());
-        let args    = (self.width,self.height);
-        uniform::get_or_add_gpu_texture_dyn
-            (&self.context,&self.variables,&name,output.internal_format,output.item_type,args,
-             Some(output.texture_parameters))
-    }
-
-    pub fn new_framebuffer(&self, textures:&[&AnyTextureUniform]) -> web_sys::WebGlFramebuffer {
-        let context      = &self.context;
-        let framebuffer  = self.context.create_framebuffer().unwrap();
-        let target       = Context::FRAMEBUFFER;
-        let draw_buffers = Array::new();
-        context.bind_framebuffer(target,Some(&framebuffer));
-        for (index,texture) in textures.into_iter().enumerate() {
-            let texture_target   = Context::TEXTURE_2D;
-            let attachment_point = Context::COLOR_ATTACHMENT0 + index as u32;
-            let gl_texture       = texture.gl_texture();
-            let gl_texture       = Some(&gl_texture);
-            let level            = 0;
-            draw_buffers.push(&attachment_point.into());
-            context.framebuffer_texture_2d(target,attachment_point,texture_target,gl_texture,level);
-        }
-        context.draw_buffers(&draw_buffers);
-        context.bind_framebuffer(target,None);
-        framebuffer
     }
 }
