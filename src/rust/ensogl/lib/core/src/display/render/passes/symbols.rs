@@ -114,14 +114,6 @@ impl pass::Definition for SymbolsRenderPass {
 }
 
 impl SymbolsRenderPass {
-    // fn framebuffers_ref(&self) -> Option<&Framebuffers> {
-    //     if self.framebuffers.is_none() {
-    //         warning!("Framebuffers not initialized. Skipping rendering the pass.");
-    //         None
-    //     }
-    //     self.framebuffers.as_ref()
-    // }
-
     fn enable_scissor_test(&self, instance:&pass::Instance) {
         instance.context.enable(web_sys::WebGl2RenderingContext::SCISSOR_TEST);
     }
