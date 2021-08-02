@@ -1089,12 +1089,14 @@ impl ScissorBox {
 impl ScissorBox {
     /// The size of the scissor box.
     pub fn size(&self) -> Vector2<i32> {
-        Vector2(self.max_x - self.min_x, self.max_y - self.min_y)
+        let width  = (self.max_x - self.min_x).max(0);
+        let height = (self.max_y - self.min_y).max(0);
+        Vector2(width,height)
     }
 
     /// The position of the scissor box computed from the left bottom corner.
     pub fn position(&self) -> Vector2<i32> {
-        Vector2(self.min_x,self.min_y)
+        Vector2(self.min_x.max(0),self.min_y.max(0))
     }
 }
 
