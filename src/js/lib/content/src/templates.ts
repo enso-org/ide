@@ -213,20 +213,18 @@ function setTemplateCardHandler(element: HTMLElement, openProject: (project: str
 function getProjectName(elementId: string): string {
     switch (elementId) {
         case CARD_SPREADSHEETS:
-            return 'Spreadsheets'
+            return 'Orders'
         case CARD_GEO:
-            return 'Geo'
+            return 'Restaurants'
         case CARD_VISUALIZE:
-            return 'Visualize'
-        case CARD_BMW_DRIVERS:
-            return 'Bmw_Drivers'
+            return 'Stargazers'
         default:
-            return 'Template'
+            return 'Unnamed'
     }
 }
 
 /**
- * Get the template name byt the template card HTML identifier.
+ * Get the template name by the template card HTML identifier.
  *
  * @param elementId the template card id
  * @return the template name
@@ -234,13 +232,11 @@ function getProjectName(elementId: string): string {
 function getProjectTemplate(elementId: string): string {
     switch (elementId) {
         case CARD_SPREADSHEETS:
-            return 'example'
+            return 'orders'
         case CARD_GEO:
-            return 'example'
+            return 'restaurants'
         case CARD_VISUALIZE:
-            return 'example'
-        case CARD_BMW_DRIVERS:
-            return 'example'
+            return 'stargazers'
         default:
             return 'default'
     }
