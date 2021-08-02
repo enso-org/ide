@@ -10,8 +10,7 @@ these updates be shipped in a stable release before the end of the year.
 
 - [New look of open project dialog.][1700]. Now it has "Open project" title on
   the top.
-- [Documentation cooments are displayed next to the nodes.][1744]. 
-
+- [Documentation cooments are displayed next to the nodes.][1744].
 
 #### Enso Compiler
 
