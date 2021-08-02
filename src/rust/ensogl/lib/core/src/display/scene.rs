@@ -658,7 +658,7 @@ impl HardcodedLayers {
         let cursor             = Layer::new(logger.sub("cursor"));
 
         let mask             = Layer::new_with_cam(logger.sub("mask"),main_cam);
-        node_searcher.set_mask(&node_searcher_mask);
+        // node_searcher.set_mask(&node_searcher_mask);
         root.set_mask(&mask);
         root.set_sublayers(
             &[ &viz

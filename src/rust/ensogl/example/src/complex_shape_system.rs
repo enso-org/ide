@@ -109,6 +109,7 @@ pub fn entry_point_complex_shape_system() {
 
     // world.scene().layers.mask.add_exclusive(&mask);
     DEBUG!("--- add exclusive ---");
+    world.scene().layers.root.add_exclusive(&view);
     world.scene().layers.mask.add_exclusive(&view2);
     // world.scene().layers.viz.add_exclusive(&mask);
     // scene.layers.viz.add_exclusive(&view);
@@ -134,6 +135,7 @@ pub fn entry_point_complex_shape_system() {
         let _keep_alive = &theme_manager;
         if to_theme_switch == 50 {
             DEBUG!("---------------");
+            DEBUG!("{scene.layers.root:#?}");
             DEBUG!("{scene.layers.main:#?}");
             DEBUG!("{scene.layers.mask:#?}");
             DEBUG!("{scene.layers.viz:#?}");
@@ -155,10 +157,10 @@ pub fn entry_point_complex_shape_system() {
         }
         if to_theme_switch == -50 {
             DEBUG!("---------------");
+            DEBUG!("{scene.layers.root:#?}");
             DEBUG!("{scene.layers.main:#?}");
             DEBUG!("{scene.layers.mask:#?}");
-            let s = format!("{:#?}",scene.layers.viz);
-            DEBUG!(s);
+            DEBUG!("{scene.layers.viz:#?}");
         }
         to_theme_switch -= 1;
     }).forget();

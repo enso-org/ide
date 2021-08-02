@@ -104,7 +104,7 @@ impl pass::Definition for SymbolsRenderPass {
         instance.context.clear_bufferfv_with_f32_array(Context::COLOR,0,&arr);
         instance.context.clear_bufferfv_with_f32_array(Context::COLOR,1,&arr);
 
-        self.render_layer(instance,&self.layers.root.clone());
+        self.render_layer(instance,&self.layers.root.clone(),false);
 
         if !self.scissor_stack.is_empty() {
             warning!(&self.logger,"The scissor stack was not cleaned properly. \
@@ -132,7 +132,7 @@ impl SymbolsRenderPass {
         instance.context.disable(web_sys::WebGl2RenderingContext::SCISSOR_TEST);
     }
 
-    fn render_layer(&mut self, instance:&pass::Instance, layer:&layer::Layer) {
+    fn render_layer(&mut self, instance:&pass::Instance, layer:&layer::Layer, parent_masked:bool) {
         let framebuffers = self.framebuffers.as_ref().unwrap();
 
         let parent_scissor_box  = self.scissor_stack.first().copied();
@@ -149,29 +149,37 @@ impl SymbolsRenderPass {
                 instance.context.scissor(position.x,position.y,size.x,size.y);
             }
         }
+
+        let layer_mask      = layer.mask();
+        let is_masked       = layer_mask.is_some();
+        let was_ever_masked = is_masked || parent_masked;
+        let nested_masking  = is_masked && parent_masked;
+
+        if nested_masking {
+            warning!(&self.logger,"Nested layer masking is not supported yet. Skipping nested masks.");
+        } else {
+            if let Some(mask) = layer_mask {
+                framebuffers.mask.bind();
+                let arr = vec![0.0, 0.0, 0.0, 0.0];
+                instance.context.clear_bufferfv_with_f32_array(Context::COLOR, 0, &arr);
+                instance.context.clear_bufferfv_with_f32_array(Context::COLOR, 1, &arr);
+
+                self.render_layer(instance, &mask, was_ever_masked);
+                let framebuffers = self.framebuffers.as_ref().unwrap();
+                framebuffers.layer.bind();
+                let arr = vec![0.0, 0.0, 0.0, 0.0];
+                instance.context.clear_bufferfv_with_f32_array(Context::COLOR, 0, &arr);
+                instance.context.clear_bufferfv_with_f32_array(Context::COLOR, 1, &arr);
+            }
+        }
+        
         self.symbol_registry.set_camera(&layer.camera());
         self.symbol_registry.render_by_ids(&layer.symbols());
-
-        if let Some(mask) = layer.mask() {
-            framebuffers.mask.bind();
-            // let arr = vec![0.0,0.0,0.0,0.0];
-            // instance.context.clear_bufferfv_with_f32_array(Context::COLOR,0,&arr);
-            // instance.context.clear_bufferfv_with_f32_array(Context::COLOR,1,&arr);
-
-            self.render_layer(instance,&mask);
-            let framebuffers = self.framebuffers.as_ref().unwrap();
-            framebuffers.layer.bind();
-            // let arr = vec![0.0,0.0,0.0,0.0];
-            // instance.context.clear_bufferfv_with_f32_array(Context::COLOR,0,&arr);
-            // instance.context.clear_bufferfv_with_f32_array(Context::COLOR,1,&arr);
-
-
-        }
         for sublayer in layer.sublayers().iter() {
-            self.render_layer(instance,sublayer);
+            self.render_layer(instance,sublayer,was_ever_masked);
         }
 
-        if layer.mask().is_some() {
+        if is_masked {
             let framebuffers = self.framebuffers.as_ref().unwrap();
             framebuffers.composed.bind();
             self.tmp_screen.render();

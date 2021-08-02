@@ -456,35 +456,47 @@ impl LayerModel {
 
     /// Consume all dirty flags and update the ordering of elements if needed.
     pub(crate) fn update_internal
-    (&self, global_element_depth_order:Option<&DependencyGraph<LayerItem>>) {
+    (&self, parent_element_depth_order:Option<&DependencyGraph<LayerItem>>) {
+        let dep_graph = self.combined_depth_order_graph2(parent_element_depth_order);
+
         if self.depth_order_dirty.check() {
             self.depth_order_dirty.unset();
-            if let Some(dep_graph) = global_element_depth_order {
-                self.depth_sort(dep_graph);
-            }
+            self.depth_sort(&dep_graph);
         }
 
         if self.sublayers.element_depth_order_dirty.check() {
             self.sublayers.element_depth_order_dirty.unset();
             for layer in self.sublayers() {
-                layer.update_internal(Some(&*self.global_element_depth_order.borrow()))
+                layer.update_internal(Some(&dep_graph))
             }
             if let Some(layer) = &*self.mask.borrow() {
                 if let Some(layer) = layer.upgrade() {
-                    layer.update_internal(Some(&*self.global_element_depth_order.borrow()))
+                    layer.update_internal(Some(&dep_graph))
                 }
             }
         }
     }
 
-    /// Compute a combined [`DependencyGraph`] for the layer taking int consideration the global
+    fn combined_depth_order_graph2
+    (&self, parent_element_depth_order:Option<&DependencyGraph<LayerItem>>)
+    -> DependencyGraph<LayerItem> {
+        if let Some(parent_element_depth_order) = parent_element_depth_order {
+            let mut graph = parent_element_depth_order.clone();
+            graph.extend(self.depth_order.borrow().clone().into_iter());
+            graph
+        } else {
+            self.depth_order.borrow().clone()
+        }
+    }
+
+    /// Compute a combined [`DependencyGraph`] for the layer taking into consideration the global
     /// dependency graph (from [`Group`]), the local one (per layer), and individual shape
     /// preferences (see the "Compile Time Shapes Ordering Relations" section in docs of [`Group`]
     /// to learn more).
     fn combined_depth_order_graph(&self, global_element_depth_order:&DependencyGraph<LayerItem>)
     -> DependencyGraph<LayerItem> {
         let mut graph = global_element_depth_order.clone();
-        graph.extend(self.depth_order.borrow().clone().into_iter());
+        // graph.extend(self.depth_order.borrow().clone().into_iter());
         for element in &*self.elements.borrow() {
             if let LayerItem::ShapeSystem(id) = element {
                 if let Some(info) = self.shape_system_to_symbol_info_map.borrow().get(id) {
