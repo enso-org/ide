@@ -294,21 +294,21 @@ ensogl::define_endpoints! {
     Output {
         /// Press event. Emitted when user clicks on non-active part of the node, like its
         /// background. In edit mode, the whole node area is considered non-active.
-        background_press        (),
-        expression              (Text),
-        comment                 (Comment),
-        skip                    (bool),
-        freeze                  (bool),
-        hover                   (bool),
-        error                   (Option<Error>),
+        background_press         (),
+        expression               (Text),
+        comment                  (Comment),
+        skip                     (bool),
+        freeze                   (bool),
+        hover                    (bool),
+        error                    (Option<Error>),
         /// Whether visualization was permanently enabled (e.g. by pressing the button).
-        visualization_enabled   (bool),
+        visualization_enabled    (bool),
         /// Visualization can be visible even when it is not enabled, e.g. when showing preview.
-        visualization_visible   (bool),
-        visualization_path      (Option<visualization::Path>),
-        expression_label_visible(bool),
-        tooltip                 (tooltip::Style),
-        bounding_box            (BoundingBox)
+        visualization_visible    (bool),
+        visualization_path       (Option<visualization::Path>),
+        expression_label_visible (bool),
+        tooltip                  (tooltip::Style),
+        bounding_box             (BoundingBox)
     }
 }
 

@@ -134,15 +134,15 @@ ensogl::define_endpoints! {
     }
 
     Output {
-        on_port_press              (Crumbs),
-        on_port_hover              (Switch<Crumbs>),
-        on_port_type_change        (Crumbs,Option<Type>),
-        port_size_multiplier       (f32),
-        body_hover                 (bool),
-        type_label_visibility      (bool),
-        expression_label_visibility(bool),
-        tooltip                    (tooltip::Style),
-        view_mode                  (view::Mode),
+        on_port_press               (Crumbs),
+        on_port_hover               (Switch<Crumbs>),
+        on_port_type_change         (Crumbs,Option<Type>),
+        port_size_multiplier        (f32),
+        body_hover                  (bool),
+        type_label_visibility       (bool),
+        expression_label_visibility (bool),
+        tooltip                     (tooltip::Style),
+        view_mode                   (view::Mode),
     }
 }
 
@@ -443,8 +443,7 @@ impl Area {
             label_color_on_change    <- label_color.value.sample(&frp.set_expression);
             new_label_color          <- any(&label_color.value,&label_color_on_change);
             eval new_label_color ((color) model.label.set_color_all(color::Rgba::from(color)));
-             
-
+            
 
             // === View Mode ===
 
