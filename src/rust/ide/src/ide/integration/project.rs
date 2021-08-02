@@ -49,6 +49,7 @@ use futures::future::LocalBoxFuture;
 use ide_view::searcher::entry::GlyphHighlightedLabel;
 
 
+
 // ========================
 // === VisualizationMap ===
 // ========================
@@ -738,6 +739,7 @@ impl Model {
                        self.refresh_node_selection(displayed,node_info);
                        self.refresh_node_visualization(displayed,node_info);
                    };
+                   self.refresh_node_comment(displayed,node_info);
                    self.refresh_node_expression(displayed,node_info,node_trees);
                 },
                 None => self.create_node_view(node_info,node_trees,*default_pos),
@@ -795,6 +797,7 @@ impl Model {
     (&self, id:graph_editor::NodeId, node:&controller::graph::Node, trees:NodeTrees) {
         self.refresh_node_position(id,node);
         self.refresh_node_selection(id,node);
+        self.refresh_node_comment(id,node);
         self.refresh_node_expression(id,node,trees);
         self.refresh_node_visualization(id,node);
     }
@@ -849,6 +852,17 @@ impl Model {
             }
         }
     }
+    /// Update the documentation comment on the node.
+    fn refresh_node_comment
+    (&self, id:graph_editor::NodeId, node:&controller::graph::Node) {
+        if let Some(node_view) = self.view.graph().model.nodes.get_cloned_ref(&id) {
+            let comment_as_per_controller = node.info.documentation_text().unwrap_or_default();
+            let comment_as_per_view       = node_view.comment.value();
+            if comment_as_per_controller != comment_as_per_view {
+                node_view.set_comment(comment_as_per_controller);
+            }
+        }
+    }
 
     /// Update the expression of the node and all related properties e.g., types, ports).
     fn refresh_node_expression
@@ -862,12 +876,14 @@ impl Model {
         };
         let expression_changed =
             !self.expression_views.borrow().get(&id).contains(&&code_and_trees);
-        if expression_changed {
+        let node_is_being_edited = self.view.graph().frp.node_being_edited.value().contains(&id);
+        if expression_changed && !node_is_being_edited {
             for sub_expression in node.info.ast().iter_recursive() {
                 if let Some(expr_id) = sub_expression.id {
                     self.node_view_by_expression.borrow_mut().insert(expr_id,id);
                 }
             }
+            info!(self.logger, "Refreshing node {id:?} expression");
             self.view.graph().frp.input.set_node_expression.emit(&(id,code_and_trees.clone()));
             self.expression_views.borrow_mut().insert(id,code_and_trees);
         }
@@ -1337,7 +1353,7 @@ impl Model {
                 Ok(())
             },
             Err(err) => {
-                self.view.graph().frp.remove_node.emit(displayed_id);
+                self.view.graph().frp.remove_node(displayed_id);
                 Err(err)
             }
         }
@@ -1853,15 +1869,31 @@ struct SuggestionsProviderForView {
 
 impl SuggestionsProviderForView {
     fn doc_placeholder_for(suggestion:&controller::searcher::action::Suggestion) -> String {
-        let title = match suggestion.kind {
-            suggestion_database::entry::Kind::Atom     => "Atom",
-            suggestion_database::entry::Kind::Function => "Function",
-            suggestion_database::entry::Kind::Local    => "Local variable",
-            suggestion_database::entry::Kind::Method   => "Method",
-            suggestion_database::entry::Kind::Module   => "Module",
+        use controller::searcher::action::Suggestion;
+        let code = match suggestion {
+            Suggestion::FromDatabase(suggestion) => {
+                let title = match suggestion.kind {
+                    suggestion_database::entry::Kind::Atom     => "Atom",
+                    suggestion_database::entry::Kind::Function => "Function",
+                    suggestion_database::entry::Kind::Local    => "Local variable",
+                    suggestion_database::entry::Kind::Method   => "Method",
+                    suggestion_database::entry::Kind::Module   => "Module",
+                };
+                let code = suggestion.code_to_insert(None,true).code;
+                format!("{} `{}`\n\nNo documentation available", title,code)
+            }
+            Suggestion::Hardcoded(suggestion) => {
+                format!("{}\n\nNo documentation available", suggestion.name)
+            }
         };
-        let code = suggestion.code_to_insert(None,true).code;
-        format!("{} `{}`\n\nNo documentation available", title,code)
+        let parser = parser::DocParser::new();
+        match parser {
+            Ok(p) => {
+                let output = p.generate_html_doc_pure((*code).to_string());
+                output.unwrap_or(code)
+            },
+            Err(_) => code
+        }
     }
 }
 
@@ -1898,7 +1930,7 @@ impl ide_view::searcher::DocumentationProvider for SuggestionsProviderForView {
     fn get(&self) -> Option<String> {
         use controller::searcher::UserAction::*;
         self.intended_function.as_ref().and_then(|function| match self.user_action {
-            StartingTypingArgument => function.documentation.clone(),
+            StartingTypingArgument => function.documentation_html().map(ToOwned::to_owned),
             _                      => None
         })
     }
@@ -1907,10 +1939,10 @@ impl ide_view::searcher::DocumentationProvider for SuggestionsProviderForView {
         use controller::searcher::action::Action;
         match self.actions.get_cloned(id)?.action {
             Action::Suggestion(suggestion) => {
-                let doc = suggestion.documentation.clone();
+                let doc = suggestion.documentation_html().map(ToOwned::to_owned);
                 Some(doc.unwrap_or_else(|| Self::doc_placeholder_for(&suggestion)))
             }
-            Action::Example(example)     => Some(example.documentation.clone()),
+            Action::Example(example)     => Some(example.documentation_html.clone()),
             Action::ProjectManagement(_) => None,
         }
     }
