@@ -10,13 +10,11 @@ const PROJECTS_LIST_NEW_PROJECT = 'projects-list-new-project'
 const CARD_SPREADSHEETS = 'card-spreadsheets'
 const CARD_GEO = 'card-geo'
 const CARD_VISUALIZE = 'card-visualize'
-const CARD_BMW_DRIVERS = 'card-bmw-drivers'
 
 const ALL_CARDS = [
     CARD_SPREADSHEETS,
     CARD_GEO,
     CARD_VISUALIZE,
-    CARD_BMW_DRIVERS
 ]
 
 /**
