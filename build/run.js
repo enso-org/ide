@@ -542,7 +542,6 @@ async function downloadJsAssets() {
     })
 
     await cmd.with_cwd(paths.root, async () => {
-        await cmd.run('rm', ['-r', jsLibAssets])
         await cmd.run('cp', ['-r', unzippedAssets, paths.js.lib.content])
         await cmd.run('rm', ['-r', workdir])
     })
