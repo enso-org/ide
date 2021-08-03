@@ -4,6 +4,7 @@ use crate::prelude::*;
 
 use ensogl_core::system::web;
 use ensogl_core::application::Application;
+use ensogl_core::display;
 use ensogl_core::display::object::ObjectOps;
 use ensogl_text_msdf_sys::run_once_initialized;
 use ensogl_gui_components::list_view;
@@ -77,8 +78,8 @@ fn init(app:&Application) {
     theme::builtin::light::enable(&app);
 
     let menu     = drop_down_menu::DropDownMenu::new(app);
-    let provider = list_view::entry::provider::Any::new(MockEntries::new(app,1000));
-    // menu.frp.resize(Vector2(100.0,160.0));
+    let provider = list_view::entry::provider::Any::new(MockEntries::new(app,13));
+    menu.frp.set_icon_size(Vector2(20.0,20.0));
     menu.frp.set_entries(provider);
     app.display.add_child(&menu);
     // FIXME[WD]: This should not be needed after text gets proper depth-handling.
@@ -90,6 +91,32 @@ fn init(app:&Application) {
     enso_frp::extend! {network
         eval menu.chosen_entry([logger](entry) {
             info!(logger, "Chosen entry {entry:?}")
+        });
+    }
+
+    // === Selection Target Redirection ===
+
+    // TODO This was copied from GraphEditor. It should not be there, but somewhere in Scene
+    // instead.
+    let scene = app.display.scene();
+    enso_frp::extend! { network
+        mouse_down_target <- scene.mouse.frp.down_primary.map(f_!(scene.mouse.target.get()));
+        mouse_up_target   <- scene.mouse.frp.up_primary.map(f_!(scene.mouse.target.get()));
+
+        eval mouse_down_target([scene](target) {
+            if let display::scene::PointerTarget::Symbol {..} = target {
+                if let Some(target) = scene.shapes.get_mouse_target(*target) {
+                    target.mouse_down().emit(());
+                }
+            }
+        });
+
+        eval mouse_up_target([scene](target) {
+            if let display::scene::PointerTarget::Symbol {..} = target {
+                if let Some(target) = scene.shapes.get_mouse_target(*target) {
+                    target.mouse_up().emit(());
+                }
+            }
         });
     }
 

@@ -294,9 +294,7 @@ impl DropDownMenu {
                     }
                 })
             );
-            trace target_height;
             eval target_height ([menu_height](h) {
-                DEBUG!("!!! {h}");
                 menu_height.set_target_value(*h);
             });
 
