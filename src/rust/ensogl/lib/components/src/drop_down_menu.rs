@@ -2,7 +2,7 @@
 use ensogl_core::prelude::*;
 
 use crate::list_view;
-use crate::list_view::entry::ModelProvider;
+use crate::list_view::entry::Provider;
 
 use enso_frp as frp;
 use enso_frp;
@@ -74,7 +74,7 @@ pub mod chooser_hover_area {
 
 ensogl_core::define_endpoints! {
     Input {
-        set_entries         (list_view::entry::AnyModelProvider<Entry>),
+        set_entries         (list_view::entry::AnyProvider<Entry>),
         set_icon_size       (Vector2),
         set_icon_padding    (Vector2),
         hide_selection_menu (),
@@ -219,7 +219,7 @@ impl DropDownMenu {
             eval frp.input.set_entries ([model](entries) {
                 let entries:list_view::entry::SingleMaskedProvider<Entry> = entries.clone_ref().into();
                 model.content.set(entries.clone());
-                let entries = list_view::entry::AnyModelProvider::<Entry>::new(entries);
+                let entries = list_view::entry::AnyProvider::<Entry>::new(entries);
                 model.selection_menu.frp.set_entries.emit(entries);
             });
 
@@ -294,7 +294,11 @@ impl DropDownMenu {
                     }
                 })
             );
-            eval target_height ((h) menu_height.set_target_value(*h));
+            trace target_height;
+            eval target_height ([menu_height](h) {
+                DEBUG!("!!! {h}");
+                menu_height.set_target_value(*h);
+            });
 
 
             // === Selection ===
@@ -318,7 +322,7 @@ impl DropDownMenu {
                         // Remove selected item from menu list
                         content.set_mask(*entry_id);
                         // Update menu content.
-                        let entries = list_view::entry::AnyModelProvider::<Entry>::new(content.clone());
+                        let entries = list_view::entry::AnyProvider::<Entry>::new(content.clone());
                         model.selection_menu.frp.set_entries.emit(entries);
                     };
                 };

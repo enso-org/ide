@@ -73,9 +73,9 @@ pub trait Entry: CloneRef + Debug + display::Object + 'static {
 
 
 
-// =======================
-// === Model Providers ===
-// =======================
+// =================
+// === Providers ===
+// =================
 
 // === The Trait ===
 
@@ -84,7 +84,7 @@ pub trait Entry: CloneRef + Debug + display::Object + 'static {
 /// The [`crate::ListView`] component does not display all entries at once, instead it lazily ask
 /// for models of entries when they're about to be displayed. So setting the select content is
 /// essentially providing an implementor of this trait.
-pub trait ModelProvider<E> : Debug {
+pub trait Provider<E> : Debug {
     /// Number of all entries.
     fn entry_count(&self) -> usize;
 
@@ -95,25 +95,27 @@ pub trait ModelProvider<E> : Debug {
 }
 
 
-// === AnyModelProvider ===
+// === AnyProvider ===
 
 /// A wrapper for shared instance of some Provider of models for `E` entries.
 #[derive(Debug,Shrinkwrap)]
-pub struct AnyModelProvider<E>(Rc<dyn ModelProvider<E>>);
+pub struct AnyProvider<E>(Rc<dyn Provider<E>>);
 
-impl<E> Clone    for AnyModelProvider<E> { fn clone    (&self) -> Self { Self(self.0.clone())     }}
-impl<E> CloneRef for AnyModelProvider<E> { fn clone_ref(&self) -> Self { Self(self.0.clone_ref()) }}
+impl<E> Clone    for AnyProvider<E> { fn clone    (&self) -> Self { Self(self.0.clone())     }}
+impl<E> CloneRef for AnyProvider<E> { fn clone_ref(&self) -> Self { Self(self.0.clone_ref()) }}
 
-impl<E> AnyModelProvider<E> {
+impl<E> AnyProvider<E> {
     /// Create from typed provider.
-    pub fn new<T:ModelProvider<E>+'static>(provider:T) -> Self { Self(Rc::new(provider)) }
+    pub fn new<T:Provider<E>+'static>(provider:T) -> Self {
+        Self(Rc::new(provider))
+    }
 }
 
-impl<E, T:ModelProvider<E>+'static> From<Rc<T>> for AnyModelProvider<E> {
+impl<E,T:Provider<E>+'static> From<Rc<T>> for AnyProvider<E> {
     fn from(provider:Rc<T>) -> Self { Self(provider) }
 }
 
-impl<E> Default for AnyModelProvider<E> {
+impl<E> Default for AnyProvider<E> {
     fn default() -> Self { Self::new(EmptyProvider) }
 }
 
@@ -126,15 +128,15 @@ impl<E> Default for AnyModelProvider<E> {
 #[derive(Clone,CloneRef,Copy,Debug)]
 pub struct EmptyProvider;
 
-impl<E> ModelProvider<E> for EmptyProvider {
+impl<E> Provider<E> for EmptyProvider {
     fn entry_count(&self)          -> usize                            { 0    }
     fn get        (&self, _:usize) -> Option<E::Model> where E : Entry { None }
 }
 
 
-// === ModelProvider for Vectors ===
+// === Provider for Vectors ===
 
-impl<E,T> ModelProvider<E> for Vec<T>
+impl<E,T> Provider<E> for Vec<T>
 where E : Entry,
       T : Debug + Clone + Into<E::Model> {
     fn entry_count(&self) -> usize {
@@ -149,14 +151,14 @@ where E : Entry,
 
 // === SingleMaskedProvider ===
 
-/// An Entry Model Provider that wraps a `AnyModelProvider` and allows the masking of a single item.
+/// An Entry Model Provider that wraps a `AnyProvider` and allows the masking of a single item.
 #[derive(Clone,Debug)]
 pub struct SingleMaskedProvider<E> {
-    content : AnyModelProvider<E>,
+    content : AnyProvider<E>,
     mask    : Cell<Option<Id>>,
 }
 
-impl<E:Debug> ModelProvider<E> for SingleMaskedProvider<E> {
+impl<E:Debug> Provider<E> for SingleMaskedProvider<E> {
     fn entry_count(&self) -> usize {
         match self.mask.get() {
             None    => self.content.entry_count(),
@@ -220,8 +222,8 @@ impl<E> SingleMaskedProvider<E> {
     }
 }
 
-impl<E> From<AnyModelProvider<E>> for SingleMaskedProvider<E> {
-    fn from(content:AnyModelProvider<E>) -> Self {
+impl<E> From<AnyProvider<E>> for SingleMaskedProvider<E> {
+    fn from(content:AnyProvider<E>) -> Self {
         let mask = default();
         SingleMaskedProvider{content,mask}
     }
@@ -241,7 +243,7 @@ mod tests {
     fn test_masked_provider() {
         let test_data   = vec!["A", "B", "C", "D"];
         let test_models = test_data.into_iter().map(|label| label.to_owned()).collect_vec();
-        let provider    = AnyModelProvider::<Label>::new(test_models);
+        let provider    = AnyProvider::<Label>::new(test_models);
         let provider:SingleMaskedProvider<Label> = provider.into();
 
         assert_eq!(provider.entry_count(), 4);

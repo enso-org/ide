@@ -42,7 +42,7 @@ use ide_view::graph_editor::component::visualization;
 use ide_view::graph_editor::EdgeEndpoint;
 use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
-use ide_view::searcher::entry::AnyModelProvider;
+use ide_view::searcher::entry::AnyProvider;
 use ide_view::open_dialog;
 use utils::iter::split_by_predicate;
 use futures::future::LocalBoxFuture;
@@ -1560,7 +1560,7 @@ impl Model {
                         Ok(projects) => {
                             let entries = ProjectsToOpen::new(projects);
                             this.displayed_project_list.set(entries.clone_ref());
-                            let any_entries = AnyModelProvider::new(entries);
+                            let any_entries = AnyProvider::new(entries);
                             this.view.open_dialog().project_list.set_entries(any_entries)
                         },
                         Err(error) => error!(this.logger,"Error when loading project's list: {error}"),
@@ -1897,7 +1897,7 @@ impl SuggestionsProviderForView {
     }
 }
 
-impl list_view::entry::ModelProvider<GlyphHighlightedLabel> for SuggestionsProviderForView {
+impl list_view::entry::Provider<GlyphHighlightedLabel> for SuggestionsProviderForView {
     fn entry_count(&self) -> usize {
         self.actions.matching_count()
     }
@@ -1975,7 +1975,7 @@ impl ProjectsToOpen {
     }
 }
 
-impl list_view::entry::ModelProvider<open_dialog::project_list::Entry> for ProjectsToOpen {
+impl list_view::entry::Provider<open_dialog::project_list::Entry> for ProjectsToOpen {
     fn entry_count(&self) -> usize { self.projects.len() }
 
     fn get(&self, id:list_view::entry::Id)

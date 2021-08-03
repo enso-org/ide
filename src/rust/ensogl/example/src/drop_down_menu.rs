@@ -7,6 +7,7 @@ use ensogl_core::application::Application;
 use ensogl_core::display::object::ObjectOps;
 use ensogl_text_msdf_sys::run_once_initialized;
 use ensogl_gui_components::list_view;
+use ensogl_gui_components::drop_down_menu;
 use logger::TraceLogger as Logger;
 use wasm_bindgen::prelude::*;
 use ensogl_core::display::Scene;
@@ -22,7 +23,7 @@ use ensogl_theme as theme;
 /// An entry point.
 #[wasm_bindgen]
 #[allow(dead_code)]
-pub fn entry_point_list_view() {
+pub fn entry_point_drop_down_menu() {
     web::forward_panic_hook_to_console();
     web::set_stack_trace_limit();
     run_once_initialized(|| {
@@ -53,16 +54,14 @@ impl MockEntries {
     }
 }
 
-impl list_view::entry::Provider<list_view::entry::GlyphHighlightedLabel> for MockEntries {
+impl list_view::entry::Provider<list_view::entry::Label> for MockEntries {
     fn entry_count(&self) -> usize { self.entries_count }
 
-    fn get(&self, id:usize) -> Option<list_view::entry::GlyphHighlightedLabelModel> {
+    fn get(&self, id:usize) -> Option<String> {
         if id >= self.entries_count {
             None
         } else {
-            let label = iformat!("Entry {id}");
-            let highlighted = if id == 10 { vec![(Bytes(1)..Bytes(3)).into()] } else { vec![] };
-            Some(list_view::entry::GlyphHighlightedLabelModel {label,highlighted})
+            Some(iformat!("Entry {id}"))
         }
     }
 }
@@ -78,22 +77,23 @@ fn init(app:&Application) {
     theme::builtin::light::register(&app);
     theme::builtin::light::enable(&app);
 
-    let list_view = app.new_view::<list_view::ListView<list_view::entry::GlyphHighlightedLabel>>();
-    let provider  = list_view::entry::AnyProvider::new(MockEntries::new(app,1000));
-    list_view.frp.resize(Vector2(100.0,160.0));
-    list_view.frp.set_entries(provider);
-    app.display.add_child(&list_view);
+    let menu     = drop_down_menu::DropDownMenu::new(app);
+    let provider = list_view::entry::AnyProvider::new(MockEntries::new(app,1000));
+    // menu.frp.resize(Vector2(100.0,160.0));
+    menu.frp.set_entries(provider);
+    app.display.add_child(&menu);
     // FIXME[WD]: This should not be needed after text gets proper depth-handling.
-    app.display.scene().layers.below_main.add_exclusive(&list_view);
+    // app.display.scene().layers.below_main.add_exclusive(&menu);
+    menu.set_position_xy(Vector2(100.0,100.0));
 
     let logger : Logger = Logger::new("SelectDebugScene");
     let network = enso_frp::Network::new("test");
     enso_frp::extend! {network
-        eval list_view.chosen_entry([logger](entry) {
+        eval menu.chosen_entry([logger](entry) {
             info!(logger, "Chosen entry {entry:?}")
         });
     }
 
-    std::mem::forget(list_view);
+    std::mem::forget(menu);
     std::mem::forget(network);
 }

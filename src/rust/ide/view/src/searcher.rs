@@ -148,7 +148,7 @@ ensogl::define_endpoints! {
     Input {
         /// Use the selected action as a suggestion and add it to the current input.
         use_as_suggestion (),
-        set_actions       (entry::AnyModelProvider<list_view::entry::GlyphHighlightedLabel>,AnyDocumentationProvider),
+        set_actions       (entry::AnyProvider<list_view::entry::GlyphHighlightedLabel>,AnyDocumentationProvider),
         select_action     (entry::Id),
         show              (),
         hide              (),
@@ -239,9 +239,9 @@ impl View {
     /// The list is represented list-entry-model and documentation provider. It's a helper for FRP
     /// `set_suggestion` input (FRP nodes cannot be generic).
     pub fn set_actions
-    (&self, provider:Rc<impl list_view::entry::ModelProvider<Entry> + DocumentationProvider + 'static>) {
-        let entries       : list_view::entry::AnyModelProvider<Entry> = provider.clone_ref().into();
-        let documentation : AnyDocumentationProvider                  = provider.into();
+    (&self, provider:Rc<impl list_view::entry::Provider<Entry> + DocumentationProvider + 'static>) {
+        let entries       : list_view::entry::AnyProvider<Entry> = provider.clone_ref().into();
+        let documentation : AnyDocumentationProvider             = provider.into();
         self.frp.set_actions(entries,documentation);
     }
 

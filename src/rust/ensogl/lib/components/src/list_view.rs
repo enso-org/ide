@@ -150,7 +150,7 @@ impl<E:Entry> Model<E> {
         self.entries.update_entries(visible_entries);
     }
 
-    fn set_entries(&self, provider:entry::AnyModelProvider<E>, view:&View) {
+    fn set_entries(&self, provider:entry::AnyProvider<E>, view:&View) {
         let visible_entries = Self::visible_entries(view,provider.entry_count());
         self.entries.update_entries_new_provider(provider,visible_entries);
     }
@@ -221,7 +221,7 @@ ensogl_core::define_endpoints! {
 
         resize       (Vector2<f32>),
         scroll_jump  (f32),
-        set_entries  (entry::AnyModelProvider<E>),
+        set_entries  (entry::AnyProvider<E>),
         select_entry (entry::Id),
         chose_entry  (entry::Id),
     }
