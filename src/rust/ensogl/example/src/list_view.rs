@@ -47,8 +47,8 @@ struct MockEntries {
 
 impl MockEntries {
     fn new(app:&Application, entries_count:usize) -> Self {
-        let logger  = Logger::new("MockEntries");
-        let scene   = app.display.scene().clone_ref();
+        let logger = Logger::new("MockEntries");
+        let scene  = app.display.scene().clone_ref();
         Self {logger,scene,entries_count}
     }
 }

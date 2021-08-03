@@ -22,9 +22,9 @@ pub use entry::Entry;
 
 
 
-// ==========================
-// === Shapes Definitions ===
-// ==========================
+// ==============
+// === Shapes ===
+// ==============
 
 // === Constants ===
 
@@ -38,6 +38,7 @@ const SHAPE_PADDING:f32 = 5.0;
 /// The selection rectangle shape.
 pub mod selection {
     use super::*;
+    use ensogl_theme::application::searcher::selection::padding;
 
     /// The corner radius in pixels.
     pub const CORNER_RADIUS_PX:f32 = 12.0;
@@ -46,13 +47,13 @@ pub mod selection {
         (style:Style) {
             let sprite_width  : Var<Pixels> = "input_size.x".into();
             let sprite_height : Var<Pixels> = "input_size.y".into();
-            let padding_inner_x = style.get_number(ensogl_theme::application::searcher::selection::padding::horizontal);
-            let padding_inner_y = style.get_number(ensogl_theme::application::searcher::selection::padding::vertical);
-            let width         = sprite_width  - 2.0.px() * SHAPE_PADDING + 2.0.px() * padding_inner_x;
-            let height        = sprite_height - 2.0.px() * SHAPE_PADDING + 2.0.px() * padding_inner_y;
-            let color         = style.get_color(ensogl_theme::widget::list_view::highlight);
-            let rect          = Rect((&width,&height)).corners_radius(CORNER_RADIUS_PX.px());
-            let shape         = rect.fill(color);
+            let padding_in_x = style.get_number(padding::horizontal);
+            let padding_in_y = style.get_number(padding::vertical);
+            let width        = sprite_width  - 2.0.px() * SHAPE_PADDING + 2.0.px() * padding_in_x;
+            let height       = sprite_height - 2.0.px() * SHAPE_PADDING + 2.0.px() * padding_in_y;
+            let color        = style.get_color(ensogl_theme::widget::list_view::highlight);
+            let rect         = Rect((&width,&height)).corners_radius(CORNER_RADIUS_PX.px());
+            let shape        = rect.fill(color);
             shape.into()
         }
     }
@@ -73,14 +74,12 @@ pub mod background {
         (style:Style) {
             let sprite_width  : Var<Pixels> = "input_size.x".into();
             let sprite_height : Var<Pixels> = "input_size.y".into();
-            let width         = sprite_width - SHADOW_PX.px() * 2.0 - SHAPE_PADDING.px() * 2.0;
+            let width         = sprite_width  - SHADOW_PX.px() * 2.0 - SHAPE_PADDING.px() * 2.0;
             let height        = sprite_height - SHADOW_PX.px() * 2.0 - SHAPE_PADDING.px() * 2.0;
             let color         = style.get_color(theme::widget::list_view::background);
             let rect          = Rect((&width,&height)).corners_radius(CORNER_RADIUS_PX.px());
             let shape         = rect.fill(color);
-
-            let shadow  = shadow::from_shape(rect.into(),style);
-
+            let shadow        = shadow::from_shape(rect.into(),style);
             (shadow + shape).into()
         }
     }
@@ -111,7 +110,6 @@ struct Model<E:Entry> {
 }
 
 impl<E:Entry> Model<E> {
-
     fn new(app:&Application) -> Self {
         let app            = app.clone_ref();
         let logger         = Logger::new("SelectionContainer");
@@ -130,7 +128,7 @@ impl<E:Entry> Model<E> {
     fn padding(&self) -> f32 {
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape
         // system (#795)
-        let styles   = StyleWatch::new(&self.app.display.scene().style_sheet);
+        let styles = StyleWatch::new(&self.app.display.scene().style_sheet);
         styles.get_number(ensogl_theme::application::searcher::padding)
     }
 
@@ -153,19 +151,19 @@ impl<E:Entry> Model<E> {
         self.entries.update_entries_new_provider(provider,visible_entries);
     }
 
-    fn visible_entries(View {position_y,size}:&View, entry_count:usize) -> Range<entry::Id> {
+    fn visible_entries(view:&View, entry_count:usize) -> Range<entry::Id> {
         if entry_count == 0 {
             0..0
         } else {
-            let entry_at_y_saturating = |y:f32| {
-                match entry::List::<E>::entry_at_y_position(y,entry_count) {
-                    entry::list::IdAtYPosition::AboveFirst => 0,
-                    entry::list::IdAtYPosition::UnderLast  => entry_count - 1,
-                    entry::list::IdAtYPosition::Entry(id)  => id,
+            let entry_at_scroll_saturating = |y:f32| {
+                match entry::List::<E>::entry_at_offset(y,entry_count) {
+                    entry::list::IdAtOffset::AboveFirst => 0,
+                    entry::list::IdAtOffset::UnderLast  => entry_count - 1,
+                    entry::list::IdAtOffset::Entry(id)  => id,
                 }
             };
-            let first = entry_at_y_saturating(*position_y);
-            let last  = entry_at_y_saturating(position_y - size.y) + 1;
+            let first = entry_at_scroll_saturating(view.position_y);
+            let last  = entry_at_scroll_saturating(view.position_y - view.size.y) + 1;
             first..last
         }
     }
@@ -234,9 +232,9 @@ ensogl_core::define_endpoints! {
 
 
 
-// ==========================
-// === ListView Component ===
-// ==========================
+// ================
+// === ListView ===
+// ================
 
 /// ListView Component.
 ///
@@ -288,7 +286,7 @@ where E::Model : Default {
                 scene.screen_to_object_space(&model.scrolled_area,*pos).y
             }));
             mouse_pointed_entry <- mouse_y_in_scroll.map(f!([model](y)
-                entry::List::<E>::entry_at_y_position(*y,model.entries.entry_count()).entry()
+                entry::List::<E>::entry_at_offset(*y,model.entries.entry_count()).entry()
             ));
 
 
@@ -345,7 +343,7 @@ where E::Model : Default {
             // === Selection Size and Position ===
 
             target_selection_y <- frp.selected_entry.map(|id|
-                id.map_or(0.0,entry::List::<E>::position_y_of_entry)
+                id.map_or(0.0,entry::List::<E>::offset_of_entry)
             );
             target_selection_height <- frp.selected_entry.map(f!([](id)
                 if id.is_some() {entry::HEIGHT} else {0.0}

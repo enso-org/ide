@@ -33,14 +33,16 @@ pub struct DisplayedEntry<E:CloneRef> {
 // === EntryList ===
 // =================
 
-/// The output of `entry_at_y_position`
+/// The output of `entry_at_offset`
 #[allow(missing_docs)]
 #[derive(Copy,Clone,Debug,Eq,Hash,PartialEq)]
-pub enum IdAtYPosition {
-    AboveFirst, UnderLast, Entry(entry::Id)
+pub enum IdAtOffset {
+    AboveFirst,
+    UnderLast,
+    Entry(entry::Id)
 }
 
-impl IdAtYPosition {
+impl IdAtOffset {
     /// Returns id of entry if present.
     pub fn entry(&self) -> Option<entry::Id> {
         if let Self::Entry(id) = self { Some(*id) }
@@ -87,18 +89,18 @@ where E::Model : Default {
     }
 
     /// Y position of entry with given id, relative to Entry List position.
-    pub fn position_y_of_entry(id:entry::Id) -> f32 { id as f32 * -entry::HEIGHT }
+    pub fn offset_of_entry(id:entry::Id) -> f32 { id as f32 * -entry::HEIGHT }
 
     /// Y range of entry with given id, relative to Entry List position.
     pub fn y_range_of_entry(id:entry::Id) -> Range<f32> {
-        let position = Self::position_y_of_entry(id);
+        let position = Self::offset_of_entry(id);
         (position - entry::HEIGHT / 2.0)..(position + entry::HEIGHT / 2.0)
     }
 
     /// Y range of all entries in this list, including not displayed.
     pub fn y_range_of_all_entries(entry_count:usize) -> Range<f32> {
         let start = if entry_count > 0 {
-            Self::position_y_of_entry(entry_count - 1) - entry::HEIGHT / 2.0
+            Self::offset_of_entry(entry_count - 1) - entry::HEIGHT / 2.0
         } else {
             entry::HEIGHT / 2.0
         };
@@ -107,8 +109,8 @@ where E::Model : Default {
     }
 
     /// Get the entry id which lays on given y coordinate.
-    pub fn entry_at_y_position(y:f32, entry_count:usize) -> IdAtYPosition {
-        use IdAtYPosition::*;
+    pub fn entry_at_offset(y:f32, entry_count:usize) -> IdAtOffset {
+        use IdAtOffset::*;
         let all_entries_start = Self::y_range_of_all_entries(entry_count).start;
         if      y > entry::HEIGHT/2.0 { AboveFirst                                   }
         else if y < all_entries_start { UnderLast                                    }
@@ -196,13 +198,13 @@ where E::Model : Default {
             old entry: {entry.id.get():?}.");
         entry.id.set(Some(id));
         match model {
-            Some(model) => entry.entry.update(model),
+            Some(model) => entry.entry.set_model(model),
             None        => {
                 error!(logger, "Model provider didn't return model for id {id}.");
-                entry.entry.update(&default());
+                entry.entry.set_model(&default());
             }
         };
-        entry.entry.set_position_y(Self::position_y_of_entry(id));
+        entry.entry.set_position_y(Self::offset_of_entry(id));
     }
 }
 

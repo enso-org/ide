@@ -10,6 +10,8 @@ use ensogl_core::display::shape::StyleWatchFrp;
 use ensogl_text as text;
 use ensogl_theme as theme;
 
+pub use list::List;
+
 
 
 // =================
@@ -23,42 +25,40 @@ pub const HEIGHT:f32 = 30.0;
 
 
 
-// ==================================
-// === Type Aliases and Reexports ===
-// ==================================
+// =============
+// === Types ===
+// =============
 
 /// Entry id. 0 is the first entry in component.
 pub type Id = usize;
 
-pub use list::List;
-
 
 
 // =============
-// === Trait ===
+// === Entry ===
 // =============
 
-/// An object which can be entry in [`crate::ListView`] component.
+/// An object which can be displayed as an entry in [`crate::ListView`] component.
 ///
-/// The entries should not assume any padding - it will be granted by ListView itself. The Display
-/// Object position of this component is docked to the middle of left entry's boundary. It differs
-/// from usual behaviour of EnsoGl components, but makes the entries alignment much simpler.
+/// The entries should not assume any padding - it will be granted by [`ListView`] itself. The
+/// display object position of this component is docked to the middle of left entry's boundary. It
+/// differs from usual behaviour of EnsoGl components, but makes the entries alignment much simpler.
 ///
 /// This trait abstracts over model and its updating in order to support re-using shapes and gui
-/// components, so they are not deleted and created again. The ListView component does not create
-/// Entry object for each entry provided, and during scrolling, the instantiated objects will be
-/// reused: they position will be changed and they will be updated using `update` method.
+/// components, so they are not deleted and created again. The [`ListView`] component does not
+/// create [`Entry`] object for each entry provided, and during scrolling, the instantiated objects
+/// will be reused: they position will be changed and they will be updated using [`update`] method.
 pub trait Entry: CloneRef + Debug + display::Object + 'static {
-    /// The model of this entry. The entry should be a representation of data from the Model.
+    /// The model of this entry. The entry should be a visual representation of the [`Model`].
     /// For example, the entry being just a caption can have [`String`] as its model - the text to
     /// be displayed.
     type Model : Debug + Default;
 
-    /// An Object constructor.
+    /// Constructor.
     fn new(app:&Application) -> Self;
 
-    /// Update content with new model.
-    fn update(&self, model:&Self::Model);
+    /// Set new model for this entry.
+    fn set_model(&self, model:&Self::Model);
 
     /// Set the layer of all [`text::Area`] components inside. The [`text::Area`] component is
     /// handled in a special way, and is often in different layer than shapes. See TODO comment
@@ -96,7 +96,7 @@ impl Entry for Label {
 
         display_object.add_child(&label);
         frp::extend! { network
-            init <- source::<()>();
+            init  <- source::<()>();
             color <- all(&color,&init)._0();
             size  <- all(&size,&init)._0();
 
@@ -108,7 +108,7 @@ impl Entry for Label {
         Self {display_object,label,network,style_watch}
     }
 
-    fn update(&self, model: &Self::Model) {
+    fn set_model(&self, model: &Self::Model) {
         self.label.set_content(model);
     }
 
@@ -162,8 +162,8 @@ impl Entry for GlyphHighlightedLabel {
         Self {inner,highlight}
     }
 
-    fn update(&self, model: &Self::Model) {
-        self.inner.update(&model.label);
+    fn set_model(&self, model: &Self::Model) {
+        self.inner.set_model(&model.label);
         self.highlight.emit(&model.highlighted);
     }
 
