@@ -4,21 +4,24 @@
 //! clicking or pressing enter - similar to the HTML `<select>`.
 
 pub mod entry;
+pub mod list;
 
-use crate::prelude::*;
-use crate::shadow;
+pub use list::List;
+
 
 use enso_frp as frp;
 use ensogl_core::application;
 use ensogl_core::application::Application;
 use ensogl_core::application::shortcut;
+use ensogl_core::DEPRECATED_Animation;
 use ensogl_core::display;
 use ensogl_core::display::scene::layer::LayerId;
 use ensogl_core::display::shape::*;
-use ensogl_core::DEPRECATED_Animation;
 use ensogl_theme as theme;
-
 pub use entry::Entry;
+
+use crate::prelude::*;
+use crate::shadow;
 
 
 
@@ -37,8 +40,9 @@ const SHAPE_PADDING:f32 = 5.0;
 
 /// The selection rectangle shape.
 pub mod selection {
-    use super::*;
     use ensogl_theme::application::searcher::selection::padding;
+
+    use super::*;
 
     /// The corner radius in pixels.
     pub const CORNER_RADIUS_PX:f32 = 12.0;
@@ -102,7 +106,7 @@ struct View {
 #[derive(Clone,CloneRef,Debug)]
 struct Model<E:Entry> {
     app            : Application,
-    entries        : entry::List<E>,
+    entries        : List<E>,
     selection      : selection::View,
     background     : background::View,
     scrolled_area  : display::object::Instance,
@@ -115,7 +119,7 @@ impl<E:Entry> Model<E> {
         let logger         = Logger::new("SelectionContainer");
         let display_object = display::object::Instance::new(&logger);
         let scrolled_area  = display::object::Instance::new(&logger);
-        let entries        = entry::List::new(&logger,&app);
+        let entries        = List::new(&logger,&app);
         let background     = background::View::new(&logger);
         let selection      = selection::View::new(&logger);
         display_object.add_child(&background);
@@ -156,10 +160,10 @@ impl<E:Entry> Model<E> {
             0..0
         } else {
             let entry_at_scroll_saturating = |y:f32| {
-                match entry::List::<E>::entry_at_offset(y,entry_count) {
-                    entry::list::IdAtOffset::AboveFirst => 0,
-                    entry::list::IdAtOffset::UnderLast  => entry_count - 1,
-                    entry::list::IdAtOffset::Entry(id)  => id,
+                match List::<E>::entry_at_offset(y,entry_count) {
+                    list::IdAtOffset::AboveFirst => 0,
+                    list::IdAtOffset::UnderLast  => entry_count - 1,
+                    list::IdAtOffset::Entry(id)  => id,
                 }
             };
             let first = entry_at_scroll_saturating(view.position_y);
@@ -286,7 +290,7 @@ where E::Model : Default {
                 scene.screen_to_object_space(&model.scrolled_area,*pos).y
             }));
             mouse_pointed_entry <- mouse_y_in_scroll.map(f!([model](y)
-                entry::List::<E>::entry_at_offset(*y,model.entries.entry_count()).entry()
+                List::<E>::entry_at_offset(*y,model.entries.entry_count()).entry()
             ));
 
 
@@ -343,7 +347,7 @@ where E::Model : Default {
             // === Selection Size and Position ===
 
             target_selection_y <- frp.selected_entry.map(|id|
-                id.map_or(0.0,entry::List::<E>::offset_of_entry)
+                id.map_or(0.0,List::<E>::offset_of_entry)
             );
             target_selection_height <- frp.selected_entry.map(f!([](id)
                 if id.is_some() {entry::HEIGHT} else {0.0}
@@ -368,7 +372,7 @@ where E::Model : Default {
             // === Scrolling ===
 
             selection_top_after_move_up <- selected_entry_after_move_up.map(|id|
-                id.map(|id| entry::List::<E>::y_range_of_entry(id).end)
+                id.map(|id| List::<E>::y_range_of_entry(id).end)
             );
             min_scroll_after_move_up <- selection_top_after_move_up.map(|top|
                 top.unwrap_or(MAX_SCROLL)
@@ -377,7 +381,7 @@ where E::Model : Default {
                 current.max(*min)
             );
             selection_bottom_after_move_down <- selected_entry_after_move_down.map(|id|
-                id.map(|id| entry::List::<E>::y_range_of_entry(id).start)
+                id.map(|id| List::<E>::y_range_of_entry(id).start)
             );
             max_scroll_after_move_down <- selection_bottom_after_move_down.map2(&frp.size,
                 |y,size| y.map_or(MAX_SCROLL, |y| y + size.y)

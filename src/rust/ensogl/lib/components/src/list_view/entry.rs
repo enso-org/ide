@@ -1,5 +1,11 @@
 //! A single entry in [`crate::list_view::ListView`].
-pub mod list;
+
+pub mod label;
+pub mod glyph_highlighted_label;
+
+pub use label::Label;
+pub use glyph_highlighted_label::GlyphHighlightedLabel;
+pub use glyph_highlighted_label::GlyphHighlightedLabelModel;
 
 use crate::prelude::*;
 
@@ -9,8 +15,6 @@ use ensogl_core::display;
 use ensogl_core::display::shape::StyleWatchFrp;
 use ensogl_text as text;
 use ensogl_theme as theme;
-
-pub use list::List;
 
 
 
@@ -66,115 +70,6 @@ pub trait Entry: CloneRef + Debug + display::Object + 'static {
     fn set_label_layer(&self, label_layer:&display::scene::Layer);
 }
 
-
-// =======================
-// === Implementations ===
-// =======================
-
-// === Label ===
-
-/// The [`Entry`] being a single text field displaying String.
-#[derive(Clone,CloneRef,Debug)]
-pub struct Label {
-    display_object : display::object::Instance,
-    label          : text::Area,
-    network        : enso_frp::Network,
-    style_watch    : StyleWatchFrp,
-}
-
-impl Entry for Label {
-    type Model = String;
-
-    fn new(app: &Application) -> Self {
-        let logger         = Logger::new("list_view::entry::Label");
-        let display_object = display::object::Instance::new(logger);
-        let label          = app.new_view::<ensogl_text::Area>();
-        let network        = frp::Network::new("list_view::entry::Label");
-        let style_watch    = StyleWatchFrp::new(&app.display.scene().style_sheet);
-        let color          = style_watch.get_color(theme::widget::list_view::text);
-        let size           = style_watch.get_number(theme::widget::list_view::text::size);
-
-        display_object.add_child(&label);
-        frp::extend! { network
-            init  <- source::<()>();
-            color <- all(&color,&init)._0();
-            size  <- all(&size,&init)._0();
-
-            label.set_default_color     <+ color;
-            label.set_default_text_size <+ size.map(|v| text::Size(*v));
-            eval size ((size) label.set_position_y(size/2.0));
-        }
-        init.emit(());
-        Self {display_object,label,network,style_watch}
-    }
-
-    fn set_model(&self, model: &Self::Model) {
-        self.label.set_content(model);
-    }
-
-    fn set_label_layer(&self, label_layer:&display::scene::Layer) {
-        self.label.add_to_scene_layer(label_layer);
-    }
-}
-
-impl display::Object for Label {
-    fn display_object(&self) -> &display::object::Instance { &self.display_object }
-}
-
-
-// === HighlightedLabel ===
-
-/// The model for [`HighlightedLabel`], being an entry displayed as a single label with highlighted
-/// some parts of text.
-#[derive(Clone,Debug,Default)]
-pub struct GlyphHighlightedLabelModel {
-    /// Displayed text.
-    pub label:String,
-    /// A list of ranges of highlighted bytes.
-    pub highlighted:Vec<text::Range<text::Bytes>>,
-}
-
-/// The [`Entry`] similar to the [`Label`], but allows highlighting some parts of text.
-#[derive(Clone,CloneRef,Debug)]
-pub struct GlyphHighlightedLabel {
-    inner     : Label,
-    highlight : frp::Source<Vec<text::Range<text::Bytes>>>,
-}
-
-impl Entry for GlyphHighlightedLabel {
-    type Model = GlyphHighlightedLabelModel;
-
-    fn new(app: &Application) -> Self {
-        let inner           = Label::new(app);
-        let network         = &inner.network;
-        let highlight_color = inner.style_watch.get_color(theme::widget::list_view::text::highlight);
-        let label           = &inner.label;
-
-        frp::extend! { network
-            highlight <- source::<Vec<text::Range<text::Bytes>>>();
-            highlight_changed <- all(highlight,highlight_color);
-            eval highlight_changed ([label]((highlight,color)) {
-                for range in highlight {
-                   label.set_color_bytes(range,color);
-                }
-            });
-        }
-        Self {inner,highlight}
-    }
-
-    fn set_model(&self, model: &Self::Model) {
-        self.inner.set_model(&model.label);
-        self.highlight.emit(&model.highlighted);
-    }
-
-    fn set_label_layer(&self, layer:&display::scene::Layer) {
-        self.inner.set_label_layer(layer);
-    }
-}
-
-impl display::Object for GlyphHighlightedLabel {
-    fn display_object(&self) -> &display::object::Instance { self.inner.display_object() }
-}
 
 
 
