@@ -54,7 +54,7 @@ impl MockEntries {
 }
 
 impl list_view::entry::Provider<list_view::entry::GlyphHighlightedLabel> for MockEntries {
-    fn entry_count(&self) -> usize { self.entries_count }
+    fn len(&self) -> usize { self.entries_count }
 
     fn get(&self, id:usize) -> Option<list_view::entry::GlyphHighlightedLabelModel> {
         if id >= self.entries_count {

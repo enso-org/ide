@@ -26,7 +26,7 @@ use crate::list_view::entry;
 /// essentially providing an implementor of this trait.
 pub trait Provider<E> : Debug {
     /// Number of all entries.
-    fn entry_count(&self) -> usize;
+    fn len(&self) -> usize;
 
     /// Get the model of entry with given id. The implementors should return `None` only when
     /// requested id greater or equal to entries count.
@@ -43,7 +43,7 @@ pub trait Provider<E> : Debug {
 impl<E,T> Provider<E> for Vec<T>
     where E : Entry,
           T : Debug + Clone + Into<E::Model> {
-    fn entry_count(&self) -> usize {
+    fn len(&self) -> usize {
         self.len()
     }
 

@@ -281,7 +281,7 @@ impl DropDownMenu {
             target_height <- all_with(&frp.output.menu_visible,&model.selection_menu.frp.set_entries,
                 f!([](visible,entries) {
                     if *visible {
-                        let item_count  = entries.entry_count();
+                        let item_count  = entries.len();
                         let line_height = list_view::entry::HEIGHT;
                         line_height * item_count as f32
                     } else {

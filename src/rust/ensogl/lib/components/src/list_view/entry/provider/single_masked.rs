@@ -17,10 +17,10 @@ pub struct SingleMasked<E> {
 }
 
 impl<E:Debug> entry::Provider<E> for SingleMasked<E> {
-    fn entry_count(&self) -> usize {
+    fn len(&self) -> usize {
         match self.mask.get() {
-            None    => self.content.entry_count(),
-            Some(_) => self.content.entry_count().saturating_sub(1),
+            None    => self.content.len(),
+            Some(_) => self.content.len().saturating_sub(1),
         }
     }
 
@@ -104,32 +104,32 @@ mod tests {
         let provider    = entry::provider::Any::<Label>::new(test_models);
         let provider:SingleMasked<Label> = provider.into();
 
-        assert_eq!(provider.entry_count(), 4);
+        assert_eq!(provider.len(), 4);
         assert_eq!(provider.get(0).unwrap(), "A");
         assert_eq!(provider.get(1).unwrap(), "B");
         assert_eq!(provider.get(2).unwrap(), "C");
         assert_eq!(provider.get(3).unwrap(), "D");
 
         provider.set_mask_raw(0);
-        assert_eq!(provider.entry_count(), 3);
+        assert_eq!(provider.len(), 3);
         assert_eq!(provider.get(0).unwrap(), "B");
         assert_eq!(provider.get(1).unwrap(), "C");
         assert_eq!(provider.get(2).unwrap(), "D");
 
         provider.set_mask_raw(1);
-        assert_eq!(provider.entry_count(), 3);
+        assert_eq!(provider.len(), 3);
         assert_eq!(provider.get(0).unwrap(), "A");
         assert_eq!(provider.get(1).unwrap(), "C");
         assert_eq!(provider.get(2).unwrap(), "D");
 
         provider.set_mask_raw(2);
-        assert_eq!(provider.entry_count(), 3);
+        assert_eq!(provider.len(), 3);
         assert_eq!(provider.get(0).unwrap(), "A");
         assert_eq!(provider.get(1).unwrap(), "B");
         assert_eq!(provider.get(2).unwrap(), "D");
 
         provider.set_mask_raw(3);
-        assert_eq!(provider.entry_count(), 3);
+        assert_eq!(provider.len(), 3);
         assert_eq!(provider.get(0).unwrap(), "A");
         assert_eq!(provider.get(1).unwrap(), "B");
         assert_eq!(provider.get(2).unwrap(), "C");

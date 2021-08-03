@@ -1898,7 +1898,7 @@ impl SuggestionsProviderForView {
 }
 
 impl list_view::entry::Provider<GlyphHighlightedLabel> for SuggestionsProviderForView {
-    fn entry_count(&self) -> usize {
+    fn len(&self) -> usize {
         self.actions.matching_count()
     }
 
@@ -1976,7 +1976,7 @@ impl ProjectsToOpen {
 }
 
 impl list_view::entry::Provider<open_dialog::project_list::Entry> for ProjectsToOpen {
-    fn entry_count(&self) -> usize { self.projects.len() }
+    fn len(&self) -> usize { self.projects.len() }
 
     fn get(&self, id:list_view::entry::Id)
     -> Option<<open_dialog::project_list::Entry as list_view::Entry> ::Model> {

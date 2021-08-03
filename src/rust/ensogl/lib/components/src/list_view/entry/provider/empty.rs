@@ -16,6 +16,6 @@ use crate::list_view::Entry;
 pub struct Empty;
 
 impl<E> entry::Provider<E> for Empty {
-    fn entry_count(&self)          -> usize                            { 0    }
-    fn get        (&self, _:usize) -> Option<E::Model> where E : Entry { None }
+    fn len (&self)          -> usize                            { 0    }
+    fn get (&self, _:usize) -> Option<E::Model> where E : Entry { None }
 }

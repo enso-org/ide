@@ -4,9 +4,9 @@ pub mod label;
 pub mod glyph_highlighted_label;
 pub mod provider;
 
-pub use label::Label;
 pub use glyph_highlighted_label::GlyphHighlightedLabel;
 pub use glyph_highlighted_label::GlyphHighlightedLabelModel;
+pub use label::Label;
 pub use provider::Provider;
 
 use crate::prelude::*;
@@ -67,19 +67,3 @@ pub trait Entry: CloneRef + Debug + display::Object + 'static {
     /// in [`text::Area::add_to_scene_layer`] method.
     fn set_label_layer(&self, label_layer:&display::scene::Layer);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

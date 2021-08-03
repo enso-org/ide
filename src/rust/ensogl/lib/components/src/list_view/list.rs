@@ -80,7 +80,7 @@ where E::Model : Default {
 
     /// The number of all entries in List, including not displayed.
     pub fn entry_count(&self) -> usize {
-        self.provider.get().entry_count()
+        self.provider.get().len()
     }
 
     /// The number of all displayed entries in List.
@@ -119,7 +119,7 @@ where E::Model : Default {
 
     /// Update displayed entries to show the given range.
     pub fn update_entries(&self, mut range:Range<entry::Id>) {
-        range.end = range.end.min(self.provider.get().entry_count());
+        range.end = range.end.min(self.provider.get().len());
         if range != self.entries_range.get() {
             debug!(self.logger, "Update entries for {range:?}");
             let provider = self.provider.get();
@@ -147,12 +147,12 @@ where E::Model : Default {
     (&self, provider:impl Into<entry::provider::Any<E>> + 'static, mut range:Range<entry::Id>) {
         const MAX_SAFE_ENTRIES_COUNT:usize = 1000;
         let provider = provider.into();
-        if provider.entry_count() > MAX_SAFE_ENTRIES_COUNT {
+        if provider.len() > MAX_SAFE_ENTRIES_COUNT {
             error!(self.logger, "ListView entry count exceed {MAX_SAFE_ENTRIES_COUNT} - so big \
             number of entries can cause visual glitches, e.g. https://github.com/enso-org/ide/\
             issues/757 or https://github.com/enso-org/ide/issues/758");
         }
-        range.end       = range.end.min(provider.entry_count());
+        range.end       = range.end.min(provider.len());
         let models      = range.clone().map(|id| (id,provider.get(id)));
         let mut entries = self.entries.borrow_mut();
         entries.resize_with(range.len(),|| self.create_new_entry());

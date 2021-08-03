@@ -151,7 +151,7 @@ impl<E:Entry> Model<E> {
     }
 
     fn set_entries(&self, provider:entry::provider::Any<E>, view:&View) {
-        let visible_entries = Self::visible_entries(view,provider.entry_count());
+        let visible_entries = Self::visible_entries(view,provider.len());
         self.entries.update_entries_new_provider(provider,visible_entries);
     }
 
