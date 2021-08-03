@@ -507,7 +507,7 @@ async function updateBuildVersion (argv) {
 async function installJsDeps() {
     let initialized = fss.existsSync(paths.dist.init)
     if (!initialized) {
-        console.log('Downloading binary assets')
+        console.log('Downloading binary assets.')
         await downloadJsAssets()
         console.log('Installing application dependencies.')
         await cmd.with_cwd(paths.js.root, async () => {
