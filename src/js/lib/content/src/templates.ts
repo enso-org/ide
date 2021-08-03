@@ -17,16 +17,6 @@ const ALL_CARDS = [
     CARD_VISUALIZE,
 ]
 
-const VID_INTRO = 'vid-intro'
-const VID_ENSO2 = 'vid-enso2'
-const VID_JAVA = 'vid-java'
-const VID_COMPILER = 'vid-compiler'
-
-const VID_INTRO_URL = 'https://youtu.be/wFkh5LgAZTs'
-const VID_ENSO2_URL = 'https://youtu.be/rF8DuJPOfTs'
-const VID_JAVA_URL = 'https://youtu.be/bcpOEX1x06I'
-const VID_COMPILER_URL = 'https://youtu.be/BibjcUjdkO4'
-
 /**
  * The sore for hidden elements.
  *
@@ -60,7 +50,6 @@ async function loadTemplatesView(openProject: (project: string) => void): Promis
     }
 
     setTemplateCardHandlers(openProject)
-    setYoutubeTutorialHandlers()
 }
 
 /**
@@ -250,31 +239,5 @@ function getProjectTemplate(elementId: string): string {
             return 'default'
     }
 }
-
-/**
- * Set the `onclick` callback for all the tutorial videos.
- */
-function setYoutubeTutorialHandlers(): void {
-    setYoutubeTutorialHandler(VID_INTRO, VID_INTRO_URL)
-    setYoutubeTutorialHandler(VID_ENSO2, VID_ENSO2_URL)
-    setYoutubeTutorialHandler(VID_JAVA, VID_JAVA_URL)
-    setYoutubeTutorialHandler(VID_COMPILER, VID_COMPILER_URL)
-}
-
-/**
- * Set the `onclick` callback for the tutorial video.
- *
- * @param elementId the HTML id of the tutorial card
- * @param link the link to the YouTube video
- */
-function setYoutubeTutorialHandler(elementId: string, link: string): void {
-    const element = document.getElementById(elementId)
-    element.setAttribute('style', 'cursor: pointer;')
-    element.onclick = () => {
-        window.open(link, 'newwindow', 'width=1280,height=720')
-        return false
-    }
-}
-
 
 export { loadTemplatesView }

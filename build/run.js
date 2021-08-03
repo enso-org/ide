@@ -522,7 +522,6 @@ async function installJsDeps() {
 async function downloadJsAssets() {
     const workdir = path.join(paths.root, '.assets-temp')
     await cmd.with_cwd(paths.root, async () => {
-        await cmd.run('rm', ['-r', workdir])
         await cmd.run('mkdir', ['-p', workdir])
     })
     const ideAssetsMainZip = 'ide-assets-main.zip'
