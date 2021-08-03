@@ -79,7 +79,7 @@ fn init(app:&Application) {
     theme::builtin::light::enable(&app);
 
     let list_view = app.new_view::<list_view::ListView<list_view::entry::GlyphHighlightedLabel>>();
-    let provider  = list_view::entry::AnyProvider::new(MockEntries::new(app,1000));
+    let provider  = list_view::entry::provider::Any::new(MockEntries::new(app,1000));
     list_view.frp.resize(Vector2(100.0,160.0));
     list_view.frp.set_entries(provider);
     app.display.add_child(&list_view);

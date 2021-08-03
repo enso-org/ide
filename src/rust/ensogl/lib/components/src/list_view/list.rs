@@ -60,7 +60,7 @@ pub struct List<E:CloneRef> {
     display_object : display::object::Instance,
     entries        : Rc<RefCell<Vec<DisplayedEntry<E>>>>,
     entries_range  : Rc<CloneCell<Range<entry::Id>>>,
-    provider       : Rc<CloneRefCell<entry::AnyProvider<E>>>,
+    provider       : Rc<CloneRefCell<entry::provider::Any<E>>>,
     label_layer    : Rc<Cell<LayerId>>,
 }
 
@@ -144,7 +144,7 @@ where E::Model : Default {
 
     /// Update displayed entries, giving new provider.
     pub fn update_entries_new_provider
-    (&self, provider:impl Into<entry::AnyProvider<E>> + 'static, mut range:Range<entry::Id>) {
+    (&self, provider:impl Into<entry::provider::Any<E>> + 'static, mut range:Range<entry::Id>) {
         const MAX_SAFE_ENTRIES_COUNT:usize = 1000;
         let provider = provider.into();
         if provider.entry_count() > MAX_SAFE_ENTRIES_COUNT {

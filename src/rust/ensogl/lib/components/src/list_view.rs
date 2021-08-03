@@ -150,7 +150,7 @@ impl<E:Entry> Model<E> {
         self.entries.update_entries(visible_entries);
     }
 
-    fn set_entries(&self, provider:entry::AnyProvider<E>, view:&View) {
+    fn set_entries(&self, provider:entry::provider::Any<E>, view:&View) {
         let visible_entries = Self::visible_entries(view,provider.entry_count());
         self.entries.update_entries_new_provider(provider,visible_entries);
     }
@@ -184,7 +184,7 @@ impl<E:Entry> Model<E> {
     (&self, current_entry:Option<entry::Id>, jump:isize) -> Option<entry::Id> {
         if jump < 0 {
             let current_entry = current_entry?;
-            if current_entry == 0 { None                                    }
+            if current_entry == 0 { None }
             else                  { Some(current_entry.saturating_sub(-jump as usize)) }
         } else {
             let max_entry = self.entries.entry_count().checked_sub(1)?;
@@ -221,7 +221,7 @@ ensogl_core::define_endpoints! {
 
         resize       (Vector2<f32>),
         scroll_jump  (f32),
-        set_entries  (entry::AnyProvider<E>),
+        set_entries  (entry::provider::Any<E>),
         select_entry (entry::Id),
         chose_entry  (entry::Id),
     }

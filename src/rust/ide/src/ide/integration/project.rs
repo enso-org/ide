@@ -42,7 +42,7 @@ use ide_view::graph_editor::component::visualization;
 use ide_view::graph_editor::EdgeEndpoint;
 use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
-use ide_view::searcher::entry::AnyProvider;
+use ide_view::searcher::entry;
 use ide_view::open_dialog;
 use utils::iter::split_by_predicate;
 use futures::future::LocalBoxFuture;
@@ -1560,7 +1560,7 @@ impl Model {
                         Ok(projects) => {
                             let entries = ProjectsToOpen::new(projects);
                             this.displayed_project_list.set(entries.clone_ref());
-                            let any_entries = AnyProvider::new(entries);
+                            let any_entries = entry::provider::Any::new(entries);
                             this.view.open_dialog().project_list.set_entries(any_entries)
                         },
                         Err(error) => error!(this.logger,"Error when loading project's list: {error}"),

@@ -11,7 +11,6 @@ use ensogl_gui_components::drop_down_menu;
 use logger::TraceLogger as Logger;
 use wasm_bindgen::prelude::*;
 use ensogl_core::display::Scene;
-use ensogl_text::buffer::data::unit::Bytes;
 use ensogl_theme as theme;
 
 
@@ -78,7 +77,7 @@ fn init(app:&Application) {
     theme::builtin::light::enable(&app);
 
     let menu     = drop_down_menu::DropDownMenu::new(app);
-    let provider = list_view::entry::AnyProvider::new(MockEntries::new(app,1000));
+    let provider = list_view::entry::provider::Any::new(MockEntries::new(app,1000));
     // menu.frp.resize(Vector2(100.0,160.0));
     menu.frp.set_entries(provider);
     app.display.add_child(&menu);

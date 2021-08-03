@@ -2,19 +2,17 @@
 
 pub mod label;
 pub mod glyph_highlighted_label;
+pub mod provider;
 
 pub use label::Label;
 pub use glyph_highlighted_label::GlyphHighlightedLabel;
 pub use glyph_highlighted_label::GlyphHighlightedLabelModel;
+pub use provider::Provider;
 
 use crate::prelude::*;
 
-use enso_frp as frp;
 use ensogl_core::application::Application;
 use ensogl_core::display;
-use ensogl_core::display::shape::StyleWatchFrp;
-use ensogl_text as text;
-use ensogl_theme as theme;
 
 
 
@@ -73,207 +71,15 @@ pub trait Entry: CloneRef + Debug + display::Object + 'static {
 
 
 
-// =================
-// === Providers ===
-// =================
-
-// === The Trait ===
-
-/// The Model Provider for ListView's entries of type `E`.
-///
-/// The [`crate::ListView`] component does not display all entries at once, instead it lazily ask
-/// for models of entries when they're about to be displayed. So setting the select content is
-/// essentially providing an implementor of this trait.
-pub trait Provider<E> : Debug {
-    /// Number of all entries.
-    fn entry_count(&self) -> usize;
-
-    /// Get the model of entry with given id. The implementors should return `None` only when
-    /// requested id greater or equal to entries count.
-    fn get(&self, id:Id) -> Option<E::Model>
-    where E : Entry;
-}
-
-
-// === AnyProvider ===
-
-/// A wrapper for shared instance of some Provider of models for `E` entries.
-#[derive(Debug,Shrinkwrap)]
-pub struct AnyProvider<E>(Rc<dyn Provider<E>>);
-
-impl<E> Clone    for AnyProvider<E> { fn clone    (&self) -> Self { Self(self.0.clone())     }}
-impl<E> CloneRef for AnyProvider<E> { fn clone_ref(&self) -> Self { Self(self.0.clone_ref()) }}
-
-impl<E> AnyProvider<E> {
-    /// Create from typed provider.
-    pub fn new<T:Provider<E>+'static>(provider:T) -> Self {
-        Self(Rc::new(provider))
-    }
-}
-
-impl<E,T:Provider<E>+'static> From<Rc<T>> for AnyProvider<E> {
-    fn from(provider:Rc<T>) -> Self { Self(provider) }
-}
-
-impl<E> Default for AnyProvider<E> {
-    fn default() -> Self { Self::new(EmptyProvider) }
-}
-
-
-// === EmptyProvider ===
-
-/// An Entry Model Provider giving no entries.
-///
-/// This is the default provider for new select components.
-#[derive(Clone,CloneRef,Copy,Debug)]
-pub struct EmptyProvider;
-
-impl<E> Provider<E> for EmptyProvider {
-    fn entry_count(&self)          -> usize                            { 0    }
-    fn get        (&self, _:usize) -> Option<E::Model> where E : Entry { None }
-}
-
-
-// === Provider for Vectors ===
-
-impl<E,T> Provider<E> for Vec<T>
-where E : Entry,
-      T : Debug + Clone + Into<E::Model> {
-    fn entry_count(&self) -> usize {
-        self.len()
-    }
-
-    fn get(&self, id:usize) -> Option<E::Model> {
-       Some(<[T]>::get(self, id)?.clone().into())
-    }
-}
-
-
-// === SingleMaskedProvider ===
-
-/// An Entry Model Provider that wraps a `AnyProvider` and allows the masking of a single item.
-#[derive(Clone,Debug)]
-pub struct SingleMaskedProvider<E> {
-    content : AnyProvider<E>,
-    mask    : Cell<Option<Id>>,
-}
-
-impl<E:Debug> Provider<E> for SingleMaskedProvider<E> {
-    fn entry_count(&self) -> usize {
-        match self.mask.get() {
-            None    => self.content.entry_count(),
-            Some(_) => self.content.entry_count().saturating_sub(1),
-        }
-    }
-
-    fn get(&self, ix:usize) -> Option<E::Model>
-    where E : Entry {
-        let internal_ix = self.unmasked_index(ix);
-        self.content.get(internal_ix)
-    }
-}
-
-impl<E> SingleMaskedProvider<E> {
-
-    /// Return the index to the unmasked underlying data. Will only be valid to use after
-    /// calling `clear_mask`.
-    ///
-    /// Transform index of an element visible in the menu, to the index of the all the objects,
-    /// accounting for the removal of the selected item.
-    ///
-    /// Example:
-    /// ```text
-    /// Mask              `Some(1)`
-    /// Masked indices    [0,     1, 2]
-    /// Unmasked Index    [0, 1,  2, 3]
-    /// -------------------------------
-    /// Mask              `None`
-    /// Masked indices    [0, 1, 2, 3]
-    /// Unmasked Index    [0, 1, 2, 3]
-    /// ```
-    pub fn unmasked_index(&self, ix:Id) -> Id {
-        match self.mask.get() {
-            None                 => ix,
-            Some(id) if ix < id  => ix,
-            Some(_)              => ix+1,
-        }
-    }
-
-    /// Mask out the given index. All methods will now skip this item and the `SingleMaskedProvider`
-    /// will behave as if it was not there.
-    ///
-    /// *Important:* The index is interpreted according to the _masked_ position of elements.
-    pub fn set_mask(&self, ix:Id) {
-        let internal_ix = self.unmasked_index(ix);
-        self.mask.set(Some(internal_ix));
-    }
-
-    /// Mask out the given index. All methods will now skip this item and the `SingleMaskedProvider`
-    /// will behave as if it was not there.
-    ///
-    /// *Important:* The index is interpreted according to the _unmasked_ position of elements.
-    pub fn set_mask_raw(&self, ix:Id) {
-        self.mask.set(Some(ix));
-    }
-
-    /// Clear the masked item.
-    pub fn clear_mask(&self) {
-        self.mask.set(None)
-    }
-}
-
-impl<E> From<AnyProvider<E>> for SingleMaskedProvider<E> {
-    fn from(content:AnyProvider<E>) -> Self {
-        let mask = default();
-        SingleMaskedProvider{content,mask}
-    }
-}
 
 
 
-// =============
-// === Tests ===
-// =============
 
-#[cfg(test)]
-mod tests {
-    use super::*;
 
-    #[test]
-    fn test_masked_provider() {
-        let test_data   = vec!["A", "B", "C", "D"];
-        let test_models = test_data.into_iter().map(|label| label.to_owned()).collect_vec();
-        let provider    = AnyProvider::<Label>::new(test_models);
-        let provider:SingleMaskedProvider<Label> = provider.into();
 
-        assert_eq!(provider.entry_count(), 4);
-        assert_eq!(provider.get(0).unwrap(), "A");
-        assert_eq!(provider.get(1).unwrap(), "B");
-        assert_eq!(provider.get(2).unwrap(), "C");
-        assert_eq!(provider.get(3).unwrap(), "D");
 
-        provider.set_mask_raw(0);
-        assert_eq!(provider.entry_count(), 3);
-        assert_eq!(provider.get(0).unwrap(), "B");
-        assert_eq!(provider.get(1).unwrap(), "C");
-        assert_eq!(provider.get(2).unwrap(), "D");
 
-        provider.set_mask_raw(1);
-        assert_eq!(provider.entry_count(), 3);
-        assert_eq!(provider.get(0).unwrap(), "A");
-        assert_eq!(provider.get(1).unwrap(), "C");
-        assert_eq!(provider.get(2).unwrap(), "D");
 
-        provider.set_mask_raw(2);
-        assert_eq!(provider.entry_count(), 3);
-        assert_eq!(provider.get(0).unwrap(), "A");
-        assert_eq!(provider.get(1).unwrap(), "B");
-        assert_eq!(provider.get(2).unwrap(), "D");
 
-        provider.set_mask_raw(3);
-        assert_eq!(provider.entry_count(), 3);
-        assert_eq!(provider.get(0).unwrap(), "A");
-        assert_eq!(provider.get(1).unwrap(), "B");
-        assert_eq!(provider.get(2).unwrap(), "C");
-    }
-}
+
+

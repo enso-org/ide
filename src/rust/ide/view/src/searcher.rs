@@ -57,7 +57,7 @@ pub trait DocumentationProvider : Debug {
     fn get_for_entry(&self, id:entry::Id) -> Option<String>;
 }
 
-impl DocumentationProvider for entry::EmptyProvider {
+impl DocumentationProvider for entry::provider::Empty {
     fn get_for_entry(&self, _:entry::Id) -> Option<String> { None }
 }
 
@@ -69,7 +69,7 @@ impl DocumentationProvider for entry::EmptyProvider {
 pub struct AnyDocumentationProvider {rc:Rc<dyn DocumentationProvider>}
 
 impl Default for AnyDocumentationProvider {
-    fn default() -> Self { entry::EmptyProvider.into() }
+    fn default() -> Self { entry::provider::Empty.into() }
 }
 
 impl<T:DocumentationProvider + 'static> From<T> for AnyDocumentationProvider {
@@ -148,7 +148,7 @@ ensogl::define_endpoints! {
     Input {
         /// Use the selected action as a suggestion and add it to the current input.
         use_as_suggestion (),
-        set_actions       (entry::AnyProvider<list_view::entry::GlyphHighlightedLabel>,AnyDocumentationProvider),
+        set_actions       (entry::provider::Any<list_view::entry::GlyphHighlightedLabel>,AnyDocumentationProvider),
         select_action     (entry::Id),
         show              (),
         hide              (),
@@ -240,8 +240,8 @@ impl View {
     /// `set_suggestion` input (FRP nodes cannot be generic).
     pub fn set_actions
     (&self, provider:Rc<impl list_view::entry::Provider<Entry> + DocumentationProvider + 'static>) {
-        let entries       : list_view::entry::AnyProvider<Entry> = provider.clone_ref().into();
-        let documentation : AnyDocumentationProvider             = provider.into();
+        let entries       : list_view::entry::provider::Any<Entry> = provider.clone_ref().into();
+        let documentation : AnyDocumentationProvider               = provider.into();
         self.frp.set_actions(entries,documentation);
     }
 
@@ -249,7 +249,7 @@ impl View {
     ///
     /// It just set empty provider using FRP `set_actions` input.
     pub fn clear_actions(&self) {
-        let provider = Rc::new(list_view::entry::EmptyProvider);
+        let provider = Rc::new(list_view::entry::provider::Empty);
         self.set_actions(provider);
     }
 }
