@@ -103,8 +103,9 @@ mod prompt_background {
 // === Model ===
 // =============
 
+/// Internal data of the project view.
 #[derive(Clone,CloneRef,Debug)]
-struct Model {
+pub struct Model {
     app                    : Application,
     logger                 : Logger,
     display_object         : display::object::Instance,
@@ -219,49 +220,55 @@ impl Model {
     fn add_node_and_edit(&self) -> NodeId {
         let graph_editor_inputs = &self.graph_editor.frp.input;
         let node_id = if let Some(selected) = self.graph_editor.model.nodes.selected.first_cloned() {
-            let selected_pos = self.graph_editor.model.get_node_position(selected).unwrap_or_default();
-            let styles       = StyleWatch::new(&self.app.display.scene().style_sheet);
-            use ensogl_theme::project as theme;
-            let x_gap    = styles.get_number(theme::default_x_gap_between_nodes);
-            let y_gap    = styles.get_number(theme::default_y_gap_between_nodes);
-            let y_offset = y_gap + node::HEIGHT;
-            let mut x    = selected_pos.x;
-            let y        = selected_pos.y - y_offset;
-            // Push x to the right until we find a position where we have enough space for the new
-            // node, including a margin of size `x_gap`/`y_gap` on all sides.
-            {
-                let nodes             = self.graph_editor.model.nodes.all.raw.borrow();
-                // We subtract `f32::EPSILON` to be sure that we do not include the selected node.
-                let maybe_overlapping = nodes.values().filter(|node|
-                    (node.position().y - y).abs() < y_offset - f32::EPSILON);
-                let maybe_overlapping = maybe_overlapping.sorted_by_key(|n|
-                    OrderedFloat(n.position().x));
-                // This is how much horizontal space we are looking for.
-                let assumed_width = styles.get_number(theme::assumed_node_width);
-                for node in maybe_overlapping {
-                    let node_left  = node.position().x - x_gap;
-                    let node_right = node.position().x + node.view.model.width() + x_gap;
-                    if x + assumed_width > node_left {
-                        x = x.max(node_right);
-                    } else {
-                        // Since `maybe_overlapping` is sorted, we know that the if-condition will
-                        // be false for all following `node`s as well. Therefore, we can skip the
-                        // remaining iterations.
-                        break;
-                    }
-                }
-            }
-            let pos = Vector2(x,y);
-            graph_editor_inputs.add_node.emit(());
-            let node_id = self.graph_editor.frp.output.node_added.value();
-            self.graph_editor.set_node_position((node_id,pos));
-            node_id
+            self.add_node_below(selected)
         } else {
             graph_editor_inputs.add_node_at_cursor.emit(());
             self.graph_editor.frp.output.node_added.value()
         };
         graph_editor_inputs.set_node_expression.emit(&(node_id,Expression::default()));
         graph_editor_inputs.edit_node.emit(&node_id);
+        node_id
+    }
+
+    /// Ads a new node below `parent` and returns its ID. If there is not enough space right below
+    /// `parent` then the new node is moved to the right to first gap that is large enough.
+    pub fn add_node_below(&self, parent:NodeId) -> NodeId {
+        let parent_pos = self.graph_editor.model.get_node_position(parent).unwrap_or_default();
+        let styles     = StyleWatch::new(&self.app.display.scene().style_sheet);
+        use ensogl_theme::project as theme;
+        let x_gap    = styles.get_number(theme::default_x_gap_between_nodes);
+        let y_gap    = styles.get_number(theme::default_y_gap_between_nodes);
+        let y_offset = y_gap + node::HEIGHT;
+        let mut x    = parent_pos.x;
+        let y        = parent_pos.y - y_offset;
+        // Push x to the right until we find a position where we have enough space for the new
+        // node, including a margin of size `x_gap`/`y_gap` on all sides.
+        {
+            let nodes             = self.graph_editor.model.nodes.all.raw.borrow();
+            // We subtract `f32::EPSILON` to be sure that we do not include the selected node.
+            let maybe_overlapping = nodes.values().filter(|node|
+                (node.position().y - y).abs() < y_offset - f32::EPSILON);
+            let maybe_overlapping = maybe_overlapping.sorted_by_key(|n|
+                OrderedFloat(n.position().x));
+            // This is how much horizontal space we are looking for.
+            let assumed_width = styles.get_number(theme::assumed_node_width);
+            for node in maybe_overlapping {
+                let node_left  = node.position().x - x_gap;
+                let node_right = node.position().x + node.view.model.width() + x_gap;
+                if x + assumed_width > node_left {
+                    x = x.max(node_right);
+                } else {
+                    // Since `maybe_overlapping` is sorted, we know that the if-condition will
+                    // be false for all following `node`s as well. Therefore, we can skip the
+                    // remaining iterations.
+                    break;
+                }
+            }
+        }
+        let pos = Vector2(x,y);
+        self.graph_editor.add_node.emit(());
+        let node_id = self.graph_editor.frp.output.node_added.value();
+        self.graph_editor.set_node_position((node_id,pos));
         node_id
     }
 
@@ -354,8 +361,8 @@ mod js {
 #[allow(missing_docs)]
 #[derive(Clone,CloneRef,Debug)]
 pub struct View {
-    model   : Model,
-    pub frp : Frp,
+    pub model : Model,
+    pub frp   : Frp,
 }
 
 impl Deref for View {
