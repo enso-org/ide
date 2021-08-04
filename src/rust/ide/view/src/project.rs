@@ -24,6 +24,7 @@ use ensogl::DEPRECATED_Animation;
 use ensogl::system::web;
 use ensogl::system::web::dom;
 use ensogl_theme::Theme as Theme;
+use ordered_float::OrderedFloat;
 
 
 
@@ -67,7 +68,7 @@ ensogl::define_endpoints! {
         code_editor_shown                   (bool),
         style                               (Theme),
         fullscreen_visualization_shown      (bool),
-        default_gap_between_nodes           (f32),
+        default_y_gap_between_nodes         (f32),
         drop_files_enabled                  (bool),
     }
 }
@@ -220,9 +221,37 @@ impl Model {
         let node_id = if let Some(selected) = self.graph_editor.model.nodes.selected.first_cloned() {
             let selected_pos = self.graph_editor.model.get_node_position(selected).unwrap_or_default();
             let styles       = StyleWatch::new(&self.app.display.scene().style_sheet);
-            let offset_y     = styles.get_number(ensogl_theme::project::default_gap_between_nodes);
-            let y            = selected_pos.y - offset_y;
-            let pos          = Vector2(selected_pos.x,y);
+            use ensogl_theme::project as theme;
+            let x_gap    = styles.get_number(theme::default_x_gap_between_nodes);
+            let y_gap    = styles.get_number(theme::default_y_gap_between_nodes);
+            let y_offset = y_gap + node::HEIGHT;
+            let mut x    = selected_pos.x;
+            let y        = selected_pos.y - y_offset;
+            // Push x to the right until we find a position where we have enough space for the new
+            // node, including a margin of size `x_gap`/`y_gap` on all sides.
+            {
+                let nodes             = self.graph_editor.model.nodes.all.raw.borrow();
+                // We subtract `f32::EPSILON` to be sure that we do not include the selected node.
+                let maybe_overlapping = nodes.values().filter(|node|
+                    (node.position().y - y).abs() < y_offset - f32::EPSILON);
+                let maybe_overlapping = maybe_overlapping.sorted_by_key(|n|
+                    OrderedFloat(n.position().x));
+                // This is how much horizontal space we are looking for.
+                let assumed_width = styles.get_number(theme::assumed_node_width);
+                for node in maybe_overlapping {
+                    let node_left  = node.position().x - x_gap;
+                    let node_right = node.position().x + node.view.model.width() + x_gap;
+                    if x + assumed_width > node_left {
+                        x = x.max(node_right);
+                    } else {
+                        // Since `maybe_overlapping` is sorted, we know that the if-condition will
+                        // be false for all following `node`s as well. Therefore, we can skip the
+                        // remaining iterations.
+                        break;
+                    }
+                }
+            }
+            let pos = Vector2(x,y);
             graph_editor_inputs.add_node.emit(());
             let node_id = self.graph_editor.frp.output.node_added.value();
             self.graph_editor.set_node_position((node_id,pos));
@@ -372,15 +401,15 @@ impl View {
         //   See: https://github.com/enso-org/ide/issues/795
         app.themes.update();
 
-        let style_sheet                    = &scene.style_sheet;
-        let styles                         = StyleWatchFrp::new(style_sheet);
-        let default_gap_between_nodes_path = ensogl_theme::project::default_gap_between_nodes;
+        let style_sheet        = &scene.style_sheet;
+        let styles             = StyleWatchFrp::new(style_sheet);
+        let default_y_gap_path = ensogl_theme::project::default_y_gap_between_nodes;
 
-        let default_gap_between_nodes = styles.get_number_or(default_gap_between_nodes_path, 0.0);
+        let default_y_gap = styles.get_number_or(default_y_gap_path,0.0);
         frp::extend! { network
-            frp.source.default_gap_between_nodes <+ default_gap_between_nodes;
+            frp.source.default_y_gap_between_nodes <+ default_y_gap;
         }
-        frp.source.default_gap_between_nodes.emit(default_gap_between_nodes.value());
+        frp.source.default_y_gap_between_nodes.emit(default_y_gap.value());
 
         if let Some(window_control_buttons) = &*model.window_control_buttons {
             let initial_size = &window_control_buttons.size.value();

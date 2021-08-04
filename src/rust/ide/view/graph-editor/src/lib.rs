@@ -3159,13 +3159,15 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
     // === Dropped Files ===
     // =====================
 
-    let default_gap    = model.styles_frp.get_number_or(theme::project::default_gap_between_nodes,0.0);
+    use theme::project::default_y_gap_between_nodes as gap_path;
+    let default_gap    = model.styles_frp.get_number_or(gap_path,0.0);
     let files_received = model.drop_manager.files_received().clone_ref();
     frp::extend! { network
         files_with_positions <- files_received.map3(&cursor_pos_in_scene,&default_gap,
             |files,cursor_pos,default_gap| {
+                let single_offset = default_gap + node::HEIGHT;
                 files.iter().enumerate().map(|(index,file)| {
-                    let offset = Vector2(0.0, default_gap * index as f32);
+                    let offset = Vector2(0.0, single_offset * index as f32);
                     (file.clone_ref(),cursor_pos+offset)
                 }).collect_vec()
             }

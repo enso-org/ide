@@ -316,7 +316,9 @@ define_themes! { [light:0, dark:1]
         }
     }
     project {
-        default_gap_between_nodes = 60.0, 60.0;
+        default_x_gap_between_nodes = 48.0  , 48.0;
+        default_y_gap_between_nodes = 32.0  , 32.0;
+        assumed_node_width          = 150.0 , 150.0;
     }
     code {
         syntax {
