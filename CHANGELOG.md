@@ -11,6 +11,10 @@ these updates be shipped in a stable release before the end of the year.
 - [New look of open project dialog.][1700]. Now it has "Open project" title on
   the top.
 - [Documentation cooments are displayed next to the nodes.][1744].
+- [Auto-layout for new nodes.][1755]. When a node is selected and a new node
+  gets created below using <kbd>Tab</kbd> then the new node is automatically
+  positioned far enough to the right to find sufficient space and avoid
+  overlapping with existing nodes.
 
 #### Enso Compiler
 
