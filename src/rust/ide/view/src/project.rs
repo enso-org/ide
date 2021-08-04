@@ -111,7 +111,6 @@ struct Model {
     window_control_buttons : Immutable<Option<crate::window_control_buttons::View>>,
     graph_editor           : Rc<GraphEditor>,
     searcher               : searcher::View,
-    new_searcher           : searcher::new::View<usize>,
     code_editor            : code_editor::View,
     status_bar             : status_bar::View,
     fullscreen_vis         : Rc<RefCell<Option<visualization::fullscreen::Panel>>>,
@@ -126,7 +125,6 @@ impl Model {
         let scene                  = app.display.scene();
         let display_object         = display::object::Instance::new(&logger);
         let searcher               = app.new_view::<searcher::View>();
-        let new_searcher           = searcher::new::View::default();
         let graph_editor           = app.new_view::<GraphEditor>();
         let code_editor            = app.new_view::<code_editor::View>();
         let status_bar             = status_bar::View::new(app);
@@ -156,8 +154,8 @@ impl Model {
 
         let app          = app.clone_ref();
         let graph_editor = Rc::new(graph_editor);
-        Self{app,logger,display_object,window_control_buttons,graph_editor,searcher,new_searcher
-            ,code_editor,status_bar,fullscreen_vis,prompt_background,prompt,open_dialog}
+        Self{app,logger,display_object,window_control_buttons,graph_editor,searcher,code_editor
+            ,status_bar,fullscreen_vis,prompt_background,prompt,open_dialog}
     }
 
     /// Sets style of IDE to the one defined by parameter `theme`.
@@ -428,7 +426,7 @@ impl View {
             // once processing of "node_being_edited" event from graph is performed.
             editing_aborted              <- any(...);
             editing_aborted              <+ frp.close_searcher.constant(true);
-            editing_commited_in_searcher <- searcher.editing_committed.constant(());
+            editing_commited_in_searcher     <- searcher.editing_committed.constant(());
             should_finish_editing_if_any <- any(frp.close_searcher,editing_commited_in_searcher
                 ,frp.open_searcher,frp.show_open_dialog);
             should_finish_editing <- should_finish_editing_if_any.gate(&graph.output.node_editing);
@@ -587,6 +585,9 @@ impl View {
 
     /// Searcher View.
     pub fn searcher(&self) -> &searcher::View { &self.model.searcher }
+
+    /// Searcher 2.0 FRP.
+    pub fn new_searcher_frp(&self) -> &searcher::new::Frp<usize> { self.model.searcher.new_frp() }
 
     /// Code Editor View.
     pub fn code_editor(&self) -> &code_editor::View { &self.model.code_editor }

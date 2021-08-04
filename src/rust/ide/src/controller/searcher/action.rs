@@ -291,10 +291,36 @@ impl List {
     /// Check if list is empty.
     pub fn is_empty(&self) -> bool { self.entries.borrow().is_empty() }
 
+    /// Iterate over root categories.
+    pub fn root_categories(&self) -> impl Iterator<Item=(CategoryId,&RootCategory)> {
+        self.root_categories.iter().enumerate()
+    }
+
+    pub fn subcategories_of(&self, id:CategoryId) -> impl Iterator<Item=(CategoryId,&Subcategory)> {
+        let start = self.subcategories.partition_point(|cat| cat.parent < id);
+        let end   = self.subcategories.partition_point(|cat| cat.parent <= id);
+        (start..end).zip(self.subcategories[start..end].iter())
+    }
+
+    pub fn actions_of(&self, id:CategoryId) -> impl Iterator<Item=(usize,ListEntry)> + '_ {
+        let range = {
+            let actions = self.entries.borrow();
+            let start = actions.partition_point(|entry| entry.category < id);
+            let end   = actions.partition_point(|entry| entry.category <= id);
+            start..end
+        };
+        self.actions_range(range)
+    }
+
     /// Iterate over action entries.
-    pub fn iter(&self) -> impl Iterator<Item=ListEntry> + '_ {
-        let existing_ids = (0..self.len()).take_while(move |id| *id < self.len());
-        existing_ids.filter_map(move |id| self.entries.borrow().get(id).cloned())
+    pub fn actions(&self) -> impl Iterator<Item=(usize,ListEntry)> + '_ {
+        self.actions_range(0..self.len())
+    }
+
+    fn actions_range(&self, range:Range<usize>)
+    -> impl Iterator<Item=(usize,ListEntry)> + '_ {
+        let existing_ids = range.take_while(move |id| *id < self.len());
+        existing_ids.filter_map(move |id| self.entries.borrow().get(id).cloned().map(|e| (id,e)))
     }
 
     /// Convert to the action vector.

@@ -353,6 +353,19 @@ impl Integration {
         }
 
 
+        // === Searcher 2.0 ===
+
+        let searcher = model.view.searcher().new_frp();
+        frp::extend! { network
+            eval searcher.list_directory ([model,searcher](crumbs) {
+                for (id,entry) in model.get_category_content(crumbs) {
+                    let new_crumbs = crumbs.clone().pushed(id);
+                    searcher.directory_content(new_crumbs,entry);
+                }
+            });
+        }
+
+
         // === UI Actions ===
 
         let inv                       = &invalidate.trigger;
@@ -1044,6 +1057,44 @@ impl Model {
 }
 
 
+// === Updating Searcher View ===
+
+impl Model {
+    pub fn get_category_content
+    (&self, crumbs:&[usize]) -> Vec<(usize,ide_view::searcher::new::Entry)> {
+        let maybe_searcher = self.searcher.borrow();
+        let maybe_actions  = maybe_searcher.as_ref().map(|s| s.actions());
+        let maybe_list     = maybe_actions.as_ref().and_then(|actions| actions.list());
+        if let Some(list) = maybe_list {
+            match crumbs.len() {
+                0 => list.root_categories().map(|(id,cat)| (id,ide_view::searcher::new::Entry {
+                    label     : cat.name.to_string().into(),
+                    is_folder : Immutable(true),
+                    icon      : Default::default()
+                })).collect(),
+                1 => list.subcategories_of(*crumbs.last().unwrap()).map(|(id,cat)|
+                    (id,ide_view::searcher::new::Entry {
+                        label     : cat.name.to_string().into(),
+                        is_folder : Immutable(true),
+                        icon      : Default::default()
+                    })
+                ).collect(),
+                2 => list.actions_of(*crumbs.last().unwrap()).map(|(id,action)|
+                    (id,ide_view::searcher::new::Entry {
+                        label     : action.action.to_string().into(),
+                        is_folder : Immutable(false),
+                        icon      : Default::default()
+                    })
+                ).collect(),
+                _ => vec![],
+            }
+        } else {
+            vec![]
+        }
+    }
+}
+
+
 // === Handling Controller Notifications ===
 
 impl Model {
@@ -1172,6 +1223,9 @@ impl Model {
                             let provider          = SuggestionsProviderForView
                                 { actions,user_action,intended_function};
                             self.view.searcher().set_actions(Rc::new(provider));
+
+                            // the Searcher 2.0
+                            self.view.searcher().new_frp().reset();
 
                             // Usually we want to select first entry and display docs for it
                             // But not when user finished typing function or argument.
@@ -1832,6 +1886,7 @@ impl Model {
             futures::future::ready(())
         })));
         *self.searcher.borrow_mut() = Some(searcher);
+        self.view.searcher().new_frp().reset();
         Ok(())
     }
 }
