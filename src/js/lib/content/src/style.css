@@ -244,8 +244,8 @@ body {
 
 .templates-view {
     max-width: 1180px;
-    margin: 50px auto;
-    padding: 0 50px;
+    margin: 0 auto;
+    padding: 50px;
     font-family: "Causten";
     font-size: 15px;
     line-height: 1.4;

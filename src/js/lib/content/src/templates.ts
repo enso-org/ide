@@ -24,7 +24,7 @@ const ALL_CARDS = [
  * their style is messing up scrolling. Hidden elements will be restored before
  * loading the IDE.
  */
-let hiddenElements: HTMLDivElement[] = []
+let hiddenElements: HTMLElement[] = []
 
 /** Status box div element for displaying errors. */
 let statusBox: HTMLElement = undefined
@@ -53,14 +53,12 @@ async function loadTemplatesView(openProject: (project: string) => void): Promis
 }
 
 /**
- * Remove the top-level div elements from the scene.
+ * Remove the top-level root div from the scene.
  */
 function hideRootHtml(): void {
-    const matches = document.body.querySelectorAll('div')
-    matches.forEach(element => {
-        hiddenElements.push(element)
-        element.remove()
-    })
+    const rootDiv = document.getElementById('root')
+    hiddenElements.push(rootDiv)
+    rootDiv.remove()
 }
 
 /**
@@ -71,7 +69,7 @@ function restoreRootHtml(): void {
     hiddenElements
         .slice()
         .reverse()
-        .forEach(element => document.body.prepend(element))
+        .forEach(element => document.body.append(element))
     hiddenElements = []
     templatesView.remove()
 }
