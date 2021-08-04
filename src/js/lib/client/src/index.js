@@ -27,6 +27,7 @@ const root = Electron.app.getAppPath()
 const resources = path.join(root, "..")
 
 
+setHighDpiSupport()
 
 // FIXME default options parsed wrong
 // https://github.com/yargs/yargs/issues/1590
@@ -484,6 +485,15 @@ function setUserAgent() {
     Electron.app.userAgentFallback = agent
     Electron.session.defaultSession.setUserAgent(agent)
 }
+
+/// Set high dpi support for the window.
+///
+/// This function should be called before the Electron `ready` callback.
+function setHighDpiSupport() {
+    Electron.app.commandLine.appendSwitch('high-dpi-support', 1)
+    Electron.app.commandLine.appendSwitch('force-device-scale-factor', 1.5)
+}
+
 function urlParamsFromObject(obj) {
     let params = []
     for (let key in obj) {
