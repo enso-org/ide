@@ -579,8 +579,10 @@ impl Node {
         let out       = &frp.output;
         let model     = Rc::new(NodeModel::new(app,registry));
         let selection = Animation::<f32>::new(network);
-        
-        let comment_color    = color::Animation::new(network);
+
+        // TODO[ao] The comment color should be animated, but this is currently slow. Will be fixed
+        //      in https://github.com/enso-org/ide/issues/1031
+        // let comment_color    = color::Animation::new(network);
         let error_color_anim = color::Animation::new(network);
         let style            = StyleWatch::new(&app.display.scene().style_sheet);
         let style_frp        = &model.style;
