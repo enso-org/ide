@@ -130,19 +130,19 @@ fn init(app:&Application) {
     let error      = graph_editor::component::node::Error {kind,message,propagated};
     graph_editor.frp.set_node_error_status.emit((node3_id,Some(error)));
 
-    let foo_node = project_view.model.add_node_below(node3_id);
+    let foo_node = graph_editor.add_node_below(node3_id);
     graph_editor.set_node_expression.emit((foo_node,Expression::new_plain("foo")));
 
-    let baz_node = project_view.model.add_node_below(node3_id);
+    let baz_node = graph_editor.add_node_below(node3_id);
     graph_editor.set_node_expression.emit((baz_node,Expression::new_plain("baz")));
     let (_, baz_position) = graph_editor.node_position_set.value();
     let styles = StyleWatch::new(&scene.style_sheet);
-    let assumed_node_width  = styles.get_number(theme::project::assumed_node_width);
-    let x_gap_between_nodes = styles.get_number(theme::project::default_x_gap_between_nodes);
-    let gap_for_bar_node    = assumed_node_width + x_gap_between_nodes + f32::EPSILON;
+    let min_spacing       = styles.get_number(theme::graph_editor::minimal_x_spacing_for_new_nodes);
+    let gap_between_nodes = styles.get_number(theme::graph_editor::default_x_gap_between_nodes);
+    let gap_for_bar_node  = min_spacing + gap_between_nodes + f32::EPSILON;
     graph_editor.set_node_position((baz_node,baz_position+Vector2(gap_for_bar_node,0.0)));
 
-    let bar_node = project_view.model.add_node_below(node3_id);
+    let bar_node = graph_editor.add_node_below(node3_id);
     graph_editor.set_node_expression.emit((bar_node,Expression::new_plain("bar")));
 
 

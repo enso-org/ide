@@ -720,7 +720,8 @@ impl Model {
             .unwrap_or(base_default_position);
 
         let default_positions : HashMap<_,_> = (1..).zip(&without_pos).map(|(i,node)| {
-            let offset_between_nodes = self.view.default_y_gap_between_nodes.value() + node::HEIGHT;
+            let gap_between_nodes    = self.view.graph().default_y_gap_between_nodes.value();
+            let offset_between_nodes = gap_between_nodes + node::HEIGHT;
             let dy                   = i as f32 * offset_between_nodes;
             let pos                  = Vector2::new(bottommost_node_pos.x,bottommost_node_pos.y-dy);
             (node.info.id(), pos)
