@@ -1912,7 +1912,7 @@ impl list_view::entry::ModelProvider<GlyphHighlightedLabel> for SuggestionsProvi
         }
     }
 }
-wp
+
 impl ide_view::searcher::DocumentationProvider for SuggestionsProviderForView {
     fn get(&self) -> Option<String> {
         use controller::searcher::UserAction::*;
