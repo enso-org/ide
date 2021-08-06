@@ -130,7 +130,7 @@ pub struct ProjectMetadata {
     /// Project's uuid.
     pub id:Uuid,
     /// Engine version to use for the project, represented by a semver version string.
-    pub engine_version:String,
+    pub engine_version:Option<String>,
     /// Last time the project was opened.
     pub last_opened:Option<UTCDateTime>
 }
