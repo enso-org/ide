@@ -44,17 +44,17 @@ const COPY_BUTTON_CLASS : &str = "doc-copy-btn";
 ///
 /// TODO [MM] : This file is generated currently from Tailwind CSS file.
 ///             It should be somehow gathered from website repo.
-fn documentation_style() -> String {
-    format!("<style>{}</style>", include_str!("documentation/style.css"))
-        .replace("theme-light", "light-theme")
-        .replace("theme-dark", "dark-theme")
-        .replace("body,html{font-family:var(--global-font)}", "body,html{font-family:\"DejaVuSansMonoBook\"}")
-        .replace(".doc .tags{display:flex;font-size:16px}", ".doc .tags{display:flex;font-size:13px}")
-        .replace("margin-left:15px", "margin-left:0px")
-        .replace("doc-copy-btn{display:none", "doc-copy-btn{")
-        .replace("padding:2px 6px 3px;", "padding:2px 6px;line-height:1.35")
-        .replace("font-size:15px;", "font-size:13px;")
-}
+// fn documentation_style() -> String {
+//     format!("<style>{}</style>", include_str!("documentation/style.css"))
+//         .replace("theme-light", "light-theme")
+//         .replace("theme-dark", "dark-theme")
+//         .replace("body,html{font-family:var(--global-font)}", "body,html{font-family:\"DejaVuSansMonoBook\"}")
+//         .replace(".doc .tags{display:flex;font-size:16px}", ".doc .tags{display:flex;font-size:13px}")
+//         .replace("margin-left:15px", "margin-left:0px")
+//         .replace("doc-copy-btn{display:none", "doc-copy-btn{")
+//         .replace("padding:2px 6px 3px;", "padding:2px 6px;line-height:1.35")
+//         .replace("font-size:15px;", "font-size:13px;")
+// }
 
 
 
@@ -132,8 +132,8 @@ impl Model {
     fn push_to_dom(&self, content:String) {
         let no_doc_txt = "<p style=\"color: #a3a6a9;\">No documentation available</p>";
         let content    = content.replace("<p>No documentation available</p>",no_doc_txt);
-        let data_str   = format!(r#"{}{}"#,documentation_style(),content);
-        self.dom.dom().set_inner_html(&data_str);
+        // let data_str   = format!(r#"{}{}"#,documentation_style(),content);
+        self.dom.dom().set_inner_html(&content);
     }
 
     /// Append listeners to copy buttons in doc to enable copying examples.
