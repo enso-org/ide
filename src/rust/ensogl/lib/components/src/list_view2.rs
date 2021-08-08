@@ -235,15 +235,8 @@ pub struct ListView<E:Entry> {
 
 #[derive(Clone,Copy,Debug)]
 pub enum Lazy<T> {
-    Unknown,
     Requested,
     Known(T)
-}
-
-impl<T> Default for Lazy<T> {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 
@@ -305,14 +298,13 @@ impl<E:Entry> Model<E> {
         let entry_model_registry : &mut HashMap<entry::Id,Lazy<E::Model>> = &mut *self.entry_model_registry.borrow_mut();
 
         while offset < length {
-            let slot = entry_model_registry.entry(index).or_default();
+            let slot = entry_model_registry.entry(index).or_insert_with(|| {
+                to_be_requested.push(index);
+                offset += self.entry_default_len.get();
+                Lazy::Requested
+            });
             match slot {
                 Lazy::Requested => {}
-                Lazy::Unknown => {
-                    to_be_requested.push(index);
-                    *slot = Lazy::Requested;
-                    offset += self.entry_default_len.get();
-                }
                 Lazy::Known(entry) => {
                     offset += self.entry_default_len.get();
                 }
@@ -336,17 +328,9 @@ impl<E:Entry> Model<E> {
         let entry_model_registry : &mut HashMap<entry::Id,Lazy<E::Model>> = &mut *self.entry_model_registry.borrow_mut();
 
         while offset < length {
-            let slot = entry_model_registry.entry(index).or_default();
+            let slot = entry_model_registry.get(&index);
             match slot {
-                Lazy::Requested => {
-                    DEBUG!("set requested #{index}, offset {offset}.");
-                    let entry = Placeholder::new(&self.logger);
-                    offset += self.entry_default_len.get();
-                    self.scroll_area.add_child(&entry);
-                    entry.set_position_y(-offset);
-                    new_entries.push(Slot::Placeholder(entry));
-                }
-                Lazy::Unknown => {
+                None => {
                     DEBUG!("set unknown #{index}, offset {offset}.");
                     let entry = Placeholder::new(&self.logger);
                     offset += self.entry_default_len.get();
@@ -354,7 +338,16 @@ impl<E:Entry> Model<E> {
                     entry.set_position_y(-offset);
                     new_entries.push(Slot::Placeholder(entry));
                 }
-                Lazy::Known(model) => {
+                Some(Lazy::Requested) => {
+                    DEBUG!("set requested #{index}, offset {offset}.");
+                    let entry = Placeholder::new(&self.logger);
+                    offset += self.entry_default_len.get();
+                    self.scroll_area.add_child(&entry);
+                    entry.set_position_y(-offset);
+                    new_entries.push(Slot::Placeholder(entry));
+                }
+
+                Some(Lazy::Known(model)) => {
                     DEBUG!("set known #{index}, offset {offset}.");
                     let entry = E::new(&self.app);
                     entry.set_model(model);
