@@ -142,7 +142,7 @@ impl<E:Entry> Model<E> {
         let visible_entries = Self::visible_entries(view,self.entries.entry_count());
         let padding_px      = self.padding();
         let padding         = 2.0 * padding_px + SHAPE_PADDING;
-        let padding         = Vector2(padding, padding);
+        let padding         = Vector2(padding,padding);
         let shadow          = Vector2(2.0 * SHADOW_PX,  2.0 * SHADOW_PX);
         self.entries.set_position_x(-view.size.x / 2.0);
         self.background.size.set(view.size + padding + shadow);

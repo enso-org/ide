@@ -80,7 +80,7 @@ fn init(app:&Application) {
 
     let list_view = app.new_view::<list_view::ListView<list_view::entry::GlyphHighlightedLabel>>();
     let provider  = list_view::entry::provider::Any::new(MockEntries::new(app,1000));
-    list_view.frp.resize(Vector2(100.0,160.0));
+    list_view.frp.resize(Vector2(100.0,140.0));
     list_view.frp.set_entries(provider);
     app.display.add_child(&list_view);
     // FIXME[WD]: This should not be needed after text gets proper depth-handling.

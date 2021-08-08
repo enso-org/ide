@@ -34,6 +34,7 @@ pub mod drop_manager;
 pub mod easing_animator;
 pub mod glyph_system;
 pub mod list_view;
+pub mod list_view2;
 pub mod mouse_events;
 pub mod scroll_area;
 pub mod shape_system;
