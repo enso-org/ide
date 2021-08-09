@@ -11,7 +11,6 @@ const path          = require('path')
 const paths         = require('./paths')
 const prettier      = require("prettier")
 const release       = require('./release')
-const request       = require('request');
 const stream        = require('stream')
 const workflow      = require('./workflow')
 const yargs         = require('yargs')
