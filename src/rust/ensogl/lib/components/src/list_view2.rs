@@ -247,6 +247,31 @@ pub enum Slot<E> {
     Entry(E)
 }
 
+impl<E:display::Object> display::Object for Slot<E> {
+    fn display_object(&self) -> &display::object::Instance {
+        match self {
+            Self::Placeholder(t) => &t.display_object,
+            Self::Entry(entry)   => entry.display_object()
+        }
+    }
+}
+
+#[derive(Clone,Copy,Debug,Default)]
+pub struct SlotRange {
+    pub start : usize,
+    pub end   : usize
+}
+
+impl SlotRange {
+    pub fn new(start:usize, end:usize) -> Self {
+        Self {start,end}
+    }
+
+    pub fn contains(self, index:usize) -> bool {
+        index >= self.start && index <= self.end
+    }
+}
+
 
 
 /// The Model of Select Component.
@@ -260,6 +285,9 @@ struct Model<E:Entry> {
     display_object : display::object::Instance,
     entry_model_registry        : Rc<RefCell<HashMap<entry::Id,Lazy<E::Model>>>>,
     slots              : Rc<RefCell<Vec<Slot<E>>>>,
+    entry_pool               : Rc<RefCell<Vec<E>>>,
+    placeholder_pool               : Rc<RefCell<Vec<Placeholder>>>,
+    slot_range         : Rc<Cell<SlotRange>>,
     entry_default_len : Rc<Cell<f32>>,
 }
 
@@ -280,10 +308,14 @@ impl<E:Entry> Model<E> {
         let entry_model_registry        = default();
         let entry_default_len = Rc::new(Cell::new(30.0));
         let slots = default();
+        let entry_pool = default();
+        let placeholder_pool = default();
+        let slot_range = default();
         display_object.add_child(&background);
         display_object.add_child(&scroll_area);
         scroll_area.add_child(&selection);
-        Model{logger,app,selection,background,scroll_area,display_object,entry_model_registry,entry_default_len,slots}
+        Model{logger,app,selection,background,scroll_area,display_object,entry_model_registry
+            ,entry_default_len,slots,entry_pool,placeholder_pool,slot_range}
     }
 
     fn entries_to_be_requested(&self, size:Vector2<f32>) -> Vec<entry::Id> {
@@ -361,24 +393,46 @@ impl<E:Entry> Model<E> {
             index += 1;
         }
 
+        DEBUG!("AFTER: {index}");
+
         *self.slots.borrow_mut() = new_entries;
+        self.slot_range.set(SlotRange::new(0,index-1));
         // to_be_requested
     }
 
     fn set_display_size(&self, size:Vector2<f32>) {
         // let padding_px = 100.0;
         // let padding         = 2.0 * padding_px + SHAPE_PADDING;
+        let padding                = 2.0 * Vector2(SHAPE_PADDING,SHAPE_PADDING);
+        let shadow_padding         = 2.0 * Vector2(SHADOW_PX,SHADOW_PX);
+        let sprite_size            = size + padding + shadow_padding;
         let padding_offset         = Vector2(SHAPE_PADDING,-SHAPE_PADDING);
         let shadow_offset          = Vector2(SHADOW_PX,-SHADOW_PX);
-        let shape_offset           = Vector2(size.x/2.0, -size.y/2.0);
+        let shape_offset           = Vector2(sprite_size.x/2.0, -sprite_size.y/2.0);
         let position               = shape_offset - shadow_offset - padding_offset;
         // self.background.size.set(size + padding + shadow);
-        self.background.size.set(size);
+        self.background.size.set(sprite_size);
         self.background.set_position_xy(position);
         // self.scroll_area.set_position_x(10.0); // TODO: padding
     }
 
     fn set_entry(&self, index:entry::Id, entry:Option<&E::Model>) {
+        let slot_range = self.slot_range.get();
+
+        if slot_range.contains(index) {
+            DEBUG!("REFRESH THE VIEW!");
+            let slot = self.slots.borrow()[index].clone_ref();
+            self.scroll_area.remove_child(&slot);
+            match slot {
+                Slot::Placeholder(placeholder) => {
+                    self.placeholder_pool.borrow_mut().push(placeholder);
+                }
+                Slot::Entry(entry) => {
+                    self.entry_pool.borrow_mut().push(entry);
+                }
+            }
+        }
+
         match entry {
             None => {
                 self.entry_model_registry.borrow_mut().remove(&index);
@@ -417,7 +471,7 @@ where E::Model : Default {
         let mouse            = &scene.mouse.frp;
 
         frp::extend! { network
-            new_size         <- frp.set_size.map(|size| Vector2(size.width,100.0));
+            new_size         <- frp.set_size.map(|size| Vector2(size.width,80.0));
             missing_entries  <- new_size.map(f!((size) model.entries_to_be_requested(*size)));
 
             eval new_size ((size) model.update_view(*size));

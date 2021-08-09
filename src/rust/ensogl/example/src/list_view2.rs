@@ -101,12 +101,12 @@ fn init(app:&Application) {
         let _keep_alive = &list_view;
         let _keep_alive = &network;
 
-        if frame == 180 {
+        if frame == 50 {
             DEBUG!("Resize.");
             list_view.set_size(list_view::Size::default());
         }
         if frame == 150 {
-            DEBUG!("Setting entry #1.");
+            DEBUG!("--- Setting entry #1 ---");
             let label = iformat!("Entry 1");
             let highlighted = vec![];
             let entry = list_view::entry::GlyphHighlightedLabelModel {label,highlighted};
