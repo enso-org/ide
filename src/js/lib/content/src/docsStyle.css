@@ -1586,7 +1586,7 @@ html {
 
 body,
 html {
-    font-family: var(--global-font)
+    font-family: DejaVuSansMonoBook
 }
 
 button {
@@ -1594,7 +1594,7 @@ button {
 }
 
 p {
-    margin-bottom: var(--global-font-shift)
+    margin-bottom: "DejaVuSansMonoBook"
 }
 
 .h1-on-dark,
@@ -2405,81 +2405,81 @@ code.disabled span {
     -webkit-box-decoration-break: clone
 }
 
-.theme-light .bg {
+.light-theme .bg {
     --tw-bg-opacity: 1;
     background-color: rgba(249, 250, 251, var(--tw-bg-opacity))
 }
 
-.theme-dark .bg {
+.dark-theme .bg {
     background-color: rgb(32 34 36)
 }
 
-.theme-light .bg-light {
+.light-theme .bg-light {
     --tw-bg-opacity: 1;
     background-color: rgba(255, 255, 255, var(--tw-bg-opacity))
 }
 
-.theme-dark .bg-light {
+.dark-theme .bg-light {
     --tw-bg-opacity: 1;
     background-color: rgba(47, 48, 50, var(--tw-bg-opacity))
 }
 
-.theme-light .bg-dark,
-.theme-light .bg-dark-semitransparent {
+.light-theme .bg-dark,
+.light-theme .bg-dark-semitransparent {
     --tw-bg-opacity: 1;
     background-color: rgba(22, 23, 25, var(--tw-bg-opacity))
 }
 
-.theme-light .bg-dark-semitransparent {
+.light-theme .bg-dark-semitransparent {
     --tw-bg-opacity: 0.9
 }
 
-.theme-dark .bg-dark-semitransparent {
+.dark-theme .bg-dark-semitransparent {
     --tw-bg-opacity: 1;
     background-color: rgba(22, 23, 25, var(--tw-bg-opacity));
     --tw-bg-opacity: 0.9
 }
 
-.theme-dark .bg-dark {
+.dark-theme .bg-dark {
     --tw-bg-opacity: 1;
     background-color: rgba(22, 23, 25, var(--tw-bg-opacity))
 }
 
-.theme-light .color-title {
+.light-theme .color-title {
     color: var(--dark-cl)
 }
 
-.theme-dark .color-title {
+.dark-theme .color-title {
     color: hsla(0, 0%, 100%, .9)
 }
 
-.theme-light .color-accent-slight {
+.light-theme .color-accent-slight {
     color: var(--dark-cl)
 }
 
-.theme-dark .color-accent-slight {
+.dark-theme .color-accent-slight {
     color: hsla(0, 0%, 100%, .9)
 }
 
-.theme-light .color-content {
+.light-theme .color-content {
     --tw-text-opacity: 1;
     color: rgba(75, 88, 100, var(--tw-text-opacity))
 }
 
-.theme-dark .color-content {
+.dark-theme .color-content {
     color: hsla(0, 0%, 100%, .6)
 }
 
-.theme-light .color-important {
+.light-theme .color-important {
     color: rgb(72 118 212)
 }
 
-.theme-dark .color-important {
+.dark-theme .color-important {
     --tw-text-opacity: 1;
     color: rgba(75, 124, 216, var(--tw-text-opacity))
 }
 
-.theme-light .h0 {
+.light-theme .h0 {
     font-weight: 800;
     font-size: 48px;
     line-height: 1.25;
@@ -2487,13 +2487,13 @@ code.disabled span {
 }
 
 @media (min-width:768px) {
-    .theme-light .h0 {
+    .light-theme .h0 {
         font-size: 58px;
         line-height: 1.25
     }
 }
 
-.theme-dark .h0 {
+.dark-theme .h0 {
     font-weight: 800;
     font-size: 48px;
     line-height: 1.25;
@@ -2501,13 +2501,13 @@ code.disabled span {
 }
 
 @media (min-width:768px) {
-    .theme-dark .h0 {
+    .dark-theme .h0 {
         font-size: 58px;
         line-height: 1.25
     }
 }
 
-.theme-light .h1 {
+.light-theme .h1 {
     font-weight: 700;
     font-size: 40px;
     line-height: 1.25;
@@ -2515,13 +2515,13 @@ code.disabled span {
 }
 
 @media (min-width:768px) {
-    .theme-light .h1 {
+    .light-theme .h1 {
         font-size: 48px;
         line-height: 1.25
     }
 }
 
-.theme-dark .h1 {
+.dark-theme .h1 {
     font-weight: 700;
     font-size: 40px;
     line-height: 1.25;
@@ -2529,13 +2529,13 @@ code.disabled span {
 }
 
 @media (min-width:768px) {
-    .theme-dark .h1 {
+    .dark-theme .h1 {
         font-size: 48px;
         line-height: 1.25
     }
 }
 
-.theme-light .h2 {
+.light-theme .h2 {
     font-weight: 500;
     font-size: 20px;
     line-height: 1.35;
@@ -2545,13 +2545,13 @@ code.disabled span {
 }
 
 @media (min-width:768px) {
-    .theme-light .h2 {
+    .light-theme .h2 {
         font-size: 22px;
         line-height: 1.35
     }
 }
 
-.theme-dark .h2 {
+.dark-theme .h2 {
     font-weight: 500;
     font-size: 20px;
     line-height: 1.35;
@@ -2560,31 +2560,31 @@ code.disabled span {
 }
 
 @media (min-width:768px) {
-    .theme-dark .h2 {
+    .dark-theme .h2 {
         font-size: 22px;
         line-height: 1.35
     }
 }
 
 .h3-common,
-.theme-light .h3 {
+.light-theme .h3 {
     font-weight: 600;
     font-size: 22px;
     line-height: 1.25
 }
 
-.theme-light .h3 {
+.light-theme .h3 {
     color: var(--dark-cl)
 }
 
-.theme-dark .h3 {
+.dark-theme .h3 {
     color: hsla(0, 0%, 100%, .9);
     font-weight: 600;
     font-size: 22px;
     line-height: 1.25
 }
 
-.theme-light .content {
+.light-theme .content {
     font-weight: 500;
     font-size: 15px;
     line-height: 1.4;
@@ -2592,49 +2592,49 @@ code.disabled span {
     color: rgba(75, 88, 100, var(--tw-text-opacity))
 }
 
-.theme-light .content-strong {
+.light-theme .content-strong {
     font-weight: 500;
     font-size: 15px;
     line-height: 1.4;
     color: var(--dark-cl)
 }
 
-.theme-light .content-extrastrong {
+.light-theme .content-extrastrong {
     font-weight: 800;
     font-size: 15px;
     line-height: 1.4;
     color: var(--dark-cl)
 }
 
-.theme-dark .content-extrastrong {
+.dark-theme .content-extrastrong {
     font-weight: 800;
     font-size: 15px;
     line-height: 1.4;
     color: hsla(0, 0%, 100%, .9)
 }
 
-.theme-dark .content {
+.dark-theme .content {
     font-weight: 500;
     font-size: 15px;
     line-height: 1.4;
     color: hsla(0, 0%, 100%, .6)
 }
 
-.theme-light .content-important {
+.light-theme .content-important {
     font-weight: 400;
     font-size: 15px;
     line-height: 1.4;
     color: rgb(72 118 212)
 }
 
-.theme-light .content-very-important {
+.light-theme .content-very-important {
     font-weight: 600;
     font-size: 15px;
     line-height: 1.4;
     color: rgb(72 118 212)
 }
 
-.theme-dark .content-very-important {
+.dark-theme .content-very-important {
     font-weight: 600;
     font-size: 15px;
     line-height: 1.4;
@@ -2642,16 +2642,16 @@ code.disabled span {
     color: rgba(75, 124, 216, var(--tw-text-opacity))
 }
 
-.theme-light .shadow {
+.light-theme .shadow {
     --tw-shadow: 0px 6px 8px rgba(34, 20, 66, 0.03), 0px 10px 16px rgba(34, 20, 66, 0.03), 0px 14px 32px rgba(34, 20, 66, 0.03)
 }
 
-.theme-dark .shadow,
-.theme-light .shadow {
+.dark-theme .shadow,
+.light-theme .shadow {
     box-shadow: var(--tw-ring-offset-shadow, 0 0 transparent), var(--tw-ring-shadow, 0 0 transparent), var(--tw-shadow)
 }
 
-.theme-dark .shadow {
+.dark-theme .shadow {
     --tw-shadow: 0px 0px 1px rgba(0, 0, 0, 0.05), 0px 1px 2px rgba(0, 0, 0, 0.05), 0px 2px 4px rgba(0, 0, 0, 0.05), 0px 4px 8px rgba(0, 0, 0, 0.05), 0px 8px 16px rgba(0, 0, 0, 0.05)
 }
 
@@ -2666,8 +2666,8 @@ code.disabled span {
     margin-top: -20px
 }
 
-.theme-light .doc,
-.theme-light .doc .content {
+.light-theme .doc,
+.light-theme .doc .content {
     font-weight: 500;
     font-size: 16px;
     line-height: 1.4;
@@ -2675,11 +2675,11 @@ code.disabled span {
     color: rgba(75, 88, 100, var(--tw-text-opacity))
 }
 
-.theme-light .doc p {
+.light-theme .doc p {
     margin-top: .5rem
 }
 
-.theme-light .doc .summary {
+.light-theme .doc .summary {
     font-weight: 500;
     font-size: 16px;
     line-height: 1.4;
@@ -2690,7 +2690,7 @@ code.disabled span {
     color: rgba(75, 88, 100, var(--tw-text-opacity))
 }
 
-.theme-light .doc h0 {
+.light-theme .doc h0 {
     font-weight: 800;
     font-size: 48px;
     line-height: 1.25;
@@ -2698,13 +2698,13 @@ code.disabled span {
 }
 
 @media (min-width:768px) {
-    .theme-light .doc h0 {
+    .light-theme .doc h0 {
         font-size: 58px;
         line-height: 1.25
     }
 }
 
-.theme-light .doc h1 {
+.light-theme .doc h1 {
     display: flex;
     font-weight: 700;
     font-size: 40px;
@@ -2713,18 +2713,18 @@ code.disabled span {
 }
 
 @media (min-width:768px) {
-    .theme-light .doc h1 {
+    .light-theme .doc h1 {
         font-size: 48px;
         line-height: 1.25
     }
 }
 
-.theme-light .doc h1 .tag {
+.light-theme .doc h1 .tag {
     font-size: 16px;
     line-height: 1.4
 }
 
-.theme-light .doc h2 {
+.light-theme .doc h2 {
     font-weight: 700;
     font-size: 40px;
     line-height: 1.35;
@@ -2733,7 +2733,7 @@ code.disabled span {
     color: var(--dark-cl)
 }
 
-.theme-light .doc h3 {
+.light-theme .doc h3 {
     color: var(--dark-cl);
     font-weight: 600;
     font-size: 22px;
@@ -2753,7 +2753,6 @@ code.disabled span {
 }
 
 .doc-copy-btn {
-    display: none;
     margin-top: 1rem;
     background-color: rgb(72 118 212);
     border-radius: 9999px;
@@ -2769,7 +2768,7 @@ code.disabled span {
 
 .doc .tags {
     display: flex;
-    font-size: 16px
+    font-size: 13px
 }
 
 .doc .tag {
@@ -2777,31 +2776,33 @@ code.disabled span {
     margin-bottom: 10px
 }
 
-.theme-light .doc .tag .added,
-.theme-light .doc .tag .advanced,
-.theme-light .doc .tag .deprecated,
-.theme-light .doc .tag .modified,
-.theme-light .doc .tag .private,
-.theme-light .doc .tag .textonly,
-.theme-light .doc .tag .unstable,
-.theme-light .doc .tag .upcoming,
-.theme-light .doc .tag .version {
-    margin-left: 15px;
+.light-theme .doc .tag .added,
+.light-theme .doc .tag .advanced,
+.light-theme .doc .tag .deprecated,
+.light-theme .doc .tag .modified,
+.light-theme .doc .tag .private,
+.light-theme .doc .tag .textonly,
+.light-theme .doc .tag .unstable,
+.light-theme .doc .tag .upcoming,
+.light-theme .doc .tag .version {
+    margin-left: 0;
     border: 2px solid rgb(75 89 100);
     display: inline-table;
     border-radius: 16px;
-    padding: 2px 6px 3px;
+    padding: 2px 6px;
+    line-height: 1.35;
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone
 }
 
-.theme-light .doc .tag .unstable {
-    margin-left: 15px;
+.light-theme .doc .tag .unstable {
+    margin-left: 0;
     border: 2px solid rgb(236 41 21);
     color: rgb(236 41 21);
     display: inline-table;
     border-radius: 16px;
-    padding: 2px 6px 3px;
+    padding: 2px 6px;
+    line-height: 1.35;
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone
 }
@@ -2813,7 +2814,7 @@ code.disabled span {
     padding-left: 1.25rem
 }
 
-.theme-light .doc .atom {
+.light-theme .doc .atom {
     font-size: 20px;
     line-height: 1.35;
     margin-top: 2rem;
@@ -2821,20 +2822,20 @@ code.disabled span {
     color: rgba(75, 88, 100, var(--tw-text-opacity))
 }
 
-.theme-light .doc .atom .name,
-.theme-light .doc .method .name,
-.theme-light .doc .submodule .name {
+.light-theme .doc .atom .name,
+.light-theme .doc .method .name,
+.light-theme .doc .submodule .name {
     font-weight: 700;
     color: var(--dark-cl)
 }
 
-.theme-light .doc .method .argument,
-.theme-light .doc .method .argument.default {
+.light-theme .doc .method .argument,
+.light-theme .doc .method .argument.default {
     opacity: .5
 }
 
-.theme-light .doc .method,
-.theme-light .doc .submodule {
+.light-theme .doc .method,
+.light-theme .doc .submodule {
     font-size: 20px;
     line-height: 1.35;
     margin-top: 2rem;
@@ -2862,32 +2863,32 @@ code.disabled span {
     width: 250px
 }
 
-.theme-light .doc .toc h2 {
+.light-theme .doc .toc h2 {
     margin-top: 0
 }
 
-.theme-light .doc .toc .methods {
+.light-theme .doc .toc .methods {
     margin-top: 2rem
 }
 
-.theme-light .doc .toc .atom,
-.theme-light .doc .toc .method {
+.light-theme .doc .toc .atom,
+.light-theme .doc .toc .method {
     font-size: 16px;
     line-height: 1.4;
     margin-top: 0
 }
 
-.theme-light .doc .toc .atom .name,
-.theme-light .doc .toc .method .name {
+.light-theme .doc .toc .atom .name,
+.light-theme .doc .toc .method .name {
     font-weight: 500
 }
 
-.theme-light .doc .toc h2 {
+.light-theme .doc .toc h2 {
     font-size: 24px;
     line-height: 1.35
 }
 
-.theme-light .doc .breadcrumb-panel {
+.light-theme .doc .breadcrumb-panel {
     padding-top: .75rem;
     padding-bottom: .75rem;
     position: -webkit-sticky;
@@ -2897,22 +2898,23 @@ code.disabled span {
     background-color: rgb(32 119 208)
 }
 
-.theme-light .doc .breadcrumbs {
+.light-theme .doc .breadcrumbs {
     color: hsla(0, 0%, 100%, .9)
 }
 
-.theme-light .doc .breadcrumbs .separator {
+.light-theme .doc .breadcrumbs .separator {
     margin-right: .5rem;
     margin-left: .5rem;
     font-size: 12px
 }
 
-.theme-light .doc .breadcrumbs .browse-submodules {
-    margin-left: 30px;
+.light-theme .doc .breadcrumbs .browse-submodules {
+    margin-left: 0;
     background-color: rgba(235, 241, 251, .2);
     display: inline-table;
     border-radius: 8px;
-    padding: 2px 6px 3px;
+    padding: 2px 6px;
+    line-height: 1.35;
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone
 }
