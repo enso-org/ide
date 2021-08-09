@@ -97,9 +97,15 @@ fn init(app:&Application) {
 
     let world = &app.display;
     let mut frame = 0;
+    let mut scroll = 0.0;
     world.on_frame(move |_time| {
         let _keep_alive = &list_view;
         let _keep_alive = &network;
+
+        if frame > 200 {
+            scroll += 0.5;
+            list_view.set_scroll(scroll);
+        }
 
         if frame == 50 {
             DEBUG!("Resize.");
@@ -111,6 +117,17 @@ fn init(app:&Application) {
             let highlighted = vec![];
             let entry = list_view::entry::GlyphHighlightedLabelModel {label,highlighted};
             list_view.set_entry((1,Rc::new(Some(entry))));
+        }
+        if frame == 200 {
+            DEBUG!("--- Setting entry #1 ---");
+            let label = iformat!("Entry 1 alt");
+            let highlighted = vec![];
+            let entry = list_view::entry::GlyphHighlightedLabelModel {label,highlighted};
+            list_view.set_entry((1,Rc::new(Some(entry))));
+        }
+        if frame == 250 {
+            DEBUG!("--- Unsetting entry #1 ---");
+            list_view.set_entry((1,Rc::new(None)));
         }
         frame += 1;
     }).forget();

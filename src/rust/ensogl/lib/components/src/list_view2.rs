@@ -181,6 +181,7 @@ ensogl_core::define_endpoints! {
         chose_entry  (entry::Id),
 
         set_entry ((entry::Id,Rc<Option<E>>)),
+        set_scroll (f32),
     }
 
     Output {
@@ -281,14 +282,23 @@ struct Model<E:Entry> {
     app            : Application,
     selection      : selection::View,
     background     : background::View,
-    scroll_area  : display::object::Instance,
+    scroll_area    : display::object::Instance,
     display_object : display::object::Instance,
-    entry_model_registry        : Rc<RefCell<HashMap<entry::Id,Lazy<E::Model>>>>,
-    slots              : Rc<RefCell<Vec<Slot<E>>>>,
-    entry_pool               : Rc<RefCell<Vec<E>>>,
-    placeholder_pool               : Rc<RefCell<Vec<Placeholder>>>,
-    slot_range         : Rc<Cell<SlotRange>>,
-    entry_default_len : Rc<Cell<f32>>,
+    data           : Rc<RefCell<ModelData<E>>>,
+}
+
+#[derive(Debug)]
+pub struct ModelData<E:Entry> {
+    logger               : Logger,
+    app                  : Application,
+    scroll_area          : display::object::Instance,
+    entry_model_registry : HashMap<entry::Id,Lazy<E::Model>>,
+    slots                : Vec<Slot<E>>,
+    entry_pool           : Vec<E>,
+    placeholder_pool     : Vec<Placeholder>,
+    slot_range           : SlotRange,
+    entry_default_len    : f32,
+    length               : f32,
 }
 
 impl<E:Entry> Deref for ListView<E> {
@@ -296,29 +306,23 @@ impl<E:Entry> Deref for ListView<E> {
     fn deref(&self) -> &Self::Target { &self.frp }
 }
 
-
-impl<E:Entry> Model<E> {
-    fn new(app:&Application) -> Self {
-        let app            = app.clone_ref();
-        let logger         = Logger::new("SelectionContainer");
-        let display_object = display::object::Instance::new(&logger);
-        let scroll_area  = display::object::Instance::new(&logger);
-        let background     = background::View::new(&logger);
-        let selection      = selection::View::new(&logger);
+impl<E:Entry> ModelData<E> {
+    fn new(logger:&Logger, app:&Application, scroll_area:&display::object::Instance) -> Self {
+        let logger = logger.clone_ref();
+        let app = app.clone_ref();
+        let scroll_area = scroll_area.clone_ref();
         let entry_model_registry        = default();
-        let entry_default_len = Rc::new(Cell::new(30.0));
         let slots = default();
         let entry_pool = default();
         let placeholder_pool = default();
         let slot_range = default();
-        display_object.add_child(&background);
-        display_object.add_child(&scroll_area);
-        scroll_area.add_child(&selection);
-        Model{logger,app,selection,background,scroll_area,display_object,entry_model_registry
-            ,entry_default_len,slots,entry_pool,placeholder_pool,slot_range}
+        let entry_default_len = 30.0;
+        let length = default();
+        Self {logger,app,scroll_area,entry_model_registry
+            ,entry_default_len,slots,entry_pool,placeholder_pool,slot_range,length}
     }
 
-    fn entries_to_be_requested(&self, size:Vector2<f32>) -> Vec<entry::Id> {
+    fn entries_to_be_requested(&mut self, size:Vector2<f32>) -> Vec<entry::Id> {
         DEBUG!("entries_to_be_requested: {size:?}");
         let length = size.y;
 
@@ -326,19 +330,18 @@ impl<E:Entry> Model<E> {
         let mut offset = 0.0;
 
         let mut to_be_requested = Vec::<entry::Id>::new();
-
-        let entry_model_registry : &mut HashMap<entry::Id,Lazy<E::Model>> = &mut *self.entry_model_registry.borrow_mut();
+        let entry_default_len = self.entry_default_len;
 
         while offset < length {
-            let slot = entry_model_registry.entry(index).or_insert_with(|| {
+            let slot = self.entry_model_registry.entry(index).or_insert_with(|| {
                 to_be_requested.push(index);
-                offset += self.entry_default_len.get();
+                offset += entry_default_len;
                 Lazy::Requested
             });
             match slot {
                 Lazy::Requested => {}
                 Lazy::Known(entry) => {
-                    offset += self.entry_default_len.get();
+                    offset += entry_default_len;
                 }
             }
             index += 1;
@@ -347,25 +350,27 @@ impl<E:Entry> Model<E> {
         to_be_requested
     }
 
-    fn update_view(&self, size:Vector2<f32>) {
-        DEBUG!("update_view: {size:?}");
+    fn set_size(&mut self, size:Vector2<f32>) {
+        self.length = size.y;
+    }
 
-        let length = size.y;
+    fn update_view(&mut self) {
+        // self.slot_range;
+
+        let length = self.length;
 
         let mut index  = 0;
         let mut offset = 0.0;
 
         let mut new_entries = Vec::new();
 
-        let entry_model_registry : &mut HashMap<entry::Id,Lazy<E::Model>> = &mut *self.entry_model_registry.borrow_mut();
-
         while offset < length {
-            let slot = entry_model_registry.get(&index);
+            let slot = self.entry_model_registry.get(&index);
             match slot {
                 None => {
                     DEBUG!("set unknown #{index}, offset {offset}.");
                     let entry = Placeholder::new(&self.logger);
-                    offset += self.entry_default_len.get();
+                    offset += self.entry_default_len;
                     self.scroll_area.add_child(&entry);
                     entry.set_position_y(-offset);
                     new_entries.push(Slot::Placeholder(entry));
@@ -373,7 +378,7 @@ impl<E:Entry> Model<E> {
                 Some(Lazy::Requested) => {
                     DEBUG!("set requested #{index}, offset {offset}.");
                     let entry = Placeholder::new(&self.logger);
-                    offset += self.entry_default_len.get();
+                    offset += self.entry_default_len;
                     self.scroll_area.add_child(&entry);
                     entry.set_position_y(-offset);
                     new_entries.push(Slot::Placeholder(entry));
@@ -384,7 +389,7 @@ impl<E:Entry> Model<E> {
                     let entry = E::new(&self.app);
                     entry.set_model(model);
                     entry.set_label_layer(&self.app.display.scene().layers.label);
-                    offset += self.entry_default_len.get();
+                    offset += self.entry_default_len;
                     self.scroll_area.add_child(&entry);
                     entry.set_position_y(-offset + 15.0); // FIXME: label center
                     new_entries.push(Slot::Entry(entry));
@@ -395,9 +400,100 @@ impl<E:Entry> Model<E> {
 
         DEBUG!("AFTER: {index}");
 
-        *self.slots.borrow_mut() = new_entries;
-        self.slot_range.set(SlotRange::new(0,index-1));
+        self.slots = new_entries;
+        self.slot_range = SlotRange::new(0,index-1);
         // to_be_requested
+    }
+
+    fn new_entry(&mut self) -> E {
+        let entry = self.entry_pool.pop().unwrap_or_else(|| E::new(&self.app));
+        entry.set_label_layer(&self.app.display.scene().layers.label);
+        entry
+    }
+
+    fn new_placeholder(&mut self) -> Placeholder {
+        self.placeholder_pool.pop().unwrap_or_else(|| Placeholder::new(&self.logger))
+    }
+
+    fn set_entry(&mut self, index:entry::Id, new_entry:Option<&E::Model>) {
+
+        if self.slot_range.contains(index) {
+            DEBUG!("REFRESH THE VIEW!");
+            let slot = self.slots[index].clone_ref();
+            match slot {
+                Slot::Placeholder(placeholder) => {
+                    match new_entry {
+                        None => {},
+                        Some(model) => {
+                            let entry = self.new_entry();
+                            entry.set_model(model);
+                            entry.set_position_y(placeholder.position().y + 15.0); // FIXME: label center
+                            self.scroll_area.remove_child(&placeholder);
+                            self.scroll_area.add_child(&entry);
+                            self.slots[index] = Slot::Entry(entry);
+                            self.placeholder_pool.push(placeholder);
+                        }
+                    }
+                }
+                Slot::Entry(entry) => {
+                    match new_entry {
+                        None => {
+                            let placeholder = self.new_placeholder();
+                            placeholder.set_position_y(entry.position().y - 15.0); // FIXME: label center
+                            self.scroll_area.remove_child(&entry);
+                            self.scroll_area.add_child(&placeholder);
+                            self.slots[index] = Slot::Placeholder(placeholder);
+                            self.entry_pool.push(entry);
+                        }
+                        Some(model) => {
+                            entry.set_model(model);
+                        }
+                    }
+                }
+            }
+        }
+
+        match new_entry {
+            None => {
+                self.entry_model_registry.remove(&index);
+            }
+            Some(e) => {
+                self.entry_model_registry.insert(index,Lazy::Known(e.clone()));
+            },
+        }
+    }
+
+    fn set_scroll(&mut self, scroll:f32) {
+        self.scroll_area.set_position_y(scroll);
+
+    }
+}
+
+impl<E:Entry> Model<E> {
+    fn new(app:&Application) -> Self {
+        let app            = app.clone_ref();
+        let logger         = Logger::new("SelectionContainer");
+        let display_object = display::object::Instance::new(&logger);
+        let scroll_area  = display::object::Instance::new(&logger);
+        let background     = background::View::new(&logger);
+        let selection      = selection::View::new(&logger);
+        let data = Rc::new(RefCell::new(ModelData::new(&logger,&app,&scroll_area)));
+        display_object.add_child(&background);
+        display_object.add_child(&scroll_area);
+        scroll_area.add_child(&selection);
+        Self {logger,app,selection,background,scroll_area,display_object,data}
+    }
+
+    fn entries_to_be_requested(&self, size:Vector2<f32>) -> Vec<entry::Id> {
+        self.data.borrow_mut().entries_to_be_requested(size)
+    }
+
+    fn update_view(&self) {
+        self.data.borrow_mut().update_view()
+    }
+
+    fn set_size(&self, size:Vector2<f32>) {
+        self.data.borrow_mut().set_size(size)
     }
 
     fn set_display_size(&self, size:Vector2<f32>) {
@@ -417,30 +513,11 @@ impl<E:Entry> Model<E> {
     }
 
     fn set_entry(&self, index:entry::Id, entry:Option<&E::Model>) {
-        let slot_range = self.slot_range.get();
+        self.data.borrow_mut().set_entry(index,entry)
+    }
 
-        if slot_range.contains(index) {
-            DEBUG!("REFRESH THE VIEW!");
-            let slot = self.slots.borrow()[index].clone_ref();
-            self.scroll_area.remove_child(&slot);
-            match slot {
-                Slot::Placeholder(placeholder) => {
-                    self.placeholder_pool.borrow_mut().push(placeholder);
-                }
-                Slot::Entry(entry) => {
-                    self.entry_pool.borrow_mut().push(entry);
-                }
-            }
-        }
-
-        match entry {
-            None => {
-                self.entry_model_registry.borrow_mut().remove(&index);
-            }
-            Some(e) => {
-                self.entry_model_registry.borrow_mut().insert(index,Lazy::Known(e.clone()));
-            },
-        }
+    fn set_scroll(&self, scroll:f32) {
+        self.data.borrow_mut().set_scroll(scroll)
     }
 }
 
@@ -474,7 +551,8 @@ where E::Model : Default {
             new_size         <- frp.set_size.map(|size| Vector2(size.width,80.0));
             missing_entries  <- new_size.map(f!((size) model.entries_to_be_requested(*size)));
 
-            eval new_size ((size) model.update_view(*size));
+            eval new_size ((size) model.set_size(*size));
+            eval new_size ((size) model.update_view());
 
             frp.source.get_entries <+ missing_entries;
 
@@ -485,6 +563,8 @@ where E::Model : Default {
             trace frp.set_entry;
 
             eval frp.set_entry (((id,entry)) model.set_entry(*id,(**entry).as_ref()));
+
+            eval frp.set_scroll ((t) model.set_scroll(*t));
 
         }
 
