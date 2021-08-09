@@ -123,6 +123,9 @@ let installClippy = {
     run: "rustup component add clippy"
 }
 
+// Install fixed version to avoid upgrading to a breaking version.
+// Should be removed once this has a better solution as described here:
+// https://github.com/enso-org/ide/issues/1772
 let installTypeScript = {
     name: "Install TypeScript",
     run: "npm install -g ts-node@10.1.0"
