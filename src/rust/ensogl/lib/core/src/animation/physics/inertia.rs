@@ -220,14 +220,19 @@ impl Thresholds {
 /// ```
 #[derive(Clone,Copy,Debug,Default)]
 pub struct SimulationData<T> {
-    value        : T,
-    target_value : T,
-    velocity     : T,
-    mass         : Mass,
-    spring       : Spring,
-    drag         : Drag,
-    thresholds   : Thresholds,
-    active       : bool,
+    // We store the current value as an offset from the target rather than an absolute value,
+    // because this provides higher precision when the value is getting close to the target and `T`
+    // is a type of floating-point numbers, vectors of floating point numbers, or similar. The main
+    // benefit is that we avoid non-termination that could otherwise happen due to rounding errors
+    // when the target and current value are large.
+    offset_from_target : T,
+    target_value       : T,
+    velocity           : T,
+    mass               : Mass,
+    spring             : Spring,
+    drag               : Drag,
+    thresholds         : Thresholds,
+    active             : bool,
 }
 
 impl<T:Value> SimulationData<T> {
@@ -240,29 +245,26 @@ impl<T:Value> SimulationData<T> {
     fn step(&mut self, delta_seconds:f32) {
         if self.active {
             let velocity      = self.velocity.magnitude();
-            let distance      = (self.value + self.target_value * -1.0).magnitude();
+            let distance      = self.offset_from_target.magnitude();
             let snap_velocity = velocity < self.thresholds.speed;
             let snap_distance = distance < self.thresholds.distance;
             let should_snap   = snap_velocity && snap_distance;
-            if should_snap {
-                self.value    = self.target_value;
-                self.velocity = default();
-                self.active   = false;
+            if should_snap || distance.is_nan() {
+                self.offset_from_target = default();
+                self.velocity           = default();
+                self.active             = false;
             } else {
-                let force        = self.spring_force() + self.drag_force();
-                let acceleration = force * (1.0 / self.mass.value);
-                self.velocity    = self.velocity + acceleration * delta_seconds;
-                self.value       = self.value + self.velocity * delta_seconds;
+                let force               = self.spring_force() + self.drag_force();
+                let acceleration        = force * (1.0 / self.mass.value);
+                self.velocity           = self.velocity + acceleration * delta_seconds;
+                self.offset_from_target = self.offset_from_target + self.velocity * delta_seconds;
             }
         }
     }
 
     /// Compute spring force.
     fn spring_force(&self) -> T {
-        let value_delta    = self.target_value + self.value * -1.0;
-        let spring_stretch = value_delta.magnitude();
-        let coefficient    = spring_stretch * self.spring.value;
-        value_delta.normalize() * coefficient
+        self.offset_from_target * -self.spring.value
     }
 
     /// Compute air drag force. Please note that this is physically incorrect. Read the docs of
@@ -287,7 +289,7 @@ impl<T:Value> SimulationData<T> {
 
 #[allow(missing_docs)]
 impl<T:Value> SimulationData<T> {
-    pub fn value        (&self) -> T          { self.value }
+    pub fn value        (&self) -> T          { self.target_value + self.offset_from_target }
     pub fn target_value (&self) -> T          { self.target_value }
     pub fn velocity     (&self) -> T          { self.velocity }
     pub fn mass         (&self) -> Mass       { self.mass }
@@ -310,12 +312,14 @@ impl<T:Value> SimulationData<T> {
 
     pub fn set_value(&mut self, value:T) {
         self.active = true;
-        self.value = value;
+        self.offset_from_target = value + self.target_value * -1.0;
     }
 
     pub fn set_target_value(&mut self, target_value:T) {
         self.active = true;
+        let old_target_value = self.target_value;
         self.target_value = target_value;
+        self.offset_from_target = old_target_value + self.offset_from_target + target_value * -1.0;
     }
 
     pub fn update_value<F:FnOnce(T)->T>(&mut self, f:F) {
@@ -350,9 +354,9 @@ impl<T:Value> SimulationData<T> {
 
     /// Stop the animator and set it to the target value.
     pub fn skip(&mut self) {
-        self.active   = false;
-        self.value    = self.target_value;
-        self.velocity = default();
+        self.active             = false;
+        self.offset_from_target = default();
+        self.velocity           = default();
     }
 }
 
@@ -721,5 +725,30 @@ impl EndStatus {
 impl Default for EndStatus {
     fn default() -> Self {
         Self::Normal
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn animation_to_nan() {
+        let mut data = SimulationData::<f32>::new();
+        data.set_value(0.0);
+        data.set_target_value(f32::NAN);
+        data.step(1.0);
+        assert!(data.value().is_nan());
+        assert!(!data.active);
+    }
+
+    #[test]
+    fn animation_from_nan() {
+        let mut data = SimulationData::<f32>::new();
+        data.set_value(f32::NAN);
+        data.set_target_value(0.0);
+        data.step(1.0);
+        assert_eq!(data.value(),0.0);
+        assert!(!data.active);
     }
 }
