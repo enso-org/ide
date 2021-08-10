@@ -348,11 +348,13 @@ function extractDataPoints(parsedData, preparedDataPoints, accentColor) {
  */
 function pushPoints(dataPoints, targetList, accentColor) {
     dataPoints.forEach(geoPoint => {
-        let position = [geoPoint.longitude, geoPoint.latitude]
-        let radius = isValidNumber(geoPoint.radius) ? geoPoint.radius : DEFAULT_POINT_RADIUS
-        let color = ok(geoPoint.color) ? geoPoint.color : accentColor
-        let label = ok(geoPoint.label) ? geoPoint.label : ''
-        targetList.push({ position, color, radius, label })
+        if (isValidNumber(geoPoint.longitude) && isValidNumber(geoPoint.latitude)) {
+            let position = [geoPoint.longitude, geoPoint.latitude]
+            let radius = isValidNumber(geoPoint.radius) ? geoPoint.radius : DEFAULT_POINT_RADIUS
+            let color = geoPoint.color ?? accentColor
+            let label = geoPoint.label ?? ''
+            targetList.push({ position, color, radius, label })
+        }
     })
 }
 
