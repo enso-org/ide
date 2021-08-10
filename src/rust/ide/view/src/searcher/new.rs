@@ -1,3 +1,5 @@
+//! A stub module with new searcher GUI.
+
 use crate::prelude::*;
 
 
@@ -5,6 +7,8 @@ use crate::prelude::*;
 // === Entry ===
 // =============
 
+/// A structure describing a single entry in Searcher.
+#[allow(missing_docs)]
 #[derive(Clone,CloneRef,Debug,Default)]
 pub struct Entry {
     pub label     : ImString,
@@ -12,6 +16,7 @@ pub struct Entry {
     pub icon      : Icon,
 }
 
+/// The typewrapper for icon name.
 #[derive(Clone,CloneRef,Debug,Default)]
 pub struct Icon {
     name : ImString
@@ -21,7 +26,7 @@ pub struct Icon {
 // === FRP ===
 // ===========
 
-ensogl::define_endpoints! { [TRACE_ALL]<ID>
+ensogl::define_endpoints! { <ID>
     Input {
         reset(),
         directory_content (Vec<ID>,Entry),
@@ -35,6 +40,11 @@ ensogl::define_endpoints! { [TRACE_ALL]<ID>
     }
 }
 
+/// The Searcher View gui component.
+///
+/// Currently it contains only simple mechanism of requesting searcher content and printing it to
+/// the console.
+#[allow(missing_docs)]
 #[derive(Clone,CloneRef,Debug)]
 pub struct View<ID:Debug+Clone+'static> {
     pub frp : Frp<ID>,
@@ -47,13 +57,15 @@ impl<ID:Debug+Clone+'static> Deref for View<ID> {
 }
 
 impl<ID:ToString+Debug+Clone+'static> View<ID> {
+    /// Create new searcher view.
     pub fn new() -> Self {
-        let frp = Frp::new();
+        let logger  = Logger::new("searcher::new::View");
+        let frp     = Frp::new();
         let network = &frp.network;
         enso_frp::extend!{ network
-            eval frp.directory_content ([]((crumbs,entry)) {
+            eval frp.directory_content ([logger]((crumbs,entry)) {
                 let crumbs = crumbs.iter().map(ToString::to_string).join(",");
-                INFO!("New Searcher Entry received: [{crumbs}] -> {entry:?}");
+                info!(logger,"New Searcher Entry received: [{crumbs}] -> {entry:?}");
             });
 
             frp.source.list_directory <+ frp.reset.constant(vec![]);

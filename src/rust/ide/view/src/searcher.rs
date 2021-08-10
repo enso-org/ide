@@ -267,6 +267,7 @@ impl View {
         self.set_actions(provider);
     }
 
+    /// The FRP interface of new searcher.
     pub fn new_frp(&self) -> &new::Frp<usize> {
         &self.model.new_view.frp
     }

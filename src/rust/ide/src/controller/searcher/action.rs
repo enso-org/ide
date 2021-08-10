@@ -296,12 +296,14 @@ impl List {
         self.root_categories.iter().enumerate()
     }
 
+    /// Iterate over all subcategories of given root category.
     pub fn subcategories_of(&self, id:CategoryId) -> impl Iterator<Item=(CategoryId,&Subcategory)> {
         let start = self.subcategories.partition_point(|cat| cat.parent < id);
         let end   = self.subcategories.partition_point(|cat| cat.parent <= id);
         (start..end).zip(self.subcategories[start..end].iter())
     }
 
+    /// Iterate over all actions of given subcategory.
     pub fn actions_of(&self, id:CategoryId) -> impl Iterator<Item=(usize,ListEntry)> + '_ {
         let range = {
             let actions = self.entries.borrow();
