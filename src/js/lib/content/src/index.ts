@@ -955,20 +955,25 @@ API.main = async function(inputConfig: any) {
     config.updateFromObject(inputConfig)
     config.updateFromObject(urlConfig)
 
-    if (await checkMinSupportedVersion(config)) {
-        if (config.authentication_enabled && !Versions.isDevVersion()) {
-            new FirebaseAuthentication(function(user: any) {
-                config.email = user.email
-                templates.loadTemplatesView((name: string) => {
-                    config.project = name
-                    mainEntryPoint(config)
-                })
-            })
+    const runEntryPoint = async () => {
+        if (ok(config.project)) {
+            await mainEntryPoint(config)
         } else {
             await templates.loadTemplatesView((name: string) => {
                 config.project = name
                 mainEntryPoint(config)
             })
+        }
+    }
+
+    if (await checkMinSupportedVersion(config)) {
+        if (config.authentication_enabled && !Versions.isDevVersion()) {
+            new FirebaseAuthentication(function(user: any) {
+                config.email = user.email
+                runEntryPoint()
+            })
+        } else {
+            await runEntryPoint()
         }
     } else {
         // Display a message asking to update the application.
