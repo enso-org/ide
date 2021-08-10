@@ -1,5 +1,21 @@
 # Next Release
 
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Visual Environment
+
+#### Enso Compiler
+
+<br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
+
+#### Visual Environment
+
+- [GeoMap visualization will ignore points with `null` coordinates][1775]. Now
+  the presence of such points in the dataset will not break initial map
+  positioning.
+
+[1775]: https://github.com/enso-org/ide/pull/1775
+
 # Enso 2.0.0-alpha.11 (2021-08-09)
 
 This update contains major performance improvements and exposes new privacy user
