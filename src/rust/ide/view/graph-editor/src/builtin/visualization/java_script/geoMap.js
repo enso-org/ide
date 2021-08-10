@@ -160,7 +160,7 @@ class GeoMapVisualization extends Visualization {
 
         extractDataPoints(data, this.dataPoints, this.accentColor)
         if (this.dataPoints.length === 0) {
-            // We have no valid data and should skip initialisation.
+            // We have no valid data and should skip initialization.
             return false
         }
         const { latitude, longitude } = this.centerPoint()
@@ -219,7 +219,7 @@ class GeoMapVisualization extends Visualization {
     }
 
     /**
-     * Reset the internal state of the visualisation, discarding all previous data updates.
+     * Reset the internal state of the visualization, discarding all previous data updates.
      */
     resetState() {
         // We only need to reset the data points as everything else will be overwritten when new
@@ -288,7 +288,7 @@ class GeoMapVisualization extends Visualization {
 }
 
 /**
- * Extract the visualisation data from a full configuration object.
+ * Extract the visualization data from a full configuration object.
  */
 function extractVisualizationDataFromFullConfig(parsedData, preparedDataPoints, accentColor) {
     if (parsedData.type === SCATTERPLOT_LAYER && parsedData.data.length) {
@@ -306,7 +306,7 @@ function extractVisualizationDataFromFullConfig(parsedData, preparedDataPoints, 
 }
 
 /**
- * Extract the visualisation data from a dataframe.
+ * Extract the visualization data from a dataframe.
  */
 function extractVisualizationDataFromDataFrame(parsedData, preparedDataPoints, accentColor) {
     const geoPoints = parsedData.df_latitude.map(function (latitude, i) {
