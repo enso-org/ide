@@ -70,7 +70,7 @@ impl Model {
         let display_object = display::object::Instance::new(&logger);
         let div            = web::create_div();
         let dom            = DomSymbol::new(&div);
-        let size           = Rc::new(Cell::new(Vector2(VIEW_WIDTH,VIEW_HEIGHT)));
+        let size           = Rc::new(Cell::new(Vector2(VIEW_WIDTH-PADDING,VIEW_HEIGHT-PADDING-5.0)));
         let overlay        = overlay::View::new(&logger);
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
@@ -81,8 +81,8 @@ impl Model {
 
         dom.dom().set_attribute_or_warn("class"       ,"scrollable"                 ,&logger);
         dom.dom().set_style_or_warn("white-space"     ,"normal"                     ,&logger);
-        dom.dom().set_style_or_warn("overflow-y"      ,"auto"                       ,&logger);
-        dom.dom().set_style_or_warn("overflow-x"      ,"auto"                       ,&logger);
+        dom.dom().set_style_or_warn("overflow-y"       ,"auto"                       ,&logger);
+        dom.dom().set_style_or_warn("overflow-x"       ,"auto"                       ,&logger);
         dom.dom().set_style_or_warn("background-color",bg_color                     ,&logger);
         dom.dom().set_style_or_warn("padding"         ,format!("{}px",PADDING)      ,&logger);
         dom.dom().set_style_or_warn("padding-top"     ,"5px"                        ,&logger);
@@ -189,7 +189,7 @@ impl Model {
     fn reload_style(&self) {
         let size        = self.size.get();
         let padding     = (size.x.min(size.y) / 2.0).min(PADDING);
-        self.dom.set_size(Vector2(size.x,size.y));
+        self.dom.set_size(Vector2(size.x-padding,size.y-padding-5.0));
         self.dom.dom().set_style_or_warn("padding",format!("{}px",padding),&self.logger);
         self.dom.dom().set_style_or_warn("padding-top","5px",&self.logger);
     }
