@@ -1,6 +1,6 @@
 //! A debug scene which shows the Select Component. The chosen entries are logged in console.
 
-use crate::prelude::*;
+use ensogl_core::prelude::*;
 
 use ensogl_core::system::web;
 use ensogl_core::application::Application;
@@ -102,10 +102,25 @@ fn init(app:&Application) {
         let _keep_alive = &list_view;
         let _keep_alive = &network;
 
-        if frame > 200 {
+        if frame > 200 && frame < 600 {
             scroll += 0.5;
             list_view.set_scroll(scroll);
         }
+
+        if frame > 600 {
+            scroll -= 0.5;
+            list_view.set_scroll(scroll);
+        }
+
+        // if frame == 200 {
+        //     DEBUG!("--- Scroll ---");
+        //     list_view.set_scroll(40.0);
+        // }
+        //
+        // if frame == 300 {
+        //     DEBUG!("--- Scroll ---");
+        //     list_view.set_scroll(80.0);
+        // }
 
         if frame == 50 {
             DEBUG!("Resize.");
@@ -117,18 +132,38 @@ fn init(app:&Application) {
             let highlighted = vec![];
             let entry = list_view::entry::GlyphHighlightedLabelModel {label,highlighted};
             list_view.set_entry((1,Rc::new(Some(entry))));
-        }
-        if frame == 200 {
-            DEBUG!("--- Setting entry #1 ---");
-            let label = iformat!("Entry 1 alt");
+
+            let label = iformat!("Entry 2");
             let highlighted = vec![];
             let entry = list_view::entry::GlyphHighlightedLabelModel {label,highlighted};
-            list_view.set_entry((1,Rc::new(Some(entry))));
+            list_view.set_entry((2,Rc::new(Some(entry))));
+
+            let label = iformat!("Entry 3");
+            let highlighted = vec![];
+            let entry = list_view::entry::GlyphHighlightedLabelModel {label,highlighted};
+            list_view.set_entry((3,Rc::new(Some(entry))));
+
+            let label = iformat!("Entry 4");
+            let highlighted = vec![];
+            let entry = list_view::entry::GlyphHighlightedLabelModel {label,highlighted};
+            list_view.set_entry((4,Rc::new(Some(entry))));
+
+            let label = iformat!("Entry 5");
+            let highlighted = vec![];
+            let entry = list_view::entry::GlyphHighlightedLabelModel {label,highlighted};
+            list_view.set_entry((5,Rc::new(Some(entry))));
         }
-        if frame == 250 {
-            DEBUG!("--- Unsetting entry #1 ---");
-            list_view.set_entry((1,Rc::new(None)));
-        }
+        // if frame == 200 {
+        //     DEBUG!("--- Setting entry #1 ---");
+        //     let label = iformat!("Entry 1 alt");
+        //     let highlighted = vec![];
+        //     let entry = list_view::entry::GlyphHighlightedLabelModel {label,highlighted};
+        //     list_view.set_entry((1,Rc::new(Some(entry))));
+        // }
+        // if frame == 250 {
+        //     DEBUG!("--- Unsetting entry #1 ---");
+        //     list_view.set_entry((1,Rc::new(None)));
+        // }
         frame += 1;
     }).forget();
 }

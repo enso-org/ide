@@ -269,7 +269,7 @@ impl SlotRange {
     }
 
     pub fn contains(self, index:usize) -> bool {
-        index >= self.start && index <= self.end
+        index >= self.start && index < self.end
     }
 }
 
@@ -296,7 +296,7 @@ pub struct ModelData<E:Entry> {
     slots                : Vec<Slot<E>>,
     entry_pool           : Vec<E>,
     placeholder_pool     : Vec<Placeholder>,
-    slot_range           : SlotRange,
+    slot_range2           : SlotRange,
     entry_default_len    : f32,
     length               : f32,
 }
@@ -315,11 +315,11 @@ impl<E:Entry> ModelData<E> {
         let slots = default();
         let entry_pool = default();
         let placeholder_pool = default();
-        let slot_range = default();
+        let slot_range2 = default();
         let entry_default_len = 30.0;
         let length = default();
         Self {logger,app,scroll_area,entry_model_registry
-            ,entry_default_len,slots,entry_pool,placeholder_pool,slot_range,length}
+            ,entry_default_len,slots,entry_pool,placeholder_pool,slot_range2,length}
     }
 
     fn entries_to_be_requested(&mut self, size:Vector2<f32>) -> Vec<entry::Id> {
@@ -354,15 +354,37 @@ impl<E:Entry> ModelData<E> {
         self.length = size.y;
     }
 
+    fn move_slot_to_pool(&mut self, slot:Slot<E>) {
+        slot.unset_parent();
+        match slot {
+            Slot::Placeholder (t) => self.placeholder_pool.push(t),
+            Slot::Entry       (t) => self.entry_pool.push(t),
+        }
+    }
+
     fn update_view(&mut self) {
-        // self.slot_range;
+
+        let scroll = self.scroll_area.position().y;
+        let index = (scroll / 30.0).floor() as usize;
+
+        let start = self.slot_range2.start;
+        let end   = index.min(self.slot_range2.end);
+
+        for ix in start .. end {
+            let slot = self.slots.remove(0);
+            self.move_slot_to_pool(slot);
+        }
+
+        self.slot_range2.start = index;
+
+
 
         let length = self.length;
+        let offset1 =  scroll - (index as f32) * 30.0;
+        let mut offset = ((self.slot_range2.end - self.slot_range2.start) as f32 * 30.0 - offset1);
+        let mut index = self.slot_range2.end;
 
-        let mut index  = 0;
-        let mut offset = 0.0;
-
-        let mut new_entries = Vec::new();
+        DEBUG!("offset: {offset}");
 
         while offset < length {
             let slot = self.entry_model_registry.get(&index);
@@ -372,16 +394,16 @@ impl<E:Entry> ModelData<E> {
                     let entry = Placeholder::new(&self.logger);
                     offset += self.entry_default_len;
                     self.scroll_area.add_child(&entry);
-                    entry.set_position_y(-offset);
-                    new_entries.push(Slot::Placeholder(entry));
+                    entry.set_position_y(-((index + 1) as f32) * 30.0);
+                    self.slots.push(Slot::Placeholder(entry));
                 }
                 Some(Lazy::Requested) => {
                     DEBUG!("set requested #{index}, offset {offset}.");
                     let entry = Placeholder::new(&self.logger);
                     offset += self.entry_default_len;
                     self.scroll_area.add_child(&entry);
-                    entry.set_position_y(-offset);
-                    new_entries.push(Slot::Placeholder(entry));
+                    entry.set_position_y(-((index + 1) as f32) * 30.0);
+                    self.slots.push(Slot::Placeholder(entry));
                 }
 
                 Some(Lazy::Known(model)) => {
@@ -391,18 +413,17 @@ impl<E:Entry> ModelData<E> {
                     entry.set_label_layer(&self.app.display.scene().layers.label);
                     offset += self.entry_default_len;
                     self.scroll_area.add_child(&entry);
-                    entry.set_position_y(-offset + 15.0); // FIXME: label center
-                    new_entries.push(Slot::Entry(entry));
+                    entry.set_position_y(-((index + 1) as f32) * 30.0 + 15.0);
+                    // entry.set_position_y(-offset + 15.0); // FIXME: label center
+                    self.slots.push(Slot::Entry(entry));
                 }
             }
             index += 1;
         }
 
-        DEBUG!("AFTER: {index}");
+        self.slot_range2.end = index;
+        DEBUG!("{self.slot_range2:?}");
 
-        self.slots = new_entries;
-        self.slot_range = SlotRange::new(0,index-1);
-        // to_be_requested
     }
 
     fn new_entry(&mut self) -> E {
@@ -417,7 +438,7 @@ impl<E:Entry> ModelData<E> {
 
     fn set_entry(&mut self, index:entry::Id, new_entry:Option<&E::Model>) {
 
-        if self.slot_range.contains(index) {
+        if self.slot_range2.contains(index) {
             DEBUG!("REFRESH THE VIEW!");
             let slot = self.slots[index].clone_ref();
             match slot {
@@ -428,10 +449,9 @@ impl<E:Entry> ModelData<E> {
                             let entry = self.new_entry();
                             entry.set_model(model);
                             entry.set_position_y(placeholder.position().y + 15.0); // FIXME: label center
-                            self.scroll_area.remove_child(&placeholder);
                             self.scroll_area.add_child(&entry);
                             self.slots[index] = Slot::Entry(entry);
-                            self.placeholder_pool.push(placeholder);
+                            self.move_slot_to_pool(Slot::Placeholder(placeholder));
                         }
                     }
                 }
@@ -440,10 +460,9 @@ impl<E:Entry> ModelData<E> {
                         None => {
                             let placeholder = self.new_placeholder();
                             placeholder.set_position_y(entry.position().y - 15.0); // FIXME: label center
-                            self.scroll_area.remove_child(&entry);
                             self.scroll_area.add_child(&placeholder);
                             self.slots[index] = Slot::Placeholder(placeholder);
-                            self.entry_pool.push(entry);
+                            self.move_slot_to_pool(Slot::Entry(entry));
                         }
                         Some(model) => {
                             entry.set_model(model);
@@ -465,7 +484,7 @@ impl<E:Entry> ModelData<E> {
 
     fn set_scroll(&mut self, scroll:f32) {
         self.scroll_area.set_position_y(scroll);
-
+        self.update_view();
     }
 }
 

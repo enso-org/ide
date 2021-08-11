@@ -17,7 +17,7 @@ enso-logger = { version = "0.3.1" }
 enso-prelude = { version = "0.2.5" }
 enso-shapely = { version = "0.2.0" }
 ensogl = { path = "../ensogl" }
-ensogl-examples = { path = "../ensogl/example" }
+ensogl-examples = { path = "../ensogl/examples" }
 ensogl-gui-components = { path = "../ensogl/lib/components" }
 ensogl-system-web = { path = "../lib/system/web" }
 ensogl-text = { path = "../ensogl/lib/text" }
