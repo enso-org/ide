@@ -435,3 +435,48 @@ impl<'a> CategoryBuilder<'a> {
         }));
     }
 }
+
+
+// === ListWithSearchResultBuilder ===
+
+// The Actions list builder which adds a special "All search result" category.
+#[derive(Debug,Default)]
+pub struct ListWithSearchResultBuilder {
+    internal               : ListBuilder,
+    search_result_category : Option<CategoryId>,
+}
+
+impl ListWithSearchResultBuilder {
+    pub fn new_with_search_result() -> Self {
+        let mut internal           = ListBuilder::default();
+        let mut search_result_root = internal.add_root_category("All Search Result");
+        let search_result_category = search_result_root.add_category("All Search Result");
+        let search_result_category = Some(search_result_category.category_id);
+        Self {internal,search_result_category}
+    }
+
+    pub fn new_without_search_result() -> Self {
+        default()
+    }
+
+    pub fn add_root_category(&mut self, name: impl Into<Cow<'static,str>>) -> RootCategoryBuilder {
+        self.internal.add_root_category(name)
+    }
+
+    pub fn build(self) -> List {
+        let search_results = self.make_searcher_result_entries();
+        // The entries will be sorted, so it is no problem in pushing search results at the end.
+        self.internal.built_list.entries.borrow_mut().extend(search_results);
+        self.internal.build()
+    }
+
+    fn make_searcher_result_entries(&self) -> Vec<ListEntry> {
+        if let Some(category) = self.search_result_category {
+            self.internal.built_list.entries.borrow().iter().map(|entry| {
+                let match_info = MatchInfo::Matches {subsequence:default()};
+                let action     = entry.action.clone_ref();
+                ListEntry {category,match_info,action}
+            }).collect()
+        } else { default() }
+    }
+}
