@@ -92,6 +92,17 @@ pub enum Action {
     // In the future, other action types will be added (like module/method management, etc.).
 }
 
+impl Action {
+    /// Get the name of the icon associated with given action.
+    pub fn icon(&self) -> ImString {
+        use Suggestion::*;
+        match self {
+            Self::Suggestion(Hardcoded(s)) => s.icon.clone_ref(),
+            _                              => hardcoded::ICONS.with(|ics| ics.default.clone_ref()),
+        }
+    }
+}
+
 impl Display for Action {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -132,13 +143,15 @@ pub type CategoryId = usize;
 #[derive(Clone,Debug)]
 pub struct RootCategory {
     pub name : Cow<'static,str>,
+    pub icon : ImString,
 }
 
 /// The category of suggestions.
 #[allow(missing_docs)]
 #[derive(Clone,Debug)]
 pub struct Subcategory {
-    pub name:Cow<'static,str>,
+    pub name : Cow<'static,str>,
+    pub icon : ImString,
     /// The id of the root category this category belongs to.
     pub parent:CategoryId,
 }
@@ -378,10 +391,11 @@ pub struct CategoryBuilder<'a> {
 impl ListBuilder {
     /// Add the new root category with a given name. The returned builder should be used to add
     /// sub-categories to it.
-    pub fn add_root_category(&mut self, name: impl Into<Cow<'static,str>>) -> RootCategoryBuilder {
+    pub fn add_root_category
+    (&mut self, name: impl Into<Cow<'static,str>>, icon:ImString) -> RootCategoryBuilder {
         let name             = name.into();
         let root_category_id = self.built_list.root_categories.len();
-        self.built_list.root_categories.push(RootCategory{name});
+        self.built_list.root_categories.push(RootCategory{name,icon});
         RootCategoryBuilder { list_builder:self, root_category_id}
     }
 
@@ -395,11 +409,12 @@ impl ListBuilder {
 impl<'a> RootCategoryBuilder<'a> {
     /// Add the category with a given name to the root category. The returned builder should be
     /// used to add actions to the newly created category.
-    pub fn add_category(&mut self, name:impl Into<Cow<'static,str>>) -> CategoryBuilder {
+    pub fn add_category
+    (&mut self, name:impl Into<Cow<'static,str>>, icon:ImString) -> CategoryBuilder {
         let name        = name.into();
         let parent      = self.root_category_id;
         let category_id = self.list_builder.built_list.subcategories.len();
-        self.list_builder.built_list.subcategories.push(Subcategory {name,parent});
+        self.list_builder.built_list.subcategories.push(Subcategory {name,parent,icon});
         CategoryBuilder { list_builder:self.list_builder, category_id}
     }
 }
@@ -411,7 +426,7 @@ impl<'a> CategoryBuilder<'a> {
     }
 
     /// Add many actions to the category.
-    pub fn extend<T:IntoIterator<Item=Action>>(&self, iter: T) {
+    pub fn extend<T:IntoIterator<Item=Action>>(&self, iter:T) {
         let built_list = &self.list_builder.built_list;
         let category   = self.category_id;
         built_list.entries.borrow_mut().extend(iter.into_iter().map(|action| {

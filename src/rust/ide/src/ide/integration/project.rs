@@ -43,6 +43,7 @@ use ide_view::graph_editor::EdgeEndpoint;
 use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
 use ide_view::searcher::entry::AnyModelProvider;
+use ide_view::searcher::new::Icon;
 use ide_view::open_dialog;
 use utils::iter::split_by_predicate;
 use futures::future::LocalBoxFuture;
@@ -123,7 +124,7 @@ struct MissingSearcherController;
 /// // This will run the set up closure, but without calling update_something.
 /// set_up.trigger.emit(());
 /// ```
-#[derive(CloneRef)]
+#[derive(Clone,CloneRef)]
 struct FencedAction<Parameter:frp::Data> {
     trigger    : frp::Source<Parameter>,
     is_running : frp::Stream<bool>,
@@ -359,7 +360,8 @@ impl Integration {
         frp::extend! { network
             eval searcher.list_directory ([model,searcher](crumbs) {
                 for (id,entry) in model.get_category_content(crumbs) {
-                    let new_crumbs = crumbs.clone().pushed(id);
+                    let mut new_crumbs     = crumbs.clone();
+                    Rc::make_mut(&mut new_crumbs).push(id);
                     searcher.directory_content(new_crumbs,entry);
                 }
             });
@@ -1070,20 +1072,20 @@ impl Model {
                 0 => list.root_categories().map(|(id,cat)| (id,ide_view::searcher::new::Entry {
                     label     : cat.name.to_string().into(),
                     is_folder : Immutable(true),
-                    icon      : Default::default()
+                    icon      : Icon(cat.icon.clone_ref()),
                 })).collect(),
                 1 => list.subcategories_of(*crumbs.last().unwrap()).map(|(id,cat)|
                     (id,ide_view::searcher::new::Entry {
                         label     : cat.name.to_string().into(),
                         is_folder : Immutable(true),
-                        icon      : Default::default()
+                        icon      : Icon(cat.icon.clone_ref()),
                     })
                 ).collect(),
                 2 => list.actions_of(*crumbs.last().unwrap()).map(|(id,action)|
                     (id,ide_view::searcher::new::Entry {
                         label     : action.action.to_string().into(),
                         is_folder : Immutable(false),
-                        icon      : Default::default()
+                        icon      : Icon(action.action.icon())
                     })
                 ).collect(),
                 _ => vec![],

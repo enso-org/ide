@@ -3,6 +3,7 @@
 use crate::prelude::*;
 
 
+
 // =============
 // === Entry ===
 // =============
@@ -21,22 +22,34 @@ pub struct Entry {
 pub struct Icon {
     name : ImString
 }
-    
+
+/// Construct icon structure from its name.
+#[allow(non_snake_case)]
+pub fn Icon(name:impl Into<ImString>) -> Icon {
+    let name = name.into();
+    Icon {name}
+}
+
+
+
 // ===========
 // === FRP ===
 // ===========
 
-ensogl::define_endpoints! { <ID>
+/// A type representing path to entry in some column.
+pub type EntryPath<Id> = Rc<Vec<Id>>;
+
+ensogl::define_endpoints! { <Id:(Debug+Clone+'static)>
     Input {
         reset(),
-        directory_content (Vec<ID>,Entry),
-        set_highlight (Vec<ID>),
+        directory_content (EntryPath<Id>,Entry),
+        set_highlight     (EntryPath<Id>),
     }
 
     Output {
-        list_directory (Vec<ID>),
-        highlight (Vec<ID>),
-        entry_chosen (Vec<ID>),
+        list_directory (EntryPath<Id>),
+        highlight      (EntryPath<Id>),
+        entry_chosen   (EntryPath<Id>),
     }
 }
 
@@ -46,12 +59,12 @@ ensogl::define_endpoints! { <ID>
 /// the console.
 #[allow(missing_docs)]
 #[derive(Clone,CloneRef,Debug)]
-pub struct View<ID:Debug+Clone+'static> {
-    pub frp : Frp<ID>,
+pub struct View<Id:Debug+Clone+'static> {
+    pub frp : Frp<Id>,
 }
 
-impl<ID:Debug+Clone+'static> Deref for View<ID> {
-    type Target = Frp<ID>;
+impl<Id:Debug+Clone+'static> Deref for View<Id> {
+    type Target = Frp<Id>;
 
     fn deref(&self) -> &Self::Target { &self.frp }
 }
@@ -65,12 +78,12 @@ impl<ID:ToString+Debug+Clone+'static> View<ID> {
         enso_frp::extend!{ network
             eval frp.directory_content ([logger]((crumbs,entry)) {
                 let crumbs = crumbs.iter().map(ToString::to_string).join(",");
-                info!(logger,"New Searcher Entry received: [{crumbs}] -> {entry:?}");
+                info!(logger,"New Searcher Entry received: [{crumbs}] -> {entry:?}.");
             });
 
-            frp.source.list_directory <+ frp.reset.constant(vec![]);
+            frp.source.list_directory <+ frp.reset.constant(Rc::new(vec![]));
             frp.source.list_directory <+ frp.directory_content.filter_map(|(crumbs,entry)| {
-                entry.is_folder.as_some(crumbs.clone())
+                entry.is_folder.as_some(crumbs.clone_ref())
             });
         }
 
@@ -78,6 +91,6 @@ impl<ID:ToString+Debug+Clone+'static> View<ID> {
     }
 }
 
-impl<ID:ToString+Debug+Clone+'static> Default for View<ID> {
+impl<Id:ToString+Debug+Clone+'static> Default for View<Id> {
     fn default() -> Self { Self::new() }
 }

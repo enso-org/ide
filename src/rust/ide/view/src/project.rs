@@ -426,7 +426,7 @@ impl View {
             // once processing of "node_being_edited" event from graph is performed.
             editing_aborted              <- any(...);
             editing_aborted              <+ frp.close_searcher.constant(true);
-            editing_commited_in_searcher     <- searcher.editing_committed.constant(());
+            editing_commited_in_searcher <- searcher.editing_committed.constant(());
             should_finish_editing_if_any <- any(frp.close_searcher,editing_commited_in_searcher
                 ,frp.open_searcher,frp.show_open_dialog);
             should_finish_editing <- should_finish_editing_if_any.gate(&graph.output.node_editing);

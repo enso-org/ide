@@ -236,7 +236,6 @@ impl View {
             // New searcher
             let is_selected           =  model.new_view.focused.clone_ref();
             selected_id               <- model.new_view.highlight.map(|id| id.last().copied());
-            // displayed_doc             <- selected_id.map(f!((id) model.docs_for(*id)));
             opt_picked_entry          <- selected_id.sample(&frp.use_as_suggestion);
             source.used_as_suggestion <+ opt_picked_entry.gate(&is_selected);
             opt_chosen_id             <- model.new_view.entry_chosen.map(|id| id.last().copied());
