@@ -803,6 +803,7 @@ class Config {
     public project_manager: string
     public language_server_rpc: string
     public language_server_data: string
+    public namespace: string
     public platform: string
     public frame: boolean
     public theme: string
@@ -850,6 +851,7 @@ class Config {
         this.language_server_data = ok(other.language_server_data)
             ? tryAsString(other.language_server_data)
             : this.language_server_data
+        this.namespace = ok(other.namespace) ? tryAsString(other.namespace) : this.namespace
         this.platform = ok(other.platform) ? tryAsString(other.platform) : this.platform
         this.frame = ok(other.frame) ? tryAsBoolean(other.frame) : this.frame
         this.theme = ok(other.theme) ? tryAsString(other.theme) : this.theme
