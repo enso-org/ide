@@ -1,6 +1,6 @@
 @import "https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@300;400;500;600;700&display=swap";
 
-.doc {
+.enso.docs {
   font-family: DejaVuSansMonoBook, sans-serif;
   .root {
     display: flex;
@@ -68,7 +68,7 @@
 }
 
 .light-theme {
-  .doc {
+  .enso.docs {
     font-weight: 500;
     font-size: 16px;
     line-height: 1.4;
@@ -216,108 +216,19 @@
         -webkit-box-decoration-break: clone;
       }
     }
-    .atom {
-      font-size: 20px;
-      line-height: 1.35;
-      margin-top: 2rem;
-      color: rgba(75, 88, 100, 1);
-      .name {
-        font-weight: 700;
-        color: rgb(42 57 74);
-      }
-    }
-    .method {
-      .name {
-        font-weight: 700;
-        color: rgb(42 57 74);
-      }
-      .argument {
-        opacity: 0.5;
-      }
-      .argument.default {
-        opacity: 0.5;
-      }
-      font-size: 20px;
-      line-height: 1.35;
-      margin-top: 2rem;
-      color: rgba(75, 88, 100, 1);
-    }
-    .submodule {
-      .name {
-        font-weight: 700;
-        color: rgb(42 57 74);
-      }
-      font-size: 20px;
-      line-height: 1.35;
-      margin-top: 2rem;
-      color: rgba(75, 88, 100, 1);
-    }
-    .toc {
-      h2 {
-        margin-top: 0;
-        font-size: 24px;
-        line-height: 1.35;
-      }
-      .methods {
-        margin-top: 2rem;
-      }
-      .atom {
-        font-size: 16px;
-        line-height: 1.4;
-        margin-top: 0;
-        .name {
-          font-weight: 500;
-        }
-      }
-      .method {
-        font-size: 16px;
-        line-height: 1.4;
-        margin-top: 0;
-        .name {
-          font-weight: 500;
-        }
-      }
-    }
-    .breadcrumb-panel {
-      padding-top: 0.75rem;
-      padding-bottom: 0.75rem;
-      position: -webkit-sticky;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      background-color: rgb(32 119 208);
-    }
-    .breadcrumbs {
-      color: hsla(0, 0%, 100%, 0.9);
-      .separator {
-        margin-right: 0.5rem;
-        margin-left: 0.5rem;
-        font-size: 12px;
-      }
-      .browse-submodules {
-        margin-left: 0;
-        background-color: rgba(235, 241, 251, 0.2);
-        display: inline-table;
-        border-radius: 8px;
-        padding: 2px 6px;
-        line-height: 1.35;
-        box-decoration-break: clone;
-        -webkit-box-decoration-break: clone;
-      }
-    }
   }
 }
 
 @media (min-width: 768px) {
   .light-theme {
-    .doc {
+    .enso.docs {
       h1 {
         font-size: 48px;
         line-height: 1.25;
       }
     }
   }
-  .doc {
+  .enso.docs {
     .toc {
       display: block;
     }
