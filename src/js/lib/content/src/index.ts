@@ -946,6 +946,17 @@ async function mainEntryPoint(config: Config) {
     }
 }
 
+async function runEntryPoint(config: Config) {
+    if (ok(config.project)) {
+        await mainEntryPoint(config)
+    } else {
+        await templates.loadTemplatesView((name: string) => {
+            config.project = name
+            mainEntryPoint(config)
+        })
+    }
+}
+
 API.main = async function(inputConfig: any) {
     const urlParams = new URLSearchParams(window.location.search)
     // @ts-ignore
@@ -955,25 +966,14 @@ API.main = async function(inputConfig: any) {
     config.updateFromObject(inputConfig)
     config.updateFromObject(urlConfig)
 
-    const runEntryPoint = async () => {
-        if (ok(config.project)) {
-            await mainEntryPoint(config)
-        } else {
-            await templates.loadTemplatesView((name: string) => {
-                config.project = name
-                mainEntryPoint(config)
-            })
-        }
-    }
-
     if (await checkMinSupportedVersion(config)) {
         if (config.authentication_enabled && !Versions.isDevVersion()) {
             new FirebaseAuthentication(function(user: any) {
                 config.email = user.email
-                runEntryPoint()
+                runEntryPoint(config)
             })
         } else {
-            await runEntryPoint()
+            await runEntryPoint(config)
         }
     } else {
         // Display a message asking to update the application.
