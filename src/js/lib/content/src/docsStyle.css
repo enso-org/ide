@@ -34,7 +34,7 @@
   src: url(https://fonts.gstatic.com/s/sourcecodepro/v14/HI_XiYsKILxRpg3hIP6sJ7fM7Pqths7ztA.ttf) format('truetype');
 }
 .enso.docs {
-  font-family: DejaVuSansMonoBook, sans-serif;
+  font-family: Causten, DejaVuSansMonoBook, sans-serif;
 }
 .enso.docs .root {
   display: flex;
