@@ -875,6 +875,13 @@ class Config {
             ? tryAsBoolean(other.is_in_cloud)
             : this.is_in_cloud
         this.verbose = ok(other.verbose) ? tryAsBoolean(other.verbose) : this.verbose
+        this.authentication_enabled = ok(other.authentication_enabled)
+            ? tryAsBoolean(other.authentication_enabled)
+            : this.authentication_enabled
+        this.email = ok(other.email) ? tryAsString(other.email) : this.email
+        this.application_config_url = ok(other.application_config_url)
+            ? tryAsString(other.application_config_url)
+            : this.application_config_url
     }
 }
 
