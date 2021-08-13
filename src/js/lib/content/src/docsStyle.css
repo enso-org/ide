@@ -1,1 +1,257 @@
-@font-face{font-family:'Source Code Pro';font-style:normal;font-weight:300;font-display:swap;src:url(https://fonts.gstatic.com/s/sourcecodepro/v14/HI_XiYsKILxRpg3hIP6sJ7fM7PqtlsnztA.ttf) format('truetype')}@font-face{font-family:'Source Code Pro';font-style:normal;font-weight:400;font-display:swap;src:url(https://fonts.gstatic.com/s/sourcecodepro/v14/HI_SiYsKILxRpg3hIP6sJ7fM7PqVOg.ttf) format('truetype')}@font-face{font-family:'Source Code Pro';font-style:normal;font-weight:500;font-display:swap;src:url(https://fonts.gstatic.com/s/sourcecodepro/v14/HI_XiYsKILxRpg3hIP6sJ7fM7PqtzsjztA.ttf) format('truetype')}@font-face{font-family:'Source Code Pro';font-style:normal;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/sourcecodepro/v14/HI_XiYsKILxRpg3hIP6sJ7fM7Pqt4s_ztA.ttf) format('truetype')}@font-face{font-family:'Source Code Pro';font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/sourcecodepro/v14/HI_XiYsKILxRpg3hIP6sJ7fM7Pqths7ztA.ttf) format('truetype')}.doc{font-family:DejaVuSansMonoBook,sans-serif}.doc .root{display:flex;margin-top:4rem}.doc .main{max-width:650px;min-width:0;margin-top:-20px}.doc .doc-code-container{font-family:Source Code Pro,monospace;font-size:14px;background-color:#e7ebef;border-radius:16px;padding:1px 5px 2px;box-decoration-break:clone;margin-top:10px;-webkit-box-decoration-break:clone}.doc code{font-family:Source Code Pro,monospace;font-size:14px;background-color:#e7ebef;border-radius:16px;padding:1px 5px 2px;box-decoration-break:clone;margin-top:10px;-webkit-box-decoration-break:clone}.doc .doc-copy-btn{margin-top:1rem;background-color:#4876d4;border-radius:9999px;font-weight:600;font-size:15px;line-height:2;padding:.25rem 1rem;color:#fff;vertical-align:text-top}.doc .tags{display:flex;font-size:13px}.doc .tag{align-self:flex-end;margin-bottom:10px}.doc ul{list-style-type:disc;margin-top:.75rem;margin-bottom:.75rem;padding-left:1.25rem}.doc .toc-body{position:-webkit-sticky;position:sticky;top:4rem}.doc .toc{display:none;width:250px}.light-theme .doc{font-weight:500;font-size:16px;line-height:1.4;color:#4b5864}.light-theme .doc .content{font-weight:500;font-size:16px;line-height:1.4;color:#4b5864}.light-theme .doc p{margin-top:.5rem}.light-theme .doc .summary{font-weight:500;font-size:16px;line-height:1.4;margin-top:1.5rem;color:#4b5864}.light-theme .doc h1{display:flex;font-weight:700;font-size:40px;line-height:1.25;color:#2a394a}.light-theme .doc h1 .tag{font-size:16px;line-height:1.4}.light-theme .doc h2{font-weight:700;font-size:40px;line-height:1.375;margin-top:4rem;color:#2a394a}.light-theme .doc h3{color:#2a394a;font-weight:600;font-size:22px;line-height:1.25}.light-theme .doc .tag .added{margin-left:0;border:2px solid #4b5964;display:inline-table;border-radius:16px;padding:2px 6px;line-height:1.35;box-decoration-break:clone;-webkit-box-decoration-break:clone}.light-theme .doc .tag .advanced{margin-left:0;border:2px solid #4b5964;display:inline-table;border-radius:16px;padding:2px 6px;line-height:1.35;box-decoration-break:clone;-webkit-box-decoration-break:clone}.light-theme .doc .tag .deprecated{margin-left:0;border:2px solid #4b5964;display:inline-table;border-radius:16px;padding:2px 6px;line-height:1.35;box-decoration-break:clone;-webkit-box-decoration-break:clone}.light-theme .doc .tag .modified{margin-left:0;border:2px solid #4b5964;display:inline-table;border-radius:16px;padding:2px 6px;line-height:1.35;box-decoration-break:clone;-webkit-box-decoration-break:clone}.light-theme .doc .tag .private{margin-left:0;border:2px solid #4b5964;display:inline-table;border-radius:16px;padding:2px 6px;line-height:1.35;box-decoration-break:clone;-webkit-box-decoration-break:clone}.light-theme .doc .tag .textonly{margin-left:0;border:2px solid #4b5964;display:inline-table;border-radius:16px;padding:2px 6px;line-height:1.35;box-decoration-break:clone;-webkit-box-decoration-break:clone}.light-theme .doc .tag .unstable{margin-left:0;border:2px solid #ec2915;color:#ec2915;display:inline-table;border-radius:16px;padding:2px 6px;line-height:1.35;box-decoration-break:clone;-webkit-box-decoration-break:clone}.light-theme .doc .tag .upcoming{margin-left:0;border:2px solid #4b5964;display:inline-table;border-radius:16px;padding:2px 6px;line-height:1.35;box-decoration-break:clone;-webkit-box-decoration-break:clone}.light-theme .doc .tag .alias{margin-left:0;border:2px solid #4b5964;display:inline-table;border-radius:16px;padding:2px 6px;line-height:1.35;box-decoration-break:clone;-webkit-box-decoration-break:clone}.light-theme .doc .tag .version{margin-left:0;border:2px solid #4b5964;display:inline-table;border-radius:16px;padding:2px 6px;line-height:1.35;box-decoration-break:clone;-webkit-box-decoration-break:clone}.light-theme .doc .atom{font-size:20px;line-height:1.35;margin-top:2rem;color:#4b5864}.light-theme .doc .atom .name{font-weight:700;color:#2a394a}.light-theme .doc .method{font-size:20px;line-height:1.35;margin-top:2rem;color:#4b5864}.light-theme .doc .method .name{font-weight:700;color:#2a394a}.light-theme .doc .method .argument{opacity:.5}.light-theme .doc .method .argument.default{opacity:.5}.light-theme .doc .submodule{font-size:20px;line-height:1.35;margin-top:2rem;color:#4b5864}.light-theme .doc .submodule .name{font-weight:700;color:#2a394a}.light-theme .doc .toc h2{margin-top:0;font-size:24px;line-height:1.35}.light-theme .doc .toc .methods{margin-top:2rem}.light-theme .doc .toc .atom{font-size:16px;line-height:1.4;margin-top:0}.light-theme .doc .toc .atom .name{font-weight:500}.light-theme .doc .toc .method{font-size:16px;line-height:1.4;margin-top:0}.light-theme .doc .toc .method .name{font-weight:500}.light-theme .doc .breadcrumb-panel{padding-top:.75rem;padding-bottom:.75rem;position:-webkit-sticky;position:sticky;top:0;z-index:10;background-color:#2077d0}.light-theme .doc .breadcrumbs{color:hsla(0,0%,100%,.9)}.light-theme .doc .breadcrumbs .separator{margin-right:.5rem;margin-left:.5rem;font-size:12px}.light-theme .doc .breadcrumbs .browse-submodules{margin-left:0;background-color:rgba(235,241,251,.2);display:inline-table;border-radius:8px;padding:2px 6px;line-height:1.35;box-decoration-break:clone;-webkit-box-decoration-break:clone}@media (min-width:768px){.light-theme .doc h1{font-size:48px;line-height:1.25}.doc .toc{display:block}}
+@font-face {
+  font-family: 'Source Code Pro';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/sourcecodepro/v14/HI_XiYsKILxRpg3hIP6sJ7fM7PqtlsnztA.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Source Code Pro';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/sourcecodepro/v14/HI_SiYsKILxRpg3hIP6sJ7fM7PqVOg.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Source Code Pro';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/sourcecodepro/v14/HI_XiYsKILxRpg3hIP6sJ7fM7PqtzsjztA.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Source Code Pro';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/sourcecodepro/v14/HI_XiYsKILxRpg3hIP6sJ7fM7Pqt4s_ztA.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Source Code Pro';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/sourcecodepro/v14/HI_XiYsKILxRpg3hIP6sJ7fM7Pqths7ztA.ttf) format('truetype');
+}
+.enso.docs {
+  font-family: DejaVuSansMonoBook, sans-serif;
+}
+.enso.docs .root {
+  display: flex;
+  margin-top: 4rem;
+}
+.enso.docs .main {
+  max-width: 650px;
+  min-width: 0;
+  margin-top: -20px;
+}
+.enso.docs .doc-code-container {
+  font-family: Source Code Pro, monospace;
+  font-size: 14px;
+  background-color: #e7ebef;
+  border-radius: 16px;
+  padding: 1px 5px 2px;
+  box-decoration-break: clone;
+  margin-top: 10px;
+  -webkit-box-decoration-break: clone;
+}
+.enso.docs code {
+  font-family: Source Code Pro, monospace;
+  font-size: 14px;
+  background-color: #e7ebef;
+  border-radius: 16px;
+  padding: 1px 5px 2px;
+  box-decoration-break: clone;
+  margin-top: 10px;
+  -webkit-box-decoration-break: clone;
+}
+.enso.docs .doc-copy-btn {
+  margin-top: 1rem;
+  background-color: #4876d4;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 2;
+  padding: 0.25rem 1rem;
+  color: #ffffff;
+  vertical-align: text-top;
+}
+.enso.docs .tags {
+  display: flex;
+  font-size: 13px;
+}
+.enso.docs .tag {
+  align-self: flex-end;
+  margin-bottom: 10px;
+}
+.enso.docs ul {
+  list-style-type: disc;
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding-left: 1.25rem;
+}
+.enso.docs .toc-body {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 4rem;
+}
+.enso.docs .toc {
+  display: none;
+  width: 250px;
+}
+.light-theme .enso.docs {
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 1.4;
+  color: #4b5864;
+}
+.light-theme .enso.docs .content {
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 1.4;
+  color: #4b5864;
+}
+.light-theme .enso.docs p {
+  margin-top: 0.5rem;
+}
+.light-theme .enso.docs .summary {
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 1.4;
+  margin-top: 1.5rem;
+  color: #4b5864;
+}
+.light-theme .enso.docs h1 {
+  display: flex;
+  font-weight: 700;
+  font-size: 40px;
+  line-height: 1.25;
+  color: #2a394a;
+}
+.light-theme .enso.docs h1 .tag {
+  font-size: 16px;
+  line-height: 1.4;
+}
+.light-theme .enso.docs h2 {
+  font-weight: 700;
+  font-size: 40px;
+  line-height: 1.375;
+  margin-top: 4rem;
+  color: #2a394a;
+}
+.light-theme .enso.docs h3 {
+  color: #2a394a;
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 1.25;
+}
+.light-theme .enso.docs .tag .added {
+  margin-left: 0;
+  border: 2px solid #4b5964;
+  display: inline-table;
+  border-radius: 16px;
+  padding: 2px 6px;
+  line-height: 1.35;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.light-theme .enso.docs .tag .advanced {
+  margin-left: 0;
+  border: 2px solid #4b5964;
+  display: inline-table;
+  border-radius: 16px;
+  padding: 2px 6px;
+  line-height: 1.35;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.light-theme .enso.docs .tag .deprecated {
+  margin-left: 0;
+  border: 2px solid #4b5964;
+  display: inline-table;
+  border-radius: 16px;
+  padding: 2px 6px;
+  line-height: 1.35;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.light-theme .enso.docs .tag .modified {
+  margin-left: 0;
+  border: 2px solid #4b5964;
+  display: inline-table;
+  border-radius: 16px;
+  padding: 2px 6px;
+  line-height: 1.35;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.light-theme .enso.docs .tag .private {
+  margin-left: 0;
+  border: 2px solid #4b5964;
+  display: inline-table;
+  border-radius: 16px;
+  padding: 2px 6px;
+  line-height: 1.35;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.light-theme .enso.docs .tag .textonly {
+  margin-left: 0;
+  border: 2px solid #4b5964;
+  display: inline-table;
+  border-radius: 16px;
+  padding: 2px 6px;
+  line-height: 1.35;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.light-theme .enso.docs .tag .unstable {
+  margin-left: 0;
+  border: 2px solid #ec2915;
+  color: #ec2915;
+  display: inline-table;
+  border-radius: 16px;
+  padding: 2px 6px;
+  line-height: 1.35;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.light-theme .enso.docs .tag .upcoming {
+  margin-left: 0;
+  border: 2px solid #4b5964;
+  display: inline-table;
+  border-radius: 16px;
+  padding: 2px 6px;
+  line-height: 1.35;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.light-theme .enso.docs .tag .alias {
+  margin-left: 0;
+  border: 2px solid #4b5964;
+  display: inline-table;
+  border-radius: 16px;
+  padding: 2px 6px;
+  line-height: 1.35;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.light-theme .enso.docs .tag .version {
+  margin-left: 0;
+  border: 2px solid #4b5964;
+  display: inline-table;
+  border-radius: 16px;
+  padding: 2px 6px;
+  line-height: 1.35;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+@media (min-width: 768px) {
+  .light-theme .enso.docs h1 {
+    font-size: 48px;
+    line-height: 1.25;
+  }
+  .enso.docs .toc {
+    display: block;
+  }
+}
