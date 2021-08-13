@@ -1067,13 +1067,21 @@ impl Model {
         let maybe_searcher = self.searcher.borrow();
         let maybe_actions  = maybe_searcher.as_ref().map(|s| s.actions());
         let maybe_list     = maybe_actions.as_ref().and_then(|actions| actions.list());
-        if let Some(list) = maybe_list {
+        let is_filtering   = maybe_searcher.as_ref().map_or(false, |s| s.is_filtering());
+        if let Some(list)  = maybe_list {
             match crumbs.len() {
-                0 => list.root_categories().map(|(id,cat)| (id,ide_view::searcher::new::Entry {
-                    label     : cat.name.to_string().into(),
-                    is_folder : Immutable(true),
-                    icon      : Icon(cat.icon.clone_ref()),
-                })).collect(),
+                0 => {
+                    // We skip the first "All Search Result" category if we're not currently
+                    // filtering
+                    let skipped_categories = if is_filtering {0} else {1};
+                    list.root_categories().skip(skipped_categories).map(|(id,cat)|
+                        (id,ide_view::searcher::new::Entry {
+                            label     : cat.name.to_string().into(),
+                            is_folder : Immutable(true),
+                            icon      : Icon(cat.icon.clone_ref()),
+                        })
+                    ).collect()
+                },
                 1 => list.subcategories_of(*crumbs.last().unwrap()).map(|(id,cat)|
                     (id,ide_view::searcher::new::Entry {
                         label     : cat.name.to_string().into(),
