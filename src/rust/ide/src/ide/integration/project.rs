@@ -1067,16 +1067,17 @@ impl Model {
         let maybe_searcher = self.searcher.borrow();
         let maybe_actions  = maybe_searcher.as_ref().map(|s| s.actions());
         let maybe_list     = maybe_actions.as_ref().and_then(|actions| actions.list());
-        let is_filtering   = maybe_searcher.as_ref().map_or(false, |s| s.is_filtering());
+        // TODO[ao] uncomment once new searcher gui will be implemented.
+        //     (https://github.com/enso-org/ide/issues/1681)
+        // let is_filtering   = maybe_searcher.as_ref().map_or(false, |s| s.is_filtering());
         if let Some(list)  = maybe_list {
             match crumbs.len() {
                 0 => {
                     // We skip the first "All Search Result" category if we're not currently
                     // filtering
-                    // TODO[ao] change first 1 with 0 once new searcher gui will be available
-                    //     (https://github.com/enso-org/ide/issues/1681)
-                    let skipped_categories = if is_filtering {1} else {1};
-                    // this one ------------------------------^
+                    // TODO[ao] uncomment the `if` version once new searcher gui will be
+                    //     implemented. (https://github.com/enso-org/ide/issues/1681)
+                    let skipped_categories = /*if is_filtering {0} else {1};*/ 1;
                     list.root_categories().skip(skipped_categories).map(|(id,cat)|
                         (id,ide_view::searcher::new::Entry {
                             label     : cat.name.to_string().into(),
