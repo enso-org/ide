@@ -1073,7 +1073,10 @@ impl Model {
                 0 => {
                     // We skip the first "All Search Result" category if we're not currently
                     // filtering
-                    let skipped_categories = if is_filtering {0} else {1};
+                    // TODO[ao] change first 1 with 0 once new searcher gui will be available
+                    //     (https://github.com/enso-org/ide/issues/1681)
+                    let skipped_categories = if is_filtering {1} else {1};
+                    // this one ------------------------------^
                     list.root_categories().skip(skipped_categories).map(|(id,cat)|
                         (id,ide_view::searcher::new::Entry {
                             label     : cat.name.to_string().into(),
