@@ -522,7 +522,7 @@ impl Searcher {
         Ok(ret)
     }
 
-    /// Return true if user is currently filtering entries (the input has non-empty _pattern_ part.
+    /// Return true if user is currently filtering entries (the input has non-empty _pattern_ part).
     pub fn is_filtering(&self) -> bool {
         !self.data.borrow().input.pattern.is_empty()
     }
@@ -1510,7 +1510,8 @@ pub mod test {
     #[wasm_bindgen_test]
     fn loading_list() {
         let Fixture{mut test,searcher,entry1,entry9,..} = Fixture::new_custom(|data,client| {
-            // entry with id 99999 does not exist, so only two actions from suggestions will be
+            // entry with id 99999 does not exist, so only two actions from suggestions db should be
+            // displayed in searcher.
             data.expect_completion(client,None,None,&[1,99999,9]);
         });
 

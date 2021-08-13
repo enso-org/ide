@@ -1064,20 +1064,15 @@ impl Model {
 impl Model {
     pub fn get_category_content
     (&self, crumbs:&[usize]) -> Vec<(usize,ide_view::searcher::new::Entry)> {
-        let maybe_searcher = self.searcher.borrow();
-        let maybe_actions  = maybe_searcher.as_ref().map(|s| s.actions());
-        let maybe_list     = maybe_actions.as_ref().and_then(|actions| actions.list());
-        // TODO[ao] uncomment once new searcher gui will be implemented.
-        //     (https://github.com/enso-org/ide/issues/1681)
-        // let is_filtering   = maybe_searcher.as_ref().map_or(false, |s| s.is_filtering());
+        let maybe_actions = self.searcher.borrow().as_ref().map(controller::Searcher::actions);
+        let is_filtering  = self.searcher.borrow().contains_if(controller::Searcher::is_filtering);
+        let maybe_list    = maybe_actions.as_ref().and_then(|actions| actions.list());
         if let Some(list)  = maybe_list {
             match crumbs.len() {
                 0 => {
                     // We skip the first "All Search Result" category if we're not currently
                     // filtering
-                    // TODO[ao] uncomment the `if` version once new searcher gui will be
-                    //     implemented. (https://github.com/enso-org/ide/issues/1681)
-                    let skipped_categories = /*if is_filtering {0} else {1};*/ 1;
+                    let skipped_categories = if is_filtering {0} else {1};
                     list.root_categories().skip(skipped_categories).map(|(id,cat)|
                         (id,ide_view::searcher::new::Entry {
                             label     : cat.name.to_string().into(),
@@ -1967,7 +1962,11 @@ impl SuggestionsProviderForView {
 
 impl list_view::entry::ModelProvider<GlyphHighlightedLabel> for SuggestionsProviderForView {
     fn entry_count(&self) -> usize {
-        self.actions.matching_count()
+        // TODO[ao] Because of "All Search Results" category, the actions on list are duplicated.
+        //     But we don't want to display duplicates on the old searcher list. To be fixed/removed
+        //     once new searcher GUI will be implemented
+        //     (https://github.com/enso-org/ide/issues/1681)
+        self.actions.matching_count() / 2
     }
 
     fn get(&self, id: usize) -> Option<list_view::entry::GlyphHighlightedLabelModel> {

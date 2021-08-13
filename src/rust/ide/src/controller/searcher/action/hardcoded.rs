@@ -35,10 +35,10 @@ thread_local! {
     pub static ICONS:Icons = Icons {
         search_result : ImString::new("search_result"),
         data_science  : ImString::new("data_science"),
-        input_output  : ImString::new("input_output"),
+        input_output  : ImString::new("io"),
         text          : ImString::new("text"),
-        number_input  : ImString::new("data_input"),
-        text_input    : ImString::new("data_input"),
+        number_input  : ImString::new("number_input"),
+        text_input    : ImString::new("text_input"),
         data_input    : ImString::new("data_input"),
         libraries     : ImString::new("libraries"),
         default       : ImString::new("default"),
