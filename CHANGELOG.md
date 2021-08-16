@@ -1,5 +1,7 @@
 # Next Release
 
+# Enso 2.0.0-alpha.12 (2021-08-13)
+
 <br/>![New Features](/docs/assets/tags/new_features.svg)
 
 #### Enso Compiler
