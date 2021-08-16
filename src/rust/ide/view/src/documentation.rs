@@ -191,9 +191,10 @@ impl Model {
     fn reload_style(&self) {
         let size        = self.size.get();
         let padding     = (size.x.min(size.y) / 2.0).min(PADDING);
-        self.dom.set_size(Vector2(size.x-padding,size.y-padding-5.0));
-        self.dom.dom().set_style_or_warn("padding",format!("{}px",padding),&self.logger);
-        self.dom.dom().set_style_or_warn("padding-top","5px",&self.logger);
+        let padding_top = 5.0;
+        self.dom.set_size(Vector2(size.x-padding,size.y-padding-padding_top));
+        self.dom.dom().set_style_or_warn("padding"    ,format!("{}px",padding)    ,&self.logger);
+        self.dom.dom().set_style_or_warn("padding-top",format!("{}px",padding_top),&self.logger);
     }
 }
 
