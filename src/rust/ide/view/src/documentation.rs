@@ -37,6 +37,7 @@ pub const VIEW_HEIGHT : f32 = 300.0;
 /// Content in the documentation view when there is no data available.
 const CORNER_RADIUS     : f32  = crate::graph_editor::component::node::CORNER_RADIUS;
 const PADDING           : f32  = 15.0;
+const PADDING_TOP       : f32  = 5.0;
 const CODE_BLOCK_CLASS  : &str = "doc-code-container";
 const COPY_BUTTON_CLASS : &str = "doc-copy-btn";
 
@@ -70,7 +71,7 @@ impl Model {
         let display_object = display::object::Instance::new(&logger);
         let div            = web::create_div();
         let dom            = DomSymbol::new(&div);
-        let size           = Rc::new(Cell::new(Vector2(VIEW_WIDTH-PADDING,VIEW_HEIGHT-PADDING-5.0)));
+        let size           = Rc::new(Cell::new(Vector2(VIEW_WIDTH-PADDING,VIEW_HEIGHT-PADDING-PADDING_TOP)));
         let overlay        = overlay::View::new(&logger);
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
@@ -189,12 +190,11 @@ impl Model {
     }
 
     fn reload_style(&self) {
-        let size        = self.size.get();
-        let padding     = (size.x.min(size.y) / 2.0).min(PADDING);
-        let padding_top = 5.0;
-        self.dom.set_size(Vector2(size.x-padding,size.y-padding-padding_top));
+        let size    = self.size.get();
+        let padding = (size.x.min(size.y) / 2.0).min(PADDING);
+        self.dom.set_size(Vector2(size.x-padding,size.y-padding-PADDING_TOP));
         self.dom.dom().set_style_or_warn("padding"    ,format!("{}px",padding)    ,&self.logger);
-        self.dom.dom().set_style_or_warn("padding-top",format!("{}px",padding_top),&self.logger);
+        self.dom.dom().set_style_or_warn("padding-top",format!("{}px",PADDING_TOP),&self.logger);
     }
 }
 
