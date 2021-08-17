@@ -579,8 +579,10 @@ impl Node {
         let out       = &frp.output;
         let model     = Rc::new(NodeModel::new(app,registry));
         let selection = Animation::<f32>::new(network);
-        
-        let comment_color    = color::Animation::new(network);
+
+        // TODO[ao] The comment color should be animated, but this is currently slow. Will be fixed
+        //      in https://github.com/enso-org/ide/issues/1031
+        // let comment_color    = color::Animation::new(network);
         let error_color_anim = color::Animation::new(network);
         let style            = StyleWatch::new(&app.display.scene().style_sheet);
         let style_frp        = &model.style;
@@ -637,7 +639,8 @@ impl Node {
             // === Comment ===
             
             let comment_base_color = style_frp.get_color(theme::graph_editor::node::text);
-            comment_color.target <+ all_with(
+            // comment_color.target <+ all_with(
+            comment_color <- all_with(
                 &comment_base_color, &model.output.expression_label_visibility, 
                 |&base_color,&expression_visible| {
                     let mut color = color::Lcha::from(base_color);
@@ -647,14 +650,14 @@ impl Node {
                     });
                     color
             });
-            eval comment_color.value ((value) model.comment.set_color_all(color::Rgba::from(value)));
+            eval comment_color ((value) model.comment.set_color_all(color::Rgba::from(value)));
             
             eval model.comment.width ([model](width)
                 model.comment.set_position_x(-*width - COMMENT_MARGIN));
             eval model.comment.height ([model](height)
                 model.comment.set_position_y(*height / 2.0));
             model.comment.set_content <+ frp.set_comment;
-            out.source.expression     <+ model.comment.content;
+            out.source.comment        <+ model.comment.content.map(|text| text.to_string());
 
 
             // === Size ===
@@ -745,7 +748,7 @@ impl Node {
             visualization_visible            <- visualization_enabled || preview_visible;
             visualization_visible            <- visualization_visible && no_error_set;
             visualization_visible_on_change  <- visualization_visible.on_change();
-            frp.source.visualization_visible <+ visualization_visible;
+            frp.source.visualization_visible <+ visualization_visible_on_change;
             frp.source.visualization_enabled <+ visualization_enabled;
             eval visualization_visible_on_change ((is_visible)
                 model.visualization.frp.set_visibility(is_visible)

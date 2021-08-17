@@ -1,7 +1,9 @@
 const child_process = require('child_process')
 const cmd           = require('./cmd')
 const fs            = require('fs').promises
+const fse           = require('fs-extra')
 const fss           = require('fs')
+const unzipper      = require('unzipper')
 const glob          = require('glob')
 const ncp           = require('ncp').ncp
 const os            = require('os')
@@ -507,6 +509,8 @@ async function updateBuildVersion (argv) {
 async function installJsDeps() {
     let initialized = fss.existsSync(paths.dist.init)
     if (!initialized) {
+        console.log('Downloading binary assets.')
+        await downloadJsAssets()
         console.log('Installing application dependencies.')
         await cmd.with_cwd(paths.js.root, async () => {
             await cmd.run('npm',['run','install'])
@@ -517,7 +521,32 @@ async function installJsDeps() {
     }
 }
 
-async function runCommand(command,argv) {
+async function downloadJsAssets() {
+    const workdir = path.join(paths.root, '.assets-temp')
+    await fs.mkdir(workdir, {recursive:true})
+    const ideAssetsMainZip = 'ide-assets-main.zip'
+    const ideAssetsUrl = `https://github.com/enso-org/ide-assets/archive/refs/heads/main.zip`
+    const unzippedAssets = path.join(workdir, 'ide-assets-main', 'content', 'assets')
+    const jsLibAssets = path.join(paths.js.lib.content, 'assets')
+    await cmd.with_cwd(workdir, async () => {
+        await cmd.run('curl', [
+            '--retry',
+            '4',
+            '--retry-connrefused',
+            '-fsSL',
+            '-o',
+            ideAssetsMainZip,
+            ideAssetsUrl,
+        ])
+    })
+
+    const assetsArchive = await unzipper.Open.file(path.join(workdir,ideAssetsMainZip))
+    await assetsArchive.extract({path: workdir})
+    await fse.copy(unzippedAssets,jsLibAssets)
+    await fse.remove(workdir)
+}
+
+async function runCommand(command, argv) {
     let config = commands[command]
     cargoArgs  = argv['--']
     if (config === undefined) {

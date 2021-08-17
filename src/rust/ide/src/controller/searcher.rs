@@ -522,6 +522,11 @@ impl Searcher {
         Ok(ret)
     }
 
+    /// Return true if user is currently filtering entries (the input has non-empty _pattern_ part).
+    pub fn is_filtering(&self) -> bool {
+        !self.data.borrow().input.pattern.is_empty()
+    }
+
     /// Subscribe to controller's notifications.
     pub fn subscribe(&self) -> Subscriber<Notification> {
         self.notifier.subscribe()
@@ -898,23 +903,26 @@ impl Searcher {
     ) -> FallibleResult<action::List> {
         let creating_new_node             = matches!(self.mode.deref(), Mode::NewNode{..});
         let should_add_additional_entries = creating_new_node && self.this_arg.is_none();
-        let mut actions                   = action::ListBuilder::default();
+        let mut actions                   = action::ListWithSearchResultBuilder::new();
+        let (libraries_icon,default_icon) = action::hardcoded::ICONS.with(|i|
+            (i.libraries.clone_ref(),i.default.clone_ref())
+        );
         //TODO[ao] should be uncommented once new searcher GUI will be integrated + the order of
         // added entries should be adjusted.
         // https://github.com/enso-org/ide/issues/1681
         // Self::add_hardcoded_entries(&mut actions,this_type,return_types)?;
         if should_add_additional_entries && self.ide.manage_projects().is_ok() {
-            let mut root_cat = actions.add_root_category("Projects");
-            let category     = root_cat.add_category("Projects");
+            let mut root_cat = actions.add_root_category("Projects",default_icon.clone_ref());
+            let category     = root_cat.add_category("Projects",default_icon.clone_ref());
             let create_project = action::ProjectManagement::CreateNewProject;
             category.add_action(Action::ProjectManagement(create_project));
         }
-        let mut libraries_root_cat = actions.add_root_category("Libraries");
+        let mut libraries_root_cat = actions.add_root_category("Libraries",libraries_icon.clone_ref());
         if should_add_additional_entries {
-            let examples_cat = libraries_root_cat.add_category("Examples");
+            let examples_cat = libraries_root_cat.add_category("Examples",default_icon.clone_ref());
             examples_cat.extend(self.database.iterate_examples().map(Action::Example));
         }
-        let libraries_cat = libraries_root_cat.add_category("Libraries");
+        let libraries_cat = libraries_root_cat.add_category("Libraries",libraries_icon.clone_ref());
         if should_add_additional_entries {
             Self::add_enso_project_entries(&libraries_cat)?;
         }
@@ -1502,7 +1510,9 @@ pub mod test {
     #[wasm_bindgen_test]
     fn loading_list() {
         let Fixture{mut test,searcher,entry1,entry9,..} = Fixture::new_custom(|data,client| {
-            data.expect_completion(client,None,None,&[1,5,9]);
+            // entry with id 99999 does not exist, so only two actions from suggestions db should be
+            // displayed in searcher.
+            data.expect_completion(client,None,None,&[1,99999,9]);
         });
 
         let mut subscriber = searcher.subscribe();
@@ -1510,7 +1520,9 @@ pub mod test {
         assert!(searcher.actions().is_loading());
         test.run_until_stalled();
         let list = searcher.actions().list().unwrap().to_action_vec();
-        assert_eq!(list.len(), 4); // we include two mocked entries
+        // There are 8 entries, because: 2 were returned from `completion` method, two are mocked,
+        // and all of these are repeasted in "All Search Result" category.
+        assert_eq!(list.len(), 8);
         assert_eq!(list[2], Action::Suggestion(action::Suggestion::FromDatabase(entry1)));
         assert_eq!(list[3], Action::Suggestion(action::Suggestion::FromDatabase(entry9)));
         let notification = subscriber.next().boxed_local().expect_ready();
