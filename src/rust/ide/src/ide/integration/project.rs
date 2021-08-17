@@ -43,6 +43,7 @@ use ide_view::graph_editor::EdgeEndpoint;
 use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
 use ide_view::searcher::entry::AnyModelProvider;
+use ide_view::searcher::new::Icon;
 use ide_view::open_dialog;
 use utils::iter::split_by_predicate;
 use futures::future::LocalBoxFuture;
@@ -123,7 +124,7 @@ struct MissingSearcherController;
 /// // This will run the set up closure, but without calling update_something.
 /// set_up.trigger.emit(());
 /// ```
-#[derive(CloneRef)]
+#[derive(Clone,CloneRef)]
 struct FencedAction<Parameter:frp::Data> {
     trigger    : frp::Source<Parameter>,
     is_running : frp::Stream<bool>,
@@ -350,6 +351,20 @@ impl Integration {
                 })
 
             );
+        }
+
+
+        // === Searcher 2.0 ===
+
+        let searcher = model.view.searcher().new_frp();
+        frp::extend! { network
+            eval searcher.list_directory ([model,searcher](crumbs) {
+                for (id,entry) in model.get_category_content(crumbs) {
+                    let mut new_crumbs     = crumbs.clone();
+                    Rc::make_mut(&mut new_crumbs).push(id);
+                    searcher.directory_content(new_crumbs,entry);
+                }
+            });
         }
 
 
@@ -1044,6 +1059,51 @@ impl Model {
 }
 
 
+// === Updating Searcher View ===
+
+impl Model {
+    pub fn get_category_content
+    (&self, crumbs:&[usize]) -> Vec<(usize,ide_view::searcher::new::Entry)> {
+        let maybe_actions = self.searcher.borrow().as_ref().map(controller::Searcher::actions);
+        let is_filtering  = self.searcher.borrow().contains_if(controller::Searcher::is_filtering);
+        let maybe_list    = maybe_actions.as_ref().and_then(|actions| actions.list());
+        if let Some(list)  = maybe_list {
+            match crumbs.len() {
+                0 => {
+                    // We skip the first "All Search Result" category if we're not currently
+                    // filtering
+                    let skipped_categories = if is_filtering {0} else {1};
+                    list.root_categories().skip(skipped_categories).map(|(id,cat)|
+                        (id,ide_view::searcher::new::Entry {
+                            label     : cat.name.to_string().into(),
+                            is_folder : Immutable(true),
+                            icon      : Icon(cat.icon.clone_ref()),
+                        })
+                    ).collect()
+                },
+                1 => list.subcategories_of(*crumbs.last().unwrap()).map(|(id,cat)|
+                    (id,ide_view::searcher::new::Entry {
+                        label     : cat.name.to_string().into(),
+                        is_folder : Immutable(true),
+                        icon      : Icon(cat.icon.clone_ref()),
+                    })
+                ).collect(),
+                2 => list.actions_of(*crumbs.last().unwrap()).map(|(id,action)|
+                    (id,ide_view::searcher::new::Entry {
+                        label     : action.action.to_string().into(),
+                        is_folder : Immutable(false),
+                        icon      : Icon(action.action.icon())
+                    })
+                ).collect(),
+                _ => vec![],
+            }
+        } else {
+            vec![]
+        }
+    }
+}
+
+
 // === Handling Controller Notifications ===
 
 impl Model {
@@ -1172,6 +1232,9 @@ impl Model {
                             let provider          = SuggestionsProviderForView
                                 { actions,user_action,intended_function};
                             self.view.searcher().set_actions(Rc::new(provider));
+
+                            // the Searcher 2.0
+                            self.view.searcher().new_frp().reset();
 
                             // Usually we want to select first entry and display docs for it
                             // But not when user finished typing function or argument.
@@ -1832,6 +1895,7 @@ impl Model {
             futures::future::ready(())
         })));
         *self.searcher.borrow_mut() = Some(searcher);
+        self.view.searcher().new_frp().reset();
         Ok(())
     }
 }
@@ -1898,7 +1962,11 @@ impl SuggestionsProviderForView {
 
 impl list_view::entry::ModelProvider<GlyphHighlightedLabel> for SuggestionsProviderForView {
     fn entry_count(&self) -> usize {
-        self.actions.matching_count()
+        // TODO[ao] Because of "All Search Results" category, the actions on list are duplicated.
+        //     But we don't want to display duplicates on the old searcher list. To be fixed/removed
+        //     once new searcher GUI will be implemented
+        //     (https://github.com/enso-org/ide/issues/1681)
+        self.actions.matching_count() / 2
     }
 
     fn get(&self, id: usize) -> Option<list_view::entry::GlyphHighlightedLabelModel> {
