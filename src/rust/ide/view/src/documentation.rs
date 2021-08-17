@@ -117,8 +117,9 @@ impl Model {
     fn push_to_dom(&self, content:String) {
         let no_doc_txt = "<p style=\"color: #a3a6a9;\">No documentation available</p>";
         // FIXME [MM] : Temporary solution until engine update with changed class name in docs parser.
-        let content    = content.replace("<p>No documentation available</p>",no_doc_txt)
-            .replace("class=\"doc\"", "class=\"enso docs\"");
+        let content = content.replace("<p>No documentation available</p>",no_doc_txt)
+            .replace("class=\"doc\"", "class=\"enso docs\"")
+            .replace("\"font-size: 13px;\"", "\"font-size: 15px;\"");
         self.dom.dom().set_inner_html(&content);
     }
 
