@@ -220,11 +220,22 @@ impl Thresholds {
 /// ```
 #[derive(Clone,Copy,Debug,Default)]
 pub struct SimulationData<T> {
-    // We store the current value as an offset from the target rather than an absolute value,
-    // because this provides higher precision when the value is getting close to the target and `T`
-    // is a type of floating-point numbers, vectors of floating point numbers, or similar. The main
-    // benefit is that we avoid non-termination that could otherwise happen due to rounding errors
-    // when the target and current value are large.
+    // We store the current value as an offset from the target rather than an absolute value. This
+    // reduces numerical errors when animating floating point numbers: The offset will become very
+    // small towards the end of the animation. Small floating point numbers offer higher precision
+    // than large ones, because more digits can be used behind the point, for the fractional part of
+    // the number. This higher precision helps us to avoid non-termination that could otherwise
+    // happen due to rounding errors in our `step` function.
+    //
+    // For example: The precision of `f32` values is so low that we can only represent every second
+    // integer above 16 777 216. If we simulate values that large and represented the simulation's
+    // state by its current total value then this internal state would have to jump over those gaps.
+    // The animation would either become to fast (if we rounded the steps up) or slow down too early
+    // (if we rounded the steps down). Generally, it would be difficult to handle the rounding
+    // errors gracefully. By representing the state as an offset, we achieve the highest possible
+    // precision as the animation approaches its target. Large rounding errors might only happen
+    // when the simulation is still far away from the target. But in those situations, high
+    // precision is not as important.
     offset_from_target : T,
     target_value       : T,
     velocity           : T,
@@ -732,6 +743,8 @@ impl Default for EndStatus {
 mod tests {
     use super::*;
 
+    /// We test that simulations with target value `f32::NaN` terminate and that their final value
+    /// is in fact NaN.
     #[test]
     fn animation_to_nan() {
         let mut data = SimulationData::<f32>::new();
@@ -742,6 +755,7 @@ mod tests {
         assert!(!data.active);
     }
 
+    /// We test that simulations with start value `f32::NaN` terminate and reach their target.
     #[test]
     fn animation_from_nan() {
         let mut data = SimulationData::<f32>::new();
