@@ -67,7 +67,8 @@ impl BackendService {
                 (Some(json_endpoint),Some(binary_endpoint)) => {
                     let json_endpoint   = json_endpoint.clone();
                     let binary_endpoint = binary_endpoint.clone();
-                    let namespace       = args.namespace.clone().unwrap_or_else(|| "local".to_owned());
+                    let namespace       = args.namespace.clone()
+                        .unwrap_or_else(|| constants::DEFAULT_PROJECT_NAMESPACE.to_owned());
                     Ok(Self::LanguageServer {json_endpoint,binary_endpoint,namespace})
                 }
                 (None,None) => Ok(default()),
