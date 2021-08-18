@@ -24,11 +24,10 @@
   code {
     font-family: Source Code Pro, monospace;
     font-size: 14px;
-    background-color: #e7ebef;
     border-radius: 16px;
-    padding: 1px 5px 2px;
-    box-decoration-break: clone;
+    padding: 1px 0px 2px;
     margin-top: 10px;
+    color: #2573D4;
     -webkit-box-decoration-break: clone;
   }
   .doc-copy-btn {
@@ -69,10 +68,18 @@
 
 .light-theme {
   .enso.docs {
-    font-weight: 500;
+    font-weight: 400;
     font-size: 16px;
     line-height: 1.4;
     color: rgba(75, 88, 100, 1);
+    .doc-title-container {
+      //display: flex; // FIXME: Uncomment with engine 0.2.26
+      .doc-title-name {
+        font-weight: 600;
+        padding: 4px 10px 0 0;
+        font-size: 20px;
+      }
+    }
     .content {
       font-weight: 500;
       font-size: 16px;
@@ -114,106 +121,41 @@
       line-height: 1.25;
     }
     .tag {
-      .added {
-        margin-left: 0;
-        border: 2px solid rgb(75 89 100);
-        display: inline-table;
-        border-radius: 16px;
-        padding: 2px 6px;
-        line-height: 1.35;
-        box-decoration-break: clone;
-        -webkit-box-decoration-break: clone;
-      }
-      .advanced {
-        margin-left: 0;
-        border: 2px solid rgb(75 89 100);
-        display: inline-table;
-        border-radius: 16px;
-        padding: 2px 6px;
-        line-height: 1.35;
-        box-decoration-break: clone;
-        -webkit-box-decoration-break: clone;
-      }
-      .deprecated {
-        margin-left: 0;
-        border: 2px solid rgb(75 89 100);
-        display: inline-table;
-        border-radius: 16px;
-        padding: 2px 6px;
-        line-height: 1.35;
-        box-decoration-break: clone;
-        -webkit-box-decoration-break: clone;
-      }
-      .modified {
-        margin-left: 0;
-        border: 2px solid rgb(75 89 100);
-        display: inline-table;
-        border-radius: 16px;
-        padding: 2px 6px;
-        line-height: 1.35;
-        box-decoration-break: clone;
-        -webkit-box-decoration-break: clone;
-      }
-      .private {
-        margin-left: 0;
-        border: 2px solid rgb(75 89 100);
-        display: inline-table;
-        border-radius: 16px;
-        padding: 2px 6px;
-        line-height: 1.35;
-        box-decoration-break: clone;
-        -webkit-box-decoration-break: clone;
-      }
-      .textonly {
-        margin-left: 0;
-        border: 2px solid rgb(75 89 100);
-        display: inline-table;
-        border-radius: 16px;
-        padding: 2px 6px;
-        line-height: 1.35;
-        box-decoration-break: clone;
-        -webkit-box-decoration-break: clone;
-      }
-      .unstable {
-        margin-left: 0;
-        border: 2px solid rgb(236 41 21);
-        color: rgb(236 41 21);
-        display: inline-table;
-        border-radius: 16px;
-        padding: 2px 6px;
-        line-height: 1.35;
-        box-decoration-break: clone;
-        -webkit-box-decoration-break: clone;
-      }
-      .upcoming {
-        margin-left: 0;
-        border: 2px solid rgb(75 89 100);
-        display: inline-table;
-        border-radius: 16px;
-        padding: 2px 6px;
-        line-height: 1.35;
-        box-decoration-break: clone;
-        -webkit-box-decoration-break: clone;
-      }
-      .alias {
-        margin-left: 0;
-        border: 2px solid rgb(75 89 100);
-        display: inline-table;
-        border-radius: 16px;
-        padding: 2px 6px;
-        line-height: 1.35;
-        box-decoration-break: clone;
-        -webkit-box-decoration-break: clone;
-      }
+      .added,
+      .advanced,
+      .deprecated,
+      .modified,
+      .private,
+      .textonly,
+      .unstable,
+      .upcoming,
+      .alias,
       .version {
         margin-left: 0;
-        border: 2px solid rgb(75 89 100);
         display: inline-table;
         border-radius: 16px;
-        padding: 2px 6px;
+        padding: 4px 10px;
         line-height: 1.35;
         box-decoration-break: clone;
         -webkit-box-decoration-break: clone;
+        background-color: #eaeaea;
+      }
+      .details {
+        font-weight: 700;
+      }
+    }
+    .important,
+    .info,
+    .example {
+      background-color: #eaeaea;
+      border-radius: 14px;
+      padding: 15px;
+      .summary{
+        font-weight: 500;
+        font-size: 20px;
+        line-height: 1.4;
+        margin-bottom: 0.5rem;
+        color: #4b5864;
       }
     }
   }
