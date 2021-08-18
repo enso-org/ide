@@ -21,6 +21,7 @@ pub use crate::list_view::entry::Entry;
 
 use crate::prelude::*;
 use crate::shadow;
+use crate::list_view::list::IdAtOffset;
 
 
 
@@ -296,9 +297,10 @@ pub struct ModelData<E:Entry> {
     slots                : Vec<Slot<E>>,
     entry_pool           : Vec<E>,
     placeholder_pool     : Vec<Placeholder>,
-    slot_range2           : SlotRange,
+    slot_range2          : SlotRange,
     entry_default_len    : f32,
     length               : f32,
+    last_entry_id        : Option<entry::Id>,
 }
 
 impl<E:Entry> Deref for ListView<E> {
@@ -318,8 +320,9 @@ impl<E:Entry> ModelData<E> {
         let slot_range2 = default();
         let entry_default_len = 30.0;
         let length = default();
-        Self {logger,app,scroll_area,entry_model_registry
-            ,entry_default_len,slots,entry_pool,placeholder_pool,slot_range2,length}
+        let last_entry_id = default();
+        Self {logger,app,scroll_area,entry_model_registry,entry_default_len,slots,entry_pool
+            ,placeholder_pool,slot_range2,length,last_entry_id}
     }
 
     fn entries_to_be_requested(&mut self, size:Vector2<f32>) -> Vec<entry::Id> {
@@ -480,6 +483,8 @@ impl<E:Entry> ModelData<E> {
                 self.entry_model_registry.insert(index,Lazy::Known(e.clone()));
             },
         }
+
+        self.last_entry_id = Some(self.last_entry_id.unwrap_or(entry::Id::MIN).max(index));
     }
 
     fn set_scroll(&mut self, scroll:f32) {
@@ -538,6 +543,34 @@ impl<E:Entry> Model<E> {
     fn set_scroll(&self, scroll:f32) {
         self.data.borrow_mut().set_scroll(scroll)
     }
+
+    /// Check if the `point` is inside component assuming that it have given `size`.
+    fn is_inside(&self, point:Vector2<f32>, size:Vector2<f32>) -> bool {
+        let pos_obj_space = self.app.display.scene().screen_to_object_space(&self.background,point);
+        let x_range       = (-size.x / 2.0)..=(size.x / 2.0);
+        let y_range       = (-size.y / 2.0)..=(size.y / 2.0);
+        x_range.contains(&pos_obj_space.x) && y_range.contains(&pos_obj_space.y)
+    }
+
+    fn selected_entry_after_jump
+    (&self, current_entry:Option<entry::Id>, jump:isize) -> Option<entry::Id> {
+        if jump < 0 {
+            let current_entry = current_entry?;
+            if current_entry == 0 { None }
+            else                  { Some(current_entry.saturating_sub(-jump as usize)) }
+        } else {
+            let max_entry = self.last_entry_id()?;
+            Some(current_entry.map_or(0, |id| id+(jump as usize)).min(max_entry))
+        }
+    }
+
+    fn last_entry_id(&self) -> Option<entry::Id> {
+        (*self.data).borrow().last_entry_id
+    }
+
+    fn visible_entries_count(&self) -> usize {
+        (*self.data).borrow().slots.len()
+    }
 }
 
 impl<E:Entry> ListView<E>
@@ -566,6 +599,11 @@ where E::Model : Default {
         let scene            = app.display.scene();
         let mouse            = &scene.mouse.frp;
 
+        let scroll_y         = Animation::<f32>::new(network);
+        let selection_y      = Animation::<f32>::new(network);
+        let selection_height = Animation::<f32>::new(network);
+
+
         frp::extend! { network
             new_size         <- frp.set_size.map(|size| Vector2(size.width,80.0));
             missing_entries  <- new_size.map(f!((size) model.entries_to_be_requested(*size)));
@@ -585,6 +623,124 @@ where E::Model : Default {
 
             eval frp.set_scroll ((t) model.set_scroll(*t));
 
+
+            // === Mouse Position ===
+
+            mouse_in <- all_with(&mouse.position,&frp.size,f!((pos,size)
+                model.is_inside(*pos,*size)
+            ));
+            mouse_moved       <- mouse.distance.map(|dist| *dist > MOUSE_MOVE_THRESHOLD );
+            mouse_y_in_scroll <- mouse.position.map(f!([model,scene](pos) {
+                scene.screen_to_object_space(&model.scroll_area,*pos).y
+            }));
+            mouse_pointed_entry <- mouse_y_in_scroll.map(f!([model](y)
+                Self::entry_at_offset(*y,model.last_entry_id()).entry()
+            ));
+
+
+            // === Selected Entry ===
+
+            frp.source.selected_entry <+ frp.select_entry.map(|id| Some(*id));
+
+            selection_jump_on_one_up  <- frp.move_selection_up.constant(-1);
+            selection_jump_on_page_up <- frp.move_selection_page_up.map(f_!([model]
+                -(model.visible_entries_count() as isize)
+            ));
+            selection_jump_on_one_down  <- frp.move_selection_down.constant(1);
+            selection_jump_on_page_down <- frp.move_selection_page_down.map(f_!(
+                model.visible_entries_count() as isize
+            ));
+            selection_jump_up   <- any(selection_jump_on_one_up,selection_jump_on_page_up);
+            selection_jump_down <- any(selection_jump_on_one_down,selection_jump_on_page_down);
+            selected_entry_after_jump_up <- selection_jump_up.map2(&frp.selected_entry,
+                f!((jump,id) model.selected_entry_after_jump(*id,*jump))
+            );
+            selected_entry_after_moving_first <- frp.move_selection_to_first.map(f!([model](())
+                model.last_entry_id().is_some().and_option(Some(0))
+            ));
+            selected_entry_after_moving_last  <- frp.move_selection_to_last.map(f!([model] (())
+                model.last_entry_id()
+            ));
+            selected_entry_after_jump_down <- selection_jump_down.map2(&frp.selected_entry,
+                f!((jump,id) model.selected_entry_after_jump(*id,*jump))
+            );
+            selected_entry_after_move_up <-
+                any(selected_entry_after_jump_up,selected_entry_after_moving_first);
+            selected_entry_after_move_down <-
+                any(selected_entry_after_jump_down,selected_entry_after_moving_last);
+            selected_entry_after_move <-
+                any(&selected_entry_after_move_up,&selected_entry_after_move_down);
+            mouse_selected_entry <- mouse_pointed_entry.gate(&mouse_in).gate(&mouse_moved);
+
+            frp.source.selected_entry <+ selected_entry_after_move;
+            frp.source.selected_entry <+ mouse_selected_entry;
+            frp.source.selected_entry <+ frp.deselect_entries.constant(None);
+            // frp.source.selected_entry <+ frp.set_entries.constant(None);
+
+
+            // === Chosen Entry ===
+
+            any_entry_selected        <- frp.selected_entry.map(|e| e.is_some());
+            any_entry_pointed         <- mouse_pointed_entry.map(|e| e.is_some());
+            opt_selected_entry_chosen <- frp.selected_entry.sample(&frp.chose_selected_entry);
+            opt_pointed_entry_chosen  <- mouse_pointed_entry.sample(&mouse.down_0).gate(&mouse_in);
+            frp.source.chosen_entry   <+ opt_pointed_entry_chosen.gate(&any_entry_pointed);
+            frp.source.chosen_entry   <+ frp.chose_entry.map(|id| Some(*id));
+            frp.source.chosen_entry   <+ opt_selected_entry_chosen.gate(&any_entry_selected);
+
+
+            // === Selection Size and Position ===
+
+            target_selection_y <- frp.selected_entry.map(|id|
+                id.map_or(0.0,Self::offset_of_entry)
+            );
+            target_selection_height <- frp.selected_entry.map(f!([](id)
+                if id.is_some() {entry::HEIGHT} else {0.0}
+            ));
+            selection_y.target      <+ target_selection_y;
+            selection_height.target <+ target_selection_height;
+
+            selection_sprite_y <- all_with(&selection_y.value,&selection_height.value,
+                |y,h| y + (entry::HEIGHT - h) / 2.0
+            );
+            eval selection_sprite_y ((y) model.selection.set_position_y(*y));
+            selection_size <- all_with(&frp.size,&selection_height.value,f!([](size,height) {
+                let width = size.x;
+                Vector2(width,*height)
+            }));
+            eval selection_size ((size) model.selection.size.set(*size));
+
+
+            // === Scrolling ===
+
+            selection_top_after_move_up <- selected_entry_after_move_up.map(|id|
+                id.map(|id| Self::y_range_of_entry(id).end)
+            );
+            min_scroll_after_move_up <- selection_top_after_move_up.map(|top|
+                top.unwrap_or(MAX_SCROLL)
+            );
+            scroll_after_move_up <- min_scroll_after_move_up.map2(&frp.scroll_position,|min,current|
+                current.max(*min)
+            );
+            selection_bottom_after_move_down <- selected_entry_after_move_down.map(|id|
+                id.map(|id| Self::y_range_of_entry(id).start)
+            );
+            max_scroll_after_move_down <- selection_bottom_after_move_down.map2(&frp.size,
+                |y,size| y.map_or(MAX_SCROLL, |y| y + size.y)
+            );
+            scroll_after_move_down <- max_scroll_after_move_down.map2(&frp.scroll_position,
+                |max_scroll,current| current.min(*max_scroll)
+            );
+            frp.source.scroll_position <+ scroll_after_move_up;
+            frp.source.scroll_position <+ scroll_after_move_down;
+            frp.source.scroll_position <+ frp.scroll_jump;
+            // frp.source.scroll_position <+ frp.set_entries.constant(MAX_SCROLL);
+            scroll_y.target            <+ frp.scroll_position;
+            // eval frp.set_entries     ((_) {
+            //     view_y.set_target_value(MAX_SCROLL);
+            //     view_y.skip();
+            // });
+
         }
 
         self
@@ -594,6 +750,35 @@ where E::Model : Default {
     // pub fn set_label_layer(&self, layer:LayerId) {
     //     self.model.entry_model_registry.set_label_layer(layer);
     // }
+
+    /// Y position of entry with given id, relative to scroll area.
+    pub fn offset_of_entry(id:entry::Id) -> f32 { id as f32 * -entry::HEIGHT }
+
+    /// Y range of entry with given id, relative to Entry List position.
+    pub fn y_range_of_entry(id:entry::Id) -> Range<f32> {
+        let position = Self::offset_of_entry(id);
+        (position - entry::HEIGHT / 2.0)..(position + entry::HEIGHT / 2.0)
+    }
+
+    /// Get the entry id which lays on given y coordinate.
+    pub fn entry_at_offset(y:f32, last_entry:Option<entry::Id>) -> IdAtOffset {
+        use IdAtOffset::*;
+        let all_entries_start = Self::y_range_of_all_entries(last_entry).start;
+        if      y > entry::HEIGHT/2.0 { AboveFirst                                   }
+        else if y < all_entries_start { UnderLast                                    }
+        else                          { Entry((-y/entry::HEIGHT + 0.5) as entry::Id) }
+    }
+
+    /// Y range of all entries in this list, including not displayed.
+    pub fn y_range_of_all_entries(last_entry:Option<entry::Id>) -> Range<f32> {
+        let start = if let Some(last_entry) = last_entry {
+            Self::offset_of_entry(last_entry) - entry::HEIGHT / 2.0
+        } else {
+            entry::HEIGHT / 2.0
+        };
+        let end = entry::HEIGHT / 2.0;
+        start..end
+    }
 }
 
 impl<E:Entry> display::Object for ListView<E> {
