@@ -39,5 +39,6 @@ pub mod traits {
     pub use module::API            as TRAIT_ModuleApi;
     pub use module::APIExt         as TRAIT_ModuleApiExt;
     pub use project::API           as TRAIT_ProjectApi;
+    pub use project::APIExt        as TRAIT_ProjectApiExt;
     pub use undo_redo::Aware       as TRAIT_UndoRedoAware;
 }

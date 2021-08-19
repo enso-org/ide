@@ -228,6 +228,7 @@ pub struct Project {
     pub logger              : Logger,
     pub notifications       : notification::Publisher<model::project::Notification>,
     pub urm                 : Rc<model::undo_redo::Manager>,
+    pub is_ready            : Rc<Cell<bool>>,
 }
 
 impl Project {
@@ -258,11 +259,12 @@ impl Project {
         let notifications           = notification::Publisher::default();
         let urm                     = Rc::new(model::undo_redo::Manager::new(&logger));
         let properties              = Rc::new(RefCell::new(properties));
+        let is_ready                = default();
 
         let ret = Project
             {properties,project_manager,language_server_rpc,language_server_bin,module_registry
             ,execution_contexts,visualization,suggestion_db,content_roots,parser,logger
-            ,notifications,urm};
+            ,notifications,urm,is_ready};
 
         let binary_handler = ret.binary_event_handler();
         crate::executor::global::spawn(binary_protocol_events.for_each(binary_handler));
@@ -366,6 +368,20 @@ impl Project {
         }
     }
 
+    /// Get the invokable that marks this project as ready.
+    /// 
+    /// Notably, the invokable is of static lifetime.
+    fn mark_as_ready_fn(&self) -> impl Fn() {
+        let publisher = self.notifications.clone_ref();
+        let is_ready  = self.is_ready.clone_ref();
+        move || {
+            let was_ready = is_ready.replace(true);
+            if !was_ready {
+                publisher.notify(model::project::Notification::ProjectReady)
+            }
+        }
+    }
+    
     /// Returns a handling function capable of processing updates from the json-rpc protocol.
     /// Such function will be then typically used to process events stream from the json-rpc
     /// connection handler.
@@ -382,12 +398,15 @@ impl Project {
         let weak_execution_contexts = Rc::downgrade(&self.execution_contexts);
         let weak_suggestion_db      = Rc::downgrade(&self.suggestion_db);
         let weak_content_roots      = Rc::downgrade(&self.content_roots);
+        let mark_as_ready           = self.mark_as_ready_fn();
+        
         move |event| {
             debug!(logger, "Received an event from the json-rpc protocol: {event:?}");
             use enso_protocol::language_server::Event;
             use enso_protocol::language_server::Notification;
             match event {
                 Event::Notification(Notification::ExpressionUpdates(updates)) => {
+                    mark_as_ready();
                     if let Some(execution_contexts) = weak_execution_contexts.upgrade() {
                         let result = execution_contexts.handle_expression_updates(updates);
                         if let Err(error) = result {
@@ -542,6 +561,10 @@ impl model::project::API for Project {
     fn urm(&self) -> Rc<model::undo_redo::Manager> {
         self.urm.clone_ref()
     }
+    
+    fn is_ready(&self) -> bool {
+        self.is_ready.get()
+    }
 }
 
 
@@ -559,7 +582,7 @@ mod test {
     use enso_protocol::types::Sha3_224;
     use enso_protocol::language_server::response;
     use json_rpc::expect_call;
-    use enso_protocol::language_server::Notification::ExpressionUpdates;
+    use enso_protocol::language_server::Notification::{ExpressionUpdates, ExpressionValuesComputed};
     use utils::test::traits::*;
     use futures::SinkExt;
 
@@ -641,6 +664,34 @@ mod test {
         });
     }
 
+    /// Test that project is marked as ready after receiving first update.
+    #[wasm_bindgen_test]
+    fn project_readiness() {
+        use enso_protocol::language_server::*;
+        use model::project::APIExt;
+        
+        let Fixture{mut test,project,json_events_sender,..} = Fixture::new(|ls_json| {
+        }, |_|{});
+
+        assert!(!project.is_ready());
+        let mut fut1 = project.on_ready();
+        fut1.expect_pending();
+        
+        let message = ExpressionUpdates{
+            context_id : default(), 
+            updates    : default()
+        };
+        
+        let notification = Event::Notification(Notification::ExpressionUpdates(message));
+        json_events_sender.unbounded_send(notification).unwrap();
+        test.run_until_stalled();
+        fut1.expect_ready();
+
+        assert!(project.is_ready());
+        let mut fut2 = project.on_ready();
+        fut2.expect_ready();
+    }
+    
     #[wasm_bindgen_test]
     fn obtain_module_controller() {
         let path         = module::Path::from_mock_module_name("TestModule");

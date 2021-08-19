@@ -122,6 +122,13 @@ pub trait API:Debug {
 
     /// Access undo-redo manager.
     fn urm(&self) -> Rc<model::undo_redo::Manager>;
+
+    /// Project is ready, when LS is done with compilation and its whole API is operational.
+    ///
+    /// An example of not-ready project is a project that is still being compiled by the backend.
+    /// Each project that is not ready can be assumed to eventually emit `ProjectReady`
+    /// notification.
+    fn is_ready(&self) -> bool;
 }
 
 /// Trait for methods that cannot be defined in `API` because it is a trait object.
@@ -135,9 +142,27 @@ pub trait APIExt : API {
             Ok(self.main_module_model().await?.with_project_metadata(f))
         }.boxed_local()
     }
+
+    /// Future that completes when the project becomes ready. See [`is_ready`].
+    ///
+    /// If the project was already ready, returned future is ready as well.
+    fn on_ready(&self) -> BoxFuture<'static, ()> {
+        // TODO [mwu] 
+        //   This machinery could probably go away if we had async conditional variables. 
+        use futures::future::ready;
+        if self.is_ready() {
+            ready(()).boxed_local()
+        } else {
+            self.subscribe()
+                .filter(|n| ready(*n == model::project::Notification::ProjectReady))
+                .into_future()
+                .map(|(_n,_stream_tail)| ())
+                .boxed_local()
+        }
+    }
 }
 
-impl<T:API> APIExt for T {}
+impl<T:API + ?Sized> APIExt for T {}
 
 // Note: Needless lifetimes
 // ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -167,7 +192,9 @@ pub type Synchronized = synchronized::Project;
 #[derive(Clone,Copy,Debug,PartialEq)]
 pub enum Notification {
     /// One of the backend connections has been lost.
-    ConnectionLost(BackendConnection)
+    ConnectionLost(BackendConnection),
+    /// Emitted when project becomes ready, i.e. backend finished initial compilation.
+    ProjectReady,
 }
 
 /// Denotes one of backend connections used by a project.
