@@ -582,11 +582,10 @@ mod test {
     use enso_protocol::types::Sha3_224;
     use enso_protocol::language_server::response;
     use json_rpc::expect_call;
-    use enso_protocol::language_server::Notification::{ExpressionUpdates, ExpressionValuesComputed};
+    use enso_protocol::language_server::Notification::ExpressionUpdates;
     use utils::test::traits::*;
     use futures::SinkExt;
-
-
+    
     #[allow(unused)]
     struct Fixture {
         test                 : TestWithLocalPoolExecutor,
@@ -670,8 +669,7 @@ mod test {
         use enso_protocol::language_server::*;
         use model::project::APIExt;
         
-        let Fixture{mut test,project,json_events_sender,..} = Fixture::new(|ls_json| {
-        }, |_|{});
+        let Fixture{mut test,project,json_events_sender,..} = Fixture::new(|_| {}, |_|{});
 
         assert!(!project.is_ready());
         let mut fut1 = project.on_ready();
@@ -681,8 +679,7 @@ mod test {
             context_id : default(), 
             updates    : default()
         };
-        
-        let notification = Event::Notification(Notification::ExpressionUpdates(message));
+        let notification = Event::Notification(ExpressionUpdates(message));
         json_events_sender.unbounded_send(notification).unwrap();
         test.run_until_stalled();
         fut1.expect_ready();
