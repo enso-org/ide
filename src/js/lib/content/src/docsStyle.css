@@ -58,11 +58,10 @@
 .enso.docs code {
   font-family: Source Code Pro, monospace;
   font-size: 14px;
-  background-color: #e7ebef;
   border-radius: 16px;
-  padding: 1px 5px 2px;
-  box-decoration-break: clone;
+  padding: 1px 0px 2px;
   margin-top: 10px;
+  color: #2573D4;
   -webkit-box-decoration-break: clone;
 }
 .enso.docs .doc-copy-btn {
@@ -100,10 +99,15 @@
   width: 250px;
 }
 .light-theme .enso.docs {
-  font-weight: 500;
+  font-weight: 400;
   font-size: 16px;
   line-height: 1.4;
   color: #4b5864;
+}
+.light-theme .enso.docs .doc-title-container .doc-title-name {
+  font-weight: 600;
+  padding: 4px 10px 0 0;
+  font-size: 20px;
 }
 .light-theme .enso.docs .content {
   font-weight: 500;
@@ -145,106 +149,43 @@
   font-size: 22px;
   line-height: 1.25;
 }
-.light-theme .enso.docs .tag .added {
-  margin-left: 0;
-  border: 2px solid #4b5964;
-  display: inline-table;
-  border-radius: 16px;
-  padding: 2px 6px;
-  line-height: 1.35;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-}
-.light-theme .enso.docs .tag .advanced {
-  margin-left: 0;
-  border: 2px solid #4b5964;
-  display: inline-table;
-  border-radius: 16px;
-  padding: 2px 6px;
-  line-height: 1.35;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-}
-.light-theme .enso.docs .tag .deprecated {
-  margin-left: 0;
-  border: 2px solid #4b5964;
-  display: inline-table;
-  border-radius: 16px;
-  padding: 2px 6px;
-  line-height: 1.35;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-}
-.light-theme .enso.docs .tag .modified {
-  margin-left: 0;
-  border: 2px solid #4b5964;
-  display: inline-table;
-  border-radius: 16px;
-  padding: 2px 6px;
-  line-height: 1.35;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-}
-.light-theme .enso.docs .tag .private {
-  margin-left: 0;
-  border: 2px solid #4b5964;
-  display: inline-table;
-  border-radius: 16px;
-  padding: 2px 6px;
-  line-height: 1.35;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-}
-.light-theme .enso.docs .tag .textonly {
-  margin-left: 0;
-  border: 2px solid #4b5964;
-  display: inline-table;
-  border-radius: 16px;
-  padding: 2px 6px;
-  line-height: 1.35;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-}
-.light-theme .enso.docs .tag .unstable {
-  margin-left: 0;
-  border: 2px solid #ec2915;
-  color: #ec2915;
-  display: inline-table;
-  border-radius: 16px;
-  padding: 2px 6px;
-  line-height: 1.35;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-}
-.light-theme .enso.docs .tag .upcoming {
-  margin-left: 0;
-  border: 2px solid #4b5964;
-  display: inline-table;
-  border-radius: 16px;
-  padding: 2px 6px;
-  line-height: 1.35;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-}
-.light-theme .enso.docs .tag .alias {
-  margin-left: 0;
-  border: 2px solid #4b5964;
-  display: inline-table;
-  border-radius: 16px;
-  padding: 2px 6px;
-  line-height: 1.35;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-}
+.light-theme .enso.docs .tag .added,
+.light-theme .enso.docs .tag .advanced,
+.light-theme .enso.docs .tag .deprecated,
+.light-theme .enso.docs .tag .modified,
+.light-theme .enso.docs .tag .private,
+.light-theme .enso.docs .tag .textonly,
+.light-theme .enso.docs .tag .unstable,
+.light-theme .enso.docs .tag .upcoming,
+.light-theme .enso.docs .tag .alias,
 .light-theme .enso.docs .tag .version {
   margin-left: 0;
-  border: 2px solid #4b5964;
   display: inline-table;
   border-radius: 16px;
-  padding: 2px 6px;
+  padding: 4px 10px;
   line-height: 1.35;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
+  background-color: #eaeaea;
+}
+.light-theme .enso.docs .tag .details {
+  font-weight: 700;
+}
+.light-theme .enso.docs .important,
+.light-theme .enso.docs .info,
+.light-theme .enso.docs .example {
+  background-color: #eaeaea;
+  border-radius: 14px;
+  padding: 15px;
+}
+.light-theme .enso.docs .important .summary,
+.light-theme .enso.docs .info .summary,
+.light-theme .enso.docs .example .summary {
+  font-weight: 500;
+  font-size: 20px;
+  line-height: 1.4;
+  margin-bottom: 0.5rem;
+  color: #4b5864;
 }
 @media (min-width: 768px) {
   .light-theme .enso.docs h1 {
