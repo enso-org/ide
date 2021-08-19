@@ -95,33 +95,12 @@ fn init(app:&Application) {
         });
     }
 
+    std::mem::forget(network);
+
     let world = &app.display;
     let mut frame = 0;
     let mut scroll = 0.0;
     world.on_frame(move |_time| {
-        let _keep_alive = &list_view;
-        let _keep_alive = &network;
-
-        if frame > 200 && frame < 600 {
-            scroll += 0.5;
-            list_view.set_scroll(scroll);
-        }
-
-        if frame > 600 {
-            scroll -= 0.5;
-            list_view.set_scroll(scroll);
-        }
-
-        // if frame == 200 {
-        //     DEBUG!("--- Scroll ---");
-        //     list_view.set_scroll(40.0);
-        // }
-        //
-        // if frame == 300 {
-        //     DEBUG!("--- Scroll ---");
-        //     list_view.set_scroll(80.0);
-        // }
-
         if frame == 50 {
             DEBUG!("Resize.");
             list_view.set_size(list_view::Size::default());

@@ -155,7 +155,7 @@ impl Default for Size {
 // === FRP ===
 // ===========
 
-ensogl_core::define_endpoints! {
+ensogl_core::define_endpoints! { [TRACE_ALL]
     <E:(Debug+'static)>
     Input {
         /// Move selection one position up.
@@ -208,7 +208,7 @@ impl Placeholder {
         let view           = placeholder::View::new(&logger);
         display_object.add_child(&view);
         view.size.set(Vector2(28.0,28.0));
-        view.set_position_xy(Vector2(14.0,14.0));
+        view.set_position_xy(Vector2(14.0,0.0));
         Self {display_object,view}
     }
 }
@@ -416,7 +416,7 @@ impl<E:Entry> ModelData<E> {
                     entry.set_label_layer(&self.app.display.scene().layers.label);
                     offset += self.entry_default_len;
                     self.scroll_area.add_child(&entry);
-                    entry.set_position_y(-((index + 1) as f32) * 30.0 + 15.0);
+                    entry.set_position_y(-((index + 1) as f32) * 30.0);
                     // entry.set_position_y(-offset + 15.0); // FIXME: label center
                     self.slots.push(Slot::Entry(entry));
                 }
@@ -451,7 +451,7 @@ impl<E:Entry> ModelData<E> {
                         Some(model) => {
                             let entry = self.new_entry();
                             entry.set_model(model);
-                            entry.set_position_y(placeholder.position().y + 15.0); // FIXME: label center
+                            entry.set_position_y(placeholder.position().y);
                             self.scroll_area.add_child(&entry);
                             self.slots[index] = Slot::Entry(entry);
                             self.move_slot_to_pool(Slot::Placeholder(placeholder));
@@ -462,7 +462,7 @@ impl<E:Entry> ModelData<E> {
                     match new_entry {
                         None => {
                             let placeholder = self.new_placeholder();
-                            placeholder.set_position_y(entry.position().y - 15.0); // FIXME: label center
+                            placeholder.set_position_y(entry.position().y);
                             self.scroll_area.add_child(&placeholder);
                             self.slots[index] = Slot::Placeholder(placeholder);
                             self.move_slot_to_pool(Slot::Entry(entry));
@@ -533,6 +533,7 @@ impl<E:Entry> Model<E> {
         // self.background.size.set(size + padding + shadow);
         self.background.size.set(sprite_size);
         self.background.set_position_xy(position);
+        self.selection.set_position_x(position.x);
         // self.scroll_area.set_position_x(10.0); // TODO: padding
     }
 
@@ -607,6 +608,7 @@ where E::Model : Default {
         frp::extend! { network
             new_size         <- frp.set_size.map(|size| Vector2(size.width,80.0));
             missing_entries  <- new_size.map(f!((size) model.entries_to_be_requested(*size)));
+            frp.source.size  <+ new_size;
 
             eval new_size ((size) model.set_size(*size));
             eval new_size ((size) model.update_view());
@@ -656,7 +658,7 @@ where E::Model : Default {
                 f!((jump,id) model.selected_entry_after_jump(*id,*jump))
             );
             selected_entry_after_moving_first <- frp.move_selection_to_first.map(f!([model](())
-                model.last_entry_id().is_some().and_option(Some(0))
+                model.last_entry_id().is_some().and_option(Some(1))
             ));
             selected_entry_after_moving_last  <- frp.move_selection_to_last.map(f!([model] (())
                 model.last_entry_id()
@@ -703,11 +705,13 @@ where E::Model : Default {
             selection_sprite_y <- all_with(&selection_y.value,&selection_height.value,
                 |y,h| y + (entry::HEIGHT - h) / 2.0
             );
+            trace selection_sprite_y;
             eval selection_sprite_y ((y) model.selection.set_position_y(*y));
             selection_size <- all_with(&frp.size,&selection_height.value,f!([](size,height) {
                 let width = size.x;
                 Vector2(width,*height)
             }));
+            trace selection_size;
             eval selection_size ((size) model.selection.size.set(*size));
 
 
@@ -736,6 +740,7 @@ where E::Model : Default {
             frp.source.scroll_position <+ frp.scroll_jump;
             // frp.source.scroll_position <+ frp.set_entries.constant(MAX_SCROLL);
             scroll_y.target            <+ frp.scroll_position;
+            eval scroll_y.value ((y) model.set_scroll(-*y));
             // eval frp.set_entries     ((_) {
             //     view_y.set_target_value(MAX_SCROLL);
             //     view_y.skip();
@@ -752,7 +757,7 @@ where E::Model : Default {
     // }
 
     /// Y position of entry with given id, relative to scroll area.
-    pub fn offset_of_entry(id:entry::Id) -> f32 { id as f32 * -entry::HEIGHT }
+    pub fn offset_of_entry(id:entry::Id) -> f32 { -((id + 1) as f32) * 30.0 }
 
     /// Y range of entry with given id, relative to Entry List position.
     pub fn y_range_of_entry(id:entry::Id) -> Range<f32> {
