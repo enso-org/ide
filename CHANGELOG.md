@@ -17,7 +17,7 @@
 - [GeoMap visualization will ignore points with `null` coordinates][1775]. Now
   the presence of such points in the dataset will not break initial map
   positioning.
-- [Updated Enso engine to version 0.2.11][1798]. If you're interested in the
+- [Updated Enso engine to version 0.2.24][1798]. If you're interested in the
   enhancements and fixes made to the Enso compiler, you can find their release
   notes [here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
 
