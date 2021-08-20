@@ -2,7 +2,7 @@
 use ensogl_core::prelude::*;
 
 use crate::list_view;
-use crate::list_view::entry::ModelProvider;
+use crate::list_view::entry::Provider;
 
 use enso_frp as frp;
 use enso_frp;
@@ -74,7 +74,7 @@ pub mod chooser_hover_area {
 
 ensogl_core::define_endpoints! {
     Input {
-        set_entries         (list_view::entry::AnyModelProvider<Entry>),
+        set_entries         (list_view::entry::provider::Any<Entry>),
         set_icon_size       (Vector2),
         set_icon_padding    (Vector2),
         hide_selection_menu (),
@@ -111,8 +111,8 @@ struct Model {
     label           : text::Area,
     selection_menu  : list_view::ListView<Entry>,
 
-    // `SingleMaskedProvider` allows us to hide the selected element.
-    content         : RefCell<Option<list_view::entry::SingleMaskedProvider<Entry>>>,
+    // `provider::SingleMasked` allows us to hide the selected element.
+    content         : RefCell<Option<list_view::entry::provider::SingleMasked<Entry>>>,
 }
 
 impl Model {
@@ -217,9 +217,9 @@ impl DropDownMenu {
             // === Input Processing ===
 
             eval frp.input.set_entries ([model](entries) {
-                let entries:list_view::entry::SingleMaskedProvider<Entry> = entries.clone_ref().into();
+                let entries:list_view::entry::provider::SingleMasked<Entry> = entries.clone_ref().into();
                 model.content.set(entries.clone());
-                let entries = list_view::entry::AnyModelProvider::<Entry>::new(entries);
+                let entries = list_view::entry::provider::Any::<Entry>::new(entries);
                 model.selection_menu.frp.set_entries.emit(entries);
             });
 
@@ -281,7 +281,7 @@ impl DropDownMenu {
             target_height <- all_with(&frp.output.menu_visible,&model.selection_menu.frp.set_entries,
                 f!([](visible,entries) {
                     if *visible {
-                        let item_count  = entries.entry_count();
+                        let item_count  = entries.len();
                         let line_height = list_view::entry::HEIGHT;
                         line_height * item_count as f32
                     } else {
@@ -294,7 +294,9 @@ impl DropDownMenu {
                     }
                 })
             );
-            eval target_height ((h) menu_height.set_target_value(*h));
+            eval target_height ([menu_height](h) {
+                menu_height.set_target_value(*h);
+            });
 
 
             // === Selection ===
@@ -318,7 +320,7 @@ impl DropDownMenu {
                         // Remove selected item from menu list
                         content.set_mask(*entry_id);
                         // Update menu content.
-                        let entries = list_view::entry::AnyModelProvider::<Entry>::new(content.clone());
+                        let entries = list_view::entry::provider::Any::<Entry>::new(content.clone());
                         model.selection_menu.frp.set_entries.emit(entries);
                     };
                 };

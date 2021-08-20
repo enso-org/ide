@@ -42,7 +42,7 @@ use ide_view::graph_editor::component::visualization;
 use ide_view::graph_editor::EdgeEndpoint;
 use ide_view::graph_editor::GraphEditor;
 use ide_view::graph_editor::SharedHashMap;
-use ide_view::searcher::entry::AnyModelProvider;
+use ide_view::searcher::entry;
 use ide_view::searcher::new::Icon;
 use ide_view::open_dialog;
 use utils::iter::split_by_predicate;
@@ -1622,7 +1622,7 @@ impl Model {
                         Ok(projects) => {
                             let entries = ProjectsToOpen::new(projects);
                             this.displayed_project_list.set(entries.clone_ref());
-                            let any_entries = AnyModelProvider::new(entries);
+                            let any_entries = entry::provider::Any::new(entries);
                             this.view.open_dialog().project_list.set_entries(any_entries)
                         },
                         Err(error) => error!(this.logger,"Error when loading project's list: {error}"),
@@ -1965,8 +1965,8 @@ impl SuggestionsProviderForView {
     }
 }
 
-impl list_view::entry::ModelProvider<GlyphHighlightedLabel> for SuggestionsProviderForView {
-    fn entry_count(&self) -> usize {
+impl list_view::entry::Provider<GlyphHighlightedLabel> for SuggestionsProviderForView {
+    fn len(&self) -> usize {
         // TODO[ao] Because of "All Search Results" category, the actions on list are duplicated.
         //     But we don't want to display duplicates on the old searcher list. To be fixed/removed
         //     once new searcher GUI will be implemented
@@ -2047,8 +2047,8 @@ impl ProjectsToOpen {
     }
 }
 
-impl list_view::entry::ModelProvider<open_dialog::project_list::Entry> for ProjectsToOpen {
-    fn entry_count(&self) -> usize { self.projects.len() }
+impl list_view::entry::Provider<open_dialog::project_list::Entry> for ProjectsToOpen {
+    fn len(&self) -> usize { self.projects.len() }
 
     fn get(&self, id:list_view::entry::Id)
     -> Option<<open_dialog::project_list::Entry as list_view::Entry> ::Model> {

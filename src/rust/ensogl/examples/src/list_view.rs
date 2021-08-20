@@ -47,14 +47,14 @@ struct MockEntries {
 
 impl MockEntries {
     fn new(app:&Application, entries_count:usize) -> Self {
-        let logger  = Logger::new("MockEntries");
-        let scene   = app.display.scene().clone_ref();
+        let logger = Logger::new("MockEntries");
+        let scene  = app.display.scene().clone_ref();
         Self {logger,scene,entries_count}
     }
 }
 
-impl list_view::entry::ModelProvider<list_view::entry::GlyphHighlightedLabel> for MockEntries {
-    fn entry_count(&self) -> usize { self.entries_count }
+impl list_view::entry::Provider<list_view::entry::GlyphHighlightedLabel> for MockEntries {
+    fn len(&self) -> usize { self.entries_count }
 
     fn get(&self, id:usize) -> Option<list_view::entry::GlyphHighlightedLabelModel> {
         if id >= self.entries_count {
@@ -79,8 +79,8 @@ fn init(app:&Application) {
     theme::builtin::light::enable(&app);
 
     let list_view = app.new_view::<list_view::ListView<list_view::entry::GlyphHighlightedLabel>>();
-    let provider  = list_view::entry::AnyModelProvider::new(MockEntries::new(app,1000));
-    list_view.frp.resize(Vector2(100.0,160.0));
+    let provider  = list_view::entry::provider::Any::new(MockEntries::new(app,1000));
+    list_view.frp.resize(Vector2(100.0,140.0));
     list_view.frp.set_entries(provider);
     app.display.add_child(&list_view);
     // FIXME[WD]: This should not be needed after text gets proper depth-handling.

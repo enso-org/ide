@@ -1,5 +1,5 @@
 [package]
-name = "ensogl-examples"
+name = "ensogl-examples-list-view"
 version = "0.1.0"
 authors = ["Enso Team <contact@enso.org>"]
 edition = "2018"
@@ -8,19 +8,19 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-enso-frp = { path = "../../lib/frp" }
+enso-frp = { path = "../../../lib/frp" }
 enso-logger = { version = "0.3.1" }
-enso-prelude = { version = "0.2.6" }
+enso-prelude = { version = "0.2.5" }
 enso-shapely = { version = "0.2.0" }
-ensogl-core = { path = "../../ensogl/lib/core" }
-ensogl-gui-components = { path = "../../ensogl/lib/components" }
-ensogl-text = { path = "../../ensogl/lib/text" }
-ensogl-text-msdf-sys = { path = "../../ensogl/lib/text/msdf-sys" }
-ensogl-theme = { path = "../../ensogl/lib/theme" }
-ensogl-web = { path = "../lib/web" }
+ensogl-core = { path = "../../../ensogl/lib/core" }
+ensogl-gui-components = { path = "../../../ensogl/lib/components" }
+ensogl-text = { path = "../../../ensogl/lib/text" }
+ensogl-text-msdf-sys = { path = "../../../ensogl/lib/text/msdf-sys" }
+ensogl-theme = { path = "../../../ensogl/lib/theme" }
+ensogl-web = { path = "../../lib/web" }
 wasm-bindgen = { version = "=0.2.58", features = [
-  "nightly",
-  "serde-serialize"
+    "nightly",
+    "serde-serialize"
 ] }
 wasm-bindgen-futures = { version = "0.4.8" }
 nalgebra = { version = "0.26.1", features = ["serde-serialize"] }

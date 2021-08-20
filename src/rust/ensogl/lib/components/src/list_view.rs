@@ -4,27 +4,30 @@
 //! clicking or pressing enter - similar to the HTML `<select>`.
 
 pub mod entry;
+pub mod list;
 
-use crate::prelude::*;
-use crate::shadow;
+pub use list::List;
+
 
 use enso_frp as frp;
 use ensogl_core::application;
 use ensogl_core::application::Application;
 use ensogl_core::application::shortcut;
+use ensogl_core::DEPRECATED_Animation;
 use ensogl_core::display;
 use ensogl_core::display::scene::layer::LayerId;
 use ensogl_core::display::shape::*;
-use ensogl_core::DEPRECATED_Animation;
 use ensogl_theme as theme;
-
 pub use entry::Entry;
 
+use crate::prelude::*;
+use crate::shadow;
 
 
-// ==========================
-// === Shapes Definitions ===
-// ==========================
+
+// ==============
+// === Shapes ===
+// ==============
 
 // === Constants ===
 
@@ -37,6 +40,8 @@ const SHAPE_PADDING:f32 = 5.0;
 
 /// The selection rectangle shape.
 pub mod selection {
+    use ensogl_theme::application::searcher::selection::padding;
+
     use super::*;
 
     /// The corner radius in pixels.
@@ -46,13 +51,13 @@ pub mod selection {
         (style:Style) {
             let sprite_width  : Var<Pixels> = "input_size.x".into();
             let sprite_height : Var<Pixels> = "input_size.y".into();
-            let padding_inner_x = style.get_number(ensogl_theme::application::searcher::selection::padding::horizontal);
-            let padding_inner_y = style.get_number(ensogl_theme::application::searcher::selection::padding::vertical);
-            let width         = sprite_width  - 2.0.px() * SHAPE_PADDING + 2.0.px() * padding_inner_x;
-            let height        = sprite_height - 2.0.px() * SHAPE_PADDING + 2.0.px() * padding_inner_y;
-            let color         = style.get_color(ensogl_theme::widget::list_view::highlight);
-            let rect          = Rect((&width,&height)).corners_radius(CORNER_RADIUS_PX.px());
-            let shape         = rect.fill(color);
+            let padding_in_x = style.get_number(padding::horizontal);
+            let padding_in_y = style.get_number(padding::vertical);
+            let width        = sprite_width  - 2.0.px() * SHAPE_PADDING + 2.0.px() * padding_in_x;
+            let height       = sprite_height - 2.0.px() * SHAPE_PADDING + 2.0.px() * padding_in_y;
+            let color        = style.get_color(ensogl_theme::widget::list_view::highlight);
+            let rect         = Rect((&width,&height)).corners_radius(CORNER_RADIUS_PX.px());
+            let shape        = rect.fill(color);
             shape.into()
         }
     }
@@ -73,14 +78,12 @@ pub mod background {
         (style:Style) {
             let sprite_width  : Var<Pixels> = "input_size.x".into();
             let sprite_height : Var<Pixels> = "input_size.y".into();
-            let width         = sprite_width - SHADOW_PX.px() * 2.0 - SHAPE_PADDING.px() * 2.0;
+            let width         = sprite_width  - SHADOW_PX.px() * 2.0 - SHAPE_PADDING.px() * 2.0;
             let height        = sprite_height - SHADOW_PX.px() * 2.0 - SHAPE_PADDING.px() * 2.0;
             let color         = style.get_color(theme::widget::list_view::background);
             let rect          = Rect((&width,&height)).corners_radius(CORNER_RADIUS_PX.px());
             let shape         = rect.fill(color);
-
-            let shadow  = shadow::from_shape(rect.into(),style);
-
+            let shadow        = shadow::from_shape(rect.into(),style);
             (shadow + shape).into()
         }
     }
@@ -103,7 +106,7 @@ struct View {
 #[derive(Clone,CloneRef,Debug)]
 struct Model<E:Entry> {
     app            : Application,
-    entries        : entry::List<E>,
+    entries        : List<E>,
     selection      : selection::View,
     background     : background::View,
     scrolled_area  : display::object::Instance,
@@ -111,13 +114,12 @@ struct Model<E:Entry> {
 }
 
 impl<E:Entry> Model<E> {
-
     fn new(app:&Application) -> Self {
         let app            = app.clone_ref();
         let logger         = Logger::new("SelectionContainer");
         let display_object = display::object::Instance::new(&logger);
         let scrolled_area  = display::object::Instance::new(&logger);
-        let entries        = entry::List::new(&logger,&app);
+        let entries        = List::new(&logger,&app);
         let background     = background::View::new(&logger);
         let selection      = selection::View::new(&logger);
         display_object.add_child(&background);
@@ -130,7 +132,7 @@ impl<E:Entry> Model<E> {
     fn padding(&self) -> f32 {
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape
         // system (#795)
-        let styles   = StyleWatch::new(&self.app.display.scene().style_sheet);
+        let styles = StyleWatch::new(&self.app.display.scene().style_sheet);
         styles.get_number(ensogl_theme::application::searcher::padding)
     }
 
@@ -140,7 +142,7 @@ impl<E:Entry> Model<E> {
         let visible_entries = Self::visible_entries(view,self.entries.entry_count());
         let padding_px      = self.padding();
         let padding         = 2.0 * padding_px + SHAPE_PADDING;
-        let padding         = Vector2(padding, padding);
+        let padding         = Vector2(padding,padding);
         let shadow          = Vector2(2.0 * SHADOW_PX,  2.0 * SHADOW_PX);
         self.entries.set_position_x(-view.size.x / 2.0);
         self.background.size.set(view.size + padding + shadow);
@@ -148,24 +150,24 @@ impl<E:Entry> Model<E> {
         self.entries.update_entries(visible_entries);
     }
 
-    fn set_entries(&self, provider:entry::AnyModelProvider<E>, view:&View) {
-        let visible_entries = Self::visible_entries(view,provider.entry_count());
+    fn set_entries(&self, provider:entry::provider::Any<E>, view:&View) {
+        let visible_entries = Self::visible_entries(view,provider.len());
         self.entries.update_entries_new_provider(provider,visible_entries);
     }
 
-    fn visible_entries(View {position_y,size}:&View, entry_count:usize) -> Range<entry::Id> {
+    fn visible_entries(view:&View, entry_count:usize) -> Range<entry::Id> {
         if entry_count == 0 {
             0..0
         } else {
-            let entry_at_y_saturating = |y:f32| {
-                match entry::List::<E>::entry_at_y_position(y,entry_count) {
-                    entry::list::IdAtYPosition::AboveFirst => 0,
-                    entry::list::IdAtYPosition::UnderLast  => entry_count - 1,
-                    entry::list::IdAtYPosition::Entry(id)  => id,
+            let entry_at_scroll_saturating = |y:f32| {
+                match List::<E>::entry_at_offset(y,entry_count) {
+                    list::IdAtOffset::AboveFirst => 0,
+                    list::IdAtOffset::UnderLast  => entry_count - 1,
+                    list::IdAtOffset::Entry(id)  => id,
                 }
             };
-            let first = entry_at_y_saturating(*position_y);
-            let last  = entry_at_y_saturating(position_y - size.y) + 1;
+            let first = entry_at_scroll_saturating(view.position_y);
+            let last  = entry_at_scroll_saturating(view.position_y - view.size.y) + 1;
             first..last
         }
     }
@@ -182,7 +184,7 @@ impl<E:Entry> Model<E> {
     (&self, current_entry:Option<entry::Id>, jump:isize) -> Option<entry::Id> {
         if jump < 0 {
             let current_entry = current_entry?;
-            if current_entry == 0 { None                                    }
+            if current_entry == 0 { None }
             else                  { Some(current_entry.saturating_sub(-jump as usize)) }
         } else {
             let max_entry = self.entries.entry_count().checked_sub(1)?;
@@ -219,7 +221,7 @@ ensogl_core::define_endpoints! {
 
         resize       (Vector2<f32>),
         scroll_jump  (f32),
-        set_entries  (entry::AnyModelProvider<E>),
+        set_entries  (entry::provider::Any<E>),
         select_entry (entry::Id),
         chose_entry  (entry::Id),
     }
@@ -234,9 +236,9 @@ ensogl_core::define_endpoints! {
 
 
 
-// ==========================
-// === ListView Component ===
-// ==========================
+// ================
+// === ListView ===
+// ================
 
 /// ListView Component.
 ///
@@ -288,7 +290,7 @@ where E::Model : Default {
                 scene.screen_to_object_space(&model.scrolled_area,*pos).y
             }));
             mouse_pointed_entry <- mouse_y_in_scroll.map(f!([model](y)
-                entry::List::<E>::entry_at_y_position(*y,model.entries.entry_count()).entry()
+                List::<E>::entry_at_offset(*y,model.entries.entry_count()).entry()
             ));
 
 
@@ -345,7 +347,7 @@ where E::Model : Default {
             // === Selection Size and Position ===
 
             target_selection_y <- frp.selected_entry.map(|id|
-                id.map_or(0.0,entry::List::<E>::position_y_of_entry)
+                id.map_or(0.0,List::<E>::offset_of_entry)
             );
             target_selection_height <- frp.selected_entry.map(f!([](id)
                 if id.is_some() {entry::HEIGHT} else {0.0}
@@ -370,7 +372,7 @@ where E::Model : Default {
             // === Scrolling ===
 
             selection_top_after_move_up <- selected_entry_after_move_up.map(|id|
-                id.map(|id| entry::List::<E>::y_range_of_entry(id).end)
+                id.map(|id| List::<E>::y_range_of_entry(id).end)
             );
             min_scroll_after_move_up <- selection_top_after_move_up.map(|top|
                 top.unwrap_or(MAX_SCROLL)
@@ -379,7 +381,7 @@ where E::Model : Default {
                 current.max(*min)
             );
             selection_bottom_after_move_down <- selected_entry_after_move_down.map(|id|
-                id.map(|id| entry::List::<E>::y_range_of_entry(id).start)
+                id.map(|id| List::<E>::y_range_of_entry(id).start)
             );
             max_scroll_after_move_down <- selection_bottom_after_move_down.map2(&frp.size,
                 |y,size| y.map_or(MAX_SCROLL, |y| y + size.y)

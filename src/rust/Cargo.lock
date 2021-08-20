@@ -883,6 +883,30 @@ dependencies = [
  "enso-prelude",
  "enso-shapely",
  "ensogl-core",
+ "ensogl-examples-list-view",
+ "ensogl-gui-components",
+ "ensogl-text",
+ "ensogl-text-msdf-sys",
+ "ensogl-theme",
+ "ensogl-web",
+ "js-sys",
+ "nalgebra 0.26.2",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
+name = "ensogl-examples-list-view"
+version = "0.1.0"
+dependencies = [
+ "enso-frp",
+ "enso-logger",
+ "enso-prelude",
+ "enso-shapely",
+ "ensogl-core",
  "ensogl-gui-components",
  "ensogl-text",
  "ensogl-text-msdf-sys",

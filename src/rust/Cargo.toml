@@ -2,7 +2,8 @@
 members = [
   "build",
   "ensogl",
-  "ensogl/example",
+  "ensogl/examples",
+  "ensogl/examples/list-view",
   "ensogl/lib/core",
   "ensogl/lib/components",
   "ensogl/lib/theme",

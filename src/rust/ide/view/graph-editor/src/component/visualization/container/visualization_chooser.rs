@@ -158,7 +158,7 @@ impl VisualizationChooser {
 
             frp.source.entries <+ input_type_changed.map(f!([model] (input_type){
                 let entries  = Rc::new(model.entries(input_type));
-                let provider = list_view::entry::AnyModelProvider::from(entries.clone_ref());
+                let provider = list_view::entry::provider::Any::from(entries.clone_ref());
                 model.selection_menu.set_entries(provider);
                 entries
             }));
