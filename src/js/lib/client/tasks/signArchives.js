@@ -110,7 +110,7 @@ function signArchive(archivePath, archiveName, binPaths) {
 const toSign = [
     {
         jarDir:
-            `enso/dist/${ENGINE}/lib/Standard/Database/0.1.0/polyglot/java`,
+            `enso/dist/${ENGINE}/lib/Standard/Database/${ENGINE}/polyglot/java`,
         jarName: 'sqlite-jdbc-3.34.0.jar',
         jarContent: [
             'org/sqlite/native/Mac/aarch64/libsqlitejdbc.jnilib',
