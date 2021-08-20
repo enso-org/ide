@@ -589,7 +589,9 @@ ensogl::define_endpoints! {
         navigator_active (bool),
         file_dropped     (drop::File,Vector2<f32>),
 
+        default_x_gap_between_nodes (f32),
         default_y_gap_between_nodes (f32),
+        min_x_spacing_for_new_nodes (f32),
     }
 }
 
@@ -2058,17 +2060,15 @@ impl GraphEditor {
         self.frp.output.node_added.value()
     }
 
-    /// Ads a new node below `parent` and returns its ID. If there is not enough space right below
-    /// `parent` then the new node is moved to the right to first gap that is large enough.
-    pub fn add_node_below(&self, parent:NodeId) -> NodeId {
-        use ensogl_theme::graph_editor as theme;
-        let parent_pos = self.model.get_node_position(parent).unwrap_or_default();
-        let styles     = StyleWatch::new(&self.model.app.display.scene().style_sheet);
-        let x_gap      = styles.get_number(theme::default_x_gap_between_nodes);
-        let y_gap      = styles.get_number(theme::default_y_gap_between_nodes);
+    /// Ads a new node below `above` and returns its ID. If there is not enough space right below
+    /// `above` then the new node is moved to the right to first gap that is large enough.
+    pub fn add_node_below(&self, above:NodeId) -> NodeId {
+        let above_pos = self.model.get_node_position(above).unwrap_or_default();
+        let x_gap      = self.default_x_gap_between_nodes.value();
+        let y_gap      = self.default_y_gap_between_nodes.value();
         let y_offset   = y_gap + node::HEIGHT;
-        let mut x      = parent_pos.x;
-        let y          = parent_pos.y - y_offset;
+        let mut x      = above_pos.x;
+        let y          = above_pos.y - y_offset;
         // Push x to the right until we find a position where we have enough space for the new
         // node, including a margin of size `x_gap`/`y_gap` on all sides.
         {
@@ -2082,7 +2082,7 @@ impl GraphEditor {
             let maybe_overlapping = maybe_overlapping.sorted_by_key(|n|
                 OrderedFloat(n.position().x));
             // This is how much horizontal space we are looking for.
-            let min_spacing = styles.get_number(theme::minimal_x_spacing_for_new_nodes);
+            let min_spacing = self.min_x_spacing_for_new_nodes.value();
             for node in maybe_overlapping {
                 let node_left  = node.position().x - x_gap;
                 let node_right = node.position().x + node.view.model.width() + x_gap;
@@ -3256,12 +3256,20 @@ fn new_graph_editor(app:&Application) -> GraphEditor {
 
     let style_sheet        = &scene.style_sheet;
     let styles             = StyleWatchFrp::new(style_sheet);
+    let default_x_gap_path = ensogl_theme::graph_editor::default_x_gap_between_nodes;
     let default_y_gap_path = ensogl_theme::graph_editor::default_y_gap_between_nodes;
+    let min_x_spacing_path = ensogl_theme::graph_editor::minimal_x_spacing_for_new_nodes;
+    let default_x_gap      = styles.get_number_or(default_x_gap_path,0.0);
     let default_y_gap      = styles.get_number_or(default_y_gap_path,0.0);
+    let min_x_spacing      = styles.get_number_or(min_x_spacing_path,0.0);
     frp::extend! { network
+            frp.source.default_x_gap_between_nodes <+ default_x_gap;
             frp.source.default_y_gap_between_nodes <+ default_y_gap;
+            frp.source.min_x_spacing_for_new_nodes <+ min_x_spacing;
         }
+    frp.source.default_x_gap_between_nodes.emit(default_x_gap.value());
     frp.source.default_y_gap_between_nodes.emit(default_y_gap.value());
+    frp.source.min_x_spacing_for_new_nodes.emit(min_x_spacing.value());
 
     // Init defaults
     frp.edit_mode_off.emit(());
