@@ -198,7 +198,7 @@
   position: relative;
   left: -11px;
   top: 1px;
-  content: url("assets/library.svg");
+  content: url("src/library.svg");
   float-offset: 5px;
 }
 .light-theme .method-section div {
@@ -217,7 +217,7 @@
   position: relative;
   left: -9px;
   top: 1px;
-  content: url("assets/sigma.svg");
+  content: url("src/sigma.svg");
 }
 .light-theme .method-section .doc-title-container .tags {
   display: none;
@@ -240,7 +240,7 @@
   position: relative;
   left: -11px;
   top: 1px;
-  content: url("assets/set.svg");
+  content: url("src/set.svg");
 }
 .light-theme .atom-section div {
   padding-bottom: 0.25em;
@@ -258,7 +258,7 @@
   position: relative;
   left: -9px;
   top: 1px;
-  content: url("assets/atom.svg");
+  content: url("src/atom.svg");
 }
 .light-theme .atom-section .doc-title-container .tags {
   display: none;
