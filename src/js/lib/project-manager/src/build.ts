@@ -122,7 +122,7 @@ async function download_project_manager(file_url: string, overwrite: boolean): P
     if (file_name === undefined || file_name === null) {
         throw `File URL does not contain path separator: ` + file_url
     }
-    const download_dir = path.resolve(distPath, 'tmp/engine/')
+    const download_dir = path.resolve(paths.dist.tmp, 'project-manager/')
     const file_path = path.resolve(download_dir, file_name)
 
     if (fss.existsSync(file_path) && !overwrite) {
