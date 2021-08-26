@@ -64,21 +64,13 @@ these updates be shipped in a stable release before the end of the year.
 
 - [Fixed a bug where edited node expression was sometimes altered.][1743] When
   editing node expression, the changes were occasionally reverted, or the
-  grayed-out parameter names were added to the actual expression.
-- [Fixed freezing after inactivity.][1776] When the IDE window was minimized or
-  covered by other windows or invisible for any other reason for a duration
-  around one minute or longer then it would often be frozen for some seconds on
-  return. Now it is possible to interact with the IDE instantly, no matter how
-  long it had been inactive.
-
-<br/>
+  grayed-out parameter names were added to the actual expression. <br/>
 
 [1700]: https://github.com/enso-org/ide/pull/1700
 [1742]: https://github.com/enso-org/ide/pull/1742
 [1726]: https://github.com/enso-org/ide/pull/1762
 [1743]: https://github.com/enso-org/ide/pull/1743
 [1744]: https://github.com/enso-org/ide/pull/1744
-[1776]: https://github.com/enso-org/ide/pull/1776
 
 # Enso 2.0.0-alpha.10 (2021-07-23)
 
