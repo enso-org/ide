@@ -1,5 +1,18 @@
 # Next Release
 
+<br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
+
+#### Visual Environment
+
+- [Correct handling of command-line flags.][1815] Command line arguments of the
+  form `--backend=false` or `--backend false` are now handled as expected and
+  turn off the "backend" option. The same fix has been applied to all other
+  boolean command-line options as well.
+
+<br/>
+
+[1815]: https://github.com/enso-org/ide/pull/1815
+
 # Enso 2.0.0-alpha.12 (2021-08-13)
 
 <br/>![New Features](/docs/assets/tags/new_features.svg)
