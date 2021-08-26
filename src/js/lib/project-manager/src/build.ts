@@ -183,10 +183,16 @@ async function main() {
     const build_info_file = path.join(distPath, 'installed-enso-version')
     let existing_build_info: BuildInfo | null
     try {
-        let build_info_file_content = await fs.readFile(build_info_file)
+        const build_info_file_content = await fs.readFile(build_info_file)
         existing_build_info = JSON.parse(build_info_file_content.toString())
-    } catch {
-        existing_build_info = null
+    } catch (error) {
+        const file_does_not_exist = error.code === 'ENOENT'  // Standing for "Error NO ENTry"
+        if (file_does_not_exist) {
+            existing_build_info = null
+        } else {
+            console.error(error)
+            process.exit(1)
+        }
     }
     if (buildInfo.version !== existing_build_info?.version ||
         buildInfo.target  !== existing_build_info?.target) {
