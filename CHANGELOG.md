@@ -31,22 +31,12 @@
   enhancements and fixes made to the Enso compiler, you can find their release
   notes [here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
 
-<br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
-
-#### Visual Environment
-
-- [Correct handling of command-line flags.][1815] Command line arguments of the
-  form `--backend=false` or `--backend false` are now handled as expected and
-  turn off the "backend" option. The same fix has been applied to all other
-  boolean command-line options as well.
-
 <br/>
 
 [1801]: https://github.com/enso-org/ide/pull/1801
 [1775]: https://github.com/enso-org/ide/pull/1775
 [1798]: https://github.com/enso-org/ide/pull/1798
 [1804]: https://github.com/enso-org/ide/pull/1804
-[1815]: https://github.com/enso-org/ide/pull/1815
 
 # Enso 2.0.0-alpha.11 (2021-08-09)
 
