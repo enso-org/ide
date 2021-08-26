@@ -1,5 +1,15 @@
 # Next Release
 
+<br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
+
+#### Visual Environment
+
+- [Sharp rendering on screens with fractional pixel ratios.][1820] 
+
+<br/>
+
+[1820]: https://github.com/enso-org/ide/pull/1820
+
 # Enso 2.0.0-alpha.12 (2021-08-13)
 
 <br/>![New Features](/docs/assets/tags/new_features.svg)
