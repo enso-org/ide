@@ -1064,16 +1064,23 @@ impl Model {
 impl Model {
     pub fn get_category_content
     (&self, crumbs:&[usize]) -> Vec<(usize,ide_view::searcher::new::Entry)> {
-        let maybe_searcher = self.searcher.borrow();
-        let maybe_actions  = maybe_searcher.as_ref().map(|s| s.actions());
-        let maybe_list     = maybe_actions.as_ref().and_then(|actions| actions.list());
-        if let Some(list) = maybe_list {
+        let maybe_actions = self.searcher.borrow().as_ref().map(controller::Searcher::actions);
+        let is_filtering  = self.searcher.borrow().contains_if(controller::Searcher::is_filtering);
+        let maybe_list    = maybe_actions.as_ref().and_then(|actions| actions.list());
+        if let Some(list)  = maybe_list {
             match crumbs.len() {
-                0 => list.root_categories().map(|(id,cat)| (id,ide_view::searcher::new::Entry {
-                    label     : cat.name.to_string().into(),
-                    is_folder : Immutable(true),
-                    icon      : Icon(cat.icon.clone_ref()),
-                })).collect(),
+                0 => {
+                    // We skip the first "All Search Result" category if we're not currently
+                    // filtering
+                    let skipped_categories = if is_filtering {0} else {1};
+                    list.root_categories().skip(skipped_categories).map(|(id,cat)|
+                        (id,ide_view::searcher::new::Entry {
+                            label     : cat.name.to_string().into(),
+                            is_folder : Immutable(true),
+                            icon      : Icon(cat.icon.clone_ref()),
+                        })
+                    ).collect()
+                },
                 1 => list.subcategories_of(*crumbs.last().unwrap()).map(|(id,cat)|
                     (id,ide_view::searcher::new::Entry {
                         label     : cat.name.to_string().into(),
@@ -1726,11 +1733,11 @@ impl Model {
         executor::global::spawn(task);
         Ok(id)
     }
-
-
-    /// Repeatedly try to attach visualization to the node (as defined by the map).
-    ///
-    /// Up to `attempts` will be made.
+    
+    /// Try attaching visualization to the node.
+    /// 
+    /// In case of timeout failure, retries up to total `attempts` count will be made. 
+    /// For other kind of errors no further attempts will be made.
     fn try_attaching_visualization_task
     (&self, node_id:graph_editor::NodeId, visualizations_map:VisualizationMap, attempts:usize)
     -> impl Future<Output=AttachingResult<impl Stream<Item=VisualizationUpdateData>>> {
@@ -1749,10 +1756,15 @@ impl Model {
                             {node_id}.");
                             return AttachingResult::Attached(stream);
                         }
-                        Err(e) => {
-                            error!(logger, "Failed to attach visualization {id} for node {node_id} \
-                            (attempt {i}): {e}");
+                        Err(e) if enso_protocol::language_server::is_timeout_error(&e) => {
+                            warning!(logger, "Failed to attach visualization {id} for node \
+                            {node_id} (attempt {i}). Will retry, as it is a timeout error.");
                             last_error = Some(e);
+                        }
+                        Err(e) => {
+                            warning!(logger, "Failed to attach visualization {id} for node \
+                            {node_id}: {e}");
+                            return AttachingResult::Failed(e)
                         }
                     }
                 } else {
@@ -1782,7 +1794,7 @@ impl Model {
     ) -> impl Future<Output=()> {
         let graph_frp  = self.view.graph().frp.clone_ref();
         let map        = visualizations_map.clone();
-        let attempts   = crate::constants::INITIAL_VISUALIZATION_ATTACH_ATTEMPTS;
+        let attempts   = crate::constants::ATTACHING_TIMEOUT_RETRIES;
         let stream_fut = self.try_attaching_visualization_task(node_id,map,attempts);
         async move {
             // No need to log anything here, as `try_attaching_visualization_task` does this.
@@ -1955,7 +1967,11 @@ impl SuggestionsProviderForView {
 
 impl list_view::entry::ModelProvider<GlyphHighlightedLabel> for SuggestionsProviderForView {
     fn entry_count(&self) -> usize {
-        self.actions.matching_count()
+        // TODO[ao] Because of "All Search Results" category, the actions on list are duplicated.
+        //     But we don't want to display duplicates on the old searcher list. To be fixed/removed
+        //     once new searcher GUI will be implemented
+        //     (https://github.com/enso-org/ide/issues/1681)
+        self.actions.matching_count() / 2
     }
 
     fn get(&self, id: usize) -> Option<list_view::entry::GlyphHighlightedLabelModel> {
