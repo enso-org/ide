@@ -340,6 +340,10 @@ pub trait API : Debug {
     }
 }
 
+// Note: Needless lifetimes
+// ~~~~~~~~~~~~~~~~~~~~~~~~
+// See Note: [Needless lifetimes] is `model/project.rs`.
+
 impl Debug for MockAPI {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f,"Mock Execution Context")

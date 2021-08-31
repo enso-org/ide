@@ -16,6 +16,10 @@ use ide_view::graph_editor::SharedHashMap;
 use ide_view::graph_editor::component::visualization::instance::ContextModule;
 use ide_view::graph_editor::component::visualization::Metadata;
 
+// ================================
+// === Resolving Context Module ===
+// ================================
+
 /// Resolve the context module to a fully qualified name.
 pub fn resolve_context_module
 ( context_module   : &ContextModule
