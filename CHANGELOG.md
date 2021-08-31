@@ -4,7 +4,7 @@
 
 #### Visual Environment
 
-- [Sharp rendering on screens with fractional pixel ratios.][1820] 
+- [Sharp rendering on screens with fractional pixel ratios.][1820]
 
 <br/>
 
