@@ -501,11 +501,11 @@ impl Manager {
 mod tests {
     use super::*;
     use utils::test::traits::*;
-    
-    use crate::model::execution_context::ModuleQualifiedName;
 
     use futures::future::ready;
     use ide_view::graph_editor::component::visualization::instance::ContextModule;
+    use ide_view::graph_editor::component::visualization::instance::PreprocessorConfiguration;
+    use wasm_bindgen_test::wasm_bindgen_test;
 
     #[derive(Shrinkwrap)]
     #[shrinkwrap(mutable)]
@@ -513,15 +513,13 @@ mod tests {
         #[shrinkwrap(main_field)]
         inner            : crate::test::mock::Fixture,
         node_id          : ast::Id,
-        visualization_id : VisualizationId,
     }
 
     impl Fixture {
         fn new() -> Self {
             let inner      = crate::test::mock::Unified::new().fixture();
             let node_id    = inner.graph.nodes().unwrap().first().unwrap().id();
-            let visualization_id = Uuid::from_u128(2);
-            Self {inner,node_id,visualization_id}
+            Self {inner,node_id}
         }
 
         fn vis_metadata(&self, code:impl Into<String>) -> Metadata {
@@ -541,7 +539,7 @@ mod tests {
         Modify {
             id         : VisualizationId,
             expression : Option<String>,
-            module     : Option<ModuleQualifiedName>,
+            module     : Option<model::module::QualifiedName>,
         },
     }
 
@@ -610,14 +608,14 @@ mod tests {
             && visualization.context_module == manager.resolve_context_module(&module).unwrap()
     }
 
-    #[test]
-    fn foo() {
+    #[wasm_bindgen_test]
+    fn test_visualization_manager() {
         let fixture = Fixture::new();
         let node_id       = fixture.node_id;
-        let mut fixture   = VisOperationsTester::new(fixture);
+        let fixture   = VisOperationsTester::new(fixture);
         let desired_vis_1 = fixture.vis_metadata("expr1");
         let desired_vis_2 = fixture.vis_metadata("expr2");
-        let VisOperationsTester{requests,manager,inner,is_ready,..} = &mut fixture;
+        let VisOperationsTester{mut requests,manager,mut inner,is_ready,..} = fixture;
 
         // No requests are sent before execution context is ready.
         manager.request_visualization(node_id, desired_vis_1.clone());
@@ -631,8 +629,9 @@ mod tests {
         // After signalling readiness, only the most recent visualization is attached.
         is_ready.replace(true);
         inner.run_until_stalled();
-        assert_matches!(requests.expect_one(), ExecutionContextRequest::Attach(vis)
-            if matching_metadata(manager, &vis, &desired_vis_2));
+        let request = requests.expect_one();
+        assert_matches!(request, ExecutionContextRequest::Attach(vis)
+            if matching_metadata(&manager, &vis, &desired_vis_2));
 
         // Multiple detach-attach requests are collapsed into a single modify request.
         requests.expect_pending();
@@ -666,6 +665,6 @@ mod tests {
                 panic!("Expected a detach request, got: {:?}",other),
         }
         assert_matches!(requests.expect_next(), ExecutionContextRequest::Attach(vis)
-            if matching_metadata(manager,&vis,&desired_vis_3.metadata));
+            if matching_metadata(&manager,&vis,&desired_vis_3.metadata));
     }
 }
