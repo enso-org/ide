@@ -307,7 +307,6 @@ impl Manager {
 
     /// Set desired state of visualization on a node.
     pub fn set_visualization(self:&Rc<Self>, target:ast::Id, new_desired:Option<Metadata>) {
-        debug!(self.logger, "Requested to set visualization {target}: {new_desired:?}");
         let current = self.visualizations.get_cloned(&target);
         if current.is_none() && new_desired.is_none() {
             // Early return: requested to remove visualization that was already removed.

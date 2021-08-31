@@ -981,6 +981,13 @@ impl Model {
         self.view.graph().frp.input.set_method_pointer.emit(&event);
     }
 
+    fn visualization_manager(&self, which:WhichVisualization) -> &Rc<VisualizationManager> {
+        match which {
+            WhichVisualization::Normal => &self.visualizations,
+            WhichVisualization::Error  => &self.error_visualizations,
+        }
+    }
+
     fn handle_visualization_update
     ( &self
     , which        : WhichVisualization
@@ -1014,7 +1021,8 @@ impl Model {
                 // a connectivity issue) or that we did something really wrong.
                 // For now, we will just forget about this visualization. Better to unlikely "leak"
                 // it rather than likely break visualizations on the node altogether.
-                let forgotten = self.visualizations.forget_visualization(visualization.expression_id);
+                let manager = self.visualization_manager(which);
+                let forgotten = manager.forget_visualization(visualization.expression_id);
                 if let Some(forgotten) = forgotten {
                     error!(self.logger, "The visualization will be forgotten: {forgotten:?}")
                 }
@@ -1035,12 +1043,13 @@ impl Model {
     /// Route the metadata description as a desired visualization state to the Manager.
     fn update_visualization
     ( &self
-    , node_id        : graph_editor::NodeId
-    , visualizations : &Rc<crate::integration::visualization::Manager>
-    , metadata       : Option<visualization::Metadata>
+    , node_id  : graph_editor::NodeId
+    , which    : WhichVisualization
+    , metadata : Option<visualization::Metadata>
     ) -> FallibleResult {
         let target_id = self.get_controller_node_id(node_id)?;
-        visualizations.set_visualization(target_id,metadata);
+        let manager   = self.visualization_manager(which);
+        manager.set_visualization(target_id,metadata);
         Ok(())
     }
 
@@ -1052,7 +1061,7 @@ impl Model {
         let has_error = error.is_some();
         self.view.graph().set_node_error_status(node_id,error);
         let metadata = has_error.then(graph_editor::builtin::visualization::native::error::metadata);
-        self.update_visualization(node_id,&self.error_visualizations,metadata)
+        self.update_visualization(node_id,WhichVisualization::Error,metadata)
     }
 
     fn convert_payload_to_error_view
@@ -1200,7 +1209,6 @@ impl Model {
         analytics::remote_log_event("integration::node_entered");
         self.view.graph().frp.deselect_all_nodes.emit(&());
         self.push_crumb(local_call);
-        self.request_detaching_all_visualizations();
         self.refresh_graph_view()
     }
 
@@ -1208,7 +1216,6 @@ impl Model {
     pub fn on_node_exited(&self, id:double_representation::node::Id) -> FallibleResult {
         analytics::remote_log_event("integration::node_exited");
         self.view.graph().frp.deselect_all_nodes.emit(&());
-        self.request_detaching_all_visualizations();
         self.refresh_graph_view()?;
         self.pop_crumb();
         let id = self.get_displayed_node_id(id)?;
@@ -1223,20 +1230,6 @@ impl Model {
             self.prompt_was_shown.set(true);
         }
         self.refresh_computed_infos(expressions)
-    }
-
-    /// Request controller to detach all attached visualizations.
-    pub fn request_detaching_all_visualizations(&self) {
-        let controller = self.graph.clone_ref();
-        let logger     = self.logger.clone_ref();
-        let action     = async move {
-            for result in controller.detach_all_visualizations().await {
-                if let Err(err) = result {
-                    error!(logger,"Failed to detach one of the visualizations: {err:?}.");
-                }
-            }
-        };
-        spawn(action);
     }
 
     /// Handle notification received from Graph Controller.
@@ -1530,12 +1523,12 @@ impl Model {
     (&self, (node_id,vis_metadata):&(graph_editor::NodeId,visualization::Metadata))
     -> FallibleResult {
         debug!(self.logger, "Visualization shown on {node_id}: {vis_metadata:?}.");
-        self.update_visualization(*node_id,&self.visualizations,Some(vis_metadata.clone()))
+        self.update_visualization(*node_id,WhichVisualization::Normal,Some(vis_metadata.clone()))
     }
 
     fn visualization_hidden_in_ui(&self, node_id:&graph_editor::NodeId) -> FallibleResult {
         debug!(self.logger, "Visualization hidden on {node_id}.");
-        self.update_visualization(*node_id,&self.visualizations,None)
+        self.update_visualization(*node_id,WhichVisualization::Normal,None)
     }
 
     fn store_updated_stack_task(&self) -> impl FnOnce() -> FallibleResult + 'static {
@@ -1650,7 +1643,7 @@ impl Model {
     , preprocessor : visualization::instance::PreprocessorConfiguration
     ) -> FallibleResult {
         let metadata = visualization::Metadata {preprocessor};
-        self.update_visualization(node_id,&self.visualizations,Some(metadata))
+        self.update_visualization(node_id,WhichVisualization::Normal,Some(metadata))
     }
 
     fn open_dialog_opened_in_ui(self:&Rc<Self>) {
