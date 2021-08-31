@@ -604,7 +604,7 @@ impl Model {
     , notifier            : impl Stream<Item=crate::integration::visualization::Notification> + Unpin + 'static
     , visualizations_kind : WhichVisualization
     ) {
-        let weak      = Rc::downgrade(&self);
+        let weak      = Rc::downgrade(self);
         let processor = async move |notification, this:Rc<Self>| {
             this.handle_visualization_update(visualizations_kind,notification);
         };

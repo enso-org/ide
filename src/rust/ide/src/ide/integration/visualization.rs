@@ -365,7 +365,7 @@ impl Manager {
     /// visualization to the language server.
     pub fn synchronize(self:&Rc<Self>, target:ast::Id) {
         let context = self.executed_graph.when_ready();
-        let weak = Rc::downgrade(&self);
+        let weak = Rc::downgrade(self);
         let task = async move || -> Option<()> {
             context.await;
             let description = weak.upgrade()?.visualizations.get_cloned(&target)?;
