@@ -124,6 +124,10 @@ pub trait API:Debug {
     fn urm(&self) -> Rc<model::undo_redo::Manager>;
 }
 
+// Note: Needless lifetimes
+// ~~~~~~~~~~~~~~~~~~~~~~~~
+// See Note: [Needless lifetimes] is `model/project.rs`.
+
 /// Trait for methods that cannot be defined in `API` because it is a trait object.
 pub trait APIExt : API {
     /// Access project's metadata with the given function.
@@ -239,10 +243,15 @@ pub mod test {
         project.expect_name().returning_st(move || name.clone());
     }
 
-    /// Sets up name expectation on the mock project, returning a given name.
     pub fn expect_qualified_name
     (project:&mut MockAPI, name:&QualifiedName) {
         let name = name.clone();
         project.expect_qualified_name().returning_st(move || name.clone());
+    }
+
+    pub fn expect_qualified_module_name
+    (project:&mut MockAPI) {
+        let name = project.qualified_name();
+        project.expect_qualified_module_name().returning_st(move |path:&model::module::Path| path.qualified_module_name(name.clone()));
     }
 }
