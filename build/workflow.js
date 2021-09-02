@@ -454,9 +454,11 @@ let workflow = {
             branches: ['develop','unstable','stable','wip/db/nightly-release'],
         },
         pull_request: {},
-        schedule: {
-            cron: '"0 7 * * 2-6" # 7am (UTC) from Tuesday to Saturday (i.e. after every workday)',
-        }
+        schedule: [
+            {
+                cron: '"0 7 * * 2-6" # 7am (UTC) from Tuesday to Saturday (i.e. after every workday)',
+            },
+        ]
     },
     jobs: {
         info: job_on_macos("Build Info", [
