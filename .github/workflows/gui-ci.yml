@@ -39,8 +39,7 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
-      - name: Read changelog info
-        id: changelog
+      - name: Setup environment
         run: |2-
 
                   if [[ ${{ github.event_name }} == 'schedule' ]];
@@ -48,6 +47,12 @@ jobs:
                     echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
                   fi
                   echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
+              
+        shell: bash
+      - name: Read changelog info
+        id: changelog
+        run: |2-
+
                   node ./run ci-gen --skip-version-validation
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
@@ -287,8 +292,7 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
-      - name: Read changelog info
-        id: changelog
+      - name: Setup environment
         run: |2-
 
                   if [[ ${{ github.event_name }} == 'schedule' ]];
@@ -296,6 +300,12 @@ jobs:
                     echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
                   fi
                   echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
+              
+        shell: bash
+      - name: Read changelog info
+        id: changelog
+        run: |2-
+
                   node ./run ci-gen --skip-version-validation
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
@@ -443,8 +453,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           path: artifacts
-      - name: Read changelog info
-        id: changelog
+      - name: Setup environment
         run: |2-
 
                   if [[ ${{ github.event_name }} == 'schedule' ]];
@@ -452,6 +461,12 @@ jobs:
                     echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
                   fi
                   echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
+              
+        shell: bash
+      - name: Read changelog info
+        id: changelog
+        run: |2-
+
                   node ./run ci-gen --skip-version-validation
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
@@ -507,8 +522,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           path: artifacts
-      - name: Read changelog info
-        id: changelog
+      - name: Setup environment
         run: |2-
 
                   if [[ ${{ github.event_name }} == 'schedule' ]];
@@ -516,6 +530,12 @@ jobs:
                     echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
                   fi
                   echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
+              
+        shell: bash
+      - name: Read changelog info
+        id: changelog
+        run: |2-
+
                   node ./run ci-gen --skip-version-validation
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"

@@ -293,15 +293,22 @@ let getListOfChangedFiles = {
 // === Changelog ===
 // =================
 
-let getCurrentReleaseChangelogInfo = {
-    name: 'Read changelog info',
-    id: 'changelog',
+let setupEnvironment = {
+    name: 'Setup environment',
     run: `
         if [[ \$\{\{ github.event_name \}\} == 'schedule' ]];
         then
           echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
         fi
         echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
+    `,
+    shell: 'bash'
+}
+
+let getCurrentReleaseChangelogInfo = {
+    name: 'Read changelog info',
+    id: 'changelog',
+    run: `
         node ./run ci-gen --skip-version-validation
         content=\`cat CURRENT_RELEASE_CHANGELOG.json\`
         echo "::set-output name=content::$content"
@@ -470,6 +477,7 @@ let workflow = {
             dumpGitHubContext
         ]),
         version_assertions: job_on_macos("Assertions", [
+            setupEnvironment,
             getCurrentReleaseChangelogInfo,
             assertions
         ]),
@@ -505,6 +513,7 @@ let workflow = {
             buildOnMacOS,
         ]),
         build: job_on_all_platforms("Build", [
+            setupEnvironment,
             getCurrentReleaseChangelogInfo,
             installNode,
             installTypeScript,
@@ -522,6 +531,7 @@ let workflow = {
         ],{if:buildCondition}),
         release_to_github: job_on_macos("GitHub Release", [
             downloadArtifacts,
+            setupEnvironment,
             getCurrentReleaseChangelogInfo,
             // This assertion is checked earlier, but we should double-check it in case several
             // CI jobs wil be run on this branch and a release was created when this workflow was
@@ -533,6 +543,7 @@ let workflow = {
         }),
         release_to_cdn: job_on_ubuntu_18_04("CDN Release", [
             downloadArtifacts,
+            setupEnvironment,
             getCurrentReleaseChangelogInfo,
             prepareAwsSessionCDN,
             uploadToCDN('index.js.gz','style.css','ide.wasm','wasm_imports.js.gz'),
