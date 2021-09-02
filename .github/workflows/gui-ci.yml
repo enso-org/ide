@@ -438,7 +438,7 @@ jobs:
       contains(github.event.head_commit.message,'[ci build]') || github.ref ==
       'refs/heads/develop' || github.base_ref == 'unstable' || github.base_ref
       == 'stable' || (github.event_name == 'schedule' || github.ref ==
-      'refs/heads/unstable' || github.ref == 'refs/heads/stable') || true
+      'refs/heads/unstable' || github.ref == 'refs/heads/stable' || true)
   release_to_github:
     name: GitHub Release
     runs-on: ${{ matrix.os }}
@@ -502,7 +502,7 @@ jobs:
           draft: true
     if: >-
       github.event_name == 'schedule' || github.ref == 'refs/heads/unstable' ||
-      github.ref == 'refs/heads/stable'
+      github.ref == 'refs/heads/stable' || true
     needs:
       - version_assertions
       - lint
@@ -578,7 +578,7 @@ jobs:
           --profile s3-upload --acl public-read --content-encoding gzip
     if: >-
       github.event_name == 'schedule' || github.ref == 'refs/heads/unstable' ||
-      github.ref == 'refs/heads/stable'
+      github.ref == 'refs/heads/stable' || true
     needs:
       - version_assertions
       - lint

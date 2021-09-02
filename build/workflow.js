@@ -450,14 +450,14 @@ let assertions = list(
 
 /// Make a release only if it was a push to 'unstable' or 'stable'. Even if it was a pull request
 /// FROM these branches, the `github.ref` will be different.
-let releaseCondition = `github.event_name == 'schedule' || github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'`
+let releaseCondition = `github.event_name == 'schedule' || github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable' || true`
 
 /// Make a full build if one of the following conditions is true:
 /// 1. There was a `FLAG_FORCE_CI_BUILD` flag set in the commit message (see its docs for more info).
 /// 2. It was a pull request to the 'unstable', or the 'stable' branch.
 /// 3. It was a commit to the 'develop' branch.
 /// Otherwise, perform a simplified (faster) build only.
-let buildCondition = `contains(github.event.pull_request.body,'${FLAG_FORCE_CI_BUILD}') || contains(github.event.head_commit.message,'${FLAG_FORCE_CI_BUILD}') || github.ref == 'refs/heads/develop' || github.base_ref == 'unstable' || github.base_ref == 'stable' || (${releaseCondition}) || true`
+let buildCondition = `contains(github.event.pull_request.body,'${FLAG_FORCE_CI_BUILD}') || contains(github.event.head_commit.message,'${FLAG_FORCE_CI_BUILD}') || github.ref == 'refs/heads/develop' || github.base_ref == 'unstable' || github.base_ref == 'stable' || (${releaseCondition})`
 
 let workflow = {
     name : "GUI CI",
