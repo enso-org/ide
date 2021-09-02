@@ -36,7 +36,7 @@ class NextReleaseVersion {
     }
 
     isNightly() {
-        return process.env.CI_EVENT_NAME === 'schedule'
+        if (process.env.CI_BUILD_NIGHTLY) { return true } else { return false }
     }
 
 }
@@ -72,7 +72,7 @@ class Version {
     }
 
     isNightly() {
-        return process.env.CI_EVENT_NAME === 'schedule'
+        if (process.env.CI_BUILD_NIGHTLY) { return true } else { return false }
     }
 
     toString() {

@@ -297,6 +297,11 @@ let getCurrentReleaseChangelogInfo = {
     name: 'Read changelog info',
     id: 'changelog',
     run: `
+        if [[ \$\{\{ github.event_name \}\} == 'schedule' ]];
+        then
+          echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
+        fi
+        echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
         node ./run ci-gen --skip-version-validation
         content=\`cat CURRENT_RELEASE_CHANGELOG.json\`
         echo "::set-output name=content::$content"
@@ -413,7 +418,7 @@ let assertReleaseDoNotExists = [
     {
         name: 'Fail if release already exists',
         run: 'if [[ ${{ steps.checkCurrentReleaseTag.outputs.exists }} == true ]]; then exit 1; fi',
-        if: `github.base_ref == 'unstable' || github.base_ref == 'stable'`
+        if: `env.CI_BUILD_NIGHTLY == 'true' || github.base_ref == 'unstable' || github.base_ref == 'stable'`
     }
 ]
 
@@ -438,7 +443,7 @@ let assertions = list(
 
 /// Make a release only if it was a push to 'unstable' or 'stable'. Even if it was a pull request
 /// FROM these branches, the `github.ref` will be different.
-let releaseCondition = `github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'`
+let releaseCondition = `env.CI_BUILD_NIGHTLY == 'true' || github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'`
 
 /// Make a full build if one of the following conditions is true:
 /// 1. There was a `FLAG_FORCE_CI_BUILD` flag set in the commit message (see its docs for more info).
@@ -448,9 +453,6 @@ let releaseCondition = `github.ref == 'refs/heads/unstable' || github.ref == 're
 let buildCondition = `contains(github.event.pull_request.body,'${FLAG_FORCE_CI_BUILD}') || contains(github.event.head_commit.message,'${FLAG_FORCE_CI_BUILD}') || github.ref == 'refs/heads/develop' || github.base_ref == 'unstable' || github.base_ref == 'stable' || (${releaseCondition})`
 
 let workflow = {
-    env: {
-        CI_EVENT_NAME: "${{ github.event_name }}",
-    },
     name : "GUI CI",
     on: {
         push: {

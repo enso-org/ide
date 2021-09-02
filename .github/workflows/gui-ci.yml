@@ -3,8 +3,6 @@
 # DO NOT CHANGE THIS FILE. IT WAS GENERATED FROM 'build/workflow.js'. READ DOCS THERE TO LEARN MORE.
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-env:
-  CI_EVENT_NAME: ${{ github.event_name }}
 name: GUI CI
 'on':
   push:
@@ -45,6 +43,11 @@ jobs:
         id: changelog
         run: |2-
 
+                  if [[ ${{ github.event_name }} == 'schedule' ]];
+                  then
+                    echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
+                  fi
+                  echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
                   node ./run ci-gen --skip-version-validation
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
@@ -66,7 +69,9 @@ jobs:
         run: >-
           if [[ ${{ steps.checkCurrentReleaseTag.outputs.exists }} == true ]];
           then exit 1; fi
-        if: github.base_ref == 'unstable' || github.base_ref == 'stable'
+        if: >-
+          env.CI_BUILD_NIGHTLY == 'true' || github.base_ref == 'unstable' ||
+          github.base_ref == 'stable'
       - name: Get list of changed files
         id: changed_files
         run: |2-
@@ -286,6 +291,11 @@ jobs:
         id: changelog
         run: |2-
 
+                  if [[ ${{ github.event_name }} == 'schedule' ]];
+                  then
+                    echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
+                  fi
+                  echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
                   node ./run ci-gen --skip-version-validation
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
@@ -417,8 +427,8 @@ jobs:
       contains(github.event.pull_request.body,'[ci build]') ||
       contains(github.event.head_commit.message,'[ci build]') || github.ref ==
       'refs/heads/develop' || github.base_ref == 'unstable' || github.base_ref
-      == 'stable' || (github.ref == 'refs/heads/unstable' || github.ref ==
-      'refs/heads/stable')
+      == 'stable' || (env.CI_BUILD_NIGHTLY == 'true' || github.ref ==
+      'refs/heads/unstable' || github.ref == 'refs/heads/stable')
   release_to_github:
     name: GitHub Release
     runs-on: ${{ matrix.os }}
@@ -437,6 +447,11 @@ jobs:
         id: changelog
         run: |2-
 
+                  if [[ ${{ github.event_name }} == 'schedule' ]];
+                  then
+                    echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
+                  fi
+                  echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
                   node ./run ci-gen --skip-version-validation
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
@@ -452,7 +467,9 @@ jobs:
         run: >-
           if [[ ${{ steps.checkCurrentReleaseTag.outputs.exists }} == true ]];
           then exit 1; fi
-        if: github.base_ref == 'unstable' || github.base_ref == 'stable'
+        if: >-
+          env.CI_BUILD_NIGHTLY == 'true' || github.base_ref == 'unstable' ||
+          github.base_ref == 'stable'
       - name: Install Prettier
         run: npm install --save-dev --save-exact prettier
       - name: Pretty print changelog.
@@ -468,7 +485,9 @@ jobs:
           body: ${{fromJson(steps.changelog.outputs.content).body}}
           prerelease: ${{fromJson(steps.changelog.outputs.content).prerelease}}
           draft: true
-    if: github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
+    if: >-
+      env.CI_BUILD_NIGHTLY == 'true' || github.ref == 'refs/heads/unstable' ||
+      github.ref == 'refs/heads/stable'
     needs:
       - version_assertions
       - lint
@@ -492,6 +511,11 @@ jobs:
         id: changelog
         run: |2-
 
+                  if [[ ${{ github.event_name }} == 'schedule' ]];
+                  then
+                    echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
+                  fi
+                  echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
                   node ./run ci-gen --skip-version-validation
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
@@ -532,7 +556,9 @@ jobs:
           aws s3 cp ./artifacts/content/assets/wasm_imports.js.gz
           s3://ensocdn/ide/${{fromJson(steps.changelog.outputs.content).version}}/wasm_imports.js.gz
           --profile s3-upload --acl public-read --content-encoding gzip
-    if: github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
+    if: >-
+      env.CI_BUILD_NIGHTLY == 'true' || github.ref == 'refs/heads/unstable' ||
+      github.ref == 'refs/heads/stable'
     needs:
       - version_assertions
       - lint
