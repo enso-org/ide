@@ -448,6 +448,9 @@ let releaseCondition = `github.ref == 'refs/heads/unstable' || github.ref == 're
 let buildCondition = `contains(github.event.pull_request.body,'${FLAG_FORCE_CI_BUILD}') || contains(github.event.head_commit.message,'${FLAG_FORCE_CI_BUILD}') || github.ref == 'refs/heads/develop' || github.base_ref == 'unstable' || github.base_ref == 'stable' || (${releaseCondition})`
 
 let workflow = {
+    env: {
+        CI_EVENT_NAME: "${{ github.event_name }}",
+    },
     name : "GUI CI",
     on: {
         push: {
