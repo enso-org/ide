@@ -456,7 +456,7 @@ let workflow = {
         pull_request: {},
         schedule: [
             {
-                cron: '"0 7 * * 2-6" # 7am (UTC) from Tuesday to Saturday (i.e. after every workday)',
+                cron: '0 7 * * 2-6'
             },
         ]
     },
