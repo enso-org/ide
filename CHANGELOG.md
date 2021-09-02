@@ -12,11 +12,11 @@
 
 #### Enso Compiler
 
-- [Updated Enso engine to version 0.2.28][1811]. If you're interested in the
+- [Updated Enso engine to version 0.2.28][1829]. If you're interested in the
   enhancements and fixes made to the Enso compiler, you can find their release
   notes [here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
 
-[1811]: https://github.com/enso-org/ide/pull/1811
+[1829]: https://github.com/enso-org/ide/pull/1829
 
 # Enso 2.0.0-alpha.13 (2021-08-27)
 
