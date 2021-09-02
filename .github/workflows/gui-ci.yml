@@ -427,7 +427,7 @@ jobs:
       contains(github.event.pull_request.body,'[ci build]') ||
       contains(github.event.head_commit.message,'[ci build]') || github.ref ==
       'refs/heads/develop' || github.base_ref == 'unstable' || github.base_ref
-      == 'stable' || (env.CI_BUILD_NIGHTLY == 'true' || github.ref ==
+      == 'stable' || (github.event_name == 'schedule' || github.ref ==
       'refs/heads/unstable' || github.ref == 'refs/heads/stable')
   release_to_github:
     name: GitHub Release
@@ -486,7 +486,7 @@ jobs:
           prerelease: ${{fromJson(steps.changelog.outputs.content).prerelease}}
           draft: true
     if: >-
-      env.CI_BUILD_NIGHTLY == 'true' || github.ref == 'refs/heads/unstable' ||
+      github.event_name == 'schedule' || github.ref == 'refs/heads/unstable' ||
       github.ref == 'refs/heads/stable'
     needs:
       - version_assertions
@@ -557,7 +557,7 @@ jobs:
           s3://ensocdn/ide/${{fromJson(steps.changelog.outputs.content).version}}/wasm_imports.js.gz
           --profile s3-upload --acl public-read --content-encoding gzip
     if: >-
-      env.CI_BUILD_NIGHTLY == 'true' || github.ref == 'refs/heads/unstable' ||
+      github.event_name == 'schedule' || github.ref == 'refs/heads/unstable' ||
       github.ref == 'refs/heads/stable'
     needs:
       - version_assertions
