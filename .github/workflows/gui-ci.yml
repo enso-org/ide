@@ -4,6 +4,8 @@
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 name: GUI CI
+env:
+  NIGHTLIES_TO_KEEP: 20
 'on':
   push:
     branches:
@@ -515,6 +517,14 @@ jobs:
           body: ${{fromJson(steps.changelog.outputs.content).body}}
           prerelease: ${{fromJson(steps.changelog.outputs.content).prerelease}}
           draft: true
+      - uses: dev-drprasad/delete-older-releases@v0.2.0
+        name: Remove Old Releases
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          keep_latest: ${{ env.NIGHTLIES_TO_KEEP }}
+          delete_tag_pattern: nightly
+          delete_tags: true
     if: >-
       github.event_name == 'schedule' || github.ref == 'refs/heads/unstable' ||
       github.ref == 'refs/heads/stable' || true

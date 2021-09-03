@@ -360,7 +360,18 @@ let uploadGitHubRelease = [
     }
 ]
 
-
+let deleteOlderNightlies = {
+    uses: 'dev-drprasad/delete-older-releases@v0.2.0',
+    name: 'Remove Old Releases',
+    env: {
+        GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+    },
+    with: {
+        keep_latest: '${{ env.NIGHTLIES_TO_KEEP }}',
+        delete_tag_pattern: 'nightly',
+        delete_tags: true,
+    },
+}
 
 // ===================
 // === CDN Release ===
@@ -467,6 +478,9 @@ let buildCondition = `contains(github.event.pull_request.body,'${FLAG_FORCE_CI_B
 
 let workflow = {
     name : "GUI CI",
+    env: {
+        NIGHTLIES_TO_KEEP: 20,
+    },
     on: {
         push: {
             branches: ['develop','unstable','stable','wip/db/nightly-release'],
@@ -544,6 +558,7 @@ let workflow = {
             // running.
             assertReleaseDoNotExists,
             uploadGitHubRelease,
+            deleteOlderNightlies,
         ],{ if:releaseCondition,
             needs:['version_assertions','lint','test','build']
         }),
