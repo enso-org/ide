@@ -216,4 +216,4 @@ function engineVersion() {
 // === Exports ===
 // ===============
 
-module.exports = {Version,NextReleaseVersion,changelog,currentVersion,engineVersion}
+module.exports = {Version,NextReleaseVersion,changelog,currentVersion,isNightly,engineVersion}
