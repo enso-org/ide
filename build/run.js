@@ -284,7 +284,7 @@ commands.watch.common   = async function(argv) {
     await cmd.with_cwd(paths.js.root, async () => {
         // Among other things, this will call the build script of the project-manager package. But
         // this is unnecessary because that script is already called by `build_project_manager`
-        // above. 
+        // above.
         return  commands.build.js(argv)
     })
 
@@ -335,11 +335,17 @@ commands.dist.js = async function() {
 /// of the product release.
 commands['ci-gen'] = command(`Generate CI build related files`)
 commands['ci-gen'].rust = async function(argv) {
+    let github    = require('./github')
+    let nightlies = await github.fetchEngineNightlies()
+    console.log('nightlies', { nightlies })
+    let engineVersion  = nightlies[0].version
+    console.log('nightlies[0]', nightlies[0])
+
     let entry      = release.changelog().newestEntry()
     let body       = entry.body
     let version    = entry.version.toString()
     let prerelease = entry.isPrerelease()
-    let obj        = {version,body,prerelease};
+    let obj        = {version,body,prerelease,engineVersion};
     let json       = JSON.stringify(obj)
     fss.writeFileSync(path.join(paths.root,'CURRENT_RELEASE_CHANGELOG.json'),json)
 }

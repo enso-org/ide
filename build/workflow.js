@@ -295,6 +295,9 @@ let getListOfChangedFiles = {
 
 let setupEnvironment = {
     name: 'Setup environment',
+    env: {
+        GITHUB_TOKEN: '${{ github.token }}'
+    },
     run: `
         if [[ \$\{\{ github.event_name \}\} == 'schedule' ]];
         then
@@ -312,6 +315,8 @@ let getCurrentReleaseChangelogInfo = {
         node ./run ci-gen --skip-version-validation
         content=\`cat CURRENT_RELEASE_CHANGELOG.json\`
         echo "::set-output name=content::$content"
+        echo "CI_BUILD_ENGINE_VERSION=\$\{\{ fromJson(steps.changelog.outputs.content).engineVersion \}\}" >> $GITHUB_ENV
+        echo $GITHUB_ENV
     `,
     shell: 'bash'
 }

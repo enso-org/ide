@@ -40,6 +40,8 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: Setup environment
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |2-
 
                   if [[ ${{ github.event_name }} == 'schedule' ]];
@@ -56,6 +58,8 @@ jobs:
                   node ./run ci-gen --skip-version-validation
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
+                  echo "CI_BUILD_ENGINE_VERSION=${{ fromJson(steps.changelog.outputs.content).engineVersion }}" >> $GITHUB_ENV
+                  echo $GITHUB_ENV
               
         shell: bash
       - name: Assert Version Unstable
@@ -293,6 +297,8 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: Setup environment
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |2-
 
                   if [[ ${{ github.event_name }} == 'schedule' ]];
@@ -309,6 +315,8 @@ jobs:
                   node ./run ci-gen --skip-version-validation
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
+                  echo "CI_BUILD_ENGINE_VERSION=${{ fromJson(steps.changelog.outputs.content).engineVersion }}" >> $GITHUB_ENV
+                  echo $GITHUB_ENV
               
         shell: bash
       - name: Install Node
@@ -454,6 +462,8 @@ jobs:
         with:
           path: artifacts
       - name: Setup environment
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |2-
 
                   if [[ ${{ github.event_name }} == 'schedule' ]];
@@ -470,6 +480,8 @@ jobs:
                   node ./run ci-gen --skip-version-validation
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
+                  echo "CI_BUILD_ENGINE_VERSION=${{ fromJson(steps.changelog.outputs.content).engineVersion }}" >> $GITHUB_ENV
+                  echo $GITHUB_ENV
               
         shell: bash
       - id: checkCurrentReleaseTag
@@ -523,6 +535,8 @@ jobs:
         with:
           path: artifacts
       - name: Setup environment
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |2-
 
                   if [[ ${{ github.event_name }} == 'schedule' ]];
@@ -539,6 +553,8 @@ jobs:
                   node ./run ci-gen --skip-version-validation
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
+                  echo "CI_BUILD_ENGINE_VERSION=${{ fromJson(steps.changelog.outputs.content).engineVersion }}" >> $GITHUB_ENV
+                  echo $GITHUB_ENV
               
         shell: bash
       - shell: bash

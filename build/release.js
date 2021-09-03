@@ -1,10 +1,12 @@
 /// Package release utilities. Especially, utilities to load `CHANGELOG.md`, extract the newest
 /// entry, and use it to generate package version and description.
 
-const fss    = require('fs')
-const path   = require('path')
-const paths  = require('./paths')
-const semver = require('semver')
+const fss       = require('fs')
+const path      = require('path')
+const paths     = require('./paths')
+const semver    = require('semver')
+const github    = require('./github')
+const appConfig = require('../config')
 
 
 
@@ -24,7 +26,7 @@ const CHANGELOG_FILE      = path.join(paths.root,CHANGELOG_FILE_NAME)
 class NextReleaseVersion {
     /// Version used for config files when building the package with "next version" in changelog.
     toString() {
-        if (this.isNightly()) {
+        if (isNightly()) {
             return this.prevVersion.toString()
         } else {
             return "0.0.0"
@@ -34,11 +36,6 @@ class NextReleaseVersion {
     isPrerelease() {
         return true
     }
-
-    isNightly() {
-        if (process.env.CI_BUILD_NIGHTLY) { return true } else { return false }
-    }
-
 }
 
 class Version {
@@ -71,10 +68,6 @@ class Version {
         if (this.tag) { return true } else { return false }
     }
 
-    isNightly() {
-        if (process.env.CI_BUILD_NIGHTLY) { return true } else { return false }
-    }
-
     toString() {
         let suffix = ''
         if (this.tag) {
@@ -83,7 +76,7 @@ class Version {
                 suffix += `.${this.rcTag}.${this.rcTagVersion}`
             }
         }
-        if (this.isNightly()) {
+        if (isNightly()) {
             suffix += `-nightly-${this.year}-${this.month}-${this.day}`
         }
         return `${this.major}.${this.minor}.${this.patch}${suffix}`
@@ -207,10 +200,20 @@ function currentVersion() {
     return changelog().currentVersion()
 }
 
+function isNightly() {
+    if (process.env.CI_BUILD_NIGHTLY) { return true } else { return false }
+}
 
+function engineVersion() {
+    if (process.env.CI_BUILD_ENGINE_VERSION) {
+        return process.env.CI_BUILD_ENGINE_VERSION
+    } else {
+        return appConfig.engineVersion
+    }
+}
 
 // ===============
 // === Exports ===
 // ===============
 
-module.exports = {Version,NextReleaseVersion,changelog,currentVersion}
+module.exports = {Version,NextReleaseVersion,changelog,currentVersion,engineVersion}
