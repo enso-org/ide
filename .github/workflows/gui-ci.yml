@@ -40,8 +40,6 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: Setup environment
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
         run: |2-
 
                   if [[ ${{ github.event_name }} == 'schedule' ]];
@@ -52,6 +50,8 @@ jobs:
               
         shell: bash
       - name: Read changelog info
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         id: changelog
         run: |2-
 
@@ -299,8 +299,6 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: Setup environment
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
         run: |2-
 
                   if [[ ${{ github.event_name }} == 'schedule' ]];
@@ -311,6 +309,8 @@ jobs:
               
         shell: bash
       - name: Read changelog info
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         id: changelog
         run: |2-
 
@@ -466,8 +466,6 @@ jobs:
         with:
           path: artifacts
       - name: Setup environment
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
         run: |2-
 
                   if [[ ${{ github.event_name }} == 'schedule' ]];
@@ -478,6 +476,8 @@ jobs:
               
         shell: bash
       - name: Read changelog info
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         id: changelog
         run: |2-
 
@@ -541,8 +541,6 @@ jobs:
         with:
           path: artifacts
       - name: Setup environment
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
         run: |2-
 
                   if [[ ${{ github.event_name }} == 'schedule' ]];
@@ -553,6 +551,8 @@ jobs:
               
         shell: bash
       - name: Read changelog info
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         id: changelog
         run: |2-
 

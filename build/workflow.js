@@ -295,9 +295,6 @@ let getListOfChangedFiles = {
 
 let setupEnvironment = {
     name: 'Setup environment',
-    env: {
-        GITHUB_TOKEN: '${{ github.token }}'
-    },
     run: `
         if [[ \$\{\{ github.event_name \}\} == 'schedule' ]];
         then
@@ -310,6 +307,9 @@ let setupEnvironment = {
 
 let getCurrentReleaseChangelogInfo = {
     name: 'Read changelog info',
+    env: {
+        GITHUB_TOKEN: '${{ github.token }}',
+    },
     id: 'changelog',
     run: `
         touch .environment
