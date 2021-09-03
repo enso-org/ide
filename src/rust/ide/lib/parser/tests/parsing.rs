@@ -310,7 +310,7 @@ impl Fixture {
             let line:&TextLineRaw = line.try_into().unwrap();
 
             let (segment,) = (&line.text).expect_tuple();
-            let expected   = Unfinished {};
+            let expected   = SegmentPlain {value : r"\".into()};
             assert_eq!(*segment,expected.into());
         });
     }
