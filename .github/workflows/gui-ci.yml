@@ -55,13 +55,12 @@ jobs:
         id: changelog
         run: |2-
 
-                  touch .environment
                   node ./run ci-gen --skip-version-validation
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
                   environment=`cat .environment`
                   echo $environment >> $GITHUB_ENV
-                  echo $GITHUB_ENV
+                  cat $GITHUB_ENV
               
         shell: bash
       - name: Assert Version Unstable
@@ -314,13 +313,12 @@ jobs:
         id: changelog
         run: |2-
 
-                  touch .environment
                   node ./run ci-gen --skip-version-validation
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
                   environment=`cat .environment`
                   echo $environment >> $GITHUB_ENV
-                  echo $GITHUB_ENV
+                  cat $GITHUB_ENV
               
         shell: bash
       - name: Install Node
@@ -481,13 +479,12 @@ jobs:
         id: changelog
         run: |2-
 
-                  touch .environment
                   node ./run ci-gen --skip-version-validation
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
                   environment=`cat .environment`
                   echo $environment >> $GITHUB_ENV
-                  echo $GITHUB_ENV
+                  cat $GITHUB_ENV
               
         shell: bash
       - id: checkCurrentReleaseTag
@@ -556,13 +553,12 @@ jobs:
         id: changelog
         run: |2-
 
-                  touch .environment
                   node ./run ci-gen --skip-version-validation
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
                   environment=`cat .environment`
                   echo $environment >> $GITHUB_ENV
-                  echo $GITHUB_ENV
+                  cat $GITHUB_ENV
               
         shell: bash
       - shell: bash

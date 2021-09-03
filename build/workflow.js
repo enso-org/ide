@@ -312,13 +312,12 @@ let getCurrentReleaseChangelogInfo = {
     },
     id: 'changelog',
     run: `
-        touch .environment
         node ./run ci-gen --skip-version-validation
         content=\`cat CURRENT_RELEASE_CHANGELOG.json\`
         echo "::set-output name=content::$content"
         environment=\`cat .environment\`
         echo $environment >> $GITHUB_ENV
-        echo $GITHUB_ENV
+        cat $GITHUB_ENV
     `,
     shell: 'bash'
 }
