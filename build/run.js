@@ -338,9 +338,12 @@ commands['ci-gen'].rust = async function(argv) {
     if (release.isNightly()) {
         let github    = require('./github')
         let nightlies = await github.fetchEngineNightlies()
-        console.log('nightlies', { nightlies })
-        let engineVersion  = nightlies[0].version
+        let engineVersion  = nightlies[0].name
         console.log('nightlies[0]', nightlies[0])
+        let nightlyPrefix = "Enso Nightly "
+        if (engineVersion.startsWith(nightlyPrefix)) {
+            engineVersion = engineVersion.substring(nightlyPrefix.length)
+        }
         let env = `CI_BUILD_ENGINE_VERSION=${engineVersion}`
         fss.writeFileSync(path.join(paths.root, '.environment'), env)
     }
