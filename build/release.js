@@ -27,7 +27,7 @@ class NextReleaseVersion {
     /// Version used for config files when building the package with "next version" in changelog.
     toString() {
         if (isNightly()) {
-            return nightlyVersion()
+            return this.prevVersion.toString()
         } else {
             return "0.0.0"
         }
@@ -39,7 +39,7 @@ class NextReleaseVersion {
 }
 
 class Version {
-    constructor(major,minor,patch,tag,tagVersion,rcTag,rcTagVersion) {
+    constructor(major,minor,patch,tag,tagVersion,rcTag,rcTagVersion,year,month,day) {
         this.major        = major
         this.minor        = minor
         this.patch        = patch
@@ -47,6 +47,9 @@ class Version {
         this.tagVersion   = parseInt(tagVersion)
         this.rcTag        = rcTag
         this.rcTagVersion = rcTagVersion
+        this.year         = year
+        this.month        = month
+        this.day          = day
     }
 
     lt(that) {
@@ -66,15 +69,15 @@ class Version {
     }
 
     toString() {
-        if (isNightly()) {
-            return nightlyVersion()
-        }
         let suffix = ''
         if (this.tag) {
             suffix = `-${this.tag}.${this.tagVersion}`
             if (this.rcTag) {
                 suffix += `.${this.rcTag}.${this.rcTagVersion}`
             }
+        }
+        if (isNightly()) {
+            suffix += `-nightly-${this.year}-${this.month}-${this.day}`
         }
         return `${this.major}.${this.minor}.${this.patch}${suffix}`
     }
@@ -145,6 +148,7 @@ function changelogSections() {
 
 function changelogEntries() {
     let sections     = changelogSections()
+    let nextRelease  = new NextReleaseVersion
     let entries      = []
     let firstSection = true
     for (let section of sections) {
@@ -152,7 +156,7 @@ function changelogEntries() {
         let header     = section.substring(0,splitPoint)
         let body       = section.substring(splitPoint).trim()
         if (firstSection && header.startsWith(' Next Release')) {
-            let version = new NextReleaseVersion
+            let version = nextRelease
             entries.push(new ChangelogEntry(version,body))
         } else {
             let headerReg  = /^ Enso (?<major>[0-9]+)\.(?<minor>[0-9]+)\.(?<patch>[0-9]+)(-(?<tag>alpha|beta|rc)\.(?<tagVersion>[0-9]+))?(.(?<rcTag>rc)\.(?<rcTagVersion>[0-9]+))? \((?<year>[0-9][0-9][0-9][0-9])-(?<month>[0-9][0-9])-(?<day>[0-9][0-9])\)/
@@ -161,7 +165,10 @@ function changelogEntries() {
                 throw `Improper changelog entry header: '${header}'. See the 'CHANGELOG_TEMPLATE.md' for details.`
             }
             let grps    = match.groups
-            let version = new Version(grps.major,grps.minor,grps.patch,grps.tag,grps.tagVersion,grps.rcTag,grps.rcTagVersion)
+            let version = new Version(grps.major,grps.minor,grps.patch,grps.tag,grps.tagVersion,grps.rcTag,grps.rcTagVersion,grps.year,grps.month,grps.day)
+            if (nextRelease.prevVersion === undefined) {
+                nextRelease.prevVersion = version
+            }
             entries.push(new ChangelogEntry(version,body))
         }
         firstSection = false
@@ -193,19 +200,8 @@ function currentVersion() {
     return changelog().currentVersion()
 }
 
-// ===============
-// === Nightly ===
-// ===============
-
 function isNightly() {
     if (process.env.CI_BUILD_NIGHTLY) { return true } else { return false }
-}
-
-/// Return version in format `nightly-YYYY-MM-DD`.
-function nightlyVersion() {
-    let date = new Date()
-    let isoDate = date.toISOString().split('T')[0]
-    return `nightly-${isoDate}`
 }
 
 function engineVersion() {
