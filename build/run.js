@@ -352,7 +352,7 @@ commands['ci-gen'].rust = async function(argv) {
     let body       = entry.body
     let version    = entry.version.toString()
     let prerelease = entry.isPrerelease()
-    let obj        = {version,body,prerelease,engineVersion};
+    let obj        = {version,body,prerelease}
     let json       = JSON.stringify(obj)
     fss.writeFileSync(path.join(paths.root,'CURRENT_RELEASE_CHANGELOG.json'),json)
 }
