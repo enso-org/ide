@@ -39,7 +39,7 @@ class NextReleaseVersion {
 }
 
 class Version {
-    constructor(major,minor,patch,tag,tagVersion,rcTag,rcTagVersion,year,month,day) {
+    constructor(major,minor,patch,tag,tagVersion,rcTag,rcTagVersion) {
         this.major        = major
         this.minor        = minor
         this.patch        = patch
@@ -47,9 +47,6 @@ class Version {
         this.tagVersion   = parseInt(tagVersion)
         this.rcTag        = rcTag
         this.rcTagVersion = rcTagVersion
-        this.year         = year
-        this.month        = month
-        this.day          = day
     }
 
     lt(that) {
@@ -69,6 +66,10 @@ class Version {
     }
 
     toString() {
+        let version = `${this.major}.${this.minor}.${this.patch}`
+        if (isNightly()) {
+            return `${version}-nightly.${isoDate()}`
+        }
         let suffix = ''
         if (this.tag) {
             suffix = `-${this.tag}.${this.tagVersion}`
@@ -76,10 +77,7 @@ class Version {
                 suffix += `.${this.rcTag}.${this.rcTagVersion}`
             }
         }
-        if (isNightly()) {
-            suffix += `-nightly-${this.year}-${this.month}-${this.day}`
-        }
-        return `${this.major}.${this.minor}.${this.patch}${suffix}`
+        return `${version}${suffix}`
     }
 }
 
@@ -165,7 +163,7 @@ function changelogEntries() {
                 throw `Improper changelog entry header: '${header}'. See the 'CHANGELOG_TEMPLATE.md' for details.`
             }
             let grps    = match.groups
-            let version = new Version(grps.major,grps.minor,grps.patch,grps.tag,grps.tagVersion,grps.rcTag,grps.rcTagVersion,grps.year,grps.month,grps.day)
+            let version = new Version(grps.major,grps.minor,grps.patch,grps.tag,grps.tagVersion,grps.rcTag,grps.rcTagVersion)
             if (nextRelease.prevVersion === undefined) {
                 nextRelease.prevVersion = version
             }
@@ -202,6 +200,11 @@ function currentVersion() {
 
 function isNightly() {
     if (process.env.CI_BUILD_NIGHTLY) { return true } else { return false }
+}
+
+function isoDate() {
+    let date = new Date()
+    return date.toISOString().split('T')[0]
 }
 
 function engineVersion() {
