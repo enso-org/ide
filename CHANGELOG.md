@@ -6,9 +6,13 @@
 
 - [Visualization previews are disabled.][1817] Previously, hovering over a
   node's output port for more than four seconds would temporarily reveal the
-  node's visualization. This behavior is disabled now.
+  node's visualization. This behavior is disabled now
+- [Fixed parsing of the `--no-data-gathering` command line option.][1831] Flag's
+  name has been changed to `--data-gathering`, so now `--data-gathering=false`
+  and `--data-gathering=true` are supported as well.
 
 [1817]: https://github.com/enso-org/ide/pull/1817
+[1831]: https://github.com/enso-org/ide/pull/1831
 
 # Enso 2.0.0-alpha.13 (2021-08-27)
 
