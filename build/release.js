@@ -48,7 +48,7 @@ class Version {
         if (this.major < that.major)                          { return true }
         if (this.minor < that.minor)                          { return true }
         if (this.patch < that.patch)                          { return true }
-        if (this.tag === 'nightly' && that.tag !== 'nightly') { return true }
+        if (this.tag === 'nightly' && that.tag !== 'nightly') { return false }
         if (this.tag === 'alpha'   && that.tag === 'beta')    { return true }
         if (this.tag === 'alpha'   && that.tag === 'rc')      { return true }
         if (this.tag === 'beta'    && that.tag === 'rc')      { return true }
@@ -132,7 +132,9 @@ class Changelog {
     }
 
     currentVersion() {
-        return this.newestEntry().version
+        let v = this.newestEntry().version
+        console.log('currentVersion', v)
+        return v
     }
 }
 
