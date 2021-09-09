@@ -147,7 +147,7 @@ function changelogEntries() {
             let version = new NextReleaseVersion
             entries.push(new ChangelogEntry(version,body))
         } else {
-            let headerReg  = /^ Enso (?<major>[0-9]+)\.(?<minor>[0-9]+)\.(?<patch>[0-9]+)(-(?<tag>alpha|beta|rc)\.(?<tagVersion>[0-9]+))?(.(?<rcTag>rc)\.(?<rcTagVersion>[0-9]+))? \((?<year>[0-9][0-9][0-9][0-9])-(?<month>[0-9][0-9])-(?<day>[0-9][0-9])\)/
+            let headerReg  = /^ Enso (?<major>[0-9]+)\.(?<minor>[0-9]+)\.(?<patch>[0-9]+)(-(?<tag>alpha|beta|nightly|rc)\.(?<tagVersion>[0-9-]+))?(.(?<rcTag>rc)\.(?<rcTagVersion>[0-9]+))? \((?<year>[0-9][0-9][0-9][0-9])-(?<month>[0-9][0-9])-(?<day>[0-9][0-9])\)/
             let match      = header.match(headerReg)
             if (!match) {
                 throw `Improper changelog entry header: '${header}'. See the 'CHANGELOG_TEMPLATE.md' for details.`
