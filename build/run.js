@@ -351,7 +351,7 @@ commands['nightly-gen'].rust = async function(argv) {
     // Update config.json
     fss.writeFileSync(paths.configJson, JSON.stringify(appConfig))
     // Update changelog
-    await cmd.run('sed', ['-i', `'1s/.*/# Enso ${nightlyVersion} (${isoDate})/'`, paths.changelog])
+    await cmd.run('sed', ['-i', '.bak', `'1s/.*/# Enso ${nightlyVersion} (${isoDate})/'`, paths.changelog])
 }
 
 // === CI Gen ===
