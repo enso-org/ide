@@ -2,6 +2,9 @@
 
 <br/>![New Features](/docs/assets/tags/new_features.svg)
 
+- [Nightly releases.][1834] After every workday, CI performs an IDE build and
+  publishes a nightly pre-release on GitHub.
+
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
 #### Visual Environment
@@ -11,6 +14,7 @@
   and `--data-gathering=true` are supported as well.
 
 [1831]: https://github.com/enso-org/ide/pull/1831
+[1834]: https://github.com/enso-org/ide/pull/1834
 
 # Enso 2.0.0-alpha.14 (2021-09-02)
 
