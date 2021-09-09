@@ -1,12 +1,11 @@
 /// Package release utilities. Especially, utilities to load `CHANGELOG.md`, extract the newest
 /// entry, and use it to generate package version and description.
 
-const fss       = require('fs')
-const path      = require('path')
-const paths     = require('./paths')
-const semver    = require('semver')
-const github    = require('./github')
-const appConfig = require('../config')
+const fss    = require('fs')
+const path   = require('path')
+const paths  = require('./paths')
+const semver = require('semver')
+const config = require('../config')
 
 
 
@@ -26,11 +25,7 @@ const CHANGELOG_FILE      = path.join(paths.root,CHANGELOG_FILE_NAME)
 class NextReleaseVersion {
     /// Version used for config files when building the package with "next version" in changelog.
     toString() {
-        if (isNightly()) {
-            return this.prevVersion.toString()
-        } else {
-            return "0.0.0"
-        }
+        return "0.0.0"
     }
 
     isPrerelease() {
@@ -66,10 +61,6 @@ class Version {
     }
 
     toString() {
-        let version = `${this.major}.${this.minor}.${this.patch}`
-        if (isNightly()) {
-            return `${version}-nightly.${isoDate()}`
-        }
         let suffix = ''
         if (this.tag) {
             suffix = `-${this.tag}.${this.tagVersion}`
@@ -77,7 +68,7 @@ class Version {
                 suffix += `.${this.rcTag}.${this.rcTagVersion}`
             }
         }
-        return `${version}${suffix}`
+        return `${this.major}.${this.minor}.${this.patch}${suffix}`
     }
 }
 
@@ -146,7 +137,6 @@ function changelogSections() {
 
 function changelogEntries() {
     let sections     = changelogSections()
-    let nextRelease  = new NextReleaseVersion
     let entries      = []
     let firstSection = true
     for (let section of sections) {
@@ -154,7 +144,7 @@ function changelogEntries() {
         let header     = section.substring(0,splitPoint)
         let body       = section.substring(splitPoint).trim()
         if (firstSection && header.startsWith(' Next Release')) {
-            let version = nextRelease
+            let version = new NextReleaseVersion
             entries.push(new ChangelogEntry(version,body))
         } else {
             let headerReg  = /^ Enso (?<major>[0-9]+)\.(?<minor>[0-9]+)\.(?<patch>[0-9]+)(-(?<tag>alpha|beta|rc)\.(?<tagVersion>[0-9]+))?(.(?<rcTag>rc)\.(?<rcTagVersion>[0-9]+))? \((?<year>[0-9][0-9][0-9][0-9])-(?<month>[0-9][0-9])-(?<day>[0-9][0-9])\)/
@@ -164,9 +154,6 @@ function changelogEntries() {
             }
             let grps    = match.groups
             let version = new Version(grps.major,grps.minor,grps.patch,grps.tag,grps.tagVersion,grps.rcTag,grps.rcTagVersion)
-            if (nextRelease.prevVersion === undefined) {
-                nextRelease.prevVersion = version
-            }
             entries.push(new ChangelogEntry(version,body))
         }
         firstSection = false
@@ -198,8 +185,18 @@ function currentVersion() {
     return changelog().currentVersion()
 }
 
-function isNightly() {
-    if (process.env.CI_BUILD_NIGHTLY) { return true } else { return false }
+function engineVersion() {
+    return config.engineVersion
+}
+
+function nightlyVersion() {
+    let changelog = changelog()
+    let version = changelog.entries[0].version
+    if (version instanceof NextReleaseVersion) {
+        version = changelog.entries[1].version
+    }
+
+    return `${version.major}.${version.minor}.${version.patch}-nightly.${isoDate()}`
 }
 
 function isoDate() {
@@ -207,16 +204,8 @@ function isoDate() {
     return date.toISOString().split('T')[0]
 }
 
-function engineVersion() {
-    if (process.env.CI_BUILD_ENGINE_VERSION) {
-        return process.env.CI_BUILD_ENGINE_VERSION
-    } else {
-        return appConfig.engineVersion
-    }
-}
-
 // ===============
 // === Exports ===
 // ===============
 
-module.exports = {Version,NextReleaseVersion,changelog,currentVersion,isNightly,engineVersion}
+module.exports = {Version,NextReleaseVersion,changelog,currentVersion,engineVersion,nightlyVersion,isoDate}

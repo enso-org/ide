@@ -328,6 +328,34 @@ commands.dist.js = async function() {
 }
 
 
+// === Nightly Gen ===
+commands['nightly-gen'] = command(`Generate Nightly CI build related files`)
+commands['nightly-gen'].rust = async function(argv) {
+    let github    = require('./github')
+    let nightlies = await github.fetchEngineNightlies()
+    let engineVersion  = nightlies[0].name
+    let nightlyPrefix = "Enso Nightly "
+    if (engineVersion.startsWith(nightlyPrefix)) {
+        engineVersion = engineVersion.substring(nightlyPrefix.length)
+    }
+
+    let isoDate  = release.isoDate()
+    let nightlyVersion = release.nightlyVersion()
+
+    let appConfig = require('../config')
+    appConfig.engineVersion = engineVersion
+    let appConfigPath = path.join(paths.root, 'config.json')
+
+    console.log(`set engine version: ${engineVersion}`)
+    console.log(`set IDE nightly version: ${nightlyVersion}`)
+
+    // Update config.json
+    fss.writeFileSync(path.join(paths.root, 'config.json'), JSON.stringify(appConfig))
+    // Update changelog
+    await cmd.run('sed', ['-i', `1s/.*/# Enso ${nightlyVersion} (${isoDate})`, paths.changelog])
+
+}
+
 // === CI Gen ===
 
 /// The command is used by CI to generate the file `CURRENT_RELEASE_CHANGELOG.json`, which contains
@@ -335,19 +363,6 @@ commands.dist.js = async function() {
 /// of the product release.
 commands['ci-gen'] = command(`Generate CI build related files`)
 commands['ci-gen'].rust = async function(argv) {
-    let env = ''
-    if (release.isNightly()) {
-        let github    = require('./github')
-        let nightlies = await github.fetchEngineNightlies()
-        let engineVersion  = nightlies[0].name
-        let nightlyPrefix = "Enso Nightly "
-        if (engineVersion.startsWith(nightlyPrefix)) {
-            engineVersion = engineVersion.substring(nightlyPrefix.length)
-        }
-        env += `CI_BUILD_ENGINE_VERSION=${engineVersion}`
-    }
-    fss.writeFileSync(path.join(paths.root, '.environment'), env)
-
     let entry      = release.changelog().newestEntry()
     let body       = entry.body
     let version    = entry.version.toString()

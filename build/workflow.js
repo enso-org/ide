@@ -21,6 +21,24 @@ const FLAG_FORCE_CI_BUILD      = '[ci build]'
 
 
 
+// ==================
+// === Conditions ===
+// ==================
+
+let nightlyReleaseCondition = `github.event.name == 'schedule' || true`
+/// Make a release only if it was a push to 'unstable' or 'stable'. Even if it was a pull request
+/// FROM these branches, the `github.ref` will be different.
+let releaseCondition = `${nightlyReleaseCondition} || github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'`
+
+/// Make a full build if one of the following conditions is true:
+/// 1. There was a `FLAG_FORCE_CI_BUILD` flag set in the commit message (see its docs for more info).
+/// 2. It was a pull request to the 'unstable', or the 'stable' branch.
+/// 3. It was a commit to the 'develop' branch.
+/// Otherwise, perform a simplified (faster) build only.
+let buildCondition = `contains(github.event.pull_request.body,'${FLAG_FORCE_CI_BUILD}') || contains(github.event.head_commit.message,'${FLAG_FORCE_CI_BUILD}') || github.ref == 'refs/heads/develop' || github.base_ref == 'unstable' || github.base_ref == 'stable' || (${releaseCondition})`
+
+
+
 // =============
 // === Utils ===
 // =============
@@ -293,31 +311,27 @@ let getListOfChangedFiles = {
 // === Changelog ===
 // =================
 
-let setupEnvironment = {
-    name: 'Setup environment',
+let setupNightly = {
+    name: 'Setup nightly',
+    env: {
+        GITHUB_TOKEN: '${{ github.token }}',
+    },
     run: `
-        if [[ \$\{\{ github.event_name \}\} == 'schedule' ]];
-        then
-          echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
-        fi
-        echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
+        node ./run nightly-gen --skip-version-validation
+        cat config.json
+        head CHANGELOG.md
     `,
-    shell: 'bash'
+    if: `${nightlyReleaseCondition}`,
+    shell: 'bash',
 }
 
 let getCurrentReleaseChangelogInfo = {
     name: 'Read changelog info',
-    env: {
-        GITHUB_TOKEN: '${{ github.token }}',
-    },
     id: 'changelog',
     run: `
         node ./run ci-gen --skip-version-validation
         content=\`cat CURRENT_RELEASE_CHANGELOG.json\`
         echo "::set-output name=content::$content"
-        environment=\`cat .environment\`
-        echo $environment >> $GITHUB_ENV
-        cat $GITHUB_ENV
     `,
     shell: 'bash'
 }
@@ -442,7 +456,7 @@ let assertReleaseDoNotExists = [
     {
         name: 'Fail if release already exists',
         run: 'if [[ ${{ steps.checkCurrentReleaseTag.outputs.exists }} == true ]]; then exit 1; fi',
-        if: `env.CI_BUILD_NIGHTLY == 'true' || github.base_ref == 'unstable' || github.base_ref == 'stable'`
+        if: `${nightlyReleaseCondition} || github.base_ref == 'unstable' || github.base_ref == 'stable'`
     }
 ]
 
@@ -465,17 +479,6 @@ let assertions = list(
 // === Workflow ===
 // ===============
 
-/// Make a release only if it was a push to 'unstable' or 'stable'. Even if it was a pull request
-/// FROM these branches, the `github.ref` will be different.
-let releaseCondition = `github.event_name == 'schedule' || github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable' || true`
-
-/// Make a full build if one of the following conditions is true:
-/// 1. There was a `FLAG_FORCE_CI_BUILD` flag set in the commit message (see its docs for more info).
-/// 2. It was a pull request to the 'unstable', or the 'stable' branch.
-/// 3. It was a commit to the 'develop' branch.
-/// Otherwise, perform a simplified (faster) build only.
-let buildCondition = `contains(github.event.pull_request.body,'${FLAG_FORCE_CI_BUILD}') || contains(github.event.head_commit.message,'${FLAG_FORCE_CI_BUILD}') || github.ref == 'refs/heads/develop' || github.base_ref == 'unstable' || github.base_ref == 'stable' || (${releaseCondition})`
-
 let workflow = {
     name : "GUI CI",
     env: {
@@ -497,7 +500,7 @@ let workflow = {
             dumpGitHubContext
         ]),
         version_assertions: job_on_macos("Assertions", [
-            setupEnvironment,
+            setupNightly,
             getCurrentReleaseChangelogInfo,
             assertions
         ]),
@@ -533,7 +536,7 @@ let workflow = {
             buildOnMacOS,
         ]),
         build: job_on_all_platforms("Build", [
-            setupEnvironment,
+            setupNightly,
             getCurrentReleaseChangelogInfo,
             installNode,
             installTypeScript,
@@ -551,7 +554,7 @@ let workflow = {
         ],{if:buildCondition}),
         release_to_github: job_on_macos("GitHub Release", [
             downloadArtifacts,
-            setupEnvironment,
+            setupNightly,
             getCurrentReleaseChangelogInfo,
             // This assertion is checked earlier, but we should double-check it in case several
             // CI jobs wil be run on this branch and a release was created when this workflow was
@@ -564,7 +567,7 @@ let workflow = {
         }),
         release_to_cdn: job_on_ubuntu_18_04("CDN Release", [
             downloadArtifacts,
-            setupEnvironment,
+            setupNightly,
             getCurrentReleaseChangelogInfo,
             prepareAwsSessionCDN,
             uploadToCDN('index.js.gz','style.css','ide.wasm','wasm_imports.js.gz'),

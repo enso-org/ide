@@ -11,6 +11,8 @@ let paths  = {}
 
 paths.root                = path.dirname(__dirname)
 
+paths.changelog           = path.join(paths.root,'CHANGELOG.md')
+
 paths.script              = {}
 paths.script.main         = path.join(paths.root,'run')
 paths.script.root         = path.join(paths.root,'build')

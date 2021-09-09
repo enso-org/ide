@@ -41,28 +41,24 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
-      - name: Setup environment
-        run: |2-
-
-                  if [[ ${{ github.event_name }} == 'schedule' ]];
-                  then
-                    echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
-                  fi
-                  echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
-              
-        shell: bash
-      - name: Read changelog info
+      - name: Setup nightly
         env:
           GITHUB_TOKEN: ${{ github.token }}
+        run: |2-
+
+                  node ./run nightly-gen --skip-version-validation
+                  cat config.json
+                  head CHANGELOG.md
+              
+        if: github.event.name == 'schedule' || true
+        shell: bash
+      - name: Read changelog info
         id: changelog
         run: |2-
 
                   node ./run ci-gen --skip-version-validation
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
-                  environment=`cat .environment`
-                  echo $environment >> $GITHUB_ENV
-                  cat $GITHUB_ENV
               
         shell: bash
       - name: Assert Version Unstable
@@ -82,8 +78,8 @@ jobs:
           if [[ ${{ steps.checkCurrentReleaseTag.outputs.exists }} == true ]];
           then exit 1; fi
         if: >-
-          env.CI_BUILD_NIGHTLY == 'true' || github.base_ref == 'unstable' ||
-          github.base_ref == 'stable'
+          github.event.name == 'schedule' || true || github.base_ref ==
+          'unstable' || github.base_ref == 'stable'
       - name: Get list of changed files
         id: changed_files
         run: |2-
@@ -299,28 +295,24 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
-      - name: Setup environment
-        run: |2-
-
-                  if [[ ${{ github.event_name }} == 'schedule' ]];
-                  then
-                    echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
-                  fi
-                  echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
-              
-        shell: bash
-      - name: Read changelog info
+      - name: Setup nightly
         env:
           GITHUB_TOKEN: ${{ github.token }}
+        run: |2-
+
+                  node ./run nightly-gen --skip-version-validation
+                  cat config.json
+                  head CHANGELOG.md
+              
+        if: github.event.name == 'schedule' || true
+        shell: bash
+      - name: Read changelog info
         id: changelog
         run: |2-
 
                   node ./run ci-gen --skip-version-validation
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
-                  environment=`cat .environment`
-                  echo $environment >> $GITHUB_ENV
-                  cat $GITHUB_ENV
               
         shell: bash
       - name: Install Node
@@ -449,8 +441,8 @@ jobs:
       contains(github.event.pull_request.body,'[ci build]') ||
       contains(github.event.head_commit.message,'[ci build]') || github.ref ==
       'refs/heads/develop' || github.base_ref == 'unstable' || github.base_ref
-      == 'stable' || (github.event_name == 'schedule' || github.ref ==
-      'refs/heads/unstable' || github.ref == 'refs/heads/stable' || true)
+      == 'stable' || (github.event.name == 'schedule' || true || github.ref ==
+      'refs/heads/unstable' || github.ref == 'refs/heads/stable')
   release_to_github:
     name: GitHub Release
     runs-on: ${{ matrix.os }}
@@ -465,28 +457,24 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           path: artifacts
-      - name: Setup environment
-        run: |2-
-
-                  if [[ ${{ github.event_name }} == 'schedule' ]];
-                  then
-                    echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
-                  fi
-                  echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
-              
-        shell: bash
-      - name: Read changelog info
+      - name: Setup nightly
         env:
           GITHUB_TOKEN: ${{ github.token }}
+        run: |2-
+
+                  node ./run nightly-gen --skip-version-validation
+                  cat config.json
+                  head CHANGELOG.md
+              
+        if: github.event.name == 'schedule' || true
+        shell: bash
+      - name: Read changelog info
         id: changelog
         run: |2-
 
                   node ./run ci-gen --skip-version-validation
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
-                  environment=`cat .environment`
-                  echo $environment >> $GITHUB_ENV
-                  cat $GITHUB_ENV
               
         shell: bash
       - id: checkCurrentReleaseTag
@@ -500,8 +488,8 @@ jobs:
           if [[ ${{ steps.checkCurrentReleaseTag.outputs.exists }} == true ]];
           then exit 1; fi
         if: >-
-          env.CI_BUILD_NIGHTLY == 'true' || github.base_ref == 'unstable' ||
-          github.base_ref == 'stable'
+          github.event.name == 'schedule' || true || github.base_ref ==
+          'unstable' || github.base_ref == 'stable'
       - name: Install Prettier
         run: npm install --save-dev --save-exact prettier
       - name: Pretty print changelog.
@@ -526,8 +514,8 @@ jobs:
           delete_tag_pattern: nightly
           delete_tags: true
     if: >-
-      github.event_name == 'schedule' || github.ref == 'refs/heads/unstable' ||
-      github.ref == 'refs/heads/stable' || true
+      github.event.name == 'schedule' || true || github.ref ==
+      'refs/heads/unstable' || github.ref == 'refs/heads/stable'
     needs:
       - version_assertions
       - lint
@@ -547,28 +535,24 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           path: artifacts
-      - name: Setup environment
-        run: |2-
-
-                  if [[ ${{ github.event_name }} == 'schedule' ]];
-                  then
-                    echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
-                  fi
-                  echo "CI_BUILD_NIGHTLY=true" >> $GITHUB_ENV
-              
-        shell: bash
-      - name: Read changelog info
+      - name: Setup nightly
         env:
           GITHUB_TOKEN: ${{ github.token }}
+        run: |2-
+
+                  node ./run nightly-gen --skip-version-validation
+                  cat config.json
+                  head CHANGELOG.md
+              
+        if: github.event.name == 'schedule' || true
+        shell: bash
+      - name: Read changelog info
         id: changelog
         run: |2-
 
                   node ./run ci-gen --skip-version-validation
                   content=`cat CURRENT_RELEASE_CHANGELOG.json`
                   echo "::set-output name=content::$content"
-                  environment=`cat .environment`
-                  echo $environment >> $GITHUB_ENV
-                  cat $GITHUB_ENV
               
         shell: bash
       - shell: bash
@@ -607,8 +591,8 @@ jobs:
           s3://ensocdn/ide/${{fromJson(steps.changelog.outputs.content).version}}/wasm_imports.js.gz
           --profile s3-upload --acl public-read --content-encoding gzip
     if: >-
-      github.event_name == 'schedule' || github.ref == 'refs/heads/unstable' ||
-      github.ref == 'refs/heads/stable' || true
+      github.event.name == 'schedule' || true || github.ref ==
+      'refs/heads/unstable' || github.ref == 'refs/heads/stable'
     needs:
       - version_assertions
       - lint
