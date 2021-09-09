@@ -1,16 +1,71 @@
 # Next Release
 
-# Enso 2.0.0-alpha.12 (2021-08-13)
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+<br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
+
+#### Visual Environment
+
+- [Fixed parsing of the `--no-data-gathering` command line option.][1831] Flag's
+  name has been changed to `--data-gathering`, so now `--data-gathering=false`
+  and `--data-gathering=true` are supported as well.
+
+[1831]: https://github.com/enso-org/ide/pull/1831
+
+# Enso 2.0.0-alpha.14 (2021-09-02)
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Visual Environment
+
+- [Visualization previews are disabled.][1817] Previously, hovering over a
+  node's output port for more than four seconds would temporarily reveal the
+  node's visualization. This behavior is disabled now
+
+[1817]: https://github.com/enso-org/ide/pull/1817
+
+#### Enso Compiler
+
+- [Updated Enso engine to version 0.2.28][1829]. If you're interested in the
+  enhancements and fixes made to the Enso compiler, you can find their release
+  notes [here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
+
+[1829]: https://github.com/enso-org/ide/pull/1829
+
+# Enso 2.0.0-alpha.13 (2021-08-27)
 
 <br/>![New Features](/docs/assets/tags/new_features.svg)
 
 #### Enso Compiler
 
-- [Updated Enso engine to version 0.2.11][1798]. If you're interested in the
+- [Updated Enso engine to version 0.2.27][1811]. If you're interested in the
   enhancements and fixes made to the Enso compiler, you can find their release
   notes [here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
 
+[1811]: https://github.com/enso-org/ide/pull/1811
+
+# Enso 2.0.0-alpha.12 (2021-08-13)
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Visual Environment
+
+- [Improvements to visualization handling][1804]. These improvements are fixing
+  possible performance issues around attaching and detaching visualizations.
+- [GeoMap visualization will ignore points with `null` coordinates][1775]. Now
+  the presence of such points in the dataset will not break initial map
+  positioning.
+
+#### Enso Compiler
+
+- [Updated Enso engine to version 0.2.26][1801]. If you're interested in the
+  enhancements and fixes made to the Enso compiler, you can find their release
+  notes [here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
+
+[1801]: https://github.com/enso-org/ide/pull/1801
+[1775]: https://github.com/enso-org/ide/pull/1775
 [1798]: https://github.com/enso-org/ide/pull/1798
+[1804]: https://github.com/enso-org/ide/pull/1804
 
 # Enso 2.0.0-alpha.11 (2021-08-09)
 
