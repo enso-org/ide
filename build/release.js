@@ -132,9 +132,7 @@ class Changelog {
     }
 
     currentVersion() {
-        let v = this.newestEntry().version
-        console.log('currentVersion', v)
-        return v
+        return this.newestEntry().version
     }
 }
 

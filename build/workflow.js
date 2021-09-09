@@ -318,10 +318,10 @@ let setupNightly = {
     },
     run: `
         node ./run nightly-gen --skip-version-validation
-        cat config.json
         head CHANGELOG.md
+        cat config.json
     `,
-    if: `${nightlyReleaseCondition}`,
+    if: nightlyReleaseCondition,
     shell: 'bash',
 }
 

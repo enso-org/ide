@@ -47,8 +47,8 @@ jobs:
         run: |2-
 
                   node ./run nightly-gen --skip-version-validation
-                  cat config.json
                   head CHANGELOG.md
+                  cat config.json
               
         if: github.event.name == 'schedule' || true
         shell: bash
@@ -301,8 +301,8 @@ jobs:
         run: |2-
 
                   node ./run nightly-gen --skip-version-validation
-                  cat config.json
                   head CHANGELOG.md
+                  cat config.json
               
         if: github.event.name == 'schedule' || true
         shell: bash
@@ -463,8 +463,8 @@ jobs:
         run: |2-
 
                   node ./run nightly-gen --skip-version-validation
-                  cat config.json
                   head CHANGELOG.md
+                  cat config.json
               
         if: github.event.name == 'schedule' || true
         shell: bash
@@ -541,8 +541,8 @@ jobs:
         run: |2-
 
                   node ./run nightly-gen --skip-version-validation
-                  cat config.json
                   head CHANGELOG.md
+                  cat config.json
               
         if: github.event.name == 'schedule' || true
         shell: bash

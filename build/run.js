@@ -4,6 +4,7 @@ const fs            = require('fs').promises
 const fse           = require('fs-extra')
 const fss           = require('fs')
 const unzipper      = require('unzipper')
+const github        = require('./github')
 const glob          = require('glob')
 const ncp           = require('ncp').ncp
 const os            = require('os')
@@ -331,27 +332,24 @@ commands.dist.js = async function() {
 // === Nightly Gen ===
 commands['nightly-gen'] = command(`Generate Nightly CI build related files`)
 commands['nightly-gen'].rust = async function(argv) {
-    let github    = require('./github')
     let nightlies = await github.fetchEngineNightlies()
     let engineVersion  = nightlies[0].name
-    let nightlyPrefix = "Enso Nightly "
+    let nightlyPrefix = 'Enso Nightly '
     if (engineVersion.startsWith(nightlyPrefix)) {
         engineVersion = engineVersion.substring(nightlyPrefix.length)
     }
 
-    let isoDate  = release.isoDate()
+    let config = require('../config.json')
+    config.engineVersion = engineVersion
+
     let nightlyVersion = release.nightlyVersion()
-
-    let appConfig = require('../config')
-    appConfig.engineVersion = engineVersion
-
-    console.log(`set engine version: ${engineVersion}`)
-    console.log(`set IDE nightly version: ${nightlyVersion}`)
+    console.log(`engine version: ${engineVersion}`)
+    console.log(`IDE nightly version: ${nightlyVersion}`)
 
     // Update config.json
-    fss.writeFileSync(paths.configJson, JSON.stringify(appConfig))
+    fss.writeFileSync(paths.configJson, JSON.stringify(config))
     // Update changelog
-    await cmd.run('sed', ["-i'.bak'", `'1s/.*/# Enso ${nightlyVersion} (${isoDate})/'`, paths.changelog])
+    await cmd.run('sed', ["-i'.bak'", `'1s/.*/# Enso ${nightlyVersion} (${release.isoDate()})/'`, paths.changelog])
 }
 
 // === CI Gen ===
