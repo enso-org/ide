@@ -25,7 +25,7 @@ const FLAG_FORCE_CI_BUILD      = '[ci build]'
 // === Conditions ===
 // ==================
 
-let nightlyReleaseCondition = `github.event.name == 'schedule' || true`
+let nightlyReleaseCondition = "github.event.name == 'schedule' || true"
 /// Make a release only if it was a push to 'unstable' or 'stable'. Even if it was a pull request
 /// FROM these branches, the `github.ref` will be different.
 let releaseCondition = `${nightlyReleaseCondition} || github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'`
@@ -369,7 +369,7 @@ let uploadGitHubRelease = [
             tag_name:   "v${{fromJson(steps.changelog.outputs.content).version}}",
             body:       "${{fromJson(steps.changelog.outputs.content).body}}",
             prerelease: "${{fromJson(steps.changelog.outputs.content).prerelease}}",
-            draft: true,
+            draft: `\${{ ! (${nightlyReleaseCondition}) }}`,
         },
     }
 ]

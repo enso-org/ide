@@ -39,20 +39,21 @@ class Version {
         this.minor        = minor
         this.patch        = patch
         this.tag          = tag
-        this.tagVersion   = parseInt(tagVersion)
+        this.tagVersion   = tagVersion
         this.rcTag        = rcTag
         this.rcTagVersion = rcTagVersion
     }
 
     lt(that) {
-        if (this.major < that.major)                     { return true }
-        if (this.minor < that.minor)                     { return true }
-        if (this.patch < that.patch)                     { return true }
-        if (this.tag === 'alpha' && that.tag === 'beta') { return true }
-        if (this.tag === 'alpha' && that.tag === 'rc')   { return true }
-        if (this.tag === 'beta'  && that.tag === 'rc')   { return true }
-        if (this.tagVersion   < that.tagVersion)         { return true }
-        if (this.rcTagVersion < that.rcTagVersion)       { return true }
+        if (this.major < that.major)                          { return true }
+        if (this.minor < that.minor)                          { return true }
+        if (this.patch < that.patch)                          { return true }
+        if (this.tag === 'nightly' && that.tag !== 'nightly') { return true }
+        if (this.tag === 'alpha'   && that.tag === 'beta')    { return true }
+        if (this.tag === 'alpha'   && that.tag === 'rc')      { return true }
+        if (this.tag === 'beta'    && that.tag === 'rc')      { return true }
+        if (ltStrings(this.tagVersion, that.tagVersion))      { return true }
+        if (ltStrings(this.rcTagVersion, that.rcTagVersion))  { return true }
         return false
     }
 
@@ -72,7 +73,13 @@ class Version {
     }
 }
 
+function ltStrings(version1, version2) {
+    let maxLength = Math.max(version1.length, version2.length)
+    let v1 = version1.padStart(maxLength, ' ')
+    let v2 = version2.padStart(maxLength, ' ')
 
+    return v1 < v2
+}
 
 // ======================
 // === ChangelogEntry ===

@@ -504,7 +504,7 @@ jobs:
           tag_name: v${{fromJson(steps.changelog.outputs.content).version}}
           body: ${{fromJson(steps.changelog.outputs.content).body}}
           prerelease: ${{fromJson(steps.changelog.outputs.content).prerelease}}
-          draft: true
+          draft: ${{ ! (github.event.name == 'schedule' || true) }}
       - uses: dev-drprasad/delete-older-releases@v0.2.0
         name: Remove Old Releases
         env:
