@@ -190,7 +190,7 @@ function engineVersion() {
 }
 
 function nightlyVersion() {
-    let changelog = changelog()
+    let changelog = new Changelog
     let version = changelog.entries[0].version
     if (version instanceof NextReleaseVersion) {
         version = changelog.entries[1].version

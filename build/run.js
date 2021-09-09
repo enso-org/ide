@@ -344,16 +344,14 @@ commands['nightly-gen'].rust = async function(argv) {
 
     let appConfig = require('../config')
     appConfig.engineVersion = engineVersion
-    let appConfigPath = path.join(paths.root, 'config.json')
 
     console.log(`set engine version: ${engineVersion}`)
     console.log(`set IDE nightly version: ${nightlyVersion}`)
 
     // Update config.json
-    fss.writeFileSync(path.join(paths.root, 'config.json'), JSON.stringify(appConfig))
+    fss.writeFileSync(paths.configJson, JSON.stringify(appConfig))
     // Update changelog
     await cmd.run('sed', ['-i', `1s/.*/# Enso ${nightlyVersion} (${isoDate})`, paths.changelog])
-
 }
 
 // === CI Gen ===
