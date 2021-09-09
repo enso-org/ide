@@ -73,6 +73,7 @@ class Version {
     }
 }
 
+/// Compare two versions lexicographically.
 function ltStrings(version1, version2) {
     let maxLength = Math.max(version1.length, version2.length)
     let v1 = version1.padStart(maxLength, ' ')
@@ -192,10 +193,12 @@ function currentVersion() {
     return changelog().currentVersion()
 }
 
+/// Get the engine version.
 function engineVersion() {
     return config.engineVersion
 }
 
+/// Create the nightly version based on the last version in changelog.
 function nightlyVersion() {
     let changelog = new Changelog
     let version = changelog.entries[0].version
@@ -206,6 +209,7 @@ function nightlyVersion() {
     return `${version.major}.${version.minor}.${version.patch}-nightly.${isoDate()}`
 }
 
+/// Get the current ISO date in format `YYYY-MM-DD`.
 function isoDate() {
     let date = new Date()
     return date.toISOString().split('T')[0]
