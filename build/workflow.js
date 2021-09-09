@@ -25,7 +25,7 @@ const FLAG_FORCE_CI_BUILD      = '[ci build]'
 // === Conditions ===
 // ==================
 
-let nightlyReleaseCondition = "github.event.name == 'schedule' || true"
+let nightlyReleaseCondition = `github.event.name == 'schedule'`
 /// Make a release only if it was a push to 'unstable' or 'stable'. Even if it was a pull request
 /// FROM these branches, the `github.ref` will be different.
 let releaseCondition = `${nightlyReleaseCondition} || github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'`
@@ -486,12 +486,12 @@ let workflow = {
     },
     on: {
         push: {
-            branches: ['develop','unstable','stable','wip/db/nightly-release'],
+            branches: ['develop','unstable','stable'],
         },
         pull_request: {},
         schedule: [
             {
-                cron: '0 7 * * 2-6'
+                cron: '0 6 * * 2-6'
             },
         ]
     },
