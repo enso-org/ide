@@ -120,7 +120,7 @@ config.build = {
     },
     publish: [],
     afterAllArtifactBuild: 'tasks/computeHashes.js',
-    afterSign: "tasks/notarize.js",
+    //afterSign: "tasks/notarize.js",
 }
 
 module.exports = {config}
