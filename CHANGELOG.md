@@ -1,5 +1,16 @@
 # Next Release
 
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Visual Environment
+
+- [Auto-layout for new nodes.][1755] When a node is selected and a new node gets
+  created below using <kbd>Tab</kbd> then the new node is automatically
+  positioned far enough to the right to find sufficient space and avoid
+  overlapping with existing nodes.
+
+[1755]: https://github.com/enso-org/ide/pull/1755
+
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
 
 #### Visual Environment
@@ -12,11 +23,13 @@
 
 # Enso 2.0.0-alpha.15 (2021-09-09)
 
+<br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
+
+#### Visual Environment
+
 - [Fixed parsing of the `--no-data-gathering` command line option.][1831] Flag's
   name has been changed to `--data-gathering`, so now `--data-gathering=false`
   and `--data-gathering=true` are supported as well.
-
-<br/>
 
 [1831]: https://github.com/enso-org/ide/pull/1831
 
