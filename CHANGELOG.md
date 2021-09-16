@@ -1,5 +1,16 @@
 # Next Release
 
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Visual Environment
+
+- [Auto-layout for new nodes.][1755] When a node is selected and a new node gets
+  created below using <kbd>Tab</kbd> then the new node is automatically
+  positioned far enough to the right to find sufficient space and avoid
+  overlapping with existing nodes.
+
+[1755]: https://github.com/enso-org/ide/pull/1755
+
 # Enso 2.0.0-alpha.15 (2021-09-09)
 
 <br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
@@ -80,10 +91,6 @@ these updates be shipped in a stable release before the end of the year.
 - [New look of open project dialog][1700]. Now it has a "Open project" title at
   the top.
 - [Documentation coments are displayed next to the nodes.][1744].
-- [Auto-layout for new nodes.][1755] When a node is selected and a new node gets
-  created below using <kbd>Tab</kbd> then the new node is automatically
-  positioned far enough to the right to find sufficient space and avoid
-  overlapping with existing nodes.
 
 #### Enso Compiler
 
@@ -107,7 +114,6 @@ these updates be shipped in a stable release before the end of the year.
 [1726]: https://github.com/enso-org/ide/pull/1762
 [1743]: https://github.com/enso-org/ide/pull/1743
 [1744]: https://github.com/enso-org/ide/pull/1744
-[1755]: https://github.com/enso-org/ide/pull/1755
 
 # Enso 2.0.0-alpha.10 (2021-07-23)
 
