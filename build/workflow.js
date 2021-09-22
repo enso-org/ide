@@ -184,20 +184,20 @@ function buildOn(target,sys,env) {
 }
 
 buildOnMacOS = buildOn('macos', 'macos', {
-    // CSC_LINK: '${{secrets.APPLE_CODE_SIGNING_CERT}}',
-    // CSC_KEY_PASSWORD: '${{secrets.APPLE_CODE_SIGNING_CERT_PASSWORD}}',
-    // CSC_IDENTITY_AUTO_DISCOVERY: true,
-    // APPLEID: '${{secrets.APPLE_NOTARIZATION_USERNAME}}',
-    // APPLEIDPASS: '${{secrets.APPLE_NOTARIZATION_PASSWORD}}',
-    // FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
+    CSC_LINK: '${{secrets.APPLE_CODE_SIGNING_CERT}}',
+    CSC_KEY_PASSWORD: '${{secrets.APPLE_CODE_SIGNING_CERT_PASSWORD}}',
+    CSC_IDENTITY_AUTO_DISCOVERY: true,
+    APPLEID: '${{secrets.APPLE_NOTARIZATION_USERNAME}}',
+    APPLEIDPASS: '${{secrets.APPLE_NOTARIZATION_PASSWORD}}',
+    FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
 })
 buildOnWindows = buildOn('win', 'windows', {
-    // WIN_CSC_LINK: '${{secrets.MICROSOFT_CODE_SIGNING_CERT}}',
-    // WIN_CSC_KEY_PASSWORD: '${{secrets.MICROSOFT_CODE_SIGNING_CERT_PASSWORD}}',
-    // FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
+    WIN_CSC_LINK: '${{secrets.MICROSOFT_CODE_SIGNING_CERT}}',
+    WIN_CSC_KEY_PASSWORD: '${{secrets.MICROSOFT_CODE_SIGNING_CERT_PASSWORD}}',
+    FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
 })
 buildOnLinux = buildOn('linux', 'Linux', {
-    // FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
+    FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
 })
 
 let lintMarkdown = {
@@ -541,7 +541,18 @@ let workflow = {
             uploadBinArtifactsForMacOS,
             uploadBinArtifactsForWindows,
             uploadBinArtifactsForLinux,
-        ],{ needs:['build_wasm'] }),
+        ], {
+            needs: ['build_wasm'],
+            env: {
+                CSC_LINK: '${{secrets.APPLE_CODE_SIGNING_CERT}}',
+                CSC_KEY_PASSWORD: '${{secrets.APPLE_CODE_SIGNING_CERT_PASSWORD}}',
+                CSC_IDENTITY_AUTO_DISCOVERY: true,
+                APPLEID: '${{secrets.APPLE_NOTARIZATION_USERNAME}}',
+                APPLEIDPASS: '${{secrets.APPLE_NOTARIZATION_PASSWORD}}',
+                FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
+                WIN_CSC_LINK: '${{secrets.MICROSOFT_CODE_SIGNING_CERT}}',
+                WIN_CSC_KEY_PASSWORD: '${{secrets.MICROSOFT_CODE_SIGNING_CERT_PASSWORD}}',
+        }}),
         release_to_github: job_on_macos("GitHub Release", [
             downloadArtifacts,
             getCurrentReleaseChangelogInfo,
