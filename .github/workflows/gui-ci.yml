@@ -365,7 +365,6 @@ jobs:
           name: enso-mac-${{fromJson(steps.changelog.outputs.content).version}}.dmg
           path: >-
             dist/client/enso-mac-${{fromJson(steps.changelog.outputs.content).version}}.dmg
-        if: startsWith(matrix.os,'macos')
       - name: Upload Artifacts (macOS, dmg.sha256)
         uses: actions/upload-artifact@v1
         with:
@@ -373,14 +372,12 @@ jobs:
             enso-mac-${{fromJson(steps.changelog.outputs.content).version}}.dmg.sha256
           path: >-
             dist/client/enso-mac-${{fromJson(steps.changelog.outputs.content).version}}.dmg.sha256
-        if: startsWith(matrix.os,'macos')
       - name: Upload Artifacts (Windows, exe)
         uses: actions/upload-artifact@v1
         with:
           name: enso-win-${{fromJson(steps.changelog.outputs.content).version}}.exe
           path: >-
             dist/client/enso-win-${{fromJson(steps.changelog.outputs.content).version}}.exe
-        if: startsWith(matrix.os,'windows')
       - name: Upload Artifacts (Windows, exe.sha256)
         uses: actions/upload-artifact@v1
         with:
@@ -388,7 +385,6 @@ jobs:
             enso-win-${{fromJson(steps.changelog.outputs.content).version}}.exe.sha256
           path: >-
             dist/client/enso-win-${{fromJson(steps.changelog.outputs.content).version}}.exe.sha256
-        if: startsWith(matrix.os,'windows')
       - name: Upload Artifacts (Linux, AppImage)
         uses: actions/upload-artifact@v1
         with:
@@ -396,7 +392,6 @@ jobs:
             enso-linux-${{fromJson(steps.changelog.outputs.content).version}}.AppImage
           path: >-
             dist/client/enso-linux-${{fromJson(steps.changelog.outputs.content).version}}.AppImage
-        if: startsWith(matrix.os,'ubuntu')
       - name: Upload Artifacts (Linux, AppImage.sha256)
         uses: actions/upload-artifact@v1
         with:
@@ -404,7 +399,6 @@ jobs:
             enso-linux-${{fromJson(steps.changelog.outputs.content).version}}.AppImage.sha256
           path: >-
             dist/client/enso-linux-${{fromJson(steps.changelog.outputs.content).version}}.AppImage.sha256
-        if: startsWith(matrix.os,'ubuntu')
     needs:
       - build_wasm
     env:
