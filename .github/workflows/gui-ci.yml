@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         runner:
-          - macOS-latest
+          - - macOS-latest
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
@@ -35,7 +35,7 @@ jobs:
     strategy:
       matrix:
         runner:
-          - macOS-latest
+          - - macOS-latest
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
@@ -98,8 +98,8 @@ jobs:
     strategy:
       matrix:
         runner:
-          - Linux
-          - linter
+          - - Linux
+            - linter
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
@@ -132,8 +132,8 @@ jobs:
     strategy:
       matrix:
         runner:
-          - Linux
-          - test_native
+          - - Linux
+            - test_native
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
@@ -158,8 +158,8 @@ jobs:
     strategy:
       matrix:
         runner:
-          - Linux
-          - test_wasm
+          - - Linux
+            - test_wasm
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
@@ -217,8 +217,8 @@ jobs:
     strategy:
       matrix:
         runner:
-          - Linux
-          - size_check
+          - - Linux
+            - size_check
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
@@ -422,7 +422,7 @@ jobs:
     strategy:
       matrix:
         runner:
-          - macOS-latest
+          - - macOS-latest
       fail-fast: false
     steps:
       - uses: actions/checkout@v1

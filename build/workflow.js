@@ -61,11 +61,11 @@ function job(runners,name,steps,cfg) {
 // }
 
 function job_on_macos(...args) {
-    return job(MACOS_RUNNER_GITHUB_HOSTED,...args)
+    return job([MACOS_RUNNER_GITHUB_HOSTED],...args)
 }
 
 function job_on_linux_cached(cache_label,...args) {
-    return job(cached_linux_runner(cache_label),...args)
+    return job([cached_linux_runner(cache_label)],...args)
 }
 
 // function job_on_linux(...args) {
