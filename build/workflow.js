@@ -19,24 +19,32 @@ const WASM_PACK_VERSION        = '0.9.1'
 const FLAG_NO_CHANGELOG_NEEDED = '[ci no changelog needed]'
 const FLAG_FORCE_CI_BUILD      = '[ci build]'
 
+const LINUX_RUNNER_GITHUB_HOSTED   = ["ubuntu-latest"]
+const MACOS_RUNNER_GITHUB_HOSTED   = ["macOS-latest"]
+const WINDOWS_RUNNER_GITHUB_HOSTED = ["windows-latest"]
+
 
 
 // =============
 // === Utils ===
 // =============
 
+function cached_linux_runner(cache_label) {
+    return ["Linux", cache_label]
+}
+
 function read_rust_toolchain_version() {
     return fss.readFileSync(paths.root + "/rust-toolchain").toString().trim()
 }
 
-function job(platforms,labels,name,steps,cfg) {
+function job(runners,name,steps,cfg) {
     if (!cfg) { cfg = {} }
     return {
         name: name,
-        "runs-on": ["${{ matrix.os }}",...labels],
+        "runs-on": "${{ matrix.runner }}",
         strategy: {
             matrix: {
-                os: platforms
+                runner: runners
             },
             "fail-fast": false
         },
@@ -48,24 +56,24 @@ function job(platforms,labels,name,steps,cfg) {
     }
 }
 
-function job_on_all_platforms(label,...args) {
-    return job(["windows-latest", "macOS-latest", "ubuntu-latest"],[],...args)
-}
+// function job_on_all_platforms(...args) {
+//     return job(["windows-latest", "macOS-latest", "ubuntu-latest"],...args)
+// }
 
 function job_on_macos(...args) {
-    return job(["macOS-latest"],[],...args)
+    return job(MACOS_RUNNER_GITHUB_HOSTED,...args)
 }
 
-function job_on_linux_cached(label,...args) {
-    return job(["Linux"],[label],...args)
+function job_on_linux_cached(cache_label,...args) {
+    return job(cached_linux_runner(cache_label),...args)
 }
 
-function job_on_linux(...args) {
-    return job(["Linux"],[],...args)
-}
+// function job_on_linux(...args) {
+//     return job(["Linux"],[],...args)
+// }
 
 function job_on_ubuntu_18_04(...args) {
-    return job(["ubuntu-18.04"],[],...args)
+    return job(["ubuntu-18.04"],...args)
 }
 
 function list(...args) {
@@ -528,30 +536,33 @@ let workflow = {
             buildWASM,
             uploadWASM,
         ]),
-        package: job_on_all_platforms("package", "Build package", [
-            getCurrentReleaseChangelogInfo,
-            installNode,
-            installTypeScript,
-            installRust,
-            installWasmPack,
-            installJava,
+        package: job
+            ( [MACOS_RUNNER_GITHUB_HOSTED,WINDOWS_RUNNER_GITHUB_HOSTED,cached_linux_runner("package")]
+            , "Build package"
+            , [
+                getCurrentReleaseChangelogInfo,
+                installNode,
+                installTypeScript,
+                installRust,
+                installWasmPack,
+                installJava,
 
-            downloadWASM,
-            buildPackage,
-            uploadBinArtifactsForMacOS,
-            uploadBinArtifactsForWindows,
-            uploadBinArtifactsForLinux,
-        ], {
-            needs: ['build_wasm'],
-            env: {
-                CSC_LINK: '${{secrets.APPLE_CODE_SIGNING_CERT}}',
-                CSC_KEY_PASSWORD: '${{secrets.APPLE_CODE_SIGNING_CERT_PASSWORD}}',
-                CSC_IDENTITY_AUTO_DISCOVERY: true,
-                APPLEID: '${{secrets.APPLE_NOTARIZATION_USERNAME}}',
-                APPLEIDPASS: '${{secrets.APPLE_NOTARIZATION_PASSWORD}}',
-                FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
-                WIN_CSC_LINK: '${{secrets.MICROSOFT_CODE_SIGNING_CERT}}',
-                WIN_CSC_KEY_PASSWORD: '${{secrets.MICROSOFT_CODE_SIGNING_CERT_PASSWORD}}',
+                downloadWASM,
+                buildPackage,
+                uploadBinArtifactsForMacOS,
+                uploadBinArtifactsForWindows,
+                uploadBinArtifactsForLinux,
+            ], {
+                needs: ['build_wasm'],
+                env: {
+                    CSC_LINK: '${{secrets.APPLE_CODE_SIGNING_CERT}}',
+                    CSC_KEY_PASSWORD: '${{secrets.APPLE_CODE_SIGNING_CERT_PASSWORD}}',
+                    CSC_IDENTITY_AUTO_DISCOVERY: true,
+                    APPLEID: '${{secrets.APPLE_NOTARIZATION_USERNAME}}',
+                    APPLEIDPASS: '${{secrets.APPLE_NOTARIZATION_PASSWORD}}',
+                    FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
+                    WIN_CSC_LINK: '${{secrets.MICROSOFT_CODE_SIGNING_CERT}}',
+                    WIN_CSC_KEY_PASSWORD: '${{secrets.MICROSOFT_CODE_SIGNING_CERT_PASSWORD}}',
         }}),
         release_to_github: job_on_macos("GitHub Release", [
             downloadArtifacts,
