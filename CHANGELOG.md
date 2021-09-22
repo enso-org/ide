@@ -61,7 +61,7 @@
 
 - [Visualization previews are disabled.][1817] Previously, hovering over a
   node's output port for more than four seconds would temporarily reveal the
-  node's visualization. This behavior is disabled now
+  node's visualization. This behavior is disabled now.
 
 [1817]: https://github.com/enso-org/ide/pull/1817
 
