@@ -218,7 +218,7 @@ jobs:
       matrix:
         runner:
           - - Linux
-            - size_check
+            - build_wasm
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
@@ -359,6 +359,15 @@ jobs:
       - name: Build Package
         run: node ./run dist --no-rust --skip-version-validation
         shell: bash
+        env:
+          CSC_LINK: ${{secrets.APPLE_CODE_SIGNING_CERT}}
+          CSC_KEY_PASSWORD: ${{secrets.APPLE_CODE_SIGNING_CERT_PASSWORD}}
+          CSC_IDENTITY_AUTO_DISCOVERY: true
+          APPLEID: ${{secrets.APPLE_NOTARIZATION_USERNAME}}
+          APPLEIDPASS: ${{secrets.APPLE_NOTARIZATION_PASSWORD}}
+          FIREBASE_API_KEY: ${{secrets.FIREBASE_API_KEY}}
+          WIN_CSC_LINK: ${{secrets.MICROSOFT_CODE_SIGNING_CERT}}
+          WIN_CSC_KEY_PASSWORD: ${{secrets.MICROSOFT_CODE_SIGNING_CERT_PASSWORD}}
       - name: Upload Artifacts (macOS, dmg)
         uses: actions/upload-artifact@v1
         with:
@@ -407,15 +416,6 @@ jobs:
         if: runner.os == 'Linux'
     needs:
       - build_wasm
-    env:
-      CSC_LINK: ${{secrets.APPLE_CODE_SIGNING_CERT}}
-      CSC_KEY_PASSWORD: ${{secrets.APPLE_CODE_SIGNING_CERT_PASSWORD}}
-      CSC_IDENTITY_AUTO_DISCOVERY: true
-      APPLEID: ${{secrets.APPLE_NOTARIZATION_USERNAME}}
-      APPLEIDPASS: ${{secrets.APPLE_NOTARIZATION_PASSWORD}}
-      FIREBASE_API_KEY: ${{secrets.FIREBASE_API_KEY}}
-      WIN_CSC_LINK: ${{secrets.MICROSOFT_CODE_SIGNING_CERT}}
-      WIN_CSC_KEY_PASSWORD: ${{secrets.MICROSOFT_CODE_SIGNING_CERT_PASSWORD}}
   release_to_github:
     name: GitHub Release
     runs-on: ${{ matrix.runner }}

@@ -56,10 +56,6 @@ function job(runners,name,steps,cfg) {
     }
 }
 
-// function job_on_all_platforms(...args) {
-//     return job(["windows-latest", "macOS-latest", "ubuntu-latest"],...args)
-// }
-
 function job_on_macos(...args) {
     return job([MACOS_RUNNER_GITHUB_HOSTED],...args)
 }
@@ -68,9 +64,9 @@ function job_on_linux_cached(cache_label,...args) {
     return job([cached_linux_runner(cache_label)],...args)
 }
 
-// function job_on_linux(...args) {
-//     return job(["Linux"],[],...args)
-// }
+function job_on_linux(...args) {
+    return job([LINUX_RUNNER_GITHUB_HOSTED],[],...args)
+}
 
 function job_on_ubuntu_18_04(...args) {
     return job(["ubuntu-18.04"],...args)
@@ -180,33 +176,21 @@ const installJava = {
 // === Build, Lint, and Test ===
 // =============================
 
-function buildOn(target,sys,env) {
-    const name = `Build (${target})`
-    const run  = `node ./run dist --skip-version-validation --target ${target}`
-    const _if = `startsWith(matrix.os,'${sys}')`
-    if (env) {
-        return {name,env,run,if:_if}
-    } else {
-        return  {name,run,if:_if}
-    }
+let buildPackage = {
+    name: 'Build Package',
+    run: 'node ./run dist --no-rust --skip-version-validation',
+    shell: 'bash',
+    env: {
+        CSC_LINK: '${{secrets.APPLE_CODE_SIGNING_CERT}}',
+        CSC_KEY_PASSWORD: '${{secrets.APPLE_CODE_SIGNING_CERT_PASSWORD}}',
+        CSC_IDENTITY_AUTO_DISCOVERY: true,
+        APPLEID: '${{secrets.APPLE_NOTARIZATION_USERNAME}}',
+        APPLEIDPASS: '${{secrets.APPLE_NOTARIZATION_PASSWORD}}',
+        FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
+        WIN_CSC_LINK: '${{secrets.MICROSOFT_CODE_SIGNING_CERT}}',
+        WIN_CSC_KEY_PASSWORD: '${{secrets.MICROSOFT_CODE_SIGNING_CERT_PASSWORD}}',
+    },
 }
-
-buildOnMacOS = buildOn('macos', 'macos', {
-    CSC_LINK: '${{secrets.APPLE_CODE_SIGNING_CERT}}',
-    CSC_KEY_PASSWORD: '${{secrets.APPLE_CODE_SIGNING_CERT_PASSWORD}}',
-    CSC_IDENTITY_AUTO_DISCOVERY: true,
-    APPLEID: '${{secrets.APPLE_NOTARIZATION_USERNAME}}',
-    APPLEIDPASS: '${{secrets.APPLE_NOTARIZATION_PASSWORD}}',
-    FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
-})
-buildOnWindows = buildOn('win', 'windows', {
-    WIN_CSC_LINK: '${{secrets.MICROSOFT_CODE_SIGNING_CERT}}',
-    WIN_CSC_KEY_PASSWORD: '${{secrets.MICROSOFT_CODE_SIGNING_CERT_PASSWORD}}',
-    FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
-})
-buildOnLinux = buildOn('linux', 'Linux', {
-    FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
-})
 
 let lintMarkdown = {
     name: "Lint Markdown sources",
@@ -337,12 +321,6 @@ let assertChangelogWasUpdated = [
         if: `github.base_ref == 'develop' || github.base_ref == 'unstable' || github.base_ref == 'stable'`
     }
 ]
-
-let buildPackage = {
-    name: 'Build Package',
-    run: 'node ./run dist --no-rust --skip-version-validation',
-    shell: 'bash'
-}
 
 
 // ======================
@@ -510,7 +488,7 @@ let workflow = {
             installWasmPack,
             testWASM
         ]),
-        build_wasm: job_on_linux_cached("size_check", "Build WASM", [
+        build_wasm: job_on_linux_cached("build_wasm", "Build WASM", [
             installNode,
             installTypeScript,
             installRust,
@@ -535,18 +513,7 @@ let workflow = {
                 uploadBinArtifactsForMacOS,
                 uploadBinArtifactsForWindows,
                 uploadBinArtifactsForLinux,
-            ], {
-                needs: ['build_wasm'],
-                env: {
-                    CSC_LINK: '${{secrets.APPLE_CODE_SIGNING_CERT}}',
-                    CSC_KEY_PASSWORD: '${{secrets.APPLE_CODE_SIGNING_CERT_PASSWORD}}',
-                    CSC_IDENTITY_AUTO_DISCOVERY: true,
-                    APPLEID: '${{secrets.APPLE_NOTARIZATION_USERNAME}}',
-                    APPLEIDPASS: '${{secrets.APPLE_NOTARIZATION_PASSWORD}}',
-                    FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
-                    WIN_CSC_LINK: '${{secrets.MICROSOFT_CODE_SIGNING_CERT}}',
-                    WIN_CSC_KEY_PASSWORD: '${{secrets.MICROSOFT_CODE_SIGNING_CERT_PASSWORD}}',
-        }}),
+            ], { needs: ['build_wasm'] }),
         release_to_github: job_on_macos("GitHub Release", [
             downloadArtifacts,
             getCurrentReleaseChangelogInfo,
