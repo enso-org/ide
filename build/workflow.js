@@ -29,39 +29,43 @@ function read_rust_toolchain_version() {
     return fss.readFileSync(paths.root + "/rust-toolchain").toString().trim()
 }
 
-function job(platforms,name,steps,cfg) {
+function job(platforms,labels,name,steps,cfg) {
     if (!cfg) { cfg = {} }
     return {
         name: name,
-        "runs-on": "${{ matrix.os }}",
+        "runs-on": ["${{ matrix.os }}",...labels],
         strategy: {
             matrix: {
-              os: platforms
+                os: platforms
             },
             "fail-fast": false
         },
         // WARNING!
         // Do not update to `checkout@v2` because it is broken:
         // https://github.com/actions/checkout/issues/438
-        steps : list({uses:"actions/checkout@v1"}, ...steps),
+        steps : list({uses:"actions/checkout@v1", with: {clean:false}}, ...steps),
         ...cfg
     }
 }
 
-function job_on_all_platforms(...args) {
-    return job(["windows-latest", "macOS-latest", "ubuntu-latest"],...args)
+function job_on_all_platforms(label,...args) {
+    return job(["windows-latest", "macOS-latest", "ubuntu-latest"],[],...args)
 }
 
 function job_on_macos(...args) {
-    return job(["macOS-latest"],...args)
+    return job(["macOS-latest"],[],...args)
 }
 
-function job_on_ubuntu(...args) {
-    return job(["ubuntu-latest"],...args)
+function job_on_linux_cached(label,...args) {
+    return job(["Linux"],[label],...args)
+}
+
+function job_on_linux(...args) {
+    return job(["Linux"],[],...args)
 }
 
 function job_on_ubuntu_18_04(...args) {
-    return job(["ubuntu-18.04"],...args)
+    return job(["ubuntu-18.04"],[],...args)
 }
 
 function list(...args) {
@@ -180,20 +184,20 @@ function buildOn(target,sys,env) {
 }
 
 buildOnMacOS = buildOn('macos', 'macos', {
-    CSC_LINK: '${{secrets.APPLE_CODE_SIGNING_CERT}}',
-    CSC_KEY_PASSWORD: '${{secrets.APPLE_CODE_SIGNING_CERT_PASSWORD}}',
-    CSC_IDENTITY_AUTO_DISCOVERY: true,
-    APPLEID: '${{secrets.APPLE_NOTARIZATION_USERNAME}}',
-    APPLEIDPASS: '${{secrets.APPLE_NOTARIZATION_PASSWORD}}',
-    FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
+    // CSC_LINK: '${{secrets.APPLE_CODE_SIGNING_CERT}}',
+    // CSC_KEY_PASSWORD: '${{secrets.APPLE_CODE_SIGNING_CERT_PASSWORD}}',
+    // CSC_IDENTITY_AUTO_DISCOVERY: true,
+    // APPLEID: '${{secrets.APPLE_NOTARIZATION_USERNAME}}',
+    // APPLEIDPASS: '${{secrets.APPLE_NOTARIZATION_PASSWORD}}',
+    // FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
 })
 buildOnWindows = buildOn('win', 'windows', {
-    WIN_CSC_LINK: '${{secrets.MICROSOFT_CODE_SIGNING_CERT}}',
-    WIN_CSC_KEY_PASSWORD: '${{secrets.MICROSOFT_CODE_SIGNING_CERT_PASSWORD}}',
-    FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
+    // WIN_CSC_LINK: '${{secrets.MICROSOFT_CODE_SIGNING_CERT}}',
+    // WIN_CSC_KEY_PASSWORD: '${{secrets.MICROSOFT_CODE_SIGNING_CERT_PASSWORD}}',
+    // FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
 })
-buildOnLinux = buildOn('linux', 'ubuntu', {
-    FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
+buildOnLinux = buildOn('linux', 'Linux', {
+    // FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
 })
 
 let lintMarkdown = {
@@ -221,6 +225,29 @@ let testWASM = {
     run: "node ./run test --no-native --skip-version-validation",
 }
 
+let buildWASM = {
+    name: "Build WASM",
+    run: "node ./run build --no-js --skip-version-validation",
+}
+
+let uploadWASM = {
+    name: `Upload IDE WASM artifacts`,
+    uses: "actions/upload-artifact@v2",
+    with: {
+        name: 'ide-wasm',
+        path: `dist/wasm`
+    }
+}
+
+let downloadWASM = {
+    name: `Download IDE WASM artifacts`,
+    uses: "actions/download-artifact@v2",
+    with: {
+        name: 'ide-wasm',
+        path: `dist/wasm`
+    }
+}
+
 
 
 // =================
@@ -231,8 +258,8 @@ let uploadContentArtifacts = {
     name: `Upload Content Artifacts`,
     uses: "actions/upload-artifact@v1",
     with: {
-       name: 'content',
-       path: `dist/content`
+        name: 'content',
+        path: `dist/content`
     },
     if: `startsWith(matrix.os,'macOS')`
 }
@@ -242,8 +269,8 @@ function uploadBinArtifactsFor(name,sys,ext,os) {
         name: `Upload Artifacts (${name}, ${ext})`,
         uses: "actions/upload-artifact@v1",
         with: {
-           name: `enso-${os}-\${{fromJson(steps.changelog.outputs.content).version}}.${ext}`,
-           path: `dist/client/enso-${os}-\${{fromJson(steps.changelog.outputs.content).version}}.${ext}`
+            name: `enso-${os}-\${{fromJson(steps.changelog.outputs.content).version}}.${ext}`,
+            path: `dist/client/enso-${os}-\${{fromJson(steps.changelog.outputs.content).version}}.${ext}`
         },
         if: `startsWith(matrix.os,'${sys}')`
     }
@@ -313,6 +340,11 @@ let assertChangelogWasUpdated = [
     }
 ]
 
+let buildPackage = {
+    name: 'Build Package',
+    run: 'node ./run dist --no-rust --skip-version-validation',
+    shell: 'bash'
+}
 
 
 // ======================
@@ -367,8 +399,8 @@ function uploadToCDN(...names) {
             name: `Upload '${name}' to CDN`,
             shell: "bash",
             run: `aws s3 cp ./artifacts/content/assets/${name} `
-               + `s3://ensocdn/ide/\${{fromJson(steps.changelog.outputs.content).version}}/${name} --profile `
-               + `s3-upload --acl public-read`
+                + `s3://ensocdn/ide/\${{fromJson(steps.changelog.outputs.content).version}}/${name} --profile `
+                + `s3-upload --acl public-read`
         }
         if (name.endsWith(".gz")) {
             action.run += " --content-encoding gzip";
@@ -453,7 +485,8 @@ let workflow = {
         push: {
             branches: ['develop','unstable','stable']
         },
-        pull_request: {}
+        pull_request: {},
+        workflow_dispatch: {}
     },
     jobs: {
         info: job_on_macos("Build Info", [
@@ -463,7 +496,7 @@ let workflow = {
             getCurrentReleaseChangelogInfo,
             assertions
         ]),
-        lint: job_on_macos("Linter", [
+        lint: job_on_linux_cached("linter", "Linter", [
             installNode,
             installTypeScript,
             installRust,
@@ -473,43 +506,42 @@ let workflow = {
             lintJavaScript,
             lintRust
         ]),
-        test: job_on_macos("Tests", [
+        test: job_on_linux_cached("test_native", "Native Tests", [
             installNode,
             installTypeScript,
             installRust,
             testNoWASM,
         ]),
-        "wasm-test": job_on_macos("WASM Tests", [
+        "wasm-test": job_on_linux_cached("test_wasm", "WASM Tests", [
             installNode,
             installTypeScript,
             installRust,
             installWasmPack,
             testWASM
         ]),
-        simple_build: job_on_macos("Simple Build (WASM size limit check)", [
+        build_wasm: job_on_linux_cached("size_check", "Build WASM", [
             installNode,
             installTypeScript,
             installRust,
             installWasmPack,
             installJava,
-            buildOnMacOS,
+            buildWASM,
+            uploadWASM,
         ]),
-        build: job_on_all_platforms("Build", [
+        package: job_on_all_platforms("package", "Build package", [
             getCurrentReleaseChangelogInfo,
             installNode,
             installTypeScript,
             installRust,
             installWasmPack,
-            // Needed for package signing on macOS.
             installJava,
-            buildOnMacOS,
-            buildOnWindows,
-            buildOnLinux,
-            uploadContentArtifacts,
+
+            downloadWASM,
+            buildPackage,
             uploadBinArtifactsForMacOS,
             uploadBinArtifactsForWindows,
             uploadBinArtifactsForLinux,
-        ],{if:buildCondition}),
+        ],{ needs:['build_wasm'] }),
         release_to_github: job_on_macos("GitHub Release", [
             downloadArtifacts,
             getCurrentReleaseChangelogInfo,
@@ -519,7 +551,7 @@ let workflow = {
             assertReleaseDoNotExists,
             uploadGitHubRelease,
         ],{ if:releaseCondition,
-            needs:['version_assertions','lint','test','build']
+            needs:['version_assertions','lint','test','package']
         }),
         release_to_cdn: job_on_ubuntu_18_04("CDN Release", [
             downloadArtifacts,
@@ -527,7 +559,7 @@ let workflow = {
             prepareAwsSessionCDN,
             uploadToCDN('index.js.gz','style.css','ide.wasm','wasm_imports.js.gz'),
         ],{ if:releaseCondition,
-            needs:['version_assertions','lint','test','build']
+            needs:['version_assertions','lint','test','package']
         })
     }
 }

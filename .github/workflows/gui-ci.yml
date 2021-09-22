@@ -11,10 +11,12 @@ name: GUI CI
       - unstable
       - stable
   pull_request: {}
+  workflow_dispatch: {}
 jobs:
   info:
     name: Build Info
-    runs-on: ${{ matrix.os }}
+    runs-on:
+      - ${{ matrix.os }}
     strategy:
       matrix:
         os:
@@ -22,13 +24,16 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
+        with:
+          clean: false
       - name: Dump GitHub context
         env:
           GITHUB_CONTEXT: ${{ toJson(github) }}
         run: echo "$GITHUB_CONTEXT"
   version_assertions:
     name: Assertions
-    runs-on: ${{ matrix.os }}
+    runs-on:
+      - ${{ matrix.os }}
     strategy:
       matrix:
         os:
@@ -36,6 +41,8 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
+        with:
+          clean: false
       - name: Read changelog info
         id: changelog
         run: |2-
@@ -89,14 +96,18 @@ jobs:
           }}" == "stable" ]]; then exit 1; fi
   lint:
     name: Linter
-    runs-on: ${{ matrix.os }}
+    runs-on:
+      - ${{ matrix.os }}
+      - linter
     strategy:
       matrix:
         os:
-          - macOS-latest
+          - Linux
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
+        with:
+          clean: false
       - name: Install Node
         uses: actions/setup-node@v1
         with:
@@ -119,15 +130,19 @@ jobs:
       - name: Lint Rust sources
         run: node ./run lint --skip-version-validation
   test:
-    name: Tests
-    runs-on: ${{ matrix.os }}
+    name: Native Tests
+    runs-on:
+      - ${{ matrix.os }}
+      - test_native
     strategy:
       matrix:
         os:
-          - macOS-latest
+          - Linux
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
+        with:
+          clean: false
       - name: Install Node
         uses: actions/setup-node@v1
         with:
@@ -143,14 +158,18 @@ jobs:
         run: node ./run test --no-wasm --skip-version-validation
   wasm-test:
     name: WASM Tests
-    runs-on: ${{ matrix.os }}
+    runs-on:
+      - ${{ matrix.os }}
+      - test_wasm
     strategy:
       matrix:
         os:
-          - macOS-latest
+          - Linux
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
+        with:
+          clean: false
       - name: Install Node
         uses: actions/setup-node@v1
         with:
@@ -197,16 +216,20 @@ jobs:
         if: startsWith(matrix.os,'ubuntu')
       - name: Run tests (WASM)
         run: node ./run test --no-native --skip-version-validation
-  simple_build:
-    name: Simple Build (WASM size limit check)
-    runs-on: ${{ matrix.os }}
+  build_wasm:
+    name: Build WASM
+    runs-on:
+      - ${{ matrix.os }}
+      - size_check
     strategy:
       matrix:
         os:
-          - macOS-latest
+          - Linux
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
+        with:
+          clean: false
       - name: Install Node
         uses: actions/setup-node@v1
         with:
@@ -255,19 +278,17 @@ jobs:
         with:
           distribution: adopt
           java-version: '11'
-      - name: Build (macos)
-        env:
-          CSC_LINK: ${{secrets.APPLE_CODE_SIGNING_CERT}}
-          CSC_KEY_PASSWORD: ${{secrets.APPLE_CODE_SIGNING_CERT_PASSWORD}}
-          CSC_IDENTITY_AUTO_DISCOVERY: true
-          APPLEID: ${{secrets.APPLE_NOTARIZATION_USERNAME}}
-          APPLEIDPASS: ${{secrets.APPLE_NOTARIZATION_PASSWORD}}
-          FIREBASE_API_KEY: ${{secrets.FIREBASE_API_KEY}}
-        run: node ./run dist --skip-version-validation --target macos
-        if: startsWith(matrix.os,'macos')
-  build:
-    name: Build
-    runs-on: ${{ matrix.os }}
+      - name: Build WASM
+        run: node ./run build --no-js --skip-version-validation
+      - name: Upload IDE WASM artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: ide-wasm
+          path: dist/wasm
+  package:
+    name: Build package
+    runs-on:
+      - ${{ matrix.os }}
     strategy:
       matrix:
         os:
@@ -277,6 +298,8 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
+        with:
+          clean: false
       - name: Read changelog info
         id: changelog
         run: |2-
@@ -334,34 +357,14 @@ jobs:
         with:
           distribution: adopt
           java-version: '11'
-      - name: Build (macos)
-        env:
-          CSC_LINK: ${{secrets.APPLE_CODE_SIGNING_CERT}}
-          CSC_KEY_PASSWORD: ${{secrets.APPLE_CODE_SIGNING_CERT_PASSWORD}}
-          CSC_IDENTITY_AUTO_DISCOVERY: true
-          APPLEID: ${{secrets.APPLE_NOTARIZATION_USERNAME}}
-          APPLEIDPASS: ${{secrets.APPLE_NOTARIZATION_PASSWORD}}
-          FIREBASE_API_KEY: ${{secrets.FIREBASE_API_KEY}}
-        run: node ./run dist --skip-version-validation --target macos
-        if: startsWith(matrix.os,'macos')
-      - name: Build (win)
-        env:
-          WIN_CSC_LINK: ${{secrets.MICROSOFT_CODE_SIGNING_CERT}}
-          WIN_CSC_KEY_PASSWORD: ${{secrets.MICROSOFT_CODE_SIGNING_CERT_PASSWORD}}
-          FIREBASE_API_KEY: ${{secrets.FIREBASE_API_KEY}}
-        run: node ./run dist --skip-version-validation --target win
-        if: startsWith(matrix.os,'windows')
-      - name: Build (linux)
-        env:
-          FIREBASE_API_KEY: ${{secrets.FIREBASE_API_KEY}}
-        run: node ./run dist --skip-version-validation --target linux
-        if: startsWith(matrix.os,'ubuntu')
-      - name: Upload Content Artifacts
-        uses: actions/upload-artifact@v1
+      - name: Download IDE WASM artifacts
+        uses: actions/download-artifact@v2
         with:
-          name: content
-          path: dist/content
-        if: startsWith(matrix.os,'macOS')
+          name: ide-wasm
+          path: dist/wasm
+      - name: Build Package
+        run: node ./run dist --no-rust --skip-version-validation
+        shell: bash
       - name: Upload Artifacts (macOS, dmg)
         uses: actions/upload-artifact@v1
         with:
@@ -408,15 +411,12 @@ jobs:
           path: >-
             dist/client/enso-linux-${{fromJson(steps.changelog.outputs.content).version}}.AppImage.sha256
         if: startsWith(matrix.os,'ubuntu')
-    if: >-
-      contains(github.event.pull_request.body,'[ci build]') ||
-      contains(github.event.head_commit.message,'[ci build]') || github.ref ==
-      'refs/heads/develop' || github.base_ref == 'unstable' || github.base_ref
-      == 'stable' || (github.ref == 'refs/heads/unstable' || github.ref ==
-      'refs/heads/stable')
+    needs:
+      - build_wasm
   release_to_github:
     name: GitHub Release
-    runs-on: ${{ matrix.os }}
+    runs-on:
+      - ${{ matrix.os }}
     strategy:
       matrix:
         os:
@@ -424,6 +424,8 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
+        with:
+          clean: false
       - name: Download artifacts
         uses: actions/download-artifact@v2
         with:
@@ -468,10 +470,11 @@ jobs:
       - version_assertions
       - lint
       - test
-      - build
+      - package
   release_to_cdn:
     name: CDN Release
-    runs-on: ${{ matrix.os }}
+    runs-on:
+      - ${{ matrix.os }}
     strategy:
       matrix:
         os:
@@ -479,6 +482,8 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
+        with:
+          clean: false
       - name: Download artifacts
         uses: actions/download-artifact@v2
         with:
@@ -532,4 +537,4 @@ jobs:
       - version_assertions
       - lint
       - test
-      - build
+      - package
