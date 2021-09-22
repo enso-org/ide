@@ -57,6 +57,8 @@ pub mod prelude {
     pub use ast::prelude::*;
     pub use wasm_bindgen::prelude::*;
 
+    pub use enso_logger::DefaultTraceLogger as Logger;
+
     pub use crate::constants;
     pub use crate::controller;
     pub use crate::double_representation;
