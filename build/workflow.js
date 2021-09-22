@@ -262,17 +262,7 @@ let downloadWASM = {
 // === Artifacts ===
 // =================
 
-let uploadContentArtifacts = {
-    name: `Upload Content Artifacts`,
-    uses: "actions/upload-artifact@v1",
-    with: {
-        name: 'content',
-        path: `dist/content`
-    },
-    if: `startsWith(matrix.os,'macOS')`
-}
-
-function uploadBinArtifactsFor(name,sys,ext,os) {
+function uploadArtifactsFor(name,ext,os) {
     return {
         name: `Upload Artifacts (${name}, ${ext})`,
         uses: "actions/upload-artifact@v1",
@@ -284,16 +274,16 @@ function uploadBinArtifactsFor(name,sys,ext,os) {
     }
 }
 
-function uploadBinArtifactsWithChecksumsFor(name,sys,ext,os) {
+function uploadBinArtifactsWithChecksumsFor(name,ext,os) {
     return [
-        uploadBinArtifactsFor(name,sys,ext,os),
-        uploadBinArtifactsFor(name,sys,ext+'.sha256',os)
+        uploadArtifactsFor(name,ext,os),
+        uploadArtifactsFor(name,ext+'.sha256',os)
     ]
 }
 
-uploadBinArtifactsForMacOS   = uploadBinArtifactsWithChecksumsFor('macOS','macos','dmg','mac')
-uploadBinArtifactsForLinux   = uploadBinArtifactsWithChecksumsFor('Linux','ubuntu','AppImage','linux')
-uploadBinArtifactsForWindows = uploadBinArtifactsWithChecksumsFor('Windows','windows','exe','win')
+uploadBinArtifactsForMacOS   = uploadBinArtifactsWithChecksumsFor('macOS','dmg','mac')
+uploadBinArtifactsForLinux   = uploadBinArtifactsWithChecksumsFor('Linux','AppImage','linux')
+uploadBinArtifactsForWindows = uploadBinArtifactsWithChecksumsFor('Windows','exe','win')
 
 let downloadArtifacts = {
     name: "Download artifacts",
@@ -479,13 +469,6 @@ let assertions = list(
 /// Make a release only if it was a push to 'unstable' or 'stable'. Even if it was a pull request
 /// FROM these branches, the `github.ref` will be different.
 let releaseCondition = `github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'`
-
-/// Make a full build if one of the following conditions is true:
-/// 1. There was a `FLAG_FORCE_CI_BUILD` flag set in the commit message (see its docs for more info).
-/// 2. It was a pull request to the 'unstable', or the 'stable' branch.
-/// 3. It was a commit to the 'develop' branch.
-/// Otherwise, perform a simplified (faster) build only.
-let buildCondition = `contains(github.event.pull_request.body,'${FLAG_FORCE_CI_BUILD}') || contains(github.event.head_commit.message,'${FLAG_FORCE_CI_BUILD}') || github.ref == 'refs/heads/develop' || github.base_ref == 'unstable' || github.base_ref == 'stable' || (${releaseCondition})`
 
 let workflow = {
     name : "GUI CI",
