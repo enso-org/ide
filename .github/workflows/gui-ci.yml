@@ -365,6 +365,7 @@ jobs:
           name: enso-mac-${{fromJson(steps.changelog.outputs.content).version}}.dmg
           path: >-
             dist/client/enso-mac-${{fromJson(steps.changelog.outputs.content).version}}.dmg
+        if: runner.os == 'macOS'
       - name: Upload Artifacts (macOS, dmg.sha256)
         uses: actions/upload-artifact@v1
         with:
@@ -372,12 +373,14 @@ jobs:
             enso-mac-${{fromJson(steps.changelog.outputs.content).version}}.dmg.sha256
           path: >-
             dist/client/enso-mac-${{fromJson(steps.changelog.outputs.content).version}}.dmg.sha256
+        if: runner.os == 'macOS'
       - name: Upload Artifacts (Windows, exe)
         uses: actions/upload-artifact@v1
         with:
           name: enso-win-${{fromJson(steps.changelog.outputs.content).version}}.exe
           path: >-
             dist/client/enso-win-${{fromJson(steps.changelog.outputs.content).version}}.exe
+        if: runner.os == 'Windows'
       - name: Upload Artifacts (Windows, exe.sha256)
         uses: actions/upload-artifact@v1
         with:
@@ -385,6 +388,7 @@ jobs:
             enso-win-${{fromJson(steps.changelog.outputs.content).version}}.exe.sha256
           path: >-
             dist/client/enso-win-${{fromJson(steps.changelog.outputs.content).version}}.exe.sha256
+        if: runner.os == 'Windows'
       - name: Upload Artifacts (Linux, AppImage)
         uses: actions/upload-artifact@v1
         with:
@@ -392,6 +396,7 @@ jobs:
             enso-linux-${{fromJson(steps.changelog.outputs.content).version}}.AppImage
           path: >-
             dist/client/enso-linux-${{fromJson(steps.changelog.outputs.content).version}}.AppImage
+        if: runner.os == 'Linux'
       - name: Upload Artifacts (Linux, AppImage.sha256)
         uses: actions/upload-artifact@v1
         with:
@@ -399,6 +404,7 @@ jobs:
             enso-linux-${{fromJson(steps.changelog.outputs.content).version}}.AppImage.sha256
           path: >-
             dist/client/enso-linux-${{fromJson(steps.changelog.outputs.content).version}}.AppImage.sha256
+        if: runner.os == 'Linux'
     needs:
       - build_wasm
     env:

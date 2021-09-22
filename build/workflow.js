@@ -280,7 +280,7 @@ function uploadBinArtifactsFor(name,sys,ext,os) {
             name: `enso-${os}-\${{fromJson(steps.changelog.outputs.content).version}}.${ext}`,
             path: `dist/client/enso-${os}-\${{fromJson(steps.changelog.outputs.content).version}}.${ext}`
         },
-        // if: `startsWith(matrix.os,'${sys}')`
+        if: `runner.os == '${name}'`,
     }
 }
 
