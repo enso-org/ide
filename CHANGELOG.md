@@ -8,10 +8,14 @@
   form `--backend=false` or `--backend false` are now handled as expected and
   turn off the "backend" option. The same fix has been applied to all other
   boolean command-line options as well.
+- [Visualizations will be attached after project is ready.][1825] This addresses
+  a rare issue when initially opened visualizations were automatically closed
+  rather than filled with data.
 
 <br/>
 
 [1815]: https://github.com/enso-org/ide/pull/1815
+[1825]: https://github.com/enso-org/ide/pull/1825
 
 # Enso 2.0.0-alpha.16 (2021-09-16)
 
@@ -64,7 +68,7 @@
 
 - [Visualization previews are disabled.][1817] Previously, hovering over a
   node's output port for more than four seconds would temporarily reveal the
-  node's visualization. This behavior is disabled now
+  node's visualization. This behavior is disabled now.
 
 [1817]: https://github.com/enso-org/ide/pull/1817
 
