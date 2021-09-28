@@ -14,11 +14,115 @@
 
 [1776]: https://github.com/enso-org/ide/pull/1776
 
-# Enso 2.0.0-alpha.12 (2021-08-13)
+# Enso 2.0.0-alpha.17 (2021-09-23)
+
+<br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
+
+#### Visual Environment
+
+- [Correct handling of command-line flags.][1815] Command line arguments of the
+  form `--backend=false` or `--backend false` are now handled as expected and
+  turn off the "backend" option. The same fix has been applied to all other
+  boolean command-line options as well.
+- [Visualizations will be attached after project is ready.][1825] This addresses
+  a rare issue when initially opened visualizations were automatically closed
+  rather than filled with data.
+
+<br/>
+
+[1815]: https://github.com/enso-org/ide/pull/1815
+[1825]: https://github.com/enso-org/ide/pull/1825
 
 <br/>![New Features](/docs/assets/tags/new_features.svg)
 
 #### Enso Compiler
+
+- [Updated Enso engine to version 0.2.30][engine-0.2.30]. If you're interested
+  in the enhancements and fixes made to the Enso compiler, you can find their
+  release notes [here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
+
+[engine-0.2.30]: https://github.com/enso-org/enso/blob/main/RELEASES.md
+
+# Enso 2.0.0-alpha.16 (2021-09-16)
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Visual Environment
+
+- [Auto-layout for new nodes.][1755] When a node is selected and a new node gets
+  created below using <kbd>Tab</kbd> then the new node is automatically
+  positioned far enough to the right to find sufficient space and avoid
+  overlapping with existing nodes.
+
+[1755]: https://github.com/enso-org/ide/pull/1755
+
+#### Enso Compiler
+
+- [Updated Enso engine to version 0.2.29][engine-0.2.29]. If you're interested
+  in the enhancements and fixes made to the Enso compiler, you can find their
+  release notes [here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
+
+[engine-0.2.29]: https://github.com/enso-org/enso/blob/main/RELEASES.md
+
+<br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
+
+#### Visual Environment
+
+- [Sharp rendering on screens with fractional pixel ratios.][1820]
+
+[1820]: https://github.com/enso-org/ide/pull/1820
+
+<br/>
+
+# Enso 2.0.0-alpha.15 (2021-09-09)
+
+<br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
+
+#### Visual Environment
+
+- [Fixed parsing of the `--no-data-gathering` command line option.][1831] Flag's
+  name has been changed to `--data-gathering`, so now `--data-gathering=false`
+  and `--data-gathering=true` are supported as well.
+
+[1831]: https://github.com/enso-org/ide/pull/1831
+
+# Enso 2.0.0-alpha.14 (2021-09-02)
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Visual Environment
+
+- [Visualization previews are disabled.][1817] Previously, hovering over a
+  node's output port for more than four seconds would temporarily reveal the
+  node's visualization. This behavior is disabled now.
+
+[1817]: https://github.com/enso-org/ide/pull/1817
+
+#### Enso Compiler
+
+- [Updated Enso engine to version 0.2.28][1829]. If you're interested in the
+  enhancements and fixes made to the Enso compiler, you can find their release
+  notes [here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
+
+[1829]: https://github.com/enso-org/ide/pull/1829
+
+# Enso 2.0.0-alpha.13 (2021-08-27)
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Enso Compiler
+
+- [Updated Enso engine to version 0.2.27][1811]. If you're interested in the
+  enhancements and fixes made to the Enso compiler, you can find their release
+  notes [here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
+
+[1811]: https://github.com/enso-org/ide/pull/1811
+
+# Enso 2.0.0-alpha.12 (2021-08-13)
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Visual Environment
 
 - [Improvements to visualization handling][1804]. These improvements are fixing
   possible performance issues around attaching and detaching visualizations.
