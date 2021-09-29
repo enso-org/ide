@@ -26,19 +26,18 @@ lazy_static! {
         let engine_version = &json["engineVersion"];
         engine_version.as_str().unwrap().to_string()
     };
+
+    /// The Engine version used in projects created in IDE.
+    pub static ref ENGINE_VERSION_FOR_NEW_PROJECTS: String = ENGINE_VERSION.to_string();
+
+    /// The requirements for Engine's version, in format understandable by
+    /// [`semver::VersionReq::parse`].
+    pub static ref ENGINE_VERSION_SUPPORTED: String = format!("^{}", ENGINE_VERSION.as_str());
 }
 
 /// The label of compiling stdlib message process.
 pub const COMPILING_STDLIB_LABEL:&str = "Compiling standard library. It can take up to 1 minute.";
 
-/// The requirements for Engine's version, in format understandable by
-/// [`semver::VersionReq::parse`].
-pub const ENGINE_VERSION_SUPPORTED        : &str = "^0.2.30";
-
-/// The Engine version used in projects created in IDE.
-// Usually it is a good idea to synchronize this version with the bundled Engine version in
-// src/js/lib/project-manager/src/build.ts. See also https://github.com/enso-org/ide/issues/1359
-pub const ENGINE_VERSION_FOR_NEW_PROJECTS : &str = "0.2.30";
 /// The minimum edition that is guaranteed to work with the IDE.
 pub const MINIMUM_EDITION_SUPPORTED : &str = "2021.18";
 
@@ -235,8 +234,8 @@ impl Project {
     }
 
     fn display_warning_on_unsupported_engine_version(&self) -> FallibleResult {
-        let requirements = semver::VersionReq::parse(ENGINE_VERSION_SUPPORTED)?;
-        let version      = self.model.engine_version();
+        let requirements = semver::VersionReq::parse(&ENGINE_VERSION_SUPPORTED)?;
+        let version = self.model.engine_version();
         if !requirements.matches(&version) {
             let message = format!("Unsupported Engine version. Please update edition in {} \
                 to {}.",package_yaml_path(&self.model.name()),MINIMUM_EDITION_SUPPORTED);
@@ -260,7 +259,6 @@ mod tests {
 
     #[test]
     fn get_engine_version() {
-        println!("{}", ENGINE_VERSION.as_str());
         assert!(!ENGINE_VERSION.is_empty());
     }
 
@@ -272,8 +270,8 @@ mod tests {
 
     #[test]
     fn new_project_engine_version_fills_requirements() {
-        let requirements = semver::VersionReq::parse(ENGINE_VERSION_SUPPORTED).unwrap();
-        let version      = semver::Version::parse(ENGINE_VERSION_FOR_NEW_PROJECTS).unwrap();
+        let requirements = semver::VersionReq::parse(&ENGINE_VERSION_SUPPORTED).unwrap();
+        let version = semver::Version::parse(&ENGINE_VERSION_FOR_NEW_PROJECTS).unwrap();
         assert!(requirements.matches(&version))
     }
 

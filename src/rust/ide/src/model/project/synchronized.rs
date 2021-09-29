@@ -174,7 +174,8 @@ impl UnsupportedEngineVersion {
         let engine_version = properties.engine_version.clone();
         let project_name   = properties.name.project.as_str().to_owned();
         move |root_cause| {
-            let requirements = semver::VersionReq::parse(controller::project::ENGINE_VERSION_SUPPORTED);
+            let requirements =
+                semver::VersionReq::parse(&controller::project::ENGINE_VERSION_SUPPORTED);
             match requirements {
                 Ok(requirements) if !requirements.matches(&engine_version) => {
                     let project_name = project_name.clone();
@@ -189,9 +190,14 @@ impl UnsupportedEngineVersion {
 impl Display for UnsupportedEngineVersion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let package_yaml_path = controller::project::package_yaml_path(&self.project_name);
-        let version_supported = controller::project::ENGINE_VERSION_FOR_NEW_PROJECTS;
-        write!(f, "Failed to open project: unsupported engine version. Please update \
-            engine_version in {} to {}.",package_yaml_path,version_supported)
+        let version_supported = &controller::project::ENGINE_VERSION_FOR_NEW_PROJECTS;
+        write!(
+            f,
+            "Failed to open project: unsupported engine version. Please update \
+            engine_version in {} to {}.",
+            package_yaml_path,
+            version_supported.as_str()
+        )
     }
 }
 

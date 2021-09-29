@@ -123,9 +123,15 @@ impl Initializer {
                 let project_name    = self.config.project_name.clone();
                 // TODO[ao]: we should think how to handle engine's versions in cloud.
                 //     https://github.com/enso-org/ide/issues/1195
-                let version    = semver::Version::parse(ENGINE_VERSION_FOR_NEW_PROJECTS)?;
-                let controller = controller::ide::Plain::from_ls_endpoints
-                    (namespace,project_name,version,json_endpoint,binary_endpoint).await?;
+                let version = semver::Version::parse(&ENGINE_VERSION_FOR_NEW_PROJECTS)?;
+                let controller = controller::ide::Plain::from_ls_endpoints(
+                    namespace,
+                    project_name,
+                    version,
+                    json_endpoint,
+                    binary_endpoint,
+                )
+                .await?;
                 Ok(Rc::new(controller))
             }
         }
