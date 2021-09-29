@@ -19,6 +19,15 @@ use parser::Parser;
 // === Constants ===
 // =================
 
+lazy_static! {
+    static ref ENGINE_VERSION: String = {
+        let global_config = include_str!("../../../../../config.json");
+        let json: serde_json::Value = serde_json::from_str(global_config).unwrap();
+        let engine_version = &json["engineVersion"];
+        engine_version.as_str().unwrap().to_string()
+    };
+}
+
 /// The label of compiling stdlib message process.
 pub const COMPILING_STDLIB_LABEL:&str = "Compiling standard library. It can take up to 1 minute.";
 
@@ -249,6 +258,11 @@ mod tests {
 
     use crate::executor::test_utils::TestWithLocalPoolExecutor;
 
+    #[test]
+    fn get_engine_version() {
+        println!("{}", ENGINE_VERSION.as_str());
+        assert!(!ENGINE_VERSION.is_empty());
+    }
 
     #[test]
     fn main_module_id_test() {
