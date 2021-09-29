@@ -4,6 +4,22 @@
 
 #### Visual Environment
 
+- [Fixed freezing after inactivity.][1776] When the IDE window was minimized or
+  covered by other windows or invisible for any other reason for a duration
+  around one minute or longer then it would often be frozen for some seconds on
+  return. Now it is possible to interact with the IDE instantly, no matter how
+  long it had been inactive.
+
+<br/>
+
+[1776]: https://github.com/enso-org/ide/pull/1776
+
+# Enso 2.0.0-alpha.17 (2021-09-23)
+
+<br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
+
+#### Visual Environment
+
 - [Correct handling of command-line flags.][1815] Command line arguments of the
   form `--backend=false` or `--backend false` are now handled as expected and
   turn off the "backend" option. The same fix has been applied to all other
@@ -16,6 +32,16 @@
 
 [1815]: https://github.com/enso-org/ide/pull/1815
 [1825]: https://github.com/enso-org/ide/pull/1825
+
+<br/>![New Features](/docs/assets/tags/new_features.svg)
+
+#### Enso Compiler
+
+- [Updated Enso engine to version 0.2.30][engine-0.2.30]. If you're interested
+  in the enhancements and fixes made to the Enso compiler, you can find their
+  release notes [here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
+
+[engine-0.2.30]: https://github.com/enso-org/enso/blob/main/RELEASES.md
 
 # Enso 2.0.0-alpha.16 (2021-09-16)
 
@@ -140,11 +166,9 @@ these updates be shipped in a stable release before the end of the year.
 
 #### Visual Environment
 
-- [Fixed a bug where edited node expression was sometimes altered.][1743]. When
+- [Fixed a bug where edited node expression was sometimes altered.][1743] When
   editing node expression, the changes were occasionally reverted, or the
-  grayed-out parameter names were added to the actual expression.
-
-<br/>
+  grayed-out parameter names were added to the actual expression. <br/>
 
 [1700]: https://github.com/enso-org/ide/pull/1700
 [1742]: https://github.com/enso-org/ide/pull/1742
