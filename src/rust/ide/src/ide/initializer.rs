@@ -123,7 +123,7 @@ impl Initializer {
                 let project_name    = self.config.project_name.clone();
                 // TODO[ao]: we should think how to handle engine's versions in cloud.
                 //     https://github.com/enso-org/ide/issues/1195
-                let version = CONFIG.engine_version_for_new_projects();
+                let version = CONFIG.engine_version.clone();
                 let controller = controller::ide::Plain::from_ls_endpoints(
                     namespace,
                     project_name,
@@ -196,7 +196,7 @@ impl WithProjectManager {
             self.logger,
             "Creating a new project named '{self.project_name}'."
         );
-        let version = Some(CONFIG.engine_version_for_new_projects().to_string());
+        let version = Some(CONFIG.engine_version.to_string());
         let ProjectName(name) = &self.project_name;
         let response          = self.project_manager.create_project(name,&version,&Install);
         Ok(response.await?.project_id)

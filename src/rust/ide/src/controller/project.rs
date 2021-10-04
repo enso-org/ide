@@ -15,30 +15,24 @@ use parser::Parser;
 use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
 
+
+
 /// Application config.
 #[derive(Hash, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GlobalConfig {
-    /// The minimum supported IDE version.
-    pub minimum_supported_version: String,
-
     /// The minimum edition that is guaranteed to work with the IDE.
     pub minimum_supported_edition: String,
 
     /// The engine version used in projects created in IDE.
-    pub engine_version: String,
+    pub engine_version: Version,
 }
 
 impl GlobalConfig {
     /// The requirements for Engine's version, in format understandable by
     /// [`semver::VersionReq::parse`].
     pub fn engine_version_supported(&self) -> VersionReq {
-        VersionReq::parse(format!("^{}", self.engine_version).as_str()).unwrap()
-    }
-
-    /// The engine version used in projects created in IDE.
-    pub fn engine_version_for_new_projects(&self) -> Version {
-        Version::parse(&self.engine_version).unwrap()
+        VersionReq::parse(format!("^{}", self.engine_version.to_string()).as_str()).unwrap()
     }
 }
 
@@ -290,8 +284,8 @@ mod tests {
     #[test]
     fn new_project_engine_version_fills_requirements() {
         let requirements = CONFIG.engine_version_supported();
-        let version = CONFIG.engine_version_for_new_projects();
-        assert!(requirements.matches(&version))
+        let version = &CONFIG.engine_version;
+        assert!(requirements.matches(version))
     }
 
     #[wasm_bindgen_test]

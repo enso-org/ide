@@ -99,7 +99,7 @@ impl ManagingProjectAPI for Handle {
             let mut candidates        = std::iter::once(without_suffix).chain(with_suffix);
             // The iterator have no end, so we can safely unwrap.
             let name = candidates.find(|c| !names.contains(c)).unwrap();
-            let version = Some(CONFIG.engine_version_for_new_projects().to_string());
+            let version = Some(CONFIG.engine_version.to_string());
             let action = MissingComponentAction::Install;
 
             let create_result = self

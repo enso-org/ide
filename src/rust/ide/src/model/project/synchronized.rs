@@ -189,7 +189,7 @@ impl UnsupportedEngineVersion {
 impl Display for UnsupportedEngineVersion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let package_yaml_path = controller::project::package_yaml_path(&self.project_name);
-        let version_supported = controller::project::CONFIG.engine_version_for_new_projects();
+        let version_supported = &controller::project::CONFIG.engine_version;
         write!(
             f,
             "Failed to open project: unsupported engine version. Please update \
