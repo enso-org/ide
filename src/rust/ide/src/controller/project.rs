@@ -176,6 +176,7 @@ impl Project {
         self.display_warning_on_unsupported_engine_version();
 
 
+
         Ok(InitializationResult {main_module_text,main_module_model,main_graph})
     }
 }
@@ -246,12 +247,8 @@ impl Project {
         let requirements = CONFIG.engine_version_supported();
         let version      = self.model.engine_version();
         if !requirements.matches(&version) {
-            let message = format!(
-                "Unsupported Engine version. Please update edition in {} \
-                to {}.",
-                package_yaml_path(&self.model.name()),
-                CONFIG.minimum_supported_edition,
-            );
+            let message = format!("Unsupported Engine version. Please update edition in {} \
+                to {}.",package_yaml_path(&self.model.name()),CONFIG.minimum_supported_edition);
             self.status_notifications.publish_event(message);
         }
     }

@@ -124,14 +124,8 @@ impl Initializer {
                 // TODO[ao]: we should think how to handle engine's versions in cloud.
                 //     https://github.com/enso-org/ide/issues/1195
                 let version = CONFIG.engine_version.clone();
-                let controller = controller::ide::Plain::from_ls_endpoints(
-                    namespace,
-                    project_name,
-                    version,
-                    json_endpoint,
-                    binary_endpoint,
-                )
-                .await?;
+                let controller = controller::ide::Plain::from_ls_endpoints
+                    (namespace,project_name,version,json_endpoint,binary_endpoint).await?;
                 Ok(Rc::new(controller))
             }
         }
@@ -192,11 +186,8 @@ impl WithProjectManager {
     /// Creates a new project and returns its id, so the newly connected project can be opened.
     pub async fn create_project(&self) -> FallibleResult<Uuid> {
         use project_manager::MissingComponentAction::Install;
-        info!(
-            self.logger,
-            "Creating a new project named '{self.project_name}'."
-        );
-        let version = Some(CONFIG.engine_version.to_string());
+        info!(self.logger,"Creating a new project named '{self.project_name}'.");
+        let version           = Some(CONFIG.engine_version.to_string());
         let ProjectName(name) = &self.project_name;
         let response          = self.project_manager.create_project(name,&version,&Install);
         Ok(response.await?.project_id)
