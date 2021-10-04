@@ -98,14 +98,11 @@ impl ManagingProjectAPI for Handle {
             let with_suffix           = (1..).map(|i| format!("{}_{}", UNNAMED_PROJECT_NAME, i));
             let mut candidates        = std::iter::once(without_suffix).chain(with_suffix);
             // The iterator have no end, so we can safely unwrap.
-            let name = candidates.find(|c| !names.contains(c)).unwrap();
+            let name    = candidates.find(|c| !names.contains(c)).unwrap();
             let version = Some(CONFIG.engine_version.to_string());
-            let action = MissingComponentAction::Install;
+            let action  = MissingComponentAction::Install;
 
-            let create_result = self
-                .project_manager
-                .create_project(&name, &version, &action)
-                .await?;
+            let create_result = self.project_manager.create_project(&name,&version,&action).await?;
             let new_project_id = create_result.project_id;
             let project_mgr    = self.project_manager.clone_ref();
             let new_project    = Project::new_opened(&self.logger,project_mgr,new_project_id);

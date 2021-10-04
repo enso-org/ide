@@ -170,9 +170,9 @@ pub struct UnsupportedEngineVersion {
 }
 
 impl UnsupportedEngineVersion {
-    fn error_wrapper(properties: &Properties) -> impl Fn(failure::Error) -> failure::Error {
+    fn error_wrapper(properties:&Properties) -> impl Fn(failure::Error) -> failure::Error {
         let engine_version = properties.engine_version.clone();
-        let project_name = properties.name.project.as_str().to_owned();
+        let project_name   = properties.name.project.as_str().to_owned();
         move |root_cause| {
             let requirements = controller::project::CONFIG.engine_version_supported();
             match requirements {
@@ -190,12 +190,8 @@ impl Display for UnsupportedEngineVersion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let package_yaml_path = controller::project::package_yaml_path(&self.project_name);
         let version_supported = &controller::project::CONFIG.engine_version;
-        write!(
-            f,
-            "Failed to open project: unsupported engine version. Please update \
-            engine_version in {} to {}.",
-            package_yaml_path, version_supported,
-        )
+        write!(f, "Failed to open project: unsupported engine version. Please update \
+            engine_version in {} to {}.",package_yaml_path,version_supported)
     }
 }
 

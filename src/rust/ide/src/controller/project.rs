@@ -49,7 +49,7 @@ lazy_static! {
 }
 
 /// The label of compiling stdlib message process.
-pub const COMPILING_STDLIB_LABEL: &str = "Compiling standard library. It can take up to 1 minute.";
+pub const COMPILING_STDLIB_LABEL:&str = "Compiling standard library. It can take up to 1 minute.";
 
 /// The name of the module initially opened in the project view.
 ///
@@ -244,7 +244,7 @@ impl Project {
 
     fn display_warning_on_unsupported_engine_version(&self) {
         let requirements = CONFIG.engine_version_supported();
-        let version = self.model.engine_version();
+        let version      = self.model.engine_version();
         if !requirements.matches(&version) {
             let message = format!(
                 "Unsupported Engine version. Please update edition in {} \
@@ -284,7 +284,7 @@ mod tests {
     #[test]
     fn new_project_engine_version_fills_requirements() {
         let requirements = CONFIG.engine_version_supported();
-        let version = &CONFIG.engine_version;
+        let version      = &CONFIG.engine_version;
         assert!(requirements.matches(version))
     }
 
