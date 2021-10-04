@@ -123,7 +123,7 @@ impl Initializer {
                 let project_name    = self.config.project_name.clone();
                 // TODO[ao]: we should think how to handle engine's versions in cloud.
                 //     https://github.com/enso-org/ide/issues/1195
-                let version = CONFIG.engine_version.clone();
+                let version    = CONFIG.engine_version.clone();
                 let controller = controller::ide::Plain::from_ls_endpoints
                     (namespace,project_name,version,json_endpoint,binary_endpoint).await?;
                 Ok(Rc::new(controller))
