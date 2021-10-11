@@ -14,7 +14,7 @@ import * as url from 'url'
 // @ts-ignore
 import * as paths from './../../../../../build/paths'
 // @ts-ignore
-import { engineVersion } from './../../../../../build/release'
+import { ENGINE_VERSION } from './../../../../../build/release'
 import { IncomingMessage } from 'http'
 const fs = fss.promises
 
@@ -170,11 +170,8 @@ async function download_project_manager(file_url: string, overwrite: boolean): P
 // ============
 
 async function main() {
-    // `version` MUST be synchronized with `ENGINE` constant in src/js/lib/client/tasks/signArchives.js.
-    // Also it is usually a good idea to synchronize it with `ENGINE_VERSION_FOR_NEW_PROJECTS` in
-    // src/rust/ide/src/controller/project.rs. See also https://github.com/enso-org/ide/issues/1359
     const buildInfo: BuildInfo = {
-        version: engineVersion(),
+        version: ENGINE_VERSION,
         target: (await get_build_config()).target,
     }
 

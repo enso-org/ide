@@ -15,6 +15,7 @@ const config = require('../config')
 
 const CHANGELOG_FILE_NAME = 'CHANGELOG.md'
 const CHANGELOG_FILE      = path.join(paths.root,CHANGELOG_FILE_NAME)
+const ENGINE_VERSION      = config.engineVersion
 
 
 
@@ -193,11 +194,6 @@ function currentVersion() {
     return changelog().currentVersion()
 }
 
-/// Get the engine version.
-function engineVersion() {
-    return config.engineVersion
-}
-
 /// Create the nightly version based on the last version in changelog.
 function nightlyVersion() {
     let changelog = new Changelog
@@ -219,4 +215,4 @@ function isoDate() {
 // === Exports ===
 // ===============
 
-module.exports = {Version,NextReleaseVersion,changelog,currentVersion,engineVersion,nightlyVersion,isoDate}
+module.exports = {ENGINE_VERSION,Version,NextReleaseVersion,changelog,currentVersion,nightlyVersion,isoDate}

@@ -19,6 +19,10 @@ const WASM_PACK_VERSION        = '0.9.1'
 const FLAG_NO_CHANGELOG_NEEDED = '[ci no changelog needed]'
 const FLAG_FORCE_CI_BUILD      = '[ci build]'
 
+const LINUX_RUNNER_GITHUB_HOSTED   = ["ubuntu-latest"]
+const MACOS_RUNNER_GITHUB_HOSTED   = ["macOS-latest"]
+const WINDOWS_RUNNER_GITHUB_HOSTED = ["windows-latest"]
+
 
 
 // ==================
@@ -30,52 +34,49 @@ let nightlyReleaseCondition = `github.event.name == 'schedule'`
 /// FROM these branches, the `github.ref` will be different.
 let releaseCondition = `${nightlyReleaseCondition} || github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'`
 
-/// Make a full build if one of the following conditions is true:
-/// 1. There was a `FLAG_FORCE_CI_BUILD` flag set in the commit message (see its docs for more info).
-/// 2. It was a pull request to the 'unstable', or the 'stable' branch.
-/// 3. It was a commit to the 'develop' branch.
-/// Otherwise, perform a simplified (faster) build only.
-let buildCondition = `contains(github.event.pull_request.body,'${FLAG_FORCE_CI_BUILD}') || contains(github.event.head_commit.message,'${FLAG_FORCE_CI_BUILD}') || github.ref == 'refs/heads/develop' || github.base_ref == 'unstable' || github.base_ref == 'stable' || (${releaseCondition})`
-
 
 
 // =============
 // === Utils ===
 // =============
 
+function cached_linux_runner(cache_label) {
+    return ["Linux", cache_label]
+}
+
 function read_rust_toolchain_version() {
     return fss.readFileSync(paths.root + "/rust-toolchain").toString().trim()
 }
 
-function job(platforms,name,steps,cfg) {
+function job(runners,name,steps,cfg) {
     if (!cfg) { cfg = {} }
     return {
         name: name,
-        "runs-on": "${{ matrix.os }}",
+        "runs-on": "${{ matrix.runner }}",
         strategy: {
             matrix: {
-              os: platforms
+                runner: runners
             },
             "fail-fast": false
         },
         // WARNING!
         // Do not update to `checkout@v2` because it is broken:
         // https://github.com/actions/checkout/issues/438
-        steps : list({uses:"actions/checkout@v1"}, ...steps),
+        steps : list({uses:"actions/checkout@v1", with: {clean:false}}, ...steps),
         ...cfg
     }
 }
 
-function job_on_all_platforms(...args) {
-    return job(["windows-latest", "macOS-latest", "ubuntu-latest"],...args)
-}
-
 function job_on_macos(...args) {
-    return job(["macOS-latest"],...args)
+    return job([MACOS_RUNNER_GITHUB_HOSTED],...args)
 }
 
-function job_on_ubuntu(...args) {
-    return job(["ubuntu-latest"],...args)
+function job_on_linux_cached(cache_label,...args) {
+    return job([cached_linux_runner(cache_label)],...args)
+}
+
+function job_on_linux(...args) {
+    return job([LINUX_RUNNER_GITHUB_HOSTED],[],...args)
 }
 
 function job_on_ubuntu_18_04(...args) {
@@ -186,33 +187,21 @@ const installJava = {
 // === Build, Lint, and Test ===
 // =============================
 
-function buildOn(target,sys,env) {
-    const name = `Build (${target})`
-    const run  = `node ./run dist --skip-version-validation --target ${target}`
-    const _if = `startsWith(matrix.os,'${sys}')`
-    if (env) {
-        return {name,env,run,if:_if}
-    } else {
-        return  {name,run,if:_if}
-    }
+let buildPackage = {
+    name: 'Build Package',
+    run: 'node ./run dist --no-rust --skip-version-validation',
+    shell: 'bash',
+    env: {
+        CSC_LINK: '${{secrets.APPLE_CODE_SIGNING_CERT}}',
+        CSC_KEY_PASSWORD: '${{secrets.APPLE_CODE_SIGNING_CERT_PASSWORD}}',
+        CSC_IDENTITY_AUTO_DISCOVERY: true,
+        APPLEID: '${{secrets.APPLE_NOTARIZATION_USERNAME}}',
+        APPLEIDPASS: '${{secrets.APPLE_NOTARIZATION_PASSWORD}}',
+        FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
+        WIN_CSC_LINK: '${{secrets.MICROSOFT_CODE_SIGNING_CERT}}',
+        WIN_CSC_KEY_PASSWORD: '${{secrets.MICROSOFT_CODE_SIGNING_CERT_PASSWORD}}',
+    },
 }
-
-buildOnMacOS = buildOn('macos', 'macos', {
-    CSC_LINK: '${{secrets.APPLE_CODE_SIGNING_CERT}}',
-    CSC_KEY_PASSWORD: '${{secrets.APPLE_CODE_SIGNING_CERT_PASSWORD}}',
-    CSC_IDENTITY_AUTO_DISCOVERY: true,
-    APPLEID: '${{secrets.APPLE_NOTARIZATION_USERNAME}}',
-    APPLEIDPASS: '${{secrets.APPLE_NOTARIZATION_PASSWORD}}',
-    FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
-})
-buildOnWindows = buildOn('win', 'windows', {
-    WIN_CSC_LINK: '${{secrets.MICROSOFT_CODE_SIGNING_CERT}}',
-    WIN_CSC_KEY_PASSWORD: '${{secrets.MICROSOFT_CODE_SIGNING_CERT_PASSWORD}}',
-    FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
-})
-buildOnLinux = buildOn('linux', 'ubuntu', {
-    FIREBASE_API_KEY: '${{secrets.FIREBASE_API_KEY}}',
-})
 
 let lintMarkdown = {
     name: "Lint Markdown sources",
@@ -239,44 +228,68 @@ let testWASM = {
     run: "node ./run test --no-native --skip-version-validation",
 }
 
+let buildWASM = {
+    name: "Build WASM",
+    run: "node ./run build --no-js --skip-version-validation",
+}
+
+
+let uploadContentLinux = {
+    name: `Upload Content Artifacts`,
+    uses: "actions/upload-artifact@v2",
+    with: {
+        name: 'content',
+        path: `dist/content`
+    },
+    if: `runner.os == 'Linux'`
+}
+
+let uploadWASM = {
+    name: `Upload IDE WASM artifacts`,
+    uses: "actions/upload-artifact@v2",
+    with: {
+        name: 'ide-wasm',
+        path: `dist/wasm`
+    }
+}
+
+let downloadWASM = {
+    name: `Download IDE WASM artifacts`,
+    uses: "actions/download-artifact@v2",
+    with: {
+        name: 'ide-wasm',
+        path: `dist/wasm`
+    }
+}
+
 
 
 // =================
 // === Artifacts ===
 // =================
 
-let uploadContentArtifacts = {
-    name: `Upload Content Artifacts`,
-    uses: "actions/upload-artifact@v1",
-    with: {
-       name: 'content',
-       path: `dist/content`
-    },
-    if: `startsWith(matrix.os,'macOS')`
-}
-
-function uploadBinArtifactsFor(name,sys,ext,os) {
+function uploadArtifactsFor(name,ext,os) {
     return {
         name: `Upload Artifacts (${name}, ${ext})`,
         uses: "actions/upload-artifact@v1",
         with: {
-           name: `enso-${os}-\${{fromJson(steps.changelog.outputs.content).version}}.${ext}`,
-           path: `dist/client/enso-${os}-\${{fromJson(steps.changelog.outputs.content).version}}.${ext}`
+            name: `enso-${os}-\${{fromJson(steps.changelog.outputs.content).version}}.${ext}`,
+            path: `dist/client/enso-${os}-\${{fromJson(steps.changelog.outputs.content).version}}.${ext}`
         },
-        if: `startsWith(matrix.os,'${sys}')`
+        if: `runner.os == '${name}'`,
     }
 }
 
-function uploadBinArtifactsWithChecksumsFor(name,sys,ext,os) {
+function uploadBinArtifactsWithChecksumsFor(name,ext,os) {
     return [
-        uploadBinArtifactsFor(name,sys,ext,os),
-        uploadBinArtifactsFor(name,sys,ext+'.sha256',os)
+        uploadArtifactsFor(name,ext,os),
+        uploadArtifactsFor(name,ext+'.sha256',os)
     ]
 }
 
-uploadBinArtifactsForMacOS   = uploadBinArtifactsWithChecksumsFor('macOS','macos','dmg','mac')
-uploadBinArtifactsForLinux   = uploadBinArtifactsWithChecksumsFor('Linux','ubuntu','AppImage','linux')
-uploadBinArtifactsForWindows = uploadBinArtifactsWithChecksumsFor('Windows','windows','exe','win')
+uploadBinArtifactsForMacOS   = uploadBinArtifactsWithChecksumsFor('macOS','dmg','mac')
+uploadBinArtifactsForLinux   = uploadBinArtifactsWithChecksumsFor('Linux','AppImage','linux')
+uploadBinArtifactsForWindows = uploadBinArtifactsWithChecksumsFor('Windows','exe','win')
 
 let downloadArtifacts = {
     name: "Download artifacts",
@@ -346,7 +359,6 @@ let assertChangelogWasUpdated = [
 ]
 
 
-
 // ======================
 // === GitHub Release ===
 // ======================
@@ -410,8 +422,8 @@ function uploadToCDN(...names) {
             name: `Upload '${name}' to CDN`,
             shell: "bash",
             run: `aws s3 cp ./artifacts/content/assets/${name} `
-               + `s3://ensocdn/ide/\${{fromJson(steps.changelog.outputs.content).version}}/${name} --profile `
-               + `s3-upload --acl public-read`
+                + `s3://ensocdn/ide/\${{fromJson(steps.changelog.outputs.content).version}}/${name} --profile `
+                + `s3-upload --acl public-read`
         }
         if (name.endsWith(".gz")) {
             action.run += " --content-encoding gzip";
@@ -489,6 +501,7 @@ let workflow = {
             branches: ['develop','unstable','stable'],
         },
         pull_request: {},
+        workflow_dispatch: {},
         schedule: [
             {
                 cron: '0 6 * * 2-6'
@@ -504,7 +517,7 @@ let workflow = {
             getCurrentReleaseChangelogInfo,
             assertions
         ]),
-        lint: job_on_macos("Linter", [
+        lint: job_on_linux_cached("linter", "Linter", [
             installNode,
             installTypeScript,
             installRust,
@@ -514,44 +527,47 @@ let workflow = {
             lintJavaScript,
             lintRust
         ]),
-        test: job_on_macos("Tests", [
+        test: job_on_linux_cached("test_native", "Native Tests", [
             installNode,
             installTypeScript,
             installRust,
             testNoWASM,
         ]),
-        "wasm-test": job_on_macos("WASM Tests", [
+        "wasm-test": job_on_linux_cached("test_wasm", "WASM Tests", [
             installNode,
             installTypeScript,
             installRust,
             installWasmPack,
             testWASM
         ]),
-        simple_build: job_on_macos("Simple Build (WASM size limit check)", [
+        build_wasm: job_on_linux_cached("build_wasm", "Build WASM", [
             installNode,
             installTypeScript,
             installRust,
             installWasmPack,
             installJava,
-            buildOnMacOS,
+            buildWASM,
+            uploadWASM,
         ]),
-        build: job_on_all_platforms("Build", [
-            setupNightly,
-            getCurrentReleaseChangelogInfo,
-            installNode,
-            installTypeScript,
-            installRust,
-            installWasmPack,
-            // Needed for package signing on macOS.
-            installJava,
-            buildOnMacOS,
-            buildOnWindows,
-            buildOnLinux,
-            uploadContentArtifacts,
-            uploadBinArtifactsForMacOS,
-            uploadBinArtifactsForWindows,
-            uploadBinArtifactsForLinux,
-        ],{if:buildCondition}),
+        package: job
+            ( [MACOS_RUNNER_GITHUB_HOSTED,WINDOWS_RUNNER_GITHUB_HOSTED,cached_linux_runner("package")]
+            , "Build package"
+            , [
+                setupNightly,
+                getCurrentReleaseChangelogInfo,
+                installNode,
+                installTypeScript,
+                installRust,
+                installWasmPack,
+                installJava,
+
+                downloadWASM,
+                buildPackage,
+                uploadContentLinux,
+                uploadBinArtifactsForMacOS,
+                uploadBinArtifactsForWindows,
+                uploadBinArtifactsForLinux,
+            ], { needs: ['build_wasm'] }),
         release_to_github: job_on_macos("GitHub Release", [
             downloadArtifacts,
             setupNightly,
@@ -563,7 +579,7 @@ let workflow = {
             uploadGitHubRelease,
             deleteOlderNightlies,
         ],{ if:releaseCondition,
-            needs:['version_assertions','lint','test','build']
+            needs:['version_assertions','lint','test','package']
         }),
         release_to_cdn: job_on_ubuntu_18_04("CDN Release", [
             downloadArtifacts,
@@ -572,7 +588,7 @@ let workflow = {
             prepareAwsSessionCDN,
             uploadToCDN('index.js.gz','style.css','ide.wasm','wasm_imports.js.gz'),
         ],{ if:releaseCondition,
-            needs:['version_assertions','lint','test','build']
+            needs:['version_assertions','lint','test','package']
         })
     }
 }
