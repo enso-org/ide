@@ -20,7 +20,7 @@ const FLAG_NO_CHANGELOG_NEEDED = '[ci no changelog needed]'
 const FLAG_FORCE_CI_BUILD      = '[ci build]'
 
 const LINUX_RUNNER_GITHUB_HOSTED   = ["ubuntu-latest"]
-const MACOS_RUNNER_GITHUB_HOSTED   = ["macOS-latest"]
+const MACOS_RUNNER_GITHUB_HOSTED   = ["macos-11"]
 const WINDOWS_RUNNER_GITHUB_HOSTED = ["windows-latest"]
 
 

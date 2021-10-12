@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         runner:
-          - - macOS-latest
+          - - macos-11
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
@@ -35,7 +35,7 @@ jobs:
     strategy:
       matrix:
         runner:
-          - - macOS-latest
+          - - macos-11
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
@@ -285,7 +285,7 @@ jobs:
     strategy:
       matrix:
         runner:
-          - - macOS-latest
+          - - macos-11
           - - windows-latest
           - - Linux
             - package
@@ -428,7 +428,7 @@ jobs:
     strategy:
       matrix:
         runner:
-          - - macOS-latest
+          - - macos-11
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
