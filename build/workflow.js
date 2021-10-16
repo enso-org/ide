@@ -25,6 +25,17 @@ const WINDOWS_RUNNER_GITHUB_HOSTED = ["windows-latest"]
 
 
 
+// ==================
+// === Conditions ===
+// ==================
+
+let nightlyReleaseCondition = `github.event.name == 'schedule'`
+/// Make a release only if it was a push to 'unstable' or 'stable'. Even if it was a pull request
+/// FROM these branches, the `github.ref` will be different.
+let releaseCondition = `${nightlyReleaseCondition} || github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'`
+
+
+
 // =============
 // === Utils ===
 // =============
@@ -313,6 +324,20 @@ let getListOfChangedFiles = {
 // === Changelog ===
 // =================
 
+let setupNightly = {
+    name: 'Setup nightly',
+    env: {
+        GITHUB_TOKEN: '${{ github.token }}',
+    },
+    run: `
+        node ./run nightly-gen --skip-version-validation
+        head CHANGELOG.md
+        cat config.json
+    `,
+    if: nightlyReleaseCondition,
+    shell: 'bash',
+}
+
 let getCurrentReleaseChangelogInfo = {
     name: 'Read changelog info',
     id: 'changelog',
@@ -356,12 +381,23 @@ let uploadGitHubRelease = [
             tag_name:   "v${{fromJson(steps.changelog.outputs.content).version}}",
             body:       "${{fromJson(steps.changelog.outputs.content).body}}",
             prerelease: "${{fromJson(steps.changelog.outputs.content).prerelease}}",
-            draft: true,
+            draft: `\${{ ! (${nightlyReleaseCondition}) }}`,
         },
     }
 ]
 
-
+let deleteOlderNightlies = {
+    uses: 'dev-drprasad/delete-older-releases@v0.2.0',
+    name: 'Remove Old Releases',
+    env: {
+        GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}',
+    },
+    with: {
+        keep_latest: '${{ env.NIGHTLIES_TO_KEEP }}',
+        delete_tag_pattern: 'nightly',
+        delete_tags: true,
+    },
+}
 
 // ===================
 // === CDN Release ===
@@ -432,7 +468,7 @@ let assertReleaseDoNotExists = [
     {
         name: 'Fail if release already exists',
         run: 'if [[ ${{ steps.checkCurrentReleaseTag.outputs.exists }} == true ]]; then exit 1; fi',
-        if: `github.base_ref == 'unstable' || github.base_ref == 'stable'`
+        if: `${nightlyReleaseCondition} || github.base_ref == 'unstable' || github.base_ref == 'stable'`
     }
 ]
 
@@ -455,24 +491,29 @@ let assertions = list(
 // === Workflow ===
 // ===============
 
-/// Make a release only if it was a push to 'unstable' or 'stable'. Even if it was a pull request
-/// FROM these branches, the `github.ref` will be different.
-let releaseCondition = `github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'`
-
 let workflow = {
     name : "GUI CI",
+    env: {
+        NIGHTLIES_TO_KEEP: 20,
+    },
     on: {
         push: {
-            branches: ['develop','unstable','stable']
+            branches: ['develop','unstable','stable'],
         },
         pull_request: {},
-        workflow_dispatch: {}
+        workflow_dispatch: {},
+        schedule: [
+            {
+                cron: '0 6 * * 2-6'
+            },
+        ]
     },
     jobs: {
         info: job_on_macos("Build Info", [
             dumpGitHubContext
         ]),
         version_assertions: job_on_macos("Assertions", [
+            setupNightly,
             getCurrentReleaseChangelogInfo,
             assertions
         ]),
@@ -512,6 +553,7 @@ let workflow = {
             ( [MACOS_RUNNER_GITHUB_HOSTED,WINDOWS_RUNNER_GITHUB_HOSTED,cached_linux_runner("package")]
             , "Build package"
             , [
+                setupNightly,
                 getCurrentReleaseChangelogInfo,
                 installNode,
                 installTypeScript,
@@ -528,17 +570,20 @@ let workflow = {
             ], { needs: ['build_wasm'] }),
         release_to_github: job_on_macos("GitHub Release", [
             downloadArtifacts,
+            setupNightly,
             getCurrentReleaseChangelogInfo,
             // This assertion is checked earlier, but we should double-check it in case several
             // CI jobs wil be run on this branch and a release was created when this workflow was
             // running.
             assertReleaseDoNotExists,
             uploadGitHubRelease,
+            deleteOlderNightlies,
         ],{ if:releaseCondition,
             needs:['version_assertions','lint','test','package']
         }),
         release_to_cdn: job_on_ubuntu_18_04("CDN Release", [
             downloadArtifacts,
+            setupNightly,
             getCurrentReleaseChangelogInfo,
             prepareAwsSessionCDN,
             uploadToCDN('index.js.gz','style.css','ide.wasm','wasm_imports.js.gz'),

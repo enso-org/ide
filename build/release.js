@@ -40,20 +40,21 @@ class Version {
         this.minor        = minor
         this.patch        = patch
         this.tag          = tag
-        this.tagVersion   = parseInt(tagVersion)
+        this.tagVersion   = tagVersion
         this.rcTag        = rcTag
         this.rcTagVersion = rcTagVersion
     }
 
     lt(that) {
-        if (this.major < that.major)                     { return true }
-        if (this.minor < that.minor)                     { return true }
-        if (this.patch < that.patch)                     { return true }
-        if (this.tag === 'alpha' && that.tag === 'beta') { return true }
-        if (this.tag === 'alpha' && that.tag === 'rc')   { return true }
-        if (this.tag === 'beta'  && that.tag === 'rc')   { return true }
-        if (this.tagVersion   < that.tagVersion)         { return true }
-        if (this.rcTagVersion < that.rcTagVersion)       { return true }
+        if (this.major < that.major)                          { return true }
+        if (this.minor < that.minor)                          { return true }
+        if (this.patch < that.patch)                          { return true }
+        if (this.tag === 'nightly' && that.tag !== 'nightly') { return false }
+        if (this.tag === 'alpha'   && that.tag === 'beta')    { return true }
+        if (this.tag === 'alpha'   && that.tag === 'rc')      { return true }
+        if (this.tag === 'beta'    && that.tag === 'rc')      { return true }
+        if (ltStrings(this.tagVersion, that.tagVersion))      { return true }
+        if (ltStrings(this.rcTagVersion, that.rcTagVersion))  { return true }
         return false
     }
 
@@ -73,7 +74,14 @@ class Version {
     }
 }
 
+/// Compare two versions lexicographically.
+function ltStrings(version1, version2) {
+    let maxLength = Math.max(version1.length, version2.length)
+    let v1 = version1.padStart(maxLength, ' ')
+    let v2 = version2.padStart(maxLength, ' ')
 
+    return v1 < v2
+}
 
 // ======================
 // === ChangelogEntry ===
@@ -148,7 +156,7 @@ function changelogEntries() {
             let version = new NextReleaseVersion
             entries.push(new ChangelogEntry(version,body))
         } else {
-            let headerReg  = /^ Enso (?<major>[0-9]+)\.(?<minor>[0-9]+)\.(?<patch>[0-9]+)(-(?<tag>alpha|beta|rc)\.(?<tagVersion>[0-9]+))?(.(?<rcTag>rc)\.(?<rcTagVersion>[0-9]+))? \((?<year>[0-9][0-9][0-9][0-9])-(?<month>[0-9][0-9])-(?<day>[0-9][0-9])\)/
+            let headerReg  = /^ Enso (?<major>[0-9]+)\.(?<minor>[0-9]+)\.(?<patch>[0-9]+)(-(?<tag>alpha|beta|nightly|rc)\.(?<tagVersion>[0-9-]+))?(.(?<rcTag>rc)\.(?<rcTagVersion>[0-9]+))? \((?<year>[0-9][0-9][0-9][0-9])-(?<month>[0-9][0-9])-(?<day>[0-9][0-9])\)/
             let match      = header.match(headerReg)
             if (!match) {
                 throw `Improper changelog entry header: '${header}'. See the 'CHANGELOG_TEMPLATE.md' for details.`
@@ -186,10 +194,25 @@ function currentVersion() {
     return changelog().currentVersion()
 }
 
+/// Create the nightly version based on the last version in changelog.
+function nightlyVersion() {
+    let changelog = new Changelog
+    let version = changelog.entries[0].version
+    if (version instanceof NextReleaseVersion) {
+        version = changelog.entries[1].version
+    }
 
+    return `${version.major}.${version.minor}.${version.patch}-nightly.${isoDate()}`
+}
+
+/// Get the current ISO date in format `YYYY-MM-DD`.
+function isoDate() {
+    let date = new Date()
+    return date.toISOString().split('T')[0]
+}
 
 // ===============
 // === Exports ===
 // ===============
 
-module.exports = {ENGINE_VERSION,Version,NextReleaseVersion,changelog,currentVersion}
+module.exports = {ENGINE_VERSION,Version,NextReleaseVersion,changelog,currentVersion,nightlyVersion,isoDate}

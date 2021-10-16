@@ -4,6 +4,7 @@ const fs            = require('fs').promises
 const fse           = require('fs-extra')
 const fss           = require('fs')
 const unzipper      = require('unzipper')
+const github        = require('./github')
 const glob          = require('glob')
 const ncp           = require('ncp').ncp
 const os            = require('os')
@@ -284,7 +285,7 @@ commands.watch.common   = async function(argv) {
     await cmd.with_cwd(paths.js.root, async () => {
         // Among other things, this will call the build script of the project-manager package. But
         // this is unnecessary because that script is already called by `build_project_manager`
-        // above. 
+        // above.
         return  commands.build.js(argv)
     })
 
@@ -328,6 +329,29 @@ commands.dist.js = async function() {
 }
 
 
+// === Nightly Gen ===
+commands['nightly-gen'] = command(`Generate Nightly CI build related files`)
+commands['nightly-gen'].rust = async function(argv) {
+    let nightlies = await github.fetchEngineNightlies()
+    let engineVersion  = nightlies[0].name
+    let nightlyPrefix = 'Enso Nightly '
+    if (engineVersion.startsWith(nightlyPrefix)) {
+        engineVersion = engineVersion.substring(nightlyPrefix.length)
+    }
+
+    let config = require('../config.json')
+    config.engineVersion = engineVersion
+
+    let nightlyVersion = release.nightlyVersion()
+    console.log(`engine version: ${engineVersion}`)
+    console.log(`IDE nightly version: ${nightlyVersion}`)
+
+    // Update config.json
+    fss.writeFileSync(paths.configJson, JSON.stringify(config))
+    // Update changelog
+    await cmd.run('sed', ["-i'.bak'", `'1s/.*/# Enso ${nightlyVersion} (${release.isoDate()})/'`, paths.changelog])
+}
+
 // === CI Gen ===
 
 /// The command is used by CI to generate the file `CURRENT_RELEASE_CHANGELOG.json`, which contains
@@ -339,7 +363,7 @@ commands['ci-gen'].rust = async function(argv) {
     let body       = entry.body
     let version    = entry.version.toString()
     let prerelease = entry.isPrerelease()
-    let obj        = {version,body,prerelease};
+    let obj        = {version,body,prerelease}
     let json       = JSON.stringify(obj)
     fss.writeFileSync(path.join(paths.root,'CURRENT_RELEASE_CHANGELOG.json'),json)
 }

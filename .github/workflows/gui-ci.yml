@@ -4,6 +4,8 @@
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 name: GUI CI
+env:
+  NIGHTLIES_TO_KEEP: 20
 'on':
   push:
     branches:
@@ -12,6 +14,8 @@ name: GUI CI
       - stable
   pull_request: {}
   workflow_dispatch: {}
+  schedule:
+    - cron: 0 6 * * 2-6
 jobs:
   info:
     name: Build Info
@@ -41,6 +45,17 @@ jobs:
       - uses: actions/checkout@v1
         with:
           clean: false
+      - name: Setup nightly
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |2-
+
+                  node ./run nightly-gen --skip-version-validation
+                  head CHANGELOG.md
+                  cat config.json
+              
+        if: github.event.name == 'schedule'
+        shell: bash
       - name: Read changelog info
         id: changelog
         run: |2-
@@ -66,7 +81,9 @@ jobs:
         run: >-
           if [[ ${{ steps.checkCurrentReleaseTag.outputs.exists }} == true ]];
           then exit 1; fi
-        if: github.base_ref == 'unstable' || github.base_ref == 'stable'
+        if: >-
+          github.event.name == 'schedule' || github.base_ref == 'unstable' ||
+          github.base_ref == 'stable'
       - name: Get list of changed files
         id: changed_files
         run: |2-
@@ -294,6 +311,17 @@ jobs:
       - uses: actions/checkout@v1
         with:
           clean: false
+      - name: Setup nightly
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |2-
+
+                  node ./run nightly-gen --skip-version-validation
+                  head CHANGELOG.md
+                  cat config.json
+              
+        if: github.event.name == 'schedule'
+        shell: bash
       - name: Read changelog info
         id: changelog
         run: |2-
@@ -438,6 +466,17 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           path: artifacts
+      - name: Setup nightly
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |2-
+
+                  node ./run nightly-gen --skip-version-validation
+                  head CHANGELOG.md
+                  cat config.json
+              
+        if: github.event.name == 'schedule'
+        shell: bash
       - name: Read changelog info
         id: changelog
         run: |2-
@@ -457,7 +496,9 @@ jobs:
         run: >-
           if [[ ${{ steps.checkCurrentReleaseTag.outputs.exists }} == true ]];
           then exit 1; fi
-        if: github.base_ref == 'unstable' || github.base_ref == 'stable'
+        if: >-
+          github.event.name == 'schedule' || github.base_ref == 'unstable' ||
+          github.base_ref == 'stable'
       - name: Install Prettier
         run: npm install --save-dev --save-exact prettier
       - name: Pretty print changelog.
@@ -472,8 +513,18 @@ jobs:
           tag_name: v${{fromJson(steps.changelog.outputs.content).version}}
           body: ${{fromJson(steps.changelog.outputs.content).body}}
           prerelease: ${{fromJson(steps.changelog.outputs.content).prerelease}}
-          draft: true
-    if: github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
+          draft: ${{ ! (github.event.name == 'schedule') }}
+      - uses: dev-drprasad/delete-older-releases@v0.2.0
+        name: Remove Old Releases
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          keep_latest: ${{ env.NIGHTLIES_TO_KEEP }}
+          delete_tag_pattern: nightly
+          delete_tags: true
+    if: >-
+      github.event.name == 'schedule' || github.ref == 'refs/heads/unstable' ||
+      github.ref == 'refs/heads/stable'
     needs:
       - version_assertions
       - lint
@@ -495,6 +546,17 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           path: artifacts
+      - name: Setup nightly
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |2-
+
+                  node ./run nightly-gen --skip-version-validation
+                  head CHANGELOG.md
+                  cat config.json
+              
+        if: github.event.name == 'schedule'
+        shell: bash
       - name: Read changelog info
         id: changelog
         run: |2-
@@ -539,7 +601,9 @@ jobs:
           aws s3 cp ./artifacts/content/assets/wasm_imports.js.gz
           s3://ensocdn/ide/${{fromJson(steps.changelog.outputs.content).version}}/wasm_imports.js.gz
           --profile s3-upload --acl public-read --content-encoding gzip
-    if: github.ref == 'refs/heads/unstable' || github.ref == 'refs/heads/stable'
+    if: >-
+      github.event.name == 'schedule' || github.ref == 'refs/heads/unstable' ||
+      github.ref == 'refs/heads/stable'
     needs:
       - version_assertions
       - lint
