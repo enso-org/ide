@@ -17,7 +17,6 @@ use ensogl_core::display::world::*;
 use ensogl_core::system::gpu;
 use ensogl_core::system::gpu::texture;
 
-
 // =============
 // === Glyph ===
 // =============

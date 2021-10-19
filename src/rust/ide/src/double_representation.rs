@@ -96,7 +96,7 @@ impl LineKind {
                     ExpressionPlain {
                         ast: ast.clone_ref(),
                     }
-                }
+                };
             }
         };
 
