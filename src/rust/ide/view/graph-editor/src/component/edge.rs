@@ -989,7 +989,7 @@ impl SemanticSplit {
     /// Shapes that are at the split location.
     fn split_shapes(&self) -> Vec<display::object::Id> {
         self.index_filtered_shapes(move |index| {
-            (index == self.split_index as i32)
+            index == self.split_index as i32
         })
     }
 }
