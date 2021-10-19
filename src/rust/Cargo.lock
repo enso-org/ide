@@ -1495,7 +1495,7 @@ dependencies = [
  "nalgebra 0.26.2",
  "parser",
  "regex",
- "semver",
+ "semver 1.0.4",
  "serde",
  "serde_json",
  "sha3",
@@ -1528,6 +1528,7 @@ dependencies = [
  "ide-view-graph-editor",
  "js-sys",
  "nalgebra 0.26.2",
+ "ordered-float 2.7.0",
  "parser",
  "serde",
  "serde_json",
@@ -1559,7 +1560,7 @@ dependencies = [
  "failure",
  "js-sys",
  "nalgebra 0.26.2",
- "ordered-float",
+ "ordered-float 1.1.1",
  "serde",
  "serde_json",
  "span-tree",
@@ -2236,6 +2237,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ordered-float"
+version = "2.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "039f02eb0f69271f26abe3202189275d7aa2258b903cb0281b5de710a2570ff3"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "parking_lot"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2771,7 +2781,7 @@ version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "138e3e0acb6c9fb258b19b67cb8abd63c00679d2851805ea151465464fe9030a"
 dependencies = [
- "semver",
+ "semver 0.9.0",
 ]
 
 [[package]]
@@ -2844,6 +2854,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d7eb9ef2c18661902cc47e535f9bc51b78acd254da71d375c2f6720d9a40403"
 dependencies = [
  "semver-parser",
+]
+
+[[package]]
+name = "semver"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "568a8e6258aa33c13358f81fd834adb854c6f7c9468520910a9b1e8fac068012"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

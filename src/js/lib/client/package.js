@@ -120,7 +120,10 @@ config.build = {
     },
     publish: [],
     afterAllArtifactBuild: 'tasks/computeHashes.js',
-    afterSign: "tasks/notarize.js",
+    afterPack: 'tasks/prepareToSign.js',
+    // Notarizing has been disabled due to reasons described in the relevant issue:
+    // https://github.com/enso-org/ide/issues/1839
+    // afterSign: "tasks/notarize.js",
 }
 
 module.exports = {config}

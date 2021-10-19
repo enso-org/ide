@@ -32,8 +32,7 @@ class ContentApi {
     private logger: MixpanelLogger
 
     initLogging(config: Config) {
-        assert(typeof config.no_data_gathering == 'boolean')
-        if (!config.no_data_gathering) {
+        if (config.data_gathering) {
             this.logger = new MixpanelLogger()
             if (ok(config.email)) {
                 this.logger.identify(config.email)
@@ -803,6 +802,7 @@ class Config {
     public project_manager: string
     public language_server_rpc: string
     public language_server_data: string
+    public namespace: string
     public platform: string
     public frame: boolean
     public theme: string
@@ -813,7 +813,7 @@ class Config {
     public wasm_glue_url: string
     public node_labels: boolean
     public crash_report_host: string
-    public no_data_gathering: boolean
+    public data_gathering: boolean
     public is_in_cloud: boolean
     public verbose: boolean
     public authentication_enabled: boolean
@@ -826,7 +826,7 @@ class Config {
         config.wasm_url = '/assets/ide.wasm'
         config.wasm_glue_url = '/assets/wasm_imports.js'
         config.crash_report_host = cfg.defaultLogServerHost
-        config.no_data_gathering = false
+        config.data_gathering = true
         config.is_in_cloud = false
         config.entry = null
         config.authentication_enabled = true
@@ -850,6 +850,7 @@ class Config {
         this.language_server_data = ok(other.language_server_data)
             ? tryAsString(other.language_server_data)
             : this.language_server_data
+        this.namespace = ok(other.namespace) ? tryAsString(other.namespace) : this.namespace
         this.platform = ok(other.platform) ? tryAsString(other.platform) : this.platform
         this.frame = ok(other.frame) ? tryAsBoolean(other.frame) : this.frame
         this.theme = ok(other.theme) ? tryAsString(other.theme) : this.theme
@@ -868,13 +869,28 @@ class Config {
         this.crash_report_host = ok(other.crash_report_host)
             ? tryAsString(other.crash_report_host)
             : this.crash_report_host
-        this.no_data_gathering = ok(other.no_data_gathering)
-            ? tryAsBoolean(other.no_data_gathering)
-            : this.no_data_gathering
+        this.data_gathering = parseBoolean(other.data_gathering) ?? this.data_gathering
         this.is_in_cloud = ok(other.is_in_cloud)
             ? tryAsBoolean(other.is_in_cloud)
             : this.is_in_cloud
         this.verbose = ok(other.verbose) ? tryAsBoolean(other.verbose) : this.verbose
+        this.authentication_enabled = ok(other.authentication_enabled)
+            ? tryAsBoolean(other.authentication_enabled)
+            : this.authentication_enabled
+        this.email = ok(other.email) ? tryAsString(other.email) : this.email
+        this.application_config_url = ok(other.application_config_url)
+            ? tryAsString(other.application_config_url)
+            : this.application_config_url
+    }
+}
+
+function parseBoolean(value:any): boolean | null {
+    if (value === 'true' || value === true) {
+        return true
+    } else if (value === 'false' || value === false) {
+        return false
+    } else {
+        return null
     }
 }
 
