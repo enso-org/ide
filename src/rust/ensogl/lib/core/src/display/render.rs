@@ -5,8 +5,6 @@ pub mod pass;
 pub mod passes;
 pub mod pipeline;
 
-
-
 /// Common types.
 pub mod types {
     use super::*;

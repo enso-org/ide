@@ -1,57 +1,52 @@
 //! Definition of the node input port component.
 
-
 use crate::prelude::*;
 
 use enso_frp as frp;
 use enso_frp;
 use ensogl::application::Application;
 use ensogl::data::color;
+use ensogl::display;
 use ensogl::display::scene::Scene;
 use ensogl::display::shape::*;
 use ensogl::display::traits::*;
-use ensogl::Animation;
-use ensogl::display;
 use ensogl::gui::cursor;
+use ensogl::Animation;
 use ensogl_text as text;
 use ensogl_text::buffer::data::unit::traits::*;
 use ensogl_theme as theme;
 use text::Text;
 
-use crate::Type;
 use crate::component::type_coloring;
+use crate::node;
 use crate::node::input::port;
 use crate::node::profiling;
-use crate::node;
 use crate::view;
-
-
+use crate::Type;
 
 // =================
 // === Constants ===
 // =================
 
-pub const TEXT_OFFSET : f32 = 10.0;
+pub const TEXT_OFFSET: f32 = 10.0;
 
 /// Width of a single glyph
-pub const GLYPH_WIDTH : f32 = 7.224_609_4; // FIXME hardcoded literal
+pub const GLYPH_WIDTH: f32 = 7.224_609_4; // FIXME hardcoded literal
 
 /// Enable visual port debug mode and additional port creation logging.
-pub const DEBUG : bool = false;
+pub const DEBUG: bool = false;
 
 /// Visual port offset for debugging purposes. Applied hierarchically. Applied only when `DEBUG` is
 /// set to `true`.
-pub const DEBUG_PORT_OFFSET : f32 = 5.0;
+pub const DEBUG_PORT_OFFSET: f32 = 5.0;
 
 /// Skip creating ports on all operations. For example, in expression `foo bar`, `foo` is considered
 /// an operation.
-const SKIP_OPERATIONS : bool = true;
-const PORT_PADDING_X  : f32  = 4.0;
+const SKIP_OPERATIONS: bool = true;
+const PORT_PADDING_X: f32 = 4.0;
 
 /// Text size used for input area text.
-pub const TEXT_SIZE : f32 = 12.0;
-
-
+pub const TEXT_SIZE: f32 = 12.0;
 
 // ================
 // === SpanTree ===
@@ -64,23 +59,20 @@ pub use span_tree::Crumbs;
 pub type SpanTree = span_tree::SpanTree<port::Model>;
 
 /// Mutable reference to port inside of a `SpanTree`.
-pub type PortRefMut<'a> = span_tree::node::RefMut<'a,port::Model>;
-
-
-
+pub type PortRefMut<'a> = span_tree::node::RefMut<'a, port::Model>;
 
 // ==================
 // === Expression ===
 // ==================
 
 /// Specialized version of `node::Expression`, containing the port information.
-#[derive(Clone,Default)]
+#[derive(Clone, Default)]
 pub struct Expression {
     /// Visual code representation. It can contain names of missing arguments, and thus can differ
     /// from `code`.
-    pub viz_code  : String,
-    pub code      : String,
-    pub span_tree : SpanTree,
+    pub viz_code: String,
+    pub code: String,
+    pub span_tree: SpanTree,
 }
 
 impl Deref for Expression {
@@ -97,70 +89,78 @@ impl DerefMut for Expression {
 }
 
 impl Debug for Expression {
-    fn fmt(&self, f:&mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f,"Expression({})",self.code)
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Expression({})", self.code)
     }
 }
-
 
 // === Conversions ===
 
 /// Helper struct used for `Expression` conversions.
-#[derive(Debug,Default)]
+#[derive(Debug, Default)]
 struct ExprConversion {
-    prev_tok_local_index : usize,
+    prev_tok_local_index: usize,
     /// Index of the last traverse parent node in the `SpanTree`.
-    last_parent_tok_index : usize,
+    last_parent_tok_index: usize,
 }
 
 impl ExprConversion {
-    fn new(last_parent_tok_index:usize) -> Self {
+    fn new(last_parent_tok_index: usize) -> Self {
         let prev_tok_local_index = default();
-        Self {prev_tok_local_index,last_parent_tok_index}
+        Self {
+            prev_tok_local_index,
+            last_parent_tok_index,
+        }
     }
 }
 
 impl From<node::Expression> for Expression {
     /// Traverses the `SpanTree` and constructs `viz_code` based on `code` and the `SpanTree`
     /// structure. It also computes `port::Model` values in the `viz_code` representation.
-    fn from(t:node::Expression) -> Self {
+    fn from(t: node::Expression) -> Self {
         // The length difference between `code` and `viz_code` so far.
-        let mut shift     = 0;
-        let mut span_tree = t.input_span_tree.map(|_|port::Model::default());
-        let mut viz_code  = String::new();
-        let code          = t.code;
-        span_tree.root_ref_mut().dfs_with_layer_data(ExprConversion::default(),|node,info| {
-            let is_expected_arg       = node.is_expected_argument();
-            let span                  = node.span();
-            let mut size              = span.size.value;
-            let mut index             = span.index.value;
-            let offset_from_prev_tok  = node.offset.value - info.prev_tok_local_index;
-            info.prev_tok_local_index = node.offset.value + size;
-            viz_code += &" ".repeat(offset_from_prev_tok);
-            if node.children.is_empty() {
-                viz_code += &code[index..index+size];
-            }
-            index += shift;
-            if is_expected_arg {
-                if let Some(name) = node.name() {
-                    size      = name.len();
-                    index    += 1;
-                    shift    += 1 + size;
-                    viz_code += " ";
-                    viz_code += name;
+        let mut shift = 0;
+        let mut span_tree = t.input_span_tree.map(|_| port::Model::default());
+        let mut viz_code = String::new();
+        let code = t.code;
+        span_tree.root_ref_mut().dfs_with_layer_data(
+            ExprConversion::default(),
+            |node, info| {
+                let is_expected_arg = node.is_expected_argument();
+                let span = node.span();
+                let mut size = span.size.value;
+                let mut index = span.index.value;
+                let offset_from_prev_tok =
+                    node.offset.value - info.prev_tok_local_index;
+                info.prev_tok_local_index = node.offset.value + size;
+                viz_code += &" ".repeat(offset_from_prev_tok);
+                if node.children.is_empty() {
+                    viz_code += &code[index..index + size];
                 }
-            }
-            let port = node.payload_mut();
-            port.local_index = index - info.last_parent_tok_index;
-            port.index       = index;
-            port.length      = size;
-            ExprConversion::new(index)
-        });
-        Self {viz_code,code,span_tree}
+                index += shift;
+                if is_expected_arg {
+                    if let Some(name) = node.name() {
+                        size = name.len();
+                        index += 1;
+                        shift += 1 + size;
+                        viz_code += " ";
+                        viz_code += name;
+                    }
+                }
+                let port = node.payload_mut();
+                port.local_index = index - info.last_parent_tok_index;
+                port.index = index;
+                port.length = size;
+                ExprConversion::new(index)
+            },
+        );
+        Self {
+            viz_code,
+            code,
+            span_tree,
+        }
     }
 }
-
-
 
 // =============
 // === Model ===
@@ -219,36 +219,49 @@ ensogl::define_endpoints! {
 /// Internal model of the port area.
 #[derive(Debug)]
 pub struct Model {
-    logger         : Logger,
-    app            : Application,
-    display_object : display::object::Instance,
-    ports          : display::object::Instance,
-    header         : display::object::Instance,
-    label          : text::Area,
-    expression     : RefCell<Expression>,
-    id_crumbs_map  : RefCell<HashMap<ast::Id,Crumbs>>,
-    styles         : StyleWatch,
-    styles_frp     : StyleWatchFrp,
+    logger: Logger,
+    app: Application,
+    display_object: display::object::Instance,
+    ports: display::object::Instance,
+    header: display::object::Instance,
+    label: text::Area,
+    expression: RefCell<Expression>,
+    id_crumbs_map: RefCell<HashMap<ast::Id, Crumbs>>,
+    styles: StyleWatch,
+    styles_frp: StyleWatchFrp,
 }
 
 impl Model {
     /// Constructor.
-    pub fn new(logger:impl AnyLogger, app:&Application) -> Self {
-        let logger         = Logger::new_sub(&logger,"input_ports");
+    pub fn new(logger: impl AnyLogger, app: &Application) -> Self {
+        let logger = Logger::new_sub(&logger, "input_ports");
         let display_object = display::object::Instance::new(&logger);
-        let ports          = display::object::Instance::new(&Logger::new_sub(&logger,"ports"));
-        let header         = display::object::Instance::new(&Logger::new_sub(&logger,"header"));
-        let app            = app.clone_ref();
-        let label          = app.new_view::<text::Area>();
-        let id_crumbs_map  = default();
-        let expression     = default();
-        let styles         = StyleWatch::new(&app.display.scene().style_sheet);
-        let styles_frp     = StyleWatchFrp::new(&app.display.scene().style_sheet);
+        let ports =
+            display::object::Instance::new(&Logger::new_sub(&logger, "ports"));
+        let header =
+            display::object::Instance::new(&Logger::new_sub(&logger, "header"));
+        let app = app.clone_ref();
+        let label = app.new_view::<text::Area>();
+        let id_crumbs_map = default();
+        let expression = default();
+        let styles = StyleWatch::new(&app.display.scene().style_sheet);
+        let styles_frp = StyleWatchFrp::new(&app.display.scene().style_sheet);
         display_object.add_child(&label);
         display_object.add_child(&ports);
         ports.add_child(&header);
-        Self {logger,app,display_object,ports,header,label,expression,id_crumbs_map,styles
-             ,styles_frp}.init()
+        Self {
+            logger,
+            app,
+            display_object,
+            ports,
+            header,
+            label,
+            expression,
+            id_crumbs_map,
+            styles,
+            styles_frp,
+        }
+        .init()
     }
 
     fn init(self) -> Self {
@@ -266,10 +279,10 @@ impl Model {
         self.label.set_default_text_size(text::Size(TEXT_SIZE));
         self.label.remove_all_cursors();
 
-        let origin = Vector2(TEXT_OFFSET,0.0);
+        let origin = Vector2(TEXT_OFFSET, 0.0);
         self.ports.set_position_xy(origin);
         self.label.set_position_xy(origin);
-        self.label.mod_position(|t| t.y += TEXT_SIZE/2.0);
+        self.label.mod_position(|t| t.y += TEXT_SIZE / 2.0);
 
         self
     }
@@ -279,30 +292,40 @@ impl Model {
     }
 
     /// Run the provided function on the target port if exists.
-    fn with_port_mut(&self, crumbs:&Crumbs, f:impl FnOnce(PortRefMut)) {
+    fn with_port_mut(&self, crumbs: &Crumbs, f: impl FnOnce(PortRefMut)) {
         let mut expression = self.expression.borrow_mut();
-        if let Ok(node) = expression.span_tree.root_ref_mut().get_descendant(crumbs) { f(node) }
+        if let Ok(node) =
+            expression.span_tree.root_ref_mut().get_descendant(crumbs)
+        {
+            f(node)
+        }
     }
 
     /// Traverse all `SpanTree` leaves of the given port and emit hover style to set their colors.
-    fn set_port_hover(&self, target:&Switch<Crumbs>) {
-        self.with_port_mut(&target.value,|t|t.set_hover(target.is_on()))
+    fn set_port_hover(&self, target: &Switch<Crumbs>) {
+        self.with_port_mut(&target.value, |t| t.set_hover(target.is_on()))
     }
 
     /// Update expression type for the particular `ast::Id`.
-    fn set_expression_usage_type(&self, crumbs:&Crumbs, tp:&Option<Type>) {
-        if let Ok(port) = self.expression.borrow().span_tree.root_ref().get_descendant(crumbs) {
+    fn set_expression_usage_type(&self, crumbs: &Crumbs, tp: &Option<Type>) {
+        if let Ok(port) = self
+            .expression
+            .borrow()
+            .span_tree
+            .root_ref()
+            .get_descendant(crumbs)
+        {
             port.set_usage_type(tp)
         }
     }
 }
 
-fn select_color(styles:&StyleWatch, tp:Option<&Type>) -> color::Lcha {
-    let opt_color = tp.as_ref().map(|tp| type_coloring::compute(tp,styles));
-    opt_color.unwrap_or_else(||styles.get_color(theme::code::types::any::selection).into())
+fn select_color(styles: &StyleWatch, tp: Option<&Type>) -> color::Lcha {
+    let opt_color = tp.as_ref().map(|tp| type_coloring::compute(tp, styles));
+    opt_color.unwrap_or_else(|| {
+        styles.get_color(theme::code::types::any::selection).into()
+    })
 }
-
-
 
 // ============
 // === Area ===
@@ -313,10 +336,10 @@ fn select_color(styles:&StyleWatch, tp:Option<&Type>) -> color::Lcha {
 /// ## Origin
 /// Please note that the origin of the node is on its left side, centered vertically. To learn more
 /// about this design decision, please read the docs for the [`node::Node`].
-#[derive(Clone,CloneRef,Debug)]
+#[derive(Clone, CloneRef, Debug)]
 pub struct Area {
-    pub frp : Frp,
-    model   : Rc<Model>,
+    pub frp: Frp,
+    model: Rc<Model>,
 }
 
 impl Deref for Area {
@@ -327,10 +350,10 @@ impl Deref for Area {
 }
 
 impl Area {
-    pub fn new(logger:impl AnyLogger, app:&Application) -> Self {
-        let model           = Rc::new(Model::new(logger,app));
-        let frp             = Frp::new();
-        let network         = &frp.network;
+    pub fn new(logger: impl AnyLogger, app: &Application) -> Self {
+        let model = Rc::new(Model::new(logger, app));
+        let frp = Frp::new();
+        let network = &frp.network;
         let selection_color = Animation::new(network);
 
         frp::extend! { network
@@ -427,30 +450,33 @@ impl Area {
             init_colors.emit(());
         }
 
-        Self {frp,model}
+        Self { frp, model }
     }
 
-    pub fn port_offset(&self, crumbs:&[Crumb]) -> Option<Vector2<f32>> {
+    pub fn port_offset(&self, crumbs: &[Crumb]) -> Option<Vector2<f32>> {
         let expr = self.model.expression.borrow();
         expr.root_ref().get_descendant(crumbs).ok().map(|node| {
-            let unit  = GLYPH_WIDTH;
+            let unit = GLYPH_WIDTH;
             let width = unit * node.payload.length as f32;
-            let x     = width/2.0 + unit * node.payload.index as f32;
-            Vector2::new(TEXT_OFFSET + x,0.0)
+            let x = width / 2.0 + unit * node.payload.index as f32;
+            Vector2::new(TEXT_OFFSET + x, 0.0)
         })
     }
 
-    pub fn port_type(&self, crumbs:&Crumbs) -> Option<Type> {
+    pub fn port_type(&self, crumbs: &Crumbs) -> Option<Type> {
         let expression = self.model.expression.borrow();
-        expression.span_tree.root_ref().get_descendant(crumbs).ok().and_then(|t|t.tp.value())
+        expression
+            .span_tree
+            .root_ref()
+            .get_descendant(crumbs)
+            .ok()
+            .and_then(|t| t.tp.value())
     }
 
-    pub fn get_crumbs_by_id(&self, id:ast::Id) -> Option<Crumbs> {
+    pub fn get_crumbs_by_id(&self, id: ast::Id) -> Option<Crumbs> {
         self.model.id_crumbs_map.borrow().get(&id).cloned()
     }
 }
-
-
 
 // ==========================
 // === Expression Setting ===
@@ -461,61 +487,67 @@ impl Area {
 /// expression `img.blur (foo (bar baz))`, we've got several layers, like the whole expression,
 /// `img.blur`, `foo (bar baz)`, or `(bar baz)`. The layer builder keeps information passed from the
 /// parent layer when building the nested one.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 struct PortLayerBuilder {
-    parent_frp : Option<port::FrpEndpoints>,
+    parent_frp: Option<port::FrpEndpoints>,
     /// Parent port display object.
-    parent : display::object::Instance,
+    parent: display::object::Instance,
     /// Information whether the parent port was a parensed expression.
-    parent_parensed : bool,
+    parent_parensed: bool,
     /// The number of glyphs the expression should be shifted. For example, consider `(foo bar)`,
     /// where expression `foo bar` does not get its own port, and thus a 1 glyph shift should be
     /// applied when considering its children.
-    shift : usize,
+    shift: usize,
     /// The depth at which the current expression is, where root is at depth 0.
-    depth : usize,
+    depth: usize,
 }
 
 impl PortLayerBuilder {
     /// Constructor.
-    fn new
-    ( parent          : impl display::Object
-    , parent_frp      : Option<port::FrpEndpoints>
-    , parent_parensed : bool
-    , shift           : usize
-    , depth           : usize
+    fn new(
+        parent: impl display::Object,
+        parent_frp: Option<port::FrpEndpoints>,
+        parent_parensed: bool,
+        shift: usize,
+        depth: usize,
     ) -> Self {
         let parent = parent.display_object().clone_ref();
-        Self {parent_frp,parent,parent_parensed,shift,depth}
+        Self {
+            parent_frp,
+            parent,
+            parent_parensed,
+            shift,
+            depth,
+        }
     }
 
-    fn empty(parent:impl display::Object) -> Self {
-        Self::new(parent,default(),default(),default(),default())
+    fn empty(parent: impl display::Object) -> Self {
+        Self::new(parent, default(), default(), default(), default())
     }
 
     /// Create a nested builder with increased depth and updated `parent_frp`.
-    fn nested
-    ( &self
-      , parent          : display::object::Instance
-      , new_parent_frp  : Option<port::FrpEndpoints>
-      , parent_parensed : bool
-      , shift           : usize
+    fn nested(
+        &self,
+        parent: display::object::Instance,
+        new_parent_frp: Option<port::FrpEndpoints>,
+        parent_parensed: bool,
+        shift: usize,
     ) -> Self {
-        let depth      = self.depth + 1;
-        let parent_frp = new_parent_frp.or_else(||self.parent_frp.clone());
-        Self::new(parent,parent_frp,parent_parensed,shift,depth)
+        let depth = self.depth + 1;
+        let parent_frp = new_parent_frp.or_else(|| self.parent_frp.clone());
+        Self::new(parent, parent_frp, parent_parensed, shift, depth)
     }
 }
 
 impl Area {
-    fn set_label_on_new_expression(&self, expression:&Expression) {
+    fn set_label_on_new_expression(&self, expression: &Expression) {
         self.model.label.set_content(expression.viz_code.clone());
     }
 
-    fn build_port_shapes_on_new_expression(&self, expression:&mut Expression) {
-        let mut is_header     = true;
+    fn build_port_shapes_on_new_expression(&self, expression: &mut Expression) {
+        let mut is_header = true;
         let mut id_crumbs_map = HashMap::new();
-        let builder           = PortLayerBuilder::empty(&self.model.ports);
+        let builder = PortLayerBuilder::empty(&self.model.ports);
         expression.root_ref_mut().dfs_with_layer_data(builder,|mut node,builder| {
             let is_parensed = node.is_parensed();
             let skip_opr    = if SKIP_OPERATIONS {
@@ -676,10 +708,10 @@ impl Area {
     /// Initializes FRP network for every port. Please note that the networks are connected
     /// hierarchically (children get events from parents), so it is easier to init all networks
     /// this way, rather than delegate it to every port.
-    fn init_port_frp_on_new_expression(&self, expression:&mut Expression) {
-        let model          = &self.model;
+    fn init_port_frp_on_new_expression(&self, expression: &mut Expression) {
+        let model = &self.model;
 
-        let parent_tp : Option<frp::Stream<Option<Type>>> = None;
+        let parent_tp: Option<frp::Stream<Option<Type>>> = None;
         expression.root_ref_mut().dfs_with_layer_data(parent_tp,|node,parent_tp| {
             let frp          = &node.frp;
             let port_network = &frp.network;
@@ -828,17 +860,23 @@ impl Area {
     /// For example, firing the `port::set_definition_type` will fire `on_port_type_change`, which
     /// may require some edges to re-color, which consequently will require to checking the current
     /// expression types.
-    fn init_new_expression(&self, expression:Expression) {
+    fn init_new_expression(&self, expression: Expression) {
         *self.model.expression.borrow_mut() = expression;
         let expression = self.model.expression.borrow();
-        expression.root_ref().dfs_with_layer_data((),|node,_| {
-            node.frp.set_definition_type(node.tp().cloned().map(|t|t.into()));
+        expression.root_ref().dfs_with_layer_data((), |node, _| {
+            node.frp
+                .set_definition_type(node.tp().cloned().map(|t| t.into()));
         });
     }
 
-    pub(crate) fn set_expression(&self, new_expression:impl Into<node::Expression>) {
+    pub(crate) fn set_expression(
+        &self,
+        new_expression: impl Into<node::Expression>,
+    ) {
         let mut new_expression = Expression::from(new_expression.into());
-        if DEBUG { DEBUG!("\n\n=====================\nSET EXPR: " new_expression.code) }
+        if DEBUG {
+            DEBUG!("\n\n=====================\nSET EXPR: " new_expression.code)
+        }
         self.set_label_on_new_expression(&new_expression);
         self.build_port_shapes_on_new_expression(&mut new_expression);
         self.init_port_frp_on_new_expression(&mut new_expression);

@@ -4,7 +4,6 @@
 pub mod compound;
 pub mod primitive;
 
-
 // =================
 // === Reexports ===
 // =================
@@ -12,7 +11,7 @@ pub mod primitive;
 /// Common types.
 pub mod types {
     use super::*;
-    pub use primitive::types::*;
     pub use compound::types::*;
+    pub use primitive::types::*;
 }
 pub use types::*;

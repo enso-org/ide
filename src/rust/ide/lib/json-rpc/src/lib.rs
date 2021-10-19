@@ -11,7 +11,6 @@
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 
-
 pub mod api;
 pub mod error;
 pub mod handler;
@@ -30,12 +29,13 @@ pub use handler::Handler;
 pub use transport::Transport;
 pub use transport::TransportEvent;
 
-#[cfg(test)] pub use utils::test::traits::*;
+#[cfg(test)]
+pub use utils::test::traits::*;
 
 #[allow(missing_docs)]
 pub mod constants {
     use std::time::Duration;
 
     /// The default timeout for all responses.
-    pub const TIMEOUT:Duration = Duration::from_secs(10);
+    pub const TIMEOUT: Duration = Duration::from_secs(10);
 }

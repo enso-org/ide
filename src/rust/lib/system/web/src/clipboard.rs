@@ -5,15 +5,11 @@ use crate::prelude::*;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::prelude::Closure;
 
-
-
 // =============
 // === Types ===
 // =============
 
 type ReadTextClosure = Closure<dyn Fn(String)>;
-
-
 
 // ===================
 // === JS Bindings ===
@@ -22,10 +18,10 @@ type ReadTextClosure = Closure<dyn Fn(String)>;
 #[wasm_bindgen(module = "/js/clipboard.js")]
 extern "C" {
     #[allow(unsafe_code)]
-    fn writeText(text:String);
+    fn writeText(text: String);
 
     #[allow(unsafe_code)]
-    fn readText(closure:&ReadTextClosure);
+    fn readText(closure: &ReadTextClosure);
 }
 
 /// Write the provided text to the clipboard. Please note that:
@@ -44,7 +40,7 @@ extern "C" {
 /// function.
 ///
 /// To learn more, see this [StackOverflow question](https://stackoverflow.com/questions/400212/how-do-i-copy-to-the-clipboard-in-javascript).
-pub fn write_text(text:impl Into<String>) {
+pub fn write_text(text: impl Into<String>) {
     let text = text.into();
     writeText(text)
 }
@@ -66,10 +62,10 @@ pub fn write_text(text:impl Into<String>) {
 /// will work correctly only when called as a direct action to the `cmd + v` shortcut.
 ///
 /// To learn more, see this [StackOverflow question](https://stackoverflow.com/questions/400212/how-do-i-copy-to-the-clipboard-in-javascript).
-pub fn read_text(callback:impl Fn(String)+'static) {
-    let handler : Rc<RefCell<Option<ReadTextClosure>>> = default();
+pub fn read_text(callback: impl Fn(String) + 'static) {
+    let handler: Rc<RefCell<Option<ReadTextClosure>>> = default();
     let handler_clone = handler.clone_ref();
-    let closure       = Closure::wrap(Box::new(move |result| {
+    let closure = Closure::wrap(Box::new(move |result| {
         *handler_clone.borrow_mut() = None;
         callback(result);
     }) as Box<dyn Fn(String)>);

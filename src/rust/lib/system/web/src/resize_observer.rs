@@ -4,15 +4,11 @@ use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsValue;
 
-
-
 // =============
 // === Types ===
 // =============
 
-pub type Listener = Closure<dyn FnMut(f32,f32)>;
-
-
+pub type Listener = Closure<dyn FnMut(f32, f32)>;
 
 // ===================
 // === JS Bindings ===
@@ -27,8 +23,6 @@ extern "C" {
     fn resize_unobserve(id: usize);
 }
 
-
-
 // ======================
 // === ResizeObserver ===
 // ======================
@@ -42,16 +36,20 @@ extern "C" {
 /// See also https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver
 #[derive(Debug)]
 pub struct ResizeObserver {
-    pub target:      JsValue,
-    pub listener:    Listener,
+    pub target: JsValue,
+    pub listener: Listener,
     pub observer_id: usize,
 }
 
 impl ResizeObserver {
-    pub fn new(target:&JsValue, listener:Listener) -> Self {
-        let target      = target.clone_ref();
+    pub fn new(target: &JsValue, listener: Listener) -> Self {
+        let target = target.clone_ref();
         let observer_id = resize_observe(&target, &listener);
-        Self {target,listener,observer_id}
+        Self {
+            target,
+            listener,
+            observer_id,
+        }
     }
 }
 

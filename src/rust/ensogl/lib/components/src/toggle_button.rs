@@ -11,20 +11,15 @@ use ensogl_core::gui::component::ShapeView;
 // automatically used by the [`define_shape_system!`] macro, and it's not exposed to the developer.
 use ensogl_core::display::shape::system::DynamicShapeInternals;
 
-
-
-
 // =================
 // === Colorable ===
 // =================
 
 /// A shape that can have a single color.
-pub trait ColorableShape : DynamicShapeInternals {
+pub trait ColorableShape: DynamicShapeInternals {
     /// Set the color of the shape.
-    fn set_color(&self, color:color::Rgba);
+    fn set_color(&self, color: color::Rgba);
 }
-
-
 
 // ===========
 // === Frp ===
@@ -48,46 +43,52 @@ ensogl_core::define_endpoints! {
     }
 }
 
-
-
 // =============
 // === Model ===
 // =============
 
-#[derive(Clone,CloneRef,Debug,Derivative)]
-#[clone_ref(bound="Shape:CloneRef")]
+#[derive(Clone, CloneRef, Debug, Derivative)]
+#[clone_ref(bound = "Shape:CloneRef")]
 struct Model<Shape> {
-    icon : ShapeView<Shape>,
+    icon: ShapeView<Shape>,
 }
 
-impl<Shape:ColorableShape+'static> Model<Shape> {
-    fn new(logger:impl AnyLogger) -> Self {
-        let logger = Logger::new_sub(logger,"ToggleButton");
-        let icon   = ShapeView::new(&logger);
-        Self{icon}
+impl<Shape: ColorableShape + 'static> Model<Shape> {
+    fn new(logger: impl AnyLogger) -> Self {
+        let logger = Logger::new_sub(logger, "ToggleButton");
+        let icon = ShapeView::new(&logger);
+        Self { icon }
     }
 }
-
-
 
 // ===================
 // === ButtonState ===
 // ===================
 
 /// A state a button can be in.
-#[derive(Clone,Copy,Debug)]
+#[derive(Clone, Copy, Debug)]
 #[allow(missing_docs)]
 pub struct ButtonState {
-    pub visible : bool,
-    pub toggled : bool,
-    pub hovered : bool,
-    pub pressed : bool,
+    pub visible: bool,
+    pub toggled: bool,
+    pub hovered: bool,
+    pub pressed: bool,
 }
 
 impl ButtonState {
     /// Constructor.
-    pub fn new(visible:bool, toggled:bool, hovered:bool, pressed:bool) -> Self {
-        Self {visible,toggled,hovered,pressed}
+    pub fn new(
+        visible: bool,
+        toggled: bool,
+        hovered: bool,
+        pressed: bool,
+    ) -> Self {
+        Self {
+            visible,
+            toggled,
+            hovered,
+            pressed,
+        }
     }
 }
 
@@ -97,77 +98,77 @@ impl Default for ButtonState {
         let toggled = false;
         let hovered = false;
         let pressed = false;
-        Self {visible,toggled,hovered,pressed}
+        Self {
+            visible,
+            toggled,
+            hovered,
+            pressed,
+        }
     }
 }
-
-
 
 // ===================
 // === ColorScheme ===
 // ===================
 
 /// Button color scheme.
-#[derive(Clone,Debug,Default)]
+#[derive(Clone, Debug, Default)]
 #[allow(missing_copy_implementations)]
 #[allow(missing_docs)]
 pub struct ColorScheme {
-    pub non_toggled     : Option<color::Lcha>,
-    pub hovered         : Option<color::Lcha>,
-    pub pressed         : Option<color::Lcha>,
-    pub toggled         : Option<color::Lcha>,
-    pub toggled_hovered : Option<color::Lcha>,
-    pub toggled_pressed : Option<color::Lcha>,
+    pub non_toggled: Option<color::Lcha>,
+    pub hovered: Option<color::Lcha>,
+    pub pressed: Option<color::Lcha>,
+    pub toggled: Option<color::Lcha>,
+    pub toggled_hovered: Option<color::Lcha>,
+    pub toggled_pressed: Option<color::Lcha>,
 }
 
 impl ColorScheme {
     /// Query the scheme based on the button state.
-    pub fn query(&self, state:ButtonState) -> color::Lcha {
+    pub fn query(&self, state: ButtonState) -> color::Lcha {
         match (state.visible, state.toggled, state.hovered, state.pressed) {
-            ( false , _    , _    , _     ) => color::Lcha::transparent(),
-            ( true  , false, false, false ) => self.non_toggled(),
-            ( true  , false, false, true  ) => self.pressed(),
-            ( true  , false, true , false ) => self.hovered(),
-            ( true  , false, true , true  ) => self.pressed(),
-            ( true  , true , false, false ) => self.toggled(),
-            ( true  , true , false, true  ) => self.toggled_pressed(),
-            ( true  , true , true , false ) => self.toggled_hovered(),
-            ( true  , true , true , true  ) => self.toggled_pressed(),
+            (false, _, _, _) => color::Lcha::transparent(),
+            (true, false, false, false) => self.non_toggled(),
+            (true, false, false, true) => self.pressed(),
+            (true, false, true, false) => self.hovered(),
+            (true, false, true, true) => self.pressed(),
+            (true, true, false, false) => self.toggled(),
+            (true, true, false, true) => self.toggled_pressed(),
+            (true, true, true, false) => self.toggled_hovered(),
+            (true, true, true, true) => self.toggled_pressed(),
         }
     }
 }
-
 
 // === Getters ===
 
 #[allow(missing_docs)]
 impl ColorScheme {
-    pub fn non_toggled (&self) -> color::Lcha {
+    pub fn non_toggled(&self) -> color::Lcha {
         self.non_toggled.unwrap_or_else(color::Lcha::black)
     }
 
-    pub fn hovered (&self) -> color::Lcha {
-        self.hovered.unwrap_or_else(||self.pressed())
+    pub fn hovered(&self) -> color::Lcha {
+        self.hovered.unwrap_or_else(|| self.pressed())
     }
 
-    pub fn pressed (&self) -> color::Lcha {
-        self.hovered.unwrap_or_else(||self.toggled())
+    pub fn pressed(&self) -> color::Lcha {
+        self.hovered.unwrap_or_else(|| self.toggled())
     }
 
-    pub fn toggled (&self) -> color::Lcha {
+    pub fn toggled(&self) -> color::Lcha {
         self.toggled.unwrap_or_else(color::Lcha::black)
     }
 
-    pub fn toggled_hovered (&self) -> color::Lcha {
-        self.toggled_hovered.unwrap_or_else(||self.toggled())
+    pub fn toggled_hovered(&self) -> color::Lcha {
+        self.toggled_hovered.unwrap_or_else(|| self.toggled())
     }
 
-    pub fn toggled_pressed (&self) -> color::Lcha {
-        self.toggled_pressed.unwrap_or_else(||self.pressed())
+    pub fn toggled_pressed(&self) -> color::Lcha {
+        self.toggled_pressed.unwrap_or_else(|| self.pressed())
     }
 }
-
-
 
 // =====================
 // === Toggle Button ===
@@ -175,12 +176,12 @@ impl ColorScheme {
 
 /// A UI component that acts as a toggle which can be toggled on and of. Has a visible shape
 /// that acts as button and changes color depending on the toggle state.
-#[derive(CloneRef,Debug,Derivative)]
-#[derivative(Clone(bound=""))]
+#[derive(CloneRef, Debug, Derivative)]
+#[derivative(Clone(bound = ""))]
 #[allow(missing_docs)]
 pub struct ToggleButton<Shape> {
-    pub frp : Frp,
-    model   : Rc<Model<Shape>>,
+    pub frp: Frp,
+    model: Rc<Model<Shape>>,
 }
 
 impl<Shape> Deref for ToggleButton<Shape> {
@@ -190,20 +191,20 @@ impl<Shape> Deref for ToggleButton<Shape> {
     }
 }
 
-impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
+impl<Shape: ColorableShape + 'static> ToggleButton<Shape> {
     /// Constructor.
-    pub fn new(logger:impl AnyLogger) -> Self {
-        let frp   = Frp::new();
+    pub fn new(logger: impl AnyLogger) -> Self {
+        let frp = Frp::new();
         let model = Rc::new(Model::<Shape>::new(logger));
-        Self {frp,model}.init_frp()
+        Self { frp, model }.init_frp()
     }
 
     fn init_frp(self) -> Self {
         let network = &self.frp.network;
-        let frp     = &self.frp;
-        let model   = &self.model;
-        let color   = color::Animation::new(network);
-        let icon    = &model.icon.events;
+        let frp = &self.frp;
+        let model = &self.model;
+        let color = color::Animation::new(network);
+        let icon = &model.icon.events;
 
         frp::extend! { network
 
@@ -256,7 +257,7 @@ impl<Shape:ColorableShape+'static> ToggleButton<Shape>{
     }
 }
 
-impl<T:display::Object> display::Object for ToggleButton<T> {
+impl<T: display::Object> display::Object for ToggleButton<T> {
     fn display_object(&self) -> &display::object::Instance {
         self.model.icon.display_object()
     }

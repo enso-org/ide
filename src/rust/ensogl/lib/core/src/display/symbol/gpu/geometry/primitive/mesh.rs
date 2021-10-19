@@ -3,8 +3,8 @@
 use crate::prelude::*;
 
 use crate::control::callback::CallbackFn;
-use crate::data::dirty::traits::*;
 use crate::data::dirty;
+use crate::data::dirty::traits::*;
 use crate::debug::stats::Stats;
 use crate::system::gpu::shader::Context;
 
@@ -12,20 +12,16 @@ use num_enum::IntoPrimitive;
 
 use enso_shapely::shared;
 
-
-
-
 // ===============
 // === Exports ===
 // ===============
 
 /// Common data types.
 pub mod types {
-    pub use crate::system::gpu::types::*;
     pub use super::Mesh;
+    pub use crate::system::gpu::types::*;
 }
 pub use types::*;
-
 
 // --------------------------------------------------
 
@@ -52,10 +48,15 @@ pub struct Scopes {
 }
 
 /// A singleton for each of scope types.
-#[derive(Copy,Clone,Debug,Display,IntoPrimitive,PartialEq)]
+#[derive(Copy, Clone, Debug, Display, IntoPrimitive, PartialEq)]
 #[allow(missing_docs)]
 #[repr(u8)]
-pub enum ScopeType {Point,Vertex,Primitive,Instance}
+pub enum ScopeType {
+    Point,
+    Vertex,
+    Primitive,
+    Instance,
+}
 
 impl From<ScopeType> for usize {
     fn from(t: ScopeType) -> Self {
@@ -63,12 +64,10 @@ impl From<ScopeType> for usize {
     }
 }
 
-
 // === Types ===
 
 /// Dirty flag remembering which scopes were mutated.
-pub type ScopesDirty = dirty::SharedEnum<u8,ScopeType,Box<dyn Fn()>>;
-
+pub type ScopesDirty = dirty::SharedEnum<u8, ScopeType, Box<dyn Fn()>>;
 
 // === Implementation ===
 
@@ -79,7 +78,6 @@ macro_rules! update_scopes {
         }
     )*}
 }
-
 
 // ============
 // === Mesh ===

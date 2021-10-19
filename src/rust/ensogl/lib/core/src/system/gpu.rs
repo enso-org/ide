@@ -3,7 +3,6 @@
 pub mod data;
 pub mod shader;
 
-
 /// Common types.
 pub mod types {
     use web_sys::WebGl2RenderingContext;

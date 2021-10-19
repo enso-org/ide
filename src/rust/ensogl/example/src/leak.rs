@@ -3,8 +3,6 @@
 //! drop implementation of `Leak`. Can bue used for examples to keep components alive for the whole
 //! lifetime of the application.
 
-
-
 // ============
 // === Leak ===
 // ============
@@ -13,14 +11,14 @@
 /// leaked when the `Leak` is dropped.
 #[derive(Debug)]
 pub struct Leak<T> {
-    value: Option<T>
+    value: Option<T>,
 }
 
 impl<T> Leak<T> {
     /// Constructor. The passed value will be prevented from being dropped. This will cause memory
     /// leaks.
-    pub fn new(value:T) -> Self {
-        Self{value:Some(value)}
+    pub fn new(value: T) -> Self {
+        Self { value: Some(value) }
     }
 
     /// Return a reference to the wrapped value.

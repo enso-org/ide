@@ -9,15 +9,13 @@
 //! Note that this module implements currently only `D65` white point. In case other will be needed
 //! they can be easily ported from the Rust `Palette` library implementation.
 
-use super::def::*;
 use super::super::component::*;
-
+use super::def::*;
 
 /// Common traits.
 pub mod traits {
     pub use super::WhitePoint;
 }
-
 
 // =================
 // === WhiePoint ===
@@ -36,8 +34,6 @@ pub trait WhitePoint {
     fn get_xyz() -> Xyz;
 }
 
-
-
 // =======================
 // === Implementations ===
 // =======================
@@ -50,6 +46,6 @@ pub trait WhitePoint {
 pub struct D65;
 impl WhitePoint for D65 {
     fn get_xyz() -> Xyz {
-        from_components(Components((0.95047,1.0,1.08883)))
+        from_components(Components((0.95047, 1.0, 1.08883)))
     }
 }

@@ -10,10 +10,8 @@ use crate::data::color::*;
 use crate::display::shape::primitive::def::class::AnyShape;
 use crate::display::shape::primitive::def::class::ShapeRef;
 use crate::display::shape::primitive::def::var::Var;
-use crate::display::shape::primitive::shader::canvas::Canvas;
 use crate::display::shape::primitive::shader::canvas;
-
-
+use crate::display::shape::primitive::shader::canvas::Canvas;
 
 // ========================================
 // === Compound Shape Definition Macros ===
@@ -105,8 +103,6 @@ macro_rules! _define_modifier {
         }
     }
 }
-
-
 
 // =======================
 // === Compound Shapes ===

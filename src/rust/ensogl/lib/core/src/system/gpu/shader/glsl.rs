@@ -5,22 +5,20 @@
 
 use crate::prelude::*;
 
-use crate::system::gpu::data::buffer::item::MatrixCtx;
 use crate::data::color;
+use crate::system::gpu::data::buffer::item::MatrixCtx;
 
 use code_builder::CodeBuilder;
 use code_builder::HasCodeRepr;
 use enso_shapely::derive_clone_plus;
 use nalgebra::OMatrix;
 
-
-
 // =================================================================================================
 // === Glsl ========================================================================================
 // =================================================================================================
 
 /// A GLSL code representation.
-#[derive(Clone,Debug,Shrinkwrap)]
+#[derive(Clone, Debug, Shrinkwrap)]
 #[shrinkwrap(mutable)]
 pub struct Glsl {
     /// Raw, textual code representation.
@@ -28,11 +26,10 @@ pub struct Glsl {
 }
 
 impl Display for Glsl {
-    fn fmt(&self, f:&mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(&self.str,f)
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.str, f)
     }
 }
-
 
 // === Conversions from Glsl ===
 
@@ -41,18 +38,15 @@ impls! { From  <Glsl> for CowString { |t| t.str.into() } }
 impls! { From <&Glsl> for String    { |t| t.str.clone() } }
 impls! { From <&Glsl> for CowString { |t| (&t.str).into() } }
 
-
 // === Self Conversions ===
 
 impls! { From<&Glsl> for Glsl { |t| t.clone() } }
-
 
 // === From String to Glsl ===
 
 impls! { From + &From <String>    for Glsl { |t| Self {str:t.into()    } }}
 impls! { From + &From <CowString> for Glsl { |t| Self {str:t.into()    } }}
 impls! { From + &From <&str>      for Glsl { |t| Self {str:(*t).into() } }}
-
 
 // === From Tuple to Glsl ===
 
@@ -104,7 +98,6 @@ where [ T1:Into<Glsl>, T2:Into<Glsl>, T3:Into<Glsl>, T4:Into<Glsl> ] { |t| {
     iformat!("vec4({v1},{v2},{v3},{v4})").into()
 }}}
 
-
 // === From Prim Types to Glsl ===
 
 impls! { From + &From <bool> for Glsl { |t| t.to_string().into() } }
@@ -130,7 +123,6 @@ impls! { [T,R,C] From + &From <OMatrix<T,R,C>> for Glsl
     }
 }}
 
-
 // === From Colors to Glsl ===
 
 impls! { From + &From <color::Rgb> for Glsl {
@@ -148,7 +140,6 @@ impls! { From + &From <color::LinearRgb> for Glsl {
 impls! { From + &From <color::LinearRgba> for Glsl {
     |t| iformat!("rgba({t.red.glsl()},{t.green.glsl()},{t.blue.glsl()},{t.alpha.glsl()})").into()
 } }
-
 
 // === Units ===
 
@@ -170,7 +161,6 @@ impls! { From<PhantomData<Vector4<Pixels>>> for PrimType {
     |_|  { PhantomData::<Vector4<f32>>.into() }
 }}
 
-
 impls! { From< Radians> for Glsl { |t| { f32_to_rad(&t.value.glsl()) } }}
 impls! { From<&Radians> for Glsl { |t| { f32_to_rad(&t.value.glsl()) } }}
 impls! { From< Degrees> for Glsl { |t| { deg_to_f32(&f32_to_deg(&t.value.glsl())) } }}
@@ -179,55 +169,51 @@ impls! { From<PhantomData<Radians>> for PrimType {
     |_|  { "Radians".into() }
 }}
 
-
-
 // === Wrong Conversions ===
 
 /// Error indicating that a value cannot be converted to Glsl.
-#[derive(Clone,Copy,Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct NotGlslError;
 
 // === Glsl to Glsl helpers to convert between types ===
 
 /// Converts a number to a `Radians` struct.
-pub(crate) fn f32_to_rad(glsl:&Glsl) -> Glsl{
+pub(crate) fn f32_to_rad(glsl: &Glsl) -> Glsl {
     iformat!("Radians({glsl})").into()
 }
 
 /// Extracts a number from a `Radians` struct.
-pub(crate) fn rad_to_f32(glsl:&Glsl) -> Glsl{
+pub(crate) fn rad_to_f32(glsl: &Glsl) -> Glsl {
     iformat!("value({glsl})").into()
 }
 
 /// Converts a number to a `Degree` struct.
-pub(crate) fn f32_to_deg(glsl:&Glsl) -> Glsl{
+pub(crate) fn f32_to_deg(glsl: &Glsl) -> Glsl {
     // We just use the radians representation of the degrees.
     iformat!("Degrees({glsl})").into()
 }
 
 /// Extracts a number from a `Degree` struct. The number will be in radians.
-pub(crate) fn deg_to_f32(glsl:&Glsl) -> Glsl{
+pub(crate) fn deg_to_f32(glsl: &Glsl) -> Glsl {
     iformat!("radians({glsl})").into()
 }
-
-
 
 // =================================================================================================
 // === Expr ========================================================================================
 // =================================================================================================
 
 /// Any GLSL expression, like function call, or math operations.
-#[derive(Shrinkwrap,Clone,Debug)]
+#[derive(Shrinkwrap, Clone, Debug)]
 pub struct Expr(Box<ExprUnboxed>);
 
 impl Expr {
-    pub fn new<T:Into<ExprUnboxed>>(t:T) -> Self {
+    pub fn new<T: Into<ExprUnboxed>>(t: T) -> Self {
         Self(Box::new(Into::<ExprUnboxed>::into(t)))
     }
 }
 
 impl HasCodeRepr for Expr {
-    fn build(&self, builder:&mut CodeBuilder) {
+    fn build(&self, builder: &mut CodeBuilder) {
         self.deref().build(builder)
     }
 }
@@ -237,7 +223,6 @@ impl From<&String> for Expr {
         Expr::new(t)
     }
 }
-
 
 // === ExprUnboxed ===
 
@@ -268,7 +253,7 @@ macro_rules! mk_expr_unboxed { ($($variant:ident),*) => {
     }
 };}
 
-mk_expr_unboxed!(RawCode,Identifier,Block,Assignment);
+mk_expr_unboxed!(RawCode, Identifier, Block, Assignment);
 
 impl From<&String> for ExprUnboxed {
     fn from(t: &String) -> Self {
@@ -276,42 +261,38 @@ impl From<&String> for ExprUnboxed {
     }
 }
 
-
-
 // ===============
 // === RawCode ===
 // ===============
 
 /// Raw, unchecked GLSL code.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct RawCode {
-    pub str: String
+    pub str: String,
 }
 
 impl RawCode {
-    pub fn new(str:String) -> Self {
-        Self {str}
+    pub fn new(str: String) -> Self {
+        Self { str }
     }
 }
 
 impl HasCodeRepr for RawCode {
-    fn build(&self, builder:&mut CodeBuilder) {
+    fn build(&self, builder: &mut CodeBuilder) {
         builder.write(&self.str)
     }
 }
-
-
 
 // ==================
 // === Identifier ===
 // ==================
 
 /// Variable or type identifier.
-#[derive(Clone,Debug,Eq,Hash,PartialEq,PartialOrd,Ord)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub struct Identifier(pub String);
 
 impl HasCodeRepr for Identifier {
-    fn build(&self, builder:&mut CodeBuilder) {
+    fn build(&self, builder: &mut CodeBuilder) {
         builder.add(&self.0);
     }
 }
@@ -334,27 +315,25 @@ impl From<&str> for Identifier {
     }
 }
 
-
-
 // =============
 // === Block ===
 // =============
 
 /// Block of expressions. Used e.g. as function body.
-#[derive(Clone,Debug,Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Block {
-    pub exprs: Vec<Expr>
+    pub exprs: Vec<Expr>,
 }
 
-impl<T:Into<Expr>> AddMut<T> for Block {
+impl<T: Into<Expr>> AddMut<T> for Block {
     type Output = ();
-    fn add(&mut self, t:T) {
+    fn add(&mut self, t: T) {
         self.exprs.push(t.into());
     }
 }
 
 impl HasCodeRepr for Block {
-    fn build(&self, builder:&mut CodeBuilder) {
+    fn build(&self, builder: &mut CodeBuilder) {
         for line in &self.exprs {
             builder.newline();
             builder.add(line);
@@ -362,27 +341,28 @@ impl HasCodeRepr for Block {
     }
 }
 
-
-
 // ==================
 // === Assignment ===
 // ==================
 
 /// Assignment expressiong (`a = b`).
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct Assignment {
-    pub left  : Expr,
-    pub right : Expr,
+    pub left: Expr,
+    pub right: Expr,
 }
 
 impl Assignment {
-    pub fn new<L:Into<Expr>,R:Into<Expr>>(left:L, right:R) -> Self {
-        Self {left:left.into(),right:right.into()}
+    pub fn new<L: Into<Expr>, R: Into<Expr>>(left: L, right: R) -> Self {
+        Self {
+            left: left.into(),
+            right: right.into(),
+        }
     }
 }
 
 impl HasCodeRepr for Assignment {
-    fn build(&self, builder:&mut CodeBuilder) {
+    fn build(&self, builder: &mut CodeBuilder) {
         self.left.build(builder);
         builder.add("=");
         builder.add(&self.right);
@@ -390,26 +370,24 @@ impl HasCodeRepr for Assignment {
     }
 }
 
-
-
 // =================================================================================================
 // === Statement ===================================================================================
 // =================================================================================================
 
 /// Top-level statement, like function declaration.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub enum Statement {
-    Function      (Function),
-    PrecisionDecl (PrecisionDecl),
-    Raw           (RawCode)
+    Function(Function),
+    PrecisionDecl(PrecisionDecl),
+    Raw(RawCode),
 }
 
 impl HasCodeRepr for Statement {
-    fn build(&self, builder:&mut CodeBuilder) {
+    fn build(&self, builder: &mut CodeBuilder) {
         match self {
-            Self::Function       (t) => builder.add(t),
-            Self::PrecisionDecl  (t) => builder.add(t),
-            Self::Raw            (t) => builder.add(t),
+            Self::Function(t) => builder.add(t),
+            Self::PrecisionDecl(t) => builder.add(t),
+            Self::Raw(t) => builder.add(t),
         };
     }
 }
@@ -420,22 +398,20 @@ impl From<PrecisionDecl> for Statement {
     }
 }
 
-
-
 // ================
 // === Function ===
 // ================
 
 /// Top-level function declaration.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct Function {
-    pub typ   : Type,
-    pub ident : Identifier,
-    pub body  : Block
+    pub typ: Type,
+    pub ident: Identifier,
+    pub body: Block,
 }
 
 impl HasCodeRepr for Function {
-    fn build(&self, builder:&mut CodeBuilder) {
+    fn build(&self, builder: &mut CodeBuilder) {
         builder.add(&self.typ).add(&self.ident).add("() {");
         builder.inc_indent();
         builder.add(&self.body);
@@ -445,34 +421,35 @@ impl HasCodeRepr for Function {
     }
 }
 
-impl<T:Into<Expr>> AddMut<T> for Function {
+impl<T: Into<Expr>> AddMut<T> for Function {
     type Output = ();
     fn add(&mut self, t: T) {
         self.body.add(t)
     }
 }
 
-
-
 // =====================
 // === PrecisionDecl ===
 // =====================
 
 /// Top-level type precision declaration.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct PrecisionDecl {
-    pub prec : Precision,
-    pub typ  : Type
+    pub prec: Precision,
+    pub typ: Type,
 }
 
 impl PrecisionDecl {
-    pub fn new<P:Into<Precision>,T:Into<Type>>(prec:P, typ:T) -> Self {
-        Self {prec:prec.into(),typ:typ.into()}
+    pub fn new<P: Into<Precision>, T: Into<Type>>(prec: P, typ: T) -> Self {
+        Self {
+            prec: prec.into(),
+            typ: typ.into(),
+        }
     }
 }
 
 impl HasCodeRepr for PrecisionDecl {
-    fn build(&self, builder:&mut CodeBuilder) {
+    fn build(&self, builder: &mut CodeBuilder) {
         builder.add("precision");
         builder.add(&self.prec);
         builder.add(&self.typ);
@@ -480,33 +457,30 @@ impl HasCodeRepr for PrecisionDecl {
     }
 }
 
-
-
 // =================================================================================================
 // === AST Elements ================================================================================
 // =================================================================================================
-
 
 // ============
 // === Type ===
 // ============
 
 /// Abstraction for any GLSL type, including array types.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct Type {
-    pub prim  : PrimType,
-    pub array : Option<usize>
+    pub prim: PrimType,
+    pub array: Option<usize>,
 }
 
 impl From<PrimType> for Type {
     fn from(prim: PrimType) -> Self {
         let array = None;
-        Self {prim,array}
+        Self { prim, array }
     }
 }
 
 impl HasCodeRepr for Type {
-    fn build(&self, builder:&mut CodeBuilder) {
+    fn build(&self, builder: &mut CodeBuilder) {
         builder.add(&self.prim).add(&self.array);
     }
 }
@@ -515,131 +489,156 @@ derive_clone_plus!(Type);
 
 impl Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f,"{}",self.to_code())
+        write!(f, "{}", self.to_code())
     }
 }
-
-
 
 // ================
 // === PrimType ===
 // ================
 
 /// Any non-array GLSL type.
-#[derive(Clone,Debug,Eq,Hash,PartialEq,PartialOrd,Ord)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum PrimType {
-    Float, Int, Void, Bool,
-    Mat2, Mat3, Mat4,
-    Mat2x2, Mat2x3, Mat2x4,
-    Mat3x2, Mat3x3, Mat3x4,
-    Mat4x2, Mat4x3, Mat4x4,
-    Vec2, Vec3, Vec4, IVec2, IVec3, IVec4, BVec2, BVec3, BVec4,
-    UInt, UVec2, UVec3, UVec4,
-    Sampler2d, Sampler3d, SamplerCube,
-    Sampler2dShadow, SamplerCubeShadow,
+    Float,
+    Int,
+    Void,
+    Bool,
+    Mat2,
+    Mat3,
+    Mat4,
+    Mat2x2,
+    Mat2x3,
+    Mat2x4,
+    Mat3x2,
+    Mat3x3,
+    Mat3x4,
+    Mat4x2,
+    Mat4x3,
+    Mat4x4,
+    Vec2,
+    Vec3,
+    Vec4,
+    IVec2,
+    IVec3,
+    IVec4,
+    BVec2,
+    BVec3,
+    BVec4,
+    UInt,
+    UVec2,
+    UVec3,
+    UVec4,
+    Sampler2d,
+    Sampler3d,
+    SamplerCube,
+    Sampler2dShadow,
+    SamplerCubeShadow,
     Sampler2dArray,
     Sampler2dArrayShadow,
-    ISampler2d, ISampler3d, ISamplerCube,
+    ISampler2d,
+    ISampler3d,
+    ISamplerCube,
     ISampler2dArray,
-    USampler2d, USampler3d, USamplerCube,
+    USampler2d,
+    USampler3d,
+    USamplerCube,
     USampler2dArray,
     Struct(Identifier),
 }
 
 impl HasCodeRepr for PrimType {
-    fn build(&self, builder:&mut CodeBuilder) {
+    fn build(&self, builder: &mut CodeBuilder) {
         match self {
-            Self::Float                => builder.add("float"),
-            Self::Int                  => builder.add("int"),
-            Self::Void                 => builder.add("void"),
-            Self::Bool                 => builder.add("bool"),
-            Self::Mat2                 => builder.add("mat2"),
-            Self::Mat3                 => builder.add("mat3"),
-            Self::Mat4                 => builder.add("mat4"),
-            Self::Mat2x2               => builder.add("mat2x2"),
-            Self::Mat2x3               => builder.add("mat2x3"),
-            Self::Mat2x4               => builder.add("mat2x4"),
-            Self::Mat3x2               => builder.add("mat3x2"),
-            Self::Mat3x3               => builder.add("mat3x3"),
-            Self::Mat3x4               => builder.add("mat3x4"),
-            Self::Mat4x2               => builder.add("mat4x2"),
-            Self::Mat4x3               => builder.add("mat4x3"),
-            Self::Mat4x4               => builder.add("mat4x4"),
-            Self::Vec2                 => builder.add("vec2"),
-            Self::Vec3                 => builder.add("vec3"),
-            Self::Vec4                 => builder.add("vec4"),
-            Self::IVec2                => builder.add("ivec2"),
-            Self::IVec3                => builder.add("ivec3"),
-            Self::IVec4                => builder.add("ivec4"),
-            Self::BVec2                => builder.add("bvec2"),
-            Self::BVec3                => builder.add("bvec3"),
-            Self::BVec4                => builder.add("bvec4"),
-            Self::UInt                 => builder.add("int"),
-            Self::UVec2                => builder.add("uvec2"),
-            Self::UVec3                => builder.add("uvec3"),
-            Self::UVec4                => builder.add("uvec4"),
-            Self::Sampler2d            => builder.add("sampler2D"),
-            Self::Sampler3d            => builder.add("sampler3D"),
-            Self::SamplerCube          => builder.add("samplerCube"),
-            Self::Sampler2dShadow      => builder.add("sampler2DShadow"),
-            Self::SamplerCubeShadow    => builder.add("samplerCubeShadow"),
-            Self::Sampler2dArray       => builder.add("sampler2DArray"),
+            Self::Float => builder.add("float"),
+            Self::Int => builder.add("int"),
+            Self::Void => builder.add("void"),
+            Self::Bool => builder.add("bool"),
+            Self::Mat2 => builder.add("mat2"),
+            Self::Mat3 => builder.add("mat3"),
+            Self::Mat4 => builder.add("mat4"),
+            Self::Mat2x2 => builder.add("mat2x2"),
+            Self::Mat2x3 => builder.add("mat2x3"),
+            Self::Mat2x4 => builder.add("mat2x4"),
+            Self::Mat3x2 => builder.add("mat3x2"),
+            Self::Mat3x3 => builder.add("mat3x3"),
+            Self::Mat3x4 => builder.add("mat3x4"),
+            Self::Mat4x2 => builder.add("mat4x2"),
+            Self::Mat4x3 => builder.add("mat4x3"),
+            Self::Mat4x4 => builder.add("mat4x4"),
+            Self::Vec2 => builder.add("vec2"),
+            Self::Vec3 => builder.add("vec3"),
+            Self::Vec4 => builder.add("vec4"),
+            Self::IVec2 => builder.add("ivec2"),
+            Self::IVec3 => builder.add("ivec3"),
+            Self::IVec4 => builder.add("ivec4"),
+            Self::BVec2 => builder.add("bvec2"),
+            Self::BVec3 => builder.add("bvec3"),
+            Self::BVec4 => builder.add("bvec4"),
+            Self::UInt => builder.add("int"),
+            Self::UVec2 => builder.add("uvec2"),
+            Self::UVec3 => builder.add("uvec3"),
+            Self::UVec4 => builder.add("uvec4"),
+            Self::Sampler2d => builder.add("sampler2D"),
+            Self::Sampler3d => builder.add("sampler3D"),
+            Self::SamplerCube => builder.add("samplerCube"),
+            Self::Sampler2dShadow => builder.add("sampler2DShadow"),
+            Self::SamplerCubeShadow => builder.add("samplerCubeShadow"),
+            Self::Sampler2dArray => builder.add("sampler2DArray"),
             Self::Sampler2dArrayShadow => builder.add("sampler2DArrayShadow"),
-            Self::ISampler2d           => builder.add("isampler2D"),
-            Self::ISampler3d           => builder.add("isampler3D"),
-            Self::ISamplerCube         => builder.add("isamplerCube"),
-            Self::ISampler2dArray      => builder.add("isampler2DArray"),
-            Self::USampler2d           => builder.add("usampler2D"),
-            Self::USampler3d           => builder.add("usampler3D"),
-            Self::USamplerCube         => builder.add("usamplerCube"),
-            Self::USampler2dArray      => builder.add("usampler2DArray"),
-            Self::Struct(ident)        => builder.add(ident),
+            Self::ISampler2d => builder.add("isampler2D"),
+            Self::ISampler3d => builder.add("isampler3D"),
+            Self::ISamplerCube => builder.add("isamplerCube"),
+            Self::ISampler2dArray => builder.add("isampler2DArray"),
+            Self::USampler2d => builder.add("usampler2D"),
+            Self::USampler3d => builder.add("usampler3D"),
+            Self::USamplerCube => builder.add("usamplerCube"),
+            Self::USampler2dArray => builder.add("usampler2DArray"),
+            Self::Struct(ident) => builder.add(ident),
         };
     }
 }
 
 impl From<&str> for PrimType {
-    fn from(s:&str) -> Self {
+    fn from(s: &str) -> Self {
         Self::Struct(s.into())
     }
 }
 
 impl From<PrimType> for String {
-    fn from(t:PrimType) -> Self {
+    fn from(t: PrimType) -> Self {
         t.to_code()
     }
 }
 
 impl Display for PrimType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f,"{}",self.to_code())
+        write!(f, "{}", self.to_code())
     }
 }
-
-
 
 // =================
 // === GlobalVar ===
 // =================
 
 /// Global variable declaration, including attributes and uniforms.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct GlobalVar {
-    pub layout  : Option<Layout>,
-    pub storage : Option<GlobalVarStorage>,
-    pub prec    : Option<Precision>,
-    pub typ     : Type,
-    pub ident   : Identifier,
+    pub layout: Option<Layout>,
+    pub storage: Option<GlobalVarStorage>,
+    pub prec: Option<Precision>,
+    pub typ: Type,
+    pub ident: Identifier,
 }
 
 /// Global variable layout definition.
-#[derive(Clone,Copy,Debug,Default)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct Layout {
     pub location: usize,
 }
 
 /// Global variable storage definition.
-#[derive(Clone,Copy,Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum GlobalVarStorage {
     ConstStorage,
     InStorage(LinkageStorage),
@@ -648,21 +647,23 @@ pub enum GlobalVarStorage {
 }
 
 /// Storage definition for in- and out- attributes.
-#[derive(Clone,Copy,Debug,Default)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct LinkageStorage {
-    pub centroid      : bool,
-    pub interpolation : Option<InterpolationStorage>,
+    pub centroid: bool,
+    pub interpolation: Option<InterpolationStorage>,
 }
 
 /// Interpolation storage type for attributes.
-#[derive(Clone,Copy,Debug)]
-pub enum InterpolationStorage {Smooth, Flat}
-
+#[derive(Clone, Copy, Debug)]
+pub enum InterpolationStorage {
+    Smooth,
+    Flat,
+}
 
 // === Printers ===
 
 impl HasCodeRepr for Layout {
-    fn build(&self, builder:&mut CodeBuilder) {
+    fn build(&self, builder: &mut CodeBuilder) {
         builder.add_spaced("layout(location=");
         builder.add(&self.location);
         builder.add_spaced(")");
@@ -670,54 +671,58 @@ impl HasCodeRepr for Layout {
 }
 
 impl HasCodeRepr for InterpolationStorage {
-    fn build(&self, builder:&mut CodeBuilder) {
+    fn build(&self, builder: &mut CodeBuilder) {
         match self {
             Self::Smooth => builder.add("smooth"),
-            Self::Flat   => builder.add("flat"),
+            Self::Flat => builder.add("flat"),
         };
     }
 }
 
 impl HasCodeRepr for LinkageStorage {
-    fn build(&self, builder:&mut CodeBuilder) {
-        if self.centroid { builder.add("centroid"); };
+    fn build(&self, builder: &mut CodeBuilder) {
+        if self.centroid {
+            builder.add("centroid");
+        };
         builder.add(&self.interpolation);
     }
 }
 
 impl HasCodeRepr for GlobalVarStorage {
-    fn build(&self, builder:&mut CodeBuilder) {
+    fn build(&self, builder: &mut CodeBuilder) {
         match self {
-            Self::ConstStorage        => builder.add("const"),
-            Self::UniformStorage      => builder.add("uniform"),
-            Self::InStorage    (qual) => builder.add(qual).add("in"),
-            Self::OutStorage   (qual) => builder.add(qual).add("out"),
+            Self::ConstStorage => builder.add("const"),
+            Self::UniformStorage => builder.add("uniform"),
+            Self::InStorage(qual) => builder.add(qual).add("in"),
+            Self::OutStorage(qual) => builder.add(qual).add("out"),
         };
     }
 }
 
 impl HasCodeRepr for GlobalVar {
-    fn build(&self, builder:&mut CodeBuilder) {
-        builder.add(&self.layout).add(&self.storage).add(&self.typ).add(&self.ident);
+    fn build(&self, builder: &mut CodeBuilder) {
+        builder
+            .add(&self.layout)
+            .add(&self.storage)
+            .add(&self.typ)
+            .add(&self.ident);
     }
 }
-
-
 
 // ================
 // === LocalVar ===
 // ================
 
 /// Local variable definition.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct LocalVar {
-    pub constant : bool,
-    pub typ      : Type,
-    pub ident    : Identifier,
+    pub constant: bool,
+    pub typ: Type,
+    pub ident: Identifier,
 }
 
 impl HasCodeRepr for LocalVar {
-    fn build(&self, builder:&mut CodeBuilder) {
+    fn build(&self, builder: &mut CodeBuilder) {
         if self.constant {
             builder.add("const");
         }
@@ -725,33 +730,35 @@ impl HasCodeRepr for LocalVar {
     }
 }
 
-
-
 // =================
 // === Precision ===
 // =================
 
 /// Type precision definition.
-#[derive(Clone,Copy,Debug)]
-pub enum Precision { Low, Medium, High }
+#[derive(Clone, Copy, Debug)]
+pub enum Precision {
+    Low,
+    Medium,
+    High,
+}
 
 impl Display for Precision {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let prec = match self {
-            Self::Low    => "lowp",
+            Self::Low => "lowp",
             Self::Medium => "mediump",
-            Self::High   => "highp"
+            Self::High => "highp",
         };
-        write!(f,"{}",prec)
+        write!(f, "{}", prec)
     }
 }
 
 impl HasCodeRepr for Precision {
-    fn build(&self, builder:&mut CodeBuilder) {
+    fn build(&self, builder: &mut CodeBuilder) {
         let str = match self {
-            Self::Low    => "lowp",
+            Self::Low => "lowp",
             Self::Medium => "mediump",
-            Self::High   => "highp"
+            Self::High => "highp",
         };
         builder.add(str);
     }
@@ -763,32 +770,35 @@ impl From<&Precision> for Precision {
     }
 }
 
-
-
 // =================================================================================================
 // === Module ======================================================================================
 // =================================================================================================
 
 /// Translation unit definition. It represents the whole GLSL file.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct Module {
-    pub prec_decls  : Vec<PrecisionDecl>,
-    pub global_vars : Vec<GlobalVar>,
-    pub statements  : Vec<Statement>,
-    pub main        : Function
+    pub prec_decls: Vec<PrecisionDecl>,
+    pub global_vars: Vec<GlobalVar>,
+    pub statements: Vec<Statement>,
+    pub main: Function,
 }
 
 impl Default for Module {
     fn default() -> Self {
-        let prec_decls  = default();
+        let prec_decls = default();
         let global_vars = default();
-        let statements  = default();
-        let main        = Function {
-            typ   : PrimType::Void.into(),
-            ident : "main".into(),
-            body  : default()
+        let statements = default();
+        let main = Function {
+            typ: PrimType::Void.into(),
+            ident: "main".into(),
+            body: default(),
         };
-        Self {prec_decls,global_vars,statements,main}
+        Self {
+            prec_decls,
+            global_vars,
+            statements,
+            main,
+        }
     }
 }
 
@@ -821,7 +831,7 @@ impl AddMut<Expr> for Module {
 }
 
 impl HasCodeRepr for Module {
-    fn build(&self, builder:&mut CodeBuilder) {
+    fn build(&self, builder: &mut CodeBuilder) {
         builder.add("#version 300 es");
         builder.newline();
         builder.newline();
@@ -846,7 +856,6 @@ impl HasCodeRepr for Module {
         builder.add(&self.main);
     }
 }
-
 
 // ============================
 // === PrimType Conversions ===
@@ -902,7 +911,6 @@ define_glsl_prim_type_conversions! {
     Matrix4x3<f32> => Mat4x3,
 }
 
-
 // === Smart accessors ===
 
 /// Extension methods.
@@ -916,7 +924,7 @@ pub mod traits {
             Self::phantom_into()
         }
     }
-    impl<T:PhantomInto<PrimType>> PhantomIntoPrimType for T {}
+    impl<T: PhantomInto<PrimType>> PhantomIntoPrimType for T {}
 
     /// Extension methods for every type which could be converted to `Type`.
     pub trait PhantomIntoType: Sized + PhantomInto<Type> {
@@ -925,13 +933,22 @@ pub mod traits {
             Self::phantom_into()
         }
     }
-    impl<T:PhantomInto<Type>> PhantomIntoType for T {}
+    impl<T: PhantomInto<Type>> PhantomIntoType for T {}
 
-    pub trait IntoGlsl<'a> where Self:'a, &'a Self:Into<Glsl> {
+    pub trait IntoGlsl<'a>
+    where
+        Self: 'a,
+        &'a Self: Into<Glsl>,
+    {
         fn glsl(&'a self) -> Glsl {
             self.into()
         }
     }
-    impl<'a,T> IntoGlsl<'a> for T where T:'a, &'a T:Into<Glsl> {}
+    impl<'a, T> IntoGlsl<'a> for T
+    where
+        T: 'a,
+        &'a T: Into<Glsl>,
+    {
+    }
 }
 pub use traits::*;

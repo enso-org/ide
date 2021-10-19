@@ -153,16 +153,14 @@
 #![warn(unsafe_code)]
 #![warn(unused_import_braces)]
 #![warn(unused_qualifications)]
-
 #![feature(associated_type_defaults)]
 #![feature(specialization)]
 #![feature(trait_alias)]
 #![feature(unboxed_closures)]
+#![recursion_limit = "512"]
 
-#![recursion_limit="512"]
-
-pub mod debug;
 pub mod data;
+pub mod debug;
 pub mod io;
 pub mod macros;
 pub mod network;
@@ -179,11 +177,10 @@ pub use stream::Stream;
 
 /// Set of often used types and functions.
 pub mod prelude {
-    pub use enso_prelude::*;
-    pub use enso_logger::*;
     pub use enso_logger::WarningLogger as Logger;
+    pub use enso_logger::*;
+    pub use enso_prelude::*;
 }
-
 
 #[cfg(test)]
 mod network_mode_tests {
@@ -198,17 +195,17 @@ mod network_mode_tests {
             def count   = source.count();
             def sampler = count.sampler();
         }
-        assert_eq!(sampler.value(),0);
+        assert_eq!(sampler.value(), 0);
         source.emit(());
-        assert_eq!(sampler.value(),1);
+        assert_eq!(sampler.value(), 1);
         source.emit(());
-        assert_eq!(sampler.value(),2);
+        assert_eq!(sampler.value(), 2);
         drop(network1);
         source.emit(());
-        assert_eq!(sampler.value(),2);
+        assert_eq!(sampler.value(), 2);
         drop(network2);
         source.emit(());
-        assert_eq!(sampler.value(),2);
+        assert_eq!(sampler.value(), 2);
     }
 }
 
@@ -251,11 +248,11 @@ mod dynamic_mode_tests {
         }
         // Dropping `count`. It's lifetime should be managed by `sampler` now.
         drop(count);
-        assert_eq!(sampler.value(),0);
+        assert_eq!(sampler.value(), 0);
         source.emit(());
-        assert_eq!(sampler.value(),1);
+        assert_eq!(sampler.value(), 1);
         source.emit(());
-        assert_eq!(sampler.value(),2);
+        assert_eq!(sampler.value(), 2);
         let weak_source = source.downgrade();
         drop(source);
         assert!(weak_source.upgrade().is_some());
@@ -299,13 +296,13 @@ mod dynamic_mode_tests {
 
         };
 
-        let input = &[false,true,true];
+        let input = &[false, true, true];
         for val in input {
             behavior.emit(val);
             some_event.emit(());
         }
         let true_count = input.iter().filter(|&&val| val == true).count();
-        assert_eq!(passed_events.get(),true_count);
+        assert_eq!(passed_events.get(), true_count);
     }
 
     #[test]
@@ -320,12 +317,12 @@ mod dynamic_mode_tests {
             });
         };
 
-        let input = &[false,true,true,false,false];
+        let input = &[false, true, true, false, false];
         for val in input {
             source.emit(*val);
         }
         let true_count = input.iter().filter(|&&val| val == true).count();
-        assert_eq!(passed_events.get(),true_count);
+        assert_eq!(passed_events.get(), true_count);
     }
 
     #[test]
@@ -337,11 +334,11 @@ mod dynamic_mode_tests {
             eval_ filter_mapped (passed_events.set(passed_events.get() + 1));
         };
 
-        let input = &[false,true,true,false,false];
+        let input = &[false, true, true, false, false];
         for val in input {
             source.emit(*val);
         }
         let true_count = input.iter().filter(|&&val| val == true).count();
-        assert_eq!(passed_events.get(),true_count);
+        assert_eq!(passed_events.get(), true_count);
     }
 }

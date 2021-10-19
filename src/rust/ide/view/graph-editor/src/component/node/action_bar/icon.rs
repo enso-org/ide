@@ -5,7 +5,6 @@ use ensogl::data::color;
 use ensogl::display::shape::*;
 use ensogl_gui_components::toggle_button::ColorableShape;
 
-
 /// Icon for the visibility button. Looks like an open eye.
 pub mod visibility {
     use super::*;
@@ -36,8 +35,13 @@ pub mod visibility {
     }
 
     impl ColorableShape for DynamicShape {
-        fn set_color(&self, color:color::Rgba) {
-            self.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
+        fn set_color(&self, color: color::Rgba) {
+            self.color_rgba.set(Vector4::new(
+                color.red,
+                color.green,
+                color.blue,
+                color.alpha,
+            ));
         }
     }
 }
@@ -70,16 +74,24 @@ pub mod visibility2 {
     }
 
     impl ColorableShape for DynamicShape {
-        fn set_color(&self, color:color::Rgba) {
-            self.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
+        fn set_color(&self, color: color::Rgba) {
+            self.color_rgba.set(Vector4::new(
+                color.red,
+                color.green,
+                color.blue,
+                color.alpha,
+            ));
         }
     }
 }
 
-fn make_ring<T:Into<Var<Pixels>>,U:Into<Var<Pixels>>>(outer_radius:T, inner_radius:U) -> AnyShape {
+fn make_ring<T: Into<Var<Pixels>>, U: Into<Var<Pixels>>>(
+    outer_radius: T,
+    inner_radius: U,
+) -> AnyShape {
     let outer_circle = Circle(&outer_radius.into());
     let inner_circle = Circle(&inner_radius.into());
-    let ring         = outer_circle - inner_circle;
+    let ring = outer_circle - inner_circle;
     ring.into()
 }
 
@@ -115,8 +127,13 @@ pub mod freeze {
     }
 
     impl ColorableShape for DynamicShape {
-        fn set_color(&self, color:color::Rgba) {
-            self.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
+        fn set_color(&self, color: color::Rgba) {
+            self.color_rgba.set(Vector4::new(
+                color.red,
+                color.green,
+                color.blue,
+                color.alpha,
+            ));
         }
     }
 }
@@ -152,8 +169,13 @@ pub mod skip {
     }
 
     impl ColorableShape for DynamicShape {
-        fn set_color(&self, color:color::Rgba) {
-            self.color_rgba.set(Vector4::new(color.red,color.green,color.blue,color.alpha));
+        fn set_color(&self, color: color::Rgba) {
+            self.color_rgba.set(Vector4::new(
+                color.red,
+                color.green,
+                color.blue,
+                color.alpha,
+            ));
         }
     }
 }

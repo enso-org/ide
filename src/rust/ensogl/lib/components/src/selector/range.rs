@@ -2,21 +2,19 @@
 use crate::prelude::*;
 
 use enso_frp as frp;
-use ensogl_core::data::color;
 use ensogl_core::application::Application;
-use ensogl_core::display::shape::*;
+use ensogl_core::data::color;
 use ensogl_core::display::shape::StyleWatchFrp;
+use ensogl_core::display::shape::*;
 use ensogl_theme as theme;
 
 use crate::component;
 
-use super::Model;
-use super::Bounds;
 use super::bounds::absolute_value;
 use super::bounds::normalise_value;
 use super::bounds::should_clamp_with_overflow;
-
-
+use super::Bounds;
+use super::Model;
 
 // ===========
 // === Frp ===
@@ -40,18 +38,25 @@ ensogl_core::define_endpoints! {
 }
 
 impl component::Frp<Model> for Frp {
-    fn init(&self, app:&Application, model:&Model, style:&StyleWatchFrp){
-        let frp              = &self;
-        let network          = &frp.network;
-        let scene            = app.display.scene();
-        let mouse            = &scene.mouse.frp;
+    fn init(&self, app: &Application, model: &Model, style: &StyleWatchFrp) {
+        let frp = &self;
+        let network = &frp.network;
+        let scene = app.display.scene();
+        let mouse = &scene.mouse.frp;
 
-        let base_frp = super::Frp::new(model, style, network, frp.resize.clone().into(), mouse);
+        let base_frp = super::Frp::new(
+            model,
+            style,
+            network,
+            frp.resize.clone().into(),
+            mouse,
+        );
 
         model.use_track_handles(true);
         model.show_background(true);
 
-        let style_track_color = style.get_color(theme::component::slider::track::color);
+        let style_track_color =
+            style.get_color(theme::component::slider::track::color);
 
         frp::extend! { network
 
@@ -125,12 +130,11 @@ impl component::Frp<Model> for Frp {
         }
 
         // Init defaults
-        frp.set_bounds(Bounds::new(0.0,1.0));
+        frp.set_bounds(Bounds::new(0.0, 1.0));
         frp.use_overflow_bounds(None);
-        frp.set_value(Bounds::new(0.25,0.75));
+        frp.set_value(Bounds::new(0.25, 0.75));
         frp.set_left_corner_round(true);
         frp.set_right_corner_round(true);
         frp.set_track_color(style_track_color.value());
-
     }
 }

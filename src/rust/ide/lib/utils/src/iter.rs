@@ -16,10 +16,17 @@ use itertools::Itertools;
 /// assert_eq!(odd,  vec![1,3,5]);
 /// ```
 ///
-pub fn split_by_predicate<Iter,Item,Predicate>
-(input:Iter, predicate:Predicate) -> (Vec<Item>,Vec<Item>)
-where Iter      : IntoIterator<Item =Item> + Sized,
-      Predicate : Fn(&Item) -> bool {
+pub fn split_by_predicate<Iter, Item, Predicate>(
+    input: Iter,
+    predicate: Predicate,
+) -> (Vec<Item>, Vec<Item>)
+where
+    Iter: IntoIterator<Item = Item> + Sized,
+    Predicate: Fn(&Item) -> bool,
+{
     let mut grouped = input.into_iter().into_group_map_by(predicate);
-    (grouped.remove(&false).unwrap_or_default(),grouped.remove(&true).unwrap_or_default())
+    (
+        grouped.remove(&false).unwrap_or_default(),
+        grouped.remove(&true).unwrap_or_default(),
+    )
 }
