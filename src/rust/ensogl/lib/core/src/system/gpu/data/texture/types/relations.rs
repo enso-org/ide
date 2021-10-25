@@ -1,6 +1,8 @@
 //! This module defines relations between internal format, format, sampler type, and other
 //! properties of textures.
 
+
+
 // ==============
 // === Macros ===
 // ==============
@@ -92,6 +94,8 @@ macro_rules! with_texture_format_relations { ($f:ident $args:tt) => { $crate::$f
     Depth32fStencil8  DepthStencil   FloatSampler True  False False [f32_u24_u8_REV:U4]
 }}}
 
+
+
 // ======================
 // === Meta Iterators ===
 // ======================
@@ -136,5 +140,5 @@ macro_rules! with_all_texture_types_impl {
 macro_rules! with_all_texture_types {
     ($f:tt) => {
         $crate::with_texture_format_relations! { with_all_texture_types_impl $f }
-    };
+    }
 }

@@ -10,19 +10,20 @@ pub use remote_image::*;
 
 use crate::prelude::*;
 
+
+
 // ===============
 // === Storage ===
 // ===============
 
 /// Trait describing any storage texture type.
-pub trait Storage =
-    Debug + Default + Into<AnyStorage> + PhantomInto<AnyStorage> + 'static;
+pub trait Storage = Debug + Default + Into<AnyStorage> + PhantomInto<AnyStorage> + 'static;
 
 /// Type level accessor of the storage implementation for a given set of texture parameters.
-pub type StorageOf<S, I, T> = <S as StorageRelation<I, T>>::Storage;
+pub type StorageOf<S,I,T> = <S as StorageRelation<I,T>>::Storage;
 
 /// The storage implementation type family.
-pub trait StorageRelation<InternalFormat, ElemType>: Storage {
+pub trait StorageRelation<InternalFormat,ElemType>: Storage {
     /// The storage implementation.
     type Storage: Debug;
 }

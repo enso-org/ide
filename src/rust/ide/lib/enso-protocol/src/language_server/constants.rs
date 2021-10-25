@@ -3,9 +3,9 @@
 use crate::prelude::*;
 
 /// Recognized error codes used by the Language Server messages.
-///
+/// 
 /// They follow `org.enso.jsonrpc.Error` object defined in the `enso` repository.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone,Copy,Debug)]
 pub enum ErrorCodes {
     /// Server failed to parse JSON message.
     ParseError = -32700,

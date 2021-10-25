@@ -3,12 +3,14 @@
 //! discontinuities of the polar coordinates of Lcha (i.e., a transition from hue 1 to 359 would go
 //! through all hues instead of taking the shorter trip "backwards").
 
-use super::*;
 use crate::prelude::*;
+use super::*;
 
 use enso_frp as frp;
 
 use crate::display::shape::*;
+
+
 
 // =================
 // === Animation ===
@@ -28,12 +30,12 @@ crate::define_endpoints! {
 /// The `Animation` provides color better animations for colors than the raw
 /// `component::DEPRECATED_Animation<_>`, as it allows controlling the alpha channel separately which is
 /// important for nice fade outs.
-#[derive(Clone, CloneRef, Debug)]
+#[derive(Clone,CloneRef,Debug)]
 #[allow(missing_docs)]
 pub struct Animation {
-    frp: FrpEndpoints,
-    color_anim: crate::Animation<Lch>,
-    alpha_anim: crate::Animation<f32>,
+    frp        : FrpEndpoints,
+    color_anim : crate::Animation<Lch>,
+    alpha_anim : crate::Animation<f32>,
 }
 
 impl Deref for Animation {
@@ -45,19 +47,14 @@ impl Deref for Animation {
 
 impl Animation {
     /// Constructor.
-    pub fn new(network: &frp::Network) -> Self {
-        let frp = Frp::extend(network);
+    pub fn new(network:&frp::Network) -> Self {
+        let frp        = Frp::extend(network);
         let color_anim = crate::Animation::new_non_init(network);
         let alpha_anim = crate::Animation::new_non_init(network);
-        Self {
-            frp,
-            color_anim,
-            alpha_anim,
-        }
-        .init(network)
+        Self{frp,color_anim,alpha_anim}.init(network)
     }
 
-    fn init(self, network: &frp::Network) -> Self {
+    fn init(self, network:&frp::Network) -> Self {
         frp::extend! { network
             color_of_target        <- self.frp.target.map(|t|t.opaque);
             alpha_of_target        <- self.frp.target.map(|t|t.alpha);

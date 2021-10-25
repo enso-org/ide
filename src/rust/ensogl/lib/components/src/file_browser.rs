@@ -7,10 +7,11 @@ use crate::prelude::*;
 
 use crate::file_browser::model::*;
 
-use ensogl_core::display;
 use ensogl_core::display::shape::*;
-use ensogl_core::display::Scene;
 use std::path::PathBuf;
+use ensogl_core::display;
+use ensogl_core::display::Scene;
+
 
 // ===========
 // === FRP ===
@@ -38,48 +39,41 @@ ensogl_core::define_endpoints! {
     }
 }
 
+
+
 // ===================
 // === FileBrowser ===
 // ===================
 
 /// A file browser component. It allows to browse the content of a folder and it's subfolders and
 /// emits an event when an entry is chosen.
-#[derive(Clone, CloneRef, Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct FileBrowser {
-    logger: Logger,
-    frp: Frp,
-    display_object: display::object::Instance,
+    logger         : Logger,
+    frp            : Frp,
+    display_object : display::object::Instance,
 }
 
 impl Deref for FileBrowser {
     type Target = Frp;
-    fn deref(&self) -> &Self::Target {
-        &self.frp
-    }
+    fn deref(&self) -> &Self::Target { &self.frp }
 }
+
 
 impl FileBrowser {
     /// Constructore
     pub fn new() -> Self {
-        let logger = Logger::new("FileBrowser");
-        let frp = Frp::new();
+        let logger         = Logger::new("FileBrowser");
+        let frp            = Frp::new();
         let display_object = display::object::Instance::new(&logger);
-        Self {
-            logger,
-            frp,
-            display_object,
-        }
+        Self {logger,frp,display_object}
     }
 }
 
 impl Default for FileBrowser {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 impl display::Object for FileBrowser {
-    fn display_object(&self) -> &display::object::Instance<Scene> {
-        &self.display_object
-    }
+    fn display_object(&self) -> &display::object::Instance<Scene> {&self.display_object }
 }

@@ -2,8 +2,10 @@
 //! level dependencies in the whole library.
 
 use crate::prelude::*;
-use enso_types::newtype;
 use enso_types::unit;
+use enso_types::newtype;
+
+
 
 // ===============
 // === Exports ===
@@ -11,11 +13,13 @@ use enso_types::unit;
 
 /// Common traits.
 pub mod traits {
-    pub use super::bytes::Into as TRAIT_bytes_into;
+    pub use super::bytes::Into  as TRAIT_bytes_into;
     pub use super::column::Into as TRAIT_column_into;
-    pub use super::line::Into as TRAIT_line_into;
+    pub use super::line::Into   as TRAIT_line_into;
 }
 pub use traits::*;
+
+
 
 // =============
 // === Bytes ===
@@ -33,26 +37,28 @@ impl Bytes {
     }
 }
 
-impl<T: Into<Bytes>> bytes::Into for Range<T> {
+impl<T:Into<Bytes>> bytes::Into for Range<T> {
     type Output = Range<Bytes>;
     fn bytes(self) -> Self::Output {
         let start = self.start.into();
-        let end = self.end.into();
-        Range { start, end }
+        let end   = self.end.into();
+        Range {start,end}
     }
 }
 
 impl From<usize> for Bytes {
-    fn from(t: usize) -> Self {
+    fn from(t:usize) -> Self {
         (t as i32).into()
     }
 }
 
 impl From<&usize> for Bytes {
-    fn from(t: &usize) -> Self {
+    fn from(t:&usize) -> Self {
         (*t as i32).into()
     }
 }
+
+
 
 // ============
 // === Line ===
@@ -78,16 +84,18 @@ impl Line {
 }
 
 impl From<usize> for Line {
-    fn from(t: usize) -> Self {
+    fn from(t:usize) -> Self {
         (t as i32).into()
     }
 }
 
 impl From<&usize> for Line {
-    fn from(t: &usize) -> Self {
+    fn from(t:&usize) -> Self {
         (*t as i32).into()
     }
 }
+
+
 
 // ==============
 // === Column ===
@@ -113,16 +121,18 @@ impl Column {
 }
 
 impl From<usize> for Column {
-    fn from(t: usize) -> Self {
+    fn from(t:usize) -> Self {
         (t as i32).into()
     }
 }
 
 impl From<&usize> for Column {
-    fn from(t: &usize) -> Self {
+    fn from(t:&usize) -> Self {
         (*t as i32).into()
     }
 }
+
+
 
 // ================
 // === Location ===
@@ -137,12 +147,12 @@ Location {
 
 impl Location {
     /// Line setter.
-    pub fn with_line(self, line: Line) -> Self {
-        Self { line, ..self }
+    pub fn with_line(self, line:Line) -> Self {
+        Self {line,..self}
     }
 
     /// Column setter.
-    pub fn with_column(self, column: Column) -> Self {
-        Self { column, ..self }
+    pub fn with_column(self, column:Column) -> Self {
+        Self {column,..self}
     }
 }

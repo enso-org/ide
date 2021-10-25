@@ -1,7 +1,7 @@
 //! The integration layer between IDE controllers and the view.
 
-pub mod file_system;
 pub mod project;
+pub mod file_system;
 pub mod visualization;
 
 use crate::prelude::*;
@@ -10,6 +10,7 @@ use crate::controller::ide::StatusNotification;
 use crate::model::undo_redo::Aware;
 
 use ide_view::graph_editor::SharedHashMap;
+
 
 // =======================
 // === IDE Integration ===
@@ -21,55 +22,41 @@ use ide_view::graph_editor::SharedHashMap;
 /// various FRP endpoints or executor tasks.
 #[derive(Debug)]
 struct Model {
-    logger: Logger,
-    controller: controller::Ide,
-    view: ide_view::project::View,
-    project_integration: RefCell<Option<project::Integration>>,
+    logger              : Logger,
+    controller          : controller::Ide,
+    view                : ide_view::project::View,
+    project_integration : RefCell<Option<project::Integration>>,
 }
 
 impl Model {
     /// Create a new project integration
-    fn setup_and_display_new_project(self: Rc<Self>) {
+    fn setup_and_display_new_project(self:Rc<Self>) {
         // Remove the old integration first. We want to be sure the old and new integrations will
         // not race for the view.
         *self.project_integration.borrow_mut() = None;
 
-        let project_model = self.controller.current_project();
-        let status_notifications =
-            self.controller.status_notifications().clone_ref();
-        let project = controller::Project::new(
-            project_model,
-            status_notifications.clone_ref(),
-        );
+        let project_model        = self.controller.current_project();
+        let status_notifications = self.controller.status_notifications().clone_ref();
+        let project              = controller::Project::new(project_model,status_notifications.clone_ref());
 
         executor::global::spawn(async move {
             match project.initialize().await {
                 Ok(result) => {
-                    let view = self.view.clone_ref();
-                    let text = result.main_module_text;
-                    let graph = result.main_graph;
-                    let ide = self.controller.clone_ref();
-                    let project = project.model;
+                    let view        = self.view.clone_ref();
+                    let text        = result.main_module_text;
+                    let graph       = result.main_graph;
+                    let ide         = self.controller.clone_ref();
+                    let project     = project.model;
                     let main_module = result.main_module_model;
-                    let integration = project::Integration::new(
-                        view,
-                        graph,
-                        text,
-                        ide,
-                        project,
-                        main_module,
-                    );
+                    let integration = project::Integration::new(view,graph,text,ide,project,
+                        main_module);
                     // We don't want any initialization-related changes to appear on undo stack.
-                    integration
-                        .graph_controller()
-                        .undo_redo_repository()
-                        .clear_all();
+                    integration.graph_controller().undo_redo_repository().clear_all();
                     *self.project_integration.borrow_mut() = Some(integration);
                 }
                 Err(err) => {
-                    let err_msg =
-                        format!("Failed to initialize project: {}", err);
-                    error!(self.logger, "{err_msg}");
+                    let err_msg = format!("Failed to initialize project: {}", err);
+                    error!(self.logger,"{err_msg}");
                     status_notifications.publish_event(err_msg)
                 }
             }
@@ -77,32 +64,25 @@ impl Model {
     }
 }
 
+
 // === Integration ===
 
 /// The Integration Object
 ///
 /// It is responsible for integrating IDE controllers and views, so user actions will work, and
 /// notifications from controllers will update the view.
-#[derive(Clone, CloneRef, Debug)]
+#[derive(Clone,CloneRef,Debug)]
 pub struct Integration {
-    model: Rc<Model>,
+    model : Rc<Model>,
 }
 
 impl Integration {
     /// Create the integration of given controller and view.
-    pub fn new(
-        controller: controller::Ide,
-        view: ide_view::project::View,
-    ) -> Self {
-        let logger = Logger::new("ide::Integration");
+    pub fn new(controller:controller::Ide, view:ide_view::project::View) -> Self {
+        let logger              = Logger::new("ide::Integration");
         let project_integration = default();
-        let model = Rc::new(Model {
-            logger,
-            controller,
-            view,
-            project_integration,
-        });
-        Self { model }.init()
+        let model               = Rc::new(Model {logger,controller,view,project_integration});
+        Self {model} . init()
     }
 
     /// Initialize integration, so FRP outputs of the view will call the proper controller methods,
@@ -115,14 +95,13 @@ impl Integration {
     }
 
     fn initialize_status_bar_integration(&self) {
-        use controller::ide::BackgroundTaskHandle as ControllerHandle;
+        use controller::ide::BackgroundTaskHandle    as ControllerHandle;
         use ide_view::status_bar::process::Id as ViewHandle;
 
-        let logger = self.model.logger.clone_ref();
-        let process_map = SharedHashMap::<ControllerHandle, ViewHandle>::new();
-        let status_bar = self.model.view.status_bar().clone_ref();
-        let status_notif_sub =
-            self.model.controller.status_notifications().subscribe();
+        let logger               = self.model.logger.clone_ref();
+        let process_map          = SharedHashMap::<ControllerHandle,ViewHandle>::new();
+        let status_bar           = self.model.view.status_bar().clone_ref();
+        let status_notif_sub     = self.model.controller.status_notifications().subscribe();
         let status_notif_updates = status_notif_sub.for_each(move |notification| {
             info!(logger, "Received notification {notification:?}");
             match notification {
@@ -150,12 +129,12 @@ impl Integration {
 
     fn initialize_controller_integration(&self) {
         let stream = self.model.controller.subscribe();
-        let weak = Rc::downgrade(&self.model);
+        let weak   = Rc::downgrade(&self.model);
         executor::global::spawn(stream.for_each(move |notification| {
             if let Some(model) = weak.upgrade() {
                 match notification {
-                    controller::ide::Notification::NewProjectCreated
-                    | controller::ide::Notification::ProjectOpened => {
+                    controller::ide::Notification::NewProjectCreated |
+                    controller::ide::Notification::ProjectOpened     => {
                         model.setup_and_display_new_project()
                     }
                 }

@@ -5,8 +5,8 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
-use quote::quote;
 use syn::*;
+use quote::quote;
 
 // FIXME: Parse proc_macro args to read the following info:
 // #[web_test(dimensions(320.0, 240.0)) and
@@ -33,13 +33,11 @@ use syn::*;
 /// }
 /// ```
 #[proc_macro_attribute]
-pub fn web_test(_args: TokenStream, input: TokenStream) -> TokenStream {
+pub fn web_test(_args:TokenStream, input:TokenStream) -> TokenStream {
     if let Ok(mut parsed) = syn::parse::<ItemFn>(input.clone()) {
         let fn_string = format!("{}", parsed.sig.ident);
-        let code = format!(
-            "Container::new(\"Tests\", \"{}\", 320.0, 240.0);",
-            fn_string
-        );
+        let code = format!("Container::new(\"Tests\", \"{}\", 320.0, 240.0);",
+                           fn_string);
 
         if let Ok(stmt) = parse_str::<Stmt>(&code) {
             // We insert Container::new("Tests", fn_name, 320.0, 240.0)
@@ -58,6 +56,7 @@ pub fn web_test(_args: TokenStream, input: TokenStream) -> TokenStream {
         input
     }
 }
+
 
 // ====================
 // === #[web_bench] ===
@@ -87,10 +86,11 @@ pub fn web_test(_args: TokenStream, input: TokenStream) -> TokenStream {
 /// }
 /// ```
 #[proc_macro_attribute]
-pub fn web_bench(_args: TokenStream, input: TokenStream) -> TokenStream {
+pub fn web_bench(_args:TokenStream, input:TokenStream) -> TokenStream {
+
     if let Ok(parsed) = parse::<ItemFn>(input.clone()) {
         use proc_macro2::*;
-        let input: TokenStream = input.into();
+        let input : TokenStream = input.into();
 
         let fn_ident = parsed.sig.ident;
         let fn_string = format!("{}", fn_ident);

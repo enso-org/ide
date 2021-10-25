@@ -8,13 +8,15 @@ use crate::messages::Response;
 
 use futures::channel::oneshot::Canceled;
 
+
+
 // ================
 // === RpcError ===
 // ================
 
 /// Errors that can cause a remote call to fail.
 #[derive(Debug, Fail)]
-pub enum RpcError<Payload: Debug + Send + Sync + 'static = serde_json::Value> {
+pub enum RpcError<Payload:Debug+Send+Sync+'static = serde_json::Value> {
     /// Error returned by the remote server.
     #[fail(display = "Peer has replied with an error: {:?}.", _0)]
     RemoteError(Error<Payload>),
@@ -32,36 +34,38 @@ pub enum RpcError<Payload: Debug + Send + Sync + 'static = serde_json::Value> {
     MismatchedResponseType,
 
     /// Response timeout.
-    ///
-    /// Note that this represents the client-side timeout. Server-side timeout will be treated as
-    /// an [`RemoteError`].
+    /// 
+    /// Note that this represents the client-side timeout. Server-side timeout will be treated as 
+    /// an [`RemoteError`]. 
     #[allow(missing_docs)]
     #[fail(display = "Response timed out after {} ms.", millis)]
-    TimeoutError { millis: u128 },
+    TimeoutError{millis:u128},
 }
 
 impl RpcError {
     /// Wraps provided by the remote peer code and message into a `RpcError`.
-    pub fn new_remote_error(code: i64, message: impl Str) -> RpcError {
+    pub fn new_remote_error(code:i64, message:impl Str) -> RpcError {
         RpcError::RemoteError(Error {
             code,
-            message: message.into(),
-            data: None,
+            message : message.into(),
+            data    : None,
         })
     }
 }
 
 impl From<Canceled> for RpcError {
-    fn from(_: Canceled) -> Self {
+    fn from(_:Canceled) -> Self {
         RpcError::LostConnection
     }
 }
 
 impl From<serde_json::Error> for RpcError {
-    fn from(e: serde_json::Error) -> Self {
+    fn from(e:serde_json::Error) -> Self {
         RpcError::DeserializationFailed(e)
     }
 }
+
+
 
 // =====================
 // === HandlingError ===
@@ -78,10 +82,7 @@ pub enum HandlingError {
 
     /// Server responded to an identifier that does not match to any known
     /// ongoing request.
-    #[fail(
-        display = "Server generated a response with no matching request: id={:?}.",
-        _0
-    )]
+    #[fail(display = "Server generated a response with no matching request: id={:?}.", _0)]
     UnexpectedResponse(Response<serde_json::Value>),
 
     /// JSON-RPC client does not expect any binary messages, yet it received one.

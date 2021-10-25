@@ -3,8 +3,10 @@
 
 use crate::prelude::*;
 
-use crate::system::gpu::data::gl_enum::GlEnum;
 use crate::system::gpu::data::texture::gl_enums::*;
+use crate::system::gpu::data::gl_enum::GlEnum;
+
+
 
 // ==============
 // === Format ===

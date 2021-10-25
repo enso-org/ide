@@ -1,22 +1,26 @@
 //! This module defines a wrapper for WebGL enums and associated utils.
 
 use crate::prelude::*;
-use crate::system::gpu::data::prim::*;
 use crate::system::gpu::shader::Context;
+use crate::system::gpu::data::prim::*;
+
+
 
 // ==============
 // === GlEnum ===
 // ==============
 
 /// The newtype for WebGL enums.
-#[derive(Copy, Clone, Debug, Default, Display)]
+#[derive(Copy,Clone,Debug,Default,Display)]
 pub struct GlEnum(pub u32);
 
 impl From<GlEnum> for u32 {
-    fn from(t: GlEnum) -> u32 {
+    fn from(t:GlEnum) -> u32 {
         t.0
     }
 }
+
+
 
 // ==================
 // === Extensions ===
@@ -32,10 +36,7 @@ pub mod traits {
         fn to_gl_enum(&self) -> GlEnum;
     }
 
-    impl<T> ToGlEnum for T
-    where
-        for<'a> &'a T: Into<GlEnum>,
-    {
+    impl<T> ToGlEnum for T where for<'a> &'a T:Into<GlEnum> {
         fn to_gl_enum(&self) -> GlEnum {
             self.into()
         }
@@ -47,15 +48,14 @@ pub mod traits {
         fn gl_enum() -> GlEnum;
     }
 
-    impl<T> PhantomIntoGlEnum for T
-    where
-        T: PhantomInto<GlEnum>,
-    {
+    impl<T> PhantomIntoGlEnum for T where T:PhantomInto<GlEnum> {
         fn gl_enum() -> GlEnum {
             T::phantom_into::<GlEnum>()
         }
     }
 }
+
+
 
 // ==============
 // === Macros ===
@@ -69,6 +69,7 @@ macro_rules! define_singletons_gl {
         $crate::define_gl_enum_conversions!{ $target $( $(#$meta)* $name = $expr ),* }
     }
 }
+
 
 /// Defines conversions `From<$type>` and `From<PhantomData<$type>>` for every provided type.
 #[macro_export]
@@ -98,6 +99,7 @@ macro_rules! define_gl_enum_conversions_2 {
     }
 }
 
+
 /// Combination of `define_singletons_gl` and `define_singleton_enum_gl_from`.
 #[macro_export]
 macro_rules! define_singleton_enum_gl {
@@ -112,6 +114,7 @@ macro_rules! define_singleton_enum_gl {
         $crate :: define_singleton_enum_gl_from! { $target $(#$meta)* $name {$($(#$field_meta)* $field),*}}
     }
 }
+
 
 /// Defines associated enum type for the provided variants, just like `define_singleton_enum_from`.
 /// It also defines conversions `From<$singleton>` and `From<PhantomData<$singleton>>` the enum
@@ -143,6 +146,8 @@ macro_rules! define_singleton_enum_gl_from {
         }
     }
 }
+
+
 
 // ================================
 // === Primitive Type Instances ===

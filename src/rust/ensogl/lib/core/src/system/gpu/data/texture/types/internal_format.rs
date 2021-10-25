@@ -3,13 +3,15 @@
 
 use crate::prelude::*;
 
-use crate::system::gpu::data::gl_enum::*;
 use crate::system::gpu::data::prim::*;
-use crate::system::gpu::data::texture::format::*;
+use crate::system::gpu::data::gl_enum::*;
 use crate::system::gpu::data::texture::gl_enums::*;
+use crate::system::gpu::data::texture::format::*;
 use crate::system::gpu::data::texture::sampler::*;
 
 use nalgebra::*;
+
+
 
 // ====================
 // === InternalItem ===
@@ -20,6 +22,8 @@ pub trait InternalItem<Type> {
     /// The size in bytes of a single element of the texture.
     type ByteSize: DimName;
 }
+
+
 
 // ======================
 // === InternalFormat ===
@@ -39,7 +43,7 @@ crate::define_singleton_enum_gl_from! { [GlEnum]
 
 /// Provides information about the suitable format and checks if the texture is color renderable
 /// and filterable for a given `InternalFormat`.
-pub trait InternalFormat: Default + Into<AnyInternalFormat> + 'static {
+pub trait InternalFormat : Default + Into<AnyInternalFormat> + 'static {
     /// The `Format` associated with this `InternalFormat`. Please note that `InternalFormat`
     /// dictates which `Format` to use, but this relation is asymmetrical.
     type Format: Format;
@@ -50,13 +54,13 @@ pub trait InternalFormat: Default + Into<AnyInternalFormat> + 'static {
     type Sampler: Sampler;
 
     /// Checks if the texture format can be rendered from shaders.
-    type ColorRenderable: KnownTypeValue<Value = bool>;
+    type ColorRenderable: KnownTypeValue<Value=bool>;
 
     /// Checks it he texture can be filtered.
-    type Filterable: KnownTypeValue<Value = bool>;
+    type Filterable: KnownTypeValue<Value=bool>;
 
     /// Checks wether blending applies to this texture when rendering from shaders.
-    type ColorBlendable: KnownTypeValue<Value = bool>;
+    type ColorBlendable: KnownTypeValue<Value=bool>;
 
     /// Checks if the texture format can be rendered as color.
     fn color_renderable() -> bool {
@@ -68,6 +72,8 @@ pub trait InternalFormat: Default + Into<AnyInternalFormat> + 'static {
         <Self::Filterable as KnownTypeValue>::value()
     }
 }
+
+
 
 // =================
 // === Instances ===

@@ -12,6 +12,8 @@
 
 use ensogl_core::prelude::ImString;
 
+
+
 // ==============
 // === Macros ===
 // ==============
@@ -60,21 +62,11 @@ macro_rules! _define_theme_modules {
 
 /// Select the theme expression by its number.
 macro_rules! _select_theme_expr {
-    (0 $e0:expr                                         $(,$rest:tt)*) => {
-        $e0
-    };
-    (1 $e0:expr, $e1:expr                               $(,$rest:tt)*) => {
-        $e1
-    };
-    (2 $e0:expr, $e1:expr, $e2:expr                     $(,$rest:tt)*) => {
-        $e2
-    };
-    (3 $e0:expr, $e1:expr, $e2:expr, $e3:expr           $(,$rest:tt)*) => {
-        $e3
-    };
-    (4 $e0:expr, $e1:expr, $e2:expr, $e3:expr, $e4:expr $(,$rest:tt)*) => {
-        $e4
-    };
+    (0 $e0:expr                                         $(,$rest:tt)*) => { $e0 };
+    (1 $e0:expr, $e1:expr                               $(,$rest:tt)*) => { $e1 };
+    (2 $e0:expr, $e1:expr, $e2:expr                     $(,$rest:tt)*) => { $e2 };
+    (3 $e0:expr, $e1:expr, $e2:expr, $e3:expr           $(,$rest:tt)*) => { $e3 };
+    (4 $e0:expr, $e1:expr, $e2:expr, $e3:expr, $e4:expr $(,$rest:tt)*) => { $e4 };
 }
 
 /// Helper for defining multiple themes as the same time.
@@ -138,13 +130,15 @@ macro_rules! define_themes {
     };
 }
 
+
+
 // =============
 // === Theme ===
 // =============
 
 /// Enum holding available themes for ease of access.
 #[allow(missing_docs)]
-#[derive(Clone, Debug)]
+#[derive(Clone,Debug)]
 pub enum Theme {
     Light,
     Dark,
@@ -152,10 +146,10 @@ pub enum Theme {
 }
 
 impl Default for Theme {
-    fn default() -> Self {
-        Theme::Light
-    }
+    fn default() -> Self { Theme::Light }
 }
+
+
 
 // ===========================
 // === Light & Dark Themes ===

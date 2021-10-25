@@ -24,6 +24,8 @@ use crate::Easing;
 
 use enso_frp as frp;
 
+
+
 // ===========
 // === Frp ===
 // ===========
@@ -45,31 +47,29 @@ crate::define_endpoints! {
     }
 }
 
+
+
 // ===========================
 // === HystereticAnimation ===
 // ===========================
 
 /// Animation that has a delayed onset and offset.
-#[derive(Clone, CloneRef, Debug, Shrinkwrap)]
+#[derive(Clone,CloneRef,Debug,Shrinkwrap)]
 pub struct HystereticAnimation {
     #[allow(missing_docs)]
-    pub frp: FrpEndpoints,
+    pub frp : FrpEndpoints,
 }
 
 impl HystereticAnimation {
     #[allow(missing_docs)]
-    pub fn new(
-        network: &frp::Network,
-        start_delay_duration: f32,
-        end_delay_duration: f32,
-    ) -> Self {
-        let frp = Frp::extend(network);
+    pub fn new(network:&frp::Network, start_delay_duration:f32, end_delay_duration:f32) -> Self {
+        let frp         = Frp::extend(network);
         let start_delay = Easing::new(network);
-        let end_delay = Easing::new(network);
+        let end_delay   = Easing::new(network);
         start_delay.set_duration(start_delay_duration);
         end_delay.set_duration(end_delay_duration);
 
-        let transition = Animation::<f32>::new(network);
+        let transition   = Animation::<f32>::new(network);
 
         frp::extend! { network
 
@@ -108,6 +108,6 @@ impl HystereticAnimation {
             frp.source.on_start <+ offset_end;
         }
 
-        HystereticAnimation { frp }
+        HystereticAnimation{frp}
     }
 }

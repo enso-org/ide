@@ -73,6 +73,7 @@
 #![feature(trait_alias)]
 #![feature(type_ascription)]
 #![feature(option_zip)]
+
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 #![warn(missing_docs)]
@@ -81,7 +82,8 @@
 #![warn(unsafe_code)]
 #![warn(unused_import_braces)]
 #![warn(unused_qualifications)]
-#![recursion_limit = "1024"]
+
+#![recursion_limit="1024"]
 
 pub mod buffer;
 pub mod component;

@@ -2,6 +2,8 @@
 
 use enso_prelude::*;
 
+
+
 // ===============================
 // === Common Pre- and Postfix ===
 // ===============================
@@ -20,13 +22,13 @@ use enso_prelude::*;
 /// assert_eq!(common_prefix_length(a,c), 0);
 /// assert_eq!(common_prefix_length(a,a), 9);
 /// ```
-pub fn common_prefix_length(source_a: &str, source_b: &str) -> usize {
-    let shortest = source_a.chars().count().min(source_b.chars().count());
-    let chars_a = source_a.chars();
-    let chars_b = source_b.chars();
+pub fn common_prefix_length(source_a:&str, source_b:&str) -> usize {
+    let shortest   = source_a.chars().count().min(source_b.chars().count());
+    let chars_a    = source_a.chars();
+    let chars_b    = source_b.chars();
     let mut zipped = chars_a.zip(chars_b);
-    let mismatch = zipped.find_position(|(a, b)| *a != *b);
-    mismatch.map(|(ix, _)| ix).unwrap_or(shortest)
+    let mismatch   = zipped.find_position(|(a,b)| *a != *b);
+    mismatch.map(|(ix,_)| ix).unwrap_or(shortest)
 }
 
 /// Return the length of the longest common postfix of the two strings. If they are completely
@@ -43,11 +45,11 @@ pub fn common_prefix_length(source_a: &str, source_b: &str) -> usize {
 /// assert_eq!(common_postfix_length(a,c), 0);
 /// assert_eq!(common_postfix_length(a,a), 10);
 /// ```
-pub fn common_postfix_length(source_a: &str, source_b: &str) -> usize {
-    let shortest = source_a.chars().count().min(source_b.chars().count());
-    let chars_a = source_a.chars().rev();
-    let chars_b = source_b.chars().rev();
+pub fn common_postfix_length(source_a:&str, source_b:&str) -> usize {
+    let shortest   = source_a.chars().count().min(source_b.chars().count());
+    let chars_a    = source_a.chars().rev();
+    let chars_b    = source_b.chars().rev();
     let mut zipped = chars_a.zip(chars_b);
-    let mismatch = zipped.find_position(|(a, b)| *a != *b);
-    mismatch.map(|(ix, _)| ix).unwrap_or(shortest)
+    let mismatch   = zipped.find_position(|(a,b)| *a != *b);
+    mismatch.map(|(ix,_)| ix).unwrap_or(shortest)
 }

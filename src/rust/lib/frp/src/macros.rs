@@ -127,6 +127,8 @@ macro_rules! extend {
     ($($ts:tt)*)           => { $crate::_extend! { NO_TRACE $($ts)* } };
 }
 
+
+
 // ===================
 // === Private API ===
 // ===================
@@ -161,6 +163,7 @@ macro_rules! new_bridge_network {
         $($($path).*.register_bridge_network(&_birdge_network_);)*
     };
 }
+
 
 // === Extend ===
 
@@ -278,6 +281,7 @@ macro_rules! extend_line2 {
     ([] $net:ident trace $($path:ident).*) => { $net.trace(stringify!($($path).*),&$($path).*); };
     ([] $net:ident $($ts:tt)*) => { $($ts)*; }
 }
+
 
 // === Utils ===
 

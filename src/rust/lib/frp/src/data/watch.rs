@@ -2,6 +2,8 @@
 
 use crate::prelude::*;
 
+
+
 // ==============
 // === Handle ===
 // ==============
@@ -9,15 +11,15 @@ use crate::prelude::*;
 /// Handle for the `Counter`. When created increases, and when dropped decreases the counter.
 #[derive(Debug)]
 pub struct Handle {
-    counter: Counter,
+    counter : Counter
 }
 
 impl Handle {
     /// Constructor.
-    pub fn new(counter: &Counter) -> Self {
+    pub fn new(counter:&Counter) -> Self {
         let counter = counter.clone_ref();
         counter.increase();
-        Self { counter }
+        Self {counter}
     }
 }
 
@@ -27,15 +29,17 @@ impl Drop for Handle {
     }
 }
 
+
+
 // ===============
 // === Counter ===
 // ===============
 
 /// Counter for a resource that is being watched. You can create new watchers by using the
 /// `new_watch` method.
-#[derive(Debug, Clone, CloneRef, Default)]
+#[derive(Debug,Clone,CloneRef,Default)]
 pub struct Counter {
-    count: Rc<Cell<usize>>,
+    count: Rc<Cell<usize>>
 }
 
 impl Counter {
@@ -63,23 +67,25 @@ impl Counter {
     }
 }
 
+
+
 // ===========
 // === Ref ===
 // ===========
 
 /// A simple wrapper for anything with attached `Handle`. Could be used as a handy type for
 /// storing both a reference to a resource and its watch handle.
-#[derive(Debug, Shrinkwrap)]
+#[derive(Debug,Shrinkwrap)]
 pub struct Ref<T> {
     /// The underlying type.
     #[shrinkwrap(main_field)]
-    pub target: T,
-    handle: Handle,
+    pub target : T,
+    handle : Handle
 }
 
 impl<T> Ref<T> {
     /// Constructor.
-    pub fn new(target: T, handle: Handle) -> Self {
-        Self { target, handle }
+    pub fn new(target:T, handle:Handle) -> Self {
+        Self {target,handle}
     }
 }

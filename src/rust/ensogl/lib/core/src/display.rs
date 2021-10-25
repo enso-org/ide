@@ -3,14 +3,16 @@
 
 pub mod camera;
 pub mod layout;
-pub mod navigation;
 pub mod object;
+pub mod navigation;
 pub mod render;
 pub mod scene;
 pub mod shape;
-pub mod style;
 pub mod symbol;
+pub mod style;
 pub mod world;
+
+
 
 // ===============
 // === Exports ===
@@ -24,11 +26,11 @@ pub mod traits {
 
 /// Common types.
 pub mod types {
-    pub use super::symbol::*;
-    pub use super::traits::*;
     use super::*;
     pub use object::Object;
-    pub use scene::dom::DomScene;
     pub use scene::Scene;
+    pub use scene::dom::DomScene;
+    pub use super::symbol::*;
+    pub use super::traits::*;
 }
 pub use types::*;

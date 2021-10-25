@@ -5,44 +5,39 @@ pub mod test;
 
 use crate::prelude::*;
 
-use ensogl::animation;
 use ensogl::control::callback;
+use ensogl::animation;
+use futures::task::LocalSpawn;
+use futures::task::LocalFutureObj;
+use futures::task::SpawnError;
 use futures::executor::LocalPool;
 use futures::executor::LocalSpawner;
-use futures::task::LocalFutureObj;
-use futures::task::LocalSpawn;
-use futures::task::SpawnError;
 
 /// Executor. Uses a single-threaded `LocalPool` underneath, relying on ensogl's
 /// `animation::DynamicLoop` to do as much progress as possible on every animation frame.
 #[derive(Debug)]
 pub struct EventLoopExecutor {
     /// Underlying executor. Shared internally with the event loop callback.
-    executor: Rc<RefCell<LocalPool>>,
+    executor    : Rc<RefCell<LocalPool>>,
     /// Executor's spawner handle.
-    pub spawner: LocalSpawner,
+    pub spawner : LocalSpawner,
     /// Event loop that calls us on each frame.
-    event_loop: Option<animation::DynamicLoop>,
+    event_loop  : Option<animation::DynamicLoop>,
     /// Handle to the callback - if dropped, loop would have stopped calling us.
     /// Also owns a shared handle to the `executor`.
-    cb_handle: Option<callback::Handle>,
+    cb_handle   : Option<callback::Handle>,
 }
 
 impl EventLoopExecutor {
     /// Creates a new EventLoopExecutor. It is not yet running, use `start_running`
     /// method to schedule it in an event loop.
     pub fn new() -> EventLoopExecutor {
-        let executor = LocalPool::default();
-        let spawner = executor.spawner();
-        let executor = Rc::new(RefCell::new(executor));
+        let executor   = LocalPool::default();
+        let spawner    = executor.spawner();
+        let executor   = Rc::new(RefCell::new(executor));
         let event_loop = None;
-        let cb_handle = None;
-        EventLoopExecutor {
-            executor,
-            spawner,
-            event_loop,
-            cb_handle,
-        }
+        let cb_handle  = None;
+        EventLoopExecutor {executor,spawner,event_loop,cb_handle}
     }
 
     /// Creates a new EventLoopExecutor with an event loop of its own. The event
@@ -72,10 +67,10 @@ impl EventLoopExecutor {
     ///
     /// The executor will keep copy of this loop handle, so caller is not
     /// required to keep it alive.
-    pub fn start_running(&mut self, event_loop: animation::DynamicLoop) {
+    pub fn start_running(&mut self, event_loop:animation::DynamicLoop) {
         let cb = self.runner();
 
-        self.cb_handle = Some(event_loop.on_frame(cb));
+        self.cb_handle  = Some(event_loop.on_frame(cb));
         self.event_loop = Some(event_loop);
     }
 
@@ -85,7 +80,7 @@ impl EventLoopExecutor {
     ///
     /// Drops the stored handle to the loop.
     pub fn stop_running(&mut self) {
-        self.cb_handle = None;
+        self.cb_handle  = None;
         self.event_loop = None;
     }
 }
@@ -97,10 +92,7 @@ impl Default for EventLoopExecutor {
 }
 
 impl LocalSpawn for EventLoopExecutor {
-    fn spawn_local_obj(
-        &self,
-        future: LocalFutureObj<'static, ()>,
-    ) -> Result<(), SpawnError> {
+    fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
         self.spawner.spawn_local_obj(future)
     }
 

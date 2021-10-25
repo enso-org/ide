@@ -25,6 +25,8 @@ pub use bounds::Bounds;
 pub(crate) use frp::*;
 use model::*;
 
+
+
 // =====================
 // === Number Picker ===
 // =====================
@@ -35,19 +37,15 @@ use model::*;
 /// background that corresponds to the value relative in the range, for example, 0.0 would be not
 /// filled in, 128.0 would be about halfway filled in, and 128.0 would be completely filled in.
 /// The value can be changed by clicking and dragging on the shape.
-pub type NumberPicker = crate::component::Component<Model, number::Frp>;
+pub type NumberPicker = crate::component::Component<Model,number::Frp>;
 
 impl application::View for NumberPicker {
-    fn label() -> &'static str {
-        "NumberPicker"
-    }
-    fn new(app: &Application) -> Self {
-        NumberPicker::new(app)
-    }
-    fn app(&self) -> &Application {
-        &self.app
-    }
+    fn label() -> &'static str { "NumberPicker" }
+    fn new(app:&Application) -> Self { NumberPicker::new(app) }
+    fn app(&self) -> &Application { &self.app }
 }
+
+
 
 // ===========================
 // === Number Range Picker ===
@@ -62,16 +60,10 @@ impl application::View for NumberPicker {
 /// would show the track covering the right half of the background. The selected range can be
 /// changed by clicking and dragging the track, which changes the whole range, but preserves the
 /// width, or the individual edges of the track which changes just the respective end of the range.
-pub type NumberRangePicker = crate::component::Component<Model, range::Frp>;
+pub type NumberRangePicker = crate::component::Component<Model,range::Frp>;
 
 impl application::View for NumberRangePicker {
-    fn label() -> &'static str {
-        "RangePicker"
-    }
-    fn new(app: &Application) -> Self {
-        NumberRangePicker::new(app)
-    }
-    fn app(&self) -> &Application {
-        &self.app
-    }
+    fn label() -> &'static str { "RangePicker" }
+    fn new(app:&Application) -> Self { NumberRangePicker::new(app) }
+    fn app(&self) -> &Application { &self.app }
 }
