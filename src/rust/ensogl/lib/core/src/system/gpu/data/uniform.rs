@@ -15,12 +15,16 @@ use crate::system::gpu::shader::Context;
 
 use web_sys::WebGlTexture;
 
+
+
 // ====================
 // === UniformValue ===
 // ====================
 
 /// Describes every value which can be stored inside of an uniform.
 pub trait UniformValue = Sized where Uniform<Self>: Into<AnyUniform>;
+
+
 
 // ====================
 // === UniformScope ===
@@ -129,6 +133,8 @@ impl UniformScope {
     }
 }
 
+
+
 // ===============
 // === Uniform ===
 // ===============
@@ -200,6 +206,8 @@ impl<Value> UniformData<Value> {
     }
 }
 
+
+
 // ========================
 // === Texture Uniforms ===
 // ========================
@@ -213,6 +221,8 @@ impl<T> WithContent for Uniform<T> {
         f(&self.rc.borrow().value)
     }
 }
+
+
 
 // ======================
 // === AnyPrimUniform ===
@@ -262,6 +272,8 @@ impl<Value: UniformUpload> AnyPrimUniformOps for UniformData<Value> {
         self.value.upload_uniform(context, location)
     }
 }
+
+
 
 // =========================
 // === AnyTextureUniform ===
@@ -379,6 +391,8 @@ macro_rules! generate {
 
 crate::with_all_texture_types! ([generate _]);
 
+
+
 // ==================
 // === AnyUniform ===
 // ==================
@@ -389,11 +403,11 @@ pub enum AnyUniform {
     Texture(AnyTextureUniform),
 }
 
+
 // === Conversions ===
 
 impl<T> From<Uniform<T>> for AnyUniform
-where
-    Uniform<T>: IntoAnyUniform,
+where Uniform<T>: IntoAnyUniform
 {
     fn from(t: Uniform<T>) -> Self {
         t.into_any_uniform()
@@ -437,11 +451,10 @@ macro_rules! generate_prim_type_downcasts {
 }
 crate::with_all_prim_types!([[generate_prim_type_downcasts][]]);
 
-impl<'t, S: StorageRelation<I, T>, I: InternalFormat, T: ItemType>
-    TryFrom<&'t AnyUniform> for &'t Uniform<Texture<S, I, T>>
-where
-    &'t Uniform<Texture<S, I, T>>:
-        TryFrom<&'t AnyTextureUniform, Error = TypeMismatch>,
+
+impl<'t, S: StorageRelation<I, T>, I: InternalFormat, T: ItemType> TryFrom<&'t AnyUniform>
+    for &'t Uniform<Texture<S, I, T>>
+where &'t Uniform<Texture<S, I, T>>: TryFrom<&'t AnyTextureUniform, Error = TypeMismatch>
 {
     type Error = TypeMismatch;
     fn try_from(value: &'t AnyUniform) -> Result<Self, Self::Error> {

@@ -7,6 +7,7 @@ use crate::binary;
 use serde::Deserialize;
 use serde::Serialize;
 
+
 // ===================
 // === UTCDateTime ===
 // ===================
@@ -14,22 +15,14 @@ use serde::Serialize;
 /// Time in UTC time zone.
 pub type UTCDateTime = chrono::DateTime<chrono::FixedOffset>;
 
+
+
 // ================
 // === Sha3_224 ===
 // ================
 
 /// SHA3-224 hash digest.
-#[derive(
-    Hash,
-    Debug,
-    Display,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    Shrinkwrap,
-)]
+#[derive(Hash, Debug, Display, Clone, PartialEq, Eq, Serialize, Deserialize, Shrinkwrap)]
 pub struct Sha3_224(String);
 
 impl Sha3_224 {
@@ -58,6 +51,7 @@ impl From<binary::message::EnsoDigest> for Sha3_224 {
     }
 }
 
+
 // =============
 // === Tests ===
 // =============
@@ -69,9 +63,7 @@ mod tests {
     #[test]
     fn sha3_224() {
         let digest = Sha3_224::new(b"abc");
-        let expected =
-            "e642824c3f8cf24ad09234ee7d3c766fc9a3a5168d0c94ad73b46fdf"
-                .to_string();
+        let expected = "e642824c3f8cf24ad09234ee7d3c766fc9a3a5168d0c94ad73b46fdf".to_string();
         assert_eq!(digest.to_string(), expected);
     }
 }

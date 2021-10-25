@@ -9,14 +9,16 @@ use serde_json::Value;
 use std::future::Future;
 use utils::test::traits::*;
 
+
+
 // ===============
 // === Fixture ===
 // ===============
 
 struct Fixture {
     transport: MockTransport,
-    client: Client,
-    executor: futures::executor::LocalPool,
+    client:    Client,
+    executor:  futures::executor::LocalPool,
 }
 
 fn setup_language_server() -> Fixture {
@@ -24,12 +26,10 @@ fn setup_language_server() -> Fixture {
     let client = Client::new(transport.clone());
     let executor = futures::executor::LocalPool::new();
     executor.spawner().spawn_local(client.runner()).unwrap();
-    Fixture {
-        transport,
-        client,
-        executor,
-    }
+    Fixture { transport, client, executor }
 }
+
+
 
 // =============
 // === Tests ===
@@ -44,10 +44,7 @@ fn test_file_event_notification() {
     let root_id = uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000");
     let root_id = root_id.expect("Couldn't parse uuid.");
     let expected_event = FileEvent {
-        path: Path {
-            root_id,
-            segments: vec!["Main.txt".into()],
-        },
+        path: Path { root_id, segments: vec!["Main.txt".into()] },
         kind: FileEventKind::Modified,
     };
     let notification_text = r#"{
@@ -93,9 +90,7 @@ fn test_request<Fun, Fut, T>(
     let mut fixture = setup_language_server();
     let mut request_future = Box::pin(make_request(&mut fixture.client));
 
-    let request = fixture
-        .transport
-        .expect_json_message::<RequestMessage<Value>>();
+    let request = fixture.transport.expect_json_message::<RequestMessage<Value>>();
     assert_eq!(request.method, expected_method);
     assert_eq!(request.params, expected_input);
 
@@ -109,14 +104,8 @@ fn test_request<Fun, Fut, T>(
 fn test_file_requests() {
     let root_id = uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000");
     let root_id = root_id.expect("Couldn't parse uuid.");
-    let main = Path {
-        root_id,
-        segments: vec!["Main.txt".into()],
-    };
-    let target = Path {
-        root_id,
-        segments: vec!["Target.txt".into()],
-    };
+    let main = Path { root_id, segments: vec!["Main.txt".into()] };
+    let target = Path { root_id, segments: vec!["Target.txt".into()] };
     let path_main = json!({"path" : {
             "rootId"   : "00000000-0000-0000-0000-000000000000",
             "segments" : ["Main.txt"]
@@ -181,17 +170,11 @@ fn test_file_requests() {
         paths: vec![
             FileSystemObject::File {
                 name: "foo.txt".into(),
-                path: Path {
-                    root_id,
-                    segments: default(),
-                },
+                path: Path { root_id, segments: default() },
             },
             FileSystemObject::File {
                 name: "bar.txt".into(),
-                path: Path {
-                    root_id,
-                    segments: default(),
-                },
+                path: Path { root_id, segments: default() },
             },
         ],
     };
@@ -211,9 +194,7 @@ fn test_file_requests() {
     );
 
     let read_response_json = json!({"contents":"Hello world!"});
-    let read_response = response::Read {
-        contents: "Hello world!".into(),
-    };
+    let read_response = response::Read { contents: "Hello world!".into() };
     test_request(
         |client| client.read_file(&main),
         "file/read",
@@ -225,10 +206,7 @@ fn test_file_requests() {
     let parse_rfc3339 = |s| chrono::DateTime::parse_from_rfc3339(s).unwrap();
     let file_system_object = FileSystemObject::File {
         name: "test.txt".into(),
-        path: Path {
-            root_id,
-            segments: default(),
-        },
+        path: Path { root_id, segments: default() },
     };
     let file_system_object_json = json!({
         "type" : "File",
@@ -240,13 +218,11 @@ fn test_file_requests() {
     });
     let expected_attributes = response::FileInfo {
         attributes: FileAttributes {
-            creation_time: parse_rfc3339("2020-01-07T21:25:26Z"),
-            last_access_time: parse_rfc3339(
-                "2020-01-21T22:16:51.123994500+00:00",
-            ),
+            creation_time:      parse_rfc3339("2020-01-07T21:25:26Z"),
+            last_access_time:   parse_rfc3339("2020-01-21T22:16:51.123994500+00:00"),
             last_modified_time: parse_rfc3339("2020-01-07T21:25:26Z"),
-            kind: file_system_object.clone(),
-            byte_size: 125125,
+            kind:               file_system_object.clone(),
+            byte_size:          125125,
         },
     };
     let sample_attributes_json = json!({ "attributes" : {
@@ -313,10 +289,7 @@ fn test_acquire_capability() {
     let root_id = root_id.expect("Couldn't parse uuid.");
     let unit_json = json!(null);
 
-    let path = Path {
-        root_id,
-        segments: default(),
-    };
+    let path = Path { root_id, segments: default() };
     let method = "file/receivesTreeUpdates".to_string();
     let register_options = RegisterOptions::Path { path };
     test_request(
@@ -336,14 +309,14 @@ fn test_acquire_capability() {
     );
 }
 
+
 #[test]
 fn test_computed_value_update() {
     use crate::language_server::Notification;
     use json_rpc::Event;
     use utils::test::traits::*;
 
-    let context_id =
-        Uuid::parse_str("b36dea0b-b75a-40cf-aaad-5fcdf29a0573").unwrap();
+    let context_id = Uuid::parse_str("b36dea0b-b75a-40cf-aaad-5fcdf29a0573").unwrap();
     let id = Uuid::parse_str("d4b540c0-3ef5-487c-9453-df9d3efd351c").unwrap();
     let typename = "Number";
     let notification = json!({
@@ -371,16 +344,11 @@ fn test_computed_value_update() {
 
     let notification = stream.expect_next();
     match notification {
-        Event::Notification(Notification::ExpressionUpdates(
-            expression_updates,
-        )) => {
+        Event::Notification(Notification::ExpressionUpdates(expression_updates)) => {
             assert_eq!(expression_updates.context_id, context_id);
             let update = &expression_updates.updates.first().unwrap();
             assert_eq!(update.expression_id, id);
-            assert_eq!(
-                update.typename.as_ref().map(|ty| ty.as_str()),
-                Some(typename)
-            );
+            assert_eq!(update.typename.as_ref().map(|ty| ty.as_str()), Some(typename));
             assert!(update.method_pointer.is_none());
             assert!(update.from_cache);
             assert!(matches!(update.payload, ExpressionUpdatePayload::Value))
@@ -393,30 +361,18 @@ fn test_computed_value_update() {
 fn test_execution_context() {
     let root_id = uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000");
     let root_id = root_id.expect("Couldn't parse uuid.");
-    let main = Path {
-        root_id,
-        segments: vec!["Main.txt".into()],
-    };
+    let main = Path { root_id, segments: vec!["Main.txt".into()] };
     let unit_json = json!(null);
 
     let context_id = uuid::Uuid::default();
     let method = "executionContext/canModify".to_string();
     let register_options = RegisterOptions::ExecutionContextId { context_id };
-    let can_modify = CapabilityRegistration {
-        method,
-        register_options,
-    };
+    let can_modify = CapabilityRegistration { method, register_options };
     let register_options = RegisterOptions::ExecutionContextId { context_id };
     let method = "executionContext/receivesUpdates".to_string();
-    let receives_updates = CapabilityRegistration {
-        method,
-        register_options,
-    };
-    let create_execution_context_response = response::CreateExecutionContext {
-        context_id,
-        can_modify,
-        receives_updates,
-    };
+    let receives_updates = CapabilityRegistration { method, register_options };
+    let create_execution_context_response =
+        response::CreateExecutionContext { context_id, can_modify, receives_updates };
     test_request(
         |client| client.create_execution_context(),
         "executionContext/create",
@@ -479,11 +435,7 @@ fn test_execution_context() {
     };
     test_request(
         |client| {
-            client.attach_visualisation(
-                &visualisation_id,
-                &expression_id,
-                &visualisation_config,
-            )
+            client.attach_visualisation(&visualisation_id, &expression_id, &visualisation_config)
         },
         "executionContext/attachVisualisation",
         json!({
@@ -499,13 +451,7 @@ fn test_execution_context() {
         (),
     );
     test_request(
-        |client| {
-            client.detach_visualisation(
-                &context_id,
-                &visualisation_id,
-                &expression_id,
-            )
-        },
+        |client| client.detach_visualisation(&context_id, &visualisation_id, &expression_id),
         "executionContext/detachVisualisation",
         json!({
             "contextId"       : "00000000-0000-0000-0000-000000000000",
@@ -523,10 +469,7 @@ fn test_execution_context() {
         visualisation_module,
     };
     test_request(
-        |client| {
-            client
-                .modify_visualisation(&visualisation_id, &visualisation_config)
-        },
+        |client| client.modify_visualisation(&visualisation_id, &visualisation_config),
         "executionContext/modifyVisualisation",
         json!({
             "visualisationId"     : "00000000-0000-0000-0000-000000000000",
@@ -544,10 +487,7 @@ fn test_execution_context() {
     let content = String::from_utf8_lossy(content).to_string();
     let method = "text/canEdit".to_string();
     let register_options = RegisterOptions::Path { path: main.clone() };
-    let write_capability = Some(CapabilityRegistration {
-        method,
-        register_options,
-    });
+    let write_capability = Some(CapabilityRegistration { method, register_options });
     let open_text_file_response = response::OpenTextFile {
         content,
         current_version: current_version.clone(),
@@ -577,14 +517,8 @@ fn test_execution_context() {
         }),
         open_text_file_response,
     );
-    let start = Position {
-        line: 0,
-        character: 5,
-    };
-    let end = Position {
-        line: 0,
-        character: 5,
-    };
+    let start = Position { line: 0, character: 5 };
+    let end = Position { line: 0, character: 5 };
     let range = TextRange { start, end };
     let text = ",".to_string();
     let text_edit = TextEdit { range, text };
@@ -592,12 +526,7 @@ fn test_execution_context() {
     let old_version = Sha3_224::new(b"Hello world!");
     let new_version = Sha3_224::new(b"Hello, world!");
     let path = main.clone();
-    let edit = FileEdit {
-        path,
-        edits,
-        old_version,
-        new_version,
-    };
+    let edit = FileEdit { path, edits, old_version, new_version };
     test_request(
         |client| client.apply_text_file_edit(&edit),
         "text/applyEdit",

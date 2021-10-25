@@ -5,6 +5,8 @@ use crate::prelude::*;
 use crate::system::gpu::data::texture::class::TextureOps;
 use crate::system::gpu::*;
 
+
+
 // ==================
 // === Definition ===
 // ==================
@@ -21,6 +23,8 @@ pub trait Definition: CloneBoxedForDefinition + Debug + 'static {
 
 clone_boxed!(Definition);
 
+
+
 // ================
 // === Instance ===
 // ================
@@ -36,36 +40,23 @@ clone_boxed!(Definition);
 #[derive(Debug)]
 pub struct Instance {
     pub variables: UniformScope,
-    pub context: Context,
-    pub width: i32,
-    pub height: i32,
+    pub context:   Context,
+    pub width:     i32,
+    pub height:    i32,
 }
 
 impl Instance {
     /// Constructor
     #[allow(clippy::borrowed_box)]
-    pub fn new(
-        context: &Context,
-        variables: &UniformScope,
-        width: i32,
-        height: i32,
-    ) -> Self {
+    pub fn new(context: &Context, variables: &UniformScope, width: i32, height: i32) -> Self {
         let variables = variables.clone_ref();
         let context = context.clone();
-        Self {
-            variables,
-            context,
-            width,
-            height,
-        }
+        Self { variables, context, width, height }
     }
 
     /// Create a new texture covering the whole screen and register it in the global uniform scope
     /// with the name provided as the configuration argument.
-    pub fn new_screen_texture(
-        &self,
-        output: &OutputDefinition,
-    ) -> AnyTextureUniform {
+    pub fn new_screen_texture(&self, output: &OutputDefinition) -> AnyTextureUniform {
         let context = &self.context;
         let variables = &self.variables;
         let name = format!("pass_{}", output.name);
@@ -79,10 +70,7 @@ impl Instance {
     }
 
     /// Create a new framebuffer from the provided textures.
-    pub fn new_framebuffer(
-        &self,
-        textures: &[&AnyTextureUniform],
-    ) -> Framebuffer {
+    pub fn new_framebuffer(&self, textures: &[&AnyTextureUniform]) -> Framebuffer {
         let context = self.context.clone();
         let native = self.context.create_framebuffer().unwrap();
         let target = Context::FRAMEBUFFER;
@@ -109,6 +97,8 @@ impl Instance {
     }
 }
 
+
+
 // ========================
 // === OutputDefinition ===
 // ========================
@@ -118,19 +108,15 @@ impl Instance {
 #[allow(missing_docs)]
 #[derive(Debug)]
 pub struct OutputDefinition {
-    pub name: String,
-    pub internal_format: texture::AnyInternalFormat,
-    pub item_type: texture::AnyItemType,
+    pub name:               String,
+    pub internal_format:    texture::AnyInternalFormat,
+    pub item_type:          texture::AnyItemType,
     pub texture_parameters: texture::Parameters,
 }
 
 impl OutputDefinition {
     /// Constructor.
-    pub fn new<
-        Name: Str,
-        F: Into<texture::AnyInternalFormat>,
-        T: Into<texture::AnyItemType>,
-    >(
+    pub fn new<Name: Str, F: Into<texture::AnyInternalFormat>, T: Into<texture::AnyItemType>>(
         name: Name,
         internal_format: F,
         item_type: T,
@@ -139,12 +125,7 @@ impl OutputDefinition {
         let name = name.into();
         let internal_format = internal_format.into();
         let item_type = item_type.into();
-        Self {
-            name,
-            internal_format,
-            item_type,
-            texture_parameters,
-        }
+        Self { name, internal_format, item_type, texture_parameters }
     }
 
     /// Constructor of the RGBA u8 output with default texture parameters. It is the most popular
@@ -153,14 +134,11 @@ impl OutputDefinition {
         let internal_format = texture::Rgba;
         let item_type = texture::item_type::u8;
         let texture_parameters = default();
-        OutputDefinition::new(
-            name,
-            internal_format,
-            item_type,
-            texture_parameters,
-        )
+        OutputDefinition::new(name, internal_format, item_type, texture_parameters)
     }
 }
+
+
 
 // ===================
 // === Framebuffer ===
@@ -170,7 +148,7 @@ impl OutputDefinition {
 #[derive(Debug, Clone)]
 pub struct Framebuffer {
     context: Context,
-    native: web_sys::WebGlFramebuffer,
+    native:  web_sys::WebGlFramebuffer,
 }
 
 impl Deref for Framebuffer {
@@ -183,7 +161,6 @@ impl Deref for Framebuffer {
 impl Framebuffer {
     /// Bind the framebuffer to the current WebGL context.
     pub fn bind(&self) {
-        self.context
-            .bind_framebuffer(Context::FRAMEBUFFER, Some(&self.native));
+        self.context.bind_framebuffer(Context::FRAMEBUFFER, Some(&self.native));
     }
 }

@@ -13,6 +13,8 @@ use json_rpc::TransportEvent;
 use std::future::Future;
 use utils::fail::FallibleResult;
 
+
+
 // ===================
 // === Disposition ===
 // ===================
@@ -23,14 +25,13 @@ pub enum Disposition<Id, Reply, Notification>
 where
     Id: Debug,
     Reply: Debug,
-    Notification: Debug,
-{
+    Notification: Debug, {
     /// Ignore the message.
     Ignore,
     /// Treat as a reply to an open request.
     HandleReply {
         /// Remote Call ID (correlation ID).
-        id: Id,
+        id:    Id,
         /// The reply contents.
         reply: Reply,
     },
@@ -49,18 +50,16 @@ where
 {
     /// Creates a notification event disposition.
     pub fn notify(notification: Notification) -> Self {
-        Disposition::EmitEvent {
-            event: Event::Notification(notification),
-        }
+        Disposition::EmitEvent { event: Event::Notification(notification) }
     }
 
     /// Creates an error event disposition.
     pub fn error(error: impl Into<failure::Error> + Debug) -> Self {
-        Disposition::EmitEvent {
-            event: Event::Error(error.into()),
-        }
+        Disposition::EmitEvent { event: Event::Error(error.into()) }
     }
 }
+
+
 
 // ===================
 // === HandlerData ===
@@ -72,16 +71,14 @@ struct HandlerData<Id, Reply, Notification>
 where
     Id: Eq + Hash + Debug,
     Notification: Debug,
-    Reply: Debug,
-{
+    Reply: Debug, {
     #[derivative(Debug = "ignore")]
-    transport: Box<dyn Transport>,
-    logger: Logger,
-    sender: Option<UnboundedSender<Event<Notification>>>,
+    transport:     Box<dyn Transport>,
+    logger:        Logger,
+    sender:        Option<UnboundedSender<Event<Notification>>>,
     ongoing_calls: OngoingCalls<Id, Reply>,
     #[derivative(Debug = "ignore")]
-    processor:
-        Box<dyn FnMut(TransportEvent) -> Disposition<Id, Reply, Notification>>,
+    processor:     Box<dyn FnMut(TransportEvent) -> Disposition<Id, Reply, Notification>>,
 }
 
 impl<Id, Reply, Notification> HandlerData<Id, Reply, Notification>
@@ -97,15 +94,14 @@ where
     ) -> HandlerData<Id, Reply, Notification>
     where
         T: Transport + 'static,
-        P: FnMut(TransportEvent) -> Disposition<Id, Reply, Notification>
-            + 'static,
+        P: FnMut(TransportEvent) -> Disposition<Id, Reply, Notification> + 'static,
     {
         HandlerData {
-            transport: Box::new(transport),
-            logger: logger.clone_ref(),
-            sender: None,
+            transport:     Box::new(transport),
+            logger:        logger.clone_ref(),
+            sender:        None,
             ongoing_calls: OngoingCalls::new(logger),
-            processor: Box::new(processor),
+            processor:     Box::new(processor),
         }
     }
 
@@ -141,17 +137,12 @@ where
         debug!(self.logger, "Processing incoming transport event", || {
             debug!(self.logger, "Transport event contents: {event:?}.");
             match event {
-                TransportEvent::TextMessage(_)
-                | TransportEvent::BinaryMessage(_) => {
+                TransportEvent::TextMessage(_) | TransportEvent::BinaryMessage(_) => {
                     let disposition = (self.processor)(event);
                     debug!(self.logger, "Disposition: {disposition:?}");
                     match disposition {
-                        Disposition::HandleReply { id, reply } => {
-                            self.process_reply(id, reply)
-                        }
-                        Disposition::EmitEvent { event } => {
-                            self.emit_event(event)
-                        }
+                        Disposition::HandleReply { id, reply } => self.process_reply(id, reply),
+                        Disposition::EmitEvent { event } => self.emit_event(event),
                         Disposition::Ignore => {}
                     }
                 }
@@ -195,8 +186,7 @@ where
 
     /// See the `runner` on the `Client`.
     pub fn runner(this: &Rc<RefCell<Self>>) -> impl Future<Output = ()> {
-        let event_receiver =
-            this.borrow_mut().transport.establish_event_stream();
+        let event_receiver = this.borrow_mut().transport.establish_event_stream();
         let weak_this = Rc::downgrade(this);
         event_receiver.for_each(move |event: TransportEvent| {
             if let Some(state) = weak_this.upgrade() {
@@ -206,6 +196,8 @@ where
         })
     }
 }
+
+
 
 // ===============
 // === Handler ===
@@ -226,10 +218,9 @@ pub struct Handler<Id, Reply, Notification: Debug>
 where
     Id: Eq + Hash + Debug,
     Notification: Debug,
-    Reply: Debug,
-{
+    Reply: Debug, {
     logger: Logger,
-    state: Rc<RefCell<HandlerData<Id, Reply, Notification>>>,
+    state:  Rc<RefCell<HandlerData<Id, Reply, Notification>>>,
 }
 
 /// A value that can be used to represent a request to remote RPC server.
@@ -256,12 +247,8 @@ where
     pub fn new<T, P>(transport: T, logger: Logger, processor: P) -> Self
     where
         T: Transport + 'static,
-        P: FnMut(TransportEvent) -> Disposition<Id, Reply, Notification>
-            + 'static,
-    {
-        let state = Rc::new(RefCell::new(HandlerData::new(
-            transport, &logger, processor,
-        )));
+        P: FnMut(TransportEvent) -> Disposition<Id, Reply, Notification> + 'static, {
+        let state = Rc::new(RefCell::new(HandlerData::new(transport, &logger, processor)));
         let logger = Logger::new_sub(&logger, "handler");
         Handler { logger, state }
     }
@@ -315,14 +302,8 @@ mod tests {
     fn test_closed_socked_event_passing() {
         let logger = Logger::new("RPC_Handler_Test");
         let mut transport = MockTransport::new();
-        let processor = |msg| {
-            panic!("Must never be called in this test, but got {:?}!", msg)
-        };
-        let handler = Handler::<i32, (), ()>::new(
-            transport.clone_ref(),
-            logger,
-            processor,
-        );
+        let processor = |msg| panic!("Must never be called in this test, but got {:?}!", msg);
+        let handler = Handler::<i32, (), ()>::new(transport.clone_ref(), logger, processor);
         let mut runner = handler.runner().boxed_local();
         let mut events = handler.event_stream().boxed_local();
         events.expect_pending();

@@ -3,6 +3,8 @@ use crate::prelude::*;
 
 use std::collections::BTreeSet;
 
+
+
 // =============
 // === Graph ===
 // =============
@@ -17,7 +19,7 @@ use std::collections::BTreeSet;
 #[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Vertex {
     /// The layer this vertex belongs to. It is equal to position in `pattern`.
-    pub layer: usize,
+    pub layer:            usize,
     /// The position in `text` this vertex represents.
     pub position_in_text: usize,
 }
@@ -30,7 +32,7 @@ pub struct Vertex {
 #[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Edge {
     pub from: Vertex,
-    pub to: Vertex,
+    pub to:   Vertex,
 }
 
 /// The Subsequence Graph.
@@ -54,7 +56,7 @@ pub struct Edge {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Graph {
     pub vertices: BTreeSet<Vertex>,
-    pub edges: BTreeSet<Edge>,
+    pub edges:    BTreeSet<Edge>,
 }
 
 impl Graph {
@@ -72,16 +74,10 @@ impl Graph {
             // For each layer we skip positions which won't be reachable.
             let to_skip = first_reachable_text_char;
             first_reachable_text_char = text.len();
-            for (position_in_text, text_ch) in
-                text.chars().enumerate().skip(to_skip)
-            {
+            for (position_in_text, text_ch) in text.chars().enumerate().skip(to_skip) {
                 if pattern_ch.eq_ignore_ascii_case(&text_ch) {
-                    result.insert(Vertex {
-                        layer,
-                        position_in_text,
-                    });
-                    first_reachable_text_char =
-                        first_reachable_text_char.min(position_in_text + 1);
+                    result.insert(Vertex { layer, position_in_text });
+                    first_reachable_text_char = first_reachable_text_char.min(position_in_text + 1);
                 }
             }
         }
@@ -92,39 +88,27 @@ impl Graph {
         let mut result = BTreeSet::default();
         for from in vertices {
             let first_possible_to = Vertex {
-                layer: from.layer + 1,
+                layer:            from.layer + 1,
                 position_in_text: from.position_in_text + 1,
             };
-            let first_impossible_to = Vertex {
-                layer: from.layer + 2,
-                position_in_text: 0,
-            };
+            let first_impossible_to =
+                Vertex { layer: from.layer + 2, position_in_text: 0 };
             for to in vertices.range(first_possible_to..first_impossible_to) {
-                result.insert(Edge {
-                    from: *from,
-                    to: *to,
-                });
+                result.insert(Edge { from: *from, to: *to });
             }
         }
         result
     }
 
     /// Returns an iterator over all vertices in given layer.
-    pub fn vertices_in_layer(
-        &self,
-        index: usize,
-    ) -> impl Iterator<Item = &Vertex> {
-        let start = Vertex {
-            layer: index,
-            position_in_text: 0,
-        };
-        let end = Vertex {
-            layer: index + 1,
-            position_in_text: 0,
-        };
+    pub fn vertices_in_layer(&self, index: usize) -> impl Iterator<Item = &Vertex> {
+        let start = Vertex { layer: index, position_in_text: 0 };
+        let end = Vertex { layer: index + 1, position_in_text: 0 };
         self.vertices.range(start..end)
     }
 }
+
+
 
 // =============
 // === Tests ===
@@ -137,52 +121,37 @@ mod test {
     #[test]
     fn generating_graph() {
         struct Case {
-            text: &'static str,
-            pattern: &'static str,
+            text:     &'static str,
+            pattern:  &'static str,
             vertices: Vec<(usize, usize)>,
-            edges: Vec<((usize, usize), (usize, usize))>,
+            edges:    Vec<((usize, usize), (usize, usize))>,
         }
 
         impl Case {
             fn run(self) {
                 let graph = Graph::new(self.text, self.pattern);
-                let expected_vertices =
-                    self.vertices.into_iter().map(Self::convert_vertex);
-                let expected_edges =
-                    self.edges.into_iter().map(|(from, to)| Edge {
-                        from: Self::convert_vertex(from),
-                        to: Self::convert_vertex(to),
-                    });
+                let expected_vertices = self.vertices.into_iter().map(Self::convert_vertex);
+                let expected_edges = self.edges.into_iter().map(|(from, to)| Edge {
+                    from: Self::convert_vertex(from),
+                    to:   Self::convert_vertex(to),
+                });
                 let expected_graph = Graph {
                     vertices: expected_vertices.collect(),
-                    edges: expected_edges.collect(),
+                    edges:    expected_edges.collect(),
                 };
                 assert_eq!(graph, expected_graph);
             }
 
-            fn convert_vertex(
-                (layer, position_in_text): (usize, usize),
-            ) -> Vertex {
-                Vertex {
-                    layer,
-                    position_in_text,
-                }
+            fn convert_vertex((layer, position_in_text): (usize, usize)) -> Vertex {
+                Vertex { layer, position_in_text }
             }
         }
 
         let classic = Case {
-            text: "lalala",
-            pattern: "alA",
-            vertices: vec![
-                (0, 1),
-                (0, 3),
-                (0, 5),
-                (1, 2),
-                (1, 4),
-                (2, 3),
-                (2, 5),
-            ],
-            edges: vec![
+            text:     "lalala",
+            pattern:  "alA",
+            vertices: vec![(0, 1), (0, 3), (0, 5), (1, 2), (1, 4), (2, 3), (2, 5)],
+            edges:    vec![
                 ((0, 1), (1, 2)),
                 ((0, 1), (1, 4)),
                 ((0, 3), (1, 4)),
@@ -192,53 +161,26 @@ mod test {
             ],
         };
         let missing_layer = Case {
-            text: "laall",
-            pattern: "ala",
+            text:     "laall",
+            pattern:  "ala",
             vertices: vec![(0, 1), (0, 2), (1, 3), (1, 4)],
-            edges: vec![
-                ((0, 1), (1, 3)),
-                ((0, 1), (1, 4)),
-                ((0, 2), (1, 3)),
-                ((0, 2), (1, 4)),
-            ],
+            edges:    vec![((0, 1), (1, 3)), ((0, 1), (1, 4)), ((0, 2), (1, 3)), ((0, 2), (1, 4))],
         };
-        let empty_text = Case {
-            text: "",
-            pattern: "ala",
-            vertices: vec![],
-            edges: vec![],
-        };
-        let empty_pattern = Case {
-            text: "lalala",
-            pattern: "",
-            vertices: vec![],
-            edges: vec![],
-        };
-        let longer_pattern = Case {
-            text: "la",
-            pattern: "ala",
-            vertices: vec![(0, 1)],
-            edges: vec![],
-        };
+        let empty_text = Case { text: "", pattern: "ala", vertices: vec![], edges: vec![] };
+        let empty_pattern =
+            Case { text: "lalala", pattern: "", vertices: vec![], edges: vec![] };
+        let longer_pattern =
+            Case { text: "la", pattern: "ala", vertices: vec![(0, 1)], edges: vec![] };
         let non_ascii = Case {
-            text: "test wiadomości push: ęśąćż",
-            pattern: "tęś",
+            text:     "test wiadomości push: ęśąćż",
+            pattern:  "tęś",
             vertices: vec![(0, 0), (0, 3), (1, 22), (2, 23)],
-            edges: vec![
-                ((0, 0), (1, 22)),
-                ((0, 3), (1, 22)),
-                ((1, 22), (2, 23)),
-            ],
+            edges:    vec![((0, 0), (1, 22)), ((0, 3), (1, 22)), ((1, 22), (2, 23))],
         };
 
-        for case in vec![
-            classic,
-            missing_layer,
-            empty_pattern,
-            empty_text,
-            longer_pattern,
-            non_ascii,
-        ] {
+        for case in
+            vec![classic, missing_layer, empty_pattern, empty_text, longer_pattern, non_ascii]
+        {
             case.run()
         }
     }

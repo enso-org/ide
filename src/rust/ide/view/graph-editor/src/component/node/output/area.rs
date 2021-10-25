@@ -23,6 +23,8 @@ use crate::view;
 use crate::Type;
 use enso_args::ARGS;
 
+
+
 // =================
 // === Constants ===
 // =================
@@ -30,6 +32,8 @@ use enso_args::ARGS;
 const DEBUG: bool = false;
 const HIDE_DELAY_DURATION_MS: f32 = 150.0;
 const SHOW_DELAY_DURATION_MS: f32 = 150.0;
+
+
 
 // ================
 // === SpanTree ===
@@ -47,6 +51,8 @@ pub type PortRef<'a> = span_tree::node::Ref<'a, port::Model>;
 /// Mutable reference to port inside of a `SpanTree`.
 pub type PortRefMut<'a> = span_tree::node::RefMut<'a, port::Model>;
 
+
+
 // ==================
 // === Expression ===
 // ==================
@@ -54,12 +60,12 @@ pub type PortRefMut<'a> = span_tree::node::RefMut<'a, port::Model>;
 /// Specialized version of `node::Expression`, containing the port information.
 #[derive(Default)]
 pub struct Expression {
-    pub code: Option<String>,
-    pub span_tree: SpanTree,
+    pub code:            Option<String>,
+    pub span_tree:       SpanTree,
     /// This field contains the type of the whole input expression. This is needed due to a bug in
     /// engine: https://github.com/enso-org/enso/issues/1038.
     pub whole_expr_type: Option<Type>,
-    pub whole_expr_id: Option<ast::Id>,
+    pub whole_expr_id:   Option<ast::Id>,
 }
 
 impl Expression {
@@ -87,32 +93,26 @@ impl Debug for Expression {
     }
 }
 
+
 // === Conversions ===
 
 impl From<node::Expression> for Expression {
     fn from(expr: node::Expression) -> Self {
         let code = expr.pattern.clone();
-        let whole_expr_type =
-            expr.input_span_tree.root.tp().map(|t| t.to_owned().into());
+        let whole_expr_type = expr.input_span_tree.root.tp().map(|t| t.to_owned().into());
         let whole_expr_id = expr.whole_expression_id;
-        let mut span_tree =
-            expr.output_span_tree.map(|_| port::Model::default());
-        span_tree
-            .root_ref_mut()
-            .dfs_with_layer_data((), |node, ()| {
-                let span = node.span();
-                let port = node.payload_mut();
-                port.index = span.index.value;
-                port.length = span.size.value;
-            });
-        Expression {
-            code,
-            span_tree,
-            whole_expr_type,
-            whole_expr_id,
-        }
+        let mut span_tree = expr.output_span_tree.map(|_| port::Model::default());
+        span_tree.root_ref_mut().dfs_with_layer_data((), |node, ()| {
+            let span = node.span();
+            let port = node.payload_mut();
+            port.index = span.index.value;
+            port.length = span.size.value;
+        });
+        Expression { code, span_tree, whole_expr_type, whole_expr_id }
     }
 }
+
+
 
 // =============
 // === Model ===
@@ -149,17 +149,17 @@ ensogl::define_endpoints! {
 /// Internal model of the port area.
 #[derive(Debug)]
 pub struct Model {
-    logger: Logger,
-    app: Application,
+    logger:         Logger,
+    app:            Application,
     display_object: display::object::Instance,
-    ports: display::object::Instance,
-    label: text::Area,
-    expression: RefCell<Expression>,
-    id_crumbs_map: RefCell<HashMap<ast::Id, Crumbs>>,
-    port_count: Cell<usize>,
-    styles: StyleWatch,
-    styles_frp: StyleWatchFrp,
-    frp: FrpEndpoints,
+    ports:          display::object::Instance,
+    label:          text::Area,
+    expression:     RefCell<Expression>,
+    id_crumbs_map:  RefCell<HashMap<ast::Id, Crumbs>>,
+    port_count:     Cell<usize>,
+    styles:         StyleWatch,
+    styles_frp:     StyleWatchFrp,
+    frp:            FrpEndpoints,
 }
 
 impl Model {
@@ -167,8 +167,7 @@ impl Model {
     pub fn new(logger: impl AnyLogger, app: &Application, frp: &Frp) -> Self {
         let logger = Logger::new_sub(&logger, "output_ports");
         let display_object = display::object::Instance::new(&logger);
-        let ports =
-            display::object::Instance::new(&Logger::new_sub(&logger, "ports"));
+        let ports = display::object::Instance::new(&Logger::new_sub(&logger, "ports"));
         let app = app.clone_ref();
         let label = app.new_view::<text::Area>();
         let id_crumbs_map = default();
@@ -207,37 +206,23 @@ impl Model {
         self.label.disable_command("cursor_move_up");
         self.label.disable_command("cursor_move_down");
         self.label.set_default_color(text_color);
-        self.label
-            .set_default_text_size(text::Size(input::area::TEXT_SIZE));
+        self.label.set_default_text_size(text::Size(input::area::TEXT_SIZE));
         self.label.remove_all_cursors();
 
-        self.label
-            .mod_position(|t| t.y = input::area::TEXT_SIZE / 2.0);
+        self.label.mod_position(|t| t.y = input::area::TEXT_SIZE / 2.0);
 
         self
     }
 
     fn set_label(&self, content: impl Into<String>) {
-        let str = if ARGS.node_labels.unwrap_or(true) {
-            content.into()
-        } else {
-            default()
-        };
+        let str = if ARGS.node_labels.unwrap_or(true) { content.into() } else { default() };
         self.label.set_content(str);
-        self.label.set_position_x(
-            -self.label.width.value() - input::area::TEXT_OFFSET,
-        );
+        self.label.set_position_x(-self.label.width.value() - input::area::TEXT_OFFSET);
     }
 
     /// Update expression type for the particular `ast::Id`.
     fn set_expression_usage_type(&self, crumbs: &Crumbs, tp: &Option<Type>) {
-        if let Ok(port) = self
-            .expression
-            .borrow()
-            .span_tree
-            .root_ref()
-            .get_descendant(crumbs)
-        {
+        if let Ok(port) = self.expression.borrow().span_tree.root_ref().get_descendant(crumbs) {
             if let Some(frp) = &port.frp {
                 frp.set_usage_type(tp)
             }
@@ -295,17 +280,14 @@ impl Model {
         mut f: impl FnMut(bool, &PortRef, &mut PortLayerBuilder),
     ) {
         let expression = self.expression.borrow();
-        expression.root_ref().dfs_with_layer_data(
-            PortLayerBuilder::default(),
-            |node, builder| {
-                let is_leaf = node.children.is_empty();
-                let is_this = node.is_this();
-                let is_argument = node.is_argument();
-                let is_a_port = (is_this || is_argument) && is_leaf;
-                f(is_a_port, node, builder);
-                builder.nested()
-            },
-        );
+        expression.root_ref().dfs_with_layer_data(PortLayerBuilder::default(), |node, builder| {
+            let is_leaf = node.children.is_empty();
+            let is_this = node.is_this();
+            let is_argument = node.is_argument();
+            let is_a_port = (is_this || is_argument) && is_leaf;
+            f(is_a_port, node, builder);
+            builder.nested()
+        });
     }
 
     fn count_ports(&self) -> usize {
@@ -382,19 +364,16 @@ impl Model {
     fn init_definition_types(&self) {
         let port_count = self.port_count.get();
         let whole_expr_type = self.expression.borrow().whole_expr_type.clone();
-        let mut signals_to_emit =
-            Vec::<(frp::Any<Option<Type>>, Option<Type>)>::new();
+        let mut signals_to_emit = Vec::<(frp::Any<Option<Type>>, Option<Type>)>::new();
         self.traverse_borrowed_expression(|_, node, _| {
             if let Some(port_frp) = &node.payload.frp {
-                let node_tp: Option<Type> =
-                    node.tp().cloned().map(|t| t.into());
+                let node_tp: Option<Type> = node.tp().cloned().map(|t| t.into());
                 let node_tp = if port_count != 0 {
                     node_tp
                 } else {
                     node_tp.or_else(|| whole_expr_type.clone())
                 };
-                signals_to_emit
-                    .push((port_frp.set_definition_type.clone_ref(), node_tp));
+                signals_to_emit.push((port_frp.set_definition_type.clone_ref(), node_tp));
             }
         });
         for (endpoint, tp) in signals_to_emit {
@@ -416,6 +395,8 @@ impl Model {
     }
 }
 
+
+
 // ============
 // === Area ===
 // ============
@@ -427,8 +408,8 @@ impl Model {
 ///  * when one of the output ports is hovered, after a set time, all ports are show and the hovered
 ///    port is highlighted.
 ///  * when a different port is hovered, it is highlighted immediately.
-///  * when none of the ports is hovered all of the `Area` disappear. Note: there is a very
-///    small delay for disappearing to allow for smooth switching between ports.
+///  * when none of the ports is hovered all of the `Area` disappear. Note: there is a very small
+///    delay for disappearing to allow for smooth switching between ports.
 ///
 /// ## Origin
 /// Please note that the origin of the node is on its left side, centered vertically. To learn more
@@ -436,7 +417,7 @@ impl Model {
 #[derive(Clone, CloneRef, Debug)]
 pub struct Area {
     pub frp: Frp,
-    model: Rc<Model>,
+    model:   Rc<Model>,
 }
 
 impl Deref for Area {
@@ -446,6 +427,7 @@ impl Deref for Area {
     }
 }
 
+
 impl Area {
     pub fn new(logger: impl AnyLogger, app: &Application) -> Self {
         let frp = Frp::new();
@@ -453,11 +435,8 @@ impl Area {
         let network = &frp.network;
         let label_color = color::Animation::new(network);
 
-        let hysteretic_transition = HystereticAnimation::new(
-            network,
-            SHOW_DELAY_DURATION_MS,
-            HIDE_DELAY_DURATION_MS,
-        );
+        let hysteretic_transition =
+            HystereticAnimation::new(network, SHOW_DELAY_DURATION_MS, HIDE_DELAY_DURATION_MS);
 
         frp::extend! { network
 
@@ -528,6 +507,8 @@ impl Area {
         self.model.expression.borrow().whole_expr_id
     }
 }
+
+
 
 // ==========================
 // === Expression Setting ===

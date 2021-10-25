@@ -16,6 +16,8 @@ use crate::display::shape::Var;
 use crate::system::gpu::shader::glsl::traits::*;
 use crate::system::gpu::shader::glsl::Glsl;
 
+
+
 // ===========================
 // === GlslShapeDefinition ===
 // ===========================
@@ -25,6 +27,8 @@ pub trait GlslShapeDefinition {
     /// Gets the SDF definition for the given shape.
     fn glsl_shape_definition() -> String;
 }
+
+
 
 // ====================================
 // === Prim Shape Definition Macros ===
@@ -144,6 +148,8 @@ macro_rules! _define_sdf_shape_mutable_part {
         }
     };
 }
+
+
 
 // ===================
 // === Prim Shapes ===
@@ -412,6 +418,8 @@ define_sdf_shapes! {
     }
 }
 
+
+
 // ==============================
 // === Prim Shapes Operations ===
 // ==============================
@@ -423,10 +431,7 @@ impl Plane {
     }
 
     /// Cuts angle from the plane.
-    pub fn cut_angle_fast<T: Into<Var<Radians>>>(
-        &self,
-        t: T,
-    ) -> PlaneAngleFast {
+    pub fn cut_angle_fast<T: Into<Var<Radians>>>(&self, t: T) -> PlaneAngleFast {
         PlaneAngleFast(t)
     }
 }
@@ -434,21 +439,13 @@ impl Plane {
 impl Rect {
     /// Sets the radius of all the corners.
     pub fn corners_radius<T>(&self, radius: T) -> RoundedRectByCorner
-    where
-        T: Into<Var<Pixels>>,
-    {
+    where T: Into<Var<Pixels>> {
         let radius = radius.into();
         let top_left = radius.clone();
         let top_right = radius.clone();
         let bottom_left = radius.clone();
         let bottom_right = radius;
-        RoundedRectByCorner(
-            self.size(),
-            top_left,
-            top_right,
-            bottom_left,
-            bottom_right,
-        )
+        RoundedRectByCorner(self.size(), top_left, top_right, bottom_left, bottom_right)
     }
 
     /// Sets the radiuses of each of the corners.
@@ -465,50 +462,28 @@ impl Rect {
         T3: Into<Var<Pixels>>,
         T4: Into<Var<Pixels>>,
     {
-        RoundedRectByCorner(
-            self.size(),
-            top_left,
-            top_right,
-            bottom_left,
-            bottom_right,
-        )
+        RoundedRectByCorner(self.size(), top_left, top_right, bottom_left, bottom_right)
     }
 
     /// Sets the radiuses of the left corners.
     pub fn left_corners_radius<T>(&self, radius: T) -> RoundedRectByCorner
-    where
-        T: Into<Var<Pixels>>,
-    {
+    where T: Into<Var<Pixels>> {
         let radius = radius.into();
         let top_left = radius.clone();
         let bottom_left = radius;
         let top_right = 0.pixels();
         let bottom_right = 0.pixels();
-        RoundedRectByCorner(
-            self.size(),
-            top_left,
-            top_right,
-            bottom_left,
-            bottom_right,
-        )
+        RoundedRectByCorner(self.size(), top_left, top_right, bottom_left, bottom_right)
     }
 
     /// Sets the radiuses of the right corners.
     pub fn right_corners_radius<T>(&self, radius: T) -> RoundedRectByCorner
-    where
-        T: Into<Var<Pixels>>,
-    {
+    where T: Into<Var<Pixels>> {
         let radius = radius.into();
         let top_left = 0.pixels();
         let bottom_left = 0.pixels();
         let top_right = radius.clone();
         let bottom_right = radius;
-        RoundedRectByCorner(
-            self.size(),
-            top_left,
-            top_right,
-            bottom_left,
-            bottom_right,
-        )
+        RoundedRectByCorner(self.size(), top_left, top_right, bottom_left, bottom_right)
     }
 }

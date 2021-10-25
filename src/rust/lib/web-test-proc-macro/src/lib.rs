@@ -36,10 +36,7 @@ use syn::*;
 pub fn web_test(_args: TokenStream, input: TokenStream) -> TokenStream {
     if let Ok(mut parsed) = syn::parse::<ItemFn>(input.clone()) {
         let fn_string = format!("{}", parsed.sig.ident);
-        let code = format!(
-            "Container::new(\"Tests\", \"{}\", 320.0, 240.0);",
-            fn_string
-        );
+        let code = format!("Container::new(\"Tests\", \"{}\", 320.0, 240.0);", fn_string);
 
         if let Ok(stmt) = parse_str::<Stmt>(&code) {
             // We insert Container::new("Tests", fn_name, 320.0, 240.0)
@@ -58,6 +55,7 @@ pub fn web_test(_args: TokenStream, input: TokenStream) -> TokenStream {
         input
     }
 }
+
 
 // ====================
 // === #[web_bench] ===

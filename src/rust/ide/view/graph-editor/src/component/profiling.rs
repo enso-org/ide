@@ -12,6 +12,8 @@ use ensogl::display::shape::*;
 use ensogl_gui_components::toggle_button;
 use ensogl_gui_components::toggle_button::ToggleButton;
 
+
+
 // ============
 // === Icon ===
 // ============
@@ -95,15 +97,12 @@ mod icon {
 
     impl ColorableShape for DynamicShape {
         fn set_color(&self, color: color::Rgba) {
-            self.color_rgba.set(Vector4::new(
-                color.red,
-                color.green,
-                color.blue,
-                color.alpha,
-            ));
+            self.color_rgba.set(Vector4::new(color.red, color.green, color.blue, color.alpha));
         }
     }
 }
+
+
 
 // ============
 // === Frp  ===
@@ -118,6 +117,8 @@ ensogl::define_endpoints! {
     }
 }
 
+
+
 // =======================
 // === ProfilingButton ===
 // =======================
@@ -126,7 +127,7 @@ ensogl::define_endpoints! {
 /// the upper right corner of the scene.
 #[derive(Debug, Clone, CloneRef)]
 pub struct Button {
-    frp: Frp,
+    frp:    Frp,
     button: ToggleButton<icon::DynamicShape>,
     styles: StyleWatchFrp,
 }
@@ -147,9 +148,7 @@ impl Button {
         let frp = Frp::new();
         let network = &frp.network;
 
-        let button = ToggleButton::<icon::DynamicShape>::new(Logger::new(
-            "profiling::Button",
-        ));
+        let button = ToggleButton::<icon::DynamicShape>::new(Logger::new("profiling::Button"));
         scene.layers.panel.add_exclusive(&button);
         button.set_visibility(true);
         button.set_size(Vector2(32.0, 32.0));
@@ -195,11 +194,7 @@ impl Button {
         }
 
         init_color_scheme.emit(());
-        Button {
-            frp,
-            button,
-            styles,
-        }
+        Button { frp, button, styles }
     }
 }
 

@@ -14,6 +14,8 @@ use ensogl::display::style;
 use ensogl::display::style::data::DataMatch;
 use ensogl::gui::component::ShapeView;
 
+
+
 // ===============
 // === Prelude ===
 // ===============
@@ -33,12 +35,16 @@ pub mod prelude {
     pub use ensogl::system::gpu::Attribute;
 }
 
+
+
 // =================
 // === Constants ===
 // =================
 
 /// Button radius to be used if theme-provided value is not available.
 pub const RADIUS_FALLBACK: f32 = 12.0;
+
+
 
 // =============
 // === State ===
@@ -64,8 +70,7 @@ impl Default for State {
 
 /// Trait to be defined on a specific button's shape.
 pub trait ButtonShape:
-    CloneRef + display::object::class::Object + DynamicShapeInternals + 'static
-{
+    CloneRef + display::object::class::Object + DynamicShapeInternals + 'static {
     /// The human readable name of the button, for debug purposes.
     fn debug_name() -> &'static str;
 
@@ -81,6 +86,7 @@ pub trait ButtonShape:
     /// Access the shader parameter for the icon color.
     fn icon_color(&self) -> &DynamicParam<Attribute<Vector4<f32>>>;
 }
+
 
 // ==============
 // === Shapes ===
@@ -106,6 +112,8 @@ pub mod shape {
     }
 }
 
+
+
 // =============
 // === Model ===
 // =============
@@ -115,10 +123,10 @@ pub mod shape {
 #[clone_ref(bound = "Shape:CloneRef")]
 #[allow(missing_docs)]
 pub struct Model<Shape> {
-    app: Application,
-    logger: DefaultTraceLogger,
+    app:            Application,
+    logger:         DefaultTraceLogger,
     display_object: display::object::Instance,
-    shape: ShapeView<Shape>,
+    shape:          ShapeView<Shape>,
 }
 
 impl<Shape: ButtonShape> Model<Shape> {
@@ -129,12 +137,7 @@ impl<Shape: ButtonShape> Model<Shape> {
         let display_object = display::object::Instance::new(&logger);
         let shape = ShapeView::new(&logger);
         display_object.add_child(&shape);
-        Self {
-            app,
-            logger,
-            display_object,
-            shape,
-        }
+        Self { app, logger, display_object, shape }
     }
 
     /// Set the background (i.e. the circle) color.
@@ -149,17 +152,11 @@ impl<Shape: ButtonShape> Model<Shape> {
 
     /// Retrieves circle radius value from an frp sampler event.
     fn get_radius(radius: &Option<style::data::Data>) -> f32 {
-        radius
-            .as_ref()
-            .and_then(DataMatch::number)
-            .unwrap_or(RADIUS_FALLBACK)
+        radius.as_ref().and_then(DataMatch::number).unwrap_or(RADIUS_FALLBACK)
     }
 
     /// Set radius, updating the shape sizes and position.
-    pub fn set_radius(
-        &self,
-        radius: &Option<style::data::Data>,
-    ) -> Vector2<f32> {
+    pub fn set_radius(&self, radius: &Option<style::data::Data>) -> Vector2<f32> {
         let radius = Self::get_radius(radius);
         let size = Self::size_for_radius(radius);
         self.shape.size().set(size);
@@ -173,6 +170,8 @@ impl<Shape: ButtonShape> Model<Shape> {
         Vector2(radius, radius) * 2.0
     }
 }
+
+
 
 // ===========
 // === FRP ===
@@ -189,6 +188,8 @@ ensogl::define_endpoints! {
         size (Vector2<f32>),
     }
 }
+
+
 
 // ============
 // === View ===
@@ -209,7 +210,7 @@ ensogl::define_endpoints! {
 #[clone_ref(bound = "Shape:CloneRef")]
 #[allow(missing_docs)]
 pub struct View<Shape> {
-    frp: Frp,
+    frp:   Frp,
     model: Model<Shape>,
     style: StyleWatchFrp,
 }
@@ -225,26 +226,21 @@ impl<Shape: ButtonShape> View<Shape> {
         let mouse = &scene.mouse.frp;
 
         // Icon color initialization
-        let default_icon_color_path =
-            Shape::icon_color_path(State::Unconcerned);
-        let default_icon_color =
-            style.get_color(default_icon_color_path).value();
+        let default_icon_color_path = Shape::icon_color_path(State::Unconcerned);
+        let default_icon_color = style.get_color(default_icon_color_path).value();
         let icon_color = color::Animation::new(network);
         icon_color.target(color::Lcha::from(default_icon_color));
         model.set_icon_color(default_icon_color);
 
         // Background color initialization
-        let default_background_color_path =
-            Shape::background_color_path(State::Unconcerned);
-        let default_background_color =
-            style.get_color(default_background_color_path).value();
+        let default_background_color_path = Shape::background_color_path(State::Unconcerned);
+        let default_background_color = style.get_color(default_background_color_path).value();
         let background_color = color::Animation::new(network);
         background_color.target(color::Lcha::from(default_background_color));
         model.set_icon_color(default_background_color);
 
         // Radius initialization
-        let radius_frp = style
-            .get(ensogl_theme::application::window_control_buttons::radius);
+        let radius_frp = style.get(ensogl_theme::application::window_control_buttons::radius);
 
         // Style's relevant color FRP endpoints.
         let background_unconcerned_color =
@@ -254,12 +250,9 @@ impl<Shape: ButtonShape> View<Shape> {
         let background_pressed_color =
             style.get_color(Shape::background_color_path(State::Pressed));
 
-        let icon_unconcerned_color =
-            style.get_color(Shape::icon_color_path(State::Unconcerned));
-        let icon_hovered_color =
-            style.get_color(Shape::icon_color_path(State::Hovered));
-        let icon_pressed_color =
-            style.get_color(Shape::icon_color_path(State::Pressed));
+        let icon_unconcerned_color = style.get_color(Shape::icon_color_path(State::Unconcerned));
+        let icon_hovered_color = style.get_color(Shape::icon_color_path(State::Hovered));
+        let icon_pressed_color = style.get_color(Shape::icon_color_path(State::Pressed));
 
         model.set_background_color(background_unconcerned_color.value());
         let events = &model.shape.events;

@@ -14,6 +14,8 @@ use ensogl_text as text;
 
 use ensogl_theme::component::label as theme;
 
+
+
 // ==========================
 // === Shapes Definitions ===
 // ==========================
@@ -40,6 +42,8 @@ mod background {
     }
 }
 
+
+
 // ===========
 // === FRP ===
 // ===========
@@ -54,17 +58,19 @@ ensogl_core::define_endpoints! {
     }
 }
 
+
+
 // =============
 // === Model ===
 // =============
 
 #[derive(Clone, Debug)]
 struct Model {
-    background: background::View,
-    label: text::Area,
+    background:     background::View,
+    label:          text::Area,
     display_object: display::object::Instance,
-    app: Application,
-    style: StyleWatch,
+    app:            Application,
+    style:          StyleWatch,
 }
 
 impl Model {
@@ -88,13 +94,7 @@ impl Model {
 
         let style = StyleWatch::new(&app.display.scene().style_sheet);
 
-        Model {
-            background,
-            label,
-            display_object,
-            app,
-            style,
-        }
+        Model { background, label, display_object, app, style }
     }
 
     pub fn height(&self) -> f32 {
@@ -126,17 +126,17 @@ impl Model {
 
     fn set_opacity(&self, value: f32) {
         let text_color_path = theme::text;
-        let text_color =
-            self.style.get_color(text_color_path).multiply_alpha(value);
+        let text_color = self.style.get_color(text_color_path).multiply_alpha(value);
         self.label.frp.set_color_all.emit(text_color);
         self.label.frp.set_default_color.emit(text_color);
 
         let bg_color_path = theme::background;
-        let bg_color =
-            self.style.get_color(bg_color_path).multiply_alpha(value);
+        let bg_color = self.style.get_color(bg_color_path).multiply_alpha(value);
         self.background.bg_color.set(bg_color.into())
     }
 }
+
+
 
 // =======================
 // === Label Component ===
@@ -145,7 +145,7 @@ impl Model {
 #[allow(missing_docs)]
 #[derive(Clone, CloneRef, Debug)]
 pub struct Label {
-    model: Rc<Model>,
+    model:   Rc<Model>,
     pub frp: Rc<Frp>,
 }
 

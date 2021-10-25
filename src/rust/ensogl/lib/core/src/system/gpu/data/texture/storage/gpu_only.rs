@@ -9,6 +9,8 @@ use crate::system::gpu::data::texture::storage::*;
 use crate::system::gpu::data::texture::types::*;
 use crate::system::gpu::Context;
 
+
+
 // ===============
 // === GpuOnly ===
 // ===============
@@ -17,10 +19,11 @@ use crate::system::gpu::Context;
 #[derive(Clone, Copy, Debug)]
 pub struct GpuOnlyData {
     /// Texture width.
-    pub width: i32,
+    pub width:  i32,
     /// Texture height.
     pub height: i32,
 }
+
 
 // === Instances ===
 
@@ -33,6 +36,7 @@ impl From<(i32, i32)> for GpuOnlyData {
         Self::new(t.0, t.1)
     }
 }
+
 
 // === API ===
 
@@ -54,8 +58,19 @@ impl<I: InternalFormat, T: ItemType> TextureReload for Texture<GpuOnly, I, T> {
         let elem_type = Self::gl_elem_type();
 
         self.context().bind_texture(target, Some(self.gl_texture()));
-        self.context().tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array
-        (target,level,internal_format,width,height,border,format,elem_type,None).unwrap();
+        self.context()
+            .tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
+                target,
+                level,
+                internal_format,
+                width,
+                height,
+                border,
+                format,
+                elem_type,
+                None,
+            )
+            .unwrap();
 
         self.apply_texture_parameters(self.context());
     }

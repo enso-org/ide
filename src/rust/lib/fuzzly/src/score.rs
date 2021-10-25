@@ -8,6 +8,8 @@ use crate::SubsequenceGraph;
 
 use std::collections::hash_map::Entry;
 
+
+
 // =====================
 // === VerticesScore ===
 // =====================
@@ -16,7 +18,7 @@ use std::collections::hash_map::Entry;
 #[derive(Clone, Copy, Debug)]
 struct InputPath {
     value: f32,
-    from: subsequence_graph::Vertex,
+    from:  subsequence_graph::Vertex,
 }
 
 /// The score of single vertex in graph.
@@ -26,17 +28,14 @@ struct InputPath {
 /// function.
 #[derive(Copy, Clone, Debug, Default)]
 struct VertexScore {
-    my_measure: f32,
+    my_measure:      f32,
     best_input_path: Option<InputPath>,
 }
 
 impl VertexScore {
     fn new(my_measure: f32) -> Self {
         let best_input_path = default();
-        VertexScore {
-            my_measure,
-            best_input_path,
-        }
+        VertexScore { my_measure, best_input_path }
     }
 
     fn update_input_path(&mut self, candidate: InputPath) {
@@ -70,9 +69,7 @@ impl VerticesScores {
         let subsequence_graph::Edge { from, to } = edge;
         let candidate = InputPath { value, from };
         match scores.entry(to) {
-            Entry::Occupied(mut entry) => {
-                entry.get_mut().update_input_path(candidate)
-            }
+            Entry::Occupied(mut entry) => entry.get_mut().update_input_path(candidate),
             Entry::Vacant(entry) => {
                 let mut vertex = VertexScore::default();
                 vertex.update_input_path(candidate);
@@ -92,9 +89,7 @@ impl VerticesScores {
     ) -> Option<subsequence_graph::Vertex> {
         let pairs = vertices.map(|v| (v, self.get_score(v)));
         let best_pair = pairs.fold(None, |prev, (vertex, score)| match prev {
-            Some((_, prev_score)) if score > prev_score => {
-                Some((vertex, score))
-            }
+            Some((_, prev_score)) if score > prev_score => Some((vertex, score)),
             Some(prev) => Some(prev),
             None => Some((vertex, score)),
         });
@@ -102,15 +97,12 @@ impl VerticesScores {
     }
 
     fn best_path_rev(&self, end: subsequence_graph::Vertex) -> BestPathRevIter {
-        BestPathRevIter {
-            scores: self,
-            next_vertex: Some(end),
-        }
+        BestPathRevIter { scores: self, next_vertex: Some(end) }
     }
 }
 
 struct BestPathRevIter<'a> {
-    scores: &'a VerticesScores,
+    scores:      &'a VerticesScores,
     next_vertex: Option<subsequence_graph::Vertex>,
 }
 
@@ -127,6 +119,8 @@ impl<'a> Iterator for BestPathRevIter<'a> {
     }
 }
 
+
+
 // ===================
 // === Score Match ===
 // ===================
@@ -141,9 +135,8 @@ pub fn matches(text: impl Str, pattern: impl Str) -> bool {
     let mut next_pattern_char = pattern_chars.next();
     for text_char in text.as_ref().chars() {
         match next_pattern_char {
-            Some(ch) if ch.eq_ignore_ascii_case(&text_char) => {
-                next_pattern_char = pattern_chars.next()
-            }
+            Some(ch) if ch.eq_ignore_ascii_case(&text_char) =>
+                next_pattern_char = pattern_chars.next(),
             Some(_) => {}
             None => {
                 break;
@@ -157,7 +150,7 @@ pub fn matches(text: impl Str, pattern: impl Str) -> bool {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Subsequence {
     /// The score of found subsequence.
-    pub score: f32,
+    pub score:   f32,
     /// Indices of `text`'s chars which belong to the subsequence.
     pub indices: Vec<usize>,
 }
@@ -215,20 +208,20 @@ pub fn find_best_subsequence(
         }
         for edge in &graph.edges {
             let from_score = scores.get_score(edge.from);
-            let input_score =
-                from_score + metric.measure_edge(*edge, text, pattern);
+            let input_score = from_score + metric.measure_edge(*edge, text, pattern);
             scores.update_input_path(*edge, input_score);
         }
         let end_vertices = graph.vertices_in_layer(last_layer).cloned();
         let best_vertex = scores.best_vertex(end_vertices)?;
         let score = scores.get_score(best_vertex);
         let best_path_rev = scores.best_path_rev(best_vertex);
-        let mut indices =
-            best_path_rev.map(|v| v.position_in_text).collect_vec();
+        let mut indices = best_path_rev.map(|v| v.position_in_text).collect_vec();
         indices.reverse();
         Some(Subsequence { score, indices })
     }
 }
+
+
 
 // =============
 // === Tests ===
@@ -256,12 +249,7 @@ mod test {
                 vertex.position_in_text as f32
             }
 
-            fn measure_edge(
-                &self,
-                _: subsequence_graph::Edge,
-                _: &str,
-                _: &str,
-            ) -> f32 {
+            fn measure_edge(&self, _: subsequence_graph::Edge, _: &str, _: &str) -> f32 {
                 0.0
             }
         }
@@ -270,12 +258,7 @@ mod test {
         pub struct SquareEdgeLength;
 
         impl Metric for SquareEdgeLength {
-            fn measure_vertex(
-                &self,
-                _: subsequence_graph::Vertex,
-                _: &str,
-                _: &str,
-            ) -> f32 {
+            fn measure_vertex(&self, _: subsequence_graph::Vertex, _: &str, _: &str) -> f32 {
                 0.0
             }
 
@@ -285,8 +268,7 @@ mod test {
                 _text: &str,
                 _pattern: &str,
             ) -> f32 {
-                (edge.to.position_in_text - edge.from.position_in_text).pow(2)
-                    as f32
+                (edge.to.position_in_text - edge.from.position_in_text).pow(2) as f32
             }
         }
 
@@ -309,16 +291,13 @@ mod test {
         let text = "aabxbacc";
 
         let expected = Subsequence {
-            score: 12.0,
+            score:   12.0,
             indices: vec![1, 4, 7], // Always pick the latest character possible
         };
-        assert_eq!(
-            find_best_subsequence(text, pattern, mock_metric::WordIndex),
-            Some(expected)
-        );
+        assert_eq!(find_best_subsequence(text, pattern, mock_metric::WordIndex), Some(expected));
 
         let expected = Subsequence {
-            score: 29.0,
+            score:   29.0,
             indices: vec![0, 2, 7], // Prefer the long edges
         };
         assert_eq!(
@@ -327,7 +306,7 @@ mod test {
         );
 
         let expected = Subsequence {
-            score: 38.0,
+            score:   38.0,
             indices: vec![0, 2, 7], // The edges metric should have more impact
         };
         assert_eq!(
@@ -340,29 +319,20 @@ mod test {
     fn finding_best_subsequence_when_does_not_match() {
         let pattern = "abc";
         let text = "aabxbyy";
-        assert_eq!(
-            find_best_subsequence(text, pattern, mock_metric::Sum::default()),
-            None
-        );
+        assert_eq!(find_best_subsequence(text, pattern, mock_metric::Sum::default()), None);
     }
 
     #[test]
     fn finding_best_subsequence_corner_cases() {
         let pattern = "";
         let text = "any";
-        let expected = Subsequence {
-            score: 0.0,
-            indices: vec![],
-        };
+        let expected = Subsequence { score: 0.0, indices: vec![] };
         assert_eq!(
             find_best_subsequence(text, pattern, mock_metric::Sum::default()),
             Some(expected)
         );
         let pattern = "any";
         let text = "";
-        assert_eq!(
-            find_best_subsequence(text, pattern, mock_metric::Sum::default()),
-            None
-        );
+        assert_eq!(find_best_subsequence(text, pattern, mock_metric::Sum::default()), None);
     }
 }

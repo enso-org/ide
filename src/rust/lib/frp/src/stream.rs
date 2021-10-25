@@ -5,6 +5,8 @@ use crate::network::*;
 use crate::node::*;
 use crate::prelude::*;
 
+
+
 // =================
 // === CallStack ===
 // =================
@@ -20,6 +22,7 @@ pub type OwnedCallStack = DisabledCallStack;
 /// A call stack trace for FRP events.
 pub type CallStack<'a> = &'a OwnedCallStack;
 
+
 // === Ops ===
 
 /// Call stack operations available on both enabled and disabled stack implementations.
@@ -27,6 +30,7 @@ pub trait CallStackOps: Default + Display {
     /// Create a sub stack trace.
     fn sub(&self, label: Label) -> Self;
 }
+
 
 // === Enabled ===
 
@@ -51,6 +55,7 @@ impl Display for EnabledCallStack {
     }
 }
 
+
 // === Disabled ===
 
 /// A call stack trace for FRP events.
@@ -69,6 +74,8 @@ impl Display for DisabledCallStack {
     }
 }
 
+
+
 // =================
 // === TypeLabel ===
 // =================
@@ -78,6 +85,8 @@ pub trait HasOutputTypeLabel {
     /// Output type label of this object.
     fn output_type_label(&self) -> String;
 }
+
+
 
 // ======================
 // === InputBehaviors ===
@@ -95,13 +104,14 @@ impl<T> InputBehaviors for T {
     }
 }
 
+
+
 // ====================
 // === EventEmitter ===
 // ====================
 
 /// Any type which can be used as FRP stream output.
-pub trait EventOutput =
-    'static + ValueProvider + EventEmitter + CloneRef + HasId;
+pub trait EventOutput = 'static + ValueProvider + EventEmitter + CloneRef + HasId;
 
 /// Implementors of this trait have to know how to emit events to subsequent nodes and how to
 /// register new event receivers.
@@ -113,6 +123,8 @@ pub trait EventEmitter: HasOutput {
     /// Register that someone is watching value of this node.
     fn register_watch(&self) -> watch::Handle;
 }
+
+
 
 // ======================
 // === Event Consumer ===
@@ -135,6 +147,8 @@ pub trait WeakEventConsumer<T> {
     fn on_event_if_exists(&self, stack: CallStack, value: &T) -> bool;
 }
 
+
+
 // =====================
 // === ValueProvider ===
 // =====================
@@ -144,6 +158,8 @@ pub trait ValueProvider: HasOutput {
     /// The current output value of the FRP node.
     fn value(&self) -> Self::Output;
 }
+
+
 
 // ==================
 // === EventInput ===
@@ -163,9 +179,7 @@ where
     Node<Def>: EventConsumer<Input>,
 {
     fn from(node: WeakNode<Def>) -> Self {
-        Self {
-            data: Rc::new(node),
-        }
+        Self { data: Rc::new(node) }
     }
 }
 
@@ -175,9 +189,7 @@ where
     Node<Def>: EventConsumer<Input>,
 {
     fn from(node: &WeakNode<Def>) -> Self {
-        Self {
-            data: Rc::new(node.clone_ref()),
-        }
+        Self { data: Rc::new(node.clone_ref()) }
     }
 }
 
@@ -186,6 +198,8 @@ impl<Input> Debug for EventInput<Input> {
         write!(f, "EventInput")
     }
 }
+
+
 
 // ================
 // === NodeData ===
@@ -209,12 +223,12 @@ pub struct NodeData<Out = ()> {
     /// is borrowed mutable. You should always borrow it only if `during_call` is false. Otherwise,
     /// if you want to register new outputs during a call, use `new_targets` field instead. It will
     /// be merged into `targets` directly after the call.
-    targets: RefCell<Vec<EventInput<Out>>>,
-    new_targets: RefCell<Vec<EventInput<Out>>>,
-    value_cache: RefCell<Out>,
+    targets:             RefCell<Vec<EventInput<Out>>>,
+    new_targets:         RefCell<Vec<EventInput<Out>>>,
+    value_cache:         RefCell<Out>,
     ongoing_evaluations: Cell<usize>,
-    watch_counter: watch::Counter,
-    label: Label,
+    watch_counter:       watch::Counter,
+    label:               Label,
 }
 
 impl<Out: Default> NodeData<Out> {
@@ -249,17 +263,12 @@ impl<Out: Data> EventEmitter for NodeData<Out> {
         let new_stack = stack.sub(self.label);
         if self.ongoing_evaluations.get() > EVALUATIONS_LIMIT {
             let logger: Logger = Logger::new("frp");
-            warning!(
-                logger,
-                "The recursive evaluations limit exceeded.",
-                || {
-                    warning!(logger, "{new_stack}");
-                }
-            );
+            warning!(logger, "The recursive evaluations limit exceeded.", || {
+                warning!(logger, "{new_stack}");
+            });
             WARNING!("{backtrace()}")
         } else {
-            self.ongoing_evaluations
-                .set(self.ongoing_evaluations.get() + 1);
+            self.ongoing_evaluations.set(self.ongoing_evaluations.get() + 1);
             if self.use_caching() {
                 *self.value_cache.borrow_mut() = value.clone();
             }
@@ -272,13 +281,11 @@ impl<Out: Data> EventEmitter for NodeData<Out> {
             let mut new_targets = self.new_targets.borrow_mut();
             if !new_targets.is_empty() {
                 if let Ok(mut targets) = self.targets.try_borrow_mut() {
-                    let new_targets_ref: &mut Vec<EventInput<Out>> =
-                        &mut new_targets;
+                    let new_targets_ref: &mut Vec<EventInput<Out>> = &mut new_targets;
                     targets.extend(mem::take(new_targets_ref));
                 }
             }
-            self.ongoing_evaluations
-                .set(self.ongoing_evaluations.get() - 1);
+            self.ongoing_evaluations.set(self.ongoing_evaluations.get() - 1);
         }
     }
 
@@ -303,6 +310,8 @@ impl<Out: Data> ValueProvider for NodeData<Out> {
         self.value_cache.borrow().clone()
     }
 }
+
+
 
 // ====================
 // === Event Stream ===
@@ -333,7 +342,7 @@ pub struct Stream<Out = ()> {
 #[derive(CloneRef, Debug, Derivative)]
 #[derivative(Clone(bound = ""))]
 pub struct Node<Def: HasOutputStatic> {
-    stream: OwnedStream<Output<Def>>,
+    stream:     OwnedStream<Output<Def>>,
     definition: Rc<Def>,
 }
 
@@ -342,9 +351,10 @@ pub struct Node<Def: HasOutputStatic> {
 #[derive(CloneRef, Debug, Derivative)]
 #[derivative(Clone(bound = ""))]
 pub struct WeakNode<Def: HasOutputStatic> {
-    stream: Stream<Output<Def>>,
+    stream:     Stream<Output<Def>>,
     definition: Weak<Def>,
 }
+
 
 // === Output ===
 
@@ -374,17 +384,18 @@ impl<Def: HasOutputStatic> HasOutput for &WeakNode<Def> {
     type Output = Output<Def>;
 }
 
+
 // === Derefs ===
 
 impl<Def> Deref for Node<Def>
-where
-    Def: HasOutputStatic,
+where Def: HasOutputStatic
 {
     type Target = Def;
     fn deref(&self) -> &Self::Target {
         &self.definition
     }
 }
+
 
 // === Constructors ===
 
@@ -398,15 +409,10 @@ impl<Def: HasOutputStatic> Node<Def> {
     }
 
     /// Constructor which registers the newly created node as the event target of the argument.
-    pub fn construct_and_connect<S>(
-        label: Label,
-        stream: &S,
-        definition: Def,
-    ) -> Self
+    pub fn construct_and_connect<S>(label: Label, stream: &S, definition: Def) -> Self
     where
         S: EventOutput,
-        Self: EventConsumer<Output<S>>,
-    {
+        Self: EventConsumer<Output<S>>, {
         let this = Self::construct(label, definition);
         let weak = this.downgrade();
         stream.register_target(weak.into());
@@ -441,9 +447,7 @@ impl<T: HasOutputStatic> WeakNode<T> {
     /// Upgrades to the strong version.
     pub fn upgrade(&self) -> Option<Node<T>> {
         self.stream.upgrade().and_then(|stream| {
-            self.definition
-                .upgrade()
-                .map(|definition| Node { stream, definition })
+            self.definition.upgrade().map(|definition| Node { stream, definition })
         })
     }
 }
@@ -451,9 +455,7 @@ impl<T: HasOutputStatic> WeakNode<T> {
 impl<Out> OwnedStream<Out> {
     /// Downgrades to the weak version.
     pub fn downgrade(&self) -> Stream<Out> {
-        Stream {
-            data: Rc::downgrade(&self.data),
-        }
+        Stream { data: Rc::downgrade(&self.data) }
     }
 }
 
@@ -465,8 +467,7 @@ impl<Out> Stream<Out> {
 }
 
 impl<Def> From<WeakNode<Def>> for Stream<Def::Output>
-where
-    Def: HasOutputStatic,
+where Def: HasOutputStatic
 {
     fn from(node: WeakNode<Def>) -> Self {
         node.stream
@@ -474,8 +475,7 @@ where
 }
 
 impl<Def> From<&WeakNode<Def>> for Stream<Def::Output>
-where
-    Def: HasOutputStatic,
+where Def: HasOutputStatic
 {
     fn from(node: &WeakNode<Def>) -> Self {
         node.stream.clone_ref()
@@ -483,8 +483,7 @@ where
 }
 
 impl<Def> From<Node<Def>> for OwnedStream<Def::Output>
-where
-    Def: HasOutputStatic,
+where Def: HasOutputStatic
 {
     fn from(node: Node<Def>) -> Self {
         node.stream.clone_ref()
@@ -492,8 +491,7 @@ where
 }
 
 impl<Def> From<&Node<Def>> for OwnedStream<Def::Output>
-where
-    Def: HasOutputStatic,
+where Def: HasOutputStatic
 {
     fn from(node: &Node<Def>) -> Self {
         node.stream.clone_ref()
@@ -501,8 +499,7 @@ where
 }
 
 impl<Def> From<Node<Def>> for Stream<Def::Output>
-where
-    Def: HasOutputStatic,
+where Def: HasOutputStatic
 {
     fn from(node: Node<Def>) -> Self {
         node.stream.downgrade()
@@ -510,13 +507,13 @@ where
 }
 
 impl<Def> From<&Node<Def>> for Stream<Def::Output>
-where
-    Def: HasOutputStatic,
+where Def: HasOutputStatic
 {
     fn from(node: &Node<Def>) -> Self {
         node.clone_ref().into()
     }
 }
+
 
 // === EventEmitter ===
 
@@ -572,6 +569,7 @@ impl<Def: HasOutputStatic> EventEmitter for WeakNode<Def> {
     }
 }
 
+
 // === WeakEventConsumer ===
 
 impl<Def, T> WeakEventConsumer<T> for WeakNode<Def>
@@ -591,6 +589,7 @@ where
             .is_some()
     }
 }
+
 
 // === ValueProvider ===
 
@@ -618,6 +617,7 @@ impl<Def: HasOutputStatic> ValueProvider for WeakNode<Def> {
     }
 }
 
+
 // === HasId ===
 
 impl<Out> HasId for Stream<Out> {
@@ -639,11 +639,11 @@ impl<Def: HasOutputStatic> HasId for WeakNode<Def> {
     }
 }
 
+
 // === HasLabel ===
 
 impl<Def: HasOutputStatic> HasLabel for Node<Def>
-where
-    Def: InputBehaviors,
+where Def: InputBehaviors
 {
     fn label(&self) -> Label {
         self.stream.data.label
@@ -652,8 +652,7 @@ where
 
 // FIXME code quality below:
 impl<Def> HasOutputTypeLabel for Node<Def>
-where
-    Def: HasOutputStatic + InputBehaviors,
+where Def: HasOutputStatic + InputBehaviors
 {
     fn output_type_label(&self) -> String {
         let label = type_name::<Def>().to_string();
@@ -669,11 +668,11 @@ where
     }
 }
 
+
 // === InputBehaviors ===
 
 impl<Def: HasOutputStatic> InputBehaviors for Node<Def>
-where
-    Def: InputBehaviors,
+where Def: InputBehaviors
 {
     fn input_behaviors(&self) -> Vec<Link> {
         vec![] // FIXME
@@ -682,13 +681,13 @@ where
 }
 
 impl<Def: HasOutputStatic> InputBehaviors for WeakNode<Def>
-where
-    Def: InputBehaviors,
+where Def: InputBehaviors
 {
     fn input_behaviors(&self) -> Vec<Link> {
         self.stream.input_behaviors()
     }
 }
+
 
 // === Debug ===
 

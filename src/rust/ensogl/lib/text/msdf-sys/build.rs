@@ -9,8 +9,8 @@ mod msdfgen_wasm {
 
     pub const PACKAGE: GithubRelease<&str> = GithubRelease {
         project_url: "https://github.com/enso-org/msdfgen-wasm",
-        version: "v1.1",
-        filename: "msdfgen_wasm.js",
+        version:     "v1.1",
+        filename:    "msdfgen_wasm.js",
     };
 
     /// Downloads the msdfgen package.

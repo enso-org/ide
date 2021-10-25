@@ -7,12 +7,15 @@ use crate::prelude::*;
 use crate::ArgumentInfo;
 use ast::Id;
 
+
 /// Additional information available on nodes that are an invocation of a known methods.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CalledMethodInfo {
     /// Information about arguments taken by a called method.
     pub parameters: Vec<ArgumentInfo>,
 }
+
+
 
 // ===============
 // === Context ===
@@ -29,9 +32,10 @@ pub trait Context {
     ///
     /// Trait implementors may used it to filter-out results, however they are not required to do
     /// so. Caller should not assume that the called method has the same name as given identifier.
-    fn call_info(&self, id: Id, name: Option<&str>)
-        -> Option<CalledMethodInfo>;
+    fn call_info(&self, id: Id, name: Option<&str>) -> Option<CalledMethodInfo>;
 }
+
+
 
 // =============
 // === Empty ===
@@ -42,11 +46,7 @@ pub trait Context {
 pub struct Empty;
 
 impl Context for Empty {
-    fn call_info(
-        &self,
-        _id: Id,
-        _name: Option<&str>,
-    ) -> Option<CalledMethodInfo> {
+    fn call_info(&self, _id: Id, _name: Option<&str>) -> Option<CalledMethodInfo> {
         None
     }
 }

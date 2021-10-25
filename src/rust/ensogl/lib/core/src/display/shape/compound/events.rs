@@ -7,6 +7,8 @@ use crate::gui::component::ShapeView;
 
 use enso_frp as frp;
 
+
+
 // ===========
 // === Frp ===
 // ===========
@@ -18,6 +20,8 @@ crate::define_endpoints! {
         mouse_out  (),
     }
 }
+
+
 
 // ===================
 // === MouseEvents ===

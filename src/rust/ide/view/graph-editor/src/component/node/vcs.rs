@@ -9,6 +9,8 @@ use ensogl::data::color;
 use ensogl::display;
 use ensogl::display::shape::*;
 
+
+
 // ==============
 // === Status ===
 // ==============
@@ -25,15 +27,10 @@ pub enum Status {
 impl Status {
     fn get_highlight_color_from_style(self, style: &StyleWatch) -> color::Lcha {
         match self {
-            Status::Unchanged => style
-                .get_color(ensogl_theme::graph_editor::node::vcs::unchanged)
-                .into(),
-            Status::Added => style
-                .get_color(ensogl_theme::graph_editor::node::vcs::added)
-                .into(),
-            Status::Edited => style
-                .get_color(ensogl_theme::graph_editor::node::vcs::edited)
-                .into(),
+            Status::Unchanged =>
+                style.get_color(ensogl_theme::graph_editor::node::vcs::unchanged).into(),
+            Status::Added => style.get_color(ensogl_theme::graph_editor::node::vcs::added).into(),
+            Status::Edited => style.get_color(ensogl_theme::graph_editor::node::vcs::edited).into(),
         }
     }
 }
@@ -43,6 +40,8 @@ impl Default for Status {
         Status::Unchanged
     }
 }
+
+
 
 // =======================
 // === Indicator Shape ===
@@ -72,6 +71,8 @@ mod status_indicator_shape {
     }
 }
 
+
+
 // ==============================
 // === Status Indicator Model ===
 // ==============================
@@ -80,7 +81,7 @@ mod status_indicator_shape {
 #[derive(Clone, CloneRef, Debug)]
 struct StatusIndicatorModel {
     shape: status_indicator_shape::View,
-    root: display::object::Instance,
+    root:  display::object::Instance,
 }
 
 impl StatusIndicatorModel {
@@ -114,6 +115,8 @@ impl display::Object for StatusIndicatorModel {
     }
 }
 
+
+
 // =======================
 // === StatusIndicator ===
 // =======================
@@ -132,7 +135,7 @@ ensogl::define_endpoints! {
 #[derive(Clone, CloneRef, Debug)]
 #[allow(missing_docs)]
 pub struct StatusIndicator {
-    model: Rc<StatusIndicatorModel>,
+    model:   Rc<StatusIndicatorModel>,
     pub frp: Frp,
 }
 

@@ -13,6 +13,8 @@ pub mod traits {
 
 use enso_shapely::replace;
 
+
+
 // ===================
 // === ExpectTuple ===
 // ===================
@@ -25,7 +27,9 @@ pub trait ExpectTuple<T> {
     fn expect_tuple(self) -> T;
 }
 
+
 // === Implementations ===
+
 
 /// Implements ExpectTuple of tuple of various sizes for collection
 /// (something implementing IntoIterator).
@@ -48,6 +52,4 @@ macro_rules! impl_expect_tuple_for_collections {
     };
 }
 
-impl_expect_tuple_for_collections!(
-    v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12
-);
+impl_expect_tuple_for_collections!(v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12);

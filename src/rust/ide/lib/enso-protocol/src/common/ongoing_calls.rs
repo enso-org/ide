@@ -12,31 +12,25 @@ use crate::common::error::NoSuchRequest;
 /// `Reply` represents the answer.
 #[derive(Debug)]
 pub struct OngoingCalls<Id, Reply>
-where
-    Id: Hash + Eq,
-{
-    logger: Logger,
+where Id: Hash + Eq {
+    logger:        Logger,
     ongoing_calls: HashMap<Id, oneshot::Sender<Reply>>,
 }
 
 impl<Id, Reply> OngoingCalls<Id, Reply>
-where
-    Id: Copy + Debug + Display + Hash + Eq + Send + Sync + 'static,
+where Id: Copy + Debug + Display + Hash + Eq + Send + Sync + 'static
 {
     /// Creates a new, empty ongoing request storage.
     pub fn new(parent: impl AnyLogger) -> OngoingCalls<Id, Reply> {
         OngoingCalls {
-            logger: Logger::new_sub(parent, "ongoing_calls"),
+            logger:        Logger::new_sub(parent, "ongoing_calls"),
             ongoing_calls: HashMap::new(),
         }
     }
 
     /// Removes the request from the storage and returns it (if present).
     /// The removed request can be used to either feed the reply or cancel the future result.
-    pub fn remove_request(
-        &mut self,
-        id: &Id,
-    ) -> Option<oneshot::Sender<Reply>> {
+    pub fn remove_request(&mut self, id: &Id) -> Option<oneshot::Sender<Reply>> {
         let ret = self.ongoing_calls.remove(id);
         if ret.is_some() {
             info!(self.logger, "Removing request {id}");
@@ -48,11 +42,7 @@ where
 
     /// Inserts a new request with given id and completer (i.e. the channel capable of accepting
     /// the peer's reply and completing the request).
-    pub fn insert_request(
-        &mut self,
-        id: Id,
-        completer: oneshot::Sender<Reply>,
-    ) {
+    pub fn insert_request(&mut self, id: Id, completer: oneshot::Sender<Reply>) {
         info!(self.logger, "Storing a new request {id}");
         // There will be no previous request, since Ids are assumed to be unique.
         // Still, if there was, we can just safely drop it.

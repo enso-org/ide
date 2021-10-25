@@ -51,8 +51,8 @@ pub struct FileChecksum {
 #[allow(missing_docs)]
 pub struct OpenTextFile {
     pub write_capability: Option<CapabilityRegistration>,
-    pub content: String,
-    pub current_version: Sha3_224,
+    pub content:          String,
+    pub current_version:  Sha3_224,
 }
 
 /// Response of `create_execution_context` method.
@@ -60,8 +60,8 @@ pub struct OpenTextFile {
 #[serde(rename_all = "camelCase")]
 #[allow(missing_docs)]
 pub struct CreateExecutionContext {
-    pub context_id: ContextId,
-    pub can_modify: CapabilityRegistration,
+    pub context_id:       ContextId,
+    pub can_modify:       CapabilityRegistration,
     pub receives_updates: CapabilityRegistration,
 }
 
@@ -70,7 +70,7 @@ pub struct CreateExecutionContext {
 #[serde(rename_all = "camelCase")]
 #[allow(missing_docs)]
 pub struct GetSuggestionDatabase {
-    pub entries: Vec<SuggestionsDatabaseEntry>,
+    pub entries:         Vec<SuggestionsDatabaseEntry>,
     pub current_version: SuggestionsDatabaseVersion,
 }
 
@@ -87,6 +87,6 @@ pub struct GetSuggestionDatabaseVersion {
 #[serde(rename_all = "camelCase")]
 #[allow(missing_docs)]
 pub struct Completion {
-    pub results: Vec<SuggestionId>,
+    pub results:         Vec<SuggestionId>,
     pub current_version: SuggestionsDatabaseVersion,
 }

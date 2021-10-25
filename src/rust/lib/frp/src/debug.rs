@@ -6,9 +6,11 @@
 //! WARNING
 //! THIS MODULE IS IN A VERY WORK-IN-PROGRESS STATE. IT WILL BE CHANGED SOON.
 
+
 use crate::prelude::*;
 //use crate::DataType;
 //
+
 
 // ================
 // === Graphviz ===
@@ -18,7 +20,7 @@ use crate::prelude::*;
 #[derive(Debug, Clone)]
 pub struct VizNode {
     variant: String,
-    label: String,
+    label:   String,
 }
 
 impl VizNode {
@@ -28,46 +30,35 @@ impl VizNode {
     }
 }
 
+
 /// Visualization data for a link between nodes.
 #[derive(Debug, Clone)]
 pub struct VizLink {
     source_display_id: usize,
     target_display_id: usize,
     //    message_type      : DataType,
-    data_type: String,
+    data_type:         String,
 }
 
 impl VizLink {
     /// Constructor.
-    pub fn new(
-        source_display_id: usize,
-        target_display_id: usize,
-        data_type: String,
-    ) -> Self {
-        Self {
-            source_display_id,
-            target_display_id,
-            data_type,
-        }
+    pub fn new(source_display_id: usize, target_display_id: usize, data_type: String) -> Self {
+        Self { source_display_id, target_display_id, data_type }
     }
 }
+
 
 /// Graphviz FRP system visualizer.
 #[derive(Debug, Default)]
 pub struct Graphviz {
-    nodes: HashMap<usize, VizNode>,
+    nodes:  HashMap<usize, VizNode>,
     labels: HashMap<usize, String>,
-    links: Vec<VizLink>,
+    links:  Vec<VizLink>,
 }
 
 impl Graphviz {
     /// Defines a new node.
-    pub fn add_node<Tp: Str, Label: Str>(
-        &mut self,
-        id: usize,
-        tp: Tp,
-        label: Label,
-    ) {
+    pub fn add_node<Tp: Str, Label: Str>(&mut self, id: usize, tp: Tp, label: Label) {
         let tp = tp.into();
         let label = label.into();
         self.nodes.insert(id, VizNode::new(tp, label.clone()));
@@ -86,9 +77,9 @@ impl Graphviz {
     //        self.nodes.contains_key(&id)
     //    }
     //
-    //    /// Takes a set of nodes and outputs a map from `display_id` to a particular node. In case the
-    //    /// `display_id` points to several nodes, the node types `Hold` and `Recursive` has weaker
-    //    /// preference.
+    //    /// Takes a set of nodes and outputs a map from `display_id` to a particular node. In case
+    // the    /// `display_id` points to several nodes, the node types `Hold` and `Recursive`
+    // has weaker    /// preference.
     //    fn create_node_map(&self) -> HashMap<usize,VizNode> {
     //        let mut node_map : HashMap<usize,VizNode> = default();
     //        for node in self.nodes.values() {
@@ -120,10 +111,8 @@ impl Graphviz {
             };
             let fill = iformat!("[fillcolor=\"#{color}\"]");
             let spacing = "<br/><FONT POINT-SIZE=\"5\"> </FONT><br/>";
-            let variant =
-                iformat!("<FONT POINT-SIZE=\"9\">{node.variant}</FONT>");
-            let label =
-                iformat!("[label=< {node.label} {spacing} {variant} >]");
+            let variant = iformat!("<FONT POINT-SIZE=\"9\">{node.variant}</FONT>");
+            let label = iformat!("[label=< {node.label} {spacing} {variant} >]");
             let line = iformat!("\n{idx} {fill} {label}");
             code.push_str(&line);
         }
@@ -146,8 +135,7 @@ impl Graphviz {
         //        }
         //
         let fonts = "[fontname=\"Helvetica Neue\" fontsize=11]";
-        let node_shape =
-            "[shape=box penwidth=0 margin=0.12 style=\"rounded,filled\"]";
+        let node_shape = "[shape=box penwidth=0 margin=0.12 style=\"rounded,filled\"]";
         let node_style = "[fontcolor=white fillcolor=\"#5397dc\"]";
         let edge_style = "[arrowsize=.7 fontcolor=\"#555555\"]";
         let graph_cfg = iformat!("rankdir=TD; graph {fonts};");
@@ -163,6 +151,8 @@ impl From<Graphviz> for String {
         cfg.to_code()
     }
 }
+
+
 
 // =======================
 // === GraphvizBuilder ===
@@ -183,28 +173,19 @@ pub trait GraphvizBuilder {
     /// Converts the current object to Graphviz and displays it in a new tab in a web browser.
     fn display_graphviz(&self) {
         let code = self.to_graphviz();
-        let url = percent_encoding::utf8_percent_encode(
-            &code,
-            percent_encoding::NON_ALPHANUMERIC,
-        );
+        let url = percent_encoding::utf8_percent_encode(&code, percent_encoding::NON_ALPHANUMERIC);
         let url = format!("https://dreampuf.github.io/GraphvizOnline/#{}", url);
-        crate::web::window()
-            .open_with_url_and_target(&url, "_blank")
-            .unwrap();
+        crate::web::window().open_with_url_and_target(&url, "_blank").unwrap();
     }
 }
 
 pub fn display_graphviz(viz: Graphviz) {
     let code: String = viz.into();
-    let url = percent_encoding::utf8_percent_encode(
-        &code,
-        percent_encoding::NON_ALPHANUMERIC,
-    );
+    let url = percent_encoding::utf8_percent_encode(&code, percent_encoding::NON_ALPHANUMERIC);
     let url = format!("https://dreampuf.github.io/GraphvizOnline/#{}", url);
-    crate::web::window()
-        .open_with_url_and_target(&url, "_blank")
-        .unwrap();
+    crate::web::window().open_with_url_and_target(&url, "_blank").unwrap();
 }
+
 
 impl<T> GraphvizBuilder for T
 where

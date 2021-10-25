@@ -12,6 +12,8 @@ use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlImageElement;
 
+
+
 // ===================
 // === RemoteImage ===
 // ===================
@@ -22,6 +24,7 @@ pub struct RemoteImageData {
     /// An url from where the texture is downloaded.
     pub url: String,
 }
+
 
 // === Instances ===
 
@@ -34,6 +37,7 @@ impl<S: Str> From<S> for RemoteImageData {
         Self::new(s)
     }
 }
+
 
 // === API ===
 
@@ -57,16 +61,24 @@ impl<I: InternalFormat, T: ItemType> Texture<RemoteImage, I, T> {
         let height = 1;
         let border = 0;
         let color = vec![0, 0, 255, 255];
+        self.context().bind_texture(Context::TEXTURE_2D, Some(self.gl_texture()));
         self.context()
-            .bind_texture(Context::TEXTURE_2D, Some(self.gl_texture()));
-        self.context().tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array
-        (target,level,internal_format,width,height,border,format,elem_type,Some(&color)).unwrap();
+            .tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
+                target,
+                level,
+                internal_format,
+                width,
+                height,
+                border,
+                format,
+                elem_type,
+                Some(&color),
+            )
+            .unwrap();
     }
 }
 
-impl<I: InternalFormat, T: ItemType> TextureReload
-    for Texture<RemoteImage, I, T>
-{
+impl<I: InternalFormat, T: ItemType> TextureReload for Texture<RemoteImage, I, T> {
     /// Loads or re-loads the texture data from the provided url.
     /// This action will be performed asynchronously.
     fn reload(&self) {
@@ -106,13 +118,7 @@ impl<I: InternalFormat, T: ItemType> TextureReload
         let image = image_ref.borrow();
         request_cors_if_not_same_origin(&image, url);
         image.set_src(url);
-        image
-            .add_event_listener_with_callback_and_bool(
-                "load",
-                js_callback,
-                true,
-            )
-            .unwrap();
+        image.add_event_listener_with_callback_and_bool("load", js_callback, true).unwrap();
         *callback_ref.borrow_mut() = Some(callback);
     }
 }
@@ -121,8 +127,8 @@ impl<I: InternalFormat, T: ItemType> TextureReload
 
 /// CORS = Cross Origin Resource Sharing. It's a way for the webpage to ask the image server for
 /// permission to use the image. To do this we set the crossOrigin attribute to something and then
-/// when the browser tries to get the image from the server, if it's not the same domain, the browser
-/// will ask for CORS permission. The string we set `cross_origin` to is sent to the server.
+/// when the browser tries to get the image from the server, if it's not the same domain, the
+/// browser will ask for CORS permission. The string we set `cross_origin` to is sent to the server.
 /// The server can look at that string and decide whether or not to give you permission. Most
 /// servers that support CORS don't look at the string, they just give permission to everyone.
 ///

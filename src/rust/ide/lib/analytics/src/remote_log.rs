@@ -6,6 +6,7 @@ use crate::data::*;
 
 pub use wasm_bindgen::prelude::*;
 
+
 mod js {
     use super::*;
 
@@ -26,15 +27,12 @@ export function remote_log_value(msg, field_name, value) {
 ")]
     extern "C" {
         #[allow(unsafe_code)]
-        pub fn remote_log_value(
-            msg: JsValue,
-            field_name: JsValue,
-            value: JsValue,
-        );
+        pub fn remote_log_value(msg: JsValue, field_name: JsValue, value: JsValue);
         #[allow(unsafe_code)]
         pub fn remote_log(msg: JsValue, value: JsValue);
     }
 }
+
 
 /// Send the provided public event to our logging service.
 #[allow(unused_variables)] // used only on wasm target
@@ -48,11 +46,7 @@ pub fn remote_log_event(message: &str) {
 
 /// Send the provided public event with a named value to our logging service.
 #[allow(unused_variables)] // used only on wasm target
-pub fn remote_log_value<T: Loggable>(
-    message: &str,
-    field_name: &str,
-    data: AnonymousData<T>,
-) {
+pub fn remote_log_value<T: Loggable>(message: &str, field_name: &str, data: AnonymousData<T>) {
     // Note: Disabling on non-wasm targets
     #[cfg(target_arch = "wasm32")]
     {

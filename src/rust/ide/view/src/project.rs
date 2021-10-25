@@ -25,6 +25,8 @@ use ensogl::Animation;
 use ensogl::DEPRECATED_Animation;
 use ensogl_theme::Theme;
 
+
+
 // ===========
 // === FRP ===
 // ===========
@@ -69,6 +71,8 @@ ensogl::define_endpoints! {
     }
 }
 
+
+
 // ==============
 // === Shapes ===
 // ==============
@@ -91,26 +95,27 @@ mod prompt_background {
     }
 }
 
+
+
 // =============
 // === Model ===
 // =============
 
 #[derive(Clone, CloneRef, Debug)]
 struct Model {
-    app: Application,
-    logger: Logger,
-    display_object: display::object::Instance,
+    app:                    Application,
+    logger:                 Logger,
+    display_object:         display::object::Instance,
     /// These buttons are present only in a cloud environment.
-    window_control_buttons:
-        Immutable<Option<crate::window_control_buttons::View>>,
-    graph_editor: Rc<GraphEditor>,
-    searcher: searcher::View,
-    code_editor: code_editor::View,
-    status_bar: status_bar::View,
-    fullscreen_vis: Rc<RefCell<Option<visualization::fullscreen::Panel>>>,
-    prompt_background: prompt_background::View,
-    prompt: ensogl_text::Area,
-    open_dialog: Rc<OpenDialog>,
+    window_control_buttons: Immutable<Option<crate::window_control_buttons::View>>,
+    graph_editor:           Rc<GraphEditor>,
+    searcher:               searcher::View,
+    code_editor:            code_editor::View,
+    status_bar:             status_bar::View,
+    fullscreen_vis:         Rc<RefCell<Option<visualization::fullscreen::Panel>>>,
+    prompt_background:      prompt_background::View,
+    prompt:                 ensogl_text::Area,
+    open_dialog:            Rc<OpenDialog>,
 }
 
 impl Model {
@@ -125,14 +130,12 @@ impl Model {
         let fullscreen_vis = default();
         let prompt_background = prompt_background::View::new(&logger);
         let prompt = ensogl_text::Area::new(app);
-        let window_control_buttons =
-            ARGS.is_in_cloud.unwrap_or_default().as_some_from(|| {
-                let window_control_buttons =
-                    app.new_view::<crate::window_control_buttons::View>();
-                display_object.add_child(&window_control_buttons);
-                scene.layers.panel.add_exclusive(&window_control_buttons);
-                window_control_buttons
-            });
+        let window_control_buttons = ARGS.is_in_cloud.unwrap_or_default().as_some_from(|| {
+            let window_control_buttons = app.new_view::<crate::window_control_buttons::View>();
+            display_object.add_child(&window_control_buttons);
+            scene.layers.panel.add_exclusive(&window_control_buttons);
+            window_control_buttons
+        });
         let window_control_buttons = Immutable(window_control_buttons);
         let open_dialog = Rc::new(OpenDialog::new(app));
         prompt_background.add_child(&prompt);
@@ -185,34 +188,20 @@ impl Model {
     }
 
     fn set_html_style(&self, style: &'static str) {
-        web::with_element_by_id_or_warn(&self.logger, "root", |root| {
-            root.set_class_name(style)
-        });
+        web::with_element_by_id_or_warn(&self.logger, "root", |root| root.set_class_name(style));
     }
 
-    fn searcher_left_top_position_when_under_node_at(
-        position: Vector2<f32>,
-    ) -> Vector2<f32> {
+    fn searcher_left_top_position_when_under_node_at(position: Vector2<f32>) -> Vector2<f32> {
         let x = position.x;
         let y = position.y - node::HEIGHT / 2.0;
         Vector2(x, y)
     }
 
-    fn searcher_left_top_position_when_under_node(
-        &self,
-        node_id: NodeId,
-    ) -> Vector2<f32> {
-        if let Some(node) =
-            self.graph_editor.model.nodes.get_cloned_ref(&node_id)
-        {
-            Self::searcher_left_top_position_when_under_node_at(
-                node.position().xy(),
-            )
+    fn searcher_left_top_position_when_under_node(&self, node_id: NodeId) -> Vector2<f32> {
+        if let Some(node) = self.graph_editor.model.nodes.get_cloned_ref(&node_id) {
+            Self::searcher_left_top_position_when_under_node_at(node.position().xy())
         } else {
-            error!(
-                self.logger,
-                "Trying to show searcher under nonexisting node"
-            );
+            error!(self.logger, "Trying to show searcher under nonexisting node");
             default()
         }
     }
@@ -227,8 +216,7 @@ impl Model {
         match edited_node {
             Some(id) if !is_searcher_empty => {
                 self.searcher.show();
-                let new_position =
-                    self.searcher_left_top_position_when_under_node(id);
+                let new_position = self.searcher_left_top_position_when_under_node(id);
                 searcher_left_top_position.set_target_value(new_position);
             }
             _ => {
@@ -239,36 +227,23 @@ impl Model {
 
     fn add_node_and_edit(&self) -> NodeId {
         let graph_editor_inputs = &self.graph_editor.frp.input;
-        let node_id = if let Some(selected) =
-            self.graph_editor.model.nodes.selected.first_cloned()
+        let node_id = if let Some(selected) = self.graph_editor.model.nodes.selected.first_cloned()
         {
             self.graph_editor.add_node_below(selected)
         } else {
             graph_editor_inputs.add_node_at_cursor.emit(());
             self.graph_editor.frp.output.node_added.value()
         };
-        graph_editor_inputs
-            .set_node_expression
-            .emit(&(node_id, Expression::default()));
+        graph_editor_inputs.set_node_expression.emit(&(node_id, Expression::default()));
         graph_editor_inputs.edit_node.emit(&node_id);
         node_id
     }
 
     fn show_fullscreen_visualization(&self, node_id: NodeId) {
-        let node = self
-            .graph_editor
-            .model
-            .model
-            .nodes
-            .all
-            .get_cloned_ref(&node_id);
+        let node = self.graph_editor.model.model.nodes.all.get_cloned_ref(&node_id);
         if let Some(node) = node {
-            let visualization = node
-                .view
-                .model
-                .visualization
-                .fullscreen_visualization()
-                .clone_ref();
+            let visualization =
+                node.view.model.visualization.fullscreen_visualization().clone_ref();
             self.display_object.remove_child(&*self.graph_editor);
             self.display_object.add_child(&visualization);
             *self.fullscreen_vis.borrow_mut() = Some(visualization);
@@ -276,9 +251,7 @@ impl Model {
     }
 
     fn hide_fullscreen_visualization(&self) {
-        if let Some(visualization) =
-            std::mem::take(&mut *self.fullscreen_vis.borrow_mut())
-        {
+        if let Some(visualization) = std::mem::take(&mut *self.fullscreen_vis.borrow_mut()) {
             self.display_object.remove_child(&visualization);
             self.display_object.add_child(&*self.graph_editor);
         }
@@ -309,6 +282,8 @@ impl Model {
     }
 }
 
+
+
 mod js {
     // use super::*;
     use wasm_bindgen::prelude::*;
@@ -324,6 +299,7 @@ mod js {
         #[allow(unsafe_code)]
         pub fn close(window_app_scope_name: &str);
     }
+
 
     #[wasm_bindgen(inline_js = "
     export function fullscreen() {
@@ -343,6 +319,8 @@ mod js {
     }
 }
 
+
+
 // ============
 // === View ===
 // ============
@@ -351,7 +329,7 @@ mod js {
 #[allow(missing_docs)]
 #[derive(Clone, CloneRef, Debug)]
 pub struct View {
-    model: Model,
+    model:   Model,
     pub frp: Frp,
 }
 
@@ -388,8 +366,7 @@ impl View {
         let project_list = &model.open_dialog.project_list;
         let file_browser = &model.open_dialog.file_browser;
         let network = &frp.network;
-        let searcher_left_top_position =
-            DEPRECATED_Animation::<Vector2<f32>>::new(network);
+        let searcher_left_top_position = DEPRECATED_Animation::<Vector2<f32>>::new(network);
         let prompt_visibility = Animation::new(network);
 
         // FIXME[WD]: Think how to refactor it, as it needs to be done before model, as we do not
@@ -404,10 +381,7 @@ impl View {
 
         if let Some(window_control_buttons) = &*model.window_control_buttons {
             let initial_size = &window_control_buttons.size.value();
-            model
-                .graph_editor
-                .input
-                .space_for_window_buttons(initial_size);
+            model.graph_editor.input.space_for_window_buttons(initial_size);
             frp::extend! { network
                 graph.space_for_window_buttons <+ window_control_buttons.size;
                 eval_ window_control_buttons.close      (model.on_close_clicked());

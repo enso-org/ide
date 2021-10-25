@@ -10,12 +10,16 @@ use crate::messages::RequestMessage;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
+
+
 // ==============
 // === Result ===
 // ==============
 
 /// A result of an RPC-call.
 pub type Result<T> = std::result::Result<T, RpcError>;
+
+
 
 // ========================
 // === RemoteMethodCall ===
@@ -33,9 +37,6 @@ pub trait RemoteMethodCall: Serialize + Debug {
 }
 
 /// Make a request message from given RemoteMethodInput value.
-pub fn into_request_message<In: RemoteMethodCall>(
-    input: In,
-    id: Id,
-) -> RequestMessage<In> {
+pub fn into_request_message<In: RemoteMethodCall>(input: In, id: Id) -> RequestMessage<In> {
     Message::new_request(id, In::NAME, input)
 }

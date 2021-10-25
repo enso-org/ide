@@ -3,6 +3,8 @@
 
 use crate::prelude::*;
 
+
+
 // =================
 // === ArgReader ===
 // =================
@@ -17,6 +19,7 @@ pub trait ArgReader: Sized {
     fn read_arg(str: String) -> Option<Self>;
 }
 
+
 // === Default ===
 
 /// Helper trait used to disambiguate overlapping impls of [`ArgReader`].
@@ -26,8 +29,7 @@ pub trait ArgReaderFromString: Sized {
 }
 
 impl<T> ArgReaderFromString for T
-where
-    String: TryInto<T>,
+where String: TryInto<T>
 {
     fn read_arg_from_string(str: String) -> Option<Self> {
         str.try_into().ok()
@@ -42,13 +44,13 @@ impl<T> ArgReaderFromString for T {
 
 impl<T> ArgMarker for T where T: TryFrom<String> {}
 impl<T> ArgReader for T
-where
-    T: ArgMarker,
+where T: ArgMarker
 {
     default fn read_arg(str: String) -> Option<Self> {
         ArgReaderFromString::read_arg_from_string(str)
     }
 }
+
 
 // === Specializations ===
 
@@ -68,6 +70,8 @@ impl ArgReader for bool {
         }
     }
 }
+
+
 
 // =================
 // === read_args ===

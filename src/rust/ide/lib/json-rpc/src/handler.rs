@@ -24,6 +24,8 @@ use serde::de::DeserializeOwned;
 use std::future::Future;
 use utils::channel;
 
+
+
 // ====================
 // === ReplyMessage ===
 // ====================
@@ -38,12 +40,12 @@ pub fn decode_result<Ret: DeserializeOwned>(
     result: messages::Result<serde_json::Value>,
 ) -> Result<Ret> {
     match result {
-        messages::Result::Success(ret) => {
-            Ok(serde_json::from_value::<Ret>(ret.result)?)
-        }
+        messages::Result::Success(ret) => Ok(serde_json::from_value::<Ret>(ret.result)?),
         messages::Result::Error { error } => Err(RpcError::RemoteError(error)),
     }
 }
+
+
 
 // ===================
 // === IdGenerator ===
@@ -83,6 +85,7 @@ impl Default for IdGenerator {
     }
 }
 
+
 // =============
 // === Event ===
 // =============
@@ -98,6 +101,8 @@ pub enum Event<N> {
     Notification(N),
 }
 
+
+
 // ===================
 // === HandlerData ===
 // ===================
@@ -106,6 +111,8 @@ pub enum Event<N> {
 /// id has its own sender. After reply is received, the call is removed
 /// from this container.
 pub type OngoingCalls = HashMap<Id, oneshot::Sender<ReplyMessage>>;
+
+
 
 // ===============
 // === Handler ===
@@ -203,6 +210,7 @@ impl<Notification> {
 }
 } // shared!
 
+
 // === Handler methods ===
 
 impl<Notification> Handler<Notification> {
@@ -226,15 +234,13 @@ impl<Notification> Handler<Notification> {
     /// `Transport` must be functional (e.g. not in the process of opening).
     pub fn new(transport: impl Transport + 'static) -> Handler<Notification> {
         let data = HandlerData {
-            timeout: crate::constants::TIMEOUT,
-            ongoing_calls: default(),
-            id_generator: IdGenerator::new(),
-            transport: Box::new(transport),
+            timeout:         crate::constants::TIMEOUT,
+            ongoing_calls:   default(),
+            id_generator:    IdGenerator::new(),
+            transport:       Box::new(transport),
             outgoing_events: None,
         };
-        Handler {
-            rc: Rc::new(RefCell::new(data)),
-        }
+        Handler { rc: Rc::new(RefCell::new(data)) }
     }
 
     /// Sends a request to the peer and returns a `Future` that shall yield a
@@ -266,8 +272,7 @@ impl<Notification> Handler<Notification> {
         input: &serde_json::Value,
     ) -> impl Future<Output = Result<Returned>> {
         let id = self.generate_new_id();
-        let message =
-            crate::messages::Message::new_request(id, method_name, input);
+        let message = crate::messages::Message::new_request(id, method_name, input);
         let serialized_message = serde_json::to_string(&message).unwrap();
         self.open_request_with_message(id, &serialized_message)
     }
@@ -294,23 +299,16 @@ impl<Notification> Handler<Notification> {
         }
 
         let millis = self.timeout().as_millis();
-        future::select(ret, sleep(self.timeout()).boxed_local()).map(
-            move |either| match either {
-                future::Either::Left((x, _)) => x,
-                future::Either::Right((_, _)) => {
-                    Err(RpcError::TimeoutError { millis })
-                }
-            },
-        )
+        future::select(ret, sleep(self.timeout()).boxed_local()).map(move |either| match either {
+            future::Either::Left((x, _)) => x,
+            future::Either::Right((_, _)) => Err(RpcError::TimeoutError { millis }),
+        })
     }
 
     /// Deal with `Response` message from the peer.
     ///
     /// It shall be either matched with an open request or yield an error.
-    pub fn process_response(
-        &self,
-        message: messages::Response<serde_json::Value>,
-    ) {
+    pub fn process_response(&self, message: messages::Response<serde_json::Value>) {
         if let Some(sender) = self.remove_ongoing_request(message.id) {
             // Disregard any error. We do not care if RPC caller already
             // dropped the future.
@@ -324,12 +322,8 @@ impl<Notification> Handler<Notification> {
     ///
     /// If possible, emits a message with notification. In case of failure,
     /// emits relevant error.
-    pub fn process_notification(
-        &self,
-        message: messages::Notification<serde_json::Value>,
-    ) where
-        Notification: DeserializeOwned,
-    {
+    pub fn process_notification(&self, message: messages::Notification<serde_json::Value>)
+    where Notification: DeserializeOwned {
         match serde_json::from_value(message.0) {
             Ok(notification) => {
                 let event = Event::Notification(notification);
@@ -347,16 +341,11 @@ impl<Notification> Handler<Notification> {
     /// The message must conform either to the `Response` or to the
     /// `Notification` JSON-serialized format. Otherwise, an error is raised.
     pub fn process_incoming_message(&self, message: String)
-    where
-        Notification: DeserializeOwned,
-    {
+    where Notification: DeserializeOwned {
         match messages::decode_incoming_message(&message) {
-            Ok(messages::IncomingMessage::Response(response)) => {
-                self.process_response(response)
-            }
-            Ok(messages::IncomingMessage::Notification(notification)) => {
-                self.process_notification(notification)
-            }
+            Ok(messages::IncomingMessage::Response(response)) => self.process_response(response),
+            Ok(messages::IncomingMessage::Notification(notification)) =>
+                self.process_notification(notification),
             Err(err) => self.error_occurred(HandlingError::InvalidMessage(err)),
         }
     }
@@ -371,15 +360,11 @@ impl<Notification> Handler<Notification> {
     ///
     /// Each event either completes a requests or is translated into `Event`.
     pub fn process_event(&self, event: TransportEvent)
-    where
-        Notification: DeserializeOwned,
-    {
+    where Notification: DeserializeOwned {
         match event {
-            TransportEvent::TextMessage(msg) => {
-                self.process_incoming_message(msg)
-            }
-            TransportEvent::BinaryMessage(data) => self
-                .error_occurred(HandlingError::UnexpectedBinaryMessage(data)),
+            TransportEvent::TextMessage(msg) => self.process_incoming_message(msg),
+            TransportEvent::BinaryMessage(data) =>
+                self.error_occurred(HandlingError::UnexpectedBinaryMessage(data)),
             TransportEvent::Opened => {}
             TransportEvent::Closed => {
                 // Dropping all ongoing calls will cancel their futures.
@@ -400,9 +385,7 @@ impl<Notification> Handler<Notification> {
     /// It is expected that upon setting up the `Handler`, this future shall be
     /// passed to the main executor.
     pub fn runner(&mut self) -> impl Future<Output = ()>
-    where
-        Notification: DeserializeOwned + 'static,
-    {
+    where Notification: DeserializeOwned + 'static {
         let event_receiver = self.transport_event_stream();
         let weak_data = Rc::downgrade(&self.rc);
         event_receiver.for_each(move |event: TransportEvent| {

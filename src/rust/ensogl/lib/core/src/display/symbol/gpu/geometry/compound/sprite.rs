@@ -16,11 +16,15 @@ use crate::display::symbol::Symbol;
 use crate::display::symbol::SymbolId;
 use crate::system::gpu::types::*;
 
+
+
 // =================
 // === Constants ===
 // =================
 
 const DEFAULT_SPRITE_SIZE: (f32, f32) = (10.0, 10.0);
+
+
 
 // ===================
 // === SpriteStats ===
@@ -47,6 +51,8 @@ impl Drop for SpriteStats {
     }
 }
 
+
+
 // ===================
 // === SpriteGuard ===
 // ===================
@@ -56,9 +62,9 @@ impl Drop for SpriteStats {
 /// the sprite dimensions to zero and marking it index as a free for future reuse.
 #[derive(Debug)]
 pub struct SpriteGuard {
-    instance_id: attribute::InstanceIndex,
-    symbol: Symbol,
-    size: Attribute<Vector2<f32>>,
+    instance_id:    attribute::InstanceIndex,
+    symbol:         Symbol,
+    size:           Attribute<Vector2<f32>>,
     display_object: display::object::Instance,
 }
 
@@ -72,25 +78,19 @@ impl SpriteGuard {
         let symbol = symbol.clone_ref();
         let size = size.clone_ref();
         let display_object = display_object.clone_ref();
-        Self {
-            instance_id,
-            symbol,
-            size,
-            display_object,
-        }
+        Self { instance_id, symbol, size, display_object }
     }
 }
 
 impl Drop for SpriteGuard {
     fn drop(&mut self) {
         self.size.set(zero());
-        self.symbol
-            .surface()
-            .instance_scope()
-            .dispose(self.instance_id);
+        self.symbol.surface().instance_scope().dispose(self.instance_id);
         self.display_object.unset_parent();
     }
 }
+
+
 
 // ============
 // === Size ===
@@ -102,8 +102,8 @@ impl Drop for SpriteGuard {
 #[derive(Debug, Clone, CloneRef)]
 pub struct Size {
     hidden: Rc<Cell<bool>>,
-    value: Rc<Cell<Vector2<f32>>>,
-    attr: Attribute<Vector2<f32>>,
+    value:  Rc<Cell<Vector2<f32>>>,
+    attr:   Attribute<Vector2<f32>>,
 }
 
 // === Setters ===
@@ -125,17 +125,14 @@ impl CellSetter for Size {
     }
 }
 
+
 // === Private API ===
 
 impl Size {
     fn new(attr: Attribute<Vector2<f32>>) -> Self {
         let hidden = Rc::new(Cell::new(true));
         let value = Rc::new(Cell::new(zero()));
-        Self {
-            hidden,
-            value,
-            attr,
-        }
+        Self { hidden, value, attr }
     }
 
     fn hide(&self) {
@@ -149,6 +146,8 @@ impl Size {
     }
 }
 
+
+
 // ==============
 // === Sprite ===
 // ==============
@@ -160,13 +159,13 @@ impl Size {
 #[derive(Debug, Clone, CloneRef)]
 #[allow(missing_docs)]
 pub struct Sprite {
-    pub symbol: Symbol,
+    pub symbol:      Symbol,
     pub instance_id: attribute::InstanceIndex,
-    pub size: Size,
-    display_object: display::object::Instance,
-    transform: Attribute<Matrix4<f32>>,
-    stats: Rc<SpriteStats>,
-    guard: Rc<SpriteGuard>,
+    pub size:        Size,
+    display_object:  display::object::Instance,
+    transform:       Attribute<Matrix4<f32>>,
+    stats:           Rc<SpriteStats>,
+    guard:           Rc<SpriteGuard>,
 }
 
 impl Sprite {
@@ -182,26 +181,11 @@ impl Sprite {
         let logger = Logger::new(iformat!("Sprite{instance_id}"));
         let display_object = display::object::Instance::new(logger);
         let stats = Rc::new(SpriteStats::new(stats));
-        let guard = Rc::new(SpriteGuard::new(
-            instance_id,
-            &symbol,
-            &size,
-            &display_object,
-        ));
+        let guard = Rc::new(SpriteGuard::new(instance_id, &symbol, &size, &display_object));
         let size = Size::new(size);
-        let default_size =
-            Vector2(DEFAULT_SPRITE_SIZE.0, DEFAULT_SPRITE_SIZE.1);
+        let default_size = Vector2(DEFAULT_SPRITE_SIZE.0, DEFAULT_SPRITE_SIZE.1);
         size.set(default_size);
-        Self {
-            symbol,
-            instance_id,
-            size,
-            display_object,
-            transform,
-            stats,
-            guard,
-        }
-        .init()
+        Self { symbol, instance_id, size, display_object, transform, stats, guard }.init()
     }
 
     /// Init display object bindings. In particular defines the behavior of the show and hide
@@ -209,8 +193,7 @@ impl Sprite {
     fn init(self) -> Self {
         let size = &self.size;
         let transform = &self.transform;
-        self.display_object
-            .set_on_updated(f!((t) transform.set(t.matrix())));
+        self.display_object.set_on_updated(f!((t) transform.set(t.matrix())));
         self.display_object.set_on_hide(f_!(size.hide()));
         self.display_object.set_on_show(f__!(size.show()));
         self
@@ -222,18 +205,11 @@ impl Sprite {
     }
 
     /// Check if given pointer-event-target means this object.
-    pub fn is_this_target(
-        &self,
-        target: display::scene::PointerTarget,
-    ) -> bool {
+    pub fn is_this_target(&self, target: display::scene::PointerTarget) -> bool {
         match target {
             display::scene::PointerTarget::Background => false,
-            display::scene::PointerTarget::Symbol {
-                symbol_id,
-                instance_id,
-            } => {
-                self.symbol_id() == symbol_id && self.instance_id == instance_id
-            }
+            display::scene::PointerTarget::Symbol { symbol_id, instance_id } =>
+                self.symbol_id() == symbol_id && self.instance_id == instance_id,
         }
     }
 }
@@ -243,6 +219,8 @@ impl display::Object for Sprite {
         &self.display_object
     }
 }
+
+
 
 // ====================
 // === SpriteSystem ===
@@ -255,19 +233,17 @@ impl display::Object for Sprite {
 #[allow(missing_docs)]
 pub struct SpriteSystem {
     pub symbol: Symbol,
-    transform: Buffer<Matrix4<f32>>,
-    uv: Buffer<Vector2<f32>>,
-    size: Buffer<Vector2<f32>>,
-    alignment: Uniform<Vector2<f32>>,
-    stats: Stats,
+    transform:  Buffer<Matrix4<f32>>,
+    uv:         Buffer<Vector2<f32>>,
+    size:       Buffer<Vector2<f32>>,
+    alignment:  Uniform<Vector2<f32>>,
+    stats:      Stats,
 }
 
 impl SpriteSystem {
     /// Constructor.
     pub fn new<'t, S>(scene: S) -> Self
-    where
-        S: Into<&'t Scene>,
-    {
+    where S: Into<&'t Scene> {
         let scene = scene.into();
         let stats = scene.stats.clone_ref();
         let symbol = scene.new_symbol();
@@ -278,20 +254,11 @@ impl SpriteSystem {
         let transform = instance_scope.add_buffer("transform");
         let size = instance_scope.add_buffer("size");
         let initial_alignment = Self::uv_offset(Alignment::center());
-        let alignment = symbol
-            .variables()
-            .add_or_panic("alignment", initial_alignment);
+        let alignment = symbol.variables().add_or_panic("alignment", initial_alignment);
 
         stats.inc_sprite_system_count();
 
-        let this = Self {
-            symbol,
-            transform,
-            uv,
-            size,
-            alignment,
-            stats,
-        };
+        let this = Self { symbol, transform, uv, size, alignment, stats };
         this.init_attributes();
         this.init_shader();
         this
@@ -302,13 +269,7 @@ impl SpriteSystem {
         let instance_id = self.symbol.surface().instance_scope().add_instance();
         let transform = self.transform.at(instance_id);
         let size = self.size.at(instance_id);
-        let sprite = Sprite::new(
-            &self.symbol,
-            instance_id,
-            transform,
-            size,
-            &self.stats,
-        );
+        let sprite = Sprite::new(&self.symbol, instance_id, transform, size, &self.stats);
         self.add_child(&sprite);
         sprite
     }
@@ -349,6 +310,7 @@ impl SpriteSystem {
     }
 }
 
+
 // === Initialization ===
 
 impl SpriteSystem {
@@ -382,13 +344,15 @@ impl SpriteSystem {
         material.add_input_def::<Vector2<f32>>("alignment");
         material.add_output_def::<Vector3<f32>>("local");
         material.add_output_def::<i32>("instance_id");
-        material.set_main("
+        material.set_main(
+            "
                 mat4 model_view_projection = input_view_projection * input_transform;
                 input_local                = vec3((input_uv - input_alignment) * input_size, 0.0);
                 gl_Position                = model_view_projection * vec4(input_local,1.0);
                 input_local.z              = gl_Position.z;
                 input_instance_id          = gl_InstanceID;
-                ");
+                ",
+        );
         material
     }
 

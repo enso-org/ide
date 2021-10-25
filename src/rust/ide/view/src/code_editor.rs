@@ -11,6 +11,8 @@ use ensogl::display::shape::StyleWatchFrp;
 use ensogl::DEPRECATED_Animation;
 use ensogl_text as text;
 
+
+
 // =================
 // === Constants ===
 // =================
@@ -19,6 +21,8 @@ use ensogl_text as text;
 pub const HEIGHT_FRACTION: f32 = 0.3;
 /// The padding between text area and scene left boundary.
 pub const PADDING_LEFT: f32 = 7.0;
+
+
 
 // ===========
 // === Frp ===
@@ -39,6 +43,8 @@ ensogl::define_endpoints! {
     }
 }
 
+
+
 // ============
 // === View ===
 // ============
@@ -46,9 +52,9 @@ ensogl::define_endpoints! {
 /// The View of IDE Code Editor.
 #[derive(Clone, CloneRef, Debug)]
 pub struct View {
-    model: text::Area,
+    model:  text::Area,
     styles: StyleWatchFrp,
-    frp: Frp,
+    frp:    Frp,
 }
 
 impl Deref for View {

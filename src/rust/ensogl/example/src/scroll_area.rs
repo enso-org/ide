@@ -6,14 +6,18 @@ use wasm_bindgen::prelude::*;
 use ensogl_core::application::Application;
 use ensogl_core::data::color;
 use ensogl_core::display::object::ObjectOps;
+use ensogl_core::display::shape::Circle;
 use ensogl_core::display::shape::PixelDistance;
+use ensogl_core::display::shape::Rect;
 use ensogl_core::display::shape::ShapeOps;
-use ensogl_core::display::shape::{Circle, Rect, ShapeSystem};
+use ensogl_core::display::shape::ShapeSystem;
 use ensogl_core::display::Sprite;
 use ensogl_core::system::web;
 use ensogl_gui_components::scroll_area::ScrollArea;
 use ensogl_text_msdf_sys::run_once_initialized;
 use ensogl_theme as theme;
+
+
 
 // ===================
 // === Entry Point ===
@@ -25,12 +29,13 @@ pub fn entry_point_scroll_area() {
     web::forward_panic_hook_to_console();
     web::set_stack_trace_limit();
     run_once_initialized(|| {
-        let app =
-            Application::new(&web::get_html_element_by_id("root").unwrap());
+        let app = Application::new(&web::get_html_element_by_id("root").unwrap());
         init(&app);
         mem::forget(app);
     });
 }
+
+
 
 // ========================
 // === Init Application ===
@@ -44,13 +49,12 @@ fn init(app: &Application) {
     let scene = app.display.scene();
     scene.camera().set_position_xy(Vector2(100.0, -100.0));
 
+
     // === Background ===
 
     let background_color = color::Rgba::new(0.9, 0.9, 0.9, 1.0);
     let background_size = (200.px(), 200.px());
-    let background_shape = Rect(background_size)
-        .corners_radius(5.5.px())
-        .fill(background_color);
+    let background_shape = Rect(background_size).corners_radius(5.5.px()).fill(background_color);
     let background_system = ShapeSystem::new(scene, background_shape);
     let background: Sprite = background_system.new_instance();
     scene.add_child(&background);
@@ -59,6 +63,7 @@ fn init(app: &Application) {
     background.set_position_y(-100.0);
     std::mem::forget(background);
 
+
     // === Scroll Area ===
 
     let scroll_area = ScrollArea::new(app);
@@ -66,6 +71,7 @@ fn init(app: &Application) {
     scroll_area.resize(Vector2(200.0, 200.0));
     scroll_area.set_content_width(300.0);
     scroll_area.set_content_height(1000.0);
+
 
     // === Content ===
 
@@ -76,6 +82,7 @@ fn init(app: &Application) {
     sprite.set_position_x(100.0);
     sprite.set_position_y(-100.0);
     std::mem::forget(sprite);
+
 
     std::mem::forget(scroll_area);
 }

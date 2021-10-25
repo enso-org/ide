@@ -13,6 +13,7 @@ mod tests {
 
     wasm_bindgen_test_configure!(run_in_browser);
 
+
     //#[wasm_bindgen_test::wasm_bindgen_test(async)]
     #[allow(dead_code)]
     async fn project_life_cycle() {
@@ -25,55 +26,26 @@ mod tests {
         executor::global::spawn(client.runner());
 
         let name = "TestProject".to_string();
-        let creation = client
-            .create_project(&name, &None, &Install)
-            .await
-            .expect("Couldn't create project.");
+        let creation =
+            client.create_project(&name, &None, &Install).await.expect("Couldn't create project.");
         let uuid = creation.project_id;
-        let _address = client
-            .open_project(&uuid, &Install)
-            .await
-            .expect("Couldn't open project.");
-        client
-            .close_project(&uuid)
-            .await
-            .expect("Couldn't close project.");
+        let _address = client.open_project(&uuid, &Install).await.expect("Couldn't open project.");
+        client.close_project(&uuid).await.expect("Couldn't close project.");
         let list_response = client.list_projects(&None).await;
-        let list_response =
-            list_response.expect("Couldn't list recent projects.");
-        assert!(list_response
-            .projects
-            .iter()
-            .any(|project| *project.name.deref() == name));
+        let list_response = list_response.expect("Couldn't list recent projects.");
+        assert!(list_response.projects.iter().any(|project| *project.name.deref() == name));
 
         let new_name = "NewTestProject".to_string();
-        client
-            .rename_project(&uuid, &new_name)
-            .await
-            .expect("Couldn't rename project.");
+        client.rename_project(&uuid, &new_name).await.expect("Couldn't rename project.");
         let list_response = client.list_projects(&None).await;
-        let list_response =
-            list_response.expect("Couldn't list recent projects.");
-        assert!(!list_response
-            .projects
-            .iter()
-            .any(|project| *project.name.deref() == name));
-        assert!(list_response
-            .projects
-            .iter()
-            .any(|project| *project.name.deref() == new_name));
+        let list_response = list_response.expect("Couldn't list recent projects.");
+        assert!(!list_response.projects.iter().any(|project| *project.name.deref() == name));
+        assert!(list_response.projects.iter().any(|project| *project.name.deref() == new_name));
 
-        client
-            .delete_project(&uuid)
-            .await
-            .expect("Couldn't delete project.");
+        client.delete_project(&uuid).await.expect("Couldn't delete project.");
         let list_response = client.list_projects(&None).await;
-        let list_response =
-            list_response.expect("Couldn't list recent projects.");
-        assert!(!list_response
-            .projects
-            .iter()
-            .any(|project| *project.name.deref() == name));
+        let list_response = list_response.expect("Couldn't list recent projects.");
+        assert!(!list_response.projects.iter().any(|project| *project.name.deref() == name));
         // FIXME[dg]: project/listSample isn't implemented on the server-side yet.
         //client.list_samples(10).await.expect("Couldn't list samples.");
     }

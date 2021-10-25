@@ -16,6 +16,9 @@ use ensogl_core::display::symbol::shader::builder::CodeTemplate;
 use ensogl_core::display::world::*;
 use ensogl_core::system::gpu;
 use ensogl_core::system::gpu::texture;
+use ensogl_core::system::gpu::types::*;
+
+
 
 // =============
 // === Glyph ===
@@ -29,12 +32,12 @@ pub type Texture = gpu::Texture<texture::GpuOnly, texture::Rgb, u8>;
 #[derive(Clone, CloneRef, Debug, Shrinkwrap)]
 pub struct Glyph {
     #[shrinkwrap(main_field)]
-    sprite: Sprite,
-    context: Context,
-    font: Font,
-    color: Attribute<Vector4<f32>>,
+    sprite:      Sprite,
+    context:     Context,
+    font:        Font,
+    color:       Attribute<Vector4<f32>>,
     atlas_index: Attribute<f32>,
-    atlas: Uniform<Texture>,
+    atlas:       Uniform<Texture>,
 }
 
 impl Glyph {
@@ -50,8 +53,7 @@ impl Glyph {
     /// Change the displayed character.
     pub fn set_char(&self, ch: char) {
         let glyph_info = self.font.glyph_info(ch);
-        self.atlas_index
-            .set(glyph_info.msdf_texture_glyph_id as f32);
+        self.atlas_index.set(glyph_info.msdf_texture_glyph_id as f32);
         self.update_msdf_texture();
     }
 
@@ -64,9 +66,7 @@ impl Glyph {
             let width = font::msdf::Texture::WIDTH as i32;
             let height = self.font.msdf_texture_rows() as i32;
             let texture = Texture::new(&self.context, (width, height));
-            self.font.with_borrowed_msdf_texture_data(|data| {
-                texture.reload_with_content(data)
-            });
+            self.font.with_borrowed_msdf_texture_data(|data| texture.reload_with_content(data));
             self.atlas.set(texture);
         }
     }
@@ -78,6 +78,8 @@ impl display::Object for Glyph {
     }
 }
 
+
+
 // ==============
 // === System ===
 // ==============
@@ -86,13 +88,13 @@ impl display::Object for Glyph {
 #[derive(Clone, CloneRef, Debug)]
 #[allow(missing_docs)]
 pub struct System {
-    logger: Logger,
-    context: Context,
+    logger:        Logger,
+    context:       Context,
     sprite_system: SpriteSystem,
-    pub font: Font,
-    color: Buffer<Vector4<f32>>,
-    atlas_index: Buffer<f32>,
-    atlas: Uniform<Texture>,
+    pub font:      Font,
+    color:         Buffer<Vector4<f32>>,
+    atlas_index:   Buffer<f32>,
+    atlas:         Uniform<Texture>,
 }
 
 impl System {
@@ -109,9 +111,7 @@ impl System {
 
         sprite_system.set_material(Self::material());
         sprite_system.set_alignment(Alignment::bottom_left());
-        scene
-            .variables
-            .add("msdf_range", GlyphRenderInfo::MSDF_PARAMS.range as f32);
+        scene.variables.add("msdf_range", GlyphRenderInfo::MSDF_PARAMS.range as f32);
         scene.variables.add("msdf_size", size);
         Self {
             logger,
@@ -136,14 +136,7 @@ impl System {
         let atlas = self.atlas.clone();
         color.set(Vector4::new(0.0, 0.0, 0.0, 0.0));
         atlas_index.set(0.0);
-        Glyph {
-            sprite,
-            context,
-            font,
-            color,
-            atlas_index,
-            atlas,
-        }
+        Glyph { sprite, context, font, color, atlas_index, atlas }
     }
 
     /// Get underlying sprite system.
@@ -158,14 +151,14 @@ impl display::Object for System {
     }
 }
 
+
 // === Material ===
 #[cfg(target_os = "macos")]
 const FUNCTIONS: &str = include_str!("glsl/glyph_mac.glsl");
 #[cfg(not(target_os = "macos"))]
 const FUNCTIONS: &str = include_str!("glsl/glyph.glsl");
 
-const MAIN: &str =
-    "output_color = color_from_msdf(); output_id=vec4(0.0,0.0,0.0,0.0);";
+const MAIN: &str = "output_color = color_from_msdf(); output_id=vec4(0.0,0.0,0.0,0.0);";
 
 impl System {
     /// Defines a default material of this system.
@@ -176,8 +169,7 @@ impl System {
         material.add_input_def::<f32>("atlas_index");
         material.add_input("pixel_ratio", 1.0);
         material.add_input("z_zoom_1", 1.0);
-        material
-            .add_input("msdf_range", GlyphRenderInfo::MSDF_PARAMS.range as f32);
+        material.add_input("msdf_range", GlyphRenderInfo::MSDF_PARAMS.range as f32);
         material.add_input("color", Vector4::new(0.0, 0.0, 0.0, 1.0));
         // FIXME We need to use this output, as we need to declare the same amount of shader
         // FIXME outputs as the number of attachments to framebuffer. We should manage this more

@@ -4,6 +4,8 @@ use crate::prelude::*;
 
 use crate::data::color;
 
+
+
 // ============
 // === Data ===
 // ============
@@ -16,6 +18,7 @@ pub enum Data {
     Number(f32),
     Color(color::Rgba),
 }
+
 
 // === Constructors ===
 
@@ -37,8 +40,7 @@ impl From<i32> for Data {
 }
 
 impl<C> From<color::Color<C>> for Data
-where
-    color::Color<C>: Into<color::Rgba>,
+where color::Color<C>: Into<color::Rgba>
 {
     fn from(color: color::Color<C>) -> Data {
         Data::Color(color.into())
@@ -58,6 +60,7 @@ impl TryFrom<String> for Data {
     }
 }
 
+
 // === Impls ===
 
 impl Display for Data {
@@ -69,6 +72,7 @@ impl Display for Data {
         }
     }
 }
+
 
 // FIXME: Make use of this macro and allow themes to modify colors, including:
 // lighten,darken,saturate,desaturate,with_hue,shift_hue, etc.
@@ -91,6 +95,7 @@ macro_rules! _define_color_transform {
 
 // define_color_transform!(lighten,darken,saturate,desaturate,with_hue,shift_hue);
 
+
 // === Color Getters ===
 
 macro_rules! define_color_getter {
@@ -111,6 +116,7 @@ macro_rules! define_color_getter {
 
 define_color_getter!(Lcha::alpha);
 define_color_getter!(LinearRgba::red, LinearRgba::green, LinearRgba::blue);
+
 
 // === Operators ===
 
@@ -140,22 +146,15 @@ macro_rules! _define_binary_number_operator {
     };
 }
 
-define_binary_number_operator!(Mul::mul, |lhs, rhs| format!(
-    "Cannot multiply {} by {}.",
-    lhs, rhs
-));
-define_binary_number_operator!(Div::div, |lhs, rhs| format!(
-    "Cannot divide {} by {}.",
-    lhs, rhs
-));
-define_binary_number_operator!(Add::add, |lhs, rhs| format!(
-    "Cannot add {} to {}.",
-    lhs, rhs
-));
+define_binary_number_operator!(Mul::mul, |lhs, rhs| format!("Cannot multiply {} by {}.", lhs, rhs));
+define_binary_number_operator!(Div::div, |lhs, rhs| format!("Cannot divide {} by {}.", lhs, rhs));
+define_binary_number_operator!(Add::add, |lhs, rhs| format!("Cannot add {} to {}.", lhs, rhs));
 define_binary_number_operator!(Sub::sub, |lhs, rhs| format!(
     "Cannot subtract {} from {}.",
     rhs, lhs
 ));
+
+
 
 // =================
 // === DataMatch ===

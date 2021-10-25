@@ -5,6 +5,8 @@ use crate::node;
 use crate::node::Payload;
 use crate::Node;
 
+
+
 // ===============================
 // === Chain Children Iterator ===
 // ===============================
@@ -12,7 +14,7 @@ use crate::Node;
 /// A stack frame of DFS searching.
 #[derive(Debug)]
 struct StackFrame<'a, T> {
-    node: &'a Node<T>,
+    node:                &'a Node<T>,
     child_being_visited: usize,
 }
 
@@ -29,10 +31,10 @@ pub enum TreeFragment {
 /// supported _fragment_ kinds.
 #[derive(Debug)]
 pub struct LeafIterator<'a, T> {
-    stack: Vec<StackFrame<'a, T>>,
+    stack:     Vec<StackFrame<'a, T>>,
     next_node: Option<&'a Node<T>>,
     base_node: node::Ref<'a, T>,
-    fragment: TreeFragment,
+    fragment:  TreeFragment,
 }
 
 impl<'a, T: Payload> Iterator for LeafIterator<'a, T> {
@@ -41,8 +43,7 @@ impl<'a, T: Payload> Iterator for LeafIterator<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.next_node.is_some() {
             let crumbs = self.stack.iter().map(|sf| &sf.child_being_visited);
-            let return_value =
-                self.base_node.clone().get_descendant(crumbs).ok();
+            let return_value = self.base_node.clone().get_descendant(crumbs).ok();
             self.make_dfs_step();
             self.descend_to_leaf();
             return_value
@@ -55,18 +56,10 @@ impl<'a, T: Payload> Iterator for LeafIterator<'a, T> {
 impl<'a, T> LeafIterator<'a, T> {
     /// Create iterator iterating over leafs of subtree rooted  on `node`.
     pub fn new(node: node::Ref<'a, T>, fragment: TreeFragment) -> Self {
-        let stack = vec![StackFrame {
-            node: node.node,
-            child_being_visited: 0,
-        }];
+        let stack = vec![StackFrame { node: node.node, child_being_visited: 0 }];
         let next_node = node.node.children.first().map(|ch| &ch.node);
         let base_node = node;
-        let mut this = Self {
-            stack,
-            next_node,
-            base_node,
-            fragment,
-        };
+        let mut this = Self { stack, next_node, base_node, fragment };
         this.descend_to_leaf();
         this
     }
@@ -77,8 +70,7 @@ impl<'a, T> LeafIterator<'a, T> {
             while self.next_node.is_none() && !self.stack.is_empty() {
                 let parent = self.stack.last_mut().unwrap();
                 parent.child_being_visited += 1;
-                let child =
-                    parent.node.children.get(parent.child_being_visited);
+                let child = parent.node.children.get(parent.child_being_visited);
                 self.next_node = child.map(|n| &n.node);
                 if self.next_node.is_none() {
                     self.stack.pop();
@@ -90,10 +82,8 @@ impl<'a, T> LeafIterator<'a, T> {
     fn descend_to_leaf(&mut self) {
         if let Some(mut current) = std::mem::take(&mut self.next_node) {
             while self.can_descend(current) && !current.children.is_empty() {
-                self.stack.push(StackFrame {
-                    node: current,
-                    child_being_visited: 0,
-                });
+                self.stack
+                    .push(StackFrame { node: current, child_being_visited: 0 });
                 current = &current.children.first().unwrap().node;
             }
             self.next_node = Some(current);
@@ -103,12 +93,12 @@ impl<'a, T> LeafIterator<'a, T> {
     fn can_descend(&self, current_node: &Node<T>) -> bool {
         match &self.fragment {
             TreeFragment::AllNodes => true,
-            TreeFragment::ChainAndDirectChildren => {
-                current_node.kind == node::Kind::Chained
-            }
+            TreeFragment::ChainAndDirectChildren => current_node.kind == node::Kind::Chained,
         }
     }
 }
+
+
 
 // =============
 // === Tests ===
@@ -121,6 +111,7 @@ mod tests {
     use crate::builder::Builder;
     use crate::builder::TreeBuilder;
     use crate::SpanTree;
+
 
     #[test]
     fn leaf_iterating() {
@@ -174,10 +165,7 @@ mod tests {
             node::Crumbs::new(vec![2, 2, 1]),
             node::Crumbs::new(vec![2, 2, 2]),
         ];
-        assert_eq!(
-            expected_crumbs,
-            root.clone().leaf_iter().map(|n| n.crumbs).collect_vec()
-        );
+        assert_eq!(expected_crumbs, root.clone().leaf_iter().map(|n| n.crumbs).collect_vec());
 
         // Chained children iterating:
         let expected_crumbs = vec![
@@ -191,9 +179,6 @@ mod tests {
             node::Crumbs::new(vec![2, 2, 1]),
             node::Crumbs::new(vec![2, 2, 2]),
         ];
-        assert_eq!(
-            expected_crumbs,
-            root.chain_children_iter().map(|n| n.crumbs).collect_vec()
-        );
+        assert_eq!(expected_crumbs, root.chain_children_iter().map(|n| n.crumbs).collect_vec());
     }
 }

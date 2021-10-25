@@ -12,6 +12,8 @@ use inflector::Inflector;
 use unicode_segmentation::UnicodeSegmentation;
 use web_sys::KeyboardEvent;
 
+
+
 // ============
 // === Side ===
 // ============
@@ -33,6 +35,8 @@ impl Side {
         }
     }
 }
+
+
 
 // ===========
 // === Key ===
@@ -107,17 +111,12 @@ impl Key {
         } else if key.graphemes(true).count() == 1 {
             Self::Character(key)
         } else {
-            let key = KEY_NAME_MAP
-                .get(key_ref)
-                .cloned()
-                .unwrap_or(Self::Other(key));
+            let key = KEY_NAME_MAP.get(key_ref).cloned().unwrap_or(Self::Other(key));
             match (key, code) {
                 (Self::Alt(_), "AltRight") => Self::Alt(Side::Right),
                 (Self::AltGr(_), "AltRight") => Self::AltGr(Side::Right),
                 (Self::AltGraph(_), "AltRight") => Self::AltGraph(Side::Right),
-                (Self::Control(_), "ControlRight") => {
-                    Self::Control(Side::Right)
-                }
+                (Self::Control(_), "ControlRight") => Self::Control(Side::Right),
                 (Self::Meta(_), "MetaRight") => Self::Meta(Side::Right),
                 (Self::Shift(_), "ShiftRight") => Self::Shift(Side::Right),
                 (other, _) => other,
@@ -143,8 +142,7 @@ impl Key {
 
     /// Simple, kebab-case name of a key.
     pub fn simple_name(&self) -> String {
-        let fmt =
-            |side: &Side, repr| format!("{}-{}", repr, side.simple_name());
+        let fmt = |side: &Side, repr| format!("{}-{}", repr, side.simple_name());
         match self {
             Self::Alt(side) => fmt(side, "alt"),
             Self::AltGr(side) => fmt(side, "alt-graph"),
@@ -179,6 +177,8 @@ impl Default for Key {
     }
 }
 
+
+
 // ===================
 // === KeyWithCode ===
 // ===================
@@ -191,7 +191,7 @@ impl Default for Key {
 #[allow(missing_docs)]
 #[derive(Clone, Debug, Default)]
 pub struct KeyWithCode {
-    pub key: Key,
+    pub key:  Key,
     pub code: String,
 }
 
@@ -208,6 +208,8 @@ impl From<&KeyboardEvent> for KeyWithCode {
         Self::new(event.key(), event.code())
     }
 }
+
+
 
 // =====================
 // === KeyboardModel ===
@@ -232,7 +234,7 @@ impl From<&KeyboardEvent> for KeyWithCode {
 /// (so in above example releasing `a` will never be emitted, only releasing `A`).
 #[derive(Clone, CloneRef, Debug, Default)]
 pub struct KeyboardModel {
-    pressed_keys: Rc<RefCell<HashSet<Key>>>,
+    pressed_keys:        Rc<RefCell<HashSet<Key>>>,
     pressed_code_to_key: Rc<RefCell<HashMap<String, Key>>>,
 }
 
@@ -244,20 +246,17 @@ impl KeyboardModel {
 
     /// Check whether the meta key is currently pressed.
     pub fn is_meta_down(&self) -> bool {
-        self.is_down(&Key::Meta(Side::Left))
-            || self.is_down(&Key::Meta(Side::Right))
+        self.is_down(&Key::Meta(Side::Left)) || self.is_down(&Key::Meta(Side::Right))
     }
 
     /// Check whether the control key is currently pressed.
     pub fn is_control_down(&self) -> bool {
-        self.is_down(&Key::Control(Side::Left))
-            || self.is_down(&Key::Control(Side::Right))
+        self.is_down(&Key::Control(Side::Left)) || self.is_down(&Key::Control(Side::Right))
     }
 
     /// Check whether the alt key is currently pressed.
     pub fn is_alt_down(&self) -> bool {
-        self.is_down(&Key::Alt(Side::Left))
-            || self.is_down(&Key::Alt(Side::Right))
+        self.is_down(&Key::Alt(Side::Left)) || self.is_down(&Key::Alt(Side::Right))
     }
 
     /// Checks whether the provided key is currently pressed.
@@ -267,12 +266,9 @@ impl KeyboardModel {
 
     /// Simulate press of the provided key.
     pub fn press(&self, KeyWithCode { key, code }: &KeyWithCode) -> Key {
-        let pressed_key_opt =
-            self.pressed_code_to_key.borrow_mut().get(code).cloned();
+        let pressed_key_opt = self.pressed_code_to_key.borrow_mut().get(code).cloned();
         let key = pressed_key_opt.unwrap_or_else(|| {
-            self.pressed_code_to_key
-                .borrow_mut()
-                .insert(code.clone(), key.clone());
+            self.pressed_code_to_key.borrow_mut().insert(code.clone(), key.clone());
             key.clone()
         });
         self.pressed_keys.borrow_mut().insert(key.clone());
@@ -281,11 +277,7 @@ impl KeyboardModel {
 
     /// Simulate release of the provided key.
     pub fn release(&self, KeyWithCode { key, code }: &KeyWithCode) -> Key {
-        let key = self
-            .pressed_code_to_key
-            .borrow_mut()
-            .remove(code)
-            .unwrap_or_else(|| key.clone());
+        let key = self.pressed_code_to_key.borrow_mut().remove(code).unwrap_or_else(|| key.clone());
         self.pressed_keys.borrow_mut().remove(&key);
         key
     }
@@ -322,6 +314,8 @@ impl KeyboardModel {
     }
 }
 
+
+
 // ======================
 // === KeyboardSource ===
 // ======================
@@ -330,8 +324,8 @@ impl KeyboardModel {
 #[derive(Clone, CloneRef, Debug)]
 #[allow(missing_docs)]
 pub struct KeyboardSource {
-    pub up: frp::Source<KeyWithCode>,
-    pub down: frp::Source<KeyWithCode>,
+    pub up:               frp::Source<KeyWithCode>,
+    pub down:             frp::Source<KeyWithCode>,
     pub window_defocused: frp::Source,
 }
 
@@ -343,13 +337,11 @@ impl KeyboardSource {
             up               <- source();
             window_defocused <- source();
         }
-        Self {
-            up,
-            down,
-            window_defocused,
-        }
+        Self { up, down, window_defocused }
     }
 }
+
+
 
 // ================
 // === Keyboard ===
@@ -359,14 +351,14 @@ impl KeyboardSource {
 #[derive(Clone, CloneRef, Debug)]
 #[allow(missing_docs)]
 pub struct Keyboard {
-    model: KeyboardModel,
-    pub network: frp::Network,
-    pub source: KeyboardSource,
-    pub down: frp::Stream<Key>,
-    pub up: frp::Stream<Key>,
-    pub is_meta_down: frp::Stream<bool>,
-    pub is_control_down: frp::Stream<bool>,
-    pub is_alt_down: frp::Stream<bool>,
+    model:                KeyboardModel,
+    pub network:          frp::Network,
+    pub source:           KeyboardSource,
+    pub down:             frp::Stream<Key>,
+    pub up:               frp::Stream<Key>,
+    pub is_meta_down:     frp::Stream<bool>,
+    pub is_control_down:  frp::Stream<bool>,
+    pub is_alt_down:      frp::Stream<bool>,
     pub is_modifier_down: frp::Stream<bool>,
 }
 
@@ -412,6 +404,8 @@ impl Default for Keyboard {
     }
 }
 
+
+
 // ===================
 // === DomBindings ===
 // ===================
@@ -420,8 +414,8 @@ impl Default for Keyboard {
 #[derive(Debug)]
 pub struct DomBindings {
     key_down: Listener<dyn KeyboardEventCallback>,
-    key_up: Listener<dyn KeyboardEventCallback>,
-    blur: Listener<dyn EventCallback>,
+    key_up:   Listener<dyn KeyboardEventCallback>,
+    blur:     Listener<dyn EventCallback>,
 }
 
 impl DomBindings {
@@ -431,23 +425,22 @@ impl DomBindings {
         keyboard: &Keyboard,
         current_event: &CurrentJsEvent,
     ) -> Self {
-        let key_down = Listener::new_key_down(&logger,current_event.make_event_handler(
-            f!((event:&KeyboardEvent) keyboard.source.down.emit(KeyWithCode::from(event)))
-        ));
-        let key_up = Listener::new_key_up(&logger,current_event.make_event_handler(
-            f!((event:&KeyboardEvent) keyboard.source.up.emit(KeyWithCode::from(event)))
-        ));
+        let key_down = Listener::new_key_down(
+            &logger,
+            current_event.make_event_handler(
+                f!((event:&KeyboardEvent) keyboard.source.down.emit(KeyWithCode::from(event))),
+            ),
+        );
+        let key_up = Listener::new_key_up(
+            &logger,
+            current_event.make_event_handler(
+                f!((event:&KeyboardEvent) keyboard.source.up.emit(KeyWithCode::from(event))),
+            ),
+        );
         let blur = Listener::new_blur(
             &logger,
-            current_event.make_event_handler(f_!(keyboard
-                .source
-                .window_defocused
-                .emit(()))),
+            current_event.make_event_handler(f_!(keyboard.source.window_defocused.emit(()))),
         );
-        Self {
-            key_down,
-            key_up,
-            blur,
-        }
+        Self { key_down, key_up, blur }
     }
 }

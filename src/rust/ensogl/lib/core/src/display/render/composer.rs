@@ -6,6 +6,8 @@ use crate::display::render::pass;
 use crate::display::render::pipeline::*;
 use crate::system::gpu::*;
 
+
+
 // ================
 // === Composer ===
 // ================
@@ -72,6 +74,8 @@ impl {
     }
 }}
 
+
+
 // ====================
 // === ComposerPass ===
 // ====================
@@ -81,7 +85,7 @@ impl {
 #[derivative(Debug)]
 struct ComposerPass {
     #[derivative(Debug = "ignore")]
-    pass: Box<dyn pass::Definition>,
+    pass:     Box<dyn pass::Definition>,
     instance: pass::Instance,
 }
 

@@ -24,6 +24,8 @@ use ensogl::display::Scene;
 use ensogl::gui::cursor;
 use std::cmp::Ordering;
 
+
+
 // =================
 // === Constants ===
 // =================
@@ -46,6 +48,8 @@ pub const HEIGHT: f32 = VERTICAL_MARGIN
 // This should be as large as the shadow around the background.
 const MAGIC_SHADOW_MARGIN: f32 = 40.0;
 
+
+
 // ========================
 // === RelativePosition ===
 // ========================
@@ -55,6 +59,8 @@ enum RelativePosition {
     Left,
     Right,
 }
+
+
 
 // ==================
 // === Background ===
@@ -83,6 +89,8 @@ mod background {
         }
     }
 }
+
+
 
 // ===========
 // === Frp ===
@@ -144,6 +152,8 @@ ensogl::define_endpoints! {
     }
 }
 
+
+
 // ========================
 // === BreadcrumbsModel ===
 // ========================
@@ -151,23 +161,23 @@ ensogl::define_endpoints! {
 /// Breadcrumbs panel model.
 #[derive(Debug, Clone, CloneRef)]
 pub struct BreadcrumbsModel {
-    logger: Logger,
+    logger:                Logger,
     /// The breadcrumbs panel display object.
-    display_object: display::object::Instance,
-    background: background::View,
-    project_name: ProjectName,
-    root: display::object::Instance,
+    display_object:        display::object::Instance,
+    background:            background::View,
+    project_name:          ProjectName,
+    root:                  display::object::Instance,
     /// A container for all the breadcrumbs after project name. This contained and all its
     /// breadcrumbs are moved when project name component is resized.
     breadcrumbs_container: display::object::Instance,
-    app: Application,
-    breadcrumbs: Rc<RefCell<Vec<Breadcrumb>>>,
-    frp_inputs: FrpInputs,
-    current_index: Rc<Cell<usize>>,
-    camera: Camera2d,
+    app:                   Application,
+    breadcrumbs:           Rc<RefCell<Vec<Breadcrumb>>>,
+    frp_inputs:            FrpInputs,
+    current_index:         Rc<Cell<usize>>,
+    camera:                Camera2d,
     /// Describes an empty space on the left of all the content. This space will be covered by the
     /// background and is intended to make room for windows control buttons.
-    gap_width: Rc<Cell<f32>>,
+    gap_width:             Rc<Cell<f32>>,
 }
 
 impl BreadcrumbsModel {
@@ -232,19 +242,11 @@ impl BreadcrumbsModel {
         let x_position = -screen.width / 2.0;
         // We add half a pixel to the y offset as a quick fix for misaligned text.
         let y_position = screen.height / 2.0 - 0.5;
-        self.root.set_position(Vector3(
-            x_position.round(),
-            y_position.round(),
-            0.0,
-        ));
+        self.root.set_position(Vector3(x_position.round(), y_position.round(), 0.0));
     }
 
     fn breadcrumbs_container_width(&self) -> f32 {
-        self.breadcrumbs
-            .borrow()
-            .iter()
-            .map(|breadcrumb| breadcrumb.width())
-            .sum()
+        self.breadcrumbs.borrow().iter().map(|breadcrumb| breadcrumb.width()).sum()
     }
 
     fn set_gap_width(&self, gap_width: f32) {
@@ -257,39 +259,29 @@ impl BreadcrumbsModel {
         let project_name_width = self.project_name.width.value().round();
 
         self.project_name.set_position_x(gap_width);
-        self.breadcrumbs_container
-            .set_position_x(gap_width + project_name_width);
+        self.breadcrumbs_container.set_position_x(gap_width + project_name_width);
 
-        let width =
-            gap_width + project_name_width + self.breadcrumbs_container_width();
+        let width = gap_width + project_name_width + self.breadcrumbs_container_width();
         let background_width = width + 2.0 * BACKGROUND_PADDING;
-        let background_height = crate::MACOS_TRAFFIC_LIGHTS_CONTENT_HEIGHT
-            + BACKGROUND_PADDING * 2.0;
+        let background_height =
+            crate::MACOS_TRAFFIC_LIGHTS_CONTENT_HEIGHT + BACKGROUND_PADDING * 2.0;
         let width_with_shadow = background_width + MAGIC_SHADOW_MARGIN * 2.0;
         let height_with_shadow = background_height + MAGIC_SHADOW_MARGIN * 2.0;
-        self.background
-            .size
-            .set(Vector2(width_with_shadow, height_with_shadow));
+        self.background.size.set(Vector2(width_with_shadow, height_with_shadow));
         self.background.set_position_x(width / 2.0);
         self.background.set_position_y(-HEIGHT / 2.0);
     }
 
     fn get_breadcrumb(&self, index: usize) -> Option<Breadcrumb> {
         (index > 0).as_option().and_then(|_| {
-            self.breadcrumbs
-                .borrow_mut()
-                .get(index - 1)
-                .map(|breadcrumb| breadcrumb.clone_ref())
+            self.breadcrumbs.borrow_mut().get(index - 1).map(|breadcrumb| breadcrumb.clone_ref())
         })
     }
 
     /// Selects the breadcrumb identified by its `index` and returns `(popped_count,local_calls)`,
     /// where `popped_count` is the number of breadcrumbs in the right side of `index` that needs to
     /// be popped or a list of `LocalCall`s identifying the breadcrumbs we need to push.
-    fn select_breadcrumb(
-        &self,
-        index: usize,
-    ) -> (usize, Vec<Option<LocalCall>>) {
+    fn select_breadcrumb(&self, index: usize) -> (usize, Vec<Option<LocalCall>>) {
         debug!(self.logger, "Selecting breadcrumb #{index}.");
         let current_index = self.current_index.get();
         match index.cmp(&current_index) {
@@ -303,8 +295,7 @@ impl BreadcrumbsModel {
                         .borrow()
                         .get(index)
                         .map(|breadcrumb| {
-                            let definition =
-                                breadcrumb.info.method_pointer.clone();
+                            let definition = breadcrumb.info.method_pointer.clone();
                             let call = breadcrumb.info.expression_id;
                             LocalCall { call, definition }
                         })
@@ -325,38 +316,25 @@ impl BreadcrumbsModel {
 
     /// Pushes a breadcrumb and returns the index of the previously selected breadcrumb and the
     /// index of the newly selected one in the form of (old,new).
-    fn push_breadcrumb(
-        &self,
-        local_call: &Option<LocalCall>,
-    ) -> Option<(usize, usize)> {
+    fn push_breadcrumb(&self, local_call: &Option<LocalCall>) -> Option<(usize, usize)> {
         local_call.as_ref().map(|local_call| {
             let method_pointer = &local_call.definition;
             let expression_id = &local_call.call;
             let old_index = self.current_index.get();
             let new_index = old_index + 1;
 
-            let breadcrumb_exists =
-                self.breadcrumbs.borrow_mut().get(old_index).contains_if(
-                    |breadcrumb| {
-                        breadcrumb.info.expression_id == *expression_id
-                    },
-                );
+            let breadcrumb_exists = self
+                .breadcrumbs
+                .borrow_mut()
+                .get(old_index)
+                .contains_if(|breadcrumb| breadcrumb.info.expression_id == *expression_id);
 
             if breadcrumb_exists {
-                debug!(
-                    self.logger,
-                    "Entering an existing {method_pointer.name} breadcrumb."
-                );
+                debug!(self.logger, "Entering an existing {method_pointer.name} breadcrumb.");
             } else {
-                debug!(
-                    self.logger,
-                    "Creating a new {method_pointer.name} breadcrumb."
-                );
-                self.remove_breadcrumbs_history_beginning_from(
-                    self.current_index.get(),
-                );
-                let breadcrumb =
-                    Breadcrumb::new(&self.app, method_pointer, expression_id);
+                debug!(self.logger, "Creating a new {method_pointer.name} breadcrumb.");
+                self.remove_breadcrumbs_history_beginning_from(self.current_index.get());
+                let breadcrumb = Breadcrumb::new(&self.app, method_pointer, expression_id);
                 let network = &breadcrumb.frp.network;
                 let breadcrumb_index = new_index;
                 let frp_inputs = &self.frp_inputs;
@@ -367,12 +345,8 @@ impl BreadcrumbsModel {
                     );
                 }
 
-                debug!(
-                    self.logger,
-                    "Pushing {breadcrumb.info.method_pointer.name} breadcrumb."
-                );
-                breadcrumb
-                    .set_position_x(self.breadcrumbs_container_width().round());
+                debug!(self.logger, "Pushing {breadcrumb.info.method_pointer.name} breadcrumb.");
+                breadcrumb.set_position_x(self.breadcrumbs_container_width().round());
                 self.breadcrumbs_container.add_child(&breadcrumb);
                 self.breadcrumbs.borrow_mut().push(breadcrumb);
             }
@@ -386,30 +360,20 @@ impl BreadcrumbsModel {
     /// returns `(popped_count,local_calls)`, where `popped_count` is the number of breadcrumbs on
     /// the right side of `index` that needs to be popped, or a list of `LocalCall`s identifying the
     /// breadcrumbs we need to push.
-    fn debug_select_breadcrumb(
-        &self,
-        index: usize,
-    ) -> (usize, Vec<Option<LocalCall>>) {
+    fn debug_select_breadcrumb(&self, index: usize) -> (usize, Vec<Option<LocalCall>>) {
         self.select_breadcrumb(index)
     }
 
     /// Pushes a breadcrumb, without signalizing the controller, and returns the index of the
     /// previously selected breadcrumb, and the index of the newly selected one in the form of
     /// `(old,new)`.
-    fn debug_push_breadcrumb(
-        &self,
-        local_call: &Option<LocalCall>,
-    ) -> Option<(usize, usize)> {
+    fn debug_push_breadcrumb(&self, local_call: &Option<LocalCall>) -> Option<(usize, usize)> {
         let is_new_breadcrumb = local_call.is_none();
         let local_call = local_call.clone().or_else(|| {
             let defined_on_type = default();
             let module = default();
             let name = "Hardcoded".to_string();
-            let method_pointer = MethodPointer {
-                module,
-                defined_on_type,
-                name,
-            };
+            let method_pointer = MethodPointer { module, defined_on_type, name };
             let definition = method_pointer.into();
             let call = uuid::Uuid::new_v4();
             Some(LocalCall { call, definition })
@@ -456,10 +420,7 @@ impl BreadcrumbsModel {
 
     fn remove_breadcrumbs_history_beginning_from(&self, index: usize) {
         for breadcrumb in self.breadcrumbs.borrow_mut().split_off(index) {
-            debug!(
-                self.logger,
-                "Removing {breadcrumb.info.method_pointer.name}."
-            );
+            debug!(self.logger, "Removing {breadcrumb.info.method_pointer.name}.");
             breadcrumb.unset_parent();
         }
         self.update_layout();
@@ -472,6 +433,8 @@ impl display::Object for BreadcrumbsModel {
     }
 }
 
+
+
 // ===================
 // === Breadcrumbs ===
 // ===================
@@ -481,7 +444,7 @@ impl display::Object for BreadcrumbsModel {
 #[allow(missing_docs)]
 pub struct Breadcrumbs {
     model: Rc<BreadcrumbsModel>,
-    frp: Frp,
+    frp:   Frp,
 }
 
 impl Breadcrumbs {

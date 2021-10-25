@@ -29,6 +29,8 @@ use web_sys::WebGlBuffer;
 
 pub use crate::system::gpu::data::Storable;
 
+
+
 // =============
 // === Types ===
 // =============
@@ -52,6 +54,8 @@ fn on_mut_fn(dirty:MutDirty) -> OnMut {
     |ix: usize| dirty.set(ix)
 }}
 
+
+
 // ==============
 // === GlData ===
 // ==============
@@ -61,7 +65,7 @@ fn on_mut_fn(dirty:MutDirty) -> OnMut {
 #[derive(Debug)]
 pub struct GlData {
     context: Context,
-    buffer: WebGlBuffer,
+    buffer:  WebGlBuffer,
 }
 
 impl GlData {
@@ -72,6 +76,8 @@ impl GlData {
         Self { context, buffer }
     }
 }
+
+
 
 // ==============
 // === Buffer ===
@@ -240,6 +246,7 @@ impl<T:Storable> {
     }
 }}
 
+
 // === Private API ===
 
 impl<T: Storable> BufferData<T> {
@@ -253,6 +260,7 @@ impl<T: Storable> BufferData<T> {
         &self.buffer.data
     }
 }
+
 
 // === Data Upload ===
 
@@ -317,14 +325,19 @@ impl<T: Storable> BufferData<T> {
             unsafe {
                 // Note [Safety]
                 let js_array = data.js_buffer_view();
-                gl.context.buffer_sub_data_with_i32_and_array_buffer_view_and_src_offset_and_length
-                (Context::ARRAY_BUFFER,dst_byte_offset,&js_array,start_item,length)
+                gl.context.buffer_sub_data_with_i32_and_array_buffer_view_and_src_offset_and_length(
+                    Context::ARRAY_BUFFER,
+                    dst_byte_offset,
+                    &js_array,
+                    start_item,
+                    length,
+                )
             }
-            self.stats
-                .mod_data_upload_size(|s| s + length * item_byte_size);
+            self.stats.mod_data_upload_size(|s| s + length * item_byte_size);
         }
     }
 }
+
 
 // === Stats ===
 
@@ -335,6 +348,7 @@ impl<T> BufferData<T> {
     }
 }
 
+
 // === Smart Accessors ===
 
 impl<T: Storable> Buffer<T> {
@@ -343,6 +357,7 @@ impl<T: Storable> Buffer<T> {
         Attribute::new(index, self.clone_ref())
     }
 }
+
 
 // === Instances ===
 
@@ -368,6 +383,7 @@ impl<T> Drop for BufferData<T> {
     }
 }
 
+
 // === Utils ===
 
 fn create_gl_buffer(context: &Context) -> WebGlBuffer {
@@ -375,11 +391,14 @@ fn create_gl_buffer(context: &Context) -> WebGlBuffer {
     buffer.ok_or("Failed to create WebGL buffer.").unwrap()
 }
 
+
+
 // =================
 // === AnyBuffer ===
 // =================
 
 use enum_dispatch::*;
+
 
 // === Macros ===
 
@@ -422,6 +441,7 @@ macro_rules! define_any_buffer {
         }
     )*
 }}}
+
 
 // === Definition ===
 

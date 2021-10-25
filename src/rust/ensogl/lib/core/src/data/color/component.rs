@@ -6,6 +6,8 @@ use nalgebra::Scalar;
 use nalgebra::Vector3;
 use nalgebra::Vector4;
 
+
+
 // =================
 // === Component ===
 // =================
@@ -38,6 +40,8 @@ impl<T> Deref for Components<T> {
     }
 }
 
+
+
 // =========================
 // === HasComponentsRepr ===
 // =========================
@@ -54,6 +58,7 @@ pub type ComponentsReprOf<T> = <T as HasComponentsRepr>::ComponentsRepr;
 /// Type-level accessor of `Component` representation of a type.
 pub type ComponentsOf<T> = Components<ComponentsReprOf<T>>;
 
+
 // === Generics ===
 
 impl<T: KnownLast> KnownLast for Components<T> {
@@ -64,8 +69,7 @@ impl<T: KnownInit> KnownInit for Components<T> {
 }
 
 impl<T, X> PushBack<X> for Components<T>
-where
-    T: PushBack<X>,
+where T: PushBack<X>
 {
     type Output = Components<<T as PushBack<X>>::Output>;
     fn push_back(self, t: X) -> Self::Output {
@@ -74,8 +78,7 @@ where
 }
 
 impl<T> PopBack for Components<T>
-where
-    T: PopBack,
+where T: PopBack
 {
     fn pop_back(self) -> (Self::Last, Self::Init) {
         let (last, init) = self.tuple.pop_back();
@@ -83,6 +86,8 @@ where
         (last, init)
     }
 }
+
+
 
 // ====================
 // === ComponentMap ===
@@ -98,8 +103,7 @@ pub trait ComponentMap {
 pub trait ToComponents = Sized + HasComponentsRepr + Into<ComponentsOf<Self>>;
 
 /// Trait for a component representation to the given type.
-pub trait FromComponents =
-    Sized + HasComponentsRepr where ComponentsOf<Self>: Into<Self>;
+pub trait FromComponents = Sized + HasComponentsRepr where ComponentsOf<Self>: Into<Self>;
 
 /// Trait allowing two way conversion of types and their component representations.
 pub trait HasComponents: ToComponents + FromComponents {
@@ -119,6 +123,8 @@ impl<T> HasComponents for T where T: ToComponents + FromComponents {}
 pub fn from_components<T: FromComponents>(components: ComponentsOf<T>) -> T {
     components.into()
 }
+
+
 
 // =================
 // === Operators ===
@@ -210,6 +216,8 @@ macro_rules! define_operators_for_component_refs {
 define_operators_for_components! { Add::add, Sub::sub, Mul::mul, Div::div }
 define_operators_for_component_refs! { Add::add, Sub::sub, Mul::mul, Div::div }
 
+
+
 // ==========================
 // === Vector Conversions ===
 // ==========================
@@ -256,11 +264,6 @@ impl<T: Scalar> From<Vector4<T>> for ComponentsOf<Vector4<T>> {
 
 impl<T: Scalar> From<ComponentsOf<Vector4<T>>> for Vector4<T> {
     fn from(value: ComponentsOf<Vector4<T>>) -> Self {
-        Vector4::new(
-            value.0.clone(),
-            value.1.clone(),
-            value.2.clone(),
-            value.3.clone(),
-        )
+        Vector4::new(value.0.clone(), value.1.clone(), value.2.clone(), value.3.clone())
     }
 }

@@ -15,6 +15,8 @@ use ensogl_core::application::Application;
 use ensogl_core::display;
 use ensogl_core::display::shape::*;
 
+
+
 // =============
 // === Model ===
 // =============
@@ -26,6 +28,8 @@ pub trait Model {
     /// Constructor.
     fn new(app: &Application) -> Self;
 }
+
+
 
 // ===========
 // === FRP ===
@@ -39,6 +43,8 @@ pub trait Frp<Model>: Default + CommandApi {
     fn init(&self, app: &Application, model: &Model, style: &StyleWatchFrp);
 }
 
+
+
 // =================
 // === Component ===
 // =================
@@ -50,7 +56,7 @@ pub trait Frp<Model>: Default + CommandApi {
 pub struct Component<Model, Frp> {
     /// Public FRP api of the Component.
     pub frp: Rc<Frp>,
-    model: Rc<Model>,
+    model:   Rc<Model>,
     /// Reference to the application the Component belongs to. Generally required for implementing
     /// `application::View` and initialising the `Mode`l and `Frp` and thus provided by the
     /// `Component`.
@@ -83,8 +89,8 @@ impl<M, F: Frp<M>> Deref for Component<M, F> {
     }
 }
 
-impl<M, F: application::command::FrpNetworkProvider>
-    application::command::FrpNetworkProvider for Component<M, F>
+impl<M, F: application::command::FrpNetworkProvider> application::command::FrpNetworkProvider
+    for Component<M, F>
 {
     fn network(&self) -> &frp::Network {
         self.frp.network()

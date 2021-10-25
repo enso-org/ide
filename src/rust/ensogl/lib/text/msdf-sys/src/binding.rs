@@ -20,17 +20,10 @@ extern "C" {
     ) -> JsValue;
 
     #[wasm_bindgen(js_name = "getValue")]
-    pub fn emscripten_get_value_from_memory(
-        address: usize,
-        a_type: &str,
-    ) -> JsValue;
+    pub fn emscripten_get_value_from_memory(address: usize, a_type: &str) -> JsValue;
 
     #[wasm_bindgen(js_name = "_msdfgen_getKerning")]
-    pub fn msdfgen_get_kerning(
-        font_handle: JsValue,
-        left_unicode: u32,
-        right_unicode: u32,
-    ) -> f64;
+    pub fn msdfgen_get_kerning(font_handle: JsValue, left_unicode: u32, right_unicode: u32) -> f64;
 
     #[wasm_bindgen(js_name = "_msdfgen_generateAutoframedMSDF")]
     pub fn msdfgen_generate_msdf(

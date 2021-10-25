@@ -29,8 +29,7 @@ impl ParserTestExts for Parser {
     fn parse_shape<T>(&self, program: impl Str) -> T
     where
         for<'t> &'t Shape<Ast>: TryInto<&'t T>,
-        T: Clone + 'static,
-    {
+        T: Clone + 'static, {
         let ast = self.parse_testing(program);
         let line = expect_single_line(&ast);
         let shape = expect_shape(line);

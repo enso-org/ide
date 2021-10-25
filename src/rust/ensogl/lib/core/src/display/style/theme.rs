@@ -13,6 +13,8 @@ use crate::control::callback;
 use crate::data::dirty;
 use crate::data::dirty::traits::*;
 
+
+
 // =============
 // === Theme ===
 // =============
@@ -22,7 +24,7 @@ use crate::data::dirty::traits::*;
 /// specific style sheet endpoints when theme is enabled in the themes `Manager`.
 #[derive(Clone, CloneRef, Debug, Default)]
 pub struct Theme {
-    tree: Rc<RefCell<HashMapTree<String, Option<Value>>>>,
+    tree:   Rc<RefCell<HashMapTree<String, Option<Value>>>>,
     on_mut: callback::SharedRegistryMut,
 }
 
@@ -45,8 +47,7 @@ impl Theme {
     pub fn set<P, E>(&self, path: P, value: E) -> bool
     where
         P: Into<Path>,
-        E: TryInto<Value>,
-    {
+        E: TryInto<Value>, {
         let path = path.into();
         let value = value.try_into();
         if let Ok(value) = value {
@@ -59,10 +60,7 @@ impl Theme {
     }
 
     /// Add a new callback which will be triggered everytime this theme is modified.
-    pub fn on_mut(
-        &self,
-        callback: impl callback::CallbackMutFn,
-    ) -> callback::Handle {
+    pub fn on_mut(&self, callback: impl callback::CallbackMutFn) -> callback::Handle {
         self.on_mut.add(callback)
     }
 
@@ -78,8 +76,7 @@ impl Theme {
             .iter()
             .filter_map(|(path, opt_val)| {
                 opt_val.as_ref().map(|val| {
-                    let path =
-                        path.into_iter().rev().cloned().collect_vec().join(".");
+                    let path = path.into_iter().rev().cloned().collect_vec().join(".");
                     let val = val.clone();
                     (path, val)
                 })
@@ -99,9 +96,7 @@ impl Theme {
                 match (first, second) {
                     (None, None) => {}
                     (Some(_), None) => changes.push(Change::new(path, None)),
-                    (_, Some(value)) => {
-                        changes.push(Change::new(path, Some(value.clone())))
-                    }
+                    (_, Some(value)) => changes.push(Change::new(path, Some(value.clone()))),
                 }
             }
         }
@@ -115,6 +110,8 @@ impl PartialSemigroup<&Theme> for Theme {
     }
 }
 
+
+
 // ===============
 // === Manager ===
 // ===============
@@ -122,9 +119,9 @@ impl PartialSemigroup<&Theme> for Theme {
 /// Internal data used by the `Manager`.
 #[derive(Debug, Default)]
 pub struct ManagerData {
-    all: HashMap<String, Theme>,
-    enabled: Vec<String>,
-    combined: Theme,
+    all:         HashMap<String, Theme>,
+    enabled:     Vec<String>,
+    combined:    Theme,
     style_sheet: style::Sheet,
 }
 
@@ -153,8 +150,7 @@ impl ManagerData {
     pub fn set_enabled<N>(&mut self, names: N)
     where
         N: IntoIterator,
-        N::Item: ToString,
-    {
+        N::Item: ToString, {
         self.enabled = names.into_iter().map(|name| name.to_string()).collect();
         let combined = self.combine(&self.enabled);
         let changes = self.combined.diff(&combined);
@@ -174,8 +170,7 @@ impl ManagerData {
     pub fn combine<N>(&self, names: N) -> Theme
     where
         N: IntoIterator,
-        N::Item: AsRef<str>,
-    {
+        N::Item: AsRef<str>, {
         let mut combined = Theme::new();
         for name in names {
             if let Some(theme) = self.all.get(name.as_ref()) {
@@ -209,12 +204,11 @@ impl ManagerData {
 impl From<&style::Sheet> for ManagerData {
     fn from(style_sheet: &style::Sheet) -> Self {
         let style_sheet = style_sheet.clone_ref();
-        Self {
-            style_sheet,
-            ..default()
-        }
+        Self { style_sheet, ..default() }
     }
 }
+
+
 
 // ===============
 // === Manager ===
@@ -223,35 +217,24 @@ impl From<&style::Sheet> for ManagerData {
 /// Theme manager. Allows registering themes by names, enabling, and disabling them.
 #[derive(Clone, CloneRef, Debug)]
 pub struct Manager {
-    logger: Logger,
-    data: Rc<RefCell<ManagerData>>,
-    handles: Rc<RefCell<HashMap<String, callback::Handle>>>,
+    logger:        Logger,
+    data:          Rc<RefCell<ManagerData>>,
+    handles:       Rc<RefCell<HashMap<String, callback::Handle>>>,
     current_dirty: dirty::SharedBool,
     enabled_dirty: dirty::SharedVector<String>,
-    initialized: Rc<Cell<bool>>,
+    initialized:   Rc<Cell<bool>>,
 }
 
 impl Manager {
     /// Constructor.
     pub fn new() -> Self {
         let logger = Logger::new("Theme Manager");
-        let current_dirty =
-            dirty::SharedBool::new(Logger::new_sub(&logger, "dirty"), ());
-        let enabled_dirty = dirty::SharedVector::new(
-            Logger::new_sub(&logger, "enabled_dirty"),
-            (),
-        );
+        let current_dirty = dirty::SharedBool::new(Logger::new_sub(&logger, "dirty"), ());
+        let enabled_dirty = dirty::SharedVector::new(Logger::new_sub(&logger, "enabled_dirty"), ());
         let data = default();
         let handles = default();
         let initialized = default();
-        Self {
-            logger,
-            data,
-            handles,
-            current_dirty,
-            enabled_dirty,
-            initialized,
-        }
+        Self { logger, data, handles, current_dirty, enabled_dirty, initialized }
     }
 
     /// Return a theme of the given name.
@@ -294,8 +277,7 @@ impl Manager {
     pub fn set_enabled<N>(&self, names: N)
     where
         N: IntoIterator,
-        N::Item: ToString,
-    {
+        N::Item: ToString, {
         self.enabled_dirty.unset_all();
         for name in names {
             self.enabled_dirty.set(name.to_string())
@@ -344,6 +326,8 @@ impl AsRef<Manager> for Manager {
     }
 }
 
+
+
 // ============
 // === Test ===
 // ============
@@ -353,20 +337,14 @@ pub fn test() {
     let theme_manager = Manager::new();
 
     let theme1 = Theme::new();
-    theme1.set(
-        "application.background.color",
-        color::Rgba::new(1.0, 0.0, 0.0, 1.0),
-    );
+    theme1.set("application.background.color", color::Rgba::new(1.0, 0.0, 0.0, 1.0));
     theme1.set("animation.duration", 0.5);
     theme1.set("graph.node.shadow.color", 5.0);
     theme1.set("graph.node.shadow.size", 5.0);
     theme1.set("mouse.pointer.color", color::Rgba::new(0.3, 0.3, 0.3, 1.0));
 
     let theme2 = Theme::new();
-    theme2.set(
-        "application.background.color",
-        color::Rgba::new(1.0, 0.0, 0.0, 1.0),
-    );
+    theme2.set("application.background.color", color::Rgba::new(1.0, 0.0, 0.0, 1.0));
     theme2.set("animation.duration", 0.7);
     theme2.set("graph.node.shadow.color", 5.0);
     theme2.set("graph.node.shadow.size", 5.0);

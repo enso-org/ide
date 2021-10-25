@@ -45,12 +45,15 @@ use enso_shapely::shared;
 use std::any::TypeId;
 use web_sys::HtmlElement;
 
+
 pub trait MouseTarget: Debug + 'static {
     fn mouse_down(&self) -> &frp::Source;
     fn mouse_up(&self) -> &frp::Source;
     fn mouse_over(&self) -> &frp::Source;
     fn mouse_out(&self) -> &frp::Source;
 }
+
+
 
 // =====================
 // === ShapeRegistry ===
@@ -116,6 +119,8 @@ impl {
     }
 }}
 
+
+
 // ==============
 // === Target ===
 // ==============
@@ -133,10 +138,7 @@ enum DecodingResult {
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum PointerTarget {
     Background,
-    Symbol {
-        symbol_id: SymbolId,
-        instance_id: attribute::InstanceIndex,
-    },
+    Symbol { symbol_id: SymbolId, instance_id: attribute::InstanceIndex },
 }
 
 impl PointerTarget {
@@ -192,22 +194,20 @@ impl PointerTarget {
     fn to_internal(self, logger: &Logger) -> Vector4<u32> {
         match self {
             Self::Background => Vector4::new(0, 0, 0, 0),
-            Self::Symbol {
-                symbol_id,
-                instance_id,
-            } => match Self::encode(*symbol_id, (*instance_id) as u32) {
-                DecodingResult::Truncated(pack0, pack1, pack2) => {
-                    warning!(
-                        logger,
-                        "Target values too big to encode: \
+            Self::Symbol { symbol_id, instance_id } => {
+                match Self::encode(*symbol_id, (*instance_id) as u32) {
+                    DecodingResult::Truncated(pack0, pack1, pack2) => {
+                        warning!(
+                            logger,
+                            "Target values too big to encode: \
                                          ({symbol_id},{instance_id})."
-                    );
-                    Vector4::new(pack0.into(), pack1.into(), pack2.into(), 1)
+                        );
+                        Vector4::new(pack0.into(), pack1.into(), pack2.into(), 1)
+                    }
+                    DecodingResult::Ok(pack0, pack1, pack2) =>
+                        Vector4::new(pack0.into(), pack1.into(), pack2.into(), 1),
                 }
-                DecodingResult::Ok(pack0, pack1, pack2) => {
-                    Vector4::new(pack0.into(), pack1.into(), pack2.into(), 1)
-                }
-            },
+            }
         }
     }
 
@@ -218,10 +218,7 @@ impl PointerTarget {
             let decoded = Self::decode(v.x, v.y, v.z);
             let symbol_id = SymbolId::new(decoded.0);
             let instance_id = attribute::InstanceIndex::new(decoded.1 as usize);
-            Self::Symbol {
-                symbol_id,
-                instance_id,
-            }
+            Self::Symbol { symbol_id, instance_id }
         } else {
             panic!("Wrong internal format alpha for mouse target.")
         }
@@ -242,6 +239,7 @@ impl Default for PointerTarget {
     }
 }
 
+
 // === Target Tests ===
 
 #[cfg(test)]
@@ -257,11 +255,7 @@ mod target_tests {
                 panic!("Values got truncated. This is an invalid test case: {}, {}", value1, value1)
             }
             DecodingResult::Ok(pack0, pack1, pack2) => {
-                let unpack = PointerTarget::decode(
-                    pack0.into(),
-                    pack1.into(),
-                    pack2.into(),
-                );
+                let unpack = PointerTarget::decode(pack0.into(), pack1.into(), pack2.into());
                 assert_eq!(unpack.0, value1);
                 assert_eq!(unpack.1, value2);
             }
@@ -299,6 +293,8 @@ mod target_tests {
     }
 }
 
+
+
 // =============
 // === Mouse ===
 // =============
@@ -307,13 +303,13 @@ mod target_tests {
 pub struct Mouse {
     pub mouse_manager: MouseManager,
     pub last_position: Rc<Cell<Vector2<i32>>>,
-    pub position: Uniform<Vector2<i32>>,
-    pub hover_ids: Uniform<Vector4<u32>>,
-    pub target: Rc<Cell<PointerTarget>>,
-    pub handles: Rc<[callback::Handle; 3]>,
-    pub frp: enso_frp::io::Mouse,
-    pub scene_frp: Frp,
-    pub logger: Logger,
+    pub position:      Uniform<Vector2<i32>>,
+    pub hover_ids:     Uniform<Vector4<u32>>,
+    pub target:        Rc<Cell<PointerTarget>>,
+    pub handles:       Rc<[callback::Handle; 3]>,
+    pub frp:           enso_frp::io::Mouse,
+    pub scene_frp:     Frp,
+    pub logger:        Logger,
 }
 
 impl Mouse {
@@ -327,44 +323,38 @@ impl Mouse {
         let scene_frp = scene_frp.clone_ref();
         let target = PointerTarget::default();
         let last_position = Rc::new(Cell::new(Vector2::new(0, 0)));
-        let position =
-            variables.add_or_panic("mouse_position", Vector2::new(0, 0));
-        let hover_ids = variables
-            .add_or_panic("mouse_hover_ids", target.to_internal(&logger));
+        let position = variables.add_or_panic("mouse_position", Vector2::new(0, 0));
+        let hover_ids = variables.add_or_panic("mouse_hover_ids", target.to_internal(&logger));
         let target = Rc::new(Cell::new(target));
-        let mouse_manager = MouseManager::new_separated(
-            &root.clone_ref().into(),
-            &web::window(),
-        );
+        let mouse_manager = MouseManager::new_separated(&root.clone_ref().into(), &web::window());
         let frp = frp::io::Mouse::new();
-        let on_move         = mouse_manager.on_move.add(current_js_event.make_event_handler(
+        let on_move = mouse_manager.on_move.add(current_js_event.make_event_handler(
             f!([frp,scene_frp,position,last_position] (event:&mouse::OnMove) {
-                let shape       = scene_frp.shape.value();
-                let pixel_ratio = shape.pixel_ratio;
-                let screen_x    = event.client_x();
-                let screen_y    = event.client_y();
+                    let shape       = scene_frp.shape.value();
+                    let pixel_ratio = shape.pixel_ratio;
+                    let screen_x    = event.client_x();
+                    let screen_y    = event.client_y();
 
-                let new_pos     = Vector2::new(screen_x,screen_y);
-                let pos_changed = new_pos != last_position.get();
-                if pos_changed {
-                    last_position.set(new_pos);
-                    let new_canvas_position = new_pos.map(|v| (v as f32 *  pixel_ratio) as i32);
-                    position.set(new_canvas_position);
-                    let position = Vector2(new_pos.x as f32,new_pos.y as f32) - shape.center();
-                    frp.position.emit(position);
+                    let new_pos     = Vector2::new(screen_x,screen_y);
+                    let pos_changed = new_pos != last_position.get();
+                    if pos_changed {
+                        last_position.set(new_pos);
+                        let new_canvas_position = new_pos.map(|v| (v as f32 *  pixel_ratio) as i32);
+                        position.set(new_canvas_position);
+                        let position = Vector2(new_pos.x as f32,new_pos.y as f32) - shape.center();
+                        frp.position.emit(position);
+                    }
                 }
-            }
-        )));
-        let on_down =
-            mouse_manager
-                .on_down
-                .add(current_js_event.make_event_handler(
-                    f!((event:&mouse::OnDown) frp.down.emit(event.button())),
-                ));
-        let on_up =
-            mouse_manager.on_up.add(current_js_event.make_event_handler(
-                f!((event:&mouse::OnUp) frp.up.emit(event.button())),
-            ));
+            ),
+        ));
+        let on_down = mouse_manager.on_down.add(
+            current_js_event
+                .make_event_handler(f!((event:&mouse::OnDown) frp.down.emit(event.button()))),
+        );
+        let on_up = mouse_manager.on_up.add(
+            current_js_event
+                .make_event_handler(f!((event:&mouse::OnUp) frp.up.emit(event.button()))),
+        );
         let handles = Rc::new([on_move, on_down, on_up]);
         Self {
             mouse_manager,
@@ -388,9 +378,9 @@ impl Mouse {
     /// - Callback above is run. The value of `screen_position` uniform changes and FRP events are
     ///   emitted.
     /// - FRP events propagate trough the whole system.
-    /// - The rendering engine renders a frame and waits for the pixel read pass to report symbol
-    ///   ID under the cursor. This is normally done the next frame but sometimes could take even
-    ///   few frames.
+    /// - The rendering engine renders a frame and waits for the pixel read pass to report symbol ID
+    ///   under the cursor. This is normally done the next frame but sometimes could take even few
+    ///   frames.
     /// - When the new ID are received, we emit `over` and `out` FRP events for appropriate
     ///   elements.
     /// - After emitting `over` and `out `events, the `position` event is re-emitted.
@@ -402,11 +392,12 @@ impl Mouse {
     pub fn re_emit_position_event(&self) {
         let shape = self.scene_frp.shape.value();
         let new_pos = self.last_position.get();
-        let position =
-            Vector2(new_pos.x as f32, new_pos.y as f32) - shape.center();
+        let position = Vector2(new_pos.x as f32, new_pos.y as f32) - shape.center();
         self.frp.position.emit(position);
     }
 }
+
+
 
 // ================
 // === Keyboard ===
@@ -414,7 +405,7 @@ impl Mouse {
 
 #[derive(Clone, CloneRef, Debug)]
 pub struct Keyboard {
-    pub frp: enso_frp::io::keyboard::Keyboard,
+    pub frp:  enso_frp::io::keyboard::Keyboard,
     bindings: Rc<enso_frp::io::keyboard::DomBindings>,
 }
 
@@ -422,14 +413,13 @@ impl Keyboard {
     pub fn new(current_event: &CurrentJsEvent) -> Self {
         let logger = Logger::new("keyboard");
         let frp = enso_frp::io::keyboard::Keyboard::default();
-        let bindings = Rc::new(enso_frp::io::keyboard::DomBindings::new(
-            &logger,
-            &frp,
-            current_event,
-        ));
+        let bindings =
+            Rc::new(enso_frp::io::keyboard::DomBindings::new(&logger, &frp, current_event));
         Self { frp, bindings }
     }
 }
+
+
 
 // ===========
 // === Dom ===
@@ -439,7 +429,7 @@ impl Keyboard {
 #[derive(Clone, CloneRef, Debug)]
 pub struct Dom {
     /// Root DOM element of the scene.
-    pub root: web::dom::WithKnownShape<web::HtmlDivElement>,
+    pub root:   web::dom::WithKnownShape<web::HtmlDivElement>,
     /// DomLayers of the scene.
     pub layers: DomLayers,
 }
@@ -466,6 +456,8 @@ impl Dom {
     }
 }
 
+
+
 // =================
 // === DomLayers ===
 // =================
@@ -476,14 +468,14 @@ impl Dom {
 #[derive(Clone, CloneRef, Debug)]
 pub struct DomLayers {
     /// Back DOM scene layer.
-    pub back: DomScene,
-    /// Back DOM scene layer with fullscreen visualization. Kept separately from `back`, because the
-    /// fullscreen visualizations should not share camera with main view.
+    pub back:           DomScene,
+    /// Back DOM scene layer with fullscreen visualization. Kept separately from `back`, because
+    /// the fullscreen visualizations should not share camera with main view.
     pub fullscreen_vis: DomScene,
     /// Front DOM scene layer.
-    pub front: DomScene,
+    pub front:          DomScene,
     /// The WebGL scene layer.
-    pub canvas: web_sys::HtmlCanvasElement,
+    pub canvas:         web_sys::HtmlCanvasElement,
 }
 
 impl DomLayers {
@@ -511,14 +503,11 @@ impl DomLayers {
         dom.append_or_panic(&front.dom);
         dom.append_or_panic(&back.dom);
         dom.append_or_panic(&fullscreen_vis.dom);
-        Self {
-            back,
-            fullscreen_vis,
-            front,
-            canvas,
-        }
+        Self { back, fullscreen_vis, front, canvas }
     }
 }
+
+
 
 // ================
 // === Uniforms ===
@@ -539,6 +528,8 @@ impl Uniforms {
     }
 }
 
+
+
 // =============
 // === Dirty ===
 // =============
@@ -549,8 +540,10 @@ pub type SymbolRegistryDirty = dirty::SharedBool<Box<dyn Fn()>>;
 #[derive(Clone, CloneRef, Debug)]
 pub struct Dirty {
     symbols: SymbolRegistryDirty,
-    shape: ShapeDirty,
+    shape:   ShapeDirty,
 }
+
+
 
 // ================
 // === Renderer ===
@@ -559,21 +552,16 @@ pub struct Dirty {
 #[derive(Clone, CloneRef, Debug)]
 pub struct Renderer {
     pub logger: Logger,
-    dom: Dom,
-    context: Context,
-    variables: UniformScope,
+    dom:        Dom,
+    context:    Context,
+    variables:  UniformScope,
 
     pub pipeline: Rc<CloneCell<render::Pipeline>>,
     pub composer: Rc<RefCell<render::Composer>>,
 }
 
 impl Renderer {
-    fn new(
-        logger: impl AnyLogger,
-        dom: &Dom,
-        context: &Context,
-        variables: &UniformScope,
-    ) -> Self {
+    fn new(logger: impl AnyLogger, dom: &Dom, context: &Context, variables: &UniformScope) -> Self {
         let logger = Logger::new_sub(logger, "renderer");
         let dom = dom.clone_ref();
         let context = context.clone_ref();
@@ -582,9 +570,7 @@ impl Renderer {
         let shape = dom.shape().device_pixels();
         let width = shape.width as i32;
         let height = shape.height as i32;
-        let composer = render::Composer::new(
-            &pipeline, &context, &variables, width, height,
-        );
+        let composer = render::Composer::new(&pipeline, &context, &variables, width, height);
         let pipeline = Rc::new(CloneCell::new(pipeline));
         let composer = Rc::new(RefCell::new(composer));
 
@@ -600,14 +586,7 @@ impl Renderer {
             Context::ONE_MINUS_SRC_ALPHA,
         );
 
-        Self {
-            logger,
-            dom,
-            context,
-            variables,
-            pipeline,
-            composer,
-        }
+        Self { logger, dom, context, variables, pipeline, composer }
     }
 
     /// Set the pipeline of this renderer.
@@ -635,6 +614,8 @@ impl Renderer {
     }
 }
 
+
+
 // ==============
 // === Layers ===
 // ==============
@@ -644,24 +625,24 @@ impl Renderer {
 /// should be abstracted away in the future.
 #[derive(Clone, CloneRef, Debug)]
 pub struct HardcodedLayers {
-    pub root: Layer,
-    pub viz: Layer,
-    pub below_main: Layer,
-    pub main: Layer,
-    pub port_selection: Layer,
-    pub label: Layer,
-    pub above_nodes: Layer,
-    pub above_nodes_text: Layer,
+    pub root:               Layer,
+    pub viz:                Layer,
+    pub below_main:         Layer,
+    pub main:               Layer,
+    pub port_selection:     Layer,
+    pub label:              Layer,
+    pub above_nodes:        Layer,
+    pub above_nodes_text:   Layer,
     /// Layer containing all panels with fixed position (not moving with the panned scene)
     /// like status bar, breadcrumbs or similar.
-    pub panel: Layer,
-    pub panel_text: Layer,
-    pub node_searcher: Layer,
+    pub panel:              Layer,
+    pub panel_text:         Layer,
+    pub node_searcher:      Layer,
     pub node_searcher_mask: Layer,
-    pub tooltip: Layer,
-    pub tooltip_text: Layer,
-    pub cursor: Layer,
-    pub mask: Layer,
+    pub tooltip:            Layer,
+    pub tooltip_text:       Layer,
+    pub cursor:             Layer,
+    pub mask:               Layer,
 }
 
 impl Deref for HardcodedLayers {
@@ -677,21 +658,17 @@ impl HardcodedLayers {
         let main = Layer::new(logger.sub("main"));
         let main_cam = &main.camera();
         let viz = Layer::new_with_cam(logger.sub("viz"), main_cam);
-        let below_main =
-            Layer::new_with_cam(logger.sub("below_main"), main_cam);
+        let below_main = Layer::new_with_cam(logger.sub("below_main"), main_cam);
         let port_selection = Layer::new(logger.sub("port_selection"));
         let label = Layer::new_with_cam(logger.sub("label"), main_cam);
-        let above_nodes =
-            Layer::new_with_cam(logger.sub("above_nodes"), main_cam);
-        let above_nodes_text =
-            Layer::new_with_cam(logger.sub("above_nodes_text"), main_cam);
+        let above_nodes = Layer::new_with_cam(logger.sub("above_nodes"), main_cam);
+        let above_nodes_text = Layer::new_with_cam(logger.sub("above_nodes_text"), main_cam);
         let panel = Layer::new(logger.sub("panel"));
         let panel_text = Layer::new(logger.sub("panel_text"));
         let node_searcher = Layer::new(logger.sub("node_searcher"));
         let node_searcher_mask = Layer::new(logger.sub("node_searcher_mask"));
         let tooltip = Layer::new_with_cam(logger.sub("tooltip"), main_cam);
-        let tooltip_text =
-            Layer::new_with_cam(logger.sub("tooltip_text"), main_cam);
+        let tooltip_text = Layer::new_with_cam(logger.sub("tooltip_text"), main_cam);
         let cursor = Layer::new(logger.sub("cursor"));
 
         let mask = Layer::new_with_cam(logger.sub("mask"), main_cam);
@@ -732,6 +709,8 @@ impl HardcodedLayers {
     }
 }
 
+
+
 // ===========
 // === FRP ===
 // ===========
@@ -739,12 +718,12 @@ impl HardcodedLayers {
 /// FRP Scene interface.
 #[derive(Clone, CloneRef, Debug)]
 pub struct Frp {
-    pub network: frp::Network,
-    pub shape: frp::Sampler<Shape>,
-    pub camera_changed: frp::Stream,
-    pub frame_time: frp::Stream<f32>,
+    pub network:           frp::Network,
+    pub shape:             frp::Sampler<Shape>,
+    pub camera_changed:    frp::Stream,
+    pub frame_time:        frp::Stream<f32>,
     camera_changed_source: frp::Source,
-    frame_time_source: frp::Source<f32>,
+    frame_time_source:     frp::Source<f32>,
 }
 
 impl Frp {
@@ -768,6 +747,8 @@ impl Frp {
     }
 }
 
+
+
 // =================
 // === Extension ===
 // =================
@@ -785,12 +766,12 @@ impl Extensions {
     pub fn get<T: Extension>(&self, scene: &Scene) -> T {
         let type_id = TypeId::of::<T>();
         let map_mut = &mut self.map.borrow_mut();
-        let entry = map_mut
-            .entry(type_id)
-            .or_insert_with(|| Box::new(T::init(scene)));
+        let entry = map_mut.entry(type_id).or_insert_with(|| Box::new(T::init(scene)));
         entry.downcast_ref::<T>().unwrap().clone_ref()
     }
 }
+
+
 
 // =================
 // === SceneData ===
@@ -798,26 +779,26 @@ impl Extensions {
 
 #[derive(Clone, CloneRef, Debug)]
 pub struct SceneData {
-    pub display_object: display::object::Instance,
-    pub dom: Dom,
-    pub context: Context,
-    pub symbols: SymbolRegistry,
-    pub variables: UniformScope,
+    pub display_object:   display::object::Instance,
+    pub dom:              Dom,
+    pub context:          Context,
+    pub symbols:          SymbolRegistry,
+    pub variables:        UniformScope,
     pub current_js_event: CurrentJsEvent,
-    pub mouse: Mouse,
-    pub keyboard: Keyboard,
-    pub uniforms: Uniforms,
-    pub shapes: ShapeRegistry,
-    pub stats: Stats,
-    pub dirty: Dirty,
-    pub logger: Logger,
-    pub renderer: Renderer,
-    pub layers: HardcodedLayers,
-    pub style_sheet: style::Sheet,
-    pub bg_color_var: style::Var,
-    pub bg_color_change: callback::Handle,
-    pub frp: Frp,
-    extensions: Extensions,
+    pub mouse:            Mouse,
+    pub keyboard:         Keyboard,
+    pub uniforms:         Uniforms,
+    pub shapes:           ShapeRegistry,
+    pub stats:            Stats,
+    pub dirty:            Dirty,
+    pub logger:           Logger,
+    pub renderer:         Renderer,
+    pub layers:           HardcodedLayers,
+    pub style_sheet:      style::Sheet,
+    pub bg_color_var:     style::Var,
+    pub bg_color_change:  callback::Handle,
+    pub frp:              Frp,
+    extensions:           Extensions,
     disable_context_menu: Rc<IgnoreContextMenuHandle>,
 }
 
@@ -855,24 +836,14 @@ impl SceneData {
         let stats = stats.clone();
         let shapes = ShapeRegistry::default();
         let uniforms = Uniforms::new(&variables);
-        let dirty = Dirty {
-            symbols: symbols_dirty,
-            shape: shape_dirty,
-        };
+        let dirty = Dirty { symbols: symbols_dirty, shape: shape_dirty };
         let renderer = Renderer::new(&logger, &dom, &context, &variables);
         let style_sheet = style::Sheet::new();
         let current_js_event = CurrentJsEvent::new();
         let frp = Frp::new(&dom.root.shape);
         let mouse_logger = Logger::new_sub(&logger, "mouse");
-        let mouse = Mouse::new(
-            &frp,
-            &dom.root,
-            &variables,
-            &current_js_event,
-            mouse_logger,
-        );
-        let disable_context_menu =
-            Rc::new(web::ignore_context_menu(&dom.root).unwrap());
+        let mouse = Mouse::new(&frp, &dom.root, &variables, &current_js_event, mouse_logger);
+        let disable_context_menu = Rc::new(web::ignore_context_menu(&dom.root).unwrap());
         let keyboard = Keyboard::new(&current_js_event);
         let network = &frp.network;
         let extensions = Extensions::default();
@@ -932,17 +903,12 @@ impl SceneData {
     }
 
     fn handle_mouse_events(&self) {
-        let new_target =
-            PointerTarget::from_internal(self.mouse.hover_ids.get());
+        let new_target = PointerTarget::from_internal(self.mouse.hover_ids.get());
         let current_target = self.mouse.target.get();
         if new_target != current_target {
             self.mouse.target.set(new_target);
-            self.shapes
-                .get_mouse_target(current_target)
-                .for_each(|t| t.mouse_out().emit(()));
-            self.shapes
-                .get_mouse_target(new_target)
-                .for_each(|t| t.mouse_over().emit(()));
+            self.shapes.get_mouse_target(current_target).for_each(|t| t.mouse_out().emit(()));
+            self.shapes.get_mouse_target(new_target).for_each(|t| t.mouse_over().emit(()));
             self.mouse.re_emit_position_event(); // See docs to learn why.
         }
     }
@@ -980,10 +946,7 @@ impl SceneData {
         }
         let fs_vis_camera_changed = fullscreen_vis_camera.update(scene);
         if fs_vis_camera_changed {
-            self.dom
-                .layers
-                .fullscreen_vis
-                .update_view_projection(&fullscreen_vis_camera);
+            self.dom.layers.fullscreen_vis.update_view_projection(&fullscreen_vis_camera);
         }
 
         // Updating all other cameras (the main camera was already updated, so it will be skipped).
@@ -1001,29 +964,14 @@ impl SceneData {
         // due to rounding errors. We round to the nearest integer to compensate for those errors.
         let width = canvas.width.round() as i32;
         let height = canvas.height.round() as i32;
-        debug!(
-            self.logger,
-            "Resized to {screen.width}px x {screen.height}px.",
-            || {
-                self.dom
-                    .layers
-                    .canvas
-                    .set_attribute("width", &width.to_string())
-                    .unwrap();
-                self.dom
-                    .layers
-                    .canvas
-                    .set_attribute("height", &height.to_string())
-                    .unwrap();
-                self.context.viewport(0, 0, width, height);
-            }
-        );
+        debug!(self.logger, "Resized to {screen.width}px x {screen.height}px.", || {
+            self.dom.layers.canvas.set_attribute("width", &width.to_string()).unwrap();
+            self.dom.layers.canvas.set_attribute("height", &height.to_string()).unwrap();
+            self.context.viewport(0, 0, width, height);
+        });
     }
 
-    pub fn screen_to_scene_coordinates(
-        &self,
-        position: Vector3<f32>,
-    ) -> Vector3<f32> {
+    pub fn screen_to_scene_coordinates(&self, position: Vector3<f32>) -> Vector3<f32> {
         let position = position / self.camera().zoom();
         let position = Vector4::new(position.x, position.y, position.z, 1.0);
         (self.camera().inversed_view_matrix() * position).xyz()
@@ -1038,23 +986,14 @@ impl SceneData {
         let origin_world_space = Vector4(0.0, 0.0, 0.0, 1.0);
         let layer = object.display_layers().first().and_then(|t| t.upgrade());
         let camera = layer.map_or(self.camera(), |l| l.camera());
-        let origin_clip_space =
-            camera.view_projection_matrix() * origin_world_space;
-        let inv_object_matrix =
-            object.transform_matrix().try_inverse().unwrap();
+        let origin_clip_space = camera.view_projection_matrix() * origin_world_space;
+        let inv_object_matrix = object.transform_matrix().try_inverse().unwrap();
 
         let shape = self.frp.shape.value();
         let clip_space_z = origin_clip_space.z;
-        let clip_space_x =
-            origin_clip_space.w * 2.0 * screen_pos.x / shape.width;
-        let clip_space_y =
-            origin_clip_space.w * 2.0 * screen_pos.y / shape.height;
-        let clip_space = Vector4(
-            clip_space_x,
-            clip_space_y,
-            clip_space_z,
-            origin_clip_space.w,
-        );
+        let clip_space_x = origin_clip_space.w * 2.0 * screen_pos.x / shape.width;
+        let clip_space_y = origin_clip_space.w * 2.0 * screen_pos.y / shape.height;
+        let clip_space = Vector4(clip_space_x, clip_space_y, clip_space_z, origin_clip_space.w);
         let world_space = camera.inversed_view_projection_matrix() * clip_space;
         (inv_object_matrix * world_space).xy()
     }
@@ -1065,6 +1004,8 @@ impl display::Object for SceneData {
         &self.display_object
     }
 }
+
+
 
 // =============
 // === Scene ===
@@ -1087,8 +1028,7 @@ impl Scene {
         let this = Self { no_mut_access };
 
         // FIXME MEMORY LEAK in all lines below:
-        this.no_mut_access.shapes.rc.borrow_mut().scene =
-            Some(this.clone_ref());
+        this.no_mut_access.shapes.rc.borrow_mut().scene = Some(this.clone_ref());
 
         this
     }

@@ -12,6 +12,8 @@ use ide_view::graph_editor::component::visualization;
 use ide_view::graph_editor::component::visualization::definition;
 use std::rc::Rc;
 
+
+
 // =============
 // === Error ===
 // =============
@@ -22,19 +24,13 @@ use std::rc::Rc;
 pub enum Error {
     #[fail(display = "Visualization \"{}\" not found.", identifier)]
     NotFound { identifier: VisualizationPath },
-    #[fail(
-        display = "JavaScript visualization \"{}\" failed to be prepared.",
-        identifier
-    )]
+    #[fail(display = "JavaScript visualization \"{}\" failed to be prepared.", identifier)]
     Preparation {
         identifier: VisualizationPath,
         #[cause]
-        cause: failure::Error,
+        cause:      failure::Error,
     },
-    #[fail(
-        display = "JavaScript visualization \"{}\" failed to be instantiated.",
-        identifier
-    )]
+    #[fail(display = "JavaScript visualization \"{}\" failed to be instantiated.", identifier)]
     Instantiation { identifier: VisualizationPath },
 }
 
@@ -49,6 +45,8 @@ impl Error {
     }
 }
 
+
+
 // =========================
 // === VisualizationPath ===
 // =========================
@@ -61,6 +59,8 @@ pub enum VisualizationPath {
     Embedded(String),
     File(language_server::Path),
 }
+
+
 
 // ==============================
 // === EmbeddedVisualizations ===
@@ -77,6 +77,8 @@ pub struct EmbeddedVisualizations {
     pub map: HashMap<EmbeddedVisualizationName, definition::Definition>,
 }
 
+
+
 // ==============
 // === Handle ===
 // ==============
@@ -85,7 +87,7 @@ pub struct EmbeddedVisualizations {
 /// visualizations on the project and the native ones embedded on IDE.
 #[derive(Debug, Clone, CloneRef)]
 pub struct Handle {
-    language_server_rpc: Rc<language_server::Connection>,
+    language_server_rpc:     Rc<language_server::Connection>,
     embedded_visualizations: Rc<RefCell<EmbeddedVisualizations>>,
 }
 
@@ -95,20 +97,13 @@ impl Handle {
         language_server_rpc: Rc<language_server::Connection>,
         embedded_visualizations: EmbeddedVisualizations,
     ) -> Self {
-        let embedded_visualizations =
-            Rc::new(RefCell::new(embedded_visualizations));
-        Self {
-            language_server_rpc,
-            embedded_visualizations,
-        }
+        let embedded_visualizations = Rc::new(RefCell::new(embedded_visualizations));
+        Self { language_server_rpc, embedded_visualizations }
     }
 
-    async fn list_project_specific_visualizations(
-        &self,
-    ) -> FallibleResult<Vec<VisualizationPath>> {
+    async fn list_project_specific_visualizations(&self) -> FallibleResult<Vec<VisualizationPath>> {
         let root_id = self.language_server_rpc.project_root().id();
-        let path =
-            language_server::Path::new(root_id, &[VISUALIZATION_DIRECTORY]);
+        let path = language_server::Path::new(root_id, &[VISUALIZATION_DIRECTORY]);
         let folder = self.language_server_rpc.file_exists(&path).await?;
         let file_list = if folder.exists {
             self.language_server_rpc.file_list(&path).await?.paths
@@ -136,13 +131,9 @@ impl Handle {
     }
 
     /// Get a list of all available visualizations.
-    pub async fn list_visualizations(
-        &self,
-    ) -> FallibleResult<Vec<VisualizationPath>> {
+    pub async fn list_visualizations(&self) -> FallibleResult<Vec<VisualizationPath>> {
         let mut visualizations = self.list_embedded_visualizations();
-        visualizations.extend_from_slice(
-            &self.list_project_specific_visualizations().await?,
-        );
+        visualizations.extend_from_slice(&self.list_project_specific_visualizations().await?);
         Ok(visualizations)
     }
 
@@ -153,8 +144,7 @@ impl Handle {
     ) -> FallibleResult<definition::Definition> {
         match visualization {
             VisualizationPath::Embedded(identifier) => {
-                let embedded_visualizations =
-                    self.embedded_visualizations.borrow();
+                let embedded_visualizations = self.embedded_visualizations.borrow();
                 let result = embedded_visualizations.get(identifier);
                 let identifier = visualization.clone();
                 let error = || Error::NotFound { identifier }.into();
@@ -162,12 +152,9 @@ impl Handle {
             }
             VisualizationPath::File(path) => {
                 let project = visualization::path::Project::CurrentProject;
-                let js_code =
-                    self.language_server_rpc.read_file(path).await?.contents;
-                let wrap_error = |err| {
-                    Error::js_preparation_error(visualization.clone(), err)
-                        .into()
-                };
+                let js_code = self.language_server_rpc.read_file(path).await?.contents;
+                let wrap_error =
+                    |err| Error::js_preparation_error(visualization.clone(), err).into();
                 visualization::java_script::Definition::new(project, &js_code)
                     .map(Into::into)
                     .map_err(wrap_error)
@@ -175,6 +162,8 @@ impl Handle {
         }
     }
 }
+
+
 
 // =============
 // === Tests ===
@@ -230,55 +219,38 @@ mod tests {
             return Vis1
         "#
         .to_string();
-        let read_result0 = language_server::response::Read {
-            contents: file_content0.clone(),
-        };
-        let read_result1 = language_server::response::Read {
-            contents: file_content1.clone(),
-        };
-        let exists_result0 =
-            language_server::response::FileExists { exists: true };
-        let exists_result1 =
-            language_server::response::FileExists { exists: true };
+        let read_result0 = language_server::response::Read { contents: file_content0.clone() };
+        let read_result1 = language_server::response::Read { contents: file_content1.clone() };
+        let exists_result0 = language_server::response::FileExists { exists: true };
+        let exists_result1 = language_server::response::FileExists { exists: true };
         expect_call!(mock_client.file_exists(path=path.clone()) => Ok(exists_result0));
         expect_call!(mock_client.file_exists(path=path.clone()) => Ok(exists_result1));
         expect_call!(mock_client.read_file(path=path0.clone())  => Ok(read_result0));
         expect_call!(mock_client.read_file(path=path1.clone())  => Ok(read_result1));
 
-        let language_server =
-            language_server::Connection::new_mock_rc(mock_client);
+        let language_server = language_server::Connection::new_mock_rc(mock_client);
         let mut embedded_visualizations = EmbeddedVisualizations::default();
-        let embedded_visualization =
-            builtin::visualization::native::BubbleChart::definition();
-        embedded_visualizations.insert(
-            "[Demo] Bubble Visualization".to_string(),
-            embedded_visualization.clone(),
-        );
-        let vis_controller =
-            Handle::new(language_server, embedded_visualizations);
+        let embedded_visualization = builtin::visualization::native::BubbleChart::definition();
+        embedded_visualizations
+            .insert("[Demo] Bubble Visualization".to_string(), embedded_visualization.clone());
+        let vis_controller = Handle::new(language_server, embedded_visualizations);
 
         let visualizations = vis_controller.list_visualizations().await;
-        let visualizations =
-            visualizations.expect("Couldn't list visualizations.");
+        let visualizations = visualizations.expect("Couldn't list visualizations.");
 
         assert_eq!(
             visualizations[0],
-            VisualizationPath::Embedded(
-                "[Demo] Bubble Visualization".to_string()
-            )
+            VisualizationPath::Embedded("[Demo] Bubble Visualization".to_string())
         );
         assert_eq!(visualizations[1], VisualizationPath::File(path0));
         assert_eq!(visualizations[2], VisualizationPath::File(path1));
         assert_eq!(visualizations.len(), 3);
 
         let owner = visualization::Project::CurrentProject;
-        let javascript_vis0 =
-            js_vis::Definition::new(owner.clone_ref(), &file_content0);
+        let javascript_vis0 = js_vis::Definition::new(owner.clone_ref(), &file_content0);
         let javascript_vis1 = js_vis::Definition::new(owner, &file_content1);
-        let javascript_vis0 =
-            javascript_vis0.expect("Couldn't create visualization class.");
-        let javascript_vis1 =
-            javascript_vis1.expect("Couldn't create visualization class.");
+        let javascript_vis0 = javascript_vis0.expect("Couldn't create visualization class.");
+        let javascript_vis1 = javascript_vis1.expect("Couldn't create visualization class.");
         let javascript_vis0: visualization::Definition = javascript_vis0.into();
         let javascript_vis1: visualization::Definition = javascript_vis1.into();
 
@@ -286,10 +258,9 @@ mod tests {
             vec![embedded_visualization, javascript_vis0, javascript_vis1];
         let zipped = visualizations.iter().zip(expected_visualizations.iter());
         for (visualization, expected_definition) in zipped {
+            let loaded_definition = vis_controller.load_visualization(&visualization).await;
             let loaded_definition =
-                vis_controller.load_visualization(&visualization).await;
-            let loaded_definition = loaded_definition
-                .expect("Couldn't load visualization's content.");
+                loaded_definition.expect("Couldn't load visualization's content.");
             let loaded_signature = &loaded_definition.signature;
             let expected_signature = &expected_definition.signature;
             assert_eq!(loaded_signature, expected_signature);

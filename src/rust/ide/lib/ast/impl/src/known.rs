@@ -14,6 +14,8 @@ use serde::Deserializer;
 use serde::Serialize;
 use serde::Serializer;
 
+
+
 // =================
 // === Known AST ===
 // =================
@@ -26,7 +28,7 @@ use serde::Serializer;
 #[derivative(Clone(bound = ""))]
 #[derive(Debug, Eq, PartialEq)]
 pub struct KnownAst<T> {
-    ast: Ast,
+    ast:     Ast,
     phantom: PhantomData<T>,
 }
 
@@ -36,10 +38,7 @@ impl<T> KnownAst<T> {
     /// Note that this API requires caller to ensure that Ast stores proper shape. Violating this
     /// rule will lead to panics later.
     fn new_unchecked(ast: Ast) -> KnownAst<T> {
-        KnownAst {
-            ast,
-            phantom: default(),
-        }
+        KnownAst { ast, phantom: default() }
     }
 
     /// Gets AST id.
@@ -54,8 +53,7 @@ impl<T> KnownAst<T> {
 }
 
 impl<T, E> KnownAst<T>
-where
-    for<'t> &'t Shape<Ast>: TryInto<&'t T, Error = E>,
+where for<'t> &'t Shape<Ast>: TryInto<&'t T, Error = E>
 {
     /// Checks if the shape of given Ast node is compatible with `T`.
     /// If yes, returns Ok with Ast node wrapped as KnownAst.
@@ -64,18 +62,13 @@ where
         if let Some(error_matching) = ast.shape().try_into().err() {
             Err(error_matching)
         } else {
-            Ok(KnownAst {
-                ast,
-                phantom: default(),
-            })
+            Ok(KnownAst { ast, phantom: default() })
         }
     }
 
     /// Returns the AST's shape.
     pub fn shape(&self) -> &T
-    where
-        E: Debug,
-    {
+    where E: Debug {
         self.deref()
     }
 
@@ -83,8 +76,7 @@ where
     pub fn update_shape<R>(&mut self, f: impl FnOnce(&mut T) -> R) -> R
     where
         T: Clone + Into<Shape<Ast>>,
-        E: Debug,
-    {
+        E: Debug, {
         let mut shape = self.shape().clone();
         let ret = f(&mut shape);
         self.ast = self.ast.with_shape(shape);
@@ -98,8 +90,7 @@ where
         T: Clone + Into<Shape<Ast>>,
         S: Clone + Into<Shape<Ast>>,
         E: Debug,
-        E1: Debug,
-    {
+        E1: Debug, {
         let shape = self.shape().clone();
         let new_shape = f(shape);
         KnownAst::new_unchecked(self.ast.with_shape(new_shape))
@@ -144,8 +135,7 @@ impl<T> AsRef<Ast> for KnownAst<T> {
 }
 
 impl<T, E> TryFrom<&Ast> for KnownAst<T>
-where
-    for<'t> &'t Shape<Ast>: TryInto<&'t T, Error = E>,
+where for<'t> &'t Shape<Ast>: TryInto<&'t T, Error = E>
 {
     type Error = E;
     fn try_from(ast: &Ast) -> Result<KnownAst<T>, Self::Error> {
@@ -154,8 +144,7 @@ where
 }
 
 impl<T, E> TryFrom<Ast> for KnownAst<T>
-where
-    for<'t> &'t Shape<Ast>: TryInto<&'t T, Error = E>,
+where for<'t> &'t Shape<Ast>: TryInto<&'t T, Error = E>
 {
     type Error = E;
     fn try_from(ast: Ast) -> Result<KnownAst<T>, Self::Error> {
@@ -178,9 +167,7 @@ impl<'a, T> From<&'a KnownAst<T>> for &'a Ast {
 
 impl<T> Serialize for KnownAst<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
+    where S: Serializer {
         self.ast.serialize(serializer)
     }
 }
@@ -191,9 +178,7 @@ where
     E: fmt::Display,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
+    where D: Deserializer<'de> {
         let ast = Ast::deserialize(deserializer)?;
         Self::try_new(ast).map_err(serde::de::Error::custom)
     }
@@ -210,6 +195,8 @@ impl<T> Display for KnownAst<T> {
         fmt::Display::fmt(&self.ast, f)
     }
 }
+
+
 
 // ===============
 // === Aliases ===
@@ -231,6 +218,8 @@ macro_rules! generate_alias {
 // Generates aliases for each Shape variant.
 with_shape_variants!(generate_alias);
 
+
+
 // =============
 // === Tests ===
 // =============
@@ -248,6 +237,7 @@ mod tests {
 
         let known_var: Var = ast_var.clone().try_into().unwrap();
         assert_eq!(known_var.name, "foo");
+
 
         // This is not an Infix, so we won't get KnownAst object.
         let known_infix_opt = Infix::try_from(&ast_var);

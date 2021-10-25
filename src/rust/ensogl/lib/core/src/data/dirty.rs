@@ -14,6 +14,8 @@ use rustc_hash::FxHashSet;
 use std::hash::Hash;
 use std::mem;
 
+
+
 // ==================
 // === Operations ===
 // ==================
@@ -77,11 +79,12 @@ pub mod traits {
     // === Type Aliases ===
     pub trait DirtyFlagOps = Debug + HasCheckAll + HasUnsetAll;
     pub trait DirtyFlagOps0 = DirtyFlagOps + HasCheck0 + HasSet0;
-    pub trait DirtyFlagOps1 =
-        DirtyFlagOps + HasCheck1 + HasSet1 where Arg<Self>: Debug;
+    pub trait DirtyFlagOps1 = DirtyFlagOps + HasCheck1 + HasSet1 where Arg<Self>: Debug;
 }
 
 pub use traits::*;
+
+
 
 // =================
 // === DirtyFlag ===
@@ -96,21 +99,18 @@ pub use traits::*;
 #[derivative(Debug(bound = "T:Debug"))]
 pub struct DirtyFlag<T, OnMut> {
     pub data: T,
-    logger: Logger,
+    logger:   Logger,
     #[derivative(Debug = "ignore")]
-    on_set: OnMut,
+    on_set:   OnMut,
 }
+
 
 // === Basics ===
 
 impl<OnMut, T: Default> DirtyFlag<T, OnMut> {
     pub fn new(logger: Logger, on_set: OnMut) -> Self {
         let data = default();
-        Self {
-            data,
-            logger,
-            on_set,
-        }
+        Self { data, logger, on_set }
     }
 
     pub fn take(&mut self) -> T {
@@ -118,11 +118,13 @@ impl<OnMut, T: Default> DirtyFlag<T, OnMut> {
     }
 }
 
+
 // === Arguments ===
 
 impl<T: HasArg, OnMut> HasArg for DirtyFlag<T, OnMut> {
     type Arg = Arg<T>;
 }
+
 
 // === Global Operations ===
 
@@ -138,6 +140,7 @@ impl<T: HasUnsetAll, OnMut> HasUnsetAll for DirtyFlag<T, OnMut> {
     }
 }
 
+
 // === Check ===
 
 impl<T: DirtyFlagOps0, OnMut> HasCheck0 for DirtyFlag<T, OnMut> {
@@ -151,6 +154,7 @@ impl<T: DirtyFlagOps1, OnMut> HasCheck1 for DirtyFlag<T, OnMut> {
         self.data.check(arg)
     }
 }
+
 
 // === Set ===
 
@@ -181,6 +185,7 @@ impl<T: DirtyFlagOps1, OnMut: FnMut0> HasSet1 for DirtyFlag<T, OnMut> {
     }
 }
 
+
 // === Unset ===
 
 impl<T: HasUnset0, OnMut> HasUnset0 for DirtyFlag<T, OnMut> {
@@ -191,14 +196,15 @@ impl<T: HasUnset0, OnMut> HasUnset0 for DirtyFlag<T, OnMut> {
 }
 
 impl<T: HasUnset1, OnMut> HasUnset1 for DirtyFlag<T, OnMut>
-where
-    Arg<T>: Display,
+where Arg<T>: Display
 {
     fn unset(&mut self, arg: &Self::Arg) {
         info!(self.logger, "Unsetting {arg}.");
         self.data.unset(arg)
     }
 }
+
+
 
 // =======================
 // === SharedDirtyFlag ===
@@ -215,13 +221,12 @@ pub struct SharedDirtyFlag<T, OnMut> {
     rc: Rc<RefCell<DirtyFlag<T, OnMut>>>,
 }
 
+
 // === API ===
 
 impl<T: Default, OnMut> SharedDirtyFlag<T, OnMut> {
     pub fn new(logger: Logger, on_set: OnMut) -> Self {
-        Self {
-            rc: Rc::new(RefCell::new(DirtyFlag::new(logger, on_set))),
-        }
+        Self { rc: Rc::new(RefCell::new(DirtyFlag::new(logger, on_set))) }
     }
 
     pub fn take(&self) -> T {
@@ -241,19 +246,19 @@ impl<T, OnMut> SharedDirtyFlag<T, OnMut> {
     }
 }
 
-impl<T, OnMut> From<Rc<RefCell<DirtyFlag<T, OnMut>>>>
-    for SharedDirtyFlag<T, OnMut>
-{
+impl<T, OnMut> From<Rc<RefCell<DirtyFlag<T, OnMut>>>> for SharedDirtyFlag<T, OnMut> {
     fn from(rc: Rc<RefCell<DirtyFlag<T, OnMut>>>) -> Self {
         Self { rc }
     }
 }
+
 
 // === Arg ===
 
 impl<T: HasArg, OnMut> HasArg for SharedDirtyFlag<T, OnMut> {
     type Arg = Arg<T>;
 }
+
 
 // === Global Operations ===
 
@@ -285,17 +290,13 @@ impl<T: DirtyFlagOps1, OnMut> HasCheck1 for SharedDirtyFlag<T, OnMut> {
 
 // === Set ===
 
-impl<T: DirtyFlagOps0, OnMut: FnMut0> SharedHasSet0
-    for SharedDirtyFlag<T, OnMut>
-{
+impl<T: DirtyFlagOps0, OnMut: FnMut0> SharedHasSet0 for SharedDirtyFlag<T, OnMut> {
     fn set(&self) {
         self.rc.borrow_mut().set()
     }
 }
 
-impl<T: DirtyFlagOps1, OnMut: FnMut0> SharedHasSet1
-    for SharedDirtyFlag<T, OnMut>
-{
+impl<T: DirtyFlagOps1, OnMut: FnMut0> SharedHasSet1 for SharedDirtyFlag<T, OnMut> {
     fn set(&self, arg: Arg<T>) {
         self.rc.borrow_mut().set(arg)
     }
@@ -310,13 +311,14 @@ impl<T: HasUnset0, OnMut> SharedHasUnset0 for SharedDirtyFlag<T, OnMut> {
 }
 
 impl<T: HasUnset1, OnMut> SharedHasUnset1 for SharedDirtyFlag<T, OnMut>
-where
-    Arg<T>: Display,
+where Arg<T>: Display
 {
     fn unset(&self, arg: &Self::Arg) {
         self.rc.borrow_mut().unset(arg)
     }
 }
+
+
 
 // =============================================================================
 // === Flags ===================================================================
@@ -363,6 +365,8 @@ impl HasUnset0 for BoolData {
     }
 }
 
+
+
 // =============
 // === Range ===
 // =============
@@ -404,15 +408,14 @@ impl<Ix: RangeIx> HasSet1 for RangeData<Ix> {
     fn set(&mut self, ix: Ix) {
         self.range = match &self.range {
             None => Some(ix..=ix),
-            Some(r) => {
+            Some(r) =>
                 if ix < *r.start() {
                     Some(ix..=*r.end())
                 } else if ix > *r.end() {
                     Some(*r.start()..=ix)
                 } else {
                     Some(r.clone())
-                }
-            }
+                },
         };
     }
 }
@@ -433,6 +436,8 @@ impl<Ix: RangeIx> Display for RangeData<Ix> {
         )
     }
 }
+
+
 
 // ===========
 // === Set ===
@@ -500,14 +505,15 @@ impl<'t, Item: SetItem> IntoIterator for &'t SetData<Item> {
     }
 }
 
+
+
 // ==============
 // === Vector ===
 // ==============
 
 /// Dirty flag which keeps a vector of dirty values.
 pub type Vector<Item, OnMut = ()> = DirtyFlag<VectorData<Item>, OnMut>;
-pub type SharedVector<Item, OnMut = ()> =
-    SharedDirtyFlag<VectorData<Item>, OnMut>;
+pub type SharedVector<Item, OnMut = ()> = SharedDirtyFlag<VectorData<Item>, OnMut>;
 pub trait VectorItem = Debug + PartialEq;
 
 #[derive(Derivative, Debug, Shrinkwrap)]
@@ -562,6 +568,8 @@ impl<'t, Item> IntoIterator for &'t VectorData<Item> {
     }
 }
 
+
+
 // ================
 // === BitField ===
 // ================
@@ -588,7 +596,7 @@ pub type SharedBitField<Prim, OnMut> = SharedEnum<Prim, usize, OnMut>;
 #[derivative(Default(bound = "Prim:Default"))]
 pub struct EnumData<Prim = u32, T = usize> {
     pub bits: Prim,
-    phantom: PhantomData<T>,
+    phantom:  PhantomData<T>,
 }
 
 impl<Prim, T> HasArg for EnumData<Prim, T> {

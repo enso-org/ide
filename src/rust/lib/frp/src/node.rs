@@ -3,12 +3,15 @@
 use crate::data::watch;
 use crate::prelude::*;
 
+
+
 // ============
 // === Data ===
 // ============
 
 /// Data that flows trough the FRP network.
 pub trait Data = 'static + Clone + Debug + Default;
+
 
 // =================
 // === HasOutput ===
@@ -23,8 +26,11 @@ pub trait HasOutput {
 /// A static version of `HasOutput`.
 pub trait HasOutputStatic = 'static + HasOutput;
 
+
 /// Accessor of the accosiated `Output` type.
 pub type Output<T> = <T as HasOutput>::Output;
+
+
 
 // ==========
 // === Id ===
@@ -47,6 +53,7 @@ impl<T: HasId> HasId for watch::Ref<T> {
         self.target.id()
     }
 }
+
 
 // =============
 // === Label ===

@@ -1,6 +1,8 @@
 //! Module that contains an implementation of a simple axis aligned bounding box.
 use ensogl::prelude::*;
 
+
+
 // ===================
 // === BoundingBox ===
 // ===================
@@ -8,10 +10,10 @@ use ensogl::prelude::*;
 /// Describes a 2D bounding box of an UI component.
 #[derive(Clone, Copy, Default, Debug)]
 pub struct BoundingBox {
-    top: f32,
+    top:    f32,
     bottom: f32,
-    left: f32,
-    right: f32,
+    left:   f32,
+    right:  f32,
 }
 
 impl BoundingBox {
@@ -21,12 +23,7 @@ impl BoundingBox {
         let bottom = p1.y.min(p2.y);
         let left = p1.x.min(p2.x);
         let right = p1.x.max(p2.x);
-        BoundingBox {
-            top,
-            bottom,
-            left,
-            right,
-        }
+        BoundingBox { top, bottom, left, right }
     }
 
     /// Return a bounding box given by the position and size. The position interpreted as the
@@ -79,6 +76,7 @@ impl BoundingBox {
     }
 }
 
+
 // === Bounding Box Tests ===
 
 #[cfg(test)]
@@ -87,58 +85,28 @@ mod tests {
 
     #[test]
     fn test_intersection() {
-        let bb1 = BoundingBox::from_corners(
-            Vector2::new(0.5, 0.5),
-            Vector2::new(1.0, 1.0),
-        );
-        let bb2 = BoundingBox::from_corners(
-            Vector2::new(0.0, 0.0),
-            Vector2::new(2.0, 2.0),
-        );
+        let bb1 = BoundingBox::from_corners(Vector2::new(0.5, 0.5), Vector2::new(1.0, 1.0));
+        let bb2 = BoundingBox::from_corners(Vector2::new(0.0, 0.0), Vector2::new(2.0, 2.0));
         assert!(bb1.intersects(&bb2));
         assert!(bb2.intersects(&bb1));
 
-        let bb1 = BoundingBox::from_corners(
-            Vector2::new(3.0, 3.0),
-            Vector2::new(4.0, 4.0),
-        );
-        let bb2 = BoundingBox::from_corners(
-            Vector2::new(0.0, 0.0),
-            Vector2::new(2.0, 2.0),
-        );
+        let bb1 = BoundingBox::from_corners(Vector2::new(3.0, 3.0), Vector2::new(4.0, 4.0));
+        let bb2 = BoundingBox::from_corners(Vector2::new(0.0, 0.0), Vector2::new(2.0, 2.0));
         assert!(!bb1.intersects(&bb2));
         assert!(!bb2.intersects(&bb1));
 
-        let bb1 = BoundingBox::from_corners(
-            Vector2::new(0.0, 0.0),
-            Vector2::new(4.0, 4.0),
-        );
-        let bb2 = BoundingBox::from_corners(
-            Vector2::new(0.0, 0.0),
-            Vector2::new(-2.0, -2.0),
-        );
+        let bb1 = BoundingBox::from_corners(Vector2::new(0.0, 0.0), Vector2::new(4.0, 4.0));
+        let bb2 = BoundingBox::from_corners(Vector2::new(0.0, 0.0), Vector2::new(-2.0, -2.0));
         assert!(bb1.intersects(&bb2));
         assert!(bb2.intersects(&bb1));
 
-        let bb1 = BoundingBox::from_corners(
-            Vector2::new(0.0, 0.0),
-            Vector2::new(4.0, 4.0),
-        );
-        let bb2 = BoundingBox::from_corners(
-            Vector2::new(2.0, 2.0),
-            Vector2::new(200.0, 200.0),
-        );
+        let bb1 = BoundingBox::from_corners(Vector2::new(0.0, 0.0), Vector2::new(4.0, 4.0));
+        let bb2 = BoundingBox::from_corners(Vector2::new(2.0, 2.0), Vector2::new(200.0, 200.0));
         assert!(bb1.intersects(&bb2));
         assert!(bb2.intersects(&bb1));
 
-        let bb1 = BoundingBox::from_corners(
-            Vector2::new(-50.0, -50.0),
-            Vector2::new(25.0, 25.0),
-        );
-        let bb2 = BoundingBox::from_corners(
-            Vector2::new(5.00, 50.0),
-            Vector2::new(100.0, 100.0),
-        );
+        let bb1 = BoundingBox::from_corners(Vector2::new(-50.0, -50.0), Vector2::new(25.0, 25.0));
+        let bb2 = BoundingBox::from_corners(Vector2::new(5.00, 50.0), Vector2::new(100.0, 100.0));
         assert!(!bb1.intersects(&bb2));
         assert!(!bb2.intersects(&bb1));
     }

@@ -26,6 +26,8 @@ use parser::Parser;
 use serde::Deserialize;
 use serde::Serialize;
 
+
+
 // ============
 // == Errors ==
 // ============
@@ -40,7 +42,7 @@ pub struct NodeMetadataNotFound(pub ast::Id);
 #[fail(display = "The path `{}` is not a valid module path. {}", path, issue)]
 pub struct InvalidModulePath {
     /// The path that is not a valid module path.
-    path: FilePath,
+    path:  FilePath,
     /// The reason why the path is not a valid module path.
     issue: ModulePathViolation,
 }
@@ -49,17 +51,15 @@ pub struct InvalidModulePath {
 #[allow(missing_docs)]
 #[derive(Clone, Copy, Debug, Fail)]
 pub enum ModulePathViolation {
-    #[fail(
-        display = "The module file path needs to contain at least two segments."
-    )]
+    #[fail(display = "The module file path needs to contain at least two segments.")]
     NotEnoughSegments,
-    #[fail(
-        display = "The module file path should start with the sources directory."
-    )]
+    #[fail(display = "The module file path should start with the sources directory.")]
     NotInSourceDirectory,
     #[fail(display = "The module file must have a proper language extension.")]
     WrongFileExtension,
 }
+
+
 
 // ============
 // === Path ===
@@ -90,9 +90,7 @@ impl Path {
         let filename = std::iter::once(Self::module_filename(&id.name()));
         let segments = src_dir.chain(dirs).chain(filename).collect();
         let path = FilePath { root_id, segments };
-        Path {
-            file_path: Rc::new(path),
-        }
+        Path { file_path: Rc::new(path) }
     }
 
     /// Get path to the module with given qualified name under given root ID.
@@ -101,10 +99,7 @@ impl Path {
     }
 
     /// Get a path of the module that defines given method.
-    pub fn from_method(
-        root_id: Uuid,
-        method: &MethodPointer,
-    ) -> FallibleResult<Self> {
+    pub fn from_method(root_id: Uuid, method: &MethodPointer) -> FallibleResult<Self> {
         let name = QualifiedName::try_from(method)?;
         Ok(Self::from_name(root_id, &name))
     }
@@ -117,15 +112,12 @@ impl Path {
             move || InvalidModulePath { path, issue }
         };
 
-        if let [ref src_dir, ref dirs @ .., _] = *file_path.segments.as_slice()
-        {
-            (src_dir == SOURCE_DIRECTORY)
-                .ok_or_else(error(NotInSourceDirectory))?;
+        if let [ref src_dir, ref dirs @ .., _] = *file_path.segments.as_slice() {
+            (src_dir == SOURCE_DIRECTORY).ok_or_else(error(NotInSourceDirectory))?;
             for dir in dirs {
                 ReferentName::validate(dir)?;
             }
-            let correct_extension =
-                file_path.extension() == Some(LANGUAGE_FILE_EXTENSION);
+            let correct_extension = file_path.extension() == Some(LANGUAGE_FILE_EXTENSION);
             correct_extension.ok_or_else(error(WrongFileExtension))?;
             ReferentName::validate(file_path.file_stem().unwrap_or_default())?;
             Ok(())
@@ -149,9 +141,7 @@ impl Path {
         root_id: Uuid,
         name_segments: impl IntoIterator<Item: AsRef<str>>,
     ) -> FallibleResult<Path> {
-        let segment_results = name_segments
-            .into_iter()
-            .map(|s| ReferentName::new(s.as_ref()));
+        let segment_results = name_segments.into_iter().map(|s| ReferentName::new(s.as_ref()));
         let segments = segment_results.collect::<Result<Vec<_>, _>>()?;
         let id = Id::new(segments);
         Ok(Self::from_id(root_id, &id))
@@ -159,13 +149,10 @@ impl Path {
 
     /// Get the module's identifier.
     pub fn id(&self) -> Id {
-        if let [ref _src, ref dirs @ .., _] =
-            *self.file_path.segments.as_slice()
-        {
+        if let [ref _src, ref dirs @ .., _] = *self.file_path.segments.as_slice() {
             // Path must designate a valid module and must be able to designate any valid module.
             // Therefore, unwraps in this method are safe.
-            let parent_segments =
-                dirs.iter().map(ReferentName::new).map(Result::unwrap);
+            let parent_segments = dirs.iter().map(ReferentName::new).map(Result::unwrap);
             let final_segment = std::iter::once(self.module_name());
             let segments = parent_segments.chain(final_segment);
             Id::new(segments)
@@ -216,33 +203,24 @@ impl Path {
         let module = String::from(self.qualified_module_name(project_name));
         let defined_on_type = module.clone();
         let name = method_name.into();
-        MethodPointer {
-            module,
-            defined_on_type,
-            name,
-        }
+        MethodPointer { module, defined_on_type, name }
     }
 
     /// Obtain a module's full qualified name from the path and the project name.
     ///
     /// ```
-    /// use ide::prelude::*;
-    /// use ide::model::module::QualifiedName;
     /// use ide::model::module::Path;
+    /// use ide::model::module::QualifiedName;
+    /// use ide::prelude::*;
     ///
-    /// let path = Path::from_name_segments(default(),&["Main"]).unwrap();
-    /// assert_eq!(path.to_string(),"//00000000-0000-0000-0000-000000000000/src/Main.enso");
+    /// let path = Path::from_name_segments(default(), &["Main"]).unwrap();
+    /// assert_eq!(path.to_string(), "//00000000-0000-0000-0000-000000000000/src/Main.enso");
     /// let name = path.qualified_module_name("local.Project".try_into().unwrap());
-    /// assert_eq!(name.to_string(),"local.Project.Main");
+    /// assert_eq!(name.to_string(), "local.Project.Main");
     /// ```
-    pub fn qualified_module_name(
-        &self,
-        project_name: project::QualifiedName,
-    ) -> QualifiedName {
-        let non_src_directories =
-            &self.file_path.segments[1..self.file_path.segments.len() - 1];
-        let non_src_directories =
-            non_src_directories.iter().map(|dirname| dirname.as_str());
+    pub fn qualified_module_name(&self, project_name: project::QualifiedName) -> QualifiedName {
+        let non_src_directories = &self.file_path.segments[1..self.file_path.segments.len() - 1];
+        let non_src_directories = non_src_directories.iter().map(|dirname| dirname.as_str());
         let module_name = self.module_name();
         let module_name = std::iter::once(module_name.as_ref());
         let module_segments = non_src_directories.chain(module_name);
@@ -277,6 +255,8 @@ impl From<Path> for Id {
     }
 }
 
+
+
 // ====================
 // === Notification ===
 // ====================
@@ -289,7 +269,7 @@ pub enum NotificationKind {
     /// The code has been edited. That involves also a change in module's id_map.
     CodeChanged {
         /// The code change description.
-        change: TextChange,
+        change:            TextChange,
         /// Information about line:col position of replaced fragment.
         replaced_location: Range<TextLocation>,
     },
@@ -303,13 +283,15 @@ pub struct Notification {
     /// The expected state of the source file at the point when this notification is emit.
     ///
     /// This information is necessary for notifying LS about edits -- in case of failure the
-    /// synchronization handler must be able to perform full invalidation. The model state cannot be
-    /// used for this as LS communication is asynchronous and model state can already be modified
-    /// further.
+    /// synchronization handler must be able to perform full invalidation. The model state cannot
+    /// be used for this as LS communication is asynchronous and model state can already be
+    /// modified further.
     pub new_file: SourceFile,
     /// Describes the notified event.
-    pub kind: NotificationKind,
+    pub kind:     NotificationKind,
 }
+
+
 
 // ==============
 // == Metadata ==
@@ -319,15 +301,12 @@ pub struct Notification {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct Metadata {
     /// Metadata used within ide.
-    #[serde(
-        default,
-        deserialize_with = "utils::serde::deserialize_or_default"
-    )]
+    #[serde(default, deserialize_with = "utils::serde::deserialize_or_default")]
     pub ide: IdeMetadata,
     #[serde(flatten)]
     /// Metadata of other users of ParsedSourceFile<Metadata> API.
     /// Ide should not modify this part of metadata.
-    rest: serde_json::Value,
+    rest:    serde_json::Value,
 }
 
 impl parser::api::Metadata for Metadata {}
@@ -335,7 +314,7 @@ impl parser::api::Metadata for Metadata {}
 impl Default for Metadata {
     fn default() -> Self {
         Metadata {
-            ide: default(),
+            ide:  default(),
             // We cannot default to unit, because it cannot be flattened, so calling
             // `Metadata::default().serialize()` will result in an error.
             rest: serde_json::Value::Object(default()),
@@ -347,10 +326,7 @@ impl Default for Metadata {
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct ProjectMetadata {
     /// The execution context of the displayed graph editor.
-    #[serde(
-        default,
-        deserialize_with = "utils::serde::deserialize_or_default"
-    )]
+    #[serde(default, deserialize_with = "utils::serde::deserialize_or_default")]
     pub call_stack: Vec<model::execution_context::LocalCall>,
 }
 
@@ -359,12 +335,9 @@ pub struct ProjectMetadata {
 pub struct IdeMetadata {
     /// Metadata that belongs to nodes.
     #[serde(deserialize_with = "utils::serde::deserialize_or_default")]
-    node: HashMap<ast::Id, NodeMetadata>,
+    node:    HashMap<ast::Id, NodeMetadata>,
     /// The project metadata. This is stored only in the main module's metadata.
-    #[serde(
-        default,
-        deserialize_with = "utils::serde::deserialize_or_default"
-    )]
+    #[serde(default, deserialize_with = "utils::serde::deserialize_or_default")]
     project: Option<ProjectMetadata>,
 }
 
@@ -372,35 +345,26 @@ pub struct IdeMetadata {
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct NodeMetadata {
     /// Position in x,y coordinates.
-    #[serde(
-        default,
-        deserialize_with = "utils::serde::deserialize_or_default"
-    )]
-    pub position: Option<Position>,
+    #[serde(default, deserialize_with = "utils::serde::deserialize_or_default")]
+    pub position:        Option<Position>,
     /// A method which user intends this node to be, e.g. by picking specific suggestion in
     /// Searcher Panel.
     ///
     /// The methods may be defined for different types, so the name alone don't specify them.
-    #[serde(
-        default,
-        deserialize_with = "utils::serde::deserialize_or_default"
-    )]
+    #[serde(default, deserialize_with = "utils::serde::deserialize_or_default")]
     pub intended_method: Option<MethodId>,
     /// Information about uploading file.
     ///
     /// Designed to be present in nodes created by dragging and dropping files in IDE. Contains
     /// information about file and upload progress.
-    #[serde(
-        default,
-        deserialize_with = "utils::serde::deserialize_or_default"
-    )]
-    pub uploading_file: Option<UploadingFile>,
+    #[serde(default, deserialize_with = "utils::serde::deserialize_or_default")]
+    pub uploading_file:  Option<UploadingFile>,
     /// Was node selected in the view.
     #[serde(default)]
-    pub selected: bool,
+    pub selected:        bool,
     /// Information about enabled visualization. Exact format is defined by the integration layer.
     #[serde(default)]
-    pub visualization: serde_json::Value,
+    pub visualization:   serde_json::Value,
 }
 
 /// Used for storing node position.
@@ -439,19 +403,14 @@ impl Position {
     // The function is meant to be used in iterator API and it passes arguments by value.
     #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn ord_by_y(pos1: &Position, pos2: &Position) -> std::cmp::Ordering {
-        pos1.vector
-            .y
-            .partial_cmp(&pos2.vector.y)
-            .unwrap_or(std::cmp::Ordering::Equal)
+        pos1.vector.y.partial_cmp(&pos2.vector.y).unwrap_or(std::cmp::Ordering::Equal)
     }
 }
 
 impl Add for Position {
     type Output = Position;
     fn add(self, rhs: Self) -> Self::Output {
-        Position {
-            vector: self.vector + rhs.vector,
-        }
+        Position { vector: self.vector + rhs.vector }
     }
 }
 
@@ -485,9 +444,9 @@ impl From<Vector2<f32>> for Position {
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[allow(missing_docs)]
 pub struct MethodId {
-    pub module: QualifiedName,
+    pub module:          QualifiedName,
     pub defined_on_type: TypeQualifiedName,
-    pub name: String,
+    pub name:            String,
 }
 
 /// Uploading File Information
@@ -498,16 +457,17 @@ pub struct MethodId {
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct UploadingFile {
     /// The name of file dropped in IDE.
-    pub name: String,
+    pub name:           String,
     /// The file's destination name. May differ from original name due to conflict with files
     /// already present on the remote.
-    pub remote_name: Option<String>,
-    pub size: u64,
+    pub remote_name:    Option<String>,
+    pub size:           u64,
     /// The number of bytes already uploaded. It _can_ exceed the `size` value, because the file
     /// may change during upload.
     pub bytes_uploaded: u64,
-    pub error: Option<String>,
+    pub error:          Option<String>,
 }
+
 
 // ==============
 // === Module ===
@@ -520,6 +480,7 @@ pub type Content = ParsedSourceFile<Metadata>;
 pub trait API: Debug + model::undo_redo::Aware {
     /// Subscribe for notifications about text representation changes.
     fn subscribe(&self) -> Subscriber<Notification>;
+
 
     // === Getters ===
     /// Get the module path.
@@ -539,6 +500,7 @@ pub trait API: Debug + model::undo_redo::Aware {
 
     /// Returns metadata for given node, if present.
     fn node_metadata(&self, id: ast::Id) -> FallibleResult<NodeMetadata>;
+
 
     // === Setters ===
 
@@ -560,15 +522,10 @@ pub trait API: Debug + model::undo_redo::Aware {
     ) -> FallibleResult;
 
     /// Sets metadata for given node.
-    fn set_node_metadata(
-        &self,
-        id: ast::Id,
-        data: NodeMetadata,
-    ) -> FallibleResult;
+    fn set_node_metadata(&self, id: ast::Id, data: NodeMetadata) -> FallibleResult;
 
     /// Removes metadata of given node and returns them.
-    fn remove_node_metadata(&self, id: ast::Id)
-        -> FallibleResult<NodeMetadata>;
+    fn remove_node_metadata(&self, id: ast::Id) -> FallibleResult<NodeMetadata>;
 
     /// Modify metadata of given node.
     ///
@@ -586,10 +543,7 @@ pub trait API: Debug + model::undo_redo::Aware {
     ///
     /// Access project's metadata with a given function. Fails, if the project's metadata are not
     /// set in this module.
-    fn boxed_with_project_metadata(
-        &self,
-        fun: Box<dyn FnOnce(&ProjectMetadata) + '_>,
-    );
+    fn boxed_with_project_metadata(&self, fun: Box<dyn FnOnce(&ProjectMetadata) + '_>);
 
     /// This method exists as a monomorphication for [`update_project_metadata`]. Users are
     /// encouraged to use it rather then this method.
@@ -599,6 +553,7 @@ pub trait API: Debug + model::undo_redo::Aware {
         &self,
         fun: Box<dyn FnOnce(&mut ProjectMetadata) + '_>,
     ) -> FallibleResult;
+
 
     // === Utils ===
 
@@ -632,10 +587,7 @@ pub trait APIExt: API {
     /// Access project's metadata with a given function.
     ///
     /// Fails, if the project's metadata are not set in this module.
-    fn with_project_metadata<R>(
-        &self,
-        fun: impl FnOnce(&ProjectMetadata) -> R,
-    ) -> R {
+    fn with_project_metadata<R>(&self, fun: impl FnOnce(&ProjectMetadata) -> R) -> R {
         let mut ret = None;
         self.boxed_with_project_metadata(Box::new(|metadata| {
             ret = Some(fun(metadata));
@@ -646,10 +598,7 @@ pub trait APIExt: API {
     }
 
     /// Borrow mutably the project's metadata and update it with a given function.
-    fn update_project_metadata(
-        &self,
-        fun: impl FnOnce(&mut ProjectMetadata),
-    ) -> FallibleResult {
+    fn update_project_metadata(&self, fun: impl FnOnce(&mut ProjectMetadata)) -> FallibleResult {
         self.boxed_update_project_metadata(Box::new(fun))
     }
 }
@@ -662,6 +611,7 @@ pub type Module = Rc<dyn API>;
 pub type Plain = plain::Module;
 /// Module Model which synchronizes all changes with Language Server.
 pub type Synchronized = synchronized::Module;
+
 
 // ============
 // === Test ===
@@ -681,18 +631,18 @@ pub mod test {
     /// Data from which module model is usually created in test scenarios.
     #[derive(Clone, Debug)]
     pub struct MockData {
-        pub path: Path,
-        pub code: String,
-        pub id_map: ast::IdMap,
+        pub path:     Path,
+        pub code:     String,
+        pub id_map:   ast::IdMap,
         pub metadata: Metadata,
     }
 
     impl Default for MockData {
         fn default() -> Self {
             Self {
-                path: crate::test::mock::data::module_path(),
-                code: crate::test::mock::data::CODE.to_owned(),
-                id_map: default(),
+                path:     crate::test::mock::data::module_path(),
+                code:     crate::test::mock::data::CODE.to_owned(),
+                id_map:   default(),
                 metadata: default(),
             }
         }
@@ -704,28 +654,17 @@ pub mod test {
             parser: &Parser,
             repository: Rc<model::undo_redo::Repository>,
         ) -> Module {
-            let ast = parser
-                .parse_module(self.code.clone(), self.id_map.clone())
-                .unwrap();
+            let ast = parser.parse_module(self.code.clone(), self.id_map.clone()).unwrap();
             let logger = Logger::new("MockModule");
-            let module = Plain::new(
-                logger,
-                self.path.clone(),
-                ast,
-                self.metadata.clone(),
-                repository,
-            );
+            let module =
+                Plain::new(logger, self.path.clone(), ast, self.metadata.clone(), repository);
             Rc::new(module)
         }
     }
 
     pub fn plain_from_code(code: impl Into<String>) -> Module {
         let urm = default();
-        MockData {
-            code: code.into(),
-            ..default()
-        }
-        .plain(&parser::Parser::new_or_panic(), urm)
+        MockData { code: code.into(), ..default() }.plain(&parser::Parser::new_or_panic(), urm)
     }
 
     #[test]
@@ -742,38 +681,19 @@ pub mod test {
 
     #[test]
     fn module_path_validation() {
-        assert!(Path::from_file_path(FilePath::new(
-            default(),
-            &["src", "Main.enso"]
-        ))
-        .is_ok());
+        assert!(Path::from_file_path(FilePath::new(default(), &["src", "Main.enso"])).is_ok());
 
-        assert!(Path::from_file_path(FilePath::new(
-            default(),
-            &["surce", "Main.enso"]
-        ))
-        .is_err());
-        assert!(Path::from_file_path(FilePath::new(
-            default(),
-            &["src", "Main"]
-        ))
-        .is_err());
-        assert!(Path::from_file_path(FilePath::new(default(), &["src", ""]))
-            .is_err());
-        assert!(Path::from_file_path(FilePath::new(
-            default(),
-            &["src", "main.enso"]
-        ))
-        .is_err());
+        assert!(Path::from_file_path(FilePath::new(default(), &["surce", "Main.enso"])).is_err());
+        assert!(Path::from_file_path(FilePath::new(default(), &["src", "Main"])).is_err());
+        assert!(Path::from_file_path(FilePath::new(default(), &["src", ""])).is_err());
+        assert!(Path::from_file_path(FilePath::new(default(), &["src", "main.enso"])).is_err());
     }
 
     #[test]
     fn module_qualified_name() {
         let namespace = "n";
         let project_name = "P";
-        let project_name =
-            project::QualifiedName::from_segments(namespace, project_name)
-                .unwrap();
+        let project_name = project::QualifiedName::from_segments(namespace, project_name).unwrap();
         let root_id = default();
         let file_path = FilePath::new(root_id, &["src", "Foo", "Bar.enso"]);
         let module_path = Path::from_file_path(file_path).unwrap();
@@ -791,13 +711,11 @@ pub mod test {
 #### METADATA ####
 []
 {"ide":{"node":{"bd891b65-4c2f-4c05-bc3b-6077b4417cc1":{"position":{"vector":[-75.5,52]},"intended_method":{"module":"Base.System.File","defined_on_type":"File","name":"read"}}}}}"#;
-        let result =
-            Parser::new_or_panic().parse_with_metadata::<Metadata>(code.into());
+        let result = Parser::new_or_panic().parse_with_metadata::<Metadata>(code.into());
         let file = result.unwrap();
         assert_eq!(file.ast.repr(), "main = 5");
         assert_eq!(file.metadata.ide.node.len(), 1);
-        let id =
-            ast::Id::from_str("bd891b65-4c2f-4c05-bc3b-6077b4417cc1").unwrap();
+        let id = ast::Id::from_str("bd891b65-4c2f-4c05-bc3b-6077b4417cc1").unwrap();
         let node = file.metadata.ide.node.get(&id).unwrap();
         assert_eq!(node.position, Some(Position::new(-75.5, 52.0)));
         assert_eq!(node.intended_method, None);

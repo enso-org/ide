@@ -42,22 +42,13 @@ impl From<JsValue> for Error {
 #[wasm_bindgen(module = "/pkg/scala-parser.js")]
 extern "C" {
     #[wasm_bindgen(catch)]
-    fn parse(
-        input: String,
-        ids: String,
-    ) -> std::result::Result<String, JsValue>;
+    fn parse(input: String, ids: String) -> std::result::Result<String, JsValue>;
     #[wasm_bindgen(catch)]
-    fn parse_with_metadata(
-        content: String,
-    ) -> std::result::Result<String, JsValue>;
+    fn parse_with_metadata(content: String) -> std::result::Result<String, JsValue>;
     #[wasm_bindgen(catch)]
-    fn doc_parser_generate_html_source(
-        content: String,
-    ) -> std::result::Result<String, JsValue>;
+    fn doc_parser_generate_html_source(content: String) -> std::result::Result<String, JsValue>;
     #[wasm_bindgen(catch)]
-    fn doc_parser_generate_html_from_doc(
-        content: String,
-    ) -> std::result::Result<String, JsValue>;
+    fn doc_parser_generate_html_from_doc(content: String) -> std::result::Result<String, JsValue>;
 }
 
 /// Wrapper over the JS-compiled parser.

@@ -28,11 +28,11 @@ pub fn resolve_context_module(
     use visualization::instance::ContextModule::*;
     match context_module {
         ProjectMain => Ok(main_module_name()),
-        Specific(module_name) => {
-            model::module::QualifiedName::from_text(module_name)
-        }
+        Specific(module_name) => model::module::QualifiedName::from_text(module_name),
     }
 }
+
+
 
 // ==============
 // === Errors ===
@@ -42,6 +42,8 @@ pub fn resolve_context_module(
 #[derive(Clone, Copy, Debug, Fail)]
 #[fail(display = "No visualization information for expression {}.", _0)]
 pub struct NoVisualization(ast::Id);
+
+
 
 // ====================
 // === Notification ===
@@ -53,34 +55,36 @@ pub enum Notification {
     /// New update data has been received from Language Server.
     ValueUpdate {
         /// Expression on which the visualization is attached.
-        target: ast::Id,
+        target:           ast::Id,
         /// Identifier of the visualization that received data.
         visualization_id: VisualizationId,
         /// Serialized binary data payload -- result of visualization evaluation.
-        data: VisualizationUpdateData,
+        data:             VisualizationUpdateData,
     },
     /// An attempt to attach a new visualization has failed.
     FailedToAttach {
         /// Visualization that failed to be attached.
         visualization: Visualization,
         /// Error from the request.
-        error: failure::Error,
+        error:         failure::Error,
     },
     /// An attempt to detach a new visualization has failed.
     FailedToDetach {
         /// Visualization that failed to be detached.
         visualization: Visualization,
         /// Error from the request.
-        error: failure::Error,
+        error:         failure::Error,
     },
     /// An attempt to modify a visualization has failed.
     FailedToModify {
         /// Visualization that failed to be modified.
         desired: Visualization,
         /// Error from the request.
-        error: failure::Error,
+        error:   failure::Error,
     },
 }
+
+
 
 // ==============
 // === Status ===
@@ -98,7 +102,7 @@ pub enum Status {
         /// Current visualization state.
         from: Visualization,
         /// Target visualization state (will be achieved if operation completed successfully).
-        to: Visualization,
+        to:   Visualization,
     },
     /// Attaching has been requested but result is still unknown.
     BeingDetached(Visualization),
@@ -160,6 +164,8 @@ impl Default for Status {
     }
 }
 
+
+
 // ===============
 // === Desired ===
 // ===============
@@ -169,9 +175,11 @@ impl Default for Status {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Desired {
     pub visualization_id: VisualizationId,
-    pub expression_id: ast::Id,
-    pub metadata: Metadata,
+    pub expression_id:    ast::Id,
+    pub metadata:         Metadata,
 }
+
+
 
 // ===================
 // === Description ===
@@ -183,7 +191,7 @@ pub struct Description {
     /// The visualization desired by the View. `None` denotes detached visualization.
     pub desired: Option<Desired>,
     /// What we know about Language Server state of the visualization.
-    pub status: Synchronized<Status>,
+    pub status:  Synchronized<Status>,
 }
 
 impl Description {
@@ -192,9 +200,7 @@ impl Description {
     /// The yielded value is a new visualization status, or `None` if the operation has been
     /// aborted.
     pub fn when_done(&self) -> impl Future<Output = Option<Status>> {
-        self.status.when_map(|status| {
-            (!status.has_ongoing_work()).then(|| status.clone())
-        })
+        self.status.when_map(|status| (!status.has_ongoing_work()).then(|| status.clone()))
     }
 
     /// Get the target visualization id, or current visualization id otherwise.
@@ -214,10 +220,10 @@ impl Description {
 /// As this type wraps asynchronous operations, it should be stored using `Rc` pointer.
 #[derive(Debug)]
 pub struct Manager {
-    logger: Logger,
-    visualizations: SharedHashMap<ast::Id, Description>,
-    executed_graph: ExecutedGraph,
-    project: model::Project,
+    logger:              Logger,
+    visualizations:      SharedHashMap<ast::Id, Description>,
+    executed_graph:      ExecutedGraph,
+    project:             model::Project,
     notification_sender: futures::channel::mpsc::UnboundedSender<Notification>,
 }
 
@@ -231,8 +237,7 @@ impl Manager {
         executed_graph: ExecutedGraph,
         project: model::Project,
     ) -> (Rc<Self>, UnboundedReceiver<Notification>) {
-        let (notification_sender, notification_receiver) =
-            futures::channel::mpsc::unbounded();
+        let (notification_sender, notification_receiver) = futures::channel::mpsc::unbounded();
         let ret = Self {
             logger,
             visualizations: default(),
@@ -244,14 +249,12 @@ impl Manager {
     }
 
     /// Borrow mutably a description of a given visualization.
-    fn borrow_mut(
-        &self,
-        target: ast::Id,
-    ) -> FallibleResult<RefMut<Description>> {
+    fn borrow_mut(&self, target: ast::Id) -> FallibleResult<RefMut<Description>> {
         let map = self.visualizations.raw.borrow_mut();
         RefMut::filter_map(map, |map| map.get_mut(&target))
             .map_err(|_| NoVisualization(target).into())
     }
+
 
     /// Set a new status for the visualization.
     fn update_status(&self, target: ast::Id, new_status: Status) {
@@ -263,33 +266,22 @@ impl Manager {
         } else {
             // Something is going on with a visualization we dropped info about. Unexpected.
             // Insert it back, so it can be properly detached (or whatever) later.
-            let visualization = Description {
-                desired: default(),
-                status: Synchronized::new(new_status),
-            };
+            let visualization =
+                Description { desired: default(), status: Synchronized::new(new_status) };
             self.visualizations.insert(target, visualization);
         };
     }
 
     /// Get a copy of a visualization description.
     pub fn get_cloned(&self, target: ast::Id) -> FallibleResult<Description> {
-        self.visualizations
-            .get_cloned(&target)
-            .ok_or_else(|| NoVisualization(target).into())
+        self.visualizations.get_cloned(&target).ok_or_else(|| NoVisualization(target).into())
     }
 
     /// Get the visualization state that is desired (i.e. requested from GUI side) for a given node.
-    pub fn get_desired_visualization(
-        &self,
-        target: ast::Id,
-    ) -> FallibleResult<Desired> {
+    pub fn get_desired_visualization(&self, target: ast::Id) -> FallibleResult<Desired> {
         self.get_cloned(target).and_then(|v| {
-            v.desired.ok_or_else(|| {
-                failure::format_err!(
-                    "No desired visualization set for {}",
-                    target
-                )
-            })
+            v.desired
+                .ok_or_else(|| failure::format_err!("No desired visualization set for {}", target))
         })
     }
 
@@ -302,10 +294,7 @@ impl Manager {
     ///
     /// Should be used only if the visualization was detached (or otherwise broken) outside of the
     /// `[Manager]` knowledge. Otherwise, the visualization will be dangling on the LS side.
-    pub fn forget_visualization(
-        self: &Rc<Self>,
-        target: ast::Id,
-    ) -> Option<Description> {
+    pub fn forget_visualization(self: &Rc<Self>, target: ast::Id) -> Option<Description> {
         self.visualizations.remove(&target)
     }
 
@@ -313,45 +302,28 @@ impl Manager {
     ///
     /// Note that `[Manager]` allows setting at most one visualization per expression. Subsequent
     /// calls will chnge previous visualization to the a new one.
-    pub fn request_visualization(
-        self: &Rc<Self>,
-        target: ast::Id,
-        requested: Metadata,
-    ) {
+    pub fn request_visualization(self: &Rc<Self>, target: ast::Id, requested: Metadata) {
         self.set_visualization(target, Some(requested))
     }
 
     /// Set desired state of visualization on a node.
-    pub fn set_visualization(
-        self: &Rc<Self>,
-        target: ast::Id,
-        new_desired: Option<Metadata>,
-    ) {
+    pub fn set_visualization(self: &Rc<Self>, target: ast::Id, new_desired: Option<Metadata>) {
         let current = self.visualizations.get_cloned(&target);
         if current.is_none() && new_desired.is_none() {
             // Early return: requested to remove visualization that was already removed.
             return;
         };
-        let current_id =
-            current.as_ref().and_then(|current| current.latest_id());
+        let current_id = current.as_ref().and_then(|current| current.latest_id());
         let new_desired = new_desired.map(|new_desired| Desired {
-            expression_id: target,
-            visualization_id: current_id
-                .unwrap_or_else(VisualizationId::new_v4),
-            metadata: new_desired,
+            expression_id:    target,
+            visualization_id: current_id.unwrap_or_else(VisualizationId::new_v4),
+            metadata:         new_desired,
         });
         self.write_new_desired(target, new_desired)
     }
 
-    fn write_new_desired(
-        self: &Rc<Self>,
-        target: ast::Id,
-        new_desired: Option<Desired>,
-    ) {
-        debug!(
-            self.logger,
-            "Requested to set visualization {target}: {new_desired:?}"
-        );
+    fn write_new_desired(self: &Rc<Self>, target: ast::Id, new_desired: Option<Desired>) {
+        debug!(self.logger, "Requested to set visualization {target}: {new_desired:?}");
         let mut current = match self.visualizations.get_cloned(&target) {
             None => {
                 if new_desired.is_none() {
@@ -377,6 +349,7 @@ impl Manager {
         }
     }
 
+
     fn resolve_context_module(
         &self,
         context_module: &ContextModule,
@@ -384,17 +357,14 @@ impl Manager {
         resolve_context_module(context_module, || self.project.main_module())
     }
 
-    fn prepare_visualization(
-        &self,
-        desired: Desired,
-    ) -> FallibleResult<Visualization> {
+    fn prepare_visualization(&self, desired: Desired) -> FallibleResult<Visualization> {
         let context_module = desired.metadata.preprocessor.module;
         let resolved_module = self.resolve_context_module(&context_module)?;
         Ok(Visualization {
-            id: desired.visualization_id,
-            expression_id: desired.expression_id,
+            id:                desired.visualization_id,
+            expression_id:     desired.expression_id,
             preprocessor_code: desired.metadata.preprocessor.code.to_string(),
-            context_module: resolved_module,
+            context_module:    resolved_module,
         })
     }
 
@@ -405,15 +375,13 @@ impl Manager {
         let weak = Rc::downgrade(self);
         let task = async move || -> Option<()> {
             context.await;
-            let description =
-                weak.upgrade()?.visualizations.get_cloned(&target)?;
+            let description = weak.upgrade()?.visualizations.get_cloned(&target)?;
             let status = description.when_done().await?;
             // We re-get the visualization here, because desired visualization could have been
             // modified while we were awaiting completion of previous request.
             let this = weak.upgrade()?;
             let description = this.visualizations.get_cloned(&target)?;
-            let desired_vis_id =
-                description.desired.as_ref().map(|v| v.visualization_id);
+            let desired_vis_id = description.desired.as_ref().map(|v| v.visualization_id);
             let new_visualization = description.desired.and_then(|desired| {
                 this.prepare_visualization(desired.clone()).handle_err(|error| {
                     error!(this.logger, "Failed to prepare visualization {desired:?}: {error}")
@@ -427,37 +395,35 @@ impl Manager {
                         "Will attach visualization {new_visualization.id} to \
                     expression {target}"
                     );
-                    let status =
-                        Status::BeingAttached(new_visualization.clone());
+                    let status = Status::BeingAttached(new_visualization.clone());
                     this.update_status(target, status);
                     let notifier = this.notification_sender.clone();
-                    let attaching_result = this
-                        .executed_graph
-                        .attach_visualization(new_visualization.clone());
+                    let attaching_result =
+                        this.executed_graph.attach_visualization(new_visualization.clone());
                     match attaching_result.await {
                         Ok(update_receiver) => {
                             let visualization_id = new_visualization.id;
                             let status = Status::Attached(new_visualization);
                             this.update_status(target, status);
                             spawn(update_receiver.for_each(move |data| {
-                                let notification = Notification::ValueUpdate {
-                                    target,
-                                    visualization_id,
-                                    data,
-                                };
+                                let notification =
+                                    Notification::ValueUpdate { target, visualization_id, data };
                                 let _ = notifier.unbounded_send(notification);
                                 ready(())
                             }))
                         }
                         Err(error) => {
                             // TODO [mwu]
-                            //   We should somehow deal with this, but we have really no information, how to.
-                            //   If this failed because e.g. the visualization was already removed (or another
+                            //   We should somehow deal with this, but we have really no
+                            // information, how to.   If this failed
+                            // because e.g. the visualization was already removed (or another
                             //   reason to that effect), we should just do nothing.
-                            //   However, if it is issue like connectivity problem, then we should retry.
-                            //   However, even if had better error recognition, we won't always know.
-                            //   So we should also handle errors like unexpected visualization updates and use
-                            //   them to drive cleanups on such discrepancies.
+                            //   However, if it is issue like connectivity problem, then we should
+                            // retry.   However, even if had better
+                            // error recognition, we won't always know.
+                            //   So we should also handle errors like unexpected visualization
+                            // updates and use   them to drive cleanups
+                            // on such discrepancies.
                             let status = Status::NotAttached;
                             this.update_status(target, status);
                             let notification = Notification::FailedToAttach {
@@ -469,27 +435,22 @@ impl Manager {
                     };
                 }
 
-                (Status::Attached(so_far), None)
-                | (Status::Attached(so_far), Some(_))
+                (Status::Attached(so_far), None) | (Status::Attached(so_far), Some(_))
                     if !desired_vis_id.contains(&so_far.id) =>
                 {
                     info!(this.logger, "Will detach from {target}: {so_far:?}");
                     let status = Status::BeingDetached(so_far.clone());
                     this.update_status(target, status);
-                    let detaching_result =
-                        this.executed_graph.detach_visualization(so_far.id);
+                    let detaching_result = this.executed_graph.detach_visualization(so_far.id);
                     match detaching_result.await {
                         Ok(_) => {
                             let status = Status::NotAttached;
                             this.update_status(target, status);
-                            if let Some(vis) = this
-                                .visualizations
-                                .remove(&so_far.expression_id)
-                            {
+                            if let Some(vis) = this.visualizations.remove(&so_far.expression_id) {
                                 if vis.desired.is_some() {
-                                    // Restore visualization that was re-requested while being detached.
-                                    this.visualizations
-                                        .insert(so_far.expression_id, vis);
+                                    // Restore visualization that was re-requested while being
+                                    // detached.
+                                    this.visualizations.insert(so_far.expression_id, vis);
                                     this.synchronize(so_far.expression_id);
                                 }
                             }
@@ -497,37 +458,33 @@ impl Manager {
                         Err(error) => {
                             let status = Status::Attached(so_far.clone());
                             this.update_status(target, status);
-                            let notification = Notification::FailedToDetach {
-                                visualization: so_far,
-                                error,
-                            };
-                            let _ = this
-                                .notification_sender
-                                .unbounded_send(notification);
+                            let notification =
+                                Notification::FailedToDetach { visualization: so_far, error };
+                            let _ = this.notification_sender.unbounded_send(notification);
                         }
                     };
                 }
                 (Status::Attached(so_far), Some(new_visualization))
-                    if so_far != new_visualization
-                        && so_far.id == new_visualization.id =>
+                    if so_far != new_visualization && so_far.id == new_visualization.id =>
                 {
-                    info!(this.logger, "Will modify visualization on {target} from {so_far:?} to \
-                    {new_visualization:?}");
+                    info!(
+                        this.logger,
+                        "Will modify visualization on {target} from {so_far:?} to \
+                    {new_visualization:?}"
+                    );
                     let status = Status::BeingModified {
                         from: so_far.clone(),
-                        to: new_visualization.clone(),
+                        to:   new_visualization.clone(),
                     };
                     this.update_status(target, status);
                     let id = so_far.id;
-                    let expression =
-                        new_visualization.preprocessor_code.clone();
+                    let expression = new_visualization.preprocessor_code.clone();
                     let module = new_visualization.context_module.clone();
-                    let modifying_result =
-                        this.executed_graph.modify_visualization(
-                            id,
-                            Some(expression),
-                            Some(module),
-                        );
+                    let modifying_result = this.executed_graph.modify_visualization(
+                        id,
+                        Some(expression),
+                        Some(module),
+                    );
                     match modifying_result.await {
                         Ok(_) => {
                             let status = Status::Attached(new_visualization);
@@ -536,13 +493,9 @@ impl Manager {
                         Err(error) => {
                             let status = Status::Attached(so_far);
                             this.update_status(target, status);
-                            let notification = Notification::FailedToModify {
-                                desired: new_visualization,
-                                error,
-                            };
-                            let _ = this
-                                .notification_sender
-                                .unbounded_send(notification);
+                            let notification =
+                                Notification::FailedToModify { desired: new_visualization, error };
+                            let _ = this.notification_sender.unbounded_send(notification);
                         }
                     };
                 }
@@ -555,6 +508,8 @@ impl Manager {
         });
     }
 }
+
+
 
 // =============
 // === Tests ===
@@ -574,7 +529,7 @@ mod tests {
     #[shrinkwrap(mutable)]
     struct Fixture {
         #[shrinkwrap(main_field)]
-        inner: crate::test::mock::Fixture,
+        inner:   crate::test::mock::Fixture,
         node_id: ast::Id,
     }
 
@@ -588,10 +543,8 @@ mod tests {
         fn vis_metadata(&self, code: impl Into<String>) -> Metadata {
             Metadata {
                 preprocessor: PreprocessorConfiguration {
-                    module: ContextModule::Specific(
-                        self.inner.module_name().to_string().into(),
-                    ),
-                    code: code.into().into(),
+                    module: ContextModule::Specific(self.inner.module_name().to_string().into()),
+                    code:   code.into().into(),
                 },
             }
         }
@@ -602,9 +555,9 @@ mod tests {
         Attach(Visualization),
         Detach(VisualizationId),
         Modify {
-            id: VisualizationId,
+            id:         VisualizationId,
             expression: Option<String>,
-            module: Option<model::module::QualifiedName>,
+            module:     Option<model::module::QualifiedName>,
         },
     }
 
@@ -612,9 +565,9 @@ mod tests {
     #[shrinkwrap(mutable)]
     struct VisOperationsTester {
         #[shrinkwrap(main_field)]
-        pub inner: Fixture,
+        pub inner:    Fixture,
         pub is_ready: Synchronized<bool>,
-        pub manager: Rc<Manager>,
+        pub manager:  Rc<Manager>,
         pub notifier: UnboundedReceiver<Notification>,
         pub requests: StaticBoxStream<ExecutionContextRequest>,
     }
@@ -622,57 +575,40 @@ mod tests {
     impl VisOperationsTester {
         fn new(inner: Fixture) -> Self {
             let faux_vis = Visualization {
-                id: default(),
-                expression_id: default(),
-                context_module: inner
-                    .project
-                    .qualified_module_name(inner.module.path()),
+                id:                default(),
+                expression_id:     default(),
+                context_module:    inner.project.qualified_module_name(inner.module.path()),
                 preprocessor_code: "faux value".into(),
             };
             let is_ready = Synchronized::new(false);
-            let mut execution_context =
-                model::execution_context::MockAPI::new();
-            let (request_sender, requests_receiver) =
-                futures::channel::mpsc::unbounded();
+            let mut execution_context = model::execution_context::MockAPI::new();
+            let (request_sender, requests_receiver) = futures::channel::mpsc::unbounded();
             let requests = requests_receiver.boxed_local();
 
-            execution_context.expect_when_ready().returning_st(
-                f! {[is_ready]() is_ready.when_eq(&true).boxed_local()},
-            );
+            execution_context
+                .expect_when_ready()
+                .returning_st(f! {[is_ready]() is_ready.when_eq(&true).boxed_local()});
 
             let sender = request_sender.clone();
-            execution_context
-                .expect_attach_visualization()
-                .returning_st(move |vis| {
-                    sender
-                        .unbounded_send(ExecutionContextRequest::Attach(vis))
-                        .unwrap();
-                    ready(Ok(futures::channel::mpsc::unbounded().1))
-                        .boxed_local()
-                });
+            execution_context.expect_attach_visualization().returning_st(move |vis| {
+                sender.unbounded_send(ExecutionContextRequest::Attach(vis)).unwrap();
+                ready(Ok(futures::channel::mpsc::unbounded().1)).boxed_local()
+            });
 
             let sender = request_sender.clone();
-            execution_context
-                .expect_detach_visualization()
-                .returning_st(move |vis_id| {
-                    sender
-                        .unbounded_send(ExecutionContextRequest::Detach(vis_id))
-                        .unwrap();
-                    ready(Ok(faux_vis.clone())).boxed_local()
-                });
+            execution_context.expect_detach_visualization().returning_st(move |vis_id| {
+                sender.unbounded_send(ExecutionContextRequest::Detach(vis_id)).unwrap();
+                ready(Ok(faux_vis.clone())).boxed_local()
+            });
 
             let sender = request_sender.clone();
-            execution_context
-                .expect_modify_visualization()
-                .returning_st(move |id, expression, module| {
-                    let request = ExecutionContextRequest::Modify {
-                        id,
-                        expression,
-                        module,
-                    };
+            execution_context.expect_modify_visualization().returning_st(
+                move |id, expression, module| {
+                    let request = ExecutionContextRequest::Modify { id, expression, module };
                     sender.unbounded_send(request).unwrap();
                     ready(Ok(())).boxed_local()
-                });
+                },
+            );
 
             let execution_context = Rc::new(execution_context);
             let executed_graph = controller::ExecutedGraph::new_internal(
@@ -685,13 +621,7 @@ mod tests {
                 executed_graph.clone_ref(),
                 inner.project.clone_ref(),
             );
-            Self {
-                inner,
-                is_ready,
-                manager,
-                notifier,
-                requests,
-            }
+            Self { inner, is_ready, manager, notifier, requests }
         }
     }
 
@@ -702,8 +632,7 @@ mod tests {
     ) -> bool {
         let PreprocessorConfiguration { module, code } = &metadata.preprocessor;
         visualization.preprocessor_code == code.to_string()
-            && visualization.context_module
-                == manager.resolve_context_module(&module).unwrap()
+            && visualization.context_module == manager.resolve_context_module(&module).unwrap()
     }
 
     #[wasm_bindgen_test]
@@ -713,13 +642,7 @@ mod tests {
         let fixture = VisOperationsTester::new(fixture);
         let desired_vis_1 = fixture.vis_metadata("expr1");
         let desired_vis_2 = fixture.vis_metadata("expr2");
-        let VisOperationsTester {
-            mut requests,
-            manager,
-            mut inner,
-            is_ready,
-            ..
-        } = fixture;
+        let VisOperationsTester { mut requests, manager, mut inner, is_ready, .. } = fixture;
 
         // No requests are sent before execution context is ready.
         manager.request_visualization(node_id, desired_vis_1.clone());
@@ -754,19 +677,17 @@ mod tests {
         // expression id rather than visualization id.
         let desired_vis_3 = Desired {
             visualization_id: VisualizationId::from_u128(900),
-            expression_id: node_id,
-            metadata: desired_vis_1.clone(),
+            expression_id:    node_id,
+            metadata:         desired_vis_1.clone(),
         };
-        let visualization_so_far =
-            manager.get_cloned(node_id).unwrap().status.get_cloned();
+        let visualization_so_far = manager.get_cloned(node_id).unwrap().status.get_cloned();
         manager.write_new_desired(node_id, Some(desired_vis_3.clone()));
         inner.run_until_stalled();
 
         // let request = requests.expect_next();
         match requests.expect_next() {
-            ExecutionContextRequest::Detach(id) => {
-                assert_eq!(id, visualization_so_far.latest_id().unwrap())
-            }
+            ExecutionContextRequest::Detach(id) =>
+                assert_eq!(id, visualization_so_far.latest_id().unwrap()),
             other => panic!("Expected a detach request, got: {:?}", other),
         }
         assert_matches!(requests.expect_next(), ExecutionContextRequest::Attach(vis)

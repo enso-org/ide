@@ -10,6 +10,8 @@ use crate::data::function::Fn1;
 
 pub use crate::animation::physics::inertia::EndStatus;
 
+
+
 // ========================
 // === Easing functions ===
 // ========================
@@ -24,30 +26,32 @@ pub trait AnyFnEasing = 'static + Fn(f32) -> f32;
 pub trait CloneableFnEasing = 'static + Clone + Fn(f32) -> f32;
 
 macro_rules! define_in_out_easing_fn {
-    (fn $tname:ident $name:ident $lambda:expr) => { paste::item! {
-        /// A $name-in function type.
-        pub type [<$tname In>]    = impl Clone + Fn(f32) -> f32;
-        /// A $name-out function type.
-        pub type [<$tname Out>]   = impl Clone + Fn(f32) -> f32;
-        /// A $name-in-out function type.
-        pub type [<$tname InOut>] = impl Clone + Fn(f32) -> f32;
+    (fn $tname:ident $name:ident $lambda:expr) => {
+        paste::item! {
+            /// A $name-in function type.
+            pub type [<$tname In>]    = impl Clone + Fn(f32) -> f32;
+            /// A $name-out function type.
+            pub type [<$tname Out>]   = impl Clone + Fn(f32) -> f32;
+            /// A $name-in-out function type.
+            pub type [<$tname InOut>] = impl Clone + Fn(f32) -> f32;
 
-        /// A $name-in transition.
-        pub fn [<$name _in>]() -> [<$tname In>] { $lambda }
-        /// A $name-out transition.
-        pub fn [<$name _out>]() -> [<$tname Out>] { |t| { 1.0 - [<$name _in>]()(1.0 - t) } }
-        /// A $name-in-out transition.
-        pub fn [<$name _in_out>]() -> [<$tname InOut>] { |t| {
-            let t = t * 2.0;
-            if t < 1.0 { [<$name _in>]()(t) / 2.0 }
-            else       { ([<$name _out>]()(t - 1.0) + 1.0) / 2.0 }
-        }}
+            /// A $name-in transition.
+            pub fn [<$name _in>]() -> [<$tname In>] { $lambda }
+            /// A $name-out transition.
+            pub fn [<$name _out>]() -> [<$tname Out>] { |t| { 1.0 - [<$name _in>]()(1.0 - t) } }
+            /// A $name-in-out transition.
+            pub fn [<$name _in_out>]() -> [<$tname InOut>] { |t| {
+                let t = t * 2.0;
+                if t < 1.0 { [<$name _in>]()(t) / 2.0 }
+                else       { ([<$name _out>]()(t - 1.0) + 1.0) / 2.0 }
+            }}
 
-        // FIXME: Crashes the compiler. To be fixed one day.
-        // impl Default for [<$tname In>]    { fn default() -> Self { [<$name _in>]() } }
-        // impl Default for [<$tname Out>]   { fn default() -> Self { [<$name _out>]() } }
-        // impl Default for [<$tname InOut>] { fn default() -> Self { [<$name _in_out>]() } }
-    }};
+            // FIXME: Crashes the compiler. To be fixed one day.
+            // impl Default for [<$tname In>]    { fn default() -> Self { [<$name _in>]() } }
+            // impl Default for [<$tname Out>]   { fn default() -> Self { [<$name _out>]() } }
+            // impl Default for [<$tname InOut>] { fn default() -> Self { [<$name _in_out>]() } }
+        }
+    };
 }
 
 macro_rules! define_in_out_easing_fns {
@@ -137,30 +141,27 @@ pub fn elastic_in_out_params(t: f32, period: f32, amplitude: f32) -> f32 {
     }
 }
 
+
+
 // ================
 // === Animator ===
 // ================
 
 /// Easing animator value.
-pub trait Value = Copy
-    + Add<Self, Output = Self>
-    + Mul<f32, Output = Self>
-    + PartialEq
-    + 'static;
+pub trait Value = Copy + Add<Self, Output = Self> + Mul<f32, Output = Self> + PartialEq + 'static;
 
 /// Easing animator callback.
 pub trait Callback<T> = Fn1<T> + 'static;
 
 /// Handy alias for `Simulator` with a boxed closure callback.
-pub type DynAnimator<T, F> =
-    Animator<T, F, Box<dyn Fn(f32)>, Box<dyn Fn(EndStatus)>>;
+pub type DynAnimator<T, F> = Animator<T, F, Box<dyn Fn(f32)>, Box<dyn Fn(EndStatus)>>;
 
 /// Easing animator. Allows animating any value which implements `Value` according to one of the
 /// tween functions.
 #[derive(CloneRef, Derivative)]
 #[derivative(Clone(bound = ""))]
 pub struct Animator<T, F, OnStep = (), OnEnd = ()> {
-    data: Rc<AnimatorData<T, F, OnStep, OnEnd>>,
+    data:           Rc<AnimatorData<T, F, OnStep, OnEnd>>,
     animation_loop: AnimationLoop<T, F, OnStep, OnEnd>,
 }
 
@@ -182,17 +183,17 @@ impl<T, F, OnStep, OnEnd> Debug for Animator<T, F, OnStep, OnEnd> {
 #[derivative(Debug(bound = "T:Debug+Copy"))]
 #[allow(missing_docs)]
 pub struct AnimatorData<T, F, OnStep, OnEnd> {
-    pub duration: Cell<f32>,
-    pub start_value: Cell<T>,
+    pub duration:     Cell<f32>,
+    pub start_value:  Cell<T>,
     pub target_value: Cell<T>,
-    pub value: Cell<T>,
-    pub active: Cell<bool>,
+    pub value:        Cell<T>,
+    pub active:       Cell<bool>,
     #[derivative(Debug = "ignore")]
-    pub tween_fn: F,
+    pub tween_fn:     F,
     #[derivative(Debug = "ignore")]
-    pub callback: OnStep,
+    pub callback:     OnStep,
     #[derivative(Debug = "ignore")]
-    pub on_end: OnEnd,
+    pub on_end:       OnEnd,
 }
 
 impl<T: Value, F, OnStep, OnEnd> AnimatorData<T, F, OnStep, OnEnd>
@@ -201,35 +202,19 @@ where
     OnStep: Callback<T>,
     OnEnd: Callback<EndStatus>,
 {
-    fn new(
-        start: T,
-        end: T,
-        tween_fn: F,
-        callback: OnStep,
-        on_end: OnEnd,
-    ) -> Self {
+    fn new(start: T, end: T, tween_fn: F, callback: OnStep, on_end: OnEnd) -> Self {
         let duration = Cell::new(1000.0);
         let value = Cell::new(start);
         let start_value = Cell::new(start);
         let target_value = Cell::new(end);
         let active = default();
-        Self {
-            duration,
-            start_value,
-            target_value,
-            value,
-            active,
-            tween_fn,
-            callback,
-            on_end,
-        }
+        Self { duration, start_value, target_value, value, active, tween_fn, callback, on_end }
     }
 
     fn step(&self, time: f32) {
         let sample = (time / self.duration.get()).min(1.0);
         let weight = (self.tween_fn)(sample);
-        let value = self.start_value.get() * (1.0 - weight)
-            + self.target_value.get() * weight;
+        let value = self.start_value.get() * (1.0 - weight) + self.target_value.get() * weight;
         let finished = (sample - 1.0).abs() < std::f32::EPSILON;
         self.callback.call(value);
         self.value.set(value);
@@ -247,32 +232,15 @@ where
     OnEnd: Callback<EndStatus>,
 {
     /// Constructor.
-    pub fn new_not_started(
-        start: T,
-        end: T,
-        tween_fn: F,
-        callback: OnStep,
-        on_end: OnEnd,
-    ) -> Self {
-        let data =
-            Rc::new(AnimatorData::new(start, end, tween_fn, callback, on_end));
+    pub fn new_not_started(start: T, end: T, tween_fn: F, callback: OnStep, on_end: OnEnd) -> Self {
+        let data = Rc::new(AnimatorData::new(start, end, tween_fn, callback, on_end));
         let animation_loop = default();
-        Self {
-            data,
-            animation_loop,
-        }
+        Self { data, animation_loop }
     }
 
     /// Constructor.
-    pub fn new(
-        start: T,
-        end: T,
-        tween_fn: F,
-        callback: OnStep,
-        on_end: OnEnd,
-    ) -> Self {
-        let this =
-            Self::new_not_started(start, end, tween_fn, callback, on_end);
+    pub fn new(start: T, end: T, tween_fn: F, callback: OnStep, on_end: OnEnd) -> Self {
+        let this = Self::new_not_started(start, end, tween_fn, callback, on_end);
         this.start();
         this
     }
@@ -347,6 +315,7 @@ where
     }
 }
 
+
 // === Getters & Setters ===
 
 #[allow(missing_docs)]
@@ -380,6 +349,7 @@ where
         self.data.duration.set(t);
     }
 }
+
 
 // =====================
 // === AnimationLoop ===
@@ -423,17 +393,15 @@ pub struct WeakAnimationLoop<T, F, OnStep, OnEnd> {
 impl<T, F, OnStep, OnEnd> WeakAnimationLoop<T, F, OnStep, OnEnd> {
     /// Upgrade the weak reference.
     pub fn upgrade(&self) -> Option<AnimationLoop<T, F, OnStep, OnEnd>> {
-        self.animation_loop
-            .upgrade()
-            .map(|animation_loop| AnimationLoop { animation_loop })
+        self.animation_loop.upgrade().map(|animation_loop| AnimationLoop { animation_loop })
     }
 }
+
 
 // === Animation Step ===
 
 /// Alias for `FixedFrameRateLoop` with specified step callback.
-pub type AnimationStep<T, F, OnStep, OnEnd> =
-    animation::Loop<Step<T, F, OnStep, OnEnd>>;
+pub type AnimationStep<T, F, OnStep, OnEnd> = animation::Loop<Step<T, F, OnStep, OnEnd>>;
 
 /// Callback for an animation step.
 pub type Step<T, F, OnStep, OnEnd> = impl Fn(animation::TimeInfo);
@@ -444,8 +412,7 @@ fn step<T: Value, F, OnStep, OnEnd>(
 where
     F: AnyFnEasing,
     OnStep: Callback<T>,
-    OnEnd: Callback<EndStatus>,
-{
+    OnEnd: Callback<EndStatus>, {
     let data = easing.data.clone_ref();
     let animation_loop = easing.animation_loop.downgrade();
     move |time: animation::TimeInfo| {

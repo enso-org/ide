@@ -22,10 +22,7 @@ pub trait Transport: Debug {
     fn send_binary(&mut self, message: &[u8]) -> Result<(), Error>;
 
     /// Set up a channel which shall be used to receive events from the `Transport`.
-    fn set_event_transmitter(
-        &mut self,
-        transmitter: UnboundedSender<TransportEvent>,
-    );
+    fn set_event_transmitter(&mut self, transmitter: UnboundedSender<TransportEvent>);
 
     /// Sets up a stream's receiver yielding `TransportEvent`s.
     fn establish_event_stream(&mut self) -> UnboundedReceiver<TransportEvent> {

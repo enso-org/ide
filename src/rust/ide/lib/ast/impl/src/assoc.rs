@@ -3,10 +3,13 @@
 //! NOTE: They should be kept in sync with enso's implementation at:
 //! `enso/Syntax/definition/src/main/scala/org/enso/syntax/text/ast/opr/Assoc.scala`
 
+
 use crate::prelude::*;
 
 use lazy_static::lazy_static;
 use regex::Regex;
+
+
 
 /// Operator associativity.
 #[allow(missing_docs)]

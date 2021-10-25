@@ -13,6 +13,8 @@ use crate::system::web::StyleSetter;
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::HtmlDivElement;
 
+
+
 // ===================
 // === Js Bindings ===
 // ===================
@@ -32,12 +34,10 @@ mod js {
     extern "C" {
         /// Sets object's CSS 3D transform.
         #[allow(unsafe_code)]
-        pub fn set_object_transform(
-            dom: &web::JsValue,
-            matrix_array: &web::Object,
-        );
+        pub fn set_object_transform(dom: &web::JsValue, matrix_array: &web::Object);
     }
 }
+
 
 /// Sets the object transform as the CSS style property.
 #[allow(unsafe_code)]
@@ -51,6 +51,8 @@ pub fn set_object_transform(dom: &web::JsValue, matrix: &Matrix4<f32>) {
     }
 }
 
+
+
 // =============
 // === Guard ===
 // =============
@@ -59,21 +61,15 @@ pub fn set_object_transform(dom: &web::JsValue, matrix: &Matrix4<f32>) {
 #[derive(Debug)]
 pub struct Guard {
     display_object: display::object::Instance,
-    dom: HtmlDivElement,
+    dom:            HtmlDivElement,
 }
 
 impl Guard {
     /// Constructor.
-    pub fn new(
-        display_object: &display::object::Instance,
-        dom: &HtmlDivElement,
-    ) -> Self {
+    pub fn new(display_object: &display::object::Instance, dom: &HtmlDivElement) -> Self {
         let display_object = display_object.clone_ref();
         let dom = dom.clone();
-        Self {
-            display_object,
-            dom,
-        }
+        Self { display_object, dom }
     }
 }
 
@@ -84,6 +80,8 @@ impl Drop for Guard {
     }
 }
 
+
+
 // =================
 // === DomSymbol ===
 // =================
@@ -92,10 +90,10 @@ impl Drop for Guard {
 #[derive(Clone, CloneRef, Debug, Shrinkwrap)]
 pub struct DomSymbol {
     #[shrinkwrap(main_field)]
-    dom: HtmlDivElement,
+    dom:            HtmlDivElement,
     display_object: display::object::Instance,
-    size: Rc<Cell<Vector2<f32>>>,
-    guard: Rc<Guard>,
+    size:           Rc<Cell<Vector2<f32>>>,
+    guard:          Rc<Guard>,
 }
 
 impl DomSymbol {
@@ -116,12 +114,7 @@ impl DomSymbol {
             set_object_transform(&dom,&transform);
         }));
 
-        Self {
-            dom,
-            display_object,
-            size,
-            guard,
-        }
+        Self { dom, display_object, size, guard }
     }
 
     /// Size getter.
@@ -137,10 +130,8 @@ impl DomSymbol {
     /// Size setter.
     pub fn set_size(&self, size: Vector2<f32>) {
         self.size.set(size);
-        self.dom
-            .set_style_or_panic("width", format!("{}px", size.x));
-        self.dom
-            .set_style_or_panic("height", format!("{}px", size.y));
+        self.dom.set_style_or_panic("width", format!("{}px", size.x));
+        self.dom.set_style_or_panic("height", format!("{}px", size.y));
     }
 }
 
@@ -149,6 +140,8 @@ impl display::Object for DomSymbol {
         &self.display_object
     }
 }
+
+
 
 // =============
 // === Utils ===

@@ -18,11 +18,15 @@ use enso_protocol::project_manager::ProjectMetadata;
 use enso_protocol::project_manager::ProjectName;
 use parser::Parser;
 
+
+
 // =================
 // === Constants ===
 // =================
 
 const UNNAMED_PROJECT_NAME: &str = "Unnamed";
+
+
 
 // =============================
 // === The Controller Handle ===
@@ -35,13 +39,13 @@ const UNNAMED_PROJECT_NAME: &str = "Unnamed";
 #[derive(Clone, CloneRef, Derivative)]
 #[derivative(Debug)]
 pub struct Handle {
-    logger: Logger,
-    current_project: Rc<CloneRefCell<model::Project>>,
+    logger:               Logger,
+    current_project:      Rc<CloneRefCell<model::Project>>,
     #[derivative(Debug = "ignore")]
-    project_manager: Rc<dyn project_manager::API>,
+    project_manager:      Rc<dyn project_manager::API>,
     status_notifications: StatusNotificationPublisher,
-    parser: Parser,
-    notifications: notification::Publisher<Notification>,
+    parser:               Parser,
+    notifications:        notification::Publisher<Notification>,
 }
 
 impl Handle {
@@ -65,8 +69,8 @@ impl Handle {
         }
     }
 
-    /// Create a project controller handle which opens the project with the given name, or creates it
-    /// if it does not exist.
+    /// Create a project controller handle which opens the project with the given name, or creates
+    /// it if it does not exist.
     pub async fn new_with_opened_project(
         project_manager: Rc<dyn project_manager::API>,
         name: ProjectName,
@@ -74,10 +78,7 @@ impl Handle {
         // TODO[ao]: Reuse of initializer used in previous code design. It should be soon replaced
         //      anyway, because we will soon resign from the "open or create" approach when opening
         //      IDE. See https://github.com/enso-org/ide/issues/1492 for details.
-        let initializer = initializer::WithProjectManager::new(
-            project_manager.clone_ref(),
-            name,
-        );
+        let initializer = initializer::WithProjectManager::new(project_manager.clone_ref(), name);
         let model = initializer.initialize_project_model().await?;
         Ok(Self::new_with_project(project_manager, model))
     }
@@ -109,30 +110,22 @@ impl ManagingProjectAPI for Handle {
             use model::project::Synchronized as Project;
 
             let list = self.project_manager.list_projects(&None).await?;
-            let names: HashSet<String> =
-                list.projects.into_iter().map(|p| p.name.into()).collect();
+            let names: HashSet<String> = list.projects.into_iter().map(|p| p.name.into()).collect();
             let without_suffix = UNNAMED_PROJECT_NAME.to_owned();
-            let with_suffix =
-                (1..).map(|i| format!("{}_{}", UNNAMED_PROJECT_NAME, i));
-            let mut candidates =
-                std::iter::once(without_suffix).chain(with_suffix);
+            let with_suffix = (1..).map(|i| format!("{}_{}", UNNAMED_PROJECT_NAME, i));
+            let mut candidates = std::iter::once(without_suffix).chain(with_suffix);
             // The iterator have no end, so we can safely unwrap.
             let name = candidates.find(|c| !names.contains(c)).unwrap();
             let version = Some(CONFIG.engine_version.to_string());
             let action = MissingComponentAction::Install;
 
-            let create_result = self
-                .project_manager
-                .create_project(&name, &version, &action)
-                .await?;
+            let create_result =
+                self.project_manager.create_project(&name, &version, &action).await?;
             let new_project_id = create_result.project_id;
             let project_mgr = self.project_manager.clone_ref();
-            let new_project =
-                Project::new_opened(&self.logger, project_mgr, new_project_id);
+            let new_project = Project::new_opened(&self.logger, project_mgr, new_project_id);
             self.current_project.set(new_project.await?);
-            executor::global::spawn(
-                self.notifications.publish(Notification::NewProjectCreated),
-            );
+            executor::global::spawn(self.notifications.publish(Notification::NewProjectCreated));
             Ok(())
         }
         .boxed_local()
@@ -150,15 +143,9 @@ impl ManagingProjectAPI for Handle {
         async move {
             let logger = &self.logger;
             let project_mgr = self.project_manager.clone_ref();
-            let new_project = model::project::Synchronized::new_opened(
-                logger,
-                project_mgr,
-                id,
-            );
+            let new_project = model::project::Synchronized::new_opened(logger, project_mgr, id);
             self.current_project.set(new_project.await?);
-            executor::global::spawn(
-                self.notifications.publish(Notification::ProjectOpened),
-            );
+            executor::global::spawn(self.notifications.publish(Notification::ProjectOpened));
             Ok(())
         }
         .boxed_local()

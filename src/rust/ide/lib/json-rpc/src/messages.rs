@@ -8,6 +8,8 @@ use serde::Deserialize;
 use serde::Serialize;
 use shrinkwraprs::Shrinkwrap;
 
+
+
 // ===============
 // === Message ===
 // ===============
@@ -25,6 +27,7 @@ pub struct Message<T> {
     pub payload: T,
 }
 
+
 // === Common Message Subtypes ===
 
 /// A request message.
@@ -36,23 +39,18 @@ pub type ResponseMessage<Ret> = Message<Response<Ret>>;
 /// A response message.
 pub type NotificationMessage<Ret> = Message<Notification<MethodCall<Ret>>>;
 
+
 // === `new` Functions ===
 
 impl<T> Message<T> {
     /// Wraps given payload into a JSON-RPC 2.0 message.
     pub fn new(t: T) -> Message<T> {
-        Message {
-            jsonrpc: Version::V2,
-            payload: t,
-        }
+        Message { jsonrpc: Version::V2, payload: t }
     }
 
     /// Construct a request message.
     pub fn new_request(id: Id, method: &str, params: T) -> RequestMessage<T> {
-        let call = MethodCall {
-            method: method.into(),
-            params,
-        };
+        let call = MethodCall { method: method.into(), params };
         let request = Request::new(id, call);
         Message::new(request)
     }
@@ -77,18 +75,14 @@ impl<T> Message<T> {
     }
 
     /// Construct a request message.
-    pub fn new_notification(
-        method: &'static str,
-        params: T,
-    ) -> NotificationMessage<T> {
-        let call = MethodCall {
-            method: method.into(),
-            params,
-        };
+    pub fn new_notification(method: &'static str, params: T) -> NotificationMessage<T> {
+        let call = MethodCall { method: method.into(), params };
         let notification = Notification(call);
         Message::new(notification)
     }
 }
+
+
 
 // ========================
 // === Message Subparts ===
@@ -129,7 +123,7 @@ pub enum Version {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Shrinkwrap)]
 pub struct Request<Call> {
     /// An identifier for this request that will allow matching the response.
-    pub id: Id,
+    pub id:   Id,
     #[serde(flatten)]
     #[shrinkwrap(main_field)]
     /// method and its params
@@ -155,7 +149,7 @@ pub struct Notification<Call>(pub Call);
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Response<Res> {
     /// Identifier, matching the value given in `Request` when call was made.
-    pub id: Id,
+    pub id:     Id,
     /// Call result.
     #[serde(flatten)]
     pub result: Result<Res>,
@@ -179,18 +173,8 @@ impl<Res> Result<Res> {
     }
 
     /// Construct a failed remote call result value.
-    pub fn new_error(
-        code: i64,
-        message: String,
-        data: Option<serde_json::Value>,
-    ) -> Result<Res> {
-        Result::Error {
-            error: Error {
-                code,
-                message,
-                data,
-            },
-        }
+    pub fn new_error(code: i64, message: String, data: Option<serde_json::Value>) -> Result<Res> {
+        Result::Error { error: Error { code, message, data } }
     }
 
     /// Construct a failed remote call result value that bears no optional data.
@@ -210,11 +194,11 @@ pub struct Success<Ret> {
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Error<Payload = serde_json::Value> {
     /// A number indicating what type of error occurred.
-    pub code: i64,
+    pub code:    i64,
     /// A short description of the error.
     pub message: String,
     /// Optional value with additional information about the error.
-    pub data: Option<Payload>,
+    pub data:    Option<Payload>,
 }
 
 /// A message that can come from Server to Client — either a response or
@@ -232,9 +216,7 @@ pub enum IncomingMessage {
 ///
 /// This checks if has `jsonrpc` version string, and whether it is a
 /// response or a notification.
-pub fn decode_incoming_message(
-    message: &str,
-) -> serde_json::Result<IncomingMessage> {
+pub fn decode_incoming_message(message: &str) -> serde_json::Result<IncomingMessage> {
     use serde_json::from_str;
     use serde_json::from_value;
     use serde_json::Value;
@@ -254,6 +236,8 @@ pub struct MethodCall<In> {
     #[shrinkwrap(main_field)]
     pub params: In,
 }
+
+
 
 // =============
 // === Tests ===
@@ -289,13 +273,8 @@ mod tests {
         pub const FIELD_COUNT_IN_NOTIFICATION: usize = 3;
     }
 
-    fn expect_field<'a, Obj: 'a>(
-        obj: &'a Map<String, Value>,
-        field_name: &str,
-    ) -> &'a Value
-    where
-        &'a Obj: Into<&'a Value>,
-    {
+    fn expect_field<'a, Obj: 'a>(obj: &'a Map<String, Value>, field_name: &str) -> &'a Value
+    where &'a Obj: Into<&'a Value> {
         let missing_msg = format!("missing field {}", field_name);
         obj.get(field_name).expect(&missing_msg)
     }
@@ -306,10 +285,7 @@ mod tests {
         let method = "mockMethod";
         let number = 124;
         let params = MockRequest { number };
-        let call = MethodCall {
-            method: method.into(),
-            params,
-        };
+        let call = MethodCall { method: method.into(), params };
         let request = Request::new(id, call);
         let message = Message::new(request);
 
@@ -321,8 +297,7 @@ mod tests {
         assert_eq!(expect_field(json, protocol::ID), id.0);
         assert_eq!(expect_field(json, protocol::METHOD), method);
         let params_json = expect_field(json, protocol::PARAMS);
-        let params_json =
-            params_json.as_object().expect("params must be object");
+        let params_json = params_json.as_object().expect("params must be object");
         assert_eq!(params_json.len(), MockRequest::FIELD_COUNT);
         assert_eq!(expect_field(params_json, MockRequest::FIELD_NAME), number);
     }
@@ -332,10 +307,7 @@ mod tests {
         let method = "mockNotification";
         let number = 125;
         let params = MockRequest { number };
-        let call = MethodCall {
-            method: method.into(),
-            params,
-        };
+        let call = MethodCall { method: method.into(), params };
         let notification = Notification(call);
         let message = Message::new(notification);
 
@@ -348,11 +320,11 @@ mod tests {
         assert_eq!(jsonrpc_field, protocol::VERSION2_STRING);
         assert_eq!(expect_field(json, protocol::METHOD), method);
         let params_json = expect_field(json, protocol::PARAMS);
-        let params_json =
-            params_json.as_object().expect("params must be object");
+        let params_json = params_json.as_object().expect("params must be object");
         assert_eq!(params_json.len(), MockRequest::FIELD_COUNT);
         assert_eq!(expect_field(params_json, MockRequest::FIELD_NAME), number);
     }
+
 
     #[test]
     fn test_response_deserialization() {
@@ -398,25 +370,14 @@ mod tests {
         let decoding_result = decode_incoming_message(text);
         match decoding_result {
             Ok(IncomingMessage::Response(Response {
-                result:
-                    Result::Error {
-                        error:
-                            Error {
-                                code,
-                                message,
-                                data,
-                            },
-                    },
+                result: Result::Error { error: Error { code, message, data } },
                 ..
             })) => {
                 assert_eq!(code, 1);
                 assert_eq!(message, "Service error");
                 assert!(data.is_none());
             }
-            _ => panic!(
-                "Invalid decoding result of {}: {:?}",
-                text, decoding_result
-            ),
+            _ => panic!("Invalid decoding result of {}: {:?}", text, decoding_result),
         }
     }
 }

@@ -53,25 +53,15 @@ fn recognizing_lambdas() {
 
     let expect_lambda = |code: &str, arg: &str, body: &str| {
         let ast = parser.parse_line_ast(code).unwrap();
-        let lambda =
-            ast::macros::as_lambda(&ast).expect("failed to recognize lambda");
+        let lambda = ast::macros::as_lambda(&ast).expect("failed to recognize lambda");
         assert_eq!(lambda.arg.repr(), arg);
         assert_eq!(lambda.body.repr(), body);
-        assert_eq!(
-            *lambda.arg,
-            ast.get_traversing(&lambda.arg.crumbs).unwrap()
-        );
-        assert_eq!(
-            *lambda.body,
-            ast.get_traversing(&lambda.body.crumbs).unwrap()
-        );
+        assert_eq!(*lambda.arg, ast.get_traversing(&lambda.arg.crumbs).unwrap());
+        assert_eq!(*lambda.body, ast.get_traversing(&lambda.body.crumbs).unwrap());
     };
     let expect_not_lambda = |code: &str| {
         let ast = parser.parse_line_ast(code).unwrap();
-        assert!(
-            ast::macros::as_lambda_match(&ast).is_none(),
-            "wrongly recognized a lambda"
-        );
+        assert!(ast::macros::as_lambda_match(&ast).is_none(), "wrongly recognized a lambda");
     };
 
     expect_lambda("a->b", "a", "b");

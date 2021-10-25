@@ -10,6 +10,7 @@ use std::rc::Rc;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
 
+
 // =========================
 // === BencherProperties ===
 // =========================
@@ -19,11 +20,11 @@ use wasm_bindgen::JsCast;
 #[derivative(Debug)]
 pub struct BencherProperties {
     #[derivative(Debug = "ignore")]
-    callback: Box<dyn FnMut()>,
-    container: BenchContainer,
-    iterations: usize,
-    total_time: f64,
-    event_loop: animation::DynamicLoop,
+    callback:       Box<dyn FnMut()>,
+    container:      BenchContainer,
+    iterations:     usize,
+    total_time:     f64,
+    event_loop:     animation::DynamicLoop,
     callback_guard: Option<callback::Handle>,
 }
 
@@ -37,14 +38,7 @@ impl BencherProperties {
         let total_time = 0.0;
         let callback_guard = None;
         let callback = Box::new(callback);
-        Self {
-            callback,
-            container,
-            iterations,
-            total_time,
-            event_loop,
-            callback_guard,
-        }
+        Self { callback, container, iterations, total_time, event_loop, callback_guard }
     }
 
     /// Adds the duration of the next iteration and updates the UI.
@@ -59,6 +53,8 @@ impl BencherProperties {
         self.container.time.set_inner_html(&display);
     }
 }
+
+
 
 // ===================
 // === BencherData ===
@@ -75,9 +71,7 @@ impl BencherData {
         callback: T,
         container: BenchContainer,
     ) -> Rc<Self> {
-        let properties = RefCell::new(BencherProperties::new(
-            event_loop, callback, container,
-        ));
+        let properties = RefCell::new(BencherProperties::new(event_loop, callback, container));
         Rc::new(Self { properties })
     }
 
@@ -112,6 +106,7 @@ impl BencherData {
     }
 }
 
+
 // === Getters ===
 
 impl BencherData {
@@ -124,6 +119,8 @@ impl BencherData {
         self.properties.borrow().callback_guard.is_some()
     }
 }
+
+
 
 // ===============
 // === Bencher ===

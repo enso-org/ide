@@ -5,12 +5,16 @@ use crate::prelude::*;
 use crate::buffer::data::unit::*;
 use crate::buffer::data::Range;
 
+
+
 // ================
 // === Boundary ===
 // ================
 
 /// Selection boundary data type. In most cases it's either `Location` or `Bytes`.
 pub trait Boundary = Copy + Ord + Eq;
+
+
 
 // =============
 // === Shape ===
@@ -24,7 +28,7 @@ pub trait Boundary = Copy + Ord + Eq;
 #[allow(missing_docs)]
 pub struct Shape<T = Location> {
     pub start: T,
-    pub end: T,
+    pub end:   T,
 }
 
 /// Constructor.
@@ -105,6 +109,8 @@ impl<T: Boundary> Shape<T> {
     }
 }
 
+
+
 // =================
 // === Selection ===
 // =================
@@ -115,7 +121,7 @@ impl<T: Boundary> Shape<T> {
 #[allow(missing_docs)]
 pub struct Selection<T = Location> {
     pub shape: Shape<T>,
-    pub id: usize,
+    pub id:    usize,
 }
 
 impl<T> Deref for Selection<T> {
@@ -200,8 +206,7 @@ impl<T: Boundary> Selection<T> {
     #[allow(clippy::suspicious_operation_groupings)]
     pub fn should_merge_sorted(self, other: Selection<T>) -> bool {
         let non_zero_overlap = other.min() < self.max();
-        let zero_overlap = (self.is_cursor() || other.is_cursor())
-            && other.min() == self.max();
+        let zero_overlap = (self.is_cursor() || other.is_cursor()) && other.min() == self.max();
         non_zero_overlap || zero_overlap
     }
 
@@ -210,14 +215,12 @@ impl<T: Boundary> Selection<T> {
         let is_forward = self.end >= self.start;
         let new_min = std::cmp::min(self.min(), other.min());
         let new_max = std::cmp::max(self.max(), other.max());
-        let (start, end) = if is_forward {
-            (new_min, new_max)
-        } else {
-            (new_max, new_min)
-        };
+        let (start, end) = if is_forward { (new_min, new_max) } else { (new_max, new_min) };
         Selection::new(start, end, self.id)
     }
 }
+
+
 
 // =============
 // === Group ===
@@ -253,21 +256,13 @@ impl Group {
 
     /// Convert selections to cursors by snapping end edges to start ones.
     pub fn snap_selections_to_start(&self) -> Group {
-        let sorted_selections = self
-            .sorted_selections
-            .iter()
-            .map(|t| t.snap_to_start())
-            .collect();
+        let sorted_selections = self.sorted_selections.iter().map(|t| t.snap_to_start()).collect();
         Self { sorted_selections }
     }
 
     /// Convert selections to cursors by snapping start edges to end ones.
     pub fn snap_selections_to_end(&self) -> Group {
-        let sorted_selections = self
-            .sorted_selections
-            .iter()
-            .map(|t| t.snap_to_end())
-            .collect();
+        let sorted_selections = self.sorted_selections.iter().map(|t| t.snap_to_end()).collect();
         Self { sorted_selections }
     }
 
@@ -283,16 +278,12 @@ impl Group {
 
     /// Mutable reference to the newest created selection if any.
     pub fn newest_mut(&mut self) -> Option<&mut Selection> {
-        self.sorted_selections
-            .iter_mut()
-            .max_by(|x, y| x.id.cmp(&y.id))
+        self.sorted_selections.iter_mut().max_by(|x, y| x.id.cmp(&y.id))
     }
 
     /// Mutable reference to the oldest created selection if any.
     pub fn oldest_mut(&mut self) -> Option<&mut Selection> {
-        self.sorted_selections
-            .iter_mut()
-            .min_by(|x, y| x.id.cmp(&y.id))
+        self.sorted_selections.iter_mut().min_by(|x, y| x.id.cmp(&y.id))
     }
 
     /// Merge new selection with the group. This method implements merging logic.
@@ -320,9 +311,7 @@ impl Group {
             }
 
             let max_ix = self.sorted_selections.len();
-            while end_ix < max_ix
-                && region.should_merge_sorted(self.sorted_selections[end_ix])
-            {
+            while end_ix < max_ix && region.should_merge_sorted(self.sorted_selections[end_ix]) {
                 region = region.merge_with(self.sorted_selections[end_ix]);
                 end_ix += 1;
             }
@@ -342,17 +331,14 @@ impl Group {
     /// index may be bigger than available indexes, which will mean that the new location should
     /// be inserted on the far right side.
     pub fn selection_index_on_the_left_to(&self, location: Location) -> usize {
-        if self.sorted_selections.last().map(|t| location <= t.max())
-            == Some(true)
-        {
-            self.sorted_selections
-                .binary_search_by(|r| r.max().cmp(&location))
-                .unwrap_both()
+        if self.sorted_selections.last().map(|t| location <= t.max()) == Some(true) {
+            self.sorted_selections.binary_search_by(|r| r.max().cmp(&location)).unwrap_both()
         } else {
             self.sorted_selections.len()
         }
     }
 }
+
 
 // === Conversions ===
 
@@ -368,6 +354,7 @@ impl From<Option<Selection>> for Group {
         t.map(|s| s.into()).unwrap_or_default()
     }
 }
+
 
 // === Iterators ===
 

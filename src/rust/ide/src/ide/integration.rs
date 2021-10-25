@@ -11,6 +11,7 @@ use crate::model::undo_redo::Aware;
 
 use ide_view::graph_editor::SharedHashMap;
 
+
 // =======================
 // === IDE Integration ===
 // =======================
@@ -21,9 +22,9 @@ use ide_view::graph_editor::SharedHashMap;
 /// various FRP endpoints or executor tasks.
 #[derive(Debug)]
 struct Model {
-    logger: Logger,
-    controller: controller::Ide,
-    view: ide_view::project::View,
+    logger:              Logger,
+    controller:          controller::Ide,
+    view:                ide_view::project::View,
     project_integration: RefCell<Option<project::Integration>>,
 }
 
@@ -35,12 +36,8 @@ impl Model {
         *self.project_integration.borrow_mut() = None;
 
         let project_model = self.controller.current_project();
-        let status_notifications =
-            self.controller.status_notifications().clone_ref();
-        let project = controller::Project::new(
-            project_model,
-            status_notifications.clone_ref(),
-        );
+        let status_notifications = self.controller.status_notifications().clone_ref();
+        let project = controller::Project::new(project_model, status_notifications.clone_ref());
 
         executor::global::spawn(async move {
             match project.initialize().await {
@@ -51,24 +48,14 @@ impl Model {
                     let ide = self.controller.clone_ref();
                     let project = project.model;
                     let main_module = result.main_module_model;
-                    let integration = project::Integration::new(
-                        view,
-                        graph,
-                        text,
-                        ide,
-                        project,
-                        main_module,
-                    );
+                    let integration =
+                        project::Integration::new(view, graph, text, ide, project, main_module);
                     // We don't want any initialization-related changes to appear on undo stack.
-                    integration
-                        .graph_controller()
-                        .undo_redo_repository()
-                        .clear_all();
+                    integration.graph_controller().undo_redo_repository().clear_all();
                     *self.project_integration.borrow_mut() = Some(integration);
                 }
                 Err(err) => {
-                    let err_msg =
-                        format!("Failed to initialize project: {}", err);
+                    let err_msg = format!("Failed to initialize project: {}", err);
                     error!(self.logger, "{err_msg}");
                     status_notifications.publish_event(err_msg)
                 }
@@ -76,6 +63,7 @@ impl Model {
         });
     }
 }
+
 
 // === Integration ===
 
@@ -90,18 +78,10 @@ pub struct Integration {
 
 impl Integration {
     /// Create the integration of given controller and view.
-    pub fn new(
-        controller: controller::Ide,
-        view: ide_view::project::View,
-    ) -> Self {
+    pub fn new(controller: controller::Ide, view: ide_view::project::View) -> Self {
         let logger = Logger::new("ide::Integration");
         let project_integration = default();
-        let model = Rc::new(Model {
-            logger,
-            controller,
-            view,
-            project_integration,
-        });
+        let model = Rc::new(Model { logger, controller, view, project_integration });
         Self { model }.init()
     }
 
@@ -121,20 +101,19 @@ impl Integration {
         let logger = self.model.logger.clone_ref();
         let process_map = SharedHashMap::<ControllerHandle, ViewHandle>::new();
         let status_bar = self.model.view.status_bar().clone_ref();
-        let status_notif_sub =
-            self.model.controller.status_notifications().subscribe();
+        let status_notif_sub = self.model.controller.status_notifications().subscribe();
         let status_notif_updates = status_notif_sub.for_each(move |notification| {
             info!(logger, "Received notification {notification:?}");
             match notification {
-                StatusNotification::Event {label} => {
+                StatusNotification::Event { label } => {
                     status_bar.add_event(ide_view::status_bar::event::Label::new(label));
-                },
-                StatusNotification::BackgroundTaskStarted {label,handle} => {
+                }
+                StatusNotification::BackgroundTaskStarted { label, handle } => {
                     status_bar.add_process(ide_view::status_bar::process::Label::new(label));
                     let view_handle = status_bar.last_process.value();
-                    process_map.insert(handle,view_handle);
-                },
-                StatusNotification::BackgroundTaskFinished {handle} => {
+                    process_map.insert(handle, view_handle);
+                }
+                StatusNotification::BackgroundTaskFinished { handle } => {
                     if let Some(view_handle) = process_map.remove(&handle) {
                         status_bar.finish_process(view_handle);
                     } else {
@@ -155,9 +134,8 @@ impl Integration {
             if let Some(model) = weak.upgrade() {
                 match notification {
                     controller::ide::Notification::NewProjectCreated
-                    | controller::ide::Notification::ProjectOpened => {
-                        model.setup_and_display_new_project()
-                    }
+                    | controller::ide::Notification::ProjectOpened =>
+                        model.setup_and_display_new_project(),
                 }
             }
             futures::future::ready(())

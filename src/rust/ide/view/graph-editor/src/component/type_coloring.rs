@@ -12,6 +12,8 @@ use ensogl_theme as theme;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
 
+
+
 // ================================
 // === Type to Color Conversion ===
 // ================================
@@ -42,36 +44,26 @@ use std::hash::Hasher;
 pub fn compute(tp: &Type, styles: &StyleWatch) -> color::Lcha {
     let types_path = theme::code::types::overriden::HERE.path();
     let type_path = types_path.into_subs(tp.as_str().split('.'));
-    let hue = styles
-        .get(type_path.sub("hue"))
-        .number_or_else(|| auto_hue(tp, styles));
-    let lightness =
-        styles.get(type_path.sub("lightness")).number_or_else(|| {
-            styles.get_number_or(theme::code::types::lightness, 0.85)
-        });
-    let chroma = styles.get(type_path.sub("chroma")).number_or_else(|| {
-        styles.get_number_or(theme::code::types::chroma, 0.6)
-    });
+    let hue = styles.get(type_path.sub("hue")).number_or_else(|| auto_hue(tp, styles));
+    let lightness = styles
+        .get(type_path.sub("lightness"))
+        .number_or_else(|| styles.get_number_or(theme::code::types::lightness, 0.85));
+    let chroma = styles
+        .get(type_path.sub("chroma"))
+        .number_or_else(|| styles.get_number_or(theme::code::types::chroma, 0.6));
     color::Lch::new(lightness, chroma, hue).into()
 }
 
 /// Get the code color for the provided type or default code color in case the type is None.
 pub fn compute_for_code(tp: Option<&Type>, styles: &StyleWatch) -> color::Lcha {
     let opt_color = tp.as_ref().map(|tp| compute(tp, styles));
-    opt_color.unwrap_or_else(|| {
-        styles.get_color(theme::graph_editor::node::text).into()
-    })
+    opt_color.unwrap_or_else(|| styles.get_color(theme::graph_editor::node::text).into())
 }
 
 /// Get the code color for the provided type or default code color in case the type is None.
-pub fn compute_for_selection(
-    tp: Option<&Type>,
-    styles: &StyleWatch,
-) -> color::Lcha {
+pub fn compute_for_selection(tp: Option<&Type>, styles: &StyleWatch) -> color::Lcha {
     let opt_color = tp.as_ref().map(|tp| compute(tp, styles));
-    opt_color.unwrap_or_else(|| {
-        styles.get_color(theme::code::types::any::selection).into()
-    })
+    opt_color.unwrap_or_else(|| styles.get_color(theme::code::types::any::selection).into())
 }
 
 /// Computes LCH hue value based on incoming type information.

@@ -23,6 +23,8 @@ use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 
+
+
 // ================
 // === Uniforms ===
 // ================
@@ -30,7 +32,7 @@ use wasm_bindgen::JsValue;
 /// Uniforms managed by world.
 #[derive(Clone, CloneRef, Debug)]
 pub struct Uniforms {
-    time: Uniform<f32>,
+    time:         Uniform<f32>,
     display_mode: Uniform<i32>,
 }
 
@@ -43,6 +45,8 @@ impl Uniforms {
     }
 }
 
+
+
 // =============
 // === World ===
 // =============
@@ -52,16 +56,16 @@ impl Uniforms {
 /// It is responsible for updating the system on every animation frame.
 #[derive(Clone, CloneRef, Debug)]
 pub struct World {
-    logger: Logger,
-    scene: Scene,
-    scene_dirty: dirty::SharedBool,
-    main_loop: animation::DynamicLoop,
-    uniforms: Uniforms,
-    stats: Stats,
-    stats_monitor: stats::Monitor,
+    logger:          Logger,
+    scene:           Scene,
+    scene_dirty:     dirty::SharedBool,
+    main_loop:       animation::DynamicLoop,
+    uniforms:        Uniforms,
+    stats:           Stats,
+    stats_monitor:   stats::Monitor,
     main_loop_frame: callback::Handle,
     on_before_frame: callback::SharedRegistryMut1<animation::TimeInfo>,
-    on_after_frame: callback::SharedRegistryMut1<animation::TimeInfo>,
+    on_after_frame:  callback::SharedRegistryMut1<animation::TimeInfo>,
 }
 
 impl World {
@@ -70,17 +74,14 @@ impl World {
     pub fn new(dom: &web_sys::HtmlElement) -> World {
         let logger = Logger::new("world");
         let stats = default();
-        let scene_dirty =
-            dirty::SharedBool::new(Logger::new_sub(&logger, "scene_dirty"), ());
+        let scene_dirty = dirty::SharedBool::new(Logger::new_sub(&logger, "scene_dirty"), ());
         let on_change = enclose!((scene_dirty) move || scene_dirty.set());
         let scene = Scene::new(dom, &logger, &stats, on_change);
         let uniforms = Uniforms::new(&scene.variables);
         let main_loop = animation::DynamicLoop::new();
         let stats_monitor = stats::Monitor::new(&stats);
-        let on_before_frame =
-            <callback::SharedRegistryMut1<animation::TimeInfo>>::new();
-        let on_after_frame =
-            <callback::SharedRegistryMut1<animation::TimeInfo>>::new();
+        let on_before_frame = <callback::SharedRegistryMut1<animation::TimeInfo>>::new();
+        let on_after_frame = <callback::SharedRegistryMut1<animation::TimeInfo>>::new();
         let main_loop_frame = main_loop.on_frame(
             f!([stats_monitor,on_before_frame,on_after_frame,uniforms,scene_dirty,scene]
             (t:animation::TimeInfo) {
@@ -94,7 +95,7 @@ impl World {
 
                 on_after_frame.run_all(&t);
                 stats_monitor.end();
-            })
+            }),
         );
 
         Self {
@@ -139,11 +140,7 @@ impl World {
             }
         }));
         web::window()
-            .add_event_listener_with_callback_and_bool(
-                "keydown",
-                c.as_ref().unchecked_ref(),
-                true,
-            )
+            .add_event_listener_with_callback_and_bool("keydown", c.as_ref().unchecked_ref(), true)
             .unwrap();
         c.forget();
         // -----------------------------------------------------------------------------------------
@@ -151,12 +148,9 @@ impl World {
 
     fn init_composer(&self) {
         let mouse_hover_ids = self.scene.mouse.hover_ids.clone_ref();
-        let mut pixel_read_pass =
-            PixelReadPass::<u8>::new(&self.scene.mouse.position);
+        let mut pixel_read_pass = PixelReadPass::<u8>::new(&self.scene.mouse.position);
         pixel_read_pass.set_callback(move |v| {
-            mouse_hover_ids.set(Vector4::from_iterator(
-                v.iter().map(|value| *value as u32),
-            ))
+            mouse_hover_ids.set(Vector4::from_iterator(v.iter().map(|value| *value as u32)))
         });
         // TODO: We may want to enable it on weak hardware.
         // pixel_read_pass.set_threshold(1);
@@ -183,8 +177,7 @@ impl World {
         &self,
         mut callback: F,
     ) -> callback::Handle {
-        self.on_before_frame
-            .add(move |time: &animation::TimeInfo| callback(*time))
+        self.on_before_frame.add(move |time: &animation::TimeInfo| callback(*time))
     }
 
     /// Register a callback which should be run after each animation frame.
@@ -192,8 +185,7 @@ impl World {
         &self,
         mut callback: F,
     ) -> callback::Handle {
-        self.on_before_frame
-            .add(move |time: &animation::TimeInfo| callback(*time))
+        self.on_before_frame.add(move |time: &animation::TimeInfo| callback(*time))
     }
 
     /// Register a callback which should be run after each animation frame.
@@ -201,8 +193,7 @@ impl World {
         &self,
         mut callback: F,
     ) -> callback::Handle {
-        self.on_after_frame
-            .add(move |time: &animation::TimeInfo| callback(*time))
+        self.on_after_frame.add(move |time: &animation::TimeInfo| callback(*time))
     }
 
     /// Keeps the world alive even when all references are dropped. Use only if you want to keep one

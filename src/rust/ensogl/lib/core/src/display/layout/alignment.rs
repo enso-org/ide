@@ -2,6 +2,8 @@
 
 use crate::prelude::*;
 
+
+
 // =================
 // === Alignment ===
 // =================
@@ -12,7 +14,7 @@ use crate::prelude::*;
 #[allow(missing_docs)]
 pub struct Alignment {
     pub horizontal: Horizontal,
-    pub vertical: Vertical,
+    pub vertical:   Vertical,
 }
 
 /// Horizontal alignments.
@@ -33,6 +35,7 @@ pub enum Vertical {
     Bottom,
 }
 
+
 // === Smart Constructors ===
 
 #[allow(missing_docs)]
@@ -40,10 +43,7 @@ pub enum Vertical {
 impl Alignment {
     /// Constructor.
     pub fn new(horizontal: Horizontal, vertical: Vertical) -> Self {
-        Self {
-            horizontal,
-            vertical,
-        }
+        Self { horizontal, vertical }
     }
 
     pub fn center() -> Self {
@@ -75,6 +75,7 @@ impl Alignment {
     }
 }
 
+
 // === Defaults ===
 
 impl Default for Horizontal {
@@ -91,10 +92,7 @@ impl Default for Alignment {
     fn default() -> Self {
         let horizontal = default();
         let vertical = default();
-        Self {
-            horizontal,
-            vertical,
-        }
+        Self { horizontal, vertical }
     }
 }
 

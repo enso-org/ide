@@ -22,12 +22,16 @@ use crate::buffer::Setter;
 use enso_frp as frp;
 use ensogl_core::data::color;
 
+
+
 // =================
 // === Constants ===
 // =================
 
 /// Default visible line count in a new buffer view.
 const DEFAULT_LINE_COUNT: usize = 40;
+
+
 
 // ===============
 // === History ===
@@ -46,6 +50,8 @@ pub struct HistoryData {
     redo_stack: Vec<(Text, Style, selection::Group)>,
 }
 
+
+
 // ===============
 // === Changes ===
 // ===============
@@ -56,16 +62,16 @@ pub struct Change<T = Bytes> {
     /// Range of old text being replaced.
     pub range: buffer::Range<T>,
     /// The text inserted in place of `range`.
-    pub text: Text,
+    pub text:  Text,
 }
 
 /// The summary of single text modification, usually returned by `modify`-like functions in
 /// `ViewBuffer`.
 #[derive(Clone, Debug, Default)]
 struct Modification<T = Bytes> {
-    changes: Vec<Change<T>>,
+    changes:       Vec<Change<T>>,
     new_selection: selection::Group,
-    byte_offset: Bytes,
+    byte_offset:   Bytes,
 }
 
 impl<T> Modification<T> {
@@ -78,6 +84,8 @@ impl<T> Modification<T> {
     }
 }
 
+
+
 // ==================
 // === ViewBuffer ===
 // ==================
@@ -89,10 +97,10 @@ impl<T> Modification<T> {
 #[derive(Debug, Clone, CloneRef)]
 #[allow(missing_docs)]
 pub struct ViewBuffer {
-    pub buffer: Buffer,
-    pub selection: Rc<RefCell<selection::Group>>,
+    pub buffer:            Buffer,
+    pub selection:         Rc<RefCell<selection::Group>>,
     pub next_selection_id: Rc<Cell<usize>>,
-    pub history: History,
+    pub history:           History,
 }
 
 impl Deref for ViewBuffer {
@@ -107,12 +115,7 @@ impl From<Buffer> for ViewBuffer {
         let selection = default();
         let next_selection_id = default();
         let history = default();
-        Self {
-            buffer,
-            selection,
-            next_selection_id,
-            history,
-        }
+        Self { buffer, selection, next_selection_id, history }
     }
 }
 
@@ -133,11 +136,7 @@ impl ViewBuffer {
         let text = self.buffer.text();
         let style = self.buffer.style();
         let selection = self.selection.borrow().clone();
-        self.history
-            .data
-            .borrow_mut()
-            .undo_stack
-            .push((text, style, selection));
+        self.history.data.borrow_mut().undo_stack.push((text, style, selection));
     }
 
     fn undo(&self) -> Option<selection::Group> {
@@ -249,23 +248,14 @@ impl ViewBuffer {
     /// This function converts all selections to byte-based ones first, and then applies all
     /// modification rules. This way, it can work in an 1D byte-based space (as opposed to 2D
     /// location-based space), which makes handling multiple cursors much easier.
-    fn modify(
-        &self,
-        text: impl Into<Text>,
-        transform: Option<Transform>,
-    ) -> Modification {
+    fn modify(&self, text: impl Into<Text>, transform: Option<Transform>) -> Modification {
         self.commit_history();
         let text = text.into();
         let mut modification = Modification::default();
         for rel_byte_selection in self.byte_selections() {
-            let byte_selection =
-                rel_byte_selection.map(|t| t + modification.byte_offset);
+            let byte_selection = rel_byte_selection.map(|t| t + modification.byte_offset);
             let selection = self.to_location_selection(byte_selection);
-            modification.merge(self.modify_selection(
-                selection,
-                text.clone(),
-                transform,
-            ));
+            modification.merge(self.modify_selection(selection, text.clone(), transform));
         }
         modification
     }
@@ -274,24 +264,17 @@ impl ViewBuffer {
     ///
     /// If `transform` is provided, it will modify the selections being a simple cursor before
     /// applying modification, what is useful when handling delete operations.
-    fn modify_iter<I, S>(
-        &self,
-        mut iter: I,
-        transform: Option<Transform>,
-    ) -> Modification
+    fn modify_iter<I, S>(&self, mut iter: I, transform: Option<Transform>) -> Modification
     where
         I: Iterator<Item = S>,
-        S: Into<Text>,
-    {
+        S: Into<Text>, {
         self.commit_history();
         let mut modification = Modification::default();
         for rel_byte_selection in self.byte_selections() {
             let text = iter.next().map(|t| t.into()).unwrap_or_default();
-            let byte_selection =
-                rel_byte_selection.map(|t| t + modification.byte_offset);
+            let byte_selection = rel_byte_selection.map(|t| t + modification.byte_offset);
             let selection = self.to_location_selection(byte_selection);
-            modification
-                .merge(self.modify_selection(selection, text, transform));
+            modification.merge(self.modify_selection(selection, text, transform));
         }
         modification
     }
@@ -310,33 +293,24 @@ impl ViewBuffer {
     ) -> Modification {
         let text_byte_size = text.byte_size();
         let transformed = match transform {
-            Some(t) if selection.is_cursor() => {
-                self.moved_selection_region(t, selection, true)
-            }
+            Some(t) if selection.is_cursor() => self.moved_selection_region(t, selection, true),
             _ => selection,
         };
         let byte_selection = self.to_bytes_selection(transformed);
         let range = byte_selection.range();
         self.buffer.replace(range, &text);
         let new_byte_cursor_pos = range.start + text_byte_size;
-        let new_byte_selection =
-            Selection::new_cursor(new_byte_cursor_pos, selection.id);
+        let new_byte_selection = Selection::new_cursor(new_byte_cursor_pos, selection.id);
         let change = Change { range, text };
         Modification {
-            changes: vec![change],
-            new_selection: selection::Group::from(
-                self.to_location_selection(new_byte_selection),
-            ),
-            byte_offset: text_byte_size - range.size(),
+            changes:       vec![change],
+            new_selection: selection::Group::from(self.to_location_selection(new_byte_selection)),
+            byte_offset:   text_byte_size - range.size(),
         }
     }
 
     fn byte_selections(&self) -> Vec<Selection<Bytes>> {
-        self.selection
-            .borrow()
-            .iter()
-            .map(|s| self.to_bytes_selection(*s))
-            .collect()
+        self.selection.borrow().iter().map(|s| self.to_bytes_selection(*s)).collect()
     }
 
     fn to_bytes_selection(&self, selection: Selection) -> Selection<Bytes> {
@@ -355,15 +329,13 @@ impl ViewBuffer {
 
     fn offset_to_location(&self, offset: Bytes) -> Location {
         let line = self.line_index_of_byte_offset_snapped(offset);
-        let line_offset =
-            offset - self.byte_offset_of_line_index(line).unwrap();
-        let column = self.column_of_line_index_and_in_line_byte_offset_snapped(
-            line,
-            line_offset,
-        );
+        let line_offset = offset - self.byte_offset_of_line_index(line).unwrap();
+        let column = self.column_of_line_index_and_in_line_byte_offset_snapped(line, line_offset);
         Location(line, column)
     }
 }
+
+
 
 // ===========
 // === FRP ===
@@ -407,6 +379,8 @@ ensogl_core::define_endpoints! {
     }
 }
 
+
+
 // ============
 // === View ===
 // ============
@@ -417,7 +391,7 @@ ensogl_core::define_endpoints! {
 #[derive(Debug, Clone, CloneRef)]
 #[allow(missing_docs)]
 pub struct View {
-    model: ViewModel,
+    model:   ViewModel,
     pub frp: Frp,
 }
 
@@ -510,6 +484,8 @@ impl Default for View {
     }
 }
 
+
+
 // =================
 // === ViewModel ===
 // =================
@@ -518,10 +494,10 @@ impl Default for View {
 #[derive(Debug, Clone, CloneRef)]
 #[allow(missing_docs)]
 pub struct ViewModel {
-    pub frp: FrpInputs,
-    pub view_buffer: ViewBuffer,
+    pub frp:               FrpInputs,
+    pub view_buffer:       ViewBuffer,
     first_view_line_index: Rc<Cell<Line>>,
-    view_line_count: Rc<Cell<usize>>,
+    view_line_count:       Rc<Cell<usize>>,
 }
 
 impl Deref for ViewModel {
@@ -538,12 +514,7 @@ impl ViewModel {
         let view_buffer = view_buffer.into();
         let first_view_line_index = default();
         let view_line_count = Rc::new(Cell::new(DEFAULT_LINE_COUNT));
-        Self {
-            frp,
-            view_buffer,
-            first_view_line_index,
-            view_line_count,
-        }
+        Self { frp, view_buffer, first_view_line_index, view_line_count }
     }
 }
 
@@ -568,14 +539,8 @@ impl ViewModel {
     }
 
     // FIXME: rename
-    fn moved_selection2(
-        &self,
-        movement: Option<Transform>,
-        modify: bool,
-    ) -> selection::Group {
-        movement
-            .map(|t| self.moved_selection(t, modify))
-            .unwrap_or_default()
+    fn moved_selection2(&self, movement: Option<Transform>, modify: bool) -> selection::Group {
+        movement.map(|t| self.moved_selection(t, modify)).unwrap_or_default()
     }
 
     /// Index of the first line of this buffer view.
@@ -602,14 +567,12 @@ impl ViewModel {
 
     /// Byte offset of the first line of this buffer view.
     pub fn first_view_line_byte_offset(&self) -> Bytes {
-        self.byte_offset_of_line_index(self.first_view_line_index())
-            .unwrap() // FIXME
+        self.byte_offset_of_line_index(self.first_view_line_index()).unwrap() // FIXME
     }
 
     /// Byte offset of the last line of this buffer view.
     pub fn last_view_line_byte_offset(&self) -> Bytes {
-        self.byte_offset_of_line_index(self.last_view_line_index())
-            .unwrap()
+        self.byte_offset_of_line_index(self.last_view_line_index()).unwrap()
     }
 
     /// Byte offset range of lines visible in this buffer view.
@@ -624,10 +587,7 @@ impl ViewModel {
 
     /// Return the offset after the last character of a given view line if the line exists.
     pub fn end_offset_of_view_line(&self, line: Line) -> Option<Bytes> {
-        self.end_byte_offset_of_line_index(
-            line + self.first_view_line_index.get(),
-        )
-        .ok()
+        self.end_byte_offset_of_line_index(line + self.first_view_line_index.get()).ok()
     }
 
     /// The byte range of this buffer view.
@@ -636,19 +596,13 @@ impl ViewModel {
     }
 
     /// The byte offset of the given buffer view line index.
-    pub fn byte_offset_of_view_line_index(
-        &self,
-        view_line: Line,
-    ) -> Result<Bytes, BoundsError> {
+    pub fn byte_offset_of_view_line_index(&self, view_line: Line) -> Result<Bytes, BoundsError> {
         let line = self.first_view_line_index() + view_line;
         self.byte_offset_of_line_index(line)
     }
 
     /// Byte range of the given view line.
-    pub fn byte_range_of_view_line_index_snapped(
-        &self,
-        view_line: Line,
-    ) -> Range<Bytes> {
+    pub fn byte_range_of_view_line_index_snapped(&self, view_line: Line) -> Range<Bytes> {
         let line = view_line + self.first_view_line_index.get();
         self.byte_range_of_line_index_snapped(line)
     }

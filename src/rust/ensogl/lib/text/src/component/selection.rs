@@ -9,6 +9,8 @@ use ensogl_core::display::shape::*;
 use ensogl_core::system::gpu::shader::glsl::traits::IntoGlsl;
 use ensogl_core::DEPRECATED_Animation;
 
+
+
 // ==============
 // === Cursor ===
 // ==============
@@ -23,10 +25,10 @@ const BLINK_SLOPE_IN_DURATION: f32 = 200.0;
 const BLINK_SLOPE_OUT_DURATION: f32 = 200.0;
 const BLINK_ON_DURATION: f32 = 300.0;
 const BLINK_OFF_DURATION: f32 = 300.0;
-const BLINK_PERIOD: f32 = BLINK_SLOPE_IN_DURATION
-    + BLINK_SLOPE_OUT_DURATION
-    + BLINK_ON_DURATION
-    + BLINK_OFF_DURATION;
+const BLINK_PERIOD: f32 =
+    BLINK_SLOPE_IN_DURATION + BLINK_SLOPE_OUT_DURATION + BLINK_ON_DURATION + BLINK_OFF_DURATION;
+
+
 
 /// Text cursor and selection shape definition. If the shape is narrow, it is considered a cursor,
 /// and thus, it blinks.
@@ -81,6 +83,8 @@ pub mod shape {
     }
 }
 
+
+
 // ===========
 // === FRP ===
 // ===========
@@ -90,6 +94,8 @@ ensogl_core::define_endpoints! {
         set_color (color::Rgb),
     }
 }
+
+
 
 // =================
 // === Selection ===
@@ -104,15 +110,15 @@ ensogl_core::define_endpoints! {
 /// object will make the following glyphs  animate while the selection is shrinking.
 #[derive(Clone, CloneRef, Debug)]
 pub struct Selection {
-    logger: Logger,
+    logger:         Logger,
     display_object: display::object::Instance,
     pub right_side: display::object::Instance,
-    shape_view: shape::View,
-    pub network: frp::Network,
-    pub position: DEPRECATED_Animation<Vector2>,
-    pub width: DEPRECATED_Animation<f32>,
-    pub edit_mode: Rc<Cell<bool>>,
-    pub frp: Frp,
+    shape_view:     shape::View,
+    pub network:    frp::Network,
+    pub position:   DEPRECATED_Animation<Vector2>,
+    pub width:      DEPRECATED_Animation<f32>,
+    pub edit_mode:  Rc<Cell<bool>>,
+    pub frp:        Frp,
 }
 
 impl Deref for Selection {
@@ -185,11 +191,8 @@ impl Selection {
 
     pub fn flip_sides(&self) {
         let width = self.width.target_value();
-        self.position
-            .set_value(self.position.value() + Vector2(width, 0.0));
-        self.position.set_target_value(
-            self.position.target_value() + Vector2(width, 0.0),
-        );
+        self.position.set_value(self.position.value() + Vector2(width, 0.0));
+        self.position.set_target_value(self.position.target_value() + Vector2(width, 0.0));
 
         self.width.set_value(-self.width.value());
         self.width.set_target_value(-self.width.target_value());

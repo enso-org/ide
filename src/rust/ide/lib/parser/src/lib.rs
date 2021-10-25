@@ -33,6 +33,8 @@ pub mod prelude {
     pub use enso_prelude::*;
 }
 
+
+
 // ==============
 // === Parser ===
 // ==============
@@ -74,8 +76,7 @@ impl Parser {
 
     /// Obtains a default parser implementation, panicking in case of failure.
     pub fn new_or_panic() -> Parser {
-        Parser::new()
-            .unwrap_or_else(|e| panic!("Failed to create a parser: {:?}", e))
+        Parser::new().unwrap_or_else(|e| panic!("Failed to create a parser: {:?}", e))
     }
 
     /// Parse program.
@@ -96,11 +97,7 @@ impl Parser {
     }
 
     /// Parse program into module.
-    pub fn parse_module(
-        &self,
-        program: impl Str,
-        ids: IdMap,
-    ) -> api::Result<ast::known::Module> {
+    pub fn parse_module(&self, program: impl Str, ids: IdMap) -> api::Result<ast::known::Module> {
         let ast = self.parse(program.into(), ids)?;
         ast::known::Module::try_from(ast).map_err(|_| api::Error::NonModuleRoot)
     }
@@ -108,16 +105,12 @@ impl Parser {
     /// Program is expected to be single non-empty line module. The line's AST is
     /// returned. The program is parsed with empty IdMap.
     pub fn parse_line_ast(&self, program: impl Str) -> FallibleResult<Ast> {
-        self.parse_line_with_id_map(program, default())
-            .map(|line| line.elem)
+        self.parse_line_with_id_map(program, default()).map(|line| line.elem)
     }
 
     /// Program is expected to be single non-empty line module. The line's AST is
     /// returned. The program is parsed with empty IdMap.
-    pub fn parse_line(
-        &self,
-        program: impl Str,
-    ) -> FallibleResult<BlockLine<Ast>> {
+    pub fn parse_line(&self, program: impl Str) -> FallibleResult<BlockLine<Ast>> {
         self.parse_line_with_id_map(program, default())
     }
 
@@ -127,8 +120,7 @@ impl Parser {
         program: impl Str,
         id_map: IdMap,
     ) -> FallibleResult<Ast> {
-        self.parse_line_with_id_map(program, id_map)
-            .map(|line| line.elem)
+        self.parse_line_with_id_map(program, id_map).map(|line| line.elem)
     }
 
     /// Program is expected to be single non-empty line module. Return the parsed line.
@@ -139,11 +131,8 @@ impl Parser {
     ) -> FallibleResult<BlockLine<Ast>> {
         let module = self.parse_module(program, id_map)?;
 
-        let mut lines = module
-            .lines
-            .clone()
-            .into_iter()
-            .filter_map(|line| line.map(|elem| elem).transpose());
+        let mut lines =
+            module.lines.clone().into_iter().filter_map(|line| line.map(|elem| elem).transpose());
         if let Some(first_non_empty_line) = lines.next() {
             if lines.next().is_some() {
                 Err(api::TooManyLinesProduced.into())
@@ -160,16 +149,15 @@ impl Parser {
 ///
 /// Unlike `serde_json::from_str` it runs with recursion limit disabled, allowing deserialization of
 /// deeply nested ASTs.
-pub fn from_json_str_without_recursion_limit<
-    'de,
-    Value: serde::Deserialize<'de>,
->(
+pub fn from_json_str_without_recursion_limit<'de, Value: serde::Deserialize<'de>>(
     json_text: &'de str,
 ) -> Result<Value, serde_json::Error> {
     let mut de = serde_json::Deserializer::from_str(json_text);
     de.disable_recursion_limit();
     Value::deserialize(&mut de)
 }
+
+
 
 // ==========================================
 // === Documentation Parser and Generator ===
@@ -203,8 +191,7 @@ impl DocParser {
 
     /// Obtains a default doc parser implementation, panicking in case of failure.
     pub fn new_or_panic() -> DocParser {
-        DocParser::new()
-            .unwrap_or_else(|e| panic!("Failed to create doc parser: {:?}", e))
+        DocParser::new().unwrap_or_else(|e| panic!("Failed to create doc parser: {:?}", e))
     }
 
     /// Parses program with documentation and generates HTML code.

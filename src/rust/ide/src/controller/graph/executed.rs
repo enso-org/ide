@@ -18,6 +18,8 @@ use span_tree::generate::context::Context;
 pub use crate::controller::graph::Connection;
 pub use crate::controller::graph::Connections;
 
+
+
 // ==============
 // === Errors ===
 // ==============
@@ -31,6 +33,8 @@ pub struct NotEvaluatedYet(double_representation::node::Id);
 #[derive(Debug, Fail, Clone, Copy)]
 #[fail(display = "The node {} does not resolve to a method call.", _0)]
 pub struct NoResolvedMethod(double_representation::node::Id);
+
+
 
 // ====================
 // === Notification ===
@@ -52,6 +56,8 @@ pub enum Notification {
     SteppedOutOfNode(double_representation::node::Id),
 }
 
+
+
 // ==============
 // === Handle ===
 // ==============
@@ -60,17 +66,17 @@ pub enum Notification {
 #[derive(Clone, CloneRef, Debug)]
 pub struct Handle {
     #[allow(missing_docs)]
-    pub logger: Logger,
+    pub logger:    Logger,
     /// A handle to basic graph operations.
-    graph: Rc<RefCell<controller::Graph>>,
+    graph:         Rc<RefCell<controller::Graph>>,
     /// Execution Context handle, its call stack top contains `graph`'s definition.
     execution_ctx: model::ExecutionContext,
     /// The handle to project controller is necessary, as entering nodes might need to switch
     /// modules, and only the project can provide their controllers.
-    project: model::Project,
-    /// The publisher allowing sending notification to subscribed entities. Note that its outputs is
-    /// merged with publishers from the stored graph and execution controllers.
-    notifier: crate::notification::Publisher<Notification>,
+    project:       model::Project,
+    /// The publisher allowing sending notification to subscribed entities. Note that its outputs
+    /// is merged with publishers from the stored graph and execution controllers.
+    notifier:      crate::notification::Publisher<Notification>,
 }
 
 impl Handle {
@@ -80,10 +86,8 @@ impl Handle {
         project: model::Project,
         method: MethodPointer,
     ) -> FallibleResult<Self> {
-        let graph =
-            controller::Graph::new_method(parent, &project, &method).await?;
-        let execution =
-            project.create_execution_context(method.clone()).await?;
+        let graph = controller::Graph::new_method(parent, &project, &method).await?;
+        let execution = project.create_execution_context(method.clone()).await?;
         Ok(Self::new_internal(graph, project, execution))
     }
 
@@ -109,13 +113,7 @@ impl Handle {
         let logger = Logger::new_sub(&graph.logger, "Executed");
         let graph = Rc::new(RefCell::new(graph));
         let notifier = default();
-        Handle {
-            logger,
-            graph,
-            execution_ctx,
-            project,
-            notifier,
-        }
+        Handle { logger, graph, execution_ctx, project, notifier }
     }
 
     /// See [`model::ExecutionContext::when_ready`].
@@ -138,22 +136,16 @@ impl Handle {
         expression: Option<String>,
         module: Option<model::module::QualifiedName>,
     ) -> BoxFuture<FallibleResult> {
-        self.execution_ctx
-            .modify_visualization(id, expression, module)
+        self.execution_ctx.modify_visualization(id, expression, module)
     }
 
     /// See [`model::ExecutionContext::detach_visualization`].
-    pub async fn detach_visualization(
-        &self,
-        id: VisualizationId,
-    ) -> FallibleResult<Visualization> {
+    pub async fn detach_visualization(&self, id: VisualizationId) -> FallibleResult<Visualization> {
         self.execution_ctx.detach_visualization(id).await
     }
 
     /// See [`model::ExecutionContext::detach_all_visualizations`].
-    pub async fn detach_all_visualizations(
-        &self,
-    ) -> Vec<FallibleResult<Visualization>> {
+    pub async fn detach_all_visualizations(&self) -> Vec<FallibleResult<Visualization>> {
         self.execution_ctx.detach_all_visualizations().await
     }
 
@@ -170,9 +162,7 @@ impl Handle {
         code: String,
         module: model::module::QualifiedName,
     ) -> FallibleResult {
-        self.execution_ctx
-            .modify_visualization(id, Some(code), Some(module))
-            .await
+        self.execution_ctx.modify_visualization(id, Some(code), Some(module)).await
     }
 
     /// Subscribe to updates about changes in this executed graph.
@@ -181,15 +171,8 @@ impl Handle {
     /// context.
     pub fn subscribe(&self) -> impl Stream<Item = Notification> {
         let registry = self.execution_ctx.computed_value_info_registry();
-        let value_stream = registry
-            .subscribe()
-            .map(Notification::ComputedValueInfo)
-            .boxed_local();
-        let graph_stream = self
-            .graph()
-            .subscribe()
-            .map(Notification::Graph)
-            .boxed_local();
+        let value_stream = registry.subscribe().map(Notification::ComputedValueInfo).boxed_local();
+        let graph_stream = self.graph().subscribe().map(Notification::Graph).boxed_local();
         let self_stream = self.notifier.subscribe().boxed_local();
 
         // Note: [Argument Names-related invalidations]
@@ -198,29 +181,16 @@ impl Handle {
             .suggestion_db()
             .subscribe()
             .map(|notification| match notification {
-                model::suggestion_database::Notification::Updated => {
-                    Notification::Graph(
-                        controller::graph::Notification::PortsUpdate,
-                    )
-                }
+                model::suggestion_database::Notification::Updated =>
+                    Notification::Graph(controller::graph::Notification::PortsUpdate),
             })
             .boxed_local();
         let update_stream = registry
             .subscribe()
-            .map(|_| {
-                Notification::Graph(
-                    controller::graph::Notification::PortsUpdate,
-                )
-            })
+            .map(|_| Notification::Graph(controller::graph::Notification::PortsUpdate))
             .boxed_local();
 
-        let streams = vec![
-            value_stream,
-            graph_stream,
-            self_stream,
-            db_stream,
-            update_stream,
-        ];
+        let streams = vec![value_stream, graph_stream, self_stream, db_stream, update_stream];
         futures::stream::select_all(streams)
     }
 
@@ -234,11 +204,9 @@ impl Handle {
     // This is inefficient and should be addressed in the future.
     // See: https://github.com/enso-org/ide/issues/787
 
+
     /// Get a type of the given expression as soon as it is available.
-    pub fn expression_type(
-        &self,
-        id: ast::Id,
-    ) -> StaticBoxFuture<Option<ImString>> {
+    pub fn expression_type(&self, id: ast::Id) -> StaticBoxFuture<Option<ImString>> {
         let registry = self.execution_ctx.computed_value_info_registry();
         registry.clone_ref().get_type(id)
     }
@@ -249,25 +217,16 @@ impl Handle {
     /// controller to point to a new definition.
     ///
     /// Fails if method graph cannot be created (see `graph_for_method` documentation).
-    pub async fn enter_method_pointer(
-        &self,
-        local_call: &LocalCall,
-    ) -> FallibleResult {
+    pub async fn enter_method_pointer(&self, local_call: &LocalCall) -> FallibleResult {
         debug!(self.logger, "Entering node {local_call.call}.");
         let method_ptr = &local_call.definition;
-        let graph = controller::Graph::new_method(
-            &self.logger,
-            &self.project,
-            method_ptr,
-        );
+        let graph = controller::Graph::new_method(&self.logger, &self.project, method_ptr);
         let graph = graph.await?;
         self.execution_ctx.push(local_call.clone()).await?;
         debug!(self.logger, "Replacing graph with {graph:?}.");
         self.graph.replace(graph);
         debug!(self.logger, "Sending graph invalidation signal.");
-        self.notifier
-            .publish(Notification::EnteredNode(local_call.clone()))
-            .await;
+        self.notifier.publish(Notification::EnteredNode(local_call.clone())).await;
 
         Ok(())
     }
@@ -282,14 +241,8 @@ impl Handle {
     ) -> FallibleResult<Rc<MethodPointer>> {
         let registry = self.execution_ctx.computed_value_info_registry();
         let node_info = registry.get(&node).ok_or(NotEvaluatedYet(node))?;
-        let entry_id = *node_info
-            .method_call
-            .as_ref()
-            .ok_or(NoResolvedMethod(node))?;
-        self.project
-            .suggestion_db()
-            .lookup_method_ptr(entry_id)
-            .map(Rc::new)
+        let entry_id = *node_info.method_call.as_ref().ok_or(NoResolvedMethod(node))?;
+        self.project.suggestion_db().lookup_method_ptr(entry_id).map(Rc::new)
     }
 
     /// Enter node by given ID.
@@ -300,16 +253,10 @@ impl Handle {
     /// Fails if there's no information about target method pointer (e.g. because node value hasn't
     /// been yet computed by the engine) or if method graph cannot be created (see
     /// `graph_for_method` documentation).
-    pub async fn enter_node(
-        &self,
-        node: double_representation::node::Id,
-    ) -> FallibleResult {
+    pub async fn enter_node(&self, node: double_representation::node::Id) -> FallibleResult {
         let definition = self.node_method_pointer(node)?;
         let definition = (*definition).clone();
-        let local_call = LocalCall {
-            call: node,
-            definition,
-        };
+        let local_call = LocalCall { call: node, definition };
         self.enter_method_pointer(&local_call).await
     }
 
@@ -320,13 +267,9 @@ impl Handle {
     pub async fn exit_node(&self) -> FallibleResult {
         let frame = self.execution_ctx.pop().await?;
         let method = self.execution_ctx.current_method();
-        let graph =
-            controller::Graph::new_method(&self.logger, &self.project, &method)
-                .await?;
+        let graph = controller::Graph::new_method(&self.logger, &self.project, &method).await?;
         self.graph.replace(graph);
-        self.notifier
-            .publish(Notification::SteppedOutOfNode(frame.call))
-            .await;
+        self.notifier.publish(Notification::SteppedOutOfNode(frame.call)).await;
         Ok(())
     }
 
@@ -362,23 +305,16 @@ impl Handle {
     }
 }
 
+
 // === Span Tree Context ===
 
 /// Span Tree generation context for a graph that does not know about execution.
 /// Provides information based on computed value registry, using metadata as a fallback.
 impl Context for Handle {
-    fn call_info(
-        &self,
-        id: ast::Id,
-        name: Option<&str>,
-    ) -> Option<CalledMethodInfo> {
+    fn call_info(&self, id: ast::Id, name: Option<&str>) -> Option<CalledMethodInfo> {
         let lookup_registry = || {
             let info = self.computed_value_info_registry().get(&id)?;
-            let entry = self
-                .project
-                .suggestion_db()
-                .lookup(info.method_call?)
-                .ok()?;
+            let entry = self.project.suggestion_db().lookup(info.method_call?).ok()?;
             Some(entry.invocation_info())
         };
         let fallback = || self.graph.borrow().call_info(id, name);
@@ -391,6 +327,8 @@ impl model::undo_redo::Aware for Handle {
         self.graph.borrow().undo_redo_repository()
     }
 }
+
+
 
 // ============
 // === Test ===
@@ -412,50 +350,37 @@ pub mod tests {
 
     wasm_bindgen_test_configure!(run_in_browser);
 
+
+
     #[derive(Debug, Default)]
     pub struct MockData {
-        pub graph: controller::graph::tests::MockData,
+        pub graph:  controller::graph::tests::MockData,
         pub module: model::module::test::MockData,
-        pub ctx: model::execution_context::plain::test::MockData,
+        pub ctx:    model::execution_context::plain::test::MockData,
     }
 
     impl MockData {
         pub fn controller(&self) -> Handle {
             let logger = Logger::new("test");
             let parser = parser::Parser::new_or_panic();
-            let repository =
-                Rc::new(model::undo_redo::Repository::new(&logger));
+            let repository = Rc::new(model::undo_redo::Repository::new(&logger));
             let module = self.module.plain(&parser, repository);
             let method = self.graph.method();
             let mut project = model::project::MockAPI::new();
             let ctx = Rc::new(self.ctx.create());
             let proj_name = test::mock::data::project_qualified_name();
-            model::project::test::expect_name(
-                &mut project,
-                test::mock::data::PROJECT_NAME,
-            );
-            model::project::test::expect_qualified_name(
-                &mut project,
-                &proj_name,
-            );
+            model::project::test::expect_name(&mut project, test::mock::data::PROJECT_NAME);
+            model::project::test::expect_qualified_name(&mut project, &proj_name);
             model::project::test::expect_parser(&mut project, &parser);
             model::project::test::expect_module(&mut project, module);
             model::project::test::expect_execution_ctx(&mut project, ctx);
             // Root ID is needed to generate module path used to get the module.
-            model::project::test::expect_root_id(
-                &mut project,
-                crate::test::mock::data::ROOT_ID,
-            );
+            model::project::test::expect_root_id(&mut project, crate::test::mock::data::ROOT_ID);
             // Both graph controllers need suggestion DB to provide context to their span trees.
             let suggestion_db = self.graph.suggestion_db();
-            model::project::test::expect_suggestion_db(
-                &mut project,
-                suggestion_db,
-            );
+            model::project::test::expect_suggestion_db(&mut project, suggestion_db);
             let project = Rc::new(project);
-            Handle::new(logger, project.clone_ref(), method)
-                .boxed_local()
-                .expect_ok()
+            Handle::new(logger, project.clone_ref(), method).boxed_local().expect_ok()
         }
     }
 
@@ -465,12 +390,7 @@ pub mod tests {
         use crate::test::mock::Fixture;
         // Setup the controller.
         let mut fixture = crate::test::mock::Unified::new().fixture();
-        let Fixture {
-            executed_graph,
-            execution,
-            executor,
-            ..
-        } = &mut fixture;
+        let Fixture { executed_graph, execution, executor, .. } = &mut fixture;
 
         // Generate notification.
         let updated_id = ExpressionId::new_v4();
@@ -484,9 +404,7 @@ pub mod tests {
         assert!(registry.get(&updated_id).is_none());
 
         // Sending notification.
-        execution
-            .computed_value_info_registry()
-            .apply_updates(vec![update]);
+        execution.computed_value_info_registry().apply_updates(vec![update]);
         executor.run_until_stalled();
 
         // Observing that notification was relayed.
@@ -495,8 +413,7 @@ pub mod tests {
             |notification| match notification {
                 Notification::ComputedValueInfo(updated_ids) => {
                     assert_eq!(updated_ids, &vec![updated_id]);
-                    let typename_in_registry =
-                        registry.get(&updated_id).unwrap().typename.clone();
+                    let typename_in_registry = registry.get(&updated_id).unwrap().typename.clone();
                     let expected_typename = Some(ImString::new(typename));
                     assert_eq!(typename_in_registry, expected_typename);
                     true
@@ -505,10 +422,7 @@ pub mod tests {
             },
             |notification| match notification {
                 Notification::Graph(graph_notification) => {
-                    assert_eq!(
-                        graph_notification,
-                        &controller::graph::Notification::PortsUpdate
-                    );
+                    assert_eq!(graph_notification, &controller::graph::Notification::PortsUpdate);
                     true
                 }
                 _ => false,
@@ -528,26 +442,17 @@ pub mod tests {
         let entry2 = data.suggestions.get(&2).unwrap().clone();
         data.set_inline_code(&entry1.name);
 
-        let mock::Fixture {
-            graph,
-            executed_graph,
-            module,
-            ..
-        } = &data.fixture();
+        let mock::Fixture { graph, executed_graph, module, .. } = &data.fixture();
         let id = graph.nodes().unwrap()[0].info.id();
-        let get_invocation_info =
-            || executed_graph.call_info(id, Some(&entry1.name));
+        let get_invocation_info = || executed_graph.call_info(id, Some(&entry1.name));
         assert!(get_invocation_info().is_none());
 
         // Check that if we set metadata, executed graph can see this info.
         module
-            .set_node_metadata(
-                id,
-                NodeMetadata {
-                    intended_method: entry1.method_id(),
-                    ..default()
-                },
-            )
+            .set_node_metadata(id, NodeMetadata {
+                intended_method: entry1.method_id(),
+                ..default()
+            })
             .unwrap();
         let info = get_invocation_info().unwrap();
         assert_call_info(info, &entry1);
@@ -555,9 +460,7 @@ pub mod tests {
         // Now send update that expression actually was computed to be a call to the second
         // suggestion entry and check that executed graph provides this info over the metadata one.
         let update = value_update_with_method_ptr(id, 2);
-        executed_graph
-            .computed_value_info_registry()
-            .apply_updates(vec![update]);
+        executed_graph.computed_value_info_registry().apply_updates(vec![update]);
         let info = get_invocation_info().unwrap();
         assert_call_info(info, &entry2);
     }

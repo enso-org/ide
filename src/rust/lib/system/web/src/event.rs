@@ -7,6 +7,8 @@ use crate::prelude::*;
 use js_sys::Function;
 use web_sys::EventTarget;
 
+
+
 // =============
 // === Event ===
 // =============
@@ -37,23 +39,15 @@ pub trait Type {
     /// time event fires until listener is removed through `remove_listener`.
     fn add_listener(target: &Self::Target, listener: &Function) {
         // The unwrap here is safe, as the `addEventListener` never throws.
-        EventTarget::add_event_listener_with_callback(
-            target.as_ref(),
-            Self::NAME,
-            listener,
-        )
-        .unwrap()
+        EventTarget::add_event_listener_with_callback(target.as_ref(), Self::NAME, listener)
+            .unwrap()
     }
 
     /// Remove the event listener. The `add_listener` method should have been called before with
     /// the very same function argument.
     fn remove_listener(target: &Self::Target, listener: &Function) {
         // The unwrap here is safe, as the `addEventListener` never throws.
-        EventTarget::remove_event_listener_with_callback(
-            target.as_ref(),
-            Self::NAME,
-            listener,
-        )
-        .unwrap()
+        EventTarget::remove_event_listener_with_callback(target.as_ref(), Self::NAME, listener)
+            .unwrap()
     }
 }

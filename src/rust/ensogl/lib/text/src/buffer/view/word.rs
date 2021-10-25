@@ -4,6 +4,8 @@ use crate::buffer::data::rope;
 use crate::buffer::data::unit::*;
 use crate::prelude::*;
 
+
+
 // ==================
 // === WordCursor ===
 // ==================
@@ -60,8 +62,7 @@ impl<'a> WordCursor<'a> {
         self.cursor.set(initial); // FIXME ???
         let init_cls_before = self.prev_codepoint_class();
         let mut start = initial;
-        let init_boundary_opt =
-            init_cls_before.zip_with(init_cls_after, Boundary::new_initial);
+        let init_boundary_opt = init_cls_before.zip_with(init_cls_after, Boundary::new_initial);
         let init_boundary = init_boundary_opt.unwrap_or(Boundary::EndAndStart);
         let mut cls_after = init_cls_after;
         let mut cls_before = init_cls_before;
@@ -130,6 +131,8 @@ impl<'a> Debug for WordCursor<'a> {
     }
 }
 
+
+
 // ================
 // === Boundary ===
 // ================
@@ -188,6 +191,8 @@ impl Boundary {
         *self != Boundary::Interior
     }
 }
+
+
 
 // =================
 // === CharClass ===

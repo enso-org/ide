@@ -22,6 +22,8 @@ use std::collections::HashMap;
 use utils::future::ready_boxed;
 use uuid::Uuid;
 
+
+
 // ===============
 // === Aliases ===
 // ===============
@@ -31,6 +33,8 @@ pub type DefinitionId = crate::double_representation::definition::Id;
 
 /// An identifier of expression.
 pub type ExpressionId = ast::Id;
+
+
 
 // =========================
 // === ComputedValueInfo ===
@@ -44,8 +48,8 @@ pub type ExpressionId = ast::Id;
 pub struct ComputedValueInfo {
     /// The string representing the full qualified typename of the computed value, e.g.
     /// "Standard.Base.Number".
-    pub typename: Option<ImString>,
-    pub payload: ExpressionUpdatePayload,
+    pub typename:    Option<ImString>,
+    pub payload:     ExpressionUpdatePayload,
     /// If the expression is a method call (i.e. can be entered), this points to the target method.
     pub method_call: Option<SuggestionId>,
 }
@@ -53,15 +57,18 @@ pub struct ComputedValueInfo {
 impl From<ExpressionUpdate> for ComputedValueInfo {
     fn from(update: ExpressionUpdate) -> Self {
         ComputedValueInfo {
-            typename: update.typename.map(ImString::new),
+            typename:    update.typename.map(ImString::new),
             method_call: update.method_pointer,
-            payload: update.payload,
+            payload:     update.payload,
         }
     }
 }
 
+
 /// Ids of expressions that were computed and received updates in this batch.
 pub type ComputedValueExpressions = Vec<ExpressionId>;
+
+
 
 // =================================
 // === ComputedValueInfoRegistry ===
@@ -72,9 +79,9 @@ pub type ComputedValueExpressions = Vec<ExpressionId>;
 #[derive(Clone, Default, Derivative)]
 #[derivative(Debug)]
 pub struct ComputedValueInfoRegistry {
-    map: RefCell<HashMap<ExpressionId, Rc<ComputedValueInfo>>>,
-    /// A publisher that emits an update every time a new batch of updates is received from language
-    /// server.
+    map:     RefCell<HashMap<ExpressionId, Rc<ComputedValueInfo>>>,
+    /// A publisher that emits an update every time a new batch of updates is received from
+    /// language server.
     #[derivative(Debug = "ignore")]
     updates: Publisher<ComputedValueExpressions>,
 }
@@ -87,8 +94,7 @@ impl ComputedValueInfoRegistry {
 
     /// Store the information from the given update received from the Language Server.
     pub fn apply_updates(&self, updates: Vec<ExpressionUpdate>) {
-        let updated_expressions =
-            updates.iter().map(|update| update.expression_id).collect();
+        let updated_expressions = updates.iter().map(|update| update.expression_id).collect();
         for update in updates {
             let id = update.expression_id;
             let info = Rc::new(ComputedValueInfo::from(update));
@@ -129,15 +135,11 @@ impl ComputedValueInfoRegistry {
         } else {
             let info_updates = self.subscribe().filter_map(move |update| {
                 let result = update.contains(&id).and_option_from(|| {
-                    weak.upgrade()
-                        .and_then(|this| this.get(&id))
-                        .and_then(&mut f)
+                    weak.upgrade().and_then(|this| this.get(&id)).and_then(&mut f)
                 });
                 futures::future::ready(result)
             });
-            let ret = info_updates
-                .into_future()
-                .map(|(head_value, _stream_tail)| head_value);
+            let ret = info_updates.into_future().map(|(head_value, _stream_tail)| head_value);
             ret.boxed_local()
         }
     }
@@ -146,13 +148,12 @@ impl ComputedValueInfoRegistry {
     /// available.
     ///
     /// The `Future` yields `None` only when this registry itself has been dropped.
-    pub fn get_type(
-        self: &Rc<Self>,
-        id: ExpressionId,
-    ) -> StaticBoxFuture<Option<ImString>> {
+    pub fn get_type(self: &Rc<Self>, id: ExpressionId) -> StaticBoxFuture<Option<ImString>> {
         self.get_from_info(id, |info| info.typename.clone())
     }
 }
+
+
 
 // ===============================
 // === VisualizationUpdateData ===
@@ -188,6 +189,8 @@ impl Deref for VisualizationUpdateData {
     }
 }
 
+
+
 // =================
 // === StackItem ===
 // =================
@@ -198,10 +201,12 @@ impl Deref for VisualizationUpdateData {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct LocalCall {
     /// An expression being a call to a method.
-    pub call: ExpressionId,
+    pub call:       ExpressionId,
     /// A pointer to the called method.
     pub definition: MethodPointer,
 }
+
+
 
 // =====================
 // === Visualization ===
@@ -214,13 +219,13 @@ pub type VisualizationId = Uuid;
 #[derive(Clone, Debug, PartialEq)]
 pub struct Visualization {
     /// Unique identifier of this visualization.
-    pub id: VisualizationId,
+    pub id:                VisualizationId,
     /// Expression that is to be visualized.
-    pub expression_id: ExpressionId,
+    pub expression_id:     ExpressionId,
     /// An enso lambda that will transform the data into expected format, e.g. `a -> a.json`.
     pub preprocessor_code: String,
     /// Visualization module -- the module in which context the preprocessor code is evaluated.
-    pub context_module: ModuleQualifiedName,
+    pub context_module:    ModuleQualifiedName,
 }
 
 impl Visualization {
@@ -232,31 +237,21 @@ impl Visualization {
         context_module: ModuleQualifiedName,
     ) -> Visualization {
         let id = VisualizationId::new_v4();
-        Visualization {
-            id,
-            expression_id,
-            preprocessor_code,
-            context_module,
-        }
+        Visualization { id, expression_id, preprocessor_code, context_module }
     }
 
     /// Creates a `VisualisationConfiguration` that is used in communication with language server.
-    pub fn config(
-        &self,
-        execution_context_id: Uuid,
-    ) -> VisualisationConfiguration {
+    pub fn config(&self, execution_context_id: Uuid) -> VisualisationConfiguration {
         let expression = self.preprocessor_code.clone();
         let visualisation_module = self.context_module.to_string();
-        VisualisationConfiguration {
-            execution_context_id,
-            visualisation_module,
-            expression,
-        }
+        VisualisationConfiguration { execution_context_id, visualisation_module, expression }
     }
 }
 
 /// An identifier of ExecutionContext.
 pub type Id = language_server::ContextId;
+
+
 
 // =============================
 // === AttachedVisualization ===
@@ -267,9 +262,10 @@ pub type Id = language_server::ContextId;
 #[derive(Clone, Debug)]
 pub struct AttachedVisualization {
     visualization: Visualization,
-    update_sender:
-        futures::channel::mpsc::UnboundedSender<VisualizationUpdateData>,
+    update_sender: futures::channel::mpsc::UnboundedSender<VisualizationUpdateData>,
 }
+
+
 
 // =============
 // === Model ===
@@ -289,10 +285,7 @@ pub trait API: Debug {
 
     /// Get the information about the given visualization. Fails, if there's no such visualization
     /// active.
-    fn visualization_info(
-        &self,
-        id: VisualizationId,
-    ) -> FallibleResult<Visualization>;
+    fn visualization_info(&self, id: VisualizationId) -> FallibleResult<Visualization>;
 
     /// Get the information about all the active visualizations.
     fn all_visualizations_info(&self) -> Vec<Visualization>;
@@ -308,10 +301,7 @@ pub trait API: Debug {
 
     /// Push a new stack item to execution context.
     #[allow(clippy::needless_lifetimes)] // Note: Needless lifetimes
-    fn push<'a>(
-        &'a self,
-        stack_item: LocalCall,
-    ) -> BoxFuture<'a, FallibleResult>;
+    fn push<'a>(&'a self, stack_item: LocalCall) -> BoxFuture<'a, FallibleResult>;
 
     /// Pop the last stack item from this context. It returns error when only root call remains.
     #[allow(clippy::needless_lifetimes)] // Note: Needless lifetimes
@@ -326,10 +316,9 @@ pub trait API: Debug {
         visualization: Visualization,
     ) -> BoxFuture<
         'a,
-        FallibleResult<
-            futures::channel::mpsc::UnboundedReceiver<VisualizationUpdateData>,
-        >,
+        FallibleResult<futures::channel::mpsc::UnboundedReceiver<VisualizationUpdateData>>,
     >;
+
 
     /// Detach the visualization from this execution context.
     #[allow(clippy::needless_lifetimes)] // Note: Needless lifetimes
@@ -365,9 +354,7 @@ pub trait API: Debug {
         &'a self,
     ) -> BoxFuture<'a, Vec<FallibleResult<Visualization>>> {
         let visualizations = self.active_visualizations();
-        let detach_actions = visualizations
-            .into_iter()
-            .map(move |v| self.detach_visualization(v));
+        let detach_actions = visualizations.into_iter().map(move |v| self.detach_visualization(v));
         futures::future::join_all(detach_actions).boxed_local()
     }
 }
@@ -388,6 +375,8 @@ pub type ExecutionContext = Rc<dyn API>;
 pub type Plain = plain::ExecutionContext;
 /// Execution Context Model which synchronizes all changes with Language Server.
 pub type Synchronized = synchronized::ExecutionContext;
+
+
 
 // =============
 // === Tests ===
@@ -419,16 +408,10 @@ mod tests {
         let typename = crate::test::mock::data::TYPE_NAME;
         let update1 = value_update_with_type(id1, typename);
         registry.apply_updates(vec![update1]);
-        assert_eq!(
-            fixture.expect_completion(type_future1),
-            Some(typename.into())
-        );
+        assert_eq!(fixture.expect_completion(type_future1), Some(typename.into()));
         type_future2.expect_pending();
         // Next attempt should return value immediately, as it is already in the registry.
-        assert_eq!(
-            fixture.expect_completion(registry.get_type(id1)),
-            Some(typename.into())
-        );
+        assert_eq!(fixture.expect_completion(registry.get_type(id1)), Some(typename.into()));
         // The value for other id should not be obtainable though.
         fixture.expect_pending(registry.get_type(id2));
 
@@ -454,22 +437,10 @@ mod tests {
         let update1 = value_update_with_type(expr1, &typename1);
         let update2 = value_update_with_type(expr2, &typename2);
         registry.apply_updates(vec![update1, update2]);
-        assert_eq!(
-            registry.get(&expr1).unwrap().typename,
-            Some(typename1.clone().into())
-        );
-        assert!(matches!(
-            registry.get(&expr1).unwrap().payload,
-            ExpressionUpdatePayload::Value
-        ));
-        assert_eq!(
-            registry.get(&expr2).unwrap().typename,
-            Some(typename2.into())
-        );
-        assert!(matches!(
-            registry.get(&expr2).unwrap().payload,
-            ExpressionUpdatePayload::Value
-        ));
+        assert_eq!(registry.get(&expr1).unwrap().typename, Some(typename1.clone().into()));
+        assert!(matches!(registry.get(&expr1).unwrap().payload, ExpressionUpdatePayload::Value));
+        assert_eq!(registry.get(&expr2).unwrap().typename, Some(typename2.into()));
+        assert!(matches!(registry.get(&expr2).unwrap().payload, ExpressionUpdatePayload::Value));
         let notification = test.expect_completion(subscriber.next()).unwrap();
         assert_eq!(notification, vec![expr1, expr2]);
 
@@ -477,14 +448,8 @@ mod tests {
         let update1 = value_update_with_dataflow_error(expr2);
         let update2 = value_update_with_dataflow_panic(expr3, &error_msg);
         registry.apply_updates(vec![update1, update2]);
-        assert_eq!(
-            registry.get(&expr1).unwrap().typename,
-            Some(typename1.into())
-        );
-        assert!(matches!(
-            registry.get(&expr1).unwrap().payload,
-            ExpressionUpdatePayload::Value
-        ));
+        assert_eq!(registry.get(&expr1).unwrap().typename, Some(typename1.into()));
+        assert!(matches!(registry.get(&expr1).unwrap().payload, ExpressionUpdatePayload::Value));
         assert!(registry.get(&expr2).unwrap().typename.is_none());
         assert!(matches!(
             registry.get(&expr2).unwrap().payload,

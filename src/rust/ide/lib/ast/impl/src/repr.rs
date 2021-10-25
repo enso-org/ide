@@ -49,6 +49,8 @@ pub const RAW_BLOCK_QUOTES: &str = "\"\"\"";
 /// Quotes opening block of the formatted text.
 pub const FMT_BLOCK_QUOTES: &str = "'''";
 
+
+
 // ===============
 // === Builder ===
 // ===============
@@ -58,6 +60,7 @@ has_tokens!(Letter, self.char);
 has_tokens!(Space, self);
 has_tokens!(Text, self.str);
 has_tokens!(Seq, self.first, self.second);
+
 
 // =====================
 // === TextBlockLine ===
@@ -73,6 +76,8 @@ impl<T: HasTokens> TextBlockLine<T> {
     }
 }
 
+
+
 // =====================
 // === Text Segments ===
 // =====================
@@ -81,6 +86,7 @@ has_tokens!(SegmentPlain, self.value);
 has_tokens!(SegmentRawEscape, BACKSLASH, self.code);
 has_tokens!(SegmentExpr<T>, EXPR_QUOTE, self.value, EXPR_QUOTE);
 has_tokens!(SegmentEscape, BACKSLASH, self.code);
+
 
 // =================
 // === RawEscape ===
@@ -92,6 +98,7 @@ has_tokens!(Slash, BACKSLASH);
 has_tokens!(Quote, FMT_QUOTE);
 has_tokens!(RawQuote, RAW_QUOTE);
 
+
 // ==============
 // === Escape ===
 // ==============
@@ -100,19 +107,16 @@ has_tokens!(EscapeCharacter, self.c);
 has_tokens!(EscapeControl, self.name);
 has_tokens!(EscapeNumber, self.digits);
 has_tokens!(EscapeUnicode16, UNICODE16_INTRODUCER, self.digits);
-has_tokens!(
-    EscapeUnicode21,
-    UNICODE21_OPENER.deref(),
-    self.digits,
-    UNICODE21_CLOSER.deref()
-);
+has_tokens!(EscapeUnicode21, UNICODE21_OPENER.deref(), self.digits, UNICODE21_CLOSER.deref());
 has_tokens!(EscapeUnicode32, UNICODE32_INTRODUCER, self.digits);
+
 
 // =============
 // === Block ===
 // =============
 
 has_tokens!(BlockLine<T>, self.elem, self.off);
+
 
 // =============
 // === Macro ===
@@ -122,6 +126,7 @@ has_tokens!(BlockLine<T>, self.elem, self.off);
 
 has_tokens!(MacroMatchSegment<T>, self.head, self.body);
 has_tokens!(MacroAmbiguousSegment<T>, self.head, self.body);
+
 
 // === MacroPatternMatch subtypes ===
 
@@ -150,14 +155,17 @@ has_tokens!(MacroPatternMatchRawMacro<T>, self.elem);
 has_tokens!(MacroPatternMatchRawInvalid<T>, self.elem);
 has_tokens!(MacroPatternMatchRawFailedMatch);
 
+
 // === Switch ===
 
 has_tokens!(Switch<T>, self.deref());
+
 
 // === Shifted ===
 
 has_tokens!(Shifted<T>, self.off, self.wrapped);
 has_tokens!(ShiftedVec1<T>, self.head, self.tail);
+
 
 // =============================================================================
 // === Shape ===================================================================
@@ -172,6 +180,7 @@ has_tokens!(Unexpected<T>, self.stream);
 has_tokens!(InvalidQuote, self.quote);
 has_tokens!(InlineBlock, self.quote);
 
+
 // ===================
 // === Identifiers ===
 // ===================
@@ -184,6 +193,7 @@ has_tokens!(Annotation, self.name);
 has_tokens!(Mod, self.name, MOD_SUFFIX);
 has_tokens!(InvalidSuffix<T>, self.elem, self.suffix);
 
+
 // ==============
 // === Number ===
 // ==============
@@ -195,14 +205,18 @@ has_tokens!(NumberBase<T>, self.0, NUMBER_BASE_SEPARATOR);
 has_tokens!(Number, self.base.as_ref().map(NumberBase), self.int);
 has_tokens!(DanglingBase, self.base, NUMBER_BASE_SEPARATOR);
 
+
+
 // ============
 // === Text ===
 // ============
+
 
 // === Lines ===
 
 has_tokens!(TextLineRaw, RAW_QUOTE, self.text, RAW_QUOTE);
 has_tokens!(TextLineFmt<T>, FMT_QUOTE, self.text, FMT_QUOTE);
+
 
 // === TextBlockRaw ==
 
@@ -215,6 +229,7 @@ impl HasTokens for TextBlockRaw {
     }
 }
 
+
 // === TextBlockFmt ==
 
 impl<T: HasTokens> HasTokens for TextBlockFmt<T> {
@@ -226,33 +241,25 @@ impl<T: HasTokens> HasTokens for TextBlockFmt<T> {
     }
 }
 
+
 // === TextUnclosed ==
 
 impl<T: HasTokens> HasTokens for TextUnclosed<T> {
     fn feed_to(&self, consumer: &mut impl TokenConsumer) {
         match &self.line {
-            TextLine::TextLineRaw(line) => {
-                (RAW_QUOTE, &line.text).feed_to(consumer)
-            }
-            TextLine::TextLineFmt(line) => {
-                (FMT_QUOTE, &line.text).feed_to(consumer)
-            }
+            TextLine::TextLineRaw(line) => (RAW_QUOTE, &line.text).feed_to(consumer),
+            TextLine::TextLineFmt(line) => (FMT_QUOTE, &line.text).feed_to(consumer),
         }
     }
 }
+
+
 
 // ====================
 // === Applications ===
 // ====================
 
-has_tokens!(
-    Infix<T>,
-    self.larg,
-    self.loff,
-    self.opr,
-    self.roff,
-    self.rarg
-);
+has_tokens!(Infix<T>, self.larg, self.loff, self.opr, self.roff, self.rarg);
 
 has_tokens!(Prefix<T>, self.func, self.off, self.arg);
 has_tokens!(SectionLeft<T>, self.arg, self.off, self.opr);
@@ -277,6 +284,7 @@ impl<T: HasTokens> HasTokens for Module<T> {
     }
 }
 
+
 // === Block ==
 
 impl<T: HasTokens> HasTokens for Block<T> {
@@ -287,11 +295,12 @@ impl<T: HasTokens> HasTokens for Block<T> {
         }
         (self.indent, &self.first_line).feed_to(consumer);
         for line in &self.lines {
-            (NEWLINE, line.elem.as_ref().map(|_| self.indent), line)
-                .feed_to(consumer);
+            (NEWLINE, line.elem.as_ref().map(|_| self.indent), line).feed_to(consumer);
         }
     }
 }
+
+
 
 // ==============
 // === Macros ===
@@ -311,9 +320,12 @@ impl<T: HasTokens> HasTokens for Match<T> {
     }
 }
 
+
 // === Ambiguous ===
 
 has_tokens!(Ambiguous<T>, self.segs);
+
+
 
 // =====================
 // === Spaceless AST ===
@@ -331,6 +343,8 @@ spaceless_ast!(TypesetLiteral<T>);
 spaceless_ast!(Def<T>);
 spaceless_ast!(Foreign);
 spaceless_ast!(Modified<T>);
+
+
 
 // =============
 // === Tests ===
@@ -361,18 +375,12 @@ mod tests {
         make_comment().len();
     }
 
+
     // === Import ===
 
     fn make_import() -> Shape<Ast> {
         let path = vec![Ast::var("Target")];
-        Import {
-            path,
-            rename: None,
-            isAll: false,
-            onlyNames: None,
-            hidingNames: None,
-        }
-        .into()
+        Import { path, rename: None, isAll: false, onlyNames: None, hidingNames: None }.into()
     }
 
     #[test]
@@ -387,14 +395,11 @@ mod tests {
         make_import().len();
     }
 
+
     // === Mixfix ===
 
     fn make_mixfix() -> Shape<Ast> {
-        Mixfix {
-            name: vec![],
-            args: vec![],
-        }
-        .into()
+        Mixfix { name: vec![], args: vec![] }.into()
     }
 
     #[test]
@@ -408,6 +413,7 @@ mod tests {
     fn mixfix_panics_on_length() {
         make_mixfix().len();
     }
+
 
     // === Group ===
 
@@ -427,15 +433,11 @@ mod tests {
         make_group().len();
     }
 
+
     // === Def ===
 
     fn make_def() -> Shape<Ast> {
-        Def {
-            name: Ast::cons("Foo"),
-            args: vec![],
-            body: None,
-        }
-        .into()
+        Def { name: Ast::cons("Foo"), args: vec![], body: None }.into()
     }
 
     #[test]
@@ -453,12 +455,7 @@ mod tests {
     // === Foreign ===
 
     fn make_foreign() -> Shape<Ast> {
-        Foreign {
-            indent: 0,
-            lang: "Python".into(),
-            code: vec![],
-        }
-        .into()
+        Foreign { indent: 0, lang: "Python".into(), code: vec![] }.into()
     }
 
     #[test]

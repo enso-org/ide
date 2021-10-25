@@ -12,6 +12,8 @@ use ensogl_core::control::io::mouse;
 use ensogl_core::display;
 use ensogl_core::display::object::ObjectOps;
 
+
+
 // ===========
 // === Frp ===
 // ===========
@@ -41,6 +43,8 @@ ensogl_core::define_endpoints! {
     }
 }
 
+
+
 // ===================
 // === Scroll Area ===
 // ===================
@@ -55,12 +59,12 @@ ensogl_core::define_endpoints! {
 pub struct ScrollArea {
     /// All objects that should be inside the scroll area and affected by the scrolling, have to be
     /// added as children to `content`.
-    pub content: display::object::Instance,
-    display_object: display::object::Instance,
-    h_scrollbar: Scrollbar,
-    v_scrollbar: Scrollbar,
+    pub content:           display::object::Instance,
+    display_object:        display::object::Instance,
+    h_scrollbar:           Scrollbar,
+    v_scrollbar:           Scrollbar,
     scroll_handler_handle: callback::Handle,
-    frp: Frp,
+    frp:                   Frp,
 }
 
 impl Deref for ScrollArea {
@@ -130,6 +134,7 @@ impl ScrollArea {
             eval frp.scroll_position_y((&pos) content.set_position_y(pos));
         }
 
+
         // === Mouse Wheel ===
 
         let mouse = &scene.mouse;
@@ -151,13 +156,7 @@ impl ScrollArea {
         );
         let scroll_handler_handle = mouse_manager.on_wheel.add(scroll_handler);
 
-        ScrollArea {
-            content,
-            display_object,
-            h_scrollbar,
-            v_scrollbar,
-            scroll_handler_handle,
-            frp,
-        }
+
+        ScrollArea { content, display_object, h_scrollbar, v_scrollbar, scroll_handler_handle, frp }
     }
 }

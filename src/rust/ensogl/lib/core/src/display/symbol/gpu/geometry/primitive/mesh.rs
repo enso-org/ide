@@ -12,6 +12,8 @@ use num_enum::IntoPrimitive;
 
 use enso_shapely::shared;
 
+
+
 // ===============
 // === Exports ===
 // ===============
@@ -22,6 +24,7 @@ pub mod types {
     pub use crate::system::gpu::types::*;
 }
 pub use types::*;
+
 
 // --------------------------------------------------
 
@@ -42,8 +45,8 @@ pub struct Scopes {
     /// Bezier/NURBS surfaces.
     pub primitive: AttributeScope,
 
-    /// Instance Scope. Instances are virtual copies of the same geometry. They share point, vertex,
-    /// and primitive variables.
+    /// Instance Scope. Instances are virtual copies of the same geometry. They share point,
+    /// vertex, and primitive variables.
     pub instance: AttributeScope,
 }
 
@@ -64,10 +67,12 @@ impl From<ScopeType> for usize {
     }
 }
 
+
 // === Types ===
 
 /// Dirty flag remembering which scopes were mutated.
 pub type ScopesDirty = dirty::SharedEnum<u8, ScopeType, Box<dyn Fn()>>;
+
 
 // === Implementation ===
 
@@ -78,6 +83,7 @@ macro_rules! update_scopes {
         }
     )*}
 }
+
 
 // ============
 // === Mesh ===

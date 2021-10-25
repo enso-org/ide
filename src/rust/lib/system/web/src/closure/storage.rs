@@ -4,6 +4,8 @@ use js_sys::Function;
 use wasm_bindgen::convert::FromWasmAbi;
 use wasm_bindgen::JsCast;
 
+
+
 // ======================
 // === ClosureStorage ===
 // ======================
@@ -41,9 +43,7 @@ impl<Arg> OptionalFmMutClosure<Arg> {
     /// Obtain JS reference to the closure (that can be passed e.g. as a callback
     /// to an event handler).
     pub fn js_ref(&self) -> Option<&Function> {
-        self.closure
-            .as_ref()
-            .map(|closure| closure.as_ref().unchecked_ref())
+        self.closure.as_ref().map(|closure| closure.as_ref().unchecked_ref())
     }
 
     /// Wraps given function into a Closure.
@@ -64,10 +64,7 @@ impl<Arg> OptionalFmMutClosure<Arg> {
 
     /// Register this closure as an event handler.
     /// No action is taken if there is no closure stored.
-    pub fn add_listener<EventType: crate::event::Type>(
-        &self,
-        target: &EventType::Target,
-    ) {
+    pub fn add_listener<EventType: crate::event::Type>(&self, target: &EventType::Target) {
         if let Some(function) = self.js_ref() {
             EventType::add_listener(target, function)
         }
@@ -75,10 +72,7 @@ impl<Arg> OptionalFmMutClosure<Arg> {
 
     /// Unregister this closure as an event handler. The closure must be the same as when it was
     /// registered.
-    pub fn remove_listener<EventType: crate::event::Type>(
-        &self,
-        target: &EventType::Target,
-    ) {
+    pub fn remove_listener<EventType: crate::event::Type>(&self, target: &EventType::Target) {
         if let Some(function) = self.js_ref() {
             EventType::remove_listener(target, function)
         }

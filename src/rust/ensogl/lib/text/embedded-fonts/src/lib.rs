@@ -11,6 +11,8 @@
 
 use enso_prelude::*;
 
+
+
 // =====================
 // === EmbeddedFonts ===
 // =====================
@@ -31,8 +33,7 @@ impl EmbeddedFonts {
     ///
     /// For list of embedded fonts, see `FONTS_TO_EXTRACT` constant in `build.rs`
     pub fn create_and_fill() -> EmbeddedFonts {
-        let mut font_data_by_name =
-            HashMap::<&'static str, &'static [u8]>::new();
+        let mut font_data_by_name = HashMap::<&'static str, &'static [u8]>::new();
         include!(concat!(env!("OUT_DIR"), "/fill_map.rs"));
         EmbeddedFonts { font_data_by_name }
     }
@@ -43,6 +44,8 @@ impl Debug for EmbeddedFonts {
         f.write_str("<Embedded fonts>")
     }
 }
+
+
 
 // =============
 // === Tests ===

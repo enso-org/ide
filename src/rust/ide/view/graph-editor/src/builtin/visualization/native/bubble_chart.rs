@@ -10,6 +10,8 @@ use ensogl::data::color::Rgba;
 use ensogl::display;
 use ensogl::display::scene::Scene;
 
+
+
 // =============
 // === Shape ===
 // =============
@@ -29,6 +31,8 @@ pub mod shape {
     }
 }
 
+
+
 // ========================
 // === BubbleChartModel ===
 // ========================
@@ -38,11 +42,11 @@ pub mod shape {
 #[allow(missing_docs)]
 pub struct BubbleChartModel {
     pub display_object: display::object::Instance,
-    pub scene: Scene,
-    signature: Signature,
-    views: Rc<RefCell<Vec<shape::View>>>,
-    logger: Logger,
-    size: Rc<Cell<Vector2>>,
+    pub scene:          Scene,
+    signature:          Signature,
+    views:              Rc<RefCell<Vec<shape::View>>>,
+    logger:             Logger,
+    size:               Rc<Cell<Vector2>>,
 }
 
 impl BubbleChartModel {
@@ -66,19 +70,18 @@ impl BubbleChartModel {
         // TODO[mm] this is somewhat inefficient, as the canvas for each bubble is too large.
         // But this ensures that we can get a cropped view area and avoids an issue with the data
         // and position not matching up.
-        views
-            .iter()
-            .zip(data_inner.iter())
-            .for_each(|(view, item)| {
-                let size = self.size.get();
-                self.display_object.add_child(&view);
-                view.size.set(size);
-                view.radius.set(item.z);
-                view.position.set(Vector2(item.x, item.y) - size / 2.0);
-            });
+        views.iter().zip(data_inner.iter()).for_each(|(view, item)| {
+            let size = self.size.get();
+            self.display_object.add_child(&view);
+            view.size.set(size);
+            view.radius.set(item.z);
+            view.position.set(Vector2(item.x, item.y) - size / 2.0);
+        });
         Ok(())
     }
 }
+
+
 
 // ===================
 // === BubbleChart ===
@@ -89,9 +92,9 @@ impl BubbleChartModel {
 #[allow(missing_docs)]
 pub struct BubbleChart {
     #[shrinkwrap(main_field)]
-    model: BubbleChartModel,
+    model:   BubbleChartModel,
     network: frp::Network,
-    frp: visualization::instance::Frp,
+    frp:     visualization::instance::Frp,
 }
 
 #[allow(missing_docs)]
@@ -109,20 +112,8 @@ impl BubbleChart {
         let size = default();
         let scene = scene.clone_ref();
         let signature = Self::signature();
-        let model = BubbleChartModel {
-            display_object,
-            scene,
-            signature,
-            views,
-            logger,
-            size,
-        };
-        BubbleChart {
-            model,
-            network,
-            frp,
-        }
-        .init()
+        let model = BubbleChartModel { display_object, scene, signature, views, logger, size };
+        BubbleChart { model, network, frp }.init()
     }
 
     fn init(self) -> Self {
@@ -142,10 +133,7 @@ impl BubbleChart {
     }
 
     fn signature() -> Signature {
-        Signature::new_for_any_type(
-            Path::builtin("Bubbles (WebGL)"),
-            Format::Json,
-        )
+        Signature::new_for_any_type(Path::builtin("Bubbles (WebGL)"), Format::Json)
     }
 }
 

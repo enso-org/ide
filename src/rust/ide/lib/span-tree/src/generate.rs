@@ -23,6 +23,8 @@ use enso_data::text::Size;
 
 pub use context::Context;
 
+
+
 // =============
 // === Trait ===
 // =============
@@ -38,14 +40,13 @@ pub trait SpanTreeGenerator<T> {
     ) -> FallibleResult<Node<T>>;
 
     /// Generate tree for this AST treated as root for the whole expression.
-    fn generate_tree(
-        &self,
-        context: &impl Context,
-    ) -> FallibleResult<SpanTree<T>> {
+    fn generate_tree(&self, context: &impl Context) -> FallibleResult<SpanTree<T>> {
         let root = self.generate_node(node::Kind::Root, context)?;
         Ok(SpanTree { root })
     }
 }
+
+
 
 // ==============
 // === String ===
@@ -57,9 +58,7 @@ impl<T: Payload> SpanTreeGenerator<T> for &str {
         kind: impl Into<node::Kind>,
         _: &impl Context,
     ) -> FallibleResult<Node<T>> {
-        Ok(Node::<T>::new()
-            .with_kind(kind)
-            .with_size(Size::new(self.len())))
+        Ok(Node::<T>::new().with_kind(kind).with_size(Size::new(self.len())))
     }
 }
 
@@ -73,6 +72,8 @@ impl<T: Payload> SpanTreeGenerator<T> for String {
     }
 }
 
+
+
 // =================
 // === Utilities ===
 // =================
@@ -83,7 +84,7 @@ impl<T: Payload> SpanTreeGenerator<T> for String {
 #[derive(Debug, Default)]
 struct ChildGenerator<T> {
     current_offset: Size,
-    children: Vec<node::Child<T>>,
+    children:       Vec<node::Child<T>>,
 }
 
 impl<T: Payload> ChildGenerator<T> {
@@ -104,29 +105,18 @@ impl<T: Payload> ChildGenerator<T> {
         Ok(self.add_node(child_ast.crumbs, node))
     }
 
-    fn add_node(
-        &mut self,
-        ast_crumbs: ast::Crumbs,
-        node: Node<T>,
-    ) -> &mut node::Child<T> {
+    fn add_node(&mut self, ast_crumbs: ast::Crumbs, node: Node<T>) -> &mut node::Child<T> {
         let offset = self.current_offset;
-        let child = node::Child {
-            node,
-            offset,
-            ast_crumbs,
-        };
+        let child = node::Child { node, offset, ast_crumbs };
         self.current_offset += child.node.size;
         self.children.push(child);
         self.children.last_mut().unwrap()
     }
 
-    fn generate_empty_node(
-        &mut self,
-        insert_type: InsertionPointType,
-    ) -> &mut node::Child<T> {
+    fn generate_empty_node(&mut self, insert_type: InsertionPointType) -> &mut node::Child<T> {
         let child = node::Child {
-            node: Node::<T>::new().with_kind(insert_type),
-            offset: self.current_offset,
+            node:       Node::<T>::new().with_kind(insert_type),
+            offset:     self.current_offset,
             ast_crumbs: vec![],
         };
         self.children.push(child);
@@ -141,6 +131,8 @@ impl<T: Payload> ChildGenerator<T> {
     }
 }
 
+
+
 /// =============================
 /// === Trait Implementations ===
 /// =============================
@@ -154,7 +146,7 @@ struct ApplicationBase<'a> {
     /// The name of invoked function.
     function_name: Option<&'a str>,
     /// True when Ast uses method notation to pass this as an invocation target.
-    has_target: bool,
+    has_target:    bool,
 }
 
 impl<'a> ApplicationBase<'a> {
@@ -165,15 +157,9 @@ impl<'a> ApplicationBase<'a> {
                 let ast = ast.get_traversing(&crumbs).ok()?;
                 ast::identifier::name(ast)
             };
-            ApplicationBase {
-                function_name: get_name(),
-                has_target: true,
-            }
+            ApplicationBase { function_name: get_name(), has_target: true }
         } else {
-            ApplicationBase {
-                function_name: ast::identifier::name(ast),
-                has_target: false,
-            }
+            ApplicationBase { function_name: ast::identifier::name(ast), has_target: false }
         }
     }
 
@@ -181,16 +167,14 @@ impl<'a> ApplicationBase<'a> {
         &self,
         invocation_info: Option<CalledMethodInfo>,
     ) -> impl ExactSizeIterator<Item = ArgumentInfo> {
-        let mut ret = invocation_info
-            .map(|info| info.parameters)
-            .unwrap_or_default()
-            .into_iter();
+        let mut ret = invocation_info.map(|info| info.parameters).unwrap_or_default().into_iter();
         if self.has_target {
             ret.next();
         }
         ret
     }
 }
+
 
 // === AST ===
 
@@ -220,81 +204,46 @@ fn generate_node_for_ast<T: Payload>(
         // All prefix params are missing arguments, since there is no prefix application.
         let missing_args = app_base.prefix_params(invocation);
         let arity = missing_args.len();
-        let base_node_kind = if arity == 0 {
-            kind.clone()
-        } else {
-            node::Kind::Operation
-        };
+        let base_node_kind = if arity == 0 { kind.clone() } else { node::Kind::Operation };
         let node = chain.generate_node(base_node_kind, context)?;
         let provided_prefix_arg_count = 0;
-        Ok(generate_expected_arguments(
-            node,
-            kind,
-            provided_prefix_arg_count,
-            missing_args,
-        ))
+        Ok(generate_expected_arguments(node, kind, provided_prefix_arg_count, missing_args))
     } else {
         match ast.shape() {
-            ast::Shape::Prefix(_) => ast::prefix::Chain::from_ast(ast)
-                .unwrap()
-                .generate_node(kind, context),
+            ast::Shape::Prefix(_) =>
+                ast::prefix::Chain::from_ast(ast).unwrap().generate_node(kind, context),
             // Lambdas should fall in _ case, because we don't want to create subports for
             // them
-            ast::Shape::Match(_)
-                if ast::macros::as_lambda_match(ast).is_none() =>
-            {
-                ast::known::Match::try_new(ast.clone_ref())
-                    .unwrap()
-                    .generate_node(kind, context)
-            }
-            ast::Shape::Ambiguous(_) => {
-                ast::known::Ambiguous::try_new(ast.clone_ref())
-                    .unwrap()
-                    .generate_node(kind, context)
-            }
+            ast::Shape::Match(_) if ast::macros::as_lambda_match(ast).is_none() =>
+                ast::known::Match::try_new(ast.clone_ref()).unwrap().generate_node(kind, context),
+            ast::Shape::Ambiguous(_) => ast::known::Ambiguous::try_new(ast.clone_ref())
+                .unwrap()
+                .generate_node(kind, context),
             _ => {
                 let size = Size::new(ast.len());
                 let ast_id = ast.id;
                 let children = default();
                 let name = ast::identifier::name(ast);
                 let payload = default();
-                if let Some(info) =
-                    ast.id.and_then(|id| context.call_info(id, name))
-                {
+                if let Some(info) = ast.id.and_then(|id| context.call_info(id, name)) {
                     let node = {
                         let kind = node::Kind::Operation;
-                        Node {
-                            kind,
-                            size,
-                            children,
-                            ast_id,
-                            payload,
-                        }
+                        Node { kind, size, children, ast_id, payload }
                     };
                     // Note that in this place it is impossible that Ast is in form of
                     // `this.method` -- it is covered by the former if arm. As such, we don't
                     // need to use `ApplicationBase` here as we do elsewhere.
                     let provided_prefix_arg_count = 0;
                     let params = info.parameters.into_iter();
-                    Ok(generate_expected_arguments(
-                        node,
-                        kind,
-                        provided_prefix_arg_count,
-                        params,
-                    ))
+                    Ok(generate_expected_arguments(node, kind, provided_prefix_arg_count, params))
                 } else {
-                    Ok(Node {
-                        kind,
-                        size,
-                        children,
-                        ast_id,
-                        payload,
-                    })
+                    Ok(Node { kind, size, children, ast_id, payload })
                 }
             }
         }
     }
 }
+
 
 // === Operators (Sections and Infixes) ===
 
@@ -322,78 +271,64 @@ fn generate_node_for_opr_chain<T: Payload>(
             let node = target.arg.generate_node(kind, context)?;
             Ok((node, target.offset))
         }
-        None => Ok((
-            Node::<T>::new().with_kind(InsertionPointType::BeforeTarget),
-            0,
-        )),
+        None => Ok((Node::<T>::new().with_kind(InsertionPointType::BeforeTarget), 0)),
     };
 
     // In this fold we pass last generated node and offset after it, wrapped in Result.
-    let (node, _) = this.args.iter().enumerate().fold(
-        node_and_offset,
-        |result, (i, elem)| {
-            // Here we generate children as the operator would be left-associative. Then, if it is
-            // actually right associative, we just reverse the generated children and their offsets.
-            let (node, off) = result?;
-            let is_first = i == 0;
-            let is_last = i + 1 == this.args.len();
-            let has_left = !node.is_insertion_point();
-            // Target is a first element of chain in this context.
-            let has_target = is_first && has_left;
-            let opr_crumbs = elem.crumb_to_operator(has_left);
-            let opr_ast =
-                Located::new(opr_crumbs, elem.operator.ast().clone_ref());
-            let left_crumbs = if has_left {
-                vec![elem.crumb_to_previous()]
-            } else {
-                vec![]
-            };
+    let (node, _) = this.args.iter().enumerate().fold(node_and_offset, |result, (i, elem)| {
+        // Here we generate children as the operator would be left-associative. Then, if it is
+        // actually right associative, we just reverse the generated children and their offsets.
+        let (node, off) = result?;
+        let is_first = i == 0;
+        let is_last = i + 1 == this.args.len();
+        let has_left = !node.is_insertion_point();
+        // Target is a first element of chain in this context.
+        let has_target = is_first && has_left;
+        let opr_crumbs = elem.crumb_to_operator(has_left);
+        let opr_ast = Located::new(opr_crumbs, elem.operator.ast().clone_ref());
+        let left_crumbs = if has_left { vec![elem.crumb_to_previous()] } else { vec![] };
 
-            let mut gen = ChildGenerator::default();
-            if has_target {
-                gen.generate_empty_node(InsertionPointType::BeforeTarget);
-            }
-            gen.add_node(left_crumbs, node);
-            if has_target {
-                gen.generate_empty_node(InsertionPointType::AfterTarget);
-            }
-            gen.spacing(off);
-            gen.generate_ast_node(opr_ast, node::Kind::Operation, context)?;
-            if let Some(operand) = &elem.operand {
-                let arg_crumbs = elem.crumb_to_operand(has_left);
-                let arg_ast = Located::new(arg_crumbs, operand.arg.clone_ref());
-                gen.spacing(operand.offset);
+        let mut gen = ChildGenerator::default();
+        if has_target {
+            gen.generate_empty_node(InsertionPointType::BeforeTarget);
+        }
+        gen.add_node(left_crumbs, node);
+        if has_target {
+            gen.generate_empty_node(InsertionPointType::AfterTarget);
+        }
+        gen.spacing(off);
+        gen.generate_ast_node(opr_ast, node::Kind::Operation, context)?;
+        if let Some(operand) = &elem.operand {
+            let arg_crumbs = elem.crumb_to_operand(has_left);
+            let arg_ast = Located::new(arg_crumbs, operand.arg.clone_ref());
+            gen.spacing(operand.offset);
 
-                gen.generate_ast_node(
-                    arg_ast,
-                    node::Kind::argument().with_removable(removable),
-                    context,
-                )?;
-            }
-            gen.generate_empty_node(InsertionPointType::Append);
+            gen.generate_ast_node(
+                arg_ast,
+                node::Kind::argument().with_removable(removable),
+                context,
+            )?;
+        }
+        gen.generate_empty_node(InsertionPointType::Append);
 
-            if ast::opr::assoc(&this.operator) == Assoc::Right {
-                gen.reverse_children();
-            }
+        if ast::opr::assoc(&this.operator) == Assoc::Right {
+            gen.reverse_children();
+        }
 
-            Ok((
-                Node {
-                    kind: if is_last {
-                        kind.clone()
-                    } else {
-                        node::Kind::Chained
-                    },
-                    size: gen.current_offset,
-                    children: gen.children,
-                    ast_id: elem.infix_id,
-                    payload: default(),
-                },
-                elem.offset,
-            ))
-        },
-    )?;
+        Ok((
+            Node {
+                kind:     if is_last { kind.clone() } else { node::Kind::Chained },
+                size:     gen.current_offset,
+                children: gen.children,
+                ast_id:   elem.infix_id,
+                payload:  default(),
+            },
+            elem.offset,
+        ))
+    })?;
     Ok(node)
 }
+
 
 // === Application ===
 
@@ -413,9 +348,7 @@ fn generate_node_for_prefix_chain<T: Payload>(
     context: &impl Context,
 ) -> FallibleResult<Node<T>> {
     let base = ApplicationBase::new(&this.func);
-    let invocation_info = this
-        .id()
-        .and_then(|id| context.call_info(id, base.function_name));
+    let invocation_info = this.id().and_then(|id| context.call_info(id, base.function_name));
     let known_args = invocation_info.is_some();
     let mut known_params = base.prefix_params(invocation_info);
     let prefix_arity = this.args.len().max(known_params.len());
@@ -441,11 +374,8 @@ fn generate_node_for_prefix_chain<T: Payload>(
             gen.generate_empty_node(InsertionPointType::BeforeTarget);
         }
         let arg_ast = arg.sast.wrapped.clone_ref();
-        let arg_child: &mut node::Child<T> = gen.generate_ast_node(
-            Located::new(Arg, arg_ast),
-            arg_kind,
-            context,
-        )?;
+        let arg_child: &mut node::Child<T> =
+            gen.generate_ast_node(Located::new(Arg, arg_ast), arg_kind, context)?;
         if let Some(info) = known_params.next() {
             arg_child.node.set_argument_info(info)
         }
@@ -453,25 +383,17 @@ fn generate_node_for_prefix_chain<T: Payload>(
             gen.generate_empty_node(InsertionPointType::Append);
         }
         Ok(Node {
-            kind: if is_last {
-                kind.clone()
-            } else {
-                node::Kind::Chained
-            },
-            size: gen.current_offset,
+            kind:     if is_last { kind.clone() } else { node::Kind::Chained },
+            size:     gen.current_offset,
             children: gen.children,
-            ast_id: arg.prefix_id,
-            payload: default(),
+            ast_id:   arg.prefix_id,
+            payload:  default(),
         })
     })?;
 
-    Ok(generate_expected_arguments(
-        ret,
-        kind,
-        this.args.len(),
-        known_params,
-    ))
+    Ok(generate_expected_arguments(ret, kind, this.args.len(), known_params))
 }
+
 
 // === Match ===
 
@@ -494,9 +416,7 @@ fn generate_node_for_known_match<T: Payload>(
     let children_kind = node::Kind::argument().with_removable(removable);
     let mut gen = ChildGenerator::default();
     if let Some(pat) = &this.pfx {
-        for macros::AstInPattern { ast, crumbs } in
-            macros::all_ast_nodes_in_pattern(pat)
-        {
+        for macros::AstInPattern { ast, crumbs } in macros::all_ast_nodes_in_pattern(pat) {
             let ast_crumb = ast::crumbs::MatchCrumb::Pfx { val: crumbs };
             let located_ast = Located::new(ast_crumb, ast.wrapped);
             gen.generate_ast_node(located_ast, children_kind.clone(), context)?;
@@ -504,20 +424,10 @@ fn generate_node_for_known_match<T: Payload>(
         }
     }
     let first_segment_index = 0;
-    generate_children_from_segment(
-        &mut gen,
-        first_segment_index,
-        &this.segs.head,
-        context,
-    )?;
+    generate_children_from_segment(&mut gen, first_segment_index, &this.segs.head, context)?;
     for (index, segment) in this.segs.tail.iter().enumerate() {
         gen.spacing(segment.off);
-        generate_children_from_segment(
-            &mut gen,
-            index + 1,
-            &segment.wrapped,
-            context,
-        )?;
+        generate_children_from_segment(&mut gen, index + 1, &segment.wrapped, context)?;
     }
     Ok(Node {
         kind,
@@ -537,32 +447,24 @@ fn generate_children_from_segment<T: Payload>(
     // generate child for head
     let ast = segment.head.clone_ref();
     let segment_crumb = ast::crumbs::SegmentMatchCrumb::Head;
-    let ast_crumb = ast::crumbs::MatchCrumb::Segs {
-        val: segment_crumb,
-        index,
-    };
+    let ast_crumb = ast::crumbs::MatchCrumb::Segs { val: segment_crumb, index };
     let located_ast = Located::new(ast_crumb, ast);
     gen.generate_ast_node(located_ast, node::Kind::Token, context)?;
 
-    for macros::AstInPattern { ast, crumbs } in
-        macros::all_ast_nodes_in_pattern(&segment.body)
-    {
+    for macros::AstInPattern { ast, crumbs } in macros::all_ast_nodes_in_pattern(&segment.body) {
         let child_kind = match crumbs.last() {
             Some(ast::crumbs::PatternMatchCrumb::Tok) => node::Kind::Token,
             _ => node::Kind::argument().into(),
         };
         gen.spacing(ast.off);
-        let segment_crumb =
-            ast::crumbs::SegmentMatchCrumb::Body { val: crumbs };
-        let ast_crumb = ast::crumbs::MatchCrumb::Segs {
-            val: segment_crumb,
-            index,
-        };
+        let segment_crumb = ast::crumbs::SegmentMatchCrumb::Body { val: crumbs };
+        let ast_crumb = ast::crumbs::MatchCrumb::Segs { val: segment_crumb, index };
         let located_ast = Located::new(ast_crumb, ast.wrapped);
         gen.generate_ast_node(located_ast, child_kind, context)?;
     }
     Ok(())
 }
+
 
 // === Ambiguous ==
 
@@ -583,20 +485,10 @@ fn generate_node_for_known_ambiguous<T: Payload>(
 ) -> FallibleResult<Node<T>> {
     let mut gen = ChildGenerator::default();
     let first_segment_index = 0;
-    generate_children_from_ambiguous(
-        &mut gen,
-        first_segment_index,
-        &this.segs.head,
-        context,
-    )?;
+    generate_children_from_ambiguous(&mut gen, first_segment_index, &this.segs.head, context)?;
     for (index, segment) in this.segs.tail.iter().enumerate() {
         gen.spacing(segment.off);
-        generate_children_from_ambiguous(
-            &mut gen,
-            index + 1,
-            &segment.wrapped,
-            context,
-        )?;
+        generate_children_from_ambiguous(&mut gen, index + 1, &segment.wrapped, context)?;
     }
     Ok(Node {
         kind,
@@ -617,24 +509,20 @@ fn generate_children_from_ambiguous<T: Payload>(
     // generate child for head
     let ast = segment.head.clone_ref();
     let segment_crumb = ast::crumbs::AmbiguousSegmentCrumb::Head;
-    let ast_crumb = ast::crumbs::AmbiguousCrumb {
-        field: segment_crumb,
-        index,
-    };
+    let ast_crumb = ast::crumbs::AmbiguousCrumb { field: segment_crumb, index };
     let located_ast = Located::new(ast_crumb, ast);
     gen.generate_ast_node(located_ast, node::Kind::Token, context)?;
 
     if let Some(sast) = &segment.body {
         gen.spacing(sast.off);
         let field = ast::crumbs::AmbiguousSegmentCrumb::Body;
-        let located_ast = Located::new(
-            ast::crumbs::AmbiguousCrumb { index, field },
-            sast.clone_ref(),
-        );
+        let located_ast =
+            Located::new(ast::crumbs::AmbiguousCrumb { index, field }, sast.clone_ref());
         gen.generate_ast_node(located_ast, children_kind, context)?;
     }
     Ok(())
 }
+
 
 // === Common Utility ==
 
@@ -652,15 +540,14 @@ fn generate_expected_argument<T: Payload>(
 ) -> Node<T> {
     let mut gen = ChildGenerator::default();
     gen.add_node(ast::Crumbs::new(), node);
-    let arg_node =
-        gen.generate_empty_node(InsertionPointType::ExpectedArgument(index));
+    let arg_node = gen.generate_empty_node(InsertionPointType::ExpectedArgument(index));
     arg_node.node.set_argument_info(argument_info);
     Node {
-        kind: if is_last { kind } else { node::Kind::Chained },
-        size: gen.current_offset,
+        kind:     if is_last { kind } else { node::Kind::Chained },
+        size:     gen.current_offset,
         children: gen.children,
-        ast_id: None,
-        payload: default(),
+        ast_id:   None,
+        payload:  default(),
     }
 }
 
@@ -671,20 +558,13 @@ fn generate_expected_arguments<T: Payload>(
     expected_args: impl ExactSizeIterator<Item = ArgumentInfo>,
 ) -> Node<T> {
     let arity = supplied_prefix_arg_count + expected_args.len();
-    (supplied_prefix_arg_count..).zip(expected_args).fold(
-        node,
-        |node, (index, parameter)| {
-            let is_last = index + 1 == arity;
-            generate_expected_argument(
-                node,
-                kind.clone(),
-                index,
-                is_last,
-                parameter,
-            )
-        },
-    )
+    (supplied_prefix_arg_count..).zip(expected_args).fold(node, |node, (index, parameter)| {
+        let is_last = index + 1 == arity;
+        generate_expected_argument(node, kind.clone(), index, is_last, parameter)
+    })
 }
+
+
 
 // ===================
 // === MockContext ===
@@ -708,14 +588,12 @@ impl MockContext {
 }
 
 impl Context for MockContext {
-    fn call_info(
-        &self,
-        id: Id,
-        _name: Option<&str>,
-    ) -> Option<CalledMethodInfo> {
+    fn call_info(&self, id: Id, _name: Option<&str>) -> Option<CalledMethodInfo> {
         self.map.get(&id).cloned()
     }
 }
+
+
 
 // ============
 // === Test ===
@@ -747,6 +625,7 @@ mod test {
     use wasm_bindgen_test::wasm_bindgen_test_configure;
 
     wasm_bindgen_test_configure!(run_in_browser);
+
 
     /// A helper function which removes information about expression id from thw tree rooted at
     /// `node`.
@@ -780,9 +659,7 @@ mod test {
         id_map.generate(12..13);
         id_map.generate(14..15);
         id_map.generate(4..11);
-        let ast = parser
-            .parse_line_ast_with_id_map("2 + foo bar - 3", id_map.clone())
-            .unwrap();
+        let ast = parser.parse_line_ast_with_id_map("2 + foo bar - 3", id_map.clone()).unwrap();
         let mut tree = ast.generate_tree(&context::Empty).unwrap(): SpanTree;
 
         // Check the expression ids we defined:
@@ -830,29 +707,14 @@ mod test {
             .add_child(0, 22, node::Kind::Chained, InfixCrumb::LeftOperand)
             .add_child(0, 5, node::Kind::Chained, InfixCrumb::LeftOperand)
             .add_empty_child(0, BeforeTarget)
-            .add_leaf(
-                0,
-                1,
-                node::Kind::this().removable(),
-                InfixCrumb::LeftOperand,
-            )
+            .add_leaf(0, 1, node::Kind::this().removable(), InfixCrumb::LeftOperand)
             .add_empty_child(1, AfterTarget)
             .add_leaf(2, 1, node::Kind::Operation, InfixCrumb::Operator)
-            .add_leaf(
-                4,
-                1,
-                node::Kind::argument().removable(),
-                InfixCrumb::RightOperand,
-            )
+            .add_leaf(4, 1, node::Kind::argument().removable(), InfixCrumb::RightOperand)
             .add_empty_child(5, Append)
             .done()
             .add_leaf(6, 1, node::Kind::Operation, InfixCrumb::Operator)
-            .add_child(
-                8,
-                14,
-                node::Kind::argument().removable(),
-                InfixCrumb::RightOperand,
-            )
+            .add_child(8, 14, node::Kind::argument().removable(), InfixCrumb::RightOperand)
             .add_child(0, 11, node::Kind::Chained, PrefixCrumb::Func)
             .add_child(0, 7, node::Kind::Chained, PrefixCrumb::Func)
             .add_leaf(0, 3, node::Kind::Operation, PrefixCrumb::Func)
@@ -860,31 +722,16 @@ mod test {
             .add_leaf(4, 3, node::Kind::this().removable(), PrefixCrumb::Arg)
             .add_empty_child(7, Append)
             .done()
-            .add_leaf(
-                8,
-                3,
-                node::Kind::argument().removable(),
-                PrefixCrumb::Arg,
-            )
+            .add_leaf(8, 3, node::Kind::argument().removable(), PrefixCrumb::Arg)
             .add_empty_child(11, Append)
             .done()
-            .add_leaf(
-                12,
-                2,
-                node::Kind::argument().removable(),
-                PrefixCrumb::Arg,
-            )
+            .add_leaf(12, 2, node::Kind::argument().removable(), PrefixCrumb::Arg)
             .add_empty_child(14, Append)
             .done()
             .add_empty_child(22, Append)
             .done()
             .add_leaf(23, 1, node::Kind::Operation, InfixCrumb::Operator)
-            .add_leaf(
-                25,
-                1,
-                node::Kind::argument().removable(),
-                InfixCrumb::RightOperand,
-            )
+            .add_leaf(25, 1, node::Kind::argument().removable(), InfixCrumb::RightOperand)
             .add_empty_child(26, Append)
             .build();
 
@@ -900,29 +747,14 @@ mod test {
 
         let expected = TreeBuilder::new(5)
             .add_empty_child(0, Append)
-            .add_leaf(
-                0,
-                1,
-                node::Kind::argument().removable(),
-                InfixCrumb::LeftOperand,
-            )
+            .add_leaf(0, 1, node::Kind::argument().removable(), InfixCrumb::LeftOperand)
             .add_leaf(1, 1, node::Kind::Operation, InfixCrumb::Operator)
             .add_child(2, 3, node::Kind::Chained, InfixCrumb::RightOperand)
             .add_empty_child(0, Append)
-            .add_leaf(
-                0,
-                1,
-                node::Kind::argument().removable(),
-                InfixCrumb::LeftOperand,
-            )
+            .add_leaf(0, 1, node::Kind::argument().removable(), InfixCrumb::LeftOperand)
             .add_leaf(1, 1, node::Kind::Operation, InfixCrumb::Operator)
             .add_empty_child(2, AfterTarget)
-            .add_leaf(
-                2,
-                1,
-                node::Kind::this().removable(),
-                InfixCrumb::RightOperand,
-            )
+            .add_leaf(2, 1, node::Kind::this().removable(), InfixCrumb::RightOperand)
             .add_empty_child(3, BeforeTarget)
             .done()
             .build();
@@ -945,12 +777,7 @@ mod test {
             .add_child(0, 3, node::Kind::Chained, SectionLeftCrumb::Arg)
             .add_empty_child(0, BeforeTarget)
             .add_leaf(0, 1, node::Kind::Operation, SectionRightCrumb::Opr)
-            .add_child(
-                2,
-                1,
-                node::Kind::argument().removable(),
-                SectionRightCrumb::Arg,
-            )
+            .add_child(2, 1, node::Kind::argument().removable(), SectionRightCrumb::Arg)
             .add_empty_child(0, BeforeTarget)
             .add_leaf(0, 1, node::Kind::Operation, SectionSidesCrumb)
             .add_empty_child(1, Append)
@@ -961,12 +788,7 @@ mod test {
             .add_empty_child(5, Append)
             .done()
             .add_leaf(6, 1, node::Kind::Operation, InfixCrumb::Operator)
-            .add_leaf(
-                8,
-                1,
-                node::Kind::argument().removable(),
-                InfixCrumb::RightOperand,
-            )
+            .add_leaf(8, 1, node::Kind::argument().removable(), InfixCrumb::RightOperand)
             .add_empty_child(9, Append)
             .done()
             .add_leaf(10, 1, node::Kind::Operation, SectionLeftCrumb::Opr)
@@ -988,12 +810,7 @@ mod test {
             .add_leaf(0, 1, node::Kind::Operation, SectionRightCrumb::Opr)
             .add_child(1, 2, node::Kind::Chained, SectionRightCrumb::Arg)
             .add_empty_child(0, Append)
-            .add_leaf(
-                0,
-                1,
-                node::Kind::argument().removable(),
-                SectionLeftCrumb::Arg,
-            )
+            .add_leaf(0, 1, node::Kind::argument().removable(), SectionLeftCrumb::Arg)
             .add_leaf(1, 1, node::Kind::Operation, SectionLeftCrumb::Opr)
             .add_empty_child(2, BeforeTarget)
             .done()
@@ -1010,9 +827,7 @@ mod test {
         let mut id_map = IdMap::default();
         id_map.generate(0..29);
         let expression = "if foo then (a + b) x else ()";
-        let ast = parser
-            .parse_line_ast_with_id_map(expression, id_map.clone())
-            .unwrap();
+        let ast = parser.parse_line_ast_with_id_map(expression, id_map.clone()).unwrap();
         let mut tree = ast.generate_tree(&context::Empty).unwrap(): SpanTree;
 
         // Check if expression id is set
@@ -1027,27 +842,12 @@ mod test {
 
         let expected = TreeBuilder::new(29)
             .add_leaf(0, 2, node::Kind::Token, segment_head_crumbs(0))
-            .add_leaf(
-                3,
-                3,
-                node::Kind::argument(),
-                segment_body_crumbs(0, &if_then_else_cr),
-            )
+            .add_leaf(3, 3, node::Kind::argument(), segment_body_crumbs(0, &if_then_else_cr))
             .add_leaf(7, 4, node::Kind::Token, segment_head_crumbs(1))
-            .add_child(
-                12,
-                9,
-                node::Kind::argument(),
-                segment_body_crumbs(1, &if_then_else_cr),
-            )
+            .add_child(12, 9, node::Kind::argument(), segment_body_crumbs(1, &if_then_else_cr))
             .add_child(0, 7, node::Kind::Operation, PrefixCrumb::Func)
             .add_leaf(0, 1, node::Kind::Token, segment_head_crumbs(0))
-            .add_child(
-                1,
-                5,
-                node::Kind::argument(),
-                segment_body_crumbs(0, &parens_cr),
-            )
+            .add_child(1, 5, node::Kind::argument(), segment_body_crumbs(0, &parens_cr))
             .add_empty_child(0, BeforeTarget)
             .add_leaf(0, 1, node::Kind::this(), InfixCrumb::LeftOperand)
             .add_empty_child(1, AfterTarget)
@@ -1062,12 +862,7 @@ mod test {
             .add_empty_child(9, Append)
             .done()
             .add_leaf(22, 4, node::Kind::Token, segment_head_crumbs(2))
-            .add_child(
-                27,
-                2,
-                node::Kind::argument(),
-                segment_body_crumbs(2, &if_then_else_cr),
-            )
+            .add_child(27, 2, node::Kind::argument(), segment_body_crumbs(2, &if_then_else_cr))
             .add_leaf(0, 1, node::Kind::Token, segment_head_crumbs(0))
             .add_leaf(1, 1, node::Kind::Token, segment_head_crumbs(1))
             .done()
@@ -1091,30 +886,14 @@ mod test {
         let right_seq = Seq { right: true };
         let many = Many { index: 0 };
         let first_element_cr = vec![left_seq, Or, Or, left_seq, Build];
-        let second_element_cr =
-            vec![left_seq, Or, Or, right_seq, many, right_seq, Build];
+        let second_element_cr = vec![left_seq, Or, Or, right_seq, many, right_seq, Build];
         let comma_cr = vec![left_seq, Or, Or, right_seq, many, left_seq, Tok];
 
         let expected = TreeBuilder::new(5)
             .add_leaf(0, 1, node::Kind::Token, segment_head_crumbs(0))
-            .add_leaf(
-                1,
-                1,
-                node::Kind::argument(),
-                segment_body_crumbs(0, &first_element_cr),
-            )
-            .add_leaf(
-                2,
-                1,
-                node::Kind::Token,
-                segment_body_crumbs(0, &comma_cr),
-            )
-            .add_leaf(
-                3,
-                1,
-                node::Kind::argument(),
-                segment_body_crumbs(0, &second_element_cr),
-            )
+            .add_leaf(1, 1, node::Kind::argument(), segment_body_crumbs(0, &first_element_cr))
+            .add_leaf(2, 1, node::Kind::Token, segment_body_crumbs(0, &comma_cr))
+            .add_leaf(3, 1, node::Kind::argument(), segment_body_crumbs(0, &second_element_cr))
             .add_leaf(4, 1, node::Kind::Token, segment_head_crumbs(1))
             .build();
 
@@ -1126,9 +905,7 @@ mod test {
         let parser = Parser::new_or_panic();
         let mut id_map = IdMap::default();
         id_map.generate(0..2);
-        let ast = parser
-            .parse_line_ast_with_id_map("(4", id_map.clone())
-            .unwrap();
+        let ast = parser.parse_line_ast_with_id_map("(4", id_map.clone()).unwrap();
         let mut tree = ast.generate_tree(&context::Empty).unwrap(): SpanTree;
 
         // Check the expression id:
@@ -1137,14 +914,8 @@ mod test {
 
         // Check the other fields:
         clear_expression_ids(&mut tree.root);
-        let head_crumb = AmbiguousCrumb {
-            index: 0,
-            field: AmbiguousSegmentCrumb::Head,
-        };
-        let body_crumb = AmbiguousCrumb {
-            index: 0,
-            field: AmbiguousSegmentCrumb::Body,
-        };
+        let head_crumb = AmbiguousCrumb { index: 0, field: AmbiguousSegmentCrumb::Head };
+        let body_crumb = AmbiguousCrumb { index: 0, field: AmbiguousSegmentCrumb::Body };
         let expected = TreeBuilder::new(2)
             .add_leaf(0, 1, node::Kind::Token, head_crumb)
             .add_leaf(1, 1, node::Kind::argument(), body_crumb)
@@ -1173,34 +944,22 @@ mod test {
     #[wasm_bindgen_test]
     fn generating_span_tree_for_unfinished_call() {
         let parser = Parser::new_or_panic();
-        let this_param = ArgumentInfo {
-            name: Some("this".to_owned()),
-            tp: Some("Any".to_owned()),
-        };
-        let param1 = ArgumentInfo {
-            name: Some("arg1".to_owned()),
-            tp: Some("Number".to_owned()),
-        };
-        let param2 = ArgumentInfo {
-            name: Some("arg2".to_owned()),
-            tp: None,
-        };
+        let this_param =
+            ArgumentInfo { name: Some("this".to_owned()), tp: Some("Any".to_owned()) };
+        let param1 =
+            ArgumentInfo { name: Some("arg1".to_owned()), tp: Some("Number".to_owned()) };
+        let param2 = ArgumentInfo { name: Some("arg2".to_owned()), tp: None };
+
 
         // === Single function name ===
 
         let ast = parser.parse_line_ast("foo").unwrap();
-        let invocation_info = CalledMethodInfo {
-            parameters: vec![this_param.clone()],
-        };
+        let invocation_info = CalledMethodInfo { parameters: vec![this_param.clone()] };
         let ctx = MockContext::new_single(ast.id.unwrap(), invocation_info);
         let mut tree = SpanTree::new(&ast, &ctx).unwrap(): SpanTree;
         match tree.root_ref().leaf_iter().collect_vec().as_slice() {
-            [_func, arg0] => {
-                assert_eq!(arg0.argument_info().as_ref(), Some(&this_param))
-            }
-            sth_else => {
-                panic!("There should be 2 leaves, found: {}", sth_else.len())
-            }
+            [_func, arg0] => assert_eq!(arg0.argument_info().as_ref(), Some(&this_param)),
+            sth_else => panic!("There should be 2 leaves, found: {}", sth_else.len()),
         }
         let expected = TreeBuilder::new(3)
             .add_leaf(0, 3, node::Kind::Operation, Crumbs::default())
@@ -1210,21 +969,16 @@ mod test {
         clear_parameter_infos(&mut tree.root);
         assert_eq!(tree, expected);
 
+
         // === Complete application chain ===
 
         let ast = parser.parse_line_ast("foo here").unwrap();
-        let invocation_info = CalledMethodInfo {
-            parameters: vec![this_param.clone()],
-        };
+        let invocation_info = CalledMethodInfo { parameters: vec![this_param.clone()] };
         let ctx = MockContext::new_single(ast.id.unwrap(), invocation_info);
         let mut tree = SpanTree::new(&ast, &ctx).unwrap(): SpanTree;
         match tree.root_ref().leaf_iter().collect_vec().as_slice() {
-            [_func, arg0] => {
-                assert_eq!(arg0.argument_info().as_ref(), Some(&this_param))
-            }
-            sth_else => {
-                panic!("There should be 2 leaves, found: {}", sth_else.len())
-            }
+            [_func, arg0] => assert_eq!(arg0.argument_info().as_ref(), Some(&this_param)),
+            sth_else => panic!("There should be 2 leaves, found: {}", sth_else.len()),
         }
         let expected = TreeBuilder::new(8)
             .add_leaf(0, 3, node::Kind::Operation, PrefixCrumb::Func)
@@ -1234,15 +988,12 @@ mod test {
         clear_parameter_infos(&mut tree.root);
         assert_eq!(tree, expected);
 
+
         // === Partial application chain ===
 
         let ast = parser.parse_line_ast("foo here").unwrap();
         let invocation_info = CalledMethodInfo {
-            parameters: vec![
-                this_param.clone(),
-                param1.clone(),
-                param2.clone(),
-            ],
+            parameters: vec![this_param.clone(), param1.clone(), param2.clone()],
         };
         let ctx = MockContext::new_single(ast.id.unwrap(), invocation_info);
         let mut tree = SpanTree::new(&ast, &ctx).unwrap(): SpanTree;
@@ -1252,9 +1003,7 @@ mod test {
                 assert_eq!(arg1.argument_info().as_ref(), Some(&param1));
                 assert_eq!(arg2.argument_info().as_ref(), Some(&param2));
             }
-            sth_else => {
-                panic!("There should be 4 leaves, found: {}", sth_else.len())
-            }
+            sth_else => panic!("There should be 4 leaves, found: {}", sth_else.len()),
         }
         let expected = TreeBuilder::new(8)
             .add_child(0, 8, node::Kind::Chained, Crumbs::default())
@@ -1270,15 +1019,12 @@ mod test {
         clear_parameter_infos(&mut tree.root);
         assert_eq!(tree, expected);
 
+
         // === Partial application chain - this argument ===
 
         let ast = parser.parse_line_ast("here.foo").unwrap();
         let invocation_info = CalledMethodInfo {
-            parameters: vec![
-                this_param.clone(),
-                param1.clone(),
-                param2.clone(),
-            ],
+            parameters: vec![this_param.clone(), param1.clone(), param2.clone()],
         };
         let ctx = MockContext::new_single(ast.id.unwrap(), invocation_info);
         let mut tree = SpanTree::new(&ast, &ctx).unwrap(): SpanTree;
@@ -1287,9 +1033,7 @@ mod test {
                 assert_eq!(arg1.argument_info().as_ref(), Some(&param1));
                 assert_eq!(arg2.argument_info().as_ref(), Some(&param2));
             }
-            sth_else => {
-                panic!("There should be 8 leaves, found: {}", sth_else.len())
-            }
+            sth_else => panic!("There should be 8 leaves, found: {}", sth_else.len()),
         }
         let expected = TreeBuilder::new(8)
             .add_child(0, 8, node::Kind::Chained, Crumbs::default())
@@ -1314,9 +1058,7 @@ mod test {
         index: usize,
         pattern_crumb: &Vec<PatternMatchCrumb>,
     ) -> ast::crumbs::MatchCrumb {
-        let val = ast::crumbs::SegmentMatchCrumb::Body {
-            val: pattern_crumb.clone(),
-        };
+        let val = ast::crumbs::SegmentMatchCrumb::Body { val: pattern_crumb.clone() };
         ast::crumbs::MatchCrumb::Segs { val, index }
     }
 

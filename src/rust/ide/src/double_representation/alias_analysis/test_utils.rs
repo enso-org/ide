@@ -10,6 +10,8 @@ use regex::Captures;
 use regex::Regex;
 use regex::Replacer;
 
+
+
 // ============
 // === Case ===
 // ============
@@ -20,11 +22,11 @@ use regex::Replacer;
 pub struct Case {
     /// The code: the text of the block line that is considered to be a node of a graph.
     /// Any markers are already removed.
-    pub code: String,
+    pub code:                String,
     /// List of spans in the code where the identifiers are introduced into the graph's scope.
     pub expected_introduced: Vec<Range<usize>>,
     /// List of spans in the code where the identifiers from the graph's scope are used.
-    pub expected_used: Vec<Range<usize>>,
+    pub expected_used:       Vec<Range<usize>>,
 }
 
 impl Case {
@@ -34,22 +36,17 @@ impl Case {
     pub fn from_markdown(marked_code: impl Str) -> Case {
         // Regexp that matches either «sth» or »sth« into a group named `introduced` or `used`,
         // respectively. See: https://regex101.com/r/pboF8O/2 for detailed explanation.
-        let regex =
-            format!(r"«(?P<{}>[^»]*)»|»(?P<{}>[^«]*)«", INTRODUCED, USED);
+        let regex = format!(r"«(?P<{}>[^»]*)»|»(?P<{}>[^«]*)«", INTRODUCED, USED);
         // As this is test utils, we don't try nicely handling failure nor reusing the compiled
         // regexp between calls to save some cycles.
         let regex = Regex::new(&regex).unwrap();
         let mut replacer = MarkdownReplacer::default();
-        let code = regex
-            .replace_all(marked_code.as_ref(), replacer.by_ref())
-            .into();
-        Case {
-            code,
-            expected_introduced: replacer.introduced,
-            expected_used: replacer.used,
-        }
+        let code = regex.replace_all(marked_code.as_ref(), replacer.by_ref()).into();
+        Case { code, expected_introduced: replacer.introduced, expected_used: replacer.used }
     }
 }
+
+
 
 // ========================
 // === MarkdownReplacer ===
@@ -76,27 +73,23 @@ const USED: &str = "used";
 /// * accumulates spans of introduced and used identifiers.
 #[derive(Debug, Default)]
 struct MarkdownReplacer {
-    processor: MarkdownProcessor,
+    processor:  MarkdownProcessor,
     /// Spans in the unmarked code.
     introduced: Vec<Range<usize>>,
     /// Spans in the unmarked code.
-    used: Vec<Range<usize>>,
+    used:       Vec<Range<usize>>,
 }
 
 // Processes every single match for a marked entity.
 impl Replacer for MarkdownReplacer {
     fn replace_append(&mut self, captures: &Captures, dst: &mut String) {
-        let (kind, matched) =
-            if let Some(introduced) = captures.name(INTRODUCED) {
-                (Kind::Introduced, introduced)
-            } else if let Some(used) = captures.name(USED) {
-                (Kind::Used, used)
-            } else {
-                panic!(
-                    "Unexpected capture: expected named capture `{}` or `{}`.",
-                    INTRODUCED, USED
-                )
-            };
+        let (kind, matched) = if let Some(introduced) = captures.name(INTRODUCED) {
+            (Kind::Introduced, introduced)
+        } else if let Some(used) = captures.name(USED) {
+            (Kind::Used, used)
+        } else {
+            panic!("Unexpected capture: expected named capture `{}` or `{}`.", INTRODUCED, USED)
+        };
 
         let span = self.processor.process_match(captures, &matched, dst);
         match kind {
@@ -105,6 +98,8 @@ impl Replacer for MarkdownReplacer {
         };
     }
 }
+
+
 
 // ===========================
 // === IdentifierValidator ===
@@ -120,19 +115,15 @@ enum HasBeenValidated {
 /// Otherwise, it shall panic when dropped.
 #[derive(Clone, Debug)]
 pub struct IdentifierValidator<'a> {
-    ast: &'a Ast,
-    name: String,
+    ast:         &'a Ast,
+    name:        String,
     validations: HashMap<NormalizedName, HasBeenValidated>,
 }
 
 impl<'a> IdentifierValidator<'a> {
     /// Creates a new checker, with identifier set obtained from given node's representation
     /// spans.
-    pub fn new(
-        name: impl Str,
-        ast: &Ast,
-        spans: Vec<Range<usize>>,
-    ) -> IdentifierValidator {
+    pub fn new(name: impl Str, ast: &Ast, spans: Vec<Range<usize>>) -> IdentifierValidator {
         let name = name.into();
         let repr = ast.repr();
         let mut validations = HashMap::default();
@@ -140,35 +131,25 @@ impl<'a> IdentifierValidator<'a> {
             let name = NormalizedName::new(&repr[span]);
             validations.insert(name, HasBeenValidated::No);
         }
-        IdentifierValidator {
-            ast,
-            name,
-            validations,
-        }
+        IdentifierValidator { ast, name, validations }
     }
 
     /// Marks given identifier as checked.
     pub fn validate_identifier(&mut self, name: &NormalizedName) {
-        let err =
-            iformat!("{self.name}: unexpected identifier `{name}` validated");
+        let err = iformat!("{self.name}: unexpected identifier `{name}` validated");
         let used = self.validations.get_mut(name).expect(&err);
         *used = HasBeenValidated::Yes;
     }
 
     /// Marks given sequence of identifiers as checked.
-    pub fn validate_identifiers(
-        &mut self,
-        identifiers: impl IntoIterator<Item = &'a LocatedName>,
-    ) {
+    pub fn validate_identifiers(&mut self, identifiers: impl IntoIterator<Item = &'a LocatedName>) {
         for identifier in identifiers {
             self.validate_identifier(&identifier.item);
 
             let crumbs = &identifier.crumbs;
             let ast_result = self.ast.get_traversing(crumbs);
             let ast = ast_result.expect("failed to retrieve ast from crumb");
-            let name_err = || {
-                iformat!("Failed to use AST {ast.repr()} as an identifier name")
-            };
+            let name_err = || iformat!("Failed to use AST {ast.repr()} as an identifier name");
             let name = NormalizedName::try_from_ast(ast).expect(&name_err());
             assert_eq!(name, identifier.item)
         }
@@ -193,6 +174,8 @@ impl<'a> Drop for IdentifierValidator<'a> {
         }
     }
 }
+
+
 
 // =============
 // === Tests ===

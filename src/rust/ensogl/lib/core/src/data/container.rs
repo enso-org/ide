@@ -14,6 +14,8 @@ pub trait AddMut<T> {
     fn add(&mut self, component: T) -> Self::Output;
 }
 
+
+
 // =======================
 // === CachingIterator ===
 // =======================
@@ -56,10 +58,7 @@ impl<T: Clone, It: Iterator<Item = T>> IntoCachingIterator for It {
     type Iter = Self;
 
     fn cache_last_value(self) -> CachingIterator<Self::Item, Self::Iter> {
-        CachingIterator {
-            last: None,
-            iter: self,
-        }
+        CachingIterator { last: None, iter: self }
     }
 }
 

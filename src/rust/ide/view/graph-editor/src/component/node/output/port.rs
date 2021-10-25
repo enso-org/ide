@@ -24,6 +24,8 @@ use ensogl::gui::component;
 use ensogl::gui::text;
 use ensogl::Animation;
 
+
+
 // =================
 // === Constants ===
 // =================
@@ -44,6 +46,8 @@ const TOOLTIP_LOCATION: Placement = Placement::Bottom;
 // two constants which can be used to turn those methods on or off.
 const SHOW_TYPE_AS_TOOLTIP: bool = false;
 const SHOW_TYPE_AS_LABEL: bool = true;
+
+
 
 // =====================
 // === AllPortsShape ===
@@ -67,9 +71,9 @@ struct AllPortsShape {
     /// The radius of the node, not the outer port radius.
     inner_radius: Var<Pixels>,
     /// The width of the node, not the outer port area width.
-    inner_width: Var<Pixels>,
-    shape: AnyShape,
-    hover: AnyShape,
+    inner_width:  Var<Pixels>,
+    shape:        AnyShape,
+    hover:        AnyShape,
 }
 
 impl AllPortsShape {
@@ -85,13 +89,13 @@ impl AllPortsShape {
         let inner_radius = node::RADIUS.px();
         let top_mask = BottomHalfPlane();
 
+
         // === Main Shape ===
 
         let shrink = 1.px() - 1.px() * size_multiplier;
         let port_area_size = PORT_SIZE.px() * size_multiplier;
         let port_area_width = &inner_width + (&port_area_size - &shrink) * 2.0;
-        let port_area_height =
-            &inner_height + (&port_area_size - &shrink) * 2.0;
+        let port_area_height = &inner_height + (&port_area_size - &shrink) * 2.0;
         let outer_radius = &inner_radius + &port_area_size;
         let shape = Rect((&port_area_width, &port_area_height));
         let shape = shape.corners_radius(&outer_radius);
@@ -103,19 +107,14 @@ impl AllPortsShape {
         let right_corner = corner.translate_x(&corner_offset);
         let shape = (shape + left_corner + right_corner).into();
 
+
         // === Hover Area ===
 
         let hover_radius = &inner_radius + &HOVER_AREA_PADDING.px();
-        let hover =
-            Rect((canvas_width, canvas_height)).corners_radius(&hover_radius);
+        let hover = Rect((canvas_width, canvas_height)).corners_radius(&hover_radius);
         let hover = (hover - &top_mask).into();
 
-        AllPortsShape {
-            inner_radius,
-            inner_width,
-            shape,
-            hover,
-        }
+        AllPortsShape { inner_radius, inner_width, shape, hover }
     }
 }
 
@@ -126,9 +125,7 @@ impl AllPortsShape {
 /// * `corner_radius` - The inner radius of the port shape's corner segments. (the round parts)
 /// * `width`         - The inner width of the port shape. (also the width of the node)
 fn shape_border_length<T>(corner_radius: T, width: T) -> T
-where
-    T: Clone + Mul<f32, Output = T> + Sub<Output = T> + Add<Output = T>,
-{
+where T: Clone + Mul<f32, Output = T> + Sub<Output = T> + Add<Output = T> {
     let corner_segment_length = corner_segment_length(corner_radius.clone());
     let center_segment_length = center_segment_length(corner_radius, width);
     center_segment_length + corner_segment_length * 2.0
@@ -141,9 +138,7 @@ where
 ///
 ///  * `corner_radius` - The inner radius of the corner segment.
 fn corner_segment_length<T>(corner_radius: T) -> T
-where
-    T: Mul<f32, Output = T>,
-{
+where T: Mul<f32, Output = T> {
     let corner_circumference = corner_radius * 2.0 * PI;
     corner_circumference * 0.25
 }
@@ -155,11 +150,11 @@ where
 /// * `corner_radius` - The inner radius of the port shape's corner segments. (the round parts)
 /// * `width`         - The inner width of the port shape. (also the width of the node)
 fn center_segment_length<T>(corner_radius: T, width: T) -> T
-where
-    T: Mul<f32, Output = T> + Sub<Output = T>,
-{
+where T: Mul<f32, Output = T> + Sub<Output = T> {
     width - corner_radius * 2.0
 }
+
+
 
 // ======================
 // === SinglePortView ===
@@ -185,6 +180,8 @@ pub mod single_port {
         }
     }
 }
+
+
 
 // =====================
 // === MultiPortView ===
@@ -223,8 +220,8 @@ pub mod multi_port {
 
         // Case 1: The center segment, always zero, so not needed, due to clamping.
         // Case 2: The right circle segment.
-        let relative_position = (center_distance_absolute - center_segment_end)
-            / corner_segment_length;
+        let relative_position =
+            (center_distance_absolute - center_segment_end) / corner_segment_length;
         let relative_position = relative_position.clamp(0.0.into(), 1.0.into());
         let corner_base_rotation = (-90.0_f32).to_radians();
         let corner_rotation_delta = relative_position * corner_base_rotation;
@@ -237,22 +234,20 @@ pub mod multi_port {
     /// segment and apply the appropriate x-offset.
     ///
     /// * `shape_border_length`      should be the length of the shapes border path.
-    /// * `corner_segment_length`    should be the quarter circumference of the circles on the
-    ///                              sides of base shape.
-    /// * `position_on_path`         should be the position along the shape border
-    ///                              (not the pure x-coordinate).
+    /// * `corner_segment_length`    should be the quarter circumference of the circles on the sides
+    ///   of base shape.
+    /// * `position_on_path`         should be the position along the shape border (not the pure
+    ///   x-coordinate).
     fn calculate_crop_plane_position_relative_to_center_segment(
         shape_border_length: &Var<f32>,
         corner_segment_length: &Var<f32>,
         position_on_path: &Var<f32>,
     ) -> Var<f32> {
         let middle_segment_start_point = corner_segment_length;
-        let middle_segment_end_point =
-            shape_border_length - corner_segment_length;
+        let middle_segment_end_point = shape_border_length - corner_segment_length;
         // Case 1: The left circle, always 0, achieved through clamping.
         // Case 2: The middle segment.
-        let middle_segment_plane_position_x = (position_on_path
-            - middle_segment_start_point)
+        let middle_segment_plane_position_x = (position_on_path - middle_segment_start_point)
             / (&middle_segment_end_point - middle_segment_start_point);
         // Case 3: The right circle, always 1, achieved through clamping.
         middle_segment_plane_position_x.clamp(0.0.into(), 1.0.into())
@@ -270,23 +265,18 @@ pub mod multi_port {
         corner_radius: &Var<f32>,
         position_offset: &Var<f32>,
     ) -> AnyShape {
-        let corner_segment_length =
-            corner_segment_length(corner_radius.clone());
-        let center_segment_length =
-            center_segment_length(corner_radius.clone(), width.clone());
-        let shape_border_length =
-            shape_border_length(corner_radius.clone(), width.clone());
+        let corner_segment_length = corner_segment_length(corner_radius.clone());
+        let center_segment_length = center_segment_length(corner_radius.clone(), width.clone());
+        let shape_border_length = shape_border_length(corner_radius.clone(), width.clone());
 
         let position_relative = index / port_num;
-        let crop_segment_pos =
-            &position_relative * &shape_border_length + position_offset;
+        let crop_segment_pos = &position_relative * &shape_border_length + position_offset;
 
-        let crop_plane_pos_relative =
-            calculate_crop_plane_position_relative_to_center_segment(
-                &shape_border_length,
-                &corner_segment_length,
-                &crop_segment_pos,
-            );
+        let crop_plane_pos_relative = calculate_crop_plane_position_relative_to_center_segment(
+            &shape_border_length,
+            &corner_segment_length,
+            &crop_segment_pos,
+        );
         let crop_plane_pos = crop_plane_pos_relative * &center_segment_length;
         let crop_plane_pos = crop_plane_pos + corner_radius;
 
@@ -295,8 +285,7 @@ pub mod multi_port {
             &corner_segment_length,
             &crop_segment_pos,
         );
-        let plane_shape_offset =
-            Var::<Pixels>::from(&crop_plane_pos - width * 0.5);
+        let plane_shape_offset = Var::<Pixels>::from(&crop_plane_pos - width * 0.5);
 
         let crop_shape = HalfPlane();
         let crop_shape = crop_shape.rotate(plane_rotation_angle);
@@ -348,6 +337,8 @@ pub mod multi_port {
         }
     }
 }
+
+
 
 // ==================
 // === Shape View ===
@@ -425,6 +416,8 @@ impl display::Object for PortShapeView {
     }
 }
 
+
+
 // =================
 // === Port Frp  ===
 // =================
@@ -450,14 +443,14 @@ ensogl::define_endpoints! {
 
 #[derive(Clone, Debug, Default)]
 pub struct Model {
-    pub frp: Option<Frp>,
-    pub shape: Option<PortShapeView>,
-    pub type_label: Option<text::Area>,
+    pub frp:            Option<Frp>,
+    pub shape:          Option<PortShapeView>,
+    pub type_label:     Option<text::Area>,
     pub display_object: Option<display::object::Instance>,
-    pub index: usize,
-    pub length: usize,
-    port_count: usize,
-    port_index: usize,
+    pub index:          usize,
+    pub length:         usize,
+    port_count:         usize,
+    port_index:         usize,
 }
 
 impl Model {
@@ -476,16 +469,8 @@ impl Model {
 
         let is_first = port_index == 0;
         let is_last = port_index == port_count.saturating_sub(1);
-        let padding_left = if is_first {
-            -INFINITE
-        } else {
-            SEGMENT_GAP_WIDTH / 2.0
-        };
-        let padding_right = if is_last {
-            INFINITE
-        } else {
-            -SEGMENT_GAP_WIDTH / 2.0
-        };
+        let padding_left = if is_first { -INFINITE } else { SEGMENT_GAP_WIDTH / 2.0 };
+        let padding_right = if is_last { INFINITE } else { -SEGMENT_GAP_WIDTH / 2.0 };
         shape.set_index(port_index);
         shape.set_port_count(port_count);
         shape.set_padding_left(padding_left);
@@ -493,8 +478,7 @@ impl Model {
         self.shape = Some(shape.clone());
 
         let type_label = app.new_view::<text::Area>();
-        let offset_y = styles
-            .get_number(ensogl_theme::graph_editor::node::type_label::offset_y);
+        let offset_y = styles.get_number(ensogl_theme::graph_editor::node::type_label::offset_y);
         type_label.set_position_y(offset_y);
         self.type_label = Some(type_label.clone());
 
@@ -628,9 +612,7 @@ impl Model {
         }
 
         opacity.target.emit(PORT_OPACITY_NOT_HOVERED);
-        color
-            .target
-            .emit(type_coloring::compute_for_code(None, styles));
+        color.target.emit(type_coloring::compute_for_code(None, styles));
 
         self.frp = Some(frp);
     }

@@ -2,6 +2,7 @@
 
 #![allow(non_snake_case)]
 
+
 pub use nalgebra::Matrix2;
 pub use nalgebra::Matrix3;
 pub use nalgebra::Matrix4;
@@ -26,6 +27,8 @@ use nalgebra::ComplexField;
 use nalgebra::Dim;
 use nalgebra::Matrix;
 use nalgebra::Scalar;
+
+
 
 // ==========================
 // === Smart Constructors ===
@@ -54,6 +57,8 @@ mod vectors {
 }
 pub use vectors::*;
 
+
+
 // ==============
 // === Traits ===
 // ==============
@@ -68,6 +73,7 @@ pub trait Zero {
 pub fn zero<T: Zero>() -> T {
     <T as Zero>::zero()
 }
+
 
 // === Impls ===
 
@@ -95,9 +101,11 @@ macro_rules! gen_zero_nalgebra {
 gen_zero!([f32, f64] = 0.0);
 gen_zero!([i32, i64, usize] = 0);
 gen_zero_nalgebra!([
-    Vector2, Vector3, Vector4, Matrix2, Matrix3, Matrix4, Matrix2x3, Matrix2x4,
-    Matrix3x2, Matrix3x4, Matrix4x2, Matrix4x3
+    Vector2, Vector3, Vector4, Matrix2, Matrix3, Matrix4, Matrix2x3, Matrix2x4, Matrix3x2,
+    Matrix3x4, Matrix4x2, Matrix4x3
 ]);
+
+
 
 // =====================
 // === HasComponents ===
@@ -108,6 +116,7 @@ pub trait HasComponents {
     /// The component type.
     type Component;
 }
+
 
 // ============
 // === Dim1 ===
@@ -131,6 +140,8 @@ pub trait Dim3: Dim2 {
     fn z(&self) -> Self::Component;
 }
 
+
+
 // ===========
 // === Abs ===
 // ===========
@@ -147,6 +158,7 @@ impl Abs for usize {
     }
 }
 
+
 // === Impls ===
 
 macro_rules! gen_abs {
@@ -161,6 +173,8 @@ macro_rules! gen_abs {
 
 gen_abs!([f32, f64, i32, i64]);
 
+
+
 // ===========
 // === Min ===
 // ===========
@@ -170,6 +184,7 @@ pub trait Min {
     /// Lesser of the two values.
     fn min(a: Self, b: Self) -> Self;
 }
+
 
 // === Impls ===
 
@@ -185,6 +200,8 @@ macro_rules! gen_min {
 
 gen_min!([f32, f64, i32, i64, usize]);
 
+
+
 // ===========
 // === Max ===
 // ===========
@@ -194,6 +211,7 @@ pub trait Max {
     /// Greater of the two values.
     fn max(a: Self, b: Self) -> Self;
 }
+
 
 // === Impls ===
 
@@ -208,6 +226,8 @@ macro_rules! gen_max {
 }
 
 gen_max!([f32, f64, i32, i64, usize]);
+
+
 
 // ===========
 // === Pow ===
@@ -227,6 +247,8 @@ impl Pow<f32> for f32 {
     }
 }
 
+
+
 // =================
 // === Magnitude ===
 // =================
@@ -238,6 +260,7 @@ pub trait Magnitude {
     fn magnitude(&self) -> Self::Output;
 }
 
+
 // === Impls ===
 
 impl Magnitude for f32 {
@@ -247,14 +270,14 @@ impl Magnitude for f32 {
     }
 }
 
-impl<N: ComplexField, R: Dim, C: Dim, S: Storage<N, R, C>> Magnitude
-    for Matrix<N, R, C, S>
-{
+impl<N: ComplexField, R: Dim, C: Dim, S: Storage<N, R, C>> Magnitude for Matrix<N, R, C, S> {
     type Output = N::RealField;
     fn magnitude(&self) -> Self::Output {
         self.norm()
     }
 }
+
+
 
 // ==============
 // === Signum ===
@@ -268,6 +291,7 @@ pub trait Signum {
     fn signum(self) -> Self::Output;
 }
 
+
 // === Impls ===
 
 impl Signum for f32 {
@@ -276,6 +300,8 @@ impl Signum for f32 {
         f32::signum(self)
     }
 }
+
+
 
 // =============
 // === Clamp ===
@@ -288,6 +314,7 @@ pub trait Clamp {
     fn clamp(self, min: Self, max: Self) -> Self::Output;
 }
 
+
 // === Impls ===
 
 impl Clamp for f32 {
@@ -296,6 +323,8 @@ impl Clamp for f32 {
         self.clamp(min, max)
     }
 }
+
+
 
 // =================
 // === Min / Max ===
@@ -319,6 +348,8 @@ pub fn max<T: PartialOrd>(a: T, b: T) -> T {
     }
 }
 
+
+
 // =================
 // === Normalize ===
 // =================
@@ -328,6 +359,7 @@ pub fn max<T: PartialOrd>(a: T, b: T) -> T {
 pub trait Normalize {
     fn normalize(&self) -> Self;
 }
+
 
 // === Impls ===
 
@@ -355,6 +387,8 @@ impl Normalize for Vector4<f32> {
     }
 }
 
+
+
 // ===================
 // === Square Root ===
 // ===================
@@ -366,6 +400,7 @@ pub trait Sqrt {
     fn sqrt(&self) -> Self::Output;
 }
 
+
 // === Impls ===
 
 impl Sqrt for f32 {
@@ -374,6 +409,8 @@ impl Sqrt for f32 {
         f32::sqrt(*self)
     }
 }
+
+
 
 // ===========
 // === Cos ===
@@ -386,6 +423,7 @@ pub trait Cos {
     fn cos(&self) -> Self;
 }
 
+
 // === Impls ===
 
 impl Cos for f32 {
@@ -394,6 +432,8 @@ impl Cos for f32 {
         f32::cos(*self)
     }
 }
+
+
 
 // ===========
 // === Sin ===
@@ -406,6 +446,7 @@ pub trait Sin {
     fn sin(&self) -> Self::Output;
 }
 
+
 // === Impls ===
 
 impl Sin for f32 {
@@ -414,6 +455,8 @@ impl Sin for f32 {
         f32::sin(*self)
     }
 }
+
+
 
 // ============
 // === Asin ===
@@ -426,6 +469,7 @@ pub trait Asin {
     fn asin(&self) -> Self::Output;
 }
 
+
 // === Impls ===
 
 impl Asin for f32 {
@@ -434,6 +478,8 @@ impl Asin for f32 {
         f32::asin(*self)
     }
 }
+
+
 
 // ============
 // === Acos ===
@@ -446,6 +492,7 @@ pub trait Acos {
     fn acos(&self) -> Self::Output;
 }
 
+
 // === Impls ===
 
 impl Acos for f32 {
@@ -454,6 +501,8 @@ impl Acos for f32 {
         f32::acos(*self)
     }
 }
+
+
 
 // =============================
 // === Saturating Operations ===
@@ -489,6 +538,7 @@ pub trait SaturatingPow {
     type Output;
     fn saturating_pow(self, exp: u32) -> Self::Output;
 }
+
 
 // === Impls ===
 

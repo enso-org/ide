@@ -2,6 +2,8 @@
 
 use crate::prelude::*;
 
+
+
 // ==============
 // === Handle ===
 // ==============
@@ -26,6 +28,8 @@ impl Drop for Handle {
         self.counter.decrease()
     }
 }
+
+
 
 // ===============
 // === Counter ===
@@ -63,6 +67,8 @@ impl Counter {
     }
 }
 
+
+
 // ===========
 // === Ref ===
 // ===========
@@ -74,7 +80,7 @@ pub struct Ref<T> {
     /// The underlying type.
     #[shrinkwrap(main_field)]
     pub target: T,
-    handle: Handle,
+    handle:     Handle,
 }
 
 impl<T> Ref<T> {

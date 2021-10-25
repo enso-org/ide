@@ -11,6 +11,8 @@ use crate::display::scene::Scene;
 
 use nalgebra::Perspective3;
 
+
+
 // ==============
 // === Screen ===
 // ==============
@@ -19,7 +21,7 @@ use nalgebra::Perspective3;
 #[derive(Clone, Copy, Debug, Default)]
 #[allow(missing_docs)]
 pub struct Screen {
-    pub width: f32,
+    pub width:  f32,
     pub height: f32,
 }
 
@@ -39,6 +41,8 @@ impl Screen {
         self.width < std::f32::EPSILON || self.height < std::f32::EPSILON
     }
 }
+
+
 
 // ==================
 // === Projection ===
@@ -64,6 +68,8 @@ impl Default for Projection {
     }
 }
 
+
+
 // ================
 // === Clipping ===
 // ================
@@ -73,7 +79,7 @@ impl Default for Projection {
 #[allow(missing_docs)]
 pub struct Clipping {
     pub near: f32,
-    pub far: f32,
+    pub far:  f32,
 }
 
 impl Default for Clipping {
@@ -86,6 +92,8 @@ impl Default for Clipping {
     }
 }
 
+
+
 // =============
 // === Dirty ===
 // =============
@@ -94,21 +102,18 @@ impl Default for Clipping {
 #[derive(Clone, CloneRef, Debug)]
 pub struct Dirty {
     projection: ProjectionDirty,
-    transform: TransformDirty,
+    transform:  TransformDirty,
 }
 
 impl Dirty {
     fn new(logger: &Logger) -> Self {
-        let projection =
-            ProjectionDirty::new(Logger::new_sub(&logger, "projection"), ());
-        let transform =
-            TransformDirty::new(Logger::new_sub(&logger, "transform"), ());
-        Self {
-            projection,
-            transform,
-        }
+        let projection = ProjectionDirty::new(Logger::new_sub(&logger, "projection"), ());
+        let transform = TransformDirty::new(Logger::new_sub(&logger, "transform"), ());
+        Self { projection, transform }
     }
 }
+
+
 
 // ================
 // === Matrixes ===
@@ -118,9 +123,9 @@ impl Dirty {
 #[derive(Debug)]
 #[allow(missing_copy_implementations)]
 pub struct Matrix {
-    view: Matrix4<f32>,
-    view_inversed: Matrix4<f32>,
-    projection: Matrix4<f32>,
+    view:            Matrix4<f32>,
+    view_inversed:   Matrix4<f32>,
+    projection:      Matrix4<f32>,
     view_projection: Matrix4<f32>,
 }
 
@@ -130,12 +135,7 @@ impl Matrix {
         let view_inversed = Matrix4::identity();
         let projection = Matrix4::identity();
         let view_projection = Matrix4::identity();
-        Self {
-            view,
-            view_inversed,
-            projection,
-            view_projection,
-        }
+        Self { view, view_inversed, projection, view_projection }
     }
 }
 
@@ -144,6 +144,8 @@ impl Default for Matrix {
         Self::new()
     }
 }
+
+
 
 // ====================
 // === Camera2dData ===
@@ -158,15 +160,15 @@ pub trait ZoomUpdateFn = callback::CallbackMut1Fn<f32>;
 /// Internal `Camera2d` representation. Please see `Camera2d` for full documentation.
 #[derive(Debug)]
 struct Camera2dData {
-    display_object: display::object::Instance,
-    screen: Screen,
-    zoom: f32,
-    z_zoom_1: f32,
-    projection: Projection,
-    clipping: Clipping,
-    matrix: Matrix,
-    dirty: Dirty,
-    zoom_update_registry: callback::Registry1<f32>,
+    display_object:         display::object::Instance,
+    screen:                 Screen,
+    zoom:                   f32,
+    z_zoom_1:               f32,
+    projection:             Projection,
+    clipping:               Clipping,
+    matrix:                 Matrix,
+    dirty:                  Dirty,
+    zoom_update_registry:   callback::Registry1<f32>,
     screen_update_registry: callback::Registry1<Vector2<f32>>,
 }
 
@@ -208,17 +210,11 @@ impl Camera2dData {
         self
     }
 
-    fn add_zoom_update_callback<F: ZoomUpdateFn>(
-        &mut self,
-        f: F,
-    ) -> callback::Handle {
+    fn add_zoom_update_callback<F: ZoomUpdateFn>(&mut self, f: F) -> callback::Handle {
         self.zoom_update_registry.add(f)
     }
 
-    fn add_screen_update_callback<F: ScreenUpdateFn>(
-        &mut self,
-        f: F,
-    ) -> callback::Handle {
+    fn add_screen_update_callback<F: ScreenUpdateFn>(&mut self, f: F) -> callback::Handle {
         self.screen_update_registry.add(f)
     }
 
@@ -242,10 +238,8 @@ impl Camera2dData {
 
     fn inversed_projection_matrix(&self) -> Matrix4<f32> {
         match &self.projection {
-            Projection::Perspective { .. } => {
-                Perspective3::from_matrix_unchecked(self.matrix.projection)
-                    .inverse()
-            }
+            Projection::Perspective { .. } =>
+                Perspective3::from_matrix_unchecked(self.matrix.projection).inverse(),
             _ => unimplemented!(),
         }
     }
@@ -270,14 +264,14 @@ impl Camera2dData {
             changed = true;
         }
         if changed {
-            self.matrix.view_projection =
-                self.matrix.projection * self.matrix.view;
+            self.matrix.view_projection = self.matrix.projection * self.matrix.view;
             let zoom = self.zoom;
             self.zoom_update_registry.run_all(&zoom);
         }
         changed
     }
 }
+
 
 // === Setters ===
 
@@ -325,17 +319,14 @@ impl Camera2dData {
     }
 }
 
+
 // === Transform Setters ===
 
 impl Camera2dData {
     fn mod_position<F: FnOnce(&mut Vector3<f32>)>(&mut self, f: F) {
         self.mod_position_keep_zoom(f);
         let z = self.display_object.position().z.abs();
-        self.zoom = if z < std::f32::EPSILON {
-            std::f32::INFINITY
-        } else {
-            self.z_zoom_1 / z
-        };
+        self.zoom = if z < std::f32::EPSILON { std::f32::INFINITY } else { self.z_zoom_1 / z };
     }
 
     fn set_position(&mut self, value: Vector3<f32>) {
@@ -343,14 +334,15 @@ impl Camera2dData {
     }
 
     fn set_rotation(&mut self, yaw: f32, pitch: f32, roll: f32) {
-        self.display_object
-            .mod_rotation(|r| *r = Vector3::new(yaw, pitch, roll))
+        self.display_object.mod_rotation(|r| *r = Vector3::new(yaw, pitch, roll))
     }
 
     fn mod_position_keep_zoom<F: FnOnce(&mut Vector3<f32>)>(&mut self, f: F) {
         self.display_object.mod_position(f)
     }
 }
+
+
 
 // ================
 // === Camera2d ===
@@ -369,12 +361,12 @@ impl Camera2dData {
 ///   drawing elements and scaling the view. By default, the `alignment` is set to center, which
 ///   defines the origin center at the center of the screen. When scaling the view, objects placed
 ///   in the center of the view will not move visually. If you set the alignment to bottom-left
-///   corner, you will get a view which behaves like a window in window-based GUIs. When scaling
-///   the window, the left-bottom corner will stay in place.
+///   corner, you will get a view which behaves like a window in window-based GUIs. When scaling the
+///   window, the left-bottom corner will stay in place.
 #[derive(Clone, CloneRef, Debug)]
 pub struct Camera2d {
     display_object: display::object::Instance,
-    data: Rc<RefCell<Camera2dData>>,
+    data:           Rc<RefCell<Camera2dData>>,
 }
 
 impl Camera2d {
@@ -385,12 +377,10 @@ impl Camera2d {
         let display_object = display::object::Instance::new(&logger);
         let data = Camera2dData::new(logger, &display_object);
         let data = Rc::new(RefCell::new(data));
-        Self {
-            display_object,
-            data,
-        }
+        Self { display_object, data }
     }
 }
+
 
 // === Modifiers ===
 
@@ -411,21 +401,16 @@ impl Camera2d {
     }
 
     /// Adds a callback to notify when `zoom` is updated.
-    pub fn add_zoom_update_callback<F: ZoomUpdateFn>(
-        &self,
-        f: F,
-    ) -> callback::Handle {
+    pub fn add_zoom_update_callback<F: ZoomUpdateFn>(&self, f: F) -> callback::Handle {
         self.data.borrow_mut().add_zoom_update_callback(f)
     }
 
     /// Adds a callback to notify when `screen` is updated.
-    pub fn add_screen_update_callback<F: ScreenUpdateFn>(
-        &self,
-        f: F,
-    ) -> callback::Handle {
+    pub fn add_screen_update_callback<F: ScreenUpdateFn>(&self, f: F) -> callback::Handle {
         self.data.borrow_mut().add_screen_update_callback(f)
     }
 }
+
 
 // === Getters ===
 
@@ -484,6 +469,7 @@ impl Camera2d {
     }
 }
 
+
 // === Setters ===
 
 #[allow(missing_docs)]
@@ -496,6 +482,7 @@ impl Camera2d {
         self.data.borrow_mut().set_position(value)
     }
 }
+
 
 // === Conversions ===
 

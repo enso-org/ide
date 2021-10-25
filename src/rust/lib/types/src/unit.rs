@@ -19,6 +19,8 @@
 //! similar to `fn<Unit,Field>(unit:Unit, field:Field) -> Unit`, where `Field` is a specific field
 //! of the `Unit` (in most cases units have single field).
 
+
+
 // ==============
 // === Macros ===
 // ==============
@@ -50,6 +52,7 @@ macro_rules! unit {
         $crate::signed_unit!{$(#$meta)* $name :: $vname (i64)}
     };
 }
+
 
 /// Unit definition macro. See module docs to learn more.
 #[macro_export]
@@ -370,6 +373,8 @@ macro_rules! newtype_struct_impls {
     };
 }
 
+
+
 // ==================
 // === T x T -> T ===
 // ==================
@@ -424,6 +429,8 @@ macro_rules! impl_T_x_T_to_T {
     };
 }
 
+
+
 // ==================
 // === T x S -> T ===
 // ==================
@@ -470,6 +477,8 @@ macro_rules! impl_T_x_S_to_T {
     };
 }
 
+
+
 // ======================
 // === T x FIELD -> T ===
 // ======================
@@ -479,7 +488,7 @@ macro_rules! impl_T_x_S_to_T {
 macro_rules! impl_UNIT_x_FIELD_to_UNIT {
     ($trait:ident :: $opr:ident for $name:ident :: $field_type:ty) => {
         $crate::impl_T_x_FIELD_to_T! {$trait :: $opr for $name {value : $field_type}}
-    }
+    };
 }
 
 /// Unit definition macro. See module docs to learn more.
@@ -520,6 +529,7 @@ macro_rules! impl_T_x_FIELD_to_T {
     )*};
 }
 
+
 // ======================
 // === FIELD x T -> T ===
 // ======================
@@ -529,7 +539,7 @@ macro_rules! impl_T_x_FIELD_to_T {
 macro_rules! impl_FIELD_x_UNIT_to_UNIT {
     ($trait:ident :: $opr:ident for $name:ident :: $field_type:ty) => {
         $crate::impl_FIELD_x_T_to_T! {$trait :: $opr for $name {value : $field_type}}
-    }
+    };
 }
 
 /// Unit definition macro. See module docs to learn more.
@@ -570,6 +580,8 @@ macro_rules! impl_FIELD_x_T_to_T {
     )*};
 }
 
+
+
 // ======================
 // === T x T -> FIELD ===
 // ======================
@@ -579,7 +591,7 @@ macro_rules! impl_FIELD_x_T_to_T {
 macro_rules! impl_UNIT_x_UNIT_to_FIELD {
     ($trait:ident :: $opr:ident for $name:ident :: $field_type:ty) => {
         $crate::impl_T_x_T_to_FIELD! {$trait :: $opr for $name {value : $field_type}}
-    }
+    };
 }
 
 /// Unit definition macro. See module docs to learn more.
@@ -616,6 +628,8 @@ macro_rules! impl_T_x_T_to_FIELD {
     )*};
 }
 
+
+
 // ==============
 // === T -> T ===
 // ==============
@@ -649,6 +663,8 @@ macro_rules! impl_T_to_T {
         }
     };
 }
+
+
 
 // =============
 // === T x T ===
@@ -695,6 +711,8 @@ macro_rules! impl_T_x_T {
         }
     )*};
 }
+
+
 
 // =================
 // === T x FIELD ===

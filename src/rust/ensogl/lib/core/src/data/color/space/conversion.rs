@@ -20,6 +20,8 @@ use super::def::*;
 use super::white_point;
 use super::white_point::traits::*;
 
+
+
 // ==============
 // === Macros ===
 // ==============
@@ -102,6 +104,8 @@ macro_rules! color_convert_via {
     };
 }
 
+
+
 // =========================
 // === Rgb <-> LinearRgb ===
 // =========================
@@ -137,6 +141,8 @@ impl From<LinearRgbData> for RgbData {
         from_components(rgb.map(from_linear).into())
     }
 }}
+
+
 
 // ===================
 // === Rgb <-> Hsl ===
@@ -174,6 +180,8 @@ impl From<RgbData> for HslData {
     }
 }}
 
+
+
 // ===================
 // === Rgb <-> Xyz ===
 // ===================
@@ -205,6 +213,8 @@ impl From<XyzData> for LinearRgbData {
         Self {red,green,blue}
     }
 }}
+
+
 
 // ===================
 // === Xyz <-> Lab ===
@@ -266,6 +276,8 @@ impl From<LabData> for XyzData {
     }
 }}
 
+
+
 // ===================
 // === Lab <-> Lch ===
 // ===================
@@ -309,6 +321,8 @@ impl From<LchData> for LabData {
     }
 }}
 
+
+
 // =========================
 // === Trans-Conversions ===
 // =========================
@@ -319,6 +333,8 @@ color_convert_via! { RgbData <-> LabData       <-> LchData }
 
 color_convert_via! { LinearRgbData <-> XyzData <-> LabData }
 color_convert_via! { LinearRgbData <-> LabData <-> LchData }
+
+
 
 // =============
 // === Tests ===

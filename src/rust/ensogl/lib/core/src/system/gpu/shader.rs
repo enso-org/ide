@@ -11,6 +11,8 @@ use web_sys::WebGlBuffer;
 use web_sys::WebGlProgram;
 use web_sys::WebGlShader;
 
+
+
 // ===============
 // === Exports ===
 // ===============
@@ -23,6 +25,8 @@ pub mod types {
 }
 pub use types::*;
 
+
+
 // =============
 // === Types ===
 // =============
@@ -30,6 +34,8 @@ pub use types::*;
 pub type Context = WebGl2RenderingContext;
 pub type Shader = WebGlShader;
 pub type Program = WebGlProgram;
+
+
 
 // =============
 // === Error ===
@@ -42,11 +48,7 @@ pub enum Error {
     #[fail(display = "Unable to create {}.", target)]
     Create { target: ErrorTarget },
     #[fail(display = "Unable to compile {}.\n{}\n\n{}", target, message, code)]
-    Compile {
-        target: ErrorTarget,
-        message: String,
-        code: String,
-    },
+    Compile { target: ErrorTarget, message: String, code: String },
 }
 
 #[derive(Copy, Clone, Debug, Fail)]
@@ -56,6 +58,8 @@ pub enum ErrorTarget {
     #[fail(display = "program")]
     Program,
 }
+
+
 
 // ==================
 // === HasInfoLog ===
@@ -68,9 +72,7 @@ pub trait CompilationTarget {
 
 impl CompilationTarget for Shader {
     fn check(&self, ctx: &Context) -> bool {
-        ctx.get_shader_parameter(self, Context::COMPILE_STATUS)
-            .as_bool()
-            .unwrap_or(false)
+        ctx.get_shader_parameter(self, Context::COMPILE_STATUS).as_bool().unwrap_or(false)
     }
 
     fn logs(&self, ctx: &Context) -> String {
@@ -80,9 +82,7 @@ impl CompilationTarget for Shader {
 
 impl CompilationTarget for Program {
     fn check(&self, ctx: &Context) -> bool {
-        ctx.get_program_parameter(self, Context::LINK_STATUS)
-            .as_bool()
-            .unwrap_or(false)
+        ctx.get_program_parameter(self, Context::LINK_STATUS).as_bool().unwrap_or(false)
     }
 
     fn logs(&self, ctx: &Context) -> String {
@@ -93,6 +93,8 @@ impl CompilationTarget for Program {
 fn unwrap_error(opt_err: Option<String>) -> String {
     opt_err.unwrap_or_else(|| "Unknown error.".to_string())
 }
+
+
 
 // ======================
 // === Compile / Link ===
@@ -120,38 +122,27 @@ pub fn compile_shader(ctx: &Context, tp: u32, src: &str) -> Result<Shader> {
         let lines_num = lines.len();
         let lines_str_len = (lines_num as f32).log10().ceil() as usize;
         let lines_enum = lines.into_iter().enumerate();
-        let lines_with_num = lines_enum
-            .map(|(n, l)| format!("{1:0$} : {2}", lines_str_len, n + 1, l));
+        let lines_with_num =
+            lines_enum.map(|(n, l)| format!("{1:0$} : {2}", lines_str_len, n + 1, l));
         let lines_with_num = lines_with_num.collect::<Vec<String>>();
         let code_with_num = lines_with_num.join("\n");
         let message = shader.logs(ctx);
         let error_loc_pfx = "ERROR: 0:";
         let out = if let Some(msg) = message.strip_prefix(error_loc_pfx) {
-            let line_num: String =
-                msg.chars().take_while(|c| c.is_digit(10)).collect();
+            let line_num: String = msg.chars().take_while(|c| c.is_digit(10)).collect();
             let line_num = line_num.parse::<usize>().unwrap() - 1;
             let preview_radius = 5;
-            let preview_line_start =
-                std::cmp::max(0, line_num - preview_radius);
-            let preview_line_end =
-                std::cmp::min(lines_num, line_num + preview_radius);
+            let preview_line_start = std::cmp::max(0, line_num - preview_radius);
+            let preview_line_end = std::cmp::min(lines_num, line_num + preview_radius);
             lines_with_num[preview_line_start..preview_line_end].join("\n")
         } else {
             code_with_num
         };
-        Err(Error::Compile {
-            target,
-            message,
-            code: out,
-        })
+        Err(Error::Compile { target, message, code: out })
     }
 }
 
-pub fn link_program(
-    ctx: &Context,
-    vert_shader: &Shader,
-    frag_shader: &Shader,
-) -> Result<Program> {
+pub fn link_program(ctx: &Context, vert_shader: &Shader, frag_shader: &Shader) -> Result<Program> {
     let target = ErrorTarget::Program;
     let program = ctx.create_program().ok_or(Error::Create { target })?;
     ctx.attach_shader(&program, vert_shader);
@@ -161,6 +152,8 @@ pub fn link_program(
     Ok(program)
 }
 
+
+
 // ========================
 // === Managing buffers ===
 // ========================
@@ -168,11 +161,7 @@ pub fn link_program(
 // TODO: The functions below might be obsolete after text is fully integrated to buffer management.
 
 /// Set the array buffer data with floats.
-pub fn set_buffer_data(
-    gl_context: &Context,
-    buffer: &WebGlBuffer,
-    data: &[f32],
-) {
+pub fn set_buffer_data(gl_context: &Context, buffer: &WebGlBuffer, data: &[f32]) {
     let target = Context::ARRAY_BUFFER;
     gl_context.bind_buffer(target, Some(buffer));
     set_bound_buffer_data(gl_context, target, data);
@@ -190,21 +179,12 @@ fn set_bound_buffer_data(gl_context: &Context, target: u32, data: &[f32]) {
     let usage = Context::STATIC_DRAW;
     unsafe {
         let float_array = Float32Array::view(data);
-        gl_context.buffer_data_with_array_buffer_view(
-            target,
-            &float_array,
-            usage,
-        );
+        gl_context.buffer_data_with_array_buffer_view(target, &float_array, usage);
     }
 }
 
 /// Set the array buffer fragment with with floats.
-pub fn set_buffer_subdata(
-    gl_context: &Context,
-    buffer: &WebGlBuffer,
-    offset: usize,
-    data: &[f32],
-) {
+pub fn set_buffer_subdata(gl_context: &Context, buffer: &WebGlBuffer, offset: usize, data: &[f32]) {
     let target = Context::ARRAY_BUFFER;
     gl_context.bind_buffer(target, Some(buffer));
     set_bound_buffer_subdata(gl_context, target, offset as i32, data);
@@ -218,18 +198,9 @@ pub fn set_buffer_subdata(
 /// wasm-bindgen examples
 /// (https://rustwasm.github.io/wasm-bindgen/examples/webgl.html)
 #[allow(unsafe_code)]
-fn set_bound_buffer_subdata(
-    gl_context: &Context,
-    target: u32,
-    offset: i32,
-    data: &[f32],
-) {
+fn set_bound_buffer_subdata(gl_context: &Context, target: u32, offset: i32, data: &[f32]) {
     unsafe {
         let float_array = Float32Array::view(data);
-        gl_context.buffer_sub_data_with_i32_and_array_buffer_view(
-            target,
-            offset,
-            &float_array,
-        );
+        gl_context.buffer_sub_data_with_i32_and_array_buffer_view(target, offset, &float_array);
     }
 }

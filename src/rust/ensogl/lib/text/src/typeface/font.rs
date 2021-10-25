@@ -13,12 +13,16 @@ use msdf_sys::Msdf;
 use msdf_sys::MsdfParameters;
 use std::collections::hash_map::Entry;
 
+
+
 // =================
 // === Constants ===
 // =================
 
 /// Default font the app will revert to if a desired font could not be loaded.
 pub const DEFAULT_FONT: &str = "DejaVuSans";
+
+
 
 // =============
 // === Cache ===
@@ -31,9 +35,7 @@ pub struct Cache<K: Eq + Hash, V> {
 
 impl<K: Eq + Hash, V: Copy> Cache<K, V> {
     pub fn get_or_create<F>(&self, key: K, constructor: F) -> V
-    where
-        F: FnOnce() -> V,
-    {
+    where F: FnOnce() -> V {
         let mut map = self.map.borrow_mut();
         match map.entry(key) {
             Entry::Occupied(entry) => *entry.get(),
@@ -61,6 +63,8 @@ impl<K: Eq + Hash, V> Default for Cache<K, V> {
         Cache { map: default() }
     }
 }
+
+
 
 // ========================
 // === Font render info ===
@@ -120,27 +124,24 @@ impl GlyphRenderInfo {
 
     /// Load new GlyphRenderInfo from msdf_sys font handle. This also extends the atlas with
     /// MSDF generated for this character.
-    pub fn load(
-        handle: &msdf_sys::Font,
-        ch: char,
-        atlas: &msdf::Texture,
-    ) -> Self {
+    pub fn load(handle: &msdf_sys::Font, ch: char, atlas: &msdf::Texture) -> Self {
         let unicode = ch as u32;
         let params = Self::MSDF_PARAMS;
         let msdf = Msdf::generate(handle, unicode, &params);
-        let inversed_scale =
-            Vector2::new(1.0 / msdf.scale.x, 1.0 / msdf.scale.y);
+        let inversed_scale = Vector2::new(1.0 / msdf.scale.x, 1.0 / msdf.scale.y);
         let translation = msdf::convert_msdf_translation(&msdf);
         let glyph_id = atlas.rows() / msdf::Texture::ONE_GLYPH_HEIGHT;
         atlas.extend_with_raw_data(msdf.data.iter());
         GlyphRenderInfo {
             msdf_texture_glyph_id: glyph_id,
-            offset: -translation,
-            scale: Vector2(inversed_scale.x as f32, inversed_scale.y as f32),
-            advance: msdf::x_distance_from_msdf_value(msdf.advance),
+            offset:                -translation,
+            scale:                 Vector2(inversed_scale.x as f32, inversed_scale.y as f32),
+            advance:               msdf::x_distance_from_msdf_value(msdf.advance),
         }
     }
 }
+
+
 
 // ============
 // === Font ===
@@ -166,6 +167,8 @@ impl From<FontData> for Font {
     }
 }
 
+
+
 // ================
 // === FontData ===
 // ================
@@ -174,11 +177,11 @@ impl From<FontData> for Font {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct FontData {
-    pub name: String,
+    pub name:  String,
     msdf_font: msdf_sys::Font,
-    atlas: msdf::Texture,
-    glyphs: Cache<char, GlyphRenderInfo>,
-    kerning: Cache<(char, char), f32>,
+    atlas:     msdf::Texture,
+    glyphs:    Cache<char, GlyphRenderInfo>,
+    kerning:   Cache<(char, char), f32>,
 }
 
 impl Font {
@@ -187,14 +190,7 @@ impl Font {
         let atlas = default();
         let glyphs = default();
         let kerning = default();
-        FontData {
-            name,
-            msdf_font,
-            atlas,
-            glyphs,
-            kerning,
-        }
-        .into()
+        FontData { name, msdf_font, atlas, glyphs, kerning }.into()
     }
 
     /// Constructor.
@@ -211,9 +207,7 @@ impl Font {
     /// Get render info for one character, generating one if not found.
     pub fn glyph_info(&self, ch: char) -> GlyphRenderInfo {
         let handle = &self.msdf_font;
-        self.glyphs.get_or_create(ch, move || {
-            GlyphRenderInfo::load(handle, ch, &self.atlas)
-        })
+        self.glyphs.get_or_create(ch, move || GlyphRenderInfo::load(handle, ch, &self.atlas))
     }
 
     /// Get kerning between two characters
@@ -226,9 +220,7 @@ impl Font {
 
     /// A whole msdf texture bound for this font.
     pub fn with_borrowed_msdf_texture_data<F, R>(&self, operation: F) -> R
-    where
-        F: FnOnce(&[u8]) -> R,
-    {
+    where F: FnOnce(&[u8]) -> R {
         self.atlas.with_borrowed_data(operation)
     }
 
@@ -253,8 +245,7 @@ impl Font {
         self.glyphs.invalidate(&ch);
         let data_size = msdf::Texture::ONE_GLYPH_SIZE;
         let msdf_data = (0..data_size).map(|_| 0.12345);
-        let msdf_texture_glyph_id =
-            self.msdf_texture_rows() / msdf::Texture::ONE_GLYPH_HEIGHT;
+        let msdf_texture_glyph_id = self.msdf_texture_rows() / msdf::Texture::ONE_GLYPH_HEIGHT;
 
         self.atlas.extend_with_raw_data(msdf_data);
         self.glyphs.get_or_create(ch, move || GlyphRenderInfo {
@@ -271,6 +262,8 @@ impl Font {
         self.kerning.get_or_create((l, r), || value);
     }
 }
+
+
 
 // ====================
 // === RegistryData ===
@@ -319,14 +312,8 @@ impl RegistryData {
         let fonts = HashMap::new();
         let default_name = DEFAULT_FONT;
         let default = Font::try_from_embedded(&embedded, default_name)
-            .unwrap_or_else(|| {
-                panic!("Cannot load default font {}.", default_name)
-            });
-        Self {
-            embedded,
-            fonts,
-            default,
-        }
+            .unwrap_or_else(|| panic!("Cannot load default font {}.", default_name));
+        Self { embedded, fonts, default }
     }
 }
 
@@ -343,6 +330,8 @@ impl scene::Extension for Registry {
         Self::init_and_load_default()
     }
 }
+
+
 
 // =============
 // === Tests ===
@@ -371,12 +360,7 @@ mod tests {
         let font_render_info = create_test_font();
 
         assert_eq!(TEST_FONT_NAME, font_render_info.name);
-        assert_eq!(
-            0,
-            font_render_info
-                .atlas
-                .with_borrowed_data(|t: &[u8]| t.len())
-        );
+        assert_eq!(0, font_render_info.atlas.with_borrowed_data(|t: &[u8]| t.len()));
         assert_eq!(0, font_render_info.glyphs.len());
     }
 
@@ -395,18 +379,11 @@ mod tests {
         let tex_size = tex_width * tex_height * channels;
 
         assert_eq!(tex_height, font_render_info.msdf_texture_rows());
-        assert_eq!(
-            tex_size,
-            font_render_info.atlas.with_borrowed_data(|t| t.len())
-        );
+        assert_eq!(tex_size, font_render_info.atlas.with_borrowed_data(|t| t.len()));
         assert_eq!(chars, font_render_info.glyphs.len());
 
-        let first_char = font_render_info
-            .glyphs
-            .get_or_create('A', || panic!("Expected value"));
-        let second_char = font_render_info
-            .glyphs
-            .get_or_create('B', || panic!("Expected value"));
+        let first_char = font_render_info.glyphs.get_or_create('A', || panic!("Expected value"));
+        let second_char = font_render_info.glyphs.get_or_create('B', || panic!("Expected value"));
 
         let first_index = 0;
         let second_index = 1;

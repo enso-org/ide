@@ -21,6 +21,8 @@ use web_sys::CanvasRenderingContext2d;
 use web_sys::HtmlCanvasElement;
 use web_sys::HtmlElement;
 
+
+
 // ==================
 // === SpriteData ===
 // ==================
@@ -30,7 +32,7 @@ use web_sys::HtmlElement;
 #[allow(missing_docs)]
 pub struct SpriteData {
     pub position: Vector2<f32>,
-    pub size: f64,
+    pub size:     f64,
 }
 
 impl SpriteData {
@@ -67,6 +69,8 @@ impl Add<SpriteData> for SpriteData {
     }
 }
 
+
+
 // ==============
 // === Canvas ===
 // ==============
@@ -74,7 +78,7 @@ impl Add<SpriteData> for SpriteData {
 /// A simplified Canvas object used in the EasingAnimator example.
 #[derive(Clone, Debug)]
 pub struct Canvas {
-    canvas: HtmlCanvasElement,
+    canvas:  HtmlCanvasElement,
     context: CanvasRenderingContext2d,
 }
 
@@ -89,8 +93,7 @@ impl Canvas {
         let context = canvas.get_context("2d").unwrap().unwrap();
         let context: CanvasRenderingContext2d = context.dyn_into().unwrap();
 
-        let app: HtmlElement =
-            get_element_by_id(container_id).unwrap().dyn_into().unwrap();
+        let app: HtmlElement = get_element_by_id(container_id).unwrap().dyn_into().unwrap();
         app.append_or_panic(&canvas);
 
         Self { canvas, context }
@@ -98,8 +101,7 @@ impl Canvas {
 
     /// Clears the canvas.
     pub fn clear(&self) {
-        self.context
-            .clear_rect(0.0, 0.0, self.width(), self.height())
+        self.context.clear_rect(0.0, 0.0, self.width(), self.height())
     }
 
     /// Gets Canvas' width.
@@ -118,9 +120,7 @@ impl Canvas {
         let point = data.position;
         self.context.save();
         self.context.set_fill_style(&color.into());
-        self.context
-            .scale(self.width() / 2.0, self.height() / 2.0)
-            .ok();
+        self.context.scale(self.width() / 2.0, self.height() / 2.0).ok();
         self.context.set_line_width(2.0 / self.height());
         self.context.translate(1.0, 1.0).ok();
         self.context.fill_rect(
@@ -133,12 +133,7 @@ impl Canvas {
     }
 
     /// Draw a 2D graph of the provided easing function.
-    pub fn draw_graph<F: Fn(f32) -> f32>(
-        &self,
-        f: F,
-        color: &str,
-        time_ms: f32,
-    ) {
+    pub fn draw_graph<F: Fn(f32) -> f32>(&self, f: F, color: &str, time_ms: f32) {
         let time_ms = time_ms as f64;
         let width = self.width() - 1.0;
         let height = self.height();
@@ -163,52 +158,36 @@ impl Canvas {
         let time_s = time_ms / 1000.0;
         let x = time_s / 2.0;
         let y = f(x as f32) as f64;
-        self.context.fill_rect(
-            x - width / 2.0,
-            y - height / 2.0,
-            width,
-            height,
-        );
+        self.context.fill_rect(x - width / 2.0, y - height / 2.0, width, height);
         self.context.restore();
     }
 }
 
 #[allow(clippy::type_complexity)]
 struct Sampler {
-    color: &'static str,
-    time: f32,
-    left_canvas: Canvas,
-    right_canvas: Canvas,
-    easing_animator:
-        Animator<SpriteData, Box<dyn Fn(f32) -> f32>, Box<dyn Fn(SpriteData)>>,
-    properties: Rc<Cell<SpriteData>>,
+    color:           &'static str,
+    time:            f32,
+    left_canvas:     Canvas,
+    right_canvas:    Canvas,
+    easing_animator: Animator<SpriteData, Box<dyn Fn(f32) -> f32>, Box<dyn Fn(SpriteData)>>,
+    properties:      Rc<Cell<SpriteData>>,
     easing_function: Box<dyn Fn(f32) -> f32>,
 }
 
 impl Sampler {
     #[allow(trivial_casts)]
-    fn new<F>(
-        color: &'static str,
-        left_canvas: &Canvas,
-        right_canvas: &Canvas,
-        f: F,
-    ) -> Self
-    where
-        F: CloneableFnEasing,
-    {
+    fn new<F>(color: &'static str, left_canvas: &Canvas, right_canvas: &Canvas, f: F) -> Self
+    where F: CloneableFnEasing {
         let left_canvas = left_canvas.clone();
         let right_canvas = right_canvas.clone();
-        let properties =
-            Rc::new(Cell::new(SpriteData::new(Vector2::new(0.0, 0.0), 1.0)));
+        let properties = Rc::new(Cell::new(SpriteData::new(Vector2::new(0.0, 0.0), 1.0)));
         let start = SpriteData::random();
         let end = SpriteData::random();
         let prop = properties.clone();
         let easing_function = Box::new(f.clone()) as Box<dyn Fn(f32) -> f32>;
         let easing_function2 = Box::new(f) as Box<dyn Fn(f32) -> f32>;
-        let animation_cb =
-            Box::new(move |t| prop.set(t)) as Box<dyn Fn(SpriteData)>;
-        let easing_animator =
-            Animator::new(start, end, easing_function2, animation_cb, ());
+        let animation_cb = Box::new(move |t| prop.set(t)) as Box<dyn Fn(SpriteData)>;
+        let easing_animator = Animator::new(start, end, easing_function2, animation_cb, ());
         let time = 0.0;
         easing_animator.set_duration(2000.0);
         Self {
@@ -231,15 +210,12 @@ impl Sampler {
             animator.set_target_value_no_restart(SpriteData::random());
             animator.reset();
         }
-        self.left_canvas.draw_graph(
-            &self.easing_function,
-            self.color,
-            self.time,
-        );
-        self.right_canvas
-            .draw_sprite(self.properties.get(), self.color);
+        self.left_canvas.draw_graph(&self.easing_function, self.color, self.time);
+        self.right_canvas.draw_sprite(self.properties.get(), self.color);
     }
 }
+
+
 
 // ===============
 // === Example ===
@@ -260,8 +236,7 @@ impl Example {
         let example = web::create_div();
         example.set_attribute_or_panic("id", name);
         example.set_style_or_panic("margin", "10px");
-        let container: HtmlElement =
-            get_element_by_id("examples").unwrap().dyn_into().unwrap();
+        let container: HtmlElement = get_element_by_id("examples").unwrap().dyn_into().unwrap();
         let header: HtmlElement = create_element("center").dyn_into().unwrap();
         header.set_style_or_panic("background-color", "black");
         header.set_style_or_panic("color", "white");
@@ -270,23 +245,17 @@ impl Example {
         container.append_or_panic(&example);
         let left_canvas = Canvas::new(name);
         let right_canvas = Canvas::new(name);
-        let mut sampler1 =
-            Sampler::new("green", &left_canvas, &right_canvas, ease_in);
-        let mut sampler2 =
-            Sampler::new("blue", &left_canvas, &right_canvas, ease_out);
-        let mut sampler3 =
-            Sampler::new("red", &left_canvas, &right_canvas, ease_in_out);
+        let mut sampler1 = Sampler::new("green", &left_canvas, &right_canvas, ease_in);
+        let mut sampler2 = Sampler::new("blue", &left_canvas, &right_canvas, ease_out);
+        let mut sampler3 = Sampler::new("red", &left_canvas, &right_canvas, ease_in_out);
 
-        let _animator = animation::Loop::new(Box::new(
-            move |time_info: animation::TimeInfo| {
-                left_canvas.clear();
-                right_canvas.clear();
-                sampler1.render(time_info.frame);
-                sampler2.render(time_info.frame);
-                sampler3.render(time_info.frame);
-            },
-        )
-            as Box<dyn FnMut(animation::TimeInfo)>);
+        let _animator = animation::Loop::new(Box::new(move |time_info: animation::TimeInfo| {
+            left_canvas.clear();
+            right_canvas.clear();
+            sampler1.render(time_info.frame);
+            sampler2.render(time_info.frame);
+            sampler3.render(time_info.frame);
+        }) as Box<dyn FnMut(animation::TimeInfo)>);
         Self { _animator }
     }
 }
@@ -315,7 +284,5 @@ pub fn entry_point_easing_animator() {
     container.set_style_or_panic("position", "absolute");
     container.set_style_or_panic("top", "0px");
     web::body().append_or_panic(&container);
-    examples![
-        expo, bounce, circ, quad, cubic, quart, quint, sine, back, elastic
-    ];
+    examples![expo, bounce, circ, quad, cubic, quart, quint, sine, back, elastic];
 }

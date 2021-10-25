@@ -5,11 +5,15 @@ use crate::prelude::*;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::prelude::Closure;
 
+
+
 // =============
 // === Types ===
 // =============
 
 type ReadTextClosure = Closure<dyn Fn(String)>;
+
+
 
 // ===================
 // === JS Bindings ===
@@ -31,8 +35,8 @@ extern "C" {
 ///   The delay may be caused for example by waiting for permission from the user.
 /// - This will probably display a permission prompt to the user for the first time it is used.
 /// - The website has to be served over HTTPS for this function to work correctly.
-/// - This function needs to be called from within user-initiated event callbacks, like mouse or
-///   key press. Otherwise it will not work.
+/// - This function needs to be called from within user-initiated event callbacks, like mouse or key
+///   press. Otherwise it will not work.
 ///
 /// Moreover, in case something fails, this function implements a fallback mechanism which tries
 /// to create a hidden text field, fill it with the text and use the obsolete
@@ -52,8 +56,8 @@ pub fn write_text(text: impl Into<String>) {
 ///   be ready. The delay may be caused for example by waiting for permissions from the user.
 /// - This will probably display a permission prompt to the user for the first time it is used.
 /// - The website has to be served over HTTPS for this function to work correctly.
-/// - This function needs to be called from within user-initiated event callbacks, like mouse or
-///   key press. Otherwise it will not work.
+/// - This function needs to be called from within user-initiated event callbacks, like mouse or key
+///   press. Otherwise it will not work.
 ///
 /// Moreover, this function works in a very strange way in Firefox.
 /// [Firefox only supports reading the clipboard in browser extensions](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/readText).

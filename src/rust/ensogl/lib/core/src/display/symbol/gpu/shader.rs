@@ -20,27 +20,27 @@ use web_sys::WebGlProgram;
 
 use enso_shapely::shared;
 
+
+
 // ==================
 // === VarBinding ===
 // ==================
 
 #[derive(Clone, Debug)]
 pub struct VarBinding {
-    pub name: String,
-    pub decl: VarDecl,
+    pub name:  String,
+    pub decl:  VarDecl,
     pub scope: Option<ScopeType>,
 }
 
 impl VarBinding {
-    pub fn new<Name: Str>(
-        name: Name,
-        decl: VarDecl,
-        scope: Option<ScopeType>,
-    ) -> Self {
+    pub fn new<Name: Str>(name: Name, decl: VarDecl, scope: Option<ScopeType>) -> Self {
         let name = name.into();
         Self { name, decl, scope }
     }
 }
+
+
 
 // ==============
 // === Shader ===

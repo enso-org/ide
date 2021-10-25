@@ -7,6 +7,8 @@ use crate::double_representation::module;
 
 use parser::Parser;
 
+
+
 // ==============
 // === Errors ===
 // ==============
@@ -15,6 +17,8 @@ use parser::Parser;
 #[derive(Clone, Copy, Debug, Fail)]
 #[fail(display = "Invalid example code.")]
 pub struct InvalidExample;
+
+
 
 // ===============
 // === Example ===
@@ -28,9 +32,9 @@ pub struct InvalidExample;
 #[allow(missing_docs)]
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Example {
-    pub name: String,
-    pub code: String,
-    pub imports: Vec<String>,
+    pub name:               String,
+    pub code:               String,
+    pub imports:            Vec<String>,
     pub documentation_html: String,
 }
 
@@ -43,8 +47,8 @@ impl Example {
     ///
     /// use ide::model::suggestion_database::Example;
     ///
-    /// let name    = "With Spaces and Strange $ąę#%^& Characters.".to_owned();
-    /// let example = Example{name,..default()};
+    /// let name = "With Spaces and Strange $ąę#%^& Characters.".to_owned();
+    /// let example = Example { name, ..default() };
     /// assert_eq!(example.function_name(), "with_spaces_and_strange__characters");
     /// ```
     pub fn function_name(&self) -> String {
@@ -79,10 +83,7 @@ impl Example {
 
 /// Creates a pretty documentation from hardcoded inner text.
 pub fn documentation_html_from(inner: &str) -> String {
-    return format!(
-        "<div class=\"doc\" style=\"font-size: 13px;\"><p>{}</p></div>",
-        inner
-    );
+    return format!("<div class=\"doc\" style=\"font-size: 13px;\"><p>{}</p></div>", inner);
 }
 
 // =========================

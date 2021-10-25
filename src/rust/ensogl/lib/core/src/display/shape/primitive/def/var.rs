@@ -10,6 +10,8 @@ use crate::system::gpu::types::*;
 use nalgebra::Scalar;
 use std::ops::*;
 
+
+
 // ======================
 // === VarInitializer ===
 // ======================
@@ -22,6 +24,7 @@ pub trait VarInitializer<T> = VarInitializerMarker<T> + Into<Glsl>;
 /// Marker trait for `VarInitializer`.
 #[marker]
 pub trait VarInitializerMarker<T> {}
+
 
 // === Instances ===
 
@@ -37,10 +40,7 @@ impl VarInitializerMarker<Var<color::Rgba>> for color::Rgb {}
 
 impl VarInitializerMarker<Var<color::Rgba>> for color::Rgba {}
 
-impl<G> VarInitializerMarker<Var<color::Rgba>>
-    for color::gradient::SdfSampler<G>
-{
-}
+impl<G> VarInitializerMarker<Var<color::Rgba>> for color::gradient::SdfSampler<G> {}
 
 impl<T, S1, S2> VarInitializerMarker<Var<Vector2<T>>> for (S1, S2)
 where
@@ -50,6 +50,8 @@ where
 {
 }
 
+
+
 // === Nested ===
 
 /// Marker trait for nested cases of `VarInitializer`.
@@ -58,6 +60,8 @@ pub trait VarInitializerMarkerNested<T> {}
 impl<T, S> VarInitializerMarkerNested<T> for S where S: VarInitializerMarker<T> {}
 impl<T> VarInitializerMarkerNested<Var<T>> for Var<T> {}
 impl<T> VarInitializerMarkerNested<Var<T>> for &Var<T> {}
+
+
 
 // ===========
 // === Var ===
@@ -108,8 +112,7 @@ impl Var<color::Rgba> {
 }
 
 impl<T, S> From<T> for Var<S>
-where
-    T: VarInitializer<Var<S>>,
+where T: VarInitializer<Var<S>>
 {
     default fn from(t: T) -> Self {
         Self::Dynamic(t.into())
@@ -117,8 +120,7 @@ where
 }
 
 impl<T> From<T> for Var<T>
-where
-    T: VarInitializer<Var<T>>,
+where T: VarInitializer<Var<T>>
 {
     fn from(t: T) -> Self {
         Self::Static(t)
@@ -143,13 +145,14 @@ impls! {[T:Into<Glsl>] From<Var<T>> for Glsl { |t|
     }
 }}
 
+
+
 // ==================
 // === Operations ===
 // ==================
 
 impl<T> Abs for Var<T>
-where
-    T: Abs,
+where T: Abs
 {
     fn abs(&self) -> Self {
         match self {
@@ -160,8 +163,7 @@ where
 }
 
 impl<T> Min for Var<T>
-where
-    T: Min + Into<Glsl>,
+where T: Min + Into<Glsl>
 {
     fn min(a: Self, b: Self) -> Self {
         match (a, b) {
@@ -176,8 +178,7 @@ where
 }
 
 impl<T> Max for Var<T>
-where
-    T: Max + Into<Glsl>,
+where T: Max + Into<Glsl>
 {
     fn max(a: Self, b: Self) -> Self {
         match (a, b) {
@@ -244,6 +245,7 @@ impl<T: Scalar> Dim3 for Var<Vector3<T>> {
     }
 }
 
+
 impl PixelDistance for Var<Vector2<f32>> {
     type Output = Var<Vector2<Pixels>>;
     fn px(&self) -> Self::Output {
@@ -258,13 +260,13 @@ impl PixelDistance for Var<Vector3<f32>> {
     type Output = Var<Vector3<Pixels>>;
     fn px(&self) -> Self::Output {
         match self {
-            Self::Static(t) => {
-                Var::Static(Vector3(t.x.pixels(), t.y.pixels(), t.z.pixels()))
-            }
+            Self::Static(t) => Var::Static(Vector3(t.x.pixels(), t.y.pixels(), t.z.pixels())),
             Self::Dynamic(t) => Var::Dynamic(t.clone()),
         }
     }
 }
+
+
 
 // =================
 // === Operators ===
@@ -335,7 +337,7 @@ macro_rules! define_shape_data_operator {
                 }
             }
         }}
-    }
+    };
 }
 
 macro_rules! define_shape_data_prim_operator {
@@ -386,8 +388,7 @@ define_shape_data_prim_operator! { Sub sub (-) for f32 where [A:RefInto<Glsl>] }
 define_shape_data_prim_operator! { Rem rem (%) for f32 where [A:RefInto<Glsl>] }
 
 impl<T> Neg for Var<T>
-where
-    T: Neg + RefInto<Glsl>,
+where T: Neg + RefInto<Glsl>
 {
     type Output = Var<<T as Neg>::Output>;
     fn neg(self) -> Self::Output {
@@ -399,8 +400,7 @@ where
 }
 
 impl<'t, T> Neg for &'t Var<T>
-where
-    &'t T: Neg + Into<Glsl>,
+where &'t T: Neg + Into<Glsl>
 {
     type Output = Var<<&'t T as Neg>::Output>;
     fn neg(self) -> Self::Output {
@@ -411,67 +411,52 @@ where
     }
 }
 
+
 // === String Operators ===
 
 macro_rules! define_shape_data_string_operator {
     ( $name:ident $fn:ident ($opr:tt) ) => {
-        define_shape_data_string_operator_ref!    { $name $fn ($opr) for str }
+        define_shape_data_string_operator_ref! { $name $fn ($opr) for str }
         define_shape_data_string_operator_no_ref! { $name $fn ($opr) for String }
         define_shape_data_string_operator_no_ref! { $name $fn ($opr) for CowString }
-    }
+    };
 }
 
 macro_rules! define_shape_data_string_operator_ref {
     ( $name:ident $fn:ident ($opr:tt) for $target:ident ) => {
         impl<'t, A> $name<&'t $target> for &'t Var<A>
-        where
-            A: RefInto<Glsl>,
+        where A: RefInto<Glsl>
         {
             type Output = Var<A>;
             fn $fn(self, rhs: &'t $target) -> Self::Output {
-                Var::Dynamic(
-                    format!("{}({},{})", stringify!($fn), self.glsl(), rhs)
-                        .into(),
-                )
+                Var::Dynamic(format!("{}({},{})", stringify!($fn), self.glsl(), rhs).into())
             }
         }
 
         impl<'t, A> $name<&'t $target> for Var<A>
-        where
-            A: RefInto<Glsl>,
+        where A: RefInto<Glsl>
         {
             type Output = Var<A>;
             fn $fn(self, rhs: &'t $target) -> Self::Output {
-                Var::Dynamic(
-                    format!("{}({},{})", stringify!($fn), self.glsl(), rhs)
-                        .into(),
-                )
+                Var::Dynamic(format!("{}({},{})", stringify!($fn), self.glsl(), rhs).into())
             }
         }
 
         impl<'t, A> $name<&'t Var<A>> for &'t $target
-        where
-            A: Display + RefInto<Glsl>,
+        where A: Display + RefInto<Glsl>
         {
             type Output = Var<A>;
             fn $fn(self, rhs: &'t Var<A>) -> Self::Output {
-                Var::Dynamic(
-                    format!("{}({},{})", stringify!($fn), self.glsl(), rhs)
-                        .into(),
-                )
+                Var::Dynamic(format!("{}({},{})", stringify!($fn), self.glsl(), rhs).into())
             }
         }
 
         impl<'t, A> $name<Var<A>> for &'t $target
-        where
-            A: Display + RefInto<Glsl>,
+        where A: Display + RefInto<Glsl>
         {
             type Output = Var<A>;
             fn $fn(self, rhs: Var<A>) -> Self::Output {
-                Var::Dynamic(
-                    format!("{}({},{})", stringify!($fn), self.glsl(), rhs)
-                        .into(),
-                )
+                Var::Dynamic(format!("{}({},{})", stringify!($fn), self.glsl(), rhs).into())
             }
         }
     };
@@ -480,54 +465,38 @@ macro_rules! define_shape_data_string_operator_ref {
 macro_rules! define_shape_data_string_operator_no_ref {
     ( $name:ident $fn:ident ($opr:tt) for $target:ident ) => {
         impl<'t, A> $name<$target> for &'t Var<A>
-        where
-            A: RefInto<Glsl>,
+        where A: RefInto<Glsl>
         {
             type Output = Var<A>;
             fn $fn(self, rhs: $target) -> Self::Output {
-                Var::Dynamic(
-                    format!("{}({},{})", stringify!($fn), self.glsl(), rhs)
-                        .into(),
-                )
+                Var::Dynamic(format!("{}({},{})", stringify!($fn), self.glsl(), rhs).into())
             }
         }
 
         impl<A> $name<$target> for Var<A>
-        where
-            A: RefInto<Glsl>,
+        where A: RefInto<Glsl>
         {
             type Output = Var<A>;
             fn $fn(self, rhs: $target) -> Self::Output {
-                Var::Dynamic(
-                    format!("{}({},{})", stringify!($fn), self.glsl(), rhs)
-                        .into(),
-                )
+                Var::Dynamic(format!("{}({},{})", stringify!($fn), self.glsl(), rhs).into())
             }
         }
 
         impl<'t, A> $name<&'t Var<A>> for $target
-        where
-            A: Display + RefInto<Glsl>,
+        where A: Display + RefInto<Glsl>
         {
             type Output = Var<A>;
             fn $fn(self, rhs: &'t Var<A>) -> Self::Output {
-                Var::Dynamic(
-                    format!("{}({},{})", stringify!($fn), self.glsl(), rhs)
-                        .into(),
-                )
+                Var::Dynamic(format!("{}({},{})", stringify!($fn), self.glsl(), rhs).into())
             }
         }
 
         impl<A> $name<Var<A>> for $target
-        where
-            A: Display + RefInto<Glsl>,
+        where A: Display + RefInto<Glsl>
         {
             type Output = Var<A>;
             fn $fn(self, rhs: Var<A>) -> Self::Output {
-                Var::Dynamic(
-                    format!("{}({},{})", stringify!($fn), self.glsl(), rhs)
-                        .into(),
-                )
+                Var::Dynamic(format!("{}({},{})", stringify!($fn), self.glsl(), rhs).into())
             }
         }
     };
@@ -538,26 +507,19 @@ define_shape_data_string_operator! { Sub sub (-) }
 define_shape_data_string_operator! { Mul mul (*) }
 define_shape_data_string_operator! { Div div (/) }
 
+
 // =========================
 // === Utility Functions ===
 // =========================
 
 impl Var<f32> {
     /// Perform Hermite interpolation between two values.
-    pub fn smoothstep(
-        &self,
-        e1: impl RefInto<Glsl>,
-        e2: impl RefInto<Glsl>,
-    ) -> Self {
+    pub fn smoothstep(&self, e1: impl RefInto<Glsl>, e2: impl RefInto<Glsl>) -> Self {
         let e1 = e1.glsl();
         let e2 = e2.glsl();
         match self {
-            Var::Static(t) => {
-                Var::Dynamic(iformat!("smoothstep({e1},{e2},{t})").into())
-            }
-            Var::Dynamic(t) => {
-                Var::Dynamic(iformat!("smoothstep({e1},{e2},{t})").into())
-            }
+            Var::Static(t) => Var::Dynamic(iformat!("smoothstep({e1},{e2},{t})").into()),
+            Var::Dynamic(t) => Var::Dynamic(iformat!("smoothstep({e1},{e2},{t})").into()),
         }
     }
 }
@@ -568,23 +530,20 @@ impl Var<f32> {
         let e1 = e1.glsl();
         let e2 = e2.glsl();
         match self {
-            Var::Static(t) => {
-                Var::Dynamic(iformat!("mix({e1},{e2},{t})").into())
-            }
-            Var::Dynamic(t) => {
-                Var::Dynamic(iformat!("mix({e1},{e2},{t})").into())
-            }
+            Var::Static(t) => Var::Dynamic(iformat!("mix({e1},{e2},{t})").into()),
+            Var::Dynamic(t) => Var::Dynamic(iformat!("mix({e1},{e2},{t})").into()),
         }
     }
 }
+
+
 
 // ===============================
 // === Trigonometric Functions ===
 // ===============================
 
 impl<T> Sin for Var<T>
-where
-    T: Sin<Output = T>,
+where T: Sin<Output = T>
 {
     type Output = Var<T>;
     fn sin(&self) -> Self {
@@ -596,8 +555,7 @@ where
 }
 
 impl<T> Asin for Var<T>
-where
-    T: Asin<Output = T>,
+where T: Asin<Output = T>
 {
     type Output = Var<T>;
     fn asin(&self) -> Self {
@@ -608,9 +566,9 @@ where
     }
 }
 
+
 impl<T> Cos for Var<T>
-where
-    T: Cos<Output = T>,
+where T: Cos<Output = T>
 {
     type Output = Var<T>;
     fn cos(&self) -> Self {
@@ -622,8 +580,7 @@ where
 }
 
 impl<T> Acos for Var<T>
-where
-    T: Acos<Output = T>,
+where T: Acos<Output = T>
 {
     type Output = Var<T>;
     fn acos(&self) -> Self {
@@ -634,13 +591,14 @@ where
     }
 }
 
+
+
 // ===================
 // === Square Root ===
 // ===================
 
 impl<T> Sqrt for Var<T>
-where
-    T: Sqrt<Output = T>,
+where T: Sqrt<Output = T>
 {
     type Output = Var<T>;
     fn sqrt(&self) -> Self {
@@ -651,13 +609,14 @@ where
     }
 }
 
+
+
 // =============
 // === Clamp ===
 // =============
 
 impl<T> Clamp for Var<T>
-where
-    T: Clamp<Output = T> + Into<Glsl>,
+where T: Clamp<Output = T> + Into<Glsl>
 {
     type Output = Var<T>;
     fn clamp(self, lower: Var<T>, upper: Var<T>) -> Var<T> {
@@ -665,34 +624,25 @@ where
         use Var::Static;
 
         match (self, lower, upper) {
-            (Static(value), Static(lower), Static(upper)) => {
-                Static(value.clamp(lower, upper))
-            }
+            (Static(value), Static(lower), Static(upper)) => Static(value.clamp(lower, upper)),
             (value, lower, upper) => {
                 let value: Glsl = value.into();
                 let lower: Glsl = lower.into();
                 let upper: Glsl = upper.into();
-                Dynamic(
-                    format!(
-                        "clamp({},{},{})",
-                        value.glsl(),
-                        lower.glsl(),
-                        upper.glsl()
-                    )
-                    .into(),
-                )
+                Dynamic(format!("clamp({},{},{})", value.glsl(), lower.glsl(), upper.glsl()).into())
             }
         }
     }
 }
+
+
 
 // ==============
 // === Signum ===
 // ==============
 
 impl<T> Signum for Var<T>
-where
-    T: Signum<Output = T>,
+where T: Signum<Output = T>
 {
     type Output = Var<T>;
     fn signum(self) -> Self {
@@ -702,6 +652,8 @@ where
         }
     }
 }
+
+
 
 // ============================
 // === Conversion Functions ===
@@ -766,9 +718,7 @@ impl From<Var<Vector4<f32>>> for Var<color::Rgba> {
     fn from(other: Var<Vector4<f32>>) -> Self {
         match other {
             Var::Static(t) => Var::Static(color::Rgba::new(t.x, t.y, t.z, t.w)),
-            Var::Dynamic(t) => Var::Dynamic(
-                format!("srgba({0}.x,{0}.y,{0}.z,{0}.w)", t).into(),
-            ),
+            Var::Dynamic(t) => Var::Dynamic(format!("srgba({0}.x,{0}.y,{0}.z,{0}.w)", t).into()),
         }
     }
 }
@@ -777,16 +727,12 @@ impl Var<color::Rgba> {
     /// Return the color with the given alpha value.
     pub fn with_alpha(self, alpha: &Var<f32>) -> Self {
         match (self, alpha) {
-            (Var::Static(t), Var::Static(alpha)) => Var::Static(
-                color::Rgba::new(t.data.red, t.data.green, t.data.blue, *alpha),
-            ),
+            (Var::Static(t), Var::Static(alpha)) =>
+                Var::Static(color::Rgba::new(t.data.red, t.data.green, t.data.blue, *alpha)),
             (t, alpha) => {
                 let t = t.glsl();
                 let alpha = alpha.glsl();
-                let var = format!(
-                    "srgba({0}.raw.x,{0}.raw.y,{0}.raw.z,{1})",
-                    t, alpha
-                );
+                let var = format!("srgba({0}.raw.x,{0}.raw.y,{0}.raw.z,{1})", t, alpha);
                 Var::Dynamic(var.into())
             }
         }
@@ -797,21 +743,14 @@ impl Var<color::Rgba> {
     pub fn multiply_alpha(self, alpha: &Var<f32>) -> Self {
         match (self, alpha) {
             (Var::Static(t), Var::Static(alpha)) => {
-                let var = color::Rgba::new(
-                    t.data.red,
-                    t.data.green,
-                    t.data.blue,
-                    *alpha * t.data.alpha,
-                );
+                let var =
+                    color::Rgba::new(t.data.red, t.data.green, t.data.blue, *alpha * t.data.alpha);
                 Var::Static(var)
             }
             (t, alpha) => {
                 let t = t.glsl();
                 let alpha = alpha.glsl();
-                let var = format!(
-                    "srgba({0}.raw.x,{0}.raw.y,{0}.raw.z,{0}.raw.w*{1})",
-                    t, alpha
-                );
+                let var = format!("srgba({0}.raw.x,{0}.raw.y,{0}.raw.z,{0}.raw.w*{1})", t, alpha);
                 Var::Dynamic(var.into())
             }
         }
@@ -821,9 +760,7 @@ impl Var<color::Rgba> {
     pub fn into_linear(self) -> Var<color::LinearRgba> {
         match self {
             Var::Static(c) => Var::Static(c.into()),
-            Var::Dynamic(c) => {
-                Var::Dynamic(format!("rgba({0})", c.glsl()).into())
-            }
+            Var::Dynamic(c) => Var::Dynamic(format!("rgba({0})", c.glsl()).into()),
         }
     }
 }

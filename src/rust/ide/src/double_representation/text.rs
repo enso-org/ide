@@ -6,6 +6,8 @@ use ast::IdMap;
 use data::text::Size;
 use data::text::Span;
 
+
+
 // ================
 // === Text API ===
 // ================
@@ -24,21 +26,18 @@ pub fn apply_code_change_to_id_map(
     //   API. Because of such expected rewrite and deeper restructuring, we don't really want to
     //   spend much time on refactoring this function right now, even if it could be made nicer.
 
+
     let removed = change.replaced_span();
     let inserted = change.inserted.as_str();
     let new_code = change.applied(code);
     let non_white = |c: char| !c.is_whitespace();
-    let logger =
-        logger::DefaultWarningLogger::new("apply_code_change_to_id_map");
+    let logger = logger::DefaultWarningLogger::new("apply_code_change_to_id_map");
     let vector = &mut id_map.vec;
     let inserted_size = Size::from_text(inserted);
 
     info!(logger, "Old code:\n```\n{code}\n```");
     info!(logger, "New code:\n```\n{new_code}\n```");
-    info!(
-        logger,
-        "Updating the ID map with the following text edit: {change:?}."
-    );
+    info!(logger, "Updating the ID map with the following text edit: {change:?}.");
 
     // Remove all entries fully covered by the removed span.
     vector.drain_filter(|(span, _)| removed.contains_span(span));
@@ -49,9 +48,7 @@ pub fn apply_code_change_to_id_map(
         let last_non_white = inserted.rfind(non_white);
         let inserted_len = || inserted.len();
         let length_to_last_non_white = |index| inserted.len() - index - 1;
-        Size::new(
-            last_non_white.map_or_else(inserted_len, length_to_last_non_white),
-        )
+        Size::new(last_non_white.map_or_else(inserted_len, length_to_last_non_white))
     };
     // As above but for the front side.
     let to_trim_front = {
@@ -94,10 +91,7 @@ pub fn apply_code_change_to_id_map(
             }
         } else if span.index >= removed.index {
             // AST node starts inside the edited region. It doesn't end strictly inside it.
-            debug!(
-                logger,
-                "Node overlapping with the end of the edited region."
-            );
+            debug!(logger, "Node overlapping with the end of the edited region.");
             let removed_before = span.index - removed.index;
             span.move_left(removed_before);
             span.shrink_right(removed.size - removed_before);
@@ -105,10 +99,7 @@ pub fn apply_code_change_to_id_map(
             trim_front = true;
         } else if span.end() >= removed.index {
             // AST node starts before the edited region and reaches (or possibly goes past) its end.
-            debug!(
-                logger,
-                "Node overlapping with the beginning of the edited region."
-            );
+            debug!(logger, "Node overlapping with the beginning of the edited region.");
             if span.end() <= removed.end() {
                 trim_back = true;
             }
@@ -141,10 +132,7 @@ pub fn apply_code_change_to_id_map(
             // Trim trailing spaces
             let spaces = spaces_size(new_repr.chars().rev());
             if spaces.non_empty() {
-                debug!(
-                    logger,
-                    "Additionally trimming {spaces} trailing spaces."
-                );
+                debug!(logger, "Additionally trimming {spaces} trailing spaces.");
                 debug!(logger, "The would-be code: `{new_repr}`.");
                 span.shrink_right(spaces);
             }
@@ -165,12 +153,11 @@ pub fn apply_code_change_to_id_map(
 
     // If non-preferred entry collides with the preferred one, remove the former.
     vector.drain_filter(|(span, id)| {
-        preferred
-            .get(span)
-            .map(|preferred_id| id != preferred_id)
-            .unwrap_or(false)
+        preferred.get(span).map(|preferred_id| id != preferred_id).unwrap_or(false)
     });
 }
+
+
 
 // ===============
 // === Helpers ===
@@ -185,6 +172,8 @@ fn spaces_size(itr: impl Iterator<Item = char>) -> Size {
 fn all_spaces(text: &str) -> bool {
     text.chars().all(|c| c == ' ')
 }
+
+
 
 // =============
 // === Tests ===
@@ -208,7 +197,7 @@ mod test {
     /// See `from_markdown` constructor function for helper markdown description.
     struct Case {
         /// The initial enso program code.
-        pub code: String,
+        pub code:   String,
         /// The edit made to the initial code.
         pub change: TextChange,
     }
@@ -226,19 +215,13 @@ mod test {
 
             match (index_of(START), index_of(INSERTION), index_of(END)) {
                 (Some(start), insertion, Some(end)) => {
-                    assert!(
-                        start < end,
-                        "Markdown markers discovered in wrong order."
-                    );
+                    assert!(start < end, "Markdown markers discovered in wrong order.");
                     let erased_finish = insertion.unwrap_or(end);
                     let code = {
                         let prefix = &marked_code[..start];
-                        let erased = &marked_code
-                            [start + START.len_utf8()..erased_finish];
+                        let erased = &marked_code[start + START.len_utf8()..erased_finish];
                         let suffix = &marked_code[end + END.len_utf8()..];
-                        String::from_iter(
-                            [prefix, erased, suffix].iter().copied(),
-                        )
+                        String::from_iter([prefix, erased, suffix].iter().copied())
                     };
 
                     let inserted_code = insertion.map_or("", |insertion| {
@@ -246,18 +229,12 @@ mod test {
                     });
                     let removed_span = Range {
                         start: Index::new(start),
-                        end: Index::new(erased_finish - START.len_utf8()),
+                        end:   Index::new(erased_finish - START.len_utf8()),
                     };
-                    let change = TextChange::replace(
-                        removed_span,
-                        inserted_code.to_string(),
-                    );
+                    let change = TextChange::replace(removed_span, inserted_code.to_string());
                     Case { code, change }
                 }
-                _ => panic!(
-                    "Invalid markdown in the marked code: {}.",
-                    marked_code
-                ),
+                _ => panic!("Invalid markdown in the marked code: {}.", marked_code),
             }
         }
 
@@ -304,10 +281,7 @@ mod test {
 
     /// Checks that both module AST contain `main` function that has the same sequence of node IDs,
     /// as described by the `main_nodes` function.
-    fn assert_same_node_ids(
-        ast1: &ast::known::Module,
-        ast2: &ast::known::Module,
-    ) {
+    fn assert_same_node_ids(ast1: &ast::known::Module, ast2: &ast::known::Module) {
         let ids1 = main_nodes(ast1);
         let ids2 = main_nodes(ast2);
         DEBUG!("IDs1: {ids1:?}");

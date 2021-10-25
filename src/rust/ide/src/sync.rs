@@ -7,32 +7,26 @@ use crate::prelude::*;
 #[clone_ref(bound = "")]
 #[derivative(Clone(bound = ""))]
 pub struct Synchronized<T> {
-    value: Rc<RefCell<T>>,
+    value:    Rc<RefCell<T>>,
     notifier: crate::notification::Publisher<()>,
 }
 
 impl<T> Synchronized<T> {
     /// Wrap a value into `Synchronized`.
     pub fn new(t: T) -> Self {
-        Self {
-            value: Rc::new(RefCell::new(t)),
-            notifier: default(),
-        }
+        Self { value: Rc::new(RefCell::new(t)), notifier: default() }
     }
 
     /// Replace the value with a new one. Return the previous value.
     pub fn replace(&self, new_value: T) -> T {
-        let previous =
-            std::mem::replace(self.value.borrow_mut().deref_mut(), new_value);
+        let previous = std::mem::replace(self.value.borrow_mut().deref_mut(), new_value);
         self.notifier.notify(());
         previous
     }
 
     /// Take the value out and replace it with a default-constructed one.
     pub fn take(&self) -> T
-    where
-        T: Default,
-    {
+    where T: Default {
         self.replace(default())
     }
 
@@ -45,9 +39,7 @@ impl<T> Synchronized<T> {
 
     /// Get a copy of the stored value.
     pub fn get_cloned(&self) -> T
-    where
-        T: Clone,
-    {
+    where T: Clone {
         self.borrow().clone()
     }
 
@@ -107,8 +99,7 @@ impl<T> Synchronized<T> {
     where
         for<'a> &'a T: PartialEq<U>,
         U: 'static,
-        T: 'static,
-    {
+        T: 'static, {
         self.when(move |val_ref| val_ref == u)
     }
 }
@@ -151,12 +142,12 @@ mod tests {
         assert_eq!(on_false.expect_ready(), None);
     }
 
+
     #[test]
     fn some_on_drop_before_notification() {
         let mut fixture = TestWithLocalPoolExecutor::set_up();
         let number = Synchronized::new(10);
-        let mut fut =
-            number.when_map(|v| (*v == 0).then_some(())).boxed_local();
+        let mut fut = number.when_map(|v| (*v == 0).then_some(())).boxed_local();
         fixture.run_until_stalled();
         fut.expect_pending();
         number.replace(0);

@@ -11,6 +11,8 @@ use ensogl_core::display::world::*;
 use ensogl_core::system::web;
 use wasm_bindgen::prelude::*;
 
+
+
 // ==============
 // === Shapes ===
 // ==============
@@ -25,6 +27,8 @@ pub fn shape() -> AnyShape {
     let shape = shape.fill(color::Rgb::new(1.0, 0.0, 0.0));
     shape.into()
 }
+
+
 
 // ===================
 // === Entry Point ===

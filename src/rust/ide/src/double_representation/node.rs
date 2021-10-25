@@ -17,6 +17,8 @@ use std::cmp::Ordering;
 /// Node Id is the Ast Id attached to the node's expression.
 pub type Id = ast::Id;
 
+
+
 // =============
 // === Error ===
 // =============
@@ -34,7 +36,7 @@ pub struct NodeLocation {
     /// Documentation comment line index, if present.
     pub documentation_line: Option<usize>,
     /// Main line is a line that contains the node's expression.
-    pub main_line: usize,
+    pub main_line:          usize,
 }
 
 impl PartialEq for NodeLocation {
@@ -64,13 +66,12 @@ impl NodeLocation {
     ///
     /// Note that while a node can contain at most two lines, they may be interspersed by a
     /// number of blank lines.
-    pub fn range(
-        start: NodeLocation,
-        last: NodeLocation,
-    ) -> RangeInclusive<usize> {
+    pub fn range(start: NodeLocation, last: NodeLocation) -> RangeInclusive<usize> {
         start.first()..=last.last()
     }
 }
+
+
 
 // ===============
 // === General ===
@@ -83,7 +84,7 @@ pub struct LocatedNode {
     pub index: NodeLocation,
     #[shrinkwrap(main_field)]
     /// Information about the node.
-    pub node: NodeInfo,
+    pub node:  NodeInfo,
 }
 
 /// Tests if given line contents can be seen as node with a given id
@@ -100,9 +101,7 @@ pub fn locate<'a>(
     context_indent: usize,
     id: Id,
 ) -> FallibleResult<LocatedNode> {
-    Ok(locate_many(lines, context_indent, [id])?
-        .remove(&id)
-        .unwrap())
+    Ok(locate_many(lines, context_indent, [id])?.remove(&id).unwrap())
 }
 
 /// Obtain located node information for multiple nodes in a single pass.
@@ -120,10 +119,7 @@ pub fn locate_many<'a>(
     // Skip empty lines, there are no nodes.
     // However, indices are important.
     let lines_iter = enumerate_non_empty_lines(lines);
-    let nodes = NodeIterator {
-        lines_iter,
-        context_indent,
-    };
+    let nodes = NodeIterator { lines_iter, context_indent };
     for node in nodes {
         if looked_for.remove(&node.id()) {
             ret.insert(node.id(), node);
@@ -141,25 +137,22 @@ pub fn locate_many<'a>(
     }
 }
 
+
+
 // ================
 // === NodeInfo ===
 // ================
 
 /// Iterator over indexed line ASTs that yields nodes.
 #[derive(Clone, Debug)]
-pub struct NodeIterator<
-    'a,
-    T: Iterator<Item = (usize, BlockLine<&'a Ast>)> + 'a,
-> {
+pub struct NodeIterator<'a, T: Iterator<Item = (usize, BlockLine<&'a Ast>)> + 'a> {
     /// Input iterator that yields pairs (line index, line's Ast).
-    pub lines_iter: T,
+    pub lines_iter:     T,
     /// Absolute indent of lines in the block we are iterating over.
     pub context_indent: usize,
 }
 
-impl<'a, T: Iterator<Item = (usize, BlockLine<&'a Ast>)> + 'a> Iterator
-    for NodeIterator<'a, T>
-{
+impl<'a, T: Iterator<Item = (usize, BlockLine<&'a Ast>)> + 'a> Iterator for NodeIterator<'a, T> {
     type Item = LocatedNode;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -167,12 +160,9 @@ impl<'a, T: Iterator<Item = (usize, BlockLine<&'a Ast>)> + 'a> Iterator
         for (index, line) in &mut self.lines_iter {
             match LineKind::discern(line.elem, ScopeKind::NonRoot) {
                 LineKind::DocumentationComment { documentation } => {
-                    let doc_line = DocumentationCommentLine::from_doc_ast(
-                        documentation,
-                        line.off,
-                    );
+                    let doc_line = DocumentationCommentLine::from_doc_ast(documentation, line.off);
                     let documentation = DocumentationCommentInfo {
-                        line: doc_line,
+                        line:         doc_line,
                         block_indent: self.context_indent,
                     };
                     indexed_documentation = Some((index, documentation));
@@ -181,29 +171,18 @@ impl<'a, T: Iterator<Item = (usize, BlockLine<&'a Ast>)> + 'a> Iterator
                     // Non-node entity consumes any previous documentation.
                     indexed_documentation = None;
                 }
-                line => {
-                    if let Some(main_line) = MainLine::from_discerned_line(line)
-                    {
-                        let (documentation_line, documentation) =
-                            match indexed_documentation {
-                                Some((index, documentation)) => {
-                                    (Some(index), Some(documentation))
-                                }
-                                None => (None, None),
-                            };
+                line =>
+                    if let Some(main_line) = MainLine::from_discerned_line(line) {
+                        let (documentation_line, documentation) = match indexed_documentation {
+                            Some((index, documentation)) => (Some(index), Some(documentation)),
+                            None => (None, None),
+                        };
 
-                        let node = NodeInfo {
-                            documentation,
-                            main_line,
-                        };
-                        let index = NodeLocation {
-                            main_line: index,
-                            documentation_line,
-                        };
+                        let node = NodeInfo { documentation, main_line };
+                        let index = NodeLocation { main_line: index, documentation_line };
 
                         return Some(LocatedNode { index, node });
-                    }
-                }
+                    },
             }
         }
         None
@@ -219,44 +198,32 @@ pub struct NodeInfo {
     pub documentation: Option<DocumentationCommentInfo>,
     /// Primary node AST that contains node's expression and optional pattern binding.
     #[shrinkwrap(main_field)]
-    pub main_line: MainLine,
+    pub main_line:     MainLine,
 }
 
 impl NodeInfo {
     /// Check if a given non-empty line's AST belongs to this node.
     pub fn contains_line(&self, line_ast: &Ast) -> bool {
         // TODO refactor these two lambdas into methods
-        let expression_id_matches = || {
-            MainLine::from_ast(line_ast)
-                .as_ref()
-                .map(MainLine::id)
-                .contains(&self.id())
+        let expression_id_matches =
+            || MainLine::from_ast(line_ast).as_ref().map(MainLine::id).contains(&self.id());
+        let doc_comment_id_matches = || match (self.doc_comment_id(), line_ast.id) {
+            (Some(node_doc_id), Some(line_ast_id)) => node_doc_id == line_ast_id,
+            _ => false,
         };
-        let doc_comment_id_matches =
-            || match (self.doc_comment_id(), line_ast.id) {
-                (Some(node_doc_id), Some(line_ast_id)) => {
-                    node_doc_id == line_ast_id
-                }
-                _ => false,
-            };
         expression_id_matches() || doc_comment_id_matches()
     }
 
     /// Get the ast id of the line with the node comment (if present).
     pub fn doc_comment_id(&self) -> Option<ast::Id> {
-        self.documentation
-            .as_ref()
-            .and_then(|comment| comment.ast().id())
+        self.documentation.as_ref().and_then(|comment| comment.ast().id())
     }
 
     /// Construct node information for a single line, without documentation.
     pub fn from_main_line_ast(ast: &Ast) -> Option<Self> {
         let main_line = MainLine::from_ast(ast)?;
         let documentation = None;
-        Some(Self {
-            documentation,
-            main_line,
-        })
+        Some(Self { documentation, main_line })
     }
 
     /// Obtain documentation text.
@@ -329,10 +296,7 @@ impl MainLine {
         match self {
             MainLine::Binding { ref mut infix } => {
                 let new_rarg = infix.rarg.with_id(new_id);
-                let set = infix.set(
-                    &ast::crumbs::InfixCrumb::RightOperand.into(),
-                    new_rarg,
-                );
+                let set = infix.set(&ast::crumbs::InfixCrumb::RightOperand.into(), new_rarg);
                 *infix = set.expect(
                     "Internal error: setting infix operand should always \
                                      succeed.",
@@ -364,9 +328,8 @@ impl MainLine {
     pub fn set_expression(&mut self, expression: Ast) {
         let id = self.id();
         match self {
-            MainLine::Binding { ref mut infix } => {
-                infix.update_shape(|infix| infix.rarg = expression)
-            }
+            MainLine::Binding { ref mut infix } =>
+                infix.update_shape(|infix| infix.rarg = expression),
             MainLine::Expression { ref mut ast } => *ast = expression,
         };
         // Id might have been overwritten by the AST we have set. Now we restore it.
@@ -393,7 +356,7 @@ impl MainLine {
                 let infix = ast::Infix {
                     larg: pattern,
                     loff: 1,
-                    opr: Ast::opr("="),
+                    opr:  Ast::opr("="),
                     roff: 1,
                     rarg: ast.clone(),
                 };
@@ -408,11 +371,8 @@ impl MainLine {
     /// If it is already an Expression node, no change is done.
     pub fn clear_pattern(&mut self) {
         match self {
-            MainLine::Binding { infix } => {
-                *self = MainLine::Expression {
-                    ast: infix.rarg.clone_ref(),
-                }
-            }
+            MainLine::Binding { infix } =>
+                *self = MainLine::Expression { ast: infix.rarg.clone_ref() },
             MainLine::Expression { .. } => {}
         }
     }
@@ -423,6 +383,8 @@ impl ast::HasTokens for MainLine {
         self.ast().feed_to(consumer)
     }
 }
+
+
 
 // =============
 // === Tests ===
@@ -435,8 +397,7 @@ mod tests {
     use ast::opr::predefined::ASSIGNMENT;
 
     fn expect_node(ast: Ast, expression_text: &str, id: Id) {
-        let node_info =
-            NodeInfo::from_main_line_ast(&ast).expect("expected a node");
+        let node_info = NodeInfo::from_main_line_ast(&ast).expect("expected a node");
         assert_eq!(node_info.expression().repr(), expression_text);
         assert_eq!(node_info.id(), id);
     }
@@ -445,13 +406,7 @@ mod tests {
     fn expression_node_test() {
         // expression: `4`
         let id = Id::new_v4();
-        let ast = Ast::new(
-            ast::Number {
-                base: None,
-                int: "4".into(),
-            },
-            Some(id),
-        );
+        let ast = Ast::new(ast::Number { base: None, int: "4".into() }, Some(id));
         expect_node(ast, "4", id);
     }
 
@@ -459,10 +414,7 @@ mod tests {
     fn binding_node_test() {
         // expression: `foo = 4`
         let id = Id::new_v4();
-        let number = ast::Number {
-            base: None,
-            int: "4".into(),
-        };
+        let number = ast::Number { base: None, int: "4".into() };
         let larg = Ast::var("foo");
         let rarg = Ast::new(number, Some(id));
         let ast = Ast::infix(larg, ASSIGNMENT, rarg);
@@ -471,12 +423,10 @@ mod tests {
 
     #[test]
     fn set_expression_binding() {
-        let ast =
-            Ast::infix(Ast::var("foo"), "=", Ast::number(4).with_new_id());
+        let ast = Ast::infix(Ast::var("foo"), "=", Ast::number(4).with_new_id());
         assert_eq!(ast.repr(), "foo = 4");
 
-        let mut node =
-            NodeInfo::from_main_line_ast(&ast).expect("expected a node");
+        let mut node = NodeInfo::from_main_line_ast(&ast).expect("expected a node");
         let id = node.id();
         node.set_expression(Ast::var("bar"));
         assert_eq!(node.expression().repr(), "bar");
@@ -489,8 +439,7 @@ mod tests {
         let ast = Ast::number(4).with_new_id();
         assert_eq!(ast.repr(), "4");
 
-        let mut node =
-            NodeInfo::from_main_line_ast(&ast).expect("expected a node");
+        let mut node = NodeInfo::from_main_line_ast(&ast).expect("expected a node");
         let id = node.id();
         node.set_expression(Ast::var("bar"));
         assert_eq!(node.expression().repr(), "bar");
@@ -502,10 +451,7 @@ mod tests {
     fn clearing_pattern_test() {
         // expression: `foo = 4`
         let id = Id::new_v4();
-        let number = ast::Number {
-            base: None,
-            int: "4".into(),
-        };
+        let number = ast::Number { base: None, int: "4".into() };
         let larg = Ast::var("foo");
         let rarg = Ast::new(number, Some(id));
         let ast = Ast::infix(larg, ASSIGNMENT, rarg);

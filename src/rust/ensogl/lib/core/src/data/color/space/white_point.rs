@@ -12,10 +12,12 @@
 use super::super::component::*;
 use super::def::*;
 
+
 /// Common traits.
 pub mod traits {
     pub use super::WhitePoint;
 }
+
 
 // =================
 // === WhiePoint ===
@@ -33,6 +35,8 @@ pub trait WhitePoint {
     ///Get the Xyz chromacity co-ordinates for the white point.
     fn get_xyz() -> Xyz;
 }
+
+
 
 // =======================
 // === Implementations ===

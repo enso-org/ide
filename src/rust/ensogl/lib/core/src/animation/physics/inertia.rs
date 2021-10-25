@@ -8,6 +8,8 @@ use crate::animation;
 use crate::data::function::Fn0;
 use crate::data::function::Fn1;
 
+
+
 // =============
 // === Value ===
 // =============
@@ -22,6 +24,8 @@ pub trait Value = 'static
     + Magnitude<Output = f32>
     + Add<Output = Self>
     + Mul<f32, Output = Self>;
+
+
 
 // ==================
 // === Properties ===
@@ -39,36 +43,28 @@ macro_rules! define_f32_opr_mods_lhs {
         impl $opr<$name> for f32 {
             type Output = $name;
             fn $f(self, rhs: $name) -> $name {
-                $name {
-                    value: self.$f(rhs.value),
-                }
+                $name { value: self.$f(rhs.value) }
             }
         }
 
         impl $opr<&$name> for f32 {
             type Output = $name;
             fn $f(self, rhs: &$name) -> $name {
-                $name {
-                    value: self.$f(rhs.value),
-                }
+                $name { value: self.$f(rhs.value) }
             }
         }
 
         impl $opr<$name> for &f32 {
             type Output = $name;
             fn $f(self, rhs: $name) -> $name {
-                $name {
-                    value: self.$f(rhs.value),
-                }
+                $name { value: self.$f(rhs.value) }
             }
         }
 
         impl $opr<&$name> for &f32 {
             type Output = $name;
             fn $f(self, rhs: &$name) -> $name {
-                $name {
-                    value: self.$f(rhs.value),
-                }
+                $name { value: self.$f(rhs.value) }
             }
         }
     };
@@ -79,36 +75,28 @@ macro_rules! define_f32_opr_mods_rhs {
         impl $opr<f32> for $name {
             type Output = $name;
             fn $f(self, rhs: f32) -> $name {
-                $name {
-                    value: self.value.$f(rhs),
-                }
+                $name { value: self.value.$f(rhs) }
             }
         }
 
         impl $opr<&f32> for $name {
             type Output = $name;
             fn $f(self, rhs: &f32) -> $name {
-                $name {
-                    value: self.value.$f(rhs),
-                }
+                $name { value: self.value.$f(rhs) }
             }
         }
 
         impl $opr<f32> for &$name {
             type Output = $name;
             fn $f(self, rhs: f32) -> $name {
-                $name {
-                    value: self.value.$f(rhs),
-                }
+                $name { value: self.value.$f(rhs) }
             }
         }
 
         impl $opr<&f32> for &$name {
             type Output = $name;
             fn $f(self, rhs: &f32) -> $name {
-                $name {
-                    value: self.value.$f(rhs),
-                }
+                $name { value: self.value.$f(rhs) }
             }
         }
     };
@@ -119,36 +107,28 @@ macro_rules! define_self_opr_mods {
         impl $opr<$name> for $name {
             type Output = $name;
             fn $f(self, rhs: $name) -> $name {
-                $name {
-                    value: self.value.$f(rhs.value),
-                }
+                $name { value: self.value.$f(rhs.value) }
             }
         }
 
         impl $opr<&$name> for $name {
             type Output = $name;
             fn $f(self, rhs: &$name) -> $name {
-                $name {
-                    value: self.value.$f(rhs.value),
-                }
+                $name { value: self.value.$f(rhs.value) }
             }
         }
 
         impl $opr<$name> for &$name {
             type Output = $name;
             fn $f(self, rhs: $name) -> $name {
-                $name {
-                    value: self.value.$f(rhs.value),
-                }
+                $name { value: self.value.$f(rhs.value) }
             }
         }
 
         impl $opr<&$name> for &$name {
             type Output = $name;
             fn $f(self, rhs: &$name) -> $name {
-                $name {
-                    value: self.value.$f(rhs.value),
-                }
+                $name { value: self.value.$f(rhs.value) }
             }
         }
     };
@@ -188,6 +168,8 @@ define_property! { Drag   = 1500.0 }
 define_property! { Spring = 20000.0 }
 define_property! { Mass   = 30.0 }
 
+
+
 // ==================
 // === Thresholds ===
 // ==================
@@ -197,7 +179,7 @@ define_property! { Mass   = 30.0 }
 #[allow(missing_docs)]
 pub struct Thresholds {
     pub distance: f32,
-    pub speed: f32,
+    pub speed:    f32,
 }
 
 impl Default for Thresholds {
@@ -212,6 +194,8 @@ impl Thresholds {
         Self { distance, speed }
     }
 }
+
+
 
 // ======================
 // === SimulationData ===
@@ -240,27 +224,27 @@ pub struct SimulationData<T> {
     // We store the current value as an offset from the target rather than an absolute value. This
     // reduces numerical errors when animating floating point numbers: The offset will become very
     // small towards the end of the animation. Small floating point numbers offer higher precision
-    // than large ones, because more digits can be used behind the point, for the fractional part of
-    // the number. This higher precision helps us to avoid non-termination that could otherwise
-    // happen due to rounding errors in our `step` function.
+    // than large ones, because more digits can be used behind the point, for the fractional part
+    // of the number. This higher precision helps us to avoid non-termination that could
+    // otherwise happen due to rounding errors in our `step` function.
     //
     // For example: The precision of `f32` values is so low that we can only represent every second
     // integer above 16 777 216. If we simulate values that large and represented the simulation's
-    // state by its current total value then this internal state would have to jump over those gaps.
-    // The animation would either become to fast (if we rounded the steps up) or slow down too early
-    // (if we rounded the steps down). Generally, it would be difficult to handle the rounding
-    // errors gracefully. By representing the state as an offset, we achieve the highest possible
-    // precision as the animation approaches its target. Large rounding errors might only happen
-    // when the simulation is still far away from the target. But in those situations, high
-    // precision is not as important.
+    // state by its current total value then this internal state would have to jump over those
+    // gaps. The animation would either become to fast (if we rounded the steps up) or slow
+    // down too early (if we rounded the steps down). Generally, it would be difficult to
+    // handle the rounding errors gracefully. By representing the state as an offset, we
+    // achieve the highest possible precision as the animation approaches its target. Large
+    // rounding errors might only happen when the simulation is still far away from the target.
+    // But in those situations, high precision is not as important.
     offset_from_target: T,
-    target_value: T,
-    velocity: T,
-    mass: Mass,
-    spring: Spring,
-    drag: Drag,
-    thresholds: Thresholds,
-    active: bool,
+    target_value:       T,
+    velocity:           T,
+    mass:               Mass,
+    spring:             Spring,
+    drag:               Drag,
+    thresholds:         Thresholds,
+    active:             bool,
 }
 
 impl<T: Value> SimulationData<T> {
@@ -285,8 +269,7 @@ impl<T: Value> SimulationData<T> {
                 let force = self.spring_force() + self.drag_force();
                 let acceleration = force * (1.0 / self.mass.value);
                 self.velocity = self.velocity + acceleration * delta_seconds;
-                self.offset_from_target =
-                    self.offset_from_target + self.velocity * delta_seconds;
+                self.offset_from_target = self.offset_from_target + self.velocity * delta_seconds;
             }
         }
     }
@@ -312,6 +295,7 @@ impl<T: Value> SimulationData<T> {
         self.thresholds.distance = precision;
     }
 }
+
 
 // === Getters ===
 
@@ -343,6 +327,7 @@ impl<T: Value> SimulationData<T> {
     }
 }
 
+
 // === Setters ===
 
 #[allow(missing_docs)]
@@ -372,8 +357,7 @@ impl<T: Value> SimulationData<T> {
         self.active = true;
         let old_target_value = self.target_value;
         self.target_value = target_value;
-        self.offset_from_target =
-            old_target_value + self.offset_from_target + target_value * -1.0;
+        self.offset_from_target = old_target_value + self.offset_from_target + target_value * -1.0;
     }
 
     pub fn update_value<F: FnOnce(T) -> T>(&mut self, f: F) {
@@ -392,10 +376,7 @@ impl<T: Value> SimulationData<T> {
         self.set_mass(f(self.mass()));
     }
 
-    pub fn update_spring<F: FnOnce(Spring) -> Spring>(
-        &mut self,
-        f: F,
-    ) -> Spring {
+    pub fn update_spring<F: FnOnce(Spring) -> Spring>(&mut self, f: F) -> Spring {
         let value = f(self.spring());
         self.set_spring(value);
         value
@@ -405,10 +386,7 @@ impl<T: Value> SimulationData<T> {
         self.set_drag(f(self.drag()));
     }
 
-    pub fn update_thresholds<F: FnOnce(Thresholds) -> Thresholds>(
-        &mut self,
-        f: F,
-    ) {
+    pub fn update_thresholds<F: FnOnce(Thresholds) -> Thresholds>(&mut self, f: F) {
         self.set_thresholds(f(self.thresholds()));
     }
 
@@ -419,6 +397,8 @@ impl<T: Value> SimulationData<T> {
         self.velocity = default();
     }
 }
+
+
 
 // ==========================
 // === SimulationDataCell ===
@@ -445,6 +425,7 @@ impl<T: Value> SimulationDataCell<T> {
         self.data.set(data);
     }
 }
+
 
 // === Getters ===
 
@@ -474,6 +455,7 @@ impl<T: Value> SimulationDataCell<T> {
         self.data.get().mass()
     }
 }
+
 
 // === Setters ===
 
@@ -564,6 +546,8 @@ impl<T: Value> SimulationDataCell<T> {
     }
 }
 
+
+
 // =================
 // === Callbacks ===
 // =================
@@ -571,6 +555,8 @@ impl<T: Value> SimulationDataCell<T> {
 /// Simulator callback.
 pub trait Callback0 = 'static + Fn0;
 pub trait Callback1<T> = 'static + Fn1<T>;
+
+
 
 // =====================
 // === SimulatorData ===
@@ -583,16 +569,14 @@ pub struct SimulatorData<T, OnStep, OnStart, OnEnd> {
     simulation: SimulationDataCell<T>,
     frame_rate: Cell<f32>,
     #[derivative(Debug = "ignore")]
-    on_step: OnStep,
+    on_step:    OnStep,
     #[derivative(Debug = "ignore")]
-    on_start: OnStart,
+    on_start:   OnStart,
     #[derivative(Debug = "ignore")]
-    on_end: OnEnd,
+    on_end:     OnEnd,
 }
 
-impl<T, OnStep, OnStart, OnEnd> Deref
-    for SimulatorData<T, OnStep, OnStart, OnEnd>
-{
+impl<T, OnStep, OnStart, OnEnd> Deref for SimulatorData<T, OnStep, OnStart, OnEnd> {
     type Target = SimulationDataCell<T>;
     fn deref(&self) -> &Self::Target {
         &self.simulation
@@ -610,13 +594,7 @@ where
     pub fn new(on_step: OnStep, on_start: OnStart, on_end: OnEnd) -> Self {
         let simulation = SimulationDataCell::new();
         let frame_rate = Cell::new(60.0);
-        Self {
-            simulation,
-            frame_rate,
-            on_step,
-            on_start,
-            on_end,
-        }
+        Self { simulation, frame_rate, on_step, on_start, on_end }
     }
 
     /// Proceed with the next simulation step for the given time delta.
@@ -632,6 +610,8 @@ where
     }
 }
 
+
+
 // =================
 // === Simulator ===
 // =================
@@ -645,7 +625,7 @@ pub type DynSimulator<T> = Simulator<T, Box<dyn Fn(T)>, (), ()>;
 #[derive(CloneRef, Derivative)]
 #[derivative(Clone(bound = ""))]
 pub struct Simulator<T, OnStep, OnStart, OnEnd> {
-    data: Rc<SimulatorData<T, OnStep, OnStart, OnEnd>>,
+    data:           Rc<SimulatorData<T, OnStep, OnStart, OnEnd>>,
     animation_loop: AnimationLoop<T, OnStep, OnStart, OnEnd>,
 }
 
@@ -667,11 +647,7 @@ where
     pub fn new(callback: OnStep, on_start: OnStart, on_end: OnEnd) -> Self {
         let data = Rc::new(SimulatorData::new(callback, on_start, on_end));
         let animation_loop = default();
-        Self {
-            data,
-            animation_loop,
-        }
-        .init()
+        Self { data, animation_loop }.init()
     }
 }
 
@@ -680,6 +656,7 @@ impl<T, OnStep, OnStart, OnEnd> Debug for Simulator<T, OnStep, OnStart, OnEnd> {
         write!(f, "Simulator")
     }
 }
+
 
 // === Setters ===
 
@@ -708,6 +685,7 @@ where
     }
 }
 
+
 // === Private API ===
 
 impl<T, OnStep, OnStart, OnEnd> Simulator<T, OnStep, OnStart, OnEnd>
@@ -727,8 +705,7 @@ where
         if self.animation_loop.get().is_none() {
             let frame_rate = self.frame_rate.get();
             let step = step(self);
-            let animation_loop =
-                animation::Loop::new_with_fixed_frame_rate(frame_rate, step);
+            let animation_loop = animation::Loop::new_with_fixed_frame_rate(frame_rate, step);
             self.animation_loop.set(Some(animation_loop));
             self.on_start.call();
         }
@@ -748,6 +725,8 @@ where
     }
 }
 
+
+
 // =====================
 // === AnimationLoop ===
 // =====================
@@ -760,22 +739,12 @@ where
 #[allow(clippy::type_complexity)]
 #[allow(missing_debug_implementations)]
 pub struct AnimationLoop<T, OnStep, OnStart, OnEnd> {
-    animation_loop: Rc<
-        CloneCell<
-            Option<FixedFrameRateAnimationStep<T, OnStep, OnStart, OnEnd>>,
-        >,
-    >,
+    animation_loop: Rc<CloneCell<Option<FixedFrameRateAnimationStep<T, OnStep, OnStart, OnEnd>>>>,
 }
 
 #[allow(clippy::type_complexity)]
-impl<T, OnStep, OnStart, OnEnd> Deref
-    for AnimationLoop<T, OnStep, OnStart, OnEnd>
-{
-    type Target = Rc<
-        CloneCell<
-            Option<FixedFrameRateAnimationStep<T, OnStep, OnStart, OnEnd>>,
-        >,
-    >;
+impl<T, OnStep, OnStart, OnEnd> Deref for AnimationLoop<T, OnStep, OnStart, OnEnd> {
+    type Target = Rc<CloneCell<Option<FixedFrameRateAnimationStep<T, OnStep, OnStart, OnEnd>>>>;
     fn deref(&self) -> &Self::Target {
         &self.animation_loop
     }
@@ -794,21 +763,16 @@ impl<T, OnStep, OnStart, OnEnd> AnimationLoop<T, OnStep, OnStart, OnEnd> {
 #[allow(clippy::type_complexity)]
 #[allow(missing_debug_implementations)]
 pub struct WeakAnimationLoop<T, OnStep, OnStart, OnEnd> {
-    animation_loop: Weak<
-        CloneCell<
-            Option<FixedFrameRateAnimationStep<T, OnStep, OnStart, OnEnd>>,
-        >,
-    >,
+    animation_loop: Weak<CloneCell<Option<FixedFrameRateAnimationStep<T, OnStep, OnStart, OnEnd>>>>,
 }
 
 impl<T, OnStep, OnStart, OnEnd> WeakAnimationLoop<T, OnStep, OnStart, OnEnd> {
     /// Upgrade the weak reference.
     pub fn upgrade(&self) -> Option<AnimationLoop<T, OnStep, OnStart, OnEnd>> {
-        self.animation_loop
-            .upgrade()
-            .map(|animation_loop| AnimationLoop { animation_loop })
+        self.animation_loop.upgrade().map(|animation_loop| AnimationLoop { animation_loop })
     }
 }
+
 
 // === Animation Step ===
 
@@ -826,8 +790,7 @@ where
     T: Value,
     OnStep: Callback1<T>,
     OnStart: Callback0,
-    OnEnd: Callback1<EndStatus>,
-{
+    OnEnd: Callback1<EndStatus>, {
     let data = simulator.data.clone_ref();
     let animation_loop = simulator.animation_loop.downgrade();
     move |time: animation::TimeInfo| {
@@ -839,6 +802,8 @@ where
         }
     }
 }
+
+
 
 // =================
 // === EndStatus ===

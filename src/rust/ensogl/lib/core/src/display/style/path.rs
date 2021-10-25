@@ -2,6 +2,8 @@
 
 use crate::prelude::*;
 
+
+
 // ==================
 // === StaticPath ===
 // ==================
@@ -25,6 +27,8 @@ impl StaticPath {
     }
 }
 
+
+
 // ============
 // === Path ===
 // ============
@@ -46,8 +50,7 @@ impl Path {
     where
         T: IntoIterator<IntoIter = I, Item = Item>,
         I: DoubleEndedIterator + Iterator<Item = Item>,
-        Item: ToString,
-    {
+        Item: ToString, {
         Self::from_rev_segments(t.into_iter().rev())
     }
 
@@ -55,21 +58,13 @@ impl Path {
     pub fn from_rev_segments<T, Item>(t: T) -> Self
     where
         T: IntoIterator<Item = Item>,
-        Item: ToString,
-    {
-        Self {
-            rev_segments: t
-                .into_iter()
-                .map(|s| s.to_string().trim().to_string())
-                .collect(),
-        }
+        Item: ToString, {
+        Self { rev_segments: t.into_iter().map(|s| s.to_string().trim().to_string()).collect() }
     }
 
     /// Empty path constructor.
     pub fn empty() -> Self {
-        Self {
-            rev_segments: default(),
-        }
+        Self { rev_segments: default() }
     }
 
     /// Return a new one with the segment appended to the end.
@@ -89,11 +84,9 @@ impl Path {
     pub fn into_subs<I>(mut self, segment: I) -> Self
     where
         I: IntoIterator,
-        I::Item: Into<String>,
-    {
+        I::Item: Into<String>, {
         self.rev_segments.reverse();
-        self.rev_segments
-            .extend(segment.into_iter().map(|t| t.into()));
+        self.rev_segments.extend(segment.into_iter().map(|t| t.into()));
         self.rev_segments.reverse();
         self
     }
@@ -115,8 +108,7 @@ impls! {              From<&StaticPath> for Path { |t| t.str.into() }}
 impls! { [T:ToString] From<Vec<T>>      for Path { |t| Self::from_segments(t.into_iter()) }}
 
 impl<T> From<&Vec<T>> for Path
-where
-    for<'t> &'t T: ToString,
+where for<'t> &'t T: ToString
 {
     fn from(t: &Vec<T>) -> Self {
         Self::from_segments(t.iter())

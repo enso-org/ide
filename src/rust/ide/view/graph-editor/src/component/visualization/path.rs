@@ -7,6 +7,8 @@ use crate::data::enso;
 use serde::Deserialize;
 use serde::Serialize;
 
+
+
 // ============
 // === Name ===
 // ============
@@ -18,9 +20,7 @@ im_string_newtype! {
 }
 
 /// Identifier to the project owning the visualizaiton.
-#[derive(
-    Clone, CloneRef, Debug, Eq, Hash, PartialEq, Deserialize, Serialize,
-)]
+#[derive(Clone, CloneRef, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
 pub enum Project {
     /// Temporary placeholder for the visualizations embedded in the IDE.
     /// Eventually will be replaced with Standard Library.
@@ -31,19 +31,19 @@ pub enum Project {
     Library(enso::LibraryName),
 }
 
+
+
 // ============
 // === Path ===
 // ============
 
 /// A fully qualified path of a visualization definition. Contains both the library name and the
 /// visualization name.
-#[derive(
-    Clone, CloneRef, Debug, Eq, Hash, PartialEq, Deserialize, Serialize,
-)]
+#[derive(Clone, CloneRef, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
 #[allow(missing_docs)]
 pub struct Path {
     pub project: Project,
-    pub name: Name,
+    pub name:    Name,
 }
 
 impl Path {

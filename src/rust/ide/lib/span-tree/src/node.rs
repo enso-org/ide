@@ -13,6 +13,8 @@ use enso_data::text::Size;
 pub mod kind;
 pub use kind::*;
 
+
+
 // ============
 // === Node ===
 // ============
@@ -27,11 +29,11 @@ pub trait Payload = Default + Clone;
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 #[allow(missing_docs)]
 pub struct Node<T> {
-    pub kind: Kind,
-    pub size: Size,
+    pub kind:     Kind,
+    pub size:     Size,
     pub children: Vec<Child<T>>,
-    pub ast_id: Option<ast::Id>,
-    pub payload: T,
+    pub ast_id:   Option<ast::Id>,
+    pub payload:  T,
 }
 
 impl<T> Deref for Node<T> {
@@ -47,6 +49,7 @@ impl<T> DerefMut for Node<T> {
     }
 }
 
+
 // === API ===
 
 impl<T: Payload> Node<T> {
@@ -56,10 +59,7 @@ impl<T: Payload> Node<T> {
     }
 
     /// Define a new child by using the `ChildBuilder` pattern. Consumes self.
-    pub fn new_child(
-        mut self,
-        f: impl FnOnce(ChildBuilder<T>) -> ChildBuilder<T>,
-    ) -> Self {
+    pub fn new_child(mut self, f: impl FnOnce(ChildBuilder<T>) -> ChildBuilder<T>) -> Self {
         ChildBuilder::apply_to_node(&mut self, f);
         self
     }
@@ -68,17 +68,10 @@ impl<T: Payload> Node<T> {
     pub fn map<S>(self, f: impl Copy + Fn(T) -> S) -> Node<S> {
         let kind = self.kind;
         let size = self.size;
-        let children =
-            self.children.into_iter().map(|t| t.map(f)).collect_vec();
+        let children = self.children.into_iter().map(|t| t.map(f)).collect_vec();
         let ast_id = self.ast_id;
         let payload = f(self.payload);
-        Node {
-            kind,
-            size,
-            children,
-            ast_id,
-            payload,
-        }
+        Node { kind, size, children, ast_id, payload }
     }
 }
 
@@ -92,9 +85,7 @@ impl<T: Payload> Node<T> {
         let check = |t: Option<&Child<T>>| {
             t.map(|t| t.kind == Kind::Token && t.size.value == 1) == Some(true)
         };
-        check(self.children.first())
-            && check(self.children.last())
-            && self.children.len() == 3
+        check(self.children.first()) && check(self.children.last()) && self.children.len() == 3
     }
 
     pub fn is_root(&self) -> bool {
@@ -126,6 +117,7 @@ impl<T: Payload> Node<T> {
     }
 }
 
+
 // === Setters ===
 
 #[allow(missing_docs)]
@@ -152,6 +144,7 @@ impl<T> Node<T> {
     }
 }
 
+
 // === Kind getters & setters ===
 
 #[allow(missing_docs)]
@@ -170,6 +163,8 @@ impl<T> Node<T> {
     }
 }
 
+
+
 // =============
 // === Child ===
 // =============
@@ -179,9 +174,9 @@ impl<T> Node<T> {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Child<T = ()> {
     /// A child node.
-    pub node: Node<T>,
+    pub node:       Node<T>,
     /// An offset counted from the parent node starting index to the start of this node's span.
-    pub offset: Size,
+    pub offset:     Size,
     /// AST crumbs which lead from parent to child associated AST node.
     pub ast_crumbs: ast::Crumbs,
 }
@@ -192,11 +187,7 @@ impl<T: Payload> Child<T> {
         let node = self.node.map(f);
         let offset = self.offset;
         let ast_crumbs = self.ast_crumbs;
-        Child {
-            node,
-            offset,
-            ast_crumbs,
-        }
+        Child { node, offset, ast_crumbs }
     }
 }
 
@@ -212,6 +203,8 @@ impl<T> DerefMut for Child<T> {
         &mut self.node
     }
 }
+
+
 
 // ====================
 // === ChildBuilder ===
@@ -257,10 +250,7 @@ impl<T: Payload> ChildBuilder<T> {
     }
 
     /// Define a new child by using the `ChildBuilder` pattern.
-    fn apply_to_node(
-        node: &mut Node<T>,
-        f: impl FnOnce(ChildBuilder<T>) -> ChildBuilder<T>,
-    ) {
+    fn apply_to_node(node: &mut Node<T>, f: impl FnOnce(ChildBuilder<T>) -> ChildBuilder<T>) {
         let mut new_child = Child::default();
         let offset = node.size;
         new_child.offset = offset;
@@ -283,8 +273,7 @@ impl<T: Payload> ChildBuilder<T> {
         f: impl FnOnce(Self) -> Self,
     ) -> Self {
         let child: ChildBuilder<T> = ChildBuilder::new(default());
-        let child =
-            f(child.offset(offset).size(size).kind(kind).crumbs(crumbs));
+        let child = f(child.offset(offset).size(size).kind(kind).crumbs(crumbs));
         self.node.children.push(child.child);
         self
     }
@@ -325,6 +314,8 @@ impl<T: Payload> ChildBuilder<T> {
     }
 }
 
+
+
 // ==============
 // === Crumbs ===
 // ==============
@@ -349,9 +340,7 @@ impl Deref for Crumbs {
 impl Crumbs {
     /// Constructor from raw crumbs list.
     pub fn new(crumbs: Vec<Crumb>) -> Self {
-        Self {
-            vec: Rc::new(crumbs),
-        }
+        Self { vec: Rc::new(crumbs) }
     }
 
     /// Create sub-crumbs with the provided child crumb.
@@ -374,6 +363,7 @@ impl<T: IntoIterator<Item = Crumb>> From<T> for Crumbs {
     }
 }
 
+
 // === Impls ===
 
 impl PartialEq<&Self> for Crumbs {
@@ -392,11 +382,9 @@ impl<'a> IntoIterator for &'a Crumbs {
 
 /// Convert crumbs to crumbs pointing to a parent.
 pub fn parent_crumbs(crumbs: &[Crumb]) -> Option<&[Crumb]> {
-    crumbs
-        .len()
-        .checked_sub(1)
-        .map(|new_len| &crumbs[..new_len])
+    crumbs.len().checked_sub(1).map(|new_len| &crumbs[..new_len])
 }
+
 
 // === Invalid ===
 
@@ -408,9 +396,9 @@ pub fn parent_crumbs(crumbs: &[Crumb]) -> Option<&[Crumb]> {
 )]
 pub struct InvalidCrumb {
     /// Crumb that was attempted.
-    pub crumb: Crumb,
+    pub crumb:   Crumb,
     /// Available children count.
-    pub count: usize,
+    pub count:   usize,
     /// Already traversed crumbs.
     pub context: Vec<Crumb>,
 }
@@ -419,13 +407,11 @@ impl InvalidCrumb {
     /// Constructor.
     pub fn new(crumb: Crumb, count: usize, context: &Crumbs) -> Self {
         let context = context.vec.deref().clone();
-        Self {
-            crumb,
-            count,
-            context,
-        }
+        Self { crumb, count, context }
     }
 }
+
+
 
 // ===========
 // === Ref ===
@@ -435,11 +421,11 @@ impl InvalidCrumb {
 #[derive(Clone, Debug)]
 pub struct Ref<'a, T = ()> {
     /// The node's ref.
-    pub node: &'a Node<T>,
+    pub node:       &'a Node<T>,
     /// Span begin being an index counted from the root expression.
     pub span_begin: Index,
     /// Crumbs specifying this node position related to root.
-    pub crumbs: Crumbs,
+    pub crumbs:     Crumbs,
     /// Ast crumbs locating associated AST node, related to the root's AST node.
     pub ast_crumbs: ast::Crumbs,
 }
@@ -448,7 +434,7 @@ pub struct Ref<'a, T = ()> {
 #[derive(Clone, Debug)]
 pub struct NodeFoundByAstCrumbs<'a, 'b, T = ()> {
     /// A node being a result of the lookup.
-    pub node: Ref<'a, T>,
+    pub node:       Ref<'a, T>,
     /// AST crumbs locating the searched AST node inside the AST of found SpanTree node.
     pub ast_crumbs: &'b [ast::Crumb],
 }
@@ -459,12 +445,7 @@ impl<'a, T: Payload> Ref<'a, T> {
         let span_begin = default();
         let crumbs = default();
         let ast_crumbs = default();
-        Self {
-            node,
-            span_begin,
-            crumbs,
-            ast_crumbs,
-        }
+        Self { node, span_begin, crumbs, ast_crumbs }
     }
 
     /// Get span of current node.
@@ -487,21 +468,14 @@ impl<'a, T: Payload> Ref<'a, T> {
                 span_begin += child.offset;
                 let crumbs = crumbs.into_sub(index);
                 ast_crumbs.extend(child.ast_crumbs.iter().cloned());
-                Ok(Self {
-                    node,
-                    span_begin,
-                    crumbs,
-                    ast_crumbs,
-                })
+                Ok(Self { node, span_begin, crumbs, ast_crumbs })
             }
         }
     }
 
     /// Iterator over all direct children producing `Ref`s.
     pub fn children_iter(self) -> impl Iterator<Item = Ref<'a, T>>
-    where
-        T: Clone,
-    {
+    where T: Clone {
         let children_count = self.node.children.len();
         (0..children_count).map(move |i| self.clone().child(i).unwrap())
     }
@@ -530,9 +504,7 @@ impl<'a, T: Payload> Ref<'a, T> {
     ) -> FallibleResult<Ref<'a, T>> {
         let mut iter = crumbs.into_iter();
         match iter.next() {
-            Some(index) => self
-                .child(*index)
-                .and_then(|child| child.get_descendant(iter)),
+            Some(index) => self.child(*index).and_then(|child| child.get_descendant(iter)),
             None => Ok(self),
         }
     }
@@ -549,10 +521,7 @@ impl<'a, T: Payload> Ref<'a, T> {
         if self.node.children.is_empty() || ast_crumbs.is_empty() {
             let node = self;
             let remaining_ast_crumbs = ast_crumbs;
-            Some(NodeFoundByAstCrumbs {
-                node,
-                ast_crumbs: remaining_ast_crumbs,
-            })
+            Some(NodeFoundByAstCrumbs { node, ast_crumbs: remaining_ast_crumbs })
         } else {
             // Please be advised, that the `ch.ast_crumbs` is not a field of Ref, but Child, and
             // therefore have different meaning!
@@ -561,42 +530,33 @@ impl<'a, T: Payload> Ref<'a, T> {
                 .children
                 .iter()
                 .find_position(|ch| {
-                    !ch.ast_crumbs.is_empty()
-                        && ast_crumbs.starts_with(&ch.ast_crumbs)
+                    !ch.ast_crumbs.is_empty() && ast_crumbs.starts_with(&ch.ast_crumbs)
                 })
                 .or_else(|| {
                     // We try to find appriopriate node second time, this time expecting case of
-                    // "prefix-like" nodes with `InsertionPoint(ExpectedArgument(_))`. See also docs for
-                    // `generate::generate_expected_argument`.
-                    // TODO[ao]: As implementation of SpanTree will extend there may be some day more
-                    //  cases. Should be reconsidered in https://github.com/enso-org/ide/issues/787
+                    // "prefix-like" nodes with `InsertionPoint(ExpectedArgument(_))`. See also docs
+                    // for `generate::generate_expected_argument`.
+                    // TODO[ao]: As implementation of SpanTree will extend there may be some day
+                    // more  cases. Should be reconsidered in https://github.com/enso-org/ide/issues/787
                     self.node.children.iter().find_position(|ch| {
-                        ch.ast_crumbs.is_empty()
-                            && !ch.kind.is_insertion_point()
+                        ch.ast_crumbs.is_empty() && !ch.kind.is_insertion_point()
                     })
                 });
             next.and_then(|(id, child)| {
                 let ast_subcrumbs = &ast_crumbs[child.ast_crumbs.len()..];
-                self.child(id)
-                    .unwrap()
-                    .get_descendant_by_ast_crumbs(ast_subcrumbs)
+                self.child(id).unwrap().get_descendant_by_ast_crumbs(ast_subcrumbs)
             })
         }
     }
 
     /// Get the node which exactly matches the given Span. If there many such node's, it pick first
     /// found by DFS.
-    pub fn find_by_span(
-        self,
-        span: &enso_data::text::Span,
-    ) -> Option<Ref<'a, T>> {
+    pub fn find_by_span(self, span: &enso_data::text::Span) -> Option<Ref<'a, T>> {
         if self.span() == *span {
             Some(self)
         } else {
             self.children_iter().find_map(|ch| {
-                ch.span()
-                    .contains_span(span)
-                    .and_option_from(|| ch.find_by_span(span))
+                ch.span().contains_span(span).and_option_from(|| ch.find_by_span(span))
             })
         }
     }
@@ -643,8 +603,7 @@ impl<'a, T: Payload> Ref<'a, T> {
                 Some(mut node) => {
                     let (ok, mut sub_data) = on_node(&mut node, &mut data);
                     if ok {
-                        let mut children =
-                            node.children_iter().collect_vec().reversed();
+                        let mut children = node.children_iter().collect_vec().reversed();
                         mem::swap(&mut sub_data, &mut data);
                         mem::swap(&mut children, &mut layer);
                         layers.push((children, sub_data));
@@ -656,11 +615,7 @@ impl<'a, T: Payload> Ref<'a, T> {
 
     /// Perform a full (traverse all nodes) depth-first-search algorithm on the `SpanTree`. See docs
     /// of `partial_dfs` to learn more.
-    pub fn dfs_with_layer_data<D>(
-        self,
-        data: D,
-        mut on_node: impl FnMut(&mut Self, &mut D) -> D,
-    ) {
+    pub fn dfs_with_layer_data<D>(self, data: D, mut on_node: impl FnMut(&mut Self, &mut D) -> D) {
         self.partial_dfs_with_layer_data(data, |t, s| (true, on_node(t, s)))
     }
 
@@ -671,6 +626,8 @@ impl<'a, T: Payload> Ref<'a, T> {
     }
 }
 
+
+
 // ==============
 // === RefMut ===
 // ==============
@@ -680,13 +637,13 @@ impl<'a, T: Payload> Ref<'a, T> {
 #[derive(Debug)]
 pub struct RefMut<'a, T = ()> {
     /// The node's ref.
-    node: &'a mut Node<T>,
+    node:           &'a mut Node<T>,
     /// An offset counted from the parent node starting index to the start of this node's span.
-    pub offset: Size,
+    pub offset:     Size,
     /// Span begin being an index counted from the root expression.
     pub span_begin: Index,
     /// Crumbs specifying this node position related to root.
-    pub crumbs: Crumbs,
+    pub crumbs:     Crumbs,
     /// Ast crumbs locating associated AST node, related to the root's AST node.
     pub ast_crumbs: ast::Crumbs,
 }
@@ -698,13 +655,7 @@ impl<'a, T: Payload> RefMut<'a, T> {
         let span_begin = default();
         let crumbs = default();
         let ast_crumbs = default();
-        Self {
-            node,
-            offset,
-            span_begin,
-            crumbs,
-            ast_crumbs,
-        }
+        Self { node, offset, span_begin, crumbs, ast_crumbs }
     }
 
     /// Payload accessor.
@@ -735,13 +686,7 @@ impl<'a, T: Payload> RefMut<'a, T> {
         span_begin += child.offset;
         let crumbs = crumbs.into_sub(index);
         ast_crumbs.extend(child.ast_crumbs.iter().cloned());
-        Self {
-            node,
-            offset,
-            span_begin,
-            crumbs,
-            ast_crumbs,
-        }
+        Self { node, offset, span_begin, crumbs, ast_crumbs }
     }
 
     /// Get the reference to child with given index. Fails if index if out of bounds.
@@ -753,9 +698,7 @@ impl<'a, T: Payload> RefMut<'a, T> {
         let count = node.children.len();
         match node.children.get_mut(index) {
             None => Err(InvalidCrumb::new(count, index, &crumbs).into()),
-            Some(child) => Ok(Self::child_from_ref(
-                index, child, span_begin, crumbs, ast_crumbs,
-            )),
+            Some(child) => Ok(Self::child_from_ref(index, child, span_begin, crumbs, ast_crumbs)),
         }
     }
 
@@ -764,19 +707,9 @@ impl<'a, T: Payload> RefMut<'a, T> {
         let span_begin = self.span_begin;
         let crumbs = self.crumbs;
         let ast_crumbs = self.ast_crumbs;
-        self.node
-            .children
-            .iter_mut()
-            .enumerate()
-            .map(move |(index, child)| {
-                Self::child_from_ref(
-                    index,
-                    child,
-                    span_begin,
-                    crumbs.clone(),
-                    ast_crumbs.clone(),
-                )
-            })
+        self.node.children.iter_mut().enumerate().map(move |(index, child)| {
+            Self::child_from_ref(index, child, span_begin, crumbs.clone(), ast_crumbs.clone())
+        })
     }
 
     /// Get the sub-node (child, or further descendant) identified by `crumbs`.
@@ -786,9 +719,7 @@ impl<'a, T: Payload> RefMut<'a, T> {
     ) -> FallibleResult<Self> {
         let mut iter = crumbs.into_iter();
         match iter.next() {
-            Some(index) => self
-                .child(*index)
-                .and_then(|child| child.get_descendant(iter)),
+            Some(index) => self.child(*index).and_then(|child| child.get_descendant(iter)),
             None => Ok(self),
         }
     }
@@ -800,6 +731,7 @@ impl<'a, T> Deref for RefMut<'a, T> {
         self.node
     }
 }
+
 
 // === Specialized Iterators ===
 
@@ -835,8 +767,7 @@ impl<'a, T: Payload> RefMut<'a, T> {
                 Some(mut node) => {
                     let (ok, mut sub_data) = on_node(&mut node, &mut data);
                     if ok {
-                        let mut children =
-                            node.children_iter().collect_vec().reversed();
+                        let mut children = node.children_iter().collect_vec().reversed();
                         mem::swap(&mut sub_data, &mut data);
                         mem::swap(&mut children, &mut layer);
                         layers.push((children, sub_data));
@@ -848,11 +779,7 @@ impl<'a, T: Payload> RefMut<'a, T> {
 
     /// Perform a full (traverse all nodes) depth-first-search algorithm on the `SpanTree`. See docs
     /// of `partial_dfs` to learn more.
-    pub fn dfs_with_layer_data<D>(
-        self,
-        data: D,
-        mut on_node: impl FnMut(&mut Self, &mut D) -> D,
-    ) {
+    pub fn dfs_with_layer_data<D>(self, data: D, mut on_node: impl FnMut(&mut Self, &mut D) -> D) {
         self.partial_dfs_with_layer_data(data, |t, s| (true, on_node(t, s)))
     }
 
@@ -883,11 +810,9 @@ impl<'a, T: Payload> RefMut<'a, T> {
                     }
                 },
                 Some((mut node1, mut node2)) => {
-                    let (ok, mut sub_data) =
-                        on_node(&mut node1, &mut node2, &mut data);
+                    let (ok, mut sub_data) = on_node(&mut node1, &mut node2, &mut data);
                     if ok {
-                        let children =
-                            node1.children_iter().zip(node2.children_iter());
+                        let children = node1.children_iter().zip(node2.children_iter());
                         let mut children = children.collect_vec().reversed();
                         mem::swap(&mut sub_data, &mut data);
                         mem::swap(&mut children, &mut layer);
@@ -898,6 +823,8 @@ impl<'a, T: Payload> RefMut<'a, T> {
         }
     }
 }
+
+
 
 // ============
 // === Test ===
@@ -959,14 +886,8 @@ mod test {
         assert_eq!(root.ast_crumbs, []);
         assert_eq!(child1.ast_crumbs, [LeftOperand.into()]);
         assert_eq!(child2.ast_crumbs, [RightOperand.into()]);
-        assert_eq!(
-            grand_child1.ast_crumbs,
-            [RightOperand.into(), LeftOperand.into()]
-        );
-        assert_eq!(
-            grand_child2.ast_crumbs,
-            [RightOperand.into(), Operator.into()]
-        );
+        assert_eq!(grand_child1.ast_crumbs, [RightOperand.into(), LeftOperand.into()]);
+        assert_eq!(grand_child2.ast_crumbs, [RightOperand.into(), Operator.into()]);
 
         // Not existing nodes
         assert!(root.clone().get_descendant(&vec![3]).is_err());
@@ -998,22 +919,14 @@ mod test {
             (crumbs![RightOperand], &[3], crumbs![]),
             (crumbs![RightOperand, Func], &[3, 0], crumbs![]),
             (crumbs![RightOperand, Arg], &[3, 1], crumbs![]),
-            (
-                crumbs![RightOperand, Arg, HeadLine],
-                &[3, 1],
-                crumbs![HeadLine],
-            ),
+            (crumbs![RightOperand, Arg, HeadLine], &[3, 1], crumbs![HeadLine]),
         ];
 
         for case in cases {
             let (crumbs, expected_crumbs, expected_remaining_ast_crumbs) = case;
-            let result =
-                root.clone().get_descendant_by_ast_crumbs(&crumbs).unwrap();
+            let result = root.clone().get_descendant_by_ast_crumbs(&crumbs).unwrap();
             assert_eq!(result.node.crumbs.as_slice(), *expected_crumbs);
-            assert_eq!(
-                result.ast_crumbs,
-                expected_remaining_ast_crumbs.as_slice()
-            );
+            assert_eq!(result.ast_crumbs, expected_remaining_ast_crumbs.as_slice());
         }
     }
 
@@ -1024,18 +937,8 @@ mod test {
         // An example with single call and expected arguments.
         // See also `generate::test::generating_span_tree_for_unfinished_call`
         let tree: SpanTree = TreeBuilder::new(8)
-            .add_child(
-                0,
-                8,
-                node::Kind::Chained,
-                ast::crumbs::Crumbs::default(),
-            )
-            .add_child(
-                0,
-                8,
-                node::Kind::Operation,
-                ast::crumbs::Crumbs::default(),
-            )
+            .add_child(0, 8, node::Kind::Chained, ast::crumbs::Crumbs::default())
+            .add_child(0, 8, node::Kind::Operation, ast::crumbs::Crumbs::default())
             .add_leaf(0, 4, node::Kind::this(), LeftOperand)
             .add_leaf(4, 1, node::Kind::Operation, Operator)
             .add_leaf(5, 3, node::Kind::argument(), RightOperand)
@@ -1045,20 +948,12 @@ mod test {
             .add_empty_child(8, InsertionPointType::ExpectedArgument(1))
             .build();
 
-        let cases = &[
-            (crumbs!(LeftOperand), vec![0, 0, 0]),
-            (crumbs!(RightOperand), vec![0, 0, 2]),
-        ];
+        let cases =
+            &[(crumbs!(LeftOperand), vec![0, 0, 0]), (crumbs!(RightOperand), vec![0, 0, 2])];
 
         for (ast_crumbs, expected_crumbs) in cases {
-            let result = tree
-                .root_ref()
-                .get_descendant_by_ast_crumbs(ast_crumbs)
-                .unwrap();
-            assert_eq!(
-                result.node.crumbs,
-                Crumbs::new(expected_crumbs.clone())
-            );
+            let result = tree.root_ref().get_descendant_by_ast_crumbs(ast_crumbs).unwrap();
+            assert_eq!(result.node.crumbs, Crumbs::new(expected_crumbs.clone()));
         }
     }
 }

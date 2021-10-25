@@ -9,6 +9,8 @@ use crate::display::world::World;
 
 pub use command::View;
 
+
+
 // ================
 // === Registry ===
 // ================
@@ -18,11 +20,11 @@ pub use command::View;
 #[derive(Debug, Clone, CloneRef)]
 #[allow(missing_docs)]
 pub struct Registry {
-    pub logger: Logger,
-    pub display: World,
-    pub command_registry: command::Registry,
+    pub logger:            Logger,
+    pub display:           World,
+    pub command_registry:  command::Registry,
     pub shortcut_registry: shortcut::Registry,
-    pub definitions: Rc<RefCell<HashSet<String>>>,
+    pub definitions:       Rc<RefCell<HashSet<String>>>,
 }
 
 impl Registry {
@@ -38,13 +40,7 @@ impl Registry {
         let command_registry = command_registry.clone_ref();
         let shortcut_registry = shortcut_registry.clone_ref();
         let definitions = default();
-        Self {
-            logger,
-            display,
-            command_registry,
-            shortcut_registry,
-            definitions,
-        }
+        Self { logger, display, command_registry, shortcut_registry, definitions }
     }
 
     /// View registration.
@@ -62,10 +58,12 @@ impl Registry {
         let label = V::label();
         let was_registered = self.definitions.borrow().get(label).is_some();
         if !was_registered {
-            warning!(&self.logger,
+            warning!(
+                &self.logger,
                 "The view '{label}' was created but never registered, performing automatic \
                 registration. You should always register available views as soon as possible to \
-                enable their default shortcuts and spread the information about their API.");
+                enable their default shortcuts and spread the information about their API."
+            );
             self.register::<V>();
         }
         let view = V::new(app);

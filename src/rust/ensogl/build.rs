@@ -1,10 +1,12 @@
-use std::{env, path};
+use std::env;
+use std::path;
 
 /// A module with functions generating huge chunk of texts for text component benchmarks.
 mod huge_text_generator {
     use std::collections::hash_map::DefaultHasher;
     use std::fs::File;
-    use std::hash::{Hash, Hasher};
+    use std::hash::Hash;
+    use std::hash::Hasher;
     use std::io::Write;
     use std::path::Path;
 
@@ -43,23 +45,22 @@ mod huge_text_generator {
     }
 
     fn write_verse(file: &mut File, i: usize) {
-        write!(file,
+        write!(
+            file,
             "{i} bottles of beer on the wall, {i} bottles of beer.\
             Take one down and pass it around, {j} bottles of beer on the wall. ",
             i = i,
-            j = i-1
-        ).unwrap();
+            j = i - 1
+        )
+        .unwrap();
     }
 }
+
 
 fn main() {
     let out = env::var("OUT_DIR").unwrap();
     let out_dir = path::Path::new(&out);
-    huge_text_generator::make_long_text_file(
-        out_dir.join("long.txt").as_path(),
-    );
-    huge_text_generator::make_wide_text_file(
-        out_dir.join("wide.txt").as_path(),
-    );
+    huge_text_generator::make_long_text_file(out_dir.join("long.txt").as_path());
+    huge_text_generator::make_wide_text_file(out_dir.join("wide.txt").as_path());
     println!("cargo:rerun-if-changed=build.rs");
 }

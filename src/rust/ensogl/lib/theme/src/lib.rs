@@ -12,6 +12,8 @@
 
 use ensogl_core::prelude::ImString;
 
+
+
 // ==============
 // === Macros ===
 // ==============
@@ -118,10 +120,10 @@ macro_rules! _define_theme_wrapper_and_literals {
     };
 }
 
-/// Used to define default theme. This one aside from generating code for `StyleManager` also creates
-/// nested public modules that makes accessing values much better than with bare string literals.
-/// It adds the `var` module with string constants, so now, instead of having to get data by string
-/// literal - like `style.get("foo.bar.baz",fallback)`, you can do
+/// Used to define default theme. This one aside from generating code for `StyleManager` also
+/// creates nested public modules that makes accessing values much better than with bare string
+/// literals. It adds the `var` module with string constants, so now, instead of having to get data
+/// by string literal - like `style.get("foo.bar.baz",fallback)`, you can do
 /// `style.get(theme::foo::bar::baz,fallback)`.
 macro_rules! define_themes {
     ($ids:tt $($t:tt)*) => {
@@ -137,6 +139,8 @@ macro_rules! define_themes {
         pub use vars::*;
     };
 }
+
+
 
 // =============
 // === Theme ===
@@ -156,6 +160,8 @@ impl Default for Theme {
         Theme::Light
     }
 }
+
+
 
 // ===========================
 // === Light & Dark Themes ===

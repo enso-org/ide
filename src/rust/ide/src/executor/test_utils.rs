@@ -8,12 +8,14 @@ use crate::executor::global::spawn;
 use futures::executor;
 use utils::test::traits::*;
 
+
+
 /// A fixture for tests which makes able to run part of tests as asynchronous tasks in
 /// LocalPoolExecutor. All spawned task will be run before dropping this structure - if some
 /// task will be blocked, panic will be raised.
 #[derive(Debug)]
 pub struct TestWithLocalPoolExecutor {
-    executor: executor::LocalPool,
+    executor:           executor::LocalPool,
     running_task_count: Rc<Cell<usize>>,
 }
 
@@ -24,10 +26,7 @@ impl TestWithLocalPoolExecutor {
         let running_task_count = Rc::new(Cell::new(0));
 
         set_spawner(executor.spawner());
-        Self {
-            executor,
-            running_task_count,
-        }
+        Self { executor, running_task_count }
     }
 
     /// Check if there are any uncompleted tasks in the pool.
@@ -37,11 +36,8 @@ impl TestWithLocalPoolExecutor {
 
     /// Spawn new task in executor.
     pub fn run_task<Task>(&mut self, task: Task)
-    where
-        Task: Future<Output = ()> + 'static,
-    {
-        self.running_task_count
-            .set(self.running_task_count.get() + 1);
+    where Task: Future<Output = ()> + 'static {
+        self.running_task_count.set(self.running_task_count.get() + 1);
         let running_tasks_clone = self.running_task_count.clone_ref();
         spawn(async move {
             task.await;
@@ -54,9 +50,7 @@ impl TestWithLocalPoolExecutor {
     /// This callback may for instance do some operations on mocks which unblocks task spawned
     /// in executor.
     pub fn when_stalled<Callback>(&mut self, callback: Callback)
-    where
-        Callback: FnOnce(),
-    {
+    where Callback: FnOnce() {
         self.run_until_stalled();
         if self.has_ongoing_task() {
             callback();
@@ -68,9 +62,7 @@ impl TestWithLocalPoolExecutor {
     /// This structure is useful to ensure, that some task will be in progress before another task
     /// will be spawned, so we can test more specific asynchronous scenarios.
     pub fn when_stalled_run_task<Task>(&mut self, task: Task)
-    where
-        Task: Future<Output = ()> + 'static,
-    {
+    where Task: Future<Output = ()> + 'static {
         self.run_until_stalled();
         if self.has_ongoing_task() {
             self.run_task(task);
@@ -85,11 +77,7 @@ impl TestWithLocalPoolExecutor {
     /// Runs all tasks until stalled. Panics, if some tasks remains then unfinished.
     pub fn expect_finished(&mut self) {
         self.run_until_stalled();
-        assert_eq!(
-            0,
-            self.running_task_count.get(),
-            "The tasks are not complete!"
-        );
+        assert_eq!(0, self.running_task_count.get(), "The tasks are not complete!");
     }
 
     /// Runs all tasks until stalled and tries retrieving value from the future.

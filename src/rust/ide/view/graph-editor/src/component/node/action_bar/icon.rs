@@ -5,6 +5,7 @@ use ensogl::data::color;
 use ensogl::display::shape::*;
 use ensogl_gui_components::toggle_button::ColorableShape;
 
+
 /// Icon for the visibility button. Looks like an open eye.
 pub mod visibility {
     use super::*;
@@ -36,12 +37,7 @@ pub mod visibility {
 
     impl ColorableShape for DynamicShape {
         fn set_color(&self, color: color::Rgba) {
-            self.color_rgba.set(Vector4::new(
-                color.red,
-                color.green,
-                color.blue,
-                color.alpha,
-            ));
+            self.color_rgba.set(Vector4::new(color.red, color.green, color.blue, color.alpha));
         }
     }
 }
@@ -75,12 +71,7 @@ pub mod visibility2 {
 
     impl ColorableShape for DynamicShape {
         fn set_color(&self, color: color::Rgba) {
-            self.color_rgba.set(Vector4::new(
-                color.red,
-                color.green,
-                color.blue,
-                color.alpha,
-            ));
+            self.color_rgba.set(Vector4::new(color.red, color.green, color.blue, color.alpha));
         }
     }
 }
@@ -128,12 +119,7 @@ pub mod freeze {
 
     impl ColorableShape for DynamicShape {
         fn set_color(&self, color: color::Rgba) {
-            self.color_rgba.set(Vector4::new(
-                color.red,
-                color.green,
-                color.blue,
-                color.alpha,
-            ));
+            self.color_rgba.set(Vector4::new(color.red, color.green, color.blue, color.alpha));
         }
     }
 }
@@ -170,12 +156,7 @@ pub mod skip {
 
     impl ColorableShape for DynamicShape {
         fn set_color(&self, color: color::Rgba) {
-            self.color_rgba.set(Vector4::new(
-                color.red,
-                color.green,
-                color.blue,
-                color.alpha,
-            ));
+            self.color_rgba.set(Vector4::new(color.red, color.green, color.blue, color.alpha));
         }
     }
 }

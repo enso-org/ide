@@ -6,25 +6,17 @@ use crate::prelude::*;
 use crate::stream;
 use crate::stream::Stream;
 
+
+
 // ==========
 // === Id ===
 // ==========
 
 /// Globally unique identifier of an frp network.
-#[derive(
-    Clone,
-    CloneRef,
-    Copy,
-    Debug,
-    Default,
-    Display,
-    Eq,
-    From,
-    Hash,
-    Into,
-    PartialEq,
-)]
+#[derive(Clone, CloneRef, Copy, Debug, Default, Display, Eq, From, Hash, Into, PartialEq)]
 pub struct NetworkId(usize);
+
+
 
 // ===============
 // === Network ===
@@ -57,12 +49,13 @@ pub struct NetworkData {
     /// Label of the network.
     pub label: String,
     #[derivative(Debug = "ignore")]
-    nodes: RefCell<Vec<Box<dyn Item>>>,
-    links: RefCell<HashMap<Id, Link>>,
-    bridges: RefCell<Vec<BridgeNetwork>>,
+    nodes:     RefCell<Vec<Box<dyn Item>>>,
+    links:     RefCell<HashMap<Id, Link>>,
+    bridges:   RefCell<Vec<BridgeNetwork>>,
     /// Used as a convenient storage of data associated with network, like animation instances.
-    storage: RefCell<Vec<Box<dyn Any>>>,
+    storage:   RefCell<Vec<Box<dyn Any>>>,
 }
+
 
 // === API ===
 
@@ -74,22 +67,13 @@ impl NetworkData {
         let links = default();
         let bridges = default();
         let storage = default();
-        Self {
-            label,
-            nodes,
-            links,
-            bridges,
-            storage,
-        }
+        Self { label, nodes, links, bridges, storage }
     }
 }
 
 impl Drop for NetworkData {
     fn drop(&mut self) {
-        self.bridges
-            .borrow()
-            .iter()
-            .for_each(|subnetwork| subnetwork.destroy())
+        self.bridges.borrow().iter().for_each(|subnetwork| subnetwork.destroy())
     }
 }
 
@@ -102,9 +86,7 @@ impl Network {
 
     /// Get the weak version.
     pub fn downgrade(&self) -> WeakNetwork {
-        WeakNetwork {
-            data: Rc::downgrade(&self.data),
-        }
+        WeakNetwork { data: Rc::downgrade(&self.data) }
     }
 
     /// ID getter of this network.
@@ -120,10 +102,7 @@ impl Network {
     }
 
     /// Register the node and return it's weak reference.
-    pub fn register_raw<T: HasOutputStatic>(
-        &self,
-        node: stream::Node<T>,
-    ) -> stream::WeakNode<T> {
+    pub fn register_raw<T: HasOutputStatic>(&self, node: stream::Node<T>) -> stream::WeakNode<T> {
         let weak = node.downgrade();
         let node = Box::new(node);
         self.data.nodes.borrow_mut().push(node);
@@ -131,10 +110,7 @@ impl Network {
     }
 
     /// Register the node and return a new `Stream` reference.
-    pub fn register<Def: HasOutputStatic>(
-        &self,
-        node: stream::Node<Def>,
-    ) -> Stream<Output<Def>> {
+    pub fn register<Def: HasOutputStatic>(&self, node: stream::Node<Def>) -> Stream<Output<Def>> {
         let stream = node.clone_ref().into();
         let node = Box::new(node);
         self.data.nodes.borrow_mut().push(node);
@@ -155,11 +131,7 @@ impl Network {
     pub fn draw(&self) {
         let mut viz = debug::Graphviz::default();
         self.data.nodes.borrow().iter().for_each(|node| {
-            viz.add_node(
-                node.id().into(),
-                node.output_type_label(),
-                node.label(),
-            );
+            viz.add_node(node.id().into(), node.output_type_label(), node.label());
         });
         debug::display_graphviz(viz);
     }
@@ -176,6 +148,8 @@ impl WeakNetwork {
         NetworkId(self.data.as_ptr() as *const () as usize)
     }
 }
+
+
 
 // =====================
 // === BridgeNetwork ===
@@ -214,6 +188,8 @@ impl From<Network> for BridgeNetwork {
     }
 }
 
+
+
 // ============
 // === Link ===
 // ============
@@ -223,7 +199,7 @@ impl From<Network> for BridgeNetwork {
 #[allow(missing_docs)]
 pub struct Link {
     pub source: Id,
-    pub tp: LinkType,
+    pub tp:     LinkType,
 }
 
 impl Link {

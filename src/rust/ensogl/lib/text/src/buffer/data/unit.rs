@@ -5,6 +5,8 @@ use crate::prelude::*;
 use enso_types::newtype;
 use enso_types::unit;
 
+
+
 // ===============
 // === Exports ===
 // ===============
@@ -16,6 +18,8 @@ pub mod traits {
     pub use super::line::Into as TRAIT_line_into;
 }
 pub use traits::*;
+
+
 
 // =============
 // === Bytes ===
@@ -54,6 +58,8 @@ impl From<&usize> for Bytes {
     }
 }
 
+
+
 // ============
 // === Line ===
 // ============
@@ -89,6 +95,8 @@ impl From<&usize> for Line {
     }
 }
 
+
+
 // ==============
 // === Column ===
 // ==============
@@ -123,6 +131,8 @@ impl From<&usize> for Column {
         (*t as i32).into()
     }
 }
+
+
 
 // ================
 // === Location ===

@@ -15,11 +15,15 @@ use super::decimal_aligned::FloatLabel;
 use super::shape::*;
 use super::Bounds;
 
+
+
 // =================
 // === Constants ===
 // =================
 
 const LABEL_OFFSET: f32 = 13.0;
+
+
 
 // =============
 // === Model ===
@@ -28,38 +32,38 @@ const LABEL_OFFSET: f32 = 13.0;
 #[derive(Clone, CloneRef, Debug)]
 pub struct Model {
     /// Background shape that the other UI elements are placed on.
-    pub background: background::View,
+    pub background:         background::View,
     /// Visual element that indicates where in the available range the selected number or track is
     /// located. Looks like a colored in bit of the background.
-    pub track: track::View,
+    pub track:              track::View,
     /// Invisible UI element that enables mouse interaction with the left end of the track. Will
     /// always be placed on the left edge of the track.
-    pub track_handle_left: io_rect::View,
+    pub track_handle_left:  io_rect::View,
     /// Invisible UI element that enables mouse interaction with the right end of the track. Will
     /// always be placed on the right edge of the track.
     pub track_handle_right: io_rect::View,
     /// Icon that can be used out of range values. The left overflow is placed on the left side
     /// of the shape and looks like an arrow/triangle pointing left.
-    pub left_overflow: left_overflow::View,
+    pub left_overflow:      left_overflow::View,
     /// Icon that can be used out of range values. The left overflow is placed on the right side
     /// of the shape and looks like an arrow/triangle pointing right.
-    pub right_overflow: right_overflow::View,
+    pub right_overflow:     right_overflow::View,
     /// A label that is centered  on the background and can be set to show a floating point value
     /// that is centered on the decimal label.
-    pub label: FloatLabel,
+    pub label:              FloatLabel,
     /// A label that is aligned to the left edge of the background
-    pub label_left: text::Area,
+    pub label_left:         text::Area,
     /// A label that is aligned to the right edge of the background
-    pub label_right: text::Area,
+    pub label_right:        text::Area,
     /// A label that is left aligned on the background. Meant to contain a caption describing the
     /// value that is selected. For example "Alpha", "Red", or "Size".
-    pub caption_left: text::Area,
+    pub caption_left:       text::Area,
     /// A label that is centered on the background. Meant to contain a caption describing the
     /// range that is selected. For example "Allowed Size", or "Valid Price".
-    pub caption_center: text::Area,
+    pub caption_center:     text::Area,
     /// Shape root that all other elements are parented to. Should be used to place the shapes as
     /// a group.
-    pub root: display::object::Instance,
+    pub root:               display::object::Instance,
 
     background_color: Rc<RefCell<color::Rgba>>,
     track_color: Rc<RefCell<color::Rgba>>,
@@ -93,12 +97,10 @@ impl component::Model for Model {
 
         let app = app.clone_ref();
         let scene = app.display.scene();
-        scene.layers.add_global_shapes_order_dependency::<background::View,track::View>();
-        scene.layers.add_global_shapes_order_dependency::<track::View,left_overflow::View>();
-        scene.layers.add_global_shapes_order_dependency::<track::View,right_overflow::View>();
-        scene
-            .layers
-            .add_global_shapes_order_dependency::<track::View, io_rect::View>();
+        scene.layers.add_global_shapes_order_dependency::<background::View, track::View>();
+        scene.layers.add_global_shapes_order_dependency::<track::View, left_overflow::View>();
+        scene.layers.add_global_shapes_order_dependency::<track::View, right_overflow::View>();
+        scene.layers.add_global_shapes_order_dependency::<track::View, io_rect::View>();
 
         root.add_child(&label);
         root.add_child(&label_left);
@@ -149,8 +151,7 @@ impl Model {
         self.background.size.set(size_with_shadow);
         self.left_overflow.size.set(size_with_shadow);
         self.right_overflow.size.set(size_with_shadow);
-        let padding =
-            Vector2(self.padding.get() * 2.0, self.padding.get() * 2.0);
+        let padding = Vector2(self.padding.get() * 2.0, self.padding.get() * 2.0);
         self.track.size.set(size_with_shadow - padding);
 
         let left_padding = LABEL_OFFSET;
@@ -158,8 +159,7 @@ impl Model {
         let label_offset = size.x / 2.0 - overflow_icon_size + left_padding;
 
         self.label_left.set_position_x(-label_offset);
-        self.label_right
-            .set_position_x(label_offset - self.label_right.width.value());
+        self.label_right.set_position_x(label_offset - self.label_right.width.value());
 
         let overflow_icon_offset = size.x / 2.0 - overflow_icon_size / 2.0;
         self.left_overflow.set_position_x(-overflow_icon_offset);
@@ -214,10 +214,8 @@ impl Model {
         self.track.left.set(value.start);
         self.track.right.set(value.end);
 
-        self.track_handle_left
-            .set_position_x(value.start * size.x - size.x / 2.0);
-        self.track_handle_right
-            .set_position_x(value.end * size.x - size.x / 2.0);
+        self.track_handle_left.set_position_x(value.start * size.x - size.x / 2.0);
+        self.track_handle_right.set_position_x(value.end * size.x - size.x / 2.0);
     }
 
     /// Set the label in the center of the background to show the given numeric value.
@@ -227,18 +225,12 @@ impl Model {
 
     /// Set the label at the left edge of the background to show the given numeric value.
     pub fn set_left_label_content(&self, value: f32) {
-        self.label_left
-            .frp
-            .set_content
-            .emit(format!("{:.2}", value))
+        self.label_left.frp.set_content.emit(format!("{:.2}", value))
     }
 
     /// Set the label at the right edge of the background to show the given numeric value.
     pub fn set_right_label_content(&self, value: f32) {
-        self.label_right
-            .frp
-            .set_content
-            .emit(format!("{:.2}", value))
+        self.label_right.frp.set_content.emit(format!("{:.2}", value))
     }
 
     pub fn set_caption_left(&self, caption: Option<String>) {
@@ -297,21 +289,11 @@ impl Model {
     pub fn show_background(&self, value: bool) {
         if value {
             self.background.show_shadow.set(1.0);
-            self.background.color.set(
-                self.background_color.as_ref().clone().into_inner().into(),
-            );
+            self.background.color.set(self.background_color.as_ref().clone().into_inner().into());
             let left_corner_roundness =
-                if self.background_left_corner_roundness.get() {
-                    1.0
-                } else {
-                    0.0
-                };
+                if self.background_left_corner_roundness.get() { 1.0 } else { 0.0 };
             let right_corner_roundness =
-                if self.background_right_corner_roundness.get() {
-                    1.0
-                } else {
-                    0.0
-                };
+                if self.background_right_corner_roundness.get() { 1.0 } else { 0.0 };
             self.track.corner_right.set(right_corner_roundness);
             self.track.corner_left.set(left_corner_roundness);
         } else {

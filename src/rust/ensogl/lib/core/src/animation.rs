@@ -10,6 +10,8 @@ mod loops;
 pub use frp::*;
 pub use loops::*;
 
+
+
 // =============
 // === Utils ===
 // =============
@@ -18,8 +20,7 @@ use std::ops::Add;
 use std::ops::Mul;
 
 /// A generic trait constraint for interpolable types.
-pub trait Interpolable<T: Copy> =
-    Mul<f32, Output = T> + Add<T, Output = T> + Copy;
+pub trait Interpolable<T: Copy> = Mul<f32, Output = T> + Add<T, Output = T> + Copy;
 
 /// Linear interpolation function for any type implementing T * f32 and T + T.
 pub fn linear_interpolation<T: Interpolable<T>>(a: T, b: T, t: f32) -> T {

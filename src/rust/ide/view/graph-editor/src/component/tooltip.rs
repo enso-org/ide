@@ -12,11 +12,15 @@ use ensogl::animation::hysteretic::HystereticAnimation;
 use ensogl::display::shape::StyleWatch;
 use ensogl_gui_components::label::Label;
 
+
+
 // =================
 // === Constants ===
 // =================
 
 const PLACEMENT_OFFSET: f32 = 5.0;
+
+
 
 // =============
 // === Style ===
@@ -52,10 +56,7 @@ impl Style {
     /// Create a `TooltipUpdate` that sets the placement of the tooltip.
     pub fn set_placement(placement: Placement) -> Self {
         let placement = Some(StyleValue::new(placement));
-        Self {
-            placement,
-            ..default()
-        }
+        Self { placement, ..default() }
     }
 
     /// Sets the placement of the tooltip.
@@ -64,6 +65,8 @@ impl Style {
         self
     }
 }
+
+
 
 // ==============
 // === Offset ===
@@ -94,14 +97,16 @@ ensogl::define_endpoints! {
     }
 }
 
+
+
 // =============
 // === Model ===
 // =============
 
 #[derive(Clone, Debug)]
 struct Model {
-    tooltip: Label,
-    root: display::object::Instance,
+    tooltip:   Label,
+    root:      display::object::Instance,
     placement: Cell<Placement>,
 }
 
@@ -112,27 +117,15 @@ impl Model {
         let root = display::object::Instance::new(&logger);
         root.add_child(&tooltip);
         let placement = default();
-        Self {
-            tooltip,
-            root,
-            placement,
-        }
+        Self { tooltip, root, placement }
     }
 
     fn set_location(&self, position: Vector2, size: Vector2) {
         let layout_offset = match self.placement.get() {
-            Placement::Top => {
-                Vector2::new(0.0, size.y * 0.5 + PLACEMENT_OFFSET)
-            }
-            Placement::Bottom => {
-                Vector2::new(0.0, -size.y * 0.5 - PLACEMENT_OFFSET)
-            }
-            Placement::Left => {
-                Vector2::new(-size.x / 2.0 - PLACEMENT_OFFSET, 0.0)
-            }
-            Placement::Right => {
-                Vector2::new(size.x / 2.0 + PLACEMENT_OFFSET, 0.0)
-            }
+            Placement::Top => Vector2::new(0.0, size.y * 0.5 + PLACEMENT_OFFSET),
+            Placement::Bottom => Vector2::new(0.0, -size.y * 0.5 - PLACEMENT_OFFSET),
+            Placement::Left => Vector2::new(-size.x / 2.0 - PLACEMENT_OFFSET, 0.0),
+            Placement::Right => Vector2::new(size.x / 2.0 + PLACEMENT_OFFSET, 0.0),
         };
 
         let base_positions = position.xy();
@@ -166,6 +159,8 @@ impl Model {
     }
 }
 
+
+
 // ===============
 // === Tooltip ===
 // ===============
@@ -173,7 +168,7 @@ impl Model {
 /// Tooltip component that can show extra information about other UI components.
 #[derive(Clone, CloneRef, Debug)]
 pub struct Tooltip {
-    model: Rc<Model>,
+    model:   Rc<Model>,
     #[allow(missing_docs)]
     pub frp: Rc<Frp>,
 }
@@ -194,20 +189,13 @@ impl Tooltip {
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape
         // system (#795)
         let styles = StyleWatch::new(&app.display.scene().style_sheet);
-        let hide_delay_duration_ms = styles.get_number_or(
-            ensogl_theme::application::tooltip::hide_delay_duration_ms,
-            0.0,
-        );
-        let show_delay_duration_ms = styles.get_number_or(
-            ensogl_theme::application::tooltip::show_delay_duration_ms,
-            0.0,
-        );
+        let hide_delay_duration_ms =
+            styles.get_number_or(ensogl_theme::application::tooltip::hide_delay_duration_ms, 0.0);
+        let show_delay_duration_ms =
+            styles.get_number_or(ensogl_theme::application::tooltip::show_delay_duration_ms, 0.0);
 
-        let hysteretic_transition = HystereticAnimation::new(
-            network,
-            hide_delay_duration_ms,
-            show_delay_duration_ms,
-        );
+        let hysteretic_transition =
+            HystereticAnimation::new(network, hide_delay_duration_ms, show_delay_duration_ms);
 
         frp::extend! { network
 

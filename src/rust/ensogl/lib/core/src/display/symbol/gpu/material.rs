@@ -5,6 +5,8 @@ use crate::prelude::*;
 use crate::display::symbol::shader::builder::CodeTemplate;
 use crate::system::gpu::types::*;
 
+
+
 // ===============
 // === VarDecl ===
 // ===============
@@ -36,6 +38,8 @@ impl<T: PhantomInto<glsl::PrimType> + TryInto<Glsl>> From<T> for VarDecl {
     }
 }
 
+
+
 // ================
 // === Material ===
 // ================
@@ -46,8 +50,8 @@ impl<T: PhantomInto<glsl::PrimType> + TryInto<Glsl>> From<T> for VarDecl {
 #[shrinkwrap(unsafe_ignore_visibility)]
 pub struct Material {
     #[shrinkwrap(main_field)]
-    code: CodeTemplate,
-    inputs: BTreeMap<String, VarDecl>,
+    code:    CodeTemplate,
+    inputs:  BTreeMap<String, VarDecl>,
     outputs: BTreeMap<String, VarDecl>,
 }
 
@@ -87,6 +91,7 @@ impl From<&Material> for Material {
     }
 }
 
+
 // === Getters ===
 
 impl Material {
@@ -105,6 +110,7 @@ impl Material {
         &self.outputs
     }
 }
+
 
 // === Setters ===
 

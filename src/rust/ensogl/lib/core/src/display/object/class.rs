@@ -17,6 +17,8 @@ use nalgebra::Matrix4;
 use nalgebra::Vector3;
 use transform::CachedTransform;
 
+
+
 // ==================
 // === ParentBind ===
 // ==================
@@ -29,7 +31,7 @@ use transform::CachedTransform;
 #[allow(missing_docs)]
 pub struct ParentBind<Host> {
     pub parent: WeakInstance<Host>,
-    pub index: usize,
+    pub index:  usize,
 }
 
 impl<Host> ParentBind<Host> {
@@ -40,10 +42,11 @@ impl<Host> ParentBind<Host> {
 
 impl<Host> Drop for ParentBind<Host> {
     fn drop(&mut self) {
-        self.parent()
-            .for_each(|p| p.remove_child_by_index(self.index));
+        self.parent().for_each(|p| p.remove_child_by_index(self.index));
     }
 }
+
+
 
 // =================
 // === Callbacks ===
@@ -58,11 +61,10 @@ impl<Host> Drop for ParentBind<Host> {
 #[derivative(Default(bound = ""))]
 #[allow(clippy::type_complexity)]
 pub struct Callbacks<Host> {
-    on_updated: RefCell<Option<Box<dyn Fn(&Model<Host>)>>>,
-    on_show: RefCell<Option<Box<dyn Fn(&Host, &[WeakLayer])>>>,
-    on_hide: RefCell<Option<Box<dyn Fn(&Host)>>>,
-    on_scene_layers_changed:
-        RefCell<Option<Box<dyn Fn(&Host, &[WeakLayer], &[WeakLayer])>>>,
+    on_updated:              RefCell<Option<Box<dyn Fn(&Model<Host>)>>>,
+    on_show:                 RefCell<Option<Box<dyn Fn(&Host, &[WeakLayer])>>>,
+    on_hide:                 RefCell<Option<Box<dyn Fn(&Host)>>>,
+    on_scene_layers_changed: RefCell<Option<Box<dyn Fn(&Host, &[WeakLayer], &[WeakLayer])>>>,
 }
 
 impl<Host> Callbacks<Host> {
@@ -102,6 +104,8 @@ impl<Host> Debug for Callbacks<Host> {
     }
 }
 
+
+
 // ==================
 // === DirtyFlags ===
 // ==================
@@ -110,10 +114,10 @@ impl<Host> Debug for Callbacks<Host> {
 
 type NewParentDirty = dirty::SharedBool<()>;
 type ChildrenDirty = dirty::SharedSet<usize, OnDirtyCallback>;
-type RemovedChildren<Host> =
-    dirty::SharedVector<WeakInstance<Host>, OnDirtyCallback>;
+type RemovedChildren<Host> = dirty::SharedVector<WeakInstance<Host>, OnDirtyCallback>;
 type TransformDirty = dirty::SharedBool<OnDirtyCallback>;
 type SceneLayerDirty = dirty::SharedBool<OnDirtyCallback>;
+
 
 // === Definition ===
 
@@ -125,13 +129,13 @@ type SceneLayerDirty = dirty::SharedBool<OnDirtyCallback>;
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
 pub struct DirtyFlags<Host> {
-    parent: NewParentDirty,
-    children: ChildrenDirty,
+    parent:           NewParentDirty,
+    children:         ChildrenDirty,
     removed_children: RemovedChildren<Host>,
-    transform: TransformDirty,
-    scene_layer: SceneLayerDirty,
+    transform:        TransformDirty,
+    scene_layer:      SceneLayerDirty,
     #[derivative(Debug = "ignore")]
-    on_dirty: Rc<RefCell<Box<dyn Fn()>>>,
+    on_dirty:         Rc<RefCell<Box<dyn Fn()>>>,
 }
 
 impl<Host> DirtyFlags<Host> {
@@ -142,26 +146,14 @@ impl<Host> DirtyFlags<Host> {
         let sub_logger = logger::WarningLogger::new_sub(&logger, "parent");
         let parent = NewParentDirty::new(sub_logger, ());
         let sub_logger = logger::WarningLogger::new_sub(&logger, "children");
-        let children =
-            ChildrenDirty::new(sub_logger, on_dirty_callback(&on_dirty));
-        let sub_logger =
-            logger::WarningLogger::new_sub(&logger, "removed_children");
-        let removed_children =
-            RemovedChildren::new(sub_logger, on_dirty_callback(&on_dirty));
+        let children = ChildrenDirty::new(sub_logger, on_dirty_callback(&on_dirty));
+        let sub_logger = logger::WarningLogger::new_sub(&logger, "removed_children");
+        let removed_children = RemovedChildren::new(sub_logger, on_dirty_callback(&on_dirty));
         let sub_logger = logger::WarningLogger::new_sub(&logger, "transform");
-        let transform =
-            TransformDirty::new(sub_logger, on_dirty_callback(&on_dirty));
+        let transform = TransformDirty::new(sub_logger, on_dirty_callback(&on_dirty));
         let sub_logger = logger::WarningLogger::new_sub(&logger, "scene_layer");
-        let scene_layer =
-            SceneLayerDirty::new(sub_logger, on_dirty_callback(&on_dirty));
-        Self {
-            parent,
-            children,
-            removed_children,
-            transform,
-            scene_layer,
-            on_dirty,
-        }
+        let scene_layer = SceneLayerDirty::new(sub_logger, on_dirty_callback(&on_dirty));
+        Self { parent, children, removed_children, transform, scene_layer, on_dirty }
     }
 
     fn set_on_dirty<F: 'static + Fn()>(&self, f: F) {
@@ -173,6 +165,7 @@ impl<Host> DirtyFlags<Host> {
     }
 }
 
+
 // === Callback ===
 
 type OnDirtyCallback = impl Fn();
@@ -180,6 +173,8 @@ fn on_dirty_callback(f: &Rc<RefCell<Box<dyn Fn()>>>) -> OnDirtyCallback {
     let f = f.clone();
     move || (f.borrow())()
 }
+
+
 
 // =============
 // === Model ===
@@ -206,19 +201,19 @@ fn on_dirty_callback(f: &Rc<RefCell<Box<dyn Fn()>>>) -> OnDirtyCallback {
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
 pub struct Model<Host = Scene> {
-    host: PhantomData<Host>,
+    host:            PhantomData<Host>,
     /// Layers the object was explicitly assigned to.
     assigned_layers: RefCell<Vec<WeakLayer>>,
     /// Layers where the object is displayed. May be same as assigned layers, or inherited by
     /// parent.
-    layers: RefCell<Vec<WeakLayer>>,
-    dirty: DirtyFlags<Host>,
-    callbacks: Callbacks<Host>,
-    parent_bind: RefCell<Option<ParentBind<Host>>>,
-    children: RefCell<OptVec<WeakInstance<Host>>>,
-    transform: RefCell<CachedTransform>,
-    visible: Cell<bool>,
-    logger: Logger,
+    layers:          RefCell<Vec<WeakLayer>>,
+    dirty:           DirtyFlags<Host>,
+    callbacks:       Callbacks<Host>,
+    parent_bind:     RefCell<Option<ParentBind<Host>>>,
+    children:        RefCell<OptVec<WeakInstance<Host>>>,
+    transform:       RefCell<CachedTransform>,
+    visible:         Cell<bool>,
+    logger:          Logger,
 }
 
 impl<Host> Model<Host> {
@@ -285,9 +280,7 @@ impl<Host> Model<Host> {
     /// Removes child by a given index. Does nothing if the index was incorrect.
     fn remove_child_by_index(&self, index: usize) {
         self.children.borrow_mut().remove(index).for_each(|child| {
-            child
-                .upgrade()
-                .for_each(|child| child.unsafe_unset_parent_without_update());
+            child.upgrade().for_each(|child| child.unsafe_unset_parent_without_update());
             self.dirty.children.unset(&index);
             self.dirty.removed_children.set(child);
         });
@@ -300,6 +293,7 @@ impl<Host> Model<Host> {
         self.dirty.parent.set();
     }
 }
+
 
 // === Update API ===
 
@@ -344,91 +338,70 @@ impl<Host> Model<Host> {
         });
         if let Some(new_layers) = new_layers_opt {
             debug!(self.logger, "Scene layers changed.", || {
-                let old_layers = mem::replace(
-                    &mut *self.layers.borrow_mut(),
-                    new_layers.to_vec(),
-                );
-                self.callbacks.on_scene_layers_changed(
-                    host,
-                    &old_layers,
-                    new_layers,
-                );
+                let old_layers = mem::replace(&mut *self.layers.borrow_mut(), new_layers.to_vec());
+                self.callbacks.on_scene_layers_changed(host, &old_layers, new_layers);
             });
         }
 
         let current_layers = self.layers.borrow();
         let new_layers = new_layers_opt.unwrap_or(&*current_layers);
 
+
         // === Origin & Visibility Update ===
 
         self.update_visibility(host, parent_layers);
-        let is_origin_dirty =
-            has_new_parent || parent_origin_changed || layers_changed;
+        let is_origin_dirty = has_new_parent || parent_origin_changed || layers_changed;
         let new_parent_origin = is_origin_dirty.as_some(parent_origin);
-        let parent_origin_label = if new_parent_origin.is_some() {
-            "new"
-        } else {
-            "old"
-        };
-        debug!(
-            self.logger,
-            "Update with {parent_origin_label} parent origin.",
-            || {
-                let origin_changed =
-                    self.transform.borrow_mut().update(new_parent_origin);
-                let new_origin = self.transform.borrow().matrix;
-                if origin_changed || layers_changed {
-                    if origin_changed {
-                        info!(self.logger, "Self origin changed.");
-                    } else {
-                        info!(self.logger, "Self origin did not change, but the layers changed");
-                    }
-                    self.callbacks.on_updated(self);
-                    if !self.children.borrow().is_empty() {
-                        debug!(self.logger, "Updating all children.", || {
-                            self.children.borrow().iter().for_each(
-                                |weak_child| {
-                                    weak_child.upgrade().for_each(|child| {
-                                        child.update_with_origin(
-                                            host,
-                                            new_origin,
-                                            true,
-                                            layers_changed,
-                                            new_layers,
-                                        )
-                                    });
-                                },
-                            );
-                        })
-                    }
+        let parent_origin_label = if new_parent_origin.is_some() { "new" } else { "old" };
+        debug!(self.logger, "Update with {parent_origin_label} parent origin.", || {
+            let origin_changed = self.transform.borrow_mut().update(new_parent_origin);
+            let new_origin = self.transform.borrow().matrix;
+            if origin_changed || layers_changed {
+                if origin_changed {
+                    info!(self.logger, "Self origin changed.");
                 } else {
-                    info!(
-                        self.logger,
-                        "Self origin and layers did not change."
-                    );
-                    if self.dirty.children.check_all() {
-                        debug!(self.logger, "Updating dirty children.", || {
-                            self.dirty.children.take().iter().for_each(|ix| {
-                                self.children
-                                    .borrow()
-                                    .safe_index(*ix)
-                                    .and_then(|t| t.upgrade())
-                                    .for_each(|child| {
-                                        child.update_with_origin(
-                                            host,
-                                            new_origin,
-                                            false,
-                                            layers_changed,
-                                            new_layers,
-                                        )
-                                    })
-                            });
-                        })
-                    }
+                    info!(self.logger, "Self origin did not change, but the layers changed");
                 }
-                self.dirty.children.unset_all();
+                self.callbacks.on_updated(self);
+                if !self.children.borrow().is_empty() {
+                    debug!(self.logger, "Updating all children.", || {
+                        self.children.borrow().iter().for_each(|weak_child| {
+                            weak_child.upgrade().for_each(|child| {
+                                child.update_with_origin(
+                                    host,
+                                    new_origin,
+                                    true,
+                                    layers_changed,
+                                    new_layers,
+                                )
+                            });
+                        });
+                    })
+                }
+            } else {
+                info!(self.logger, "Self origin and layers did not change.");
+                if self.dirty.children.check_all() {
+                    debug!(self.logger, "Updating dirty children.", || {
+                        self.dirty.children.take().iter().for_each(|ix| {
+                            self.children
+                                .borrow()
+                                .safe_index(*ix)
+                                .and_then(|t| t.upgrade())
+                                .for_each(|child| {
+                                    child.update_with_origin(
+                                        host,
+                                        new_origin,
+                                        false,
+                                        layers_changed,
+                                        new_layers,
+                                    )
+                                })
+                        });
+                    })
+                }
             }
-        );
+            self.dirty.children.unset_all();
+        });
         self.dirty.transform.unset();
         self.dirty.parent.unset();
     }
@@ -454,10 +427,7 @@ impl<Host> Model<Host> {
                         // should be visible after the entire update. Therefore, we must ensure that
                         // "removed children" lists in its subtree will be managed.
                         // See also test `visibility_test3`.
-                        child
-                            .take_removed_children_and_update_their_visibility(
-                                host,
-                            );
+                        child.take_removed_children_and_update_their_visibility(host);
                     }
                 }
             })
@@ -494,14 +464,12 @@ impl<Host> Model<Host> {
     }
 }
 
+
 // === Register / Unregister ===
 
 impl<Host> Model<Host> {
     fn register_child<T: Object<Host>>(&self, child: &T) -> usize {
-        let index = self
-            .children
-            .borrow_mut()
-            .insert(child.weak_display_object());
+        let index = self.children.borrow_mut().insert(child.weak_display_object());
         self.dirty.children.set(index);
         index
     }
@@ -524,6 +492,7 @@ impl<Host> Model<Host> {
         }
     }
 }
+
 
 // === Getters ===
 
@@ -554,13 +523,12 @@ impl<Host> Model<Host> {
     }
 }
 
+
 // === Setters ===
 
 impl<Host> Model<Host> {
     fn with_mut_borrowed_transform<F, T>(&self, f: F) -> T
-    where
-        F: FnOnce(&mut CachedTransform) -> T,
-    {
+    where F: FnOnce(&mut CachedTransform) -> T {
         self.dirty.transform.set();
         f(&mut self.transform.borrow_mut())
     }
@@ -592,27 +560,21 @@ impl<Host> Model<Host> {
     /// Sets a callback which will be called with a reference to the display object when the object
     /// will be updated.
     pub fn set_on_updated<F>(&self, f: F)
-    where
-        F: Fn(&Model<Host>) + 'static,
-    {
+    where F: Fn(&Model<Host>) + 'static {
         self.callbacks.on_updated.set(Box::new(f))
     }
 
     /// Sets a callback which will be called with a reference to scene when the object will be
     /// shown (attached to visible display object graph).
     pub fn set_on_show<F>(&self, f: F)
-    where
-        F: Fn(&Host, &[WeakLayer]) + 'static,
-    {
+    where F: Fn(&Host, &[WeakLayer]) + 'static {
         self.callbacks.on_show.set(Box::new(f))
     }
 
     /// Sets a callback which will be called with a reference to scene when the object will be
     /// hidden (detached from display object graph).
     pub fn set_on_hide<F>(&self, f: F)
-    where
-        F: Fn(&Host) + 'static,
-    {
+    where F: Fn(&Host) + 'static {
         self.callbacks.on_hide.set(Box::new(f))
     }
 
@@ -620,12 +582,12 @@ impl<Host> Model<Host> {
     /// will be provided with a reference to scene and two lists of layers this object was
     /// previously and is currently attached to .
     pub fn set_on_scene_layer_changed<F>(&self, f: F)
-    where
-        F: Fn(&Host, &[WeakLayer], &[WeakLayer]) + 'static,
-    {
+    where F: Fn(&Host, &[WeakLayer], &[WeakLayer]) + 'static {
         self.callbacks.on_scene_layers_changed.set(Box::new(f))
     }
 }
+
+
 
 // ==========
 // === Id ===
@@ -633,21 +595,11 @@ impl<Host> Model<Host> {
 
 /// Globally unique identifier of a display object.
 #[derive(
-    Clone,
-    CloneRef,
-    Copy,
-    Debug,
-    Default,
-    Display,
-    Eq,
-    From,
-    Hash,
-    Into,
-    PartialEq,
-    Ord,
-    PartialOrd,
+    Clone, CloneRef, Copy, Debug, Default, Display, Eq, From, Hash, Into, PartialEq, Ord, PartialOrd,
 )]
 pub struct Id(usize);
+
+
 
 // ================
 // === Instance ===
@@ -700,9 +652,7 @@ impl<Host> Deref for Instance<Host> {
 impl<Host> Instance<Host> {
     /// Constructor.
     pub fn new(logger: impl AnyLogger) -> Self {
-        Self {
-            rc: Rc::new(Model::new(logger)),
-        }
+        Self { rc: Rc::new(Model::new(logger)) }
     }
 
     /// Create a new weak pointer to this display object instance.
@@ -711,6 +661,7 @@ impl<Host> Instance<Host> {
         WeakInstance { weak }
     }
 }
+
 
 // === Public API ==
 
@@ -766,10 +717,7 @@ impl<Host> Instance<Host> {
         child.unset_parent();
         let index = self.register_child(child);
         info!(self.rc.logger, "Child index is {index}.");
-        let parent_bind = ParentBind {
-            parent: self.downgrade(),
-            index,
-        };
+        let parent_bind = ParentBind { parent: self.downgrade(), index };
         child.set_parent_bind(parent_bind);
     }
 
@@ -815,6 +763,7 @@ impl<Host> Instance<Host> {
     }
 }
 
+
 // === Private API ===
 
 impl<Host> Instance<Host> {
@@ -823,14 +772,11 @@ impl<Host> Instance<Host> {
     }
 
     fn has_visible_parent(&self) -> bool {
-        let parent = self
-            .parent_bind
-            .borrow()
-            .as_ref()
-            .and_then(|b| b.parent.upgrade());
+        let parent = self.parent_bind.borrow().as_ref().and_then(|b| b.parent.upgrade());
         parent.map_or(false, |parent| parent.is_visible())
     }
 }
+
 
 // === Instances ===
 
@@ -851,6 +797,8 @@ impl<Host> Debug for Instance<Host> {
         write!(f, "DisplayObject({})", self.logger.path())
     }
 }
+
+
 
 // ====================
 // === WeakInstance ===
@@ -886,6 +834,8 @@ impl<Host> PartialEq for WeakInstance<Host> {
     }
 }
 
+
+
 // ==============
 // === Object ===
 // ==============
@@ -903,12 +853,8 @@ pub trait Object<Host = Scene> {
 
     /// See `Any` description.
     fn into_any(self) -> Any<Host>
-    where
-        Self: Sized + 'static,
-    {
-        Any {
-            wrapped: Rc::new(self),
-        }
+    where Self: Sized + 'static {
+        Any { wrapped: Rc::new(self) }
     }
 }
 
@@ -924,6 +870,8 @@ impl<Host, T: Object<Host>> Object<Host> for &T {
         t.display_object()
     }
 }
+
+
 
 // =================
 // === ObjectOps ===
@@ -981,6 +929,7 @@ pub trait ObjectOps<Host = Scene>: Object<Host> {
         self.display_object().rc.is_orphan()
     }
 
+
     // === Transform ===
 
     fn transform_matrix(&self) -> Matrix4<f32> {
@@ -990,6 +939,7 @@ pub trait ObjectOps<Host = Scene>: Object<Host> {
     fn global_position(&self) -> Vector3<f32> {
         self.display_object().rc.global_position()
     }
+
 
     // === Position ===
 
@@ -1062,6 +1012,7 @@ pub trait ObjectOps<Host = Scene>: Object<Host> {
         self.mod_position(|p| p.z = t)
     }
 
+
     // === Scale ===
 
     fn scale(&self) -> Vector3<f32> {
@@ -1132,6 +1083,7 @@ pub trait ObjectOps<Host = Scene>: Object<Host> {
     fn set_scale_z(&self, t: f32) {
         self.mod_scale(|p| p.z = t)
     }
+
 
     // === Rotation ===
 
@@ -1205,6 +1157,8 @@ pub trait ObjectOps<Host = Scene>: Object<Host> {
     }
 }
 
+
+
 // ==================
 // === Any Object ===
 // ==================
@@ -1221,9 +1175,7 @@ pub struct Any<Host = Scene> {
 
 impl<Host> Clone for Any<Host> {
     fn clone(&self) -> Self {
-        Self {
-            wrapped: self.wrapped.clone(),
-        }
+        Self { wrapped: self.wrapped.clone() }
     }
 }
 
@@ -1238,6 +1190,8 @@ impl<Host> Object<Host> for Any<Host> {
         self.wrapped.display_object()
     }
 }
+
+
 
 // =============
 // === Tests ===
@@ -1348,7 +1302,7 @@ mod tests {
     /// A utility to test display object instances' visibility.
     #[derive(Clone, CloneRef, Debug)]
     struct TestedNode {
-        node: Instance<()>,
+        node:         Instance<()>,
         show_counter: Rc<Cell<usize>>,
         hide_counter: Rc<Cell<usize>>,
     }
@@ -1373,11 +1327,7 @@ mod tests {
             let hide_counter = Rc::<Cell<usize>>::default();
             node.set_on_show(f__!(show_counter.set(show_counter.get() + 1)));
             node.set_on_hide(f_!(hide_counter.set(hide_counter.get() + 1)));
-            Self {
-                node,
-                show_counter,
-                hide_counter,
-            }
+            Self { node, show_counter, hide_counter }
         }
 
         fn reset_counters(&self) {
@@ -1399,10 +1349,7 @@ mod tests {
             self.reset_counters();
         }
 
-        fn check_if_visibility_did_not_changed(
-            &self,
-            expected_visibility: bool,
-        ) {
+        fn check_if_visibility_did_not_changed(&self, expected_visibility: bool) {
             assert_eq!(self.node.is_visible(), expected_visibility);
             assert_eq!(self.show_counter.get(), 0);
             assert_eq!(self.hide_counter.get(), 0);
@@ -1534,6 +1481,7 @@ mod tests {
         node4.check_if_still_hidden();
     }
 
+
     #[test]
     fn deep_hierarchy_test() {
         // === Init ===
@@ -1560,6 +1508,7 @@ mod tests {
         assert_eq!(node5.is_visible(), false);
         assert_eq!(node6.is_visible(), false);
 
+
         // === Init Update ===
 
         world.update(&());
@@ -1576,6 +1525,7 @@ mod tests {
         assert_eq!(node5.global_position(), Vector3::new(0.0, 0.0, 0.0));
         assert_eq!(node6.global_position(), Vector3::new(0.0, 0.0, 0.0));
 
+
         // === Position Modification  ===
 
         node3.mod_position(|t| t.x += 1.0);
@@ -1591,6 +1541,7 @@ mod tests {
         assert_eq!(node4.global_position(), Vector3::new(4.0, 0.0, 0.0));
         assert_eq!(node5.global_position(), Vector3::new(9.0, 0.0, 0.0));
         assert_eq!(node6.global_position(), Vector3::new(16.0, 0.0, 0.0));
+
 
         // === Visibility Modification  ===
 

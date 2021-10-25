@@ -4,6 +4,8 @@ use crate::prelude::*;
 
 use ensogl_text_msdf_sys::Msdf;
 
+
+
 // ====================
 // === MSDF Texture ===
 // ====================
@@ -50,9 +52,7 @@ impl Texture {
     /// Do operation on borrowed texture data. Panics, if inside `operation` the texture data will
     /// be borrowed again (e.g. by calling `with_borrowed_data`.
     pub fn with_borrowed_data<F, R>(&self, operation: F) -> R
-    where
-        F: FnOnce(&[u8]) -> R,
-    {
+    where F: FnOnce(&[u8]) -> R {
         let data = self.data.borrow();
         operation(&data)
     }
@@ -68,11 +68,12 @@ impl Texture {
         const UNSIGNED_BYTE_MIN: f32 = 0.0;
         const UNSIGNED_BYTE_MAX: f32 = 255.0;
         let scaled_to_byte = value * UNSIGNED_BYTE_MAX;
-        let clamped_to_byte =
-            scaled_to_byte.clamp(UNSIGNED_BYTE_MIN, UNSIGNED_BYTE_MAX);
+        let clamped_to_byte = scaled_to_byte.clamp(UNSIGNED_BYTE_MIN, UNSIGNED_BYTE_MAX);
         clamped_to_byte as u8
     }
 }
+
+
 
 // ==================================
 // === Msdf-sys Values Converting ===
@@ -107,6 +108,8 @@ pub fn convert_msdf_translation(msdf: &Msdf) -> Vector2<f32> {
     Vector2(x, y)
 }
 
+
+
 // =============
 // === Tests ===
 // =============
@@ -123,10 +126,7 @@ mod test {
         let msdf_values = &[-0.5, 0.0, 0.25, 0.5, 0.75, 1.0, 1.25];
         texture.extend_with_raw_data(msdf_values[..4].iter().cloned());
         texture.extend_with_raw_data(msdf_values[4..].iter().cloned());
-        assert_eq!(
-            [0, 0, 63, 127, 191, 255, 255],
-            texture.data.borrow().as_slice()
-        );
+        assert_eq!([0, 0, 63, 127, 191, 255, 255], texture.data.borrow().as_slice());
     }
 
     #[test]

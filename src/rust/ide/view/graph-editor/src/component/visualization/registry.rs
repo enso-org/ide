@@ -1,6 +1,6 @@
-//! The `Registry` provides a mechanism to store `visualization::Class`es for all available visualizations. It
-//! provides functionality to register new factories, as well as get suitable factories for
-//! a specific data type.
+//! The `Registry` provides a mechanism to store `visualization::Class`es for all available
+//! visualizations. It provides functionality to register new factories, as well as get suitable
+//! factories for a specific data type.
 
 use crate::prelude::*;
 
@@ -10,6 +10,8 @@ use crate::data::enso;
 
 use enso_prelude::CloneRef;
 
+
+
 // ================
 // === Registry ===
 // ================
@@ -18,10 +20,9 @@ use enso_prelude::CloneRef;
 #[derive(Clone, CloneRef, Debug)]
 #[allow(missing_docs)]
 pub struct Registry {
-    path_map:
-        Rc<RefCell<HashMap<visualization::Path, visualization::Definition>>>,
+    path_map: Rc<RefCell<HashMap<visualization::Path, visualization::Definition>>>,
     type_map: Rc<RefCell<HashMap<enso::Type, Vec<visualization::Definition>>>>,
-    logger: Logger,
+    logger:   Logger,
 }
 
 impl Registry {
@@ -30,11 +31,7 @@ impl Registry {
         let path_map = default();
         let type_map = default();
         let logger = Logger::new("Registry");
-        Registry {
-            path_map,
-            type_map,
-            logger,
-        }
+        Registry { path_map, type_map, logger }
     }
 
     /// Return a `Registry` pre-populated with default visualizations.
@@ -49,16 +46,9 @@ impl Registry {
         let class = class.into();
         let sig = &class.signature;
         for tp in sig.input_type.alternatives() {
-            self.type_map
-                .borrow_mut()
-                .entry(tp)
-                .or_default()
-                .push(class.clone_ref());
+            self.type_map.borrow_mut().entry(tp).or_default().push(class.clone_ref());
         }
-        self.path_map
-            .borrow_mut()
-            .entry(sig.path.clone())
-            .insert(class);
+        self.path_map.borrow_mut().entry(sig.path.clone()).insert(class);
     }
 
     /// Register a new `visualization::java_script::Definition`. If creating the class fails, it
@@ -71,17 +61,17 @@ impl Registry {
         match class {
             Ok(class) => self.add(class),
             Err(err) => {
-                warning!(&self.logger,"Failed to add visualization class to registry due to error: \
-                                       {err}")
+                warning!(
+                    &self.logger,
+                    "Failed to add visualization class to registry due to error: \
+                                       {err}"
+                )
             }
         };
     }
 
     /// Return all `visualization::Class`es that can create a visualization for the given datatype.
-    pub fn valid_sources(
-        &self,
-        tp: &enso::Type,
-    ) -> Vec<visualization::Definition> {
+    pub fn valid_sources(&self, tp: &enso::Type) -> Vec<visualization::Definition> {
         let type_map = self.type_map.borrow();
         let any_type = enso::Type::any();
         let mut result: Vec<visualization::Definition> =
@@ -111,27 +101,13 @@ impl Registry {
     /// Add default visualizations to the registry.
     pub fn add_default_visualizations(&self) {
         self.add(builtin::visualization::native::RawText::definition());
-        self.try_add_java_script(
-            builtin::visualization::java_script::scatter_plot_visualization(),
-        );
-        self.try_add_java_script(
-            builtin::visualization::java_script::histogram_visualization(),
-        );
-        self.try_add_java_script(
-            builtin::visualization::java_script::heatmap_visualization(),
-        );
-        self.try_add_java_script(
-            builtin::visualization::java_script::table_visualization(),
-        );
-        self.try_add_java_script(
-            builtin::visualization::java_script::sql_visualization(),
-        );
-        self.try_add_java_script(
-            builtin::visualization::java_script::geo_map_visualization(),
-        );
-        self.try_add_java_script(
-            builtin::visualization::java_script::image_base64_visualization(),
-        );
+        self.try_add_java_script(builtin::visualization::java_script::scatter_plot_visualization());
+        self.try_add_java_script(builtin::visualization::java_script::histogram_visualization());
+        self.try_add_java_script(builtin::visualization::java_script::heatmap_visualization());
+        self.try_add_java_script(builtin::visualization::java_script::table_visualization());
+        self.try_add_java_script(builtin::visualization::java_script::sql_visualization());
+        self.try_add_java_script(builtin::visualization::java_script::geo_map_visualization());
+        self.try_add_java_script(builtin::visualization::java_script::image_base64_visualization());
     }
 
     /// Return a default visualisation definition.

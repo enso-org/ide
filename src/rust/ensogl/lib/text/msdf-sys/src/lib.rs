@@ -18,6 +18,8 @@ use std::task::Poll;
 use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::JsValue;
 
+
+
 // ======================
 // === Initialization ===
 // ======================
@@ -26,9 +28,7 @@ use wasm_bindgen::JsValue;
 ///
 /// The callback passed as argument will be called once the msdfgen library is initialized.
 pub fn run_once_initialized<F>(callback: F)
-where
-    F: 'static + FnOnce(),
-{
+where F: 'static + FnOnce() {
     if is_emscripten_runtime_initialized() {
         callback()
     } else {
@@ -59,6 +59,8 @@ impl Future for MsdfgenJsInitialized {
         }
     }
 }
+
+
 
 // ============
 // === Font ===
@@ -92,12 +94,7 @@ impl Font {
         let param_types = js_sys::Array::of2(&array_type_js, &number_type_js);
         let params = js_sys::Array::of2(&data_js, &data_size_js);
 
-        let handle = emscripten_call_function(
-            function_name,
-            return_type,
-            param_types,
-            params,
-        );
+        let handle = emscripten_call_function(function_name, return_type, param_types, params);
         Font { handle }
     }
 
@@ -112,6 +109,8 @@ impl Font {
         Font { handle }
     }
 }
+
+
 
 // =====================================================
 // === Mutlichannel signed distance field generation ===
@@ -134,11 +133,11 @@ pub struct MsdfParameters {
 
 #[derive(Debug)]
 pub struct Msdf {
-    handle: JsValue,
-    pub advance: f64,
+    handle:          JsValue,
+    pub advance:     f64,
     pub translation: nalgebra::Vector2<f64>,
-    pub scale: nalgebra::Vector2<f64>,
-    pub data: ArrayMemoryView<f32>,
+    pub scale:       nalgebra::Vector2<f64>,
+    pub data:        ArrayMemoryView<f32>,
 }
 
 impl Drop for Msdf {
@@ -154,11 +153,7 @@ impl Msdf {
     ///
     /// For more information about MSDF see
     /// [https://github.com/Chlumsky/msdfgen].
-    pub fn generate(
-        font: &Font,
-        unicode: u32,
-        params: &MsdfParameters,
-    ) -> Msdf {
+    pub fn generate(font: &Font, unicode: u32, params: &MsdfParameters) -> Msdf {
         let handle = msdfgen_generate_msdf(
             params.width,
             params.height,
@@ -176,13 +171,7 @@ impl Msdf {
         let data_adress = msdfgen_result_get_msdf_data(handle.clone());
         let data_size = params.width * params.height * Self::CHANNELS_COUNT;
         let data = ArrayMemoryView::new(data_adress, data_size);
-        Msdf {
-            handle,
-            advance,
-            translation,
-            scale,
-            data,
-        }
+        Msdf { handle, advance, translation, scale, data }
     }
 
     const DIMENSIONS: usize = 2;
@@ -207,14 +196,16 @@ impl Msdf {
 
     pub fn mock_results() -> Msdf {
         Msdf {
-            handle: JsValue::from_f64(0.0),
-            advance: 0.0,
+            handle:      JsValue::from_f64(0.0),
+            advance:     0.0,
             translation: nalgebra::Vector2::new(0.0, 0.0),
-            scale: nalgebra::Vector2::new(1.0, 1.0),
-            data: ArrayMemoryView::empty(),
+            scale:       nalgebra::Vector2::new(1.0, 1.0),
+            data:        ArrayMemoryView::empty(),
         }
     }
 }
+
+
 
 // =============
 // === Tests ===
@@ -236,12 +227,8 @@ mod tests {
         initialized().await;
         // given
         let font_base = EmbeddedFonts::create_and_fill();
-        let font = Font::load_from_memory(
-            font_base
-                .font_data_by_name
-                .get("DejaVuSansMono-Bold")
-                .unwrap(),
-        );
+        let font =
+            Font::load_from_memory(font_base.font_data_by_name.get("DejaVuSansMono-Bold").unwrap());
         let params = MsdfParameters {
             width: 32,
             height: 32,

@@ -4,16 +4,15 @@ use crate::prelude::*;
 
 use crate::controller;
 
+
+
 // ==============
 // === Errors ===
 // ==============
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone, Eq, Fail, PartialEq)]
-#[fail(
-    display = "Cannot undo because there is an ongoing transaction '{}'.",
-    transaction_name
-)]
+#[fail(display = "Cannot undo because there is an ongoing transaction '{}'.", transaction_name)]
 pub struct CannotUndoDuringTransaction {
     transaction_name: String,
 }
@@ -38,6 +37,8 @@ pub struct NoFrameToPop(Stack);
 #[fail(display = "The module {} is not accessible.", _0)]
 pub struct MissingModuleHandle(model::module::Id);
 
+
+
 // ==============
 // === Traits ===
 // ==============
@@ -57,6 +58,8 @@ pub trait Aware {
     }
 }
 
+
+
 // ===================
 // === Transaction ===
 // ===================
@@ -69,18 +72,18 @@ pub trait Aware {
 pub struct Transaction {
     #[allow(missing_docs)]
     pub logger: Logger,
-    frame: RefCell<Frame>,
-    urm: Weak<Repository>,
-    ignored: Cell<bool>,
+    frame:      RefCell<Frame>,
+    urm:        Weak<Repository>,
+    ignored:    Cell<bool>,
 }
 
 impl Transaction {
     /// Create a new transaction, that will add to the given's repository undo stack on destruction.
     pub fn new(urm: &Rc<Repository>, name: String) -> Self {
         Self {
-            logger: Logger::new_sub(&urm.logger, "Transaction"),
-            frame: RefCell::new(Frame { name, ..default() }),
-            urm: Rc::downgrade(urm),
+            logger:  Logger::new_sub(&urm.logger, "Transaction"),
+            frame:   RefCell::new(Frame { name, ..default() }),
+            urm:     Rc::downgrade(urm),
             ignored: default(),
         }
     }
@@ -100,14 +103,13 @@ impl Transaction {
     /// This method stores content only once for given module. Thus it is safe to call this on
     /// the current transaction in context where it is not clear whether transaction was already set
     /// up or not.
-    pub fn fill_content(
-        &self,
-        id: model::module::Id,
-        content: model::module::Content,
-    ) {
+    pub fn fill_content(&self, id: model::module::Id, content: model::module::Content) {
         with(self.frame.borrow_mut(), |mut data| {
-            debug!(self.logger, "Filling transaction '{data.name}' with snapshot of module '{id}':\
-            \n{content}");
+            debug!(
+                self.logger,
+                "Filling transaction '{data.name}' with snapshot of module '{id}':\
+            \n{content}"
+            );
             if data.snapshots.try_insert(id, content).is_err() {
                 debug!(self.logger, "Skipping this snapshot, as module's state was already saved.")
             }
@@ -119,10 +121,7 @@ impl Transaction {
     /// Ignored transaction when dropped is discarded, rather than being put on top of "Redo" stack.
     /// It does not affect the actions belonging to transaction in any way.
     pub fn ignore(&self) {
-        debug!(
-            self.logger,
-            "Marking transaction '{self.frame.borrow().name}' as ignored."
-        );
+        debug!(self.logger, "Marking transaction '{self.frame.borrow().name}' as ignored.");
         self.ignored.set(true)
     }
 }
@@ -131,10 +130,7 @@ impl Drop for Transaction {
     fn drop(&mut self) {
         if let Some(urm) = self.urm.upgrade() {
             if !self.ignored.get() {
-                info!(
-                    self.logger,
-                    "Transaction '{self.name()}' will create a new frame."
-                );
+                info!(self.logger, "Transaction '{self.name()}' will create a new frame.");
                 urm.push_to(Stack::Undo, self.frame.borrow().clone());
                 urm.clear(Stack::Redo);
             } else {
@@ -148,6 +144,8 @@ impl Drop for Transaction {
     }
 }
 
+
+
 // =============
 // === Frame ===
 // =============
@@ -158,11 +156,11 @@ impl Drop for Transaction {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Frame {
     /// Name of the transaction that created this frame.
-    pub name: String,
+    pub name:      String,
     /// Context module where the change was made.
-    pub module: Option<model::module::Id>,
+    pub module:    Option<model::module::Id>,
     /// Context graph where the change was made.
-    pub graph: Option<controller::graph::Id>,
+    pub graph:     Option<controller::graph::Id>,
     /// Snapshots of content for all edited modules.
     pub snapshots: BTreeMap<model::module::Id, model::module::Content>,
 }
@@ -183,6 +181,8 @@ impl Display for Frame {
     }
 }
 
+
+
 // ==================
 // === Repository ===
 // ==================
@@ -199,9 +199,9 @@ pub enum Stack {
 #[derive(Debug, Default)]
 pub struct Data {
     /// Undo stack.
-    pub undo: Vec<Frame>,
+    pub undo:                Vec<Frame>,
     /// Redo stack.
-    pub redo: Vec<Frame>,
+    pub redo:                Vec<Frame>,
     /// Currently open transaction (if `Some` and alive).
     pub current_transaction: Option<Weak<Transaction>>,
 }
@@ -216,8 +216,9 @@ pub struct Data {
 #[derive(Debug)]
 pub struct Repository {
     logger: Logger,
-    data: RefCell<Data>,
+    data:   RefCell<Data>,
 }
+
 
 impl Default for Repository {
     fn default() -> Self {
@@ -228,19 +229,12 @@ impl Default for Repository {
 impl Repository {
     /// Create a new repository.
     pub fn new(parent: impl AnyLogger) -> Self {
-        Self {
-            logger: Logger::new_sub(parent, "Repository"),
-            data: default(),
-        }
+        Self { logger: Logger::new_sub(parent, "Repository"), data: default() }
     }
 
     /// Get the currently open transaction. [`None`] if there is none.
     pub fn current_transaction(&self) -> Option<Rc<Transaction>> {
-        self.data
-            .borrow()
-            .current_transaction
-            .as_ref()
-            .and_then(Weak::upgrade)
+        self.data.borrow().current_transaction.as_ref().and_then(Weak::upgrade)
     }
 
     /// Open a new transaction.
@@ -256,8 +250,7 @@ impl Repository {
             let name = name.into();
             debug!(self.logger, "Creating a new transaction `{name}`");
             let new_transaction = Rc::new(Transaction::new(self, name));
-            self.data.borrow_mut().current_transaction =
-                Some(Rc::downgrade(&new_transaction));
+            self.data.borrow_mut().current_transaction = Some(Rc::downgrade(&new_transaction));
             Ok(new_transaction)
         }
     }
@@ -280,11 +273,9 @@ impl Repository {
         transaction
     }
 
+
     /// Get currently opened transaction. If there is none, open a new one.
-    pub fn transaction(
-        self: &Rc<Self>,
-        name: impl Into<String>,
-    ) -> Rc<Transaction> {
+    pub fn transaction(self: &Rc<Self>, name: impl Into<String>) -> Rc<Transaction> {
         self.open_transaction(name).into_ok_or_err()
     }
 
@@ -329,17 +320,17 @@ impl Repository {
     ///
     /// Does *not* pop.
     pub fn last(&self, stack: Stack) -> FallibleResult<Frame> {
-        self.borrow(stack)
-            .last()
-            .cloned()
-            .ok_or_else(|| NoActionToUndo.into())
+        self.borrow(stack).last().cloned().ok_or_else(|| NoActionToUndo.into())
     }
 
     /// Pop the top frame from a given stack. [`Err`] if there are no frames to pop.
     fn pop(&self, stack: Stack) -> FallibleResult<Frame> {
         let frame = self.borrow_mut(stack).pop().ok_or(NoFrameToPop(stack))?;
-        debug!(self.logger, "Popping a frame from {stack}. Remaining length: {self.len(stack)}. \
-        Frame: {frame}");
+        debug!(
+            self.logger,
+            "Popping a frame from {stack}. Remaining length: {self.len(stack)}. \
+        Frame: {frame}"
+        );
         Ok(frame)
     }
 
@@ -349,6 +340,8 @@ impl Repository {
         self.borrow(stack).len()
     }
 }
+
+
 
 // ===============
 // === Manager ===
@@ -360,11 +353,11 @@ impl Repository {
 #[derive(Debug)]
 pub struct Manager {
     #[allow(missing_docs)]
-    pub logger: Logger,
+    pub logger:     Logger,
     /// Repository with undo and redo stacks.
     pub repository: Rc<Repository>,
     /// Currently available modules.
-    modules: RefCell<BTreeMap<model::module::Id, model::Module>>,
+    modules:        RefCell<BTreeMap<model::module::Id, model::Module>>,
 }
 
 impl Aware for Manager {
@@ -377,11 +370,7 @@ impl Manager {
     /// Create a new undo-redo manager.
     pub fn new(parent: impl AnyLogger) -> Self {
         let logger = Logger::new_sub(parent, "URM");
-        Self {
-            repository: Rc::new(Repository::new(&logger)),
-            modules: default(),
-            logger,
-        }
+        Self { repository: Rc::new(Repository::new(&logger)), modules: default(), logger }
     }
 
     /// Register a new opened module in the manager.
@@ -398,10 +387,7 @@ impl Manager {
 
     /// Undo last operation.
     pub fn undo(&self) -> FallibleResult {
-        debug!(
-            self.logger,
-            "Undo requested, stack size is {self.repository.len(Stack::Undo)}."
-        );
+        debug!(self.logger, "Undo requested, stack size is {self.repository.len(Stack::Undo)}.");
         let frame = self.repository.last(Stack::Undo)?;
 
         // Before applying undo we create a special transaction. The purpose it two-fold:
@@ -410,13 +396,12 @@ impl Manager {
         //    leading to a situation when undoing would re-add itself onto the undo stack.
         // We mark transaction as ignored right after creating, as it is never intended to create a
         // new undo frame. Instead, frame will be pushed to the redo stack manually.
-        let undo_transaction = self
-            .repository
-            .open_transaction("Undo faux transaction")
-            .map_err(|ongoing_transaction| {
+        let undo_transaction = self.repository.open_transaction("Undo faux transaction").map_err(
+            |ongoing_transaction| {
                 let transaction_name = ongoing_transaction.name();
                 CannotUndoDuringTransaction { transaction_name }
-            })?;
+            },
+        )?;
         undo_transaction.ignore();
         self.reset_to(&frame)?;
         let popped = self.repository.pop(Stack::Undo);
@@ -429,30 +414,19 @@ impl Manager {
             debug_assert!(false, "Undone frame mismatch!");
         }
 
-        let undo_transaction = Rc::try_unwrap(undo_transaction)
-            .map_err(|_| FauxTransactionLeaked)?;
-        self.repository
-            .data
-            .borrow_mut()
-            .redo
-            .push(undo_transaction.frame.borrow().clone());
+        let undo_transaction =
+            Rc::try_unwrap(undo_transaction).map_err(|_| FauxTransactionLeaked)?;
+        self.repository.data.borrow_mut().redo.push(undo_transaction.frame.borrow().clone());
         Ok(())
     }
 
     /// Redo the last undone operation.
     pub fn redo(&self) -> FallibleResult {
-        let frame = self
-            .repository
-            .data
-            .borrow_mut()
-            .redo
-            .pop()
-            .ok_or(NoActionToUndo)?;
+        let frame = self.repository.data.borrow_mut().redo.pop().ok_or(NoActionToUndo)?;
         let redo_transaction = self.get_or_open_transaction(&frame.name);
         redo_transaction.ignore();
         self.reset_to(&frame)?;
-        self.repository
-            .push_to(Stack::Undo, redo_transaction.frame.borrow().clone());
+        self.repository.push_to(Stack::Undo, redo_transaction.frame.borrow().clone());
         Ok(())
     }
 
@@ -498,9 +472,7 @@ mod tests {
     use span_tree::SpanTree;
 
     fn check_atomic_undo(fixture: &Fixture, action: impl FnOnce()) {
-        let Fixture {
-            project, module, ..
-        } = &fixture;
+        let Fixture { project, module, .. } = &fixture;
         let urm = project.urm();
 
         assert_eq!(urm.repository.len(Stack::Undo), 0);
@@ -526,10 +498,7 @@ mod tests {
         assert_eq!(urm.repository.len(Stack::Redo), 0);
     }
 
-    fn check_atomic_graph_action(
-        code: &str,
-        action: impl FnOnce(&controller::graph::Handle),
-    ) {
+    fn check_atomic_graph_action(code: &str, action: impl FnOnce(&controller::graph::Handle)) {
         let mut data = Unified::new();
         data.set_code(code);
 
@@ -551,9 +520,7 @@ main =
         check_atomic_graph_action(code, |graph| {
             let nodes = graph.nodes().unwrap();
             assert_eq!(nodes.len(), 4);
-            graph
-                .collapse(vec![nodes[1].id(), nodes[2].id()], "extracted")
-                .unwrap();
+            graph.collapse(vec![nodes[1].id(), nodes[2].id()], "extracted").unwrap();
         });
     }
 
@@ -574,27 +541,18 @@ main =
             assert_eq!(sum_node.expression().to_string(), "2 + 2");
             assert_eq!(product_node.expression().to_string(), "5 * 5");
 
-            let sum_tree =
-                SpanTree::<()>::new(sum_node.expression(), graph).unwrap();
-            let sum_input = sum_tree
-                .root_ref()
-                .leaf_iter()
-                .find(|n| n.is_argument())
-                .unwrap()
-                .crumbs;
+            let sum_tree = SpanTree::<()>::new(sum_node.expression(), graph).unwrap();
+            let sum_input =
+                sum_tree.root_ref().leaf_iter().find(|n| n.is_argument()).unwrap().crumbs;
             let connection = controller::graph::Connection {
-                source: controller::graph::Endpoint::new(product_node.id(), []),
-                destination: controller::graph::Endpoint::new(
-                    sum_node.id(),
-                    sum_input,
-                ),
+                source:      controller::graph::Endpoint::new(product_node.id(), []),
+                destination: controller::graph::Endpoint::new(sum_node.id(), sum_input),
             };
 
-            graph
-                .connect(&connection, &span_tree::generate::context::Empty)
-                .unwrap();
+            graph.connect(&connection, &span_tree::generate::context::Empty).unwrap();
         });
     }
+
 
     // Check that node position is properly updated.
     #[wasm_bindgen_test]
@@ -602,13 +560,7 @@ main =
         use model::module::Position;
 
         let mut fixture = crate::test::mock::Unified::new().fixture();
-        let Fixture {
-            executed_graph,
-            graph,
-            project,
-            logger,
-            ..
-        } = &mut fixture;
+        let Fixture { executed_graph, graph, project, logger, .. } = &mut fixture;
         let logger: &Logger = logger;
 
         let urm = project.urm();
@@ -638,12 +590,7 @@ main =
         use crate::test::mock::Fixture;
         // Setup the controller.
         let mut fixture = crate::test::mock::Unified::new().fixture();
-        let Fixture {
-            executed_graph,
-            project,
-            module,
-            ..
-        } = &mut fixture;
+        let Fixture { executed_graph, project, module, .. } = &mut fixture;
 
         let urm = project.urm();
         let nodes = executed_graph.graph().nodes().unwrap();
@@ -654,10 +601,7 @@ main =
         assert_eq!(module.ast().to_string(), "main = \n    2 + 2");
 
         // Perform an action.
-        executed_graph
-            .graph()
-            .set_expression(node.info.id(), "5 * 20")
-            .unwrap();
+        executed_graph.graph().set_expression(node.info.id(), "5 * 20").unwrap();
 
         // We can undo action.
         assert_eq!(urm.repository.len(Stack::Undo), 1);
@@ -679,10 +623,7 @@ main =
         assert_eq!(module.ast().to_string(), "main = \n    2 + 2");
 
         //We cannot redo after edit has been made.
-        executed_graph
-            .graph()
-            .set_expression(node.info.id(), "4 * 20")
-            .unwrap();
+        executed_graph.graph().set_expression(node.info.id(), "4 * 20").unwrap();
         assert!(urm.redo().is_err());
     }
 }

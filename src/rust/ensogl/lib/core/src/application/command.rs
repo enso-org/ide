@@ -8,6 +8,8 @@ use crate::application::shortcut;
 use crate::application::shortcut::Shortcut;
 use crate::application::Application;
 
+
+
 // ============
 // === View ===
 // ============
@@ -39,11 +41,7 @@ pub trait View: FrpNetworkProvider + DerefToCommandApi {
         pattern: impl Into<String>,
         command: impl Into<shortcut::Command>,
     ) -> Shortcut {
-        Shortcut::new(
-            shortcut::Rule::new(action_type, pattern),
-            Self::label(),
-            command,
-        )
+        Shortcut::new(shortcut::Rule::new(action_type, pattern), Self::label(), command)
     }
 
     /// Add a new shortcut targeting the self object.
@@ -63,17 +61,13 @@ pub trait View: FrpNetworkProvider + DerefToCommandApi {
 
     /// Disable the command in this component instance.
     fn disable_command(&self, name: impl AsRef<str>)
-    where
-        Self: Sized,
-    {
+    where Self: Sized {
         self.app().commands.disable_command(self, name)
     }
 
     /// Enable the command in this component instance.
     fn enable_command(&self, name: impl AsRef<str>)
-    where
-        Self: Sized,
-    {
+    where Self: Sized {
         self.app().commands.enable_command(self, name)
     }
 }
@@ -84,6 +78,8 @@ pub trait FrpNetworkProvider {
     fn network(&self) -> &frp::Network;
 }
 
+
+
 // ===============
 // === Command ===
 // ===============
@@ -93,7 +89,7 @@ pub trait FrpNetworkProvider {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct Command {
-    pub frp: frp::Any,
+    pub frp:     frp::Any,
     pub enabled: bool,
 }
 
@@ -112,6 +108,8 @@ impl Command {
     }
 }
 
+
+
 // ==================
 // === CommandApi ===
 // ==================
@@ -128,6 +126,8 @@ pub trait CommandApi: Sized {
     }
 }
 
+
+
 // ========================
 // === ProviderInstance ===
 // ========================
@@ -137,9 +137,9 @@ pub trait CommandApi: Sized {
 #[derive(Clone, CloneRef, Debug)]
 #[allow(missing_docs)]
 pub struct ProviderInstance {
-    pub network: frp::WeakNetwork,
+    pub network:     frp::WeakNetwork,
     pub command_map: Rc<RefCell<HashMap<String, Command>>>,
-    pub status_map: Rc<RefCell<HashMap<String, frp::Sampler<bool>>>>,
+    pub status_map:  Rc<RefCell<HashMap<String, frp::Sampler<bool>>>>,
 }
 
 impl ProviderInstance {
@@ -154,6 +154,8 @@ impl ProviderInstance {
     }
 }
 
+
+
 // ================
 // === Registry ===
 // ================
@@ -163,9 +165,9 @@ impl ProviderInstance {
 #[derive(Debug, Clone, CloneRef)]
 #[allow(missing_docs)]
 pub struct Registry {
-    pub logger: Logger,
+    pub logger:   Logger,
     pub name_map: Rc<RefCell<HashMap<String, Vec<ProviderInstance>>>>,
-    pub id_map: Rc<RefCell<HashMap<frp::NetworkId, ProviderInstance>>>,
+    pub id_map:   Rc<RefCell<HashMap<frp::NetworkId, ProviderInstance>>>,
 }
 
 impl Registry {
@@ -174,11 +176,7 @@ impl Registry {
         let logger = Logger::new_sub(logger, "views");
         let name_map = default();
         let id_map = default();
-        Self {
-            logger,
-            name_map,
-            id_map,
-        }
+        Self { logger, name_map, id_map }
     }
 
     /// Registers a gui component as a command provider.
@@ -198,25 +196,19 @@ impl Registry {
         let network = T::network(target).downgrade();
         let command_map = target.deref().command_api();
         let status_map = target.deref().status_api();
-        let instance = ProviderInstance {
-            network,
-            command_map,
-            status_map,
-        };
+        let instance = ProviderInstance { network, command_map, status_map };
         let was_registered = self.name_map.borrow().get(label).is_some();
         if !was_registered {
             self.register::<T>();
-            warning!(&self.logger,
+            warning!(
+                &self.logger,
                 "The command provider '{label}' was created but never registered. You should \
                 always register available command providers as soon as possible to spread the \
-                information about their API.");
+                information about their API."
+            );
         };
         let id = instance.id();
-        self.name_map
-            .borrow_mut()
-            .get_mut(label)
-            .unwrap()
-            .push(instance.clone_ref());
+        self.name_map.borrow_mut().get_mut(label).unwrap().push(instance.clone_ref());
         self.id_map.borrow_mut().insert(id, instance);
     }
 
@@ -231,19 +223,11 @@ impl Registry {
         let name = name.as_ref();
         let id = T::network(target).id();
         match self.id_map.borrow_mut().get(&id) {
-            None => warning!(
-                &self.logger,
-                "The provided component ID is invalid {id}."
-            ),
-            Some(instance) => {
-                match instance.command_map.borrow_mut().get_mut(name) {
-                    None => warning!(
-                        &self.logger,
-                        "The command name {name} is invalid."
-                    ),
-                    Some(command) => f(command),
-                }
-            }
+            None => warning!(&self.logger, "The provided component ID is invalid {id}."),
+            Some(instance) => match instance.command_map.borrow_mut().get_mut(name) {
+                None => warning!(&self.logger, "The command name {name} is invalid."),
+                Some(command) => f(command),
+            },
         }
     }
 

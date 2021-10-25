@@ -4,6 +4,8 @@
 
 use crate::component::visualization;
 
+
+
 ///////////////////////////////////////
 // JavaScript builtin visualizations //
 ///////////////////////////////////////
@@ -29,8 +31,7 @@ pub fn sql_visualization() -> visualization::java_script::FallibleDefinition {
 }
 
 /// Return a `JavaScript` Scatter plot visualization.
-pub fn scatter_plot_visualization(
-) -> visualization::java_script::FallibleDefinition {
+pub fn scatter_plot_visualization() -> visualization::java_script::FallibleDefinition {
     let loading_scripts = include_str!("java_script/helpers/loading.js");
     let number = include_str!("java_script/helpers/number.js");
     let source = include_str!("java_script/scatterPlot.js");
@@ -40,8 +41,7 @@ pub fn scatter_plot_visualization(
 }
 
 /// Return a `JavaScript` Histogram visualization.
-pub fn histogram_visualization(
-) -> visualization::java_script::FallibleDefinition {
+pub fn histogram_visualization() -> visualization::java_script::FallibleDefinition {
     let loading_scripts = include_str!("java_script/helpers/loading.js");
     let number = include_str!("java_script/helpers/number.js");
     let source = include_str!("java_script/histogram.js");
@@ -51,8 +51,7 @@ pub fn histogram_visualization(
 }
 
 /// Return a `JavaScript` Heatmap visualization.
-pub fn heatmap_visualization() -> visualization::java_script::FallibleDefinition
-{
+pub fn heatmap_visualization() -> visualization::java_script::FallibleDefinition {
     let loading_scripts = include_str!("java_script/helpers/loading.js");
     let number = include_str!("java_script/helpers/number.js");
     let source = include_str!("java_script/heatmap.js");
@@ -62,8 +61,7 @@ pub fn heatmap_visualization() -> visualization::java_script::FallibleDefinition
 }
 
 /// Return a `JavaScript` Map visualization.
-pub fn geo_map_visualization() -> visualization::java_script::FallibleDefinition
-{
+pub fn geo_map_visualization() -> visualization::java_script::FallibleDefinition {
     let loading_scripts = include_str!("java_script/helpers/loading.js");
     let number = include_str!("java_script/helpers/number.js");
     let source = include_str!("java_script/geoMap.js");
@@ -72,17 +70,16 @@ pub fn geo_map_visualization() -> visualization::java_script::FallibleDefinition
     visualization::java_script::Definition::new_builtin(source)
 }
 
-/// Return a `JavaScript` Bubble visualization. This should not be used as it is a demo visualization.
-pub fn bubble_visualization() -> visualization::java_script::FallibleDefinition
-{
+/// Return a `JavaScript` Bubble visualization. This should not be used as it is a demo
+/// visualization.
+pub fn bubble_visualization() -> visualization::java_script::FallibleDefinition {
     let source = include_str!("java_script/bubbleVisualization.js");
 
     visualization::java_script::Definition::new_builtin(source)
 }
 
 /// Return a `JavaScript` Image visualization.
-pub fn image_base64_visualization(
-) -> visualization::java_script::FallibleDefinition {
+pub fn image_base64_visualization() -> visualization::java_script::FallibleDefinition {
     let loading_scripts = include_str!("java_script/helpers/loading.js");
     let source = include_str!("java_script/imageBase64.js");
     let source = format!("{}{}", loading_scripts, source);

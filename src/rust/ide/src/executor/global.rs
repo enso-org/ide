@@ -20,6 +20,7 @@
 //! executors, futures, tasks please refer to
 //! https://rust-lang.github.io/async-book/
 
+
 use crate::prelude::*;
 
 use futures::task::LocalSpawn;
@@ -54,8 +55,8 @@ pub fn spawn(f: impl Future<Output = ()> + 'static) {
         let error_msg = "No global executor has been provided.";
         // Note [Global Executor Safety]
         let mut borrowed = spawner.borrow_mut();
-        let unwrapped    = borrowed.as_mut().expect(error_msg);
-        let error_msg    = "Failed to spawn the task. Global executor might have been dropped.";
+        let unwrapped = borrowed.as_mut().expect(error_msg);
+        let error_msg = "Failed to spawn the task. Global executor might have been dropped.";
         unwrapped.spawn_local(f).expect(error_msg);
     });
 }
@@ -72,8 +73,7 @@ pub fn spawn_stream_handler<Weak, Stream, Function, Ret>(
     Function: FnMut(Stream::Item, Weak::Strong) -> Ret + 'static,
     Ret: Future<Output = ()> + 'static,
 {
-    let handler =
-        utils::channel::process_stream_with_handle(stream, weak, handler);
+    let handler = utils::channel::process_stream_with_handle(stream, weak, handler);
     spawn(handler);
 }
 

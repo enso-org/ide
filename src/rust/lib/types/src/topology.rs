@@ -3,6 +3,8 @@
 
 use crate::algebra::*;
 
+
+
 // =============
 // === Units ===
 // =============
@@ -10,6 +12,7 @@ use crate::algebra::*;
 crate::unit!(Pixels::pixels(f32));
 crate::unit!(Degrees::degrees(f32));
 crate::unit!(Radians::radians(f32));
+
 
 // === Pixels ===
 
@@ -56,6 +59,7 @@ impl Min for Pixels {
     }
 }
 
+
 // === Degrees ===
 
 impl From<Radians> for Degrees {
@@ -64,6 +68,7 @@ impl From<Radians> for Degrees {
     }
 }
 
+
 // === Radians ===
 
 impl From<Degrees> for Radians {
@@ -71,6 +76,7 @@ impl From<Degrees> for Radians {
         Radians(deg.value * PI / 180.0)
     }
 }
+
 
 // ==============
 // === Traits ===
@@ -86,6 +92,8 @@ pub mod traits {
 use std::f32::consts::PI;
 pub use traits::*;
 
+
+
 // =============
 // === Tests ===
 // =============
@@ -93,6 +101,7 @@ pub use traits::*;
 #[cfg(test)]
 mod tests {
     use super::*;
+
 
     #[test]
     fn degree_radian_conversions() {

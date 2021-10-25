@@ -9,6 +9,8 @@ use crate::display::shape::primitive::def::primitive;
 use crate::display::shape::primitive::shader::overload;
 use crate::display::symbol::shader::builder::CodeTemplate;
 
+
+
 // ===============
 // === Builder ===
 // ===============
@@ -21,6 +23,7 @@ const DEBUG: &str = include_str!("../glsl/debug.glsl");
 const SHAPE: &str = include_str!("../glsl/shape.glsl");
 const FRAGMENT_RUNNER: &str = include_str!("../glsl/fragment_runner.glsl");
 
+
 // === Definition ===
 
 // TODO: Consider removing this struct and moving the utils to functions.
@@ -31,20 +34,16 @@ pub struct Builder {}
 impl Builder {
     /// Returns the final GLSL code. If `pointer_events_enabled` is set to false, the generated
     /// shape will be transparent for pointer events and will pass them trough.
-    pub fn run<S: canvas::Draw>(
-        shape: &S,
-        pointer_events_enabled: bool,
-    ) -> CodeTemplate {
+    pub fn run<S: canvas::Draw>(shape: &S, pointer_events_enabled: bool) -> CodeTemplate {
         let sdf_defs = primitive::all_shapes_glsl_definitions();
         let mut canvas = Canvas::default();
         let shape_ref = shape.draw(&mut canvas);
         let defs_header = header("SDF Primitives");
         let shape_header = header("Shape Definition");
-        canvas.add_current_function_code_line(iformat!(
-            "return {shape_ref.getter()};"
-        ));
+        canvas.add_current_function_code_line(iformat!("return {shape_ref.getter()};"));
         canvas.submit_shape_constructor("run");
-        let defs = iformat!("{defs_header}\n\n{sdf_defs}\n\n\n\n{shape_header}\n\n{canvas.to_glsl()}");
+        let defs =
+            iformat!("{defs_header}\n\n{sdf_defs}\n\n\n\n{shape_header}\n\n{canvas.to_glsl()}");
 
         let redirections = overload::builtin_redirections();
         let math = overload::allow_overloading(MATH);
@@ -66,6 +65,7 @@ impl Builder {
         CodeTemplate::new(code, main, "")
     }
 }
+
 
 // == Utils ===
 

@@ -4,6 +4,7 @@ pub mod close;
 pub mod common;
 pub mod fullscreen;
 
+
 use ensogl::prelude::*;
 
 use ensogl::application;
@@ -15,6 +16,8 @@ use ensogl::display::object::ObjectOps;
 use ensogl::display::shape::*;
 
 use enso_frp as frp;
+
+
 
 // ==============
 // === Shapes ===
@@ -32,6 +35,8 @@ mod shape {
     }
 }
 
+
+
 // ==============
 // === Layout ===
 // ==============
@@ -40,20 +45,20 @@ mod shape {
 #[allow(missing_docs)]
 #[derive(Clone, Copy, Debug)]
 pub struct LayoutParams<T> {
-    pub spacing: T,
-    pub padding_left: T,
-    pub padding_top: T,
-    pub padding_right: T,
+    pub spacing:        T,
+    pub padding_left:   T,
+    pub padding_top:    T,
+    pub padding_right:  T,
     pub padding_bottom: T,
 }
 
 impl Default for LayoutParams<f32> {
     fn default() -> Self {
         Self {
-            spacing: 8.0,
-            padding_left: 13.0,
-            padding_top: 13.0,
-            padding_right: 13.0,
+            spacing:        8.0,
+            padding_left:   13.0,
+            padding_top:    13.0,
+            padding_right:  13.0,
             padding_bottom: 13.0,
         }
     }
@@ -63,10 +68,10 @@ impl<T> LayoutParams<T> {
     /// Applies a given function over all stored values and return layout with resulting values.
     pub fn map<U>(&self, f: impl Fn(&T) -> U) -> LayoutParams<U> {
         LayoutParams {
-            spacing: f(&self.spacing),
-            padding_left: f(&self.padding_left),
-            padding_top: f(&self.padding_top),
-            padding_right: f(&self.padding_right),
+            spacing:        f(&self.spacing),
+            padding_left:   f(&self.padding_left),
+            padding_top:    f(&self.padding_top),
+            padding_right:  f(&self.padding_right),
             padding_bottom: f(&self.padding_bottom),
         }
     }
@@ -78,21 +83,11 @@ impl LayoutParams<frp::Sampler<f32>> {
         use ensogl_theme::application::window_control_buttons as theme;
         let default = LayoutParams::default();
         let spacing = style.get_number_or(theme::spacing, default.spacing);
-        let padding_left =
-            style.get_number_or(theme::padding::left, default.padding_left);
-        let padding_top =
-            style.get_number_or(theme::padding::top, default.padding_top);
-        let padding_right =
-            style.get_number_or(theme::padding::right, default.padding_right);
-        let padding_bottom =
-            style.get_number_or(theme::padding::bottom, default.padding_bottom);
-        Self {
-            spacing,
-            padding_left,
-            padding_top,
-            padding_right,
-            padding_bottom,
-        }
+        let padding_left = style.get_number_or(theme::padding::left, default.padding_left);
+        let padding_top = style.get_number_or(theme::padding::top, default.padding_top);
+        let padding_right = style.get_number_or(theme::padding::right, default.padding_right);
+        let padding_bottom = style.get_number_or(theme::padding::bottom, default.padding_bottom);
+        Self { spacing, padding_left, padding_top, padding_right, padding_bottom }
     }
 
     /// Take values from the parameters' samplers.
@@ -101,10 +96,7 @@ impl LayoutParams<frp::Sampler<f32>> {
     }
 
     /// Join all member frp streams into a single stream with aggregated values.
-    pub fn flatten(
-        &self,
-        network: &frp::Network,
-    ) -> frp::Stream<LayoutParams<f32>> {
+    pub fn flatten(&self, network: &frp::Network) -> frp::Stream<LayoutParams<f32>> {
         /// Helper method that puts back LayoutParams from its fields.
         /// Be careful, as the arguments must be in the same order as they are in `all_with5`
         /// invocation below.
@@ -117,13 +109,8 @@ impl LayoutParams<frp::Sampler<f32>> {
             padding_right: &f32,
             padding_bottom: &f32,
         ) -> LayoutParams<f32> {
-            let ret = LayoutParams {
-                spacing,
-                padding_left,
-                padding_top,
-                padding_right,
-                padding_bottom,
-            };
+            let ret =
+                LayoutParams { spacing, padding_left, padding_top, padding_right, padding_bottom };
             ret.map(|v| **v)
         }
 
@@ -139,6 +126,8 @@ impl LayoutParams<frp::Sampler<f32>> {
     }
 }
 
+
+
 // =============
 // === Model ===
 // =============
@@ -146,12 +135,12 @@ impl LayoutParams<frp::Sampler<f32>> {
 /// An internal model of Status Bar component
 #[derive(Clone, CloneRef, Debug)]
 pub struct Model {
-    app: Application,
-    logger: Logger,
+    app:            Application,
+    logger:         Logger,
     display_object: display::object::Instance,
-    shape: shape::View,
-    close: close::View,
-    fullscreen: fullscreen::View,
+    shape:          shape::View,
+    close:          close::View,
+    fullscreen:     fullscreen::View,
 }
 
 impl Model {
@@ -176,38 +165,23 @@ impl Model {
         let shape = shape::View::new(&logger);
         display_object.add_child(&shape);
 
-        Self {
-            app,
-            logger,
-            display_object,
-            shape,
-            close,
-            fullscreen,
-        }
+        Self { app, logger, display_object, shape, close, fullscreen }
     }
 
     /// Updates positions of the buttons and sizes of the mouse area.
     /// Returns the new size of the panel (being also the size of mouse area).
     pub fn set_layout(&self, layout: LayoutParams<f32>) -> Vector2 {
-        let LayoutParams {
-            spacing,
-            padding_left,
-            padding_top,
-            padding_right,
-            padding_bottom,
-        } = layout;
+        let LayoutParams { spacing, padding_left, padding_top, padding_right, padding_bottom } =
+            layout;
         let close_size = self.close.size.value();
         let fullscreen_size = self.fullscreen.size.value();
 
-        self.close
-            .set_position_xy(Vector2(padding_left, -padding_top));
+        self.close.set_position_xy(Vector2(padding_left, -padding_top));
         let fullscreen_x = padding_left + close_size.x + spacing;
-        self.fullscreen
-            .set_position_xy(Vector2(fullscreen_x, -padding_top));
+        self.fullscreen.set_position_xy(Vector2(fullscreen_x, -padding_top));
 
         let width = fullscreen_x + fullscreen_size.x + padding_right;
-        let height =
-            padding_top + max(close_size.y, fullscreen_size.y) + padding_bottom;
+        let height = padding_top + max(close_size.y, fullscreen_size.y) + padding_bottom;
 
         let size = Vector2(width, height);
         self.shape.set_position_xy(Vector2(size.x, -size.y) / 2.0);
@@ -215,6 +189,8 @@ impl Model {
         size
     }
 }
+
+
 
 // ===========
 // === FRP ===
@@ -231,6 +207,8 @@ ensogl::define_endpoints! {
     }
 }
 
+
+
 // ============
 // === View ===
 // ============
@@ -241,7 +219,7 @@ ensogl::define_endpoints! {
 /// The panel is meant to be displayed only when IDE runs in a cloud environment.
 #[derive(Clone, CloneRef, Debug)]
 pub struct View {
-    frp: Frp,
+    frp:   Frp,
     model: Model,
     style: StyleWatchFrp,
 }

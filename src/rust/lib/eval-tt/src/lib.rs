@@ -5,7 +5,7 @@
 //! more than 1000 words, so let's consider the following code:
 //!
 //! ```compile_fail
-//! eval!{ drop(1,split_comma([a,b,c]),3) }
+//! eval! { drop(1,split_comma([a,b,c]),3) }
 //! ```
 //!
 //! It will first evaluate macro `split_comma!{ [a,b,c] }` to `[[a][b][c]]`,

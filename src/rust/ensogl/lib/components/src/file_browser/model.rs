@@ -7,6 +7,7 @@ use enso_frp as frp;
 use std::cmp::Ordering;
 use std::path::PathBuf;
 
+
 // =============
 // === Model ===
 // =============
@@ -40,7 +41,7 @@ pub enum EntryType {
     /// A folder. This can also mean a content root.
     Folder {
         /// The folder type.
-        type_: FolderType,
+        type_:   FolderType,
         /// The folder's content.
         content: AnyFolderContent,
     },
@@ -52,10 +53,8 @@ impl Ord for EntryType {
             (Self::File, Self::File) => Ordering::Equal,
             (Self::File, Self::Folder { .. }) => Ordering::Greater,
             (Self::Folder { .. }, Self::File) => Ordering::Less,
-            (
-                Self::Folder { type_: type1, .. },
-                Self::Folder { type_: type2, .. },
-            ) => type1.cmp(type2),
+            (Self::Folder { type_: type1, .. }, Self::Folder { type_: type2, .. }) =>
+                type1.cmp(type2),
         }
     }
 }
@@ -80,10 +79,11 @@ pub struct Entry {
     /// The entry type.
     pub type_: EntryType,
     /// The entrie's name.
-    pub name: String,
+    pub name:  String,
     /// The entrie's global path in the file system.
-    pub path: PathBuf,
+    pub path:  PathBuf,
 }
+
 
 // === FolderContent ===
 
@@ -117,6 +117,7 @@ impl<D: 'static + FolderContent> From<D> for AnyFolderContent {
         AnyFolderContent(Rc::new(dir))
     }
 }
+
 
 // === EmptyFolder ===
 

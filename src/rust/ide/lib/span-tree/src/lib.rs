@@ -47,8 +47,11 @@ pub mod prelude {
 }
 
 use prelude::*;
+use traits::*;
 
 use crate::generate::Context;
+
+
 
 // =====================
 // === ArgumentInfo ===
@@ -59,7 +62,7 @@ use crate::generate::Context;
 #[allow(missing_docs)]
 pub struct ArgumentInfo {
     pub name: Option<String>,
-    pub tp: Option<String>,
+    pub tp:   Option<String>,
 }
 
 impl ArgumentInfo {
@@ -74,6 +77,8 @@ impl ArgumentInfo {
         Self { name, tp }
     }
 }
+
+
 
 // ================
 // === SpanTree ===
@@ -96,10 +101,7 @@ pub struct SpanTree<T = ()> {
 
 impl<T: Payload> SpanTree<T> {
     /// Create span tree from something that could generate it (usually AST).
-    pub fn new(
-        gen: &impl SpanTreeGenerator<T>,
-        context: &impl Context,
-    ) -> FallibleResult<Self> {
+    pub fn new(gen: &impl SpanTreeGenerator<T>, context: &impl Context) -> FallibleResult<Self> {
         gen.generate_tree(context)
     }
 
@@ -128,6 +130,7 @@ impl<T: Payload> SpanTree<T> {
     }
 }
 
+
 // === Getters ===
 
 impl<T: Payload> SpanTree<T> {
@@ -141,6 +144,7 @@ impl<T: Payload> SpanTree<T> {
         }
     }
 }
+
 
 // == Impls ===
 

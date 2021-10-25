@@ -5,6 +5,8 @@ use crate::prelude::*;
 
 use crate::ArgumentInfo;
 
+
+
 // ============
 // === Kind ===
 // ============
@@ -25,11 +27,12 @@ pub enum Kind {
     /// A node being a unmodifiable token in macro.
     Token,
     /// A node being a placeholder for inserting new child to Prefix or Operator chain. It should
-    /// not have children, but can be assigned with a span representing the number of spaces between
-    /// AST tokens. For example, given expression `foo   bar`, the span assigned to the
+    /// not have children, but can be assigned with a span representing the number of spaces
+    /// between AST tokens. For example, given expression `foo   bar`, the span assigned to the
     /// `InsertionPoint` between `foo` and `bar` should be set to 3.
     InsertionPoint(InsertionPoint),
 }
+
 
 // === Kind Constructors ===
 
@@ -45,6 +48,7 @@ impl Kind {
         default()
     }
 }
+
 
 // === Matchers ===
 
@@ -87,6 +91,7 @@ impl Kind {
     }
 }
 
+
 // === API ===
 
 impl Kind {
@@ -122,15 +127,9 @@ impl Kind {
     /// information.
     pub fn argument_info(&self) -> Option<ArgumentInfo> {
         match self {
-            Self::This(t) => {
-                Some(ArgumentInfo::new(Some(t.name().into()), t.tp.clone()))
-            }
-            Self::Argument(t) => {
-                Some(ArgumentInfo::new(t.name.clone(), t.tp.clone()))
-            }
-            Self::InsertionPoint(t) => {
-                Some(ArgumentInfo::new(t.name.clone(), t.tp.clone()))
-            }
+            Self::This(t) => Some(ArgumentInfo::new(Some(t.name().into()), t.tp.clone())),
+            Self::Argument(t) => Some(ArgumentInfo::new(t.name.clone(), t.tp.clone())),
+            Self::InsertionPoint(t) => Some(ArgumentInfo::new(t.name.clone(), t.tp.clone())),
             _ => None,
         }
     }
@@ -171,6 +170,7 @@ impl Kind {
     }
 }
 
+
 // === Impls ===
 
 impl Default for Kind {
@@ -178,6 +178,8 @@ impl Default for Kind {
         Self::insertion_point().into()
     }
 }
+
+
 
 // ============
 // === This ===
@@ -189,8 +191,9 @@ impl Default for Kind {
 #[allow(missing_docs)]
 pub struct This {
     pub removable: bool,
-    pub tp: Option<String>,
+    pub tp:        Option<String>,
 }
+
 
 // === Getters ===
 
@@ -203,6 +206,7 @@ impl This {
         Self::NAME
     }
 }
+
 
 // === Setters ===
 
@@ -232,6 +236,8 @@ impl From<This> for Kind {
     }
 }
 
+
+
 // ================
 // === Argument ===
 // ================
@@ -242,9 +248,10 @@ impl From<This> for Kind {
 #[allow(missing_docs)]
 pub struct Argument {
     pub removable: bool,
-    pub name: Option<String>,
-    pub tp: Option<String>,
+    pub name:      Option<String>,
+    pub tp:        Option<String>,
 }
+
 
 // === Setters ===
 
@@ -282,6 +289,8 @@ impl From<Argument> for Kind {
     }
 }
 
+
+
 // ======================
 // === InsertionPoint ===
 // ======================
@@ -295,7 +304,7 @@ impl From<Argument> for Kind {
 pub struct InsertionPoint {
     pub kind: InsertionPointType,
     pub name: Option<String>,
-    pub tp: Option<String>,
+    pub tp:   Option<String>,
 }
 
 // === Constructors ===
@@ -315,6 +324,7 @@ impl InsertionPoint {
         Self::default().with_kind(InsertionPointType::ExpectedArgument(ix))
     }
 }
+
 
 // === Setters ===
 
@@ -347,6 +357,8 @@ impl From<InsertionPoint> for Kind {
         Self::InsertionPoint(t)
     }
 }
+
+
 
 // ==========================
 // === InsertionPointType ===

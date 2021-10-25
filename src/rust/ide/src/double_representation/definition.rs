@@ -12,6 +12,8 @@ use ast::known;
 use ast::opr;
 use parser::Parser;
 
+
+
 // =====================
 // === Definition Id ===
 // =====================
@@ -43,13 +45,9 @@ impl Id {
 
     /// Creates a new identifier from a sequence of plain definition names.
     pub fn new_plain_names<S>(names: impl IntoIterator<Item = S>) -> Id
-    where
-        S: ToString,
-    {
-        let crumbs = names
-            .into_iter()
-            .map(|name| DefinitionName::new_plain(name.to_string()))
-            .collect_vec();
+    where S: ToString {
+        let crumbs =
+            names.into_iter().map(|name| DefinitionName::new_plain(name.to_string())).collect_vec();
         Id { crumbs }
     }
 }
@@ -67,6 +65,8 @@ impl Display for Id {
     }
 }
 
+
+
 // =============
 // === Error ===
 // =============
@@ -83,6 +83,8 @@ struct MissingLineWithAst;
 #[fail(display = "Cannot find definition child with id {:?}.", _0)]
 pub struct CannotFindChild(Crumb);
 
+
+
 // =================
 // === ScopeKind ===
 // =================
@@ -96,6 +98,8 @@ pub enum ScopeKind {
     NonRoot,
 }
 
+
+
 // ======================
 // === DefinitionName ===
 // ======================
@@ -105,7 +109,7 @@ pub enum ScopeKind {
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct DefinitionName {
     /// Name of the function itself.
-    pub name: Located<String>,
+    pub name:            Located<String>,
     /// Used when definition is an extension method. Then it stores the segments
     /// of the extended target type path.
     pub extended_target: Vec<Located<String>>,
@@ -116,25 +120,15 @@ impl DefinitionName {
     /// method).
     pub fn new_plain(name: impl Into<String>) -> DefinitionName {
         let name = Located::new_root(name.into());
-        DefinitionName {
-            name,
-            extended_target: default(),
-        }
+        DefinitionName { name, extended_target: default() }
     }
 
     /// Creates a new explicit extension method name.
-    pub fn new_method(
-        extended_atom: impl Str,
-        name: impl Str,
-    ) -> DefinitionName {
-        let extended_atom =
-            Located::new(InfixCrumb::LeftOperand, extended_atom.into());
+    pub fn new_method(extended_atom: impl Str, name: impl Str) -> DefinitionName {
+        let extended_atom = Located::new(InfixCrumb::LeftOperand, extended_atom.into());
         let name = Located::new(InfixCrumb::RightOperand, name.into());
         let extended_target = vec![extended_atom];
-        DefinitionName {
-            name,
-            extended_target,
-        }
+        DefinitionName { name, extended_target }
     }
 
     /// Tries describing given Ast piece as a definition name. Typically, passed Ast
@@ -153,8 +147,7 @@ impl DefinitionName {
 
                 let mut pieces = Vec::new();
                 for piece in accessor_chain.enumerate_non_empty_operands() {
-                    let name =
-                        ast::identifier::name(&piece.item.arg)?.to_owned();
+                    let name = ast::identifier::name(&piece.item.arg)?.to_owned();
                     pieces.push(piece.map(|_| name));
                 }
 
@@ -165,9 +158,7 @@ impl DefinitionName {
                 let name = match ast.shape() {
                     ast::Shape::Var(var) => Some(var.name.as_str()),
                     ast::Shape::Opr(opr) => Some(opr.name.as_str()),
-                    ast::Shape::SectionSides(sides) => {
-                        ast::identifier::name(&sides.opr)
-                    }
+                    ast::Shape::SectionSides(sides) => ast::identifier::name(&sides.opr),
                     // Shape::Cons is intentionally omitted.
                     // It serves to pattern-match, not as definition name.
                     _ => None,
@@ -176,10 +167,7 @@ impl DefinitionName {
                 (Vec::new(), name)
             }
         };
-        Some(DefinitionName {
-            name,
-            extended_target,
-        })
+        Some(DefinitionName { name, extended_target })
     }
 
     /// Iterate over name segments of this name, left to right.
@@ -227,6 +215,8 @@ impl Display for DefinitionName {
     }
 }
 
+
+
 // ======================
 // === DefinitionInfo ===
 // ======================
@@ -236,11 +226,11 @@ impl Display for DefinitionName {
 pub struct DefinitionInfo {
     /// The whole definition. It is an Infix shape with `=` operator. Its left-hand side is
     /// an App.
-    pub ast: known::Infix,
+    pub ast:            known::Infix,
     /// Name of this definition. Includes typename, if this is an extension method.
-    pub name: Located<DefinitionName>,
+    pub name:           Located<DefinitionName>,
     /// Arguments for this definition. Does not include any implicit ones (e.g. no `this`).
-    pub args: Vec<Located<Ast>>,
+    pub args:           Vec<Located<Ast>>,
     /// The absolute indentation of the code block that introduced this definition.
     pub context_indent: usize,
 }
@@ -256,10 +246,7 @@ impl DefinitionInfo {
     /// `Infix`, it returns a single `BlockLine`.
     pub fn block_lines(&self) -> Vec<ast::BlockLine<Option<Ast>>> {
         if let Ok(block) = known::Block::try_from(*self.body()) {
-            block
-                .iter_all_lines()
-                .map(|line| line.map_opt(CloneRef::clone_ref))
-                .collect()
+            block.iter_all_lines().map(|line| line.map_opt(CloneRef::clone_ref)).collect()
         } else {
             let elem = Some((*self.body()).clone());
             let off = 0;
@@ -292,14 +279,7 @@ impl DefinitionInfo {
         let first_line = ast::BlockLine { elem, off };
         let is_orphan = false;
         let ty = ast::BlockType::Discontinuous {};
-        let block = ast::Block {
-            ty,
-            indent,
-            empty_lines,
-            first_line,
-            lines,
-            is_orphan,
-        };
+        let block = ast::Block { ty, indent, empty_lines, first_line, lines, is_orphan };
         let body_ast = Ast::new(block, None);
         self.set_body_ast(body_ast);
         Ok(())
@@ -320,9 +300,7 @@ impl DefinitionInfo {
 
     /// Tries to interpret a root line (i.e. the AST being placed in a line directly in the module
     /// scope) as a definition.
-    pub fn from_root_line(
-        line: &ast::BlockLine<Option<Ast>>,
-    ) -> Option<DefinitionInfo> {
+    pub fn from_root_line(line: &ast::BlockLine<Option<Ast>>) -> Option<DefinitionInfo> {
         Self::from_root_line_ast(line.elem.as_ref()?)
     }
 
@@ -341,15 +319,8 @@ impl DefinitionInfo {
         kind: ScopeKind,
         context_indent: usize,
     ) -> Option<DefinitionInfo> {
-        if let LineKind::Definition { ast, args, name } =
-            LineKind::discern(ast, kind)
-        {
-            Some(DefinitionInfo {
-                ast,
-                name,
-                args,
-                context_indent,
-            })
+        if let LineKind::Definition { ast, args, name } = LineKind::discern(ast, kind) {
+            Some(DefinitionInfo { ast, name, args, context_indent })
         } else {
             None
         }
@@ -361,13 +332,12 @@ pub type ChildDefinition = Located<DefinitionInfo>;
 
 /// Tries to add a new crumb to current path to obtain a deeper child.
 /// Its crumbs will accumulate both current crumbs and the passed one.
-pub fn resolve_single_name(
-    def: ChildDefinition,
-    id: &Crumb,
-) -> FallibleResult<ChildDefinition> {
+pub fn resolve_single_name(def: ChildDefinition, id: &Crumb) -> FallibleResult<ChildDefinition> {
     let child = def.item.def_iter().find_by_name(id)?;
     Ok(def.into_descendant(child))
 }
+
+
 
 // ==========================
 // === DefinitionIterator ===
@@ -377,11 +347,11 @@ pub fn resolve_single_name(
 #[allow(missing_debug_implementations)]
 pub struct DefinitionIterator<'a> {
     /// Iterator going over ASTs of potential child definitions.
-    pub iterator: Box<dyn Iterator<Item = ChildAst<'a>> + 'a>,
+    pub iterator:   Box<dyn Iterator<Item = ChildAst<'a>> + 'a>,
     /// What kind of scope are we getting our ASTs from.
     pub scope_kind: ScopeKind,
     /// Absolute indentation of the child ASTs we iterate over.
-    pub indent: usize,
+    pub indent:     usize,
 }
 
 impl<'a> Iterator for DefinitionIterator<'a> {
@@ -390,8 +360,7 @@ impl<'a> Iterator for DefinitionIterator<'a> {
         let scope_kind = self.scope_kind;
         let indent = self.indent;
         self.iterator.find_map(|ChildAst { item, crumbs }| {
-            let definition_opt =
-                DefinitionInfo::from_line_ast(item, scope_kind, indent);
+            let definition_opt = DefinitionInfo::from_line_ast(item, scope_kind, indent);
             definition_opt.map(|def| ChildDefinition::new(crumbs, def))
         })
     }
@@ -409,10 +378,11 @@ impl<'a> DefinitionIterator<'a> {
         name: &DefinitionName,
     ) -> Result<ChildDefinition, CannotFindChild> {
         let err = || CannotFindChild(name.clone());
-        self.find(|child_def| &*child_def.item.name == name)
-            .ok_or_else(err)
+        self.find(|child_def| &*child_def.item.name == name).ok_or_else(err)
     }
 }
+
+
 
 // ==========================
 // === DefinitionProvider ===
@@ -428,20 +398,14 @@ pub trait DefinitionProvider {
     fn scope_kind(&self) -> ScopeKind;
 
     /// Iterator going over all line-like Ast's that can hold a child definition.
-    fn enumerate_asts<'a>(
-        &'a self,
-    ) -> Box<dyn Iterator<Item = ChildAst<'a>> + 'a>;
+    fn enumerate_asts<'a>(&'a self) -> Box<dyn Iterator<Item = ChildAst<'a>> + 'a>;
 
     /// Returns a scope iterator allowing browsing definition provided under this provider.
     fn def_iter(&self) -> DefinitionIterator {
         let iterator = self.enumerate_asts();
         let scope_kind = self.scope_kind();
         let indent = self.indent();
-        DefinitionIterator {
-            iterator,
-            scope_kind,
-            indent,
-        }
+        DefinitionIterator { iterator, scope_kind, indent }
     }
 }
 
@@ -454,9 +418,7 @@ impl DefinitionProvider for known::Block {
         ScopeKind::NonRoot
     }
 
-    fn enumerate_asts<'a>(
-        &'a self,
-    ) -> Box<dyn Iterator<Item = ChildAst<'a>> + 'a> {
+    fn enumerate_asts<'a>(&'a self) -> Box<dyn Iterator<Item = ChildAst<'a>> + 'a> {
         self.ast().children()
     }
 }
@@ -477,9 +439,7 @@ impl DefinitionProvider for DefinitionInfo {
         ScopeKind::NonRoot
     }
 
-    fn enumerate_asts<'a>(
-        &'a self,
-    ) -> Box<dyn Iterator<Item = ChildAst<'a>> + 'a> {
+    fn enumerate_asts<'a>(&'a self) -> Box<dyn Iterator<Item = ChildAst<'a>> + 'a> {
         use ast::crumbs::Crumb;
         match self.ast.rarg.shape() {
             ast::Shape::Block(_) => {
@@ -496,6 +456,8 @@ impl DefinitionProvider for DefinitionInfo {
     }
 }
 
+
+
 // =============
 // === ToAdd ===
 // =============
@@ -508,13 +470,13 @@ impl DefinitionProvider for DefinitionInfo {
 pub struct ToAdd {
     /// The name of the introduced definition. May represent plain identifier or an extension.
     /// E.g. `add` or `Int.add`.
-    pub name: DefinitionName,
+    pub name:                     DefinitionName,
     /// Names of explicit parameters. `this` parameter must not be included.
     pub explicit_parameter_names: Vec<String>,
     /// The first non-empty line of the definition body.
-    pub body_head: Ast,
+    pub body_head:                Ast,
     /// Further definition body lines. `None` represents an empty line.
-    pub body_tail: Vec<Option<Ast>>,
+    pub body_tail:                Vec<Option<Ast>>,
 }
 
 impl ToAdd {
@@ -525,23 +487,13 @@ impl ToAdd {
         body: Ast,
     ) -> Self {
         let (body_head, body_tail) = match body.shape() {
-            ast::Shape::Block(ast::Block {
-                first_line, lines, ..
-            }) => (
+            ast::Shape::Block(ast::Block { first_line, lines, .. }) => (
                 first_line.elem.clone_ref(),
-                lines
-                    .iter()
-                    .map(|line| line.elem.as_ref().cloned())
-                    .collect_vec(),
+                lines.iter().map(|line| line.elem.as_ref().cloned()).collect_vec(),
             ),
             _ => (body.clone_ref(), default()),
         };
-        ToAdd {
-            name,
-            explicit_parameter_names,
-            body_head,
-            body_tail,
-        }
+        ToAdd { name, explicit_parameter_names, body_head, body_tail }
     }
 
     /// The definition's head, i.e. the left-hand side of the primary assignment.
@@ -555,30 +507,23 @@ impl ToAdd {
     /// The definition's body, i.e. the right-hand side of the primary assignment.
     pub fn body(&self, scope_indent: usize) -> Ast {
         // Assignment always must be in a block
-        if self.body_tail.is_empty()
-            && !ast::opr::is_assignment(&self.body_head)
-        {
+        if self.body_tail.is_empty() && !ast::opr::is_assignment(&self.body_head) {
             self.body_head.clone_ref()
         } else {
-            let mut block =
-                ast::Block::from_lines(&self.body_head, &self.body_tail);
+            let mut block = ast::Block::from_lines(&self.body_head, &self.body_tail);
             block.indent = scope_indent + double_representation::INDENT;
             Ast::from(block)
         }
     }
 
     /// Generate the definition's Ast from the description.
-    pub fn ast(
-        &self,
-        scope_indent: usize,
-        parser: &Parser,
-    ) -> FallibleResult<Ast> {
+    pub fn ast(&self, scope_indent: usize, parser: &Parser) -> FallibleResult<Ast> {
         let body = self.body(scope_indent);
         let body_is_block = matches!(body.shape(), ast::Shape::Block { .. });
         let infix_shape = ast::Infix {
             larg: self.head(parser)?,
             loff: 1,
-            opr: Ast::opr(ast::opr::predefined::ASSIGNMENT),
+            opr:  Ast::opr(ast::opr::predefined::ASSIGNMENT),
             roff: if body_is_block { 0 } else { 1 },
             rarg: body,
         };
@@ -586,6 +531,8 @@ impl ToAdd {
         Ok(ast)
     }
 }
+
+
 
 // =============
 // === Tests ===
@@ -621,10 +568,10 @@ mod tests {
     fn generating_definition_to_add() {
         let parser = Parser::new_or_panic();
         let mut to_add = ToAdd {
-            name: DefinitionName::new_method("Main", "add"),
+            name:                     DefinitionName::new_method("Main", "add"),
             explicit_parameter_names: vec!["arg1".into(), "arg2".into()],
-            body_head: Ast::infix_var("ret", "=", "arg2"),
-            body_tail: default(),
+            body_head:                Ast::infix_var("ret", "=", "arg2"),
+            body_tail:                default(),
         };
 
         // First, if we generate definition with single line and it is assignment,
@@ -638,16 +585,11 @@ mod tests {
         assert_eq!(ast.repr(), "Main.add arg1 arg2 = arg1 + arg2");
 
         // Having more than a single line always requires a block.
-        to_add
-            .body_tail
-            .push(Some(Ast::infix_var("arg1", "-", "arg2")));
+        to_add.body_tail.push(Some(Ast::infix_var("arg1", "-", "arg2")));
         let ast = to_add.ast(4, &parser).unwrap();
         // Note 8 spaces indents for definition block lines (as the parent scope was at 4).
         // Also, note that there is no space after the definition's assignment operator.
-        assert_eq!(
-            ast.repr(),
-            "Main.add arg1 arg2 =\n        arg1 + arg2\n        arg1 - arg2"
-        );
+        assert_eq!(ast.repr(), "Main.add arg1 arg2 =\n        arg1 + arg2\n        arg1 - arg2");
     }
 
     #[wasm_bindgen_test]
@@ -660,22 +602,9 @@ mod tests {
         assert_eq!(name.extended_target[0].as_str(), "Foo");
         assert_eq!(name.extended_target[1].as_str(), "Bar");
 
-        assert_eq!(
-            ast.get_traversing(&name.name.crumbs).unwrap().repr(),
-            "baz"
-        );
-        assert_eq!(
-            ast.get_traversing(&name.extended_target[0].crumbs)
-                .unwrap()
-                .repr(),
-            "Foo"
-        );
-        assert_eq!(
-            ast.get_traversing(&name.extended_target[1].crumbs)
-                .unwrap()
-                .repr(),
-            "Bar"
-        );
+        assert_eq!(ast.get_traversing(&name.name.crumbs).unwrap().repr(), "baz");
+        assert_eq!(ast.get_traversing(&name.extended_target[0].crumbs).unwrap().repr(), "Foo");
+        assert_eq!(ast.get_traversing(&name.extended_target[1].crumbs).unwrap().repr(), "Bar");
     }
 
     #[wasm_bindgen_test]
@@ -692,10 +621,7 @@ mod tests {
         let definition = DefinitionInfo::from_root_line_ast(&ast).unwrap();
 
         assert_eq!(definition.name.to_string(), "Foo.bar");
-        assert_eq!(
-            ast.get_traversing(&definition.name.crumbs).unwrap().repr(),
-            "Foo.bar"
-        );
+        assert_eq!(ast.get_traversing(&definition.name.crumbs).unwrap().repr(), "Foo.bar");
     }
 
     #[wasm_bindgen_test]
@@ -727,8 +653,7 @@ mod tests {
 
         // Not a definition, it is a pattern match/
         assert_eq!(ast.repr(), "Foo 5 = bar");
-        let def_opt =
-            DefinitionInfo::from_line_ast(&ast, ScopeKind::NonRoot, INDENT);
+        let def_opt = DefinitionInfo::from_line_ast(&ast, ScopeKind::NonRoot, INDENT);
         assert!(def_opt.is_none());
 
         let var = Ast::var("foo");
@@ -737,8 +662,7 @@ mod tests {
 
         // Now it is a definition.
         assert_eq!(ast.repr(), "foo 5 = bar");
-        let def_opt =
-            DefinitionInfo::from_line_ast(&ast, ScopeKind::NonRoot, INDENT);
+        let def_opt = DefinitionInfo::from_line_ast(&ast, ScopeKind::NonRoot, INDENT);
         assert!(def_opt.is_some());
     }
 
@@ -773,19 +697,13 @@ mod tests {
 
         // Check that definition can be found and their body is properly described.
         let add_name = DefinitionName::new_plain("add");
-        let add = module
-            .def_iter()
-            .find_by_name(&add_name)
-            .expect("failed to find `add` function");
-        let body = known::Number::try_from(*add.body())
-            .expect("add body should be a Block");
+        let add = module.def_iter().find_by_name(&add_name).expect("failed to find `add` function");
+        let body = known::Number::try_from(*add.body()).expect("add body should be a Block");
         assert_eq!(body.int, "50");
 
         // === Program with definition in `some_func`'s body `Block` ===
-        let indented_lines =
-            definition_lines.iter().map(indented).collect_vec();
-        let program =
-            format!("some_func arg1 arg2 =\n{}", indented_lines.join("\n"));
+        let indented_lines = definition_lines.iter().map(indented).collect_vec();
+        let program = format!("some_func arg1 arg2 =\n{}", indented_lines.join("\n"));
         let module = parser.parse_module(program, default()).unwrap();
         let root_defs = module.def_iter().infos_vec();
         let (only_def,) = root_defs.expect_tuple();
@@ -812,9 +730,7 @@ mod tests {
             let location = module::locate(&module, &main_id).unwrap();
             let (crumb,) = location.crumbs.expect_tuple();
             match crumb {
-                ast::crumbs::Crumb::Module(m) => {
-                    assert_eq!(m.line_index, expected_line_index)
-                }
+                ast::crumbs::Crumb::Module(m) => assert_eq!(m.line_index, expected_line_index),
                 _ => panic!("Expected module crumb, got: {:?}.", crumb),
             }
         }
@@ -833,21 +749,15 @@ main =
 
     add foo bar";
 
-        let module = parser::Parser::new_or_panic()
-            .parse_module(program, default())
-            .unwrap();
+        let module = parser::Parser::new_or_panic().parse_module(program, default()).unwrap();
         let check_def = |id, expected_body| {
             let definition = module::get_definition(&module, &id).unwrap();
             assert_eq!(definition.body().repr(), expected_body);
         };
-        let check_not_found =
-            |id| assert!(module::get_definition(&module, &id).is_err());
+        let check_not_found = |id| assert!(module::get_definition(&module, &id).is_err());
 
         check_def(Id::new_plain_names(&["main", "add"]), "a + b");
-        check_def(
-            Id::new_plain_names(&["main", "baz"]),
-            "\n        subbaz arg = 4",
-        );
+        check_def(Id::new_plain_names(&["main", "baz"]), "\n        subbaz arg = 4");
         check_def(Id::new_plain_names(&["main", "baz", "subbaz"]), "4");
 
         // Node are not definitions

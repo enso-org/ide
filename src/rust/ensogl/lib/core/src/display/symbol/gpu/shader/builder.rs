@@ -7,15 +7,19 @@ use crate::system::gpu::shader::glsl;
 use code_builder::HasCodeRepr;
 use std::collections::BTreeMap;
 
+
+
 // ==============
 // === Shader ===
 // ==============
 
 #[derive(Clone, Debug)]
 pub struct Shader {
-    pub vertex: String,
+    pub vertex:   String,
     pub fragment: String,
 }
+
+
 
 // ====================
 // === ShaderConfig ===
@@ -23,11 +27,11 @@ pub struct Shader {
 
 #[derive(Clone, Debug, Default)]
 pub struct ShaderConfig {
-    pub precision: ShaderPrecision,
-    pub outputs: BTreeMap<String, AttributeQualifier>,
-    pub shared: BTreeMap<String, AttributeQualifier>,
+    pub precision:  ShaderPrecision,
+    pub outputs:    BTreeMap<String, AttributeQualifier>,
+    pub shared:     BTreeMap<String, AttributeQualifier>,
     pub attributes: BTreeMap<String, AttributeQualifier>,
-    pub uniforms: BTreeMap<String, UniformQualifier>,
+    pub uniforms:   BTreeMap<String, UniformQualifier>,
 }
 
 impl ShaderConfig {
@@ -35,45 +39,29 @@ impl ShaderConfig {
         default()
     }
 
-    pub fn add_attribute<S: Str, Q: Into<AttributeQualifier>>(
-        &mut self,
-        name: S,
-        qual: Q,
-    ) {
-        self.attributes
-            .insert(name.as_ref().to_string(), qual.into());
+    pub fn add_attribute<S: Str, Q: Into<AttributeQualifier>>(&mut self, name: S, qual: Q) {
+        self.attributes.insert(name.as_ref().to_string(), qual.into());
     }
 
-    pub fn add_shared_attribute<S: Str, Q: Into<AttributeQualifier>>(
-        &mut self,
-        name: S,
-        qual: Q,
-    ) {
+    pub fn add_shared_attribute<S: Str, Q: Into<AttributeQualifier>>(&mut self, name: S, qual: Q) {
         self.shared.insert(name.as_ref().to_string(), qual.into());
     }
 
-    pub fn add_uniform<S: Str, Q: Into<UniformQualifier>>(
-        &mut self,
-        name: S,
-        qual: Q,
-    ) {
+    pub fn add_uniform<S: Str, Q: Into<UniformQualifier>>(&mut self, name: S, qual: Q) {
         self.uniforms.insert(name.as_ref().to_string(), qual.into());
     }
 
-    pub fn add_output<S: Str, Q: Into<AttributeQualifier>>(
-        &mut self,
-        name: S,
-        qual: Q,
-    ) {
+    pub fn add_output<S: Str, Q: Into<AttributeQualifier>>(&mut self, name: S, qual: Q) {
         self.outputs.insert(name.as_ref().to_string(), qual.into());
     }
 }
+
 
 // === ShaderPrecision ===
 
 #[derive(Clone, Debug)]
 pub struct ShaderPrecision {
-    pub vertex: BTreeMap<glsl::PrimType, glsl::Precision>,
+    pub vertex:   BTreeMap<glsl::PrimType, glsl::Precision>,
     pub fragment: BTreeMap<glsl::PrimType, glsl::Precision>,
 }
 
@@ -89,62 +77,55 @@ impl Default for ShaderPrecision {
     }
 }
 
+
 // === LocalVarQualifier ===
 
 #[derive(Clone, Debug)]
 pub struct LocalVarQualifier {
     pub constant: bool,
-    pub typ: glsl::Type,
+    pub typ:      glsl::Type,
 }
 
 impl LocalVarQualifier {
-    pub fn to_var<Name: Into<glsl::Identifier>>(
-        &self,
-        name: Name,
-    ) -> glsl::LocalVar {
+    pub fn to_var<Name: Into<glsl::Identifier>>(&self, name: Name) -> glsl::LocalVar {
         glsl::LocalVar {
             constant: self.constant,
-            typ: self.typ.clone(),
-            ident: name.into(),
+            typ:      self.typ.clone(),
+            ident:    name.into(),
         }
     }
 }
+
 
 // === AttributeQualifier ===
 
 #[derive(Clone, Debug)]
 pub struct AttributeQualifier {
     pub storage: glsl::LinkageStorage,
-    pub prec: Option<glsl::Precision>,
-    pub typ: glsl::Type,
+    pub prec:    Option<glsl::Precision>,
+    pub typ:     glsl::Type,
 }
 
 impl AttributeQualifier {
-    pub fn to_input_var<Name: Into<glsl::Identifier>>(
-        &self,
-        name: Name,
-    ) -> glsl::GlobalVar {
+    pub fn to_input_var<Name: Into<glsl::Identifier>>(&self, name: Name) -> glsl::GlobalVar {
         let storage = self.storage;
         glsl::GlobalVar {
-            layout: None,
+            layout:  None,
             storage: Some(glsl::GlobalVarStorage::InStorage(storage)),
-            prec: self.prec,
-            typ: self.typ.clone(),
-            ident: name.into(),
+            prec:    self.prec,
+            typ:     self.typ.clone(),
+            ident:   name.into(),
         }
     }
 
-    pub fn to_output_var<Name: Into<glsl::Identifier>>(
-        &self,
-        name: Name,
-    ) -> glsl::GlobalVar {
+    pub fn to_output_var<Name: Into<glsl::Identifier>>(&self, name: Name) -> glsl::GlobalVar {
         let storage = self.storage;
         glsl::GlobalVar {
-            layout: None,
+            layout:  None,
             storage: Some(glsl::GlobalVarStorage::OutStorage(storage)),
-            prec: self.prec,
-            typ: self.typ.clone(),
-            ident: name.into(),
+            prec:    self.prec,
+            typ:     self.typ.clone(),
+            ident:   name.into(),
         }
     }
 }
@@ -178,25 +159,23 @@ impl From<&glsl::PrimType> for AttributeQualifier {
     }
 }
 
+
 // === UniformQualifier ===
 
 #[derive(Clone, Debug)]
 pub struct UniformQualifier {
     pub prec: Option<glsl::Precision>,
-    pub typ: glsl::Type,
+    pub typ:  glsl::Type,
 }
 
 impl UniformQualifier {
-    pub fn to_var<Name: Into<glsl::Identifier>>(
-        &self,
-        name: Name,
-    ) -> glsl::GlobalVar {
+    pub fn to_var<Name: Into<glsl::Identifier>>(&self, name: Name) -> glsl::GlobalVar {
         glsl::GlobalVar {
-            layout: None,
+            layout:  None,
             storage: Some(glsl::GlobalVarStorage::UniformStorage),
-            prec: self.prec,
-            typ: self.typ.clone(),
-            ident: name.into(),
+            prec:    self.prec,
+            typ:     self.typ.clone(),
+            ident:   name.into(),
         }
     }
 }
@@ -222,6 +201,8 @@ impl From<&glsl::PrimType> for UniformQualifier {
     }
 }
 
+
+
 // ====================
 // === CodeTemplate ===
 // ====================
@@ -231,35 +212,25 @@ impl From<&glsl::PrimType> for UniformQualifier {
 #[derive(Clone, Debug, Default)]
 pub struct CodeTemplate {
     before_main: String,
-    main: String,
-    after_main: String,
+    main:        String,
+    after_main:  String,
 }
 
 impl CodeTemplate {
     /// Constructor.
-    pub fn new(
-        before_main: impl Str,
-        main: impl Str,
-        after_main: impl Str,
-    ) -> Self {
+    pub fn new(before_main: impl Str, main: impl Str, after_main: impl Str) -> Self {
         let before_main = before_main.into();
         let main = main.into();
         let after_main = after_main.into();
-        Self {
-            before_main,
-            main,
-            after_main,
-        }
+        Self { before_main, main, after_main }
     }
 
     /// Creates a new instance from the provided main GLSL code definition.
     pub fn from_main<S: Str>(main: S) -> Self {
-        Self {
-            main: main.as_ref().to_string(),
-            ..default()
-        }
+        Self { main: main.as_ref().to_string(), ..default() }
     }
 }
+
 
 // === Getters ===
 
@@ -277,6 +248,7 @@ impl CodeTemplate {
     }
 }
 
+
 // === Setters ===
 
 impl CodeTemplate {
@@ -293,13 +265,15 @@ impl CodeTemplate {
     }
 }
 
+
+
 // =====================
 // === ShaderBuilder ===
 // =====================
 
 #[derive(Clone, Debug, Default)]
 pub struct ShaderBuilder {
-    pub vertex: glsl::Module,
+    pub vertex:   glsl::Module,
     pub fragment: glsl::Module,
 }
 
@@ -322,20 +296,12 @@ impl ShaderBuilder {
         self.add_template_code(vertex_code, fragment_code);
     }
 
-    fn add_template_code(
-        &mut self,
-        vertex_code: CodeTemplate,
-        fragment_code: CodeTemplate,
-    ) {
+    fn add_template_code(&mut self, vertex_code: CodeTemplate, fragment_code: CodeTemplate) {
         self.vertex.main.body.add(&vertex_code.main);
-        self.vertex.add(glsl::Statement::Raw(glsl::RawCode::new(
-            vertex_code.before_main,
-        )));
+        self.vertex.add(glsl::Statement::Raw(glsl::RawCode::new(vertex_code.before_main)));
 
         self.fragment.main.body.add(&fragment_code.main);
-        self.fragment.add(glsl::Statement::Raw(glsl::RawCode::new(
-            fragment_code.before_main,
-        )));
+        self.fragment.add(glsl::Statement::Raw(glsl::RawCode::new(fragment_code.before_main)));
     }
 
     fn gen_precision_code(&mut self, cfg: &ShaderConfig) {
@@ -383,15 +349,12 @@ impl ShaderBuilder {
 
     fn gen_outputs_code(&mut self, cfg: &ShaderConfig) {
         if !cfg.outputs.is_empty() {
-            cfg.outputs
-                .iter()
-                .enumerate()
-                .for_each(|(loc, (name, qual))| {
-                    let name = mk_out_name(name);
-                    let mut var = qual.to_output_var(name);
-                    var.layout = Some(glsl::Layout { location: loc });
-                    self.fragment.add(var);
-                });
+            cfg.outputs.iter().enumerate().for_each(|(loc, (name, qual))| {
+                let name = mk_out_name(name);
+                let mut var = qual.to_output_var(name);
+                var.layout = Some(glsl::Layout { location: loc });
+                self.fragment.add(var);
+            });
         }
     }
 

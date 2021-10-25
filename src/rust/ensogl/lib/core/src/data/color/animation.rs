@@ -10,6 +10,8 @@ use enso_frp as frp;
 
 use crate::display::shape::*;
 
+
+
 // =================
 // === Animation ===
 // =================
@@ -26,12 +28,12 @@ crate::define_endpoints! {
 }
 
 /// The `Animation` provides color better animations for colors than the raw
-/// `component::DEPRECATED_Animation<_>`, as it allows controlling the alpha channel separately which is
-/// important for nice fade outs.
+/// `component::DEPRECATED_Animation<_>`, as it allows controlling the alpha channel separately
+/// which is important for nice fade outs.
 #[derive(Clone, CloneRef, Debug)]
 #[allow(missing_docs)]
 pub struct Animation {
-    frp: FrpEndpoints,
+    frp:        FrpEndpoints,
     color_anim: crate::Animation<Lch>,
     alpha_anim: crate::Animation<f32>,
 }
@@ -49,12 +51,7 @@ impl Animation {
         let frp = Frp::extend(network);
         let color_anim = crate::Animation::new_non_init(network);
         let alpha_anim = crate::Animation::new_non_init(network);
-        Self {
-            frp,
-            color_anim,
-            alpha_anim,
-        }
-        .init(network)
+        Self { frp, color_anim, alpha_anim }.init(network)
     }
 
     fn init(self, network: &frp::Network) -> Self {

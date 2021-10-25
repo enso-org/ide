@@ -12,6 +12,8 @@ pub use super::data::Data;
 pub use super::path::Path;
 pub use super::path::StaticPath;
 
+
+
 // =============
 // === Query ===
 // =============
@@ -30,11 +32,11 @@ pub use super::path::StaticPath;
 /// referred by an external, user code (`external_count`).
 #[derive(Debug)]
 pub struct Query {
-    path: Path,
-    index: Index<Query>,
-    matches: Vec<Index<SheetNode>>,
-    binding: Option<Index<SheetNode>>,
-    users: HashSet<Index<SheetNode>>,
+    path:           Path,
+    index:          Index<Query>,
+    matches:        Vec<Index<SheetNode>>,
+    binding:        Option<Index<SheetNode>>,
+    users:          HashSet<Index<SheetNode>>,
     external_count: usize,
 }
 
@@ -45,14 +47,7 @@ impl Query {
         let binding = default();
         let users = default();
         let external_count = default();
-        Self {
-            path,
-            index,
-            matches,
-            binding,
-            users,
-            external_count,
-        }
+        Self { path, index, matches, binding, users, external_count }
     }
 
     /// Checks whether the variable is being used. Please note that all external variables are
@@ -77,6 +72,8 @@ impl Query {
     }
 }
 
+
+
 // =================
 // === SheetNode ===
 // =================
@@ -91,11 +88,11 @@ impl Query {
 /// about matches and bindings see the `Query` docs.
 #[derive(Debug)]
 pub struct SheetNode {
-    path: Path,
-    index: Index<SheetNode>,
-    value: Option<Data>,
-    expr: Option<BoundExpression>,
-    matches: HashSet<Index<Query>>,
+    path:     Path,
+    index:    Index<SheetNode>,
+    value:    Option<Data>,
+    expr:     Option<BoundExpression>,
+    matches:  HashSet<Index<Query>>,
     bindings: HashSet<Index<Query>>,
 }
 
@@ -106,14 +103,7 @@ impl SheetNode {
         let expr = default();
         let matches = default();
         let bindings = default();
-        Self {
-            path,
-            index,
-            value,
-            expr,
-            matches,
-            bindings,
-        }
+        Self { path, index, value, expr, matches, bindings }
     }
 
     /// Checks whether the style sheet node exist. Nodes without value are considered templates and
@@ -128,6 +118,8 @@ impl SheetNode {
     }
 }
 
+
+
 // ==================
 // === Expression ===
 // ==================
@@ -136,7 +128,7 @@ impl SheetNode {
 #[derive(Clone)]
 #[allow(missing_docs)]
 pub struct Expression {
-    pub args: Vec<Path>,
+    pub args:     Vec<Path>,
     pub function: Rc<dyn Fn(&[&Data]) -> Data>,
 }
 
@@ -146,8 +138,7 @@ impl Expression {
     where
         A: IntoIterator<Item = I>,
         I: Into<Path>,
-        F: 'static + Fn(&[&Data]) -> Data,
-    {
+        F: 'static + Fn(&[&Data]) -> Data, {
         let args = args.into_iter().map(|t| t.into()).collect_vec();
         let function = Rc::new(function);
         Self { args, function }
@@ -184,6 +175,8 @@ impls! { From<&Path>       for Expression { |t| Self::reference(t) }}
 impls! { From<StaticPath>  for Expression { |t| Self::reference(t) }}
 impls! { From<&StaticPath> for Expression { |t| Self::reference(t) }}
 
+
+
 // =======================
 // === BoundExpression ===
 // =======================
@@ -191,16 +184,13 @@ impls! { From<&StaticPath> for Expression { |t| Self::reference(t) }}
 /// Style sheet expression with arguments bound to specific queries.
 #[derive(Clone)]
 pub struct BoundExpression {
-    args: Vec<Index<Query>>,
+    args:     Vec<Index<Query>>,
     function: Rc<dyn Fn(&[&Data]) -> Data>,
 }
 
 impl BoundExpression {
     /// Constructor.
-    pub fn new(
-        args: Vec<Index<Query>>,
-        function: Rc<dyn Fn(&[&Data]) -> Data>,
-    ) -> Self {
+    pub fn new(args: Vec<Index<Query>>, function: Rc<dyn Fn(&[&Data]) -> Data>) -> Self {
         Self { args, function }
     }
 }
@@ -210,6 +200,8 @@ impl Debug for BoundExpression {
         write!(f, "BoundExpression")
     }
 }
+
+
 
 // =============
 // === Value ===
@@ -235,8 +227,7 @@ impls! { From<StaticPath>  for Value { |t| Self::Expression(t.into()) }}
 impls! { From<&StaticPath> for Value { |t| Self::Expression(t.into()) }}
 
 impl<T> From<T> for Value
-where
-    T: Into<Data>,
+where T: Into<Data>
 {
     default fn from(t: T) -> Self {
         Self::Data(t.into())
@@ -262,6 +253,8 @@ impl PartialSemigroup<Value> for Value {
     }
 }
 
+
+
 // ==============
 // === Change ===
 // ==============
@@ -271,20 +264,20 @@ impl PartialSemigroup<Value> for Value {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct Change {
-    pub path: Path,
+    pub path:  Path,
     pub value: Option<Value>,
 }
 
 impl Change {
     /// Constructor.
     pub fn new<P>(path: P, value: Option<Value>) -> Self
-    where
-        P: Into<Path>,
-    {
+    where P: Into<Path> {
         let path = path.into();
         Self { path, value }
     }
 }
+
+
 
 // =================
 // === SheetData ===
@@ -293,11 +286,12 @@ impl Change {
 /// Internal data of `Sheet`.
 #[derive(Debug)]
 pub struct SheetData {
-    queries: QueryVec,
-    nodes: NodeVec,
+    queries:   QueryVec,
+    nodes:     NodeVec,
     query_map: QueryMap,
-    node_map: NodeMap,
+    node_map:  NodeMap,
 }
+
 
 // === Types ===
 
@@ -311,6 +305,7 @@ mod cascading_sheets_types {
 }
 use cascading_sheets_types::*;
 
+
 // === Constructors ===
 
 impl SheetData {
@@ -319,15 +314,9 @@ impl SheetData {
         let queries = default();
         let mut nodes = NodeVec::new();
         let query_map = default();
-        let root_sheet_id =
-            nodes.insert_with_ix_(|ix| SheetNode::new(Path::empty(), ix));
+        let root_sheet_id = nodes.insert_with_ix_(|ix| SheetNode::new(Path::empty(), ix));
         let node_map = NodeMap::from_value(root_sheet_id);
-        Self {
-            queries,
-            nodes,
-            query_map,
-            node_map,
-        }
+        Self { queries, nodes, query_map, node_map }
     }
 
     /// Access variable by the given path or create new one if missing.
@@ -342,23 +331,17 @@ impl SheetData {
         let path = path.into();
         let queries = &mut self.queries;
         let nodes = &mut self.nodes;
-        let query_map_node =
-            self.query_map.get_or_create_node(&path.rev_segments);
+        let query_map_node = self.query_map.get_or_create_node(&path.rev_segments);
         let mut query_matches = Vec::new();
         self.node_map.get_or_create_node_traversing_path_with(
             &path.rev_segments,
-            |p| {
-                nodes.insert_with_ix_(|ix| {
-                    SheetNode::new(Path::from_rev_segments(p), ix)
-                })
-            },
+            |p| nodes.insert_with_ix_(|ix| SheetNode::new(Path::from_rev_segments(p), ix)),
             |t| query_matches.push(t.value),
         );
         query_matches.reverse();
 
-        let query_index = *query_map_node.value_or_set_with(|| {
-            queries.insert_with_ix_(move |ix| Query::new(path, ix))
-        });
+        let query_index = *query_map_node
+            .value_or_set_with(|| queries.insert_with_ix_(move |ix| Query::new(path, ix)));
 
         for sheet_node_index in &query_matches {
             self.nodes[*sheet_node_index].matches.insert(query_index);
@@ -373,39 +356,28 @@ impl SheetData {
     fn sheet_node<P: Into<Path>>(&mut self, path: P) -> Index<SheetNode> {
         let path = path.into();
         let nodes = &mut self.nodes;
-        let node = self.node_map.get_or_create_node_path_with(
-            &path.rev_segments,
-            |p| {
-                nodes.insert_with_ix_(|ix| {
-                    SheetNode::new(Path::from_rev_segments(p), ix)
-                })
-            },
-        );
+        let node = self.node_map.get_or_create_node_path_with(&path.rev_segments, |p| {
+            nodes.insert_with_ix_(|ix| SheetNode::new(Path::from_rev_segments(p), ix))
+        });
         node.value
     }
 }
+
 
 // === Getters ===
 
 impl SheetData {
     /// Reads the value of the query.
     pub fn query_value(&self, query_index: Index<Query>) -> Option<&Data> {
-        self.queries
-            .safe_index(query_index)
-            .as_ref()
-            .and_then(|query| {
-                query.binding.and_then(|sheet_node_index| {
-                    self.nodes[sheet_node_index].value.as_ref()
-                })
-            })
+        self.queries.safe_index(query_index).as_ref().and_then(|query| {
+            query.binding.and_then(|sheet_node_index| self.nodes[sheet_node_index].value.as_ref())
+        })
     }
 
     /// Reads the value of a path like it was a query. For example, querying "button.size" will
     /// return the value of "size" if no exact match was found.
     pub fn query<P>(&self, path: P) -> Option<&Data>
-    where
-        P: Into<Path>,
-    {
+    where P: Into<Path> {
         let path = path.into();
         while path.rev_segments.is_empty() {
             let value = self.value(&path);
@@ -419,14 +391,10 @@ impl SheetData {
     /// Reads the value of the style sheet by the exact path provided. If you want to read a value
     /// of a variable binding, use `query` instead.
     pub fn value<P>(&self, path: P) -> Option<&Data>
-    where
-        P: Into<Path>,
-    {
+    where P: Into<Path> {
         let path = path.into();
         let segs = &path.rev_segments;
-        self.node_map
-            .get_node(segs)
-            .and_then(|t| self.nodes[t.value].value.as_ref())
+        self.node_map.get_node(segs).and_then(|t| self.nodes[t.value].value.as_ref())
     }
 
     /// Returns the amount of queries used.
@@ -441,6 +409,7 @@ impl SheetData {
     }
 }
 
+
 // === Setters ===
 
 impl SheetData {
@@ -448,30 +417,21 @@ impl SheetData {
     pub fn set<P, V>(&mut self, path: P, value: V) -> HashSet<Index<Query>>
     where
         P: Into<Path>,
-        V: Into<Value>,
-    {
+        V: Into<Value>, {
         let value = value.into();
         self.apply_change(Change::new(path, Some(value)))
     }
 
     /// Removes the value by the given path. Returns indexes of all affected queries.
     pub fn unset<P>(&mut self, path: P) -> HashSet<Index<Query>>
-    where
-        P: Into<Path>,
-    {
+    where P: Into<Path> {
         self.apply_change(Change::new(path, None))
     }
 
     /// Changes the value by the given path. Providing `None` as the value means that the value
     /// will be removed. Returns indexes of all affected queries.
-    pub fn change<P>(
-        &mut self,
-        path: P,
-        value: Option<Value>,
-    ) -> HashSet<Index<Query>>
-    where
-        P: Into<Path>,
-    {
+    pub fn change<P>(&mut self, path: P, value: Option<Value>) -> HashSet<Index<Query>>
+    where P: Into<Path> {
         self.apply_change(Change::new(path, value))
     }
 
@@ -482,9 +442,7 @@ impl SheetData {
 
     /// Apply a set of `Change`s. Returns indexes of all affected queries.
     pub fn apply_changes<I>(&mut self, changes: I) -> HashSet<Index<Query>>
-    where
-        I: IntoIterator<Item = Change>,
-    {
+    where I: IntoIterator<Item = Change> {
         let mut changed_queries = HashSet::<Index<Query>>::new();
         let mut possible_orphans = Vec::<Index<SheetNode>>::new();
         let sheet_nodes_iter = changes.into_iter().map(|change| {
@@ -520,18 +478,12 @@ impl SheetData {
                     match value {
                         Value::Data(data) => sheet_node.value = Some(data),
                         Value::Expression(expr) => {
-                            let queries = expr
-                                .args
-                                .iter()
-                                .map(|path| self.unmanaged_query(path));
+                            let queries = expr.args.iter().map(|path| self.unmanaged_query(path));
                             let queries = queries.collect_vec();
                             for query_index in &queries {
-                                self.queries[*query_index]
-                                    .users
-                                    .insert(sheet_node_index);
+                                self.queries[*query_index].users.insert(sheet_node_index);
                             }
-                            let bound_expr =
-                                BoundExpression::new(queries, expr.function);
+                            let bound_expr = BoundExpression::new(queries, expr.function);
                             let sheet_node = &mut self.nodes[sheet_node_index];
                             sheet_node.expr = Some(bound_expr);
                             self.recompute(sheet_node_index);
@@ -565,6 +517,7 @@ impl SheetData {
         changed_queries
     }
 }
+
 
 // === Utils ===
 
@@ -602,8 +555,7 @@ impl SheetData {
         let query_ref = &self.queries[query_index];
         if query_ref.is_unused() {
             if let Some(query) = self.queries.remove(query_index) {
-                let node =
-                    self.query_map.get_or_create_node(&query.path.rev_segments);
+                let node = self.query_map.get_or_create_node(&query.path.rev_segments);
                 node.value = None;
                 for sheet_node_index in query.matches {
                     let sheet_node = &mut self.nodes[sheet_node_index];
@@ -616,8 +568,7 @@ impl SheetData {
     }
 
     fn drop_sheet_if_unused(&mut self, sheet_node_index: Index<SheetNode>) {
-        let mut segments =
-            self.nodes[sheet_node_index].path.rev_segments.clone();
+        let mut segments = self.nodes[sheet_node_index].path.rev_segments.clone();
         loop {
             if segments.is_empty() {
                 break;
@@ -669,33 +620,21 @@ impl SheetData {
     /// Traverse all sheet nodes whose value depend on the value of the provided sheet node and sort
     /// them in a topological order. This is used mainly for efficient implementation of sheet
     /// recomputation mechanism.
-    fn sheet_nodes_topo_sort<T>(
-        &self,
-        changed_sheet_nodes: T,
-    ) -> Vec<Index<SheetNode>>
-    where
-        T: Into<Vec<Index<SheetNode>>>,
-    {
+    fn sheet_nodes_topo_sort<T>(&self, changed_sheet_nodes: T) -> Vec<Index<SheetNode>>
+    where T: Into<Vec<Index<SheetNode>>> {
         let changed_sheet_nodes = changed_sheet_nodes.into();
         let mut sheet_ref_count = HashMap::<Index<SheetNode>, usize>::new();
         let mut sorted_sheet_nodes = changed_sheet_nodes.clone();
-        self.with_all_sheet_node_deps(
-            &changed_sheet_nodes[..],
-            |sheet_node_index| {
-                *sheet_ref_count.entry(sheet_node_index).or_default() += 1;
-            },
-        );
-        self.with_all_sheet_node_deps(
-            changed_sheet_nodes,
-            |sheet_node_index| {
-                let ref_count =
-                    sheet_ref_count.entry(sheet_node_index).or_default();
-                *ref_count -= 1;
-                if *ref_count == 0 {
-                    sorted_sheet_nodes.push(sheet_node_index);
-                }
-            },
-        );
+        self.with_all_sheet_node_deps(&changed_sheet_nodes[..], |sheet_node_index| {
+            *sheet_ref_count.entry(sheet_node_index).or_default() += 1;
+        });
+        self.with_all_sheet_node_deps(changed_sheet_nodes, |sheet_node_index| {
+            let ref_count = sheet_ref_count.entry(sheet_node_index).or_default();
+            *ref_count -= 1;
+            if *ref_count == 0 {
+                sorted_sheet_nodes.push(sheet_node_index);
+            }
+        });
         sorted_sheet_nodes
     }
 
@@ -704,8 +643,7 @@ impl SheetData {
     fn with_all_sheet_node_deps<T, F>(&self, targets: T, mut callback: F)
     where
         T: Into<Vec<Index<SheetNode>>>,
-        F: FnMut(Index<SheetNode>),
-    {
+        F: FnMut(Index<SheetNode>), {
         let mut sheet_nodes_to_visit = targets.into();
         while !sheet_nodes_to_visit.is_empty() {
             if let Some(current_sheet_id) = sheet_nodes_to_visit.pop() {
@@ -721,6 +659,7 @@ impl SheetData {
         }
     }
 }
+
 
 // === Debug ===
 
@@ -752,12 +691,7 @@ impl SheetData {
             }
             for expr in &node.expr {
                 for q in &expr.args {
-                    Self::sheet_node_query_link(
-                        s,
-                        node.index,
-                        *q,
-                        "[color=blue]",
-                    )
+                    Self::sheet_node_query_link(s, node.index, *q, "[color=blue]")
                 }
             }
         }
@@ -769,17 +703,10 @@ impl SheetData {
         let sheet_node = &self.nodes[sheet_node_index];
         let value = format!("{:?}", sheet_node.value);
         let label = iformat!("sheet_{sheet_node_index}({value})");
-        dot.push_str(&iformat!(
-            "sheet_{sheet_node_index} [label=\"{label}\"]\n"
-        ));
+        dot.push_str(&iformat!("sheet_{sheet_node_index} [label=\"{label}\"]\n"));
         for (path, child) in &node_map.branches {
             let attrs = iformat!("[label=\"{path}\"]");
-            Self::sheet_node_sheet_node_link(
-                dot,
-                sheet_node_index,
-                child.value,
-                attrs,
-            );
+            Self::sheet_node_sheet_node_link(dot, sheet_node_index, child.value, attrs);
             self.sheet_node_map_to_graphviz(dot, child);
         }
     }
@@ -792,15 +719,9 @@ impl SheetData {
     ) {
         query_map.value.for_each(|query_index| {
             let query = &self.queries[query_index];
-            let scope = if query.is_external() {
-                "External"
-            } else {
-                "Internal"
-            };
+            let scope = if query.is_external() { "External" } else { "Internal" };
             let real_path = path.iter().rev().join(".");
-            dot.push_str(&iformat!(
-                "query_{query_index} [label=\"{scope} Query({real_path})\"]\n"
-            ));
+            dot.push_str(&iformat!("query_{query_index} [label=\"{scope} Query({real_path})\"]\n"));
         });
         for (segment, child) in &query_map.branches {
             path.push(segment.into());
@@ -839,36 +760,15 @@ impl SheetData {
     ) where
         S: Into<String>,
     {
-        Self::link(
-            dot,
-            "sheet",
-            "sheet",
-            sheet_node_index_1,
-            sheet_node_index_2,
-            s,
-        )
+        Self::link(dot, "sheet", "sheet", sheet_node_index_1, sheet_node_index_2, s)
     }
 
-    fn link<Src, Tgt, S>(
-        dot: &mut String,
-        src_pfx: &str,
-        tgt_pfx: &str,
-        src: Src,
-        tgt: Tgt,
-        s: S,
-    ) where
+    fn link<Src, Tgt, S>(dot: &mut String, src_pfx: &str, tgt_pfx: &str, src: Src, tgt: Tgt, s: S)
+    where
         Src: Display,
         Tgt: Display,
-        S: Into<String>,
-    {
-        dot.push_str(&format!(
-            "{}_{} -> {}_{} {}\n",
-            src_pfx,
-            src,
-            tgt_pfx,
-            tgt,
-            s.into()
-        ));
+        S: Into<String>, {
+        dot.push_str(&format!("{}_{} -> {}_{} {}\n", src_pfx, src, tgt_pfx, tgt, s.into()));
     }
 }
 
@@ -879,6 +779,8 @@ impl Default for SheetData {
         Self::new()
     }
 }
+
+
 
 // ===========
 // === Var ===
@@ -893,46 +795,30 @@ pub struct Var {
 /// Internal state of `Var`.
 #[derive(Debug)]
 pub struct VarData {
-    sheet: Sheet,
+    sheet:       Sheet,
     query_index: Index<Query>,
-    callbacks: CallbackRegistry,
+    callbacks:   CallbackRegistry,
 }
 
 impl VarData {
     /// Constructor.
-    pub fn new<R>(
-        sheet: R,
-        query_index: Index<Query>,
-        callbacks: CallbackRegistry,
-    ) -> Self
-    where
-        R: Into<Sheet>,
-    {
+    pub fn new<R>(sheet: R, query_index: Index<Query>, callbacks: CallbackRegistry) -> Self
+    where R: Into<Sheet> {
         let sheet = sheet.into();
         sheet.rc.borrow_mut().queries[query_index].inc_external_count();
-        Self {
-            sheet,
-            query_index,
-            callbacks,
-        }
+        Self { sheet, query_index, callbacks }
     }
 
     /// Adds a new callback used when value changes. Returns handle to the callback. As soon as the
     /// handle is dropped, the callback is removed.
     pub fn on_change<F>(&self, callback: F) -> callback::Handle
-    where
-        F: 'static + FnMut(&Option<Data>),
-    {
+    where F: 'static + FnMut(&Option<Data>) {
         self.callbacks.add(callback)
     }
 
     /// Queries the style sheet for the current value of the var.
     pub fn value(&self) -> Option<Data> {
-        self.sheet
-            .rc
-            .borrow()
-            .query_value(self.query_index)
-            .cloned()
+        self.sheet.rc.borrow().query_value(self.query_index).cloned()
     }
 }
 
@@ -947,25 +833,19 @@ impl Drop for VarData {
 
 impl Var {
     /// Constructor.
-    pub fn new<R>(
-        sheet: R,
-        query_index: Index<Query>,
-        callbacks: CallbackRegistry,
-    ) -> Self
-    where
-        R: Into<Sheet>,
-    {
+    pub fn new<R>(sheet: R, query_index: Index<Query>, callbacks: CallbackRegistry) -> Self
+    where R: Into<Sheet> {
         let rc = Rc::new(VarData::new(sheet, query_index, callbacks));
         Self { rc }
     }
 
     /// Return weak reference to this var.
     pub fn downgrade(&self) -> WeakVar {
-        WeakVar {
-            weak: Rc::downgrade(&self.rc),
-        }
+        WeakVar { weak: Rc::downgrade(&self.rc) }
     }
 }
+
+
 
 // ===============
 // === WeakVar ===
@@ -984,6 +864,8 @@ impl WeakVar {
     }
 }
 
+
+
 // =============
 // === Sheet ===
 // =============
@@ -994,11 +876,11 @@ impl WeakVar {
 /// and `Sheet` to learn more.
 #[derive(Clone, CloneRef, Debug, Default)]
 pub struct Sheet {
-    rc: Rc<RefCell<SheetData>>,
+    rc:        Rc<RefCell<SheetData>>,
     /// Keeps already used variables. When dropping the last variable for a given path, it's
     /// associated [`Query`] is dropped as well, so it's necessary to provide the same variable
     /// for the given [`Path`]. See the [`var`] method to learn more.
-    cache: Rc<RefCell<HashMap<String, WeakVar>>>,
+    cache:     Rc<RefCell<HashMap<String, WeakVar>>>,
     callbacks: Rc<RefCell<HashMap<Index<Query>, CallbackRegistry>>>,
 }
 
@@ -1014,21 +896,13 @@ impl Sheet {
     /// Creates a new style sheet `Var`. It creates a clone-ref of an existing variable (in case not
     /// all references were dropped so far).
     pub fn var<P>(&self, path: P) -> Var
-    where
-        P: Into<Path>,
-    {
+    where P: Into<Path> {
         let path = path.into();
         let path_str = path.to_string();
-        let opt_var =
-            self.cache.borrow().get(&path_str).and_then(|t| t.upgrade());
+        let opt_var = self.cache.borrow().get(&path_str).and_then(|t| t.upgrade());
         opt_var.unwrap_or_else(|| {
             let query_ix = self.rc.borrow_mut().unmanaged_query(path);
-            let callback_reg = self
-                .callbacks
-                .borrow_mut()
-                .entry(query_ix)
-                .or_default()
-                .clone_ref();
+            let callback_reg = self.callbacks.borrow_mut().entry(query_ix).or_default().clone_ref();
             let var = Var::new(self, query_ix, callback_reg);
             self.cache.borrow_mut().insert(path_str, var.downgrade());
             var
@@ -1039,26 +913,21 @@ impl Sheet {
     pub fn set<P, V>(&self, path: P, value: V)
     where
         P: Into<Path>,
-        V: Into<Value>,
-    {
+        V: Into<Value>, {
         let value = value.into();
         self.apply_change(Change::new(path, Some(value)))
     }
 
     /// Removes the value by the given path.
     pub fn unset<P>(&self, path: P)
-    where
-        P: Into<Path>,
-    {
+    where P: Into<Path> {
         self.apply_change(Change::new(path, None))
     }
 
     /// Changes the value by the given path. Providing `None` as the value means that the value
     /// will be removed.
     pub fn change<P>(&self, path: P, value: Option<Value>)
-    where
-        P: Into<Path>,
-    {
+    where P: Into<Path> {
         self.apply_change(Change::new(path, value))
     }
 
@@ -1069,9 +938,7 @@ impl Sheet {
 
     /// Apply a set of `Change`s.
     pub fn apply_changes<I>(&self, changes: I)
-    where
-        I: IntoIterator<Item = Change>,
-    {
+    where I: IntoIterator<Item = Change> {
         let changed = self.rc.borrow_mut().apply_changes(changes);
         for query_index in changed {
             self.run_callbacks_for(query_index);
@@ -1081,18 +948,14 @@ impl Sheet {
     /// Queries the style sheet for a value of a path like it was a variable. For example,
     /// querying "button.size" will return the value of "size" if no exact match was found.
     pub fn query<P>(&self, path: P) -> Option<Data>
-    where
-        P: Into<Path>,
-    {
+    where P: Into<Path> {
         self.rc.borrow().query(path).cloned()
     }
 
     /// Reads the value of the style sheet by the exact path provided. If you want to read a value
     /// of a variable binding, use `query` instead.
     pub fn value<P>(&self, path: P) -> Option<Data>
-    where
-        P: Into<Path>,
-    {
+    where P: Into<Path> {
         self.rc.borrow().value(path).cloned()
     }
 
@@ -1103,16 +966,13 @@ impl Sheet {
     }
 }
 
+
 // === Private ===
 
 impl Sheet {
     /// Runs callbacks registered for the given variable id.
     fn run_callbacks_for(&self, query_index: Index<Query>) {
-        let callbacks_opt = self
-            .callbacks
-            .borrow()
-            .get(&query_index)
-            .map(|t| t.clone_ref());
+        let callbacks_opt = self.callbacks.borrow().get(&query_index).map(|t| t.clone_ref());
         if let Some(callbacks) = callbacks_opt {
             // FIXME: The value should not be cloned here.
             let value = self.rc.borrow().query_value(query_index).cloned();
@@ -1120,6 +980,7 @@ impl Sheet {
         }
     }
 }
+
 
 // === Debug ===
 
@@ -1135,6 +996,8 @@ impl Sheet {
     }
 }
 
+
+
 // =============
 // === Tests ===
 // =============
@@ -1143,11 +1006,7 @@ impl Sheet {
 mod tests {
     use super::*;
 
-    fn assert_query_sheet_count(
-        style: &Sheet,
-        queries_count: usize,
-        sheet_nodes_count: usize,
-    ) {
+    fn assert_query_sheet_count(style: &Sheet, queries_count: usize, sheet_nodes_count: usize) {
         assert_eq!(style.debug_queries_count(), queries_count);
         assert_eq!(style.debug_sheet_nodes_count(), sheet_nodes_count);
     }
@@ -1181,10 +1040,7 @@ mod tests {
         let sheet = Sheet::new();
         sheet.set("button.size", data(1.0));
         assert_query_sheet_count(&sheet, 0, 2);
-        sheet.set(
-            "circle.radius",
-            Expression::new(&["button.size"], |args| args[0] + &data(10.0)),
-        );
+        sheet.set("circle.radius", Expression::new(&["button.size"], |args| args[0] + &data(10.0)));
         assert_query_sheet_count(&sheet, 1, 4);
         assert_eq!(sheet.value("circle.radius"), Some(data(11.0)));
         sheet.unset("button.size");
@@ -1206,9 +1062,7 @@ mod tests {
         let sheet = Sheet::new();
         let val = Rc::new(RefCell::new(None));
         let var = sheet.var("button_size");
-        let handle = var.on_change(f!(
-            [val](v: &Option<Data>) * val.borrow_mut() = v.clone()
-        ));
+        let handle = var.on_change(f!([val](v: &Option<Data>) * val.borrow_mut() = v.clone()));
         assert_query_sheet_count(&sheet, 1, 1);
         assert_eq!(var.value(), None);
         sheet.set("size", data(1.0));
@@ -1239,9 +1093,7 @@ mod tests {
         let sheet = Sheet::new();
         let val = Rc::new(RefCell::new(None));
         let var = sheet.var("button.size");
-        let handle = var.on_change(f!(
-            [val](v: &Option<Data>) * val.borrow_mut() = v.clone()
-        ));
+        let handle = var.on_change(f!([val](v: &Option<Data>) * val.borrow_mut() = v.clone()));
         assert_query_sheet_count(&sheet, 1, 2);
         {
             let _var2 = sheet.var("button.size");
@@ -1277,9 +1129,7 @@ mod tests {
         let sheet = Sheet::new();
         let val = Rc::new(RefCell::new(None));
         let var = sheet.var("button.size");
-        let _handle = var.on_change(f!(
-            [val](v: &Option<Data>) * val.borrow_mut() = v.clone()
-        ));
+        let _handle = var.on_change(f!([val](v: &Option<Data>) * val.borrow_mut() = v.clone()));
         assert_query_sheet_count(&sheet, 1, 2);
         assert_eq!(var.value(), None);
         sheet.set("size", data(1.0));
@@ -1336,46 +1186,24 @@ mod tests {
 
         let _query_size = style.unmanaged_query("size");
         let _query_button_size = style.unmanaged_query("button.size");
-        let query_graph_button_size =
-            style.unmanaged_query("graph.button.size");
+        let query_graph_button_size = style.unmanaged_query("graph.button.size");
 
         assert!(style.query_value(query_graph_button_size).is_none());
         style.set("size", data(1.0));
-        assert_eq!(
-            style.query_value(query_graph_button_size),
-            Some(&data(1.0))
-        );
+        assert_eq!(style.query_value(query_graph_button_size), Some(&data(1.0)));
         style.set(
             "graph.button.size",
             Expression::new(&["button.size"], |args| args[0] + &data(10.0)),
         );
-        assert_eq!(
-            style.query_value(query_graph_button_size),
-            Some(&data(11.0))
-        );
-        style.set(
-            "button.size",
-            Expression::new(&["size"], |args| args[0] + &data(100.0)),
-        );
-        assert_eq!(
-            style.query_value(query_graph_button_size),
-            Some(&data(111.0))
-        );
+        assert_eq!(style.query_value(query_graph_button_size), Some(&data(11.0)));
+        style.set("button.size", Expression::new(&["size"], |args| args[0] + &data(100.0)));
+        assert_eq!(style.query_value(query_graph_button_size), Some(&data(111.0)));
         style.set("size", data(2.0));
-        assert_eq!(
-            style.query_value(query_graph_button_size),
-            Some(&data(112.0))
-        );
+        assert_eq!(style.query_value(query_graph_button_size), Some(&data(112.0)));
         style.set("button.size", data(3.0));
-        assert_eq!(
-            style.query_value(query_graph_button_size),
-            Some(&data(13.0))
-        );
+        assert_eq!(style.query_value(query_graph_button_size), Some(&data(13.0)));
         style.set("button.size", data(4.0));
-        assert_eq!(
-            style.query_value(query_graph_button_size),
-            Some(&data(14.0))
-        );
+        assert_eq!(style.query_value(query_graph_button_size), Some(&data(14.0)));
     }
 
     #[test]

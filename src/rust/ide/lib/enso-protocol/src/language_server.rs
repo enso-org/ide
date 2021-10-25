@@ -29,6 +29,8 @@ use serde::Serialize;
 use std::future::Future;
 use uuid::Uuid;
 
+
+
 // ====================
 // === API & Client ===
 // ====================
@@ -162,6 +164,8 @@ trait API {
     ) -> response::Completion;
 }}
 
+
+
 // ==============
 // === Errors ===
 // ==============
@@ -176,10 +180,11 @@ pub fn is_timeout_error(error: &failure::Error) -> bool {
     const TIMEOUT: i64 = constants::ErrorCodes::Timeout as i64;
     matches!(
         error.downcast_ref::<RpcError>(),
-        Some(TimeoutError { .. })
-            | Some(RemoteError(messages::Error { code: TIMEOUT, .. }))
+        Some(TimeoutError { .. }) | Some(RemoteError(messages::Error { code: TIMEOUT }))
     )
 }
+
+
 
 // =============
 // === Tests ===
@@ -195,16 +200,15 @@ mod test {
 
         // Server-side errors.
         let text = r#"{"code":11,"message":"Request timeout"}"#;
-        let msg =
-            serde_json::from_str::<json_rpc::messages::Error>(text).unwrap();
+        let msg = serde_json::from_str::<json_rpc::messages::Error>(text).unwrap();
         let error = RpcError::RemoteError(msg).into();
         assert!(is_timeout_error(&error));
 
         let text = r#"{"code":2007,"message":"Evaluation of the visualisation expression failed"}"#;
-        let msg =
-            serde_json::from_str::<json_rpc::messages::Error>(text).unwrap();
+        let msg = serde_json::from_str::<json_rpc::messages::Error>(text).unwrap();
         let error = RpcError::RemoteError(msg).into();
         assert!(!is_timeout_error(&error));
+
 
         // Client-side errors.
         let error = RpcError::TimeoutError { millis: 500 }.into();

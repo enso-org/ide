@@ -4,6 +4,8 @@ use crate::data::function::traits::FnMut0;
 use crate::data::function::traits::FnMut1;
 use crate::prelude::*;
 
+
+
 // ==================
 // === Observable ===
 // ==================
@@ -14,9 +16,9 @@ use crate::prelude::*;
 #[derivative(Clone, Debug(bound = "T:Debug"))]
 pub struct Observable<T, OnMut, OnResize> {
     #[shrinkwrap(main_field)]
-    pub data: T,
+    pub data:      T,
     #[derivative(Debug = "ignore")]
-    pub on_mut: OnMut,
+    pub on_mut:    OnMut,
     #[derivative(Debug = "ignore")]
     pub on_resize: OnResize,
 }
@@ -24,17 +26,11 @@ pub struct Observable<T, OnMut, OnResize> {
 impl<T: Default, OnMut, OnResize> Observable<T, OnMut, OnResize> {
     pub fn new(on_mut: OnMut, on_resize: OnResize) -> Self {
         let data = default();
-        Self {
-            data,
-            on_mut,
-            on_resize,
-        }
+        Self { data, on_mut, on_resize }
     }
 }
 
-impl<T: Index<Ix>, OnMut, OnResize, Ix> Index<Ix>
-    for Observable<T, OnMut, OnResize>
-{
+impl<T: Index<Ix>, OnMut, OnResize, Ix> Index<Ix> for Observable<T, OnMut, OnResize> {
     type Output = <T as Index<Ix>>::Output;
     #[inline]
     fn index(&self, index: Ix) -> &Self::Output {
@@ -52,9 +48,7 @@ impl<T: IndexMut<Ix>, OnMut: FnMut1<Ix>, OnResize, Ix: Copy> IndexMut<Ix>
     }
 }
 
-impl<T: Extend<S>, S, OnMut, OnResize: FnMut0> Extend<S>
-    for Observable<T, OnMut, OnResize>
-{
+impl<T: Extend<S>, S, OnMut, OnResize: FnMut0> Extend<S> for Observable<T, OnMut, OnResize> {
     #[inline]
     fn extend<I: IntoIterator<Item = S>>(&mut self, iter: I) {
         self.on_resize.call();

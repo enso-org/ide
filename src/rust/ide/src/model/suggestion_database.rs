@@ -19,17 +19,18 @@ use language_server::types::SuggestionsDatabaseVersion;
 pub use entry::Entry;
 pub use example::Example;
 
+
+
 // ==============
 // === Errors ===
 // ==============
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone, Copy, Eq, Fail, PartialEq)]
-#[fail(
-    display = "The suggestion with id {} has not been found in the database.",
-    _0
-)]
+#[fail(display = "The suggestion with id {} has not been found in the database.", _0)]
 pub struct NoSuchEntry(pub SuggestionId);
+
+
 
 // ====================
 // === Notification ===
@@ -41,6 +42,8 @@ pub enum Notification {
     /// The database has been updated.
     Updated,
 }
+
+
 
 // ================
 // === Database ===
@@ -54,10 +57,10 @@ pub enum Notification {
 /// argument names and types.
 #[derive(Clone, Debug)]
 pub struct SuggestionDatabase {
-    logger: Logger,
-    entries: RefCell<HashMap<entry::Id, Rc<Entry>>>,
-    examples: RefCell<Vec<Rc<Example>>>,
-    version: Cell<SuggestionsDatabaseVersion>,
+    logger:        Logger,
+    entries:       RefCell<HashMap<entry::Id, Rc<Entry>>>,
+    examples:      RefCell<Vec<Rc<Example>>>,
+    version:       Cell<SuggestionsDatabaseVersion>,
     notifications: notification::Publisher<Notification>,
 }
 
@@ -69,13 +72,7 @@ impl SuggestionDatabase {
         let examples = default();
         let version = default();
         let notifications = default();
-        Self {
-            logger,
-            entries,
-            examples,
-            version,
-            notifications,
-        }
+        Self { logger, entries, examples, version, notifications }
     }
 
     /// Create a database filled with entries provided by the given iterator.
@@ -84,9 +81,7 @@ impl SuggestionDatabase {
         entries: impl IntoIterator<Item = (&'a SuggestionId, &'a Entry)>,
     ) -> Self {
         let ret = Self::new_empty(logger);
-        let entries = entries
-            .into_iter()
-            .map(|(id, entry)| (*id, Rc::new(entry.clone())));
+        let entries = entries.into_iter().map(|(id, entry)| (*id, Rc::new(entry.clone())));
         ret.entries.borrow_mut().extend(entries);
         ret
     }
@@ -95,15 +90,12 @@ impl SuggestionDatabase {
     pub async fn create_synchronized(
         language_server: &language_server::Connection,
     ) -> FallibleResult<Self> {
-        let response =
-            language_server.client.get_suggestions_database().await?;
+        let response = language_server.client.get_suggestions_database().await?;
         Ok(Self::from_ls_response(response))
     }
 
     /// Create a new database model from response received from the Language Server.
-    fn from_ls_response(
-        response: language_server::response::GetSuggestionDatabase,
-    ) -> Self {
+    fn from_ls_response(response: language_server::response::GetSuggestionDatabase) -> Self {
         let logger = Logger::new("SuggestionDatabase");
         let mut entries = HashMap::new();
         for ls_entry in response.entries {
@@ -119,8 +111,7 @@ impl SuggestionDatabase {
         }
         //TODO[ao]: This is a temporary solution. Eventually, we should gather examples from the
         //          available modules documentation. (https://github.com/enso-org/ide/issues/1011)
-        let examples =
-            example::EXAMPLES.iter().cloned().map(Rc::new).collect_vec();
+        let examples = example::EXAMPLES.iter().cloned().map(Rc::new).collect_vec();
         Self {
             logger,
             entries: RefCell::new(entries),
@@ -137,11 +128,7 @@ impl SuggestionDatabase {
 
     /// Get suggestion entry by id.
     pub fn lookup(&self, id: entry::Id) -> Result<Rc<Entry>, NoSuchEntry> {
-        self.entries
-            .borrow()
-            .get(&id)
-            .cloned()
-            .ok_or(NoSuchEntry(id))
+        self.entries.borrow().get(&id).cloned().ok_or(NoSuchEntry(id))
     }
 
     /// Apply the update event to the database.
@@ -149,9 +136,7 @@ impl SuggestionDatabase {
         for update in event.updates {
             let mut entries = self.entries.borrow_mut();
             match update {
-                entry::Update::Add { id, suggestion } => match suggestion
-                    .try_into()
-                {
+                entry::Update::Add { id, suggestion } => match suggestion.try_into() {
                     Ok(entry) => {
                         entries.insert(id, Rc::new(entry));
                     }
@@ -162,27 +147,21 @@ impl SuggestionDatabase {
                 entry::Update::Remove { id } => {
                     let removed = entries.remove(&id);
                     if removed.is_none() {
-                        error!(
-                            self.logger,
-                            "Received Remove event for nonexistent id: {id}"
-                        );
+                        error!(self.logger, "Received Remove event for nonexistent id: {id}");
                     }
                 }
-                entry::Update::Modify {
-                    id, modification, ..
-                } => {
+                entry::Update::Modify { id, modification, .. } => {
                     if let Some(old_entry) = entries.get_mut(&id) {
                         let entry = Rc::make_mut(old_entry);
                         let errors = entry.apply_modifications(*modification);
                         for error in errors {
-                            error!(self.logger
-                                ,"Error when applying update for entry {id}: {error:?}");
+                            error!(
+                                self.logger,
+                                "Error when applying update for entry {id}: {error:?}"
+                            );
                         }
                     } else {
-                        error!(
-                            self.logger,
-                            "Received Modify event for nonexistent id: {id}"
-                        );
+                        error!(self.logger, "Received Modify event for nonexistent id: {id}");
                     }
                 }
             };
@@ -190,6 +169,7 @@ impl SuggestionDatabase {
         self.version.set(event.current_version);
         self.notifications.notify(Notification::Updated);
     }
+
 
     /// Look up given id in the suggestion database and if it is a known method obtain a pointer to
     /// it.
@@ -203,11 +183,7 @@ impl SuggestionDatabase {
 
     /// Search the database for an entry of method identified by given id.
     pub fn lookup_method(&self, id: MethodId) -> Option<Rc<Entry>> {
-        self.entries
-            .borrow()
-            .values()
-            .cloned()
-            .find(|entry| entry.method_id().contains(&id))
+        self.entries.borrow().values().cloned().find(|entry| entry.method_id().contains(&id))
     }
 
     /// Search the database for entries with given name and visible at given location in module.
@@ -221,8 +197,7 @@ impl SuggestionDatabase {
             .borrow()
             .values()
             .filter(|entry| {
-                entry.matches_name(name.as_ref())
-                    && entry.is_visible_at(module, location)
+                entry.matches_name(name.as_ref()) && entry.is_visible_at(module, location)
             })
             .cloned()
             .collect()
@@ -241,8 +216,7 @@ impl SuggestionDatabase {
             .values()
             .cloned()
             .filter(|entry| {
-                let is_local =
-                    entry.kind == Kind::Function || entry.kind == Kind::Local;
+                let is_local = entry.kind == Kind::Function || entry.kind == Kind::Local;
                 is_local
                     && entry.matches_name(name.as_ref())
                     && entry.is_visible_at(module, location)
@@ -259,9 +233,7 @@ impl SuggestionDatabase {
         self.entries.borrow().values().cloned().find(|entry| {
             let is_method = entry.kind == Kind::Method;
             let is_defined_for_module = entry.has_self_type(module);
-            is_method
-                && is_defined_for_module
-                && entry.matches_name(name.as_ref())
+            is_method && is_defined_for_module && entry.matches_name(name.as_ref())
         })
     }
 
@@ -282,15 +254,13 @@ impl SuggestionDatabase {
     }
 }
 
-impl From<language_server::response::GetSuggestionDatabase>
-    for SuggestionDatabase
-{
-    fn from(
-        database: language_server::response::GetSuggestionDatabase,
-    ) -> Self {
+impl From<language_server::response::GetSuggestionDatabase> for SuggestionDatabase {
+    fn from(database: language_server::response::GetSuggestionDatabase) -> Self {
         Self::from_ls_response(database)
     }
 }
+
+
 
 // =============
 // === Tests ===
@@ -304,23 +274,27 @@ mod test {
     use crate::model::suggestion_database::entry::Scope;
 
     use enso_data::text::TextLocation;
+    use enso_protocol::language_server::FieldUpdate;
     use enso_protocol::language_server::Position;
     use enso_protocol::language_server::SuggestionArgumentUpdate;
     use enso_protocol::language_server::SuggestionEntryArgument;
     use enso_protocol::language_server::SuggestionEntryScope;
-    use enso_protocol::language_server::{
-        FieldUpdate, SuggestionsDatabaseEntry, SuggestionsDatabaseModification,
-    };
+    use enso_protocol::language_server::SuggestionsDatabaseEntry;
+    use enso_protocol::language_server::SuggestionsDatabaseModification;
     use utils::test::stream::StreamTestExt;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
 
+
+
     wasm_bindgen_test_configure!(run_in_browser);
+
+
 
     #[test]
     fn initialize_database() {
         // Empty db
         let response = language_server::response::GetSuggestionDatabase {
-            entries: vec![],
+            entries:         vec![],
             current_version: 123,
         };
         let db = SuggestionDatabase::from_ls_response(response);
@@ -329,20 +303,17 @@ mod test {
 
         // Non-empty db
         let entry = language_server::types::SuggestionEntry::Atom {
-            name: "TextAtom".to_string(),
-            module: "TestProject.TestModule".to_string(),
-            arguments: vec![],
-            return_type: "TestAtom".to_string(),
-            documentation: None,
+            name:               "TextAtom".to_string(),
+            module:             "TestProject.TestModule".to_string(),
+            arguments:          vec![],
+            return_type:        "TestAtom".to_string(),
+            documentation:      None,
             documentation_html: None,
-            external_id: None,
+            external_id:        None,
         };
-        let db_entry = SuggestionsDatabaseEntry {
-            id: 12,
-            suggestion: entry,
-        };
+        let db_entry = SuggestionsDatabaseEntry { id: 12, suggestion: entry };
         let response = language_server::response::GetSuggestionDatabase {
-            entries: vec![db_entry],
+            entries:         vec![db_entry],
             current_version: 456,
         };
         let db = SuggestionDatabase::from_ls_response(response);
@@ -357,88 +328,72 @@ mod test {
     fn applying_update() {
         let mut fixture = TestWithLocalPoolExecutor::set_up();
         let entry1 = language_server::types::SuggestionEntry::Atom {
-            name: "Entry1".to_owned(),
-            module: "TestProject.TestModule".to_owned(),
-            arguments: vec![],
-            return_type: "TestAtom".to_owned(),
-            documentation: None,
+            name:               "Entry1".to_owned(),
+            module:             "TestProject.TestModule".to_owned(),
+            arguments:          vec![],
+            return_type:        "TestAtom".to_owned(),
+            documentation:      None,
             documentation_html: None,
-            external_id: None,
+            external_id:        None,
         };
         let entry2 = language_server::types::SuggestionEntry::Atom {
-            name: "Entry2".to_owned(),
-            module: "TestProject.TestModule".to_owned(),
-            arguments: vec![],
-            return_type: "TestAtom".to_owned(),
-            documentation: None,
+            name:               "Entry2".to_owned(),
+            module:             "TestProject.TestModule".to_owned(),
+            arguments:          vec![],
+            return_type:        "TestAtom".to_owned(),
+            documentation:      None,
             documentation_html: None,
-            external_id: None,
+            external_id:        None,
         };
         let new_entry2 = language_server::types::SuggestionEntry::Atom {
-            name: "NewEntry2".to_owned(),
-            module: "TestProject.TestModule".to_owned(),
-            arguments: vec![],
-            return_type: "TestAtom".to_owned(),
-            documentation: None,
+            name:               "NewEntry2".to_owned(),
+            module:             "TestProject.TestModule".to_owned(),
+            arguments:          vec![],
+            return_type:        "TestAtom".to_owned(),
+            documentation:      None,
             documentation_html: None,
-            external_id: None,
+            external_id:        None,
         };
         let arg1 = SuggestionEntryArgument {
-            name: "Argument1".to_owned(),
-            repr_type: "Number".to_owned(),
-            is_suspended: false,
-            has_default: false,
+            name:          "Argument1".to_owned(),
+            repr_type:     "Number".to_owned(),
+            is_suspended:  false,
+            has_default:   false,
             default_value: None,
         };
         let arg2 = SuggestionEntryArgument {
-            name: "Argument2".to_owned(),
-            repr_type: "TestAtom".to_owned(),
-            is_suspended: true,
-            has_default: false,
+            name:          "Argument2".to_owned(),
+            repr_type:     "TestAtom".to_owned(),
+            is_suspended:  true,
+            has_default:   false,
             default_value: None,
         };
         let arg3 = SuggestionEntryArgument {
-            name: "Argument3".to_owned(),
-            repr_type: "Number".to_owned(),
-            is_suspended: false,
-            has_default: true,
+            name:          "Argument3".to_owned(),
+            repr_type:     "Number".to_owned(),
+            is_suspended:  false,
+            has_default:   true,
             default_value: Some("13".to_owned()),
         };
         let entry3 = language_server::types::SuggestionEntry::Function {
             external_id: None,
-            name: "entry3".to_string(),
-            module: "TestProject.TestModule".to_string(),
-            arguments: vec![arg1, arg2, arg3],
+            name:        "entry3".to_string(),
+            module:      "TestProject.TestModule".to_string(),
+            arguments:   vec![arg1, arg2, arg3],
             return_type: "".to_string(),
-            scope: SuggestionEntryScope {
-                start: Position {
-                    line: 1,
-                    character: 2,
-                },
-                end: Position {
-                    line: 2,
-                    character: 4,
-                },
+            scope:       SuggestionEntryScope {
+                start: Position { line: 1, character: 2 },
+                end:   Position { line: 2, character: 4 },
             },
         };
 
-        let db_entry1 = SuggestionsDatabaseEntry {
-            id: 1,
-            suggestion: entry1,
+        let db_entry1 = SuggestionsDatabaseEntry { id: 1, suggestion: entry1 };
+        let db_entry2 = SuggestionsDatabaseEntry { id: 2, suggestion: entry2 };
+        let db_entry3 = SuggestionsDatabaseEntry { id: 3, suggestion: entry3 };
+        let initial_response = language_server::response::GetSuggestionDatabase {
+            entries:         vec![db_entry1, db_entry2, db_entry3],
+            current_version: 1,
         };
-        let db_entry2 = SuggestionsDatabaseEntry {
-            id: 2,
-            suggestion: entry2,
-        };
-        let db_entry3 = SuggestionsDatabaseEntry {
-            id: 3,
-            suggestion: entry3,
-        };
-        let initial_response =
-            language_server::response::GetSuggestionDatabase {
-                entries: vec![db_entry1, db_entry2, db_entry3],
-                current_version: 1,
-            };
         let db = SuggestionDatabase::from_ls_response(initial_response);
         let mut notifications = db.subscribe().boxed_local();
         notifications.expect_pending();
@@ -446,7 +401,7 @@ mod test {
         // Remove
         let remove_update = entry::Update::Remove { id: 2 };
         let update = SuggestionDatabaseUpdatesEvent {
-            updates: vec![remove_update],
+            updates:         vec![remove_update],
             current_version: 2,
         };
         db.apply_update_event(update);
@@ -456,12 +411,9 @@ mod test {
         assert_eq!(db.version.get(), 2);
 
         // Add
-        let add_update = entry::Update::Add {
-            id: 2,
-            suggestion: new_entry2,
-        };
+        let add_update = entry::Update::Add { id: 2, suggestion: new_entry2 };
         let update = SuggestionDatabaseUpdatesEvent {
-            updates: vec![add_update],
+            updates:         vec![add_update],
             current_version: 3,
         };
         db.apply_update_event(update);
@@ -473,20 +425,20 @@ mod test {
 
         // Empty modify
         let modify_update = entry::Update::Modify {
-            id: 1,
-            external_id: None,
+            id:           1,
+            external_id:  None,
             modification: Box::new(SuggestionsDatabaseModification {
-                arguments: vec![],
-                module: None,
-                self_type: None,
-                return_type: None,
-                documentation: None,
+                arguments:          vec![],
+                module:             None,
+                self_type:          None,
+                return_type:        None,
+                documentation:      None,
                 documentation_html: None,
-                scope: None,
+                scope:              None,
             }),
         };
         let update = SuggestionDatabaseUpdatesEvent {
-            updates: vec![modify_update],
+            updates:         vec![modify_update],
             current_version: 4,
         };
         db.apply_update_event(update);
@@ -501,36 +453,28 @@ mod test {
 
         // Modify with some invalid fields
         let modify_update = entry::Update::Modify {
-            id: 1,
-            external_id: None,
+            id:           1,
+            external_id:  None,
             modification: Box::new(SuggestionsDatabaseModification {
                 // Invalid: the entry does not have any arguments.
-                arguments: vec![SuggestionArgumentUpdate::Remove { index: 0 }],
+                arguments:          vec![SuggestionArgumentUpdate::Remove { index: 0 }],
                 // Valid.
-                return_type: Some(FieldUpdate::set("TestAtom2".to_owned())),
+                return_type:        Some(FieldUpdate::set("TestAtom2".to_owned())),
                 // Valid.
-                documentation: Some(FieldUpdate::set("Blah blah".to_owned())),
+                documentation:      Some(FieldUpdate::set("Blah blah".to_owned())),
                 // Valid.
-                documentation_html: Some(FieldUpdate::set(
-                    "<p>Blah blah</p>".to_owned(),
-                )),
+                documentation_html: Some(FieldUpdate::set("<p>Blah blah</p>".to_owned())),
                 // Invalid: atoms does not have any scope.
-                scope: Some(FieldUpdate::set(SuggestionEntryScope {
-                    start: Position {
-                        line: 4,
-                        character: 10,
-                    },
-                    end: Position {
-                        line: 8,
-                        character: 12,
-                    },
+                scope:              Some(FieldUpdate::set(SuggestionEntryScope {
+                    start: Position { line: 4, character: 10 },
+                    end:   Position { line: 8, character: 12 },
                 })),
-                module: None,
-                self_type: None,
+                module:             None,
+                self_type:          None,
             }),
         };
         let update = SuggestionDatabaseUpdatesEvent {
-            updates: vec![modify_update],
+            updates:         vec![modify_update],
             current_version: 5,
         };
         db.apply_update_event(update);
@@ -539,45 +483,36 @@ mod test {
         notifications.expect_pending();
         assert_eq!(db.lookup(1).unwrap().arguments, vec![]);
         assert_eq!(db.lookup(1).unwrap().return_type, "TestAtom2");
-        assert_eq!(
-            db.lookup(1).unwrap().documentation_html,
-            Some("<p>Blah blah</p>".to_owned())
-        );
+        assert_eq!(db.lookup(1).unwrap().documentation_html, Some("<p>Blah blah</p>".to_owned()));
         assert!(matches!(db.lookup(1).unwrap().scope, Scope::Everywhere));
         assert_eq!(db.version.get(), 5);
 
         // Modify Argument and Scope
         let modify_update = entry::Update::Modify {
-            id: 3,
-            external_id: None,
+            id:           3,
+            external_id:  None,
             modification: Box::new(SuggestionsDatabaseModification {
-                arguments: vec![SuggestionArgumentUpdate::Modify {
-                    index: 2,
-                    name: Some(FieldUpdate::set("NewArg".to_owned())),
-                    repr_type: Some(FieldUpdate::set("TestAtom".to_owned())),
-                    is_suspended: Some(FieldUpdate::set(true)),
-                    has_default: Some(FieldUpdate::set(false)),
+                arguments:          vec![SuggestionArgumentUpdate::Modify {
+                    index:         2,
+                    name:          Some(FieldUpdate::set("NewArg".to_owned())),
+                    repr_type:     Some(FieldUpdate::set("TestAtom".to_owned())),
+                    is_suspended:  Some(FieldUpdate::set(true)),
+                    has_default:   Some(FieldUpdate::set(false)),
                     default_value: Some(FieldUpdate::remove()),
                 }],
-                return_type: None,
-                documentation: None,
+                return_type:        None,
+                documentation:      None,
                 documentation_html: None,
-                scope: Some(FieldUpdate::set(SuggestionEntryScope {
-                    start: Position {
-                        line: 1,
-                        character: 5,
-                    },
-                    end: Position {
-                        line: 3,
-                        character: 0,
-                    },
+                scope:              Some(FieldUpdate::set(SuggestionEntryScope {
+                    start: Position { line: 1, character: 5 },
+                    end:   Position { line: 3, character: 0 },
                 })),
-                self_type: None,
-                module: None,
+                self_type:          None,
+                module:             None,
             }),
         };
         let update = SuggestionDatabaseUpdatesEvent {
-            updates: vec![modify_update],
+            updates:         vec![modify_update],
             current_version: 6,
         };
         db.apply_update_event(update);
@@ -589,39 +524,36 @@ mod test {
         assert_eq!(db.lookup(3).unwrap().arguments[2].repr_type, "TestAtom");
         assert!(db.lookup(3).unwrap().arguments[2].is_suspended);
         assert_eq!(db.lookup(3).unwrap().arguments[2].default_value, None);
-        let range = TextLocation { line: 1, column: 5 }..=TextLocation {
-            line: 3,
-            column: 0,
-        };
+        let range = TextLocation { line: 1, column: 5 }..=TextLocation { line: 3, column: 0 };
         assert_eq!(db.lookup(3).unwrap().scope, Scope::InModule { range });
         assert_eq!(db.version.get(), 6);
 
         // Add Argument
         let new_argument = SuggestionEntryArgument {
-            name: "NewArg2".to_string(),
-            repr_type: "Number".to_string(),
-            is_suspended: false,
-            has_default: false,
+            name:          "NewArg2".to_string(),
+            repr_type:     "Number".to_string(),
+            is_suspended:  false,
+            has_default:   false,
             default_value: None,
         };
         let add_arg_update = entry::Update::Modify {
-            id: 3,
-            external_id: None,
+            id:           3,
+            external_id:  None,
             modification: Box::new(SuggestionsDatabaseModification {
-                arguments: vec![SuggestionArgumentUpdate::Add {
-                    index: 2,
+                arguments:          vec![SuggestionArgumentUpdate::Add {
+                    index:    2,
                     argument: new_argument,
                 }],
-                return_type: None,
-                documentation: None,
+                return_type:        None,
+                documentation:      None,
                 documentation_html: None,
-                scope: None,
-                self_type: None,
-                module: None,
+                scope:              None,
+                self_type:          None,
+                module:             None,
             }),
         };
         let update = SuggestionDatabaseUpdatesEvent {
-            updates: vec![add_arg_update],
+            updates:         vec![add_arg_update],
             current_version: 7,
         };
         db.apply_update_event(update);
@@ -634,20 +566,20 @@ mod test {
 
         // Remove Argument
         let remove_arg_update = entry::Update::Modify {
-            id: 3,
-            external_id: None,
+            id:           3,
+            external_id:  None,
             modification: Box::new(SuggestionsDatabaseModification {
-                arguments: vec![SuggestionArgumentUpdate::Remove { index: 2 }],
-                return_type: None,
-                documentation: None,
+                arguments:          vec![SuggestionArgumentUpdate::Remove { index: 2 }],
+                return_type:        None,
+                documentation:      None,
                 documentation_html: None,
-                scope: None,
-                self_type: None,
-                module: None,
+                scope:              None,
+                self_type:          None,
+                module:             None,
             }),
         };
         let update = SuggestionDatabaseUpdatesEvent {
-            updates: vec![remove_arg_update],
+            updates:         vec![remove_arg_update],
             current_version: 8,
         };
         db.apply_update_event(update);

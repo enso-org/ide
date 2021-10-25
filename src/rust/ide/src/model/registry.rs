@@ -5,6 +5,8 @@ use crate::notification::Publisher;
 
 use flo_stream::Subscriber;
 
+
+
 // =============
 // === Error ===
 // =============
@@ -16,6 +18,8 @@ use flo_stream::Subscriber;
 #[derive(Clone, Debug, Fail)]
 #[fail(display = "Error while loading item")]
 struct LoadingError {}
+
+
 
 // =============
 // === Entry ===
@@ -60,16 +64,14 @@ impl<Handle: Clone + CloneRef> CloneRef for Entry<Handle> {
 }
 
 impl<Handle: Debug> Debug for Entry<Handle> {
-    fn fmt(
-        &self,
-        f: &mut std::fmt::Formatter<'_>,
-    ) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
             Entry::Loaded(handle) => write!(f, "Entry::Loaded({:?})", handle),
             Entry::Loading(_) => write!(f, "Entry::Loading"),
         }
     }
 }
+
 
 // ================
 // === Registry ===
@@ -86,15 +88,12 @@ impl<Handle: Debug> Debug for Entry<Handle> {
 #[derive(Debug, Derivative)]
 #[derivative(Default(bound = ""))]
 pub struct Registry<K, V>
-where
-    K: Eq + Hash,
-{
+where K: Eq + Hash {
     registry: RefCell<WeakValueHashMap<K, WeakEntry<V>>>,
 }
 
 impl<K, V> Registry<K, V>
-where
-    K: Clone + Eq + Hash,
+where K: Clone + Eq + Hash
 {
     /// Get item under the key, or load it.
     ///
@@ -103,14 +102,8 @@ where
     /// loading to finish. If it's not present nor loaded, this function will load item by
     /// awaiting `loader` parameter. It is guaranteed, that loader will be not polled in any other
     /// case.
-    pub async fn get_or_load<F>(
-        &self,
-        key: K,
-        loader: F,
-    ) -> FallibleResult<Rc<V>>
-    where
-        F: Future<Output = FallibleResult<Rc<V>>>,
-    {
+    pub async fn get_or_load<F>(&self, key: K, loader: F) -> FallibleResult<Rc<V>>
+    where F: Future<Output = FallibleResult<Rc<V>>> {
         match self.get(&key).await? {
             Some(state) => Ok(state),
             None => Ok(self.load(key, loader).await?),
@@ -136,20 +129,14 @@ where
     }
 
     async fn load<F, E>(&self, key: K, loader: F) -> Result<Rc<V>, E>
-    where
-        F: Future<Output = Result<Rc<V>, E>>,
-    {
+    where F: Future<Output = Result<Rc<V>, E>> {
         let publisher = Publisher::default();
-        self.registry
-            .borrow_mut()
-            .insert(key.clone(), Entry::Loading(publisher.subscribe()));
+        self.registry.borrow_mut().insert(key.clone(), Entry::Loading(publisher.subscribe()));
 
         let result = loader.await;
         with(self.registry.borrow_mut(), |mut registry| {
             match &result {
-                Ok(state) => {
-                    registry.insert(key, Entry::Loaded(state.clone_ref()))
-                }
+                Ok(state) => registry.insert(key, Entry::Loaded(state.clone_ref())),
                 Err(_) => registry.remove(&key),
             };
         });
@@ -161,6 +148,8 @@ where
         result
     }
 }
+
+
 
 // ============
 // === Test ===
@@ -184,24 +173,16 @@ mod test {
             let path = ModulePath::from_mock_module_name("Test");
             let urm = default();
             let logger = Logger::new("Test");
-            let state = Rc::new(model::module::Plain::new(
-                logger,
-                path.clone(),
-                ast,
-                default(),
-                urm,
-            ));
+            let state =
+                Rc::new(model::module::Plain::new(logger, path.clone(), ast, default(), urm));
             let registry = Registry::default();
             let expected = state.clone_ref();
 
             let loader = async move { Ok(state) };
-            let module =
-                registry.get_or_load(path.clone(), loader).await.unwrap();
+            let module = registry.get_or_load(path.clone(), loader).await.unwrap();
             assert!(Rc::ptr_eq(&expected, &module));
 
-            let loader = async move {
-                unreachable!("Should not call loader second time!")
-            };
+            let loader = async move { unreachable!("Should not call loader second time!") };
             let module = registry.get_or_load(path, loader).await.unwrap();
             assert!(Rc::ptr_eq(&expected, &module));
         });
@@ -215,19 +196,13 @@ mod test {
         let path2 = path1.clone();
         let urm = default();
         let logger = Logger::new("Test");
-        let state1 = Rc::new(model::module::Plain::new(
-            logger,
-            path1.clone_ref(),
-            ast,
-            default(),
-            urm,
-        ));
+        let state1 =
+            Rc::new(model::module::Plain::new(logger, path1.clone_ref(), ast, default(), urm));
         let state2 = state1.clone_ref();
         let registry1 = Rc::new(Registry::default());
         let registry2 = registry1.clone_ref();
 
-        let (loaded_send, loaded_recv) =
-            futures::channel::oneshot::channel::<()>();
+        let (loaded_send, loaded_recv) = futures::channel::oneshot::channel::<()>();
 
         let mut test = TestWithLocalPoolExecutor::set_up();
         test.run_task(async move {

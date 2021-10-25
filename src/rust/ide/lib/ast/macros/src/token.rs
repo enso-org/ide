@@ -10,9 +10,7 @@ use syn::PathSegment;
 use syn::Token;
 
 /// Generates `HasTokens` implementations for spaceless AST that panics when used.
-pub fn spaceless_ast(
-    input: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
+pub fn spaceless_ast(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let target = syn::parse::<PathSegment>(input).unwrap();
     let ty_args = path_segment_generic_args(&target);
     let ret = quote! {
@@ -26,10 +24,7 @@ pub fn spaceless_ast(
 }
 
 /// Inner logic for `derive_has_tokens`.
-pub fn derive_for_enum(
-    decl: &syn::DeriveInput,
-    data: &syn::DataEnum,
-) -> TokenStream {
+pub fn derive_for_enum(decl: &syn::DeriveInput, data: &syn::DataEnum) -> TokenStream {
     let ident = &decl.ident;
     let params = decl.generics.params.iter().collect_vec();
     let token_arms = data.variants.iter().map(|v| {
@@ -51,9 +46,9 @@ pub fn derive_for_enum(
 /// Basically it consists of a typename (with optional generic arguments) and
 /// sequence of expressions that yield values we use to obtain sub-HasTokens.
 pub struct TokenDescription {
-    pub ty: PathSegment,
+    pub ty:      PathSegment,
     pub ty_args: Vec<GenericArgument>,
-    pub exprs: Vec<Expr>,
+    pub exprs:   Vec<Expr>,
 }
 
 impl syn::parse::Parse for TokenDescription {
@@ -75,11 +70,7 @@ impl syn::parse::Parse for TokenDescription {
 
 impl TokenDescription {
     /// Fills a trait implementation template with given methods.
-    pub fn make_impl(
-        &self,
-        trait_name: &str,
-        methods: &TokenStream,
-    ) -> TokenStream {
+    pub fn make_impl(&self, trait_name: &str, methods: &TokenStream) -> TokenStream {
         let trait_name = syn::parse_str::<syn::TypePath>(trait_name).unwrap();
         let ty = &self.ty;
         let ty_args = &self.ty_args;
@@ -93,13 +84,10 @@ impl TokenDescription {
     /// Generates `HasTokens` instance using user-provided input.
     pub fn has_tokens(&self) -> TokenStream {
         let exprs = &self.exprs;
-        self.make_impl(
-            "HasTokens",
-            &quote! {
-                fn feed_to(&self, consumer:&mut impl TokenConsumer) {
-                    #(#exprs.feed_to(consumer);)*
-                }
-            },
-        )
+        self.make_impl("HasTokens", &quote! {
+            fn feed_to(&self, consumer:&mut impl TokenConsumer) {
+                #(#exprs.feed_to(consumer);)*
+            }
+        })
     }
 }

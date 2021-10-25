@@ -42,6 +42,7 @@ where
     }
 }
 
+
 /// Wrapper struct for data that can be made public and has no privacy implications.
 #[derive(Clone, Copy, Debug)]
 pub struct AnonymousData<T: Loggable>(pub T);

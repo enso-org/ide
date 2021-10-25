@@ -8,6 +8,8 @@ use ensogl::display::shape::*;
 use crate::node::input::area;
 use crate::Type;
 
+
+
 // =================
 // === Constants ===
 // =================
@@ -15,6 +17,8 @@ use crate::Type;
 /// The horizontal padding of ports. It affects how the port hover should extend the target text
 /// boundary on both sides.
 pub const PADDING_X: f32 = 4.0;
+
+
 
 // ===================
 // === Hover Shape ===
@@ -40,6 +44,8 @@ pub mod hover {
     }
 }
 
+
+
 // =============
 // === Shape ===
 // =============
@@ -57,6 +63,8 @@ pub mod viz {
         }
     }
 }
+
+
 
 // =============
 // === Shape ===
@@ -76,18 +84,13 @@ pub mod viz {
 /// ```
 #[derive(Clone, CloneRef, Debug)]
 pub struct Shape {
-    pub root: display::object::Instance,
+    pub root:  display::object::Instance,
     pub hover: hover::View,
-    pub viz: viz::View,
+    pub viz:   viz::View,
 }
 
 impl Shape {
-    pub fn new(
-        logger: &Logger,
-        scene: &Scene,
-        size: Vector2,
-        hover_height: f32,
-    ) -> Self {
+    pub fn new(logger: &Logger, scene: &Scene, size: Vector2, hover_height: f32) -> Self {
         let root = display::object::Instance::new(logger);
         let hover = hover::View::new(logger);
         let viz = viz::View::new(logger);
@@ -118,6 +121,8 @@ impl display::Object for Shape {
     }
 }
 
+
+
 // =============
 // === Model ===
 // =============
@@ -143,12 +148,12 @@ ensogl::define_endpoints! {
 /// model.
 #[derive(Clone, Debug, Default)]
 pub struct Model {
-    pub frp: Frp,
-    pub shape: Option<Shape>,
-    pub name: Option<String>,
-    pub index: usize,
-    pub local_index: usize,
-    pub length: usize,
+    pub frp:             Frp,
+    pub shape:           Option<Shape>,
+    pub name:            Option<String>,
+    pub index:           usize,
+    pub local_index:     usize,
+    pub length:          usize,
     pub highlight_color: color::Lcha, // TODO needed? and other fields?
 }
 

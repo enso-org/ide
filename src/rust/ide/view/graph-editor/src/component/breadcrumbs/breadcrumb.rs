@@ -22,6 +22,8 @@ use ensogl_theme as theme;
 use nalgebra::Vector2;
 use std::f32::consts::PI;
 
+
+
 // =================
 // === Constants ===
 // =================
@@ -43,6 +45,8 @@ const SEPARATOR_SIZE: f32 = 6.0;
 pub const PADDING: f32 = 1.0;
 const SEPARATOR_MARGIN: f32 = 10.0;
 
+
+
 // ==================
 // === Background ===
 // ==================
@@ -58,6 +62,8 @@ pub mod background {
         }
     }
 }
+
+
 
 // ============
 // === Icon ===
@@ -82,6 +88,8 @@ mod icon {
     }
 }
 
+
+
 // =================
 // === Separator ===
 // =================
@@ -101,6 +109,8 @@ mod separator {
     }
 }
 
+
+
 // ==================
 // === Animations ===
 // ==================
@@ -108,9 +118,9 @@ mod separator {
 /// ProjectName's animations handlers.
 #[derive(Debug, Clone, CloneRef)]
 pub struct Animations {
-    color: DEPRECATED_Animation<Vector4<f32>>,
+    color:           DEPRECATED_Animation<Vector4<f32>>,
     separator_color: DEPRECATED_Animation<Vector4<f32>>,
-    fade_in: DEPRECATED_Animation<f32>,
+    fade_in:         DEPRECATED_Animation<f32>,
 }
 
 impl Animations {
@@ -119,13 +129,11 @@ impl Animations {
         let color = DEPRECATED_Animation::new(network);
         let fade_in = DEPRECATED_Animation::new(network);
         let separator_color = DEPRECATED_Animation::new(network);
-        Self {
-            color,
-            separator_color,
-            fade_in,
-        }
+        Self { color, separator_color, fade_in }
     }
 }
+
+
 
 // =================
 // === FrpInputs ===
@@ -135,13 +143,13 @@ impl Animations {
 #[derive(Debug, Clone, CloneRef)]
 pub struct FrpInputs {
     /// Select the breadcrumb, triggering the selection animation.
-    pub select: frp::Source,
-    /// Select the breadcrumb, triggering the deselection animation, using the (self,new) breadcrumb
-    /// indices to determine if the breadcrumb is on the left or on the right of the newly selected
-    /// breadcrumb.
+    pub select:   frp::Source,
+    /// Select the breadcrumb, triggering the deselection animation, using the (self,new)
+    /// breadcrumb indices to determine if the breadcrumb is on the left or on the right of the
+    /// newly selected breadcrumb.
     pub deselect: frp::Source<(usize, usize)>,
     /// Triggers the fade in animation, which only makes sense during the breadcrumb creation.
-    pub fade_in: frp::Source,
+    pub fade_in:  frp::Source,
 }
 
 impl FrpInputs {
@@ -152,13 +160,11 @@ impl FrpInputs {
             deselect <- source();
             fade_in  <- source();
         }
-        Self {
-            select,
-            deselect,
-            fade_in,
-        }
+        Self { select, deselect, fade_in }
     }
 }
+
+
 
 // ==================
 // === FrpOutputs ===
@@ -168,11 +174,11 @@ impl FrpInputs {
 #[derive(Debug, Clone, CloneRef)]
 pub struct FrpOutputs {
     /// Signalizes that the breadcrumb was clicked.
-    pub clicked: frp::Source,
+    pub clicked:     frp::Source,
     /// Signalizes that the breadcrumb's size changed.
-    pub size: frp::Source<Vector2<f32>>,
+    pub size:        frp::Source<Vector2<f32>>,
     /// Signalizes the breadcrumb's selection state.
-    pub selected: frp::Source<bool>,
+    pub selected:    frp::Source<bool>,
     /// Used to check if the breadcrumb is selected.
     pub is_selected: frp::Sampler<bool>,
 }
@@ -186,14 +192,11 @@ impl FrpOutputs {
             selected    <- source();
             is_selected <- selected.sampler();
         }
-        Self {
-            clicked,
-            size,
-            selected,
-            is_selected,
-        }
+        Self { clicked, size, selected, is_selected }
     }
 }
+
+
 
 // ===========
 // === Frp ===
@@ -203,7 +206,7 @@ impl FrpOutputs {
 #[derive(Debug, Clone, CloneRef)]
 #[allow(missing_docs)]
 pub struct Frp {
-    pub inputs: FrpInputs,
+    pub inputs:  FrpInputs,
     pub outputs: FrpOutputs,
     pub network: frp::Network,
 }
@@ -227,13 +230,11 @@ impl Frp {
         let network = frp::Network::new("breadcrumbs");
         let inputs = FrpInputs::new(&network);
         let outputs = FrpOutputs::new(&network);
-        Self {
-            inputs,
-            outputs,
-            network,
-        }
+        Self { inputs, outputs, network }
     }
 }
+
+
 
 // ======================
 // === BreadcrumbInfo ===
@@ -244,8 +245,10 @@ impl Frp {
 #[allow(missing_docs)]
 pub struct BreadcrumbInfo {
     pub method_pointer: MethodPointer,
-    pub expression_id: ast::Id,
+    pub expression_id:  ast::Id,
 }
+
+
 
 // =======================
 // === BreadcrumbModel ===
@@ -254,18 +257,18 @@ pub struct BreadcrumbInfo {
 /// Breadcrumbs model.
 #[derive(Debug, Clone, CloneRef)]
 pub struct BreadcrumbModel {
-    logger: Logger,
-    display_object: display::object::Instance,
-    view: background::View,
-    separator: separator::View,
-    icon: icon::View,
-    label: text::Area,
-    animations: Animations,
-    style: StyleWatch,
+    logger:            Logger,
+    display_object:    display::object::Instance,
+    view:              background::View,
+    separator:         separator::View,
+    icon:              icon::View,
+    label:             text::Area,
+    animations:        Animations,
+    style:             StyleWatch,
     /// Breadcrumb information such as name and expression id.
-    pub info: Rc<BreadcrumbInfo>,
+    pub info:          Rc<BreadcrumbInfo>,
     relative_position: Rc<Cell<Option<RelativePosition>>>,
-    outputs: FrpOutputs,
+    outputs:           FrpOutputs,
 }
 
 impl BreadcrumbModel {
@@ -286,10 +289,7 @@ impl BreadcrumbModel {
         let label = app.new_view::<text::Area>();
         let expression_id = *expression_id;
         let method_pointer = method_pointer.clone();
-        let info = Rc::new(BreadcrumbInfo {
-            method_pointer,
-            expression_id,
-        });
+        let info = Rc::new(BreadcrumbInfo { method_pointer, expression_id });
         let animations = Animations::new(&frp.network);
         let relative_position = default();
         let outputs = frp.outputs.clone_ref();
@@ -307,10 +307,7 @@ impl BreadcrumbModel {
             .panel
             .shape_system_registry
             .shape_system(scene, PhantomData::<background::DynamicShape>);
-        scene
-            .layers
-            .panel
-            .add_exclusive(&shape_system.shape_system.symbol);
+        scene.layers.panel.add_exclusive(&shape_system.shape_system.symbol);
 
         scene.layers.panel.add_exclusive(&icon);
         let shape_system = scene
@@ -357,20 +354,13 @@ impl BreadcrumbModel {
         self.icon.add_child(&self.label);
 
         let styles = &self.style;
-        let full_color =
-            styles.get_color(theme::graph_editor::breadcrumbs::full);
-        let transparent_color =
-            styles.get_color(theme::graph_editor::breadcrumbs::transparent);
+        let full_color = styles.get_color(theme::graph_editor::breadcrumbs::full);
+        let transparent_color = styles.get_color(theme::graph_editor::breadcrumbs::transparent);
 
-        let color = if self.is_selected() {
-            full_color
-        } else {
-            transparent_color
-        };
+        let color = if self.is_selected() { full_color } else { transparent_color };
 
         self.label.set_default_color.emit(color);
-        self.label
-            .set_default_text_size(text::style::Size::from(TEXT_SIZE));
+        self.label.set_default_text_size(text::style::Size::from(TEXT_SIZE));
         self.label.single_line(true);
         self.label.set_position_x(ICON_RADIUS + ICON_RIGHT_MARGIN);
         self.label.set_position_y(TEXT_SIZE / 2.0);
@@ -384,14 +374,10 @@ impl BreadcrumbModel {
         self.fade_in(0.0);
         let separator_size = (SEPARATOR_SIZE + PADDING * 2.0).max(0.0);
         let icon_size = (ICON_SIZE + PADDING * 2.0).max(0.0);
-        self.separator
-            .size
-            .set(Vector2::new(separator_size, separator_size));
-        self.separator
-            .set_position_x((offset - width / 2.0).round());
+        self.separator.size.set(Vector2::new(separator_size, separator_size));
+        self.separator.set_position_x((offset - width / 2.0).round());
         self.icon.size.set(Vector2::new(icon_size, icon_size));
-        let x_position =
-            offset + PADDING + ICON_SIZE / 2.0 + LEFT_MARGIN + ICON_LEFT_MARGIN;
+        let x_position = offset + PADDING + ICON_SIZE / 2.0 + LEFT_MARGIN + ICON_LEFT_MARGIN;
         self.icon.set_position_x(x_position.round());
 
         self
@@ -407,8 +393,7 @@ impl BreadcrumbModel {
         let icon_width = ICON_LEFT_MARGIN + ICON_SIZE + ICON_RIGHT_MARGIN;
         let label_width = self.label_width();
         let margin_and_padding = LEFT_MARGIN + RIGHT_MARGIN + PADDING * 2.0;
-        let width =
-            separator_width + icon_width + label_width + margin_and_padding;
+        let width = separator_width + icon_width + label_width + margin_and_padding;
         width.ceil()
     }
 
@@ -422,11 +407,7 @@ impl BreadcrumbModel {
         let height = self.height();
         let x_position = width * value / 2.0;
         let y_position = -height / 2.0 - VERTICAL_MARGIN - PADDING;
-        self.view.set_position(Vector3(
-            x_position.round(),
-            y_position.round(),
-            0.0,
-        ));
+        self.view.set_position(Vector3(x_position.round(), y_position.round(), 0.0));
     }
 
     fn set_color(&self, value: Vector4<f32>) {
@@ -448,28 +429,18 @@ impl BreadcrumbModel {
 
     fn select(&self) {
         let styles = &self.style;
-        let selected_color =
-            styles.get_color(theme::graph_editor::breadcrumbs::selected);
-        let left_deselected = styles
-            .get_color(theme::graph_editor::breadcrumbs::deselected::left);
+        let selected_color = styles.get_color(theme::graph_editor::breadcrumbs::selected);
+        let left_deselected = styles.get_color(theme::graph_editor::breadcrumbs::deselected::left);
 
-        self.animations
-            .color
-            .set_target_value(selected_color.into());
-        self.animations
-            .separator_color
-            .set_target_value(left_deselected.into());
+        self.animations.color.set_target_value(selected_color.into());
+        self.animations.separator_color.set_target_value(left_deselected.into());
     }
 
     fn deselect(&self, old: usize, new: usize) {
         let left = RelativePosition::Left;
         let right = RelativePosition::Right;
-        self.relative_position.set(
-            (new > old)
-                .as_option()
-                .map(|_| Some(left))
-                .unwrap_or(Some(right)),
-        );
+        self.relative_position
+            .set((new > old).as_option().map(|_| Some(left)).unwrap_or(Some(right)));
         let color = self.deselected_color().into();
         self.animations.color.set_target_value(color);
         self.animations.separator_color.set_target_value(color);
@@ -477,12 +448,10 @@ impl BreadcrumbModel {
 
     fn deselected_color(&self) -> color::Rgba {
         let styles = &self.style;
-        let selected_color =
-            styles.get_color(theme::graph_editor::breadcrumbs::selected);
-        let left_deselected = styles
-            .get_color(theme::graph_editor::breadcrumbs::deselected::left);
-        let right_deselected = styles
-            .get_color(theme::graph_editor::breadcrumbs::deselected::right);
+        let selected_color = styles.get_color(theme::graph_editor::breadcrumbs::selected);
+        let left_deselected = styles.get_color(theme::graph_editor::breadcrumbs::deselected::left);
+        let right_deselected =
+            styles.get_color(theme::graph_editor::breadcrumbs::deselected::right);
 
         match self.relative_position.get() {
             Some(RelativePosition::Right) => right_deselected,
@@ -502,6 +471,8 @@ impl display::Object for BreadcrumbModel {
     }
 }
 
+
+
 // ==================
 // === Breadcrumb ===
 // ==================
@@ -511,32 +482,22 @@ impl display::Object for BreadcrumbModel {
 #[allow(missing_docs)]
 pub struct Breadcrumb {
     #[shrinkwrap(main_field)]
-    model: Rc<BreadcrumbModel>,
+    model:   Rc<BreadcrumbModel>,
     pub frp: Frp,
 }
 
 impl Breadcrumb {
     /// Constructor.
-    pub fn new(
-        app: &Application,
-        method_pointer: &MethodPointer,
-        expression_id: &ast::Id,
-    ) -> Self {
+    pub fn new(app: &Application, method_pointer: &MethodPointer, expression_id: &ast::Id) -> Self {
         let frp = Frp::new();
-        let model = Rc::new(BreadcrumbModel::new(
-            app,
-            &frp,
-            method_pointer,
-            expression_id,
-        ));
+        let model = Rc::new(BreadcrumbModel::new(app, &frp, method_pointer, expression_id));
         let network = &frp.network;
         let scene = app.display.scene();
 
         // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape
         //         system (#795)
         let styles = StyleWatch::new(&scene.style_sheet);
-        let hover_color =
-            styles.get_color(theme::graph_editor::breadcrumbs::hover);
+        let hover_color = styles.get_color(theme::graph_editor::breadcrumbs::hover);
 
         frp::extend! { network
             eval_ frp.fade_in(model.animations.fade_in.set_target_value(1.0));
@@ -559,6 +520,7 @@ impl Breadcrumb {
             );
             eval_ model.view.events.mouse_down(frp.outputs.clicked.emit(()));
         }
+
 
         // === Animations ===
 

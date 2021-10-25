@@ -11,6 +11,8 @@ use crate::system::gpu::data::texture::sampler::*;
 
 use nalgebra::*;
 
+
+
 // ====================
 // === InternalItem ===
 // ====================
@@ -20,6 +22,8 @@ pub trait InternalItem<Type> {
     /// The size in bytes of a single element of the texture.
     type ByteSize: DimName;
 }
+
+
 
 // ======================
 // === InternalFormat ===
@@ -68,6 +72,8 @@ pub trait InternalFormat: Default + Into<AnyInternalFormat> + 'static {
         <Self::Filterable as KnownTypeValue>::value()
     }
 }
+
+
 
 // =================
 // === Instances ===

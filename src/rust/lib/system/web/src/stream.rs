@@ -6,6 +6,8 @@ use crate::Error;
 
 use wasm_bindgen::JsCast;
 
+
+
 // ===================================
 // === ReadableStreamDefaultReader ===
 // ===================================
@@ -24,6 +26,8 @@ extern "C" {
     #[wasm_bindgen(method)]
     pub fn read(this: &ReadableStreamDefaultReader) -> js_sys::Promise;
 }
+
+
 
 // ===============
 // === BlobExt ===
@@ -54,8 +58,7 @@ impl BlobExt for web_sys::Blob {
 
     fn stream_reader(&self) -> Result<ReadableStreamDefaultReader, Error> {
         let stream = self.stream()?;
-        let method_as_value =
-            js_sys::Reflect::get(&stream, &"getReader".into())?;
+        let method_as_value = js_sys::Reflect::get(&stream, &"getReader".into())?;
         let method = method_as_value.dyn_into::<js_sys::Function>()?;
         Ok(method.call0(&stream)?.dyn_into()?)
     }

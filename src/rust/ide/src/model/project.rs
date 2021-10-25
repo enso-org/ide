@@ -21,6 +21,8 @@ use mockall::automock;
 use parser::Parser;
 use uuid::Uuid;
 
+
+
 // =============
 // === Model ===
 // =============
@@ -76,10 +78,7 @@ pub trait API: Debug {
 
     /// Set a new project name.
     #[allow(clippy::needless_lifetimes)] // Note: Needless lifetimes
-    fn rename_project<'a>(
-        &'a self,
-        name: String,
-    ) -> BoxFuture<'a, FallibleResult<()>>;
+    fn rename_project<'a>(&'a self, name: String) -> BoxFuture<'a, FallibleResult<()>>;
 
     /// Returns the primary content root id for this project.
     fn project_content_root_id(&self) -> Uuid {
@@ -114,14 +113,11 @@ pub trait API: Debug {
 
     /// Get a model of the project's main module.
     #[allow(clippy::needless_lifetimes)] // Note: Needless lifetimes
-    fn main_module_model<'a>(
-        &'a self,
-    ) -> BoxFuture<'a, FallibleResult<model::Module>> {
+    fn main_module_model<'a>(&'a self) -> BoxFuture<'a, FallibleResult<model::Module>> {
         async move {
             let main_name = self.main_module();
             let content_root_id = self.project_content_root_id();
-            let main_path =
-                model::module::Path::from_id(content_root_id, &main_name.id);
+            let main_path = model::module::Path::from_id(content_root_id, &main_name.id);
             self.module(main_path).await
         }
         .boxed_local()
@@ -143,9 +139,7 @@ pub trait APIExt: API {
         &'a self,
         f: impl FnOnce(&ProjectMetadata) -> R + 'a,
     ) -> BoxFuture<FallibleResult<R>> {
-        async move {
-            Ok(self.main_module_model().await?.with_project_metadata(f))
-        }.boxed_local()
+        async move { Ok(self.main_module_model().await?.with_project_metadata(f)) }.boxed_local()
     }
 }
 
@@ -169,6 +163,8 @@ pub type Project = Rc<dyn API>;
 /// Project Model which synchronizes all changes with Language Server.
 pub type Synchronized = synchronized::Project;
 
+
+
 // ====================
 // === Notification ===
 // ====================
@@ -189,6 +185,8 @@ pub enum BackendConnection {
     LanguageServerBinary,
 }
 
+
+
 // ============
 // === Test ===
 // ============
@@ -202,9 +200,7 @@ pub mod test {
     /// Sets up parser expectation on the mock project.
     pub fn expect_parser(project: &mut MockAPI, parser: &Parser) {
         let parser = parser.clone_ref();
-        project
-            .expect_parser()
-            .returning_st(move || parser.clone_ref());
+        project.expect_parser().returning_st(move || parser.clone_ref());
     }
 
     /// Sets up module expectation on the mock project, returning a given module.
@@ -213,32 +209,21 @@ pub mod test {
         project
             .expect_module()
             .withf_st(move |path| path == &module_path)
-            .returning_st(move |_path| {
-                ready(Ok(module.clone_ref())).boxed_local()
-            });
+            .returning_st(move |_path| ready(Ok(module.clone_ref())).boxed_local());
     }
 
     /// Sets up execution context expectation on the mock project, returning a given context.
-    pub fn expect_execution_ctx(
-        project: &mut MockAPI,
-        ctx: model::ExecutionContext,
-    ) {
+    pub fn expect_execution_ctx(project: &mut MockAPI, ctx: model::ExecutionContext) {
         let ctx2 = ctx.clone_ref();
         project
             .expect_create_execution_context()
-            .withf_st(move |root_definition| {
-                root_definition == &ctx.current_method()
-            })
-            .returning_st(move |_root_definition| {
-                ready(Ok(ctx2.clone_ref())).boxed_local()
-            });
+            .withf_st(move |root_definition| root_definition == &ctx.current_method())
+            .returning_st(move |_root_definition| ready(Ok(ctx2.clone_ref())).boxed_local());
     }
 
     /// Sets up project root id expectation on the mock project, returning a given id.
     pub fn expect_root_id(project: &mut MockAPI, root_id: Uuid) {
-        project
-            .expect_project_content_root_id()
-            .return_const(root_id);
+        project.expect_project_content_root_id().return_const(root_id);
     }
 
     /// Sets up suggestion database expectation on the mock project, returning a given database.
@@ -246,29 +231,17 @@ pub mod test {
         project: &mut MockAPI,
         suggestion_db: Rc<model::SuggestionDatabase>,
     ) {
-        project
-            .expect_suggestion_db()
-            .returning_st(move || suggestion_db.clone_ref());
+        project.expect_suggestion_db().returning_st(move || suggestion_db.clone_ref());
     }
 
     /// Sets up JSON RPC expectation on the mock project, returning a given connection.
-    pub fn expect_json_rpc(
-        project: &mut MockAPI,
-        json_rpc: Rc<language_server::Connection>,
-    ) {
-        project
-            .expect_json_rpc()
-            .returning_st(move || json_rpc.clone_ref());
+    pub fn expect_json_rpc(project: &mut MockAPI, json_rpc: Rc<language_server::Connection>) {
+        project.expect_json_rpc().returning_st(move || json_rpc.clone_ref());
     }
 
     /// Sets up binary RPC expectation on the mock project, returning a given connection.
-    pub fn expect_binary_rpc(
-        project: &mut MockAPI,
-        binary_rpc: Rc<binary::Connection>,
-    ) {
-        project
-            .expect_binary_rpc()
-            .returning_st(move || binary_rpc.clone_ref());
+    pub fn expect_binary_rpc(project: &mut MockAPI, binary_rpc: Rc<binary::Connection>) {
+        project.expect_binary_rpc().returning_st(move || binary_rpc.clone_ref());
     }
 
     /// Sets up name expectation on the mock project, returning a given name.
@@ -279,17 +252,13 @@ pub mod test {
 
     pub fn expect_qualified_name(project: &mut MockAPI, name: &QualifiedName) {
         let name = name.clone();
-        project
-            .expect_qualified_name()
-            .returning_st(move || name.clone());
+        project.expect_qualified_name().returning_st(move || name.clone());
     }
 
     pub fn expect_qualified_module_name(project: &mut MockAPI) {
         let name = project.qualified_name();
-        project.expect_qualified_module_name().returning_st(
-            move |path: &model::module::Path| {
-                path.qualified_module_name(name.clone())
-            },
-        );
+        project.expect_qualified_module_name().returning_st(move |path: &model::module::Path| {
+            path.qualified_module_name(name.clone())
+        });
     }
 }

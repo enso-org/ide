@@ -2,6 +2,8 @@ use crate::binding::emscripten_get_value_from_memory;
 use crate::prelude::*;
 use wasm_bindgen::JsValue;
 
+
+
 // ================================
 // === EmscriptenRepresentation ===
 // ================================
@@ -20,10 +22,7 @@ pub trait EmscriptenRepresentation: Sized {
 
     /// Read value from address in `msdfgen` library memory
     fn read_from_emscripten_memory(address: usize) -> Option<Self> {
-        let js_value = emscripten_get_value_from_memory(
-            address,
-            Self::EMSCRIPTEN_TYPE_NAME,
-        );
+        let js_value = emscripten_get_value_from_memory(address, Self::EMSCRIPTEN_TYPE_NAME);
         Self::from_js_value(js_value)
     }
 }
@@ -44,6 +43,8 @@ impl EmscriptenRepresentation for f64 {
     }
 }
 
+
+
 // =======================
 // === ArrayMemoryView ===
 // =======================
@@ -52,8 +53,8 @@ impl EmscriptenRepresentation for f64 {
 #[derive(Debug)]
 pub struct ArrayMemoryView<F: EmscriptenRepresentation> {
     begin_address: usize,
-    end_address: usize,
-    type_marker: std::marker::PhantomData<F>,
+    end_address:   usize,
+    type_marker:   std::marker::PhantomData<F>,
 }
 
 /// Iterator over values in `msdfgen` library memory
@@ -63,8 +64,8 @@ pub struct ArrayMemoryView<F: EmscriptenRepresentation> {
 #[derive(Clone, Copy, Debug)]
 pub struct ArrayMemoryViewIterator<'a, F: EmscriptenRepresentation> {
     next_read_address: usize,
-    end_address: usize,
-    view_lifetime: std::marker::PhantomData<&'a ArrayMemoryView<F>>,
+    end_address:       usize,
+    view_lifetime:     std::marker::PhantomData<&'a ArrayMemoryView<F>>,
 }
 
 impl<F: EmscriptenRepresentation> ArrayMemoryView<F> {
@@ -73,8 +74,8 @@ impl<F: EmscriptenRepresentation> ArrayMemoryView<F> {
         let size_in_bytes = size * F::EMSCRIPTEN_SIZE_IN_BYTES;
         ArrayMemoryView {
             begin_address: address,
-            end_address: address + size_in_bytes,
-            type_marker: std::marker::PhantomData,
+            end_address:   address + size_in_bytes,
+            type_marker:   std::marker::PhantomData,
         }
     }
 
@@ -82,8 +83,8 @@ impl<F: EmscriptenRepresentation> ArrayMemoryView<F> {
     pub fn empty() -> ArrayMemoryView<F> {
         ArrayMemoryView {
             begin_address: 0,
-            end_address: 0,
-            type_marker: std::marker::PhantomData,
+            end_address:   0,
+            type_marker:   std::marker::PhantomData,
         }
     }
 
@@ -91,21 +92,18 @@ impl<F: EmscriptenRepresentation> ArrayMemoryView<F> {
     pub fn iter(&self) -> ArrayMemoryViewIterator<F> {
         ArrayMemoryViewIterator {
             next_read_address: self.begin_address,
-            end_address: self.end_address,
-            view_lifetime: std::marker::PhantomData,
+            end_address:       self.end_address,
+            view_lifetime:     std::marker::PhantomData,
         }
     }
 }
 
-impl<'a, F: EmscriptenRepresentation> Iterator
-    for ArrayMemoryViewIterator<'a, F>
-{
+impl<'a, F: EmscriptenRepresentation> Iterator for ArrayMemoryViewIterator<'a, F> {
     type Item = F;
     fn next(&mut self) -> Option<Self::Item> {
         let has_element = self.next_read_address < self.end_address;
         has_element.and_option_from(|| {
-            let current_value =
-                F::read_from_emscripten_memory(self.next_read_address).unwrap();
+            let current_value = F::read_from_emscripten_memory(self.next_read_address).unwrap();
             self.next_read_address += F::EMSCRIPTEN_SIZE_IN_BYTES;
             Some(current_value)
         })

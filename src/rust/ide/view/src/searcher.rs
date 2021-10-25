@@ -11,7 +11,8 @@ use crate::documentation;
 
 use enso_frp as frp;
 use ensogl::application;
-use ensogl::application::{shortcut, Application};
+use ensogl::application::shortcut;
+use ensogl::application::Application;
 use ensogl::display;
 use ensogl::display::shape::*;
 use ensogl::DEPRECATED_Animation;
@@ -19,6 +20,8 @@ use ensogl_gui_components::list_view;
 use ensogl_gui_components::list_view::ListView;
 
 pub use ensogl_gui_components::list_view::entry;
+
+
 
 // =================
 // === Constants ===
@@ -34,10 +37,11 @@ pub const SEARCHER_HEIGHT: f32 = 184.5;
 
 const ACTION_LIST_GAP: f32 = 180.0;
 const LIST_DOC_GAP: f32 = 15.0;
-const DOCUMENTATION_WIDTH: f32 =
-    SEARCHER_WIDTH - ACTION_LIST_GAP - LIST_DOC_GAP;
+const DOCUMENTATION_WIDTH: f32 = SEARCHER_WIDTH - ACTION_LIST_GAP - LIST_DOC_GAP;
 const ACTION_LIST_X: f32 = (ACTION_LIST_GAP - SEARCHER_WIDTH) / 2.0;
 const DOCUMENTATION_X: f32 = (SEARCHER_WIDTH - DOCUMENTATION_WIDTH) / 2.0;
+
+
 
 // ==============================
 // === Documentation Provider ===
@@ -63,6 +67,7 @@ impl DocumentationProvider for entry::EmptyProvider {
     }
 }
 
+
 // === AnyDocumentationProvider ===
 
 /// A wrapper for shared instance of some DocumentationProvider.
@@ -79,19 +84,16 @@ impl Default for AnyDocumentationProvider {
 
 impl<T: DocumentationProvider + 'static> From<T> for AnyDocumentationProvider {
     fn from(provider: T) -> Self {
-        Self {
-            rc: Rc::new(provider),
-        }
+        Self { rc: Rc::new(provider) }
     }
 }
 
-impl<T: DocumentationProvider + 'static> From<Rc<T>>
-    for AnyDocumentationProvider
-{
+impl<T: DocumentationProvider + 'static> From<Rc<T>> for AnyDocumentationProvider {
     fn from(provider: Rc<T>) -> Self {
         Self { rc: provider }
     }
 }
+
 
 // =============
 // === Model ===
@@ -102,13 +104,13 @@ pub type Entry = list_view::entry::GlyphHighlightedLabel;
 
 #[derive(Clone, CloneRef, Debug)]
 struct Model {
-    app: Application,
-    logger: Logger,
+    app:            Application,
+    logger:         Logger,
     display_object: display::object::Instance,
-    list: ListView<Entry>,
-    new_view: new::View<usize>,
-    documentation: documentation::View,
-    doc_provider: Rc<CloneRefCell<AnyDocumentationProvider>>,
+    list:           ListView<Entry>,
+    new_view:       new::View<usize>,
+    documentation:  documentation::View,
+    doc_provider:   Rc<CloneRefCell<AnyDocumentationProvider>>,
 }
 
 impl Model {
@@ -128,43 +130,29 @@ impl Model {
         // FIXME: StyleWatch is unsuitable here, as it was designed as an internal tool for shape
         //  system (#795)
         let style = StyleWatch::new(&app.display.scene().style_sheet);
-        let action_list_gap_path =
-            ensogl_theme::application::searcher::action_list_gap;
+        let action_list_gap_path = ensogl_theme::application::searcher::action_list_gap;
         let action_list_gap = style.get_number_or(action_list_gap_path, 0.0);
         list.set_label_layer(scene.layers.above_nodes_text.id());
         list.set_position_y(-action_list_gap);
         list.set_position_x(ACTION_LIST_X);
         documentation.set_position_x(DOCUMENTATION_X);
         documentation.set_position_y(-action_list_gap);
-        Self {
-            app,
-            logger,
-            display_object,
-            list,
-            new_view,
-            documentation,
-            doc_provider,
-        }
+        Self { app, logger, display_object, list, new_view, documentation, doc_provider }
     }
 
     fn docs_for(&self, id: Option<entry::Id>) -> String {
         let doc_provider = self.doc_provider.get();
-        let when_none_selected =
-            || doc_provider.get().unwrap_or_else(|| " ".to_owned());
-        id.map_or_else(when_none_selected, |id| {
-            doc_provider.get_for_entry(id).unwrap_or_default()
-        })
+        let when_none_selected = || doc_provider.get().unwrap_or_else(|| " ".to_owned());
+        id.map_or_else(when_none_selected, |id| doc_provider.get_for_entry(id).unwrap_or_default())
     }
 
     fn set_height(&self, h: f32) {
         self.list.resize(Vector2(ACTION_LIST_GAP, h));
-        self.documentation
-            .visualization_frp
-            .inputs
-            .set_size
-            .emit(Vector2(DOCUMENTATION_WIDTH, h));
+        self.documentation.visualization_frp.inputs.set_size.emit(Vector2(DOCUMENTATION_WIDTH, h));
     }
 }
+
+
 
 // ===========
 // === FRP ===
@@ -191,6 +179,8 @@ ensogl::define_endpoints! {
     }
 }
 
+
+
 // ============
 // === View ===
 // ============
@@ -204,7 +194,7 @@ ensogl::define_endpoints! {
 #[derive(Clone, CloneRef, Debug)]
 pub struct View {
     pub frp: Frp,
-    model: Model,
+    model:   Model,
 }
 
 impl Deref for View {
@@ -276,14 +266,9 @@ impl View {
     /// `set_suggestion` input (FRP nodes cannot be generic).
     pub fn set_actions(
         &self,
-        provider: Rc<
-            impl list_view::entry::ModelProvider<Entry>
-                + DocumentationProvider
-                + 'static,
-        >,
+        provider: Rc<impl list_view::entry::ModelProvider<Entry> + DocumentationProvider + 'static>,
     ) {
-        let entries: list_view::entry::AnyModelProvider<Entry> =
-            provider.clone_ref().into();
+        let entries: list_view::entry::AnyModelProvider<Entry> = provider.clone_ref().into();
         let documentation: AnyDocumentationProvider = provider.into();
         self.frp.set_actions(entries, documentation);
     }

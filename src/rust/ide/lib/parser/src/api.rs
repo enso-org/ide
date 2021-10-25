@@ -12,9 +12,12 @@ use serde::Serialize;
 
 pub use ast::Ast;
 
+
+
 // ================
 // == SourceFile ==
 // ================
+
 
 // === Metadata ===
 
@@ -24,17 +27,18 @@ pub trait Metadata: Default + Serialize + DeserializeOwned {}
 /// Raw metadata.
 impl Metadata for serde_json::Value {}
 
+
 // === Source File ===
 
 /// Source File content with information about section placement.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceFile {
     /// The whole content of file.
-    pub content: String,
+    pub content:  String,
     /// The range in bytes of module's "Code" section.
-    pub code: Range<ByteIndex>,
+    pub code:     Range<ByteIndex>,
     /// The range in bytes of module's "Id Map" section.
-    pub id_map: Range<ByteIndex>,
+    pub id_map:   Range<ByteIndex>,
     /// The range in bytes of module's "Metadata" section.
     pub metadata: Range<ByteIndex>,
 }
@@ -53,10 +57,8 @@ impl SourceFile {
     /// the whole contents is treated as the code.
     pub fn new(content: String) -> Self {
         pub const METADATA_LINES: usize = 3;
-        let newline_indices =
-            enso_data::text::rev_newline_byte_indices(&content);
-        let newline_indices_from_end =
-            newline_indices.take(METADATA_LINES).collect_vec();
+        let newline_indices = enso_data::text::rev_newline_byte_indices(&content);
+        let newline_indices_from_end = newline_indices.take(METADATA_LINES).collect_vec();
         match newline_indices_from_end.as_slice() {
             [last, before_last, two_before_last] => {
                 // Last line should be metadata. Line before should be id map. Line before is the
@@ -129,13 +131,14 @@ impl SourceFile {
     }
 }
 
+
 // === Parsed Source File ===
 
 /// Parsed file / module with metadata.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub struct ParsedSourceFile<Metadata> {
     /// Ast representation.
-    pub ast: ast::known::Module,
+    pub ast:      ast::known::Module,
     /// Raw metadata in json.
     #[serde(bound(deserialize = "Metadata:Default+DeserializeOwned"))]
     #[serde(deserialize_with = "utils::serde::deserialize_or_default")]
@@ -144,9 +147,7 @@ pub struct ParsedSourceFile<Metadata> {
 
 impl<M: Metadata> TryFrom<&ParsedSourceFile<M>> for String {
     type Error = serde_json::Error;
-    fn try_from(
-        val: &ParsedSourceFile<M>,
-    ) -> std::result::Result<String, Self::Error> {
+    fn try_from(val: &ParsedSourceFile<M>) -> std::result::Result<String, Self::Error> {
         Ok(val.serialize()?.content)
     }
 }
@@ -166,9 +167,7 @@ const NEWLINES_BEFORE_TAG: usize = 3;
 
 const METADATA_TAG: &str = "#### METADATA ####";
 
-fn to_json_single_line(
-    val: &impl Serialize,
-) -> std::result::Result<String, serde_json::Error> {
+fn to_json_single_line(val: &impl Serialize) -> std::result::Result<String, serde_json::Error> {
     let json = serde_json::to_string(val)?;
     let line = json.chars().filter(|c| *c != '\n' && *c != '\r').collect();
     Ok(line)
@@ -176,36 +175,28 @@ fn to_json_single_line(
 
 impl<M: Metadata> ParsedSourceFile<M> {
     /// Serialize to the SourceFile structure,
-    pub fn serialize(
-        &self,
-    ) -> std::result::Result<SourceFile, serde_json::Error> {
+    pub fn serialize(&self) -> std::result::Result<SourceFile, serde_json::Error> {
         let before_tag = "\n".repeat(NEWLINES_BEFORE_TAG);
         let before_idmap = "\n";
         let before_metadata = "\n";
         let code = self.ast.repr();
         let id_map = to_json_single_line(&self.ast.id_map())?;
         let metadata = to_json_single_line(&self.metadata)?;
-        let id_map_start = code.len()
-            + before_tag.len()
-            + METADATA_TAG.len()
-            + before_idmap.len();
-        let metadata_start =
-            id_map_start + id_map.len() + before_metadata.len();
+        let id_map_start = code.len() + before_tag.len() + METADATA_TAG.len() + before_idmap.len();
+        let metadata_start = id_map_start + id_map.len() + before_metadata.len();
         Ok(SourceFile {
-            content: iformat!(
+            content:  iformat!(
                 "{code}{before_tag}{METADATA_TAG}{before_idmap}{id_map}\
                                  {before_metadata}{metadata}"
             ),
-            code: ByteIndex::new_range(0..code.len()),
-            id_map: ByteIndex::new_range(
-                id_map_start..id_map_start + id_map.len(),
-            ),
-            metadata: ByteIndex::new_range(
-                metadata_start..metadata_start + metadata.len(),
-            ),
+            code:     ByteIndex::new_range(0..code.len()),
+            id_map:   ByteIndex::new_range(id_map_start..id_map_start + id_map.len()),
+            metadata: ByteIndex::new_range(metadata_start..metadata_start + metadata.len()),
         })
     }
 }
+
+
 
 // ===========
 // == Error ==
@@ -240,11 +231,11 @@ pub struct TooManyLinesProduced;
 
 /// Wraps an arbitrary `std::error::Error` as an `InteropError.`
 pub fn interop_error<T>(error: T) -> Error
-where
-    T: Fail,
-{
+where T: Fail {
     Error::InteropError(Box::new(error))
 }
+
+
 
 // =============
 // === Tests ===
@@ -253,6 +244,8 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
+
+
 
     #[derive(Clone, Debug, Default, Deserialize, Serialize)]
     struct Metadata {
@@ -271,8 +264,7 @@ mod test {
         let source = ParsedSourceFile { ast, metadata };
         let serialized = source.serialize().unwrap();
 
-        let expected_id_map =
-            to_json_single_line(&source.ast.id_map()).unwrap();
+        let expected_id_map = to_json_single_line(&source.ast.id_map()).unwrap();
         let expected_metadata = to_json_single_line(&source.metadata).unwrap();
         let expected_content = iformat!(
             r#"main = 2 + 2

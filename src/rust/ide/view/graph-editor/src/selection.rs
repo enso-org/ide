@@ -14,6 +14,8 @@ use ensogl::frp;
 use ensogl::gui::cursor;
 use ensogl::gui::cursor::Cursor;
 
+
+
 // ============
 // === Mode ===
 // ============
@@ -47,8 +49,8 @@ impl Mode {
         }
     }
 
-    /// Return whether an element should be deselected, if a deselection was triggered through single
-    /// selection and had the given `was_selected` status before.
+    /// Return whether an element should be deselected, if a deselection was triggered through
+    /// single selection and had the given `was_selected` status before.
     fn single_should_deselect(self, was_selected: bool) -> bool {
         match self {
             Self::Subtract => true,
@@ -88,6 +90,8 @@ impl Default for Mode {
     }
 }
 
+
+
 // ==========================
 // === TemporarySelection ===
 // ==========================
@@ -101,7 +105,7 @@ impl Default for Mode {
 /// node to be preserved.
 #[derive(Clone, Copy, Default, Debug, Eq)]
 pub struct TemporarySelection {
-    node: NodeId,
+    node:         NodeId,
     was_selected: bool,
 }
 
@@ -181,7 +185,7 @@ mod node_set {
 
     #[derive(Clone, CloneRef, Debug)]
     pub struct Set {
-        frp: Rc<Frp>,
+        frp:   Rc<Frp>,
         model: Rc<Model>,
     }
 
@@ -222,27 +226,19 @@ mod node_set {
     }
 }
 
-fn get_nodes_in_bounding_box(
-    bounding_box: &BoundingBox,
-    nodes: &Nodes,
-) -> Vec<NodeId> {
+fn get_nodes_in_bounding_box(bounding_box: &BoundingBox, nodes: &Nodes) -> Vec<NodeId> {
     let nodes_raw = nodes.all.raw.as_ref().borrow();
     nodes_raw
         .iter()
         .filter_map(|(id, node)| {
-            bounding_box
-                .intersects(&node.view.frp.bounding_box.value())
-                .as_some(*id)
+            bounding_box.intersects(&node.view.frp.bounding_box.value()).as_some(*id)
         })
         .collect()
 }
 
 /// Return an FRP endpoint that indicates the current selection mode. This method sets up the logic
 /// for deriving the selection mode from the graph editor FRP.
-pub fn get_mode(
-    network: &frp::Network,
-    editor: &crate::FrpEndpoints,
-) -> frp::stream::Stream<Mode> {
+pub fn get_mode(network: &frp::Network, editor: &crate::FrpEndpoints) -> frp::stream::Stream<Mode> {
     frp::extend! { network
 
     let multi_select_flag = crate::enable_disable_toggle
@@ -287,6 +283,8 @@ pub fn get_mode(
     selection_mode
 }
 
+
+
 // ==================
 // === Controller ===
 // ==================
@@ -295,12 +293,12 @@ pub fn get_mode(
 /// editor.
 #[derive(Debug, Clone, CloneRef)]
 pub struct Controller {
-    network: frp::Network,
+    network:                frp::Network,
     cursor_selection_nodes: node_set::Set,
 
     pub enable_area_selection: frp::Source<bool>,
 
-    pub cursor_style: frp::stream::Stream<cursor::Style>,
+    pub cursor_style:   frp::stream::Stream<cursor::Style>,
     pub area_selection: frp::stream::Stream<bool>,
 }
 
@@ -315,6 +313,7 @@ impl Controller {
         let network = frp::Network::new("selection::Controller");
         let selection_mode = get_mode(&network, editor);
         let cursor_selection_nodes = node_set::Set::new();
+
 
         frp::extend! { network
             deselect_all_nodes      <- any_(...);

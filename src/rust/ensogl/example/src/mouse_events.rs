@@ -30,16 +30,18 @@ mod shape {
     }
 }
 
+
+
 // =============
 // === Model ===
 // =============
 
 #[derive(Clone, CloneRef, Debug)]
 struct Model {
-    app: Application,
-    logger: DefaultTraceLogger,
+    app:            Application,
+    logger:         DefaultTraceLogger,
     display_object: display::object::Instance,
-    shape: shape::View,
+    shape:          shape::View,
 }
 
 impl Model {
@@ -50,14 +52,11 @@ impl Model {
         let shape = shape::View::new(&logger);
         shape.size.set(Vector2::new(100.0, 100.0));
         display_object.add_child(&shape);
-        Self {
-            app,
-            logger,
-            display_object,
-            shape,
-        }
+        Self { app, logger, display_object, shape }
     }
 }
+
+
 
 // ===========
 // === FRP ===
@@ -70,13 +69,15 @@ ensogl_core::define_endpoints! { [TRACE_ALL]
     }
 }
 
+
+
 // ============
 // === View ===
 // ============
 
 #[derive(Clone, CloneRef, Debug)]
 struct View {
-    frp: Frp,
+    frp:   Frp,
     model: Model,
 }
 
@@ -132,6 +133,7 @@ impl application::View for View {
     }
 }
 
+
 // ===================
 // === Entry Point ===
 // ===================
@@ -142,8 +144,7 @@ impl application::View for View {
 pub fn entry_point_mouse_events() {
     web::forward_panic_hook_to_console();
     run_once_initialized(|| {
-        let app =
-            Application::new(&web::get_html_element_by_id("root").unwrap());
+        let app = Application::new(&web::get_html_element_by_id("root").unwrap());
 
         let shape: View = app.new_view();
         shape.model.shape.size.set(Vector2::new(300.0, 300.0));

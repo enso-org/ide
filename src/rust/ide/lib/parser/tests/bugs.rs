@@ -17,21 +17,11 @@ fn no_doc_found() {
 
 #[wasm_bindgen_test]
 fn extension_operator_methods() {
-    let ast = parser::Parser::new_or_panic()
-        .parse_line_ast("Int.+")
-        .unwrap();
+    let ast = parser::Parser::new_or_panic().parse_line_ast("Int.+").unwrap();
 
     use ast::*;
-    if let Shape::Infix(
-        Infix {
-            larg: _larg,
-            loff: _loff,
-            opr,
-            roff: _roff,
-            rarg,
-        },
-        ..,
-    ) = ast.shape()
+    if let Shape::Infix(Infix { larg: _larg, loff: _loff, opr, roff: _roff, rarg }, ..) =
+        ast.shape()
     {
         if let Shape::Opr(Opr { .. }) = opr.shape() {
             // TODO: should be Opr(+). https://github.com/enso-org/enso/issues/565

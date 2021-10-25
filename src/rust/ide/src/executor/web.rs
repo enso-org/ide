@@ -18,14 +18,14 @@ use futures::task::SpawnError;
 #[derive(Debug)]
 pub struct EventLoopExecutor {
     /// Underlying executor. Shared internally with the event loop callback.
-    executor: Rc<RefCell<LocalPool>>,
+    executor:    Rc<RefCell<LocalPool>>,
     /// Executor's spawner handle.
     pub spawner: LocalSpawner,
     /// Event loop that calls us on each frame.
-    event_loop: Option<animation::DynamicLoop>,
+    event_loop:  Option<animation::DynamicLoop>,
     /// Handle to the callback - if dropped, loop would have stopped calling us.
     /// Also owns a shared handle to the `executor`.
-    cb_handle: Option<callback::Handle>,
+    cb_handle:   Option<callback::Handle>,
 }
 
 impl EventLoopExecutor {
@@ -37,12 +37,7 @@ impl EventLoopExecutor {
         let executor = Rc::new(RefCell::new(executor));
         let event_loop = None;
         let cb_handle = None;
-        EventLoopExecutor {
-            executor,
-            spawner,
-            event_loop,
-            cb_handle,
-        }
+        EventLoopExecutor { executor, spawner, event_loop, cb_handle }
     }
 
     /// Creates a new EventLoopExecutor with an event loop of its own. The event
@@ -97,10 +92,7 @@ impl Default for EventLoopExecutor {
 }
 
 impl LocalSpawn for EventLoopExecutor {
-    fn spawn_local_obj(
-        &self,
-        future: LocalFutureObj<'static, ()>,
-    ) -> Result<(), SpawnError> {
+    fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
         self.spawner.spawn_local_obj(future)
     }
 

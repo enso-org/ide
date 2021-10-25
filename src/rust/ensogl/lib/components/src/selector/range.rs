@@ -16,6 +16,8 @@ use super::bounds::should_clamp_with_overflow;
 use super::Bounds;
 use super::Model;
 
+
+
 // ===========
 // === Frp ===
 // ===========
@@ -44,19 +46,12 @@ impl component::Frp<Model> for Frp {
         let scene = app.display.scene();
         let mouse = &scene.mouse.frp;
 
-        let base_frp = super::Frp::new(
-            model,
-            style,
-            network,
-            frp.resize.clone().into(),
-            mouse,
-        );
+        let base_frp = super::Frp::new(model, style, network, frp.resize.clone().into(), mouse);
 
         model.use_track_handles(true);
         model.show_background(true);
 
-        let style_track_color =
-            style.get_color(theme::component::slider::track::color);
+        let style_track_color = style.get_color(theme::component::slider::track::color);
 
         frp::extend! { network
 

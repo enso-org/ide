@@ -10,6 +10,8 @@ use core::convert::From;
 use core::option::Option;
 use core::option::Option::Some;
 
+
+
 // ==============
 // === Bounds ===
 // ==============
@@ -21,7 +23,7 @@ pub struct Bounds {
     /// Start of the bounds interval (inclusive).
     pub start: f32,
     /// End of the bounds interval (inclusive).
-    pub end: f32,
+    pub end:   f32,
 }
 
 impl Bounds {
@@ -33,10 +35,7 @@ impl Bounds {
     /// Return the `Bound` with the lower bound as `start` and the upper bound as `end`.
     pub fn sorted(self) -> Self {
         if self.start > self.end {
-            Bounds {
-                start: self.end,
-                end: self.start,
-            }
+            Bounds { start: self.end, end: self.start }
         } else {
             self
         }
@@ -115,10 +114,7 @@ pub fn bounds_in_bounds(bounds_inner: Bounds, bounds_outer: Bounds) -> bool {
 ///  clamped <- value_update.map2(&normalised_overflow_bounds,clamp_with_overflow);
 /// ```
 #[allow(clippy::trivially_copy_pass_by_ref)]
-pub fn clamp_with_overflow(
-    value: &f32,
-    overflow_bounds: &Option<Bounds>,
-) -> f32 {
+pub fn clamp_with_overflow(value: &f32, overflow_bounds: &Option<Bounds>) -> f32 {
     if let Some(overflow_bounds) = overflow_bounds {
         value.clamp(overflow_bounds.start, overflow_bounds.end)
     } else {
@@ -134,16 +130,15 @@ pub fn clamp_with_overflow(
 ///  is_in_bounds <- bounds_update.map2(&normalised_overflow_bounds,should_clamp_with_overflow);
 /// ```
 #[allow(clippy::trivially_copy_pass_by_ref)]
-pub fn should_clamp_with_overflow(
-    bounds: &Bounds,
-    overflow_bounds: &Option<Bounds>,
-) -> bool {
+pub fn should_clamp_with_overflow(bounds: &Bounds, overflow_bounds: &Option<Bounds>) -> bool {
     if let Some(overflow_bounds) = overflow_bounds {
         bounds_in_bounds(*bounds, *overflow_bounds)
     } else {
         bounds_in_bounds(*bounds, (0.0, 1.0).into())
     }
 }
+
+
 
 // =============
 // === Tests ===
@@ -257,6 +252,7 @@ mod tests {
         test(1.0, 1.0, -2.0, 1.0);
     }
 
+
     #[test]
     fn test_position_to_normalised_value() {
         let test = |pos, width, expected| {
@@ -284,11 +280,7 @@ mod tests {
     fn test_value_in_bounds() {
         let test = |start, end, value, expected| {
             let result = value_in_bounds(value, Bounds::new(start, end));
-            assert_eq!(
-                result, expected,
-                "Testing whether {} in ]{},{}[",
-                value, start, end
-            )
+            assert_eq!(result, expected, "Testing whether {} in ]{},{}[", value, start, end)
         };
 
         test(0.0, 1.0, 0.0, true);
@@ -314,10 +306,7 @@ mod tests {
     #[test]
     fn test_bounds_in_bounds() {
         let test = |start1, end1, start2, end2, expected| {
-            let result = bounds_in_bounds(
-                Bounds::new(start1, start2),
-                Bounds::new(start2, end2),
-            );
+            let result = bounds_in_bounds(Bounds::new(start1, start2), Bounds::new(start2, end2));
             assert_eq!(
                 result, expected,
                 "Testing whether ]{},{}[ in ]{},{}[",
@@ -376,47 +365,15 @@ mod tests {
         test(Bounds::new(0.0, 1.0), Some(Bounds::new(0.0, 1.0)), true);
         test(Bounds::new(0.0, 1.0), Some(Bounds::new(1.0, 2.0)), false);
         test(Bounds::new(0.0, 1.0), Some(Bounds::new(0.5, 2.0)), false);
-        test(
-            Bounds::new(0.0, 1.0),
-            Some(Bounds::new(-100.0, 100.0)),
-            true,
-        );
-        test(
-            Bounds::new(0.0, 1.0),
-            Some(Bounds::new(-100.0, -99.0)),
-            false,
-        );
+        test(Bounds::new(0.0, 1.0), Some(Bounds::new(-100.0, 100.0)), true);
+        test(Bounds::new(0.0, 1.0), Some(Bounds::new(-100.0, -99.0)), false);
         test(Bounds::new(0.0, 1.0), Some(Bounds::new(0.1, 0.9)), false);
-        test(
-            Bounds::new(-100.0, 200.0),
-            Some(Bounds::new(50.0, 75.0)),
-            false,
-        );
-        test(
-            Bounds::new(-100.0, 200.0),
-            Some(Bounds::new(-50.0, 75.0)),
-            false,
-        );
-        test(
-            Bounds::new(-100.0, 200.0),
-            Some(Bounds::new(-50.0, -75.0)),
-            false,
-        );
-        test(
-            Bounds::new(-100.0, 200.0),
-            Some(Bounds::new(-50.0, 99999.0)),
-            false,
-        );
-        test(
-            Bounds::new(-100.0, 200.0),
-            Some(Bounds::new(-99999.0, 0.0)),
-            false,
-        );
-        test(
-            Bounds::new(-100.0, 200.0),
-            Some(Bounds::new(-99999.0, 99999.0)),
-            true,
-        );
+        test(Bounds::new(-100.0, 200.0), Some(Bounds::new(50.0, 75.0)), false);
+        test(Bounds::new(-100.0, 200.0), Some(Bounds::new(-50.0, 75.0)), false);
+        test(Bounds::new(-100.0, 200.0), Some(Bounds::new(-50.0, -75.0)), false);
+        test(Bounds::new(-100.0, 200.0), Some(Bounds::new(-50.0, 99999.0)), false);
+        test(Bounds::new(-100.0, 200.0), Some(Bounds::new(-99999.0, 0.0)), false);
+        test(Bounds::new(-100.0, 200.0), Some(Bounds::new(-99999.0, 99999.0)), true);
         test(Bounds::new(-100.0, 0.0), None, false);
         test(Bounds::new(0.1, 1.1), None, false);
         test(Bounds::new(-9.1, 2.1), None, false);

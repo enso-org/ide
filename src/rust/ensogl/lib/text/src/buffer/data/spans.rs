@@ -6,6 +6,8 @@ use super::range::Range;
 use super::rope;
 use super::unit::*;
 
+
+
 // =============
 // === Spans ===
 // =============
@@ -35,12 +37,7 @@ impl<T: Clone> Spans<T> {
     /// and then creates a new byte subsequence of the length `length` and associates it with the
     /// `value`. Use with caution, as it can easily lead to wrong amount of bytes covered by the
     /// span.
-    pub fn replace_resize(
-        &mut self,
-        range: Range<Bytes>,
-        length: Bytes,
-        value: T,
-    ) {
+    pub fn replace_resize(&mut self, range: Range<Bytes>, length: Bytes, value: T) {
         let mut builder = rope::spans::Builder::new(length.as_usize());
         builder.add_span(.., value);
         self.raw.edit(range.into_rope_interval(), builder.build())
@@ -48,9 +45,7 @@ impl<T: Clone> Spans<T> {
 
     /// Return all spans contained in the provided range.
     pub fn sub(&self, range: Range<Bytes>) -> Self {
-        Self {
-            raw: self.raw.subseq(range.into_rope_interval()),
-        }
+        Self { raw: self.raw.subseq(range.into_rope_interval()) }
     }
 
     /// Convert the span tree to vector of non-overlapping ranges and their values.

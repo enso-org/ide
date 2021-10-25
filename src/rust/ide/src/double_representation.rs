@@ -29,6 +29,8 @@ pub mod tp;
 #[cfg(test)]
 pub mod test_utils;
 
+
+
 // ==============
 // === Consts ===
 // ==============
@@ -41,6 +43,8 @@ pub mod test_utils;
 /// Link: https://github.com/enso-org/enso/blob/main/doc/syntax/encoding.md
 pub const INDENT: usize = 4;
 
+
+
 // ========================
 // === Discerning Lines ===
 // ========================
@@ -51,7 +55,7 @@ pub enum LineKind {
     /// Definition is a binding, which defines a new entity with arguments.
     Definition {
         /// The binding that introduces the definition.
-        ast: known::Infix,
+        ast:  known::Infix,
         /// Name of this definition. Includes typename, if this is an extension method.
         name: Located<DefinitionName>,
         /// Arguments for this definition. Does not include any implicit ones (e.g. no `this`).
@@ -85,27 +89,22 @@ impl LineKind {
         // a documentation comment.
         let ast = match opr::to_assignment(ast) {
             Some(infix) => infix,
-            None => {
-                return if let Some(documentation) =
-                    DocumentationCommentAst::new(ast)
-                {
+            None =>
+                return if let Some(documentation) = DocumentationCommentAst::new(ast) {
                     // e.g. `## My comment.`
                     DocumentationComment { documentation }
                 } else {
                     // The simplest form of node, e.g. `Point 5 10`
-                    ExpressionPlain {
-                        ast: ast.clone_ref(),
-                    }
-                };
-            }
+                    ExpressionPlain { ast: ast.clone_ref() }
+                },
         };
 
         // Assignment can be either nodes or definitions. To discern, we check the left hand side.
-        // For definition it is a prefix chain, where first is the name, then arguments (if explicit).
-        // For node it is a pattern, either in a form of Var without args on Cons application.
+        // For definition it is a prefix chain, where first is the name, then arguments (if
+        // explicit). For node it is a pattern, either in a form of Var without args on Cons
+        // application.
         let crumb = InfixCrumb::LeftOperand;
-        let lhs =
-            Located::new(crumb, prefix::Chain::from_ast_non_strict(&ast.larg));
+        let lhs = Located::new(crumb, prefix::Chain::from_ast_non_strict(&ast.larg));
         let name = lhs
             .entered(|chain| {
                 let name_ast = chain.located_func();
@@ -164,19 +163,16 @@ mod tests {
     use ast::macros::DocumentationCommentInfo;
     use parser::Parser;
 
+
     /// Expect `main` method, where first line is a documentation comment.
     /// The text of this comment should match the expected one.
     fn run_case(parser: &Parser, code: &str, expected_comment_text: &str) {
         let ast = parser.parse_module(code, default()).unwrap();
-        let main_id =
-            double_representation::definition::Id::new_plain_name("main");
-        let main =
-            double_representation::module::get_definition(&ast, &main_id)
-                .unwrap();
+        let main_id = double_representation::definition::Id::new_plain_name("main");
+        let main = double_representation::module::get_definition(&ast, &main_id).unwrap();
         let lines = main.block_lines();
         let first_line = lines[0].transpose_ref().unwrap();
-        let doc =
-            DocumentationCommentInfo::new(&first_line, main.indent()).unwrap();
+        let doc = DocumentationCommentInfo::new(&first_line, main.indent()).unwrap();
         let text = doc.pretty_text();
         assert_eq!(text, expected_comment_text);
 

@@ -43,6 +43,8 @@ pub use web_sys::Performance;
 pub use web_sys::WebGl2RenderingContext;
 pub use web_sys::Window;
 
+
+
 // =============
 // === Error ===
 // =============
@@ -70,6 +72,8 @@ impl From<JsValue> for Error {
     }
 }
 
+
+
 // ==============
 // === String ===
 // ==============
@@ -87,6 +91,8 @@ pub fn js_to_string(s: impl AsRef<JsValue>) -> String {
     js_to_string_inner(s.as_ref())
 }
 
+
+
 // =============
 // === Utils ===
 // =============
@@ -94,37 +100,28 @@ pub fn js_to_string(s: impl AsRef<JsValue>) -> String {
 /// Handle returned from `ignore_context_menu`. It unignores when the handle is dropped.
 #[derive(Debug)]
 pub struct IgnoreContextMenuHandle {
-    target: EventTarget,
+    target:  EventTarget,
     closure: Closure<dyn FnMut(MouseEvent)>,
 }
 
 impl Drop for IgnoreContextMenuHandle {
     fn drop(&mut self) {
         let callback: &Function = self.closure.as_ref().unchecked_ref();
-        self.target
-            .remove_event_listener_with_callback("contextmenu", callback)
-            .ok();
+        self.target.remove_event_listener_with_callback("contextmenu", callback).ok();
     }
 }
 
 /// Ignores context menu when clicking with the right mouse button.
-pub fn ignore_context_menu(
-    target: &EventTarget,
-) -> Option<IgnoreContextMenuHandle> {
+pub fn ignore_context_menu(target: &EventTarget) -> Option<IgnoreContextMenuHandle> {
     let closure = move |event: MouseEvent| {
         const RIGHT_MOUSE_BUTTON: i16 = 2;
         if event.button() == RIGHT_MOUSE_BUTTON {
             event.prevent_default();
         }
     };
-    let closure =
-        Closure::wrap(Box::new(closure) as Box<dyn FnMut(MouseEvent)>);
+    let closure = Closure::wrap(Box::new(closure) as Box<dyn FnMut(MouseEvent)>);
     let callback: &Function = closure.as_ref().unchecked_ref();
-    match target.add_event_listener_with_callback_and_bool(
-        "contextmenu",
-        callback,
-        true,
-    ) {
+    match target.add_event_listener_with_callback_and_bool("contextmenu", callback, true) {
         Ok(_) => {
             let target = target.clone();
             let handle = IgnoreContextMenuHandle { target, closure };
@@ -133,6 +130,8 @@ pub fn ignore_context_menu(
         Err(_) => None,
     }
 }
+
+
 
 // ===================
 // === DOM Helpers ===
@@ -221,10 +220,7 @@ pub fn window() -> Window {
 
 /// Access the `window.document` object if exists.
 pub fn try_document() -> Result<Document> {
-    try_window().and_then(|w| {
-        w.document()
-            .ok_or_else(|| Error("Cannot access 'window.document'."))
-    })
+    try_window().and_then(|w| w.document().ok_or_else(|| Error("Cannot access 'window.document'.")))
 }
 
 /// Access the `window.document` object or panic if it does not exist.
@@ -234,10 +230,8 @@ pub fn document() -> Document {
 
 /// Access the `window.document.body` object if exists.
 pub fn try_body() -> Result<HtmlElement> {
-    try_document().and_then(|d| {
-        d.body()
-            .ok_or_else(|| Error("Cannot access 'window.document.body'."))
-    })
+    try_document()
+        .and_then(|d| d.body().ok_or_else(|| Error("Cannot access 'window.document.body'.")))
 }
 
 /// Access the `window.document.body` object or panic if it does not exist.
@@ -257,9 +251,7 @@ pub fn device_pixel_ratio() -> f64 {
 
 /// Access the `window.performance` or panics if it does not exist.
 pub fn performance() -> Performance {
-    window()
-        .performance()
-        .unwrap_or_else(|| panic!("Cannot access window.performance."))
+    window().performance().unwrap_or_else(|| panic!("Cannot access window.performance."))
 }
 
 /// Gets `Element` by ID.
@@ -271,9 +263,7 @@ pub fn get_element_by_id(id: &str) -> Result<Element> {
 
 /// Tries to get `Element` by ID, and runs function on it.
 pub fn with_element_by_id_or_warn<F>(logger: &Logger, id: &str, f: F)
-where
-    F: FnOnce(Element),
-{
+where F: FnOnce(Element) {
     let root_elem = get_element_by_id(id);
     match root_elem {
         Ok(v) => f(v),
@@ -285,9 +275,7 @@ where
 pub fn get_elements_by_class_name(name: &str) -> Result<Vec<Element>> {
     let collection = try_document()?.get_elements_by_class_name(name);
     let indices = 0..collection.length();
-    let elements = indices
-        .flat_map(|index| collection.get_with_index(index))
-        .collect();
+    let elements = indices.flat_map(|index| collection.get_with_index(index)).collect();
     Ok(elements)
 }
 
@@ -322,15 +310,10 @@ pub fn create_canvas() -> HtmlCanvasElement {
     create_element("canvas").unchecked_into()
 }
 
-pub fn get_webgl2_context(
-    canvas: &HtmlCanvasElement,
-) -> WebGl2RenderingContext {
+pub fn get_webgl2_context(canvas: &HtmlCanvasElement) -> WebGl2RenderingContext {
     let options = js_sys::Object::new();
     js_sys::Reflect::set(&options, &"antialias".into(), &false.into()).unwrap();
-    let context = canvas
-        .get_context_with_context_options("webgl2", &options)
-        .unwrap()
-        .unwrap();
+    let context = canvas.get_context_with_context_options("webgl2", &options).unwrap().unwrap();
     let context: WebGl2RenderingContext = context.dyn_into().unwrap();
     context
 }
@@ -342,14 +325,14 @@ pub fn try_request_animation_frame(f: &Closure<dyn FnMut(f64)>) -> Result<i32> {
 }
 
 pub fn request_animation_frame(f: &Closure<dyn FnMut(f64)>) -> i32 {
-    window()
-        .request_animation_frame(f.as_ref().unchecked_ref())
-        .unwrap()
+    window().request_animation_frame(f.as_ref().unchecked_ref()).unwrap()
 }
 
 pub fn cancel_animation_frame(id: i32) {
     window().cancel_animation_frame(id).unwrap();
 }
+
+
 
 // =====================
 // === Other Helpers ===
@@ -359,12 +342,7 @@ pub fn cancel_animation_frame(id: i32) {
 pub trait AttributeSetter {
     fn set_attribute_or_panic<T: Str, U: Str>(&self, name: T, value: U);
 
-    fn set_attribute_or_warn<T: Str, U: Str>(
-        &self,
-        name: T,
-        value: U,
-        logger: &Logger,
-    );
+    fn set_attribute_or_warn<T: Str, U: Str>(&self, name: T, value: U, logger: &Logger);
 }
 
 impl AttributeSetter for web_sys::Element {
@@ -376,12 +354,7 @@ impl AttributeSetter for web_sys::Element {
             .unwrap_or_else(|_| panic!("Failed to set attribute {}", values));
     }
 
-    fn set_attribute_or_warn<T: Str, U: Str>(
-        &self,
-        name: T,
-        value: U,
-        logger: &Logger,
-    ) {
+    fn set_attribute_or_warn<T: Str, U: Str>(&self, name: T, value: U, logger: &Logger) {
         let name = name.as_ref();
         let value = value.as_ref();
         let values = format!("\"{}\" = \"{}\" on \"{:?}\"", name, value, self);
@@ -395,12 +368,7 @@ impl AttributeSetter for web_sys::Element {
 /// Trait used to set css styles.
 pub trait StyleSetter {
     fn set_style_or_panic<T: Str, U: Str>(&self, name: T, value: U);
-    fn set_style_or_warn<T: Str, U: Str>(
-        &self,
-        name: T,
-        value: U,
-        logger: &Logger,
-    );
+    fn set_style_or_warn<T: Str, U: Str>(&self, name: T, value: U, logger: &Logger);
 }
 
 impl StyleSetter for web_sys::HtmlElement {
@@ -409,17 +377,10 @@ impl StyleSetter for web_sys::HtmlElement {
         let value = value.as_ref();
         let values = format!("\"{}\" = \"{}\" on \"{:?}\"", name, value, self);
         let panic_msg = |_| panic!("Failed to set style {}", values);
-        self.style()
-            .set_property(name, value)
-            .unwrap_or_else(panic_msg);
+        self.style().set_property(name, value).unwrap_or_else(panic_msg);
     }
 
-    fn set_style_or_warn<T: Str, U: Str>(
-        &self,
-        name: T,
-        value: U,
-        logger: &Logger,
-    ) {
+    fn set_style_or_warn<T: Str, U: Str>(&self, name: T, value: U, logger: &Logger) {
         let name = name.as_ref();
         let value = value.as_ref();
         let values = format!("\"{}\" = \"{}\" on \"{:?}\"", name, value, self);
@@ -442,43 +403,30 @@ pub trait NodeInserter {
 
     fn insert_before_or_panic(&self, node: &Node, reference_node: &Node);
 
-    fn insert_before_or_warn(
-        &self,
-        node: &Node,
-        reference_node: &Node,
-        logger: &Logger,
-    );
+    fn insert_before_or_warn(&self, node: &Node, reference_node: &Node, logger: &Logger);
 }
 
 impl NodeInserter for Node {
     fn append_or_panic(&self, node: &Node) {
-        let panic_msg =
-            |_| panic!("Failed to append child {:?} to {:?}", node, self);
+        let panic_msg = |_| panic!("Failed to append child {:?} to {:?}", node, self);
         self.append_child(node).unwrap_or_else(panic_msg);
     }
 
     fn append_or_warn(&self, node: &Node, logger: &Logger) {
-        let warn_msg: &str =
-            &format!("Failed to append child {:?} to {:?}", node, self);
+        let warn_msg: &str = &format!("Failed to append child {:?} to {:?}", node, self);
         if self.append_child(node).is_err() {
             warning!(logger, warn_msg)
         };
     }
 
     fn prepend_or_panic(&self, node: &Node) {
-        let panic_msg = |_| {
-            panic!("Failed to prepend child \"{:?}\" to \"{:?}\"", node, self)
-        };
+        let panic_msg = |_| panic!("Failed to prepend child \"{:?}\" to \"{:?}\"", node, self);
         let first_c = self.first_child();
-        self.insert_before(node, first_c.as_ref())
-            .unwrap_or_else(panic_msg);
+        self.insert_before(node, first_c.as_ref()).unwrap_or_else(panic_msg);
     }
 
     fn prepend_or_warn(&self, node: &Node, logger: &Logger) {
-        let warn_msg: &str = &format!(
-            "Failed to prepend child \"{:?}\" to \"{:?}\"",
-            node, self
-        );
+        let warn_msg: &str = &format!("Failed to prepend child \"{:?}\" to \"{:?}\"", node, self);
         let first_c = self.first_child();
         if self.insert_before(node, first_c.as_ref()).is_err() {
             warning!(logger, warn_msg)
@@ -486,26 +434,14 @@ impl NodeInserter for Node {
     }
 
     fn insert_before_or_panic(&self, node: &Node, ref_node: &Node) {
-        let panic_msg = |_| {
-            panic!(
-                "Failed to insert {:?} before {:?} in {:?}",
-                node, ref_node, self
-            )
-        };
-        self.insert_before(node, Some(ref_node))
-            .unwrap_or_else(panic_msg);
+        let panic_msg =
+            |_| panic!("Failed to insert {:?} before {:?} in {:?}", node, ref_node, self);
+        self.insert_before(node, Some(ref_node)).unwrap_or_else(panic_msg);
     }
 
-    fn insert_before_or_warn(
-        &self,
-        node: &Node,
-        ref_node: &Node,
-        logger: &Logger,
-    ) {
-        let warn_msg: &str = &format!(
-            "Failed to insert {:?} before {:?} in {:?}",
-            node, ref_node, self
-        );
+    fn insert_before_or_warn(&self, node: &Node, ref_node: &Node, logger: &Logger) {
+        let warn_msg: &str =
+            &format!("Failed to insert {:?} before {:?} in {:?}", node, ref_node, self);
         if self.insert_before(node, Some(ref_node)).is_err() {
             warning!(logger, warn_msg)
         }
@@ -526,16 +462,14 @@ pub trait NodeRemover {
 impl NodeRemover for Node {
     fn remove_from_parent_or_panic(&self) {
         if let Some(parent) = self.parent_node() {
-            let panic_msg =
-                |_| panic!("Failed to remove {:?} from parent", self);
+            let panic_msg = |_| panic!("Failed to remove {:?} from parent", self);
             parent.remove_child(self).unwrap_or_else(panic_msg);
         }
     }
 
     fn remove_from_parent_or_warn(&self, logger: &Logger) {
         if let Some(parent) = self.parent_node() {
-            let warn_msg: &str =
-                &format!("Failed to remove {:?} from parent", self);
+            let warn_msg: &str = &format!("Failed to remove {:?} from parent", self);
             if parent.remove_child(self).is_err() {
                 warning!(logger, warn_msg)
             }
@@ -543,14 +477,12 @@ impl NodeRemover for Node {
     }
 
     fn remove_child_or_panic(&self, node: &Node) {
-        let panic_msg =
-            |_| panic!("Failed to remove child {:?} from {:?}", node, self);
+        let panic_msg = |_| panic!("Failed to remove child {:?} from {:?}", node, self);
         self.remove_child(node).unwrap_or_else(panic_msg);
     }
 
     fn remove_child_or_warn(&self, node: &Node, logger: &Logger) {
-        let warn_msg: &str =
-            &format!("Failed to remove child {:?} from {:?}", node, self);
+        let warn_msg: &str = &format!("Failed to remove child {:?} from {:?}", node, self);
         if self.remove_child(node).is_err() {
             warning!(logger, warn_msg)
         }
@@ -564,6 +496,8 @@ extern "C" {
     #[allow(unsafe_code)]
     pub fn request_animation_frame2(closure: &Closure<dyn FnMut()>) -> i32;
 }
+
+
 
 // ===============
 // === Printer ===
@@ -579,6 +513,7 @@ extern "C" {
     pub fn set_stack_trace_limit();
 }
 
+
 /// Enables forwarding panic messages to `console.error`.
 pub fn forward_panic_hook_to_console() {
     // When the `console_error_panic_hook` feature is enabled, we can call the
@@ -589,6 +524,7 @@ pub fn forward_panic_hook_to_console() {
     // https://github.com/rustwasm/console_error_panic_hook#readme
     console_error_panic_hook::set_once();
 }
+
 
 /// Enables throwing a descriptive JavaScript error on panics.
 pub fn forward_panic_hook_to_error() {
@@ -610,6 +546,7 @@ pub fn entry_point_panic() {
     forward_panic_hook_to_error();
     panic!();
 }
+
 
 /// Common traits.
 pub mod traits {
@@ -647,20 +584,14 @@ pub fn reflect_get_nested(target: &JsValue, keys: &[&str]) -> Result<JsValue> {
 
 /// Get the nested value of the provided object and cast it to [`Object`]. See docs of
 /// [`reflect_get_nested`] to learn more.
-pub fn reflect_get_nested_object(
-    target: &JsValue,
-    keys: &[&str],
-) -> Result<js_sys::Object> {
+pub fn reflect_get_nested_object(target: &JsValue, keys: &[&str]) -> Result<js_sys::Object> {
     let tgt = reflect_get_nested(target, keys)?;
     Ok(tgt.dyn_into()?)
 }
 
 /// Get the nested value of the provided object and cast it to [`String`]. See docs of
 /// [`reflect_get_nested`] to learn more.
-pub fn reflect_get_nested_string(
-    target: &JsValue,
-    keys: &[&str],
-) -> Result<String> {
+pub fn reflect_get_nested_string(target: &JsValue, keys: &[&str]) -> Result<String> {
     let tgt = reflect_get_nested(target, keys)?;
     if tgt.is_undefined() {
         Err(Error("Key was not present in the target."))
@@ -687,6 +618,8 @@ pub fn object_keys(target: &JsValue) -> Vec<String> {
         })
         .unwrap_or_default()
 }
+
+
 
 // ============
 // === Test ===

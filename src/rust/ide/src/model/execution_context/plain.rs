@@ -14,6 +14,7 @@ use enso_protocol::language_server::MethodPointer;
 use enso_protocol::language_server::VisualisationConfiguration;
 use futures::future::LocalBoxFuture;
 
+
 // ==============
 // === Errors ===
 // ==============
@@ -27,6 +28,8 @@ pub struct PopOnEmptyStack();
 #[derive(Clone, Copy, Debug, Fail)]
 #[fail(display = "Tried to use incorrect visualization Id: {}.", _0)]
 pub struct InvalidVisualizationId(VisualizationId);
+
+
 
 // =============
 // === Model ===
@@ -65,14 +68,7 @@ impl ExecutionContext {
         let visualizations = default();
         let computed_value_info_registry = default();
         let is_ready = default();
-        Self {
-            logger,
-            entry_point,
-            stack,
-            visualizations,
-            computed_value_info_registry,
-            is_ready,
-        }
+        Self { logger, entry_point, stack, visualizations, computed_value_info_registry, is_ready }
     }
 
     /// Creates a `VisualisationConfiguration` for the visualization with given id. It may be used
@@ -84,11 +80,7 @@ impl ExecutionContext {
     ) -> FallibleResult<VisualisationConfiguration> {
         let err = || InvalidVisualizationId(id);
         let visualizations = self.visualizations.borrow();
-        Ok(visualizations
-            .get(&id)
-            .ok_or_else(err)?
-            .visualization
-            .config(execution_context_id))
+        Ok(visualizations.get(&id).ok_or_else(err)?.visualization.config(execution_context_id))
     }
 
     /// Push a new stack item to execution context.
@@ -113,14 +105,10 @@ impl ExecutionContext {
     pub fn attach_visualization(
         &self,
         visualization: Visualization,
-    ) -> futures::channel::mpsc::UnboundedReceiver<VisualizationUpdateData>
-    {
+    ) -> futures::channel::mpsc::UnboundedReceiver<VisualizationUpdateData> {
         let id = visualization.id;
         let (update_sender, receiver) = futures::channel::mpsc::unbounded();
-        let visualization = AttachedVisualization {
-            visualization,
-            update_sender,
-        };
+        let visualization = AttachedVisualization { visualization, update_sender };
         info!(self.logger, "Inserting to the registry: {id}.");
         self.visualizations.borrow_mut().insert(id, visualization);
         receiver
@@ -138,8 +126,7 @@ impl ExecutionContext {
     ) -> FallibleResult {
         let err = || InvalidVisualizationId(id);
         let mut visualizations = self.visualizations.borrow_mut();
-        let visualization =
-            &mut visualizations.get_mut(&id).ok_or_else(err)?.visualization;
+        let visualization = &mut visualizations.get_mut(&id).ok_or_else(err)?.visualization;
         if let Some(expression) = expression {
             visualization.preprocessor_code = expression;
         }
@@ -152,17 +139,10 @@ impl ExecutionContext {
     /// Detach the visualization from this execution context.
     ///
     /// This function shadows the asynchronous version from API trait.
-    pub fn detach_visualization(
-        &self,
-        id: VisualizationId,
-    ) -> FallibleResult<Visualization> {
+    pub fn detach_visualization(&self, id: VisualizationId) -> FallibleResult<Visualization> {
         let err = || InvalidVisualizationId(id);
         info!(self.logger, "Removing from the registry: {id}.");
-        let removed = self
-            .visualizations
-            .borrow_mut()
-            .remove(&id)
-            .ok_or_else(err)?;
+        let removed = self.visualizations.borrow_mut().remove(&id).ok_or_else(err)?;
         Ok(removed.visualization)
     }
 }
@@ -180,24 +160,13 @@ impl model::execution_context::API for ExecutionContext {
         }
     }
 
-    fn visualization_info(
-        &self,
-        id: VisualizationId,
-    ) -> FallibleResult<Visualization> {
+    fn visualization_info(&self, id: VisualizationId) -> FallibleResult<Visualization> {
         let err = || InvalidVisualizationId(id).into();
-        self.visualizations
-            .borrow_mut()
-            .get(&id)
-            .map(|v| v.visualization.clone())
-            .ok_or_else(err)
+        self.visualizations.borrow_mut().get(&id).map(|v| v.visualization.clone()).ok_or_else(err)
     }
 
     fn all_visualizations_info(&self) -> Vec<Visualization> {
-        self.visualizations
-            .borrow_mut()
-            .values()
-            .map(|v| v.visualization.clone())
-            .collect()
+        self.visualizations.borrow_mut().values().map(|v| v.visualization.clone()).collect()
     }
 
     fn active_visualizations(&self) -> Vec<VisualizationId> {
@@ -210,16 +179,10 @@ impl model::execution_context::API for ExecutionContext {
 
     fn stack_items<'a>(&'a self) -> Box<dyn Iterator<Item = LocalCall> + 'a> {
         let stack_size = self.stack.borrow().len();
-        Box::new(
-            (0..stack_size)
-                .filter_map(move |i| self.stack.borrow().get(i).cloned()),
-        )
+        Box::new((0..stack_size).filter_map(move |i| self.stack.borrow().get(i).cloned()))
     }
 
-    fn push(
-        &self,
-        stack_item: LocalCall,
-    ) -> LocalBoxFuture<'_, FallibleResult> {
+    fn push(&self, stack_item: LocalCall) -> LocalBoxFuture<'_, FallibleResult> {
         self.push(stack_item);
         futures::future::ready(Ok(())).boxed_local()
     }
@@ -232,12 +195,9 @@ impl model::execution_context::API for ExecutionContext {
         &self,
         visualization: Visualization,
     ) -> LocalBoxFuture<
-        FallibleResult<
-            futures::channel::mpsc::UnboundedReceiver<VisualizationUpdateData>,
-        >,
+        FallibleResult<futures::channel::mpsc::UnboundedReceiver<VisualizationUpdateData>>,
     > {
-        futures::future::ready(Ok(self.attach_visualization(visualization)))
-            .boxed_local()
+        futures::future::ready(Ok(self.attach_visualization(visualization))).boxed_local()
     }
 
     fn detach_visualization(
@@ -253,10 +213,7 @@ impl model::execution_context::API for ExecutionContext {
         expression: Option<String>,
         module: Option<module::QualifiedName>,
     ) -> BoxFuture<FallibleResult> {
-        futures::future::ready(
-            self.modify_visualization(id, expression, module),
-        )
-        .boxed_local()
+        futures::future::ready(self.modify_visualization(id, expression, module)).boxed_local()
     }
 
     fn dispatch_visualization_update(
@@ -264,24 +221,24 @@ impl model::execution_context::API for ExecutionContext {
         visualization_id: VisualizationId,
         data: VisualizationUpdateData,
     ) -> FallibleResult {
-        if let Some(visualization) =
-            self.visualizations.borrow_mut().get(&visualization_id)
-        {
+        if let Some(visualization) = self.visualizations.borrow_mut().get(&visualization_id) {
             // TODO [mwu] Should we consider detaching the visualization if the view has dropped the
             //   channel's receiver? Or we need to provide a way to re-establish the channel.
             let _ = visualization.update_sender.unbounded_send(data);
-            debug!(
-                self.logger,
-                "Sending update data to the visualization {visualization_id}."
-            );
+            debug!(self.logger, "Sending update data to the visualization {visualization_id}.");
             Ok(())
         } else {
-            error!(self.logger,"Failed to dispatch update to visualization {visualization_id}. \
-            Failed to found such visualization.");
+            error!(
+                self.logger,
+                "Failed to dispatch update to visualization {visualization_id}. \
+            Failed to found such visualization."
+            );
             Err(InvalidVisualizationId(visualization_id).into())
         }
     }
 }
+
+
 
 #[cfg(test)]
 pub mod test {
@@ -293,11 +250,11 @@ pub mod test {
     #[derive(Clone, Derivative)]
     #[derivative(Debug)]
     pub struct MockData {
-        pub module_path: model::module::Path,
-        pub context_id: model::execution_context::Id,
+        pub module_path:     model::module::Path,
+        pub context_id:      model::execution_context::Id,
         pub root_definition: DefinitionName,
-        pub namespace: String,
-        pub project_name: String,
+        pub namespace:       String,
+        pub project_name:    String,
     }
 
     impl Default for MockData {
@@ -309,34 +266,29 @@ pub mod test {
     impl MockData {
         pub fn new() -> MockData {
             MockData {
-                context_id: model::execution_context::Id::new_v4(),
-                module_path: crate::test::mock::data::module_path(),
+                context_id:      model::execution_context::Id::new_v4(),
+                module_path:     crate::test::mock::data::module_path(),
                 root_definition: crate::test::mock::data::definition_name(),
-                namespace: crate::test::mock::data::NAMESPACE_NAME.to_owned(),
-                project_name: crate::test::mock::data::PROJECT_NAME.to_owned(),
+                namespace:       crate::test::mock::data::NAMESPACE_NAME.to_owned(),
+                project_name:    crate::test::mock::data::PROJECT_NAME.to_owned(),
             }
         }
 
         pub fn module_qualified_name(&self) -> model::module::QualifiedName {
-            let project_name = project::QualifiedName::from_segments(
-                &self.namespace,
-                &self.project_name,
-            );
-            self.module_path
-                .qualified_module_name(project_name.unwrap())
+            let project_name =
+                project::QualifiedName::from_segments(&self.namespace, &self.project_name);
+            self.module_path.qualified_module_name(project_name.unwrap())
         }
 
         pub fn definition_id(&self) -> model::execution_context::DefinitionId {
-            model::execution_context::DefinitionId::new_single_crumb(
-                self.root_definition.clone(),
-            )
+            model::execution_context::DefinitionId::new_single_crumb(self.root_definition.clone())
         }
 
         pub fn main_method_pointer(&self) -> MethodPointer {
             MethodPointer {
-                module: self.module_qualified_name().to_string(),
+                module:          self.module_qualified_name().to_string(),
                 defined_on_type: self.module_qualified_name().to_string(),
-                name: self.root_definition.to_string(),
+                name:            self.root_definition.to_string(),
             }
         }
 

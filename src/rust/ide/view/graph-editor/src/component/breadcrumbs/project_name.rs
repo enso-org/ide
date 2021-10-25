@@ -22,6 +22,8 @@ use ensogl_text::style::Size as TextSize;
 use ensogl_theme as theme;
 use logger::DefaultWarningLogger as Logger;
 
+
+
 // =================
 // === Constants ===
 // =================
@@ -32,6 +34,8 @@ use logger::DefaultWarningLogger as Logger;
 const UNINITIALIZED_PROJECT_NAME: &str = "Project Name Uninitialized";
 /// Default line height for project names.
 pub const LINE_HEIGHT: f32 = TEXT_SIZE * 1.5;
+
+
 
 // ==================
 // === Background ===
@@ -48,6 +52,8 @@ pub mod background {
         }
     }
 }
+
+
 
 // ===========
 // === FRP ===
@@ -84,6 +90,8 @@ ensogl::define_endpoints! {
     }
 }
 
+
+
 // ==================
 // === Animations ===
 // ==================
@@ -91,7 +99,7 @@ ensogl::define_endpoints! {
 /// DEPRECATED_Animation handlers.
 #[derive(Debug, Clone, CloneRef)]
 pub struct Animations {
-    color: DEPRECATED_Animation<color::Rgba>,
+    color:    DEPRECATED_Animation<color::Rgba>,
     position: DEPRECATED_Animation<Vector3<f32>>,
 }
 
@@ -104,6 +112,8 @@ impl Animations {
     }
 }
 
+
+
 // ========================
 // === ProjectNameModel ===
 // ========================
@@ -111,13 +121,13 @@ impl Animations {
 #[derive(Debug, Clone, CloneRef)]
 #[allow(missing_docs)]
 struct ProjectNameModel {
-    app: Application,
-    logger: Logger,
+    app:            Application,
+    logger:         Logger,
     display_object: display::object::Instance,
-    view: background::View,
-    style: StyleWatch,
-    text_field: text::Area,
-    project_name: Rc<RefCell<String>>,
+    view:           background::View,
+    style:          StyleWatch,
+    text_field:     text::Area,
+    project_name:   Rc<RefCell<String>>,
 }
 
 impl ProjectNameModel {
@@ -127,10 +137,10 @@ impl ProjectNameModel {
         let scene = app.display.scene();
         let logger = Logger::new("ProjectName");
         let display_object = display::object::Instance::new(&logger);
-        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
+        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape
+        // system (#795)
         let style = StyleWatch::new(&scene.style_sheet);
-        let base_color =
-            style.get_color(theme::graph_editor::breadcrumbs::transparent);
+        let base_color = style.get_color(theme::graph_editor::breadcrumbs::transparent);
         let text_size: TextSize = TEXT_SIZE.into();
         let text_field = app.new_view::<text::Area>();
         text_field.set_default_color.emit(base_color);
@@ -147,26 +157,14 @@ impl ProjectNameModel {
         scene.layers.panel.add_exclusive(&view);
 
         let project_name = default();
-        Self {
-            app,
-            logger,
-            display_object,
-            view,
-            style,
-            text_field,
-            project_name,
-        }
-        .init()
+        Self { app, logger, display_object, view, style, text_field, project_name }.init()
     }
 
     /// Compute the width of the ProjectName view.
     fn width(&self, content: &str) -> f32 {
         let glyphs = content.len();
         let width = glyphs as f32 * GLYPH_WIDTH;
-        width
-            + breadcrumb::LEFT_MARGIN
-            + breadcrumb::RIGHT_MARGIN
-            + breadcrumb::PADDING * 2.0
+        width + breadcrumb::LEFT_MARGIN + breadcrumb::RIGHT_MARGIN + breadcrumb::PADDING * 2.0
     }
 
     fn update_alignment(&self, content: &str) {
@@ -175,16 +173,10 @@ impl ProjectNameModel {
         let x_center = x_left + width / 2.0;
 
         let height = LINE_HEIGHT;
-        let y_top = -VERTICAL_MARGIN
-            - breadcrumb::VERTICAL_MARGIN
-            - breadcrumb::PADDING;
+        let y_top = -VERTICAL_MARGIN - breadcrumb::VERTICAL_MARGIN - breadcrumb::PADDING;
         let y_center = y_top - height / 2.0;
 
-        self.text_field.set_position(Vector3(
-            x_left,
-            y_center + TEXT_SIZE / 2.0,
-            0.0,
-        ));
+        self.text_field.set_position(Vector3(x_left, y_center + TEXT_SIZE / 2.0, 0.0));
         self.view.size.set(Vector2(width, height));
         self.view.set_position(Vector3(x_center, y_center, 0.0));
     }
@@ -239,6 +231,8 @@ impl display::Object for ProjectNameModel {
     }
 }
 
+
+
 // ===================
 // === ProjectName ===
 // ===================
@@ -247,7 +241,7 @@ impl display::Object for ProjectNameModel {
 #[derive(Debug, Clone, CloneRef)]
 #[allow(missing_docs)]
 pub struct ProjectName {
-    model: Rc<ProjectNameModel>,
+    model:   Rc<ProjectNameModel>,
     pub frp: Frp,
 }
 
@@ -259,14 +253,12 @@ impl ProjectName {
         let network = &frp.network;
         let scene = app.display.scene();
         let text = &model.text_field.frp;
-        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
+        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape
+        // system (#795)
         let styles = StyleWatch::new(&scene.style_sheet);
-        let hover_color =
-            styles.get_color(theme::graph_editor::breadcrumbs::hover);
-        let deselected_color = styles
-            .get_color(theme::graph_editor::breadcrumbs::deselected::left);
-        let selected_color =
-            styles.get_color(theme::graph_editor::breadcrumbs::selected);
+        let hover_color = styles.get_color(theme::graph_editor::breadcrumbs::hover);
+        let deselected_color = styles.get_color(theme::graph_editor::breadcrumbs::deselected::left);
+        let selected_color = styles.get_color(theme::graph_editor::breadcrumbs::selected);
         let animations = Animations::new(network);
 
         frp::extend! { network
@@ -361,9 +353,7 @@ impl ProjectName {
         }
 
         frp.deselect();
-        frp.input
-            .set_name
-            .emit(UNINITIALIZED_PROJECT_NAME.to_string());
+        frp.input.set_name.emit(UNINITIALIZED_PROJECT_NAME.to_string());
 
         Self { model, frp }
     }
@@ -404,12 +394,7 @@ impl View for ProjectName {
         (&[
             (Press, "", "enter", "commit"),
             (Release, "", "escape", "cancel_editing"),
-            (
-                DoublePress,
-                "is_hovered",
-                "left-mouse-button",
-                "start_editing",
-            ),
+            (DoublePress, "is_hovered", "left-mouse-button", "start_editing"),
         ])
             .iter()
             .map(|(a, b, c, d)| Self::self_shortcut_when(*a, *c, *d, *b))

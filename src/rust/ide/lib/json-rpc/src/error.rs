@@ -8,6 +8,8 @@ use crate::messages::Response;
 
 use futures::channel::oneshot::Canceled;
 
+
+
 // ================
 // === RpcError ===
 // ================
@@ -43,11 +45,7 @@ pub enum RpcError<Payload: Debug + Send + Sync + 'static = serde_json::Value> {
 impl RpcError {
     /// Wraps provided by the remote peer code and message into a `RpcError`.
     pub fn new_remote_error(code: i64, message: impl Str) -> RpcError {
-        RpcError::RemoteError(Error {
-            code,
-            message: message.into(),
-            data: None,
-        })
+        RpcError::RemoteError(Error { code, message: message.into(), data: None })
     }
 }
 
@@ -62,6 +60,8 @@ impl From<serde_json::Error> for RpcError {
         RpcError::DeserializationFailed(e)
     }
 }
+
+
 
 // =====================
 // === HandlingError ===
@@ -78,10 +78,7 @@ pub enum HandlingError {
 
     /// Server responded to an identifier that does not match to any known
     /// ongoing request.
-    #[fail(
-        display = "Server generated a response with no matching request: id={:?}.",
-        _0
-    )]
+    #[fail(display = "Server generated a response with no matching request: id={:?}.", _0)]
     UnexpectedResponse(Response<serde_json::Value>),
 
     /// JSON-RPC client does not expect any binary messages, yet it received one.

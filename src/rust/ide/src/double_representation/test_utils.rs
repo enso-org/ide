@@ -23,7 +23,7 @@ impl MarkdownProcessor {
     fn marked_to_unmarked_range(&self, range: Range<usize>) -> Range<usize> {
         Range {
             start: self.marked_to_unmarked_index(range.start),
-            end: self.marked_to_unmarked_index(range.end),
+            end:   self.marked_to_unmarked_index(range.end),
         }
     }
 
@@ -36,9 +36,7 @@ impl MarkdownProcessor {
         body: &Match,
         dst: &mut String,
     ) -> Range<usize> {
-        let whole_match = captures
-            .get(0)
-            .expect("Capture 0 should always be present.");
+        let whole_match = captures.get(0).expect("Capture 0 should always be present.");
         let bytes_to_body = body.start() - whole_match.start();
         let bytes_after_body = whole_match.end() - body.end();
         self.markdown_bytes_consumed += bytes_to_body;

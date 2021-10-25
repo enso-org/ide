@@ -10,6 +10,8 @@ use ensogl_core::display::shape::StyleWatchFrp;
 use ensogl_text as text;
 use ensogl_theme as theme;
 
+
+
 // =================
 // === Constants ===
 // =================
@@ -19,6 +21,8 @@ pub const PADDING: f32 = 14.0;
 /// The overall entry's height (including padding).
 pub const HEIGHT: f32 = 30.0;
 
+
+
 // ==================================
 // === Type Aliases and Reexports ===
 // ==================================
@@ -27,6 +31,8 @@ pub const HEIGHT: f32 = 30.0;
 pub type Id = usize;
 
 pub use list::List;
+
+
 
 // =============
 // === Trait ===
@@ -60,6 +66,7 @@ pub trait Entry: CloneRef + Debug + display::Object + 'static {
     fn set_label_layer(&self, label_layer: &display::scene::Layer);
 }
 
+
 // =======================
 // === Implementations ===
 // =======================
@@ -70,9 +77,9 @@ pub trait Entry: CloneRef + Debug + display::Object + 'static {
 #[derive(Clone, CloneRef, Debug)]
 pub struct Label {
     display_object: display::object::Instance,
-    label: text::Area,
-    network: enso_frp::Network,
-    style_watch: StyleWatchFrp,
+    label:          text::Area,
+    network:        enso_frp::Network,
+    style_watch:    StyleWatchFrp,
 }
 
 impl Entry for Label {
@@ -98,12 +105,7 @@ impl Entry for Label {
             eval size ((size) label.set_position_y(size/2.0));
         }
         init.emit(());
-        Self {
-            display_object,
-            label,
-            network,
-            style_watch,
-        }
+        Self { display_object, label, network, style_watch }
     }
 
     fn update(&self, model: &Self::Model) {
@@ -121,6 +123,7 @@ impl display::Object for Label {
     }
 }
 
+
 // === HighlightedLabel ===
 
 /// The model for [`HighlightedLabel`], being an entry displayed as a single label with highlighted
@@ -128,7 +131,7 @@ impl display::Object for Label {
 #[derive(Clone, Debug, Default)]
 pub struct GlyphHighlightedLabelModel {
     /// Displayed text.
-    pub label: String,
+    pub label:       String,
     /// A list of ranges of highlighted bytes.
     pub highlighted: Vec<text::Range<text::Bytes>>,
 }
@@ -136,7 +139,7 @@ pub struct GlyphHighlightedLabelModel {
 /// The [`Entry`] similar to the [`Label`], but allows highlighting some parts of text.
 #[derive(Clone, CloneRef, Debug)]
 pub struct GlyphHighlightedLabel {
-    inner: Label,
+    inner:     Label,
     highlight: frp::Source<Vec<text::Range<text::Bytes>>>,
 }
 
@@ -146,9 +149,8 @@ impl Entry for GlyphHighlightedLabel {
     fn new(app: &Application) -> Self {
         let inner = Label::new(app);
         let network = &inner.network;
-        let highlight_color = inner
-            .style_watch
-            .get_color(theme::widget::list_view::text::highlight);
+        let highlight_color =
+            inner.style_watch.get_color(theme::widget::list_view::text::highlight);
         let label = &inner.label;
 
         frp::extend! { network
@@ -179,6 +181,8 @@ impl display::Object for GlyphHighlightedLabel {
     }
 }
 
+
+
 // =======================
 // === Model Providers ===
 // =======================
@@ -197,9 +201,9 @@ pub trait ModelProvider<E>: Debug {
     /// Get the model of entry with given id. The implementors should return `None` only when
     /// requested id greater or equal to entries count.
     fn get(&self, id: Id) -> Option<E::Model>
-    where
-        E: Entry;
+    where E: Entry;
 }
+
 
 // === AnyModelProvider ===
 
@@ -237,6 +241,7 @@ impl<E> Default for AnyModelProvider<E> {
     }
 }
 
+
 // === EmptyProvider ===
 
 /// An Entry Model Provider giving no entries.
@@ -250,12 +255,11 @@ impl<E> ModelProvider<E> for EmptyProvider {
         0
     }
     fn get(&self, _: usize) -> Option<E::Model>
-    where
-        E: Entry,
-    {
+    where E: Entry {
         None
     }
 }
+
 
 // === ModelProvider for Vectors ===
 
@@ -273,13 +277,14 @@ where
     }
 }
 
+
 // === SingleMaskedProvider ===
 
 /// An Entry Model Provider that wraps a `AnyModelProvider` and allows the masking of a single item.
 #[derive(Clone, Debug)]
 pub struct SingleMaskedProvider<E> {
     content: AnyModelProvider<E>,
-    mask: Cell<Option<Id>>,
+    mask:    Cell<Option<Id>>,
 }
 
 impl<E: Debug> ModelProvider<E> for SingleMaskedProvider<E> {
@@ -291,9 +296,7 @@ impl<E: Debug> ModelProvider<E> for SingleMaskedProvider<E> {
     }
 
     fn get(&self, ix: usize) -> Option<E::Model>
-    where
-        E: Entry,
-    {
+    where E: Entry {
         let internal_ix = self.unmasked_index(ix);
         self.content.get(internal_ix)
     }
@@ -354,6 +357,8 @@ impl<E> From<AnyModelProvider<E>> for SingleMaskedProvider<E> {
     }
 }
 
+
+
 // =============
 // === Tests ===
 // =============
@@ -365,10 +370,7 @@ mod tests {
     #[test]
     fn test_masked_provider() {
         let test_data = vec!["A", "B", "C", "D"];
-        let test_models = test_data
-            .into_iter()
-            .map(|label| label.to_owned())
-            .collect_vec();
+        let test_models = test_data.into_iter().map(|label| label.to_owned()).collect_vec();
         let provider = AnyModelProvider::<Label>::new(test_models);
         let provider: SingleMaskedProvider<Label> = provider.into();
 

@@ -5,6 +5,8 @@ pub mod mask_composer;
 pub mod screen;
 pub mod sprite;
 
+
+
 // ===============
 // === Exports ===
 // ===============
@@ -14,5 +16,6 @@ pub mod types {
     use super::*;
     pub use mask_composer::MaskComposer;
     pub use screen::Screen;
-    pub use sprite::{Sprite, SpriteSystem};
+    pub use sprite::Sprite;
+    pub use sprite::SpriteSystem;
 }

@@ -10,6 +10,8 @@ use ensogl::display::shape::StyleWatchFrp;
 use ensogl_gui_components::file_browser::FileBrowser;
 use ensogl_theme as theme;
 
+
+
 // ==================
 // === OpenDialog ===
 // ==================
@@ -22,12 +24,12 @@ use ensogl_theme as theme;
 #[allow(missing_docs)]
 #[derive(Clone, CloneRef, Debug)]
 pub struct OpenDialog {
-    logger: Logger,
-    network: frp::Network,
+    logger:           Logger,
+    network:          frp::Network,
     pub project_list: project_list::ProjectList,
     pub file_browser: FileBrowser,
-    display_object: display::object::Instance,
-    style_watch: StyleWatchFrp,
+    display_object:   display::object::Instance,
+    style_watch:      StyleWatchFrp,
 }
 
 impl OpenDialog {
@@ -45,19 +47,12 @@ impl OpenDialog {
 
         display_object.add_child(&project_list);
         display_object.add_child(&file_browser);
-        app.display
-            .scene()
-            .layers
-            .panel
-            .add_exclusive(&display_object);
+        app.display.scene().layers.panel.add_exclusive(&display_object);
 
         use theme::application as theme_app;
-        let project_list_width =
-            style_watch.get_number(theme_app::project_list::width);
-        let file_browser_width =
-            style_watch.get_number(theme_app::file_browser::width);
-        let gap_between_panels =
-            style_watch.get_number(theme_app::open_dialog::gap_between_panels);
+        let project_list_width = style_watch.get_number(theme_app::project_list::width);
+        let file_browser_width = style_watch.get_number(theme_app::file_browser::width);
+        let gap_between_panels = style_watch.get_number(theme_app::open_dialog::gap_between_panels);
         frp::extend! { network
             init  <- source::<()>();
             width <- all_with4(&project_list_width,&file_browser_width,&gap_between_panels,&init,
@@ -70,14 +65,7 @@ impl OpenDialog {
             eval file_browser_x ((x) file_browser.set_position_x(*x));
         }
         init.emit(());
-        Self {
-            logger,
-            network,
-            project_list,
-            file_browser,
-            display_object,
-            style_watch,
-        }
+        Self { logger, network, project_list, file_browser, display_object, style_watch }
     }
 }
 

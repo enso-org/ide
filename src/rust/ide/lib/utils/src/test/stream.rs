@@ -29,9 +29,7 @@ pub trait StreamTestExt<S: ?Sized + Stream> {
         match self.manual_poll_next() {
             Poll::Pending => panic!("Stream has no next item available yet."),
             Poll::Ready(Some(item)) => item,
-            Poll::Ready(None) => {
-                panic!("Stream ended instead of yielding an expected value.")
-            }
+            Poll::Ready(None) => panic!("Stream ended instead of yielding an expected value."),
         }
     }
 
@@ -39,9 +37,7 @@ pub trait StreamTestExt<S: ?Sized + Stream> {
     ///
     /// Same caveats apply as for `test_poll_next`.
     fn expect_one(&mut self) -> S::Item
-    where
-        S::Item: Debug,
-    {
+    where S::Item: Debug {
         let ret = self.expect_next();
         self.expect_pending();
         ret
@@ -61,13 +57,11 @@ pub trait StreamTestExt<S: ?Sized + Stream> {
     ///
     /// Same caveats apply as for `test_poll_next`.
     fn expect_pending(&mut self)
-    where
-        S::Item: Debug,
-    {
+    where S::Item: Debug {
         match self.manual_poll_next() {
-            Poll::Pending           => {}
+            Poll::Pending => {}
             Poll::Ready(Some(item)) =>
-                panic!("There should be no value ready, yet the stream yielded {:?}",item),
+                panic!("There should be no value ready, yet the stream yielded {:?}", item),
             Poll::Ready(None) =>
                 panic!("Stream has terminated, while it should be waiting for the next value."),
         }
@@ -77,13 +71,8 @@ pub trait StreamTestExt<S: ?Sized + Stream> {
     /// given predicates, the second one against the other predicate.
     ///
     /// The order of these two values is irrelevant.
-    fn expect_both(
-        &mut self,
-        one: impl Fn(&S::Item) -> bool,
-        other: impl Fn(&S::Item) -> bool,
-    ) where
-        S::Item: Debug,
-    {
+    fn expect_both(&mut self, one: impl Fn(&S::Item) -> bool, other: impl Fn(&S::Item) -> bool)
+    where S::Item: Debug {
         self.expect_many(vec![Box::new(one), Box::new(other)])
     }
 
@@ -91,19 +80,19 @@ pub trait StreamTestExt<S: ?Sized + Stream> {
     ///
     /// Takes a list of predicates. Items are matched against them, after predicate succeeds match
     /// it is removed from the list.
-    fn expect_many<'a>(
-        &mut self,
-        mut expected: Vec<Box<dyn Fn(&S::Item) -> bool + 'a>>,
-    ) where
-        S::Item: Debug,
-    {
+    fn expect_many<'a>(&mut self, mut expected: Vec<Box<dyn Fn(&S::Item) -> bool + 'a>>)
+    where S::Item: Debug {
         while !expected.is_empty() {
             let item = self.expect_next();
             match expected.iter().find_position(|expected_predicate| expected_predicate(&item)) {
-                Some((index,_)) => { let _ = expected.remove(index); }
-                _               =>
-                    panic!("Stream yielded item that did not match to any of the given predicates. \
-                    Item: {:?}",item),
+                Some((index, _)) => {
+                    let _ = expected.remove(index);
+                }
+                _ => panic!(
+                    "Stream yielded item that did not match to any of the given predicates. \
+                    Item: {:?}",
+                    item
+                ),
             }
         }
     }

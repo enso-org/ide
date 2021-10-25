@@ -12,6 +12,7 @@ use ensogl_core::display::shape::*;
 use ensogl_core::display::Scene;
 use std::path::PathBuf;
 
+
 // ===========
 // === FRP ===
 // ===========
@@ -38,6 +39,8 @@ ensogl_core::define_endpoints! {
     }
 }
 
+
+
 // ===================
 // === FileBrowser ===
 // ===================
@@ -46,8 +49,8 @@ ensogl_core::define_endpoints! {
 /// emits an event when an entry is chosen.
 #[derive(Clone, CloneRef, Debug)]
 pub struct FileBrowser {
-    logger: Logger,
-    frp: Frp,
+    logger:         Logger,
+    frp:            Frp,
     display_object: display::object::Instance,
 }
 
@@ -58,17 +61,14 @@ impl Deref for FileBrowser {
     }
 }
 
+
 impl FileBrowser {
     /// Constructore
     pub fn new() -> Self {
         let logger = Logger::new("FileBrowser");
         let frp = Frp::new();
         let display_object = display::object::Instance::new(&logger);
-        Self {
-            logger,
-            frp,
-            display_object,
-        }
+        Self { logger, frp, display_object }
     }
 }
 

@@ -11,6 +11,8 @@ use crate::system::gpu::Context;
 
 use web_sys::WebGlTexture;
 
+
+
 // ===================
 // === TextureUnit ===
 // ===================
@@ -18,6 +20,8 @@ use web_sys::WebGlTexture;
 /// A texture unit representation in WebGl.
 #[derive(Copy, Clone, Debug, Display, From, Into)]
 pub struct TextureUnit(u32);
+
+
 
 // ========================
 // === TextureBindGuard ===
@@ -27,18 +31,19 @@ pub struct TextureUnit(u32);
 #[derive(Debug)]
 pub struct TextureBindGuard {
     context: Context,
-    target: u32,
-    unit: TextureUnit,
+    target:  u32,
+    unit:    TextureUnit,
 }
 
 impl Drop for TextureBindGuard {
     fn drop(&mut self) {
-        self.context
-            .active_texture(Context::TEXTURE0 + self.unit.to::<u32>());
+        self.context.active_texture(Context::TEXTURE0 + self.unit.to::<u32>());
         self.context.bind_texture(self.target, None);
         self.context.active_texture(Context::TEXTURE0);
     }
 }
+
+
 
 // ==================
 // === Parameters ===
@@ -51,7 +56,6 @@ impl Drop for TextureBindGuard {
 /// samples are handled.
 ///
 /// For more background see: https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/texParameter
-///
 #[derive(Copy, Clone, Debug, Default)]
 pub struct Parameters {
     /// Specifies the setting for the texture magnification filter (`Context::TEXTURE_MIN_FILTER`).
@@ -60,38 +64,23 @@ pub struct Parameters {
     pub mag_filter: MagFilter,
     /// Specifies the setting for the wrapping function for texture coordinate s
     /// (`Context::TEXTURE_WRAP_S`).
-    pub wrap_s: Wrap,
+    pub wrap_s:     Wrap,
     /// Specifies the setting for the wrapping function for texture coordinate t
     /// (`Context::TEXTURE_WRAP_T`).
-    pub wrap_t: Wrap,
+    pub wrap_t:     Wrap,
 }
 
 impl Parameters {
     /// Applies the context parameters in the given context.
     pub fn apply_parameters(self, context: &Context) {
         let target = Context::TEXTURE_2D;
-        context.tex_parameteri(
-            target,
-            Context::TEXTURE_MIN_FILTER,
-            self.min_filter as i32,
-        );
-        context.tex_parameteri(
-            target,
-            Context::TEXTURE_MIN_FILTER,
-            self.mag_filter as i32,
-        );
-        context.tex_parameteri(
-            target,
-            Context::TEXTURE_WRAP_S,
-            self.wrap_s as i32,
-        );
-        context.tex_parameteri(
-            target,
-            Context::TEXTURE_WRAP_T,
-            self.wrap_t as i32,
-        );
+        context.tex_parameteri(target, Context::TEXTURE_MIN_FILTER, self.min_filter as i32);
+        context.tex_parameteri(target, Context::TEXTURE_MIN_FILTER, self.mag_filter as i32);
+        context.tex_parameteri(target, Context::TEXTURE_WRAP_S, self.wrap_s as i32);
+        context.tex_parameteri(target, Context::TEXTURE_WRAP_T, self.wrap_t as i32);
     }
 }
+
 
 // === Parameter Types ===
 
@@ -102,7 +91,7 @@ impl Parameters {
 #[derive(Copy, Clone, Debug)]
 #[allow(missing_docs)]
 pub enum MagFilter {
-    Linear = Context::LINEAR as isize,
+    Linear  = Context::LINEAR as isize,
     Nearest = Context::NEAREST as isize,
 }
 
@@ -120,12 +109,12 @@ impl Default for MagFilter {
 #[derive(Copy, Clone, Debug)]
 #[allow(missing_docs)]
 pub enum MinFilter {
-    Linear = Context::LINEAR as isize,
-    Nearest = Context::NEAREST as isize,
+    Linear               = Context::LINEAR as isize,
+    Nearest              = Context::NEAREST as isize,
     NearestMipmapNearest = Context::NEAREST_MIPMAP_NEAREST as isize,
-    LinearMipmapNearest = Context::LINEAR_MIPMAP_NEAREST as isize,
-    NearestMipmapLinear = Context::NEAREST_MIPMAP_LINEAR as isize,
-    LinearMipmapLinear = Context::LINEAR_MIPMAP_LINEAR as isize,
+    LinearMipmapNearest  = Context::LINEAR_MIPMAP_NEAREST as isize,
+    NearestMipmapLinear  = Context::NEAREST_MIPMAP_LINEAR as isize,
+    LinearMipmapLinear   = Context::LINEAR_MIPMAP_LINEAR as isize,
 }
 
 // Note: The parameters implement our own default, not the WebGL one.
@@ -141,8 +130,8 @@ impl Default for MinFilter {
 #[derive(Copy, Clone, Debug)]
 #[allow(missing_docs)]
 pub enum Wrap {
-    Repeat = Context::REPEAT as isize,
-    ClampToEdge = Context::CLAMP_TO_EDGE as isize,
+    Repeat         = Context::REPEAT as isize,
+    ClampToEdge    = Context::CLAMP_TO_EDGE as isize,
     MirroredRepeat = Context::MIRRORED_REPEAT as isize,
 }
 
@@ -153,27 +142,24 @@ impl Default for Wrap {
     }
 }
 
+
+
 // ===============
 // === Texture ===
 // ===============
 
 /// Texture bound to GL context.
 #[derive(Derivative)]
-#[derivative(Clone(
-    bound = "StorageOf<Storage,InternalFormat,ItemType>:Clone"
-))]
-#[derivative(Debug(
-    bound = "StorageOf<Storage,InternalFormat,ItemType>:Debug"
-))]
+#[derivative(Clone(bound = "StorageOf<Storage,InternalFormat,ItemType>:Clone"))]
+#[derivative(Debug(bound = "StorageOf<Storage,InternalFormat,ItemType>:Debug"))]
 pub struct Texture<Storage, InternalFormat, ItemType>
-where
-    Storage: StorageRelation<InternalFormat, ItemType>,
-{
-    storage: StorageOf<Storage, InternalFormat, ItemType>,
+where Storage: StorageRelation<InternalFormat, ItemType> {
+    storage:    StorageOf<Storage, InternalFormat, ItemType>,
     gl_texture: WebGlTexture,
-    context: Context,
+    context:    Context,
     parameters: Parameters,
 }
+
 
 // === Traits ===
 
@@ -182,6 +168,7 @@ pub trait TextureReload {
     /// Loads or re-loads the texture data from provided source.
     fn reload(&self);
 }
+
 
 // === Type Level Utils ===
 
@@ -223,11 +210,11 @@ where
     }
 }
 
+
 // === Getters ===
 
 impl<S, I, T> Texture<S, I, T>
-where
-    S: StorageRelation<I, T>,
+where S: StorageRelation<I, T>
 {
     /// Getter.
     pub fn gl_texture(&self) -> &WebGlTexture {
@@ -250,11 +237,11 @@ where
     }
 }
 
+
 // === Setters ===
 
 impl<S, I, T> Texture<S, I, T>
-where
-    S: StorageRelation<I, T>,
+where S: StorageRelation<I, T>
 {
     /// Setter.
     pub fn set_parameters(&mut self, parameters: Parameters) {
@@ -262,56 +249,45 @@ where
     }
 }
 
+
 // === Constructors ===
 
 impl<S: StorageRelation<I, T>, I: InternalFormat, T: ItemType> Texture<S, I, T>
-where
-    Self: TextureReload,
+where Self: TextureReload
 {
     /// Constructor.
-    pub fn new<P: Into<StorageOf<S, I, T>>>(
-        context: &Context,
-        provider: P,
-    ) -> Self {
+    pub fn new<P: Into<StorageOf<S, I, T>>>(context: &Context, provider: P) -> Self {
         let this = Self::new_uninitialized(context, provider);
         this.reload();
         this
     }
 }
 
+
 // === Destructos ===
 
 impl<S, I, T> Drop for Texture<S, I, T>
-where
-    S: StorageRelation<I, T>,
+where S: StorageRelation<I, T>
 {
     fn drop(&mut self) {
         self.context.delete_texture(Some(&self.gl_texture));
     }
 }
 
+
 // === Internal API ===
 
 impl<S, I, T> Texture<S, I, T>
-where
-    S: StorageRelation<I, T>,
+where S: StorageRelation<I, T>
 {
     /// New, uninitialized constructor. If you are not implementing a custom texture format, you
     /// should probably use `new` instead.
-    pub fn new_uninitialized<X: Into<StorageOf<S, I, T>>>(
-        context: &Context,
-        storage: X,
-    ) -> Self {
+    pub fn new_uninitialized<X: Into<StorageOf<S, I, T>>>(context: &Context, storage: X) -> Self {
         let storage = storage.into();
         let context = context.clone();
         let gl_texture = context.create_texture().unwrap();
         let parameters = default();
-        Self {
-            storage,
-            gl_texture,
-            context,
-            parameters,
-        }
+        Self { storage, gl_texture, context, parameters }
     }
 
     /// Applies this textures' parameters in the given context.
@@ -349,6 +325,7 @@ where
     }
 }
 
+
 // === Instances ===
 
 impl<S: StorageRelation<I, T>, I, T> HasContent for Texture<S, I, T> {
@@ -361,6 +338,8 @@ impl<S: StorageRelation<I, T>, I, T> ContentRef for Texture<S, I, T> {
     }
 }
 
+
+
 // ==================
 // === TextureOps ===
 // ==================
@@ -369,11 +348,7 @@ impl<S: StorageRelation<I, T>, I, T> ContentRef for Texture<S, I, T> {
 /// uniforms to easily redirect the methods.
 pub trait TextureOps {
     /// Bind texture to a specific unit.
-    fn bind_texture_unit(
-        &self,
-        context: &Context,
-        unit: TextureUnit,
-    ) -> TextureBindGuard;
+    fn bind_texture_unit(&self, context: &Context, unit: TextureUnit) -> TextureBindGuard;
 
     /// Accessor.
     fn gl_texture(&self) -> WebGlTexture;
@@ -392,22 +367,14 @@ impl<
         T: ItemType,
     > TextureOps for P
 {
-    fn bind_texture_unit(
-        &self,
-        context: &Context,
-        unit: TextureUnit,
-    ) -> TextureBindGuard {
+    fn bind_texture_unit(&self, context: &Context, unit: TextureUnit) -> TextureBindGuard {
         self.with_content(|this| {
             let context = context.clone();
             let target = Context::TEXTURE_2D;
             context.active_texture(Context::TEXTURE0 + unit.to::<u32>());
             context.bind_texture(target, Some(&this.gl_texture));
             context.active_texture(Context::TEXTURE0);
-            TextureBindGuard {
-                context,
-                target,
-                unit,
-            }
+            TextureBindGuard { context, target, unit }
         })
     }
 

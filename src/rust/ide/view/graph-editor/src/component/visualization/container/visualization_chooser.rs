@@ -18,6 +18,8 @@ use ensogl::display;
 use ensogl_gui_components::drop_down_menu;
 use ensogl_gui_components::list_view;
 
+
+
 // ===========
 // === FRP ===
 // ===========
@@ -43,6 +45,8 @@ ensogl::define_endpoints! {
     }
 }
 
+
+
 // =============
 // === Model ===
 // =============
@@ -50,31 +54,19 @@ ensogl::define_endpoints! {
 #[derive(Clone, CloneRef, Debug)]
 struct Model {
     selection_menu: drop_down_menu::DropDownMenu,
-    registry: visualization::Registry,
+    registry:       visualization::Registry,
 }
 
 impl Model {
     pub fn new(app: &Application, registry: visualization::Registry) -> Self {
         let selection_menu = drop_down_menu::DropDownMenu::new(app);
-        app.display
-            .scene()
-            .layers
-            .below_main
-            .add_exclusive(&selection_menu);
-        Self {
-            selection_menu,
-            registry,
-        }
+        app.display.scene().layers.below_main.add_exclusive(&selection_menu);
+        Self { selection_menu, registry }
     }
 
-    pub fn entries(
-        &self,
-        input_type: &Option<enso::Type>,
-    ) -> Vec<visualization::Path> {
-        let input_type_or_any =
-            input_type.clone().unwrap_or_else(enso::Type::any);
-        let definitions_iter =
-            self.registry.valid_sources(&input_type_or_any).into_iter();
+    pub fn entries(&self, input_type: &Option<enso::Type>) -> Vec<visualization::Path> {
+        let input_type_or_any = input_type.clone().unwrap_or_else(enso::Type::any);
+        let definitions_iter = self.registry.valid_sources(&input_type_or_any).into_iter();
         definitions_iter.map(|d| d.signature.path).collect_vec()
     }
 }
@@ -85,6 +77,8 @@ impl display::Object for Model {
     }
 }
 
+
+
 // ============================
 // === VisualisationChooser ===
 // ============================
@@ -94,7 +88,7 @@ impl display::Object for Model {
 #[derive(Clone, CloneRef, Debug)]
 pub struct VisualizationChooser {
     pub frp: Frp,
-    model: Model,
+    model:   Model,
 }
 
 impl VisualizationChooser {

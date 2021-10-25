@@ -12,6 +12,7 @@
 use enso_prelude::*;
 use std::fmt::Write;
 
+
 // ===============
 // === Builder ===
 // ===============
@@ -23,9 +24,9 @@ use std::fmt::Write;
 #[derive(Clone, Debug)]
 pub struct CodeBuilder {
     pub spaces_in_indent: usize,
-    pub indent: usize,
-    pub spaced: bool,
-    pub buffer: String,
+    pub indent:           usize,
+    pub spaced:           bool,
+    pub buffer:           String,
 }
 
 impl CodeBuilder {
@@ -62,18 +63,14 @@ impl CodeBuilder {
     /// Adds a new element to the builder. The element can be any form of string, slice, or any
     /// other object which implements the `HasCodeRepr` trait.
     pub fn add<T>(&mut self, t: T) -> &mut Self
-    where
-        Self: AddToBuilder<T>,
-    {
+    where Self: AddToBuilder<T> {
         self.add_to_builder(t)
     }
 
     /// Adds a new element and assumes it is spaced (there is no need to add a space before
     /// inserting the next element).
     pub fn add_spaced<T>(&mut self, t: T)
-    where
-        Self: AddToBuilder<T>,
-    {
+    where Self: AddToBuilder<T> {
         self.add(t);
         self.spaced = true;
     }
@@ -132,12 +129,7 @@ impl Default for CodeBuilder {
         let indent = 0;
         let spaced = true;
         let buffer = default();
-        Self {
-            spaces_in_indent,
-            indent,
-            spaced,
-            buffer,
-        }
+        Self { spaces_in_indent, indent, spaced, buffer }
     }
 }
 
@@ -146,6 +138,8 @@ impl Write for CodeBuilder {
         self.buffer.write_str(str)
     }
 }
+
+
 
 // ===================
 // === HasCodeRepr ===

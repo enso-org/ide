@@ -14,6 +14,8 @@ use enso_protocol::language_server;
 use enso_protocol::types::Sha3_224;
 use parser::Parser;
 
+
+
 // ==============
 // === Errors ===
 // ==============
@@ -22,6 +24,8 @@ use parser::Parser;
 #[derive(Clone, Debug, Fail)]
 #[fail(display = "Invalid graph id: {:?}.", _0)]
 pub struct InvalidGraphId(controller::graph::Id);
+
+
 
 // =========================
 // === Module Controller ===
@@ -33,10 +37,10 @@ pub struct InvalidGraphId(controller::graph::Id);
 #[allow(missing_docs)]
 #[derive(Clone, CloneRef, Debug)]
 pub struct Handle {
-    pub model: model::Module,
+    pub model:           model::Module,
     pub language_server: Rc<language_server::Connection>,
-    pub parser: Parser,
-    pub logger: Logger,
+    pub parser:          Parser,
+    pub logger:          Logger,
 }
 
 impl Handle {
@@ -46,17 +50,11 @@ impl Handle {
         path: Path,
         project: &dyn model::project::API,
     ) -> FallibleResult<Self> {
-        let logger =
-            Logger::new_sub(parent, format!("Module Controller {}", path));
+        let logger = Logger::new_sub(parent, format!("Module Controller {}", path));
         let model = project.module(path).await?;
         let language_server = project.json_rpc();
         let parser = project.parser();
-        Ok(Handle {
-            model,
-            language_server,
-            parser,
-            logger,
-        })
+        Ok(Handle { model, language_server, parser, logger })
     }
 
     /// Save the module to file.
@@ -76,11 +74,7 @@ impl Handle {
     /// Module ast.
     pub fn apply_code_change(&self, change: TextChange) -> FallibleResult {
         let mut id_map = self.model.ast().id_map();
-        apply_code_change_to_id_map(
-            &mut id_map,
-            &change,
-            &self.model.ast().repr(),
-        );
+        apply_code_change_to_id_map(&mut id_map, &change, &self.model.ast().repr());
         self.model.apply_code_change(change, &self.parser, id_map)
     }
 
@@ -94,8 +88,11 @@ impl Handle {
     pub fn check_code_sync(&self, code: String) -> FallibleResult {
         let my_code = self.code();
         if code != my_code {
-            error!(self.logger,"The module controller ast was not synchronized with text editor \
-                content!\n >>> Module: {my_code}\n >>> Editor: {code}");
+            error!(
+                self.logger,
+                "The module controller ast was not synchronized with text editor \
+                content!\n >>> Module: {my_code}\n >>> Editor: {code}"
+            );
             let actual_ast = self.parser.parse(code, default())?.try_into()?;
             self.model.update_ast(actual_ast)?;
         }
@@ -134,19 +131,13 @@ impl Handle {
     }
 
     /// Get the module's qualified name.
-    pub fn qualified_name(
-        &self,
-        project_name: project::QualifiedName,
-    ) -> module::QualifiedName {
+    pub fn qualified_name(&self, project_name: project::QualifiedName) -> module::QualifiedName {
         module::QualifiedName::new(project_name, self.model.id())
     }
 
     /// Modify module by modifying its `Info` description (which is a wrapper directly over module's
     /// AST).
-    pub fn modify<R>(
-        &self,
-        f: impl FnOnce(&mut module::Info) -> R,
-    ) -> FallibleResult<R> {
+    pub fn modify<R>(&self, f: impl FnOnce(&mut module::Info) -> R) -> FallibleResult<R> {
         let mut module = self.module_info();
         let ret = f(&mut module);
         self.model.update_ast(module.ast)?;
@@ -171,10 +162,7 @@ impl Handle {
     /// Removes an import declaration that brings given target.
     ///
     /// Fails, if there was no such declaration found.
-    pub fn remove_import(
-        &self,
-        target: &module::QualifiedName,
-    ) -> FallibleResult {
+    pub fn remove_import(&self, target: &module::QualifiedName) -> FallibleResult {
         let import = module::ImportInfo::from_qualified_name(target);
         self.modify(|info| info.remove_import(&import))?
     }
@@ -197,15 +185,8 @@ impl Handle {
         let logger = Logger::new("Mocked Module Controller");
         let ast = parser.parse(code.to_string(), id_map)?.try_into()?;
         let metadata = default();
-        let model = Rc::new(model::module::Plain::new(
-            &logger, path, ast, metadata, repository,
-        ));
-        Ok(Handle {
-            model,
-            language_server,
-            parser,
-            logger,
-        })
+        let model = Rc::new(model::module::Plain::new(&logger, path, ast, metadata, repository));
+        Ok(Handle { model, language_server, parser, logger })
     }
 
     #[cfg(test)]
@@ -214,6 +195,8 @@ impl Handle {
         assert_eq!(code, expected_code.as_ref());
     }
 }
+
+
 
 // =============
 // === Tests ===
@@ -252,8 +235,7 @@ mod test {
                 (Span::new(Index::new(0), Size::new(3)), uuid4),
             ]);
             let controller =
-                Handle::new_mock(location, code, id_map, ls, parser, default())
-                    .unwrap();
+                Handle::new_mock(location, code, id_map, ls, parser, default()).unwrap();
 
             // Change code from "2+2" to "22+2"
             let change = TextChange::insert(Index::new(0), "2".to_string());
@@ -263,31 +245,20 @@ mod test {
                     elem: Some(Ast::new(
                         ast::Infix {
                             larg: Ast::new(
-                                ast::Number {
-                                    base: None,
-                                    int: "22".to_string(),
-                                },
+                                ast::Number { base: None, int: "22".to_string() },
                                 Some(uuid1),
                             ),
                             loff: 0,
-                            opr: Ast::new(
-                                ast::Opr {
-                                    name: "+".to_string(),
-                                },
-                                Some(uuid2),
-                            ),
+                            opr:  Ast::new(ast::Opr { name: "+".to_string() }, Some(uuid2)),
                             roff: 0,
                             rarg: Ast::new(
-                                ast::Number {
-                                    base: None,
-                                    int: "2".to_string(),
-                                },
+                                ast::Number { base: None, int: "2".to_string() },
                                 Some(uuid3),
                             ),
                         },
                         Some(uuid4),
                     )),
-                    off: 0,
+                    off:  0,
                 }],
             });
             assert_eq!(expected_ast, controller.model.ast().into());

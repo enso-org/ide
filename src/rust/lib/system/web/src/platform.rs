@@ -2,6 +2,8 @@
 
 use std::convert::TryFrom;
 
+
+
 // ================
 // === Platform ===
 // ================
@@ -89,6 +91,8 @@ impl TryFrom<String> for Platform {
     }
 }
 
+
+
 // ================================
 // === Compile Time Redirection ===
 // ================================
@@ -105,6 +109,8 @@ pub fn current() -> Option<Platform> {
     current_native()
 }
 
+
+
 // ====================
 // === Current WASM ===
 // ====================
@@ -117,10 +123,10 @@ pub fn current_wasm() -> Option<Platform> {
     let navigator = window.navigator();
     let platform = navigator.platform().unwrap_or_default().to_lowercase();
     let agent = navigator.user_agent().unwrap_or_default().to_lowercase();
-    Platform::try_from(platform)
-        .or_else(|_| Platform::try_from(agent))
-        .ok()
+    Platform::try_from(platform).or_else(|_| Platform::try_from(agent)).ok()
 }
+
+
 
 // ======================
 // === Current Native ===
@@ -159,14 +165,13 @@ fn current_native() -> Option<Platform> {
     None
 }
 
+
+
 // =============
 // === Tests ===
 // =============
 
-#[cfg(all(
-    test,
-    any(target_os = "linux", target_os = "windows", target_os = "macos")
-))]
+#[cfg(all(test, any(target_os = "linux", target_os = "windows", target_os = "macos")))]
 mod test {
     use super::*;
 

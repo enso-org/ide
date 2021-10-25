@@ -10,13 +10,16 @@ use ensogl::display;
 use ensogl::display::DomSymbol;
 use ensogl::display::Scene;
 
+
+
 // =================
 // === Constants ===
 // =================
 
 /// An invocable language expression that serialize given input into JSON.
-pub const DEFAULT_VISUALIZATION_EXPRESSION: &str =
-    "x -> x.to_default_visualization_data";
+pub const DEFAULT_VISUALIZATION_EXPRESSION: &str = "x -> x.to_default_visualization_data";
+
+
 
 // ====================
 // === Preprocessor ===
@@ -48,6 +51,7 @@ impl ContextModule {
     }
 }
 
+
 // === PreprocessorConfiguration ===
 
 /// Information on how the preprocessor should be set up for the visualization.
@@ -55,7 +59,7 @@ impl ContextModule {
 pub struct PreprocessorConfiguration {
     /// The code of the preprocessor. Should be a lambda that transforms node value into whatever
     /// that visualizations expect.
-    pub code: enso::Code,
+    pub code:   enso::Code,
     /// The module that provides context for `code` evaluation.
     pub module: ContextModule,
 }
@@ -83,19 +87,18 @@ impl PreprocessorConfiguration {
     ) -> PreprocessorConfiguration {
         PreprocessorConfiguration {
             module: ContextModule::Specific(module.into()),
-            code: code.into(),
+            code:   code.into(),
         }
     }
 }
 
 impl Default for PreprocessorConfiguration {
     fn default() -> Self {
-        Self {
-            code: DEFAULT_VISUALIZATION_EXPRESSION.into(),
-            module: default(),
-        }
+        Self { code: DEFAULT_VISUALIZATION_EXPRESSION.into(), module: default() }
     }
 }
+
+
 
 // ===========
 // === FRP ===
@@ -112,11 +115,11 @@ impl Default for PreprocessorConfiguration {
 #[derive(Clone, CloneRef, Debug)]
 #[allow(missing_docs)]
 pub struct FrpInputs {
-    pub set_size: frp::Source<Vector2>,
-    pub send_data: frp::Source<Data>,
-    pub activate: frp::Source,
+    pub set_size:   frp::Source<Vector2>,
+    pub send_data:  frp::Source<Data>,
+    pub activate:   frp::Source,
     pub deactivate: frp::Source,
-    pub set_layer: frp::Source<Layer>,
+    pub set_layer:  frp::Source<Layer>,
 }
 
 /// Visualization FRP network.
@@ -127,12 +130,12 @@ pub struct Frp {
     pub inputs: FrpInputs,
 
     pub on_preprocessor_change: frp::Sampler<PreprocessorConfiguration>,
-    pub on_data_receive_error: frp::Stream<Option<DataError>>,
-    pub is_active: frp::Stream<bool>,
+    pub on_data_receive_error:  frp::Stream<Option<DataError>>,
+    pub is_active:              frp::Stream<bool>,
 
     /// This event should be emitted when the received data are incorrect, or cause an internal
     /// error.
-    pub data_receive_error: frp::Source<Option<DataError>>,
+    pub data_receive_error:  frp::Source<Option<DataError>>,
     /// This event should be emitted to set a new code of the preprocessor. The preprocessor is
     /// a function called on the Engine side before sending data to IDE, allowing us to do some
     /// compression or filtering for the best performance. See also _Lazy Visualization_ section
@@ -150,13 +153,7 @@ impl FrpInputs {
             deactivate <- source();
             set_layer  <- source();
         };
-        Self {
-            set_size,
-            send_data,
-            activate,
-            deactivate,
-            set_layer,
-        }
+        Self { set_size, send_data, activate, deactivate, set_layer }
     }
 }
 
@@ -186,11 +183,7 @@ impl Frp {
     /// visualization is active.
     ///
     /// Used mainly in visualizations based on DOM elements (e.g. JavaScript visualization).
-    pub fn pass_events_to_dom_if_active(
-        &self,
-        scene: &Scene,
-        network: &frp::Network,
-    ) {
+    pub fn pass_events_to_dom_if_active(&self, scene: &Scene, network: &frp::Network) {
         frp::extend! { network
             let mouse_up       =  scene.mouse.frp.up.clone_ref();
             let mouse_down     =  scene.mouse.frp.down.clone_ref();
@@ -207,6 +200,8 @@ impl Frp {
     }
 }
 
+
+
 // ================
 // === Instance ===
 // ================
@@ -216,9 +211,9 @@ impl Frp {
 #[allow(missing_docs)]
 pub struct Instance {
     display_object: display::object::Instance,
-    frp: Frp,
-    network: frp::Network,
-    root_dom: Immutable<Option<DomSymbol>>,
+    frp:            Frp,
+    network:        frp::Network,
+    root_dom:       Immutable<Option<DomSymbol>>,
 }
 
 impl Instance {
@@ -233,12 +228,7 @@ impl Instance {
         let frp = frp.into();
         let network = network.into();
         let root_dom = Immutable(root_dom);
-        Self {
-            display_object,
-            frp,
-            network,
-            root_dom,
-        }
+        Self { display_object, frp, network, root_dom }
     }
 
     /// A [`frp::Network`] getter, used to extend the instance's network, or making a bridge

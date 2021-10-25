@@ -2,6 +2,8 @@
 
 use crate::types::*;
 
+
+
 // ==================
 // === GpuDefault ===
 // ==================
@@ -13,9 +15,7 @@ pub trait GpuDefault {
 
     /// Check if the current value is the same as the default one.
     fn is_gpu_default(&self) -> bool
-    where
-        Self: Sized + PartialEq,
-    {
+    where Self: Sized + PartialEq {
         *self == Self::gpu_default()
     }
 }
@@ -24,6 +24,7 @@ pub trait GpuDefault {
 pub fn gpu_default<T: GpuDefault>() -> T {
     <T as GpuDefault>::gpu_default()
 }
+
 
 // === Instances ===
 

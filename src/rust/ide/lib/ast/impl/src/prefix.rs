@@ -17,6 +17,8 @@ use crate::TokenConsumer;
 
 use utils::vec::VecExt;
 
+
+
 // ================
 // === Argument ===
 // ================
@@ -25,7 +27,7 @@ use utils::vec::VecExt;
 #[derive(Clone, Debug)]
 pub struct Argument {
     /// An argument ast with offset between it and previous arg or function.
-    pub sast: Shifted<Ast>,
+    pub sast:      Shifted<Ast>,
     /// The id of Prefix AST of this argument application.
     pub prefix_id: Option<Id>,
 }
@@ -43,6 +45,8 @@ impl HasTokens for Argument {
         self.sast.feed_to(consumer)
     }
 }
+
+
 
 // ====================
 // === Prefix Chain ===
@@ -62,10 +66,7 @@ impl Chain {
     pub fn new(func: Ast, args: impl IntoIterator<Item = Ast>) -> Self {
         let args = args
             .into_iter()
-            .map(|arg| Argument {
-                sast: Shifted::new(1, arg),
-                prefix_id: Some(Id::new_v4()),
-            })
+            .map(|arg| Argument { sast: Shifted::new(1, arg), prefix_id: Some(Id::new_v4()) })
             .collect_vec();
 
         Self { func, args }
@@ -76,15 +77,11 @@ impl Chain {
     ///
     /// For example, calling this with `func` being "foo" and `this` being "bar", the prefix chain
     /// will be represented by `bar.foo <arguments...>`
-    pub fn new_with_this(
-        func: Ast,
-        this: Ast,
-        other_args: impl IntoIterator<Item = Ast>,
-    ) -> Self {
+    pub fn new_with_this(func: Ast, this: Ast, other_args: impl IntoIterator<Item = Ast>) -> Self {
         let infix = Infix {
             larg: this,
             loff: 0,
-            opr: Ast::opr(opr::predefined::ACCESS),
+            opr:  Ast::opr(opr::predefined::ACCESS),
             roff: 0,
             rarg: func,
         };
@@ -101,10 +98,7 @@ impl Chain {
                 Ok(lhs_app) => run(&lhs_app, &mut acc),
                 _ => ast.func.clone(),
             };
-            let sast = Shifted {
-                wrapped: ast.arg.clone(),
-                off: ast.off,
-            };
+            let sast = Shifted { wrapped: ast.arg.clone(), off: ast.off };
             let prefix_id = ast.id();
             acc.push(Argument { sast, prefix_id });
             func
@@ -117,10 +111,7 @@ impl Chain {
 
     /// Like `new` but returns None if given Ast is not of a Prefix shape.
     pub fn from_ast(ast: &Ast) -> Option<Chain> {
-        known::Prefix::try_from(ast)
-            .as_ref()
-            .map(Chain::from_prefix)
-            .ok()
+        known::Prefix::try_from(ast).as_ref().map(Chain::from_prefix).ok()
     }
 
     /// As new but if the AST is not a prefix, interprets is a function with an
@@ -133,10 +124,7 @@ impl Chain {
             // Case like `+ a b`
             let func = section.opr.clone();
             let right_chain = Chain::from_ast_non_strict(&section.arg);
-            let sast = Shifted {
-                wrapped: right_chain.func,
-                off: section.off,
-            };
+            let sast = Shifted { wrapped: right_chain.func, off: section.off };
             let prefix_id = section.id();
             let mut args = vec![Argument { sast, prefix_id }];
             args.extend(right_chain.args);
@@ -179,11 +167,8 @@ impl Chain {
     /// Does nothing if there are no arguments.
     pub fn fold_arg(&mut self) {
         if let Some(arg) = self.args.pop_front() {
-            let new_prefix = Prefix {
-                arg: arg.sast.wrapped,
-                func: self.func.clone_ref(),
-                off: arg.sast.off,
-            };
+            let new_prefix =
+                Prefix { arg: arg.sast.wrapped, func: self.func.clone_ref(), off: arg.sast.off };
             self.func = Ast::new(new_prefix, arg.prefix_id);
         }
     }
@@ -212,8 +197,7 @@ impl Chain {
                 let prefix_id = argument.prefix_id.map(|_| Id::new_v4());
                 Argument::new_blank(argument.sast.off, prefix_id)
             };
-            self.args
-                .extend(std::iter::repeat_with(make_blank).take(blanks_to_add));
+            self.args.extend(std::iter::repeat_with(make_blank).take(blanks_to_add));
         }
         self.args.insert(index, argument);
     }
@@ -228,6 +212,8 @@ impl HasTokens for Chain {
         }
     }
 }
+
+
 
 #[cfg(test)]
 mod tests {
@@ -276,10 +262,8 @@ mod tests {
         let chain = Chain::new(a, vec![b, c]);
         assert_eq!(chain.repr(), "a b c");
 
-        let arg = |text: &str| Argument {
-            prefix_id: None,
-            sast: Shifted::new(1, Ast::var(text)),
-        };
+        let arg =
+            |text: &str| Argument { prefix_id: None, sast: Shifted::new(1, Ast::var(text)) };
 
         {
             let mut chain = chain.clone();

@@ -34,6 +34,8 @@ use ensogl::system::web;
 use ensogl::system::web::StyleSetter;
 use ensogl_gui_components::shadow;
 
+
+
 // =================
 // === Constants ===
 // =================
@@ -43,6 +45,8 @@ pub const DEFAULT_SIZE: (f32, f32) = (200.0, 200.0);
 const PADDING: f32 = 20.0;
 const CORNER_RADIUS: f32 = super::super::node::CORNER_RADIUS;
 const ACTION_BAR_HEIGHT: f32 = 2.0 * CORNER_RADIUS;
+
+
 
 // =============
 // === Shape ===
@@ -109,6 +113,8 @@ pub mod background {
     }
 }
 
+
+
 // ===========
 // === Frp ===
 // ===========
@@ -139,6 +145,8 @@ ensogl::define_endpoints! {
     }
 }
 
+
+
 // ============
 // === View ===
 // ============
@@ -147,13 +155,13 @@ ensogl::define_endpoints! {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct View {
-    logger: Logger,
+    logger:         Logger,
     display_object: display::object::Instance,
 
-    background: background::View,
-    overlay: overlay::View,
+    background:     background::View,
+    overlay:        overlay::View,
     background_dom: DomSymbol,
-    scene: Scene,
+    scene:          Scene,
 }
 
 impl View {
@@ -172,10 +180,10 @@ impl View {
             }
         };
 
-        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
+        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape
+        // system (#795)
         let styles = StyleWatch::new(&scene.style_sheet);
-        let bg_color = styles
-            .get_color(ensogl_theme::graph_editor::visualization::background);
+        let bg_color = styles.get_color(ensogl_theme::graph_editor::visualization::background);
         let bg_hex = format!(
             "rgba({},{},{},{})",
             bg_color.red * 255.0,
@@ -186,44 +194,20 @@ impl View {
 
         let div = web::create_div();
         let background_dom = DomSymbol::new(&div);
-        // TODO : We added a HTML background to the `View`, because "shape" background was overlapping
-        //        the JS visualization. This should be further investigated while fixing rust
-        //        visualization displaying. (#796)
-        background_dom
-            .dom()
-            .set_style_or_warn("width", "0", &logger);
-        background_dom
-            .dom()
-            .set_style_or_warn("height", "0", &logger);
-        background_dom
-            .dom()
-            .set_style_or_warn("z-index", "1", &logger);
-        background_dom
-            .dom()
-            .set_style_or_warn("overflow-y", "auto", &logger);
-        background_dom
-            .dom()
-            .set_style_or_warn("overflow-x", "auto", &logger);
-        background_dom
-            .dom()
-            .set_style_or_warn("background", bg_hex, &logger);
-        background_dom.dom().set_style_or_warn(
-            "border-radius",
-            "14px",
-            &logger,
-        );
+        // TODO : We added a HTML background to the `View`, because "shape" background was
+        // overlapping        the JS visualization. This should be further investigated
+        // while fixing rust        visualization displaying. (#796)
+        background_dom.dom().set_style_or_warn("width", "0", &logger);
+        background_dom.dom().set_style_or_warn("height", "0", &logger);
+        background_dom.dom().set_style_or_warn("z-index", "1", &logger);
+        background_dom.dom().set_style_or_warn("overflow-y", "auto", &logger);
+        background_dom.dom().set_style_or_warn("overflow-x", "auto", &logger);
+        background_dom.dom().set_style_or_warn("background", bg_hex, &logger);
+        background_dom.dom().set_style_or_warn("border-radius", "14px", &logger);
         shadow::add_to_dom_element(&background_dom, &styles, &logger);
         display_object.add_child(&background_dom);
 
-        Self {
-            logger,
-            display_object,
-            background,
-            overlay,
-            background_dom,
-            scene,
-        }
-        .init()
+        Self { logger, display_object, background, overlay, background_dom, scene }.init()
     }
 
     fn set_layer(&self, layer: visualization::Layer) {
@@ -243,6 +227,8 @@ impl display::Object for View {
     }
 }
 
+
+
 // ======================
 // === ContainerModel ===
 // ======================
@@ -251,32 +237,28 @@ impl display::Object for View {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct ContainerModel {
-    logger: Logger,
-    display_object: display::object::Instance,
+    logger:             Logger,
+    display_object:     display::object::Instance,
     /// Internal root for all sub-objects. Will be moved when the visualisation
     /// container position is changed by dragging.
-    drag_root: display::object::Instance,
-    visualization: RefCell<Option<visualization::Instance>>,
+    drag_root:          display::object::Instance,
+    visualization:      RefCell<Option<visualization::Instance>>,
     /// A network containing connection between currently set `visualization` FRP endpoints and
     /// container FRP. We keep a separate network for that, so we can manage life of such
     /// connections reliably.
     vis_frp_connection: RefCell<Option<frp::Network>>,
-    scene: Scene,
-    view: View,
-    fullscreen_view: fullscreen::Panel,
-    is_fullscreen: Rc<Cell<bool>>,
-    registry: visualization::Registry,
-    size: Rc<Cell<Vector2>>,
-    action_bar: ActionBar,
+    scene:              Scene,
+    view:               View,
+    fullscreen_view:    fullscreen::Panel,
+    is_fullscreen:      Rc<Cell<bool>>,
+    registry:           visualization::Registry,
+    size:               Rc<Cell<Vector2>>,
+    action_bar:         ActionBar,
 }
 
 impl ContainerModel {
     /// Constructor.
-    pub fn new(
-        logger: &Logger,
-        app: &Application,
-        registry: visualization::Registry,
-    ) -> Self {
+    pub fn new(logger: &Logger, app: &Application, registry: visualization::Registry) -> Self {
         let scene = app.display.scene();
         let logger = Logger::new_sub(logger, "visualization_container");
         let display_object = display::object::Instance::new(&logger);
@@ -325,6 +307,7 @@ impl ContainerModel {
         self.view.has_parent()
     }
 }
+
 
 // === Private API ===
 
@@ -390,9 +373,7 @@ impl ContainerModel {
     }
 
     fn set_visualization_data(&self, data: &visualization::Data) {
-        self.visualization
-            .borrow()
-            .for_each_ref(|vis| vis.send_data.emit(data))
+        self.visualization.borrow().for_each_ref(|vis| vis.send_data.emit(data))
     }
 
     fn update_shape_sizes(&self) {
@@ -412,36 +393,17 @@ impl ContainerModel {
             self.view.overlay.size.set(zero());
             dom.set_style_or_warn("width", "0", &self.logger);
             dom.set_style_or_warn("height", "0", &self.logger);
-            bg_dom.set_style_or_warn(
-                "width",
-                format!("{}px", size[0]),
-                &self.logger,
-            );
-            bg_dom.set_style_or_warn(
-                "height",
-                format!("{}px", size[1]),
-                &self.logger,
-            );
+            bg_dom.set_style_or_warn("width", format!("{}px", size[0]), &self.logger);
+            bg_dom.set_style_or_warn("height", format!("{}px", size[1]), &self.logger);
             self.action_bar.frp.set_size.emit(Vector2::zero());
         } else {
             // self.view.background.shape.radius.set(CORNER_RADIUS);
             self.view.overlay.radius.set(CORNER_RADIUS);
             self.view.background.radius.set(CORNER_RADIUS);
             self.view.overlay.size.set(size);
-            self.view
-                .background
-                .size
-                .set(size + 2.0 * Vector2(PADDING, PADDING));
-            dom.set_style_or_warn(
-                "width",
-                format!("{}px", size[0]),
-                &self.logger,
-            );
-            dom.set_style_or_warn(
-                "height",
-                format!("{}px", size[1]),
-                &self.logger,
-            );
+            self.view.background.size.set(size + 2.0 * Vector2(PADDING, PADDING));
+            dom.set_style_or_warn("width", format!("{}px", size[0]), &self.logger);
+            dom.set_style_or_warn("height", format!("{}px", size[1]), &self.logger);
             bg_dom.set_style_or_warn("width", "0", &self.logger);
             bg_dom.set_style_or_warn("height", "0", &self.logger);
             // self.fullscreen_view.background.shape.sprite.size.set(zero());
@@ -450,8 +412,7 @@ impl ContainerModel {
             self.action_bar.frp.set_size.emit(action_bar_size);
         }
 
-        self.action_bar
-            .set_position_y((size.y - ACTION_BAR_HEIGHT) / 2.0);
+        self.action_bar.set_position_y((size.y - ACTION_BAR_HEIGHT) / 2.0);
 
         if let Some(viz) = &*self.visualization.borrow() {
             viz.set_size.emit(size);
@@ -487,13 +448,11 @@ impl ContainerModel {
         current_vis: &Option<visualization::Definition>,
         input_type: &Option<enso::Type>,
     ) -> Option<visualization::Definition> {
-        let input_type_or_any =
-            input_type.clone().unwrap_or_else(enso::Type::any);
+        let input_type_or_any = input_type.clone().unwrap_or_else(enso::Type::any);
         let vis_list = self.registry.valid_sources(&input_type_or_any);
         let next_on_list = current_vis.as_ref().and_then(|vis| {
-            let mut from_current = vis_list
-                .iter()
-                .skip_while(|x| vis.signature.path != x.signature.path);
+            let mut from_current =
+                vis_list.iter().skip_while(|x| vis.signature.path != x.signature.path);
             from_current.nth(1)
         });
         next_on_list.or_else(|| vis_list.first()).cloned()
@@ -505,6 +464,8 @@ impl display::Object for ContainerModel {
         &self.display_object
     }
 }
+
+
 
 // =================
 // === Container ===
@@ -520,16 +481,12 @@ impl display::Object for ContainerModel {
 pub struct Container {
     #[shrinkwrap(main_field)]
     pub model: Rc<ContainerModel>,
-    pub frp: Frp,
+    pub frp:   Frp,
 }
 
 impl Container {
     /// Constructor.
-    pub fn new(
-        logger: &Logger,
-        app: &Application,
-        registry: visualization::Registry,
-    ) -> Self {
+    pub fn new(logger: &Logger, app: &Application, registry: visualization::Registry) -> Self {
         let model = Rc::new(ContainerModel::new(logger, app, registry));
         let frp = Frp::new();
         Self { model, frp }.init(app)
@@ -561,6 +518,7 @@ impl Container {
             });
         }
 
+
         // === Cycling Visualizations ===
 
         frp::extend! { network
@@ -568,6 +526,7 @@ impl Container {
                 f!(((),vis,input_type) model.next_visualization(vis,input_type))
             );
         }
+
 
         // === Switching Visualizations ===
 
@@ -592,6 +551,7 @@ impl Container {
                 vis_definition.clone()
             }));
         }
+
 
         // === Selecting Visualization ===
 
@@ -627,6 +587,7 @@ impl Container {
             frp.source.is_selected <+ is_selected_changed;
         }
 
+
         // === Fullscreen View ===
 
         frp::extend! { network
@@ -656,6 +617,7 @@ impl Container {
             }));
         }
 
+
         // ===  Visualisation chooser frp bindings ===
 
         frp::extend! { network
@@ -681,6 +643,7 @@ impl Container {
             );
         }
 
+
         // ===  Action bar actions ===
 
         frp::extend! { network
@@ -705,8 +668,7 @@ impl Container {
         // This is not optimal the optimal solution to this problem, as it also means that we have
         // an animation on an invisible component running.
         frp.set_size.emit(Vector2(DEFAULT_SIZE.0, DEFAULT_SIZE.1));
-        frp.set_visualization
-            .emit(Some(visualization::Registry::default_visualisation()));
+        frp.set_visualization.emit(Some(visualization::Registry::default_visualisation()));
         self
     }
 

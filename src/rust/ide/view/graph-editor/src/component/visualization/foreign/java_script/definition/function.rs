@@ -28,9 +28,5 @@ extern "C" {
     /// arguments provided individually.
     #[allow(unsafe_code)]
     #[wasm_bindgen(method, catch, js_name = call)]
-    pub fn call1(
-        this: &Function,
-        context: &JsValue,
-        arg1: &JsValue,
-    ) -> Result<JsValue, JsValue>;
+    pub fn call1(this: &Function, context: &JsValue, arg1: &JsValue) -> Result<JsValue, JsValue>;
 }

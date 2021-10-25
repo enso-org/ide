@@ -2,6 +2,8 @@
 
 use crate::prelude::*;
 
+
+
 // ==================
 // === StyleValue ===
 // ==================
@@ -10,15 +12,15 @@ use crate::prelude::*;
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[allow(missing_docs)]
 pub struct StyleValue<T> {
-    /// Defines the value of the style. In case it is set to `None`, the default value will be used.
-    /// Please note that setting it to `None` has a different effect than not providing the value
-    /// in the `Style` at all. If the value is provided it can override the existing values when
-    /// used in a semigroup operation.
+    /// Defines the value of the style. In case it is set to `None`, the default value will be
+    /// used. Please note that setting it to `None` has a different effect than not providing
+    /// the value in the `Style` at all. If the value is provided it can override the existing
+    /// values when used in a semigroup operation.
     pub value: Option<T>,
 
     /// Defines if the state transition should be used. Sometimes disabling animation is required.
-    /// A good example is the implementation of a selection box. When drawing selection box with the
-    /// mouse, the user wants to see it in real-time, without it growing over time.
+    /// A good example is the implementation of a selection box. When drawing selection box with
+    /// the mouse, the user wants to see it in real-time, without it growing over time.
     pub animate: bool,
 }
 
@@ -54,6 +56,8 @@ impl<T> StyleValue<T> {
         Self { value, animate }
     }
 }
+
+
 
 // =============
 // === Style ===

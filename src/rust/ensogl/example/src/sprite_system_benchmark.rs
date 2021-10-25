@@ -15,6 +15,7 @@ use nalgebra::Vector2;
 use nalgebra::Vector3;
 use wasm_bindgen::prelude::*;
 
+
 #[wasm_bindgen]
 #[allow(dead_code)]
 pub fn entry_point_sprite_system_benchmark() {
@@ -62,14 +63,7 @@ pub fn entry_point_sprite_system_benchmark() {
             // println!("sprite_system is visible? {:?}",sprite_system.is_visible());
             // println!("sprite[5] is visible? {:?}",sprites[5].is_visible());
 
-            on_frame(
-                &camera,
-                time,
-                &mut iter,
-                &sprite1,
-                &mut sprites,
-                &sprite_system,
-            )
+            on_frame(&camera, time, &mut iter, &sprite1, &mut sprites, &sprite_system)
         })
         .forget();
 }

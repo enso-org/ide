@@ -2,6 +2,8 @@
 
 use enso_prelude::*;
 
+
+
 // ===============================
 // === Common Pre- and Postfix ===
 // ===============================
@@ -16,9 +18,9 @@ use enso_prelude::*;
 /// let b = "🐁host";
 /// let c = "🐇bunny🐇";
 ///
-/// assert_eq!(common_prefix_length(a,b), 4);
-/// assert_eq!(common_prefix_length(a,c), 0);
-/// assert_eq!(common_prefix_length(a,a), 9);
+/// assert_eq!(common_prefix_length(a, b), 4);
+/// assert_eq!(common_prefix_length(a, c), 0);
+/// assert_eq!(common_prefix_length(a, a), 9);
 /// ```
 pub fn common_prefix_length(source_a: &str, source_b: &str) -> usize {
     let shortest = source_a.chars().count().min(source_b.chars().count());
@@ -39,9 +41,9 @@ pub fn common_prefix_length(source_a: &str, source_b: &str) -> usize {
 /// let b = "🐇yard";
 /// let c = "🐇";
 ///
-/// assert_eq!(common_postfix_length(a,b), 5);
-/// assert_eq!(common_postfix_length(a,c), 0);
-/// assert_eq!(common_postfix_length(a,a), 10);
+/// assert_eq!(common_postfix_length(a, b), 5);
+/// assert_eq!(common_postfix_length(a, c), 0);
+/// assert_eq!(common_postfix_length(a, a), 10);
 /// ```
 pub fn common_postfix_length(source_a: &str, source_b: &str) -> usize {
     let shortest = source_a.chars().count().min(source_b.chars().count());

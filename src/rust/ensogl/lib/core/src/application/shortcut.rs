@@ -13,6 +13,8 @@ use enso_shortcuts::traits::*;
 
 pub use shortcuts::ActionType;
 
+
+
 // ============
 // === Rule ===
 // ============
@@ -22,7 +24,7 @@ pub use shortcuts::ActionType;
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 #[allow(missing_docs)]
 pub struct Rule {
-    pub tp: ActionType,
+    pub tp:      ActionType,
     pub pattern: String,
 }
 
@@ -34,6 +36,8 @@ impl Rule {
         Self { tp, pattern }
     }
 }
+
+
 
 // ===============
 // === Command ===
@@ -50,6 +54,8 @@ impl From<&str> for Command {
         Self { name: s.into() }
     }
 }
+
+
 
 // =================
 // === Condition ===
@@ -92,12 +98,7 @@ impl Condition {
         cons: impl Fn(Self, Self) -> Self,
         f: impl Fn(&str) -> Self,
     ) -> Self {
-        input
-            .split(separator)
-            .map(|t| t.trim())
-            .map(f)
-            .fold1(cons)
-            .unwrap_or(Self::Never)
+        input.split(separator).map(|t| t.trim()).map(f).fold1(cons).unwrap_or(Self::Never)
     }
 
     /// Parses the provided input expression. The currently recognizable symbols are (sorted by
@@ -129,6 +130,8 @@ impl From<&str> for Condition {
     }
 }
 
+
+
 // ==============
 // === Action ===
 // ==============
@@ -138,8 +141,8 @@ impl From<&str> for Condition {
 /// to be executed.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Action {
-    target: String,
-    command: Command,
+    target:    String,
+    command:   Command,
     condition: Condition,
 }
 
@@ -158,13 +161,11 @@ impl Action {
         let target = target.into();
         let condition = condition.into();
         let command = command.into();
-        Self {
-            target,
-            command,
-            condition,
-        }
+        Self { target, command, condition }
     }
 }
+
+
 
 // ================
 // === Shortcut ===
@@ -175,7 +176,7 @@ impl Action {
 pub struct Shortcut {
     #[shrinkwrap(main_field)]
     action: Action,
-    rule: Rule,
+    rule:   Rule,
 }
 
 impl Shortcut {
@@ -203,6 +204,8 @@ impl Shortcut {
     }
 }
 
+
+
 // ================
 // === Registry ===
 // ================
@@ -218,17 +221,17 @@ impl Shortcut {
 /// shortcut is unregistered.
 #[derive(Clone, CloneRef, Debug)]
 pub struct Registry {
-    model: RegistryModel,
+    model:   RegistryModel,
     network: frp::Network,
 }
 
 /// Internal representation of `Registry`.
 #[derive(Clone, CloneRef, Debug)]
 pub struct RegistryModel {
-    logger: Logger,
-    keyboard: keyboard::Keyboard,
-    mouse: Mouse,
-    command_registry: command::Registry,
+    logger:             Logger,
+    keyboard:           keyboard::Keyboard,
+    mouse:              Mouse,
+    command_registry:   command::Registry,
     shortcuts_registry: shortcuts::HashSetRegistry<Shortcut>,
 }
 
@@ -275,13 +278,7 @@ impl RegistryModel {
         let mouse = mouse.clone_ref();
         let command_registry = command_registry.clone_ref();
         let shortcuts_registry = default();
-        Self {
-            logger,
-            keyboard,
-            mouse,
-            command_registry,
-            shortcuts_registry,
-        }
+        Self { logger, keyboard, mouse, command_registry, shortcuts_registry }
     }
 
     fn process_rules(&self, rules: &[Shortcut]) {
@@ -292,12 +289,17 @@ impl RegistryModel {
                 let target = &rule.action.target;
                 borrowed_command_map.get(target).for_each(|instances| {
                     for instance in instances {
-                        if Self::condition_checker(&rule.condition,&instance.status_map) {
+                        if Self::condition_checker(&rule.condition, &instance.status_map) {
                             let command_name = &rule.command.name;
-                            match instance.command_map.borrow().get(command_name){
-                                Some(cmd) => if cmd.enabled { targets.push(cmd.frp.clone_ref()) },
-                                None      => warning!(&self.logger,
-                                    "Command {command_name} was not found on {target}."),
+                            match instance.command_map.borrow().get(command_name) {
+                                Some(cmd) =>
+                                    if cmd.enabled {
+                                        targets.push(cmd.frp.clone_ref())
+                                    },
+                                None => warning!(
+                                    &self.logger,
+                                    "Command {command_name} was not found on {target}."
+                                ),
                             }
                         }
                     }
@@ -317,20 +319,10 @@ impl RegistryModel {
         match condition {
             Always => true,
             Never => false,
-            When(name) => status
-                .borrow()
-                .get(name)
-                .map(|t| t.value())
-                .unwrap_or(false),
+            When(name) => status.borrow().get(name).map(|t| t.value()).unwrap_or(false),
             Not(a) => !Self::condition_checker(a, status),
-            Or(a, b) => {
-                Self::condition_checker(a, status)
-                    || Self::condition_checker(b, status)
-            }
-            And(a, b) => {
-                Self::condition_checker(a, status)
-                    && Self::condition_checker(b, status)
-            }
+            Or(a, b) => Self::condition_checker(a, status) || Self::condition_checker(b, status),
+            And(a, b) => Self::condition_checker(a, status) && Self::condition_checker(b, status),
         }
     }
 }

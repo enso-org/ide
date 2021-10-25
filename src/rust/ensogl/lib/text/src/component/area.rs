@@ -28,6 +28,8 @@ use ensogl_core::system::web::clipboard;
 use ensogl_core::DEPRECATED_Animation;
 use std::ops::Not;
 
+
+
 // =================
 // === Constants ===
 // =================
@@ -37,6 +39,8 @@ use std::ops::Not;
 pub const RECORD_SEPARATOR: &str = "\x1E";
 const LINE_VERTICAL_OFFSET: f32 = 4.0; // Set manually. May depend on font. To be improved.
 
+
+
 // ====================
 // === SelectionMap ===
 // ====================
@@ -44,9 +48,11 @@ const LINE_VERTICAL_OFFSET: f32 = 4.0; // Set manually. May depend on font. To b
 /// Mapping between selection id, `Selection`, and text location.
 #[derive(Clone, Debug, Default)]
 pub struct SelectionMap {
-    id_map: HashMap<usize, Selection>,
+    id_map:       HashMap<usize, Selection>,
     location_map: HashMap<usize, HashMap<Column, usize>>,
 }
+
+
 
 // ============
 // === Line ===
@@ -60,9 +66,9 @@ pub struct SelectionMap {
 #[derive(Debug)]
 pub struct Line {
     display_object: display::object::Instance,
-    glyphs: Vec<Glyph>,
-    divs: Vec<f32>,
-    centers: Vec<f32>,
+    glyphs:         Vec<Glyph>,
+    divs:           Vec<f32>,
+    centers:        Vec<f32>,
 }
 
 impl Line {
@@ -72,29 +78,19 @@ impl Line {
         let glyphs = default();
         let divs = default();
         let centers = default();
-        Self {
-            display_object,
-            glyphs,
-            divs,
-            centers,
-        }
+        Self { display_object, glyphs, divs, centers }
     }
 
     /// Set the division points (offsets between letters). Also updates center points.
     fn set_divs(&mut self, divs: Vec<f32>) {
         let div_iter = divs.iter();
         let div_iter_skipped = divs.iter().skip(1);
-        self.centers = div_iter
-            .zip(div_iter_skipped)
-            .map(|(t, s)| (t + s) / 2.0)
-            .collect();
+        self.centers = div_iter.zip(div_iter_skipped).map(|(t, s)| (t + s) / 2.0).collect();
         self.divs = divs;
     }
 
     fn div_index_close_to(&self, offset: f32) -> usize {
-        self.centers
-            .binary_search_by(|t| t.partial_cmp(&offset).unwrap())
-            .unwrap_both()
+        self.centers.binary_search_by(|t| t.partial_cmp(&offset).unwrap()).unwrap_both()
     }
 
     fn div_by_column(&self, column: Column) -> f32 {
@@ -117,6 +113,8 @@ impl display::Object for Line {
         &self.display_object
     }
 }
+
+
 
 // =============
 // === Lines ===
@@ -145,6 +143,8 @@ impl Lines {
         })
     }
 }
+
+
 
 // ===========
 // === FRP ===
@@ -268,6 +268,8 @@ ensogl_core::define_endpoints! {
     }
 }
 
+
+
 // ============
 // === Area ===
 // ============
@@ -279,7 +281,7 @@ pub const LINE_HEIGHT: f32 = 14.0;
 #[derive(Clone, CloneRef, Debug)]
 #[allow(missing_docs)]
 pub struct Area {
-    data: Rc<AreaModel>,
+    data:    Rc<AreaModel>,
     pub frp: Rc<Frp>,
 }
 
@@ -492,21 +494,20 @@ impl Area {
 
     /// Add the text area to a specific scene layer. The mouse event positions will be mapped to
     /// this view regardless the previous views this component could be added to.
-    ///
     // TODO https://github.com/enso-org/ide/issues/1576
     //     This function needs to be updated. However, it requires a few steps:
     //     1. The new `ShapeView` and `DynamicShape` are implemented and they use display objects to
     //        pass information about scene layers they are assigned to. However, the [`GlyphSystem`]
     //        is a very non-standard implementation, and thus has to handle the new display object
     //        callbacks in a special way as well.
-    //     2. The `self.data.camera` has to still be used, otherwise there would be no way to convert
-    //        the screen to object space (see the [`to_object_space`] function). This is a very
-    //        temporary solution, as any object can be assigned to more than one scene layer, and thus
-    //        can be rendered from more than one camera. Screen / object space location of events
-    //        should thus become much more primitive information / mechanisms.
-    //     Please note, that this function handles the selection management correctly, as it uses
-    //     the new shape system definition, and thus, inherits the scene layer settings from this
-    //     display object.
+    //     2. The `self.data.camera` has to still be used, otherwise there would be no way to
+    // convert        the screen to object space (see the [`to_object_space`] function). This is
+    // a very        temporary solution, as any object can be assigned to more than one scene
+    // layer, and thus        can be rendered from more than one camera. Screen / object space
+    // location of events        should thus become much more primitive information /
+    // mechanisms.     Please note, that this function handles the selection management
+    // correctly, as it uses     the new shape system definition, and thus, inherits the scene
+    // layer settings from this     display object.
     pub fn add_to_scene_layer(&self, layer: &display::scene::Layer) {
         for symbol in self.symbols() {
             layer.add_exclusive(&symbol);
@@ -525,17 +526,16 @@ impl Area {
     }
 
     fn symbols(&self) -> SmallVec<[display::Symbol; 1]> {
-        let text_symbol =
-            self.data.glyph_system.sprite_system().symbol.clone_ref();
+        let text_symbol = self.data.glyph_system.sprite_system().symbol.clone_ref();
         let shapes = &self.data.app.display.scene().shapes;
-        let selection_system =
-            shapes.shape_system(PhantomData::<selection::shape::Shape>);
-        let _selection_symbol =
-            selection_system.shape_system.symbol.clone_ref();
+        let selection_system = shapes.shape_system(PhantomData::<selection::shape::Shape>);
+        let _selection_symbol = selection_system.shape_system.symbol.clone_ref();
         //TODO[ao] we cannot move selection symbol, as it is global for all the text areas.
-        SmallVec::from_buf([text_symbol /*selection_symbol*/])
+        SmallVec::from_buf([text_symbol /* selection_symbol */])
     }
 }
+
+
 
 // =================
 // === AreaModel ===
@@ -544,19 +544,19 @@ impl Area {
 /// Internal representation of `Area`.
 #[derive(Clone, CloneRef, Debug)]
 pub struct AreaModel {
-    app: Application,
+    app:    Application,
     // FIXME[ao]: this is a temporary solution to handle properly areas in different views. Should
     //            be replaced with proper object management.
     camera: Rc<CloneRefCell<display::camera::Camera2d>>,
 
-    logger: Logger,
-    frp_endpoints: FrpEndpoints,
-    buffer: buffer::View,
+    logger:         Logger,
+    frp_endpoints:  FrpEndpoints,
+    buffer:         buffer::View,
     display_object: display::object::Instance,
-    glyph_system: glyph::System,
-    lines: Lines,
-    single_line: Rc<Cell<bool>>,
-    selection_map: Rc<RefCell<SelectionMap>>,
+    glyph_system:   glyph::System,
+    lines:          Lines,
+    single_line:    Rc<Cell<bool>>,
+    selection_map:  Rc<RefCell<SelectionMap>>,
 }
 
 impl AreaModel {
@@ -580,9 +580,7 @@ impl AreaModel {
         // FIXME[WD]: These settings should be managed wiser. They should be set up during
         // initialization of the shape system, not for every area creation. To be improved during
         // refactoring of the architecture some day.
-        let shape_system = scene
-            .shapes
-            .shape_system(PhantomData::<selection::shape::Shape>);
+        let shape_system = scene.shapes.shape_system(PhantomData::<selection::shape::Shape>);
         let symbol = &shape_system.shape_system.sprite_system.symbol;
         shape_system.shape_system.set_pointer_events(false);
 
@@ -637,25 +635,19 @@ impl AreaModel {
                 let min_pos_x = pos_x(start_line, sel.start.column);
                 let max_pos_x = pos_x(end_line, sel.end.column);
                 let logger = Logger::new_sub(&self.logger, "cursor");
-                let min_pos_y =
-                    -LINE_HEIGHT / 2.0 - LINE_HEIGHT * start_line as f32;
+                let min_pos_y = -LINE_HEIGHT / 2.0 - LINE_HEIGHT * start_line as f32;
                 let pos = Vector2(min_pos_x, min_pos_y);
                 let width = max_pos_x - min_pos_x;
                 let selection = match selection_map.id_map.remove(&id) {
                     Some(selection) => {
-                        let select_left =
-                            selection.width.simulator.target_value() < 0.0;
-                        let select_right =
-                            selection.width.simulator.target_value() > 0.0;
-                        let tgt_pos_x =
-                            selection.position.simulator.target_value().x;
-                        let tgt_width =
-                            selection.width.simulator.target_value();
+                        let select_left = selection.width.simulator.target_value() < 0.0;
+                        let select_right = selection.width.simulator.target_value() > 0.0;
+                        let tgt_pos_x = selection.position.simulator.target_value().x;
+                        let tgt_width = selection.width.simulator.target_value();
                         let mid_point = tgt_pos_x + tgt_width / 2.0;
                         let go_left = pos.x < mid_point;
                         let go_right = pos.x > mid_point;
-                        let need_flip = (select_left && go_left)
-                            || (select_right && go_right);
+                        let need_flip = (select_left && go_left) || (select_right && go_right);
                         if width == 0.0 && need_flip {
                             selection.flip_sides()
                         }
@@ -680,10 +672,7 @@ impl AreaModel {
                             eval_ selection.position.value (model.redraw(true));
                             selection.frp.set_color <+ self.frp_endpoints.selection_color;
                         }
-                        selection
-                            .frp
-                            .set_color
-                            .emit(self.frp_endpoints.selection_color.value());
+                        selection.frp.set_color.emit(self.frp_endpoints.selection_color.value());
                         selection
                     }
                 };
@@ -706,22 +695,14 @@ impl AreaModel {
     fn to_object_space(&self, screen_pos: Vector2) -> Vector2 {
         let camera = self.camera.get();
         let origin_world_space = Vector4(0.0, 0.0, 0.0, 1.0);
-        let origin_clip_space =
-            camera.view_projection_matrix() * origin_world_space;
+        let origin_clip_space = camera.view_projection_matrix() * origin_world_space;
         let inv_object_matrix = self.transform_matrix().try_inverse().unwrap();
 
         let shape = self.app.display.scene().frp.shape.value();
         let clip_space_z = origin_clip_space.z;
-        let clip_space_x =
-            origin_clip_space.w * 2.0 * screen_pos.x / shape.width;
-        let clip_space_y =
-            origin_clip_space.w * 2.0 * screen_pos.y / shape.height;
-        let clip_space = Vector4(
-            clip_space_x,
-            clip_space_y,
-            clip_space_z,
-            origin_clip_space.w,
-        );
+        let clip_space_x = origin_clip_space.w * 2.0 * screen_pos.x / shape.width;
+        let clip_space_y = origin_clip_space.w * 2.0 * screen_pos.y / shape.height;
+        let clip_space = Vector4(clip_space_x, clip_space_y, clip_space_z, origin_clip_space.w);
         let world_space = camera.inversed_view_projection_matrix() * clip_space;
         (inv_object_matrix * world_space).xy()
     }
@@ -730,8 +711,7 @@ impl AreaModel {
         let object_space = self.to_object_space(screen_pos);
         let line_index = (-object_space.y / LINE_HEIGHT) as usize;
         let line_index = std::cmp::min(line_index, self.lines.len() - 1);
-        let div_index = self.lines.rc.borrow()[line_index]
-            .div_index_close_to(object_space.x);
+        let div_index = self.lines.rc.borrow()[line_index].div_index_close_to(object_space.x);
         let line = line_index.into();
         let column = div_index.into();
         Location(line, column)
@@ -750,14 +730,9 @@ impl AreaModel {
         let widths = lines
             .into_iter()
             .enumerate()
-            .map(|(view_line_index, content)| {
-                self.redraw_line(view_line_index, content)
-            })
+            .map(|(view_line_index, content)| self.redraw_line(view_line_index, content))
             .collect_vec();
-        let width = widths
-            .into_iter()
-            .max_by(|x, y| x.partial_cmp(y).unwrap())
-            .unwrap_or_default();
+        let width = widths.into_iter().max_by(|x, y| x.partial_cmp(y).unwrap()).unwrap_or_default();
         if size_may_change {
             let height = self.calculate_height();
             self.frp_endpoints.source.width.emit(width);
@@ -779,43 +754,30 @@ impl AreaModel {
             .unwrap_or_default();
         let line = &mut self.lines.rc.borrow_mut()[view_line_index];
         let line_object = line.display_object().clone_ref();
-        let line_range = self
-            .buffer
-            .byte_range_of_view_line_index_snapped(view_line_index.into());
-        let mut line_style = self
-            .buffer
-            .sub_style(line_range.start..line_range.end)
-            .iter();
+        let line_range = self.buffer.byte_range_of_view_line_index_snapped(view_line_index.into());
+        let mut line_style = self.buffer.sub_style(line_range.start..line_range.end).iter();
         let mut pen = pen::Pen::new(&self.glyph_system.font);
         let mut divs = vec![];
         let mut column = 0.column();
         let mut last_cursor = None;
         let mut last_cursor_target = default();
-        line.resize_with(content.chars().count(), || {
-            self.glyph_system.new_glyph()
-        });
+        line.resize_with(content.chars().count(), || self.glyph_system.new_glyph());
         let mut iter = line.glyphs.iter_mut().zip(content.chars());
         loop {
             let next = iter.next();
             let style = line_style.next().unwrap_or_default();
             let chr_size = style.size.raw;
-            let char_info =
-                next.as_ref().map(|t| pen::CharInfo::new(t.1, chr_size));
+            let char_info = next.as_ref().map(|t| pen::CharInfo::new(t.1, chr_size));
             let info = pen.advance(char_info);
 
             cursor_map.get(&column).for_each(|id| {
-                self.selection_map
-                    .borrow()
-                    .id_map
-                    .get(id)
-                    .for_each(|cursor| {
-                        if cursor.edit_mode.get() {
-                            let pos_y =
-                                LINE_HEIGHT / 2.0 - LINE_VERTICAL_OFFSET;
-                            last_cursor = Some(cursor.clone_ref());
-                            last_cursor_target = Vector2(info.offset, pos_y);
-                        }
-                    });
+                self.selection_map.borrow().id_map.get(id).for_each(|cursor| {
+                    if cursor.edit_mode.get() {
+                        let pos_y = LINE_HEIGHT / 2.0 - LINE_VERTICAL_OFFSET;
+                        last_cursor = Some(cursor.clone_ref());
+                        last_cursor_target = Vector2(info.offset, pos_y);
+                    }
+                });
             });
 
             divs.push(info.offset);
@@ -847,8 +809,7 @@ impl AreaModel {
         }
 
         let last_offset = divs.last().cloned().unwrap_or_default();
-        let cursor_offset = last_cursor
-            .map(|cursor| last_cursor_target.x - cursor.position().x);
+        let cursor_offset = last_cursor.map(|cursor| last_cursor_target.x - cursor.position().x);
         let cursor_offset = cursor_offset.unwrap_or_default();
         line.set_divs(divs);
         last_offset - cursor_offset
@@ -856,8 +817,7 @@ impl AreaModel {
 
     fn new_line(&self, index: usize) -> Line {
         let line = Line::new(&self.logger);
-        let y_offset =
-            -((index + 1) as f32) * LINE_HEIGHT + LINE_VERTICAL_OFFSET;
+        let y_offset = -((index + 1) as f32) * LINE_HEIGHT + LINE_VERTICAL_OFFSET;
         line.set_position_y(y_offset);
         self.add_child(&line);
         line
@@ -962,49 +922,21 @@ impl application::View for Area {
             (PressAndRepeat, "shift left", "cursor_select_left"),
             (PressAndRepeat, "shift right", "cursor_select_right"),
             (PressAndRepeat, "cmd shift left", "cursor_select_left_word"),
-            (
-                PressAndRepeat,
-                "cmd shift right",
-                "cursor_select_right_word",
-            ),
+            (PressAndRepeat, "cmd shift right", "cursor_select_right_word"),
             (PressAndRepeat, "shift up", "cursor_select_up"),
             (PressAndRepeat, "shift down", "cursor_select_down"),
             (PressAndRepeat, "backspace", "delete_left"),
             (PressAndRepeat, "delete", "delete_right"),
             (PressAndRepeat, "cmd backspace", "delete_word_left"),
             (PressAndRepeat, "cmd delete", "delete_word_right"),
-            (
-                Press,
-                "shift left-mouse-button",
-                "set_newest_selection_end_to_mouse_position",
-            ),
+            (Press, "shift left-mouse-button", "set_newest_selection_end_to_mouse_position"),
             (DoublePress, "left-mouse-button", "select_word_at_cursor"),
             (Press, "left-mouse-button", "set_cursor_at_mouse_position"),
-            (
-                Press,
-                "left-mouse-button",
-                "start_newest_selection_end_follow_mouse",
-            ),
-            (
-                Release,
-                "left-mouse-button",
-                "stop_newest_selection_end_follow_mouse",
-            ),
-            (
-                Press,
-                "cmd left-mouse-button",
-                "add_cursor_at_mouse_position",
-            ),
-            (
-                Press,
-                "cmd left-mouse-button",
-                "start_newest_selection_end_follow_mouse",
-            ),
-            (
-                Release,
-                "cmd left-mouse-button",
-                "stop_newest_selection_end_follow_mouse",
-            ),
+            (Press, "left-mouse-button", "start_newest_selection_end_follow_mouse"),
+            (Release, "left-mouse-button", "stop_newest_selection_end_follow_mouse"),
+            (Press, "cmd left-mouse-button", "add_cursor_at_mouse_position"),
+            (Press, "cmd left-mouse-button", "start_newest_selection_end_follow_mouse"),
+            (Release, "cmd left-mouse-button", "stop_newest_selection_end_follow_mouse"),
             (Press, "cmd a", "select_all"),
             (Press, "cmd c", "copy"),
             (Press, "cmd x", "cut"),
@@ -1013,13 +945,8 @@ impl application::View for Area {
         ])
             .iter()
             .map(|(action, rule, command)| {
-                let only_hovered =
-                    *action != Release && rule.contains("left-mouse-button");
-                let condition = if only_hovered {
-                    "focused & hovered"
-                } else {
-                    "focused"
-                };
+                let only_hovered = *action != Release && rule.contains("left-mouse-button");
+                let condition = if only_hovered { "focused & hovered" } else { "focused" };
                 Self::self_shortcut_when(*action, *rule, *command, condition)
             })
             .collect()

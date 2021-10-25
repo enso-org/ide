@@ -10,6 +10,8 @@ use super::component::*;
 use nalgebra::Vector3;
 use nalgebra::Vector4;
 
+
+
 // =============
 // === Color ===
 // =============
@@ -40,12 +42,10 @@ pub fn Color<D>(data: D) -> Color<D> {
 impl<D> Color<D> {
     /// Return the color with an added alpha channel.
     pub fn with_alpha(self, alpha: f32) -> Color<Alpha<D>> {
-        Color(Alpha {
-            alpha,
-            opaque: self,
-        })
+        Color(Alpha { alpha, opaque: self })
     }
 }
+
 
 // === Deref ===
 
@@ -56,6 +56,7 @@ impl<D> Deref for Color<D> {
     }
 }
 
+
 // === DerefMut ===
 
 impl<D> DerefMut for Color<D> {
@@ -63,6 +64,7 @@ impl<D> DerefMut for Color<D> {
         &mut self.data
     }
 }
+
 
 // === Color Model ===
 
@@ -78,6 +80,7 @@ impl<M> HasModel for Color<M> {
 /// Accessor for `HasModel::Model`.
 pub type Model<T> = <T as HasModel>::Model;
 
+
 // === Component Generics ===
 
 impl<D: HasComponentsRepr> HasComponentsRepr for Color<D> {
@@ -86,17 +89,15 @@ impl<D: HasComponentsRepr> HasComponentsRepr for Color<D> {
 
 impl<D: ComponentMap> ComponentMap for Color<D> {
     fn map<F: Fn(f32) -> f32>(&self, f: F) -> Self {
-        Self {
-            data: self.data.map(f),
-        }
+        Self { data: self.data.map(f) }
     }
 }
+
 
 // === Conversions ===
 
 impl<D1, D2> From<&Color<D1>> for Color<D2>
-where
-    Color<D1>: Clone + Into<Color<D2>>,
+where Color<D1>: Clone + Into<Color<D2>>
 {
     fn from(color: &Color<D1>) -> Self {
         color.clone().into()
@@ -111,8 +112,7 @@ impl<C> From<Color<C>> for Color<Alpha<C>> {
 }
 
 impl<D> From<Color<D>> for ComponentsOf<Color<D>>
-where
-    D: HasComponents,
+where D: HasComponents
 {
     fn from(color: Color<D>) -> Self {
         color.data.into()
@@ -125,15 +125,12 @@ where
     ComponentsOf<D>: Into<D>,
 {
     fn from(components: ComponentsOf<D>) -> Self {
-        Self {
-            data: components.into(),
-        }
+        Self { data: components.into() }
     }
 }
 
 impl<D> From<Color<D>> for Vector3<f32>
-where
-    Color<D>: HasComponents<ComponentsRepr = (f32, f32, f32)>,
+where Color<D>: HasComponents<ComponentsRepr = (f32, f32, f32)>
 {
     fn from(value: Color<D>) -> Self {
         Into::<Vector3<f32>>::into(value.into_components())
@@ -141,8 +138,7 @@ where
 }
 
 impl<D> From<Color<D>> for Vector4<f32>
-where
-    Color<D>: HasComponents<ComponentsRepr = (f32, f32, f32, f32)>,
+where Color<D>: HasComponents<ComponentsRepr = (f32, f32, f32, f32)>
 {
     fn from(value: Color<D>) -> Self {
         Into::<Vector4<f32>>::into(value.into_components())
@@ -150,8 +146,7 @@ where
 }
 
 impl<D> From<&Color<D>> for Vector3<f32>
-where
-    Color<D>: HasComponents<ComponentsRepr = (f32, f32, f32)> + Copy,
+where Color<D>: HasComponents<ComponentsRepr = (f32, f32, f32)> + Copy
 {
     fn from(value: &Color<D>) -> Self {
         Into::<Vector3<f32>>::into(value.into_components())
@@ -159,8 +154,7 @@ where
 }
 
 impl<D> From<&Color<D>> for Vector4<f32>
-where
-    Color<D>: HasComponents<ComponentsRepr = (f32, f32, f32, f32)> + Copy,
+where Color<D>: HasComponents<ComponentsRepr = (f32, f32, f32, f32)> + Copy
 {
     fn from(value: &Color<D>) -> Self {
         Into::<Vector4<f32>>::into(value.into_components())
@@ -168,8 +162,7 @@ where
 }
 
 impl<D> From<Vector3<f32>> for Color<D>
-where
-    D: HasComponents<ComponentsRepr = (f32, f32, f32)>,
+where D: HasComponents<ComponentsRepr = (f32, f32, f32)>
 {
     fn from(t: Vector3<f32>) -> Self {
         Self::from(t.into_components())
@@ -177,8 +170,7 @@ where
 }
 
 impl<D> From<Vector4<f32>> for Color<D>
-where
-    D: HasComponents<ComponentsRepr = (f32, f32, f32, f32)>,
+where D: HasComponents<ComponentsRepr = (f32, f32, f32, f32)>
 {
     fn from(t: Vector4<f32>) -> Self {
         Self::from(t.into_components())
@@ -186,8 +178,7 @@ where
 }
 
 impl<D> From<&Vector3<f32>> for Color<D>
-where
-    D: Copy + HasComponents<ComponentsRepr = (f32, f32, f32)>,
+where D: Copy + HasComponents<ComponentsRepr = (f32, f32, f32)>
 {
     fn from(t: &Vector3<f32>) -> Self {
         Self::from((*t).into_components())
@@ -195,13 +186,13 @@ where
 }
 
 impl<D> From<&Vector4<f32>> for Color<D>
-where
-    D: Copy + HasComponents<ComponentsRepr = (f32, f32, f32, f32)>,
+where D: Copy + HasComponents<ComponentsRepr = (f32, f32, f32, f32)>
 {
     fn from(t: &Vector4<f32>) -> Self {
         Self::from((*t).into_components())
     }
 }
+
 
 // === Operators ===
 
@@ -256,6 +247,8 @@ macro_rules! define_color_operators {
 
 define_color_operators! { Add::add, Sub::sub, Mul::mul, Div::div }
 
+
+
 // =============
 // === Alpha ===
 // =============
@@ -265,9 +258,10 @@ define_color_operators! { Add::add, Sub::sub, Mul::mul, Div::div }
 #[allow(missing_docs)]
 #[allow(missing_debug_implementations)]
 pub struct Alpha<C> {
-    pub alpha: f32,
+    pub alpha:  f32,
     pub opaque: Color<C>,
 }
+
 
 // === Component Generics ===
 
@@ -293,8 +287,7 @@ impl<C> From<ComponentsOf<Alpha<C>>> for Alpha<C>
 where
     C: HasComponents,
     ComponentsReprOf<C>: PushBack<f32>,
-    <ComponentsReprOf<C> as PushBack<f32>>::Output:
-        PopBack<Last = f32, Init = ComponentsReprOf<C>>,
+    <ComponentsReprOf<C> as PushBack<f32>>::Output: PopBack<Last = f32, Init = ComponentsReprOf<C>>,
 {
     fn from(components: ComponentsOf<Self>) -> Self {
         let (alpha, init) = components.pop_back();
@@ -338,10 +331,7 @@ impl<C> Alpha<C> {
     /// Return the color with a multiplied alpha channel.
     pub fn multiply_alpha(self, alpha: f32) -> Color<Self> {
         let alpha = self.alpha * alpha;
-        Color(Alpha {
-            alpha,
-            opaque: self.opaque,
-        })
+        Color(Alpha { alpha, opaque: self.opaque })
     }
 
     /// Modify the color's alpha channel.

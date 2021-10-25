@@ -7,6 +7,8 @@ use crate::SpanTree;
 use ast::crumbs::IntoCrumbs;
 use enso_data::text::Size;
 
+
+
 // =====================
 // === Builder Trait ===
 // =====================
@@ -28,15 +30,9 @@ pub trait Builder<T: Payload>: Sized {
     ) -> ChildBuilder<Self, T> {
         let kind = kind.into();
         let node = Node::<T>::new().with_kind(kind).with_size(Size::new(len));
-        let child = node::Child {
-            node,
-            offset: Size::new(offset),
-            ast_crumbs: crumbs.into_crumbs(),
-        };
-        ChildBuilder {
-            built: child,
-            parent: self,
-        }
+        let child =
+            node::Child { node, offset: Size::new(offset), ast_crumbs: crumbs.into_crumbs() };
+        ChildBuilder { built: child, parent: self }
     }
 
     /// Add a leaf AST-type child to node.
@@ -51,14 +47,10 @@ pub trait Builder<T: Payload>: Sized {
     }
 
     /// Add an Empty-type child to node.
-    fn add_empty_child(
-        mut self,
-        offset: usize,
-        insert_type: node::InsertionPointType,
-    ) -> Self {
+    fn add_empty_child(mut self, offset: usize, insert_type: node::InsertionPointType) -> Self {
         let child = node::Child {
-            node: Node::<T>::new().with_kind(insert_type),
-            offset: Size::new(offset),
+            node:       Node::<T>::new().with_kind(insert_type),
+            offset:     Size::new(offset),
             ast_crumbs: vec![],
         };
         self.node_being_built().children.push(child);
@@ -71,6 +63,8 @@ pub trait Builder<T: Payload>: Sized {
         self
     }
 }
+
+
 
 /// ================
 /// === Builders ===
@@ -87,9 +81,7 @@ pub struct TreeBuilder<T = ()> {
 impl<T: Payload> TreeBuilder<T> {
     /// Create new builder for tree with root having length `len`.
     pub fn new(len: usize) -> Self {
-        let built = Node::<T>::new()
-            .with_kind(node::Kind::Root)
-            .with_size(Size::new(len));
+        let built = Node::<T>::new().with_kind(node::Kind::Root).with_size(Size::new(len));
         TreeBuilder { built }
     }
 
@@ -106,12 +98,13 @@ impl<T: Payload> Builder<T> for TreeBuilder<T> {
     }
 }
 
+
 // === Child Node Builder ===
 
 /// A builder for some child node. This builder may be returned from `add_ast_child` function.
 #[derive(Debug)]
 pub struct ChildBuilder<Parent, T> {
-    built: node::Child<T>,
+    built:  node::Child<T>,
     parent: Parent,
 }
 

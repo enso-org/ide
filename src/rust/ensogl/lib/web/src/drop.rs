@@ -13,6 +13,8 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
 
+
+
 // ============
 // === File ===
 // ============
@@ -27,11 +29,11 @@ use wasm_bindgen_futures::JsFuture;
 #[derive(Clone, CloneRef, Default, Derivative)]
 #[derivative(Debug)]
 pub struct File {
-    pub name: ImString,
+    pub name:      ImString,
     pub mime_type: ImString,
-    pub size: u64,
+    pub size:      u64,
     #[derivative(Debug = "ignore")]
-    reader: Rc<Option<ReadableStreamDefaultReader>>,
+    reader:        Rc<Option<ReadableStreamDefaultReader>>,
 }
 
 impl File {
@@ -43,12 +45,7 @@ impl File {
         let blob = AsRef::<web_sys::Blob>::as_ref(file);
         let reader = blob.stream_reader()?;
         let reader = Rc::new(Some(reader));
-        Ok(File {
-            name,
-            mime_type,
-            size,
-            reader,
-        })
+        Ok(File { name, mime_type, size, reader })
     }
 
     /// Read the next chunk of file content.
@@ -61,9 +58,7 @@ impl File {
     pub async fn read_chunk(&self) -> Result<Option<Vec<u8>>, Error> {
         if let Some(reader) = &*self.reader {
             let js_result = JsFuture::from(reader.read()).await?;
-            let is_done = js_sys::Reflect::get(&js_result, &"done".into())?
-                .as_bool()
-                .unwrap();
+            let is_done = js_sys::Reflect::get(&js_result, &"done".into())?.as_bool().unwrap();
             if is_done {
                 Ok(None)
             } else {
@@ -76,6 +71,8 @@ impl File {
         }
     }
 }
+
+
 
 // =======================
 // === DropFileManager ===
@@ -92,10 +89,10 @@ type DragOverClosure = Closure<dyn Fn(web_sys::DragEvent) -> bool>;
 #[derive(Clone, CloneRef, Debug)]
 pub struct Manager {
     #[allow(dead_code)]
-    network: frp::Network,
-    files_received: frp::Source<Vec<File>>,
+    network:            frp::Network,
+    files_received:     frp::Source<Vec<File>>,
     #[allow(dead_code)]
-    drop_callback: Rc<DropClosure>,
+    drop_callback:      Rc<DropClosure>,
     #[allow(dead_code)]
     drag_over_callback: Rc<DragOverClosure>,
 }
@@ -110,37 +107,26 @@ impl Manager {
             files_received <- source();
         }
 
-        let drop: DropClosure = Closure::wrap(Box::new(
-            f!([logger,files_received](event:web_sys::DragEvent) {
+        let drop: DropClosure =
+            Closure::wrap(Box::new(f!([logger,files_received](event:web_sys::DragEvent) {
                 debug!(logger, "Dropped files.");
                 event.prevent_default();
                 Self::handle_drop_event(&logger,event,&files_received)
-            }),
-        ));
+            })));
         // To mark element as a valid drop target, the `dragover` event handler should return
         // `false`. See
         // https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API/File_drag_and_drop#define_the_drop_zone
-        let drag_over: DragOverClosure =
-            Closure::wrap(Box::new(|event: web_sys::DragEvent| {
-                event.prevent_default();
-                false
-            }));
+        let drag_over: DragOverClosure = Closure::wrap(Box::new(|event: web_sys::DragEvent| {
+            event.prevent_default();
+            false
+        }));
         let drop_js = drop.as_ref().unchecked_ref();
         let drag_over_js = drag_over.as_ref().unchecked_ref();
-        target
-            .add_event_listener_with_callback("drop", drop_js)
-            .unwrap();
-        target
-            .add_event_listener_with_callback("dragover", drag_over_js)
-            .unwrap();
+        target.add_event_listener_with_callback("drop", drop_js).unwrap();
+        target.add_event_listener_with_callback("dragover", drag_over_js).unwrap();
         let drop_callback = Rc::new(drop);
         let drag_over_callback = Rc::new(drag_over);
-        Self {
-            network,
-            files_received,
-            drop_callback,
-            drag_over_callback,
-        }
+        Self { network, files_received, drop_callback, drag_over_callback }
     }
 
     /// The frp endpoint emitting signal when a file is dropped.
@@ -155,19 +141,14 @@ impl Manager {
     ) {
         let opt_files = event.data_transfer().and_then(|t| t.files());
         if let Some(js_files) = opt_files {
-            let js_files_iter =
-                (0..js_files.length()).filter_map(|i| js_files.get(i));
-            let files_iter =
-                js_files_iter.filter_map(|f| match File::from_js_file(&f) {
-                    Ok(file) => Some(file),
-                    Err(err) => {
-                        error!(
-                            logger,
-                            "Error when processing dropped file: {err:?}"
-                        );
-                        None
-                    }
-                });
+            let js_files_iter = (0..js_files.length()).filter_map(|i| js_files.get(i));
+            let files_iter = js_files_iter.filter_map(|f| match File::from_js_file(&f) {
+                Ok(file) => Some(file),
+                Err(err) => {
+                    error!(logger, "Error when processing dropped file: {err:?}");
+                    None
+                }
+            });
             files_received.emit(files_iter.collect_vec());
         }
     }

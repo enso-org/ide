@@ -6,6 +6,8 @@ use crate::system::web::NodeInserter;
 use crate::system::web::StyleSetter;
 use wasm_bindgen::JsCast;
 
+
+
 // ======================
 // === BenchContainer ===
 // ======================
@@ -14,11 +16,11 @@ use wasm_bindgen::JsCast;
 #[derive(Shrinkwrap, Debug)]
 pub struct BenchContainer {
     #[shrinkwrap(main_field)]
-    container: Container,
+    container:       Container,
     pub measurement: web::HtmlDivElement,
-    pub time: web::HtmlElement,
-    pub iter: web::HtmlElement,
-    pub button: web::HtmlElement,
+    pub time:        web::HtmlElement,
+    pub iter:        web::HtmlElement,
+    pub button:      web::HtmlElement,
 }
 
 impl BenchContainer {
@@ -44,25 +46,16 @@ impl BenchContainer {
         let button = children.item(2).expect("button div");
         let time: web::HtmlElement = time.dyn_into().expect("time HtmlElement");
         let iter: web::HtmlElement = iter.dyn_into().expect("iter HtmlElement");
-        let button: web::HtmlElement =
-            button.dyn_into().expect("buttn HtmlElement");
+        let button: web::HtmlElement = button.dyn_into().expect("buttn HtmlElement");
 
         let container = Container::new("Benchmarks", name, width, height);
         let header_height = 17.0;
         let height = format!("{}px", height + header_height + 25.0);
 
         container.div.set_style_or_panic("height", height);
-        container
-            .div
-            .insert_before_or_panic(&div, &container.container);
+        container.div.insert_before_or_panic(&div, &container.container);
 
         let measurement = div;
-        Self {
-            container,
-            measurement,
-            time,
-            iter,
-            button,
-        }
+        Self { container, measurement, time, iter, button }
     }
 }

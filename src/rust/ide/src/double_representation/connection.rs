@@ -12,6 +12,8 @@ use crate::double_representation::node::MainLine;
 use ast::crumbs::Crumb;
 use ast::crumbs::Crumbs;
 
+
+
 // ================
 // === Endpoint ===
 // ================
@@ -20,7 +22,7 @@ use ast::crumbs::Crumbs;
 #[derive(Clone, Debug, PartialEq)]
 pub struct Endpoint {
     /// Id of the node where the endpoint is located.
-    pub node: Id,
+    pub node:   Id,
     /// Crumbs to the AST creating this endpoint. These crumbs are relative to the node's AST,
     /// not just expression, if the node is binding, there'll crumb for left/right operand first.
     pub crumbs: Crumbs,
@@ -31,25 +33,16 @@ impl Endpoint {
     /// AST within the node's AST.
     ///
     /// Returns None if first crumb is not present or does not denote a valid node.
-    fn new_in_block(
-        block: &ast::Block<Ast>,
-        mut crumbs: Crumbs,
-    ) -> Option<Endpoint> {
+    fn new_in_block(block: &ast::Block<Ast>, mut crumbs: Crumbs) -> Option<Endpoint> {
         let line_crumb = crumbs.pop_front()?;
         let line_crumb = match line_crumb {
             Crumb::Block(block_crumb) => Some(block_crumb),
             _ => None,
         }?;
         let line_ast = block.get(&line_crumb).ok()?;
-        let definition = DefinitionInfo::from_line_ast(
-            line_ast,
-            ScopeKind::NonRoot,
-            block.indent,
-        );
+        let definition = DefinitionInfo::from_line_ast(line_ast, ScopeKind::NonRoot, block.indent);
         let is_non_def = definition.is_none();
-        let node = is_non_def
-            .and_option_from(|| MainLine::from_ast(line_ast))?
-            .id();
+        let node = is_non_def.and_option_from(|| MainLine::from_ast(line_ast))?.id();
         Some(Endpoint { node, crumbs })
     }
 }
@@ -60,6 +53,8 @@ pub type Source = Endpoint;
 /// Connection destination, i.e. the port receiving data / identifier user.
 pub type Destination = Endpoint;
 
+
+
 // ==================
 // === Connection ===
 // ==================
@@ -68,7 +63,7 @@ pub type Destination = Endpoint;
 #[allow(missing_docs)]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Connection {
-    pub source: Source,
+    pub source:      Source,
     pub destination: Destination,
 }
 
@@ -87,14 +82,11 @@ pub fn list_block(block: &ast::Block<Ast>) -> Vec<Connection> {
         .used
         .into_iter()
         .flat_map(|name| {
-            // If name is both introduced and used in the graph's scope; and both of these occurrences
-            // can be represented as endpoints, then we have a connection.
+            // If name is both introduced and used in the graph's scope; and both of these
+            // occurrences can be represented as endpoints, then we have a connection.
             let source = introduced_names.get(&name.item).cloned()?;
             let destination = Endpoint::new_in_block(block, name.crumbs)?;
-            Some(Connection {
-                source,
-                destination,
-            })
+            Some(Connection { source, destination })
         })
         .collect()
 }
@@ -114,6 +106,8 @@ pub fn list(body: &Ast) -> Vec<Connection> {
     }
 }
 
+
+
 // ============================
 // === Connections Analysis ===
 // ============================
@@ -124,10 +118,7 @@ pub fn group_by_source_node(
 ) -> HashMap<Id, Vec<Connection>> {
     let mut result = HashMap::<Id, Vec<Connection>>::new();
     for connection in connections {
-        result
-            .entry(connection.source.node)
-            .or_default()
-            .push(connection)
+        result.entry(connection.source.node).or_default().push(connection)
     }
     result
 }
@@ -153,6 +144,8 @@ pub fn dependent_nodes_in_def(body: &Ast, node: Id) -> HashSet<Id> {
     result
 }
 
+
+
 // =============
 // === Tests ===
 // =============
@@ -168,7 +161,7 @@ mod tests {
     use parser::Parser;
 
     struct TestRun {
-        graph: GraphInfo,
+        graph:       GraphInfo,
         connections: Vec<Connection>,
     }
 
@@ -191,28 +184,18 @@ mod tests {
         fn from_main_def(code: impl Str) -> TestRun {
             let parser = Parser::new_or_panic();
             let module = parser.parse_module(code, default()).unwrap();
-            let definition =
-                DefinitionInfo::from_root_line(&module.lines[0]).unwrap();
+            let definition = DefinitionInfo::from_root_line(&module.lines[0]).unwrap();
             Self::from_definition(definition)
         }
 
         fn from_block(code: impl Str) -> TestRun {
-            let body = code
-                .as_ref()
-                .lines()
-                .map(|line| format!("    {}", line.trim()))
-                .join("\n");
+            let body = code.as_ref().lines().map(|line| format!("    {}", line.trim())).join("\n");
             let definition_code = format!("main =\n{}", body);
             Self::from_main_def(definition_code)
         }
 
         fn endpoint_node_repr(&self, endpoint: &Endpoint) -> String {
-            self.graph
-                .find_node(endpoint.node)
-                .unwrap()
-                .ast()
-                .clone()
-                .repr()
+            self.graph.find_node(endpoint.node).unwrap().ast().clone().repr()
         }
     }
 
@@ -228,6 +211,7 @@ b = e
 c = a + b
 fun a = a b
 f = fun 2";
+
 
         let run = TestRun::from_block(code_block);
         let c = &run.connections[0];
@@ -274,10 +258,8 @@ f = fun 2";
             c = 2
             d = a + b
             e = b";
-        let mut expected_dependent_nodes =
-            HashMap::<&'static str, Vec<&'static str>>::new();
-        expected_dependent_nodes
-            .insert("f,g = p", vec!["a = f", "b = g", "d = a + b", "e = b"]);
+        let mut expected_dependent_nodes = HashMap::<&'static str, Vec<&'static str>>::new();
+        expected_dependent_nodes.insert("f,g = p", vec!["a = f", "b = g", "d = a + b", "e = b"]);
         expected_dependent_nodes.insert("a = f", vec!["d = a + b"]);
         expected_dependent_nodes.insert("b = g", vec!["d = a + b", "e = b"]);
         expected_dependent_nodes.insert("c = 2", vec![]);
@@ -289,14 +271,10 @@ f = fun 2";
         assert_eq!(nodes.len(), expected_dependent_nodes.len());
         for node in nodes {
             let node_repr = node.ast().repr();
-            let expected =
-                expected_dependent_nodes.get(node_repr.as_str()).unwrap();
-            let result =
-                dependent_nodes_in_def(&graph.source.body().item, node.id());
-            let result_node =
-                result.iter().map(|id| graph.find_node(*id).unwrap());
-            let mut result_repr =
-                result_node.map(|n| n.ast().repr()).collect_vec();
+            let expected = expected_dependent_nodes.get(node_repr.as_str()).unwrap();
+            let result = dependent_nodes_in_def(&graph.source.body().item, node.id());
+            let result_node = result.iter().map(|id| graph.find_node(*id).unwrap());
+            let mut result_repr = result_node.map(|n| n.ast().repr()).collect_vec();
             result_repr.sort();
             assert_eq!(result_repr, *expected);
         }

@@ -13,6 +13,8 @@ use crate::model::project::synchronized::Properties;
 use enso_protocol::project_manager::ProjectName;
 use parser::Parser;
 
+
+
 // =============
 // === Error ===
 // =============
@@ -21,6 +23,8 @@ use parser::Parser;
 #[derive(Copy, Clone, Debug, Fail)]
 #[fail(display = "Project operations are not supported.")]
 pub struct ProjectOperationsNotSupported;
+
+
 
 // ===============================
 // === Plain Controller Handle ===
@@ -33,10 +37,10 @@ pub struct ProjectOperationsNotSupported;
 #[allow(missing_docs)]
 #[derive(Clone, CloneRef, Debug)]
 pub struct Handle {
-    pub logger: Logger,
+    pub logger:               Logger,
     pub status_notifications: StatusNotificationPublisher,
-    pub parser: Parser,
-    pub project: model::Project,
+    pub parser:               Parser,
+    pub project:              model::Project,
 }
 
 impl Handle {
@@ -45,12 +49,7 @@ impl Handle {
         let logger = Logger::new("controller::ide::Plain");
         let status_notifications = default();
         let parser = Parser::new_or_panic();
-        Self {
-            logger,
-            status_notifications,
-            parser,
-            project,
-        }
+        Self { logger, status_notifications, parser, project }
     }
 
     /// Create IDE Controller from Language Server endpoints, describing the opened project.
@@ -63,13 +62,10 @@ impl Handle {
     ) -> FallibleResult<Self> {
         let logger = Logger::new("controller::ide::Plain");
         let properties = Properties {
-            //TODO [ao]: this should be not the default; instead project model should not need the id.
-            //    See https://github.com/enso-org/ide/issues/1572
-            id: default(),
-            name: project::QualifiedName::from_segments(
-                namespace,
-                project_name,
-            )?,
+            //TODO [ao]: this should be not the default; instead project model should not need the
+            // id.    See https://github.com/enso-org/ide/issues/1572
+            id:             default(),
+            name:           project::QualifiedName::from_segments(namespace, project_name)?,
             engine_version: version,
         };
         let project = model::project::Synchronized::new_connected(
@@ -82,12 +78,7 @@ impl Handle {
         .await?;
         let status_notifications = default();
         let parser = Parser::new_or_panic();
-        Ok(Self {
-            logger,
-            status_notifications,
-            parser,
-            project,
-        })
+        Ok(Self { logger, status_notifications, parser, project })
     }
 }
 

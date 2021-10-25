@@ -50,6 +50,8 @@ use ide_view::searcher::entry::GlyphHighlightedLabel;
 use ide_view::searcher::new::Icon;
 use utils::iter::split_by_predicate;
 
+
+
 // ==============
 // === Errors ===
 // ==============
@@ -58,20 +60,11 @@ use utils::iter::split_by_predicate;
 /// items (node or connections) to displayed items are missing some information.
 #[derive(Copy, Clone, Debug, Fail)]
 enum MissingMappingFor {
-    #[fail(
-        display = "Displayed node {:?} is not bound to any controller node.",
-        _0
-    )]
+    #[fail(display = "Displayed node {:?} is not bound to any controller node.", _0)]
     DisplayedNode(graph_editor::NodeId),
-    #[fail(
-        display = "Controller node {:?} is not bound to any displayed node.",
-        _0
-    )]
+    #[fail(display = "Controller node {:?} is not bound to any displayed node.", _0)]
     ControllerNode(ast::Id),
-    #[fail(
-        display = "Displayed connection {:?} is not bound to any controller connection.",
-        _0
-    )]
+    #[fail(display = "Displayed connection {:?} is not bound to any controller connection.", _0)]
     DisplayedConnection(graph_editor::EdgeId),
 }
 
@@ -129,16 +122,13 @@ pub enum WhichVisualization {
 /// ```
 #[derive(Clone, CloneRef)]
 struct FencedAction<Parameter: frp::Data> {
-    trigger: frp::Source<Parameter>,
+    trigger:    frp::Source<Parameter>,
     is_running: frp::Stream<bool>,
 }
 
 impl<Parameter: frp::Data> FencedAction<Parameter> {
     /// Wrap the `action` in `FencedAction`.
-    fn fence(
-        network: &frp::Network,
-        action: impl Fn(&Parameter) + 'static,
-    ) -> Self {
+    fn fence(network: &frp::Network, action: impl Fn(&Parameter) + 'static) -> Self {
         frp::extend! { network
             trigger    <- source::<Parameter>();
             triggered  <- trigger.constant(());
@@ -148,12 +138,11 @@ impl<Parameter: frp::Data> FencedAction<Parameter> {
             switch     <+ performed;
             is_running <- switch.toggle();
         }
-        Self {
-            trigger,
-            is_running,
-        }
+        Self { trigger, is_running }
     }
 }
+
+
 
 // ==============================
 // === GraphEditorIntegration ===
@@ -184,7 +173,7 @@ pub fn default_node_position() -> Vector2 {
 #[allow(missing_docs)]
 #[derive(Clone, CloneRef, Debug)]
 pub struct Integration {
-    model: Rc<Model>,
+    model:   Rc<Model>,
     network: frp::Network,
 }
 
@@ -202,31 +191,27 @@ impl Integration {
 
 #[derive(Debug)]
 struct Model {
-    logger: Logger,
-    view: ide_view::project::View,
-    graph: controller::ExecutedGraph,
-    text: controller::Text,
-    ide: controller::Ide,
-    searcher: RefCell<Option<controller::Searcher>>,
-    project: model::Project,
-    main_module: model::Module,
-    node_views: RefCell<BiMap<ast::Id, graph_editor::NodeId>>,
+    logger:                  Logger,
+    view:                    ide_view::project::View,
+    graph:                   controller::ExecutedGraph,
+    text:                    controller::Text,
+    ide:                     controller::Ide,
+    searcher:                RefCell<Option<controller::Searcher>>,
+    project:                 model::Project,
+    main_module:             model::Module,
+    node_views:              RefCell<BiMap<ast::Id, graph_editor::NodeId>>,
     node_view_by_expression: RefCell<HashMap<ast::Id, graph_editor::NodeId>>,
-    expression_views: RefCell<
-        HashMap<
-            graph_editor::NodeId,
-            graph_editor::component::node::Expression,
-        >,
-    >,
-    expression_types: SharedHashMap<ExpressionId, Option<graph_editor::Type>>,
-    connection_views:
-        RefCell<BiMap<controller::graph::Connection, graph_editor::EdgeId>>,
-    code_view: CloneRefCell<ensogl_text::Text>,
-    visualizations: Rc<VisualizationManager>,
-    error_visualizations: Rc<VisualizationManager>,
-    prompt_was_shown: Cell<bool>,
-    displayed_project_list: CloneRefCell<ProjectsToOpen>,
+    expression_views:
+        RefCell<HashMap<graph_editor::NodeId, graph_editor::component::node::Expression>>,
+    expression_types:        SharedHashMap<ExpressionId, Option<graph_editor::Type>>,
+    connection_views:        RefCell<BiMap<controller::graph::Connection, graph_editor::EdgeId>>,
+    code_view:               CloneRefCell<ensogl_text::Text>,
+    visualizations:          Rc<VisualizationManager>,
+    error_visualizations:    Rc<VisualizationManager>,
+    prompt_was_shown:        Cell<bool>,
+    displayed_project_list:  CloneRefCell<ProjectsToOpen>,
 }
+
 
 // === Construction And Setup ===
 
@@ -241,8 +226,7 @@ impl Integration {
         main_module: model::Module,
     ) -> Self {
         let logger = Logger::new("ViewIntegration");
-        let model =
-            Model::new(logger, view, graph, text, ide, project, main_module);
+        let model = Model::new(logger, view, graph, text, ide, project, main_module);
         let editor_outs = &model.view.graph().frp.output;
         let code_editor = &model.view.code_editor().text_area();
         let searcher_frp = &model.view.searcher().frp;
@@ -255,6 +239,7 @@ impl Integration {
                 }
             }));
         }
+
 
         // === Breadcrumb Selection ===
 
@@ -270,6 +255,7 @@ impl Integration {
             });
         }
 
+
         // === Project Renaming ===
 
         let breadcrumbs = &model.view.graph().model.breadcrumbs;
@@ -278,6 +264,7 @@ impl Integration {
                 model.rename_project(name);
             });
         }
+
 
         // === Setting Visualization Preprocessor ===
 
@@ -290,6 +277,7 @@ impl Integration {
             });
         }
 
+
         // === Visualization Reload ===
 
         frp::extend! { network
@@ -298,6 +286,7 @@ impl Integration {
                 model.load_visualizations();
             });
         }
+
 
         // === Dropping Files ===
 
@@ -321,6 +310,7 @@ impl Integration {
                 }
             });
         }
+
 
         // === Open File or Project Dialog ===
 
@@ -359,6 +349,7 @@ impl Integration {
             );
         }
 
+
         // === Searcher 2.0 ===
 
         let searcher = model.view.searcher().new_frp();
@@ -372,25 +363,18 @@ impl Integration {
             });
         }
 
+
         // === UI Actions ===
 
         let inv = &invalidate.trigger;
-        let node_editing_in_ui =
-            Model::node_editing_in_ui(Rc::downgrade(&model));
-        let searcher_opened_in_ui =
-            Model::searcher_opened_in_ui(Rc::downgrade(&model));
-        let code_changed =
-            Self::ui_action(&model, Model::code_changed_in_ui, inv);
-        let node_removed =
-            Self::ui_action(&model, Model::node_removed_in_ui, inv);
-        let nodes_collapsed =
-            Self::ui_action(&model, Model::nodes_collapsed_in_ui, inv);
-        let node_selected =
-            Self::ui_action(&model, Model::node_selected_in_ui, inv);
-        let node_deselected =
-            Self::ui_action(&model, Model::node_deselected_in_ui, inv);
-        let node_entered =
-            Self::ui_action(&model, Model::node_entered_in_ui, inv);
+        let node_editing_in_ui = Model::node_editing_in_ui(Rc::downgrade(&model));
+        let searcher_opened_in_ui = Model::searcher_opened_in_ui(Rc::downgrade(&model));
+        let code_changed = Self::ui_action(&model, Model::code_changed_in_ui, inv);
+        let node_removed = Self::ui_action(&model, Model::node_removed_in_ui, inv);
+        let nodes_collapsed = Self::ui_action(&model, Model::nodes_collapsed_in_ui, inv);
+        let node_selected = Self::ui_action(&model, Model::node_selected_in_ui, inv);
+        let node_deselected = Self::ui_action(&model, Model::node_deselected_in_ui, inv);
+        let node_entered = Self::ui_action(&model, Model::node_entered_in_ui, inv);
         let node_exited = Self::ui_action(
             &model,
             |model, _| {
@@ -399,27 +383,18 @@ impl Integration {
             },
             inv,
         );
-        let connection_created =
-            Self::ui_action(&model, Model::connection_created_in_ui, inv);
-        let connection_removed =
-            Self::ui_action(&model, Model::connection_removed_in_ui, inv);
+        let connection_created = Self::ui_action(&model, Model::connection_created_in_ui, inv);
+        let connection_removed = Self::ui_action(&model, Model::connection_removed_in_ui, inv);
         let node_moved = Self::ui_action(&model, Model::node_moved_in_ui, inv);
-        let searcher_opened =
-            Self::ui_action(&model, searcher_opened_in_ui, inv);
+        let searcher_opened = Self::ui_action(&model, searcher_opened_in_ui, inv);
         let node_editing = Self::ui_action(&model, node_editing_in_ui, inv);
-        let node_expression_set =
-            Self::ui_action(&model, Model::node_expression_set_in_ui, inv);
-        let used_as_suggestion =
-            Self::ui_action(&model, Model::used_as_suggestion_in_ui, inv);
+        let node_expression_set = Self::ui_action(&model, Model::node_expression_set_in_ui, inv);
+        let used_as_suggestion = Self::ui_action(&model, Model::used_as_suggestion_in_ui, inv);
         let node_editing_committed =
             Self::ui_action(&model, Model::node_editing_committed_in_ui, inv);
-        let node_editing_aborted =
-            Self::ui_action(&model, Model::node_editing_aborted_in_ui, inv);
-        let visualization_path_changed = Self::ui_action(
-            &model,
-            Model::visualization_path_changed_in_ui,
-            inv,
-        );
+        let node_editing_aborted = Self::ui_action(&model, Model::node_editing_aborted_in_ui, inv);
+        let visualization_path_changed =
+            Self::ui_action(&model, Model::visualization_path_changed_in_ui, inv);
         frp::extend! { network
             eval code_editor.content ((content) model.code_view.set(content.clone_ref()));
 
@@ -492,26 +467,19 @@ impl Integration {
             eval_ project_frp.editing_committed([]analytics::remote_log_event("project::editing_committed"));
         }
 
+
         let ret = Self { model, network };
-        ret.connect_frp_to_graph_controller_notifications(
-            handle_graph_notification.trigger,
-        );
-        ret.connect_frp_text_controller_notifications(
-            handle_text_notification.trigger,
-        );
+        ret.connect_frp_to_graph_controller_notifications(handle_graph_notification.trigger);
+        ret.connect_frp_text_controller_notifications(handle_text_notification.trigger);
         ret.setup_handling_project_notifications();
         ret.show_initial_visualizations();
         ret
     }
 
-    fn spawn_sync_stream_handler<Stream, Function>(
-        &self,
-        stream: Stream,
-        handler: Function,
-    ) where
+    fn spawn_sync_stream_handler<Stream, Function>(&self, stream: Stream, handler: Function)
+    where
         Stream: StreamExt + Unpin + 'static,
-        Function: Fn(Stream::Item, Rc<Model>) + 'static,
-    {
+        Function: Fn(Stream::Item, Rc<Model>) + 'static, {
         let model = Rc::downgrade(&self.model);
         spawn_stream_handler(model, stream, move |item, model| {
             handler(item, model);
@@ -526,9 +494,8 @@ impl Integration {
         self.spawn_sync_stream_handler(stream, move |notification, _| {
             info!(logger, "Processing notification {notification:?}");
             let message = match notification {
-                model::project::Notification::ConnectionLost(_) => {
-                    crate::BACKEND_DISCONNECTED_MESSAGE
-                }
+                model::project::Notification::ConnectionLost(_) =>
+                    crate::BACKEND_DISCONNECTED_MESSAGE,
             };
             let message = ide_view::status_bar::event::Label::from(message);
             status_bar.add_event(message);
@@ -538,31 +505,19 @@ impl Integration {
     fn show_initial_visualizations(&self) {
         let logger = self.model.logger.clone_ref();
         info!(logger, "Attaching initially opened visualization");
-        let node_ids = self
-            .model
-            .node_views
-            .borrow()
-            .right_values()
-            .cloned()
-            .collect_vec();
+        let node_ids = self.model.node_views.borrow().right_values().cloned().collect_vec();
         for node_id in node_ids {
-            if let Some(metadata) =
-                self.model.view.graph().model.enabled_visualization(node_id)
-            {
+            if let Some(metadata) = self.model.view.graph().model.enabled_visualization(node_id) {
                 self.model
                     .visualization_shown_in_ui(&(node_id, metadata))
-                    .handle_err(|err| {
-                        error!(logger, "Failed to enable visualization: {err}")
-                    });
+                    .handle_err(|err| error!(logger, "Failed to enable visualization: {err}"));
             }
         }
     }
 
     fn connect_frp_to_graph_controller_notifications(
         &self,
-        frp_endpoint: frp::Source<
-            Option<controller::graph::executed::Notification>,
-        >,
+        frp_endpoint: frp::Source<Option<controller::graph::executed::Notification>>,
     ) {
         let stream = self.model.graph.subscribe();
         let logger = self.model.logger.clone_ref();
@@ -609,10 +564,7 @@ impl Integration {
         action: impl FnOnce() -> FallibleResult,
     ) {
         if let Err(err) = action() {
-            error!(
-                model.logger,
-                "Error while performing an UI action on controllers: {err}"
-            );
+            error!(model.logger, "Error while performing an UI action on controllers: {err}");
             info!(model.logger, "Invalidating the displayed graph.");
             invalidate.emit(());
         }
@@ -672,10 +624,7 @@ impl Model {
         };
         let this = Rc::new(this);
 
-        this.spawn_visualization_handler(
-            visualizations_notifications,
-            WhichVisualization::Normal,
-        );
+        this.spawn_visualization_handler(visualizations_notifications, WhichVisualization::Normal);
         this.spawn_visualization_handler(
             error_visualizations_notifications,
             WhichVisualization::Error,
@@ -688,10 +637,7 @@ impl Model {
         this.init_crumbs();
         this.load_visualizations();
         if let Err(err) = this.refresh_graph_view() {
-            error!(
-                this.logger,
-                "Error while initializing graph editor: {err}."
-            );
+            error!(this.logger, "Error while initializing graph editor: {err}.");
         }
         if let Err(err) = this.refresh_code_editor() {
             error!(this.logger, "Error while initializing code editor: {err}.");
@@ -701,9 +647,7 @@ impl Model {
 
     fn spawn_visualization_handler(
         self: &Rc<Self>,
-        notifier: impl Stream<Item = crate::integration::visualization::Notification>
-            + Unpin
-            + 'static,
+        notifier: impl Stream<Item = crate::integration::visualization::Notification> + Unpin + 'static,
         visualizations_kind: WhichVisualization,
     ) {
         let weak = Rc::downgrade(self);
@@ -723,10 +667,7 @@ impl Model {
             for identifier in identifiers {
                 match controller.load_visualization(&identifier).await {
                     Ok(visualization) => {
-                        graph_editor
-                            .frp
-                            .register_visualization
-                            .emit(Some(visualization));
+                        graph_editor.frp.register_visualization.emit(Some(visualization));
                     }
                     Err(err) => {
                         error!(logger, "Error while loading visualization {identifier}: {err:?}");
@@ -738,18 +679,13 @@ impl Model {
     }
 }
 
+
 // === Project renaming ===
 
 impl Model {
     fn init_project_name(&self) {
         let project_name = self.project.name().to_string();
-        self.view
-            .graph()
-            .model
-            .breadcrumbs
-            .input
-            .project_name
-            .emit(project_name);
+        self.view.graph().model.breadcrumbs.input.project_name.emit(project_name);
     }
 
     fn rename_project(&self, name: impl Str) {
@@ -775,13 +711,7 @@ impl Model {
         let definition = frame.definition.clone().into();
         let call = frame.call;
         let local_call = graph_editor::LocalCall { call, definition };
-        self.view
-            .graph()
-            .model
-            .breadcrumbs
-            .input
-            .push_breadcrumb
-            .emit(Some(local_call))
+        self.view.graph().model.breadcrumbs.input.push_breadcrumb.emit(Some(local_call))
     }
 
     fn pop_crumb(&self) {
@@ -794,6 +724,7 @@ impl Model {
         }
     }
 }
+
 
 // === Updating Graph View ===
 
@@ -812,10 +743,8 @@ impl Model {
     pub fn refresh_call_stack(&self) -> FallibleResult {
         // If graph controller displays a different graph
         let current_call_stack = self.graph.call_stack();
-        let get_call_stack =
-            |metadata: &ProjectMetadata| metadata.call_stack.clone();
-        let metadata_call_stack =
-            self.main_module.with_project_metadata(get_call_stack);
+        let get_call_stack = |metadata: &ProjectMetadata| metadata.call_stack.clone();
+        let metadata_call_stack = self.main_module.with_project_metadata(get_call_stack);
 
         let mut current = current_call_stack.into_iter().fuse();
         let mut metadata = metadata_call_stack.into_iter().fuse();
@@ -858,8 +787,7 @@ impl Model {
         let base_default_position = default_node_position();
         let mut trees = connections_info.trees.clone();
         let nodes = self.graph.graph().nodes()?;
-        let (without_pos, with_pos) =
-            split_by_predicate(&nodes, |n| n.has_position());
+        let (without_pos, with_pos) = split_by_predicate(&nodes, |n| n.has_position());
         let bottommost_node_pos = with_pos
             .iter()
             .filter_map(|node| node.metadata.as_ref()?.position)
@@ -870,14 +798,10 @@ impl Model {
         let default_positions: HashMap<_, _> = (1..)
             .zip(&without_pos)
             .map(|(i, node)| {
-                let gap_between_nodes =
-                    self.view.graph().default_y_gap_between_nodes.value();
+                let gap_between_nodes = self.view.graph().default_y_gap_between_nodes.value();
                 let offset_between_nodes = gap_between_nodes + node::HEIGHT;
                 let dy = i as f32 * offset_between_nodes;
-                let pos = Vector2::new(
-                    bottommost_node_pos.x,
-                    bottommost_node_pos.y - dy,
-                );
+                let pos = Vector2::new(bottommost_node_pos.x, bottommost_node_pos.y - dy);
                 (node.info.id(), pos)
             })
             .collect();
@@ -887,10 +811,8 @@ impl Model {
         for node_info in &nodes {
             let id = node_info.info.id();
             let node_trees = trees.remove(&id).unwrap_or_else(default);
-            let default_pos =
-                default_positions.get(&id).unwrap_or(&base_default_position);
-            let displayed =
-                self.node_views.borrow_mut().get_by_left(&id).cloned();
+            let default_pos = default_positions.get(&id).unwrap_or(&base_default_position);
+            let displayed = self.node_views.borrow_mut().get_by_left(&id).cloned();
             match displayed {
                 Some(displayed) => {
                     if update_position {
@@ -899,13 +821,9 @@ impl Model {
                         self.refresh_node_visualization(displayed, node_info);
                     };
                     self.refresh_node_comment(displayed, node_info);
-                    self.refresh_node_expression(
-                        displayed, node_info, node_trees,
-                    );
+                    self.refresh_node_expression(displayed, node_info, node_trees);
                 }
-                None => {
-                    self.create_node_view(node_info, node_trees, *default_pos)
-                }
+                None => self.create_node_view(node_info, node_trees, *default_pos),
             }
         }
         Ok(())
@@ -943,16 +861,9 @@ impl Model {
         self.node_views.borrow_mut().insert(id, displayed_id);
         self.refresh_node_view(displayed_id, info, trees);
         if info.metadata.as_ref().and_then(|md| md.position).is_none() {
-            self.view
-                .graph()
-                .frp
-                .input
-                .set_node_position
-                .emit(&(displayed_id, default_pos));
+            self.view.graph().frp.input.set_node_position.emit(&(displayed_id, default_pos));
             // If position wasn't present in metadata, we initialize it.
-            if let Err(err) =
-                self.graph.graph().set_node_position(id, default_pos)
-            {
+            if let Err(err) = self.graph.graph().set_node_position(id, default_pos) {
                 debug!(
                     self.logger,
                     "Failed to set default position information IDs: {id:?} \
@@ -985,38 +896,19 @@ impl Model {
     }
 
     /// Update the position of the node based on its current metadata.
-    fn refresh_node_position(
-        &self,
-        id: graph_editor::NodeId,
-        node: &controller::graph::Node,
-    ) {
+    fn refresh_node_position(&self, id: graph_editor::NodeId, node: &controller::graph::Node) {
         let position = node.metadata.as_ref().and_then(|md| md.position);
         if let Some(position) = position {
-            let view_position = self
-                .view
-                .graph()
-                .model
-                .get_node_position(id)
-                .map(|p| p.xy());
+            let view_position = self.view.graph().model.get_node_position(id).map(|p| p.xy());
             if Some(position.vector) != view_position {
-                self.view
-                    .graph()
-                    .frp
-                    .input
-                    .set_node_position
-                    .emit(&(id, position.vector));
+                self.view.graph().frp.input.set_node_position.emit(&(id, position.vector));
             }
         }
     }
 
     /// Update the position of the node based on its current metadata.
-    fn refresh_node_selection(
-        &self,
-        id: graph_editor::NodeId,
-        node: &controller::graph::Node,
-    ) {
-        let selected_in_metadata =
-            node.metadata.as_ref().map_or_default(|md| md.selected);
+    fn refresh_node_selection(&self, id: graph_editor::NodeId, node: &controller::graph::Node) {
+        let selected_in_metadata = node.metadata.as_ref().map_or_default(|md| md.selected);
         let selected_in_view = self.view.graph().model.nodes.is_selected(id);
         if selected_in_metadata && !selected_in_view {
             self.view.graph().frp.input.select_node.emit(&id)
@@ -1026,23 +918,18 @@ impl Model {
     }
 
     /// Update the enabled visualization on a node to follow the metadata.
-    fn refresh_node_visualization(
-        &self,
-        id: graph_editor::NodeId,
-        node: &controller::graph::Node,
-    ) {
+    fn refresh_node_visualization(&self, id: graph_editor::NodeId, node: &controller::graph::Node) {
         let path_in_metadata = node.metadata.as_ref().and_then(|md| {
             // It is perfectly fine to ignore deserialization errors here. This is metadata, that
             // might not even be initialized.
             serde_json::from_value(md.visualization.clone()).ok()
         });
 
-        let visualization_frp =
-            match self.view.graph().model.nodes.all.get_cloned_ref(&id) {
-                Some(node) => node.model.visualization.frp.clone_ref(),
-                // If there is no node view, there is nothing to be done with visualization view.
-                None => return,
-            };
+        let visualization_frp = match self.view.graph().model.nodes.all.get_cloned_ref(&id) {
+            Some(node) => node.model.visualization.frp.clone_ref(),
+            // If there is no node view, there is nothing to be done with visualization view.
+            None => return,
+        };
         let is_visible = visualization_frp.visible.value();
         let path_in_visible_visualization = is_visible
             .and_option(visualization_frp.visualisation.value())
@@ -1051,12 +938,7 @@ impl Model {
         if path_in_visible_visualization != path_in_metadata {
             if path_in_metadata.is_some() {
                 let visualization = (id, path_in_metadata);
-                self.view
-                    .graph()
-                    .frp
-                    .input
-                    .set_visualization
-                    .emit(&visualization);
+                self.view.graph().frp.input.set_visualization.emit(&visualization);
                 self.view.graph().frp.input.enable_visualization.emit(&id);
             } else {
                 self.view.graph().frp.input.disable_visualization.emit(&id);
@@ -1064,16 +946,9 @@ impl Model {
         }
     }
     /// Update the documentation comment on the node.
-    fn refresh_node_comment(
-        &self,
-        id: graph_editor::NodeId,
-        node: &controller::graph::Node,
-    ) {
-        if let Some(node_view) =
-            self.view.graph().model.nodes.get_cloned_ref(&id)
-        {
-            let comment_as_per_controller =
-                node.info.documentation_text().unwrap_or_default();
+    fn refresh_node_comment(&self, id: graph_editor::NodeId, node: &controller::graph::Node) {
+        if let Some(node_view) = self.view.graph().model.nodes.get_cloned_ref(&id) {
+            let comment_as_per_controller = node.info.documentation_text().unwrap_or_default();
             let comment_as_per_view = node_view.comment.value();
             if comment_as_per_controller != comment_as_per_view {
                 node_view.set_comment(comment_as_per_controller);
@@ -1089,42 +964,24 @@ impl Model {
         trees: NodeTrees,
     ) {
         let code_and_trees = graph_editor::component::node::Expression {
-            pattern: node.info.pattern().map(|t| t.repr()),
-            code: node.info.expression().repr(),
+            pattern:             node.info.pattern().map(|t| t.repr()),
+            code:                node.info.expression().repr(),
             whole_expression_id: node.info.expression().id,
-            input_span_tree: trees.inputs,
-            output_span_tree: trees.outputs.unwrap_or_else(default),
+            input_span_tree:     trees.inputs,
+            output_span_tree:    trees.outputs.unwrap_or_else(default),
         };
-        let expression_changed = !self
-            .expression_views
-            .borrow()
-            .get(&id)
-            .contains(&&code_and_trees);
-        let node_is_being_edited = self
-            .view
-            .graph()
-            .frp
-            .node_being_edited
-            .value()
-            .contains(&id);
+        let expression_changed =
+            !self.expression_views.borrow().get(&id).contains(&&code_and_trees);
+        let node_is_being_edited = self.view.graph().frp.node_being_edited.value().contains(&id);
         if expression_changed && !node_is_being_edited {
             for sub_expression in node.info.ast().iter_recursive() {
                 if let Some(expr_id) = sub_expression.id {
-                    self.node_view_by_expression
-                        .borrow_mut()
-                        .insert(expr_id, id);
+                    self.node_view_by_expression.borrow_mut().insert(expr_id, id);
                 }
             }
             info!(self.logger, "Refreshing node {id:?} expression");
-            self.view
-                .graph()
-                .frp
-                .input
-                .set_node_expression
-                .emit(&(id, code_and_trees.clone()));
-            self.expression_views
-                .borrow_mut()
-                .insert(id, code_and_trees);
+            self.view.graph().frp.input.set_node_expression.emit(&(id, code_and_trees.clone()));
+            self.expression_views.borrow_mut().insert(id, code_and_trees);
         }
 
         // Set initially available type information on ports (identifiable expression's sub-parts).
@@ -1136,14 +993,8 @@ impl Model {
     }
 
     /// Like `refresh_computed_info` but for multiple expressions.
-    fn refresh_computed_infos(
-        &self,
-        expressions_to_refresh: &[ExpressionId],
-    ) -> FallibleResult {
-        debug!(
-            self.logger,
-            "Refreshing type information for IDs: {expressions_to_refresh:?}."
-        );
+    fn refresh_computed_infos(&self, expressions_to_refresh: &[ExpressionId]) -> FallibleResult {
+        debug!(self.logger, "Refreshing type information for IDs: {expressions_to_refresh:?}.");
         for id in expressions_to_refresh {
             self.refresh_computed_info(*id, false)
         }
@@ -1154,44 +1005,24 @@ impl Model {
     /// graph editor view.
     ///
     /// The computed value information includes the expression type and the target method pointer.
-    fn refresh_computed_info(
-        &self,
-        id: ExpressionId,
-        force_type_info_refresh: bool,
-    ) {
+    fn refresh_computed_info(&self, id: ExpressionId, force_type_info_refresh: bool) {
         let info = self.lookup_computed_info(&id);
         let info = info.as_ref();
-        let typename =
-            info.and_then(|info| info.typename.clone().map(graph_editor::Type));
+        let typename = info.and_then(|info| info.typename.clone().map(graph_editor::Type));
         let node_id = self.node_view_by_expression.borrow().get(&id).cloned();
         if let Some(node_id) = node_id {
             self.set_type(node_id, id, typename, force_type_info_refresh);
             let method_pointer = info.and_then(|info| {
                 info.method_call.and_then(|entry_id| {
-                    let opt_method = self
-                        .project
-                        .suggestion_db()
-                        .lookup_method_ptr(entry_id)
-                        .ok();
-                    opt_method.map(|method| {
-                        graph_editor::MethodPointer(Rc::new(method))
-                    })
+                    let opt_method = self.project.suggestion_db().lookup_method_ptr(entry_id).ok();
+                    opt_method.map(|method| graph_editor::MethodPointer(Rc::new(method)))
                 })
             });
             self.set_method_pointer(id, method_pointer);
-            if self
-                .node_views
-                .borrow()
-                .get_by_left(&id)
-                .contains(&&node_id)
-            {
-                let set_error_result =
-                    self.set_error(node_id, info.map(|info| &info.payload));
+            if self.node_views.borrow().get_by_left(&id).contains(&&node_id) {
+                let set_error_result = self.set_error(node_id, info.map(|info| &info.payload));
                 if let Err(error) = set_error_result {
-                    error!(
-                        self.logger,
-                        "Error when setting error on node: {error}"
-                    );
+                    error!(self.logger, "Error when setting error on node: {error}");
                 }
             }
         }
@@ -1207,33 +1038,20 @@ impl Model {
     ) {
         // We suppress spurious type information updates here, as they were causing performance
         // issues. See: https://github.com/enso-org/ide/issues/952
-        let previous_type_opt =
-            self.expression_types.insert(id, typename.clone());
+        let previous_type_opt = self.expression_types.insert(id, typename.clone());
         if force_refresh || previous_type_opt.as_ref() != Some(&typename) {
             let event = (node_id, id, typename);
-            self.view
-                .graph()
-                .frp
-                .input
-                .set_expression_usage_type
-                .emit(&event);
+            self.view.graph().frp.input.set_expression_usage_type.emit(&event);
         }
     }
 
     /// Set given method pointer (or lack of such) on the given sub-expression.
-    fn set_method_pointer(
-        &self,
-        id: ExpressionId,
-        method: Option<graph_editor::MethodPointer>,
-    ) {
+    fn set_method_pointer(&self, id: ExpressionId, method: Option<graph_editor::MethodPointer>) {
         let event = (id, method);
         self.view.graph().frp.input.set_method_pointer.emit(&event);
     }
 
-    fn visualization_manager(
-        &self,
-        which: WhichVisualization,
-    ) -> &Rc<VisualizationManager> {
+    fn visualization_manager(&self, which: WhichVisualization) -> &Rc<VisualizationManager> {
         match which {
             WhichVisualization::Normal => &self.visualizations,
             WhichVisualization::Error => &self.error_visualizations,
@@ -1246,39 +1064,30 @@ impl Model {
         notification: crate::integration::visualization::Notification,
     ) {
         use crate::integration::visualization::Notification;
-        warning!(
-            self.logger,
-            "Received update for {which} visualization: {notification:?}"
-        );
+        warning!(self.logger, "Received update for {which} visualization: {notification:?}");
         match notification {
             Notification::ValueUpdate { target, data, .. } => {
                 if let Ok(view_id) = self.get_displayed_node_id(target) {
-                    let endpoint =
-                        &self.view.graph().frp.input.set_visualization_data;
+                    let endpoint = &self.view.graph().frp.input.set_visualization_data;
                     match Self::deserialize_visualization_data(data) {
-                        Ok(data)   => endpoint.emit((view_id, data)),
+                        Ok(data) => endpoint.emit((view_id, data)),
                         Err(error) =>
                         // TODO [mwu]
                         //  We should consider having the visualization also accept error input.
-                            error!(self.logger, "Failed to deserialize visualization update: {error}"),
+                            error!(
+                                self.logger,
+                                "Failed to deserialize visualization update: {error}"
+                            ),
                     }
                 }
             }
-            Notification::FailedToAttach {
-                visualization,
-                error,
-            } => {
+            Notification::FailedToAttach { visualization, error } => {
                 error!(self.logger, "Visualization {visualization.id} failed to attach: {error}.");
-                if let Ok(node_view_id) =
-                    self.get_displayed_node_id(visualization.expression_id)
-                {
+                if let Ok(node_view_id) = self.get_displayed_node_id(visualization.expression_id) {
                     self.view.graph().disable_visualization(node_view_id);
                 }
             }
-            Notification::FailedToDetach {
-                visualization,
-                error,
-            } => {
+            Notification::FailedToDetach { visualization, error } => {
                 error!(self.logger, "Visualization {visualization.id} failed to detach: {error}.");
                 // Here we cannot really do much. Failing to detach might mean that visualization
                 // was already detached, that we detached it but failed to observe this (e.g. due to
@@ -1286,24 +1095,21 @@ impl Model {
                 // For now, we will just forget about this visualization. Better to unlikely "leak"
                 // it rather than likely break visualizations on the node altogether.
                 let manager = self.visualization_manager(which);
-                let forgotten =
-                    manager.forget_visualization(visualization.expression_id);
+                let forgotten = manager.forget_visualization(visualization.expression_id);
                 if let Some(forgotten) = forgotten {
-                    error!(
-                        self.logger,
-                        "The visualization will be forgotten: {forgotten:?}"
-                    )
+                    error!(self.logger, "The visualization will be forgotten: {forgotten:?}")
                 }
             }
             Notification::FailedToModify { desired, error } => {
-                error!(self.logger, "Visualization {desired.id} failed to be modified: {error} \
-                Will hide it in GUI.");
+                error!(
+                    self.logger,
+                    "Visualization {desired.id} failed to be modified: {error} \
+                Will hide it in GUI."
+                );
                 // Actually it would likely have more sense if we had just restored the previous
                 // visualization, as its LS state should be preserved. However, we already scrapped
                 // it on the GUI side and we don't even know its path anymore.
-                if let Ok(node_view_id) =
-                    self.get_displayed_node_id(desired.expression_id)
-                {
+                if let Ok(node_view_id) = self.get_displayed_node_id(desired.expression_id) {
                     self.view.graph().disable_visualization(node_view_id);
                 }
             }
@@ -1332,9 +1138,8 @@ impl Model {
         let error = self.convert_payload_to_error_view(error, node_id);
         let has_error = error.is_some();
         self.view.graph().set_node_error_status(node_id, error);
-        let metadata = has_error.then(
-            graph_editor::builtin::visualization::native::error::metadata,
-        );
+        let metadata =
+            has_error.then(graph_editor::builtin::visualization::native::error::metadata);
         self.update_visualization(node_id, WhichVisualization::Error, metadata)
     }
 
@@ -1347,16 +1152,11 @@ impl Model {
         use ExpressionUpdatePayload::*;
         let (kind, message, trace) = match payload {
             None | Some(Value) => None,
-            Some(DataflowError { trace }) => {
-                Some((Kind::Dataflow, None, trace))
-            }
-            Some(Panic { message, trace }) => {
-                Some((Kind::Panic, Some(message), trace))
-            }
+            Some(DataflowError { trace }) => Some((Kind::Dataflow, None, trace)),
+            Some(Panic { message, trace }) => Some((Kind::Panic, Some(message), trace)),
         }?;
         let propagated = if kind == Kind::Panic {
-            let root_cause =
-                self.get_node_causing_error_on_current_graph(trace);
+            let root_cause = self.get_node_causing_error_on_current_graph(trace);
             !root_cause.contains(&node_id)
         } else {
             // TODO[ao]: traces are not available for Dataflow errors.
@@ -1366,11 +1166,7 @@ impl Model {
         let kind = Immutable(kind);
         let message = Rc::new(message.cloned());
         let propagated = Immutable(propagated);
-        Some(node::error::Error {
-            kind,
-            message,
-            propagated,
-        })
+        Some(node::error::Error { kind, message, propagated })
     }
 
     /// Get the node being a main cause of some error from the current nodes on the scene. Returns
@@ -1380,9 +1176,7 @@ impl Model {
         trace: &[ExpressionId],
     ) -> Option<graph_editor::NodeId> {
         let node_view_by_expression = self.node_view_by_expression.borrow();
-        trace
-            .iter()
-            .find_map(|expr_id| node_view_by_expression.get(expr_id).copied())
+        trace.iter().find_map(|expr_id| node_view_by_expression.get(expr_id).copied())
     }
 
     fn refresh_connection_views(
@@ -1392,8 +1186,7 @@ impl Model {
         self.retain_connection_views(&connections);
         for con in connections {
             if !self.connection_views.borrow().contains_left(&con) {
-                let targets =
-                    self.edge_targets_from_controller_connection(con.clone())?;
+                let targets = self.edge_targets_from_controller_connection(con.clone())?;
                 self.view.graph().frp.input.connect_nodes.emit(&targets);
                 let edge_id = self.view.graph().frp.output.on_edge_add.value();
                 self.connection_views.borrow_mut().insert(con, edge_id);
@@ -1407,23 +1200,17 @@ impl Model {
         connection: controller::graph::Connection,
     ) -> FallibleResult<(EdgeEndpoint, EdgeEndpoint)> {
         let src_node = self.get_displayed_node_id(connection.source.node)?;
-        let dst_node =
-            self.get_displayed_node_id(connection.destination.node)?;
+        let dst_node = self.get_displayed_node_id(connection.destination.node)?;
         let src = EdgeEndpoint::new(src_node, connection.source.port);
         let data = EdgeEndpoint::new(dst_node, connection.destination.port);
         Ok((src, data))
     }
 
     /// Retain only given connections in displayed graph.
-    fn retain_connection_views(
-        &self,
-        connections: &[controller::graph::Connection],
-    ) {
+    fn retain_connection_views(&self, connections: &[controller::graph::Connection]) {
         let to_remove = {
             let borrowed = self.connection_views.borrow();
-            let filtered = borrowed
-                .iter()
-                .filter(|(con, _)| !connections.contains(con));
+            let filtered = borrowed.iter().filter(|(con, _)| !connections.contains(con));
             filtered.map(|(_, edge_id)| *edge_id).collect_vec()
         };
         for edge_id in to_remove {
@@ -1433,6 +1220,7 @@ impl Model {
     }
 }
 
+
 // === Updating Searcher View ===
 
 impl Model {
@@ -1440,17 +1228,9 @@ impl Model {
         &self,
         crumbs: &[usize],
     ) -> Vec<(usize, ide_view::searcher::new::Entry)> {
-        let maybe_actions = self
-            .searcher
-            .borrow()
-            .as_ref()
-            .map(controller::Searcher::actions);
-        let is_filtering = self
-            .searcher
-            .borrow()
-            .contains_if(controller::Searcher::is_filtering);
-        let maybe_list =
-            maybe_actions.as_ref().and_then(|actions| actions.list());
+        let maybe_actions = self.searcher.borrow().as_ref().map(controller::Searcher::actions);
+        let is_filtering = self.searcher.borrow().contains_if(controller::Searcher::is_filtering);
+        let maybe_list = maybe_actions.as_ref().and_then(|actions| actions.list());
         if let Some(list) = maybe_list {
             match crumbs.len() {
                 0 => {
@@ -1460,41 +1240,32 @@ impl Model {
                     list.root_categories()
                         .skip(skipped_categories)
                         .map(|(id, cat)| {
-                            (
-                                id,
-                                ide_view::searcher::new::Entry {
-                                    label: cat.name.to_string().into(),
-                                    is_folder: Immutable(true),
-                                    icon: Icon(cat.icon.clone_ref()),
-                                },
-                            )
+                            (id, ide_view::searcher::new::Entry {
+                                label:     cat.name.to_string().into(),
+                                is_folder: Immutable(true),
+                                icon:      Icon(cat.icon.clone_ref()),
+                            })
                         })
                         .collect()
                 }
                 1 => list
                     .subcategories_of(*crumbs.last().unwrap())
                     .map(|(id, cat)| {
-                        (
-                            id,
-                            ide_view::searcher::new::Entry {
-                                label: cat.name.to_string().into(),
-                                is_folder: Immutable(true),
-                                icon: Icon(cat.icon.clone_ref()),
-                            },
-                        )
+                        (id, ide_view::searcher::new::Entry {
+                            label:     cat.name.to_string().into(),
+                            is_folder: Immutable(true),
+                            icon:      Icon(cat.icon.clone_ref()),
+                        })
                     })
                     .collect(),
                 2 => list
                     .actions_of(*crumbs.last().unwrap())
                     .map(|(id, action)| {
-                        (
-                            id,
-                            ide_view::searcher::new::Entry {
-                                label: action.action.to_string().into(),
-                                is_folder: Immutable(false),
-                                icon: Icon(action.action.icon()),
-                            },
-                        )
+                        (id, ide_view::searcher::new::Entry {
+                            label:     action.action.to_string().into(),
+                            is_folder: Immutable(false),
+                            icon:      Icon(action.action.icon()),
+                        })
                     })
                     .collect(),
                 _ => vec![],
@@ -1504,6 +1275,7 @@ impl Model {
         }
     }
 }
+
 
 // === Handling Controller Notifications ===
 
@@ -1538,10 +1310,7 @@ impl Model {
     }
 
     /// Handle notification received from controller about node having been exited.
-    pub fn on_node_exited(
-        &self,
-        id: double_representation::node::Id,
-    ) -> FallibleResult {
+    pub fn on_node_exited(&self, id: double_representation::node::Id) -> FallibleResult {
         analytics::remote_log_event("integration::node_exited");
         self.view.graph().frp.deselect_all_nodes.emit(&());
         self.refresh_graph_view()?;
@@ -1552,10 +1321,7 @@ impl Model {
     }
 
     /// Handle notification received from controller about values having been computed.
-    pub fn on_values_computed(
-        &self,
-        expressions: &[ExpressionId],
-    ) -> FallibleResult {
+    pub fn on_values_computed(&self, expressions: &[ExpressionId]) -> FallibleResult {
         if !self.prompt_was_shown.get() {
             self.view.show_prompt();
             self.prompt_was_shown.set(true);
@@ -1573,21 +1339,11 @@ impl Model {
 
         debug!(self.logger, "Received graph notification {notification:?}");
         let result = match notification {
-            Some(Notification::Graph(Invalidate)) => {
-                self.on_graph_invalidated()
-            }
-            Some(Notification::Graph(PortsUpdate)) => {
-                self.on_graph_expression_update()
-            }
-            Some(Notification::ComputedValueInfo(update)) => {
-                self.on_values_computed(update)
-            }
-            Some(Notification::SteppedOutOfNode(id)) => {
-                self.on_node_exited(*id)
-            }
-            Some(Notification::EnteredNode(local_call)) => {
-                self.on_node_entered(local_call)
-            }
+            Some(Notification::Graph(Invalidate)) => self.on_graph_invalidated(),
+            Some(Notification::Graph(PortsUpdate)) => self.on_graph_expression_update(),
+            Some(Notification::ComputedValueInfo(update)) => self.on_values_computed(update),
+            Some(Notification::SteppedOutOfNode(id)) => self.on_node_exited(*id),
+            Some(Notification::EnteredNode(local_call)) => self.on_node_entered(local_call),
             None => {
                 warning!(
                     self.logger,
@@ -1598,16 +1354,16 @@ impl Model {
             }
         };
         if let Err(err) = result {
-            error!(self.logger,"Error while updating graph after receiving {notification:?} from \
-                controller: {err}");
+            error!(
+                self.logger,
+                "Error while updating graph after receiving {notification:?} from \
+                controller: {err}"
+            );
         }
     }
 
     /// Handle notification received from Text Controller.
-    pub fn handle_text_notification(
-        &self,
-        notification: Option<controller::text::Notification>,
-    ) {
+    pub fn handle_text_notification(&self, notification: Option<controller::text::Notification>) {
         use controller::text::Notification;
 
         debug!(self.logger, "Received text notification {notification:?}");
@@ -1623,67 +1379,55 @@ impl Model {
             }
         };
         if let Err(err) = result {
-            error!(self.logger,"Error while updating graph after receiving {notification:?} from \
-                controller: {err}");
+            error!(
+                self.logger,
+                "Error while updating graph after receiving {notification:?} from \
+                controller: {err}"
+            );
         }
     }
 
-    pub fn handle_searcher_notification(
-        &self,
-        notification: controller::searcher::Notification,
-    ) {
+    pub fn handle_searcher_notification(&self, notification: controller::searcher::Notification) {
         use controller::searcher::Notification;
         use controller::searcher::UserAction;
-        debug!(
-            self.logger,
-            "Received searcher notification {notification:?}"
-        );
+        debug!(self.logger, "Received searcher notification {notification:?}");
         match notification {
-            Notification::NewActionList => {
-                with(self.searcher.borrow(), |searcher| {
-                    if let Some(searcher) = &*searcher {
-                        match searcher.actions() {
-                            Actions::Loading => {
-                                self.view.searcher().clear_actions()
-                            }
-                            Actions::Loaded { list: actions } => {
-                                let list_is_empty =
-                                    actions.matching_count() == 0;
-                                let user_action =
-                                    searcher.current_user_action();
-                                let intended_function =
-                                    searcher.intended_function_suggestion();
-                                let provider = SuggestionsProviderForView {
-                                    actions,
-                                    user_action,
-                                    intended_function,
-                                };
-                                self.view
-                                    .searcher()
-                                    .set_actions(Rc::new(provider));
+            Notification::NewActionList => with(self.searcher.borrow(), |searcher| {
+                if let Some(searcher) = &*searcher {
+                    match searcher.actions() {
+                        Actions::Loading => self.view.searcher().clear_actions(),
+                        Actions::Loaded { list: actions } => {
+                            let list_is_empty = actions.matching_count() == 0;
+                            let user_action = searcher.current_user_action();
+                            let intended_function = searcher.intended_function_suggestion();
+                            let provider = SuggestionsProviderForView {
+                                actions,
+                                user_action,
+                                intended_function,
+                            };
+                            self.view.searcher().set_actions(Rc::new(provider));
 
-                                // the Searcher 2.0
-                                self.view.searcher().new_frp().reset();
+                            // the Searcher 2.0
+                            self.view.searcher().new_frp().reset();
 
-                                // Usually we want to select first entry and display docs for it
-                                // But not when user finished typing function or argument.
-                                let starting_typing = user_action
-                                    == UserAction::StartingTypingArgument;
-                                if !starting_typing && !list_is_empty {
-                                    self.view.searcher().select_action(0);
-                                }
+                            // Usually we want to select first entry and display docs for it
+                            // But not when user finished typing function or argument.
+                            let starting_typing = user_action == UserAction::StartingTypingArgument;
+                            if !starting_typing && !list_is_empty {
+                                self.view.searcher().select_action(0);
                             }
-                            Actions::Error(err) => {
-                                error!(self.logger, "Error while obtaining list from searcher: {err}");
-                                self.view.searcher().clear_actions();
-                            }
-                        };
-                    }
-                })
-            }
+                        }
+                        Actions::Error(err) => {
+                            error!(self.logger, "Error while obtaining list from searcher: {err}");
+                            self.view.searcher().clear_actions();
+                        }
+                    };
+                }
+            }),
         }
     }
 }
+
 
 // === Passing UI Actions To Controllers ===
 
@@ -1693,10 +1437,7 @@ impl Model {
 #[allow(clippy::trivially_copy_pass_by_ref)]
 #[allow(clippy::ptr_arg)]
 impl Model {
-    fn node_removed_in_ui(
-        &self,
-        node: &graph_editor::NodeId,
-    ) -> FallibleResult {
+    fn node_removed_in_ui(&self, node: &graph_editor::NodeId) -> FallibleResult {
         debug!(self.logger, "Removing node.");
         let id = self.get_controller_node_id(*node)?;
         self.node_views.borrow_mut().remove_by_left(&id);
@@ -1704,10 +1445,7 @@ impl Model {
         Ok(())
     }
 
-    fn node_selected_in_ui(
-        &self,
-        displayed_id: &graph_editor::NodeId,
-    ) -> FallibleResult {
+    fn node_selected_in_ui(&self, displayed_id: &graph_editor::NodeId) -> FallibleResult {
         debug!(self.logger, "Selecting node {displayed_id}.");
         let id = self.get_controller_node_id(*displayed_id)?;
         self.graph.graph().module.with_node_metadata(
@@ -1719,10 +1457,7 @@ impl Model {
         Ok(())
     }
 
-    fn node_deselected_in_ui(
-        &self,
-        displayed_id: &graph_editor::NodeId,
-    ) -> FallibleResult {
+    fn node_deselected_in_ui(&self, displayed_id: &graph_editor::NodeId) -> FallibleResult {
         debug!(self.logger, "Deselecting node {displayed_id}.");
         let id = self.get_controller_node_id(*displayed_id)?;
         self.graph.graph().module.with_node_metadata(
@@ -1747,15 +1482,11 @@ impl Model {
 
     fn nodes_collapsed_in_ui(
         &self,
-        (collapsed, _new_node_view_id): &(
-            Vec<graph_editor::NodeId>,
-            graph_editor::NodeId,
-        ),
+        (collapsed, _new_node_view_id): &(Vec<graph_editor::NodeId>, graph_editor::NodeId),
     ) -> FallibleResult {
         debug!(self.logger, "Collapsing node.");
         let ids = self.get_controller_node_ids(collapsed)?;
-        let _new_node_id =
-            self.graph.graph().collapse(ids, COLLAPSED_FUNCTION_NAME)?;
+        let _new_node_id = self.graph.graph().collapse(ids, COLLAPSED_FUNCTION_NAME)?;
         // TODO [mwu] https://github.com/enso-org/ide/issues/760
         //   As part of this issue, storing relation between new node's controller and view ids will
         //   be necessary.
@@ -1766,16 +1497,10 @@ impl Model {
         &self,
         (displayed_id, expression): &(graph_editor::NodeId, String),
     ) -> FallibleResult {
-        debug!(
-            self.logger,
-            "Setting node {displayed_id} expression: {expression}."
-        );
+        debug!(self.logger, "Setting node {displayed_id} expression: {expression}.");
         let searcher = self.searcher.borrow();
-        let code_and_trees =
-            graph_editor::component::node::Expression::new_plain(expression);
-        self.expression_views
-            .borrow_mut()
-            .insert(*displayed_id, code_and_trees);
+        let code_and_trees = graph_editor::component::node::Expression::new_plain(expression);
+        self.expression_views.borrow_mut().insert(*displayed_id, code_and_trees);
         if let Some(searcher) = searcher.as_ref() {
             searcher.set_input(expression.clone())?;
         }
@@ -1786,11 +1511,9 @@ impl Model {
         weak_self: Weak<Self>,
     ) -> impl Fn(&Self, &graph_editor::NodeId) -> FallibleResult {
         move |this, displayed_id| {
-            let node_view =
-                this.view.graph().model.nodes.get_cloned_ref(displayed_id);
+            let node_view = this.view.graph().model.nodes.get_cloned_ref(displayed_id);
             let position = node_view.map(|node| node.position().xy());
-            let position =
-                position.map(|vector| model::module::Position { vector });
+            let position = position.map(|vector| model::module::Position { vector });
             let mode = controller::searcher::Mode::NewNode { position };
             this.setup_searcher_controller(&weak_self, mode)
         }
@@ -1808,16 +1531,11 @@ impl Model {
                 debug!(this.logger, "Starting node editing.");
                 let id = this.get_controller_node_id(*displayed_id);
                 let mode = match id {
-                    Ok(node_id) => {
-                        controller::searcher::Mode::EditNode { node_id }
-                    }
+                    Ok(node_id) => controller::searcher::Mode::EditNode { node_id },
                     Err(MissingMappingFor::DisplayedNode(id)) => {
-                        let node_view =
-                            this.view.graph().model.nodes.get_cloned_ref(&id);
-                        let position =
-                            node_view.map(|node| node.position().xy());
-                        let position = position
-                            .map(|vector| model::module::Position { vector });
+                        let node_view = this.view.graph().model.nodes.get_cloned_ref(&id);
+                        let position = node_view.map(|node| node.position().xy());
+                        let position = position.map(|vector| model::module::Position { vector });
                         controller::searcher::Mode::NewNode { position }
                     }
                     Err(other) => return Err(other.into()),
@@ -1840,39 +1558,24 @@ impl Model {
             let error = || MissingSearcherController;
             let searcher = self.searcher.borrow().clone().ok_or_else(error)?;
             let error = || GraphEditorInconsistency;
-            let edited_node = graph_frp
-                .output
-                .node_being_edited
-                .value()
-                .ok_or_else(error)?;
+            let edited_node = graph_frp.output.node_being_edited.value().ok_or_else(error)?;
             let code = searcher.use_as_suggestion(*entry)?;
             let code_and_trees = node::Expression::new_plain(code);
-            graph_frp
-                .input
-                .set_node_expression
-                .emit(&(edited_node, code_and_trees));
+            graph_frp.input.set_node_expression.emit(&(edited_node, code_and_trees));
         }
         Ok(())
     }
 
     fn node_editing_committed_in_ui(
         &self,
-        (displayed_id, entry_id): &(
-            graph_editor::NodeId,
-            Option<ide_view::searcher::entry::Id>,
-        ),
+        (displayed_id, entry_id): &(graph_editor::NodeId, Option<ide_view::searcher::entry::Id>),
     ) -> FallibleResult {
         use crate::controller::searcher::action::Action::Example;
         debug!(self.logger, "Committing node expression.");
         let error = || MissingSearcherController;
         let searcher = self.searcher.replace(None).ok_or_else(error)?;
-        let entry = searcher
-            .actions()
-            .list()
-            .zip(*entry_id)
-            .and_then(|(l, i)| l.get_cloned(i));
-        let is_example =
-            entry.map_or(false, |e| matches!(e.action, Example(_)));
+        let entry = searcher.actions().list().zip(*entry_id).and_then(|(l, i)| l.get_cloned(i));
+        let is_example = entry.map_or(false, |e| matches!(e.action, Example(_)));
         let result = if let Some(id) = entry_id {
             searcher.execute_action_by_index(*id)
         } else {
@@ -1889,12 +1592,8 @@ impl Model {
                 let _ = self.graph.graph().module.with_node_metadata(
                     node_id,
                     Box::new(|metadata| {
-                        metadata.selected = self
-                            .view
-                            .graph()
-                            .model
-                            .nodes
-                            .is_selected(*displayed_id);
+                        metadata.selected =
+                            self.view.graph().model.nodes.is_selected(*displayed_id);
                     }),
                 );
                 self.node_views.borrow_mut().insert(node_id, *displayed_id);
@@ -1914,31 +1613,17 @@ impl Model {
         }
     }
 
-    fn node_editing_aborted_in_ui(
-        &self,
-        _displayed_id: &graph_editor::NodeId,
-    ) -> FallibleResult {
+    fn node_editing_aborted_in_ui(&self, _displayed_id: &graph_editor::NodeId) -> FallibleResult {
         *self.searcher.borrow_mut() = None;
         Ok(())
     }
 
-    fn connection_created_in_ui(
-        &self,
-        edge_id: &graph_editor::EdgeId,
-    ) -> FallibleResult {
+    fn connection_created_in_ui(&self, edge_id: &graph_editor::EdgeId) -> FallibleResult {
         debug!(self.logger, "Creating connection.");
-        let displayed = self
-            .view
-            .graph()
-            .model
-            .edges
-            .get_cloned(edge_id)
-            .ok_or(GraphEditorInconsistency)?;
+        let displayed =
+            self.view.graph().model.edges.get_cloned(edge_id).ok_or(GraphEditorInconsistency)?;
         let con = self.controller_connection_from_displayed(&displayed)?;
-        let inserting = self
-            .connection_views
-            .borrow_mut()
-            .insert(con.clone(), *edge_id);
+        let inserting = self.connection_views.borrow_mut().insert(con.clone(), *edge_id);
         if inserting.did_overwrite() {
             warning!(
                 self.logger,
@@ -1950,30 +1635,19 @@ impl Model {
         Ok(())
     }
 
-    fn connection_removed_in_ui(
-        &self,
-        edge_id: &graph_editor::EdgeId,
-    ) -> FallibleResult {
+    fn connection_removed_in_ui(&self, edge_id: &graph_editor::EdgeId) -> FallibleResult {
         debug!(self.logger, "Removing connection.");
         let connection = self.get_controller_connection(*edge_id)?;
-        self.connection_views
-            .borrow_mut()
-            .remove_by_left(&connection);
+        self.connection_views.borrow_mut().remove_by_left(&connection);
         self.graph.disconnect(&connection)?;
         Ok(())
     }
 
     fn visualization_path_changed_in_ui(
         &self,
-        (node_id, vis_path): &(
-            graph_editor::NodeId,
-            Option<visualization::Path>,
-        ),
+        (node_id, vis_path): &(graph_editor::NodeId, Option<visualization::Path>),
     ) -> FallibleResult {
-        debug!(
-            self.logger,
-            "Visualization path changed on {node_id}: {vis_path:?}."
-        );
+        debug!(self.logger, "Visualization path changed on {node_id}: {vis_path:?}.");
         let ast_id = self.get_controller_node_id(*node_id)?;
         let serialized_path = serde_json::to_value(&vis_path)?;
         self.graph.graph().module.with_node_metadata(
@@ -1987,33 +1661,18 @@ impl Model {
 
     fn visualization_shown_in_ui(
         &self,
-        (node_id, vis_metadata): &(
-            graph_editor::NodeId,
-            visualization::Metadata,
-        ),
+        (node_id, vis_metadata): &(graph_editor::NodeId, visualization::Metadata),
     ) -> FallibleResult {
-        debug!(
-            self.logger,
-            "Visualization shown on {node_id}: {vis_metadata:?}."
-        );
-        self.update_visualization(
-            *node_id,
-            WhichVisualization::Normal,
-            Some(vis_metadata.clone()),
-        )
+        debug!(self.logger, "Visualization shown on {node_id}: {vis_metadata:?}.");
+        self.update_visualization(*node_id, WhichVisualization::Normal, Some(vis_metadata.clone()))
     }
 
-    fn visualization_hidden_in_ui(
-        &self,
-        node_id: &graph_editor::NodeId,
-    ) -> FallibleResult {
+    fn visualization_hidden_in_ui(&self, node_id: &graph_editor::NodeId) -> FallibleResult {
         debug!(self.logger, "Visualization hidden on {node_id}.");
         self.update_visualization(*node_id, WhichVisualization::Normal, None)
     }
 
-    fn store_updated_stack_task(
-        &self,
-    ) -> impl FnOnce() -> FallibleResult + 'static {
+    fn store_updated_stack_task(&self) -> impl FnOnce() -> FallibleResult + 'static {
         let main_module = self.main_module.clone_ref();
         let graph = self.graph.clone_ref();
         move || {
@@ -2023,10 +1682,7 @@ impl Model {
         }
     }
 
-    fn expression_entered_in_ui(
-        &self,
-        local_call: &Option<LocalCall>,
-    ) -> FallibleResult {
+    fn expression_entered_in_ui(&self, local_call: &Option<LocalCall>) -> FallibleResult {
         if let Some(local_call) = local_call {
             let local_call = local_call.clone();
             let controller = self.graph.clone_ref();
@@ -2034,9 +1690,7 @@ impl Model {
             let store_stack = self.store_updated_stack_task();
             let enter_action = async move {
                 info!(logger, "Entering expression {local_call:?}.");
-                if let Err(e) =
-                    controller.enter_method_pointer(&local_call).await
-                {
+                if let Err(e) = controller.enter_method_pointer(&local_call).await {
                     error!(logger, "Entering node failed: {e}.");
 
                     let event = "integration::entering_node_failed";
@@ -2047,10 +1701,7 @@ impl Model {
                     // We cannot really do anything when updating metadata fails.
                     // Can happen in improbable case of serialization failure.
                     if let Err(e) = store_stack() {
-                        error!(
-                            logger,
-                            "Failed to store an updated call stack: {e}"
-                        );
+                        error!(logger, "Failed to store an updated call stack: {e}");
                     }
                 }
             };
@@ -2059,10 +1710,7 @@ impl Model {
         Ok(())
     }
 
-    fn node_entered_in_ui(
-        &self,
-        node_id: &graph_editor::NodeId,
-    ) -> FallibleResult {
+    fn node_entered_in_ui(&self, node_id: &graph_editor::NodeId) -> FallibleResult {
         debug!(self.logger, "Requesting entering the node {node_id}.");
         let call = self.get_controller_node_id(*node_id)?;
         let method_pointer = self.graph.node_method_pointer(call)?;
@@ -2094,19 +1742,11 @@ impl Model {
         spawn(exit_node_action);
     }
 
-    fn code_changed_in_ui(
-        &self,
-        changes: &Vec<ensogl_text::Change>,
-    ) -> FallibleResult {
+    fn code_changed_in_ui(&self, changes: &Vec<ensogl_text::Change>) -> FallibleResult {
         for change in changes {
-            let range_start =
-                data::text::Index::new(change.range.start.value as usize);
-            let range_end =
-                data::text::Index::new(change.range.end.value as usize);
-            let converted = TextChange::replace(
-                range_start..range_end,
-                change.text.to_string(),
-            );
+            let range_start = data::text::Index::new(change.range.start.value as usize);
+            let range_end = data::text::Index::new(change.range.end.value as usize);
+            let converted = TextChange::replace(range_start..range_end, change.text.to_string());
             self.text.apply_text_change(converted)?;
         }
         Ok(())
@@ -2143,18 +1783,11 @@ impl Model {
         preprocessor: visualization::instance::PreprocessorConfiguration,
     ) -> FallibleResult {
         let metadata = visualization::Metadata { preprocessor };
-        self.update_visualization(
-            node_id,
-            WhichVisualization::Normal,
-            Some(metadata),
-        )
+        self.update_visualization(node_id, WhichVisualization::Normal, Some(metadata))
     }
 
     fn open_dialog_opened_in_ui(self: &Rc<Self>) {
-        debug!(
-            self.logger,
-            "Opened file dialog in ui. Providing content root list"
-        );
+        debug!(self.logger, "Opened file dialog in ui. Providing content root list");
         self.reload_files_in_file_browser();
         let model = Rc::downgrade(self);
         spawn(async move {
@@ -2163,18 +1796,12 @@ impl Model {
                     match manage_projects.list_projects().await {
                         Ok(projects) => {
                             let entries = ProjectsToOpen::new(projects);
-                            this.displayed_project_list
-                                .set(entries.clone_ref());
+                            this.displayed_project_list.set(entries.clone_ref());
                             let any_entries = AnyModelProvider::new(entries);
-                            this.view
-                                .open_dialog()
-                                .project_list
-                                .set_entries(any_entries)
+                            this.view.open_dialog().project_list.set_entries(any_entries)
                         }
-                        Err(error) => error!(
-                            this.logger,
-                            "Error when loading project's list: {error}"
-                        ),
+                        Err(error) =>
+                            error!(this.logger, "Error when loading project's list: {error}"),
                     }
                 }
             }
@@ -2188,11 +1815,7 @@ impl Model {
     }
 
     fn project_opened_in_ui(&self, entry_id: &list_view::entry::Id) {
-        if let Some(id) = self
-            .displayed_project_list
-            .get()
-            .get_project_id_by_index(*entry_id)
-        {
+        if let Some(id) = self.displayed_project_list.get().get_project_id_by_index(*entry_id) {
             let logger = self.logger.clone_ref();
             let ide = self.ide.clone_ref();
             spawn(async move {
@@ -2206,13 +1829,12 @@ impl Model {
     }
 
     fn file_opened_in_ui(&self, path: &std::path::Path) {
-        if let Err(err) =
-            create_node_from_file(&self.project, &self.graph.graph(), path)
-        {
+        if let Err(err) = create_node_from_file(&self.project, &self.graph.graph(), path) {
             error!(self.logger, "Error while creating node from file: {err}");
         }
     }
 }
+
 
 // === Utilities ===
 
@@ -2222,18 +1844,12 @@ impl Model {
         displayed_id: graph_editor::NodeId,
     ) -> Result<ast::Id, MissingMappingFor> {
         let err = MissingMappingFor::DisplayedNode(displayed_id);
-        self.node_views
-            .borrow()
-            .get_by_right(&displayed_id)
-            .cloned()
-            .ok_or(err)
+        self.node_views.borrow().get_by_right(&displayed_id).cloned().ok_or(err)
     }
 
     fn get_controller_node_ids(
         &self,
-        displayed_ids: impl IntoIterator<
-            Item: std::borrow::Borrow<graph_editor::NodeId>,
-        >,
+        displayed_ids: impl IntoIterator<Item: std::borrow::Borrow<graph_editor::NodeId>>,
     ) -> Result<Vec<ast::Id>, MissingMappingFor> {
         use std::borrow::Borrow;
         displayed_ids
@@ -2250,11 +1866,7 @@ impl Model {
         node_id: ast::Id,
     ) -> Result<graph_editor::NodeId, MissingMappingFor> {
         let err = MissingMappingFor::ControllerNode(node_id);
-        self.node_views
-            .borrow()
-            .get_by_left(&node_id)
-            .cloned()
-            .ok_or(err)
+        self.node_views.borrow().get_by_left(&node_id).cloned().ok_or(err)
     }
 
     fn get_controller_connection(
@@ -2262,11 +1874,7 @@ impl Model {
         displayed_id: graph_editor::EdgeId,
     ) -> Result<controller::graph::Connection, MissingMappingFor> {
         let err = MissingMappingFor::DisplayedConnection(displayed_id);
-        self.connection_views
-            .borrow()
-            .get_by_right(&displayed_id)
-            .cloned()
-            .ok_or(err)
+        self.connection_views.borrow().get_by_right(&displayed_id).cloned().ok_or(err)
     }
 
     fn controller_connection_from_displayed(
@@ -2278,15 +1886,12 @@ impl Model {
         let src_node = self.get_controller_node_id(src.node_id)?;
         let dst_node = self.get_controller_node_id(dst.node_id)?;
         Ok(controller::graph::Connection {
-            source: controller::graph::Endpoint::new(src_node, &src.port),
+            source:      controller::graph::Endpoint::new(src_node, &src.port),
             destination: controller::graph::Endpoint::new(dst_node, &dst.port),
         })
     }
 
-    fn lookup_computed_info(
-        &self,
-        id: &ExpressionId,
-    ) -> Option<Rc<ComputedValueInfo>> {
+    fn lookup_computed_info(&self, id: &ExpressionId) -> Option<Rc<ComputedValueInfo>> {
         let registry = self.graph.computed_value_info_registry();
         registry.get(id)
     }
@@ -2327,6 +1932,8 @@ impl Model {
     }
 }
 
+
+
 // =======================
 // === AttachingResult ===
 // =======================
@@ -2342,21 +1949,21 @@ pub enum AttachingResult<T> {
     Failed(failure::Error),
 }
 
+
+
 // ===========================
 // === DataProviderForView ===
 // ===========================
 
 #[derive(Clone, Debug)]
 struct SuggestionsProviderForView {
-    actions: Rc<controller::searcher::action::List>,
-    user_action: controller::searcher::UserAction,
+    actions:           Rc<controller::searcher::action::List>,
+    user_action:       controller::searcher::UserAction,
     intended_function: Option<controller::searcher::action::Suggestion>,
 }
 
 impl SuggestionsProviderForView {
-    fn doc_placeholder_for(
-        suggestion: &controller::searcher::action::Suggestion,
-    ) -> String {
+    fn doc_placeholder_for(suggestion: &controller::searcher::action::Suggestion) -> String {
         use controller::searcher::action::Suggestion;
         let code = match suggestion {
             Suggestion::FromDatabase(suggestion) => {
@@ -2385,9 +1992,7 @@ impl SuggestionsProviderForView {
     }
 }
 
-impl list_view::entry::ModelProvider<GlyphHighlightedLabel>
-    for SuggestionsProviderForView
-{
+impl list_view::entry::ModelProvider<GlyphHighlightedLabel> for SuggestionsProviderForView {
     fn entry_count(&self) -> usize {
         // TODO[ao] Because of "All Search Results" category, the actions on list are duplicated.
         //     But we don't want to display duplicates on the old searcher list. To be fixed/removed
@@ -2396,10 +2001,7 @@ impl list_view::entry::ModelProvider<GlyphHighlightedLabel>
         self.actions.matching_count() / 2
     }
 
-    fn get(
-        &self,
-        id: usize,
-    ) -> Option<list_view::entry::GlyphHighlightedLabelModel> {
+    fn get(&self, id: usize) -> Option<list_view::entry::GlyphHighlightedLabelModel> {
         let action = self.actions.get_cloned(id)?;
         if let MatchInfo::Matches { subsequence } = action.match_info {
             let label = action.action.to_string();
@@ -2412,9 +2014,7 @@ impl list_view::entry::ModelProvider<GlyphHighlightedLabel>
                         let (char_idx, (byte_id, char)) = char;
                         if char_idx == *idx {
                             let start = ensogl_text::Bytes(byte_id as i32);
-                            let end = ensogl_text::Bytes(
-                                (byte_id + char.len_utf8()) as i32,
-                            );
+                            let end = ensogl_text::Bytes((byte_id + char.len_utf8()) as i32);
                             break Some(ensogl_text::Range::new(start, end));
                         }
                     } else {
@@ -2422,10 +2022,7 @@ impl list_view::entry::ModelProvider<GlyphHighlightedLabel>
                     }
                 })
                 .collect();
-            Some(list_view::entry::GlyphHighlightedLabelModel {
-                label,
-                highlighted,
-            })
+            Some(list_view::entry::GlyphHighlightedLabelModel { label, highlighted })
         } else {
             None
         }
@@ -2435,13 +2032,9 @@ impl list_view::entry::ModelProvider<GlyphHighlightedLabel>
 impl ide_view::searcher::DocumentationProvider for SuggestionsProviderForView {
     fn get(&self) -> Option<String> {
         use controller::searcher::UserAction::*;
-        self.intended_function.as_ref().and_then(|function| {
-            match self.user_action {
-                StartingTypingArgument => {
-                    function.documentation_html().map(ToOwned::to_owned)
-                }
-                _ => None,
-            }
+        self.intended_function.as_ref().and_then(|function| match self.user_action {
+            StartingTypingArgument => function.documentation_html().map(ToOwned::to_owned),
+            _ => None,
         })
     }
 
@@ -2449,31 +2042,22 @@ impl ide_view::searcher::DocumentationProvider for SuggestionsProviderForView {
         use controller::searcher::action::Action;
         match self.actions.get_cloned(id)?.action {
             Action::Suggestion(suggestion) => {
-                let doc =
-                    suggestion.documentation_html().map(ToOwned::to_owned);
-                Some(
-                    doc.unwrap_or_else(|| {
-                        Self::doc_placeholder_for(&suggestion)
-                    }),
-                )
+                let doc = suggestion.documentation_html().map(ToOwned::to_owned);
+                Some(doc.unwrap_or_else(|| Self::doc_placeholder_for(&suggestion)))
             }
-            Action::Example(example) => {
-                Some(example.documentation_html.clone())
-            }
+            Action::Example(example) => Some(example.documentation_html.clone()),
             Action::ProjectManagement(_) => None,
         }
     }
 }
 
 impl upload::DataProvider for drop::File {
-    fn next_chunk(
-        &mut self,
-    ) -> LocalBoxFuture<FallibleResult<Option<Vec<u8>>>> {
-        self.read_chunk()
-            .map(|f| f.map_err(|e| e.into()))
-            .boxed_local()
+    fn next_chunk(&mut self) -> LocalBoxFuture<FallibleResult<Option<Vec<u8>>>> {
+        self.read_chunk().map(|f| f.map_err(|e| e.into())).boxed_local()
     }
 }
+
+
 
 // ========================
 // === Project Provider ===
@@ -2486,9 +2070,7 @@ struct ProjectsToOpen {
 
 impl ProjectsToOpen {
     fn new(projects: Vec<controller::ide::ProjectMetadata>) -> Self {
-        Self {
-            projects: Rc::new(projects),
-        }
+        Self { projects: Rc::new(projects) }
     }
 
     fn get_project_id_by_index(&self, index: usize) -> Option<Uuid> {
@@ -2496,9 +2078,7 @@ impl ProjectsToOpen {
     }
 }
 
-impl list_view::entry::ModelProvider<open_dialog::project_list::Entry>
-    for ProjectsToOpen
-{
+impl list_view::entry::ModelProvider<open_dialog::project_list::Entry> for ProjectsToOpen {
     fn entry_count(&self) -> usize {
         self.projects.len()
     }
@@ -2506,13 +2086,7 @@ impl list_view::entry::ModelProvider<open_dialog::project_list::Entry>
     fn get(
         &self,
         id: list_view::entry::Id,
-    ) -> Option<<open_dialog::project_list::Entry as list_view::Entry>::Model>
-    {
-        Some(
-            <[controller::ide::ProjectMetadata]>::get(&self.projects, id)?
-                .name
-                .clone()
-                .into(),
-        )
+    ) -> Option<<open_dialog::project_list::Entry as list_view::Entry>::Model> {
+        Some(<[controller::ide::ProjectMetadata]>::get(&self.projects, id)?.name.clone().into())
     }
 }

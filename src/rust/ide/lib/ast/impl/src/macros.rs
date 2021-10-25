@@ -1,6 +1,7 @@
 //! Utilities for dealing with macro-related parts of AST and language, including `Match` shape and
 //! such constructs as lambda expressions.
 
+
 use crate::prelude::*;
 
 use crate::crumbs::AmbiguousCrumb;
@@ -9,6 +10,8 @@ use crate::crumbs::MatchCrumb;
 use crate::known;
 use crate::BlockLine;
 use crate::Shifted;
+
+
 
 // ==================================
 // === Recognized Macros Keywords ===
@@ -30,6 +33,8 @@ pub const UNQUALIFIED_IMPORT_KEYWORD: &str = "from";
 /// The keyword introducing an unqualified export declaration.
 pub const QUALIFIED_EXPORT_KEYWORD: &str = "export";
 
+
+
 // ========================
 // === Disable Comments ===
 // ========================
@@ -38,9 +43,7 @@ pub const QUALIFIED_EXPORT_KEYWORD: &str = "export";
 pub fn as_disable_comment(ast: &Ast) -> Option<String> {
     let r#match = crate::known::Match::try_from(ast).ok()?;
     let first_segment = &r#match.segs.head;
-    if crate::identifier::name(&first_segment.head)
-        == Some(DISABLING_COMMENT_INTRODUCER)
-    {
+    if crate::identifier::name(&first_segment.head) == Some(DISABLING_COMMENT_INTRODUCER) {
         Some(first_segment.body.repr())
     } else {
         None
@@ -52,6 +55,8 @@ pub fn is_disable_comment(ast: &Ast) -> bool {
     as_disable_comment(ast).is_some()
 }
 
+
+
 // ==============================
 // === Documentation Comments ===
 // ==============================
@@ -61,7 +66,7 @@ pub fn is_disable_comment(ast: &Ast) -> bool {
 /// Describes the AST of a documentation comment.
 #[derive(Clone, Debug)]
 pub struct DocumentationCommentAst {
-    ast: known::Match,
+    ast:  known::Match,
     body: crate::MacroPatternMatch<Shifted<Ast>>,
 }
 
@@ -85,6 +90,7 @@ impl DocumentationCommentAst {
     }
 }
 
+
 // === Line Description ===
 
 /// Describes the line with a documentation comment.
@@ -105,13 +111,7 @@ impl DocumentationCommentLine {
 
     /// Treat given documentation AST as the line with a given trailing whitespace.
     pub fn from_doc_ast(ast_doc: DocumentationCommentAst, off: usize) -> Self {
-        Self {
-            line: BlockLine {
-                elem: ast_doc.ast,
-                off,
-            },
-            body: ast_doc.body,
-        }
+        Self { line: BlockLine { elem: ast_doc.ast, off }, body: ast_doc.body }
     }
 
     /// Get the documentation comment's AST.
@@ -127,11 +127,10 @@ impl DocumentationCommentLine {
     /// Convenience function that throws away some information to return the line description that
     /// is used in AST blocks.
     pub fn block_line(&self) -> BlockLine<Option<Ast>> {
-        self.line
-            .as_ref()
-            .map(|known_ast| Some(known_ast.ast().clone_ref()))
+        self.line.as_ref().map(|known_ast| Some(known_ast.ast().clone_ref()))
     }
 }
+
 
 // === Full Description ===
 
@@ -141,7 +140,7 @@ impl DocumentationCommentLine {
 pub struct DocumentationCommentInfo {
     /// Description of the line with the documentation comment.
     #[shrinkwrap(main_field)]
-    pub line: DocumentationCommentLine,
+    pub line:         DocumentationCommentLine,
     /// The absolute indent of the block that contains the line with documentation comment.
     pub block_indent: usize,
 }
@@ -149,10 +148,7 @@ pub struct DocumentationCommentInfo {
 impl DocumentationCommentInfo {
     /// Try to obtain information about a documentation comment line from block with a given indent.
     pub fn new(line: &BlockLine<&Ast>, block_indent: usize) -> Option<Self> {
-        Some(Self {
-            line: DocumentationCommentLine::new(line)?,
-            block_indent,
-        })
+        Some(Self { line: DocumentationCommentLine::new(line)?, block_indent })
     }
 
     /// Get the documentation text.
@@ -181,6 +177,7 @@ impl DocumentationCommentInfo {
     }
 }
 
+
 impl AsRef<Ast> for DocumentationCommentInfo {
     fn as_ref(&self) -> &Ast {
         self.line.elem.ast()
@@ -197,6 +194,8 @@ impl Display for DocumentationCommentInfo {
 pub fn is_documentation_comment(ast: &Ast) -> bool {
     DocumentationCommentAst::new(ast).is_some()
 }
+
+
 
 // ===============
 // === Imports ===
@@ -218,8 +217,7 @@ pub fn is_match_import(ast: &known::Match) -> bool {
         match second_segment {
             Some(seg) => {
                 let keyword_2 = crate::identifier::name(&seg.head);
-                if keyword_2.contains_if(|str| *str == QUALIFIED_IMPORT_KEYWORD)
-                {
+                if keyword_2.contains_if(|str| *str == QUALIFIED_IMPORT_KEYWORD) {
                     return true;
                 }
             }
@@ -234,6 +232,8 @@ pub fn is_ast_import(ast: &Ast) -> bool {
     ast_as_import_match(ast).is_some()
 }
 
+
+
 // ===============
 // === Lambdas ===
 // ===============
@@ -242,8 +242,8 @@ pub fn is_ast_import(ast: &Ast) -> bool {
 #[allow(missing_docs)]
 #[derive(Clone, Debug)]
 pub struct LambdaInfo<'a> {
-    pub arg: Located<&'a Ast>,
-    pub opr: Located<&'a Ast>,
+    pub arg:  Located<&'a Ast>,
+    pub opr:  Located<&'a Ast>,
     pub body: Located<&'a Ast>,
 }
 
@@ -265,6 +265,8 @@ pub fn as_lambda(ast: &Ast) -> Option<LambdaInfo> {
     is_arrow.then_some(LambdaInfo { arg, opr, body })
 }
 
+
+
 // ===================
 // === Match Utils ===
 // ===================
@@ -272,9 +274,7 @@ pub fn as_lambda(ast: &Ast) -> Option<LambdaInfo> {
 impl crate::Match<Ast> {
     /// Iterates matched ASTs. Skips segment heads ("keywords").
     /// For example, for `(a)` it iterates only over `a`, skkipping segment heads `(` and `)`.
-    pub fn iter_pat_match_subcrumbs(
-        &self,
-    ) -> impl Iterator<Item = MatchCrumb> + '_ {
+    pub fn iter_pat_match_subcrumbs(&self) -> impl Iterator<Item = MatchCrumb> + '_ {
         self.iter_subcrumbs().filter(|crumb| {
             use crate::crumbs::SegmentMatchCrumb;
             match crumb {
@@ -285,6 +285,8 @@ impl crate::Match<Ast> {
     }
 }
 
+
+
 // =======================
 // === Ambiguous Utils ===
 // =======================
@@ -292,11 +294,8 @@ impl crate::Match<Ast> {
 impl crate::Ambiguous<Ast> {
     /// Iterates matched ASTs. Skips segment heads ("keywords").
     /// For example, for `(a)` it iterates only over `a`, skkipping segment heads `(` and `)`.
-    pub fn iter_pat_match_subcrumbs(
-        &self,
-    ) -> impl Iterator<Item = AmbiguousCrumb> + '_ {
-        self.iter_subcrumbs().filter(|crumb| {
-            crumb.field != crate::crumbs::AmbiguousSegmentCrumb::Head
-        })
+    pub fn iter_pat_match_subcrumbs(&self) -> impl Iterator<Item = AmbiguousCrumb> + '_ {
+        self.iter_subcrumbs()
+            .filter(|crumb| crumb.field != crate::crumbs::AmbiguousSegmentCrumb::Head)
     }
 }

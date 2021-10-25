@@ -10,6 +10,8 @@ use ast::opr::ArgWithOffset;
 use ast::Ast;
 use ast::Shifted;
 
+
+
 /// ==============
 /// === Errors ===
 /// ==============
@@ -17,10 +19,7 @@ use ast::Shifted;
 /// Error returned when tried to perform an action which is not available for specific SpanTree
 /// node.
 #[derive(Copy, Clone, Debug, Fail)]
-#[fail(
-    display = "Action {:?} not available for this SpanTree node.",
-    operation
-)]
+#[fail(display = "Action {:?} not available for this SpanTree node.", operation)]
 pub struct ActionNotAvailable {
     operation: Action,
 }
@@ -30,6 +29,8 @@ pub struct ActionNotAvailable {
 #[derive(Copy, Clone, Debug, Fail)]
 #[fail(display = "Cannot apply action: ast structure does not match SpanTree.")]
 pub struct AstSpanTreeMismatch;
+
+
 
 /// =====================
 /// === Actions Trait ===
@@ -80,11 +81,12 @@ impl<T: Implementation> Actions for T {
 
     fn erase(&self, root: &Ast) -> FallibleResult<Ast> {
         let operation = Action::Erase;
-        let action =
-            self.erase_impl().ok_or(ActionNotAvailable { operation })?;
+        let action = self.erase_impl().ok_or(ActionNotAvailable { operation })?;
         action(root)
     }
 }
+
+
 
 // ==============================
 // === Actions Implementation ===
@@ -94,8 +96,7 @@ const DEFAULT_OFFSET: usize = 1;
 
 /// A concrete function for "set" operations on specific SpanTree node. It takes root and ast-to-set
 /// as arguments and returns new root with action performed.
-pub type SetOperation<'a> =
-    Box<dyn FnOnce(&Ast, Ast) -> FallibleResult<Ast> + 'a>;
+pub type SetOperation<'a> = Box<dyn FnOnce(&Ast, Ast) -> FallibleResult<Ast> + 'a>;
 
 /// A concrete function for "set" operations on specific SpanTree node. It takes root ast
 /// as argument and returns new root with action performed.
@@ -112,60 +113,49 @@ pub trait Implementation {
 impl<'a, T> Implementation for node::Ref<'a, T> {
     fn set_impl(&self) -> Option<SetOperation> {
         match &self.node.kind {
-            node::Kind::InsertionPoint(ins_point) => {
-                Some(Box::new(move |root, new| {
-                    use node::InsertionPointType::*;
-                    let kind = &ins_point.kind;
-                    let ast = root.get_traversing(&self.ast_crumbs)?;
-                    let expect_arg = matches!(kind, ExpectedArgument(_));
-                    let extended_infix = (!expect_arg)
-                        .and_option_from(|| ast::opr::Chain::try_new(ast));
-                    let new_ast = modify_preserving_id(ast, |ast| {
-                        if let Some(mut infix) = extended_infix {
-                            let item = ArgWithOffset {
-                                arg: new,
-                                offset: DEFAULT_OFFSET,
-                            };
-                            let has_target = infix.target.is_some();
-                            let has_arg =
-                                infix.args.last().unwrap().operand.is_some();
-                            let last_elem = infix.args.last_mut().unwrap();
-                            let last_arg = &mut last_elem.operand;
-                            last_elem.offset = DEFAULT_OFFSET;
-                            match kind {
-                            BeforeTarget            if has_target => infix.push_front_operand(item),
-                            AfterTarget             if has_target => infix.insert_operand(1,item),
-                            BeforeTarget|AfterTarget              => infix.target = Some(item),
-                            Append                  if has_arg    => infix.push_operand(item),
-                            Append                                => *last_arg = Some(item),
-                            ExpectedArgument(_)                   =>
-                                panic!("Expected arguments should be filtered out befire this if block")
+            node::Kind::InsertionPoint(ins_point) => Some(Box::new(move |root, new| {
+                use node::InsertionPointType::*;
+                let kind = &ins_point.kind;
+                let ast = root.get_traversing(&self.ast_crumbs)?;
+                let expect_arg = matches!(kind, ExpectedArgument(_));
+                let extended_infix =
+                    (!expect_arg).and_option_from(|| ast::opr::Chain::try_new(ast));
+                let new_ast = modify_preserving_id(ast, |ast| {
+                    if let Some(mut infix) = extended_infix {
+                        let item = ArgWithOffset { arg: new, offset: DEFAULT_OFFSET };
+                        let has_target = infix.target.is_some();
+                        let has_arg = infix.args.last().unwrap().operand.is_some();
+                        let last_elem = infix.args.last_mut().unwrap();
+                        let last_arg = &mut last_elem.operand;
+                        last_elem.offset = DEFAULT_OFFSET;
+                        match kind {
+                            BeforeTarget if has_target => infix.push_front_operand(item),
+                            AfterTarget if has_target => infix.insert_operand(1, item),
+                            BeforeTarget | AfterTarget => infix.target = Some(item),
+                            Append if has_arg => infix.push_operand(item),
+                            Append => *last_arg = Some(item),
+                            ExpectedArgument(_) => panic!(
+                                "Expected arguments should be filtered out befire this if block"
+                            ),
                         };
-                            Ok(infix.into_ast())
-                        } else {
-                            let mut prefix =
-                                ast::prefix::Chain::from_ast_non_strict(&ast);
-                            let item = ast::prefix::Argument {
-                                sast: Shifted {
-                                    wrapped: new,
-                                    off: DEFAULT_OFFSET,
-                                },
-                                prefix_id: None,
-                            };
-                            match kind {
-                                BeforeTarget => prefix.insert_arg(0, item),
-                                AfterTarget => prefix.insert_arg(1, item),
-                                Append => prefix.args.push(item),
-                                ExpectedArgument(i) => {
-                                    prefix.insert_arg(*i, item)
-                                }
-                            }
-                            Ok(prefix.into_ast())
+                        Ok(infix.into_ast())
+                    } else {
+                        let mut prefix = ast::prefix::Chain::from_ast_non_strict(&ast);
+                        let item = ast::prefix::Argument {
+                            sast:      Shifted { wrapped: new, off: DEFAULT_OFFSET },
+                            prefix_id: None,
+                        };
+                        match kind {
+                            BeforeTarget => prefix.insert_arg(0, item),
+                            AfterTarget => prefix.insert_arg(1, item),
+                            Append => prefix.args.push(item),
+                            ExpectedArgument(i) => prefix.insert_arg(*i, item),
                         }
-                    });
-                    root.set_traversing(&self.ast_crumbs, new_ast?)
-                }))
-            }
+                        Ok(prefix.into_ast())
+                    }
+                });
+                root.set_traversing(&self.ast_crumbs, new_ast?)
+            })),
             node::Kind::Token => None,
             _ => match &self.ast_crumbs.last() {
                 // Operators should be treated in a special way - setting functions in place in
@@ -176,21 +166,18 @@ impl<'a, T> Implementation for node::Ref<'a, T> {
                 | Some(Crumb::SectionRight(SectionRightCrumb::Opr))
                 | Some(Crumb::SectionSides(SectionSidesCrumb)) => None,
                 _ => Some(Box::new(move |root, new| {
-                    modify_preserving_id(root, |root| {
-                        root.set_traversing(&self.ast_crumbs, new)
-                    })
+                    modify_preserving_id(root, |root| root.set_traversing(&self.ast_crumbs, new))
                 })),
             },
         }
     }
 
+
     fn erase_impl(&self) -> Option<EraseOperation> {
-        if (self.node.kind.is_argument() || self.node.kind.is_this())
-            && self.node.kind.removable()
+        if (self.node.kind.is_argument() || self.node.kind.is_this()) && self.node.kind.removable()
         {
             Some(Box::new(move |root| {
-                let parent_crumb =
-                    &self.ast_crumbs[..self.ast_crumbs.len() - 1];
+                let parent_crumb = &self.ast_crumbs[..self.ast_crumbs.len() - 1];
                 let ast = root.get_traversing(parent_crumb)?;
                 let new_ast = modify_preserving_id(ast, |ast| {
                     if let Some(mut infix) = ast::opr::Chain::try_new(&ast) {
@@ -204,8 +191,7 @@ impl<'a, T> Implementation for node::Ref<'a, T> {
                         }
                         Ok(infix.into_ast())
                     } else {
-                        let mut prefix =
-                            ast::prefix::Chain::from_ast_non_strict(&ast);
+                        let mut prefix = ast::prefix::Chain::from_ast_non_strict(&ast);
                         prefix.args.pop();
                         Ok(prefix.into_ast())
                     }
@@ -223,9 +209,7 @@ impl<'a, T> Implementation for node::Ref<'a, T> {
 /// To keep nodes consistent, we don't want to have the changed ast-id being changed, so this
 /// functions wrap given `modifier` and restore old id in returned AST.
 fn modify_preserving_id<F>(ast: &Ast, modifier: F) -> FallibleResult<Ast>
-where
-    F: FnOnce(Ast) -> FallibleResult<Ast>,
-{
+where F: FnOnce(Ast) -> FallibleResult<Ast> {
     let ast_id = ast.id;
     let ast = ast.with_new_id();
     let new_ast = modifier(ast)?;
@@ -235,6 +219,7 @@ where
         Ok(new_ast)
     }
 }
+
 
 // =============
 // === Tests ===
@@ -263,9 +248,9 @@ mod test {
     fn actions_in_span_tree() {
         #[derive(Debug)]
         struct Case {
-            expr: &'static str,
-            span: Range<usize>,
-            action: Action,
+            expr:     &'static str,
+            span:     Range<usize>,
+            action:   Action,
             expected: &'static str,
         }
 
@@ -273,41 +258,23 @@ mod test {
             fn run(&self, parser: &Parser) {
                 let ast = parser.parse_line_ast(self.expr).unwrap();
                 let ast_id = ast.id;
-                let tree =
-                    ast.generate_tree(&context::Empty).unwrap(): SpanTree;
+                let tree = ast.generate_tree(&context::Empty).unwrap(): SpanTree;
                 let span_begin = Index::new(self.span.start);
                 let span_end = Index::new(self.span.end);
                 let span = Span::from_indices(span_begin, span_end);
                 let node = tree.root_ref().find_by_span(&span);
                 let node = node.expect(
-                    format!(
-                        "Invalid case {:?}: no node with span {:?}",
-                        self, span
-                    )
-                    .as_str(),
+                    format!("Invalid case {:?}: no node with span {:?}", self, span).as_str(),
                 );
-                let arg = Ast::new(
-                    ast::Var {
-                        name: "foo".to_string(),
-                    },
-                    None,
-                );
+                let arg = Ast::new(ast::Var { name: "foo".to_string() }, None);
                 let result = match &self.action {
                     Set => node.set(&ast, arg),
                     Erase => node.erase(&ast),
                 }
                 .unwrap();
                 let result_repr = result.repr();
-                assert_eq!(
-                    result_repr, self.expected,
-                    "Wrong answer for case {:?}",
-                    self
-                );
-                assert_eq!(
-                    ast_id, result.id,
-                    "Changed AST id in case {:?}",
-                    self
-                );
+                assert_eq!(result_repr, self.expected, "Wrong answer for case {:?}", self);
+                assert_eq!(ast_id, result.id, "Changed AST id in case {:?}", self);
             }
         }
 
@@ -370,30 +337,24 @@ mod test {
     fn possible_actions_in_span_tree() {
         #[derive(Debug)]
         struct Case {
-            expr: &'static str,
-            span: Range<usize>,
+            expr:     &'static str,
+            span:     Range<usize>,
             expected: &'static [Action],
         }
 
         impl Case {
             fn run(&self, parser: &Parser) {
                 let ast = parser.parse_line_ast(self.expr).unwrap();
-                let tree: SpanTree =
-                    ast.generate_tree(&context::Empty).unwrap();
+                let tree: SpanTree = ast.generate_tree(&context::Empty).unwrap();
                 let span_begin = Index::new(self.span.start);
                 let span_end = Index::new(self.span.end);
                 let span = Span::from_indices(span_begin, span_end);
                 let node = tree.root_ref().find_by_span(&span);
                 let node = node.expect(
-                    format!(
-                        "Invalid case {:?}: no node with span {:?}",
-                        self, span
-                    )
-                    .as_str(),
+                    format!("Invalid case {:?}: no node with span {:?}", self, span).as_str(),
                 );
 
-                let expected: HashSet<Action> =
-                    self.expected.iter().cloned().collect();
+                let expected: HashSet<Action> = self.expected.iter().cloned().collect();
                 for action in &[Set, Erase] {
                     assert_eq!(
                         node.is_action_available(*action),
@@ -406,156 +367,36 @@ mod test {
             }
         }
         let cases: &[Case] = &[
-            Case {
-                expr: "abc",
-                span: 0..3,
-                expected: &[Set],
-            },
-            Case {
-                expr: "a + b",
-                span: 0..0,
-                expected: &[Set],
-            },
-            Case {
-                expr: "a + b",
-                span: 0..1,
-                expected: &[Set],
-            },
-            Case {
-                expr: "a + b",
-                span: 1..1,
-                expected: &[Set],
-            },
-            Case {
-                expr: "a + b",
-                span: 2..3,
-                expected: &[],
-            },
-            Case {
-                expr: "a + b",
-                span: 4..5,
-                expected: &[Set],
-            },
-            Case {
-                expr: "a + b",
-                span: 5..5,
-                expected: &[Set],
-            },
-            Case {
-                expr: "a + b + c",
-                span: 0..0,
-                expected: &[Set],
-            },
-            Case {
-                expr: "a + b + c",
-                span: 0..1,
-                expected: &[Set, Erase],
-            },
-            Case {
-                expr: "a + b + c",
-                span: 1..1,
-                expected: &[Set],
-            },
-            Case {
-                expr: "a + b + c",
-                span: 4..5,
-                expected: &[Set, Erase],
-            },
-            Case {
-                expr: "a + b + c",
-                span: 5..5,
-                expected: &[Set],
-            },
-            Case {
-                expr: "a + b + c",
-                span: 8..9,
-                expected: &[Set, Erase],
-            },
-            Case {
-                expr: "a + b + c",
-                span: 9..9,
-                expected: &[Set],
-            },
-            Case {
-                expr: "f a b",
-                span: 0..1,
-                expected: &[Set],
-            },
-            Case {
-                expr: "f a b",
-                span: 2..2,
-                expected: &[Set],
-            },
-            Case {
-                expr: "f a b",
-                span: 2..3,
-                expected: &[Set, Erase],
-            },
-            Case {
-                expr: "f a b",
-                span: 3..3,
-                expected: &[Set],
-            },
-            Case {
-                expr: "f a b",
-                span: 4..5,
-                expected: &[Set, Erase],
-            },
-            Case {
-                expr: "f a b",
-                span: 5..5,
-                expected: &[Set],
-            },
-            Case {
-                expr: "f a",
-                span: 2..3,
-                expected: &[Set],
-            },
-            Case {
-                expr: "if a then b",
-                span: 3..4,
-                expected: &[Set],
-            },
-            Case {
-                expr: "if a then b",
-                span: 10..11,
-                expected: &[Set],
-            },
-            Case {
-                expr: "(a + b)",
-                span: 0..1,
-                expected: &[],
-            },
-            Case {
-                expr: "[a,b]",
-                span: 0..1,
-                expected: &[],
-            },
-            Case {
-                expr: "[a,b]",
-                span: 4..5,
-                expected: &[],
-            },
-            Case {
-                expr: "(a + b + c)",
-                span: 5..6,
-                expected: &[Set, Erase],
-            },
-            Case {
-                expr: "(a",
-                span: 1..2,
-                expected: &[Set],
-            },
-            Case {
-                expr: "(a",
-                span: 0..1,
-                expected: &[],
-            },
-            Case {
-                expr: "(a + b + c",
-                span: 5..6,
-                expected: &[Set, Erase],
-            },
+            Case { expr: "abc", span: 0..3, expected: &[Set] },
+            Case { expr: "a + b", span: 0..0, expected: &[Set] },
+            Case { expr: "a + b", span: 0..1, expected: &[Set] },
+            Case { expr: "a + b", span: 1..1, expected: &[Set] },
+            Case { expr: "a + b", span: 2..3, expected: &[] },
+            Case { expr: "a + b", span: 4..5, expected: &[Set] },
+            Case { expr: "a + b", span: 5..5, expected: &[Set] },
+            Case { expr: "a + b + c", span: 0..0, expected: &[Set] },
+            Case { expr: "a + b + c", span: 0..1, expected: &[Set, Erase] },
+            Case { expr: "a + b + c", span: 1..1, expected: &[Set] },
+            Case { expr: "a + b + c", span: 4..5, expected: &[Set, Erase] },
+            Case { expr: "a + b + c", span: 5..5, expected: &[Set] },
+            Case { expr: "a + b + c", span: 8..9, expected: &[Set, Erase] },
+            Case { expr: "a + b + c", span: 9..9, expected: &[Set] },
+            Case { expr: "f a b", span: 0..1, expected: &[Set] },
+            Case { expr: "f a b", span: 2..2, expected: &[Set] },
+            Case { expr: "f a b", span: 2..3, expected: &[Set, Erase] },
+            Case { expr: "f a b", span: 3..3, expected: &[Set] },
+            Case { expr: "f a b", span: 4..5, expected: &[Set, Erase] },
+            Case { expr: "f a b", span: 5..5, expected: &[Set] },
+            Case { expr: "f a", span: 2..3, expected: &[Set] },
+            Case { expr: "if a then b", span: 3..4, expected: &[Set] },
+            Case { expr: "if a then b", span: 10..11, expected: &[Set] },
+            Case { expr: "(a + b)", span: 0..1, expected: &[] },
+            Case { expr: "[a,b]", span: 0..1, expected: &[] },
+            Case { expr: "[a,b]", span: 4..5, expected: &[] },
+            Case { expr: "(a + b + c)", span: 5..6, expected: &[Set, Erase] },
+            Case { expr: "(a", span: 1..2, expected: &[Set] },
+            Case { expr: "(a", span: 0..1, expected: &[] },
+            Case { expr: "(a + b + c", span: 5..6, expected: &[Set, Erase] },
         ];
         let parser = Parser::new_or_panic();
         for case in cases {
@@ -580,30 +421,15 @@ mod test {
         let ast_id = ast.id;
         assert_eq!(ast.repr(), "foo bar");
 
-        let after = tree
-            .root_ref()
-            .child(1)
-            .unwrap()
-            .set(&ast, baz.clone_ref())
-            .unwrap();
+        let after = tree.root_ref().child(1).unwrap().set(&ast, baz.clone_ref()).unwrap();
         assert_eq!(after.repr(), "foo baz");
         assert_eq!(after.id, ast_id);
 
-        let after = tree
-            .root_ref()
-            .child(2)
-            .unwrap()
-            .set(&ast, baz.clone_ref())
-            .unwrap();
+        let after = tree.root_ref().child(2).unwrap().set(&ast, baz.clone_ref()).unwrap();
         assert_eq!(after.repr(), "foo bar baz");
         assert_eq!(after.id, ast_id);
 
-        let after = tree
-            .root_ref()
-            .child(3)
-            .unwrap()
-            .set(&ast, baz.clone_ref())
-            .unwrap();
+        let after = tree.root_ref().child(3).unwrap().set(&ast, baz.clone_ref()).unwrap();
         assert_eq!(after.repr(), "foo bar _ baz");
         assert_eq!(after.id, ast_id);
 
@@ -621,21 +447,11 @@ mod test {
         let ast_id = ast.id;
         assert_eq!(ast.repr(), "Main . foo");
 
-        let after = tree
-            .root_ref()
-            .child(3)
-            .unwrap()
-            .set(&ast, baz.clone_ref())
-            .unwrap();
+        let after = tree.root_ref().child(3).unwrap().set(&ast, baz.clone_ref()).unwrap();
         assert_eq!(after.repr(), "Main . foo baz");
         assert_eq!(after.id, ast_id);
 
-        let after = tree
-            .root_ref()
-            .child(4)
-            .unwrap()
-            .set(&ast, baz.clone_ref())
-            .unwrap();
+        let after = tree.root_ref().child(4).unwrap().set(&ast, baz.clone_ref()).unwrap();
         assert_eq!(after.repr(), "Main . foo _ baz");
         assert_eq!(after.id, ast_id);
     }

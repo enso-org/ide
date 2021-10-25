@@ -15,6 +15,8 @@ use std::time::Duration;
 
 pub use initializer::Initializer;
 
+
+
 // =================
 // === Constants ===
 // =================
@@ -24,6 +26,8 @@ pub const BACKEND_DISCONNECTED_MESSAGE: &str =
     "Connection to the backend has been lost. Please try restarting IDE.";
 
 const ALIVE_LOG_INTERVAL_SEC: u64 = 60;
+
+
 
 // ===========
 // === Ide ===
@@ -37,7 +41,7 @@ const ALIVE_LOG_INTERVAL_SEC: u64 = 60;
 pub struct Ide {
     application: Application,
     integration: Integration,
-    network: frp::Network,
+    network:     frp::Network,
 }
 
 impl Ide {
@@ -49,12 +53,7 @@ impl Ide {
     ) -> Self {
         let integration = integration::Integration::new(controller, view);
         let network = frp::Network::new("Ide");
-        Ide {
-            application,
-            integration,
-            network,
-        }
-        .init()
+        Ide { application, integration, network }.init()
     }
 
     fn init(self) -> Self {
@@ -81,11 +80,7 @@ impl Ide {
         async move {
             loop {
                 let value = AnonymousData(input_event_received.value());
-                analytics::remote_log_value(
-                    "alive",
-                    "input_event_received",
-                    value,
-                );
+                analytics::remote_log_value("alive", "input_event_received", value);
                 on_log_sent.emit(());
                 sleep(Duration::from_secs(ALIVE_LOG_INTERVAL_SEC)).await;
             }
@@ -94,11 +89,8 @@ impl Ide {
 }
 
 /// The Path of the module initially opened after opening project in IDE.
-pub fn initial_module_path(
-    project: &model::Project,
-) -> FallibleResult<model::module::Path> {
-    model::module::Path::from_name_segments(
-        project.project_content_root_id(),
-        &[INITIAL_MODULE_NAME],
-    )
+pub fn initial_module_path(project: &model::Project) -> FallibleResult<model::module::Path> {
+    model::module::Path::from_name_segments(project.project_content_root_id(), &[
+        INITIAL_MODULE_NAME,
+    ])
 }

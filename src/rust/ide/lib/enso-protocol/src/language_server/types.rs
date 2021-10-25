@@ -2,12 +2,16 @@
 
 use super::*;
 
+
+
 // =============
 // === Event ===
 // =============
 
 /// Event emitted by the Language Server `Client`.
 pub type Event = json_rpc::handler::Event<Notification>;
+
+
 
 // ============
 // === Path ===
@@ -18,7 +22,7 @@ pub type Event = json_rpc::handler::Event<Notification>;
 #[serde(rename_all = "camelCase")]
 pub struct Path {
     /// Path's root id.
-    pub root_id: Uuid,
+    pub root_id:  Uuid,
     /// Path's segments.
     pub segments: Vec<String>,
 }
@@ -28,13 +32,9 @@ impl From<&FileSystemObject> for Path {
         match file_system_object {
             FileSystemObject::Directory { name, path } => path.append_im(name),
             FileSystemObject::File { name, path } => path.append_im(name),
-            FileSystemObject::DirectoryTruncated { name, path } => {
-                path.append_im(name)
-            }
+            FileSystemObject::DirectoryTruncated { name, path } => path.append_im(name),
             FileSystemObject::Other { name, path } => path.append_im(name),
-            FileSystemObject::SymlinkLoop { name, path, .. } => {
-                path.append_im(name)
-            }
+            FileSystemObject::SymlinkLoop { name, path, .. } => path.append_im(name),
         }
     }
 }
@@ -87,14 +87,8 @@ impl Path {
     }
 
     /// Constructs a new path from given root ID and segments.
-    pub fn new(
-        root_id: Uuid,
-        segments: impl IntoIterator<Item: AsRef<str>>,
-    ) -> Path {
-        Path {
-            root_id,
-            segments: segments.into_iter().map(|s| s.as_ref().into()).collect(),
-        }
+    pub fn new(root_id: Uuid, segments: impl IntoIterator<Item: AsRef<str>>) -> Path {
+        Path { root_id, segments: segments.into_iter().map(|s| s.as_ref().into()).collect() }
     }
 
     /// Constructs a new path containing a content root only.
@@ -103,6 +97,8 @@ impl Path {
         Path { root_id, segments }
     }
 }
+
+
 
 // ====================
 // === Notification ===
@@ -163,8 +159,10 @@ pub enum Notification {
 #[serde(rename_all = "camelCase")]
 pub struct ExecutionFailed {
     pub context_id: ContextId,
-    pub message: String,
+    pub message:    String,
 }
+
+
 
 // =======================
 // === ExecutionUpdate ===
@@ -177,7 +175,7 @@ pub struct ExecutionFailed {
 #[serde(rename_all = "camelCase")]
 pub struct ExpressionUpdates {
     pub context_id: ContextId,
-    pub updates: Vec<ExpressionUpdate>,
+    pub updates:    Vec<ExpressionUpdate>,
 }
 
 /// An update about the computed expression.
@@ -185,13 +183,13 @@ pub struct ExpressionUpdates {
 #[allow(missing_docs)]
 #[serde(rename_all = "camelCase")]
 pub struct ExpressionUpdate {
-    pub expression_id: ExpressionId,
+    pub expression_id:  ExpressionId,
     #[serde(rename = "type")] // To avoid collision with the `type` keyword.
-    pub typename: Option<String>,
+    pub typename:       Option<String>,
     pub method_pointer: Option<SuggestionId>,
     pub profiling_info: Vec<ProfilingInfo>,
-    pub from_cache: bool,
-    pub payload: ExpressionUpdatePayload,
+    pub from_cache:     bool,
+    pub payload:        ExpressionUpdatePayload,
 }
 
 /// Profiling information on an executed expression. It is implemented as a union as additional
@@ -217,9 +215,11 @@ pub enum ExpressionUpdatePayload {
     #[serde(rename_all = "camelCase")]
     Panic {
         message: String,
-        trace: Vec<ExpressionId>,
+        trace:   Vec<ExpressionId>,
     },
 }
+
+
 
 // =======================
 // === ExecutionStatus ===
@@ -230,7 +230,7 @@ pub enum ExpressionUpdatePayload {
 #[allow(missing_docs)]
 #[serde(rename_all = "camelCase")]
 pub struct ExecutionStatus {
-    pub context_id: ContextId,
+    pub context_id:  ContextId,
     pub diagnostics: Vec<Diagnostic>,
 }
 
@@ -255,12 +255,12 @@ pub enum DiagnosticType {
 #[allow(missing_docs)]
 #[serde(rename_all = "camelCase")]
 pub struct Diagnostic {
-    kind: DiagnosticType,
-    message: String,
-    path: Option<Path>,
-    location: Option<TextRange>,
+    kind:          DiagnosticType,
+    message:       String,
+    path:          Option<Path>,
+    location:      Option<TextRange>,
     expression_id: Option<ExpressionId>,
-    stack: Vec<StackTraceElement>,
+    stack:         Vec<StackTraceElement>,
 }
 
 /// The frame of the stack trace. If the error refer to a builtin node, the path and location fields
@@ -270,9 +270,11 @@ pub struct Diagnostic {
 #[serde(rename_all = "camelCase")]
 pub struct StackTraceElement {
     function_name: String,
-    path: Option<Path>,
-    location: Option<TextRange>,
+    path:          Option<Path>,
+    location:      Option<TextRange>,
 }
+
+
 
 // =================================
 // === File System Notifications ===
@@ -297,6 +299,8 @@ pub enum FileEventKind {
     Modified,
 }
 
+
+
 // ======================
 // === FileAttributes ===
 // ======================
@@ -306,16 +310,16 @@ pub enum FileEventKind {
 #[serde(rename_all = "camelCase")]
 pub struct FileAttributes {
     /// When the file was created.
-    pub creation_time: UTCDateTime,
+    pub creation_time:      UTCDateTime,
     /// When the file was last accessed.
-    pub last_access_time: UTCDateTime,
+    pub last_access_time:   UTCDateTime,
     /// When the file was last modified.
     pub last_modified_time: UTCDateTime,
     /// What kind of file is this.
-    pub kind: FileSystemObject,
+    pub kind:               FileSystemObject,
     /// Size of the file in bytes.
     /// (size of files not being `RegularFile`s is unspecified).
-    pub byte_size: u64,
+    pub byte_size:          u64,
 }
 
 /// A representation of what kind of type a filesystem object can be.
@@ -346,8 +350,8 @@ pub enum FileSystemObject {
     },
     /// Represents a symbolic link that creates a loop.
     SymlinkLoop {
-        name: String,
-        path: Path,
+        name:   String,
+        path:   Path,
         /// A target of the symlink. Since it is a loop, target is a subpath of the symlink.
         target: Path,
     },
@@ -356,14 +360,12 @@ pub enum FileSystemObject {
 impl FileSystemObject {
     /// Creates a new Directory variant.
     pub fn new_directory(path: Path) -> Option<Self> {
-        path.split()
-            .map(|(path, name)| Self::Directory { name, path })
+        path.split().map(|(path, name)| Self::Directory { name, path })
     }
 
     /// Creates a new DirectoryTruncated variant.
     pub fn new_directory_truncated(path: Path) -> Option<Self> {
-        path.split()
-            .map(|(path, name)| Self::DirectoryTruncated { name, path })
+        path.split().map(|(path, name)| Self::DirectoryTruncated { name, path })
     }
 
     /// Creates a new File variant.
@@ -378,11 +380,7 @@ impl FileSystemObject {
 
     /// Creates a new SymlinkLoop variant.
     pub fn new_symlink_loop(path: Path, target: Path) -> Option<Self> {
-        path.split().map(|(path, name)| Self::SymlinkLoop {
-            name,
-            path,
-            target,
-        })
+        path.split().map(|(path, name)| Self::SymlinkLoop { name, path, target })
     }
 
     /// Take the name of this file system object, consuming self.
@@ -396,6 +394,8 @@ impl FileSystemObject {
         }
     }
 }
+
+
 
 // =====================
 // === Content Roots ===
@@ -411,8 +411,8 @@ pub enum ContentRoot {
     #[serde(rename_all = "camelCase")]
     Project { id: Uuid },
     /// This content root points to the system root (`/`) on unix systems, or to a drive root on
-    /// Windows. In Windows' case, there may be multiple `Root` entries corresponding to the various
-    /// drives.
+    /// Windows. In Windows' case, there may be multiple `Root` entries corresponding to the
+    /// various drives.
     #[serde(rename_all = "camelCase")]
     FileSystemRoot { id: Uuid, path: String },
     /// The user's home directory
@@ -420,12 +420,7 @@ pub enum ContentRoot {
     Home { id: Uuid },
     /// An Enso library location.
     #[serde(rename_all = "camelCase")]
-    Library {
-        id: Uuid,
-        namespace: String,
-        name: String,
-        version: String,
-    },
+    Library { id: Uuid, namespace: String, name: String, version: String },
     /// A content root that has been added by the IDE.
     #[serde(rename_all = "camelCase")]
     Custom { id: Uuid },
@@ -444,6 +439,8 @@ impl ContentRoot {
     }
 }
 
+
+
 // ================
 // === Position ===
 // ================
@@ -452,7 +449,7 @@ impl ContentRoot {
 #[derive(Hash, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(missing_docs)]
 pub struct Position {
-    pub line: usize,
+    pub line:      usize,
     pub character: usize,
 }
 
@@ -470,6 +467,8 @@ impls! { From + &From <Position> for enso_data::text::TextLocation { |position|
     }
 }}
 
+
+
 // =================
 // === TextRange ===
 // =================
@@ -479,7 +478,7 @@ impls! { From + &From <Position> for enso_data::text::TextLocation { |position|
 #[allow(missing_docs)]
 pub struct TextRange {
     pub start: Position,
-    pub end: Position,
+    pub end:   Position,
 }
 
 impls! { From + &From <Range<enso_data::text::TextLocation>> for TextRange { |range|
@@ -493,6 +492,8 @@ impls! { From + &From <TextRange> for Range<enso_data::text::TextLocation> { |ra
     range.start.into()..range.end.into()
 }}
 
+
+
 // ================
 // === TextEdit ===
 // ================
@@ -503,7 +504,7 @@ impls! { From + &From <TextRange> for Range<enso_data::text::TextLocation> { |ra
 #[allow(missing_docs)]
 pub struct TextEdit {
     pub range: TextRange,
-    pub text: String,
+    pub text:  String,
 }
 
 impl TextEdit {
@@ -515,72 +516,58 @@ impl TextEdit {
     /// ```
     /// # use enso_protocol::language_server::{TextEdit, Position, TextRange};
     /// # use enso_data::text::TextLocation;
-    /// let source     = "\n333<->🌊12345\n";
-    /// let target     = "\n333x🔥12345\n";
-    /// let diff       = TextEdit::from_prefix_postfix_differences(source,target);
+    /// let source = "\n333<->🌊12345\n";
+    /// let target = "\n333x🔥12345\n";
+    /// let diff = TextEdit::from_prefix_postfix_differences(source, target);
     /// let edit_range = TextRange {
-    ///     start : Position{line:1, character:3},
-    ///     end   : Position{line:1, character:7},
+    ///     start: Position { line: 1, character: 3 },
+    ///     end:   Position { line: 1, character: 7 },
     /// };
-    /// assert_eq!(diff, TextEdit{range:edit_range, text:"x🔥".to_string()});
+    /// assert_eq!(diff, TextEdit { range: edit_range, text: "x🔥".to_string() });
     ///
-    /// let source     = "1\n2\n";
-    /// let target     = "1\n3\n2\n";
-    /// let diff       = TextEdit::from_prefix_postfix_differences(source,target);
+    /// let source = "1\n2\n";
+    /// let target = "1\n3\n2\n";
+    /// let diff = TextEdit::from_prefix_postfix_differences(source, target);
     /// let edit_range = TextRange {
-    ///     start : Position{line:1, character:0},
-    ///     end   : Position{line:1, character:0},
+    ///     start: Position { line: 1, character: 0 },
+    ///     end:   Position { line: 1, character: 0 },
     /// };
-    /// assert_eq!(diff, TextEdit{range:edit_range, text:"3\n".to_string()});
+    /// assert_eq!(diff, TextEdit { range: edit_range, text: "3\n".to_string() });
     ///
-    /// let source     = "1\n2\n3\n";
-    /// let target     = "1\n3\n";
-    /// let diff       = TextEdit::from_prefix_postfix_differences(source,target);
+    /// let source = "1\n2\n3\n";
+    /// let target = "1\n3\n";
+    /// let diff = TextEdit::from_prefix_postfix_differences(source, target);
     /// let edit_range = TextRange {
-    ///     start : Position{line:1, character:0},
-    ///     end   : Position{line:2, character:0},
+    ///     start: Position { line: 1, character: 0 },
+    ///     end:   Position { line: 2, character: 0 },
     /// };
-    /// assert_eq!(diff, TextEdit{range:edit_range, text:"".to_string()});
+    /// assert_eq!(diff, TextEdit { range: edit_range, text: "".to_string() });
     /// ```
-    pub fn from_prefix_postfix_differences(
-        source: &str,
-        target: &str,
-    ) -> TextEdit {
+    pub fn from_prefix_postfix_differences(source: &str, target: &str) -> TextEdit {
         use enso_data::text::Index;
         use enso_data::text::TextLocation;
 
         let source_length = source.chars().count();
         let target_length = target.chars().count();
 
-        let common_prefix_length =
-            utils::string::common_prefix_length(source, target);
-        let common_postfix_length =
-            utils::string::common_postfix_length(source, target);
+        let common_prefix_length = utils::string::common_prefix_length(source, target);
+        let common_postfix_length = utils::string::common_postfix_length(source, target);
         let common_parts_length = common_prefix_length + common_postfix_length;
-        let overlaping_chars = common_parts_length
-            .saturating_sub(source_length.min(target_length));
+        let overlaping_chars = common_parts_length.saturating_sub(source_length.min(target_length));
         let prefix_length = common_prefix_length;
         let postfix_length = common_postfix_length - overlaping_chars;
 
         let source_start_index = Index::new(prefix_length);
         let source_end_index = Index::new(source_length - postfix_length);
 
-        let source_start_position =
-            TextLocation::from_index(source, source_start_index);
-        let source_end_position =
-            TextLocation::from_index(source, source_end_index);
+        let source_start_position = TextLocation::from_index(source, source_start_index);
+        let source_end_position = TextLocation::from_index(source, source_end_index);
         let source_text_range = source_start_position..source_end_position;
 
         let target_range = prefix_length..(target_length - postfix_length);
-        let target_text = target
-            .chars()
-            .skip(target_range.start)
-            .take(target_range.len());
+        let target_text = target.chars().skip(target_range.start).take(target_range.len());
 
-        TextEdit {
-            range: source_text_range.into(),
-            text: target_text.collect(),
-        }
+        TextEdit { range: source_text_range.into(), text: target_text.collect() }
     }
 
     /// Return the edit moved by the given number of lines.
@@ -588,33 +575,29 @@ impl TextEdit {
     /// Example:
     /// ```
     /// # use enso_protocol::language_server::{Position, TextRange, TextEdit};
-    /// let start = Position{line:0, character:4};
-    /// let end   = Position{line:23, character:7};
-    /// let range = TextRange{start,end};
-    /// let edit  = TextEdit{range,text:"Answer".to_string()};
+    /// let start = Position { line: 0, character: 4 };
+    /// let end = Position { line: 23, character: 7 };
+    /// let range = TextRange { start, end };
+    /// let edit = TextEdit { range, text: "Answer".to_string() };
     ///
     /// let moved = edit.clone().move_by_lines(42);
     ///
     /// assert_eq!(moved.range.start.line, 42);
-    /// assert_eq!(moved.range.end.line, 42+23);
+    /// assert_eq!(moved.range.end.line, 42 + 23);
     /// assert_eq!(moved.range.start.character, edit.range.start.character);
     /// assert_eq!(moved.range.end.character, edit.range.end.character);
     /// ```
     pub fn move_by_lines(self, lines: usize) -> TextEdit {
         let TextEdit { range, text } = self;
         let TextRange { start, end } = range;
-        let start = Position {
-            line: start.line + lines,
-            character: start.character,
-        };
-        let end = Position {
-            line: end.line + lines,
-            character: end.character,
-        };
+        let start = Position { line: start.line + lines, character: start.character };
+        let end = Position { line: end.line + lines, character: end.character };
         let range = TextRange { start, end };
         TextEdit { range, text }
     }
 }
+
+
 
 // ================
 // === FileEdit ===
@@ -625,11 +608,12 @@ impl TextEdit {
 #[serde(rename_all = "camelCase")]
 #[allow(missing_docs)]
 pub struct FileEdit {
-    pub path: Path,
-    pub edits: Vec<TextEdit>,
+    pub path:        Path,
+    pub edits:       Vec<TextEdit>,
     pub old_version: Sha3_224,
     pub new_version: Sha3_224,
 }
+
 
 // ========================
 // === ExecutionContext ===
@@ -651,7 +635,7 @@ pub struct VisualisationConfiguration {
     /// A qualified name of the module containing the expression which creates visualisation.
     pub visualisation_module: String,
     /// An enso lambda that will transform the data into expected format, i.e. `a -> a.json`.
-    pub expression: String,
+    pub expression:           String,
 }
 
 /// Used to enter deeper in the execution context stack. In general, all consequent stack items
@@ -669,9 +653,9 @@ pub struct LocalCall {
 #[allow(missing_docs)]
 pub struct MethodPointer {
     /// The fully qualified module name.
-    pub module: String,
+    pub module:          String,
     pub defined_on_type: String,
-    pub name: String,
+    pub name:            String,
 }
 
 /// Used for entering a method. The first item on the execution context stack should always be
@@ -680,8 +664,8 @@ pub struct MethodPointer {
 #[serde(rename_all = "camelCase")]
 #[allow(missing_docs)]
 pub struct ExplicitCall {
-    pub method_pointer: MethodPointer,
-    pub this_argument_expression: Option<String>,
+    pub method_pointer:                   MethodPointer,
+    pub this_argument_expression:         Option<String>,
     pub positional_arguments_expressions: Vec<String>,
 }
 
@@ -694,6 +678,7 @@ pub enum StackItem {
     LocalCall(LocalCall),
 }
 
+
 // ==============================
 // === CapabilityRegistration ===
 // ==============================
@@ -704,7 +689,7 @@ pub enum StackItem {
 pub struct CapabilityRegistration {
     /// Method is the name of the capability listed in
     /// https://github.com/enso-org/enso/blob/main/docs/language-server/protocol-language-server.md#capabilities
-    pub method: String,
+    pub method:           String,
     /// One of the enumerated `RegisterOptions` depending of `method`.
     pub register_options: RegisterOptions,
 }
@@ -714,54 +699,38 @@ impl CapabilityRegistration {
     pub fn create_receives_tree_updates(path: Path) -> Self {
         let method = "file/receivesTreeUpdates".to_string();
         let register_options = RegisterOptions::Path { path };
-        CapabilityRegistration {
-            method,
-            register_options,
-        }
+        CapabilityRegistration { method, register_options }
     }
 
     /// Create "text/canEdit" capability for path.
     pub fn create_can_edit_text_file(path: Path) -> Self {
         let method = "text/canEdit".to_string();
         let register_options = RegisterOptions::Path { path };
-        CapabilityRegistration {
-            method,
-            register_options,
-        }
+        CapabilityRegistration { method, register_options }
     }
 
     /// Create "executionContext/canModify" capability for path.
     pub fn create_can_modify_execution_context(context_id: Uuid) -> Self {
         let method = "executionContext/canModify".to_string();
-        let register_options =
-            RegisterOptions::ExecutionContextId { context_id };
-        CapabilityRegistration {
-            method,
-            register_options,
-        }
+        let register_options = RegisterOptions::ExecutionContextId { context_id };
+        CapabilityRegistration { method, register_options }
     }
 
     /// Create "executionContext/receivesUpdates" capability for path.
     pub fn create_receives_execution_context_updates(context_id: Uuid) -> Self {
         let method = "executionContext/receivesUpdates".to_string();
-        let register_options =
-            RegisterOptions::ExecutionContextId { context_id };
-        CapabilityRegistration {
-            method,
-            register_options,
-        }
+        let register_options = RegisterOptions::ExecutionContextId { context_id };
+        CapabilityRegistration { method, register_options }
     }
 
     /// Create "search/receivesSuggestionsDatabaseUpdates" capability
     pub fn create_receives_suggestions_database_updates() -> Self {
         let method = "search/receivesSuggestionsDatabaseUpdates".to_string();
         let register_options = RegisterOptions::None {};
-        CapabilityRegistration {
-            method,
-            register_options,
-        }
+        CapabilityRegistration { method, register_options }
     }
 }
+
 
 // =======================
 // === RegisterOptions ===
@@ -787,6 +756,7 @@ pub enum RegisterOptions {
     None {},
 }
 
+
 // ===========================
 // === Suggestion Database ===
 // ===========================
@@ -802,16 +772,16 @@ pub type SuggestionsDatabaseVersion = usize;
 #[serde(rename_all = "camelCase")]
 pub struct SuggestionEntryArgument {
     /// The argument name.
-    pub name: String,
+    pub name:          String,
     /// The argument type. String 'Builtins.Main.Any' is used to specify generic types.
-    pub repr_type: String,
+    pub repr_type:     String,
     /// Indicates whether the argument is lazy.
-    pub is_suspended: bool,
+    pub is_suspended:  bool,
     /// Flag indicating that the argument has default value
     ///
     /// Note: this is obviously redundant, however it is part of the API. It will be removed as
     /// a part of https://github.com/enso-org/enso/issues/1293
-    pub has_default: bool,
+    pub has_default:   bool,
     /// Optional default value.
     pub default_value: Option<String>,
 }
@@ -822,7 +792,7 @@ pub struct SuggestionEntryArgument {
 #[allow(missing_docs)]
 pub struct SuggestionEntryScope {
     pub start: Position,
-    pub end: Position,
+    pub end:   Position,
 }
 
 impls! { From + &From <RangeInclusive<enso_data::text::TextLocation>> for SuggestionEntryScope { |range|
@@ -855,48 +825,48 @@ pub enum SuggestionEntryType {
 pub enum SuggestionEntry {
     #[serde(rename_all = "camelCase")]
     Atom {
-        external_id: Option<Uuid>,
-        name: String,
-        module: String,
-        arguments: Vec<SuggestionEntryArgument>,
-        return_type: String,
-        documentation: Option<String>,
+        external_id:        Option<Uuid>,
+        name:               String,
+        module:             String,
+        arguments:          Vec<SuggestionEntryArgument>,
+        return_type:        String,
+        documentation:      Option<String>,
         documentation_html: Option<String>,
     },
     #[serde(rename_all = "camelCase")]
     Method {
-        external_id: Option<Uuid>,
-        name: String,
-        module: String,
-        arguments: Vec<SuggestionEntryArgument>,
-        self_type: String,
-        return_type: String,
-        documentation: Option<String>,
+        external_id:        Option<Uuid>,
+        name:               String,
+        module:             String,
+        arguments:          Vec<SuggestionEntryArgument>,
+        self_type:          String,
+        return_type:        String,
+        documentation:      Option<String>,
         documentation_html: Option<String>,
     },
     #[serde(rename_all = "camelCase")]
     Function {
         external_id: Option<Uuid>,
-        name: String,
-        module: String,
-        arguments: Vec<SuggestionEntryArgument>,
+        name:        String,
+        module:      String,
+        arguments:   Vec<SuggestionEntryArgument>,
         return_type: String,
-        scope: SuggestionEntryScope,
+        scope:       SuggestionEntryScope,
     },
     #[serde(rename_all = "camelCase")]
     Local {
         external_id: Option<Uuid>,
-        name: String,
-        module: String,
+        name:        String,
+        module:      String,
         return_type: String,
-        scope: SuggestionEntryScope,
+        scope:       SuggestionEntryScope,
     },
     #[serde(rename_all = "camelCase")]
     Module {
-        module: String,
-        documentation: Option<String>,
+        module:             String,
+        documentation:      Option<String>,
         documentation_html: Option<String>,
-        reexport: Option<String>,
+        reexport:           Option<String>,
     },
 }
 
@@ -918,9 +888,10 @@ impl SuggestionEntry {
 #[serde(rename_all = "camelCase")]
 #[allow(missing_docs)]
 pub struct SuggestionsDatabaseEntry {
-    pub id: SuggestionId,
+    pub id:         SuggestionId,
     pub suggestion: SuggestionEntry,
 }
+
 
 // === Suggestion Database Updates ===
 
@@ -935,33 +906,24 @@ pub enum FieldAction {
 #[serde(rename_all = "camelCase")]
 #[allow(missing_docs)]
 pub struct FieldUpdate<T> {
-    pub tag: FieldAction,
+    pub tag:   FieldAction,
     pub value: Option<T>,
 }
 
 impl<T> FieldUpdate<T> {
     /// Create a field update with `Set` tag.
     pub fn set(value: T) -> Self {
-        FieldUpdate {
-            tag: FieldAction::Set,
-            value: Some(value),
-        }
+        FieldUpdate { tag: FieldAction::Set, value: Some(value) }
     }
 
     /// Create a field update with `Remove` tag.
     pub fn remove() -> Self {
-        FieldUpdate {
-            tag: FieldAction::Remove,
-            value: None,
-        }
+        FieldUpdate { tag: FieldAction::Remove, value: None }
     }
 
     /// Maps the field update by applying `f` on the underlying value.
     pub fn map<U>(self, f: impl Fn(T) -> U) -> FieldUpdate<U> {
-        FieldUpdate {
-            tag: self.tag,
-            value: self.value.map(f),
-        }
+        FieldUpdate { tag: self.tag, value: self.value.map(f) }
     }
 
     /// Maps the field update by applying `f` on the underlying value, if `f` returns [`Ok`].
@@ -970,10 +932,7 @@ impl<T> FieldUpdate<T> {
         self,
         f: impl Fn(T) -> std::result::Result<U, E>,
     ) -> std::result::Result<FieldUpdate<U>, E> {
-        Ok(FieldUpdate {
-            tag: self.tag,
-            value: self.value.map(f).transpose()?,
-        })
+        Ok(FieldUpdate { tag: self.tag, value: self.value.map(f).transpose()? })
     }
 }
 
@@ -982,19 +941,16 @@ impl<T> FieldUpdate<T> {
 #[allow(missing_docs)]
 pub enum SuggestionArgumentUpdate {
     #[serde(rename_all = "camelCase")]
-    Add {
-        index: usize,
-        argument: SuggestionEntryArgument,
-    },
+    Add { index: usize, argument: SuggestionEntryArgument },
     #[serde(rename_all = "camelCase")]
     Remove { index: usize },
     #[serde(rename_all = "camelCase")]
     Modify {
-        index: usize,
-        name: Option<FieldUpdate<String>>,
-        repr_type: Option<FieldUpdate<String>>,
-        is_suspended: Option<FieldUpdate<bool>>,
-        has_default: Option<FieldUpdate<bool>>,
+        index:         usize,
+        name:          Option<FieldUpdate<String>>,
+        repr_type:     Option<FieldUpdate<String>>,
+        is_suspended:  Option<FieldUpdate<bool>>,
+        has_default:   Option<FieldUpdate<bool>>,
         default_value: Option<FieldUpdate<String>>,
     },
 }
@@ -1014,16 +970,13 @@ pub enum SuggestionsDatabaseUpdateKind {
 #[serde(tag = "type")]
 pub enum SuggestionsDatabaseUpdate {
     #[serde(rename_all = "camelCase")]
-    Add {
-        id: SuggestionId,
-        suggestion: SuggestionEntry,
-    },
+    Add { id: SuggestionId, suggestion: SuggestionEntry },
     #[serde(rename_all = "camelCase")]
     Remove { id: SuggestionId },
     #[serde(rename_all = "camelCase")]
     Modify {
-        id: SuggestionId,
-        external_id: Option<FieldUpdate<Uuid>>,
+        id:           SuggestionId,
+        external_id:  Option<FieldUpdate<Uuid>>,
         #[serde(flatten)]
         modification: Box<SuggestionsDatabaseModification>,
     },
@@ -1035,13 +988,13 @@ pub enum SuggestionsDatabaseUpdate {
 #[serde(tag = "type")]
 pub struct SuggestionsDatabaseModification {
     #[serde(default)]
-    pub arguments: Vec<SuggestionArgumentUpdate>,
-    pub module: Option<FieldUpdate<String>>,
-    pub self_type: Option<FieldUpdate<String>>,
-    pub return_type: Option<FieldUpdate<String>>,
-    pub documentation: Option<FieldUpdate<String>>,
+    pub arguments:          Vec<SuggestionArgumentUpdate>,
+    pub module:             Option<FieldUpdate<String>>,
+    pub self_type:          Option<FieldUpdate<String>>,
+    pub return_type:        Option<FieldUpdate<String>>,
+    pub documentation:      Option<FieldUpdate<String>>,
     pub documentation_html: Option<FieldUpdate<String>>,
-    pub scope: Option<FieldUpdate<SuggestionEntryScope>>,
+    pub scope:              Option<FieldUpdate<SuggestionEntryScope>>,
 }
 
 /// Notification about change in the suggestions database.
@@ -1049,7 +1002,7 @@ pub struct SuggestionsDatabaseModification {
 #[serde(rename_all = "camelCase")]
 #[allow(missing_docs)]
 pub struct SuggestionDatabaseUpdatesEvent {
-    pub updates: Vec<SuggestionsDatabaseUpdate>,
+    pub updates:         Vec<SuggestionsDatabaseUpdate>,
     pub current_version: SuggestionsDatabaseVersion,
 }
 
@@ -1066,12 +1019,12 @@ pub mod test {
         typename: impl Into<String>,
     ) -> ExpressionUpdate {
         ExpressionUpdate {
-            expression_id: id,
-            typename: Some(typename.into()),
+            expression_id:  id,
+            typename:       Some(typename.into()),
             method_pointer: None,
             profiling_info: default(),
-            from_cache: false,
-            payload: ExpressionUpdatePayload::Value,
+            from_cache:     false,
+            payload:        ExpressionUpdatePayload::Value,
         }
     }
 
@@ -1082,28 +1035,26 @@ pub mod test {
         method_pointer: SuggestionId,
     ) -> ExpressionUpdate {
         ExpressionUpdate {
-            expression_id: id,
-            typename: None,
+            expression_id:  id,
+            typename:       None,
             method_pointer: Some(method_pointer),
             profiling_info: default(),
-            from_cache: false,
-            payload: ExpressionUpdatePayload::Value,
+            from_cache:     false,
+            payload:        ExpressionUpdatePayload::Value,
         }
     }
 
     /// Generate [`ExpressionUpdate`] with an update for a single expression which resulted in
     /// a dataflow error.
-    pub fn value_update_with_dataflow_error(
-        id: ExpressionId,
-    ) -> ExpressionUpdate {
+    pub fn value_update_with_dataflow_error(id: ExpressionId) -> ExpressionUpdate {
         let trace = default();
         ExpressionUpdate {
-            expression_id: id,
-            typename: None,
+            expression_id:  id,
+            typename:       None,
             method_pointer: None,
             profiling_info: default(),
-            from_cache: false,
-            payload: ExpressionUpdatePayload::DataflowError { trace },
+            from_cache:     false,
+            payload:        ExpressionUpdatePayload::DataflowError { trace },
         }
     }
 
@@ -1116,12 +1067,12 @@ pub mod test {
         let trace = default();
         let message = message.into();
         ExpressionUpdate {
-            expression_id: id,
-            typename: None,
+            expression_id:  id,
+            typename:       None,
             method_pointer: None,
             profiling_info: default(),
-            from_cache: false,
-            payload: ExpressionUpdatePayload::Panic { trace, message },
+            from_cache:     false,
+            payload:        ExpressionUpdatePayload::Panic { trace, message },
         }
     }
 
@@ -1136,10 +1087,7 @@ pub mod test {
 
         let notification = serde_json::from_str::<Notification>(text).unwrap();
         let expected = Notification::ExecutionComplete {
-            context_id: ContextId::from_str(
-                "5a85125a-2dc5-45c8-84fc-679bc9fc4b00",
-            )
-            .unwrap(),
+            context_id: ContextId::from_str("5a85125a-2dc5-45c8-84fc-679bc9fc4b00").unwrap(),
         };
         assert_eq!(notification, expected);
     }

@@ -1,5 +1,6 @@
 //! Definition of the node input port component.
 
+
 use crate::prelude::*;
 
 use enso_frp as frp;
@@ -23,6 +24,8 @@ use crate::node::input::port;
 use crate::node::profiling;
 use crate::view;
 use crate::Type;
+
+
 
 // =================
 // === Constants ===
@@ -48,6 +51,8 @@ const PORT_PADDING_X: f32 = 4.0;
 /// Text size used for input area text.
 pub const TEXT_SIZE: f32 = 12.0;
 
+
+
 // ================
 // === SpanTree ===
 // ================
@@ -61,6 +66,8 @@ pub type SpanTree = span_tree::SpanTree<port::Model>;
 /// Mutable reference to port inside of a `SpanTree`.
 pub type PortRefMut<'a> = span_tree::node::RefMut<'a, port::Model>;
 
+
+
 // ==================
 // === Expression ===
 // ==================
@@ -70,8 +77,8 @@ pub type PortRefMut<'a> = span_tree::node::RefMut<'a, port::Model>;
 pub struct Expression {
     /// Visual code representation. It can contain names of missing arguments, and thus can differ
     /// from `code`.
-    pub viz_code: String,
-    pub code: String,
+    pub viz_code:  String,
+    pub code:      String,
     pub span_tree: SpanTree,
 }
 
@@ -94,12 +101,13 @@ impl Debug for Expression {
     }
 }
 
+
 // === Conversions ===
 
 /// Helper struct used for `Expression` conversions.
 #[derive(Debug, Default)]
 struct ExprConversion {
-    prev_tok_local_index: usize,
+    prev_tok_local_index:  usize,
     /// Index of the last traverse parent node in the `SpanTree`.
     last_parent_tok_index: usize,
 }
@@ -107,10 +115,7 @@ struct ExprConversion {
 impl ExprConversion {
     fn new(last_parent_tok_index: usize) -> Self {
         let prev_tok_local_index = default();
-        Self {
-            prev_tok_local_index,
-            last_parent_tok_index,
-        }
+        Self { prev_tok_local_index, last_parent_tok_index }
     }
 }
 
@@ -123,44 +128,38 @@ impl From<node::Expression> for Expression {
         let mut span_tree = t.input_span_tree.map(|_| port::Model::default());
         let mut viz_code = String::new();
         let code = t.code;
-        span_tree.root_ref_mut().dfs_with_layer_data(
-            ExprConversion::default(),
-            |node, info| {
-                let is_expected_arg = node.is_expected_argument();
-                let span = node.span();
-                let mut size = span.size.value;
-                let mut index = span.index.value;
-                let offset_from_prev_tok =
-                    node.offset.value - info.prev_tok_local_index;
-                info.prev_tok_local_index = node.offset.value + size;
-                viz_code += &" ".repeat(offset_from_prev_tok);
-                if node.children.is_empty() {
-                    viz_code += &code[index..index + size];
+        span_tree.root_ref_mut().dfs_with_layer_data(ExprConversion::default(), |node, info| {
+            let is_expected_arg = node.is_expected_argument();
+            let span = node.span();
+            let mut size = span.size.value;
+            let mut index = span.index.value;
+            let offset_from_prev_tok = node.offset.value - info.prev_tok_local_index;
+            info.prev_tok_local_index = node.offset.value + size;
+            viz_code += &" ".repeat(offset_from_prev_tok);
+            if node.children.is_empty() {
+                viz_code += &code[index..index + size];
+            }
+            index += shift;
+            if is_expected_arg {
+                if let Some(name) = node.name() {
+                    size = name.len();
+                    index += 1;
+                    shift += 1 + size;
+                    viz_code += " ";
+                    viz_code += name;
                 }
-                index += shift;
-                if is_expected_arg {
-                    if let Some(name) = node.name() {
-                        size = name.len();
-                        index += 1;
-                        shift += 1 + size;
-                        viz_code += " ";
-                        viz_code += name;
-                    }
-                }
-                let port = node.payload_mut();
-                port.local_index = index - info.last_parent_tok_index;
-                port.index = index;
-                port.length = size;
-                ExprConversion::new(index)
-            },
-        );
-        Self {
-            viz_code,
-            code,
-            span_tree,
-        }
+            }
+            let port = node.payload_mut();
+            port.local_index = index - info.last_parent_tok_index;
+            port.index = index;
+            port.length = size;
+            ExprConversion::new(index)
+        });
+        Self { viz_code, code, span_tree }
     }
 }
+
+
 
 // =============
 // === Model ===
@@ -219,16 +218,16 @@ ensogl::define_endpoints! {
 /// Internal model of the port area.
 #[derive(Debug)]
 pub struct Model {
-    logger: Logger,
-    app: Application,
+    logger:         Logger,
+    app:            Application,
     display_object: display::object::Instance,
-    ports: display::object::Instance,
-    header: display::object::Instance,
-    label: text::Area,
-    expression: RefCell<Expression>,
-    id_crumbs_map: RefCell<HashMap<ast::Id, Crumbs>>,
-    styles: StyleWatch,
-    styles_frp: StyleWatchFrp,
+    ports:          display::object::Instance,
+    header:         display::object::Instance,
+    label:          text::Area,
+    expression:     RefCell<Expression>,
+    id_crumbs_map:  RefCell<HashMap<ast::Id, Crumbs>>,
+    styles:         StyleWatch,
+    styles_frp:     StyleWatchFrp,
 }
 
 impl Model {
@@ -236,10 +235,8 @@ impl Model {
     pub fn new(logger: impl AnyLogger, app: &Application) -> Self {
         let logger = Logger::new_sub(&logger, "input_ports");
         let display_object = display::object::Instance::new(&logger);
-        let ports =
-            display::object::Instance::new(&Logger::new_sub(&logger, "ports"));
-        let header =
-            display::object::Instance::new(&Logger::new_sub(&logger, "header"));
+        let ports = display::object::Instance::new(&Logger::new_sub(&logger, "ports"));
+        let header = display::object::Instance::new(&Logger::new_sub(&logger, "header"));
         let app = app.clone_ref();
         let label = app.new_view::<text::Area>();
         let id_crumbs_map = default();
@@ -294,9 +291,7 @@ impl Model {
     /// Run the provided function on the target port if exists.
     fn with_port_mut(&self, crumbs: &Crumbs, f: impl FnOnce(PortRefMut)) {
         let mut expression = self.expression.borrow_mut();
-        if let Ok(node) =
-            expression.span_tree.root_ref_mut().get_descendant(crumbs)
-        {
+        if let Ok(node) = expression.span_tree.root_ref_mut().get_descendant(crumbs) {
             f(node)
         }
     }
@@ -308,13 +303,7 @@ impl Model {
 
     /// Update expression type for the particular `ast::Id`.
     fn set_expression_usage_type(&self, crumbs: &Crumbs, tp: &Option<Type>) {
-        if let Ok(port) = self
-            .expression
-            .borrow()
-            .span_tree
-            .root_ref()
-            .get_descendant(crumbs)
-        {
+        if let Ok(port) = self.expression.borrow().span_tree.root_ref().get_descendant(crumbs) {
             port.set_usage_type(tp)
         }
     }
@@ -322,10 +311,10 @@ impl Model {
 
 fn select_color(styles: &StyleWatch, tp: Option<&Type>) -> color::Lcha {
     let opt_color = tp.as_ref().map(|tp| type_coloring::compute(tp, styles));
-    opt_color.unwrap_or_else(|| {
-        styles.get_color(theme::code::types::any::selection).into()
-    })
+    opt_color.unwrap_or_else(|| styles.get_color(theme::code::types::any::selection).into())
 }
+
+
 
 // ============
 // === Area ===
@@ -339,7 +328,7 @@ fn select_color(styles: &StyleWatch, tp: Option<&Type>) -> color::Lcha {
 #[derive(Clone, CloneRef, Debug)]
 pub struct Area {
     pub frp: Frp,
-    model: Rc<Model>,
+    model:   Rc<Model>,
 }
 
 impl Deref for Area {
@@ -465,18 +454,15 @@ impl Area {
 
     pub fn port_type(&self, crumbs: &Crumbs) -> Option<Type> {
         let expression = self.model.expression.borrow();
-        expression
-            .span_tree
-            .root_ref()
-            .get_descendant(crumbs)
-            .ok()
-            .and_then(|t| t.tp.value())
+        expression.span_tree.root_ref().get_descendant(crumbs).ok().and_then(|t| t.tp.value())
     }
 
     pub fn get_crumbs_by_id(&self, id: ast::Id) -> Option<Crumbs> {
         self.model.id_crumbs_map.borrow().get(&id).cloned()
     }
 }
+
+
 
 // ==========================
 // === Expression Setting ===
@@ -489,17 +475,17 @@ impl Area {
 /// parent layer when building the nested one.
 #[derive(Clone, Debug)]
 struct PortLayerBuilder {
-    parent_frp: Option<port::FrpEndpoints>,
+    parent_frp:      Option<port::FrpEndpoints>,
     /// Parent port display object.
-    parent: display::object::Instance,
+    parent:          display::object::Instance,
     /// Information whether the parent port was a parensed expression.
     parent_parensed: bool,
     /// The number of glyphs the expression should be shifted. For example, consider `(foo bar)`,
     /// where expression `foo bar` does not get its own port, and thus a 1 glyph shift should be
     /// applied when considering its children.
-    shift: usize,
+    shift:           usize,
     /// The depth at which the current expression is, where root is at depth 0.
-    depth: usize,
+    depth:           usize,
 }
 
 impl PortLayerBuilder {
@@ -512,13 +498,7 @@ impl PortLayerBuilder {
         depth: usize,
     ) -> Self {
         let parent = parent.display_object().clone_ref();
-        Self {
-            parent_frp,
-            parent,
-            parent_parensed,
-            shift,
-            depth,
-        }
+        Self { parent_frp, parent, parent_parensed, shift, depth }
     }
 
     fn empty(parent: impl display::Object) -> Self {
@@ -548,17 +528,16 @@ impl Area {
         let mut is_header = true;
         let mut id_crumbs_map = HashMap::new();
         let builder = PortLayerBuilder::empty(&self.model.ports);
-        expression.root_ref_mut().dfs_with_layer_data(builder,|mut node,builder| {
+        expression.root_ref_mut().dfs_with_layer_data(builder, |mut node, builder| {
             let is_parensed = node.is_parensed();
-            let skip_opr    = if SKIP_OPERATIONS {
+            let skip_opr = if SKIP_OPERATIONS {
                 node.is_operation() && !is_header
             } else {
                 let crumb = ast::Crumb::Infix(ast::crumbs::InfixCrumb::Operator);
                 node.ast_crumbs.last().map(|t| t == &crumb) == Some(true)
             };
 
-            let not_a_port
-                =  node.is_positional_insertion_point()
+            let not_a_port = node.is_positional_insertion_point()
                 || node.is_chained()
                 || (node.is_root() && !node.children.is_empty())
                 || skip_opr
@@ -569,34 +548,38 @@ impl Area {
                 if DEBUG {
                     DEBUG!("New id mapping: {id} -> {node.crumbs:?}");
                 }
-                id_crumbs_map.insert(id,node.crumbs.clone_ref());
+                id_crumbs_map.insert(id, node.crumbs.clone_ref());
             }
 
             if DEBUG {
-                let indent  = " ".repeat(4*builder.depth);
+                let indent = " ".repeat(4 * builder.depth);
                 let skipped = if not_a_port { "(skip)" } else { "" };
-                DEBUG!("{indent}[{node.payload.index},{node.payload.length}] \
-                {skipped} {node.kind.variant_name():?} (tp: {node.tp():?}) (id: {node.ast_id:?})");
+                DEBUG!(
+                    "{indent}[{node.payload.index},{node.payload.length}] \
+                {skipped} {node.kind.variant_name():?} (tp: {node.tp():?}) (id: {node.ast_id:?})"
+                );
             }
 
             let new_parent = if not_a_port {
                 builder.parent.clone_ref()
             } else {
-                let port         = &mut node;
-                let index        = port.payload.local_index + builder.shift;
-                let size         = port.payload.length;
-                let unit         = GLYPH_WIDTH;
-                let width        = unit * size as f32;
+                let port = &mut node;
+                let index = port.payload.local_index + builder.shift;
+                let size = port.payload.length;
+                let unit = GLYPH_WIDTH;
+                let width = unit * size as f32;
                 let width_padded = width + 2.0 * PORT_PADDING_X;
-                let height       = 18.0;
-                let padded_size  = Vector2(width_padded,height);
-                let size         = Vector2(width,height);
-                let logger       = &self.model.logger;
-                let scene        = self.model.scene();
-                let port_shape   = port.payload_mut().init_shape(logger,scene,size,node::HEIGHT);
+                let height = 18.0;
+                let padded_size = Vector2(width_padded, height);
+                let size = Vector2(width, height);
+                let logger = &self.model.logger;
+                let scene = self.model.scene();
+                let port_shape = port.payload_mut().init_shape(logger, scene, size, node::HEIGHT);
 
                 port_shape.mod_position(|t| t.x = unit * index as f32);
-                if DEBUG { port_shape.mod_position(|t| t.y = DEBUG_PORT_OFFSET) }
+                if DEBUG {
+                    port_shape.mod_position(|t| t.y = DEBUG_PORT_OFFSET)
+                }
 
                 if is_header {
                     is_header = false;
@@ -605,14 +588,15 @@ impl Area {
                     builder.parent.add_child(&port_shape);
                 }
 
-                // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
-                let style_sheet        = &self.model.app.display.scene().style_sheet;
-                let styles             = StyleWatch::new(style_sheet);
-                let styles_frp         = &self.model.styles_frp;
+                // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for
+                // shape system (#795)
+                let style_sheet = &self.model.app.display.scene().style_sheet;
+                let styles = StyleWatch::new(style_sheet);
+                let styles_frp = &self.model.styles_frp;
                 let any_type_sel_color = styles_frp.get_color(theme::code::types::any::selection);
-                let crumbs             = port.crumbs.clone_ref();
-                let port_network       = &port.network;
-                let frp                = &self.frp.output;
+                let crumbs = port.crumbs.clone_ref();
+                let port_network = &port.network;
+                let frp = &self.frp.output;
 
                 frp::extend! { port_network
 
@@ -700,7 +684,7 @@ impl Area {
             }
             let new_parent_frp = Some(node.frp.output.clone_ref());
             let new_shift = if !not_a_port { 0 } else { builder.shift + node.payload.local_index };
-            builder.nested(new_parent,new_parent_frp,is_parensed,new_shift)
+            builder.nested(new_parent, new_parent_frp, is_parensed, new_shift)
         });
         *self.model.id_crumbs_map.borrow_mut() = id_crumbs_map;
     }
@@ -864,15 +848,11 @@ impl Area {
         *self.model.expression.borrow_mut() = expression;
         let expression = self.model.expression.borrow();
         expression.root_ref().dfs_with_layer_data((), |node, _| {
-            node.frp
-                .set_definition_type(node.tp().cloned().map(|t| t.into()));
+            node.frp.set_definition_type(node.tp().cloned().map(|t| t.into()));
         });
     }
 
-    pub(crate) fn set_expression(
-        &self,
-        new_expression: impl Into<node::Expression>,
-    ) {
+    pub(crate) fn set_expression(&self, new_expression: impl Into<node::Expression>) {
         let mut new_expression = Expression::from(new_expression.into());
         if DEBUG {
             DEBUG!("\n\n=====================\nSET EXPR: " new_expression.code)

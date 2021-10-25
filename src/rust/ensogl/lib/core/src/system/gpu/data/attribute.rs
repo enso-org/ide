@@ -14,6 +14,8 @@ use crate::system::gpu::types::*;
 use enso_shapely::newtype_prim;
 use std::collections::BTreeSet;
 
+
+
 // =============
 // === Types ===
 // =============
@@ -31,6 +33,8 @@ pub type BufferDirty = dirty::SharedBitField<u64, Box<dyn Fn()>>;
 
 /// Dirty flag indicating that the shape of the attribute (all buffers) was changed.
 pub type ShapeDirty = dirty::SharedBool<Box<dyn Fn()>>;
+
+
 
 // ======================
 // === AttributeScope ===
@@ -211,6 +215,8 @@ impl {
     }
 }}
 
+
+
 // =================
 // === Attribute ===
 // =================
@@ -221,7 +227,7 @@ impl {
 #[derive(CloneRef, Debug, Derivative)]
 #[derivative(Clone(bound = ""))]
 pub struct Attribute<T> {
-    index: InstanceIndex,
+    index:  InstanceIndex,
     buffer: Buffer<T>,
 }
 

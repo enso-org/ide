@@ -87,39 +87,25 @@ async fn ls_text_protocol_test() {
 
     // Setting execution context.
     let execution_context = client.create_execution_context().await;
-    let execution_context =
-        execution_context.expect("Couldn't create execution context.");
+    let execution_context = execution_context.expect("Couldn't create execution context.");
     let execution_context_id = execution_context.context_id;
 
     let module_path = module::Path::try_from(file.clone()).unwrap();
     let defined_on_type = "Main".to_string();
     let name = "main".to_string();
     let module = module::QualifiedName::new(project_name, module_path.id());
-    let method_pointer = MethodPointer {
-        module: module.into(),
-        defined_on_type,
-        name,
-    };
+    let method_pointer = MethodPointer { module: module.into(), defined_on_type, name };
     let positional_arguments_expressions = default();
     let this_argument_expression = default();
-    let explicit_call = ExplicitCall {
-        method_pointer,
-        positional_arguments_expressions,
-        this_argument_expression,
-    };
+    let explicit_call =
+        ExplicitCall { method_pointer, positional_arguments_expressions, this_argument_expression };
     let stack_item = StackItem::ExplicitCall(explicit_call);
-    let response = client
-        .push_to_execution_context(&execution_context_id, &stack_item)
-        .await;
+    let response = client.push_to_execution_context(&execution_context_id, &stack_item).await;
     response.expect("Couldn't push execution context.");
-    let response = client
-        .pop_from_execution_context(&execution_context_id)
-        .await;
+    let response = client.pop_from_execution_context(&execution_context_id).await;
     response.expect("Couldn't pop execution context.");
     // Push stackframe again for visualizations testing.
-    let response = client
-        .push_to_execution_context(&execution_context_id, &stack_item)
-        .await;
+    let response = client.push_to_execution_context(&execution_context_id, &stack_item).await;
     response.expect("Couldn't push execution context.");
 
     // Retrieving Database.
@@ -128,49 +114,31 @@ async fn ls_text_protocol_test() {
     let response = client.get_suggestions_database_version().await;
     response.expect("Couldn't get the suggestions database version");
 
+
     // Setting visualization.
     let visualisation_id = uuid::Uuid::new_v4();
-    let expression_id =
-        uuid::Uuid::parse_str("c553533e-a2b9-4305-9f12-b8fe7781f933");
+    let expression_id = uuid::Uuid::parse_str("c553533e-a2b9-4305-9f12-b8fe7781f933");
     let expression_id = expression_id.expect("Couldn't parse expression id.");
     let expression = "x -> here.encode x".to_string();
     let visualisation_module = "Test.Visualisation".to_string();
-    let visualisation_config = VisualisationConfiguration {
-        execution_context_id,
-        expression,
-        visualisation_module,
-    };
-    let response = client.attach_visualisation(
-        &visualisation_id,
-        &expression_id,
-        &visualisation_config,
-    );
+    let visualisation_config =
+        VisualisationConfiguration { execution_context_id, expression, visualisation_module };
+    let response =
+        client.attach_visualisation(&visualisation_id, &expression_id, &visualisation_config);
     response.await.expect("Couldn't attach visualisation.");
 
     let expression = "x -> here.incAndEncode".to_string();
     let visualisation_module = "Test.Visualisation".to_string();
-    let visualisation_config = VisualisationConfiguration {
-        execution_context_id,
-        expression,
-        visualisation_module,
-    };
-    let response = client
-        .modify_visualisation(&visualisation_id, &visualisation_config)
-        .await;
+    let visualisation_config =
+        VisualisationConfiguration { execution_context_id, expression, visualisation_module };
+    let response = client.modify_visualisation(&visualisation_id, &visualisation_config).await;
     response.expect("Couldn't modify visualisation.");
 
-    let response = client
-        .detach_visualisation(
-            &execution_context_id,
-            &visualisation_id,
-            &expression_id,
-        )
-        .await;
+    let response =
+        client.detach_visualisation(&execution_context_id, &visualisation_id, &expression_id).await;
     response.expect("Couldn't detach visualisation.");
 
-    let response = client
-        .destroy_execution_context(&execution_context_id)
-        .await;
+    let response = client.destroy_execution_context(&execution_context_id).await;
     response.expect("Couldn't destroy execution context.");
 
     // Asking for autocompletion.
@@ -187,111 +155,56 @@ async fn ls_text_protocol_test() {
     // assert!(!result.results.is_empty());
 
     // Operations on file.
-    let path = Path {
-        root_id,
-        segments: vec!["foo".into()],
-    };
+    let path = Path { root_id, segments: vec!["foo".into()] };
     let name = "text.txt".into();
     let object = FileSystemObject::File { name, path };
-    client
-        .create_file(&object)
-        .await
-        .expect("Couldn't create file.");
+    client.create_file(&object).await.expect("Couldn't create file.");
 
-    let file_path = Path {
-        root_id,
-        segments: vec!["foo".into(), "text.txt".into()],
-    };
+    let file_path = Path { root_id, segments: vec!["foo".into(), "text.txt".into()] };
     let contents = "Hello world!".to_string();
     let result = client.write_file(&file_path, &contents).await;
     result.expect("Couldn't write file.");
 
-    let response = client
-        .file_info(&file_path)
-        .await
-        .expect("Couldn't get status.");
+    let response = client.file_info(&file_path).await.expect("Couldn't get status.");
     assert_eq!(response.attributes.byte_size, 12);
     assert_eq!(response.attributes.kind, object);
 
-    let response = client
-        .file_list(&Path {
-            root_id,
-            segments: vec!["foo".into()],
-        })
-        .await;
+    let response = client.file_list(&Path { root_id, segments: vec!["foo".into()] }).await;
     let response = response.expect("Couldn't get file list");
-    assert!(response
-        .paths
-        .iter()
-        .any(|file_system_object| object == *file_system_object));
+    assert!(response.paths.iter().any(|file_system_object| object == *file_system_object));
 
-    let read = client
-        .read_file(&file_path)
-        .await
-        .expect("Couldn't read contents.");
+    let read = client.read_file(&file_path).await.expect("Couldn't read contents.");
     assert_eq!(contents, read.contents);
 
-    let new_path = Path {
-        root_id,
-        segments: vec!["foo".into(), "new_text.txt".into()],
-    };
-    client
-        .copy_file(&file_path, &new_path)
-        .await
-        .expect("Couldn't copy file");
-    let read = client
-        .read_file(&new_path)
-        .await
-        .expect("Couldn't read contents.");
+    let new_path = Path { root_id, segments: vec!["foo".into(), "new_text.txt".into()] };
+    client.copy_file(&file_path, &new_path).await.expect("Couldn't copy file");
+    let read = client.read_file(&new_path).await.expect("Couldn't read contents.");
     assert_eq!(contents, read.contents);
 
-    let move_path = Path {
-        root_id,
-        segments: vec!["foo".into(), "moved_text.txt".into()],
-    };
+    let move_path = Path { root_id, segments: vec!["foo".into(), "moved_text.txt".into()] };
     let file = client.file_exists(&move_path).await;
     let file = file.expect("Couldn't check if file exists.");
     if file.exists {
-        client
-            .delete_file(&move_path)
-            .await
-            .expect("Couldn't delete file");
+        client.delete_file(&move_path).await.expect("Couldn't delete file");
         let file = client.file_exists(&move_path).await;
         let file = file.expect("Couldn't check if file exists.");
         assert_eq!(file.exists, false);
     }
 
-    client
-        .move_file(&new_path, &move_path)
-        .await
-        .expect("Couldn't move file");
-    let read = client
-        .read_file(&move_path)
-        .await
-        .expect("Couldn't read contents");
+    client.move_file(&new_path, &move_path).await.expect("Couldn't move file");
+    let read = client.read_file(&move_path).await.expect("Couldn't read contents");
     assert_eq!(contents, read.contents);
 
-    let register_options = RegisterOptions::Path {
-        path: move_path.clone(),
-    };
+    let register_options = RegisterOptions::Path { path: move_path.clone() };
     let method = "text/canEdit".to_string();
-    let capability_registration = CapabilityRegistration {
-        method,
-        register_options,
-    };
+    let capability_registration = CapabilityRegistration { method, register_options };
     let response = client.open_text_file(&move_path).await;
     let response = response.expect("Couldn't open text file.");
     assert_eq!(response.content, "Hello world!");
     assert_eq!(response.write_capability, Some(capability_registration));
 
-    let start = Position {
-        line: 0,
-        character: 5,
-    };
-    let end = Position {
-        line: 0,
-        character: 5,
-    };
+    let start = Position { line: 0, character: 5 };
+    let end = Position { line: 0, character: 5 };
     let range = TextRange { start, end };
     let text = ",".to_string();
     let text_edit = TextEdit { range, text };
@@ -299,29 +212,15 @@ async fn ls_text_protocol_test() {
     let old_version = Sha3_224::new(b"Hello world!");
     let new_version = Sha3_224::new(b"Hello, world!");
     let path = move_path.clone();
-    let edit = FileEdit {
-        path,
-        edits,
-        old_version,
-        new_version: new_version.clone(),
-    };
-    client
-        .apply_text_file_edit(&edit)
-        .await
-        .expect("Couldn't apply edit.");
+    let edit = FileEdit { path, edits, old_version, new_version: new_version.clone() };
+    client.apply_text_file_edit(&edit).await.expect("Couldn't apply edit.");
 
     let saving_result = client.save_text_file(&move_path, &new_version).await;
     saving_result.expect("Couldn't save file.");
 
-    client
-        .close_text_file(&move_path)
-        .await
-        .expect("Couldn't close text file.");
+    client.close_text_file(&move_path).await.expect("Couldn't close text file.");
 
-    let read = client
-        .read_file(&move_path)
-        .await
-        .expect("Couldn't read contents.");
+    let read = client.read_file(&move_path).await.expect("Couldn't read contents.");
     assert_eq!("Hello, world!".to_string(), read.contents);
 }
 
@@ -342,51 +241,29 @@ async fn file_events() {
     let session = session.expect("Couldn't initialize session.");
     let root_id = session.content_roots[0].id();
 
-    let path = Path {
-        root_id,
-        segments: vec!["test.txt".into()],
-    };
+    let path = Path { root_id, segments: vec!["test.txt".into()] };
     let file = client.file_exists(&path).await;
     let file = file.expect("Couldn't check if file exists.");
     if file.exists {
-        client
-            .delete_file(&path)
-            .await
-            .expect("Couldn't delete file");
+        client.delete_file(&path).await.expect("Couldn't delete file");
         let file = client.file_exists(&path).await;
         let file = file.expect("Couldn't check if file exists.");
         assert_eq!(file.exists, false);
     }
 
-    let path = Path {
-        root_id,
-        segments: vec![],
-    };
-    let registration =
-        CapabilityRegistration::create_receives_tree_updates(path);
+    let path = Path { root_id, segments: vec![] };
+    let registration = CapabilityRegistration::create_receives_tree_updates(path);
     let method = registration.method;
     let options = registration.register_options;
     let capability = client.acquire_capability(&method, &options).await;
     capability.expect("Couldn't acquire receivesTreeUpdates capability.");
 
-    let path = Path {
-        root_id,
-        segments: vec![],
-    };
+    let path = Path { root_id, segments: vec![] };
     let name = "test.txt".into();
-    let object = FileSystemObject::File {
-        name,
-        path: path.clone(),
-    };
-    client
-        .create_file(&object)
-        .await
-        .expect("Couldn't create file.");
+    let object = FileSystemObject::File { name, path: path.clone() };
+    client.create_file(&object).await.expect("Couldn't create file.");
 
-    let path = Path {
-        root_id,
-        segments: vec!["test.txt".into()],
-    };
+    let path = Path { root_id, segments: vec!["test.txt".into()] };
     let kind = FileEventKind::Added;
     let notification = Notification::FileEvent(FileEvent { path, kind });
 
@@ -407,10 +284,7 @@ async fn setup_ide() -> controller::Ide {
     info!(logger, "Setting up the project.");
     let initializer = ide::Initializer::new(config);
     let error_msg = "Couldn't open project.";
-    initializer
-        .initialize_ide_controller()
-        .await
-        .expect(error_msg)
+    initializer.initialize_ide_controller().await.expect(error_msg)
 }
 
 //#[wasm_bindgen_test::wasm_bindgen_test(async)]
@@ -423,14 +297,9 @@ async fn file_operations_test() {
     let project = ide.current_project();
     info!(logger, "Got project: {project:?}");
     // Edit file using the text protocol
-    let path =
-        Path::new(project.json_rpc().project_root().id(), &["test_file.txt"]);
+    let path = Path::new(project.json_rpc().project_root().id(), &["test_file.txt"]);
     let contents = "Hello, 世界!".to_string();
-    let written = project
-        .json_rpc()
-        .write_file(&path, &contents)
-        .await
-        .unwrap();
+    let written = project.json_rpc().write_file(&path, &contents).await.unwrap();
     info!(logger, "Written: {written:?}");
     let read_back = project.json_rpc().read_file(&path).await.unwrap();
     info!(logger, "Read back: {read_back:?}");
@@ -440,11 +309,7 @@ async fn file_operations_test() {
     let other_contents = "Totally different treść.";
     let read_back = project.binary_rpc().read_file(&path).await.unwrap();
     assert_eq!(contents.as_bytes(), read_back.as_slice());
-    project
-        .binary_rpc()
-        .write_file(&path, other_contents.as_bytes())
-        .await
-        .unwrap();
+    project.binary_rpc().write_file(&path, other_contents.as_bytes()).await.unwrap();
     let read_back = project.binary_rpc().read_file(&path).await.unwrap();
     assert_eq!(other_contents.as_bytes(), read_back.as_slice());
 
@@ -467,38 +332,24 @@ async fn binary_visualization_updates_test_hlp() {
 
     let logger = Logger::new("Test");
     let module_path = ide::initial_module_path(&project).unwrap();
-    let method = module_path
-        .method_pointer(project.qualified_name(), MAIN_DEFINITION_NAME);
+    let method = module_path.method_pointer(project.qualified_name(), MAIN_DEFINITION_NAME);
     let module_qualified_name = project.qualified_module_name(&module_path);
     let module = project.module(module_path).await.unwrap();
     info!(logger, "Got module: {module:?}");
-    let graph_executed =
-        controller::ExecutedGraph::new(&logger, project, method)
-            .await
-            .unwrap();
+    let graph_executed = controller::ExecutedGraph::new(&logger, project, method).await.unwrap();
 
     let the_node = graph_executed.graph().nodes().unwrap()[0].info.clone();
-    graph_executed
-        .graph()
-        .set_expression(the_node.id(), "10+20")
-        .unwrap();
+    graph_executed.graph().set_expression(the_node.id(), "10+20").unwrap();
 
     // We must yield control for a moment, so the text edit is applied.
     sleep(Duration::from_millis(1)).await;
 
     info!(logger, "Main graph: {graph_executed:?}");
     info!(logger, "The code is: {module.ast().repr():?}");
-    info!(
-        logger,
-        "Main node: {the_node:?} with {the_node.expression().repr()}"
-    );
+    info!(logger, "Main node: {the_node:?} with {the_node.expression().repr()}");
 
-    let visualization =
-        Visualization::new(the_node.id(), expression, module_qualified_name);
-    let stream = graph_executed
-        .attach_visualization(visualization.clone())
-        .await
-        .unwrap();
+    let visualization = Visualization::new(the_node.id(), expression, module_qualified_name);
+    let stream = graph_executed.attach_visualization(visualization.clone()).await.unwrap();
     info!(logger, "Attached the visualization {visualization.id}");
     let mut stream = stream.boxed_local();
     let first_event = stream.next().await.unwrap(); // await update
@@ -511,8 +362,6 @@ async fn binary_visualization_updates_test_hlp() {
 fn binary_visualization_updates_test() {
     let executor = ide::executor::web::EventLoopExecutor::new_running();
     ide::executor::global::set_spawner(executor.spawner.clone());
-    executor
-        .spawn_local(binary_visualization_updates_test_hlp())
-        .unwrap();
+    executor.spawn_local(binary_visualization_updates_test_hlp()).unwrap();
     std::mem::forget(executor);
 }

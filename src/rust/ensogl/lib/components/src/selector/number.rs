@@ -18,6 +18,8 @@ use super::Bounds;
 use crate::component;
 use crate::selector::shape::*;
 
+
+
 // ===========
 // === FRP ===
 // ===========
@@ -49,31 +51,17 @@ impl component::Frp<Model> for Frp {
 
         model.show_background(true);
 
-        let base_frp = super::Frp::new(
-            model,
-            style,
-            network,
-            frp.resize.clone().into(),
-            mouse,
-        );
+        let base_frp = super::Frp::new(model, style, network, frp.resize.clone().into(), mouse);
 
-        let track_shape_system =
-            scene.shapes.shape_system(PhantomData::<track::Shape>);
+        let track_shape_system = scene.shapes.shape_system(PhantomData::<track::Shape>);
         track_shape_system.shape_system.set_pointer_events(false);
 
-        let background_click = relative_shape_down_position(
-            network,
-            model.app.display.scene(),
-            &model.background,
-        );
-        let track_click = relative_shape_down_position(
-            network,
-            model.app.display.scene(),
-            &model.track,
-        );
+        let background_click =
+            relative_shape_down_position(network, model.app.display.scene(), &model.background);
+        let track_click =
+            relative_shape_down_position(network, model.app.display.scene(), &model.track);
 
-        let style_track_color =
-            style.get_color(theme::component::slider::track::color);
+        let style_track_color = style.get_color(theme::component::slider::track::color);
 
         frp::extend! { network
 

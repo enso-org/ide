@@ -11,6 +11,8 @@ use ensogl_core::gui::component::ShapeView;
 // automatically used by the [`define_shape_system!`] macro, and it's not exposed to the developer.
 use ensogl_core::display::shape::system::DynamicShapeInternals;
 
+
+
 // =================
 // === Colorable ===
 // =================
@@ -20,6 +22,8 @@ pub trait ColorableShape: DynamicShapeInternals {
     /// Set the color of the shape.
     fn set_color(&self, color: color::Rgba);
 }
+
+
 
 // ===========
 // === Frp ===
@@ -43,6 +47,8 @@ ensogl_core::define_endpoints! {
     }
 }
 
+
+
 // =============
 // === Model ===
 // =============
@@ -61,6 +67,8 @@ impl<Shape: ColorableShape + 'static> Model<Shape> {
     }
 }
 
+
+
 // ===================
 // === ButtonState ===
 // ===================
@@ -77,18 +85,8 @@ pub struct ButtonState {
 
 impl ButtonState {
     /// Constructor.
-    pub fn new(
-        visible: bool,
-        toggled: bool,
-        hovered: bool,
-        pressed: bool,
-    ) -> Self {
-        Self {
-            visible,
-            toggled,
-            hovered,
-            pressed,
-        }
+    pub fn new(visible: bool, toggled: bool, hovered: bool, pressed: bool) -> Self {
+        Self { visible, toggled, hovered, pressed }
     }
 }
 
@@ -98,14 +96,11 @@ impl Default for ButtonState {
         let toggled = false;
         let hovered = false;
         let pressed = false;
-        Self {
-            visible,
-            toggled,
-            hovered,
-            pressed,
-        }
+        Self { visible, toggled, hovered, pressed }
     }
 }
+
+
 
 // ===================
 // === ColorScheme ===
@@ -116,10 +111,10 @@ impl Default for ButtonState {
 #[allow(missing_copy_implementations)]
 #[allow(missing_docs)]
 pub struct ColorScheme {
-    pub non_toggled: Option<color::Lcha>,
-    pub hovered: Option<color::Lcha>,
-    pub pressed: Option<color::Lcha>,
-    pub toggled: Option<color::Lcha>,
+    pub non_toggled:     Option<color::Lcha>,
+    pub hovered:         Option<color::Lcha>,
+    pub pressed:         Option<color::Lcha>,
+    pub toggled:         Option<color::Lcha>,
     pub toggled_hovered: Option<color::Lcha>,
     pub toggled_pressed: Option<color::Lcha>,
 }
@@ -140,6 +135,7 @@ impl ColorScheme {
         }
     }
 }
+
 
 // === Getters ===
 
@@ -170,6 +166,8 @@ impl ColorScheme {
     }
 }
 
+
+
 // =====================
 // === Toggle Button ===
 // =====================
@@ -181,7 +179,7 @@ impl ColorScheme {
 #[allow(missing_docs)]
 pub struct ToggleButton<Shape> {
     pub frp: Frp,
-    model: Rc<Model<Shape>>,
+    model:   Rc<Model<Shape>>,
 }
 
 impl<Shape> Deref for ToggleButton<Shape> {

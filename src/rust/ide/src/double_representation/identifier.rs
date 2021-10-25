@@ -5,6 +5,8 @@ use crate::prelude::*;
 use ast::crumbs::Located;
 use std::cmp::Ordering;
 
+
+
 // ==================
 // === Identifier ===
 // ==================
@@ -13,10 +15,7 @@ use std::cmp::Ordering;
 
 #[allow(missing_docs)]
 #[derive(Clone, Debug, Fail)]
-#[fail(
-    display = "Identifier contains operator `{}`, so it cannot be made into var.",
-    _0
-)]
+#[fail(display = "Identifier contains operator `{}`, so it cannot be made into var.", _0)]
 pub struct OperatorCantBeMadeIntoVar(String);
 
 #[allow(missing_docs)]
@@ -28,6 +27,7 @@ pub struct NotAnIdentifier(String);
 #[derive(Clone, Copy, Debug, Fail)]
 #[fail(display = "Empty string is not a valid identifier.")]
 pub struct IdentifierCannotBeEmpty;
+
 
 // === Definition ===
 
@@ -103,6 +103,7 @@ impl Identifier {
         Self(self.0.with_new_id())
     }
 }
+
 
 // === Implementations ===
 
@@ -187,6 +188,8 @@ impl Hash for Identifier {
     }
 }
 
+
+
 // ====================
 // === ReferentName ===
 // ====================
@@ -198,6 +201,7 @@ impl Hash for Identifier {
 #[fail(display = "The `{}` is not a valid referent name.", _0)]
 pub struct NotReferentName(String);
 
+
 // === Definition ===
 
 /// The name segment is a string that starts with an upper-cased character.
@@ -205,9 +209,7 @@ pub struct NotReferentName(String);
 /// It is used for naming modules, module path segments and projects.
 ///
 /// This value corresponds to contents of the `Cons` AST shape.
-#[derive(
-    Clone, Debug, Display, Shrinkwrap, PartialEq, Eq, PartialOrd, Ord, Hash,
-)]
+#[derive(Clone, Debug, Display, Shrinkwrap, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ReferentName(String);
 
 impl ReferentName {
@@ -236,6 +238,7 @@ impl ReferentName {
         NormalizedName::new(self)
     }
 }
+
 
 // === Implementations ===
 
@@ -283,6 +286,8 @@ impl PartialEq<&str> for ReferentName {
     }
 }
 
+
+
 // ======================
 // === NormalizedName ===
 // ======================
@@ -313,13 +318,13 @@ impl NormalizedName {
     }
 }
 
+
 // === Implementations ===
 
 /// Tests if Ast is identifier that might reference the same name (case insensitive match).
 impl PartialEq<Ast> for NormalizedName {
     fn eq(&self, other: &Ast) -> bool {
-        NormalizedName::try_from_ast(other)
-            .contains_if(|other_name| other_name == self)
+        NormalizedName::try_from_ast(other).contains_if(|other_name| other_name == self)
     }
 }
 
@@ -331,6 +336,8 @@ impl From<NormalizedName> for String {
 
 /// Case-insensitive identifier with its ast crumb location (relative to the node's ast).
 pub type LocatedName = Located<NormalizedName>;
+
+
 
 // =================
 // === Utilities ===
@@ -345,10 +352,7 @@ pub fn generate_name(
 ) -> FallibleResult<Identifier> {
     let base = base.as_ref();
     let is_relevant = |name: &NormalizedName| name.starts_with(base);
-    let unavailable = unavailable
-        .into_iter()
-        .filter(is_relevant)
-        .collect::<HashSet<_>>();
+    let unavailable = unavailable.into_iter().filter(is_relevant).collect::<HashSet<_>>();
     let name = (1..)
         .find_map(|i| {
             let candidate = NormalizedName::new(iformat!("{base}{i}"));

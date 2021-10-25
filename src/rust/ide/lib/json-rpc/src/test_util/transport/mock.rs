@@ -14,6 +14,8 @@ use serde::Serialize;
 use std::collections::VecDeque;
 use utils::channel;
 
+
+
 // ====================
 // === SendingError ===
 // ====================
@@ -25,6 +27,8 @@ pub enum SendError {
     #[fail(display = "Cannot send message when socket is closed.")]
     TransportClosed,
 }
+
+
 
 // ========================
 // === Transport Status ===
@@ -39,6 +43,8 @@ pub enum Status {
     Closed,
 }
 
+
+
 // ======================
 // === Transport Data ===
 // ======================
@@ -51,12 +57,14 @@ pub struct MockTransportData {
     /// Events sink.
     pub event_transmitter: Option<UnboundedSender<TransportEvent>>,
     /// Text messages sent by the user.
-    pub sent_text_msgs: VecDeque<String>,
+    pub sent_text_msgs:    VecDeque<String>,
     /// Binary messages by the user.
-    pub sent_binary_msgs: VecDeque<Vec<u8>>,
+    pub sent_binary_msgs:  VecDeque<Vec<u8>>,
     /// Transport status.
-    pub is_closed: bool,
+    pub is_closed:         bool,
 }
+
+
 
 // ======================
 // === Mock Transport ===
@@ -75,10 +83,7 @@ impl Transport for MockTransport {
         self.send_helper(|data| data.sent_binary_msgs.push_back(message.into()))
     }
 
-    fn set_event_transmitter(
-        &mut self,
-        transmitter: UnboundedSender<TransportEvent>,
-    ) {
+    fn set_event_transmitter(&mut self, transmitter: UnboundedSender<TransportEvent>) {
         self.with_mut_data(|data| {
             data.event_transmitter = Some(transmitter);
         })
@@ -93,9 +98,7 @@ impl MockTransport {
 
     /// Executes given function with access to borrowed mutable data reference.
     pub fn with_mut_data<R, F>(&mut self, f: F) -> R
-    where
-        F: FnOnce(&mut MockTransportData) -> R,
-    {
+    where F: FnOnce(&mut MockTransportData) -> R {
         let mut data = self.0.borrow_mut();
         f(&mut data)
     }
@@ -103,8 +106,7 @@ impl MockTransport {
     /// Generates event that mocks receiving a text message from a peer.
     pub fn mock_peer_text_message<S: Into<String>>(&mut self, message: S) {
         let message = message.into();
-        if let Some(ref mut transmitter) = self.0.borrow_mut().event_transmitter
-        {
+        if let Some(ref mut transmitter) = self.0.borrow_mut().event_transmitter {
             let event = TransportEvent::TextMessage(message);
             channel::emit(transmitter, event);
         }
@@ -120,8 +122,7 @@ impl MockTransport {
 
     /// Generates event that mocks receiving a text message from a peer.
     pub fn mock_peer_binary_message(&mut self, data: &[u8]) {
-        if let Some(ref mut transmitter) = self.0.borrow_mut().event_transmitter
-        {
+        if let Some(ref mut transmitter) = self.0.borrow_mut().event_transmitter {
             let event = TransportEvent::BinaryMessage(Vec::from(data));
             channel::emit(transmitter, event);
         }
@@ -145,9 +146,7 @@ impl MockTransport {
     /// Further messages can be obtained by subsequent calls.
     pub fn expect_text_message(&mut self) -> String {
         self.with_mut_data(|data| {
-            data.sent_text_msgs
-                .pop_front()
-                .expect("client should have sent text message")
+            data.sent_text_msgs.pop_front().expect("client should have sent text message")
         })
     }
 
@@ -166,9 +165,7 @@ impl MockTransport {
     /// Further messages can be obtained by subsequent calls.
     pub fn expect_binary_message(&mut self) -> Vec<u8> {
         self.with_mut_data(|data| {
-            data.sent_binary_msgs
-                .pop_front()
-                .expect("client should have sent binary message")
+            data.sent_binary_msgs.pop_front().expect("client should have sent binary message")
         })
     }
 
@@ -177,9 +174,7 @@ impl MockTransport {
     ///
     /// Fails if the transport is not open.
     pub fn send_helper<F>(&mut self, f: F) -> Result<(), Error>
-    where
-        F: FnOnce(&mut MockTransportData),
-    {
+    where F: FnOnce(&mut MockTransportData) {
         self.with_mut_data(|data| {
             if data.is_closed {
                 Err(SendError::TransportClosed.into())

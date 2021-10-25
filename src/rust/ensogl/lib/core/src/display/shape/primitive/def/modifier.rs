@@ -13,6 +13,8 @@ use crate::display::shape::primitive::def::var::Var;
 use crate::display::shape::primitive::shader::canvas;
 use crate::display::shape::primitive::shader::canvas::Canvas;
 
+
+
 // ========================================
 // === Compound Shape Definition Macros ===
 // ========================================
@@ -103,6 +105,8 @@ macro_rules! _define_modifier {
         }
     }
 }
+
+
 
 // =======================
 // === Compound Shapes ===

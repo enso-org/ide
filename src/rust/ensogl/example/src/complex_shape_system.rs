@@ -12,6 +12,8 @@ use ensogl_core::display::world::*;
 use ensogl_core::system::web;
 use wasm_bindgen::prelude::*;
 
+
+
 // ==============
 // === Shapes ===
 // ==============
@@ -42,6 +44,8 @@ mod mask {
         }
     }
 }
+
+
 
 // ===================
 // === Entry Point ===
@@ -81,8 +85,7 @@ pub fn entry_point_complex_shape_system() {
 
     theme_manager.set_enabled(&["theme1".to_string()]);
 
-    let style_watch =
-        ensogl_core::display::shape::StyleWatch::new(&scene.style_sheet);
+    let style_watch = ensogl_core::display::shape::StyleWatch::new(&scene.style_sheet);
     // style_watch.set_on_style_change(|| DEBUG!("Style changed!"));
     style_watch.get("base_color");
 
@@ -94,10 +97,8 @@ pub fn entry_point_complex_shape_system() {
     mask.size.set(Vector2::new(300.0, 300.0));
     mask.mod_position(|t| *t = Vector3::new(-50.0, 0.0, 0.0));
 
-    let scissor_box = scene::layer::ScissorBox::new_with_position_and_size(
-        default(),
-        Vector2(600, 600),
-    );
+    let scissor_box =
+        scene::layer::ScissorBox::new_with_position_and_size(default(), Vector2(600, 600));
     scene.layers.main.set_scissor_box(Some(&scissor_box));
 
     let view2 = shape::View::new(&logger);

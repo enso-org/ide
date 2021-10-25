@@ -17,6 +17,8 @@ use crate::selector::model::Model;
 use crate::selector::Bounds;
 use ensogl_core::animation::delayed::DelayedAnimation;
 
+
+
 // =================
 // === Constants ===
 // =================
@@ -37,6 +39,8 @@ const MIN_THUMB_SIZE: f32 = 12.0;
 const HIDE_DELAY: f32 = 1000.0;
 
 const ERROR_MARGIN_FOR_ACTIVITY_DETECTION: f32 = 0.1;
+
+
 
 // ===========
 // === Frp ===
@@ -108,8 +112,7 @@ impl component::Frp<Model> for Frp {
             resize <- frp.set_length.map(|&length| Vector2::new(length,WIDTH));
         }
 
-        let base_frp =
-            selector::Frp::new(model, style, network, resize.clone(), mouse);
+        let base_frp = selector::Frp::new(model, style, network, resize.clone(), mouse);
 
         model.use_track_handles(false);
         model.set_track_corner_round(true);
@@ -118,10 +121,8 @@ impl component::Frp<Model> for Frp {
         model.show_right_overflow(false);
         model.set_padding(PADDING);
 
-        let default_color =
-            style.get_color(theme::component::slider::track::color);
-        let hover_color =
-            style.get_color(theme::component::slider::track::hover_color);
+        let default_color = style.get_color(theme::component::slider::track::color);
+        let hover_color = style.get_color(theme::component::slider::track::hover_color);
 
         frp::extend! { network
 
@@ -248,6 +249,7 @@ impl component::Frp<Model> for Frp {
                 });
         }
 
+
         // === Init Network ===
 
         frp.set_length(200.0);
@@ -257,6 +259,8 @@ impl component::Frp<Model> for Frp {
         init_color.emit(());
     }
 }
+
+
 
 // ===========================
 // === Scrollbar Component ===

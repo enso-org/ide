@@ -12,6 +12,8 @@ use ensogl::display;
 use ensogl::display::shape::*;
 use ensogl::gui::text;
 
+
+
 // ==============
 // === Status ===
 // ==============
@@ -72,6 +74,8 @@ impl Display for Status {
     }
 }
 
+
+
 // =============
 // === Color ===
 // =============
@@ -84,9 +88,9 @@ impl Display for Status {
 #[derive(Debug, Copy, Clone, Default)]
 pub struct Theme {
     /// The lightness for all running times.
-    pub lightness: f32,
+    pub lightness:    f32,
     /// The chroma for all running times.
-    pub chroma: f32,
+    pub chroma:       f32,
     /// The hue for the minimum running time.
     pub min_time_hue: f32,
     /// The hue for the maximum running time.
@@ -96,10 +100,7 @@ pub struct Theme {
 impl Theme {
     /// Returns a new `Sampler` exposing the profiling theme, as it is defined in `styles` at path
     /// `ensogl_theme::graph_editor::node::profiling`. The sampler is registered under `network`.
-    pub fn from_styles(
-        styles: &StyleWatchFrp,
-        network: &frp::Network,
-    ) -> frp::Sampler<Theme> {
+    pub fn from_styles(styles: &StyleWatchFrp, network: &frp::Network) -> frp::Sampler<Theme> {
         use ensogl_theme::graph_editor::node::profiling as theme_path;
         let lightness = styles.get_number_or(theme_path::lightness, 0.5);
         let chroma = styles.get_number_or(theme_path::chroma, 1.0);
@@ -136,17 +137,18 @@ impl Status {
         };
         let duration_delta = max_global_duration - min_global_duration;
         let hue_delta = theme.max_time_hue - theme.min_time_hue;
-        let relative_duration =
-            if duration_delta != 0.0 && !duration_delta.is_nan() {
-                (duration - min_global_duration) / duration_delta
-            } else {
-                0.0
-            };
+        let relative_duration = if duration_delta != 0.0 && !duration_delta.is_nan() {
+            (duration - min_global_duration) / duration_delta
+        } else {
+            0.0
+        };
         let relative_hue = relative_duration;
         let hue = theme.min_time_hue + relative_hue * hue_delta;
         color::Lch::new(theme.lightness, theme.chroma, hue)
     }
 }
+
+
 
 // ============
 // === Frp  ===
@@ -161,6 +163,8 @@ ensogl::define_endpoints! {
     }
 }
 
+
+
 // ==========================
 // === Running Time Label ===
 // ==========================
@@ -174,9 +178,9 @@ ensogl::define_endpoints! {
 /// as a `display::Object` should be placed on the node's center.
 #[derive(Clone, CloneRef, Debug)]
 pub struct ProfilingLabel {
-    root: display::object::Instance,
-    label: text::Area,
-    frp: Frp,
+    root:   display::object::Instance,
+    label:  text::Area,
+    frp:    Frp,
     styles: StyleWatchFrp,
 }
 
@@ -192,14 +196,11 @@ impl ProfilingLabel {
     /// Constructs a `ProfilingLabel` for the given application.
     pub fn new(app: &Application) -> Self {
         let scene = app.display.scene();
-        let root =
-            display::object::Instance::new(Logger::new("ProfilingIndicator"));
+        let root = display::object::Instance::new(Logger::new("ProfilingIndicator"));
 
         let label = text::Area::new(app);
         root.add_child(&label);
-        label.set_position_y(
-            crate::component::node::input::area::TEXT_SIZE / 2.0,
-        );
+        label.set_position_y(crate::component::node::input::area::TEXT_SIZE / 2.0);
         label.remove_from_scene_layer(&scene.layers.main);
         label.add_to_scene_layer(&scene.layers.label);
 
@@ -243,12 +244,7 @@ impl ProfilingLabel {
             label.set_content <+ frp.set_status.map(|status| status.to_string());
         }
 
-        ProfilingLabel {
-            root,
-            label,
-            frp,
-            styles,
-        }
+        ProfilingLabel { root, label, frp, styles }
     }
 }
 

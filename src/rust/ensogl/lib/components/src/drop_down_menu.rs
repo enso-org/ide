@@ -15,6 +15,7 @@ use ensogl_core::DEPRECATED_Animation;
 use ensogl_text as text;
 use ensogl_theme as theme;
 
+
 // =================
 // === Constants ===
 // =================
@@ -23,6 +24,8 @@ use ensogl_theme as theme;
 const HOVER_COLOR: color::Rgba = color::Rgba::new(1.0, 0.0, 0.0, 0.000_001);
 /// The width of the visualisation selection menu.
 const MENU_WIDTH: f32 = 180.0;
+
+
 
 // ==============
 // === Shapes ===
@@ -63,6 +66,8 @@ pub mod chooser_hover_area {
     }
 }
 
+
+
 // ===========
 // === FRP ===
 // ===========
@@ -85,6 +90,8 @@ ensogl_core::define_endpoints! {
     }
 }
 
+
+
 // =============
 // === Model ===
 // =============
@@ -94,14 +101,14 @@ pub type Entry = list_view::entry::Label;
 
 #[derive(Clone, Debug)]
 struct Model {
-    logger: Logger,
-    app: Application,
+    logger:         Logger,
+    app:            Application,
     display_object: display::object::Instance,
 
-    icon: arrow::View,
+    icon:         arrow::View,
     icon_overlay: chooser_hover_area::View,
 
-    label: text::Area,
+    label:          text::Area,
     selection_menu: list_view::ListView<Entry>,
 
     // `SingleMaskedProvider` allows us to hide the selected element.
@@ -119,17 +126,8 @@ impl Model {
         let label = app.new_view::<text::Area>();
         let content = default();
 
-        Self {
-            logger,
-            app,
-            display_object,
-            icon,
-            icon_overlay,
-            label,
-            selection_menu,
-            content,
-        }
-        .init()
+        Self { logger, app, display_object, icon, icon_overlay, label, selection_menu, content }
+            .init()
     }
 
     fn init(self) -> Self {
@@ -182,6 +180,8 @@ impl display::Object for Model {
     }
 }
 
+
+
 // ============================
 // === VisualisationChooser ===
 // ============================
@@ -190,7 +190,7 @@ impl display::Object for Model {
 #[allow(missing_docs)]
 #[derive(Clone, CloneRef, Debug)]
 pub struct DropDownMenu {
-    model: Rc<Model>,
+    model:   Rc<Model>,
     pub frp: Frp,
 }
 

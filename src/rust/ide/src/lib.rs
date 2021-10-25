@@ -1,6 +1,5 @@
 //! Main library crate for IDE. It includes implementation of
 //! controllers, view logic and code that wraps them all together.
-//!
 #![feature(arbitrary_self_types)]
 #![feature(async_closure)]
 #![feature(associated_type_bounds)]
@@ -111,8 +110,8 @@ pub fn entry_point_ide() {
             analytics::AnonymousData(false),
         );
 
-        let config = crate::config::Startup::from_web_arguments()
-            .expect("Failed to read configuration.");
+        let config =
+            crate::config::Startup::from_web_arguments().expect("Failed to read configuration.");
         crate::ide::Initializer::new(config).start_and_forget();
     });
 }

@@ -7,6 +7,8 @@ use crate::language_server::Path as LSPath;
 
 use json_rpc::Transport;
 
+
+
 // ===============
 // === Aliases ===
 // ===============
@@ -22,6 +24,8 @@ pub type MessageFromServerRef<'a> = MessageFromServer<FromServerPayload<'a>>;
 
 /// An non-owning representation of the message to be sent to the server.
 pub type MessageToServerRef<'a> = MessageToServer<ToServerPayload<'a>>;
+
+
 
 // ================
 // === Newtypes ===
@@ -51,6 +55,8 @@ impl<T> MessageFromServer<T> {
     }
 }
 
+
+
 // =============
 // === Types ===
 // =============
@@ -60,8 +66,8 @@ impl<T> MessageFromServer<T> {
 #[derive(Clone, Debug, Copy, PartialEq)]
 pub struct VisualisationContext {
     pub visualization_id: Uuid,
-    pub context_id: Uuid,
-    pub expression_id: Uuid,
+    pub context_id:       Uuid,
+    pub expression_id:    Uuid,
 }
 
 #[allow(missing_docs)]
@@ -73,9 +79,9 @@ pub enum ErrorPayload {
 #[allow(missing_docs)]
 #[derive(Clone, Debug, PartialEq)]
 pub struct FileSegment {
-    pub path: LSPath,
+    pub path:        LSPath,
     pub byte_offset: u64,
-    pub length: u64,
+    pub length:      u64,
 }
 
 #[allow(missing_docs)]
@@ -84,6 +90,8 @@ pub struct EnsoDigest {
     pub bytes: Vec<u8>,
 }
 
+
+
 // ================
 // === Payloads ===
 // ================
@@ -91,56 +99,24 @@ pub struct EnsoDigest {
 #[allow(missing_docs)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum ToServerPayloadOwned {
-    InitSession {
-        client_id: Uuid,
-    },
-    WriteFile {
-        path: LSPath,
-        contents: Vec<u8>,
-    },
-    ReadFile {
-        path: LSPath,
-    },
-    WriteBytes {
-        path: LSPath,
-        byte_offset: u64,
-        overwrite: bool,
-        bytes: Vec<u8>,
-    },
-    ReadBytes {
-        segment: FileSegment,
-    },
-    ChecksumBytes {
-        segment: FileSegment,
-    },
+    InitSession { client_id: Uuid },
+    WriteFile { path: LSPath, contents: Vec<u8> },
+    ReadFile { path: LSPath },
+    WriteBytes { path: LSPath, byte_offset: u64, overwrite: bool, bytes: Vec<u8> },
+    ReadBytes { segment: FileSegment },
+    ChecksumBytes { segment: FileSegment },
 }
 
 #[allow(missing_docs)]
 #[derive(Clone, Debug)]
 pub enum FromServerPayloadOwned {
-    Error {
-        code: i32,
-        message: String,
-        data: Option<ErrorPayload>,
-    },
+    Error { code: i32, message: String, data: Option<ErrorPayload> },
     Success {},
-    VisualizationUpdate {
-        context: VisualisationContext,
-        data: Vec<u8>,
-    },
-    FileContentsReply {
-        contents: Vec<u8>,
-    },
-    WriteBytesReply {
-        checksum: EnsoDigest,
-    },
-    ReadBytesReply {
-        checksum: EnsoDigest,
-        bytes: Vec<u8>,
-    },
-    ChecksumBytesReply {
-        checksum: EnsoDigest,
-    },
+    VisualizationUpdate { context: VisualisationContext, data: Vec<u8> },
+    FileContentsReply { contents: Vec<u8> },
+    WriteBytesReply { checksum: EnsoDigest },
+    ReadBytesReply { checksum: EnsoDigest, bytes: Vec<u8> },
+    ChecksumBytesReply { checksum: EnsoDigest },
 }
 
 #[allow(missing_docs)]
@@ -150,17 +126,17 @@ pub enum ToServerPayload<'a> {
         client_id: Uuid,
     },
     WriteFile {
-        path: &'a LSPath,
+        path:     &'a LSPath,
         contents: &'a [u8],
     },
     ReadFile {
         path: &'a LSPath,
     },
     WriteBytes {
-        path: &'a LSPath,
+        path:        &'a LSPath,
         byte_offset: u64,
-        overwrite: bool,
-        bytes: &'a [u8],
+        overwrite:   bool,
+        bytes:       &'a [u8],
     },
     ReadBytes {
         segment: &'a FileSegment,
@@ -173,30 +149,16 @@ pub enum ToServerPayload<'a> {
 #[allow(missing_docs)]
 #[derive(Clone, Debug)]
 pub enum FromServerPayload<'a> {
-    Error {
-        code: i32,
-        message: &'a str,
-        data: Option<ErrorPayload>,
-    },
+    Error { code: i32, message: &'a str, data: Option<ErrorPayload> },
     Success {},
-    VisualizationUpdate {
-        context: VisualisationContext,
-        data: &'a [u8],
-    },
-    FileContentsReply {
-        contents: &'a [u8],
-    },
-    WriteBytesReply {
-        checksum: EnsoDigest,
-    },
-    ReadBytesReply {
-        checksum: EnsoDigest,
-        bytes: &'a [u8],
-    },
-    ChecksumBytesReply {
-        checksum: EnsoDigest,
-    },
+    VisualizationUpdate { context: VisualisationContext, data: &'a [u8] },
+    FileContentsReply { contents: &'a [u8] },
+    WriteBytesReply { checksum: EnsoDigest },
+    ReadBytesReply { checksum: EnsoDigest, bytes: &'a [u8] },
+    ChecksumBytesReply { checksum: EnsoDigest },
 }
+
+
 
 // ===============
 // === Message ===
@@ -208,22 +170,18 @@ pub enum FromServerPayload<'a> {
 #[derive(Clone, Debug)]
 pub struct Message<T> {
     /// Each message bears unique id.
-    pub message_id: Uuid,
+    pub message_id:     Uuid,
     /// When sending reply, server sets this to the request's `message_id`.
     pub correlation_id: Option<Uuid>,
     #[allow(missing_docs)]
-    pub payload: T,
+    pub payload:        T,
 }
 
 impl<T> Message<T> {
     /// Wraps the given payload into a message envelope. Generates a unique ID for the message.
     /// Private, as users should use either `MessageToServer::new` or `MessageFromServer::new`.
     fn new(payload: T) -> Message<T> {
-        Message {
-            message_id: Uuid::new_v4(),
-            correlation_id: None,
-            payload,
-        }
+        Message { message_id: Uuid::new_v4(), correlation_id: None, payload }
     }
 }
 

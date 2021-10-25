@@ -10,6 +10,8 @@ use ast::Ast;
 use ast::MacroPatternMatch;
 use ast::Shifted;
 
+
+
 // ======================
 // === LocatedPattern ===
 // ======================
@@ -19,8 +21,10 @@ use ast::Shifted;
 #[derive(Debug)]
 pub struct LocatedPattern<'a> {
     pub pattern: &'a MacroPatternMatch<Shifted<Ast>>,
-    pub crumbs: Vec<PatternMatchCrumb>,
+    pub crumbs:  Vec<PatternMatchCrumb>,
 }
+
+
 
 // ==================
 // === PatternDfs ===
@@ -47,61 +51,31 @@ impl<'a> Iterator for PatternDfs<'a> {
 impl<'a> PatternDfs<'a> {
     /// Create iterator which start from `root` node.
     pub fn new(root: &'a MacroPatternMatch<Shifted<Ast>>) -> Self {
-        let first_to_visit = LocatedPattern {
-            pattern: root,
-            crumbs: vec![],
-        };
-        PatternDfs {
-            to_visit: vec![first_to_visit],
-        }
+        let first_to_visit = LocatedPattern { pattern: root, crumbs: vec![] };
+        PatternDfs { to_visit: vec![first_to_visit] }
     }
 
     /// Obtain all children of `pattern` and push them to `to_visit` queue.
     fn push_children_to_visit(&mut self, pattern: &LocatedPattern<'a>) {
         use ast::MacroPatternMatchRaw::*;
         match pattern.pattern.deref() {
-            Except(pat) => self.push_child_to_visit(
-                pattern,
-                &pat.elem,
-                PatternMatchCrumb::Except,
-            ),
-            Tag(pat) => self.push_child_to_visit(
-                pattern,
-                &pat.elem,
-                PatternMatchCrumb::Tag,
-            ),
-            Cls(pat) => self.push_child_to_visit(
-                pattern,
-                &pat.elem,
-                PatternMatchCrumb::Cls,
-            ),
-            Or(pat) => self.push_child_to_visit(
-                pattern,
-                &pat.elem,
-                PatternMatchCrumb::Or,
-            ),
+            Except(pat) => self.push_child_to_visit(pattern, &pat.elem, PatternMatchCrumb::Except),
+            Tag(pat) => self.push_child_to_visit(pattern, &pat.elem, PatternMatchCrumb::Tag),
+            Cls(pat) => self.push_child_to_visit(pattern, &pat.elem, PatternMatchCrumb::Cls),
+            Or(pat) => self.push_child_to_visit(pattern, &pat.elem, PatternMatchCrumb::Or),
             Seq(pat) => {
                 let (left_elem, right_elem) = &pat.elem;
-                self.push_child_to_visit(
-                    pattern,
-                    right_elem,
-                    PatternMatchCrumb::Seq { right: true },
-                );
-                self.push_child_to_visit(
-                    pattern,
-                    left_elem,
-                    PatternMatchCrumb::Seq { right: false },
-                );
+                self.push_child_to_visit(pattern, right_elem, PatternMatchCrumb::Seq {
+                    right: true,
+                });
+                self.push_child_to_visit(pattern, left_elem, PatternMatchCrumb::Seq {
+                    right: false,
+                });
             }
-            Many(pat) => {
+            Many(pat) =>
                 for (index, elem) in pat.elem.iter().enumerate().rev() {
-                    self.push_child_to_visit(
-                        pattern,
-                        elem,
-                        PatternMatchCrumb::Many { index },
-                    );
-                }
-            }
+                    self.push_child_to_visit(pattern, elem, PatternMatchCrumb::Many { index });
+                },
             // Other patterns does not have children.
             _ => {}
         }
@@ -115,16 +89,12 @@ impl<'a> PatternDfs<'a> {
     ) {
         let loc_pattern = LocatedPattern {
             pattern: child,
-            crumbs: pattern
-                .crumbs
-                .iter()
-                .cloned()
-                .chain(std::iter::once(crumb))
-                .collect(),
+            crumbs:  pattern.crumbs.iter().cloned().chain(std::iter::once(crumb)).collect(),
         };
         self.to_visit.push(loc_pattern);
     }
 }
+
 
 // ==========================================
 // === Retrieving AST Nodes From Patterns ===
@@ -134,7 +104,7 @@ impl<'a> PatternDfs<'a> {
 #[allow(missing_docs)]
 #[derive(Debug)]
 pub struct AstInPattern {
-    pub ast: Shifted<Ast>,
+    pub ast:    Shifted<Ast>,
     pub crumbs: Vec<PatternMatchCrumb>,
 }
 
@@ -162,12 +132,8 @@ pub fn all_ast_nodes_in_pattern(
             _ => None,
         };
         opt_ast_and_crumb.map(|(ast, crumb)| AstInPattern {
-            ast: ast.clone(),
-            crumbs: pattern
-                .crumbs
-                .into_iter()
-                .chain(std::iter::once(crumb))
-                .collect(),
+            ast:    ast.clone(),
+            crumbs: pattern.crumbs.into_iter().chain(std::iter::once(crumb)).collect(),
         })
     })
 }

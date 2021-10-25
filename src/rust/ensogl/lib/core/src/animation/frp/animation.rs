@@ -10,6 +10,8 @@ use crate::data::mix;
 
 use enso_frp as frp;
 
+
+
 // =================
 // === Animation ===
 // =================
@@ -35,16 +37,15 @@ pub type AnimationSimulator<T> = inertia::DynSimulator<mix::Repr<T>>;
 #[derivative(Clone(bound = ""))]
 #[allow(missing_docs)]
 pub struct Animation<T: mix::Mixable + frp::Data> {
-    pub target: frp::Any<T>,
+    pub target:    frp::Any<T>,
     pub precision: frp::Any<f32>,
-    pub skip: frp::Any,
-    pub value: frp::Stream<T>,
+    pub skip:      frp::Any,
+    pub value:     frp::Stream<T>,
 }
 
 #[allow(missing_docs)]
 impl<T: mix::Mixable + frp::Data> Animation<T>
-where
-    mix::Repr<T>: inertia::Value,
+where mix::Repr<T>: inertia::Value
 {
     /// Constructor. The initial value of the animation is set to `default`.
     pub fn new(network: &frp::Network) -> Self {
@@ -68,12 +69,7 @@ where
         }
         let value = value_src.into();
         network.store(&simulator);
-        Self {
-            target,
-            precision,
-            skip,
-            value,
-        }
+        Self { target, precision, skip, value }
     }
 
     /// Constructor. The initial value is provided explicitly.
@@ -97,6 +93,8 @@ where
         this
     }
 }
+
+
 
 // ============================
 // === DEPRECATED Animation ===
@@ -125,13 +123,12 @@ where
 pub struct DEPRECATED_Animation<T: mix::Mixable> {
     #[shrinkwrap(main_field)]
     pub simulator: inertia::DynSimulator<T::Repr>,
-    pub value: frp::Stream<T>,
+    pub value:     frp::Stream<T>,
 }
 
 #[allow(missing_docs)]
 impl<T: mix::Mixable + frp::Data> DEPRECATED_Animation<T>
-where
-    mix::Repr<T>: inertia::Value,
+where mix::Repr<T>: inertia::Value
 {
     /// Constructor.
     pub fn new(network: &frp::Network) -> Self {

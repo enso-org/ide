@@ -5,6 +5,8 @@ use crate::prelude::*;
 use std::fmt::Error;
 use std::fmt::Formatter;
 
+
+
 // =======================
 // === JsTypedArrayOps ===
 // =======================
@@ -69,6 +71,8 @@ define_js_typed_array_bindings! {
     Uint32Array  (u32),
 }
 
+
+
 // ====================
 // === JsTypedArray ===
 // ====================
@@ -77,6 +81,7 @@ define_js_typed_array_bindings! {
 pub struct JsTypedArray<T: JsTypedArrayItem> {
     raw: <T as JsTypedArrayItem>::JsArrayType,
 }
+
 
 // === API ===
 
@@ -92,6 +97,7 @@ impl<T: JsTypedArrayItem> JsTypedArray<T> {
         &self.raw
     }
 }
+
 
 // === Instances ===
 

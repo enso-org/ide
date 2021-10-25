@@ -5,6 +5,8 @@
 
 use crate::prelude::*;
 
+
+
 // =============
 // === Space ===
 // =============
@@ -32,6 +34,8 @@ where
     }
 }
 
+
+
 // ===============
 // === Mixable ===
 // ===============
@@ -48,6 +52,7 @@ pub type Repr<T> = <T as Mixable>::Repr;
 
 /// Trait for values that can be mixed.
 pub trait Value = Sized + Mul<f32, Output = Self> + Add<Output = Self>;
+
 
 // === Utils ===
 
@@ -68,6 +73,8 @@ pub fn mix<T: Mixable>(t1: T, t2: T, coefficient: f32) -> T {
     let v = v1 * (1.0 - coefficient) + v2 * coefficient;
     from_space(v)
 }
+
+
 
 // =============
 // === Impls ===

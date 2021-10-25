@@ -27,11 +27,11 @@ use parser::Parser;
 /// (text and graph).
 #[derive(Debug)]
 pub struct Module {
-    logger: Logger,
-    path: Path,
-    content: RefCell<Content>,
+    logger:        Logger,
+    path:          Path,
+    content:       RefCell<Content>,
     notifications: notification::Publisher<Notification>,
-    repository: Rc<model::undo_redo::Repository>,
+    repository:    Rc<model::undo_redo::Repository>,
 }
 
 impl Module {
@@ -57,21 +57,13 @@ impl Module {
     /// Fails if the `new_content` is so broken that it cannot be serialized to text. In such case
     /// the module's state is guaranteed to remain unmodified and the notification will not be
     /// emitted.
-    fn set_content(
-        &self,
-        new_content: Content,
-        kind: NotificationKind,
-    ) -> FallibleResult {
+    fn set_content(&self, new_content: Content, kind: NotificationKind) -> FallibleResult {
         if new_content == *self.content.borrow() {
             debug!(self.logger, "Ignoring spurious update.");
             return Ok(());
         }
-        trace!(
-            self.logger,
-            "Updating module's content: {kind:?}. New content:\n{new_content}"
-        );
-        let transaction =
-            self.repository.transaction("Setting module's content");
+        trace!(self.logger, "Updating module's content: {kind:?}. New content:\n{new_content}");
+        let transaction = self.repository.transaction("Setting module's content");
         transaction.fill_content(self.id(), self.content.borrow().clone());
 
         // We want the line below to fail before changing state.
@@ -159,9 +151,7 @@ impl model::module::API for Module {
     }
 
     fn update_ast(&self, ast: ast::known::Module) -> FallibleResult {
-        self.update_content(NotificationKind::Invalidate, |content| {
-            content.ast = ast
-        })
+        self.update_content(NotificationKind::Invalidate, |content| content.ast = ast)
     }
 
     fn apply_code_change(
@@ -171,38 +161,24 @@ impl model::module::API for Module {
         new_id_map: ast::IdMap,
     ) -> FallibleResult {
         let code = self.ast().repr();
-        let replaced_location =
-            TextLocation::convert_range(&code, &change.replaced);
+        let replaced_location = TextLocation::convert_range(&code, &change.replaced);
         let new_code = change.applied(&code);
         let new_ast = parser.parse(new_code, new_id_map)?.try_into()?;
-        let notification = NotificationKind::CodeChanged {
-            change,
-            replaced_location,
-        };
+        let notification = NotificationKind::CodeChanged { change, replaced_location };
         self.update_content(notification, |content| content.ast = new_ast)
     }
 
-    fn set_node_metadata(
-        &self,
-        id: ast::Id,
-        data: NodeMetadata,
-    ) -> FallibleResult {
+    fn set_node_metadata(&self, id: ast::Id, data: NodeMetadata) -> FallibleResult {
         self.update_content(NotificationKind::MetadataChanged, |content| {
             let _ = content.metadata.ide.node.insert(id, data);
         })
     }
 
-    fn remove_node_metadata(
-        &self,
-        id: ast::Id,
-    ) -> FallibleResult<NodeMetadata> {
-        self.try_updating_content(
-            NotificationKind::MetadataChanged,
-            |content| {
-                let lookup = content.metadata.ide.node.remove(&id);
-                lookup.ok_or_else(|| NodeMetadataNotFound(id).into())
-            },
-        )
+    fn remove_node_metadata(&self, id: ast::Id) -> FallibleResult<NodeMetadata> {
+        self.try_updating_content(NotificationKind::MetadataChanged, |content| {
+            let lookup = content.metadata.ide.node.remove(&id);
+            lookup.ok_or_else(|| NodeMetadataNotFound(id).into())
+        })
     }
 
     fn with_node_metadata(
@@ -218,10 +194,7 @@ impl model::module::API for Module {
         })
     }
 
-    fn boxed_with_project_metadata(
-        &self,
-        fun: Box<dyn FnOnce(&ProjectMetadata) + '_>,
-    ) {
+    fn boxed_with_project_metadata(&self, fun: Box<dyn FnOnce(&ProjectMetadata) + '_>) {
         let content = self.content.borrow();
         if let Some(metadata) = content.metadata.ide.project.as_ref() {
             fun(metadata)
@@ -235,8 +208,7 @@ impl model::module::API for Module {
         fun: Box<dyn FnOnce(&mut ProjectMetadata) + '_>,
     ) -> FallibleResult {
         self.update_content(NotificationKind::MetadataChanged, |content| {
-            let mut data =
-                content.metadata.ide.project.clone().unwrap_or_default();
+            let mut data = content.metadata.ide.project.clone().unwrap_or_default();
             fun(&mut data);
             content.metadata.ide.project = Some(data);
         })
@@ -248,6 +220,8 @@ impl model::undo_redo::Aware for Module {
         self.repository.clone()
     }
 }
+
+
 
 // =============
 // === Tests ===
@@ -271,9 +245,7 @@ mod test {
             replaced: text::Index::new(2)..text::Index::new(5),
             inserted: "- abc".to_string(),
         };
-        module
-            .apply_code_change(change, &Parser::new_or_panic(), default())
-            .unwrap();
+        module.apply_code_change(change, &Parser::new_or_panic(), default()).unwrap();
         assert_eq!("2 - abc", module.ast().repr());
     }
 
@@ -285,13 +257,9 @@ mod test {
         subscription.expect_pending();
 
         let mut expect_notification = |kind: NotificationKind| {
-            let notification =
-                test.expect_completion(subscription.next()).unwrap();
+            let notification = test.expect_completion(subscription.next()).unwrap();
             assert_eq!(kind, notification.kind);
-            assert_eq!(
-                module.serialized_content().unwrap(),
-                notification.new_file
-            );
+            assert_eq!(module.serialized_content().unwrap(), notification.new_file);
             // We expect exactly one notification. There should be no more.
             subscription.expect_pending();
         };
@@ -299,8 +267,7 @@ mod test {
         // Ast update
         let new_line = Ast::infix_var("a", "+", "b");
         let new_module_ast = Ast::one_line_module(new_line);
-        let new_module_ast =
-            ast::known::Module::try_new(new_module_ast).unwrap();
+        let new_module_ast = ast::known::Module::try_new(new_module_ast).unwrap();
         module.update_ast(new_module_ast.clone_ref()).unwrap();
         expect_notification(NotificationKind::Invalidate);
 
@@ -309,51 +276,27 @@ mod test {
             replaced: text::Index::new(0)..text::Index::new(1),
             inserted: "foo".to_string(),
         };
-        module
-            .apply_code_change(
-                change.clone(),
-                &Parser::new_or_panic(),
-                default(),
-            )
-            .unwrap();
-        let replaced_location = TextLocation { line: 0, column: 0 }
-            ..TextLocation { line: 0, column: 1 };
-        expect_notification(NotificationKind::CodeChanged {
-            change,
-            replaced_location,
-        });
+        module.apply_code_change(change.clone(), &Parser::new_or_panic(), default()).unwrap();
+        let replaced_location =
+            TextLocation { line: 0, column: 0 }..TextLocation { line: 0, column: 1 };
+        expect_notification(NotificationKind::CodeChanged { change, replaced_location });
 
         // Metadata update
         let id = Uuid::new_v4();
-        let node_metadata = NodeMetadata {
-            position: Some(Position::new(1.0, 2.0)),
-            ..default()
-        };
-        module
-            .set_node_metadata(id.clone(), node_metadata.clone())
-            .unwrap();
+        let node_metadata = NodeMetadata { position: Some(Position::new(1.0, 2.0)), ..default() };
+        module.set_node_metadata(id.clone(), node_metadata.clone()).unwrap();
         expect_notification(NotificationKind::MetadataChanged);
 
         module.remove_node_metadata(id.clone()).unwrap();
         expect_notification(NotificationKind::MetadataChanged);
 
-        module
-            .with_node_metadata(
-                id.clone(),
-                Box::new(|md| *md = node_metadata.clone()),
-            )
-            .unwrap();
+        module.with_node_metadata(id.clone(), Box::new(|md| *md = node_metadata.clone())).unwrap();
         expect_notification(NotificationKind::MetadataChanged);
 
         // Whole update
         let mut metadata = Metadata::default();
         metadata.ide.node.insert(id, node_metadata);
-        module
-            .update_whole(ParsedSourceFile {
-                ast: new_module_ast,
-                metadata,
-            })
-            .unwrap();
+        module.update_whole(ParsedSourceFile { ast: new_module_ast, metadata }).unwrap();
         expect_notification(NotificationKind::Invalidate);
 
         // No more notifications emitted
@@ -370,17 +313,9 @@ mod test {
         let initial_md = module.node_metadata(id.clone());
         assert!(initial_md.is_err());
 
-        let md_to_set = NodeMetadata {
-            position: Some(Position::new(1.0, 2.0)),
-            ..default()
-        };
-        module
-            .set_node_metadata(id.clone(), md_to_set.clone())
-            .unwrap();
-        assert_eq!(
-            md_to_set.position,
-            module.node_metadata(id.clone()).unwrap().position
-        );
+        let md_to_set = NodeMetadata { position: Some(Position::new(1.0, 2.0)), ..default() };
+        module.set_node_metadata(id.clone(), md_to_set.clone()).unwrap();
+        assert_eq!(md_to_set.position, module.node_metadata(id.clone()).unwrap().position);
 
         let new_pos = Position::new(4.0, 5.0);
         module

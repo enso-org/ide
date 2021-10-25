@@ -13,6 +13,8 @@ use code_builder::HasCodeRepr;
 use enso_shapely::derive_clone_plus;
 use nalgebra::OMatrix;
 
+
+
 // =================================================================================================
 // === Glsl ========================================================================================
 // =================================================================================================
@@ -31,6 +33,7 @@ impl Display for Glsl {
     }
 }
 
+
 // === Conversions from Glsl ===
 
 impls! { From  <Glsl> for String    { |t| t.str } }
@@ -38,15 +41,18 @@ impls! { From  <Glsl> for CowString { |t| t.str.into() } }
 impls! { From <&Glsl> for String    { |t| t.str.clone() } }
 impls! { From <&Glsl> for CowString { |t| (&t.str).into() } }
 
+
 // === Self Conversions ===
 
 impls! { From<&Glsl> for Glsl { |t| t.clone() } }
+
 
 // === From String to Glsl ===
 
 impls! { From + &From <String>    for Glsl { |t| Self {str:t.into()    } }}
 impls! { From + &From <CowString> for Glsl { |t| Self {str:t.into()    } }}
 impls! { From + &From <&str>      for Glsl { |t| Self {str:(*t).into() } }}
+
 
 // === From Tuple to Glsl ===
 
@@ -98,6 +104,7 @@ where [ T1:Into<Glsl>, T2:Into<Glsl>, T3:Into<Glsl>, T4:Into<Glsl> ] { |t| {
     iformat!("vec4({v1},{v2},{v3},{v4})").into()
 }}}
 
+
 // === From Prim Types to Glsl ===
 
 impls! { From + &From <bool> for Glsl { |t| t.to_string().into() } }
@@ -123,6 +130,7 @@ impls! { [T,R,C] From + &From <OMatrix<T,R,C>> for Glsl
     }
 }}
 
+
 // === From Colors to Glsl ===
 
 impls! { From + &From <color::Rgb> for Glsl {
@@ -140,6 +148,7 @@ impls! { From + &From <color::LinearRgb> for Glsl {
 impls! { From + &From <color::LinearRgba> for Glsl {
     |t| iformat!("rgba({t.red.glsl()},{t.green.glsl()},{t.blue.glsl()},{t.alpha.glsl()})").into()
 } }
+
 
 // === Units ===
 
@@ -161,6 +170,7 @@ impls! { From<PhantomData<Vector4<Pixels>>> for PrimType {
     |_|  { PhantomData::<Vector4<f32>>.into() }
 }}
 
+
 impls! { From< Radians> for Glsl { |t| { f32_to_rad(&t.value.glsl()) } }}
 impls! { From<&Radians> for Glsl { |t| { f32_to_rad(&t.value.glsl()) } }}
 impls! { From< Degrees> for Glsl { |t| { deg_to_f32(&f32_to_deg(&t.value.glsl())) } }}
@@ -168,6 +178,8 @@ impls! { From<&Degrees> for Glsl { |t| { deg_to_f32(&f32_to_deg(&t.value.glsl())
 impls! { From<PhantomData<Radians>> for PrimType {
     |_|  { "Radians".into() }
 }}
+
+
 
 // === Wrong Conversions ===
 
@@ -198,6 +210,8 @@ pub(crate) fn deg_to_f32(glsl: &Glsl) -> Glsl {
     iformat!("radians({glsl})").into()
 }
 
+
+
 // =================================================================================================
 // === Expr ========================================================================================
 // =================================================================================================
@@ -223,6 +237,7 @@ impl From<&String> for Expr {
         Expr::new(t)
     }
 }
+
 
 // === ExprUnboxed ===
 
@@ -261,6 +276,8 @@ impl From<&String> for ExprUnboxed {
     }
 }
 
+
+
 // ===============
 // === RawCode ===
 // ===============
@@ -282,6 +299,8 @@ impl HasCodeRepr for RawCode {
         builder.write(&self.str)
     }
 }
+
+
 
 // ==================
 // === Identifier ===
@@ -315,6 +334,8 @@ impl From<&str> for Identifier {
     }
 }
 
+
+
 // =============
 // === Block ===
 // =============
@@ -341,6 +362,8 @@ impl HasCodeRepr for Block {
     }
 }
 
+
+
 // ==================
 // === Assignment ===
 // ==================
@@ -348,16 +371,13 @@ impl HasCodeRepr for Block {
 /// Assignment expressiong (`a = b`).
 #[derive(Clone, Debug)]
 pub struct Assignment {
-    pub left: Expr,
+    pub left:  Expr,
     pub right: Expr,
 }
 
 impl Assignment {
     pub fn new<L: Into<Expr>, R: Into<Expr>>(left: L, right: R) -> Self {
-        Self {
-            left: left.into(),
-            right: right.into(),
-        }
+        Self { left: left.into(), right: right.into() }
     }
 }
 
@@ -369,6 +389,8 @@ impl HasCodeRepr for Assignment {
         builder.terminator();
     }
 }
+
+
 
 // =================================================================================================
 // === Statement ===================================================================================
@@ -398,6 +420,8 @@ impl From<PrecisionDecl> for Statement {
     }
 }
 
+
+
 // ================
 // === Function ===
 // ================
@@ -405,9 +429,9 @@ impl From<PrecisionDecl> for Statement {
 /// Top-level function declaration.
 #[derive(Clone, Debug)]
 pub struct Function {
-    pub typ: Type,
+    pub typ:   Type,
     pub ident: Identifier,
-    pub body: Block,
+    pub body:  Block,
 }
 
 impl HasCodeRepr for Function {
@@ -428,6 +452,8 @@ impl<T: Into<Expr>> AddMut<T> for Function {
     }
 }
 
+
+
 // =====================
 // === PrecisionDecl ===
 // =====================
@@ -436,15 +462,12 @@ impl<T: Into<Expr>> AddMut<T> for Function {
 #[derive(Clone, Debug)]
 pub struct PrecisionDecl {
     pub prec: Precision,
-    pub typ: Type,
+    pub typ:  Type,
 }
 
 impl PrecisionDecl {
     pub fn new<P: Into<Precision>, T: Into<Type>>(prec: P, typ: T) -> Self {
-        Self {
-            prec: prec.into(),
-            typ: typ.into(),
-        }
+        Self { prec: prec.into(), typ: typ.into() }
     }
 }
 
@@ -457,9 +480,12 @@ impl HasCodeRepr for PrecisionDecl {
     }
 }
 
+
+
 // =================================================================================================
 // === AST Elements ================================================================================
 // =================================================================================================
+
 
 // ============
 // === Type ===
@@ -468,7 +494,7 @@ impl HasCodeRepr for PrecisionDecl {
 /// Abstraction for any GLSL type, including array types.
 #[derive(Clone, Debug)]
 pub struct Type {
-    pub prim: PrimType,
+    pub prim:  PrimType,
     pub array: Option<usize>,
 }
 
@@ -492,6 +518,8 @@ impl Display for Type {
         write!(f, "{}", self.to_code())
     }
 }
+
+
 
 // ================
 // === PrimType ===
@@ -617,6 +645,8 @@ impl Display for PrimType {
     }
 }
 
+
+
 // =================
 // === GlobalVar ===
 // =================
@@ -624,11 +654,11 @@ impl Display for PrimType {
 /// Global variable declaration, including attributes and uniforms.
 #[derive(Clone, Debug)]
 pub struct GlobalVar {
-    pub layout: Option<Layout>,
+    pub layout:  Option<Layout>,
     pub storage: Option<GlobalVarStorage>,
-    pub prec: Option<Precision>,
-    pub typ: Type,
-    pub ident: Identifier,
+    pub prec:    Option<Precision>,
+    pub typ:     Type,
+    pub ident:   Identifier,
 }
 
 /// Global variable layout definition.
@@ -649,7 +679,7 @@ pub enum GlobalVarStorage {
 /// Storage definition for in- and out- attributes.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct LinkageStorage {
-    pub centroid: bool,
+    pub centroid:      bool,
     pub interpolation: Option<InterpolationStorage>,
 }
 
@@ -659,6 +689,7 @@ pub enum InterpolationStorage {
     Smooth,
     Flat,
 }
+
 
 // === Printers ===
 
@@ -701,13 +732,11 @@ impl HasCodeRepr for GlobalVarStorage {
 
 impl HasCodeRepr for GlobalVar {
     fn build(&self, builder: &mut CodeBuilder) {
-        builder
-            .add(&self.layout)
-            .add(&self.storage)
-            .add(&self.typ)
-            .add(&self.ident);
+        builder.add(&self.layout).add(&self.storage).add(&self.typ).add(&self.ident);
     }
 }
+
+
 
 // ================
 // === LocalVar ===
@@ -717,8 +746,8 @@ impl HasCodeRepr for GlobalVar {
 #[derive(Clone, Debug)]
 pub struct LocalVar {
     pub constant: bool,
-    pub typ: Type,
-    pub ident: Identifier,
+    pub typ:      Type,
+    pub ident:    Identifier,
 }
 
 impl HasCodeRepr for LocalVar {
@@ -729,6 +758,8 @@ impl HasCodeRepr for LocalVar {
         builder.add(&self.typ).add(&self.ident);
     }
 }
+
+
 
 // =================
 // === Precision ===
@@ -770,6 +801,8 @@ impl From<&Precision> for Precision {
     }
 }
 
+
+
 // =================================================================================================
 // === Module ======================================================================================
 // =================================================================================================
@@ -777,10 +810,10 @@ impl From<&Precision> for Precision {
 /// Translation unit definition. It represents the whole GLSL file.
 #[derive(Clone, Debug)]
 pub struct Module {
-    pub prec_decls: Vec<PrecisionDecl>,
+    pub prec_decls:  Vec<PrecisionDecl>,
     pub global_vars: Vec<GlobalVar>,
-    pub statements: Vec<Statement>,
-    pub main: Function,
+    pub statements:  Vec<Statement>,
+    pub main:        Function,
 }
 
 impl Default for Module {
@@ -788,17 +821,9 @@ impl Default for Module {
         let prec_decls = default();
         let global_vars = default();
         let statements = default();
-        let main = Function {
-            typ: PrimType::Void.into(),
-            ident: "main".into(),
-            body: default(),
-        };
-        Self {
-            prec_decls,
-            global_vars,
-            statements,
-            main,
-        }
+        let main =
+            Function { typ: PrimType::Void.into(), ident: "main".into(), body: default() };
+        Self { prec_decls, global_vars, statements, main }
     }
 }
 
@@ -857,6 +882,7 @@ impl HasCodeRepr for Module {
     }
 }
 
+
 // ============================
 // === PrimType Conversions ===
 // ============================
@@ -911,6 +937,7 @@ define_glsl_prim_type_conversions! {
     Matrix4x3<f32> => Mat4x3,
 }
 
+
 // === Smart accessors ===
 
 /// Extension methods.
@@ -938,8 +965,7 @@ pub mod traits {
     pub trait IntoGlsl<'a>
     where
         Self: 'a,
-        &'a Self: Into<Glsl>,
-    {
+        &'a Self: Into<Glsl>, {
         fn glsl(&'a self) -> Glsl {
             self.into()
         }

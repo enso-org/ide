@@ -2,6 +2,8 @@
 
 use crate::prelude::*;
 
+
+
 // ================
 // === BitField ===
 // ================
@@ -17,6 +19,8 @@ pub trait BitField {
     /// Set the bit value at the provided index.
     fn set_bit(&mut self, bit: usize, value: bool) -> &mut Self;
 }
+
+
 
 // ===============================
 // === Double Chunk Bit Fields ===
@@ -78,13 +82,11 @@ impl BitField for BitField256 {
 
 impl Debug for BitField256 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "BitField256({:0128b}{:0128b})",
-            self.chunks[1], self.chunks[0]
-        )
+        write!(f, "BitField256({:0128b}{:0128b})", self.chunks[1], self.chunks[0])
     }
 }
+
+
 
 // ===============================
 // === Single Chunk Bit Fields ===
@@ -131,12 +133,7 @@ macro_rules! define_single_chunk_bit_field {
 
         impl Debug for $name {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                write!(
-                    f,
-                    concat!("{}({:", $fmt, "})"),
-                    stringify!($name),
-                    self.raw
-                )
+                write!(f, concat!("{}({:", $fmt, "})"), stringify!($name), self.raw)
             }
         }
     };
@@ -147,6 +144,8 @@ define_single_chunk_bit_field!(BitField16, u16, 16, "016b");
 define_single_chunk_bit_field!(BitField32, u32, 32, "032b");
 define_single_chunk_bit_field!(BitField64, u64, 64, "064b");
 define_single_chunk_bit_field!(BitField128, u128, 128, "128b");
+
+
 
 // =============
 // === Tests ===

@@ -15,11 +15,15 @@ use crate::system::gpu::shader::Context;
 
 use data::opt_vec::OptVec;
 
+
+
 // =============
 // === Types ===
 // =============
 
 pub type SymbolDirty = dirty::SharedSet<SymbolId, Box<dyn Fn()>>;
+
+
 
 // ======================
 // === SymbolRegistry ===
@@ -31,14 +35,14 @@ pub type SymbolDirty = dirty::SharedSet<SymbolId, Box<dyn Fn()>>;
 /// which the `zoom` value is `1.0`.
 #[derive(Clone, CloneRef, Debug)]
 pub struct SymbolRegistry {
-    symbols: Rc<RefCell<OptVec<Symbol>>>,
-    symbol_dirty: SymbolDirty,
-    logger: Logger,
+    symbols:         Rc<RefCell<OptVec<Symbol>>>,
+    symbol_dirty:    SymbolDirty,
+    logger:          Logger,
     view_projection: Uniform<Matrix4<f32>>,
-    z_zoom_1: Uniform<f32>,
-    variables: UniformScope,
-    context: Rc<RefCell<Option<Context>>>,
-    stats: Stats,
+    z_zoom_1:        Uniform<f32>,
+    variables:       UniformScope,
+    context:         Rc<RefCell<Option<Context>>>,
+    stats:           Stats,
 }
 
 impl SymbolRegistry {
@@ -55,21 +59,11 @@ impl SymbolRegistry {
         let symbol_dirty = SymbolDirty::new(symbol_logger, Box::new(on_mut));
         let symbols = default();
         let variables = variables.clone();
-        let view_projection = variables
-            .add_or_panic("view_projection", Matrix4::<f32>::identity());
+        let view_projection = variables.add_or_panic("view_projection", Matrix4::<f32>::identity());
         let z_zoom_1 = variables.add_or_panic("z_zoom_1", 1.0);
         let context = default();
         let stats = stats.clone_ref();
-        Self {
-            symbols,
-            symbol_dirty,
-            logger,
-            view_projection,
-            z_zoom_1,
-            variables,
-            context,
-            stats,
-        }
+        Self { symbols, symbol_dirty, logger, view_projection, z_zoom_1, variables, context, stats }
     }
 
     /// Creates a new `Symbol` instance and returns its id.

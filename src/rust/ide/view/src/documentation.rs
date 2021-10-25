@@ -23,6 +23,8 @@ use wasm_bindgen::JsCast;
 use web_sys::HtmlElement;
 use web_sys::MouseEvent;
 
+
+
 // =================
 // === Constants ===
 // =================
@@ -39,6 +41,8 @@ const PADDING_TOP: f32 = 5.0;
 const CODE_BLOCK_CLASS: &str = "doc-code-container";
 const COPY_BUTTON_CLASS: &str = "doc-copy-btn";
 
+
+
 // =============
 // === Model ===
 // =============
@@ -50,14 +54,14 @@ type CodeCopyClosure = Closure<dyn FnMut(MouseEvent)>;
 #[derive(Clone, CloneRef, Debug)]
 #[allow(missing_docs)]
 pub struct Model {
-    logger: Logger,
-    outer_dom: DomSymbol,
-    inner_dom: DomSymbol,
-    size: Rc<Cell<Vector2>>,
+    logger:             Logger,
+    outer_dom:          DomSymbol,
+    inner_dom:          DomSymbol,
+    size:               Rc<Cell<Vector2>>,
     /// The purpose of this overlay is stop propagating mouse events under the documentation panel
     /// to EnsoGL shapes, and pass them to the DOM instead.
-    overlay: overlay::View,
-    display_object: display::object::Instance,
+    overlay:            overlay::View,
+    display_object:     display::object::Instance,
     code_copy_closures: Rc<CloneCell<Vec<CodeCopyClosure>>>,
 }
 
@@ -70,70 +74,33 @@ impl Model {
         let outer_dom = DomSymbol::new(&outer_div);
         let inner_div = web::create_div();
         let inner_dom = DomSymbol::new(&inner_div);
-        let size = Rc::new(Cell::new(Vector2(
-            VIEW_WIDTH - PADDING,
-            VIEW_HEIGHT - PADDING - PADDING_TOP,
-        )));
+        let size =
+            Rc::new(Cell::new(Vector2(VIEW_WIDTH - PADDING, VIEW_HEIGHT - PADDING - PADDING_TOP)));
         let overlay = overlay::View::new(&logger);
 
-        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
+        // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape
+        // system (#795)
         let styles = StyleWatch::new(&scene.style_sheet);
         let style_path = ensogl_theme::application::documentation::background;
         let bg_color = styles.get_color(style_path);
         let bg_color = bg_color.to_javascript_string();
 
-        outer_dom
-            .dom()
-            .set_style_or_warn("white-space", "normal", &logger);
-        outer_dom
-            .dom()
-            .set_style_or_warn("overflow-y", "auto", &logger);
-        outer_dom
-            .dom()
-            .set_style_or_warn("overflow-x", "auto", &logger);
-        outer_dom.dom().set_style_or_warn(
-            "background-color",
-            bg_color,
-            &logger,
-        );
-        outer_dom
-            .dom()
-            .set_style_or_warn("pointer-events", "auto", &logger);
-        outer_dom.dom().set_style_or_warn(
-            "border-radius",
-            format!("{}px", CORNER_RADIUS),
-            &logger,
-        );
+        outer_dom.dom().set_style_or_warn("white-space", "normal", &logger);
+        outer_dom.dom().set_style_or_warn("overflow-y", "auto", &logger);
+        outer_dom.dom().set_style_or_warn("overflow-x", "auto", &logger);
+        outer_dom.dom().set_style_or_warn("background-color", bg_color, &logger);
+        outer_dom.dom().set_style_or_warn("pointer-events", "auto", &logger);
+        outer_dom.dom().set_style_or_warn("border-radius", format!("{}px", CORNER_RADIUS), &logger);
         shadow::add_to_dom_element(&outer_dom, &styles, &logger);
 
-        inner_dom
-            .dom()
-            .set_attribute_or_warn("class", "scrollable", &logger);
-        inner_dom
-            .dom()
-            .set_style_or_warn("white-space", "normal", &logger);
-        inner_dom
-            .dom()
-            .set_style_or_warn("overflow-y", "auto", &logger);
-        inner_dom
-            .dom()
-            .set_style_or_warn("overflow-x", "auto", &logger);
-        inner_dom.dom().set_style_or_warn(
-            "padding",
-            format!("{}px", PADDING),
-            &logger,
-        );
-        inner_dom
-            .dom()
-            .set_style_or_warn("padding-top", "5px", &logger);
-        inner_dom
-            .dom()
-            .set_style_or_warn("pointer-events", "auto", &logger);
-        inner_dom.dom().set_style_or_warn(
-            "border-radius",
-            format!("{}px", CORNER_RADIUS),
-            &logger,
-        );
+        inner_dom.dom().set_attribute_or_warn("class", "scrollable", &logger);
+        inner_dom.dom().set_style_or_warn("white-space", "normal", &logger);
+        inner_dom.dom().set_style_or_warn("overflow-y", "auto", &logger);
+        inner_dom.dom().set_style_or_warn("overflow-x", "auto", &logger);
+        inner_dom.dom().set_style_or_warn("padding", format!("{}px", PADDING), &logger);
+        inner_dom.dom().set_style_or_warn("padding-top", "5px", &logger);
+        inner_dom.dom().set_style_or_warn("pointer-events", "auto", &logger);
+        inner_dom.dom().set_style_or_warn("border-radius", format!("{}px", CORNER_RADIUS), &logger);
 
         overlay.roundness.set(1.0);
         overlay.radius.set(CORNER_RADIUS);
@@ -144,16 +111,8 @@ impl Model {
         scene.dom.layers.front.manage(&inner_dom);
 
         let code_copy_closures = default();
-        Model {
-            logger,
-            outer_dom,
-            inner_dom,
-            size,
-            overlay,
-            display_object,
-            code_copy_closures,
-        }
-        .init()
+        Model { logger, outer_dom, inner_dom, size, overlay, display_object, code_copy_closures }
+            .init()
     }
 
     fn init(self) -> Self {
@@ -170,9 +129,9 @@ impl Model {
 
     /// Create a container for generated content and embed it with stylesheet.
     fn push_to_dom(&self, content: String) {
-        let no_doc_txt =
-            "<p style=\"color: #a3a6a9;\">No documentation available</p>";
-        // FIXME [MM] : Temporary solution until engine update with changed class name in docs parser.
+        let no_doc_txt = "<p style=\"color: #a3a6a9;\">No documentation available</p>";
+        // FIXME [MM] : Temporary solution until engine update with changed class name in docs
+        // parser.
         let content = content
             .replace("<p>No documentation available</p>", no_doc_txt)
             .replace("class=\"doc\"", "class=\"enso docs\"")
@@ -186,67 +145,57 @@ impl Model {
     /// returns top-to-bottom sorted list of elements, as found in:
     /// https://stackoverflow.com/questions/35525811/order-of-elements-in-document-getelementsbyclassname-array
     fn attach_listeners_to_copy_buttons(&self) {
-        let code_blocks = self
-            .inner_dom
-            .dom()
-            .get_elements_by_class_name(CODE_BLOCK_CLASS);
-        let copy_buttons = self
-            .inner_dom
-            .dom()
-            .get_elements_by_class_name(COPY_BUTTON_CLASS);
-        let closures     = (0..copy_buttons.length()).map(|i| -> Result<CodeCopyClosure,u32> {
+        let code_blocks = self.inner_dom.dom().get_elements_by_class_name(CODE_BLOCK_CLASS);
+        let copy_buttons = self.inner_dom.dom().get_elements_by_class_name(COPY_BUTTON_CLASS);
+        let closures = (0..copy_buttons.length()).map(|i| -> Result<CodeCopyClosure, u32> {
             let create_closures = || -> Option<CodeCopyClosure> {
                 let copy_button = copy_buttons.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
-                let code_block  = code_blocks.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
-                let closure     = Box::new(move |_event: MouseEvent| {
+                let code_block = code_blocks.get_with_index(i)?.dyn_into::<HtmlElement>().ok()?;
+                let closure = Box::new(move |_event: MouseEvent| {
                     let inner_code = code_block.inner_text();
                     clipboard::write_text(inner_code);
                 });
                 let closure: Closure<dyn FnMut(MouseEvent)> = Closure::wrap(closure);
                 let callback = closure.as_ref().unchecked_ref();
-                match copy_button.add_event_listener_with_callback("click",callback) {
-                    Ok(_)  => Some(closure),
+                match copy_button.add_event_listener_with_callback("click", callback) {
+                    Ok(_) => Some(closure),
                     Err(e) => {
-                        error!(&self.logger,"Unable to add event listener to copy button: {e:?}");
+                        error!(&self.logger, "Unable to add event listener to copy button: {e:?}");
                         None
-                    },
+                    }
                 }
             };
             create_closures().ok_or(i)
         });
-        let (closures, errors): (Vec<_>, Vec<_>) =
-            closures.partition(Result::is_ok);
-        let ok_closures =
-            closures.into_iter().filter_map(|t| t.ok()).collect_vec();
-        let err_indices =
-            errors.into_iter().filter_map(|t| t.err()).collect_vec();
+        let (closures, errors): (Vec<_>, Vec<_>) = closures.partition(Result::is_ok);
+        let ok_closures = closures.into_iter().filter_map(|t| t.ok()).collect_vec();
+        let err_indices = errors.into_iter().filter_map(|t| t.err()).collect_vec();
         if !err_indices.is_empty() {
-            error!(&self.logger, "Failed to attach listeners to copy buttons with indices: {err_indices:?}.")
+            error!(
+                &self.logger,
+                "Failed to attach listeners to copy buttons with indices: {err_indices:?}."
+            )
         }
         self.code_copy_closures.set(ok_closures)
     }
 
     /// Receive data, process and present it in the documentation view.
-    fn receive_data(
-        &self,
-        data: &visualization::Data,
-    ) -> Result<(), visualization::DataError> {
+    fn receive_data(&self, data: &visualization::Data) -> Result<(), visualization::DataError> {
         let string = match data {
-            visualization::Data::Json { content } => {
-                match serde_json::to_string_pretty(&**content) {
-                    Ok(string) => string,
-                    Err(err) => {
-                        error!(self.logger, "Error during documentation vis-data serialization: \
-                        {err:?}");
-                        return Err(
-                            visualization::DataError::InternalComputationError,
-                        );
-                    }
+            visualization::Data::Json { content } => match serde_json::to_string_pretty(&**content)
+            {
+                Ok(string) => string,
+                Err(err) => {
+                    error!(
+                        self.logger,
+                        "Error during documentation vis-data serialization: \
+                        {err:?}"
+                    );
+                    return Err(visualization::DataError::InternalComputationError);
                 }
-            }
-            visualization::Data::Binary => {
-                return Err(visualization::DataError::BinaryNotSupported)
-            }
+            },
+            visualization::Data::Binary =>
+                return Err(visualization::DataError::BinaryNotSupported),
         };
         self.display_doc(&string);
         Ok(())
@@ -269,15 +218,8 @@ impl Model {
         let size = self.size.get();
         let padding = (size.x.min(size.y) / 2.0).min(PADDING);
         self.outer_dom.set_size(Vector2(size.x, size.y));
-        self.inner_dom.set_size(Vector2(
-            size.x - padding,
-            size.y - padding - PADDING_TOP,
-        ));
-        self.inner_dom.dom().set_style_or_warn(
-            "padding",
-            format!("{}px", padding),
-            &self.logger,
-        );
+        self.inner_dom.set_size(Vector2(size.x - padding, size.y - padding - PADDING_TOP));
+        self.inner_dom.dom().set_style_or_warn("padding", format!("{}px", padding), &self.logger);
         self.inner_dom.dom().set_style_or_warn(
             "padding-top",
             format!("{}px", PADDING_TOP),
@@ -285,6 +227,8 @@ impl Model {
         );
     }
 }
+
+
 
 // ===========
 // === FRP ===
@@ -302,6 +246,7 @@ ensogl::define_endpoints! {
     }
 }
 
+
 // ============
 // === View ===
 // ============
@@ -317,9 +262,9 @@ ensogl::define_endpoints! {
 #[allow(missing_docs)]
 pub struct View {
     #[shrinkwrap(main_field)]
-    pub model: Model,
+    pub model:             Model,
     pub visualization_frp: visualization::instance::Frp,
-    pub frp: Frp,
+    pub frp:               Frp,
 }
 
 impl View {
@@ -327,10 +272,7 @@ impl View {
     pub fn definition() -> visualization::Definition {
         let path = visualization::Path::builtin("Documentation View");
         visualization::Definition::new(
-            visualization::Signature::new_for_any_type(
-                path,
-                visualization::Format::Json,
-            ),
+            visualization::Signature::new_for_any_type(path, visualization::Format::Json),
             |scene| Ok(Self::new(scene).into()),
         )
     }
@@ -341,12 +283,7 @@ impl View {
         let visualization_frp = visualization::instance::Frp::new(&frp.network);
         let model = Model::new(scene);
         model.load_waiting_screen();
-        Self {
-            model,
-            visualization_frp,
-            frp,
-        }
-        .init(scene)
+        Self { model, visualization_frp, frp }.init(scene)
     }
 
     fn init(self, scene: &Scene) -> Self {
@@ -395,12 +332,7 @@ impl View {
 
 impl From<View> for visualization::Instance {
     fn from(t: View) -> Self {
-        Self::new(
-            &t,
-            &t.visualization_frp,
-            &t.frp.network,
-            Some(t.model.outer_dom.clone_ref()),
-        )
+        Self::new(&t, &t.visualization_frp, &t.frp.network, Some(t.model.outer_dom.clone_ref()))
     }
 }
 

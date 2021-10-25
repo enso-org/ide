@@ -2,6 +2,8 @@
 
 use crate::prelude::*;
 
+
+
 // =============
 // === Entry ===
 // =============
@@ -10,9 +12,9 @@ use crate::prelude::*;
 #[allow(missing_docs)]
 #[derive(Clone, CloneRef, Debug, Default)]
 pub struct Entry {
-    pub label: ImString,
+    pub label:     ImString,
     pub is_folder: Immutable<bool>,
-    pub icon: Icon,
+    pub icon:      Icon,
 }
 
 /// The typewrapper for icon name.
@@ -27,6 +29,8 @@ pub fn Icon(name: impl Into<ImString>) -> Icon {
     let name = name.into();
     Icon { name }
 }
+
+
 
 // ===========
 // === FRP ===

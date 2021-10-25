@@ -11,11 +11,10 @@ use itertools::Itertools;
 /// ```
 /// use utils::iter::split_by_predicate;
 ///
-/// let (odd,even) = split_by_predicate(1..=5, |i| i % 2 == 0);
-/// assert_eq!(even, vec![2,4]);
-/// assert_eq!(odd,  vec![1,3,5]);
+/// let (odd, even) = split_by_predicate(1..=5, |i| i % 2 == 0);
+/// assert_eq!(even, vec![2, 4]);
+/// assert_eq!(odd, vec![1, 3, 5]);
 /// ```
-///
 pub fn split_by_predicate<Iter, Item, Predicate>(
     input: Iter,
     predicate: Predicate,
@@ -25,8 +24,5 @@ where
     Predicate: Fn(&Item) -> bool,
 {
     let mut grouped = input.into_iter().into_group_map_by(predicate);
-    (
-        grouped.remove(&false).unwrap_or_default(),
-        grouped.remove(&true).unwrap_or_default(),
-    )
+    (grouped.remove(&false).unwrap_or_default(), grouped.remove(&true).unwrap_or_default())
 }

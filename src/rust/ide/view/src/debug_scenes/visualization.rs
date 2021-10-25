@@ -23,6 +23,8 @@ fn generate_data(seconds: f64) -> Vec<Vector2<f32>> {
     data
 }
 
+
+
 fn constructor_graph() -> visualization::java_script::Definition {
     let source = r#"
         class Graph extends Visualization {
@@ -79,8 +81,7 @@ pub fn entry_point_visualization() {
     web::forward_panic_hook_to_console();
     web::set_stack_trace_limit();
     run_once_initialized(|| {
-        let app =
-            Application::new(&web::get_html_element_by_id("root").unwrap());
+        let app = Application::new(&web::get_html_element_by_id("root").unwrap());
         init(&app);
         std::mem::forget(app);
     });
@@ -100,9 +101,7 @@ fn init(app: &Application) {
         .iter()
         .find(|class| &*class.signature.name == "Graph")
         .expect("Couldn't find Graph class.");
-    let visualization = vis_class
-        .new_instance(scene)
-        .expect("Couldn't create visualiser.");
+    let visualization = vis_class.new_instance(scene).expect("Couldn't create visualiser.");
     visualization.activate.emit(());
 
     let network = enso_frp::Network::new("VisualizationExample");
@@ -128,9 +127,7 @@ fn init(app: &Application) {
             // To be changed in the future.
             if was_rendered && !loader_hidden {
                 web::get_element_by_id("loader")
-                    .map(|t| {
-                        t.parent_node().map(|p| p.remove_child(&t).unwrap())
-                    })
+                    .map(|t| t.parent_node().map(|p| p.remove_child(&t).unwrap()))
                     .ok();
                 loader_hidden = true;
             }

@@ -6,6 +6,8 @@ use enso_prelude::*;
 
 use std::any::TypeId;
 
+
+
 // ================
 // === Callback ===
 // ================
@@ -40,6 +42,8 @@ pub trait CopyCallbackMut1Fn<T> = FnMut(T) + 'static;
 /// Mutable callback object with one parameter.
 pub type CopyCallbackMut1<T> = Box<dyn CopyCallbackMut1Fn<T>>;
 
+
+
 // ==============
 // === Handle ===
 // ==============
@@ -59,9 +63,7 @@ impl Handle {
 
     /// Create guard for this handle.
     pub fn guard(&self) -> Guard {
-        Guard {
-            weak: Rc::downgrade(&self.rc),
-        }
+        Guard { weak: Rc::downgrade(&self.rc) }
     }
 
     /// Invalidates all handles. Even if there exist some active handles, the callback will not be
@@ -83,6 +85,8 @@ impl Default for Handle {
     }
 }
 
+
+
 // =============
 // === Guard ===
 // =============
@@ -102,6 +106,8 @@ impl Guard {
         }
     }
 }
+
+
 
 // ================
 // === Registry ===
@@ -135,9 +141,7 @@ impl Registry {
     /// Fires all registered callbacks and removes the ones which got dropped.
     pub fn run_all(&mut self) {
         self.clear_unused_callbacks();
-        self.callback_list
-            .iter_mut()
-            .for_each(move |(_, callback)| callback());
+        self.callback_list.iter_mut().for_each(move |(_, callback)| callback());
     }
 
     /// Checks all registered callbacks and removes the ones which got dropped.
@@ -145,6 +149,8 @@ impl Registry {
         self.callback_list.retain(|(guard, _)| guard.exists());
     }
 }
+
+
 
 // =========================
 // === SharedRegistryMut ===
@@ -181,18 +187,15 @@ impl SharedRegistryMut {
     pub fn run_all(&self) {
         self.clear_unused_callbacks();
         let callbacks = self.callback_list.borrow().clone();
-        callbacks
-            .iter()
-            .for_each(|(_, callback)| (&mut *callback.borrow_mut())());
+        callbacks.iter().for_each(|(_, callback)| (&mut *callback.borrow_mut())());
     }
 
     /// Checks all registered callbacks and removes the ones which got dropped.
     fn clear_unused_callbacks(&self) {
-        self.callback_list
-            .borrow_mut()
-            .retain(|(guard, _)| guard.exists());
+        self.callback_list.borrow_mut().retain(|(guard, _)| guard.exists());
     }
 }
+
 
 // ==========================
 // === SharedRegistryMut1 ===
@@ -208,8 +211,7 @@ impl SharedRegistryMut {
 #[allow(clippy::type_complexity)]
 pub struct SharedRegistryMut1<T> {
     #[derivative(Debug = "ignore")]
-    callback_list:
-        Rc<RefCell<Vec<(Guard, Rc<RefCell<dyn CallbackMut1Fn<T>>>)>>>,
+    callback_list: Rc<RefCell<Vec<(Guard, Rc<RefCell<dyn CallbackMut1Fn<T>>>)>>>,
 }
 
 impl<T> SharedRegistryMut1<T> {
@@ -237,18 +239,16 @@ impl<T> SharedRegistryMut1<T> {
     pub fn run_all(&self, t: &T) {
         self.clear_unused_callbacks();
         let callbacks = self.callback_list.borrow().clone();
-        callbacks
-            .iter()
-            .for_each(|(_, callback)| (&mut *callback.borrow_mut())(t));
+        callbacks.iter().for_each(|(_, callback)| (&mut *callback.borrow_mut())(t));
     }
 
     /// Checks all registered callbacks and removes the ones which got dropped.
     fn clear_unused_callbacks(&self) {
-        self.callback_list
-            .borrow_mut()
-            .retain(|(guard, _)| guard.exists());
+        self.callback_list.borrow_mut().retain(|(guard, _)| guard.exists());
     }
 }
+
+
 
 // =================
 // === Registry1 ===
@@ -282,9 +282,7 @@ impl<T> Registry1<T> {
     /// Fires all registered callbacks and removes the ones which got dropped.
     pub fn run_all(&mut self, t: &T) {
         self.clear_unused_callbacks();
-        self.callback_list
-            .iter_mut()
-            .for_each(move |(_, callback)| callback(t));
+        self.callback_list.iter_mut().for_each(move |(_, callback)| callback(t));
     }
 
     /// Checks all registered callbacks and removes the ones which got dropped.
@@ -292,6 +290,8 @@ impl<T> Registry1<T> {
         self.callback_list.retain(|(guard, _)| guard.exists());
     }
 }
+
+
 
 // ====================
 // === CopyRegistry ===
@@ -324,9 +324,7 @@ impl<T: Copy> CopyRegistry1<T> {
     /// Fires all registered callbacks and removes the ones which got dropped.
     pub fn run_all(&mut self, t: T) {
         self.clear_unused_callbacks();
-        self.callback_list
-            .iter_mut()
-            .for_each(move |(_, callback)| callback(t));
+        self.callback_list.iter_mut().for_each(move |(_, callback)| callback(t));
     }
 
     /// Checks all registered callbacks and removes the ones which got dropped.
@@ -334,6 +332,8 @@ impl<T: Copy> CopyRegistry1<T> {
         self.callback_list.retain(|(guard, _)| guard.exists());
     }
 }
+
+
 
 // ==========================
 // === DynEventDispatcher ===
@@ -365,18 +365,14 @@ pub struct DynEventDispatcher {
 
 impl DynEventDispatcher {
     /// Registers a new listener for a given type.
-    pub fn add_listener<F: CallbackMut1Fn<T>, T: 'static>(
-        &mut self,
-        mut f: F,
-    ) -> Handle {
+    pub fn add_listener<F: CallbackMut1Fn<T>, T: 'static>(&mut self, mut f: F) -> Handle {
         let callback = Box::new(move |event: &DynEvent| {
             event.any.downcast_ref::<T>().iter().for_each(|t| f(t))
         });
         let type_id = (&PhantomData::<T>).type_id();
         let handle = Handle::new();
         let guard = handle.guard();
-        let listeners =
-            self.listener_map.entry(type_id).or_insert_with(default);
+        let listeners = self.listener_map.entry(type_id).or_insert_with(default);
         listeners.push((guard, callback));
         handle
     }
@@ -384,14 +380,9 @@ impl DynEventDispatcher {
     /// Dispatch an event to all listeners registered for that particular event type.
     pub fn dispatch(&mut self, event: &DynEvent) {
         let type_id = event.any.type_id();
-        self.listener_map
-            .get_mut(&type_id)
-            .iter_mut()
-            .for_each(|listeners| {
-                listeners.retain(|(guard, _)| guard.exists());
-                listeners
-                    .iter_mut()
-                    .for_each(move |(_, callback)| callback(event));
-            });
+        self.listener_map.get_mut(&type_id).iter_mut().for_each(|listeners| {
+            listeners.retain(|(guard, _)| guard.exists());
+            listeners.iter_mut().for_each(move |(_, callback)| callback(event));
+        });
     }
 }

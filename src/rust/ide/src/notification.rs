@@ -6,6 +6,8 @@ use crate::prelude::*;
 use flo_stream::MessagePublisher;
 use flo_stream::Subscriber;
 
+
+
 // =================
 // === Publisher ===
 // =================
@@ -23,22 +25,13 @@ pub struct Publisher<Message>(RefCell<flo_stream::Publisher<Message>>);
 
 impl<Message: Clone> Default for Publisher<Message> {
     fn default() -> Self {
-        Self(RefCell::new(flo_stream::Publisher::new(
-            NOTIFICATION_BUFFER_SIZE,
-        )))
+        Self(RefCell::new(flo_stream::Publisher::new(NOTIFICATION_BUFFER_SIZE)))
     }
 }
 
 impl<Message: 'static> Debug for Publisher<Message> {
-    fn fmt(
-        &self,
-        f: &mut std::fmt::Formatter<'_>,
-    ) -> Result<(), std::fmt::Error> {
-        write!(
-            f,
-            "notification::Publisher<{:?}>",
-            std::any::TypeId::of::<Message>()
-        )
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "notification::Publisher<{:?}>", std::any::TypeId::of::<Message>())
     }
 }
 

@@ -2,6 +2,7 @@
 //! render pass implementation - rendering to framebuffer and then using the result with some
 //! post-processing effect by applying the previous output to a screen covering geometry.
 
+
 use crate::prelude::*;
 
 use crate::display::scene::Scene;
@@ -11,10 +12,12 @@ use crate::display::symbol::material::Material;
 use crate::system::gpu::data::texture;
 use crate::system::gpu::data::types::*;
 
+
+
 /// Defines a system containing shapes. It is a specialized `SpriteSystem` version.
 #[derive(Clone, CloneRef, Debug)]
 pub struct Screen {
-    sprite: Sprite,
+    sprite:        Sprite,
     sprite_system: SpriteSystem,
 }
 
@@ -25,10 +28,7 @@ impl Screen {
         sprite_system.set_geometry_material(Self::geometry_material());
         sprite_system.set_material(surface_material);
         let sprite = sprite_system.new_instance();
-        Self {
-            sprite,
-            sprite_system,
-        }
+        Self { sprite, sprite_system }
     }
 
     /// Constructor of a geometry which covers the whole screen and displays on it the image
@@ -57,6 +57,7 @@ impl Screen {
         self.sprite_system.render()
     }
 }
+
 
 // === Materials ===
 

@@ -4,6 +4,8 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::PathBuf;
 
+
+
 // =========================
 // == Hardcoded constants ==
 // =========================
@@ -27,13 +29,13 @@ const ENABLE_ENV_VAR_NAME: &str = "ENSO_IDE_ENABLE_FLATC";
 
 /// An URL pointing to engine interface files.
 pub fn interface_description_url() -> reqwest::Url {
-    let url = format!(
-        "https://packages.luna-lang.org/fbs-schema/nightly/{}/fbs-schema.zip",
-        COMMIT
-    );
+    let url =
+        format!("https://packages.luna-lang.org/fbs-schema/nightly/{}/fbs-schema.zip", COMMIT);
     let err = format!("{} is an invalid URL.", url);
     reqwest::Url::parse(&url).expect(&err)
 }
+
+
 
 // ===================================
 // == Download Engine Api Artifacts ==
@@ -48,9 +50,7 @@ struct ApiProvider {
 impl ApiProvider {
     /// Creates a provider that can download engine artifacts.
     pub fn new() -> ApiProvider {
-        let out_dir = env::var("OUT_DIR")
-            .expect("OUT_DIR isn't environment variable")
-            .into();
+        let out_dir = env::var("OUT_DIR").expect("OUT_DIR isn't environment variable").into();
         ApiProvider { out_dir }
     }
 
@@ -81,12 +81,11 @@ impl ApiProvider {
         archive.extract(&self.out_dir).expect(&unzip_error);
     }
 
+
     /// Generates rust files from FlatBuffers schemas.
     pub fn generate_files(&self) {
         let fbs_dir = self.out_dir.join(ZIP_CONTENT);
-        for entry in
-            fs::read_dir(&fbs_dir).expect("Could not read content of dir")
-        {
+        for entry in fs::read_dir(&fbs_dir).expect("Could not read content of dir") {
             let path = entry.expect("Invalid content of dir").path();
             let result = flatc_rust::run(flatc_rust::Args {
                 inputs: &[&path],
@@ -94,8 +93,10 @@ impl ApiProvider {
                 ..Default::default()
             });
             if result.is_err() {
-                println!("cargo:info=Engine API files were not regenerated because `flatc` isn't \
-                         installed.");
+                println!(
+                    "cargo:info=Engine API files were not regenerated because `flatc` isn't \
+                         installed."
+                );
                 break;
             }
         }
@@ -112,16 +113,15 @@ impl ApiProvider {
             return;
         }
 
-        println!(
-            "cargo:info=Engine API artifacts version changed. Rebuilding."
-        );
+        println!("cargo:info=Engine API artifacts version changed. Rebuilding.");
         let artifacts = self.download().await;
         self.unzip(artifacts);
         self.generate_files();
-        fs::write(&fingerprint, COMMIT)
-            .expect("Unable to write artifacts fingerprint.");
+        fs::write(&fingerprint, COMMIT).expect("Unable to write artifacts fingerprint.");
     }
 }
+
+
 
 // ==========
 // == main ==
@@ -134,8 +134,11 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let provider = ApiProvider::new();
         provider.run().await;
     } else {
-        println!("cargo:info=Will not try updating flatc-generated files. Define `{}` environment \
-        variable to enable regeneration of the Engine API flatc bindings.", ENABLE_ENV_VAR_NAME);
+        println!(
+            "cargo:info=Will not try updating flatc-generated files. Define `{}` environment \
+        variable to enable regeneration of the Engine API flatc bindings.",
+            ENABLE_ENV_VAR_NAME
+        );
     }
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-env-changed={}", ENABLE_ENV_VAR_NAME);

@@ -6,6 +6,8 @@ use crate::prelude::*;
 use super::rope;
 use super::unit::*;
 
+
+
 // =============
 // === Range ===
 // =============
@@ -18,7 +20,7 @@ use super::unit::*;
 #[allow(missing_docs)]
 pub struct Range<T> {
     pub start: T,
-    pub end: T,
+    pub end:   T,
 }
 
 impl<T> Range<T> {
@@ -29,55 +31,43 @@ impl<T> Range<T> {
 
     /// The size of the range.
     pub fn size(&self) -> T
-    where
-        T: Clone + Sub<T, Output = T>,
-    {
+    where T: Clone + Sub<T, Output = T> {
         self.end.clone() - self.start.clone()
     }
 
     /// Return new range with the provided start value.
     pub fn with_start(&self, start: T) -> Self
-    where
-        T: Clone,
-    {
+    where T: Clone {
         let end = self.end.clone();
         Self { start, end }
     }
 
     /// Return new range with the provided end value.
     pub fn with_end(&self, end: T) -> Self
-    where
-        T: Clone,
-    {
+    where T: Clone {
         let start = self.start.clone();
         Self { start, end }
     }
 
     /// Map both values with the provided function.
     pub fn map(&self, f: impl Fn(T) -> T) -> Self
-    where
-        T: Clone,
-    {
-        self.with_start(f(self.start.clone()))
-            .with_end(f(self.end.clone()))
+    where T: Clone {
+        self.with_start(f(self.start.clone())).with_end(f(self.end.clone()))
     }
 
     /// Map the start value with the provided function.
     pub fn map_start(&self, f: impl FnOnce(T) -> T) -> Self
-    where
-        T: Clone,
-    {
+    where T: Clone {
         self.with_start(f(self.start.clone()))
     }
 
     /// Map the end value with the provided function.
     pub fn map_end(&self, f: impl FnOnce(T) -> T) -> Self
-    where
-        T: Clone,
-    {
+    where T: Clone {
         self.with_end(f(self.end.clone()))
     }
 }
+
 
 // === Range<Bytes> methods ===
 
@@ -87,6 +77,7 @@ impl Range<Bytes> {
         self.into()
     }
 }
+
 
 // === Impls ===
 
@@ -109,6 +100,7 @@ impl<T> From<std::ops::Range<T>> for Range<T> {
     }
 }
 
+
 // === Bytes Impls ===
 
 impl From<RangeTo<Bytes>> for Range<Bytes> {
@@ -129,6 +121,7 @@ impl From<RangeToInclusive<Bytes>> for Range<Bytes> {
     }
 }
 
+
 // === Conversions ===
 
 impl<T: Clone> From<&Range<T>> for Range<T> {
@@ -144,6 +137,8 @@ impl From<Range<Bytes>> for rope::Interval {
         Self { start, end }
     }
 }
+
+
 
 // ===================
 // === RangeBounds ===

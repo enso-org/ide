@@ -49,9 +49,7 @@ pub fn entry_point_drop_manager() {
         .on_frame(move |_| {
             if !loader_hidden {
                 web::get_element_by_id("loader")
-                    .map(|t| {
-                        t.parent_node().map(|p| p.remove_child(&t).unwrap())
-                    })
+                    .map(|t| t.parent_node().map(|p| p.remove_child(&t).unwrap()))
                     .ok();
                 loader_hidden = true;
             }

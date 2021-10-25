@@ -14,9 +14,7 @@ pub struct DeserializationError(pub String);
 
 #[allow(missing_docs)]
 #[derive(Debug, Fail, Clone, Copy)]
-#[fail(
-    display = "Received a message that is neither a response nor a notification"
-)]
+#[fail(display = "Received a message that is neither a response nor a notification")]
 pub struct UnexpectedMessage;
 
 /// The error codes defined in Enso Protocol (see

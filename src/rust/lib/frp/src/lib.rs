@@ -58,9 +58,9 @@
 //!
 //! Meaning of the graph elements:
 //! - On the left there are two `Network` nodes which will be missing if used in dynamic mode.
-//! - Colors indicate to which network nodes belong (nodes of that color will be dropped as
-//!   soon as the network gets dropped). Nodes with double color will be dropped as soon as an event
-//!   will be emitted to nodes belonging to the dropped network.
+//! - Colors indicate to which network nodes belong (nodes of that color will be dropped as soon as
+//!   the network gets dropped). Nodes with double color will be dropped as soon as an event will be
+//!   emitted to nodes belonging to the dropped network.
 //! - Black solid edges without arrows are just fields inside structure.
 //! - Black solid edges with arrows are `Rc` pointers.
 //! - Black dashed edges with arrows are `Weak` pointers.
@@ -141,7 +141,6 @@
 //!
 //! Every node is initialized with the `Default` value with exception of `toggle_true`, which starts
 //! with `true` and not `false` (`Default` for `bool`).
-//!
 //! ```
 
 #![allow(incomplete_features)] // To be removed, see: https://github.com/enso-org/ide/issues/1559
@@ -181,6 +180,7 @@ pub mod prelude {
     pub use enso_logger::*;
     pub use enso_prelude::*;
 }
+
 
 #[cfg(test)]
 mod network_mode_tests {

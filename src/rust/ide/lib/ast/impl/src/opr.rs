@@ -21,6 +21,8 @@ use crate::Shape;
 
 use utils::vec::VecExt;
 
+
+
 // =================
 // === Constants ===
 // =================
@@ -28,8 +30,8 @@ use utils::vec::VecExt;
 /// Symbols that can appear in operator name, as per
 /// https://dev.enso.org/docs/enso/syntax/naming.html#operator-naming
 pub const SYMBOLS: [char; 25] = [
-    '!', '$', '%', '&', '*', '+', '-', '/', '<', '>', '?', '^', '~', '|', ':',
-    '\\', ',', '.', '(', ')', '[', ']', '{', '}', '=',
+    '!', '$', '%', '&', '*', '+', '-', '/', '<', '>', '?', '^', '~', '|', ':', '\\', ',', '.', '(',
+    ')', '[', ']', '{', '}', '=',
 ];
 
 /// Identifiers of operators with special meaning for IDE.
@@ -41,6 +43,8 @@ pub mod predefined {
     /// Used to create lambda expressions, e.g. `a -> b -> a + b`.
     pub const ARROW: &str = "->";
 }
+
+
 
 // ====================
 // === AST handling ===
@@ -98,9 +102,7 @@ pub fn to_access(ast: &Ast) -> Option<known::Infix> {
 /// Checks if a given node is an assignment infix expression.
 pub fn is_assignment(ast: &Ast) -> bool {
     let infix = known::Infix::try_from(ast);
-    infix
-        .map(|infix| is_assignment_opr(&infix.opr))
-        .unwrap_or(false)
+    infix.map(|infix| is_assignment_opr(&infix.opr)).unwrap_or(false)
 }
 
 /// Obtains a new `Opr` with an assignment.
@@ -116,6 +118,8 @@ pub fn name_segments(name: &str) -> impl Iterator<Item = &str> {
     name.split(predefined::ACCESS)
 }
 
+
+
 // ===========================
 // === Chain-related types ===
 // ===========================
@@ -126,7 +130,7 @@ pub fn name_segments(name: &str) -> impl Iterator<Item = &str> {
 #[allow(missing_docs)]
 #[derive(Clone, Debug)]
 pub struct ArgWithOffset<T> {
-    pub arg: T,
+    pub arg:    T,
     pub offset: usize,
 }
 
@@ -151,6 +155,8 @@ pub fn assoc(ast: &known::Opr) -> Assoc {
     Assoc::of(&ast.name)
 }
 
+
+
 // ========================
 // === GeneralizedInfix ===
 // ========================
@@ -159,20 +165,20 @@ pub fn assoc(ast: &known::Opr) -> Assoc {
 #[derive(Clone, Debug)]
 pub struct GeneralizedInfix {
     /// Left operand, if present.
-    pub left: Operand,
+    pub left:  Operand,
     /// The operator, always present.
-    pub opr: Operator,
+    pub opr:   Operator,
     /// Right operand, if present.
     pub right: Operand,
     /// Infix id.
-    pub id: Option<Id>,
+    pub id:    Option<Id>,
 }
 
 /// A structure used for GeneralizedInfix construction which marks operands as _target_ and
 /// _argument_. See `target_operand` and `argument_operand` methods.
 pub struct MarkedOperands {
     /// The self operand, target of the application.
-    pub target: Operand,
+    pub target:   Operand,
     /// Operand other than self.
     pub argument: Operand,
 }
@@ -212,24 +218,12 @@ impl GeneralizedInfix {
     }
 
     /// Constructor with operands marked as target and argument.
-    pub fn new_from_operands(
-        operands: MarkedOperands,
-        opr: Operator,
-        id: Option<Id>,
-    ) -> Self {
+    pub fn new_from_operands(operands: MarkedOperands, opr: Operator, id: Option<Id>) -> Self {
         match assoc(&opr) {
-            Assoc::Left => GeneralizedInfix {
-                opr,
-                id,
-                left: operands.target,
-                right: operands.argument,
-            },
-            Assoc::Right => GeneralizedInfix {
-                opr,
-                id,
-                left: operands.argument,
-                right: operands.target,
-            },
+            Assoc::Left =>
+                GeneralizedInfix { opr, id, left: operands.target, right: operands.argument },
+            Assoc::Right =>
+                GeneralizedInfix { opr, id, left: operands.argument, right: operands.target },
         }
     }
 
@@ -239,27 +233,16 @@ impl GeneralizedInfix {
             (Some(left), Some(right)) => Infix {
                 larg: left.arg,
                 loff: left.offset,
-                opr: self.opr.into(),
+                opr:  self.opr.into(),
                 roff: right.offset,
                 rarg: right.arg,
             }
             .into(),
-            (Some(left), None) => SectionLeft {
-                arg: left.arg,
-                off: left.offset,
-                opr: self.opr.into(),
-            }
-            .into(),
-            (None, Some(right)) => SectionRight {
-                opr: self.opr.into(),
-                off: right.offset,
-                arg: right.arg,
-            }
-            .into(),
-            (None, None) => SectionSides {
-                opr: self.opr.into(),
-            }
-            .into(),
+            (Some(left), None) =>
+                SectionLeft { arg: left.arg, off: left.offset, opr: self.opr.into() }.into(),
+            (None, Some(right)) =>
+                SectionRight { opr: self.opr.into(), off: right.offset, arg: right.arg }.into(),
+            (None, None) => SectionSides { opr: self.opr.into() }.into(),
         };
         if let Some(id) = self.id {
             ast.with_id(id)
@@ -312,18 +295,12 @@ impl GeneralizedInfix {
 
         let target_subtree_infix = target.clone().and_then(|arg| {
             let offset = arg.offset;
-            GeneralizedInfix::try_new(&arg.arg)
-                .map(|arg| ArgWithOffset { arg, offset })
+            GeneralizedInfix::try_new(&arg.arg).map(|arg| ArgWithOffset { arg, offset })
         });
         let mut target_subtree_flat = match target_subtree_infix {
-            Some(target_infix) if target_infix.arg.name() == self.name() => {
-                target_infix.arg.flatten_with_offset(target_infix.offset)
-            }
-            _ => Chain {
-                target,
-                args: Vec::new(),
-                operator: self.opr.clone(),
-            },
+            Some(target_infix) if target_infix.arg.name() == self.name() =>
+                target_infix.arg.flatten_with_offset(target_infix.offset),
+            _ => Chain { target, args: Vec::new(), operator: self.opr.clone() },
         };
 
         target_subtree_flat.args.push(rest);
@@ -337,6 +314,8 @@ impl From<GeneralizedInfix> for Ast {
     }
 }
 
+
+
 // =============
 // === Chain ===
 // =============
@@ -346,9 +325,9 @@ impl From<GeneralizedInfix> for Ast {
 pub struct Chain {
     /// The primary application target (left- or right-most operand, depending on
     /// operators associativity).
-    pub target: Operand,
+    pub target:   Operand,
     /// Subsequent operands applied to the `target`.
-    pub args: Vec<ChainElement>,
+    pub args:     Vec<ChainElement>,
     /// Operator AST. Generally all operators in the chain should be the same (except for id).
     /// It is not specified which exactly operator's in the chain this AST belongs to.
     pub operator: known::Opr,
@@ -373,26 +352,22 @@ impl Chain {
         &self,
     ) -> impl Iterator<Item = Option<Located<&ArgWithOffset<Ast>>>> + '_ {
         let rev_args = self.args.iter().rev();
-        let target_crumbs =
-            rev_args.map(ChainElement::crumb_to_previous).collect_vec();
+        let target_crumbs = rev_args.map(ChainElement::crumb_to_previous).collect_vec();
         let target = self.target.as_ref();
-        let loc_target =
-            std::iter::once(target.map(|opr| Located::new(target_crumbs, opr)));
+        let loc_target = std::iter::once(target.map(|opr| Located::new(target_crumbs, opr)));
         let args = self.args.iter().enumerate();
         let loc_args = args.map(move |(i, elem)| {
             elem.operand.as_ref().map(|operand| {
                 let latter_args = self.args.iter().skip(i + 1);
-                let to_infix =
-                    latter_args.rev().map(ChainElement::crumb_to_previous);
+                let to_infix = latter_args.rev().map(ChainElement::crumb_to_previous);
                 let has_target = self.target.is_some() || i > 0;
-                let crumbs = to_infix
-                    .chain(elem.crumb_to_operand(has_target))
-                    .collect_vec();
+                let crumbs = to_infix.chain(elem.crumb_to_operand(has_target)).collect_vec();
                 Located::new(crumbs, operand)
             })
         });
         loc_target.chain(loc_args)
     }
+
 
     /// Iterates over non-empty operands beginning with target (this argument) and then subsequent
     /// arguments.
@@ -403,20 +378,11 @@ impl Chain {
     }
 
     /// Iterates over all operator's AST in this chain, starting from target side.
-    pub fn enumerate_operators(
-        &self,
-    ) -> impl Iterator<Item = Located<&known::Opr>> + '_ {
+    pub fn enumerate_operators(&self) -> impl Iterator<Item = Located<&known::Opr>> + '_ {
         self.args.iter().enumerate().map(move |(i, elem)| {
-            let to_infix = self
-                .args
-                .iter()
-                .skip(i + 1)
-                .rev()
-                .map(ChainElement::crumb_to_previous);
+            let to_infix = self.args.iter().skip(i + 1).rev().map(ChainElement::crumb_to_previous);
             let has_target = self.target.is_some() || i > 0;
-            let crumbs = to_infix
-                .chain(elem.crumb_to_operator(has_target))
-                .collect_vec();
+            let crumbs = to_infix.chain(elem.crumb_to_operator(has_target)).collect_vec();
             Located::new(crumbs, &elem.operator)
         })
     }
@@ -427,11 +393,7 @@ impl Chain {
     ///
     /// Indexing does not skip `None` operands. Function panics, if get index greater than operands
     /// count.
-    pub fn insert_operand(
-        &mut self,
-        at_index: usize,
-        operand: ArgWithOffset<Ast>,
-    ) {
+    pub fn insert_operand(&mut self, at_index: usize, operand: ArgWithOffset<Ast>) {
         let offset = operand.offset;
         let mut operand = Some(operand);
         let operator = self.operator.clone_ref();
@@ -439,25 +401,9 @@ impl Chain {
         let infix_id: Option<Id> = None;
         if before_target {
             std::mem::swap(&mut operand, &mut self.target);
-            self.args.insert(
-                0,
-                ChainElement {
-                    operator,
-                    operand,
-                    offset,
-                    infix_id,
-                },
-            )
+            self.args.insert(0, ChainElement { operator, operand, offset, infix_id })
         } else {
-            self.args.insert(
-                at_index - 1,
-                ChainElement {
-                    operator,
-                    operand,
-                    offset,
-                    infix_id,
-                },
-            )
+            self.args.insert(at_index - 1, ChainElement { operator, operand, offset, infix_id })
         }
     }
 
@@ -489,12 +435,9 @@ impl Chain {
             let argument = element.operand;
             let operands = MarkedOperands { target, argument };
             let id = element.infix_id;
-            let new_infix =
-                GeneralizedInfix::new_from_operands(operands, operator, id);
-            let new_with_offset = ArgWithOffset {
-                arg: new_infix.into_ast(),
-                offset: element.offset,
-            };
+            let new_infix = GeneralizedInfix::new_from_operands(operands, operator, id);
+            let new_with_offset =
+                ArgWithOffset { arg: new_infix.into_ast(), offset: element.offset };
             self.target = Some(new_with_offset)
         }
     }
@@ -515,8 +458,7 @@ impl Chain {
 
     /// True if all operands are set, i.e. there are no section shapes in this chain.
     pub fn all_operands_set(&self) -> bool {
-        self.target.is_some()
-            && self.args.iter().all(|arg| arg.operand.is_some())
+        self.target.is_some() && self.args.iter().all(|arg| arg.operand.is_some())
     }
 }
 
@@ -525,6 +467,7 @@ impl From<Chain> for Ast {
         chain.into_ast()
     }
 }
+
 
 // === Chain Element ===
 
@@ -536,9 +479,9 @@ pub struct ChainElement {
     /// Operand on the opposite side to `this` argument.
     /// Depending on operator's associativity it is either right (for left-associative operators)
     /// or on the left side of operator.
-    pub operand: Operand,
+    pub operand:  Operand,
     /// Offset between this operand and the next operator.
-    pub offset: usize,
+    pub offset:   usize,
     /// Id of infix AST which applies this operand.
     pub infix_id: Option<Id>,
 }
@@ -580,6 +523,7 @@ impl ChainElement {
     }
 }
 
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -589,13 +533,8 @@ mod tests {
     }
 
     fn test_enumerating(chain: &Chain, root_ast: &Ast, expected_asts: &[&Ast]) {
-        assert_eq!(
-            chain.enumerate_non_empty_operands().count(),
-            expected_asts.len()
-        );
-        for (elem, expected) in
-            chain.enumerate_non_empty_operands().zip(expected_asts)
-        {
+        assert_eq!(chain.enumerate_non_empty_operands().count(), expected_asts.len());
+        for (elem, expected) in chain.enumerate_non_empty_operands().zip(expected_asts) {
             assert_eq!(elem.item.arg, **expected);
             let ast = root_ast.get_traversing(&elem.crumbs).unwrap();
             assert_eq!(ast, *expected);

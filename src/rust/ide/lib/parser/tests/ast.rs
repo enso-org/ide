@@ -1,6 +1,5 @@
 //! Tests specific to Ast rather than parser itself but placed here because they depend on parser
 //! to easily generate test input.
-//!
 // TODO: [mwu]
 //  That means that likely either `parser` should be merged with `ast` or that we should have a
 //  separate `ast_ops` crate that depends on both. Now it is better to tests here than none but
@@ -26,23 +25,14 @@ pub fn to_assignment_test() {
         ast::opr::to_assignment(line).is_some()
     };
 
-    let expected_assignments =
-        vec!["a = 5", "a=5", "foo bar = a b c", "(x,y) = pos"];
+    let expected_assignments = vec!["a = 5", "a=5", "foo bar = a b c", "(x,y) = pos"];
     let expected_not_assignments = vec!["= 5", "a=", "=", "foo", "a->b", "a+b"];
 
     for code in expected_assignments {
-        assert!(
-            is_assignment(code),
-            "{} expected to be recognized as assignment",
-            code
-        );
+        assert!(is_assignment(code), "{} expected to be recognized as assignment", code);
     }
     for code in expected_not_assignments {
-        assert!(
-            !is_assignment(code),
-            "{} expected to not be recognized as assignment",
-            code
-        );
+        assert!(!is_assignment(code), "{} expected to not be recognized as assignment", code);
     }
 }
 

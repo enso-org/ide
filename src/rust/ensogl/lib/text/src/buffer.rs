@@ -3,6 +3,8 @@
 
 use crate::prelude::*;
 
+
+
 // ===============
 // === Exports ===
 // ===============
@@ -22,6 +24,8 @@ pub use data::Text;
 pub use data::TextCell;
 pub use style::*;
 pub use view::*;
+
+
 
 // ==============
 // === Buffer ===
@@ -52,6 +56,8 @@ impl Buffer {
     }
 }
 
+
+
 // ==================
 // === BufferData ===
 // ==================
@@ -59,7 +65,7 @@ impl Buffer {
 /// Internal data of `Buffer`.
 #[derive(Debug, Default)]
 pub struct BufferData {
-    pub(crate) text: TextCell,
+    pub(crate) text:  TextCell,
     pub(crate) style: StyleCell,
 }
 
@@ -102,6 +108,8 @@ impl BufferData {
         self.style.sub(range)
     }
 }
+
+
 
 // ==============
 // === Setter ===

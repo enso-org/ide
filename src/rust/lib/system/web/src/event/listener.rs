@@ -3,6 +3,8 @@ use crate::prelude::*;
 use crate::closure::storage::ClosureFn;
 use crate::closure::storage::OptionalFmMutClosure;
 
+
+
 // ============
 // === Slot ===
 // ============
@@ -22,9 +24,9 @@ use crate::closure::storage::OptionalFmMutClosure;
 #[derive(Derivative)]
 #[derivative(Debug(bound = "EventType::Interface: Debug"))]
 pub struct Slot<EventType: crate::event::Type> {
-    logger: Logger,
+    logger:     Logger,
     #[derivative(Debug = "ignore")]
-    target: Option<EventType::Target>,
+    target:     Option<EventType::Target>,
     js_closure: OptionalFmMutClosure<EventType::Interface>,
 }
 
@@ -33,17 +35,15 @@ impl<EventType: crate::event::Type> Slot<EventType> {
     /// gets a callback (see [[set_callback]]).
     pub fn new(target: &EventType::Target, logger: impl AnyLogger) -> Self {
         Self {
-            logger: Logger::new_sub(logger, EventType::NAME),
-            target: Some(target.clone()),
+            logger:     Logger::new_sub(logger, EventType::NAME),
+            target:     Some(target.clone()),
             js_closure: default(),
         }
     }
 
     /// Register the event listener if both target and callback are set.
     fn add_if_active(&mut self) {
-        if let (Some(target), Some(function)) =
-            (self.target.as_ref(), self.js_closure.js_ref())
-        {
+        if let (Some(target), Some(function)) = (self.target.as_ref(), self.js_closure.js_ref()) {
             debug!(self.logger, "Attaching the callback.");
             EventType::add_listener(target, function)
         }
@@ -51,9 +51,7 @@ impl<EventType: crate::event::Type> Slot<EventType> {
 
     /// Unregister the event listener if both target and callback are set.
     fn remove_if_active(&mut self) {
-        if let (Some(target), Some(function)) =
-            (self.target.as_ref(), self.js_closure.js_ref())
-        {
+        if let (Some(target), Some(function)) = (self.target.as_ref(), self.js_closure.js_ref()) {
             debug!(self.logger, "Detaching the callback.");
             EventType::remove_listener(target, function)
         }

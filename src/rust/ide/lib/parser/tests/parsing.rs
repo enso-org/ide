@@ -16,6 +16,8 @@ use wasm_bindgen_test::wasm_bindgen_test_configure;
 
 wasm_bindgen_test_configure!(run_in_browser);
 
+
+
 // ===============
 // === Helpers ===
 // ===============
@@ -35,9 +37,7 @@ fn assert_opr<StringLike: Into<String>>(ast: &Ast, name: StringLike) {
 }
 
 fn roundtrip_program_with(parser: &parser::Parser, program: &str) {
-    let ast = parser
-        .parse(program.to_string(), Default::default())
-        .unwrap();
+    let ast = parser.parse(program.to_string(), Default::default()).unwrap();
     assert_eq!(ast.repr(), program, "{:#?}", ast);
 }
 
@@ -45,6 +45,8 @@ fn roundtrip_program(program: &str) {
     let parser = parser::Parser::new_or_panic();
     roundtrip_program_with(&parser, program);
 }
+
+
 
 // ================
 // === Metadata ===
@@ -55,6 +57,8 @@ fn roundtrip_program(program: &str) {
 struct FauxMetadata<T>(T);
 
 impl<T: Default + Serialize + DeserializeOwned> Metadata for FauxMetadata<T> {}
+
+
 
 // ===============
 // === Fixture ===
@@ -71,9 +75,7 @@ impl Fixture {
 
     /// Create a new fixture, obtaining a default parser.
     fn new() -> Fixture {
-        Fixture {
-            parser: parser::Parser::new_or_panic(),
-        }
+        Fixture { parser: parser::Parser::new_or_panic() }
     }
 
     /// Program is expected to be single line module. The line's Shape subtype
@@ -81,12 +83,12 @@ impl Fixture {
     fn test_shape<T, F>(&mut self, program: &str, tester: F)
     where
         for<'t> &'t Shape<Ast>: TryInto<&'t T>,
-        F: FnOnce(&T) -> (),
-    {
+        F: FnOnce(&T) -> (), {
         let ast = self.parser.parse_line_ast(program).unwrap();
         let shape = expect_shape(&ast);
         tester(shape);
     }
+
 
     // === Test Methods ===
 
@@ -97,14 +99,9 @@ impl Fixture {
     }
 
     fn deserialize_metadata(&mut self) {
-        let term = ast::Module {
-            lines: vec![ast::BlockLine { elem: None, off: 0 }],
-        };
+        let term = ast::Module { lines: vec![ast::BlockLine { elem: None, off: 0 }] };
         let ast = known::KnownAst::new_no_id(term);
-        let file = ParsedSourceFile {
-            ast,
-            metadata: serde_json::json!({}),
-        };
+        let file = ParsedSourceFile { ast, metadata: serde_json::json!({}) };
         let code = String::try_from(&file).unwrap();
         assert_eq!(self.parser.parse_with_metadata(code).unwrap(), file);
     }
@@ -123,9 +120,8 @@ impl Fixture {
         // This does not deserialize to "Unexpected" but to a very complex macro match tree that has
         // Unexpected somewhere within. We just make sure that it is somewhere, and that confirms
         // that we are able to deserialize such node.
-        let has_unexpected = ast
-            .iter_recursive()
-            .find(|ast| matches!(ast.shape(), Shape::Unexpected(_)));
+        let has_unexpected =
+            ast.iter_recursive().find(|ast| matches!(ast.shape(), Shape::Unexpected(_)));
         assert!(has_unexpected.is_some());
     }
 
@@ -196,29 +192,19 @@ impl Fixture {
     fn deserialize_text_line_raw(&mut self) {
         self.test_shape("\"foo\"", |shape: &TextLineRaw| {
             let (segment,) = (&shape.text).expect_tuple();
-            let expected = SegmentPlain {
-                value: "foo".to_string(),
-            };
+            let expected = SegmentPlain { value: "foo".to_string() };
             assert_eq!(*segment, expected.into());
         });
 
         let tricky_raw = r#""\\\'\n""#;
         self.test_shape(tricky_raw, |shape: &TextLineRaw| {
             let segments: (_,) = (&shape.text).expect_tuple();
-            assert_eq!(
-                *segments.0,
-                SegmentPlain {
-                    value: r"\\\'\n".to_string()
-                }
-                .into()
-            );
+            assert_eq!(*segments.0, SegmentPlain { value: r"\\\'\n".to_string() }.into());
         });
     }
 
     fn test_text_fmt_segment<F>(&mut self, program: &str, tester: F)
-    where
-        F: FnOnce(&SegmentFmt<Ast>) -> (),
-    {
+    where F: FnOnce(&SegmentFmt<Ast>) -> () {
         self.test_shape(program, |shape: &TextLineFmt<Ast>| {
             let (segment,) = (&shape.text).expect_tuple();
             tester(segment)
@@ -231,9 +217,7 @@ impl Fixture {
         // plain segment
         self.test_shape("'foo'", |shape: &TextLineFmt<Ast>| {
             let (segment,) = (&shape.text).expect_tuple();
-            let expected = SegmentPlain {
-                value: "foo".into(),
-            };
+            let expected = SegmentPlain { value: "foo".into() };
             assert_eq!(*segment, expected.into());
         });
 
@@ -256,9 +240,7 @@ impl Fixture {
         // expression non-empty
         let expr_fmt = r#"'`foo`'"#;
         self.test_text_fmt_segment(expr_fmt, |segment| match segment {
-            SegmentExpr(expr) => {
-                assert_var(expr.value.as_ref().unwrap(), "foo")
-            }
+            SegmentExpr(expr) => assert_var(expr.value.as_ref().unwrap(), "foo"),
             _ => panic!("wrong segment type received"),
         });
 
@@ -267,17 +249,13 @@ impl Fixture {
             assert_eq!(*segment, expected.into());
         });
         self.test_text_fmt_segment(r#"'\u0394'"#, |segment| {
-            let expected = EscapeUnicode16 {
-                digits: "0394".into(),
-            };
+            let expected = EscapeUnicode16 { digits: "0394".into() };
             assert_eq!(*segment, expected.into());
         });
         // TODO [MWU] We don't test Unicode21 as it is not yet supported by the
         //            parser.
         self.test_text_fmt_segment(r#"'\U0001f34c'"#, |segment| {
-            let expected = EscapeUnicode32 {
-                digits: "0001f34c".into(),
-            };
+            let expected = EscapeUnicode32 { digits: "0001f34c".into() };
             assert_eq!(*segment, expected.into());
         });
     }
@@ -293,9 +271,7 @@ impl Fixture {
             assert_eq!(*empty_line, 2);
 
             let (segment,) = (&line.text).expect_tuple();
-            let expected_segment = SegmentPlain {
-                value: "   X".into(),
-            };
+            let expected_segment = SegmentPlain { value: "   X".into() };
             assert_eq!(*segment, expected_segment.into());
         });
     }
@@ -320,6 +296,7 @@ impl Fixture {
             assert_eq!(*segment, expected_segment.into());
         });
     }
+
 
     fn deserialize_unfinished_text(&mut self) {
         let unfinished = r#""\"#;
@@ -395,9 +372,7 @@ impl Fixture {
 
     fn deserialize_annotation(&mut self) {
         self.test_shape("@Tail_call", |annotation: &Annotation| {
-            let expected_annotation = Annotation {
-                name: "@Tail_call".into(),
-            };
+            let expected_annotation = Annotation { name: "@Tail_call".into() };
             assert_eq!(annotation, &expected_annotation);
         });
     }
@@ -452,8 +427,7 @@ impl Fixture {
     fn run(&mut self) {
         // Shapes not covered by separate test:
         // * Opr (doesn't parse on its own, covered by Infix and other)
-        // * Module (covered by every single test, as parser wraps everything
-        //   into module)
+        // * Module (covered by every single test, as parser wraps everything into module)
         self.blank_line_round_trip();
         self.deserialize_metadata();
         self.deserialize_unrecognized();
@@ -545,22 +519,14 @@ fn dealing_with_invalid_metadata() {
     let f = Fixture::new();
 
     let id = ast::Id::from_str("52233542-5c73-430b-a2b7-a68aaf81341b").unwrap();
-    let var = ast::Ast::new(
-        ast::Var {
-            name: "variable1".into(),
-        },
-        Some(id),
-    );
+    let var = ast::Ast::new(ast::Var { name: "variable1".into() }, Some(id));
     let module = ast::Module::from_line(var);
     let ast = known::Module::new_no_id(module);
     let metadata = FauxMetadata("certainly_not_a_number".to_string());
 
     // Make sure that out metadata cannot be deserialized as `FauxMetadata<i32>`.
     let serialized_text_metadata = serde_json::to_string(&metadata).unwrap();
-    assert!(serde_json::from_str::<FauxMetadata<i32>>(
-        &serialized_text_metadata
-    )
-    .is_err());
+    assert!(serde_json::from_str::<FauxMetadata<i32>>(&serialized_text_metadata).is_err());
 
     let parsed_file = parser::api::ParsedSourceFile { ast, metadata };
     let generated = parsed_file.serialize().unwrap();
@@ -571,9 +537,6 @@ fn dealing_with_invalid_metadata() {
 [[{"index":{"value":0},"size":{"value":9}},"52233542-5c73-430b-a2b7-a68aaf81341b"]]
 "certainly_not_a_number""#;
     assert_eq!(generated.content, expected_generated);
-    let r = f
-        .parser
-        .parse_with_metadata::<FauxMetadata<i32>>(generated.content)
-        .unwrap();
+    let r = f.parser.parse_with_metadata::<FauxMetadata<i32>>(generated.content).unwrap();
     assert_eq!(r.metadata, default());
 }

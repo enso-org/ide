@@ -9,14 +9,14 @@ use ensogl_text::typeface::*;
 use ensogl_text_msdf_sys::run_once_initialized;
 use wasm_bindgen::prelude::*;
 
+
+
 /// Main example runner.
 #[wasm_bindgen]
 #[allow(dead_code)]
 pub fn entry_point_glyph_system() {
     web::forward_panic_hook_to_console();
-    run_once_initialized(|| {
-        init(&World::new(&web::get_html_element_by_id("root").unwrap()))
-    });
+    run_once_initialized(|| init(&World::new(&web::get_html_element_by_id("root").unwrap())));
 }
 
 fn init(world: &World) {

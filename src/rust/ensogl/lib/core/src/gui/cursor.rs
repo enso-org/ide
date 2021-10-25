@@ -13,6 +13,8 @@ use crate::Animation;
 use crate::DEPRECATED_Animation;
 use crate::DEPRECATED_Tween;
 
+
+
 // =================
 // === Constants ===
 // =================
@@ -31,6 +33,8 @@ fn DEFAULT_SIZE() -> Vector2<f32> {
     Vector2(16.0, 16.0)
 }
 
+
+
 // =============
 // === Style ===
 // =============
@@ -47,6 +51,7 @@ define_style! {
     press                : f32,
     port_selection_layer : bool
 }
+
 
 // === Smart Constructors ===
 
@@ -67,13 +72,7 @@ impl Style {
             StyleValue::new(color)
         });
         let port_selection_layer = Some(StyleValue::new_no_animation(true));
-        Self {
-            host,
-            size,
-            color,
-            port_selection_layer,
-            ..default()
-        }
+        Self { host, size, color, port_selection_layer, ..default() }
     }
 
     pub fn new_color(color: color::Lcha) -> Self {
@@ -95,13 +94,10 @@ impl Style {
         let size = Vector2::new(3.0, DEFAULT_SIZE().y);
         let size = Some(StyleValue::new(size));
         let color = Some(StyleValue::new(TEXT_CURSOR_COLOR));
-        Self {
-            size,
-            color,
-            ..default()
-        }
+        Self { size, color, ..default() }
     }
 }
+
 
 // === Setters ===
 
@@ -120,16 +116,17 @@ impl Style {
     }
 }
 
+
 // === Getters ===
 
 #[allow(missing_docs)]
 impl Style {
     pub fn host_position(&self) -> Option<Vector3<f32>> {
-        self.host
-            .as_ref()
-            .and_then(|t| t.value.as_ref().map(|t| t.position()))
+        self.host.as_ref().and_then(|t| t.value.as_ref().map(|t| t.position()))
     }
 }
+
+
 
 // ==================
 // === CursorView ===
@@ -158,6 +155,8 @@ pub mod shape {
     }
 }
 
+
+
 // ===========
 // === Frp ===
 // ===========
@@ -176,6 +175,8 @@ crate::define_endpoints! {
     }
 }
 
+
+
 // ===================
 // === CursorModel ===
 // ===================
@@ -184,12 +185,12 @@ crate::define_endpoints! {
 #[derive(Clone, CloneRef, Debug)]
 #[allow(missing_docs)]
 pub struct CursorModel {
-    pub logger: Logger,
-    pub scene: Scene,
+    pub logger:         Logger,
+    pub scene:          Scene,
     pub display_object: display::object::Instance,
-    pub view: shape::View,
+    pub view:           shape::View,
     pub port_selection: shape::View,
-    pub style: Rc<RefCell<Style>>,
+    pub style:          Rc<RefCell<Style>>,
 }
 
 impl CursorModel {
@@ -211,19 +212,11 @@ impl CursorModel {
 
         for layer in &[tgt_layer, port_selection_layer] {
             let registry = &layer.shape_system_registry;
-            let shape_sys = registry
-                .shape_system(&scene, PhantomData::<shape::DynamicShape>);
+            let shape_sys = registry.shape_system(&scene, PhantomData::<shape::DynamicShape>);
             shape_sys.shape_system.set_pointer_events(false);
         }
 
-        Self {
-            logger,
-            scene,
-            display_object,
-            view,
-            port_selection,
-            style,
-        }
+        Self { logger, scene, display_object, view, port_selection, style }
     }
 
     fn for_each_view(&self, f: impl Fn(&shape::View)) {
@@ -232,6 +225,8 @@ impl CursorModel {
         }
     }
 }
+
+
 
 // ==============
 // === Cursor ===
@@ -242,7 +237,7 @@ impl CursorModel {
 #[allow(missing_docs)]
 pub struct Cursor {
     pub frp: Frp,
-    model: Rc<CursorModel>,
+    model:   Rc<CursorModel>,
 }
 
 impl Cursor {
@@ -259,19 +254,16 @@ impl Cursor {
         // with a non-obvious behavior, namely the `host_follow_weight` and `host_attached_weight`.
         // The mouse position is driven by three factors:
         //
-        //   - Real-time cursor mode.
-        //     Cursor follows the system mouse position.
+        //   - Real-time cursor mode. Cursor follows the system mouse position.
         //
-        //   - Host-follow mode.
-        //     Cursor follows the host using dynamic inertia simulator. The `host_follow_weight`
-        //     variable is a weight between real-time mode and this one.
+        //   - Host-follow mode. Cursor follows the host using dynamic inertia simulator. The
+        //     `host_follow_weight` variable is a weight between real-time mode and this one.
         //
-        //   - Host-attached mode.
-        //     Cursor follows the host without any delay. The `host_attached_weight` variable is a
-        //     weight between host-follow mode and this one. The host-attached mode is especially
-        //     useful when panning the stage in such way, that cursor starts to be attached to a
-        //     host during the movement. After it is fully attached, cursor moves with the same
-        //     speed as the scene when panning.
+        //   - Host-attached mode. Cursor follows the host without any delay. The
+        //     `host_attached_weight` variable is a weight between host-follow mode and this one.
+        //     The host-attached mode is especially useful when panning the stage in such way, that
+        //     cursor starts to be attached to a host during the movement. After it is fully
+        //     attached, cursor moves with the same speed as the scene when panning.
         //
         let press = Animation::<f32>::new(network);
         let radius = DEPRECATED_Animation::<f32>::new(network);

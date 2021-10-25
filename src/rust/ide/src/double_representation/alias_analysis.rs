@@ -16,6 +16,8 @@ use std::borrow::Borrow;
 #[cfg(test)]
 pub mod test_utils;
 
+
+
 // =======================
 // === IdentifierUsage ===
 // =======================
@@ -26,23 +28,22 @@ pub struct IdentifierUsage {
     /// Identifiers from the graph's scope that node is using.
     pub introduced: Vec<LocatedName>,
     /// Identifiers that node introduces into the parent scope.
-    pub used: Vec<LocatedName>,
+    pub used:       Vec<LocatedName>,
 }
 
 impl IdentifierUsage {
     /// Returns all identifiers that are either used from or introduced into the scope.
     pub fn all_identifiers(&self) -> Vec<LocatedName> {
-        self.introduced
-            .iter()
-            .chain(self.used.iter())
-            .cloned()
-            .collect()
+        self.introduced.iter().chain(self.used.iter()).cloned().collect()
     }
 }
+
+
 
 // ================
 // === Analysis ===
 // ================
+
 
 // === Helper Datatypes ===
 
@@ -74,11 +75,7 @@ impl Scope {
     /// Iterates over identifiers that are used in this scope but are not introduced in this scope
     /// i.e. the identifiers that parent scope must provide.
     pub fn used_from_parent(self) -> impl Iterator<Item = LocatedName> {
-        let available = self
-            .symbols
-            .introduced
-            .into_iter()
-            .map(|located_name| located_name.item);
+        let available = self.symbols.introduced.into_iter().map(|located_name| located_name.item);
         let available = available.collect::<HashSet<_>>();
         let all_used = self.symbols.used.into_iter();
         all_used.filter(move |name| !available.contains(&name.item))
@@ -93,19 +90,20 @@ impl Scope {
     }
 }
 
+
 // === AliasAnalyzer ===
 
 /// Traverser AST and analyzes identifier usage.
 #[derive(Clone, Debug, Default)]
 pub struct AliasAnalyzer {
     /// Root scope for this analyzer.
-    pub root_scope: Scope,
+    pub root_scope:   Scope,
     /// Stack of scopes that shadow the root one.
     shadowing_scopes: Vec<Scope>,
     /// Stack of context. Lack of any context information is considered non-pattern context.
-    context: Vec<Context>,
+    context:          Vec<Context>,
     /// Current location, relative to the input AST root.
-    location: Vec<Crumb>,
+    location:         Vec<Crumb>,
 }
 
 impl AliasAnalyzer {
@@ -140,35 +138,26 @@ impl AliasAnalyzer {
 
     /// Temporarily sets contest and invokes `f` within it.
     fn in_context(&mut self, context: Context, f: impl FnOnce(&mut Self)) {
-        self.with_items_added(
-            |this| &mut this.context,
-            std::iter::once(context),
-            f,
-        );
+        self.with_items_added(|this| &mut this.context, std::iter::once(context), f);
     }
 
     /// Enters a new location (relative to the current one), invokes `f`, leaves the location.
     fn in_location<Cs, F, R>(&mut self, crumbs: Cs, f: F) -> R
     where
         Cs: IntoIterator<Item = Crumb>,
-        F: FnOnce(&mut Self) -> R,
-    {
+        F: FnOnce(&mut Self) -> R, {
         self.with_items_added(|this| &mut this.location, crumbs, f)
     }
 
     /// Enters a new location (relative to the current one), invokes `f`, leaves the location.
     fn in_location_of<T, F, R>(&mut self, located_item: &Located<T>, f: F) -> R
-    where
-        F: FnOnce(&mut Self) -> R,
-    {
+    where F: FnOnce(&mut Self) -> R {
         self.in_location(located_item.crumbs.iter().cloned(), f)
     }
 
     /// Obtains a mutable reference to the current scope.
     fn current_scope_mut(&mut self) -> &mut Scope {
-        self.shadowing_scopes
-            .last_mut()
-            .unwrap_or(&mut self.root_scope)
+        self.shadowing_scopes.last_mut().unwrap_or(&mut self.root_scope)
     }
 
     /// Returns the current context kind. (pattern or not)
@@ -177,11 +166,7 @@ impl AliasAnalyzer {
     }
 
     /// Records identifier occurrence in the current scope.
-    fn record_identifier(
-        &mut self,
-        kind: OccurrenceKind,
-        identifier: NormalizedName,
-    ) {
+    fn record_identifier(&mut self, kind: OccurrenceKind, identifier: NormalizedName) {
         let identifier = LocatedName::new(self.location.clone(), identifier);
         let symbols = &mut self.current_scope_mut().symbols;
         let target = match kind {
@@ -198,29 +183,16 @@ impl AliasAnalyzer {
 
     /// If given AST is an identifier, records its occurrence.
     /// Returns boolean saying if the identifier was recorded.
-    fn try_recording_identifier(
-        &mut self,
-        kind: OccurrenceKind,
-        ast: &Ast,
-    ) -> bool {
+    fn try_recording_identifier(&mut self, kind: OccurrenceKind, ast: &Ast) -> bool {
         let name = NormalizedName::try_from_ast(ast);
-        name.map(|name| self.record_identifier(kind, name))
-            .is_some()
+        name.map(|name| self.record_identifier(kind, name)).is_some()
     }
 
     /// If the given located AST-like entity is an identifier, records its occurrence.
-    fn store_if_name<'a, T>(
-        &mut self,
-        kind: OccurrenceKind,
-        located: Located<T>,
-    ) -> bool
-    where
-        T: Into<&'a Ast> + 'a + Copy,
-    {
+    fn store_if_name<'a, T>(&mut self, kind: OccurrenceKind, located: Located<T>) -> bool
+    where T: Into<&'a Ast> + 'a + Copy {
         let ast = located.item.into();
-        self.in_location_of(&located, |this| {
-            this.try_recording_identifier(kind, ast)
-        })
+        self.in_location_of(&located, |this| this.try_recording_identifier(kind, ast))
     }
 
     /// Processes the given AST, while crumb is temporarily pushed to the current location.
@@ -230,20 +202,14 @@ impl AliasAnalyzer {
 
     /// Processes the given AST, while crumb is temporarily pushed to the current location.
     fn process_located_ast(&mut self, located_ast: &Located<impl Borrow<Ast>>) {
-        self.in_location_of(located_ast, |this| {
-            this.process_ast(located_ast.item.borrow())
-        })
+        self.in_location_of(located_ast, |this| this.process_ast(located_ast.item.borrow()))
     }
 
     /// Processes subtrees of the given AST denoted by given crumbs
-    pub fn process_given_subtrees<C>(
-        &mut self,
-        ast: &C,
-        crumbs: impl Iterator<Item = C::Crumb>,
-    ) where
+    pub fn process_given_subtrees<C>(&mut self, ast: &C, crumbs: impl Iterator<Item = C::Crumb>)
+    where
         C: Crumbable,
-        C::Crumb: Into<Crumb>,
-    {
+        C::Crumb: Into<Crumb>, {
         for crumb in crumbs {
             // Failure should never happen but we don't really care enough to crash anything
             // otherwise.
@@ -264,8 +230,7 @@ impl AliasAnalyzer {
     ///
     /// This is the primary function that is recursively being called as the AST is being traversed.
     pub fn process_ast(&mut self, ast: &Ast) {
-        if let Some(definition) =
-            DefinitionInfo::from_line_ast(ast, ScopeKind::NonRoot, default())
+        if let Some(definition) = DefinitionInfo::from_line_ast(ast, ScopeKind::NonRoot, default())
         {
             self.process_definition(&definition)
         } else if let Some(assignment) = ast::opr::to_assignment(ast) {
@@ -276,15 +241,9 @@ impl AliasAnalyzer {
             // Macros (except for lambdas which were covered in the previous check) never introduce
             // new scopes or different context. We skip the keywords ("if" in "if-then-else" is not
             // an identifier) and process the matched subtrees as usual.
-            self.process_given_subtrees(
-                macro_match.shape(),
-                macro_match.iter_pat_match_subcrumbs(),
-            )
+            self.process_given_subtrees(macro_match.shape(), macro_match.iter_pat_match_subcrumbs())
         } else if let Ok(ambiguous) = ast::known::Ambiguous::try_from(ast) {
-            self.process_given_subtrees(
-                ambiguous.shape(),
-                ambiguous.iter_pat_match_subcrumbs(),
-            )
+            self.process_given_subtrees(ambiguous.shape(), ambiguous.iter_pat_match_subcrumbs())
         } else if self.is_in_pattern() {
             // We are in the pattern (be it a lambda's or assignment's left side). Three options:
             // 1) This is a destructuring pattern match using infix syntax, like `head,tail`.
@@ -294,22 +253,16 @@ impl AliasAnalyzer {
             if let Some(infix_chain) = ast::opr::Chain::try_new(ast) {
                 // Infix always acts as pattern-match in left-side.
                 for operand in infix_chain.enumerate_non_empty_operands() {
-                    self.process_located_ast(
-                        &operand.map(|operand| &operand.arg),
-                    )
+                    self.process_located_ast(&operand.map(|operand| &operand.arg))
                 }
                 for operator in infix_chain.enumerate_operators() {
                     // Operators in infix positions are treated as constructors, i.e. they are used.
                     self.store_if_name(OccurrenceKind::Used, operator);
                 }
-            } else if let Some(prefix_chain) = ast::prefix::Chain::from_ast(ast)
-            {
+            } else if let Some(prefix_chain) = ast::prefix::Chain::from_ast(ast) {
                 // Constructor we match against is used. Its arguments introduce names.
                 if ast::known::Cons::try_from(&prefix_chain.func).is_ok() {
-                    self.store_if_name(
-                        OccurrenceKind::Used,
-                        prefix_chain.located_func(),
-                    );
+                    self.store_if_name(OccurrenceKind::Used, prefix_chain.located_func());
                 }
 
                 // Arguments introduce names, we ignore function name.
@@ -322,16 +275,10 @@ impl AliasAnalyzer {
                 // recursively process subtrees.
                 match ast.shape() {
                     ast::Shape::Cons(_) => {
-                        self.try_recording_identifier(
-                            OccurrenceKind::Used,
-                            ast,
-                        );
+                        self.try_recording_identifier(OccurrenceKind::Used, ast);
                     }
                     ast::Shape::Var(_) => {
-                        self.try_recording_identifier(
-                            OccurrenceKind::Introduced,
-                            ast,
-                        );
+                        self.try_recording_identifier(OccurrenceKind::Introduced, ast);
                     }
                     _ => {
                         self.process_subtrees(ast);
@@ -360,6 +307,7 @@ impl AliasAnalyzer {
                 this.record_identifier(OccurrenceKind::Introduced,name);
             }));
 
+
         // The scoping for definitions is not entirely clean (should each argument introduce a new
         // subscope?) but we do not really care that much. Mostly we are just interested in knowing
         // what identifiers are taken in / introduced into the parent scope.
@@ -387,9 +335,7 @@ impl AliasAnalyzer {
     /// a new scope.
     fn process_lambda(&mut self, lambda: &ast::macros::LambdaInfo) {
         self.in_new_scope(|this| {
-            this.in_context(Context::Pattern, |this| {
-                this.process_located_ast(&lambda.arg)
-            });
+            this.in_context(Context::Pattern, |this| this.process_located_ast(&lambda.arg));
             this.process_located_ast(&lambda.body)
         })
     }
@@ -410,6 +356,8 @@ pub fn analyze_crumbable(crumbable: &impl Crumbable) -> IdentifierUsage {
     analyzer.process_subtrees(crumbable);
     analyzer.root_scope.symbols
 }
+
+
 
 // =============
 // === Tests ===
@@ -441,20 +389,12 @@ mod tests {
         let ast = parser.parse_line_ast(&case.code).unwrap();
         let result = analyze_ast(&ast);
         DEBUG!("Analysis results: {result:?}");
-        validate_identifiers(
-            "introduced",
-            &ast,
-            case.expected_introduced,
-            &result.introduced,
-        );
+        validate_identifiers("introduced", &ast, case.expected_introduced, &result.introduced);
         validate_identifiers("used", &ast, case.expected_used, &result.used);
     }
 
     /// Runs the test for the test case expressed using markdown notation. See `Case` for details.
-    fn run_markdown_case(
-        parser: &parser::Parser,
-        marked_code: impl AsRef<str>,
-    ) {
+    fn run_markdown_case(parser: &parser::Parser, marked_code: impl AsRef<str>) {
         DEBUG!("Running test case for " marked_code.as_ref());
         let case = Case::from_markdown(marked_code.as_ref());
         run_case(parser, case)
@@ -474,20 +414,16 @@ mod tests {
             "«sum» = »a« »+« »b«",
             "»Point« «x» «u» = »point«",
             "«x» »,« «y» = »pair«",
-
             r"«inc» =
                 »foo« »+« 1",
-
             r"«inc» =
                 foo = 2
                 foo »+« 1",
-
             // Below should know that "foo + 1" does not uses "foo" from scope.
             // That requires at least partial support for definitions.
             r"«inc» =
                 foo x = 2
                 foo »+« 1",
-
             // === Macros Match ===
             "a -> a",
             "a -> »b«",
@@ -502,7 +438,6 @@ mod tests {
             "if »A« then »B«",
             "if »a« then »b« else »c«",
             "case »foo« of\n    »Number« a -> a\n    »Wildcard« -> »bar«\n    a»,«b -> a",
-
             // === Macros Ambiguous ===
             "(»foo«",
             "if »a«",

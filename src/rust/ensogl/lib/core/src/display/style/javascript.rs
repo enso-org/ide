@@ -12,6 +12,8 @@ use crate::system::web;
 use js_sys;
 use wasm_bindgen::prelude::Closure;
 
+
+
 // ===========================
 // === JavaScript Bindings ===
 // ===========================
@@ -106,11 +108,7 @@ mod js {
         ) -> JsValue;
 
         #[allow(unsafe_code)]
-        pub fn add_interactive_mode_style(
-            name: String,
-            path: String,
-            value: String,
-        );
+        pub fn add_interactive_mode_style(name: String, path: String, value: String);
     }
 
     pub type List = Closure<dyn Fn() -> String>;
@@ -122,6 +120,7 @@ mod js {
     pub type InteractiveMode = Closure<dyn Fn()>;
 }
 
+
 // TODO[WD]
 //     There is a better way than all memory leaks introduced by `mem::forget` after we update
 //     wasm-bindgen. There is a function now `Closure::into_js_value` which passes its memory
@@ -131,12 +130,9 @@ mod js {
 pub fn expose_to_window(manager: &Manager) {
     let window = web::window();
 
-    let list: js::List =
-        Closure::new(f!([manager]() format!("{:?}",manager.keys())));
-    let choose: js::Choose =
-        Closure::new(f!((name) manager.set_enabled(&[name])));
-    let snapshot: js::Snapshot =
-        Closure::new(f!((name) manager.snapshot(name)));
+    let list: js::List = Closure::new(f!([manager]() format!("{:?}",manager.keys())));
+    let choose: js::Choose = Closure::new(f!((name) manager.set_enabled(&[name])));
+    let snapshot: js::Snapshot = Closure::new(f!((name) manager.snapshot(name)));
 
     let diff: js::Diff = Closure::new(f!([manager](src:String,tgt:String) {
         let diff = manager.diff(&src,&tgt);
@@ -158,19 +154,10 @@ pub fn expose_to_window(manager: &Manager) {
                 match value {
                     Value::Data(Data::Color(color)) => {
                         let js_color = color.to_javascript_string();
-                        js::add_interactive_mode_style(
-                            name2.clone(),
-                            path,
-                            js_color,
-                        )
+                        js::add_interactive_mode_style(name2.clone(), path, js_color)
                     }
-                    Value::Data(Data::Number(f)) => {
-                        js::add_interactive_mode_style(
-                            name2.clone(),
-                            path,
-                            f.to_string(),
-                        )
-                    }
+                    Value::Data(Data::Number(f)) =>
+                        js::add_interactive_mode_style(name2.clone(), path, f.to_string()),
                     _ => {}
                 }
             }
@@ -181,8 +168,7 @@ pub fn expose_to_window(manager: &Manager) {
         theme_ref
     });
 
-    let theme_manger_ref =
-        js::create_theme_manager_ref(&list, &choose, &get, &snapshot, &diff);
+    let theme_manger_ref = js::create_theme_manager_ref(&list, &choose, &get, &snapshot, &diff);
 
     mem::forget(list);
     mem::forget(choose);

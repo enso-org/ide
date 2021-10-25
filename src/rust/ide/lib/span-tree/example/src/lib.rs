@@ -11,6 +11,7 @@ use span_tree::node::InsertionPointType;
 use span_tree::*;
 use uuid::Uuid;
 
+
 #[wasm_bindgen]
 #[allow(dead_code)]
 pub fn entry_point_span_tree() {
@@ -22,10 +23,7 @@ pub fn entry_point_span_tree() {
 pub fn main() {
     let pattern_cr = vec![Seq { right: false }, Or, Or, Build];
     let val = ast::crumbs::SegmentMatchCrumb::Body { val: pattern_cr };
-    let parens_cr1 = ast::crumbs::MatchCrumb::Segs {
-        val: val.clone(),
-        index: 0,
-    };
+    let parens_cr1 = ast::crumbs::MatchCrumb::Segs { val: val.clone(), index: 0 };
     let parens_cr = ast::crumbs::MatchCrumb::Segs { val, index: 0 };
     let _input_span_tree = builder::TreeBuilder::<()>::new(36)
         .add_child(0, 14, node::Kind::Chained, PrefixCrumb::Func)
@@ -62,10 +60,7 @@ pub fn main() {
                 .kind(node::Kind::Chained)
                 .crumbs(PrefixCrumb::Func)
                 .new_child(|t| {
-                    t.size(9)
-                        .kind(node::Kind::Operation)
-                        .crumbs(PrefixCrumb::Func)
-                        .new_ast_id()
+                    t.size(9).kind(node::Kind::Operation).crumbs(PrefixCrumb::Func).new_ast_id()
                 })
                 .new_child(|t| t.size(1))
                 .new_child(|t| {

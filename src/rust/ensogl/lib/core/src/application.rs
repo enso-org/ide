@@ -18,6 +18,8 @@ use crate::gui::cursor::Cursor;
 use crate::system::web;
 use ensogl_system_web::StyleSetter;
 
+
+
 // ===================
 // === Application ===
 // ===================
@@ -27,13 +29,13 @@ use ensogl_system_web::StyleSetter;
 #[derive(Debug, Clone, CloneRef)]
 #[allow(missing_docs)]
 pub struct Application {
-    pub logger: Logger,
-    pub cursor: Cursor,
-    pub display: World,
-    pub commands: command::Registry,
-    pub shortcuts: shortcut::Registry,
-    pub views: view::Registry,
-    pub themes: theme::Manager,
+    pub logger:           Logger,
+    pub cursor:           Cursor,
+    pub display:          World,
+    pub commands:         command::Registry,
+    pub shortcuts:        shortcut::Registry,
+    pub views:            view::Registry,
+    pub themes:           theme::Manager,
     update_themes_handle: callback::Handle,
 }
 
@@ -44,30 +46,15 @@ impl Application {
         let display = World::new(dom);
         let scene = display.scene();
         let commands = command::Registry::create(&logger);
-        let shortcuts = shortcut::Registry::new(
-            &logger,
-            &scene.mouse.frp,
-            &scene.keyboard.frp,
-            &commands,
-        );
-        let views =
-            view::Registry::create(&logger, &display, &commands, &shortcuts);
+        let shortcuts =
+            shortcut::Registry::new(&logger, &scene.mouse.frp, &scene.keyboard.frp, &commands);
+        let views = view::Registry::create(&logger, &display, &commands, &shortcuts);
         let themes = theme::Manager::from(&display.scene().style_sheet);
         let cursor = Cursor::new(display.scene());
         display.add_child(&cursor);
         web::body().set_style_or_panic("cursor", "none");
-        let update_themes_handle =
-            display.on_before_frame(f_!(themes.update()));
-        Self {
-            logger,
-            cursor,
-            display,
-            commands,
-            shortcuts,
-            views,
-            themes,
-            update_themes_handle,
-        }
+        let update_themes_handle = display.on_before_frame(f_!(themes.update()));
+        Self { logger, cursor, display, commands, shortcuts, views, themes, update_themes_handle }
     }
 
     /// Create a new instance of a view.

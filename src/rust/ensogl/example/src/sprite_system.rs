@@ -9,6 +9,7 @@ use ensogl_core::display::world::*;
 use ensogl_core::system::web;
 use ensogl_core::system::web::forward_panic_hook_to_console;
 
+
 #[wasm_bindgen]
 #[allow(dead_code)]
 pub fn entry_point_sprite_system() {

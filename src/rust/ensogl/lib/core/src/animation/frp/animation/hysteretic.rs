@@ -16,13 +16,14 @@
 //! the time the cursor is between icons is less than the `end_delay_duration`. Instead, the hiding
 //! will only start iof the cursos has left any icon triggering the pop-up for longer than the
 //! `end_delay_duration`.
-//!
 use crate::prelude::*;
 
 use crate::Animation;
 use crate::Easing;
 
 use enso_frp as frp;
+
+
 
 // ===========
 // === Frp ===
@@ -45,6 +46,8 @@ crate::define_endpoints! {
     }
 }
 
+
+
 // ===========================
 // === HystereticAnimation ===
 // ===========================
@@ -58,11 +61,7 @@ pub struct HystereticAnimation {
 
 impl HystereticAnimation {
     #[allow(missing_docs)]
-    pub fn new(
-        network: &frp::Network,
-        start_delay_duration: f32,
-        end_delay_duration: f32,
-    ) -> Self {
+    pub fn new(network: &frp::Network, start_delay_duration: f32, end_delay_duration: f32) -> Self {
         let frp = Frp::extend(network);
         let start_delay = Easing::new(network);
         let end_delay = Easing::new(network);

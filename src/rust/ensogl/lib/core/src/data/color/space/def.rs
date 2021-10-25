@@ -4,6 +4,8 @@ use super::super::component::*;
 use super::super::data::*;
 use crate::prelude::*;
 
+
+
 // ==============
 // === Macros ===
 // ==============
@@ -215,6 +217,8 @@ macro_rules! define_color_space {
     };
 }
 
+
+
 // ====================
 // === Color Spaces ===
 // ====================
@@ -373,17 +377,15 @@ define_color_spaces! {
     Lch Lcha LchData [lightness chroma hue]
 }
 
+
+
 // ===========
 // === Rgb ===
 // ===========
 
 impl Rgb {
     /// Construct RGB color by mapping [0 – 255] value range into [0.0 – 1.0].
-    pub fn from_base_255(
-        r: impl Into<f32>,
-        g: impl Into<f32>,
-        b: impl Into<f32>,
-    ) -> Self {
+    pub fn from_base_255(r: impl Into<f32>, g: impl Into<f32>, b: impl Into<f32>) -> Self {
         Self::new(r.into() / 255.0, g.into() / 255.0, b.into() / 255.0)
     }
 
@@ -446,6 +448,8 @@ impl Rgba {
     }
 }
 
+
+
 // =================
 // === LinearRgb ===
 // =================
@@ -454,6 +458,8 @@ define_color_space! {
     /// Linear sRGBv space. See `Rgb` to learn more.
     LinearRgb LinearRgba LinearRgbData [red green blue]
 }
+
+
 
 // ===========
 // === Lab ===
@@ -473,6 +479,8 @@ impl LabData {
         }
     }
 }
+
+
 
 // ===========
 // === Lch ===
@@ -602,6 +610,7 @@ impl Lcha {
         self
     }
 }
+
 
 /// LCH color space is very limited in sRGB gammut. In the LCH color space, for the given lightness,
 /// there is a maximum chroma value which allows all hue colors to exist in the sRGB color space.
@@ -785,15 +794,15 @@ fn lch_lightness_to_max_chroma_in_srgb(l: f32) -> f32 {
     let coeff = (l_scaled - l_scaled_floor) / (l_scaled_ceil - l_scaled_floor);
     let l_scaled_floor_u = l_scaled_floor as usize;
     let l_scaled_ceil_u = l_scaled_ceil as usize;
-    let c_scaled_floor_u =
-        LCH_LIGHTNESS_TO_MAX_CHROMA_IN_SRGB.get(&l_scaled_floor_u);
-    let c_scaled_ceil_u =
-        LCH_LIGHTNESS_TO_MAX_CHROMA_IN_SRGB.get(&l_scaled_ceil_u);
+    let c_scaled_floor_u = LCH_LIGHTNESS_TO_MAX_CHROMA_IN_SRGB.get(&l_scaled_floor_u);
+    let c_scaled_ceil_u = LCH_LIGHTNESS_TO_MAX_CHROMA_IN_SRGB.get(&l_scaled_ceil_u);
     let c_scaled_floor = c_scaled_floor_u.copied().unwrap_or(0) as f32;
     let c_scaled_ceil = c_scaled_ceil_u.copied().unwrap_or(0) as f32;
     let c_scaled = c_scaled_floor + (c_scaled_ceil - c_scaled_floor) * coeff;
     c_scaled / LCH_MAX_CHROMA_IN_SRGB_IN_STD_EQUATIONS as f32
 }
+
+
 
 // ===============
 // === Parsing ===

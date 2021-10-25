@@ -5,6 +5,8 @@ use crate::system::web::NodeInserter;
 use crate::system::web::StyleSetter;
 use wasm_bindgen::JsCast;
 
+
+
 // =================
 // === Container ===
 // =================
@@ -12,8 +14,8 @@ use wasm_bindgen::JsCast;
 /// A container to hold tests in `wasm-pack test`.
 #[derive(Clone, Debug)]
 pub struct Container {
-    pub div: web::HtmlDivElement,
-    pub header: web::HtmlElement,
+    pub div:       web::HtmlDivElement,
+    pub header:    web::HtmlElement,
     pub container: web::HtmlElement,
 }
 
@@ -38,8 +40,7 @@ impl Container {
         div.append_or_panic(&header);
 
         let container = web::create_div();
-        let container: web::HtmlElement =
-            container.dyn_into().expect("HtmlElement");
+        let container: web::HtmlElement = container.dyn_into().expect("HtmlElement");
 
         container.set_style_or_panic("width", width);
         container.set_style_or_panic("height", format!("{}px", height));
@@ -49,10 +50,6 @@ impl Container {
         div.append_or_panic(&container);
 
         Group::new(group).div.append_or_panic(&div);
-        Self {
-            div,
-            header,
-            container,
-        }
+        Self { div, header, container }
     }
 }

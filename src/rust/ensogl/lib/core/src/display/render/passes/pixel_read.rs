@@ -11,6 +11,8 @@ use web_sys::WebGlBuffer;
 use web_sys::WebGlFramebuffer;
 use web_sys::WebGlSync;
 
+
+
 // =========================
 // === PixelReadPassData ===
 // =========================
@@ -18,11 +20,11 @@ use web_sys::WebGlSync;
 /// Internal state for the `PixelReadPass`.
 #[derive(Clone, Debug)]
 pub struct PixelReadPassData<T: JsTypedArrayItem> {
-    buffer: WebGlBuffer,
+    buffer:      WebGlBuffer,
     framebuffer: WebGlFramebuffer,
-    format: texture::AnyFormat,
-    item_type: texture::AnyItemType,
-    js_array: JsTypedArray<T>,
+    format:      texture::AnyFormat,
+    item_type:   texture::AnyItemType,
+    js_array:    JsTypedArray<T>,
 }
 
 impl<T: JsTypedArrayItem> PixelReadPassData<T> {
@@ -34,15 +36,11 @@ impl<T: JsTypedArrayItem> PixelReadPassData<T> {
         item_type: texture::AnyItemType,
         js_array: JsTypedArray<T>,
     ) -> Self {
-        Self {
-            buffer,
-            framebuffer,
-            format,
-            item_type,
-            js_array,
-        }
+        Self { buffer, framebuffer, format, item_type, js_array }
     }
 }
+
+
 
 // =====================
 // === PixelReadPass ===
@@ -52,13 +50,13 @@ impl<T: JsTypedArrayItem> PixelReadPassData<T> {
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]
 pub struct PixelReadPass<T: JsTypedArrayItem> {
-    data: Option<PixelReadPassData<T>>,
-    sync: Option<WebGlSync>,
-    position: Uniform<Vector2<i32>>,
-    threshold: usize,
+    data:         Option<PixelReadPassData<T>>,
+    sync:         Option<WebGlSync>,
+    position:     Uniform<Vector2<i32>>,
+    threshold:    usize,
     to_next_read: usize,
     #[derivative(Debug = "ignore")]
-    callback: Option<Rc<dyn Fn(Vec<T>)>>,
+    callback:     Option<Rc<dyn Fn(Vec<T>)>>,
 }
 
 impl<T: JsTypedArrayItem> PixelReadPass<T> {
@@ -70,14 +68,7 @@ impl<T: JsTypedArrayItem> PixelReadPass<T> {
         let callback = default();
         let threshold = 0;
         let to_next_read = 0;
-        Self {
-            data,
-            sync,
-            position,
-            threshold,
-            to_next_read,
-            callback,
-        }
+        Self { data, sync, position, threshold, to_next_read, callback }
     }
 
     /// Sets a callback which will be evaluated after a successful pixel read action. Please note
@@ -101,11 +92,7 @@ impl<T: JsTypedArrayItem> PixelReadPass<T> {
             let target = Context::PIXEL_PACK_BUFFER;
             let usage = Context::DYNAMIC_READ;
             context.bind_buffer(target, Some(&buffer));
-            context.buffer_data_with_opt_array_buffer(
-                target,
-                Some(&js_array.buffer()),
-                usage,
-            );
+            context.buffer_data_with_opt_array_buffer(target, Some(&js_array.buffer()), usage);
 
             let texture = match variables.get("pass_id").unwrap() {
                 uniform::AnyUniform::Texture(t) => t,
@@ -129,13 +116,7 @@ impl<T: JsTypedArrayItem> PixelReadPass<T> {
                 level,
             );
 
-            let data = PixelReadPassData::new(
-                buffer,
-                framebuffer,
-                format,
-                item_type,
-                js_array,
-            );
+            let data = PixelReadPassData::new(buffer, framebuffer, format, item_type, js_array);
             self.data = Some(data);
         }
     }
@@ -151,9 +132,7 @@ impl<T: JsTypedArrayItem> PixelReadPass<T> {
         context.bind_framebuffer(Context::FRAMEBUFFER, Some(&data.framebuffer));
         context.bind_buffer(Context::PIXEL_PACK_BUFFER, Some(&data.buffer));
         context
-            .read_pixels_with_i32(
-                position.x, position.y, width, height, format, typ, offset,
-            )
+            .read_pixels_with_i32(position.x, position.y, width, height, format, typ, offset)
             .unwrap();
         let condition = Context::SYNC_GPU_COMMANDS_COMPLETE;
         let flags = 0;
@@ -172,11 +151,7 @@ impl<T: JsTypedArrayItem> PixelReadPass<T> {
             let offset = 0;
             let buffer_view = data.js_array.to_object();
             context.bind_buffer(target, Some(&data.buffer));
-            context.get_buffer_sub_data_with_i32_and_array_buffer_view(
-                target,
-                offset,
-                buffer_view,
-            );
+            context.get_buffer_sub_data_with_i32_and_array_buffer_view(target, offset, buffer_view);
             if let Some(f) = &self.callback {
                 f(data.js_array.to_vec());
             }

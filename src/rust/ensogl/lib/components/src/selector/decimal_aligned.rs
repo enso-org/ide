@@ -14,11 +14,15 @@ use ensogl_core::display::object::ObjectOps;
 use ensogl_core::display::shape::StyleWatchFrp;
 use ensogl_text as text;
 
+
+
 // =================
 // === Constants ===
 // =================
 
 const LABEL_OFFSET: f32 = 13.0;
+
+
 
 // ============
 // ===  FRP ===
@@ -31,6 +35,8 @@ ensogl_core::define_endpoints! {
     Output {}
 }
 
+
+
 // ==============
 // ===  Model ===
 // ==============
@@ -39,7 +45,7 @@ ensogl_core::define_endpoints! {
 pub struct Model {
     /// Root object. Required as the rendered text label will have an offset relative to the
     /// base position of the root, depending on the position of the decimal separator.
-    root: display::object::Instance,
+    root:       display::object::Instance,
     /// Label containing the text to display. This is the label that will be shown.
     label_full: text::Area,
     /// This label contains the text to the left of the decimal. This is here, so we can get
@@ -61,11 +67,7 @@ impl component::Model for Model {
         root.add_child(&label_full);
         root.add_child(&label_left);
 
-        Self {
-            root,
-            label_full,
-            label_left,
-        }
+        Self { root, label_full, label_left }
     }
 }
 

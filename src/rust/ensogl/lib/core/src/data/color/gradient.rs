@@ -5,6 +5,8 @@ use crate::prelude::*;
 use crate::system::gpu::shader::glsl::traits::*;
 use crate::system::gpu::shader::glsl::Glsl;
 
+
+
 // ====================
 // === ControlPoint ===
 // ====================
@@ -16,7 +18,7 @@ pub struct ControlPoint<Color> {
     /// Offset of the control point in [0..1] range.
     pub offset: f32,
     /// Color of this control point.
-    pub color: Color,
+    pub color:  Color,
 }
 
 impl<Color> ControlPoint<Color> {
@@ -25,6 +27,8 @@ impl<Color> ControlPoint<Color> {
         Self { offset, color }
     }
 }
+
+
 
 // ==============
 // === Linear ===
@@ -52,8 +56,7 @@ impl<Color> Linear<Color> {
 
     /// Add a new control point. The offset needs to be in range [0..1].
     pub fn add(mut self, offset: f32, color: impl Into<Color>) -> Self {
-        self.control_points
-            .push(ControlPoint::new(offset, color.into()));
+        self.control_points.push(ControlPoint::new(offset, color.into()));
         self
     }
 
@@ -75,6 +78,8 @@ where [Color:RefInto<Glsl>] {
     }
 }}
 
+
+
 // ==================
 // === SdfSampler ===
 // ==================
@@ -91,11 +96,11 @@ pub const DEFAULT_DISTANCE_GRADIENT_SIZE: f32 = 10.0;
 #[derive(Clone, Debug)]
 pub struct SdfSampler<Gradient> {
     /// The distance from the shape border at which the gradient should start.
-    pub spread: f32,
+    pub spread:   f32,
     /// The size of the gradient in the SDF space.
-    pub size: f32,
+    pub size:     f32,
     /// The gradient slope modifier. Defines how fast the gradient values change.
-    pub slope: Slope,
+    pub slope:    Slope,
     /// The underlying gradient.
     pub gradient: Gradient,
 }
@@ -107,12 +112,7 @@ impl<Gradient> SdfSampler<Gradient> {
         let spread = DEFAULT_DISTANCE_GRADIENT_SPREAD;
         let size = DEFAULT_DISTANCE_GRADIENT_SIZE;
         let slope = Slope::Smooth;
-        Self {
-            spread,
-            size,
-            slope,
-            gradient,
-        }
+        Self { spread, size, slope, gradient }
     }
 
     /// Constructor setter for the `spread` field.
@@ -133,6 +133,7 @@ impl<Gradient> SdfSampler<Gradient> {
         self
     }
 }
+
 
 // === Instances ===
 

@@ -4,6 +4,7 @@ use crate::prelude::*;
 
 use std::str::FromStr;
 
+
 // ============
 // === Json ===
 // ============
@@ -66,6 +67,8 @@ impl Default for Format {
     }
 }
 
+
+
 // ============
 // === Data ===
 // ============
@@ -92,6 +95,8 @@ impl From<serde_json::Value> for Data {
     }
 }
 
+
+
 // ==============
 // === Errors ===
 // ==============
@@ -109,6 +114,8 @@ pub enum DataError {
     /// The data caused an error in the computation of the visualization.
     InternalComputationError,
 }
+
+
 
 // =============================
 // === Sample Data Generator ===
@@ -142,6 +149,7 @@ impl MockDataGenerator3D {
         ]
     }
 }
+
 
 /// The `MockDocGenerator` creates sample documentation string in the format of `String`.
 #[derive(Clone, CloneRef, Copy, Debug, Default)]

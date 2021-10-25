@@ -4,6 +4,8 @@ use super::*;
 use crate::buffer::Range;
 use crate::data::color;
 
+
+
 // ==============
 // === Macros ===
 // ==============
@@ -33,6 +35,7 @@ macro_rules! def_style_property {
         }
     };
 }
+
 
 /// Defines struct containing all styles information. Also defines many utils, like iterator for it.
 /// See the usage below to learn more.
@@ -138,8 +141,8 @@ macro_rules! define_styles {
 /// Byte-based iterator for the `Style`.
 #[derive(Debug)]
 pub struct StyleIterator {
-    offset: Bytes,
-    value: StyleIteratorValue,
+    offset:    Bytes,
+    value:     StyleIteratorValue,
     component: StyleIteratorComponents,
 }
 
@@ -147,11 +150,7 @@ impl StyleIterator {
     fn new(component: StyleIteratorComponents) -> Self {
         let offset = default();
         let value = default();
-        Self {
-            offset,
-            value,
-            component,
-        }
+        Self { offset, value, component }
     }
 
     /// Drop the given amount of bytes.
@@ -161,6 +160,8 @@ impl StyleIterator {
         }
     }
 }
+
+
 
 // ================
 // === Property ===
@@ -174,7 +175,7 @@ impl StyleIterator {
 #[allow(missing_docs)]
 pub struct Property<T: Clone> {
     pub spans: data::Spans<Option<T>>,
-    default: T,
+    default:   T,
 }
 
 impl<T: Clone> Property<T> {
@@ -188,9 +189,7 @@ impl<T: Clone> Property<T> {
     /// Convert the property to a vector of spans.
     pub fn to_vector(&self) -> Vec<(Range<Bytes>, T)> {
         let spans_iter = self.spans.to_vector().into_iter();
-        spans_iter
-            .map(|t| (t.0, t.1.unwrap_or_else(|| self.default.clone())))
-            .collect_vec()
+        spans_iter.map(|t| (t.0, t.1.unwrap_or_else(|| self.default.clone()))).collect_vec()
     }
 
     /// The default value of this property.
@@ -198,6 +197,7 @@ impl<T: Clone> Property<T> {
         &self.default
     }
 }
+
 
 // === Deref ===
 
@@ -213,6 +213,8 @@ impl<T: Clone> DerefMut for Property<T> {
         &mut self.spans
     }
 }
+
+
 
 // =============
 // === Style ===
@@ -251,6 +253,8 @@ define_styles! {
     italics   : Italic,
     underline : Underline,
 }
+
+
 
 // =================
 // === StyleCell ===

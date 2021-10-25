@@ -21,6 +21,8 @@ use crate::system::gpu::data::attribute;
 
 use enso_frp as frp;
 
+
+
 // =======================
 // === ShapeViewEvents ===
 // =======================
@@ -30,12 +32,12 @@ use enso_frp as frp;
 #[derive(Clone, CloneRef, Debug)]
 #[allow(missing_docs)]
 pub struct ShapeViewEvents {
-    pub network: frp::Network,
-    pub mouse_up: frp::Source,
+    pub network:    frp::Network,
+    pub mouse_up:   frp::Source,
     pub mouse_down: frp::Source,
     pub mouse_over: frp::Source,
-    pub mouse_out: frp::Source,
-    pub on_drop: frp::Source,
+    pub mouse_out:  frp::Source,
+    pub on_drop:    frp::Source,
 }
 
 impl ShapeViewEvents {
@@ -51,14 +53,7 @@ impl ShapeViewEvents {
             out_on_drop   <- on_drop.gate(&is_mouse_over);
             eval_ out_on_drop (mouse_out.emit(()));
         }
-        Self {
-            network,
-            mouse_up,
-            mouse_down,
-            mouse_over,
-            mouse_out,
-            on_drop,
-        }
+        Self { network, mouse_up, mouse_down, mouse_over, mouse_out, on_drop }
     }
 }
 
@@ -82,6 +77,8 @@ impl Default for ShapeViewEvents {
         Self::new()
     }
 }
+
+
 
 // =================
 // === ShapeView ===
@@ -118,19 +115,19 @@ impl<S: DynamicShapeInternals + 'static> ShapeView<S> {
 
     fn init_on_scene_layer_changed(&self) {
         let weak_model = Rc::downgrade(&self.model);
-        self.display_object().set_on_scene_layer_changed(
-            move |scene, old_layers, new_layers| {
-                if let Some(model) = weak_model.upgrade() {
-                    model.on_scene_layers_changed(scene, old_layers, new_layers)
-                }
-            },
-        );
+        self.display_object().set_on_scene_layer_changed(move |scene, old_layers, new_layers| {
+            if let Some(model) = weak_model.upgrade() {
+                model.on_scene_layers_changed(scene, old_layers, new_layers)
+            }
+        });
     }
 }
 
 impl<S> HasContent for ShapeView<S> {
     type Content = S;
 }
+
+
 
 // ======================
 // === ShapeViewModel ===
@@ -140,9 +137,9 @@ impl<S> HasContent for ShapeView<S> {
 #[derive(Debug, Default)]
 #[allow(missing_docs)]
 pub struct ShapeViewModel<S> {
-    shape: S,
-    pub events: ShapeViewEvents,
-    pub registry: RefCell<Option<ShapeRegistry>>,
+    shape:               S,
+    pub events:          ShapeViewEvents,
+    pub registry:        RefCell<Option<ShapeRegistry>>,
     pub pointer_targets: RefCell<Vec<(SymbolId, attribute::InstanceIndex)>>,
 }
 
@@ -197,12 +194,7 @@ impl<S: DynamicShape> ShapeViewModel<S> {
         let events = ShapeViewEvents::new();
         let registry = default();
         let pointer_targets = default();
-        ShapeViewModel {
-            shape,
-            events,
-            registry,
-            pointer_targets,
-        }
+        ShapeViewModel { shape, events, registry, pointer_targets }
     }
 
     fn add_to_scene_layer(&self, scene: &Scene, layer: &scene::Layer) {
@@ -212,9 +204,7 @@ impl<S: DynamicShape> ShapeViewModel<S> {
             instance.instance_id,
             self.events.clone_ref(),
         );
-        self.pointer_targets
-            .borrow_mut()
-            .push((instance.symbol_id, instance.instance_id));
+        self.pointer_targets.borrow_mut().push((instance.symbol_id, instance.instance_id));
         *self.registry.borrow_mut() = Some(scene.shapes.clone_ref());
     }
 }
@@ -222,9 +212,7 @@ impl<S: DynamicShape> ShapeViewModel<S> {
 impl<S> ShapeViewModel<S> {
     fn unregister_existing_mouse_targets(&self) {
         if let Some(registry) = &*self.registry.borrow() {
-            for (symbol_id, instance_id) in
-                mem::take(&mut *self.pointer_targets.borrow_mut())
-            {
+            for (symbol_id, instance_id) in mem::take(&mut *self.pointer_targets.borrow_mut()) {
                 registry.remove_mouse_target(symbol_id, instance_id);
             }
         }

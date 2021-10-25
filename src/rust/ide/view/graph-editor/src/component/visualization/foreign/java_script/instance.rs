@@ -6,6 +6,7 @@
 //! An `Instance` can be created via `Instance::from_object` where the a JS object is provided that
 //! fullfills the spec described in `java_script/definition.rs
 
+
 use crate::prelude::*;
 
 use crate::component::visualization;
@@ -28,6 +29,8 @@ use ensogl::system::web::StyleSetter;
 use js_sys;
 use std::fmt::Formatter;
 
+
+
 // ==============
 // === Errors ===
 // ==============
@@ -47,17 +50,16 @@ pub enum Error {
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Error::ValueIsNotAnObject { object }  => {
-                f.write_fmt(format_args!
-                    ("JsValue was expected to be of type `object`, but was not: {:?}",object))
-            },
-            Error::PropertyNotFoundOnObject  { object, property }  => {
-                f.write_fmt(format_args!
-                    ("Object was expected to have property {:?} but has not: {:?}",property,object))
-            },
-            Error::ConstructorError { js_error }  => {
-                f.write_fmt(format_args!("Error while constructing object: {:?}",js_error))
-            },
+            Error::ValueIsNotAnObject { object } => f.write_fmt(format_args!(
+                "JsValue was expected to be of type `object`, but was not: {:?}",
+                object
+            )),
+            Error::PropertyNotFoundOnObject { object, property } => f.write_fmt(format_args!(
+                "Object was expected to have property {:?} but has not: {:?}",
+                property, object
+            )),
+            Error::ConstructorError { js_error } =>
+                f.write_fmt(format_args!("Error while constructing object: {:?}", js_error)),
         }
     }
 }
@@ -67,6 +69,8 @@ impl std::error::Error for Error {}
 /// Internal helper type to propagate results that can fail due to `JsVisualizationError`s.
 pub type Result<T> = result::Result<T, Error>;
 
+
+
 // =====================
 // === InstanceModel ===
 // =====================
@@ -75,8 +79,7 @@ pub type Result<T> = result::Result<T, Error>;
 pub trait PreprocessorCallback = Fn(PreprocessorConfiguration);
 
 /// Internal helper type to store the preprocessor callback.
-type PreprocessorCallbackCell =
-    Rc<RefCell<Option<Box<dyn PreprocessorCallback>>>>;
+type PreprocessorCallbackCell = Rc<RefCell<Option<Box<dyn PreprocessorCallback>>>>;
 
 /// `JsVisualizationGeneric` allows the use of arbitrary javascript to create visualizations. It
 /// takes function definitions as strings and proved those functions with data.
@@ -84,15 +87,15 @@ type PreprocessorCallbackCell =
 #[derivative(Debug)]
 #[allow(missing_docs)]
 pub struct InstanceModel {
-    pub root_node: DomSymbol,
-    pub logger: Logger,
-    on_data_received: Rc<Option<js_sys::Function>>,
-    set_size: Rc<Option<js_sys::Function>>,
+    pub root_node:       DomSymbol,
+    pub logger:          Logger,
+    on_data_received:    Rc<Option<js_sys::Function>>,
+    set_size:            Rc<Option<js_sys::Function>>,
     #[derivative(Debug = "ignore")]
-    object: Rc<java_script::binding::Visualization>,
+    object:              Rc<java_script::binding::Visualization>,
     #[derivative(Debug = "ignore")]
     preprocessor_change: PreprocessorCallbackCell,
-    scene: Scene,
+    scene:               Scene,
 }
 
 impl InstanceModel {
@@ -101,10 +104,7 @@ impl InstanceModel {
         styles.get_color(ensogl_theme::graph_editor::visualization::background)
     }
 
-    fn create_root(
-        scene: &Scene,
-        logger: &Logger,
-    ) -> result::Result<DomSymbol, Error> {
+    fn create_root(scene: &Scene, logger: &Logger) -> result::Result<DomSymbol, Error> {
         let div = web::create_div();
         let root_node = DomSymbol::new(&div);
         root_node
@@ -116,13 +116,8 @@ impl InstanceModel {
         let bg_red = bg_color.red * 255.0;
         let bg_green = bg_color.green * 255.0;
         let bg_blue = bg_color.blue * 255.0;
-        let bg_hex = format!(
-            "rgba({},{},{},{})",
-            bg_red, bg_green, bg_blue, bg_color.alpha
-        );
-        root_node
-            .dom()
-            .set_style_or_warn("background", bg_hex, logger);
+        let bg_hex = format!("rgba({},{},{},{})", bg_red, bg_green, bg_blue, bg_color.alpha);
+        root_node.dom().set_style_or_warn("background", bg_hex, logger);
 
         Ok(root_node)
     }
@@ -134,8 +129,7 @@ impl InstanceModel {
     /// javascript code, and call from there the closure stored in the `PreprocessorCallbackCell`.
     /// We will later on set the closure inside of the `PreprocessorCallbackCell` to emit an FRP
     /// event.
-    fn preprocessor_change_callback(
-    ) -> (PreprocessorCallbackCell, impl PreprocessorCallback) {
+    fn preprocessor_change_callback() -> (PreprocessorCallbackCell, impl PreprocessorCallback) {
         let closure_cell = PreprocessorCallbackCell::default();
         let weak_closure_cell = Rc::downgrade(&closure_cell);
         let closure = move |preprocessor_config| {
@@ -150,8 +144,7 @@ impl InstanceModel {
         class: &JsValue,
         args: JsConsArgs,
     ) -> result::Result<java_script::binding::Visualization, Error> {
-        let js_new =
-            js_sys::Function::new_with_args("cls,arg", "return new cls(arg)");
+        let js_new = js_sys::Function::new_with_args("cls,arg", "return new cls(arg)");
         let context = JsValue::NULL;
         let object = js_new
             .call2(&context, class, &args.into())
@@ -164,19 +157,14 @@ impl InstanceModel {
     }
 
     /// Tries to create a InstanceModel from the given visualisation class.
-    pub fn from_class(
-        class: &JsValue,
-        scene: &Scene,
-    ) -> result::Result<Self, Error> {
+    pub fn from_class(class: &JsValue, scene: &Scene) -> result::Result<Self, Error> {
         let logger = Logger::new("Instance");
         let root_node = Self::create_root(scene, &logger)?;
-        let (preprocessor_change, closure) =
-            Self::preprocessor_change_callback();
+        let (preprocessor_change, closure) = Self::preprocessor_change_callback();
         let styles = StyleWatch::new(&scene.style_sheet);
         let init_data = JsConsArgs::new(root_node.clone_ref(), styles, closure);
         let object = Self::instantiate_class_with_args(class, init_data)?;
-        let on_data_received =
-            get_method(object.as_ref(), method::ON_DATA_RECEIVED).ok();
+        let on_data_received = get_method(object.as_ref(), method::ON_DATA_RECEIVED).ok();
         let on_data_received = Rc::new(on_data_received);
         let set_size = get_method(object.as_ref(), method::SET_SIZE).ok();
         let set_size = Rc::new(set_size);
@@ -234,10 +222,7 @@ impl InstanceModel {
     ) -> result::Result<(), JsValue> {
         if let Some(method) = method {
             if let Err(error) = method.call1(&self.object, arg) {
-                warning!(
-                    self.logger,
-                    "Failed to call method {method:?} with error: {error:?}"
-                );
+                warning!(self.logger, "Failed to call method {method:?} with error: {error:?}");
                 return Err(error);
             }
         }
@@ -249,6 +234,8 @@ impl InstanceModel {
     }
 }
 
+
+
 // ================
 // === Instance ===
 // ================
@@ -258,28 +245,19 @@ impl InstanceModel {
 #[allow(missing_docs)]
 pub struct Instance {
     #[shrinkwrap(main_field)]
-    model: InstanceModel,
-    frp: visualization::instance::Frp,
+    model:   InstanceModel,
+    frp:     visualization::instance::Frp,
     network: frp::Network,
 }
 
 impl Instance {
     /// Constructor.
-    pub fn new(
-        class: &JsValue,
-        scene: &Scene,
-    ) -> result::Result<Instance, Error> {
+    pub fn new(class: &JsValue, scene: &Scene) -> result::Result<Instance, Error> {
         let network = frp::Network::new("js_visualization_instance");
         let frp = visualization::instance::Frp::new(&network);
         let model = InstanceModel::from_class(class, scene)?;
         model.set_dom_layer(&scene.dom.layers.back);
-        Ok(Instance {
-            model,
-            frp,
-            network,
-        }
-        .init_frp(scene)
-        .init_preprocessor_change_callback())
+        Ok(Instance { model, frp, network }.init_frp(scene).init_preprocessor_change_callback())
     }
 
     fn init_frp(self, scene: &Scene) -> Self {
@@ -302,13 +280,9 @@ impl Instance {
     fn init_preprocessor_change_callback(self) -> Self {
         // FIXME Does it leak memory? To be checked.
         let change = self.frp.preprocessor_change.clone_ref();
-        let callback =
-            move |preprocessor_config| change.emit(preprocessor_config);
+        let callback = move |preprocessor_config| change.emit(preprocessor_config);
         let callback = Box::new(callback);
-        self.model
-            .preprocessor_change
-            .borrow_mut()
-            .replace(callback);
+        self.model.preprocessor_change.borrow_mut().replace(callback);
         if let Err(js_error) = self.model.update_preprocessor() {
             use enso_frp::web::js_to_string;
             let logger = self.model.logger.clone();
@@ -334,26 +308,20 @@ impl display::Object for Instance {
     }
 }
 
+
 // === Utils ===
 
 /// Try to return the method specified by the given name on the given object as a
 /// `js_sys::Function`.
-fn get_method(
-    object: &js_sys::Object,
-    property: &str,
-) -> Result<js_sys::Function> {
+fn get_method(object: &js_sys::Object, property: &str) -> Result<js_sys::Function> {
     let method_value = js_sys::Reflect::get(object, &property.into());
-    let method_value =
-        method_value.map_err(|object| Error::PropertyNotFoundOnObject {
-            object,
-            property: property.to_string(),
-        })?;
+    let method_value = method_value.map_err(|object| Error::PropertyNotFoundOnObject {
+        object,
+        property: property.to_string(),
+    })?;
     if method_value.is_undefined() {
         let object: JsValue = object.into();
-        return Err(Error::PropertyNotFoundOnObject {
-            object,
-            property: property.to_string(),
-        });
+        return Err(Error::PropertyNotFoundOnObject { object, property: property.to_string() });
     }
     let method_function: js_sys::Function = method_value.into();
     Ok(method_function)

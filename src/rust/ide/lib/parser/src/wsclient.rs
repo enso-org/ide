@@ -3,7 +3,9 @@
 use crate::api;
 use crate::prelude::*;
 
-use websocket::{stream::sync::TcpStream, ClientBuilder, Message};
+use websocket::stream::sync::TcpStream;
+use websocket::ClientBuilder;
+use websocket::Message;
 
 use api::Ast;
 use api::Error::*;
@@ -16,6 +18,8 @@ use std::fmt::Formatter;
 
 type WsTcpClient = websocket::sync::Client<TcpStream>;
 
+
+
 // ==========================
 // == Constants & literals ==
 // ==========================
@@ -26,6 +30,8 @@ pub const DEFAULT_HOSTNAME: &str = LOCALHOST;
 
 pub const HOSTNAME_VAR: &str = "ENSO_PARSER_HOSTNAME";
 pub const PORT_VAR: &str = "ENSO_PARSER_PORT";
+
+
 
 // ===========
 // == Error ==
@@ -51,10 +57,7 @@ pub enum Error {
     #[fail(display = "JSON (de)serialization failed: {:?}", _0)]
     JsonSerializationError(#[cause] serde_json::error::Error),
 
-    #[fail(
-        display = "JSON deserialization failed: {:?}, JSON was: {}",
-        _0, _1
-    )]
+    #[fail(display = "JSON deserialization failed: {:?}, JSON was: {}", _0, _1)]
     JsonDeserializationError(#[cause] serde_json::error::Error, String),
 }
 
@@ -78,6 +81,8 @@ impl From<serde_json::error::Error> for Error {
         Error::JsonSerializationError(error)
     }
 }
+
+
 
 // ==============
 // == Protocol ==
@@ -112,6 +117,8 @@ pub enum ResponseDoc {
     Error { message: String },
 }
 
+
+
 // ============
 // == Config ==
 // ============
@@ -138,6 +145,8 @@ impl Config {
         Config { host, port }
     }
 }
+
+
 
 // ============
 // == Client ==
@@ -168,10 +177,8 @@ mod internal {
         pub fn recv_response<M: Metadata>(&mut self) -> Result<Response<M>> {
             let response = self.connection.recv_message()?;
             match response {
-                websocket::OwnedMessage::Text(text) => {
-                    crate::from_json_str_without_recursion_limit(&text)
-                        .map_err(Into::into)
-                }
+                websocket::OwnedMessage::Text(text) =>
+                    crate::from_json_str_without_recursion_limit(&text).map_err(Into::into),
                 _ => Err(Error::NonTextResponse(response)),
             }
         }
@@ -183,9 +190,7 @@ mod internal {
         pub fn recv_response_doc(&mut self) -> Result<ResponseDoc> {
             let response = self.connection.recv_message()?;
             match response {
-                websocket::OwnedMessage::Text(code) => {
-                    Ok(serde_json::from_str(&code)?)
-                }
+                websocket::OwnedMessage::Text(code) => Ok(serde_json::from_str(&code)?),
                 _ => Err(Error::NonTextResponse(response)),
             }
         }
@@ -194,10 +199,7 @@ mod internal {
         ///
         /// Both request and response are exchanged in JSON using text messages
         /// over WebSocket.
-        pub fn rpc_call<M: Metadata>(
-            &mut self,
-            request: Request,
-        ) -> Result<Response<M>> {
+        pub fn rpc_call<M: Metadata>(&mut self, request: Request) -> Result<Response<M>> {
             self.send_request(request)?;
             self.recv_response()
         }
@@ -206,10 +208,7 @@ mod internal {
         ///
         /// Both request and response are exchanged in JSON using text messages
         /// over WebSocket.
-        pub fn rpc_call_doc(
-            &mut self,
-            request: Request,
-        ) -> Result<ResponseDoc> {
+        pub fn rpc_call_doc(&mut self, request: Request) -> Result<ResponseDoc> {
             self.send_request(request)?;
             self.recv_response_doc()
         }
@@ -261,10 +260,7 @@ impl Client {
     }
 
     /// Sends a request to parser service to generate HTML code from documented Enso code.
-    pub fn generate_html_docs(
-        &mut self,
-        program: String,
-    ) -> api::Result<String> {
+    pub fn generate_html_docs(&mut self, program: String) -> api::Result<String> {
         let request = Request::DocParserGenerateHtmlSource { program };
         let response_doc = self.rpc_call_doc(request)?;
         match response_doc {
@@ -274,10 +270,7 @@ impl Client {
     }
 
     /// Sends a request to parser service to generate HTML code from pure documentation code.
-    pub fn generate_html_doc_pure(
-        &mut self,
-        code: String,
-    ) -> api::Result<String> {
+    pub fn generate_html_doc_pure(&mut self, code: String) -> api::Result<String> {
         let request = Request::DocParserGenerateHtmlFromDoc { code };
         let response_doc = self.rpc_call_doc(request)?;
         match response_doc {
@@ -293,6 +286,8 @@ impl Debug for Client {
     }
 }
 
+
+
 // ===========
 // == tests ==
 // ===========
@@ -300,12 +295,8 @@ impl Debug for Client {
 #[test]
 fn wrong_url_reported() {
     let invalid_hostname = String::from("bgjhkb 7");
-    let wrong_config = Config {
-        host: invalid_hostname,
-        port: 8080,
-    };
+    let wrong_config = Config { host: invalid_hostname, port: 8080 };
     let client = Client::from_conf(&wrong_config);
-    let got_wrong_url_error =
-        matches::matches!(client, Err(Error::WrongUrl(_)));
+    let got_wrong_url_error = matches::matches!(client, Err(Error::WrongUrl(_)));
     assert!(got_wrong_url_error, "expected WrongUrl error");
 }

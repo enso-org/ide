@@ -7,6 +7,8 @@ use crate::data::bitfield::BitField;
 use crate::data::bitfield::BitField32;
 use nalgebra::Vector2;
 
+
+
 // ==============
 // === Button ===
 // ==============
@@ -79,6 +81,8 @@ impl Default for Button {
         Self::Button0
     }
 }
+
+
 
 // ==================
 // === ButtonMask ===
@@ -165,6 +169,8 @@ impl From<&ButtonMask> for ButtonMask {
     }
 }
 
+
+
 // =============
 // === Mouse ===
 // =============
@@ -173,49 +179,49 @@ impl From<&ButtonMask> for ButtonMask {
 #[derive(Clone, CloneRef, Debug)]
 #[allow(missing_docs)]
 pub struct Mouse {
-    pub network: frp::Network,
-    pub up: frp::Source<Button>,
-    pub down: frp::Source<Button>,
-    pub wheel: frp::Source,
-    pub up_0: frp::Stream,
-    pub up_1: frp::Stream,
-    pub up_2: frp::Stream,
-    pub up_3: frp::Stream,
-    pub up_4: frp::Stream,
-    pub up_primary: frp::Stream,
-    pub up_middle: frp::Stream,
-    pub up_secondary: frp::Stream,
-    pub down_0: frp::Stream,
-    pub down_1: frp::Stream,
-    pub down_2: frp::Stream,
-    pub down_3: frp::Stream,
-    pub down_4: frp::Stream,
-    pub down_primary: frp::Stream,
-    pub down_middle: frp::Stream,
-    pub down_secondary: frp::Stream,
-    pub is_up_0: frp::Stream<bool>,
-    pub is_up_1: frp::Stream<bool>,
-    pub is_up_2: frp::Stream<bool>,
-    pub is_up_3: frp::Stream<bool>,
-    pub is_up_4: frp::Stream<bool>,
-    pub is_up_primary: frp::Stream<bool>,
-    pub is_up_middle: frp::Stream<bool>,
-    pub is_up_secondary: frp::Stream<bool>,
-    pub is_down_0: frp::Stream<bool>,
-    pub is_down_1: frp::Stream<bool>,
-    pub is_down_2: frp::Stream<bool>,
-    pub is_down_3: frp::Stream<bool>,
-    pub is_down_4: frp::Stream<bool>,
-    pub is_down_primary: frp::Stream<bool>,
-    pub is_down_middle: frp::Stream<bool>,
+    pub network:           frp::Network,
+    pub up:                frp::Source<Button>,
+    pub down:              frp::Source<Button>,
+    pub wheel:             frp::Source,
+    pub up_0:              frp::Stream,
+    pub up_1:              frp::Stream,
+    pub up_2:              frp::Stream,
+    pub up_3:              frp::Stream,
+    pub up_4:              frp::Stream,
+    pub up_primary:        frp::Stream,
+    pub up_middle:         frp::Stream,
+    pub up_secondary:      frp::Stream,
+    pub down_0:            frp::Stream,
+    pub down_1:            frp::Stream,
+    pub down_2:            frp::Stream,
+    pub down_3:            frp::Stream,
+    pub down_4:            frp::Stream,
+    pub down_primary:      frp::Stream,
+    pub down_middle:       frp::Stream,
+    pub down_secondary:    frp::Stream,
+    pub is_up_0:           frp::Stream<bool>,
+    pub is_up_1:           frp::Stream<bool>,
+    pub is_up_2:           frp::Stream<bool>,
+    pub is_up_3:           frp::Stream<bool>,
+    pub is_up_4:           frp::Stream<bool>,
+    pub is_up_primary:     frp::Stream<bool>,
+    pub is_up_middle:      frp::Stream<bool>,
+    pub is_up_secondary:   frp::Stream<bool>,
+    pub is_down_0:         frp::Stream<bool>,
+    pub is_down_1:         frp::Stream<bool>,
+    pub is_down_2:         frp::Stream<bool>,
+    pub is_down_3:         frp::Stream<bool>,
+    pub is_down_4:         frp::Stream<bool>,
+    pub is_down_primary:   frp::Stream<bool>,
+    pub is_down_middle:    frp::Stream<bool>,
     pub is_down_secondary: frp::Stream<bool>,
-    pub position: frp::Source<Vector2<f32>>,
-    pub prev_position: frp::Stream<Vector2<f32>>,
-    pub translation: frp::Stream<Vector2<f32>>,
-    pub distance: frp::Stream<f32>,
-    pub ever_moved: frp::Stream<bool>,
-    pub button_mask: frp::Stream<ButtonMask>,
-    pub prev_button_mask: frp::Stream<ButtonMask>,
+    pub position:          frp::Source<Vector2<f32>>,
+    pub prev_position:     frp::Stream<Vector2<f32>>,
+    pub translation:       frp::Stream<Vector2<f32>>,
+    pub distance:          frp::Stream<f32>,
+    pub ever_moved:        frp::Stream<bool>,
+    pub button_mask:       frp::Stream<ButtonMask>,
+    pub prev_button_mask:  frp::Stream<ButtonMask>,
 }
 
 impl Mouse {

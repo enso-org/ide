@@ -16,6 +16,7 @@ use fmt::Formatter;
 use wasm_bindgen::prelude::*;
 use web_sys::HtmlDivElement;
 
+
 // =================
 // === Constants ===
 // =================
@@ -23,13 +24,13 @@ use web_sys::HtmlDivElement;
 /// Name of the visualization base class in JavaScript sources.
 pub const JS_CLASS_NAME: &str = "Visualization";
 
+
+
 // ===========================
 // === JavaScript Bindings ===
 // ===========================
 
-#[wasm_bindgen(
-    module = "/src/component/visualization/foreign/java_script/visualization.js"
-)]
+#[wasm_bindgen(module = "/src/component/visualization/foreign/java_script/visualization.js")]
 extern "C" {
     #[allow(unsafe_code)]
     fn __Visualization__() -> JsValue;
@@ -52,6 +53,8 @@ pub fn js_class() -> JsValue {
     __Visualization__()
 }
 
+
+
 // =============
 // === Theme ===
 // =============
@@ -69,23 +72,18 @@ pub struct JsTheme {
 #[derive(Debug, Copy, Clone)]
 pub struct JsColor {
     /// The red part as a float between 0 and 1
-    pub red: f32,
+    pub red:   f32,
     /// The green part as a float between 0 and 1
     pub green: f32,
     /// The blue part as a float between 0 and 1
-    pub blue: f32,
+    pub blue:  f32,
     /// The opacity as a float between 0 and 1
     pub alpha: f32,
 }
 
 impl From<color::Rgba> for JsColor {
     fn from(rgba: color::Rgba) -> Self {
-        JsColor {
-            red: rgba.red,
-            green: rgba.green,
-            blue: rgba.blue,
-            alpha: rgba.alpha,
-        }
+        JsColor { red: rgba.red, green: rgba.green, blue: rgba.blue, alpha: rgba.alpha }
     }
 }
 
@@ -107,9 +105,7 @@ impl JsTheme {
     /// Takes a qualified type name and returns the color that should be used for foreground
     /// (e.g. text) that is shown on top of the background color returned by getColorForType.
     pub fn getForegroundColorForType(&self, _tp_name: &str) -> JsColor {
-        self.styles
-            .get_color(ensogl_theme::code::types::selected)
-            .into()
+        self.styles.get_color(ensogl_theme::code::types::selected).into()
     }
 
     /// Queries style sheet value for a value.
@@ -117,6 +113,8 @@ impl JsTheme {
         Some(self.styles.get(path).color()?.into())
     }
 }
+
+
 
 // ========================
 // === Constructor Args ===
@@ -127,8 +125,8 @@ impl JsTheme {
 #[wasm_bindgen]
 pub struct JsConsArgs {
     #[wasm_bindgen(skip)]
-    pub root: HtmlDivElement,
-    theme: JsTheme,
+    pub root:             HtmlDivElement,
+    theme:                JsTheme,
     #[wasm_bindgen(skip)]
     pub set_preprocessor: Box<dyn PreprocessorCallback>,
 }
@@ -149,11 +147,7 @@ impl JsConsArgs {
         let set_preprocessor = Box::new(closure);
         let theme = JsTheme { styles };
         let root = root.dom().clone();
-        JsConsArgs {
-            root,
-            theme,
-            set_preprocessor,
-        }
+        JsConsArgs { root, theme, set_preprocessor }
     }
 }
 
@@ -170,14 +164,9 @@ impl JsConsArgs {
     }
 
     /// Helper method to emit an preprocessor change event from the visualisation.
-    pub fn emit_preprocessor_change(
-        &self,
-        code: Option<String>,
-        module: Option<String>,
-    ) {
+    pub fn emit_preprocessor_change(&self, code: Option<String>, module: Option<String>) {
         let closure = &self.set_preprocessor;
-        let preprocessor_config =
-            PreprocessorConfiguration::from_options(code, module);
+        let preprocessor_config = PreprocessorConfiguration::from_options(code, module);
         (*closure)(preprocessor_config);
     }
 }

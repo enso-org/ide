@@ -12,6 +12,8 @@ use crate::system::gpu::data::gl_enum::traits::*;
 
 use nalgebra::*;
 
+
+
 // =============
 // === Types ===
 // =============
@@ -23,6 +25,8 @@ pub trait MatrixCtx<T, R, C> = where
     C: DimName,
     DefaultAllocator: nalgebra::allocator::Allocator<T, R, C>,
     <DefaultAllocator as nalgebra::allocator::Allocator<T, R, C>>::Buffer: Copy;
+
+
 
 // ============
 // === Item ===
@@ -36,12 +40,8 @@ pub trait JsBufferViewArr = Sized where [Self]: JsBufferView;
 pub trait ItemBounds = Storable + PhantomInto<GlEnum>;
 
 /// Super bounds of the `Item` trait.
-pub trait BufferItemBounds = Copy
-    + GpuDefault
-    + JsBufferViewArr
-    + PhantomInto<glsl::PrimType>
-    + Into<Glsl>
-    + GpuKnownSize;
+pub trait BufferItemBounds =
+    Copy + GpuDefault + JsBufferViewArr + PhantomInto<glsl::PrimType> + Into<Glsl> + GpuKnownSize;
 
 /// GPU Buffer item.
 pub trait Item {
@@ -52,6 +52,8 @@ pub trait Item {
 impl<T: Storable> Item for T {
     type Storable = T;
 }
+
+
 
 /// Class for buffer items, like `f32` or `Vector<f32>`.
 ///
@@ -71,6 +73,7 @@ pub trait Storable: BufferItemBounds {
     /// The number of columns of the type encoded as 2d matrix.
     type Cols: DimName;
 
+
     // === Size ===
 
     /// Return the number of rows of the type encoded as 2d matrix.
@@ -89,6 +92,7 @@ pub trait Storable: BufferItemBounds {
         Self::rows() * Self::cols()
     }
 
+
     // === Conversions ===
 
     /// Conversion from a slice of items to a buffer slice.
@@ -102,6 +106,7 @@ pub trait Storable: BufferItemBounds {
 
     /// Converts from a mutable buffer slice to a mutable slice of items.
     fn slice_to_items_mut(buffer: &mut [Self]) -> &mut [Self::Cell];
+
 
     // === Temporary Helpers ===
 
@@ -118,6 +123,7 @@ pub trait Storable: BufferItemBounds {
     }
 }
 
+
 // === Type Families ===
 
 /// Item accessor.
@@ -129,7 +135,9 @@ pub type Rows<T> = <T as Storable>::Rows;
 /// Cols accessor.
 pub type Cols<T> = <T as Storable>::Cols;
 
+
 // === Instances ===
+
 
 impl Storable for bool {
     type Cell = Self;
@@ -232,9 +240,7 @@ where
         // uses `nalgebra::Owned` allocator, which resolves to array defined as
         // `#[repr(C)]` under the hood.
         let len = buffer.len() / Self::item_count();
-        unsafe {
-            std::slice::from_raw_parts_mut(buffer.as_mut_ptr().cast(), len)
-        }
+        unsafe { std::slice::from_raw_parts_mut(buffer.as_mut_ptr().cast(), len) }
     }
 
     #[allow(unsafe_code)]
@@ -252,11 +258,11 @@ where
         // uses `nalgebra::Owned` allocator, which resolves to array defined as
         // `#[repr(C)]` under the hood.
         let len = buffer.len() * Self::item_count();
-        unsafe {
-            std::slice::from_raw_parts_mut(buffer.as_mut_ptr().cast(), len)
-        }
+        unsafe { std::slice::from_raw_parts_mut(buffer.as_mut_ptr().cast(), len) }
     }
 }
+
+
 
 // ====================
 // === JsBufferView ===
@@ -284,16 +290,13 @@ pub trait JsBufferView {
     unsafe fn js_buffer_view(&self) -> js_sys::Object;
 }
 
+
 // === Instances ===
 
 #[allow(unsafe_code)]
 impl JsBufferView for [bool] {
     unsafe fn js_buffer_view(&self) -> js_sys::Object {
-        let i32arr = self
-            .iter()
-            .cloned()
-            .map(|t| if t { 1 } else { 0 })
-            .collect::<Vec<i32>>();
+        let i32arr = self.iter().cloned().map(|t| if t { 1 } else { 0 }).collect::<Vec<i32>>();
         js_sys::Int32Array::view(&i32arr).into()
     }
 }

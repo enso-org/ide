@@ -20,6 +20,8 @@ use ensogl_theme as theme;
 
 pub use entry::Entry;
 
+
+
 // ==========================
 // === Shapes Definitions ===
 // ==========================
@@ -29,6 +31,7 @@ pub use entry::Entry;
 /// The size of shadow under element. It is not counted in the component width and height.
 pub const SHADOW_PX: f32 = 10.0;
 const SHAPE_PADDING: f32 = 5.0;
+
 
 // === Selection ===
 
@@ -54,6 +57,7 @@ pub mod selection {
         }
     }
 }
+
 
 // === Background ===
 
@@ -82,6 +86,8 @@ pub mod background {
     }
 }
 
+
+
 // =============
 // === Model ===
 // =============
@@ -90,17 +96,17 @@ pub mod background {
 #[derive(Copy, Clone, Debug, Default)]
 struct View {
     position_y: f32,
-    size: Vector2<f32>,
+    size:       Vector2<f32>,
 }
 
 /// The Model of Select Component.
 #[derive(Clone, CloneRef, Debug)]
 struct Model<E: Entry> {
-    app: Application,
-    entries: entry::List<E>,
-    selection: selection::View,
-    background: background::View,
-    scrolled_area: display::object::Instance,
+    app:            Application,
+    entries:        entry::List<E>,
+    selection:      selection::View,
+    background:     background::View,
+    scrolled_area:  display::object::Instance,
     display_object: display::object::Instance,
 }
 
@@ -117,14 +123,7 @@ impl<E: Entry> Model<E> {
         display_object.add_child(&scrolled_area);
         scrolled_area.add_child(&entries);
         scrolled_area.add_child(&selection);
-        Model {
-            app,
-            entries,
-            selection,
-            background,
-            scrolled_area,
-            display_object,
-        }
+        Model { app, entries, selection, background, scrolled_area, display_object }
     }
 
     fn padding(&self) -> f32 {
@@ -137,38 +136,28 @@ impl<E: Entry> Model<E> {
     /// Update the displayed entries list when _view_ has changed - the list was scrolled or
     /// resized.
     fn update_after_view_change(&self, view: &View) {
-        let visible_entries =
-            Self::visible_entries(view, self.entries.entry_count());
+        let visible_entries = Self::visible_entries(view, self.entries.entry_count());
         let padding_px = self.padding();
         let padding = 2.0 * padding_px + SHAPE_PADDING;
         let padding = Vector2(padding, padding);
         let shadow = Vector2(2.0 * SHADOW_PX, 2.0 * SHADOW_PX);
         self.entries.set_position_x(-view.size.x / 2.0);
         self.background.size.set(view.size + padding + shadow);
-        self.scrolled_area
-            .set_position_y(view.size.y / 2.0 - view.position_y);
+        self.scrolled_area.set_position_y(view.size.y / 2.0 - view.position_y);
         self.entries.update_entries(visible_entries);
     }
 
     fn set_entries(&self, provider: entry::AnyModelProvider<E>, view: &View) {
-        let visible_entries =
-            Self::visible_entries(view, provider.entry_count());
-        self.entries
-            .update_entries_new_provider(provider, visible_entries);
+        let visible_entries = Self::visible_entries(view, provider.entry_count());
+        self.entries.update_entries_new_provider(provider, visible_entries);
     }
 
-    fn visible_entries(
-        View { position_y, size }: &View,
-        entry_count: usize,
-    ) -> Range<entry::Id> {
+    fn visible_entries(View { position_y, size }: &View, entry_count: usize) -> Range<entry::Id> {
         if entry_count == 0 {
             0..0
         } else {
             let entry_at_y_saturating =
-                |y: f32| match entry::List::<E>::entry_at_y_position(
-                    y,
-                    entry_count,
-                ) {
+                |y: f32| match entry::List::<E>::entry_at_y_position(y, entry_count) {
                     entry::list::IdAtYPosition::AboveFirst => 0,
                     entry::list::IdAtYPosition::UnderLast => entry_count - 1,
                     entry::list::IdAtYPosition::Entry(id) => id,
@@ -181,11 +170,8 @@ impl<E: Entry> Model<E> {
 
     /// Check if the `point` is inside component assuming that it have given `size`.
     fn is_inside(&self, point: Vector2<f32>, size: Vector2<f32>) -> bool {
-        let pos_obj_space = self
-            .app
-            .display
-            .scene()
-            .screen_to_object_space(&self.background, point);
+        let pos_obj_space =
+            self.app.display.scene().screen_to_object_space(&self.background, point);
         let x_range = (-size.x / 2.0)..=(size.x / 2.0);
         let y_range = (-size.y / 2.0)..=(size.y / 2.0);
         x_range.contains(&pos_obj_space.x) && y_range.contains(&pos_obj_space.y)
@@ -205,14 +191,12 @@ impl<E: Entry> Model<E> {
             }
         } else {
             let max_entry = self.entries.entry_count().checked_sub(1)?;
-            Some(
-                current_entry
-                    .map_or(0, |id| id + (jump as usize))
-                    .min(max_entry),
-            )
+            Some(current_entry.map_or(0, |id| id + (jump as usize)).min(max_entry))
         }
     }
 }
+
+
 
 // ===========
 // === FRP ===
@@ -253,6 +237,8 @@ ensogl_core::define_endpoints! {
     }
 }
 
+
+
 // ==========================
 // === ListView Component ===
 // ==========================
@@ -264,7 +250,7 @@ ensogl_core::define_endpoints! {
 #[allow(missing_docs)]
 #[derive(Clone, CloneRef, Debug)]
 pub struct ListView<E: Entry> {
-    model: Model<E>,
+    model:   Model<E>,
     pub frp: Frp<E>,
 }
 
@@ -276,8 +262,7 @@ impl<E: Entry> Deref for ListView<E> {
 }
 
 impl<E: Entry> ListView<E>
-where
-    E::Model: Default,
+where E::Model: Default
 {
     /// Constructor.
     pub fn new(app: &Application) -> Self {

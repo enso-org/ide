@@ -44,6 +44,8 @@ use std::f32::EPSILON;
 use super::edge;
 use crate::selection::BoundingBox;
 
+
+
 // =================
 // === Constants ===
 // =================
@@ -59,8 +61,7 @@ pub const RADIUS: f32 = 14.0;
 pub const COMMENT_MARGIN: f32 = 10.0;
 
 const INFINITE: f32 = 99999.0;
-const ERROR_VISUALIZATION_SIZE: (f32, f32) =
-    visualization::container::DEFAULT_SIZE;
+const ERROR_VISUALIZATION_SIZE: (f32, f32) = visualization::container::DEFAULT_SIZE;
 
 const VISUALIZATION_OFFSET_Y: f32 = -120.0;
 
@@ -71,6 +72,8 @@ const ERROR_PREVIEW_ONSET_MS: f32 = 0000.0;
 /// for ports and edges coloring (due to bad UX otherwise).
 const UNRESOLVED_SYMBOL_TYPE: &str = "Builtins.Main.Unresolved_Symbol";
 
+
+
 // ===============
 // === Comment ===
 // ===============
@@ -80,6 +83,8 @@ const UNRESOLVED_SYMBOL_TYPE: &str = "Builtins.Main.Unresolved_Symbol";
 /// This is just a plain string, as this is what text area expects and node just redirects this
 /// value,
 pub type Comment = String;
+
+
 
 // =============
 // === Shape ===
@@ -182,6 +187,8 @@ pub mod drag_area {
     }
 }
 
+
+
 // =======================
 // === Error Indicator ===
 // =======================
@@ -219,6 +226,8 @@ pub mod error_shape {
     }
 }
 
+
+
 // ==============
 // === Crumbs ===
 // ==============
@@ -232,7 +241,7 @@ pub enum Endpoint {
 #[derive(Clone, Debug)]
 pub struct Crumbs {
     pub endpoint: Endpoint,
-    pub crumbs: span_tree::Crumbs,
+    pub crumbs:   span_tree::Crumbs,
 }
 
 impl Crumbs {
@@ -252,6 +261,8 @@ impl Default for Crumbs {
         Self::output(default())
     }
 }
+
+
 
 // ============
 // === Node ===
@@ -361,7 +372,7 @@ ensogl::define_endpoints! {
 #[allow(missing_docs)]
 pub struct Node {
     pub model: Rc<NodeModel>,
-    pub frp: Frp,
+    pub frp:   Frp,
 }
 
 impl AsRef<Node> for Node {
@@ -381,22 +392,22 @@ impl Deref for Node {
 #[derive(Clone, CloneRef, Debug)]
 #[allow(missing_docs)]
 pub struct NodeModel {
-    pub app: Application,
-    pub display_object: display::object::Instance,
-    pub logger: Logger,
-    pub backdrop: backdrop::View,
-    pub background: background::View,
-    pub drag_area: drag_area::View,
-    pub error_indicator: error_shape::View,
-    pub profiling_label: ProfilingLabel,
-    pub input: input::Area,
-    pub output: output::Area,
-    pub visualization: visualization::Container,
+    pub app:                 Application,
+    pub display_object:      display::object::Instance,
+    pub logger:              Logger,
+    pub backdrop:            backdrop::View,
+    pub background:          background::View,
+    pub drag_area:           drag_area::View,
+    pub error_indicator:     error_shape::View,
+    pub profiling_label:     ProfilingLabel,
+    pub input:               input::Area,
+    pub output:              output::Area,
+    pub visualization:       visualization::Container,
     pub error_visualization: error::Container,
-    pub action_bar: action_bar::ActionBar,
-    pub vcs_indicator: vcs::StatusIndicator,
-    pub style: StyleWatchFrp,
-    pub comment: ensogl_text::Area,
+    pub action_bar:          action_bar::ActionBar,
+    pub vcs_indicator:       vcs::StatusIndicator,
+    pub style:               StyleWatchFrp,
+    pub comment:             ensogl_text::Area,
 }
 
 impl NodeModel {
@@ -431,8 +442,7 @@ impl NodeModel {
 
         let main_logger = Logger::new_sub(&logger, "main_area");
         let drag_logger = Logger::new_sub(&logger, "drag_area");
-        let error_indicator_logger =
-            Logger::new_sub(&logger, "error_indicator");
+        let error_indicator_logger = Logger::new_sub(&logger, "error_indicator");
 
         let error_indicator = error_shape::View::new(&error_indicator_logger);
         let profiling_label = ProfilingLabel::new(app);
@@ -457,8 +467,7 @@ impl NodeModel {
         shape_system.shape_system.set_pointer_events(false);
 
         let input = input::Area::new(&logger, app);
-        let visualization =
-            visualization::Container::new(&logger, app, registry);
+        let visualization = visualization::Container::new(&logger, app, registry);
 
         display_object.add_child(&visualization);
         display_object.add_child(&input);
@@ -503,8 +512,7 @@ impl NodeModel {
 
     pub fn get_crumbs_by_id(&self, id: ast::Id) -> Option<Crumbs> {
         let input_crumbs = self.input.get_crumbs_by_id(id).map(Crumbs::input);
-        input_crumbs
-            .or_else(|| self.output.get_crumbs_by_id(id).map(Crumbs::output))
+        input_crumbs.or_else(|| self.output.get_crumbs_by_id(id).map(Crumbs::output))
     }
 
     fn init(self) -> Self {
@@ -528,12 +536,8 @@ impl NodeModel {
 
     fn set_expression_usage_type(&self, crumbs: &Crumbs, tp: &Option<Type>) {
         match crumbs.endpoint {
-            Endpoint::Input => {
-                self.input.set_expression_usage_type(&crumbs.crumbs, tp)
-            }
-            Endpoint::Output => {
-                self.output.set_expression_usage_type(&crumbs.crumbs, tp)
-            }
+            Endpoint::Input => self.input.set_expression_usage_type(&crumbs.crumbs, tp),
+            Endpoint::Output => self.output.set_expression_usage_type(&crumbs.crumbs, tp),
         }
     }
 
@@ -556,9 +560,7 @@ impl NodeModel {
         self.action_bar.mod_position(|t| {
             t.x = width + CORNER_RADIUS + action_bar_width / 2.0;
         });
-        self.action_bar
-            .frp
-            .set_size(Vector2::new(action_bar_width, ACTION_BAR_HEIGHT));
+        self.action_bar.frp.set_size(Vector2::new(action_bar_width, ACTION_BAR_HEIGHT));
 
         let visualization_pos = Vector2(width / 2.0, VISUALIZATION_OFFSET_Y);
         self.error_visualization.set_position_xy(visualization_pos);
@@ -584,9 +586,7 @@ impl NodeModel {
     }
 
     fn set_error_color(&self, color: &color::Lcha) {
-        self.error_indicator
-            .color_rgba
-            .set(color::Rgba::from(color).into());
+        self.error_indicator.color_rgba.set(color::Rgba::from(color).into());
         if color.alpha < EPSILON {
             self.error_indicator.unset_parent();
         } else {
@@ -615,9 +615,7 @@ impl Node {
         frp::extend! { network
             position <- source::<Vector2>();
         }
-        model
-            .display_object
-            .set_on_updated(f!((p) position.emit(p.position().xy())));
+        model.display_object.set_on_updated(f!((p) position.emit(p.position().xy())));
 
         frp::extend! { network
 
@@ -718,6 +716,7 @@ impl Node {
                 !matches!(mode,view::Mode::Profiling {..})
             });
         }
+
 
         // === Visualizations & Errors ===
 
@@ -879,9 +878,7 @@ impl Node {
 
         // Init defaults.
         init.emit(());
-        model
-            .error_visualization
-            .set_layer(visualization::Layer::Front);
+        model.error_visualization.set_layer(visualization::Layer::Front);
         frp.set_error.emit(None);
         frp.set_disabled.emit(false);
         frp.show_quick_action_bar_on_hover.emit(true);

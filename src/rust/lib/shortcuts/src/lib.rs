@@ -22,6 +22,8 @@ pub use enso_logger::AnyLogger;
 pub use enso_logger::WarningLogger as Logger;
 pub use enso_logger::*;
 
+
+
 // ==============
 // === Traits ===
 // ==============
@@ -30,6 +32,8 @@ pub use enso_logger::*;
 pub mod traits {
     pub use super::Registry as TRAIT_Registry;
 }
+
+
 
 // ===============
 // === Helpers ===
@@ -43,20 +47,11 @@ fn hash<T: Hash>(t: &T) -> u64 {
 
 /// Pretty prints the provided matrix.
 pub fn print_matrix(matrix: &data::Matrix<dfa::State>) {
-    println!(
-        "rows x cols = {} x {} ({})",
-        matrix.rows,
-        matrix.columns,
-        matrix.matrix.len()
-    );
+    println!("rows x cols = {} x {} ({})", matrix.rows, matrix.columns, matrix.matrix.len());
     for row in 0..matrix.rows {
         for column in 0..matrix.columns {
             let elem = matrix.safe_index(row, column).unwrap();
-            let repr = if elem.is_invalid() {
-                "-".into()
-            } else {
-                format!("{}", elem.id())
-            };
+            let repr = if elem.is_invalid() { "-".into() } else { format!("{}", elem.id()) };
             print!("{} ", repr);
         }
         println!();
@@ -69,15 +64,15 @@ fn reverse_key(key: &str) -> String {
 
 /// List of special keys. Special keys can be grouped together to distinguish action sequences like
 /// `ctrl + a` and `a + ctrl`. Please note, that this is currently not happening.
-const SIDE_KEYS: &[&str] =
-    &["ctrl", "alt", "alt-graph", "meta", "cmd", "shift"];
+const SIDE_KEYS: &[&str] = &["ctrl", "alt", "alt-graph", "meta", "cmd", "shift"];
 
 lazy_static! {
-    static ref SIDE_KEYS_SET: HashSet<&'static str> =
-        SIDE_KEYS.iter().copied().collect();
+    static ref SIDE_KEYS_SET: HashSet<&'static str> = SIDE_KEYS.iter().copied().collect();
 }
 
 const DOUBLE_EVENT_TIME_MS: f32 = 300.0;
+
+
 
 // ==================
 // === ActionType ===
@@ -98,6 +93,8 @@ pub enum ActionType {
 }
 pub use ActionType::*;
 
+
+
 // ================
 // === Registry ===
 // ================
@@ -107,12 +104,7 @@ pub use ActionType::*;
 pub trait Registry<T>: Default {
     /// Add a new action mapping. `The expr` needs to be a list of keys separated by space, like
     /// "ctrl shift a".
-    fn add(
-        &self,
-        action_type: ActionType,
-        expr: impl AsRef<str>,
-        action: impl Into<T>,
-    );
+    fn add(&self, action_type: ActionType, expr: impl AsRef<str>, action: impl Into<T>);
 
     /// Get a list of items registered for the action that just happened. It might include items
     /// registered for `DoublePress` or `DoubleClick` if the actions were performed fast enough.
@@ -127,6 +119,8 @@ pub trait Registry<T>: Default {
     fn optimize(&self) {}
 }
 
+
+
 // =============================
 // === AutomataRegistryModel ===
 // =============================
@@ -136,22 +130,23 @@ type FullExprString = String;
 /// Internal model of `AutomataRegistry`.
 #[derive(Debug)]
 pub struct AutomataRegistryModel<T> {
-    dirty: bool,
-    nfa: Nfa,
-    dfa: Dfa,
-    states: HashMap<FullExprString, nfa::State>,
+    dirty:         bool,
+    nfa:           Nfa,
+    dfa:           Dfa,
+    states:        HashMap<FullExprString, nfa::State>,
     /// This field is used to allow efficient check if a connection already exists.
-    connections: HashSet<(nfa::State, nfa::State)>,
+    connections:   HashSet<(nfa::State, nfa::State)>,
     /// The always state is a special state which always triggers. No matter what event happens,
     /// this state will always be re-entered. It is useful for implementing such rules as `-a`,
     /// which fire always when key `a` is released, no matter if other keys are pressed or not.
-    always_state: nfa::State,
-    current: dfa::State,
-    pressed: HashSet<FullExprString>,
-    action_map: HashMap<ActionType, HashMap<nfa::State, T>>,
-    press_times: HashMap<dfa::State, f32>,
+    always_state:  nfa::State,
+    current:       dfa::State,
+    pressed:       HashSet<FullExprString>,
+    action_map:    HashMap<ActionType, HashMap<nfa::State, T>>,
+    press_times:   HashMap<dfa::State, f32>,
     release_times: HashMap<dfa::State, f32>,
 }
+
 
 // === Getters ===
 
@@ -164,6 +159,7 @@ impl<T> AutomataRegistryModel<T> {
         &self.dfa
     }
 }
+
 
 // === API ===
 
@@ -198,12 +194,7 @@ impl<T> AutomataRegistryModel<T> {
 }
 
 impl<T: Clone> AutomataRegistryModel<T> {
-    fn add(
-        &mut self,
-        action_type: ActionType,
-        expr: impl AsRef<str>,
-        action: impl Into<T>,
-    ) {
+    fn add(&mut self, action_type: ActionType, expr: impl AsRef<str>, action: impl Into<T>) {
         self.dirty = true;
         let expr = expr.as_ref();
         let end_state = if let Some(key) = expr.strip_prefix('-') {
@@ -215,10 +206,7 @@ impl<T: Clone> AutomataRegistryModel<T> {
             let all = expr.split(' ').map(|t| t.trim()).collect_vec();
             self.add_key_permutations(self.nfa.start, all)
         };
-        self.action_map
-            .entry(action_type)
-            .or_default()
-            .insert(end_state, action.into());
+        self.action_map.entry(action_type).or_default().insert(end_state, action.into());
     }
 
     /// Process the press input event. See `on_event` docs to learn more.
@@ -242,16 +230,9 @@ impl<T: Clone> AutomataRegistryModel<T> {
 
 impl<T: Clone> AutomataRegistryModel<T> {
     /// The `keys` para contains list of (key name, is side-aware key) items.
-    fn add_key_permutations(
-        &mut self,
-        source: nfa::State,
-        keys: Vec<&str>,
-    ) -> nfa::State {
+    fn add_key_permutations(&mut self, source: nfa::State, keys: Vec<&str>) -> nfa::State {
         let mut state = source;
-        let keys = keys
-            .into_iter()
-            .map(|key| (key, SIDE_KEYS_SET.contains(&key)))
-            .collect_vec();
+        let keys = keys.into_iter().map(|key| (key, SIDE_KEYS_SET.contains(&key))).collect_vec();
         for perm in keys.iter().permutations(keys.len()) {
             state = source;
             let mut path: Vec<&str> = vec![];
@@ -259,12 +240,7 @@ impl<T: Clone> AutomataRegistryModel<T> {
             for alt_keys in perm {
                 let (name, is_side_aware) = alt_keys;
                 if *is_side_aware {
-                    let alt_path = path
-                        .iter()
-                        .chain(&[&**name])
-                        .cloned()
-                        .sorted()
-                        .collect_vec();
+                    let alt_path = path.iter().chain(&[&**name]).cloned().sorted().collect_vec();
                     let alt_repr = alt_path.join(" ");
                     let out = self
                         .states
@@ -272,10 +248,7 @@ impl<T: Clone> AutomataRegistryModel<T> {
                         .cloned()
                         .unwrap_or_else(|| self.nfa.new_state_exported());
 
-                    let alts = vec![
-                        format!("{}-left", name),
-                        format!("{}-right", name),
-                    ];
+                    let alts = vec![format!("{}-left", name), format!("{}-right", name)];
                     for key in alts {
                         let mut local_path = path.clone();
                         local_path.push(&key);
@@ -283,30 +256,15 @@ impl<T: Clone> AutomataRegistryModel<T> {
                         let repr = local_path.join(" ");
                         match self.states.get(&repr) {
                             Some(&target) => {
-                                self.bidirectional_connect_via(
-                                    state,
-                                    target,
-                                    key.to_string(),
-                                );
+                                self.bidirectional_connect_via(state, target, key.to_string());
                                 self.bidirectional_connect(target, out);
-                                self.bidirectional_connect_via(
-                                    state,
-                                    out,
-                                    (*name).to_string(),
-                                );
+                                self.bidirectional_connect_via(state, out, (*name).to_string());
                             }
                             None => {
-                                let target = self.bidirectional_pattern(
-                                    state,
-                                    key.to_string(),
-                                );
+                                let target = self.bidirectional_pattern(state, key.to_string());
                                 self.states.insert(repr.clone(), target);
                                 self.bidirectional_connect(target, out);
-                                self.bidirectional_connect_via(
-                                    state,
-                                    out,
-                                    (*name).to_string(),
-                                );
+                                self.bidirectional_connect_via(state, out, (*name).to_string());
                             }
                         };
                     }
@@ -320,18 +278,11 @@ impl<T: Clone> AutomataRegistryModel<T> {
                     let repr = path.join(" ");
                     state = match self.states.get(&repr) {
                         Some(&target) => {
-                            self.bidirectional_connect_via(
-                                state,
-                                target,
-                                (*key).to_string(),
-                            );
+                            self.bidirectional_connect_via(state, target, (*key).to_string());
                             target
                         }
                         None => {
-                            let target = self.bidirectional_pattern(
-                                state,
-                                (*key).to_string(),
-                            );
+                            let target = self.bidirectional_pattern(state, (*key).to_string());
                             self.states.insert(repr.clone(), target);
                             target
                         }
@@ -342,12 +293,7 @@ impl<T: Clone> AutomataRegistryModel<T> {
         state
     }
 
-    fn bidirectional_connect_via(
-        &mut self,
-        source: nfa::State,
-        target: nfa::State,
-        key: String,
-    ) {
+    fn bidirectional_connect_via(&mut self, source: nfa::State, target: nfa::State, key: String) {
         if !self.connections.contains(&(source, target)) {
             self.connections.insert((source, target));
             self.connections.insert((target, source));
@@ -355,16 +301,11 @@ impl<T: Clone> AutomataRegistryModel<T> {
             let sym = Symbol::new_named(hash(&key), key);
             let sym_r = Symbol::new_named(hash(&key_r), key_r);
             self.nfa.connect_via(source, target, &(sym.clone()..=sym));
-            self.nfa
-                .connect_via(target, source, &(sym_r.clone()..=sym_r));
+            self.nfa.connect_via(target, source, &(sym_r.clone()..=sym_r));
         }
     }
 
-    fn bidirectional_connect(
-        &mut self,
-        source: nfa::State,
-        target: nfa::State,
-    ) {
+    fn bidirectional_connect(&mut self, source: nfa::State, target: nfa::State) {
         if !self.connections.contains(&(source, target)) {
             self.connections.insert((source, target));
             self.connections.insert((target, source));
@@ -373,18 +314,13 @@ impl<T: Clone> AutomataRegistryModel<T> {
         }
     }
 
-    fn bidirectional_pattern(
-        &mut self,
-        source: nfa::State,
-        key: String,
-    ) -> nfa::State {
+    fn bidirectional_pattern(&mut self, source: nfa::State, key: String) -> nfa::State {
         let key_r = reverse_key(&key);
         let sym = Symbol::new_named(hash(&key), key);
         let sym_r = Symbol::new_named(hash(&key_r), key_r);
         let pat = Pattern::symbol(&sym);
         let target = self.nfa.new_pattern(source, pat);
-        self.nfa
-            .connect_via(target, source, &(sym_r.clone()..=sym_r));
+        self.nfa.connect_via(target, source, &(sym_r.clone()..=sym_r));
         self.connections.insert((source, target));
         target
     }
@@ -397,38 +333,23 @@ impl<T: Clone> AutomataRegistryModel<T> {
         let action = if press { Press } else { Release };
         let action2 = if press { DoublePress } else { DoubleClick };
         let input = input.as_ref().to_lowercase();
-        let sym_input = if press {
-            input.clone()
-        } else {
-            format!("-{}", input)
-        };
+        let sym_input = if press { input.clone() } else { format!("-{}", input) };
         let symbol = Symbol::from(hash(&sym_input));
         let state = self.current;
         let next_state = self.dfa.next_state(state, &symbol);
         let focus_state = if press { next_state } else { state };
         let nfa_states = &self.dfa.sources[focus_state.id()];
         let time = web::time_from_start() as f32;
-        let time_map = if press {
-            &self.press_times
-        } else {
-            &self.release_times
-        };
+        let time_map = if press { &self.press_times } else { &self.release_times };
         let last_time = time_map.get(&focus_state);
         let time_diff = last_time.map(|t| time - t);
-        let is_double =
-            time_diff.map(|t| t < DOUBLE_EVENT_TIME_MS) == Some(true);
+        let is_double = time_diff.map(|t| t < DOUBLE_EVENT_TIME_MS) == Some(true);
         let new_time = if is_double { 0.0 } else { time };
         self.current = next_state;
-        let mut actions = nfa_states
-            .iter()
-            .filter_map(|t| self.get_action(action, *t))
-            .collect_vec();
+        let mut actions =
+            nfa_states.iter().filter_map(|t| self.get_action(action, *t)).collect_vec();
         if is_double {
-            actions.extend(
-                nfa_states
-                    .iter()
-                    .filter_map(|t| self.get_action(action2, *t)),
-            );
+            actions.extend(nfa_states.iter().filter_map(|t| self.get_action(action2, *t)));
         }
         if press {
             self.pressed.insert(input);
@@ -449,20 +370,13 @@ impl<T: Clone> AutomataRegistryModel<T> {
             let path = self.pressed.iter().sorted().cloned().collect_vec();
             self.current = Dfa::START_STATE;
             for p in path {
-                self.current =
-                    self.dfa.next_state(self.current, &Symbol::from(hash(&p)));
+                self.current = self.dfa.next_state(self.current, &Symbol::from(hash(&p)));
             }
         }
     }
 
-    fn get_action(
-        &self,
-        action_type: ActionType,
-        state: nfa::State,
-    ) -> Option<T> {
-        self.action_map
-            .get(&action_type)
-            .and_then(|m| m.get(&state).cloned())
+    fn get_action(&self, action_type: ActionType, state: nfa::State) -> Option<T> {
+        self.action_map.get(&action_type).and_then(|m| m.get(&state).cloned())
     }
 
     fn optimize(&mut self) {
@@ -482,6 +396,8 @@ impl<T> Default for AutomataRegistryModel<T> {
         Self::new()
     }
 }
+
+
 
 // ========================
 // === AutomataRegistry ===
@@ -533,12 +449,7 @@ impl<T: Clone> AutomataRegistry<T> {
 }
 
 impl<T: Clone> Registry<T> for AutomataRegistry<T> {
-    fn add(
-        &self,
-        action_type: ActionType,
-        expr: impl AsRef<str>,
-        action: impl Into<T>,
-    ) {
+    fn add(&self, action_type: ActionType, expr: impl AsRef<str>, action: impl Into<T>) {
         self.rc.borrow_mut().add(action_type, expr, action)
     }
 
@@ -557,6 +468,8 @@ impl<T: Clone> Registry<T> for AutomataRegistry<T> {
     }
 }
 
+
+
 // ============================
 // === HashSetRegistryModel ===
 // ============================
@@ -566,13 +479,13 @@ pub trait HashSetRegistryItem = Clone + Debug + Eq + Hash;
 /// Internal model for `HashSetRegistry`.
 #[derive(Debug)]
 pub struct HashSetRegistryModel<T> {
-    current_expr: String,
-    actions: HashMap<ActionType, HashMap<String, Vec<T>>>,
-    pressed: HashSet<String>,
-    press_times: HashMap<String, f32>,
+    current_expr:  String,
+    actions:       HashMap<ActionType, HashMap<String, Vec<T>>>,
+    pressed:       HashSet<String>,
+    press_times:   HashMap<String, f32>,
     release_times: HashMap<String, f32>,
-    side_keys: HashMap<String, Vec<String>>,
-    key_aliases: HashMap<String, String>,
+    side_keys:     HashMap<String, Vec<String>>,
+    key_aliases:   HashMap<String, String>,
 }
 
 impl<T> HashSetRegistryModel<T> {
@@ -585,25 +498,13 @@ impl<T> HashSetRegistryModel<T> {
         let release_times = default();
         let side_keys = default();
         let key_aliases = key_aliases();
-        Self {
-            current_expr,
-            actions,
-            pressed,
-            press_times,
-            release_times,
-            side_keys,
-            key_aliases,
-        }
-        .init()
+        Self { current_expr, actions, pressed, press_times, release_times, side_keys, key_aliases }
+            .init()
     }
 
     fn init(mut self) -> Self {
         for key in SIDE_KEYS {
-            let alts = vec![
-                format!("{}-left", key),
-                format!("{}-right", key),
-                (*key).to_string(),
-            ];
+            let alts = vec![format!("{}-left", key), format!("{}-right", key), (*key).to_string()];
             self.side_keys.insert((*key).to_string(), alts);
         }
         self
@@ -616,12 +517,7 @@ impl<T> HashSetRegistryModel<T> {
 
 impl<T: HashSetRegistryItem> HashSetRegistryModel<T> {
     /// Add a new shortcut definition.
-    pub fn add(
-        &mut self,
-        action_type: ActionType,
-        input: impl AsRef<str>,
-        action: impl Into<T>,
-    ) {
+    pub fn add(&mut self, action_type: ActionType, input: impl AsRef<str>, action: impl Into<T>) {
         let input = input.as_ref();
         let action = action.into();
         let exprs = self.possible_exprs(input);
@@ -644,8 +540,7 @@ impl<T: HashSetRegistryItem> HashSetRegistryModel<T> {
                 self.pressed.remove(&input);
             }
             self.current_expr = self.current_expr();
-            out.extended(self.process_event(Press))
-                .extended(self.process_event(PressAndRepeat))
+            out.extended(self.process_event(Press)).extended(self.process_event(PressAndRepeat))
         } else {
             if press {
                 self.process_event(PressAndRepeat)
@@ -668,16 +563,11 @@ impl<T: HashSetRegistryItem> HashSetRegistryModel<T> {
         if action != PressAndRepeat {
             let is_press = action == Press;
             let action2 = if is_press { DoublePress } else { DoubleClick };
-            let time_map = if is_press {
-                &mut self.press_times
-            } else {
-                &mut self.release_times
-            };
+            let time_map = if is_press { &mut self.press_times } else { &mut self.release_times };
             let time = web::time_from_start() as f32;
             let last_time = time_map.get(expr);
             let time_diff = last_time.map(|t| time - t);
-            let is_double =
-                time_diff.map(|t| t < DOUBLE_EVENT_TIME_MS) == Some(true);
+            let is_double = time_diff.map(|t| t < DOUBLE_EVENT_TIME_MS) == Some(true);
             if is_double {
                 out.extend(
                     self.actions
@@ -697,17 +587,13 @@ impl<T: HashSetRegistryItem> HashSetRegistryModel<T> {
 
     /// Handle the key press.
     pub fn on_press(&mut self, input: impl AsRef<str>) -> Vec<T>
-    where
-        T: Debug,
-    {
+    where T: Debug {
         self.on_event(input, true)
     }
 
     /// Handle the key release.
     pub fn on_release(&mut self, input: impl AsRef<str>) -> Vec<T>
-    where
-        T: Debug,
-    {
+    where T: Debug {
         self.on_event(input, false)
     }
 
@@ -716,35 +602,27 @@ impl<T: HashSetRegistryItem> HashSetRegistryModel<T> {
     fn possible_exprs(&self, expr: impl AsRef<str>) -> Vec<String> {
         let mut out = Vec::<String>::new();
         let expr = expr.as_ref();
-        let chunks =
-            expr.split(' ').map(|t| t.trim()).filter(|t| !t.is_empty());
-        let keys = chunks
-            .map(|t| self.key_aliases.get(t).map(|t| t.as_ref()).unwrap_or(t));
+        let chunks = expr.split(' ').map(|t| t.trim()).filter(|t| !t.is_empty());
+        let keys = chunks.map(|t| self.key_aliases.get(t).map(|t| t.as_ref()).unwrap_or(t));
         for key in keys.sorted() {
             match self.side_keys.get(key) {
-                Some(alts) => {
+                Some(alts) =>
                     if out.is_empty() {
                         out.extend(alts.iter().cloned());
                     } else {
                         let local_out = mem::take(&mut out);
                         for alt in alts {
-                            out.extend(
-                                local_out
-                                    .iter()
-                                    .map(|expr| format!("{} {}", expr, alt)),
-                            );
+                            out.extend(local_out.iter().map(|expr| format!("{} {}", expr, alt)));
                         }
-                    }
-                }
-                None => {
+                    },
+                None =>
                     if out.is_empty() {
                         out.push(key.into());
                     } else {
                         for el in out.iter_mut() {
                             *el = format!("{} {}", el, key);
                         }
-                    }
-                }
+                    },
             }
         }
         out
@@ -764,12 +642,11 @@ fn key_aliases() -> HashMap<String, String> {
         _ => "ctrl",
     };
     #[allow(clippy::useless_format)]
-    let insert_side_key =
-        |map: &mut HashMap<String, String>, k: &str, v: &str| {
-            map.insert(format!("{}", k), format!("{}", v));
-            map.insert(format!("{}-left", k), format!("{}-left", v));
-            map.insert(format!("{}-right", k), format!("{}-right", v));
-        };
+    let insert_side_key = |map: &mut HashMap<String, String>, k: &str, v: &str| {
+        map.insert(format!("{}", k), format!("{}", v));
+        map.insert(format!("{}-left", k), format!("{}-left", v));
+        map.insert(format!("{}-right", k), format!("{}-right", v));
+    };
     let insert = |map: &mut HashMap<String, String>, k: &str, v: &str| {
         map.insert(k.into(), v.into());
     };
@@ -786,6 +663,8 @@ fn key_aliases() -> HashMap<String, String> {
     insert(&mut map, "right-mouse-button", "mouse-button-2");
     map
 }
+
+
 
 // =======================
 // === HashSetRegistry ===
@@ -809,12 +688,7 @@ impl<T> HashSetRegistry<T> {
 }
 
 impl<T: HashSetRegistryItem> Registry<T> for HashSetRegistry<T> {
-    fn add(
-        &self,
-        action_type: ActionType,
-        expr: impl AsRef<str>,
-        action: impl Into<T>,
-    ) {
+    fn add(&self, action_type: ActionType, expr: impl AsRef<str>, action: impl Into<T>) {
         self.rc.borrow_mut().add(action_type, expr, action)
     }
 
@@ -826,6 +700,8 @@ impl<T: HashSetRegistryItem> Registry<T> for HashSetRegistry<T> {
         self.rc.borrow_mut().on_release(input)
     }
 }
+
+
 
 // =============
 // === Tests ===
@@ -857,6 +733,7 @@ mod tests {
         registry
     }
 
+
     // === Release ===
 
     #[test]
@@ -878,6 +755,7 @@ mod tests {
         }
         registry
     }
+
 
     // === DoublePress ===
 
@@ -905,6 +783,7 @@ mod tests {
         registry
     }
 
+
     // === Overlapping Shortcuts ===
 
     // #[test] fn automata_registry_overlapping() { overlapping::<AutomataRegistry<i32>>(); }
@@ -926,6 +805,7 @@ mod tests {
         assert_eq!(registry.on_release("a"), nothing);
         registry
     }
+
 
     // === Side Keys ===
 
@@ -961,6 +841,7 @@ mod tests {
         registry
     }
 
+
     // === Press / Release Sequence ===
 
     // #[test] fn automata_registry_sequence() { sequence::<AutomataRegistry<&'static str>>(); }
@@ -977,13 +858,11 @@ mod tests {
         registry.add(Release, "a", "release a");
         assert_eq!(registry.on_press("ctrl-left"), nothing);
         assert_eq!(registry.on_press("a"), vec!["press ctrl a"]);
-        assert_eq!(
-            registry.on_release("ctrl-left"),
-            vec!["release ctrl a", "press a"]
-        );
+        assert_eq!(registry.on_release("ctrl-left"), vec!["release ctrl a", "press a"]);
         assert_eq!(registry.on_release("a"), vec!["release a"]);
         registry
     }
+
 
     // === Disabled Key Repeat ===
 
@@ -1006,6 +885,7 @@ mod tests {
         }
         registry
     }
+
 
     // === Valid States ===
 
@@ -1054,6 +934,8 @@ mod tests {
     }
 }
 
+
+
 // ==================
 // === Benchmarks ===
 // ==================
@@ -1069,30 +951,22 @@ mod benchmarks {
     // === Construction ===
 
     #[bench]
-    fn automata_registry_construction_simple_without_optimization(
-        bencher: &mut Bencher,
-    ) {
+    fn automata_registry_construction_simple_without_optimization(bencher: &mut Bencher) {
         construction::<AutomataRegistry<i32>>(CONS_SIMPLE, false, bencher);
     }
 
     #[bench]
-    fn automata_registry_construction_complex_without_optimization(
-        bencher: &mut Bencher,
-    ) {
+    fn automata_registry_construction_complex_without_optimization(bencher: &mut Bencher) {
         construction::<AutomataRegistry<i32>>(CONS_COMPLEX, false, bencher);
     }
 
     #[bench]
-    fn automata_registry_construction_simple_with_optimization(
-        bencher: &mut Bencher,
-    ) {
+    fn automata_registry_construction_simple_with_optimization(bencher: &mut Bencher) {
         construction::<AutomataRegistry<i32>>(CONS_SIMPLE, true, bencher);
     }
 
     #[bench]
-    fn automata_registry_construction_complex_with_optimization(
-        bencher: &mut Bencher,
-    ) {
+    fn automata_registry_construction_complex_with_optimization(bencher: &mut Bencher) {
         construction::<AutomataRegistry<i32>>(CONS_COMPLEX, true, bencher);
     }
 
@@ -1106,11 +980,7 @@ mod benchmarks {
         construction::<HashSetRegistry<i32>>(CONS_COMPLEX, true, bencher);
     }
 
-    fn construction<T: Registry<i32>>(
-        input: &str,
-        optimize: bool,
-        bencher: &mut Bencher,
-    ) -> T {
+    fn construction<T: Registry<i32>>(input: &str, optimize: bool, bencher: &mut Bencher) -> T {
         bencher.iter(|| {
             let registry: T = default();
             let max_count = test::black_box(10);
@@ -1123,6 +993,7 @@ mod benchmarks {
         });
         default()
     }
+
 
     // === Lookup ===
 

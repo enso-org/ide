@@ -13,6 +13,8 @@ use ensogl_gui_components::toggle_button::ColorableShape;
 use ensogl_gui_components::toggle_button::ToggleButton;
 use ensogl_theme as theme;
 
+
+
 // ==================
 // === Constants  ===
 // ==================
@@ -22,6 +24,7 @@ const BUTTON_OFFSET: f32 = 0.5;
 /// Grow the hover area in x direction by this amount. Used to close the gap between action
 /// icons and node.
 const HOVER_EXTENSION_X: f32 = 15.0;
+
 
 // ===============
 // === Shapes  ===
@@ -42,6 +45,8 @@ mod hover_area {
         }
     }
 }
+
+
 
 // ===========
 // === Frp ===
@@ -64,6 +69,8 @@ ensogl::define_endpoints! {
     }
 }
 
+
+
 // ========================
 // === Action Bar Icons ===
 // ========================
@@ -71,9 +78,9 @@ ensogl::define_endpoints! {
 #[derive(Clone, CloneRef, Debug)]
 struct Icons {
     display_object: display::object::Instance,
-    freeze: ToggleButton<icon::freeze::DynamicShape>,
-    visibility: ToggleButton<icon::visibility::DynamicShape>,
-    skip: ToggleButton<icon::skip::DynamicShape>,
+    freeze:         ToggleButton<icon::freeze::DynamicShape>,
+    visibility:     ToggleButton<icon::visibility::DynamicShape>,
+    skip:           ToggleButton<icon::skip::DynamicShape>,
 }
 
 impl Icons {
@@ -93,12 +100,7 @@ impl Icons {
         //
         // display_object.add_child(&freeze);
         // display_object.add_child(&skip);
-        Self {
-            display_object,
-            freeze,
-            visibility,
-            skip,
-        }
+        Self { display_object, freeze, visibility, skip }
     }
 
     fn set_visibility(&self, visible: bool) {
@@ -114,6 +116,8 @@ impl display::Object for Icons {
     }
 }
 
+
+
 // ========================
 // === Action Bar Model ===
 // ========================
@@ -121,11 +125,11 @@ impl display::Object for Icons {
 #[derive(Clone, CloneRef, Debug)]
 struct Model {
     display_object: display::object::Instance,
-    hover_area: hover_area::View,
-    icons: Icons,
-    size: Rc<Cell<Vector2>>,
-    shapes: compound::events::MouseEvents,
-    styles: StyleWatch,
+    hover_area:     hover_area::View,
+    icons:          Icons,
+    size:           Rc<Cell<Vector2>>,
+    shapes:         compound::events::MouseEvents,
+    styles:         StyleWatch,
 }
 
 impl Model {
@@ -152,15 +156,7 @@ impl Model {
             }
         }
 
-        Self {
-            display_object,
-            hover_area,
-            icons,
-            size,
-            shapes,
-            styles,
-        }
-        .init()
+        Self { display_object, hover_area, icons, size, shapes, styles }.init()
     }
 
     fn init(self) -> Self {
@@ -169,18 +165,12 @@ impl Model {
         self
     }
 
-    fn place_button_in_slot<T: ColorableShape>(
-        &self,
-        button: &ToggleButton<T>,
-        index: usize,
-    ) {
+    fn place_button_in_slot<T: ColorableShape>(&self, button: &ToggleButton<T>, index: usize) {
         let icon_size = self.icon_size();
         let index = index as f32;
         let padding = BUTTON_PADDING;
         let offset = BUTTON_OFFSET;
-        button.mod_position(|p| {
-            p.x = ((1.0 + padding) * index + offset) * icon_size.x
-        });
+        button.mod_position(|p| p.x = ((1.0 + padding) * index + offset) * icon_size.x);
         button.frp.set_size(icon_size);
     }
 
@@ -195,17 +185,14 @@ impl Model {
         let offset = BUTTON_OFFSET;
         let hover_padding = 1.0;
         let button_width = self.icon_size().x;
-        let hover_width = button_width
-            * (button_count + hover_padding + offset + padding)
-            + HOVER_EXTENSION_X;
+        let hover_width =
+            button_width * (button_count + hover_padding + offset + padding) + HOVER_EXTENSION_X;
         let hover_height = button_width * 2.0;
         let hover_ara_size = Vector2::new(hover_width, hover_height);
         self.hover_area.size.set(hover_ara_size);
         let center_offset = -size.x / 2.0 + hover_ara_size.x / 2.0;
-        let padding_offset =
-            -0.5 * hover_padding * button_width - HOVER_EXTENSION_X / 2.0;
-        self.hover_area
-            .set_position_x(center_offset + padding_offset);
+        let padding_offset = -0.5 * hover_padding * button_width - HOVER_EXTENSION_X / 2.0;
+        self.hover_area.set_position_x(center_offset + padding_offset);
     }
 
     fn set_size(&self, size: Vector2) {
@@ -236,6 +223,8 @@ impl display::Object for Model {
     }
 }
 
+
+
 // ==================
 // === Action Bar ===
 // ==================
@@ -248,13 +237,12 @@ impl display::Object for Model {
 ///    / ----------------------------- \
 ///    | <icon1> <icon2> <icon3>       |
 ///    \ ----------------------------- /
-///
 /// ```
 #[derive(Clone, CloneRef, Debug)]
 #[allow(missing_docs)]
 pub struct ActionBar {
     pub frp: Frp,
-    model: Rc<Model>,
+    model:   Rc<Model>,
 }
 
 impl Deref for ActionBar {
@@ -306,26 +294,14 @@ impl ActionBar {
             non_toggled: Some(
                 model
                     .styles
-                    .get_color(
-                        theme::graph_editor::node::actions::button::non_toggled,
-                    )
+                    .get_color(theme::graph_editor::node::actions::button::non_toggled)
                     .into(),
             ),
             toggled: Some(
-                model
-                    .styles
-                    .get_color(
-                        theme::graph_editor::node::actions::button::toggled,
-                    )
-                    .into(),
+                model.styles.get_color(theme::graph_editor::node::actions::button::toggled).into(),
             ),
             hovered: Some(
-                model
-                    .styles
-                    .get_color(
-                        theme::graph_editor::node::actions::button::hovered,
-                    )
-                    .into(),
+                model.styles.get_color(theme::graph_editor::node::actions::button::hovered).into(),
             ),
             ..default()
         };

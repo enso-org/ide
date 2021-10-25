@@ -8,6 +8,8 @@ use crate::system::gpu::data::texture::class::*;
 use crate::system::gpu::data::texture::storage::*;
 use crate::system::gpu::data::texture::types::*;
 
+
+
 // =============
 // === Owned ===
 // =============
@@ -16,12 +18,13 @@ use crate::system::gpu::data::texture::types::*;
 #[derive(Debug)]
 pub struct OwnedData<T> {
     /// An array containing texture data.
-    pub data: Vec<T>,
+    pub data:   Vec<T>,
     /// Texture width.
-    pub width: i32,
+    pub width:  i32,
     /// Texture height.
     pub height: i32,
 }
+
 
 // === Instances ===
 
@@ -31,13 +34,10 @@ impl<I, T: Debug> StorageRelation<I, T> for texture::storage::Owned {
 
 impl<T> OwnedData<T> {
     fn new(data: Vec<T>, width: i32, height: i32) -> Self {
-        Self {
-            data,
-            width,
-            height,
-        }
+        Self { data, width, height }
     }
 }
+
 
 // === API ===
 

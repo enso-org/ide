@@ -14,6 +14,8 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::PathBuf;
 
+
+
 // =========================
 // == Hardcoded constants ==
 // =========================
@@ -39,6 +41,8 @@ pub fn parser_url(version: &ParserVersion) -> reqwest::Url {
     reqwest::Url::parse(&url_string).expect(&invalid_url_msg)
 }
 
+
+
 // ===================
 // == ParserVersion ==
 // ===================
@@ -57,11 +61,11 @@ impl ParserVersion {
 
     /// The JS parser version required for this crate.
     pub fn required() -> ParserVersion {
-        ParserVersion {
-            commit: PARSER_COMMIT.into(),
-        }
+        ParserVersion { commit: PARSER_COMMIT.into() }
     }
 }
+
+
 
 // ========================
 // == Downloading parser ==
@@ -73,22 +77,16 @@ impl ParserVersion {
 /// file, so parser can be consumed by `wasm_bindgen`.
 struct ParserProvider {
     /// Required parser version.
-    version: ParserVersion,
+    version:     ParserVersion,
     /// The path where JS file needs to be provided.
     parser_path: PathBuf,
 }
 
 impl ParserProvider {
     /// Creates a provider that obtains given parser version to a given path.
-    pub fn new(
-        version: ParserVersion,
-        parser_path: impl PathRef,
-    ) -> ParserProvider {
+    pub fn new(version: ParserVersion, parser_path: impl PathRef) -> ParserProvider {
         let parser_path = PathBuf::from(parser_path.as_ref());
-        ParserProvider {
-            version,
-            parser_path,
-        }
+        ParserProvider { version, parser_path }
     }
 
     /// Downloads contents of JS parser into memory.
@@ -96,8 +94,7 @@ impl ParserProvider {
         let url = parser_url(&self.version);
         let get_error = format!("Failed to get response from {}.", url);
         let download_error = format!("Failed to download contents of {}.", url);
-        let server_error =
-            format!("Server replied with error when getting {}.", url);
+        let server_error = format!("Server replied with error when getting {}.", url);
         let response = reqwest::get(url).await.expect(&get_error);
         let response = response.error_for_status().expect(&server_error);
         response.bytes().await.expect(&download_error)
@@ -111,32 +108,25 @@ impl ParserProvider {
         let flush_error = format!("Failed to flush {}.", display_path);
 
         let mut file = File::create(&self.parser_path).expect(&open_error);
-        file.write_all(PARSER_PREAMBLE.as_bytes())
-            .expect(&write_error);
+        file.write_all(PARSER_PREAMBLE.as_bytes()).expect(&write_error);
         file.write_all(&js_parser).expect(&write_error);
         file.flush().expect(&flush_error);
     }
 
     /// Ensures that target's parent directory exists.
     pub fn prepare_target_location(&self) {
-        let parent_directory = self
-            .parser_path
-            .parent()
-            .expect("Unable to access parent directory.");
-        let create_dir_error = format!(
-            "Failed to create directory: {}.",
-            parent_directory.display()
-        );
+        let parent_directory =
+            self.parser_path.parent().expect("Unable to access parent directory.");
+        let create_dir_error =
+            format!("Failed to create directory: {}.", parent_directory.display());
         create_dir_all(parent_directory).expect(&create_dir_error);
     }
 
     /// Places required parser version in the target location.
     pub async fn run(&self) {
         self.prepare_target_location();
-        let parent_directory = self
-            .parser_path
-            .parent()
-            .expect("Unable to access parent directory.");
+        let parent_directory =
+            self.parser_path.parent().expect("Unable to access parent directory.");
         let fingerprint = parent_directory.join("parser.fingerprint");
         let opt_version = fs::read_to_string(&fingerprint);
         let changed = match opt_version {
@@ -146,11 +136,12 @@ impl ParserProvider {
         if changed {
             let parser_js = self.download().await;
             self.patch_and_store(parser_js);
-            fs::write(&fingerprint, PARSER_COMMIT)
-                .expect("Unable to write parser fingerprint.");
+            fs::write(&fingerprint, PARSER_COMMIT).expect("Unable to write parser fingerprint.");
         }
     }
 }
+
+
 
 // ==========
 // == main ==

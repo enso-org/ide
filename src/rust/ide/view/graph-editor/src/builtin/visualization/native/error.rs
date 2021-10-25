@@ -20,6 +20,8 @@ use ensogl_theme;
 use serde::Deserialize;
 use serde::Serialize;
 
+
+
 // =================
 // === Constants ===
 // =================
@@ -41,10 +43,7 @@ pub const PREPROCESSOR_MODULE: &str = "Standard.Base.Main";
 
 /// Get preprocessor configuration for error visualization.
 pub fn preprocessor() -> instance::PreprocessorConfiguration {
-    instance::PreprocessorConfiguration::new(
-        PREPROCESSOR_CODE,
-        PREPROCESSOR_MODULE,
-    )
+    instance::PreprocessorConfiguration::new(PREPROCESSOR_CODE, PREPROCESSOR_MODULE)
 }
 
 /// Get metadata description for error visualization.
@@ -61,9 +60,11 @@ pub fn metadata() -> Metadata {
 #[allow(missing_docs)]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Input {
-    pub kind: Option<Kind>,
+    pub kind:    Option<Kind>,
     pub message: String,
 }
+
+
 
 // =============
 // === Error ===
@@ -74,7 +75,7 @@ pub struct Input {
 #[allow(missing_docs)]
 pub struct Error {
     pub frp: visualization::instance::Frp,
-    model: Model,
+    model:   Model,
     network: frp::Network,
 }
 
@@ -95,10 +96,9 @@ impl Error {
     /// Definition of this visualization.
     pub fn definition() -> Definition {
         let path = Self::path();
-        Definition::new(
-            Signature::new_for_any_type(path, Format::Json),
-            |scene| Ok(Self::new(scene).into()),
-        )
+        Definition::new(Signature::new_for_any_type(path, Format::Json), |scene| {
+            Ok(Self::new(scene).into())
+        })
     }
 
     /// Constructor.
@@ -106,12 +106,7 @@ impl Error {
         let network = frp::Network::new("js_visualization_raw_text");
         let frp = visualization::instance::Frp::new(&network);
         let model = Model::new(scene.clone_ref());
-        Self {
-            frp,
-            model,
-            network,
-        }
-        .init()
+        Self { frp, model, network }.init()
     }
 
     fn init(self) -> Self {
@@ -150,17 +145,18 @@ impl Error {
 #[derive(Clone, CloneRef, Debug)]
 #[allow(missing_docs)]
 pub struct Model {
-    logger: Logger,
-    dom: DomSymbol,
-    size: Rc<Cell<Vector2>>,
-    // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape system (#795)
-    styles: StyleWatch,
+    logger:    Logger,
+    dom:       DomSymbol,
+    size:      Rc<Cell<Vector2>>,
+    // FIXME : StyleWatch is unsuitable here, as it was designed as an internal tool for shape
+    // system (#795)
+    styles:    StyleWatch,
     // Because the payloads (with panic messages) and visualization updates (with dataflow error
     // messages) are not synchronized, we need to keep both versions, always ready to switch them
     // when payload changes.
     displayed: Rc<CloneCell<Kind>>,
-    messages: SharedHashMap<Kind, ImString>,
-    scene: Scene,
+    messages:  SharedHashMap<Kind, ImString>,
+    scene:     Scene,
 }
 
 impl Model {
@@ -176,39 +172,18 @@ impl Model {
         let styles = StyleWatch::new(&scene.style_sheet);
         let padding_text = format!("{}px", PADDING_TEXT);
 
-        dom.dom().set_attribute_or_warn(
-            "class",
-            "visualization scrollable",
-            &logger,
-        );
+        dom.dom().set_attribute_or_warn("class", "visualization scrollable", &logger);
         dom.dom().set_style_or_warn("overflow-x", "hidden", &logger);
         dom.dom().set_style_or_warn("overflow-y", "auto", &logger);
-        dom.dom().set_style_or_warn(
-            "font-family",
-            "DejaVuSansMonoBook",
-            &logger,
-        );
+        dom.dom().set_style_or_warn("font-family", "DejaVuSansMonoBook", &logger);
         dom.dom().set_style_or_warn("font-size", "12px", &logger);
-        dom.dom()
-            .set_style_or_warn("border-radius", "14px", &logger);
-        dom.dom()
-            .set_style_or_warn("padding-left", &padding_text, &logger);
-        dom.dom()
-            .set_style_or_warn("padding-top", &padding_text, &logger);
-        dom.dom()
-            .set_style_or_warn("pointer-events", "auto", &logger);
+        dom.dom().set_style_or_warn("border-radius", "14px", &logger);
+        dom.dom().set_style_or_warn("padding-left", &padding_text, &logger);
+        dom.dom().set_style_or_warn("padding-top", &padding_text, &logger);
+        dom.dom().set_style_or_warn("pointer-events", "auto", &logger);
 
         scene.dom.layers.back.manage(&dom);
-        Model {
-            logger,
-            dom,
-            size,
-            styles,
-            displayed,
-            messages,
-            scene,
-        }
-        .init()
+        Model { logger, dom, size, styles, displayed, messages, scene }.init()
     }
 
     fn init(self) -> Self {
@@ -227,10 +202,8 @@ impl Model {
     fn receive_data(&self, data: &Data) -> Result<(), DataError> {
         match data {
             Data::Json { content } => {
-                let input_result =
-                    serde_json::from_value(content.deref().clone());
-                let input: Input =
-                    input_result.map_err(|_| DataError::InvalidDataType)?;
+                let input_result = serde_json::from_value(content.deref().clone());
+                let input: Input = input_result.map_err(|_| DataError::InvalidDataType)?;
                 self.set_data(&input);
                 Ok(())
             }
@@ -251,12 +224,8 @@ impl Model {
 
     fn display_kind(&self, new: Kind) {
         let color_style = match new {
-            Kind::Panic => {
-                ensogl_theme::graph_editor::visualization::error::panic::text
-            }
-            Kind::Dataflow => {
-                ensogl_theme::graph_editor::visualization::error::dataflow::text
-            }
+            Kind::Panic => ensogl_theme::graph_editor::visualization::error::panic::text,
+            Kind::Dataflow => ensogl_theme::graph_editor::visualization::error::dataflow::text,
         };
         let default = "";
         let opt_message = self.messages.get_cloned_ref(&new);
@@ -275,11 +244,8 @@ impl Model {
         let red = text_color.red * 255.0;
         let green = text_color.green * 255.0;
         let blue = text_color.blue * 255.0;
-        let text_color =
-            format!("rgba({},{},{},{})", red, green, blue, text_color.alpha);
-        self.dom
-            .dom()
-            .set_style_or_warn("color", text_color, &self.logger);
+        let text_color = format!("rgba({},{},{},{})", red, green, blue, text_color.alpha);
+        self.dom.dom().set_style_or_warn("color", text_color, &self.logger);
     }
 
     fn set_layer(&self, layer: Layer) {

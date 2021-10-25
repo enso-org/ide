@@ -20,6 +20,8 @@ use ensogl_text as text;
 use ensogl_theme as theme;
 use std::future::Future;
 
+
+
 // =================
 // === Constants ===
 // =================
@@ -33,6 +35,8 @@ const MARGIN: f32 = 12.0;
 /// This should be as large as the shadow around the background.
 const MAGIC_SHADOW_MARGIN: f32 = 40.0;
 
+
+
 // =============
 // === Event ===
 // =============
@@ -42,9 +46,7 @@ pub mod event {
     use crate::prelude::*;
 
     /// An id of some event displayed in a status bar.
-    #[derive(
-        Clone, CloneRef, Copy, Debug, Default, Eq, From, Hash, Into, PartialEq,
-    )]
+    #[derive(Clone, CloneRef, Copy, Debug, Default, Eq, From, Hash, Into, PartialEq)]
     pub struct Id(pub usize);
 
     im_string_newtype! {
@@ -52,6 +54,8 @@ pub mod event {
         Label
     }
 }
+
+
 
 // ===============
 // === Process ===
@@ -62,9 +66,7 @@ pub mod process {
     use crate::prelude::*;
 
     /// An id of some process displayed in a status bar.
-    #[derive(
-        Clone, CloneRef, Copy, Debug, Default, Eq, From, Hash, Into, PartialEq,
-    )]
+    #[derive(Clone, CloneRef, Copy, Debug, Default, Eq, From, Hash, Into, PartialEq)]
     pub struct Id(pub u64);
 
     impl Id {
@@ -79,6 +81,8 @@ pub mod process {
         Label
     }
 }
+
+
 
 // ==================
 // === Background ===
@@ -111,6 +115,8 @@ mod background {
     }
 }
 
+
+
 // ===========
 // === FRP ===
 // ===========
@@ -130,6 +136,8 @@ ensogl::define_endpoints! {
     }
 }
 
+
+
 // =============
 // === Model ===
 // =============
@@ -137,15 +145,15 @@ ensogl::define_endpoints! {
 /// An internal model of Status Bar component
 #[derive(Clone, CloneRef, Debug)]
 struct Model {
-    logger: Logger,
-    display_object: display::object::Instance,
-    root: display::object::Instance,
-    background: background::View,
-    label: text::Area,
-    events: Rc<RefCell<Vec<event::Label>>>,
-    processes: Rc<RefCell<HashMap<process::Id, process::Label>>>,
+    logger:          Logger,
+    display_object:  display::object::Instance,
+    root:            display::object::Instance,
+    background:      background::View,
+    label:           text::Area,
+    events:          Rc<RefCell<Vec<event::Label>>>,
+    processes:       Rc<RefCell<HashMap<process::Id, process::Label>>>,
     next_process_id: Rc<RefCell<process::Id>>,
-    camera: Camera2d,
+    camera:          Camera2d,
 }
 
 impl Model {
@@ -218,11 +226,7 @@ impl Model {
             bg_width + 2.0 * MAGIC_SHADOW_MARGIN,
             bg_height + 2.0 * MAGIC_SHADOW_MARGIN,
         ));
-        self.background.set_position(Vector3(
-            bg_width / 2.0,
-            bg_height / 2.0,
-            0.0,
-        ));
+        self.background.set_position(Vector3(bg_width / 2.0, bg_height / 2.0, 0.0));
     }
 
     fn add_event(&self, label: &event::Label) -> event::Id {
@@ -257,6 +261,8 @@ impl Model {
     }
 }
 
+
+
 // ============
 // === View ===
 // ============
@@ -267,7 +273,7 @@ impl Model {
 // TODO: This is a stub. Extend it when doing https://github.com/enso-org/ide/issues/1193
 #[derive(Clone, CloneRef, Debug)]
 pub struct View {
-    frp: Frp,
+    frp:   Frp,
     model: Model,
 }
 

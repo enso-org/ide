@@ -7,6 +7,8 @@ use crate::double_representation::identifier::ReferentName;
 use serde::Deserialize;
 use serde::Serialize;
 
+
+
 // ==============
 // === Errors ===
 // ==============
@@ -24,22 +26,21 @@ pub enum InvalidQualifiedName {
     TooManySegments { source: String },
 }
 
+
 // =====================
 // === QualifiedName ===
 // =====================
 
 /// The project qualified name has a form of `<namespace_name>.<project_name>`. It serves as
 /// a prefix for qualified names of other entities (modules, types, etc.).
-#[derive(
-    Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize,
-)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(into = "String")]
 #[serde(try_from = "String")]
 pub struct QualifiedName {
     /// The name of project's namespace.
     pub namespace: String,
     /// The actual project name.
-    pub project: ReferentName,
+    pub project:   ReferentName,
 }
 
 impl QualifiedName {
@@ -77,10 +78,10 @@ impl QualifiedName {
 
     /// The iterator over name's segments: the namespace and project name.
     pub fn segments(&self) -> impl Iterator<Item = &str> {
-        std::iter::once(self.namespace.as_ref())
-            .chain(std::iter::once(self.project.as_ref()))
+        std::iter::once(self.namespace.as_ref()).chain(std::iter::once(self.project.as_ref()))
     }
 }
+
 
 // === Conversions ===
 
@@ -117,6 +118,8 @@ impl Display for QualifiedName {
         write!(f, "{}.{}", self.namespace, self.project)
     }
 }
+
+
 
 // =============
 // === Tests ===

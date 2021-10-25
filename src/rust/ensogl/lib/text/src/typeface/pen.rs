@@ -6,6 +6,8 @@ use crate::prelude::*;
 
 use super::font::Font;
 
+
+
 // =====================
 // === AdvanceResult ===
 // =====================
@@ -14,9 +16,11 @@ use super::font::Font;
 #[derive(Clone, Copy, Debug)]
 #[allow(missing_docs)]
 pub struct AdvanceResult {
-    pub char: Option<char>,
+    pub char:   Option<char>,
     pub offset: f32,
 }
+
+
 
 // ================
 // === CharInfo ===
@@ -36,6 +40,8 @@ impl CharInfo {
     }
 }
 
+
+
 // ===========
 // === Pen ===
 // ===========
@@ -47,9 +53,9 @@ impl CharInfo {
 /// for details).
 #[derive(Debug)]
 pub struct Pen {
-    offset: f32,
+    offset:       f32,
     current_char: Option<CharInfo>,
-    font: Font,
+    font:         Font,
 }
 
 impl Pen {
@@ -58,32 +64,26 @@ impl Pen {
         let offset = default();
         let current_char = default();
         let font = font.clone_ref();
-        Self {
-            offset,
-            current_char,
-            font,
-        }
+        Self { offset, current_char, font }
     }
 
     /// Advance the pen to the next position.
     pub fn advance(&mut self, next: Option<CharInfo>) -> AdvanceResult {
         let next_char = next.map(|t| t.char);
         if let Some(current) = self.current_char {
-            let kerning = next_char
-                .map(|ch| self.font.kerning(current.char, ch))
-                .unwrap_or_default();
+            let kerning =
+                next_char.map(|ch| self.font.kerning(current.char, ch)).unwrap_or_default();
             let advance = self.font.glyph_info(current.char).advance + kerning;
             let offset = advance * current.size;
             self.offset += offset;
         }
         self.current_char = next;
         let offset = self.offset;
-        AdvanceResult {
-            char: next_char,
-            offset,
-        }
+        AdvanceResult { char: next_char, offset }
     }
 }
+
+
 
 // =============
 // === Tests ===

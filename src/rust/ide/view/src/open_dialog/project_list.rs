@@ -11,12 +11,15 @@ use ensogl_gui_components::shadow;
 use ensogl_text as text;
 use ensogl_theme::application::project_list as theme;
 
+
+
 // =============
 // === Entry ===
 // =============
 
 /// The entry in project list.
 pub type Entry = list_view::entry::Label;
+
 
 // ==============
 // === Shapes ===
@@ -51,6 +54,8 @@ mod background {
     }
 }
 
+
+
 // ===================
 // === ProjectList ===
 // ===================
@@ -60,13 +65,13 @@ mod background {
 /// This is a list of projects in a nice frame with title.
 #[derive(Clone, CloneRef, Debug)]
 pub struct ProjectList {
-    logger: Logger,
-    network: frp::Network,
+    logger:         Logger,
+    network:        frp::Network,
     display_object: display::object::Instance,
-    background: background::View, //TODO[ao] use Card instead.
-    caption: text::Area,
-    list: list_view::ListView<Entry>,
-    style_watch: StyleWatchFrp,
+    background:     background::View, //TODO[ao] use Card instead.
+    caption:        text::Area,
+    list:           list_view::ListView<Entry>,
+    style_watch:    StyleWatchFrp,
 }
 
 impl Deref for ProjectList {
@@ -89,11 +94,7 @@ impl ProjectList {
         display_object.add_child(&background);
         display_object.add_child(&caption);
         display_object.add_child(&list);
-        app.display
-            .scene()
-            .layers
-            .panel
-            .add_exclusive(&display_object);
+        app.display.scene().layers.panel.add_exclusive(&display_object);
         caption.set_content("Open Project");
         caption.add_to_scene_layer(&app.display.scene().layers.panel_text);
         list.set_label_layer(app.display.scene().layers.panel_text.id());
@@ -136,15 +137,7 @@ impl ProjectList {
         };
         init.emit(());
 
-        Self {
-            logger,
-            network,
-            display_object,
-            background,
-            caption,
-            list,
-            style_watch,
-        }
+        Self { logger, network, display_object, background, caption, list, style_watch }
     }
 }
 

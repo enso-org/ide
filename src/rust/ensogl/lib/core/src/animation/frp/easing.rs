@@ -6,6 +6,8 @@ use crate::animation::easing;
 
 use enso_frp as frp;
 
+
+
 // ==============
 // === Easing ===
 // ==============
@@ -44,9 +46,7 @@ impl Easing {
         let easing = easing::quad_in_out();
         let on_step = Box::new(f!((t) frp.source.value.emit(t)));
         let on_end = Box::new(f!((t) frp.source.on_end.emit(t)));
-        let animator = easing::DynAnimator::new_not_started(
-            0.0, 1.0, easing, on_step, on_end,
-        );
+        let animator = easing::DynAnimator::new_not_started(0.0, 1.0, easing, on_step, on_end);
         network.store(&animator);
         Self { frp }.init(network, &animator)
     }
@@ -66,6 +66,8 @@ impl Easing {
     }
 }
 
+
+
 // ========================
 // === DEPRECATED_Tween ===
 // ========================
@@ -82,7 +84,7 @@ impl Easing {
 pub struct DEPRECATED_Tween {
     #[shrinkwrap(main_field)]
     pub animator: easing::DynAnimator<f32, easing::QuadInOut>,
-    pub value: frp::Stream<f32>,
+    pub value:    frp::Stream<f32>,
 }
 
 impl DEPRECATED_Tween {
@@ -94,8 +96,7 @@ impl DEPRECATED_Tween {
         let f = easing::quad_in_out();
         let on_step = Box::new(f!((t) target.emit(t)));
         let on_end = Box::new(|_| {});
-        let animator =
-            easing::DynAnimator::new_not_started(0.0, 1.0, f, on_step, on_end);
+        let animator = easing::DynAnimator::new_not_started(0.0, 1.0, f, on_step, on_end);
         let value = target.into();
         Self { animator, value }
     }

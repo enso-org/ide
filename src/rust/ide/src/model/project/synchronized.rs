@@ -25,6 +25,8 @@ use enso_protocol::project_manager::MissingComponentAction;
 use flo_stream::Subscriber;
 use parser::Parser;
 
+
+
 // =================================
 // === ExecutionContextsRegistry ===
 // =================================
@@ -33,18 +35,15 @@ use parser::Parser;
 
 #[allow(missing_docs)]
 #[derive(Clone, Copy, Debug, Fail)]
-#[fail(
-    display = "No execution context with id {} was found in the registry.",
-    _0
-)]
+#[fail(display = "No execution context with id {} was found in the registry.", _0)]
 pub struct NoSuchExecutionContext(execution_context::Id);
+
 
 // === Aliases ===
 
-type ExecutionContextWeakMap = WeakValueHashMap<
-    execution_context::Id,
-    Weak<execution_context::Synchronized>,
->;
+type ExecutionContextWeakMap =
+    WeakValueHashMap<execution_context::Id, Weak<execution_context::Synchronized>>;
+
 
 // === Definition ===
 
@@ -94,6 +93,8 @@ impl ExecutionContextsRegistry {
     }
 }
 
+
+
 // ====================
 // === ContentRoots ===
 // ====================
@@ -108,7 +109,7 @@ struct MissingContentRoot {
 #[derive(Clone, Debug)]
 pub struct ContentRoots {
     logger: Logger,
-    roots: RefCell<HashMap<Uuid, Rc<ContentRoot>>>,
+    roots:  RefCell<HashMap<Uuid, Rc<ContentRoot>>>,
 }
 
 impl ContentRoots {
@@ -118,10 +119,7 @@ impl ContentRoots {
         connection: &language_server::Connection,
     ) -> Self {
         let logger = Logger::new_sub(parent, "ContentRoots");
-        let roots_vec = connection
-            .content_roots()
-            .map(|r| (r.id(), Rc::new(r.clone())))
-            .collect();
+        let roots_vec = connection.content_roots().map(|r| (r.id(), Rc::new(r.clone()))).collect();
         let roots = RefCell::new(roots_vec);
         Self { logger, roots }
     }
@@ -136,23 +134,18 @@ impl ContentRoots {
     /// If there is already a root with given id, it will be replaced and warning will be printed.
     pub fn add(&self, content_root: ContentRoot) {
         let content_root = Rc::new(content_root);
-        if let Some(existing) = self
-            .roots
-            .borrow_mut()
-            .insert(content_root.id(), content_root)
-        {
-            warning!(self.logger,"Adding content root: there is already content root with given \
-                id: {existing:?}");
+        if let Some(existing) = self.roots.borrow_mut().insert(content_root.id(), content_root) {
+            warning!(
+                self.logger,
+                "Adding content root: there is already content root with given \
+                id: {existing:?}"
+            );
         }
     }
 
     /// Get content root by id.
     pub fn get(&self, id: Uuid) -> FallibleResult<Rc<ContentRoot>> {
-        self.roots
-            .borrow()
-            .get(&id)
-            .cloned()
-            .ok_or_else(|| MissingContentRoot { id }.into())
+        self.roots.borrow().get(&id).cloned().ok_or_else(|| MissingContentRoot { id }.into())
     }
 
     /// Remove the content root with given id.
@@ -160,13 +153,11 @@ impl ContentRoots {
     /// If there is no content root with such id, a warning will be printed.
     pub fn remove(&self, id: Uuid) {
         if self.roots.borrow_mut().remove(&id).is_none() {
-            warning!(
-                self.logger,
-                "Removing content root: no content root with given id: {id}"
-            );
+            warning!(self.logger, "Removing content root: no content root with given id: {id}");
         }
     }
 }
+
 
 // =============
 // === Model ===
@@ -184,26 +175,19 @@ pub struct ProjectManagerUnavailable;
 #[derive(Debug, Fail)]
 pub struct UnsupportedEngineVersion {
     project_name: String,
-    root_cause: failure::Error,
+    root_cause:   failure::Error,
 }
 
 impl UnsupportedEngineVersion {
-    fn error_wrapper(
-        properties: &Properties,
-    ) -> impl Fn(failure::Error) -> failure::Error {
+    fn error_wrapper(properties: &Properties) -> impl Fn(failure::Error) -> failure::Error {
         let engine_version = properties.engine_version.clone();
         let project_name = properties.name.project.as_str().to_owned();
         move |root_cause| {
-            let requirements =
-                controller::project::CONFIG.engine_version_supported();
+            let requirements = controller::project::CONFIG.engine_version_supported();
             match requirements {
                 requirements if !requirements.matches(&engine_version) => {
                     let project_name = project_name.clone();
-                    UnsupportedEngineVersion {
-                        project_name,
-                        root_cause,
-                    }
-                    .into()
+                    UnsupportedEngineVersion { project_name, root_cause }.into()
                 }
                 _ => root_cause,
             }
@@ -213,13 +197,18 @@ impl UnsupportedEngineVersion {
 
 impl Display for UnsupportedEngineVersion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let package_yaml_path =
-            controller::project::package_yaml_path(&self.project_name);
+        let package_yaml_path = controller::project::package_yaml_path(&self.project_name);
         let version_supported = &controller::project::CONFIG.engine_version;
-        write!(f, "Failed to open project: unsupported engine version. Please update \
-            engine_version in {} to {}.",package_yaml_path,version_supported)
+        write!(
+            f,
+            "Failed to open project: unsupported engine version. Please update \
+            engine_version in {} to {}.",
+            package_yaml_path, version_supported
+        )
     }
 }
+
+
 
 // === Data ===
 
@@ -228,10 +217,11 @@ impl Display for UnsupportedEngineVersion {
 #[derive(Debug, Clone)]
 pub struct Properties {
     /// ID of the project, as used by the Project Manager service.
-    pub id: Uuid,
-    pub name: QualifiedName,
+    pub id:             Uuid,
+    pub name:           QualifiedName,
     pub engine_version: semver::Version,
 }
+
 
 // == Model ==
 
@@ -240,21 +230,20 @@ pub struct Properties {
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct Project {
-    pub properties: Rc<RefCell<Properties>>,
+    pub properties:          Rc<RefCell<Properties>>,
     #[derivative(Debug = "ignore")]
-    pub project_manager: Option<Rc<dyn project_manager::API>>,
+    pub project_manager:     Option<Rc<dyn project_manager::API>>,
     pub language_server_rpc: Rc<language_server::Connection>,
     pub language_server_bin: Rc<binary::Connection>,
-    pub module_registry:
-        Rc<model::registry::Registry<module::Path, module::Synchronized>>,
-    pub execution_contexts: Rc<ExecutionContextsRegistry>,
-    pub visualization: controller::Visualization,
-    pub suggestion_db: Rc<SuggestionDatabase>,
-    pub content_roots: Rc<ContentRoots>,
-    pub parser: Parser,
-    pub logger: Logger,
-    pub notifications: notification::Publisher<model::project::Notification>,
-    pub urm: Rc<model::undo_redo::Manager>,
+    pub module_registry:     Rc<model::registry::Registry<module::Path, module::Synchronized>>,
+    pub execution_contexts:  Rc<ExecutionContextsRegistry>,
+    pub visualization:       controller::Visualization,
+    pub suggestion_db:       Rc<SuggestionDatabase>,
+    pub content_roots:       Rc<ContentRoots>,
+    pub parser:              Parser,
+    pub logger:              Logger,
+    pub notifications:       notification::Publisher<model::project::Notification>,
+    pub urm:                 Rc<model::undo_redo::Manager>,
 }
 
 impl Project {
@@ -275,17 +264,13 @@ impl Project {
         let language_server = language_server_rpc.clone();
         let module_registry = default();
         let execution_contexts = default();
-        let visualization = controller::Visualization::new(
-            language_server,
-            embedded_visualizations,
-        );
+        let visualization =
+            controller::Visualization::new(language_server, embedded_visualizations);
         let parser = Parser::new_or_panic();
         let language_server = &*language_server_rpc;
-        let suggestion_db =
-            SuggestionDatabase::create_synchronized(language_server);
+        let suggestion_db = SuggestionDatabase::create_synchronized(language_server);
         let suggestion_db = Rc::new(suggestion_db.await.map_err(&wrap)?);
-        let content_roots =
-            ContentRoots::new_from_connection(&logger, &*language_server);
+        let content_roots = ContentRoots::new_from_connection(&logger, &*language_server);
         let content_roots = Rc::new(content_roots);
         let notifications = notification::Publisher::default();
         let urm = Rc::new(model::undo_redo::Manager::new(&logger));
@@ -308,18 +293,12 @@ impl Project {
         };
 
         let binary_handler = ret.binary_event_handler();
-        crate::executor::global::spawn(
-            binary_protocol_events.for_each(binary_handler),
-        );
+        crate::executor::global::spawn(binary_protocol_events.for_each(binary_handler));
 
         let json_rpc_handler = ret.json_event_handler();
-        crate::executor::global::spawn(
-            json_rpc_events.for_each(json_rpc_handler),
-        );
+        crate::executor::global::spawn(json_rpc_events.for_each(json_rpc_handler));
 
-        ret.acquire_suggestion_db_updates_capability()
-            .await
-            .map_err(|err| wrap(err.into()))?;
+        ret.acquire_suggestion_db_updates_capability().await.map_err(|err| wrap(err.into()))?;
         Ok(ret)
     }
 
@@ -333,22 +312,16 @@ impl Project {
     ) -> FallibleResult<model::Project> {
         let wrap = UnsupportedEngineVersion::error_wrapper(&properties);
         let client_id = Uuid::new_v4();
-        let json_ws =
-            WebSocket::new_opened(&parent, &language_server_rpc).await?;
-        let binary_ws =
-            WebSocket::new_opened(&parent, &language_server_bin).await?;
+        let json_ws = WebSocket::new_opened(&parent, &language_server_rpc).await?;
+        let binary_ws = WebSocket::new_opened(&parent, &language_server_bin).await?;
         let client_json = language_server::Client::new(json_ws);
         let client_binary = binary::Client::new(&parent, binary_ws);
         crate::executor::global::spawn(client_json.runner());
         crate::executor::global::spawn(client_binary.runner());
         let connection_json =
-            language_server::Connection::new(client_json, client_id)
-                .await
-                .map_err(&wrap)?;
+            language_server::Connection::new(client_json, client_id).await.map_err(&wrap)?;
         let connection_binary =
-            binary::Connection::new(client_binary, client_id)
-                .await
-                .map_err(&wrap)?;
+            binary::Connection::new(client_binary, client_id).await.map_err(&wrap)?;
         let language_server_rpc = Rc::new(connection_json);
         let language_server_bin = Rc::new(connection_binary);
         let model = Self::new(
@@ -381,14 +354,8 @@ impl Project {
             name: QualifiedName::from_segments(namespace, name)?,
             engine_version: semver::Version::parse(&opened.engine_version)?,
         };
-        Self::new_connected(
-            parent,
-            project_manager,
-            json_endpoint,
-            binary_endpoint,
-            properties,
-        )
-        .await
+        Self::new_connected(parent, project_manager, json_endpoint, binary_endpoint, properties)
+            .await
     }
 
     /// Returns a handling function capable of processing updates from the binary protocol.
@@ -396,57 +363,46 @@ impl Project {
     /// connection handler.
     pub fn binary_event_handler(
         &self,
-    ) -> impl Fn(enso_protocol::binary::Event) -> futures::future::Ready<()>
-    {
+    ) -> impl Fn(enso_protocol::binary::Event) -> futures::future::Ready<()> {
         let logger = self.logger.clone_ref();
         let publisher = self.notifications.clone_ref();
         let weak_execution_contexts = Rc::downgrade(&self.execution_contexts);
         move |event| {
-            debug!(
-                logger,
-                "Received an event from the binary protocol: {event:?}"
-            );
+            debug!(logger, "Received an event from the binary protocol: {event:?}");
             use enso_protocol::binary::client::Event;
             use enso_protocol::binary::Notification;
             match event {
-                Event::Notification(Notification::VisualizationUpdate {
-                    context,
-                    data,
-                }) => {
-                    debug!(logger, "Visualization binary data: {String::from_utf8_lossy(data.as_ref())}");
+                Event::Notification(Notification::VisualizationUpdate { context, data }) => {
+                    debug!(
+                        logger,
+                        "Visualization binary data: {String::from_utf8_lossy(data.as_ref())}"
+                    );
                     let data = VisualizationUpdateData::new(data);
-                    if let Some(execution_contexts) =
-                        weak_execution_contexts.upgrade()
-                    {
-                        let result = execution_contexts
-                            .dispatch_visualization_update(context, data);
+                    if let Some(execution_contexts) = weak_execution_contexts.upgrade() {
+                        let result =
+                            execution_contexts.dispatch_visualization_update(context, data);
                         if let Err(error) = result {
-                            error!(logger,"Failed to handle the visualization update: {error}.");
+                            error!(logger, "Failed to handle the visualization update: {error}.");
                         }
                     } else {
-                        error!(logger,"Received a visualization update despite project being \
-                        already dropped.");
+                        error!(
+                            logger,
+                            "Received a visualization update despite project being \
+                        already dropped."
+                        );
                     }
                 }
                 Event::Closed => {
-                    error!(
-                        logger,
-                        "Lost binary connection with the Language Server!"
-                    );
-                    let which =
-                        model::project::BackendConnection::LanguageServerBinary;
-                    let notification =
-                        model::project::Notification::ConnectionLost(which);
+                    error!(logger, "Lost binary connection with the Language Server!");
+                    let which = model::project::BackendConnection::LanguageServerBinary;
+                    let notification = model::project::Notification::ConnectionLost(which);
                     publisher.notify(notification);
                     // TODO [wmu]
                     //   The connection should be reestablished, see
                     //   https://github.com/enso-org/ide/issues/145
                 }
                 Event::Error(error) => {
-                    error!(
-                        logger,
-                        "Error emitted by the binary data connection: {error}."
-                    );
+                    error!(logger, "Error emitted by the binary data connection: {error}.");
                 }
             }
             futures::future::ready(())
@@ -465,11 +421,14 @@ impl Project {
         move |id, update| {
             if let Some(registry) = registry.upgrade() {
                 if let Err(error) = registry.handle_update(id, update) {
-                    error!(logger,"Failed to handle the execution context update: {error}");
+                    error!(logger, "Failed to handle the execution context update: {error}");
                 }
             } else {
-                warning!(logger,"Received an execution context notification despite execution \
-                            context being already dropped.");
+                warning!(
+                    logger,
+                    "Received an execution context notification despite execution \
+                            context being already dropped."
+                );
             }
         }
     }
@@ -479,12 +438,11 @@ impl Project {
     /// connection handler.
     pub fn json_event_handler(
         &self,
-    ) -> impl Fn(enso_protocol::language_server::Event) -> futures::future::Ready<()>
-    {
+    ) -> impl Fn(enso_protocol::language_server::Event) -> futures::future::Ready<()> {
         // TODO [mwu]
-        //  This handler for JSON-RPC notifications is very similar to the function above that handles
-        //  binary protocol notifications. However, it is not practical to generalize them, as the
-        //  underlying RPC handlers and their types are separate.
+        //  This handler for JSON-RPC notifications is very similar to the function above that
+        // handles  binary protocol notifications. However, it is not practical to
+        // generalize them, as the  underlying RPC handlers and their types are separate.
         //  This generalization should be reconsidered once the old JSON-RPC handler is phased out.
         //  See: https://github.com/enso-org/ide/issues/587
         let logger = self.logger.clone_ref();
@@ -493,80 +451,55 @@ impl Project {
         let weak_content_roots = Rc::downgrade(&self.content_roots);
         let execution_update_handler = self.execution_update_handler();
         move |event| {
-            debug!(
-                logger,
-                "Received an event from the json-rpc protocol: {event:?}"
-            );
+            debug!(logger, "Received an event from the json-rpc protocol: {event:?}");
             use enso_protocol::language_server::Event;
             use enso_protocol::language_server::Notification;
             match event {
                 Event::Notification(Notification::FileEvent(_)) => {}
-                Event::Notification(Notification::ExpressionUpdates(
-                    updates,
-                )) => {
-                    let ExpressionUpdates {
-                        context_id,
-                        updates,
-                    } = updates;
-                    let execution_update =
-                        ExecutionUpdate::ExpressionUpdates(updates);
+                Event::Notification(Notification::ExpressionUpdates(updates)) => {
+                    let ExpressionUpdates { context_id, updates } = updates;
+                    let execution_update = ExecutionUpdate::ExpressionUpdates(updates);
                     execution_update_handler(context_id, execution_update);
                 }
                 Event::Notification(Notification::ExecutionStatus(_)) => {}
-                Event::Notification(Notification::ExecutionComplete {
-                    context_id,
-                }) => {
-                    execution_update_handler(
-                        context_id,
-                        ExecutionUpdate::Completed,
-                    );
+                Event::Notification(Notification::ExecutionComplete { context_id }) => {
+                    execution_update_handler(context_id, ExecutionUpdate::Completed);
                 }
-                Event::Notification(
-                    Notification::ExpressionValuesComputed(_),
-                ) => {
+                Event::Notification(Notification::ExpressionValuesComputed(_)) => {
                     // the notification is superseded by `ExpressionUpdates`.
                 }
                 Event::Notification(Notification::ExecutionFailed(update)) => {
-                    error!(logger,"Execution failed in context {update.context_id}. Error: \
-                        {update.message}.");
+                    error!(
+                        logger,
+                        "Execution failed in context {update.context_id}. Error: \
+                        {update.message}."
+                    );
                 }
-                Event::Notification(
-                    Notification::SuggestionDatabaseUpdates(update),
-                ) => {
+                Event::Notification(Notification::SuggestionDatabaseUpdates(update)) =>
                     if let Some(suggestion_db) = weak_suggestion_db.upgrade() {
                         suggestion_db.apply_update_event(update);
-                    }
-                }
-                Event::Notification(Notification::ContentRootAdded {
-                    root,
-                }) => {
+                    },
+                Event::Notification(Notification::ContentRootAdded { root }) => {
                     if let Some(content_roots) = weak_content_roots.upgrade() {
                         content_roots.add(root);
                     }
                 }
-                Event::Notification(Notification::ContentRootRemoved {
-                    id,
-                }) => {
+                Event::Notification(Notification::ContentRootRemoved { id }) => {
                     if let Some(content_roots) = weak_content_roots.upgrade() {
                         content_roots.remove(id);
                     }
                 }
                 Event::Closed => {
-                    error!(
-                        logger,
-                        "Lost JSON-RPC connection with the Language Server!"
-                    );
-                    let which =
-                        model::project::BackendConnection::LanguageServerJson;
-                    let notification =
-                        model::project::Notification::ConnectionLost(which);
+                    error!(logger, "Lost JSON-RPC connection with the Language Server!");
+                    let which = model::project::BackendConnection::LanguageServerJson;
+                    let notification = model::project::Notification::ConnectionLost(which);
                     publisher.notify(notification);
                     // TODO [wmu]
                     //  The connection should be reestablished,
                     //  see https://github.com/enso-org/ide/issues/145
                 }
                 Event::Error(error) => {
-                    error!(logger,"Error emitted by the JSON-RPC data connection: {error}.");
+                    error!(logger, "Error emitted by the JSON-RPC data connection: {error}.");
                 }
             }
             futures::future::ready(())
@@ -577,10 +510,8 @@ impl Project {
         &self,
     ) -> impl Future<Output = json_rpc::Result<()>> {
         let capability = CapabilityRegistration::create_receives_suggestions_database_updates();
-        self.language_server_rpc.acquire_capability(
-            &capability.method,
-            &capability.register_options,
-        )
+        self.language_server_rpc
+            .acquire_capability(&capability.method, &capability.register_options)
     }
 
     fn load_module(
@@ -592,13 +523,8 @@ impl Project {
         let urm = self.urm();
         let repository = urm.repository.clone_ref();
         async move {
-            let module = module::Synchronized::open(
-                path,
-                language_server,
-                parser,
-                repository,
-            )
-            .await?;
+            let module =
+                module::Synchronized::open(path, language_server, parser, repository).await?;
             urm.module_opened(module.clone());
             Ok(module)
         }
@@ -646,15 +572,11 @@ impl model::project::API for Project {
         self.content_roots.get(id)
     }
 
-    fn module(
-        &self,
-        path: module::Path,
-    ) -> BoxFuture<FallibleResult<model::Module>> {
+    fn module(&self, path: module::Path) -> BoxFuture<FallibleResult<model::Module>> {
         async move {
             info!(self.logger, "Obtaining module for {path}");
             let model_loader = self.load_module(path.clone());
-            let model: model::Module =
-                self.module_registry.get_or_load(path, model_loader).await?;
+            let model: model::Module = self.module_registry.get_or_load(path, model_loader).await?;
             Ok(model)
         }
         .boxed_local()
@@ -667,11 +589,7 @@ impl model::project::API for Project {
         async move {
             let logger = &self.logger;
             let ls_rpc = self.language_server_rpc.clone_ref();
-            let context = execution_context::Synchronized::create(
-                &logger,
-                ls_rpc,
-                root_definition,
-            );
+            let context = execution_context::Synchronized::create(&logger, ls_rpc, root_definition);
             let context = Rc::new(context.await?);
             self.execution_contexts.insert(context.clone_ref());
             let context: model::ExecutionContext = context;
@@ -683,10 +601,7 @@ impl model::project::API for Project {
     fn rename_project(&self, name: String) -> BoxFuture<FallibleResult> {
         async move {
             let referent_name = name.as_str().try_into()?;
-            let project_manager = self
-                .project_manager
-                .as_ref()
-                .ok_or(ProjectManagerUnavailable)?;
+            let project_manager = self.project_manager.as_ref().ok_or(ProjectManagerUnavailable)?;
             let project_id = self.properties.borrow().id;
             project_manager.rename_project(&project_id, &name).await?;
             self.properties.borrow_mut().name.project = referent_name;
@@ -708,6 +623,8 @@ impl model::project::API for Project {
     }
 }
 
+
+
 // =============
 // === Tests ===
 // =============
@@ -725,14 +642,13 @@ mod test {
     use json_rpc::expect_call;
     use utils::test::traits::*;
 
+
     #[allow(unused)]
     struct Fixture {
-        test: TestWithLocalPoolExecutor,
-        project: Project,
-        binary_events_sender:
-            futures::channel::mpsc::UnboundedSender<binary::client::Event>,
-        json_events_sender:
-            futures::channel::mpsc::UnboundedSender<language_server::Event>,
+        test:                 TestWithLocalPoolExecutor,
+        project:              Project,
+        binary_events_sender: futures::channel::mpsc::UnboundedSender<binary::client::Event>,
+        json_events_sender:   futures::channel::mpsc::UnboundedSender<language_server::Event>,
     }
 
     impl Fixture {
@@ -743,38 +659,32 @@ mod test {
             let mut test = TestWithLocalPoolExecutor::set_up();
             let project_manager = project_manager::MockClient::default();
             let mut json_client = language_server::MockClient::default();
-            let mut binary_client =
-                enso_protocol::binary::MockClient::default();
+            let mut binary_client = enso_protocol::binary::MockClient::default();
 
-            let (binary_events_sender, binary_events) =
-                futures::channel::mpsc::unbounded();
-            binary_client
-                .expect_event_stream()
-                .return_once(|| binary_events.boxed_local());
+            let (binary_events_sender, binary_events) = futures::channel::mpsc::unbounded();
+            binary_client.expect_event_stream().return_once(|| binary_events.boxed_local());
             let json_events_sender = json_client.setup_events();
 
-            let initial_suggestions_db =
-                language_server::response::GetSuggestionDatabase {
-                    entries: vec![],
-                    current_version: 0,
-                };
+            let initial_suggestions_db = language_server::response::GetSuggestionDatabase {
+                entries:         vec![],
+                current_version: 0,
+            };
             expect_call!(json_client.get_suggestions_database() => Ok(initial_suggestions_db));
-            let capability_reg = CapabilityRegistration::create_receives_suggestions_database_updates();
+            let capability_reg =
+                CapabilityRegistration::create_receives_suggestions_database_updates();
             let method = capability_reg.method;
             let options = capability_reg.register_options;
             expect_call!(json_client.acquire_capability(method,options) => Ok(()));
 
             setup_mock_json(&mut json_client);
             setup_mock_binary(&mut binary_client);
-            let json_connection =
-                Rc::new(language_server::Connection::new_mock(json_client));
-            let binary_connection =
-                Rc::new(binary::Connection::new_mock(binary_client));
+            let json_connection = Rc::new(language_server::Connection::new_mock(json_client));
+            let binary_connection = Rc::new(binary::Connection::new_mock(binary_client));
             let project_manager = Rc::new(project_manager);
             let logger = Logger::new("Fixture");
             let properties = Properties {
-                id: Uuid::new_v4(),
-                name: crate::test::mock::data::project_qualified_name(),
+                id:             Uuid::new_v4(),
+                name:           crate::test::mock::data::project_qualified_name(),
                 engine_version: semver::Version::new(0, 2, 1),
             };
             let project_fut = Project::new(
@@ -786,12 +696,7 @@ mod test {
             )
             .boxed_local();
             let project = test.expect_completion(project_fut).unwrap();
-            Fixture {
-                test,
-                project,
-                binary_events_sender,
-                json_events_sender,
-            }
+            Fixture { test, project, binary_events_sender, json_events_sender }
         }
     }
 
@@ -800,10 +705,7 @@ mod test {
         use crate::model::project::BackendConnection::*;
         use crate::model::project::Notification;
 
-        fn run(
-            expected_event: Notification,
-            close_socket: impl FnOnce(&mut Fixture),
-        ) {
+        fn run(expected_event: Notification, close_socket: impl FnOnce(&mut Fixture)) {
             let mut f = Fixture::new(|_| {}, |_| {});
             let mut events = f.project.subscribe().boxed_local();
             events.expect_pending();
@@ -815,17 +717,11 @@ mod test {
         }
 
         run(Notification::ConnectionLost(LanguageServerBinary), |f| {
-            f.binary_events_sender
-                .send(binary::Event::Closed)
-                .boxed_local()
-                .expect_ok();
+            f.binary_events_sender.send(binary::Event::Closed).boxed_local().expect_ok();
         });
 
         run(Notification::ConnectionLost(LanguageServerJson), |f| {
-            f.json_events_sender
-                .send(json_rpc::Event::Closed)
-                .boxed_local()
-                .expect_ok();
+            f.json_events_sender.send(json_rpc::Event::Closed).boxed_local().expect_ok();
         });
     }
 
@@ -833,20 +729,10 @@ mod test {
     fn obtain_module_controller() {
         let path = module::Path::from_mock_module_name("TestModule");
         let another_path = module::Path::from_mock_module_name("TestModule2");
-        let Fixture {
-            mut test, project, ..
-        } = Fixture::new(
+        let Fixture { mut test, project, .. } = Fixture::new(
             |ls_json| {
-                mock_calls_for_opening_text_file(
-                    ls_json,
-                    path.file_path().clone(),
-                    "2+2",
-                );
-                mock_calls_for_opening_text_file(
-                    ls_json,
-                    another_path.file_path().clone(),
-                    "22+2",
-                );
+                mock_calls_for_opening_text_file(ls_json, path.file_path().clone(), "2+2");
+                mock_calls_for_opening_text_file(ls_json, another_path.file_path().clone(), "22+2");
             },
             |_| {},
         );
@@ -854,8 +740,7 @@ mod test {
         test.run_task(async move {
             let module = project.module(path.clone_ref()).await.unwrap();
             let same_module = project.module(path.clone_ref()).await.unwrap();
-            let another_module =
-                project.module(another_path.clone_ref()).await.unwrap();
+            let another_module = project.module(another_path.clone_ref()).await.unwrap();
 
             assert_eq!(path, *module.path());
             assert_eq!(another_path, *another_module.path());
@@ -870,14 +755,9 @@ mod test {
     ) {
         let content = content.to_string();
         let current_version = Sha3_224::new(content.as_bytes());
-        let write_capability =
-            CapabilityRegistration::create_can_edit_text_file(path.clone());
+        let write_capability = CapabilityRegistration::create_can_edit_text_file(path.clone());
         let write_capability = Some(write_capability);
-        let open_response = response::OpenTextFile {
-            content,
-            current_version,
-            write_capability,
-        };
+        let open_response = response::OpenTextFile { content, current_version, write_capability };
         expect_call!(client.open_text_file(path=path.clone()) => Ok(open_response));
         client.expect.apply_text_file_edit(|_| Ok(()));
         expect_call!(client.close_text_file(path) => Ok(()));
@@ -894,17 +774,9 @@ mod test {
         use language_server::Event;
 
         let context_data = execution_context::plain::test::MockData::new();
-        let Fixture {
-            mut test,
-            project,
-            json_events_sender,
-            ..
-        } = Fixture::new(
+        let Fixture { mut test, project, json_events_sender, .. } = Fixture::new(
             |mock_json_client| {
-                ExecutionFixture::mock_create_push_destroy_calls(
-                    &context_data,
-                    mock_json_client,
-                );
+                ExecutionFixture::mock_create_push_destroy_calls(&context_data, mock_json_client);
                 mock_json_client.require_all_calls();
             },
             |_| {},
@@ -912,42 +784,32 @@ mod test {
 
         // No context present yet.
         let no_op = |_| Ok(());
-        let result1 = project
-            .execution_contexts
-            .with_context(context_data.context_id, no_op);
+        let result1 = project.execution_contexts.with_context(context_data.context_id, no_op);
         assert!(result1.is_err());
 
         // Create execution context.
-        let execution = project
-            .create_execution_context(context_data.main_method_pointer());
+        let execution = project.create_execution_context(context_data.main_method_pointer());
         let execution = test.expect_completion(execution).unwrap();
 
         // Now context is in registry.
-        let result1 = project
-            .execution_contexts
-            .with_context(context_data.context_id, no_op);
+        let result1 = project.execution_contexts.with_context(context_data.context_id, no_op);
         assert!(result1.is_ok());
 
         // Context has no information about type.
-        let notification =
-            ExecutionFixture::mock_expression_updates(&context_data);
+        let notification = ExecutionFixture::mock_expression_updates(&context_data);
         let value_update = &notification.updates[0];
         let expression_id = value_update.expression_id;
         let value_registry = execution.computed_value_info_registry();
         assert!(value_registry.get(&expression_id).is_none());
 
         // Send notification with type information.
-        let event =
-            Event::Notification(ExpressionUpdates(notification.clone()));
+        let event = Event::Notification(ExpressionUpdates(notification.clone()));
         json_events_sender.unbounded_send(event).unwrap();
         test.run_until_stalled();
 
         // Context now has the information about type.
         let value_info = value_registry.get(&expression_id).unwrap();
-        assert_eq!(
-            value_info.typename,
-            value_update.typename.clone().map(ImString::new)
-        );
+        assert_eq!(value_info.typename, value_update.typename.clone().map(ImString::new));
         assert_eq!(value_info.method_call, value_update.method_pointer);
     }
 }

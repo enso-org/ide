@@ -2,6 +2,8 @@
 
 use crate::prelude::*;
 
+
+
 // =================
 // === AxisOrder ===
 // =================
@@ -23,6 +25,8 @@ impl Default for AxisOrder {
         Self::XYZ
     }
 }
+
+
 
 // ======================
 // === TransformOrder ===
@@ -46,6 +50,8 @@ impl Default for TransformOrder {
     }
 }
 
+
+
 // =================
 // === Transform ===
 // =================
@@ -56,11 +62,11 @@ impl Default for TransformOrder {
 /// mechanisms.
 #[derive(Clone, Copy, Debug)]
 pub struct Transform {
-    pub position: Vector3<f32>,
-    pub scale: Vector3<f32>,
-    pub rotation: Vector3<f32>,
+    pub position:        Vector3<f32>,
+    pub scale:           Vector3<f32>,
+    pub rotation:        Vector3<f32>,
     pub transform_order: TransformOrder,
-    pub rotation_order: AxisOrder,
+    pub rotation_order:  AxisOrder,
 }
 
 impl Default for Transform {
@@ -70,13 +76,7 @@ impl Default for Transform {
         let rotation = Vector3::new(0.0, 0.0, 0.0);
         let transform_order = default();
         let rotation_order = default();
-        Self {
-            position,
-            scale,
-            rotation,
-            transform_order,
-            rotation_order,
-        }
+        Self { position, scale, rotation, transform_order, rotation_order }
     }
 }
 
@@ -155,6 +155,8 @@ impl Transform {
     }
 }
 
+
+
 // =======================
 // === CachedTransform ===
 // =======================
@@ -165,11 +167,11 @@ impl Transform {
 #[derive(Clone, Debug)]
 #[allow(missing_copy_implementations)]
 pub struct CachedTransform {
-    transform: Transform,
+    transform:        Transform,
     transform_matrix: Matrix4<f32>,
-    origin: Matrix4<f32>,
-    pub matrix: Matrix4<f32>,
-    pub dirty: bool,
+    origin:           Matrix4<f32>,
+    pub matrix:       Matrix4<f32>,
+    pub dirty:        bool,
 }
 
 impl Default for CachedTransform {
@@ -179,13 +181,7 @@ impl Default for CachedTransform {
         let origin = Matrix4::identity();
         let matrix = Matrix4::identity();
         let dirty = default();
-        Self {
-            transform,
-            transform_matrix,
-            origin,
-            matrix,
-            dirty,
-        }
+        Self { transform, transform_matrix, origin, matrix, dirty }
     }
 }
 
@@ -211,6 +207,7 @@ impl CachedTransform {
     }
 }
 
+
 // === Getters ===
 
 impl CachedTransform {
@@ -234,6 +231,7 @@ impl CachedTransform {
         (self.matrix * Vector4::new(0.0, 0.0, 0.0, 1.0)).xyz()
     }
 }
+
 
 // === Setters ===
 
