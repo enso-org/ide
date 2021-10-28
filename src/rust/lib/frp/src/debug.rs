@@ -34,9 +34,12 @@ impl VizNode {
 /// Visualization data for a link between nodes.
 #[derive(Debug,Clone)]
 pub struct VizLink {
+    #[allow(dead_code)]
     source_display_id : usize,
+    #[allow(dead_code)]
     target_display_id : usize,
 //    message_type      : DataType,
+    #[allow(dead_code)]
     data_type         : String,
 }
 
@@ -55,6 +58,7 @@ impl VizLink {
 pub struct Graphviz {
     nodes  : HashMap<usize,VizNode>,
     labels : HashMap<usize,String>,
+    #[allow(dead_code)]
     links  : Vec<VizLink>,
 }
 

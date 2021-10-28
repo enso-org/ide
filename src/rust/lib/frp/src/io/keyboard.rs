@@ -385,8 +385,11 @@ impl Default for Keyboard {
 /// A handle of listener emitting events on bound FRP graph.
 #[derive(Debug)]
 pub struct DomBindings {
+    #[allow(dead_code)]
     key_down : Listener<dyn KeyboardEventCallback>,
+    #[allow(dead_code)]
     key_up   : Listener<dyn KeyboardEventCallback>,
+    #[allow(dead_code)]
     blur     : Listener<dyn EventCallback>,
 }
 
