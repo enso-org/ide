@@ -182,6 +182,7 @@ pub struct Extracted {
     /// Nodes that are being collapsed and extracted into a separate method.
     extracted_nodes : Vec<NodeInfo>,
     /// Helper for efficient lookup.
+    #[allow(dead_code)]
     extracted_nodes_set : HashSet<node::Id>,
 }
 

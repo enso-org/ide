@@ -101,7 +101,9 @@ pub type Entry = list_view::entry::Label;
 
 #[derive(Clone,Debug)]
 struct Model {
+    #[allow(dead_code)]
     logger          : Logger,
+    #[allow(dead_code)]
     app             : Application,
     display_object  : display::object::Instance,
 

@@ -40,7 +40,9 @@ pub fn entry_point_list_view() {
 
 #[derive(Clone,Debug)]
 struct MockEntries {
+    #[allow(dead_code)]
     logger        : Logger,
+    #[allow(dead_code)]
     scene         : Scene,
     entries_count : usize,
 }

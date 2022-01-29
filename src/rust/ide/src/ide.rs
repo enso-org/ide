@@ -40,6 +40,7 @@ const ALIVE_LOG_INTERVAL_SEC:u64 = 60;
 #[derive(Debug)]
 pub struct Ide {
     application : Application,
+    #[allow(dead_code)]
     integration : Integration,
     network     : frp::Network,
 }

@@ -80,6 +80,7 @@ pub struct Ref<T> {
     /// The underlying type.
     #[shrinkwrap(main_field)]
     pub target : T,
+    #[allow(dead_code)]
     handle : Handle
 }
 

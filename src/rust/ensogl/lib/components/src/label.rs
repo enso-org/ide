@@ -69,6 +69,7 @@ struct Model {
     background     : background::View,
     label          : text::Area,
     display_object : display::object::Instance,
+    #[allow(dead_code)]
     app            : Application,
     style          : StyleWatch,
 }

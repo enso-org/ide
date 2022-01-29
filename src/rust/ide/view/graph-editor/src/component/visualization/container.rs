@@ -155,6 +155,7 @@ ensogl::define_endpoints! {
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct View {
+    #[allow(dead_code)]
     logger         : Logger,
     display_object : display::object::Instance,
 

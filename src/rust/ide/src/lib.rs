@@ -77,6 +77,7 @@ pub mod prelude {
     pub use futures::task::LocalSpawnExt;
 
     pub use std::ops::Range;
+    pub use std::assert_matches::assert_matches;
 
     pub use utils::fail::FallibleResult;
     pub use utils::vec::VecExt;
