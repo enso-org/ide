@@ -675,16 +675,6 @@ impl Node {
             });
 
 
-            // === Action Bar ===
-
-            let visualization_enabled = action_bar.action_visibility.clone_ref();
-            out.source.skip   <+ action_bar.action_skip;
-            out.source.freeze <+ action_bar.action_freeze;
-            show_action_bar   <- out.hover  && frp.show_quick_action_bar_on_hover;
-            eval show_action_bar ((t) action_bar.set_visibility(t));
-            eval frp.show_quick_action_bar_on_hover((value) action_bar.show_on_hover(value));
-
-
             // === View Mode ===
 
             model.input.set_view_mode           <+ frp.set_view_mode;
@@ -746,6 +736,7 @@ impl Node {
             preview_visible         <- preview_visible && has_expression;
             preview_visible         <- preview_visible.on_change();
 
+            let visualization_enabled         = action_bar.action_visibility.clone_ref();
             visualization_visible            <- visualization_enabled || preview_visible;
             visualization_visible            <- visualization_visible && no_error_set;
             visualization_visible_on_change  <- visualization_visible.on_change();
@@ -778,6 +769,19 @@ impl Node {
             eval error_color_anim.value ((value) model.set_error_color(value));
 
         }
+
+
+        // === Action Bar ===
+
+        frp::extend! { network
+            out.source.skip                    <+ action_bar.action_skip;
+            out.source.freeze                  <+ action_bar.action_freeze;
+            frp.show_quick_action_bar_on_hover <+ no_error_set;
+            show_action_bar                    <- out.hover && frp.show_quick_action_bar_on_hover;
+            eval show_action_bar ((t) action_bar.set_visibility(t));
+            eval frp.show_quick_action_bar_on_hover ((value) action_bar.show_on_hover(value));
+        }
+
 
         // === Profiling Indicator ===
 

@@ -146,10 +146,22 @@
   enhancements and fixes made to the Enso compiler, you can find their release
   notes [here](https://github.com/enso-org/enso/blob/main/RELEASES.md).
 
+<br/>![Bug Fixes](/docs/assets/tags/bug_fixes.svg)
+
+#### Visual Environment
+
+- ["Show visualization" icon is hidden on errors.][1819] Nodes usually reveal an
+  eye shaped button on hover that can be used to show or hide the node's
+  visualization. This button will not be visible when the node is in an error
+  state where no visualization would be available.
+
+<br/>
+
 [1801]: https://github.com/enso-org/ide/pull/1801
 [1775]: https://github.com/enso-org/ide/pull/1775
 [1798]: https://github.com/enso-org/ide/pull/1798
 [1804]: https://github.com/enso-org/ide/pull/1804
+[1819]: https://github.com/enso-org/ide/pull/1819
 
 # Enso 2.0.0-alpha.11 (2021-08-09)
 
